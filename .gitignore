@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.*
+
+# Build output and generated files
+dist/
+build/
+.output/
+.vite/
+.tanstack/
+coverage/
+*.tsbuildinfo
+
+# Bun cache
+.bun/
+
+# Rust build output
+target/
+
+# Test and browser artifacts
+playwright-report/
+test-results/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun-debug.log*
+
+# Editor and IDE files
+.idea/
+.vscode/
+*.iml
+*.suo
+*.user
+*.sln.docstates
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary files and caches
+.cache/
+.eslintcache
+tmp/
+temp/
+*.tmp
+*.swp
+*~
