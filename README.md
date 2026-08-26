@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  A modern, self-hosted Nginx reverse proxy manager in the earliest stage of development,<br>
-  released under the MIT License.
+  A modern, self-hosted reverse proxy manager in the earliest stage of development,<br>
+  with planned compatibility for NGINX® Open Source and released under the MIT License.
 </p>
 
 <p align="center">
@@ -37,7 +37,7 @@ The repository foundation is currently being prepared. The first working compone
 
 RentnerProxy aims to rethink reverse proxy management with a modern web interface, a clean technical foundation, and a strong focus on self-hosting and open-source development.
 
-The goal is to make everyday Nginx proxy management more approachable without taking visibility or infrastructure control away from experienced operators. The project is still defining its architecture, so no concrete feature set is promised yet.
+The goal is to make everyday reverse proxy management more approachable without taking visibility or infrastructure control away from experienced operators. Compatibility with NGINX Open Source is one planned integration path. The project is still defining its architecture, so no concrete feature set is promised yet.
 
 ## 🚧 Project Status
 
@@ -48,7 +48,7 @@ The goal is to make everyday Nginx proxy management more approachable without ta
 | Architecture | 🚧 Planning |
 | Web interface | ⏳ Planned |
 | Proxy controller | ⏳ Planned |
-| Nginx integration | ⏳ Planned |
+| NGINX compatibility | ⏳ Planned |
 | Docker deployment | ⏳ Planned |
 | Documentation | 🚧 In progress |
 | Licensing | ✅ MIT License |
@@ -64,14 +64,14 @@ The following technologies describe the current direction, not the implemented s
   <img src="https://img.shields.io/badge/TanStack_Start-Planned-FF4154?style=for-the-badge" alt="TanStack Start planned">
   <img src="https://img.shields.io/badge/React-Planned-61DAFB?style=for-the-badge&logo=react&logoColor=000000" alt="React planned">
   <img src="https://img.shields.io/badge/Bun-Planned-000000?style=for-the-badge&logo=bun&logoColor=white" alt="Bun planned">
-  <img src="https://img.shields.io/badge/Nginx-Planned-009639?style=for-the-badge&logo=nginx&logoColor=white" alt="Nginx planned">
+  <img src="https://img.shields.io/badge/NGINX_Compatibility-Planned-0b7a35?style=for-the-badge" alt="NGINX compatibility planned">
   <img src="https://img.shields.io/badge/Docker-Planned-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker planned">
   <img src="https://img.shields.io/badge/Rust-Under_Evaluation-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust under evaluation">
 </p>
 
 - **TypeScript, TanStack Start, and React** are planned for the web application.
 - **Bun** is the planned JavaScript runtime and development toolchain.
-- **Nginx** is the planned reverse proxy engine.
+- Compatibility with **NGINX Open Source** is planned as one reverse proxy engine integration.
 - **Docker and Docker Compose** are planned for packaging and self-hosted deployment.
 - **Rust** may be used for dedicated low-level components where it provides a clear technical benefit; it is not intended to define the entire codebase.
 
@@ -81,8 +81,8 @@ The following technologies describe the current direction, not the implemented s
 flowchart LR
     User[User] --> Web[RentnerProxy Web UI]
     Web --> Controller[Proxy Controller]
-    Controller --> Nginx[Nginx]
-    Nginx --> Services[Backend Services]
+    Controller --> Engine[NGINX-compatible proxy engine]
+    Engine --> Services[Backend Services]
     Controller -.-> Certificates[Certificate Management]
     Controller -.-> Storage[(Configuration Storage)]
     Controller -.-> Observability[Logs and Observability]
@@ -96,7 +96,7 @@ The project is currently exploring the following areas. Every item below is plan
 
 - [ ] Reverse proxy management
 - [ ] SSL certificate management
-- [ ] Nginx configuration lifecycle
+- [ ] NGINX-compatible configuration lifecycle
 - [ ] Security integrations
 - [ ] Access and traffic controls
 - [ ] Logging and observability
@@ -113,7 +113,7 @@ Define the project structure, architecture, development environment, and contrib
 
 ### Phase 2 — Proxy Core
 
-Explore reverse proxy configuration, validation, and the Nginx lifecycle.
+Explore reverse proxy configuration, validation, and an NGINX-compatible engine lifecycle.
 
 ### Phase 3 — Management Experience
 
@@ -161,6 +161,10 @@ Detailed contribution guidelines will be added as the project matures. Pull requ
 RentnerProxy is licensed under the [MIT License](./LICENSE).
 
 Copyright (c) 2026 Kevin Sträßler.
+
+## Trademarks
+
+NGINX® and the NGINX logo are trademarks of F5, Inc. in the United States and certain other countries. RentnerProxy is an independent project and is not affiliated with, sponsored by, or endorsed by F5, Inc. No NGINX logo is used in the RentnerProxy branding.
 
 ---
 
