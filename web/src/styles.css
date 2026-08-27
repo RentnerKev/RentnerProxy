@@ -1,0 +1,67 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Aptos', 'Segoe UI Variable Text', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  --font-display:
+    'Aptos Display', 'Segoe UI Variable Display', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-400: #4ee99a;
+  --color-brand-500: #24d17d;
+  --color-brand-600: #17aa63;
+  --color-navy-900: #0d1d2a;
+  --color-navy-950: #07131f;
+  --color-mist-400: #91a4b2;
+}
+
+:root {
+  color-scheme: dark;
+  background: var(--color-navy-950);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html,
+body {
+  min-width: 320px;
+  min-height: 100%;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--color-navy-950);
+  color: white;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  scrollbar-color: var(--color-brand-500) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: var(--color-brand-500);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand-600);
+}
+
+::selection {
+  background: var(--color-brand-500);
+  color: var(--color-navy-950);
+}
