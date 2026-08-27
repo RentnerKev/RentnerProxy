@@ -13,6 +13,11 @@
   with planned compatibility for NGINX® Open Source and released under the MIT License.
 </p>
 
+<p align="center">
+  <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL status"></a>
+</p>
+
 > [!IMPORTANT]
 > RentnerProxy is an early development foundation. It is not installable yet, does not
 > manage reverse proxies, and is not ready for production use.
@@ -85,8 +90,8 @@ both production builds.
 ## Scope
 
 Proxy management, authentication, persistence, NGINX/OpenResty integration, certificates,
-background jobs, Docker deployment, and CI are intentionally not part of this foundation.
-They will be evaluated in separate development steps.
+background jobs, and Docker deployment are intentionally not part of this foundation. They
+will be evaluated in separate development steps.
 
 ## License
 
