@@ -17,6 +17,9 @@ Never include credentials, tokens, private configuration, personal data, or unre
 5. Run `bun run check` before opening a pull request.
 6. Open a pull request, explain the reason for the change, and respond to review feedback.
 
+Database schema changes require a generated Drizzle migration. Review and commit generated
+migration SQL and run `bun run db:check` before opening the pull request.
+
 ## Commit convention
 
 Use Conventional Commits in English:

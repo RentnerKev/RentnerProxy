@@ -24,10 +24,11 @@
 
 ## Current foundation
 
-The repository currently contains two runtime components:
+The repository currently contains two runtime components and one persistence service:
 
-- `web/`: a TanStack Start application with the development status screen.
+- `web/`: a TanStack Start application with server-only Drizzle ORM access to PostgreSQL.
 - `controller/`: a minimal Rust service exposing a loopback-only `GET /health` endpoint.
+- PostgreSQL 18: the external primary database; it is not started by this repository.
 
 ```text
 RentnerProxy/
@@ -48,17 +49,19 @@ RentnerProxy/
 ## Architecture boundary
 
 ```text
-Browser → TanStack Start → Rust controller
+Browser -> TanStack Start -> Drizzle ORM -> PostgreSQL
+                         \-> Rust controller
 ```
 
-The browser only calls TanStack Start. The controller health request is made by a server
-function, so controller URLs, internal environment variables, and network details are not
-sent to the client. If the controller cannot be reached or returns an invalid response, the
-web application reports it as unavailable.
+The browser only calls TanStack Start. Controller and database health checks run behind a
+server function, so `DATABASE_URL`, controller URLs, credentials, and internal network details
+are never returned to the client. Either dependency may be unavailable without crashing the
+web application.
 
 ## Development
 
-Development requires Bun 1.4 or newer and Rust 1.85 or newer.
+Development requires Bun 1.4 or newer and Rust 1.85 or newer. PostgreSQL 18 or newer
+is required for persistence because the schema uses native `uuidv7()`; the current target is 18.6.
 
 ```bash
 bun install --frozen-lockfile
@@ -70,8 +73,10 @@ The development command starts both processes:
 - Web application: `http://127.0.0.1:3000`
 - Controller health endpoint: `http://127.0.0.1:8081/health`
 
-The loopback defaults work without a local environment file. To customize them, copy
-`.env.example` to `.env` before starting the processes.
+Controller loopback defaults work without a local environment file. The web application also
+starts without PostgreSQL and reports the database as unavailable. For persistence, copy
+`.env.example` to `.env`, configure the server-only `DATABASE_URL`, and apply migrations with
+`bun run db:migrate`.
 
 Common commands:
 
@@ -81,17 +86,19 @@ bun run format
 bun run lint
 bun run typecheck
 bun run test
+bun run db:generate
+bun run db:migrate
+bun run db:check
 bun run check
 ```
 
-`bun run check` runs formatting, linting, TypeScript checks, tests, Clippy, Cargo checks, and
-both production builds.
+`bun run check` runs formatting, linting, TypeScript and Drizzle checks, tests, Clippy, Cargo
+checks, and both production builds.
 
 ## Scope
 
-Proxy management, authentication, persistence, NGINX/OpenResty integration, certificates,
-background jobs, and Docker deployment are intentionally not part of this foundation. They
-will be evaluated in separate development steps.
+Proxy management, authentication, NGINX/OpenResty integration, certificates, background jobs,
+and Docker deployment remain separate development steps.
 
 ## License
 
