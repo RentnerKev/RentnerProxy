@@ -1,0 +1,20 @@
+[package]
+name = "rentnerproxy-controller"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+
+[dependencies]
+axum = { version = "0.8.9", default-features = false, features = ["json", "tokio", "http1"] }
+serde = { version = "1.0.229", features = ["derive"] }
+tokio = { version = "1.53.1", features = ["macros", "net", "rt-multi-thread", "signal"] }
+tracing = { version = "0.1.44", default-features = false, features = ["std"] }
+tracing-subscriber = { version = "0.3.23", default-features = false, features = [
+  "env-filter",
+  "fmt",
+  "json",
+] }
+
+[dev-dependencies]
+tower = { version = "0.5.3", features = ["util"] }
