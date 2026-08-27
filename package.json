@@ -10,7 +10,7 @@
     "build": "bun run build:web && bun run build:controller",
     "build:web": "vite build --config web/vite.config.ts && tsc --noEmit -p web/tsconfig.json",
     "build:controller": "cargo build --manifest-path controller/Cargo.toml",
-    "typecheck": "tsc --noEmit -p web/tsconfig.json",
+    "typecheck": "tsc --noEmit -p web/tsconfig.json && tsc --noEmit -p scripts/tsconfig.json",
     "lint": "oxlint .",
     "format": "oxfmt . && cargo fmt --manifest-path controller/Cargo.toml",
     "format:check": "oxfmt --check . && cargo fmt --manifest-path controller/Cargo.toml -- --check",
