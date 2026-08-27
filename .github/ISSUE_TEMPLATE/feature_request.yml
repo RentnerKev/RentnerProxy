@@ -1,0 +1,52 @@
+name: Feature request
+description: Suggest an improvement or new capability for RentnerProxy.
+title: '[Feature]: '
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please describe the underlying problem before proposing implementation details. Large architectural changes should be discussed before implementation.
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Problem / motivation
+      description: What concrete problem or use case should this feature address?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What behavior or outcome are you proposing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Which alternatives or workarounds have you considered?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add any other information, mockups, or links that may help.
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you be interested in implementing this feature?
+      options:
+        - 'Yes'
+        - Maybe
+        - 'No'
+    validations:
+      required: true

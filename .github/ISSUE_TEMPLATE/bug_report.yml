@@ -1,0 +1,90 @@
+name: Bug report
+description: Report a reproducible problem in RentnerProxy.
+title: '[Bug]: '
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve RentnerProxy. Please do not include secrets or sensitive data.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? Describe the problem clearly and concisely.
+      placeholder: Describe the problem and its impact.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest set of steps that reliably reproduces the problem.
+      placeholder: |
+        1. Start RentnerProxy with ...
+        2. Open ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead?
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Provide the RentnerProxy version or commit SHA.
+      placeholder: e.g. commit 9e41f2a
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the operating system, architecture, installation method, and browser when relevant.
+      placeholder: |
+        - OS: Ubuntu 24.04
+        - Architecture: amd64
+        - Installation method: source checkout
+        - Browser: Firefox 142
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Remove secrets, API keys, tokens, passwords, and sensitive information before posting logs.
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add any other information, screenshots, or links that may help.
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have searched existing issues and confirmed that this has not already been reported.
+          required: true
