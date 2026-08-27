@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  path_filters:
+    - '!**/*.lock'
+    - '!**/routeTree.gen.ts'
+  path_instructions:
+    - path: 'controller/src/**'
+      instructions: |
+        Focus on Rust correctness, security, concurrency, cancellation, shutdown behavior,
+        resource handling, network boundaries, error handling, and input validation.
+        Ignore formatting and stylistic preferences unless they conceal a defect.
+    - path: 'web/src/**'
+      instructions: |
+        Focus on TypeScript correctness, unsafe assumptions, error handling, async behavior,
+        architecture boundaries, and safe server/client separation. For server code, also check
+        authentication, authorization, secret handling, input validation, SSRF, and timeouts.
+        Ignore formatting-only feedback and issues already enforced by Oxfmt or Oxlint.
+    - path: 'scripts/**'
+      instructions: |
+        Focus on process lifecycle, failure propagation, cleanup, race conditions, command
+        injection, resource handling, and reliable exit codes. Ignore formatting-only feedback.
