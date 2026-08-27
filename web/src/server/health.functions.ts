@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
-import { checkControllerHealth } from './controller.server'
+import { checkFoundationHealth } from './health.server'
 
-export const getControllerHealth = createServerFn({ method: 'GET' }).handler(() =>
-  checkControllerHealth(),
+export const getFoundationHealth = createServerFn({ method: 'GET' }).handler(() =>
+    checkFoundationHealth(),
 )
