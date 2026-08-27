@@ -1,0 +1,38 @@
+name: PR Title
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions: {}
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    name: PR Title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate Conventional Commit title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        shell: bash
+        run: |
+          pattern='^(feat|fix|refactor|perf|test|docs|build|ci|chore|style|revert)(\([a-z0-9][a-z0-9._/-]*\))?!?: [^[:space:]].*$'
+
+          if [[ ! "$PR_TITLE" =~ $pattern ]]; then
+            echo "Pull request title must follow Conventional Commits."
+            echo "Expected: type(scope): description or type: description"
+            echo "Allowed types: feat, fix, refactor, perf, test, docs, build, ci, chore, style, revert"
+            exit 1
+          fi
