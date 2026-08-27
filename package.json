@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --parallel dev:web dev:controller",
+    "dev": "bun --no-orphans scripts/dev.ts",
     "dev:web": "vite --config web/vite.config.ts",
     "dev:controller": "cargo run --manifest-path controller/Cargo.toml",
     "build": "bun run build:web && bun run build:controller",
