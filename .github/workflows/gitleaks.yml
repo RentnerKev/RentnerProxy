@@ -1,0 +1,86 @@
+name: Gitleaks
+
+on:
+    pull_request:
+        branches:
+            - main
+    push:
+        branches:
+            - main
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: gitleaks-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+env:
+    GITLEAKS_VERSION: 8.30.1
+    GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+
+jobs:
+    gitleaks:
+        name: Gitleaks
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Install Gitleaks
+              shell: bash
+              run: |
+                  archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+                  archive_path="$RUNNER_TEMP/$archive"
+                  release_url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
+
+                  curl --fail --location --proto '=https' --tlsv1.2 --output "$archive_path" "$release_url"
+                  printf '%s  %s\n' "$GITLEAKS_SHA256" "$archive_path" | sha256sum --check --strict
+                  tar -xzf "$archive_path" -C "$RUNNER_TEMP" gitleaks
+                  "$RUNNER_TEMP/gitleaks" version
+
+            - name: Scan commits
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+                  PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+                  PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+                  PUSH_BEFORE_SHA: ${{ github.event.before }}
+                  PUSH_AFTER_SHA: ${{ github.event.after }}
+              shell: bash
+              run: |
+                  zero_sha='0000000000000000000000000000000000000000'
+                  config_path="$RUNNER_TEMP/gitleaks.toml"
+                  ignore_path="$RUNNER_TEMP/.gitleaksignore"
+
+                  printf '%s\n' '[extend]' 'useDefault = true' > "$config_path"
+                  : > "$ignore_path"
+
+                  case "$EVENT_NAME" in
+                      pull_request)
+                          scan_log_opts="-m ${PR_BASE_SHA}..${PR_HEAD_SHA}"
+                          ;;
+                      push)
+                          if [[ -z "$PUSH_BEFORE_SHA" || "$PUSH_BEFORE_SHA" == "$zero_sha" ]] || \
+                              ! git cat-file -e "${PUSH_BEFORE_SHA}^{commit}" 2>/dev/null; then
+                              scan_log_opts="-m $PUSH_AFTER_SHA"
+                          else
+                              scan_log_opts="-m ${PUSH_BEFORE_SHA}..${PUSH_AFTER_SHA}"
+                          fi
+                          ;;
+                      workflow_dispatch)
+                          scan_log_opts='-m --all'
+                          ;;
+                      *)
+                          echo "Unsupported event: $EVENT_NAME"
+                          exit 1
+                          ;;
+                  esac
+
+                  "$RUNNER_TEMP/gitleaks" git --config="$config_path" \
+                      --gitleaks-ignore-path="$ignore_path" --redact=100 \
+                      --no-banner --no-color --verbose --log-opts="$scan_log_opts" .
