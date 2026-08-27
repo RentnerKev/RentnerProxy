@@ -24,6 +24,12 @@ describe('parseControllerHealth', () => {
     })
   })
 
+  test('rejects an empty controller version', () => {
+    expect(
+      parseControllerHealth({ status: 'ok', service: CONTROLLER_SERVICE, version: '' }),
+    ).toBeNull()
+  })
+
   test('rejects malformed payloads and responses from another service', () => {
     expect(parseControllerHealth(null)).toBeNull()
     expect(parseControllerHealth({ status: 'healthy', service: CONTROLLER_SERVICE })).toBeNull()
