@@ -1,6 +1,6 @@
-import { pgSchema } from 'drizzle-orm/pg-core'
+import { drizzle } from 'drizzle-orm/bun-sql'
+import { SQL } from 'bun'
+import * as schema from './schema'
 
-import { defineSystemSettings } from './Schema/system-settings'
-
-export const rentnerProxySchema = pgSchema('rentnerproxy')
-export const systemSettings = defineSystemSettings(rentnerProxySchema)
+const client = new SQL(process.env.DATABASE_URL!)
+export const db = drizzle(client, { schema })

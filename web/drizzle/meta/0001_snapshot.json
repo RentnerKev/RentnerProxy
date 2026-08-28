@@ -1,9 +1,437 @@
 {
-    "id": "77e5b240-b221-4d64-ad71-10ed32744a67",
-    "prevId": "7780757d-5413-40c5-a93f-2b6e5a27df30",
+    "id": "ddb9590b-3f5a-4028-b287-91a7eeb1fce1",
+    "prevId": "57a91e15-f982-4eda-9d26-8ecbad12183f",
     "version": "7",
     "dialect": "postgresql",
     "tables": {
+        "rentnerproxy.user_settings": {
+            "name": "user_settings",
+            "schema": "rentnerproxy",
+            "columns": {
+                "user_id": {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "theme_mode": {
+                    "name": "theme_mode",
+                    "type": "varchar(20)",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "'light'"
+                }
+            },
+            "indexes": {},
+            "foreignKeys": {
+                "user_settings_user_id_users_id_fk": {
+                    "name": "user_settings_user_id_users_id_fk",
+                    "tableFrom": "user_settings",
+                    "tableTo": "users",
+                    "schemaTo": "rentnerproxy",
+                    "columnsFrom": ["user_id"],
+                    "columnsTo": ["id"],
+                    "onDelete": "cascade",
+                    "onUpdate": "no action"
+                }
+            },
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {
+                "user_settings_theme_mode_check": {
+                    "name": "user_settings_theme_mode_check",
+                    "value": "\"rentnerproxy\".\"user_settings\".\"theme_mode\" in ('light', 'dark')"
+                }
+            },
+            "isRLSEnabled": false
+        },
+        "rentnerproxy.users": {
+            "name": "users",
+            "schema": "rentnerproxy",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "uuid",
+                    "primaryKey": true,
+                    "notNull": true,
+                    "default": "uuidv7()"
+                },
+                "display_name": {
+                    "name": "display_name",
+                    "type": "varchar(100)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "email": {
+                    "name": "email",
+                    "type": "varchar(254)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "email_verified_at": {
+                    "name": "email_verified_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "must_change_password": {
+                    "name": "must_change_password",
+                    "type": "boolean",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": true
+                },
+                "password_hash": {
+                    "name": "password_hash",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "status": {
+                    "name": "status",
+                    "type": "user_status",
+                    "typeSchema": "rentnerproxy",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "'pending'"
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                },
+                "updated_at": {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {
+                "users_email_lower_unique_idx": {
+                    "name": "users_email_lower_unique_idx",
+                    "columns": [
+                        {
+                            "expression": "lower(\"email\")",
+                            "asc": true,
+                            "isExpression": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": true,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                },
+                "users_status_idx": {
+                    "name": "users_status_idx",
+                    "columns": [
+                        {
+                            "expression": "status",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                }
+            },
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "rentnerproxy.permissions": {
+            "name": "permissions",
+            "schema": "rentnerproxy",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "uuid",
+                    "primaryKey": true,
+                    "notNull": true,
+                    "default": "uuidv7()"
+                },
+                "key": {
+                    "name": "key",
+                    "type": "varchar(100)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "name": {
+                    "name": "name",
+                    "type": "varchar(100)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                },
+                "updated_at": {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {},
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {
+                "permissions_key_unique": {
+                    "name": "permissions_key_unique",
+                    "nullsNotDistinct": false,
+                    "columns": ["key"]
+                }
+            },
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "rentnerproxy.role_permissions": {
+            "name": "role_permissions",
+            "schema": "rentnerproxy",
+            "columns": {
+                "role_id": {
+                    "name": "role_id",
+                    "type": "uuid",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "permission_id": {
+                    "name": "permission_id",
+                    "type": "uuid",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {
+                "role_permissions_permission_id_idx": {
+                    "name": "role_permissions_permission_id_idx",
+                    "columns": [
+                        {
+                            "expression": "permission_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                }
+            },
+            "foreignKeys": {
+                "role_permissions_role_id_roles_id_fk": {
+                    "name": "role_permissions_role_id_roles_id_fk",
+                    "tableFrom": "role_permissions",
+                    "tableTo": "roles",
+                    "schemaTo": "rentnerproxy",
+                    "columnsFrom": ["role_id"],
+                    "columnsTo": ["id"],
+                    "onDelete": "cascade",
+                    "onUpdate": "no action"
+                },
+                "role_permissions_permission_id_permissions_id_fk": {
+                    "name": "role_permissions_permission_id_permissions_id_fk",
+                    "tableFrom": "role_permissions",
+                    "tableTo": "permissions",
+                    "schemaTo": "rentnerproxy",
+                    "columnsFrom": ["permission_id"],
+                    "columnsTo": ["id"],
+                    "onDelete": "cascade",
+                    "onUpdate": "no action"
+                }
+            },
+            "compositePrimaryKeys": {
+                "role_permissions_role_id_permission_id_pk": {
+                    "name": "role_permissions_role_id_permission_id_pk",
+                    "columns": ["role_id", "permission_id"]
+                }
+            },
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "rentnerproxy.roles": {
+            "name": "roles",
+            "schema": "rentnerproxy",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "uuid",
+                    "primaryKey": true,
+                    "notNull": true,
+                    "default": "uuidv7()"
+                },
+                "key": {
+                    "name": "key",
+                    "type": "varchar(100)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "name": {
+                    "name": "name",
+                    "type": "varchar(100)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "description": {
+                    "name": "description",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "''"
+                },
+                "is_system": {
+                    "name": "is_system",
+                    "type": "boolean",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": false
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                },
+                "updated_at": {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {
+                "roles_is_system_idx": {
+                    "name": "roles_is_system_idx",
+                    "columns": [
+                        {
+                            "expression": "is_system",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                }
+            },
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {
+                "roles_key_unique": {
+                    "name": "roles_key_unique",
+                    "nullsNotDistinct": false,
+                    "columns": ["key"]
+                }
+            },
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "rentnerproxy.user_roles": {
+            "name": "user_roles",
+            "schema": "rentnerproxy",
+            "columns": {
+                "user_id": {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "role_id": {
+                    "name": "role_id",
+                    "type": "uuid",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {
+                "user_roles_role_id_idx": {
+                    "name": "user_roles_role_id_idx",
+                    "columns": [
+                        {
+                            "expression": "role_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                }
+            },
+            "foreignKeys": {
+                "user_roles_user_id_users_id_fk": {
+                    "name": "user_roles_user_id_users_id_fk",
+                    "tableFrom": "user_roles",
+                    "tableTo": "users",
+                    "schemaTo": "rentnerproxy",
+                    "columnsFrom": ["user_id"],
+                    "columnsTo": ["id"],
+                    "onDelete": "cascade",
+                    "onUpdate": "no action"
+                },
+                "user_roles_role_id_roles_id_fk": {
+                    "name": "user_roles_role_id_roles_id_fk",
+                    "tableFrom": "user_roles",
+                    "tableTo": "roles",
+                    "schemaTo": "rentnerproxy",
+                    "columnsFrom": ["role_id"],
+                    "columnsTo": ["id"],
+                    "onDelete": "cascade",
+                    "onUpdate": "no action"
+                }
+            },
+            "compositePrimaryKeys": {
+                "user_roles_user_id_role_id_pk": {
+                    "name": "user_roles_user_id_role_id_pk",
+                    "columns": ["user_id", "role_id"]
+                }
+            },
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
         "rentnerproxy.system_settings": {
             "name": "system_settings",
             "schema": "rentnerproxy",
@@ -55,9 +483,371 @@
             "policies": {},
             "checkConstraints": {},
             "isRLSEnabled": false
+        },
+        "rentnerproxy.password_reset_tokens": {
+            "name": "password_reset_tokens",
+            "schema": "rentnerproxy",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "uuid",
+                    "primaryKey": true,
+                    "notNull": true,
+                    "default": "uuidv7()"
+                },
+                "user_id": {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "token_hash": {
+                    "name": "token_hash",
+                    "type": "varchar(64)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "consumed_at": {
+                    "name": "consumed_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                },
+                "expires_at": {
+                    "name": "expires_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true
+                }
+            },
+            "indexes": {
+                "password_reset_tokens_user_id_unique_idx": {
+                    "name": "password_reset_tokens_user_id_unique_idx",
+                    "columns": [
+                        {
+                            "expression": "user_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": true,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                },
+                "password_reset_tokens_token_hash_unique_idx": {
+                    "name": "password_reset_tokens_token_hash_unique_idx",
+                    "columns": [
+                        {
+                            "expression": "token_hash",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": true,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                },
+                "password_reset_tokens_expires_at_idx": {
+                    "name": "password_reset_tokens_expires_at_idx",
+                    "columns": [
+                        {
+                            "expression": "expires_at",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                }
+            },
+            "foreignKeys": {
+                "password_reset_tokens_user_id_users_id_fk": {
+                    "name": "password_reset_tokens_user_id_users_id_fk",
+                    "tableFrom": "password_reset_tokens",
+                    "tableTo": "users",
+                    "schemaTo": "rentnerproxy",
+                    "columnsFrom": ["user_id"],
+                    "columnsTo": ["id"],
+                    "onDelete": "cascade",
+                    "onUpdate": "no action"
+                }
+            },
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "rentnerproxy.sessions": {
+            "name": "sessions",
+            "schema": "rentnerproxy",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "uuid",
+                    "primaryKey": true,
+                    "notNull": true,
+                    "default": "uuidv7()"
+                },
+                "user_id": {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "token_hash": {
+                    "name": "token_hash",
+                    "type": "varchar(64)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                },
+                "last_seen_at": {
+                    "name": "last_seen_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                },
+                "expires_at": {
+                    "name": "expires_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true
+                }
+            },
+            "indexes": {
+                "sessions_token_hash_unique_idx": {
+                    "name": "sessions_token_hash_unique_idx",
+                    "columns": [
+                        {
+                            "expression": "token_hash",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": true,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                },
+                "sessions_user_id_idx": {
+                    "name": "sessions_user_id_idx",
+                    "columns": [
+                        {
+                            "expression": "user_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                },
+                "sessions_expires_at_idx": {
+                    "name": "sessions_expires_at_idx",
+                    "columns": [
+                        {
+                            "expression": "expires_at",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                }
+            },
+            "foreignKeys": {
+                "sessions_user_id_users_id_fk": {
+                    "name": "sessions_user_id_users_id_fk",
+                    "tableFrom": "sessions",
+                    "tableTo": "users",
+                    "schemaTo": "rentnerproxy",
+                    "columnsFrom": ["user_id"],
+                    "columnsTo": ["id"],
+                    "onDelete": "cascade",
+                    "onUpdate": "no action"
+                }
+            },
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "rentnerproxy.user_invites": {
+            "name": "user_invites",
+            "schema": "rentnerproxy",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "uuid",
+                    "primaryKey": true,
+                    "notNull": true,
+                    "default": "uuidv7()"
+                },
+                "user_id": {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "invited_by_user_id": {
+                    "name": "invited_by_user_id",
+                    "type": "uuid",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "token_hash": {
+                    "name": "token_hash",
+                    "type": "varchar(64)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "accepted_at": {
+                    "name": "accepted_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                },
+                "expires_at": {
+                    "name": "expires_at",
+                    "type": "timestamp with time zone",
+                    "primaryKey": false,
+                    "notNull": true
+                }
+            },
+            "indexes": {
+                "user_invites_user_id_unique_idx": {
+                    "name": "user_invites_user_id_unique_idx",
+                    "columns": [
+                        {
+                            "expression": "user_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": true,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                },
+                "user_invites_token_hash_unique_idx": {
+                    "name": "user_invites_token_hash_unique_idx",
+                    "columns": [
+                        {
+                            "expression": "token_hash",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": true,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                },
+                "user_invites_invited_by_user_id_idx": {
+                    "name": "user_invites_invited_by_user_id_idx",
+                    "columns": [
+                        {
+                            "expression": "invited_by_user_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                },
+                "user_invites_expires_at_idx": {
+                    "name": "user_invites_expires_at_idx",
+                    "columns": [
+                        {
+                            "expression": "expires_at",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                }
+            },
+            "foreignKeys": {
+                "user_invites_user_id_users_id_fk": {
+                    "name": "user_invites_user_id_users_id_fk",
+                    "tableFrom": "user_invites",
+                    "tableTo": "users",
+                    "schemaTo": "rentnerproxy",
+                    "columnsFrom": ["user_id"],
+                    "columnsTo": ["id"],
+                    "onDelete": "cascade",
+                    "onUpdate": "no action"
+                },
+                "user_invites_invited_by_user_id_users_id_fk": {
+                    "name": "user_invites_invited_by_user_id_users_id_fk",
+                    "tableFrom": "user_invites",
+                    "tableTo": "users",
+                    "schemaTo": "rentnerproxy",
+                    "columnsFrom": ["invited_by_user_id"],
+                    "columnsTo": ["id"],
+                    "onDelete": "set null",
+                    "onUpdate": "no action"
+                }
+            },
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
         }
     },
-    "enums": {},
+    "enums": {
+        "rentnerproxy.user_status": {
+            "name": "user_status",
+            "schema": "rentnerproxy",
+            "values": ["pending", "active", "disabled"]
+        }
+    },
     "schemas": {
         "rentnerproxy": "rentnerproxy"
     },
