@@ -24,11 +24,14 @@
 
 ## Current foundation
 
-The repository currently contains two runtime components and one persistence service:
+The repository currently contains two runtime components, one persistence service, and one
+ephemeral service:
 
-- `web/`: a TanStack Start application with server-only Drizzle ORM access to PostgreSQL.
+- `web/`: a TanStack Start application with opaque sessions, RBAC, and server-only Drizzle ORM
+  access to PostgreSQL.
 - `controller/`: a minimal Rust service exposing a loopback-only `GET /health` endpoint.
 - PostgreSQL 18: the external primary database; it is not started by this repository.
+- Redis: external ephemeral storage for authentication rate limiting.
 
 ```text
 RentnerProxy/
@@ -50,18 +53,20 @@ RentnerProxy/
 
 ```text
 Browser -> TanStack Start -> Drizzle ORM -> PostgreSQL
+                         \-> Bun Redis client -> Redis
                          \-> Rust controller
 ```
 
-The browser only calls TanStack Start. Controller and database health checks run behind a
-server function, so `DATABASE_URL`, controller URLs, credentials, and internal network details
-are never returned to the client. Either dependency may be unavailable without crashing the
-web application.
+The browser only calls TanStack Start. Controller, database, and Redis health checks run behind
+a server function, so connection URLs, credentials, and internal network details are never
+returned to the client. Dependency outages do not crash the web process; authentication fails
+closed while Redis abuse protection is unavailable.
 
 ## Development
 
 Development requires Bun 1.4 or newer and Rust 1.85 or newer. PostgreSQL 18 or newer
-is required for persistence because the schema uses native `uuidv7()`; the current target is 18.6.
+is required for persistence because the schema uses native `uuidv7()`; the current target is
+18.6. Redis is required for authentication abuse protection.
 
 ```bash
 bun install --frozen-lockfile
@@ -73,10 +78,10 @@ The development command starts both processes:
 - Web application: `http://127.0.0.1:3000`
 - Controller health endpoint: `http://127.0.0.1:8081/health`
 
-Controller loopback defaults work without a local environment file. The web application also
-starts without PostgreSQL and reports the database as unavailable. For persistence, copy
-`.env.example` to `.env`, configure the server-only `DATABASE_URL`, and apply migrations with
-`bun run db:migrate`.
+Controller loopback defaults work without a local environment file. Copy `.env.example` to
+`.env`, configure PostgreSQL and Redis, and apply migrations with `bun run db:migrate`. Fresh
+installations redirect to `/setup`. SMTP must be configured to send user invitations and
+password-reset links.
 
 Common commands:
 
@@ -97,8 +102,8 @@ checks, and both production builds.
 
 ## Scope
 
-Proxy management, authentication, NGINX/OpenResty integration, certificates, background jobs,
-and Docker deployment remain separate development steps.
+Proxy management, NGINX/OpenResty integration, certificates, background jobs, audit logging, and
+Docker deployment remain separate development steps.
 
 ## License
 
