@@ -9,6 +9,14 @@ updates:
       schedule:
           interval: weekly
           day: monday
+      labels:
+          - dependencies
+          - cargo
+      assignees:
+          - RentnerKev
+      commit-message:
+          prefix: chore
+          include: scope
       open-pull-requests-limit: 5
       groups:
           minor-and-patch:
@@ -24,6 +32,14 @@ updates:
       schedule:
           interval: weekly
           day: monday
+      labels:
+          - dependencies
+          - github-actions
+      assignees:
+          - RentnerKev
+      commit-message:
+          prefix: ci
+          include: scope
       open-pull-requests-limit: 5
       groups:
           minor-and-patch:
