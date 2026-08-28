@@ -2,6 +2,7 @@ import type { FoundationHealth } from '../../../shared/Types/health.types'
 
 export interface FoundationStatusProps {
     readonly health: FoundationHealth
+    readonly compact?: boolean
 }
 
 export interface ConnectionTraceProps {
