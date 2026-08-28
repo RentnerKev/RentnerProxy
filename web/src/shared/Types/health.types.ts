@@ -5,4 +5,5 @@ export type ServiceHealth = Readonly<{
 export type FoundationHealth = Readonly<{
     controller: ServiceHealth
     database: ServiceHealth
+    redis: ServiceHealth
 }>

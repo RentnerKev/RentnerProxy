@@ -1,6 +1,6 @@
-import type { ServiceHealth } from '../shared/Types/health.types'
+import type { ServiceHealth } from '../../shared/Types/health.types'
 import { parseControllerHealth } from './controller-health'
-import { getControllerBaseUrl } from './env.server'
+import { getControllerBaseUrl } from '../env.server'
 
 const HEALTH_TIMEOUT_MS = 1_200
 

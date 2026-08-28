@@ -133,9 +133,20 @@ jobs:
                     --health-interval 5s
                     --health-timeout 5s
                     --health-retries 10
+            redis:
+                image: redis:8.10.1-alpine
+                ports:
+                    - 6379:6379
+                options: >-
+                    --health-cmd "redis-cli ping"
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 10
         env:
             DATABASE_URL: postgresql://rentnerproxy:rentnerproxy@127.0.0.1:5432/rentnerproxy
+            REDIS_URL: redis://127.0.0.1:6379
             RENTNERPROXY_DATABASE_INTEGRATION: '1'
+            RENTNERPROXY_REDIS_INTEGRATION: '1'
         steps:
             - name: Check out repository
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

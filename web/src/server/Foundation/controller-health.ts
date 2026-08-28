@@ -1,4 +1,4 @@
-import { isRecord } from '../shared/Helpers/isRecord'
+import { isRecord } from '../../shared/Helpers/isRecord'
 import { CONTROLLER_SERVICE } from './controller.constants'
 import type { ControllerHealthPayload } from './Types/controller-health.types'
 
