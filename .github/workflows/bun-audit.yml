@@ -32,4 +32,8 @@ jobs:
                   bun-version: ${{ env.BUN_VERSION }}
 
             - name: Audit Bun dependencies
-              run: bun audit --audit-level=moderate
+              # drizzle-kit pins esbuild 0.18 for build-time loading. The ignored
+              # advisory applies only when esbuild's development server is exposed.
+              run: >-
+                  bun audit --audit-level=moderate
+                  --ignore GHSA-67mh-4wv8-2f99
