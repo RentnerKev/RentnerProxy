@@ -45,7 +45,7 @@ export default defineConfig({
         tanstackStart({
             importProtection: {
                 client: {
-                    files: ['**/*.server.*', '**/db/**'],
+                    files: ['**/*.server.*', '**/*.service.*', '**/db/**', '**/server/**'],
                 },
             },
         }),

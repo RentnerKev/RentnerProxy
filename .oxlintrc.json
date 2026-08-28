@@ -20,7 +20,7 @@
     },
     "overrides": [
         {
-            "files": ["**/*.server.ts"],
+            "files": ["**/*.server.ts", "**/*.service.ts"],
             "rules": {
                 "import/no-unassigned-import": "off"
             }
