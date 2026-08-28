@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
-import { CONTROLLER_SERVICE } from '../server/controller.constants'
-import { parseControllerHealth } from '../server/controller-health'
+import { CONTROLLER_SERVICE } from '../server/Foundation/controller.constants'
+import { parseControllerHealth } from '../server/Foundation/controller-health'
 
 describe('parseControllerHealth', () => {
     test('accepts the controller payload and preserves its version', () => {

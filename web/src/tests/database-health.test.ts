@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 
-import { checkDatabaseHealth, parseDatabaseHealthResult } from '../db/health.server'
+import {
+    checkDatabaseHealth,
+    parseDatabaseHealthResult,
+} from '../server/Foundation/database-health.server'
 
 describe('parseDatabaseHealthResult', () => {
     test('accepts only the expected SELECT 1 result', () => {

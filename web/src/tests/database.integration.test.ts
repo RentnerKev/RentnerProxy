@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { eq } from 'drizzle-orm'
 
-import { closeDatabaseConnection, getDatabaseConnection } from '../db/client.server'
-import { checkDatabaseHealth } from '../db/health.server'
-import { systemSettings } from '../db/index'
+import { db } from '../db'
+import { systemSettings } from '../db/schema'
 import { getDatabaseUrl } from '../server/env.server'
+import { checkDatabaseHealth } from '../server/Foundation/database-health.server'
 
 const integrationTest =
     process.env.RENTNERPROXY_DATABASE_INTEGRATION === '1' && getDatabaseUrl() ? test : test.skip
@@ -13,12 +13,6 @@ describe('PostgreSQL integration', () => {
     integrationTest(
         'uses PostgreSQL 18, the application schema, and the updated_at trigger',
         async () => {
-            const connection = getDatabaseConnection()
-
-            if (!connection) {
-                throw new Error('integration database configuration is unavailable')
-            }
-
             const key = `integration.${Date.now()}.${Math.random().toString(16).slice(2)}`
             let inserted = false
 
@@ -26,10 +20,10 @@ describe('PostgreSQL integration', () => {
                 expect(await checkDatabaseHealth()).toEqual({ state: 'connected' })
 
                 const versionRows =
-                    await connection.client`SELECT current_setting('server_version_num')::integer AS version`
+                    await db.$client`SELECT current_setting('server_version_num')::integer AS version`
                 expect(versionRows[0]?.version).toBeGreaterThanOrEqual(180_000)
 
-                const namespaceRows = await connection.client`
+                const namespaceRows = await db.$client`
         SELECT
           to_regclass('public.system_settings') IS NULL AS public_table_missing,
           to_regclass('rentnerproxy.system_settings') IS NOT NULL AS application_table_exists,
@@ -46,7 +40,7 @@ describe('PostgreSQL integration', () => {
                     function_schema: 'rentnerproxy',
                 })
 
-                const createdRows = await connection.db
+                const createdRows = await db
                     .insert(systemSettings)
                     .values({ key, value: { enabled: true } })
                     .returning()
@@ -65,7 +59,7 @@ describe('PostgreSQL integration', () => {
 
                 await Bun.sleep(10)
 
-                const updatedRows = await connection.db
+                const updatedRows = await db
                     .update(systemSettings)
                     .set({ value: { enabled: false } })
                     .where(eq(systemSettings.key, key))
@@ -80,14 +74,8 @@ describe('PostgreSQL integration', () => {
 
                 expect(updated.updatedAt.getTime()).toBeGreaterThan(created.updatedAt.getTime())
             } finally {
-                try {
-                    if (inserted) {
-                        await connection.db
-                            .delete(systemSettings)
-                            .where(eq(systemSettings.key, key))
-                    }
-                } finally {
-                    await closeDatabaseConnection()
+                if (inserted) {
+                    await db.delete(systemSettings).where(eq(systemSettings.key, key))
                 }
             }
         },
