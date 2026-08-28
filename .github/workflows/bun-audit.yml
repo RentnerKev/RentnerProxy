@@ -1,6 +1,18 @@
 name: Bun Audit
 
 on:
+    pull_request:
+        branches:
+            - main
+        paths:
+            - package.json
+            - bun.lock
+    push:
+        branches:
+            - main
+        paths:
+            - package.json
+            - bun.lock
     schedule:
         - cron: '41 5 * * 2'
     workflow_dispatch:
