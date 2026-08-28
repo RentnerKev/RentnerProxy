@@ -31,8 +31,8 @@ describe('PostgreSQL integration', () => {
 
                 const namespaceRows = await connection.client`
         SELECT
-          to_regclass('public.system_settings')::text AS public_table,
-          to_regclass('rentnerproxy.system_settings')::text AS application_table,
+          to_regclass('public.system_settings') IS NULL AS public_table_missing,
+          to_regclass('rentnerproxy.system_settings') IS NOT NULL AS application_table_exists,
           (
             SELECT namespace.nspname
             FROM pg_proc AS procedure
@@ -41,8 +41,8 @@ describe('PostgreSQL integration', () => {
           ) AS function_schema
       `
                 expect(namespaceRows[0]).toMatchObject({
-                    public_table: null,
-                    application_table: 'rentnerproxy.system_settings',
+                    public_table_missing: true,
+                    application_table_exists: true,
                     function_schema: 'rentnerproxy',
                 })
 
