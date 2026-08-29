@@ -1,5 +1,6 @@
 import FieldError from '../../../../shared/Forms/FieldError'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import { getNextSelectedRoleKeys, getRoleCheckboxInputId } from '../Helpers/roleCheckboxes'
 import type { RoleCheckboxesProps } from '../Types/user-management-component-props.types'
 
 export default function RoleCheckboxes({ disabled, field, roles }: RoleCheckboxesProps) {
@@ -9,7 +10,8 @@ export default function RoleCheckboxes({ disabled, field, roles }: RoleCheckboxe
             <div className={uiClassNames.permission.options}>
                 {roles.map((role) => {
                     const checked = field.state.value.includes(role.key)
-                    const inputId = `${field.name}-${role.id}`
+                    const inputId = getRoleCheckboxInputId(field.name, role.id)
+
                     return (
                         <label
                             className={uiClassNames.permission.option}
@@ -26,9 +28,7 @@ export default function RoleCheckboxes({ disabled, field, roles }: RoleCheckboxe
                                 checked={checked}
                                 onChange={() =>
                                     field.handleChange(
-                                        checked
-                                            ? field.state.value.filter((key) => key !== role.key)
-                                            : [...field.state.value, role.key],
+                                        getNextSelectedRoleKeys(field.state.value, role.key),
                                     )
                                 }
                             />

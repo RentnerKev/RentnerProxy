@@ -265,6 +265,13 @@ export async function disableUserService(userId: string): Promise<UserSummary> {
             throw new AuthDomainError('user_not_found', 'User was not found.')
         }
 
+        if (user.id === actor.id) {
+            throw new AuthDomainError(
+                'permission_denied',
+                'Users cannot disable their own account.',
+            )
+        }
+
         const roleKeys = await getUserRoleKeysInTransaction(transaction, user.id)
         assertOwnerManagementAllowed(transactionActor.roles, roleKeys, roleKeys)
         await assertActiveOwnerRemains(transaction, {

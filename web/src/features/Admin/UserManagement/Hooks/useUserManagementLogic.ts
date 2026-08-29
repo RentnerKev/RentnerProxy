@@ -1,21 +1,35 @@
-import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRouter } from '@tanstack/react-router'
+import { useCallback, useMemo, useState } from 'react'
 
-import { PERMISSIONS } from '../../../../config/permissions.config'
+import { PERMISSIONS, SYSTEM_ROLES } from '../../../../config/permissions.config'
 import type { RoleSummary, UserSummary } from '../../../../shared/Types/auth.types'
-import { getRolesHandler } from '../../RoleManagement/server'
 import { roleManagementQueryKeys } from '../../RoleManagement/queryKeys'
+import { getRolesHandler } from '../../RoleManagement/server'
 import { userManagementQueryKeys } from '../queryKeys'
 import { disableUserHandler, getUsersHandler } from '../server'
+import type { UserManagementPageProps } from '../Types/user-management-component-props.types'
 
 const EMPTY_USERS: UserSummary[] = []
 const EMPTY_ROLES: RoleSummary[] = []
 
-export default function useUserManagementLogic(permissions: readonly string[]) {
+export default function useUserManagementLogic({
+    currentUserId,
+    currentUserRoleKeys,
+    permissions,
+}: UserManagementPageProps) {
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
-    const [showInvite, setShowInvite] = useState(false)
+    const actorIsOwner = currentUserRoleKeys.includes(SYSTEM_ROLES.OWNER)
+    const canAssignRoles =
+        permissionSet.has(PERMISSIONS.USERS_ASSIGN_ROLES) &&
+        permissionSet.has(PERMISSIONS.ROLES_VIEW)
+    const canCreate = permissionSet.has(PERMISSIONS.USERS_CREATE) && canAssignRoles
+    const [showCreate, setShowCreate] = useState(false)
     const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null)
+    const [disableTarget, setDisableTarget] = useState<UserSummary | null>(null)
+    const [successMessage, setSuccessMessage] = useState<string | null>(null)
     const queryClient = useQueryClient()
+    const router = useRouter()
     const usersQuery = useQuery({
         queryKey: userManagementQueryKeys.all,
         queryFn: () => getUsersHandler(),
@@ -23,60 +37,129 @@ export default function useUserManagementLogic(permissions: readonly string[]) {
     const rolesQuery = useQuery({
         queryKey: roleManagementQueryKeys.all,
         queryFn: () => getRolesHandler(),
+        enabled: canAssignRoles,
     })
     const disableMutation = useMutation({
-        mutationFn: (userId: string) => disableUserHandler({ data: { userId } }),
-        onSuccess: async (result) => {
-            if (result.success) {
-                setSelectedUser(null)
-                await queryClient.invalidateQueries({ queryKey: userManagementQueryKeys.all })
+        mutationFn: (user: UserSummary) => disableUserHandler({ data: { userId: user.id } }),
+        onSuccess: async (result, user) => {
+            if (!result.success) {
+                return
             }
+
+            await queryClient.invalidateQueries({ queryKey: userManagementQueryKeys.all })
+
+            if (user.id === currentUserId) {
+                await router.invalidate()
+            }
+
+            setSuccessMessage(result.message)
+            setDisableTarget(null)
         },
     })
+    const assignableRoles = useMemo(() => {
+        if (!canAssignRoles) {
+            return EMPTY_ROLES
+        }
+
+        return (rolesQuery.data ?? EMPTY_ROLES).filter((role) => {
+            if (role.key === SYSTEM_ROLES.OWNER && !actorIsOwner) {
+                return false
+            }
+
+            return (
+                actorIsOwner ||
+                role.permissionKeys.every((permission) => permissionSet.has(permission))
+            )
+        })
+    }, [actorIsOwner, canAssignRoles, permissionSet, rolesQuery.data])
+    const openCreate = useCallback(() => {
+        setSuccessMessage(null)
+        setSelectedUser(null)
+        setShowCreate(true)
+    }, [])
+    const setCreateOpen = useCallback((open: boolean) => setShowCreate(open), [])
     const openEditor = useCallback((user: UserSummary) => {
-        setShowInvite(false)
+        setSuccessMessage(null)
+        setShowCreate(false)
         setSelectedUser(user)
     }, [])
-    const closeEditor = useCallback(() => setSelectedUser(null), [])
-    const closeInvite = useCallback(() => setShowInvite(false), [])
-    const toggleInvite = useCallback(() => {
-        setSelectedUser(null)
-        setShowInvite((visible) => !visible)
+    const setEditorOpen = useCallback((open: boolean) => {
+        if (!open) {
+            setSelectedUser(null)
+        }
     }, [])
-    const handleDisable = useCallback(
+    const openDisable = useCallback(
         (user: UserSummary) => {
-            if (window.confirm(`Disable ${user.displayName} and revoke all sessions?`)) {
-                disableMutation.mutate(user.id)
+            disableMutation.reset()
+            setSuccessMessage(null)
+            setDisableTarget(user)
+        },
+        [disableMutation],
+    )
+    const setDisableOpen = useCallback(
+        (open: boolean) => {
+            if (!open) {
+                disableMutation.reset()
+                setDisableTarget(null)
             }
         },
         [disableMutation],
     )
-    const retry = useCallback(() => {
-        void Promise.all([usersQuery.refetch(), rolesQuery.refetch()])
-    }, [rolesQuery, usersQuery])
+    const confirmDisable = useCallback(() => {
+        if (disableTarget) {
+            disableMutation.mutate(disableTarget)
+        }
+    }, [disableMutation, disableTarget])
+    const handleFormSuccess = useCallback((message: string) => {
+        setShowCreate(false)
+        setSelectedUser(null)
+        setSuccessMessage(message)
+    }, [])
+    const retryUsers = useCallback(() => {
+        void usersQuery.refetch()
+    }, [usersQuery])
+    const retryRoles = useCallback(() => {
+        void rolesQuery.refetch()
+    }, [rolesQuery])
+    const refreshCurrentUser = useCallback(() => router.invalidate(), [router])
 
     return {
         state: {
-            canAssignRoles: permissionSet.has(PERMISSIONS.USERS_ASSIGN_ROLES),
-            canCreate: permissionSet.has(PERMISSIONS.USERS_CREATE),
+            actorIsOwner,
+            assignableRoles,
+            canAssignRoles: canAssignRoles && !rolesQuery.isError,
+            canCreate,
             canDisable: permissionSet.has(PERMISSIONS.USERS_DISABLE),
             canUpdate: permissionSet.has(PERMISSIONS.USERS_UPDATE),
-            disableResult: disableMutation.data,
+            disableError:
+                disableMutation.data && !disableMutation.data.success
+                    ? disableMutation.data.message
+                    : disableMutation.isError
+                      ? 'The user could not be disabled.'
+                      : null,
+            disableTarget,
             isDisabling: disableMutation.isPending,
-            isError: usersQuery.isError || rolesQuery.isError,
-            isPending: usersQuery.isPending || rolesQuery.isPending,
-            roles: rolesQuery.data ?? EMPTY_ROLES,
+            isLoadingUsers: usersQuery.isPending,
+            isRolesError: rolesQuery.isError,
+            isRolesPending: rolesQuery.isPending && canAssignRoles,
+            isUsersError: usersQuery.isError,
             selectedUser,
-            showInvite,
+            showCreate,
+            successMessage,
             users: usersQuery.data ?? EMPTY_USERS,
         },
         handler: {
-            closeEditor,
-            closeInvite,
-            handleDisable,
+            confirmDisable,
+            handleFormSuccess,
+            openCreate,
+            openDisable,
             openEditor,
-            retry,
-            toggleInvite,
+            refreshCurrentUser,
+            retryRoles,
+            retryUsers,
+            setCreateOpen,
+            setDisableOpen,
+            setEditorOpen,
         },
     }
 }

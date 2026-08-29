@@ -25,6 +25,11 @@ export const updateUserFormSchema = z.object({
     roleKeys: roleKeysSchema,
 })
 
-export const updateUserInputSchema = updateUserFormSchema.extend({ userId: z.uuid() })
+export const updateUserInputSchema = z.object({
+    userId: z.uuid(),
+    displayName: displayNameSchema,
+    email: emailSchema,
+    roleKeys: roleKeysSchema.optional(),
+})
 
 export const userIdInputSchema = z.object({ userId: z.uuid() })
