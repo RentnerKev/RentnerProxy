@@ -85,10 +85,10 @@ describe('RentnerProxy mail templates', () => {
         expect(template.html).not.toMatch(/<link\b/i)
         expect(template.html).not.toMatch(/@import|url\s*\(/i)
 
-        const foreignUrls = template.html
-            .match(/https?:\/\/[^\s"'<]+/g)
-            ?.filter((url) => !url.startsWith(APP_URL))
+        const expectedOrigin = new URL(APP_URL).origin
+        const embeddedUrls = template.html.match(/https?:\/\/[^\s"'<]+/g) ?? []
 
-        expect(foreignUrls ?? []).toEqual([])
+        expect(embeddedUrls.length).toBeGreaterThan(0)
+        expect(embeddedUrls.every((url) => new URL(url).origin === expectedOrigin)).toBe(true)
     })
 })
