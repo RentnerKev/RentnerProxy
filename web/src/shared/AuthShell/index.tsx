@@ -11,26 +11,26 @@ export default function AuthShell({
     return (
         <main
             data-theme="light"
-            className="relative grid min-h-screen overflow-hidden bg-[#f7faf8] text-navy-900 shell:grid-cols-[minmax(24rem,0.95fr)_minmax(30rem,1.05fr)]"
+            className="relative grid min-h-screen overflow-x-hidden bg-[#f7faf8] text-navy-900 shell:grid-cols-[minmax(25rem,44vw)_minmax(28rem,1fr)]"
         >
             <section
-                className="relative isolate flex min-h-[17rem] flex-col justify-between overflow-hidden bg-[radial-gradient(circle_at_85%_15%,rgb(48_238_97_/_18%),transparent_18rem),#020a0b] p-6 text-white shell:min-h-screen shell:p-[clamp(2rem,5vw,4rem)]"
+                className="relative isolate z-10 flex h-full min-h-[25rem] flex-col justify-between overflow-hidden bg-[linear-gradient(180deg,rgb(2_10_11_/_8%),rgb(2_10_11_/_66%)),url('/login-panel-background-v1.png')] bg-cover bg-center p-6 pb-24 text-white sm:pb-28 shell:min-h-screen shell:p-[clamp(2rem,5vw,4rem)]"
                 aria-label="RentnerProxy"
             >
                 <div
-                    className="absolute inset-0 -z-10 bg-[linear-gradient(rgb(255_255_255_/_4%)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255_/_4%)_1px,transparent_1px)] bg-[length:44px_44px] [mask-image:linear-gradient(to_bottom_right,black,transparent_78%)]"
+                    className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_72%_45%,rgb(48_238_97_/_12%),transparent_18rem)]"
                     aria-hidden="true"
                 />
                 <img
-                    src="/rentnerproxy-logo-long.png"
+                    src="/rentnerproxy-logo.png"
                     alt="RentnerProxy"
-                    width={430}
-                    height={158}
-                    className="h-auto w-[min(18rem,75vw)] object-contain object-left"
+                    width={640}
+                    height={640}
+                    className="h-auto w-[min(15rem,58vw)] self-center object-contain drop-shadow-[0_18px_30px_rgb(0_0_0_/_32%)] sm:w-72 shell:w-[clamp(16rem,22vw,20rem)] shell:self-start"
                 />
                 <div className="max-w-[34rem] py-10 pb-6">
                     <p className={uiClassNames.technicalLabel}>Secure control plane</p>
-                    <p className="mt-3 mb-0 max-w-[28rem] font-display text-[clamp(1.8rem,5vw,3.6rem)] leading-[0.98] tracking-[-0.045em]">
+                    <p className="mt-3 mb-0 max-w-[30rem] font-display text-[clamp(2rem,5vw,4rem)] leading-[0.96] tracking-[-0.045em] text-white">
                         Your infrastructure stays yours. Access starts here.
                     </p>
                 </div>
@@ -44,9 +44,25 @@ export default function AuthShell({
                 <p className="mt-4 mb-0 text-[0.7rem] font-bold tracking-[0.1em] text-mist-400 uppercase">
                     Self-hosted · Server-verified · Open source
                 </p>
+                <img
+                    src="/login-panel-wave-mobile.svg"
+                    alt=""
+                    width={1440}
+                    height={120}
+                    className="pointer-events-none absolute right-0 -bottom-px left-0 z-20 h-20 w-full sm:h-24 shell:hidden"
+                    aria-hidden="true"
+                />
+                <img
+                    src="/login-panel-wave-desktop.svg"
+                    alt=""
+                    width={120}
+                    height={1440}
+                    className="pointer-events-none absolute top-0 right-0 bottom-0 z-20 hidden h-full w-28 shell:block"
+                    aria-hidden="true"
+                />
             </section>
 
-            <section className="grid place-items-center bg-[radial-gradient(circle_at_95%_5%,rgb(48_238_97_/_13%),transparent_15rem),#f7faf8] p-6 shell:p-12">
+            <section className="grid place-items-center bg-[radial-gradient(circle_at_95%_5%,rgb(48_238_97_/_13%),transparent_15rem),#f7faf8] p-6 py-10 shell:min-h-screen shell:p-12">
                 <div className="w-[min(100%,31rem)] rounded-3xl border border-[rgb(6_18_15_/_12%)] bg-[rgb(255_255_255_/_94%)] p-[clamp(1.35rem,5vw,2.5rem)] shadow-[0_24px_70px_rgb(2_10_11_/_10%)] [&_a]:rounded [&_a]:font-bold [&_a]:text-brand-700 [&_a]:underline-offset-[0.2em] [&_a:hover]:text-navy-900">
                     <header>
                         <p className={uiClassNames.themedTechnicalLabel}>{eyebrow}</p>
