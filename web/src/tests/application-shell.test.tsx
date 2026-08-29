@@ -14,6 +14,7 @@ const { default: ApplicationTopbar } =
     await import('../shared/ApplicationShell/Components/ApplicationTopbar')
 const { default: useApplicationNavigationLogic } =
     await import('../shared/ApplicationShell/Hooks/useApplicationNavigationLogic')
+const { TooltipProvider } = await import('../shared/Tooltip')
 
 let activeRoot: Root | null = null
 
@@ -23,7 +24,7 @@ async function render(element: ReactElement): Promise<HTMLElement> {
     activeRoot = createRoot(container)
 
     await act(async () => {
-        activeRoot?.render(element)
+        activeRoot?.render(<TooltipProvider>{element}</TooltipProvider>)
     })
 
     return container
@@ -66,7 +67,17 @@ describe('application topbar', () => {
 
         expect(container.textContent).not.toContain('Authenticated session')
         expect(collapseButton).not.toBeNull()
+        expect(collapseButton?.hasAttribute('title')).toBe(false)
         expect(collapseButton?.getAttribute('aria-expanded')).toBe('true')
+
+        await act(async () => {
+            collapseButton?.focus()
+            await Promise.resolve()
+        })
+
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
+            'Collapse navigation',
+        )
 
         await click(collapseButton!)
 

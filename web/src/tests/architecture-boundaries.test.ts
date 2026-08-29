@@ -17,6 +17,7 @@ const permissionLiteralPattern =
     /['"](?:app\.access|users\.(?:view|create|update|disable|assign_roles)|roles\.(?:view|create|update|delete|assign_permissions)|account\.(?:view|update))['"]/g
 const renderingLogicPattern =
     /\b(?:useCallback|useEffect|useForm|useId|useMatch|useMemo|useMutation|useNavigate|useQuery|useReactTable|useReducer|useRef|useRouter|useSearch|useState|useSuspenseQuery)\s*\(/
+const nativeTitleAttributePattern = /<[a-z][\w.-]*\b[^>]*\btitle\s*=/s
 
 function isTypeScriptFile(path: string): boolean {
     return ['.ts', '.tsx'].includes(extname(path))
@@ -207,5 +208,19 @@ describe('web architecture boundaries', () => {
         expect(stylesheet).toContain('@theme inline')
         expect(stylesheet).toContain('@custom-variant dark')
         expect(stylesheet).not.toMatch(/^\s*\.[a-z][\w-]*/m)
+    })
+
+    test('uses shared tooltips instead of native title attributes', async () => {
+        const files = (await Promise.all(renderingRoots.map(collectFiles)))
+            .flat()
+            .filter((path) => extname(path) === '.tsx')
+        const sources = await Promise.all(
+            files.map(async (path) => ({ path, source: await readFile(path, 'utf8') })),
+        )
+        const violations = sources
+            .filter(({ source }) => nativeTitleAttributePattern.test(source))
+            .map(({ path }) => path)
+
+        expect(violations).toEqual([])
     })
 })

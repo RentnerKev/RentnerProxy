@@ -1,21 +1,32 @@
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import DataTable from '../../../../shared/Table'
+import { Tooltip } from '../../../../shared/Tooltip'
 import useUsersTableLogic from '../Hooks/useUsersTableLogic'
 import type { UsersTableProps } from '../Types/user-management-component-props.types'
 
 export default function UsersTable(props: UsersTableProps) {
     const { canCreate, createDisabled, isLoading, onCreate, users } = props
     const { state, handler } = useUsersTableLogic(props)
-    const createAction = canCreate ? (
+    const createButton = (
         <button
             type="button"
-            className={uiClassNames.button.add}
-            disabled={createDisabled}
-            title={createDisabled ? 'Role options are not available yet.' : undefined}
-            onClick={onCreate}
+            className={`${uiClassNames.button.add}${
+                createDisabled
+                    ? ' cursor-not-allowed opacity-[0.55] hover:translate-y-0! hover:bg-brand-500!'
+                    : ''
+            }`}
+            aria-disabled={createDisabled}
+            onClick={createDisabled ? undefined : onCreate}
         >
             Add user
         </button>
+    )
+    const createAction = canCreate ? (
+        createDisabled ? (
+            <Tooltip content="Role options are not available yet.">{createButton}</Tooltip>
+        ) : (
+            createButton
+        )
     ) : undefined
 
     return (

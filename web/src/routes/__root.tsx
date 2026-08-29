@@ -1,6 +1,7 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router'
 
 import QueryProvider from '../integrations/TanstackQuery'
+import { TooltipProvider } from '../shared/Tooltip'
 import type { RootDocumentProps } from '../shared/Types/root-document.types'
 import stylesUrl from '../styles.css?url'
 
@@ -27,9 +28,11 @@ export const Route = createRootRoute({
 
 function RootComponent() {
     return (
-        <QueryProvider>
-            <Outlet />
-        </QueryProvider>
+        <TooltipProvider>
+            <QueryProvider>
+                <Outlet />
+            </QueryProvider>
+        </TooltipProvider>
     )
 }
 
