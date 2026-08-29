@@ -1,11 +1,13 @@
 import { Link } from '@tanstack/react-router'
 
 import ApplicationNavigation from './Components/ApplicationNavigation'
+import ApplicationSidebarSurface from './Components/ApplicationSidebarSurface'
 import ApplicationTopbar from './Components/ApplicationTopbar'
 import ApplicationUserPanel from './Components/ApplicationUserPanel'
 import getApplicationShellLayoutClassNames from './Helpers/getApplicationShellLayoutClassNames'
 import getApplicationShellViewModel from './Helpers/getApplicationShellViewModel'
 import useApplicationNavigationLogic from './Hooks/useApplicationNavigationLogic'
+import { applicationShellClassNames } from './Styles/applicationShellClassNames'
 import type { AuthenticatedShellProps } from './Types/application-shell.types'
 
 export default function AuthenticatedShell({
@@ -30,30 +32,33 @@ export default function AuthenticatedShell({
                 aria-hidden={!navigation.state.isNavigationExpanded}
                 inert={!navigation.state.isNavigationExpanded}
             >
-                <Link
-                    to="/"
-                    className="block w-fit max-w-[13rem] rounded-xl shell:max-w-[14rem]"
-                    aria-label="RentnerProxy overview"
-                >
-                    <img
-                        src="/rentnerproxy-logo-long.png"
-                        alt=""
-                        width={220}
-                        height={80}
-                        className="block h-auto w-full"
+                <ApplicationSidebarSurface />
+                <div className={applicationShellClassNames.sidebar.content}>
+                    <Link
+                        to="/"
+                        className={applicationShellClassNames.sidebar.logoLink}
+                        aria-label="RentnerProxy overview"
+                    >
+                        <img
+                            src="/rentnerproxy-logo-long.png"
+                            alt=""
+                            width={220}
+                            height={80}
+                            className={applicationShellClassNames.sidebar.logoImage}
+                        />
+                    </Link>
+                    <div
+                        className={applicationShellClassNames.sidebar.divider}
+                        aria-hidden="true"
                     />
-                </Link>
-                <div
-                    className="h-px bg-gradient-to-r from-brand-500 to-transparent"
-                    aria-hidden="true"
-                />
-                <ApplicationNavigation items={viewModel.navigationItems} />
-                <ApplicationUserPanel
-                    canViewAccount={viewModel.canViewAccount}
-                    isLoggingOut={isLoggingOut}
-                    onLogout={onLogout}
-                    user={user}
-                />
+                    <ApplicationNavigation items={viewModel.navigationItems} />
+                    <ApplicationUserPanel
+                        canViewAccount={viewModel.canViewAccount}
+                        isLoggingOut={isLoggingOut}
+                        onLogout={onLogout}
+                        user={user}
+                    />
+                </div>
             </aside>
 
             <div className="min-w-0">
