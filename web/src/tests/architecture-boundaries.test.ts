@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readdir, readFile } from 'node:fs/promises'
-import { dirname, extname, resolve, sep } from 'node:path'
+import { basename, dirname, extname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const sourceRoot = fileURLToPath(new URL('../', import.meta.url))
@@ -9,9 +9,14 @@ const databaseRoot = resolve(sourceRoot, 'db')
 const clientRoots = ['features', 'routes', 'shared'].map((directory) =>
     resolve(sourceRoot, directory),
 )
+const renderingRoots = ['features', 'integrations', 'routes', 'shared'].map((directory) =>
+    resolve(sourceRoot, directory),
+)
 const importPattern = /(?:from\s*|import\s*)['"]([^'"]+)['"]/g
 const permissionLiteralPattern =
     /['"](?:app\.access|users\.(?:view|create|update|disable|assign_roles)|roles\.(?:view|create|update|delete|assign_permissions)|account\.(?:view|update))['"]/g
+const renderingLogicPattern =
+    /\b(?:useCallback|useEffect|useForm|useId|useMatch|useMemo|useMutation|useNavigate|useQuery|useReactTable|useReducer|useRef|useRouter|useSearch|useState|useSuspenseQuery)\s*\(/
 
 function isTypeScriptFile(path: string): boolean {
     return ['.ts', '.tsx'].includes(extname(path))
@@ -34,6 +39,54 @@ async function collectFiles(root: string): Promise<string[]> {
 }
 
 describe('web architecture boundaries', () => {
+    test('keeps state, query, form, table, and router logic out of TSX rendering modules', async () => {
+        const files = (await Promise.all(renderingRoots.map(collectFiles)))
+            .flat()
+            .filter((path) => extname(path) === '.tsx')
+            .filter((path) => !path.endsWith(`${sep}routeTree.gen.tsx`))
+        const sources = await Promise.all(
+            files.map(async (path) => ({ path, source: await readFile(path, 'utf8') })),
+        )
+        const violations = sources
+            .filter(({ source }) => renderingLogicPattern.test(source))
+            .map(({ path }) => path)
+
+        expect(violations).toEqual([])
+    })
+
+    test('keeps hook implementations in TypeScript modules instead of TSX modules', async () => {
+        const files = (await Promise.all(renderingRoots.map(collectFiles))).flat()
+        const violations = files.filter(
+            (path) => extname(path) === '.tsx' && path.split(sep).includes('Hooks'),
+        )
+
+        expect(violations).toEqual([])
+    })
+
+    test('uses direct Lucide components instead of handwritten icon modules', async () => {
+        const files = (await Promise.all(renderingRoots.map(collectFiles)))
+            .flat()
+            .filter((path) => extname(path) === '.tsx')
+        const sources = await Promise.all(
+            files.map(async (path) => ({ path, source: await readFile(path, 'utf8') })),
+        )
+        const handwrittenSvgFiles = sources
+            .filter(({ source }) => source.includes('<svg'))
+            .map(({ path }) => path)
+        const iconModuleFiles = files.filter((path) => /Icons?\.tsx$/i.test(basename(path)))
+        const broadLucideImportFiles = sources
+            .filter(({ source }) =>
+                /import\s+\*\s+as\s+\w+\s+from\s+['"]lucide-react['"]|\bDynamicIcon\b/.test(source),
+            )
+            .map(({ path }) => path)
+
+        expect({ broadLucideImportFiles, handwrittenSvgFiles, iconModuleFiles }).toEqual({
+            broadLucideImportFiles: [],
+            handwrittenSvgFiles: [],
+            iconModuleFiles: [],
+        })
+    })
+
     test('keeps server and database implementations out of client modules', async () => {
         const files = (await Promise.all(clientRoots.map(collectFiles)))
             .flat()
