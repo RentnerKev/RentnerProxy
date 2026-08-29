@@ -41,7 +41,12 @@ export const updateRoleHandler = createServerFn({ method: 'POST' })
     .handler(async ({ data }): Promise<AuthActionResult> => {
         try {
             await requirePermissionService(PERMISSIONS.ROLES_UPDATE)
-            await updateRoleService(data)
+            await updateRoleService({
+                roleId: data.roleId,
+                name: data.name,
+                description: data.description,
+                ...(data.permissionKeys ? { permissionKeys: data.permissionKeys } : {}),
+            })
             return { success: true, message: 'Role updated.' }
         } catch (error) {
             return actionFailure(error, 'The role could not be updated.')

@@ -1,80 +1,126 @@
-import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRouter } from '@tanstack/react-router'
+import { useCallback, useMemo, useState } from 'react'
 
 import { PERMISSIONS } from '../../../../config/permissions.config'
-import type { RoleSummary } from '../../../../shared/Types/auth.types'
+import type { RoleManagementSummary } from '../../../../shared/Types/auth.types'
 import { roleManagementQueryKeys } from '../queryKeys'
 import { deleteRoleHandler, getRolesHandler } from '../server'
+import type { RoleManagementPageProps } from '../Types/role-management-component-props.types'
 
-const EMPTY_ROLES: RoleSummary[] = []
+const EMPTY_ROLES: RoleManagementSummary[] = []
 
-export default function useRoleManagementLogic(permissions: readonly string[]) {
+export default function useRoleManagementLogic({ permissions }: RoleManagementPageProps) {
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
-    const [editorOpen, setEditorOpen] = useState(false)
-    const [selectedRole, setSelectedRole] = useState<RoleSummary | null>(null)
+    const canAssignPermissions = permissionSet.has(PERMISSIONS.ROLES_ASSIGN_PERMISSIONS)
+    const [showCreate, setShowCreate] = useState(false)
+    const [selectedRole, setSelectedRole] = useState<RoleManagementSummary | null>(null)
+    const [deleteTarget, setDeleteTarget] = useState<RoleManagementSummary | null>(null)
+    const [successMessage, setSuccessMessage] = useState<string | null>(null)
     const queryClient = useQueryClient()
+    const router = useRouter()
     const rolesQuery = useQuery({
         queryKey: roleManagementQueryKeys.all,
         queryFn: () => getRolesHandler(),
     })
     const deleteMutation = useMutation({
-        mutationFn: (roleId: string) => deleteRoleHandler({ data: { roleId } }),
+        mutationFn: (role: RoleManagementSummary) =>
+            deleteRoleHandler({ data: { roleId: role.id } }),
         onSuccess: async (result) => {
-            if (result.success) {
-                setSelectedRole(null)
-                setEditorOpen(false)
-                await queryClient.invalidateQueries({ queryKey: roleManagementQueryKeys.all })
+            if (!result.success) {
+                return
             }
+
+            await queryClient.invalidateQueries({ queryKey: roleManagementQueryKeys.all })
+            setSuccessMessage(result.message)
+            setDeleteTarget(null)
         },
     })
-    const openEditor = useCallback((role: RoleSummary | null) => {
-        setSelectedRole(role)
-        setEditorOpen(true)
-    }, [])
-    const closeEditor = useCallback(() => {
-        setEditorOpen(false)
+    const openCreate = useCallback(() => {
+        setSuccessMessage(null)
         setSelectedRole(null)
+        setShowCreate(true)
     }, [])
-    const toggleCreateEditor = useCallback(() => {
-        if (editorOpen && !selectedRole) {
-            setEditorOpen(false)
-            return
+    const setCreateOpen = useCallback((open: boolean) => setShowCreate(open), [])
+    const openEditor = useCallback((role: RoleManagementSummary) => {
+        setSuccessMessage(null)
+        setShowCreate(false)
+        setSelectedRole(role)
+    }, [])
+    const setEditorOpen = useCallback((open: boolean) => {
+        if (!open) {
+            setSelectedRole(null)
         }
+    }, [])
+    const openDelete = useCallback(
+        (role: RoleManagementSummary) => {
+            if (role.isSystem || role.userCount > 0) {
+                return
+            }
 
-        openEditor(null)
-    }, [editorOpen, openEditor, selectedRole])
-    const handleDelete = useCallback(
-        (role: RoleSummary) => {
-            if (window.confirm(`Delete the ${role.name} role? Assigned roles cannot be deleted.`)) {
-                deleteMutation.mutate(role.id)
+            deleteMutation.reset()
+            setSuccessMessage(null)
+            setDeleteTarget(role)
+        },
+        [deleteMutation],
+    )
+    const setDeleteOpen = useCallback(
+        (open: boolean) => {
+            if (!open) {
+                deleteMutation.reset()
+                setDeleteTarget(null)
             }
         },
         [deleteMutation],
     )
+    const confirmDelete = useCallback(() => {
+        if (deleteTarget) {
+            deleteMutation.mutate(deleteTarget)
+        }
+    }, [deleteMutation, deleteTarget])
+    const handleFormSuccess = useCallback((message: string) => {
+        setShowCreate(false)
+        setSelectedRole(null)
+        setSuccessMessage(message)
+    }, [])
     const retry = useCallback(() => {
         void rolesQuery.refetch()
     }, [rolesQuery])
+    const refreshCurrentUser = useCallback(() => router.invalidate(), [router])
 
     return {
         state: {
-            canAssignPermissions: permissionSet.has(PERMISSIONS.ROLES_ASSIGN_PERMISSIONS),
-            canCreate: permissionSet.has(PERMISSIONS.ROLES_CREATE),
+            assignablePermissionKeys: permissions,
+            canAssignPermissions,
+            canCreate: permissionSet.has(PERMISSIONS.ROLES_CREATE) && canAssignPermissions,
             canDelete: permissionSet.has(PERMISSIONS.ROLES_DELETE),
             canUpdate: permissionSet.has(PERMISSIONS.ROLES_UPDATE),
-            deleteResult: deleteMutation.data,
-            editorOpen,
+            deleteError:
+                deleteMutation.data && !deleteMutation.data.success
+                    ? deleteMutation.data.message
+                    : deleteMutation.isError
+                      ? 'The role could not be deleted.'
+                      : null,
+            deleteTarget,
             isDeleting: deleteMutation.isPending,
             isError: rolesQuery.isError,
-            isPending: rolesQuery.isPending,
+            isLoading: rolesQuery.isPending,
             roles: rolesQuery.data ?? EMPTY_ROLES,
             selectedRole,
+            showCreate,
+            successMessage,
         },
         handler: {
-            closeEditor,
-            handleDelete,
+            confirmDelete,
+            handleFormSuccess,
+            openCreate,
+            openDelete,
             openEditor,
+            refreshCurrentUser,
             retry,
-            toggleCreateEditor,
+            setCreateOpen,
+            setDeleteOpen,
+            setEditorOpen,
         },
     }
 }

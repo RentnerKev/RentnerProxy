@@ -33,3 +33,7 @@ export interface RoleSummary {
     readonly createdAt: Date
     readonly updatedAt: Date
 }
+
+export interface RoleManagementSummary extends RoleSummary {
+    readonly userCount: number
+}

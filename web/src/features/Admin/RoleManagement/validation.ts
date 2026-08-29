@@ -32,7 +32,7 @@ export const updateRoleInputSchema = z.object({
     roleId: z.uuid(),
     name: roleNameSchema,
     description: roleDescriptionSchema,
-    permissionKeys: permissionKeysSchema,
+    permissionKeys: permissionKeysSchema.optional(),
 })
 
 export const roleIdInputSchema = z.object({ roleId: z.uuid() })

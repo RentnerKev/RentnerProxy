@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 
-import { asc, eq, inArray } from 'drizzle-orm'
+import { asc, count, eq, inArray } from 'drizzle-orm'
 
 import {
     PERMISSIONS,
@@ -8,7 +8,7 @@ import {
     type PermissionKey,
 } from '../../../config/permissions.config'
 import { permissions, rolePermissions, roles, userRoles } from '../../../db/schema'
-import type { RoleSummary } from '../../../shared/Types/auth.types'
+import type { RoleManagementSummary, RoleSummary } from '../../../shared/Types/auth.types'
 import { requirePermissionService } from '../../Auth/Access/authorization.service'
 import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
 import { AuthDomainError } from '../../Auth/Core/errors.server'
@@ -123,10 +123,10 @@ function assertPermissionAssignmentAllowed(
     }
 }
 
-export async function listRolesService(): Promise<Array<RoleSummary>> {
+export async function listRolesService(): Promise<Array<RoleManagementSummary>> {
     await requirePermissionService(PERMISSIONS.ROLES_VIEW)
     const db = getAuthDatabase()
-    const [roleRows, permissionRows] = await Promise.all([
+    const [roleRows, permissionRows, assignmentRows] = await Promise.all([
         db
             .select({
                 createdAt: roles.createdAt,
@@ -143,8 +143,13 @@ export async function listRolesService(): Promise<Array<RoleSummary>> {
             .select({ permissionKey: permissions.key, roleId: rolePermissions.roleId })
             .from(rolePermissions)
             .innerJoin(permissions, eq(permissions.id, rolePermissions.permissionId)),
+        db
+            .select({ roleId: userRoles.roleId, userCount: count() })
+            .from(userRoles)
+            .groupBy(userRoles.roleId),
     ])
     const permissionKeysByRoleId = new Map<string, Array<PermissionKey>>()
+    const userCountByRoleId = new Map(assignmentRows.map((row) => [row.roleId, row.userCount]))
 
     for (const row of permissionRows) {
         if (!isRegisteredPermissionKey(row.permissionKey)) {
@@ -165,6 +170,7 @@ export async function listRolesService(): Promise<Array<RoleSummary>> {
         name: role.name,
         permissionKeys: permissionKeysByRoleId.get(role.id) ?? [],
         updatedAt: role.updatedAt,
+        userCount: userCountByRoleId.get(role.id) ?? 0,
     }))
 }
 
