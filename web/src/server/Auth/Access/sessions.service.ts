@@ -133,7 +133,3 @@ export async function revokeAllUserSessionsInTransaction(
 ): Promise<void> {
     await transaction.delete(sessions).where(eq(sessions.userId, userId))
 }
-
-export async function revokeAllUserSessionsService(userId: string): Promise<void> {
-    await getAuthDatabase().delete(sessions).where(eq(sessions.userId, userId))
-}

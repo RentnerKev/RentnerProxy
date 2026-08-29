@@ -13,17 +13,43 @@ export interface ApplicationHeaderProps {
 export interface ApplicationUserSummary {
     readonly displayName: string
     readonly email: string
-    readonly roles: readonly string[]
     readonly permissions: readonly string[]
 }
 
 export interface AuthenticatedShellProps {
     readonly children: ReactNode
     readonly isLoggingOut: boolean
-    readonly isThemeModeSaving: boolean
     readonly onLogout: () => void
-    readonly onThemeModeToggle: () => void
+    readonly themeControl: ReactNode
     readonly themeMode: UserThemeMode
-    readonly themeModeError: string | null
     readonly user: ApplicationUserSummary
+}
+
+export interface ApplicationNavigationItem {
+    readonly exact?: boolean
+    readonly label: string
+    readonly to: '/' | '/roles' | '/users'
+}
+
+export interface ApplicationNavigationProps {
+    readonly items: readonly ApplicationNavigationItem[]
+}
+
+export interface ApplicationUserPanelProps {
+    readonly canViewAccount: boolean
+    readonly isLoggingOut: boolean
+    readonly onLogout: () => void
+    readonly user: ApplicationUserSummary
+}
+
+export interface ApplicationTopbarProps {
+    readonly isNavigationExpanded: boolean
+    readonly navigationToggleLabel: string
+    readonly onToggleNavigation: () => void
+    readonly themeControl: ReactNode
+}
+
+export interface ApplicationShellViewModel {
+    readonly canViewAccount: boolean
+    readonly navigationItems: readonly ApplicationNavigationItem[]
 }

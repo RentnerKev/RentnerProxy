@@ -1,13 +1,5 @@
-import type { PropsWithChildren, ReactNode } from 'react'
-
 import { uiClassNames } from '../Styles/uiClassNames'
-
-interface AuthShellProps extends PropsWithChildren {
-    readonly eyebrow: string
-    readonly title: string
-    readonly description: string
-    readonly footer?: ReactNode
-}
+import type { AuthShellProps } from './Types/auth-shell.types'
 
 export default function AuthShell({
     children,
@@ -74,3 +66,5 @@ export default function AuthShell({
         </main>
     )
 }
+
+export type { AuthShellProps } from './Types/auth-shell.types'
