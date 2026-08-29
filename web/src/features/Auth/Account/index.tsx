@@ -2,18 +2,28 @@ import PageHeader from '../../../shared/Management/PageHeader'
 import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import AccountIdentity from './Components/AccountIdentity'
 import ChangePasswordPanel from './Components/ChangePasswordPanel'
+import ProfileImagePanel from './Components/ProfileImagePanel'
+import { getAccountPageViewModel } from './Helpers/accountPage'
 import type { AccountPageProps } from './Types/account-component-props.types'
 
 export default function AccountPage({ user }: AccountPageProps) {
+    const viewModel = getAccountPageViewModel(user)
+
     return (
         <>
             <PageHeader
                 eyebrow="Personal access"
                 title="Account"
-                description="Change the password for your active session. Every other session is revoked after a successful change."
+                description="Manage your profile picture and credentials for this RentnerProxy account."
             />
             <div className={uiClassNames.management.accountGrid}>
-                <AccountIdentity user={user} />
+                <div className="grid gap-4">
+                    <AccountIdentity user={user} />
+                    <ProfileImagePanel
+                        canUpdateProfileImage={viewModel.canUpdateProfileImage}
+                        user={user}
+                    />
+                </div>
                 <ChangePasswordPanel />
             </div>
         </>

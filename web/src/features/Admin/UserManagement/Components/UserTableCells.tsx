@@ -1,4 +1,5 @@
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import { UserAvatar } from '../../../../shared/Avatar'
 import { formatUserCreatedAt, getVisibleRoleKeys } from '../Helpers/userTableCells'
 import type {
     UserCreatedAtCellProps,
@@ -11,8 +12,17 @@ import type {
 const statusBadgeClassName =
     'inline-flex rounded-full bg-neutral px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold text-muted capitalize data-[status=active]:bg-success-bg data-[status=active]:text-success-text data-[status=disabled]:bg-danger-bg data-[status=disabled]:text-danger-text'
 
-export function UserNameCell({ value }: UserNameCellProps) {
-    return <span className="font-extrabold text-ink-soft">{value}</span>
+export function UserNameCell({ user }: UserNameCellProps) {
+    return (
+        <div className="flex min-w-[10rem] items-center gap-2.5">
+            <UserAvatar
+                displayName={user.displayName}
+                profileImageVersion={user.profileImageVersion}
+                userId={user.id}
+            />
+            <span className="font-extrabold text-ink-soft">{user.displayName}</span>
+        </div>
+    )
 }
 
 export function UserEmailCell({ value }: UserEmailCellProps) {

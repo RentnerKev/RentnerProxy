@@ -32,7 +32,7 @@ export default function useUsersTableColumns(actions: UserTableActionProps) {
                 sortFn: 'text',
                 filterFn: textFilter,
                 enableGlobalFilter: true,
-                cell: ({ getValue }) => createElement(UserNameCell, { value: String(getValue()) }),
+                cell: ({ row }) => createElement(UserNameCell, { user: row.original }),
             },
             {
                 accessorKey: 'email',

@@ -1,3 +1,5 @@
+import type { UserSummary } from '../../../../shared/Types/auth.types'
+
 export interface UserCreatedAtCellProps {
     readonly value: unknown
 }
@@ -7,7 +9,7 @@ export interface UserEmailCellProps {
 }
 
 export interface UserNameCellProps {
-    readonly value: string
+    readonly user: UserSummary
 }
 
 export interface UserRolesCellProps {

@@ -505,6 +505,7 @@ const user: UserSummary = {
     id: '00000000-0000-4000-8000-000000000001',
     displayName: 'Kevin Example',
     email: 'kevin@example.com',
+    profileImageVersion: null,
     status: 'active',
     roleKeys: ['viewer'],
     createdAt: new Date('2026-01-01T12:00:00Z'),

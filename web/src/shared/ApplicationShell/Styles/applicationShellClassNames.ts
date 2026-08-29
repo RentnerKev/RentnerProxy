@@ -47,10 +47,8 @@ export const applicationShellClassNames = {
         theme: 'flex items-center',
     },
     userPanel: {
-        root: 'relative flex flex-wrap items-center justify-between gap-[0.9rem] overflow-hidden border-y border-white/10 bg-white/[0.035] p-[0.9rem] shell:mt-auto shell:-mr-[2.75rem] shell:-ml-[1.35rem] shell:grid shell:pr-[4rem] shell:pl-[2.25rem]',
+        root: 'relative flex flex-wrap items-center justify-between gap-[0.9rem] overflow-hidden border-y border-white/10 bg-navy-950/80 p-[0.9rem] shadow-[inset_0_1px_0_rgb(255_255_255_/_2%)] backdrop-blur-sm shell:mt-auto shell:-mr-[2.75rem] shell:-ml-[1.35rem] shell:grid shell:pr-[4rem] shell:pl-[2.25rem]',
         identity: 'flex min-w-0 items-center gap-2.5 pr-2',
-        identityIcon:
-            'grid size-9 shrink-0 place-items-center rounded-full border border-brand-500/25 bg-brand-500/10 text-brand-300 [&>svg]:size-[1.05rem]',
         identityText: 'grid min-w-0 gap-[0.2rem]',
         displayName:
             'overflow-hidden text-[0.82rem] font-extrabold text-ellipsis whitespace-nowrap',

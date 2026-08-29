@@ -13,7 +13,9 @@ export interface ApplicationHeaderProps {
 export interface ApplicationUserSummary {
     readonly displayName: string
     readonly email: string
+    readonly id: string
     readonly permissions: readonly string[]
+    readonly profileImageVersion: number | null
 }
 
 export interface AuthenticatedShellProps {
