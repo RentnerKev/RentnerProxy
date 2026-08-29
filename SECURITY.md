@@ -13,9 +13,9 @@ RentnerProxy has no stable release and is not ready for production use. Security
 
 Please do not report security vulnerabilities through public GitHub issues.
 
-If the repository's **Security** tab offers **Report a vulnerability**, use that private GitHub flow. It creates a private security advisory that only repository maintainers and invited collaborators can access.
+Use GitHub's [private vulnerability reporting form](https://github.com/RentnerKev/RentnerProxy/security/advisories/new) to report a vulnerability. It creates a private security advisory that only repository maintainers and invited collaborators can access.
 
-If Private Vulnerability Reporting is not available, the project does not currently publish an alternative private contact address. Do not disclose the vulnerability in a public issue. Check the repository's Security tab for an enabled private reporting channel before sharing details.
+If the form is temporarily unavailable, do not disclose the vulnerability in a public issue. The project does not currently publish an alternative private contact address.
 
 Include a clear description, affected component, reproduction steps or proof of concept, impact, and any suggested mitigation. Remove live credentials and other unrelated sensitive data. If a real credential was exposed, revoke or rotate it immediately.
 
