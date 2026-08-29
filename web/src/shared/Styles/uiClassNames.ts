@@ -1,6 +1,8 @@
 const interactiveButtonClassName =
     'inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-[0.65rem] font-extrabold transition-[transform,background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none'
 
+const primaryButtonClassName = `${interactiveButtonClassName} bg-brand-500 text-navy-950 shadow-[0_10px_24px_rgb(15_179_58_/_20%)] enabled:hover:-translate-y-px enabled:hover:bg-brand-300`
+
 const formControlClassName =
     'box-border min-h-[2.85rem] w-full rounded-xl border border-input-border bg-surface-raised px-[0.85rem] py-[0.72rem] text-ink transition-[border-color,box-shadow] duration-150 placeholder:text-muted-soft focus:border-brand-600 focus:outline-hidden focus:ring-[3px] focus:ring-brand-500/20 motion-reduce:transition-none'
 
@@ -13,7 +15,8 @@ export const uiClassNames = {
     themedTechnicalLabel:
         'm-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase',
     button: {
-        primary: `${interactiveButtonClassName} min-h-[2.7rem] bg-brand-500 text-navy-950 shadow-[0_10px_24px_rgb(15_179_58_/_20%)] enabled:hover:-translate-y-px enabled:hover:bg-brand-300`,
+        add: `${primaryButtonClassName} h-10 min-w-[8.5rem] py-0 text-sm whitespace-nowrap`,
+        primary: `${primaryButtonClassName} min-h-[2.7rem]`,
         secondary: `${interactiveButtonClassName} min-h-[2.7rem] border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text`,
         danger: `${interactiveButtonClassName} min-h-[2.7rem] border-red-700/25 bg-danger-bg text-danger-text enabled:hover:-translate-y-px enabled:hover:border-red-500/45 enabled:hover:bg-red-700/20`,
         quiet: `${interactiveButtonClassName} min-h-9 bg-transparent text-muted enabled:hover:border-brand-600 enabled:hover:text-brand-text`,

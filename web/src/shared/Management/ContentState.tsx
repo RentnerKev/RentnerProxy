@@ -1,11 +1,4 @@
-import type { ReactNode } from 'react'
-
-interface ContentStateProps {
-    readonly title: string
-    readonly description: string
-    readonly action?: ReactNode
-    readonly busy?: boolean
-}
+import type { ContentStateProps } from './Types/management-component-props.types'
 
 export default function ContentState({
     action,

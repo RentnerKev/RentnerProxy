@@ -1,7 +1,4 @@
-interface FormMessageProps {
-    readonly children: string
-    readonly tone: 'error' | 'success' | 'info'
-}
+import type { FormMessageProps } from './Types/form-component-props.types'
 
 const toneClassNames = {
     error: 'border-[rgb(166_27_27_/_22%)] bg-danger-bg text-danger-text',

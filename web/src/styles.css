@@ -83,7 +83,8 @@
     color-scheme: light;
 }
 
-[data-theme='dark'] {
+[data-theme='dark'],
+:root:has([data-theme='dark']) {
     --theme-canvas: #07080a;
     --theme-surface: #0d0f12;
     --theme-surface-raised: #121419;
@@ -114,6 +115,41 @@
 * {
     scrollbar-color: var(--color-brand-500) transparent;
     scrollbar-width: thin;
+}
+
+:is(
+    a[href]:not([aria-disabled='true']),
+    button:not(:disabled),
+    summary,
+    select:not(:disabled),
+    label[for],
+    label:has(input:not(:disabled)),
+    input:not(:disabled):is(
+            [type='button'],
+            [type='checkbox'],
+            [type='color'],
+            [type='file'],
+            [type='image'],
+            [type='radio'],
+            [type='range'],
+            [type='reset'],
+            [type='submit']
+        ),
+    [role='button']:not([aria-disabled='true']),
+    [role='link']:not([aria-disabled='true']),
+    [role='menuitem']:not([aria-disabled='true']):not([data-disabled]),
+    [role='menuitemcheckbox']:not([aria-disabled='true']):not([data-disabled]),
+    [role='menuitemradio']:not([aria-disabled='true']):not([data-disabled]),
+    [role='option']:not([aria-disabled='true']):not([data-disabled]),
+    [role='radio']:not([aria-disabled='true']),
+    [role='switch']:not([aria-disabled='true']),
+    [role='tab']:not([aria-disabled='true'])
+) {
+    cursor: pointer;
+}
+
+:is(button:disabled, select:disabled, input:disabled, [aria-disabled='true'], [data-disabled]) {
+    cursor: not-allowed;
 }
 
 *::-webkit-scrollbar {

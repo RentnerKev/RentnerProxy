@@ -1,13 +1,5 @@
-import type { ReactNode } from 'react'
-
 import { uiClassNames } from '../Styles/uiClassNames'
-
-interface PageHeaderProps {
-    readonly eyebrow: string
-    readonly title: string
-    readonly description: string
-    readonly action?: ReactNode
-}
+import type { PageHeaderProps } from './Types/management-component-props.types'
 
 export default function PageHeader({ action, description, eyebrow, title }: PageHeaderProps) {
     return (
