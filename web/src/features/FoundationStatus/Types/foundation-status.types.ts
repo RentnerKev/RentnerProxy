@@ -17,3 +17,10 @@ export interface ServiceStatusProps {
     readonly tone: ServiceStatusTone
     readonly value: string
 }
+
+export interface FoundationStatusViewModel {
+    readonly controllerConnected: boolean
+    readonly services: readonly ServiceStatusProps[]
+}
+
+export type FoundationStatusViewProps = FoundationStatusViewModel

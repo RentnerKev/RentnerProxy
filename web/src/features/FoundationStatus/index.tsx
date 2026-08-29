@@ -5,7 +5,7 @@ import FoundationStatus from './Components/FoundationStatus'
 import useFoundationStatusLogic from './Hooks/useFoundationStatusLogic'
 
 export default function FoundationStatusPage() {
-    const healthQuery = useFoundationStatusLogic()
+    const { state, handler } = useFoundationStatusLogic()
 
     return (
         <>
@@ -14,13 +14,13 @@ export default function FoundationStatusPage() {
                 title="Overview"
                 description="A compact connection check for every service that supports this RentnerProxy instance."
             />
-            {healthQuery.isPending ? (
+            {state.isPending ? (
                 <ContentState
                     busy
                     title="Checking connections"
                     description="RentnerProxy is verifying the controller, PostgreSQL, and Redis."
                 />
-            ) : healthQuery.isError || !healthQuery.data ? (
+            ) : state.isError || !state.data ? (
                 <ContentState
                     title="Health check unavailable"
                     description="The application is running, but the service status could not be refreshed."
@@ -28,14 +28,14 @@ export default function FoundationStatusPage() {
                         <button
                             type="button"
                             className={uiClassNames.button.secondary}
-                            onClick={() => healthQuery.refetch()}
+                            onClick={handler.retry}
                         >
                             Try again
                         </button>
                     }
                 />
             ) : (
-                <FoundationStatus health={healthQuery.data} compact />
+                <FoundationStatus health={state.data} compact />
             )}
         </>
     )

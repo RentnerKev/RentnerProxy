@@ -1,3 +1,5 @@
+import { ArrowDown, ArrowRight } from 'lucide-react'
+
 import type { ConnectionTraceProps } from '../Types/foundation-status.types'
 
 export default function ConnectionTrace({ connected }: ConnectionTraceProps) {
@@ -19,8 +21,8 @@ export default function ConnectionTrace({ connected }: ConnectionTraceProps) {
                 Controller
             </span>
             <span className="absolute top-1/2 left-1/2 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/10 bg-navy-900 text-xs text-mist-400 shadow-lg shadow-black/20">
-                <span className="xl:hidden">→</span>
-                <span className="hidden xl:inline">↓</span>
+                <ArrowRight className="size-3.5 xl:hidden" />
+                <ArrowDown className="hidden size-3.5 xl:block" />
             </span>
         </div>
     )

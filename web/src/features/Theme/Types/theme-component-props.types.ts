@@ -6,3 +6,9 @@ export interface ThemeModeSwitchProps {
     readonly onToggle: () => void
     readonly themeMode: UserThemeMode
 }
+
+export interface ThemeModeSwitchViewModel {
+    readonly currentLabel: 'Dark' | 'Light'
+    readonly isDark: boolean
+    readonly targetLabel: 'dark' | 'light'
+}

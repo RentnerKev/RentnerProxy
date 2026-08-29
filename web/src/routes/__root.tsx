@@ -1,6 +1,6 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router'
 
-import QueryProvider from '../integrations/TanstackQuery/QueryProvider'
+import QueryProvider from '../integrations/TanstackQuery'
 import type { RootDocumentProps } from '../shared/Types/root-document.types'
 import stylesUrl from '../styles.css?url'
 
