@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { eq } from 'drizzle-orm'
 
 import { db } from '../db'
-import { systemSettings } from '../db/schema'
+import { systemSettings, users } from '../db/schema'
 import { getDatabaseUrl } from '../server/env.server'
 import { checkDatabaseHealth } from '../server/Foundation/database-health.server'
 
@@ -80,4 +80,41 @@ describe('PostgreSQL integration', () => {
             }
         },
     )
+
+    integrationTest('round-trips profile image WebP bytes through the users schema', async () => {
+        const email = `profile-image-${Date.now()}-${Math.random().toString(16).slice(2)}@integration.invalid`
+        const expectedBytes = new Uint8Array([82, 73, 70, 70, 1, 2, 3, 4])
+        let userId: string | null = null
+
+        try {
+            const insertedRows = await db
+                .insert(users)
+                .values({
+                    displayName: 'Profile image integration',
+                    email,
+                    profileImageVersion: 7,
+                    profileImageWebp: expectedBytes,
+                })
+                .returning({ id: users.id })
+            userId = insertedRows.at(0)?.id ?? null
+
+            expect(userId).not.toBeNull()
+
+            const rows = await db
+                .select({
+                    profileImageVersion: users.profileImageVersion,
+                    profileImageWebp: users.profileImageWebp,
+                })
+                .from(users)
+                .where(eq(users.email, email))
+            const stored = rows.at(0)
+
+            expect(stored?.profileImageVersion).toBe(7)
+            expect([...new Uint8Array(stored?.profileImageWebp ?? [])]).toEqual([...expectedBytes])
+        } finally {
+            if (userId) {
+                await db.delete(users).where(eq(users.id, userId))
+            }
+        }
+    })
 })

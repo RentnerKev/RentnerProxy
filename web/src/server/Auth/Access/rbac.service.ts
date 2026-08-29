@@ -75,6 +75,7 @@ export async function resolveActiveUserAccessInTransaction(
             displayName: users.displayName,
             id: users.id,
             email: users.email,
+            profileImageVersion: users.profileImageVersion,
             status: users.status,
             themeMode: userSettings.themeMode,
         })
@@ -95,6 +96,7 @@ export async function resolveActiveUserAccessInTransaction(
         displayName: user.displayName,
         id: user.id,
         email: user.email,
+        profileImageVersion: user.profileImageVersion > 0 ? user.profileImageVersion : null,
         roles: roleKeys,
         permissions: permissionKeys,
         themeMode: isUserThemeMode(user.themeMode) ? user.themeMode : DEFAULT_USER_THEME_MODE,

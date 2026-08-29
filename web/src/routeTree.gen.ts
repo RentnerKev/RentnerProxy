@@ -20,6 +20,7 @@ import { Route as PublicForgotPasswordRouteImport } from './routes/_public/forgo
 import { Route as PublicLoginRouteImport } from './routes/_public/login'
 import { Route as PublicResetPasswordRouteImport } from './routes/_public/reset-password'
 import { Route as PublicSetupRouteImport } from './routes/_public/setup'
+import { Route as MediaAvatarsUserIdRouteImport } from './routes/media/avatars/$userId'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -74,6 +75,11 @@ const PublicSetupRoute = PublicSetupRouteImport.update({
   path: '/setup',
   getParentRoute: () => PublicRouteRoute,
 } as any)
+const MediaAvatarsUserIdRoute = MediaAvatarsUserIdRouteImport.update({
+  id: '/media/avatars/$userId',
+  path: '/media/avatars/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof PublicLoginRoute
   '/reset-password': typeof PublicResetPasswordRoute
   '/setup': typeof PublicSetupRoute
+  '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/login': typeof PublicLoginRoute
   '/reset-password': typeof PublicResetPasswordRoute
   '/setup': typeof PublicSetupRoute
+  '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/_public/reset-password': typeof PublicResetPasswordRoute
   '/_public/setup': typeof PublicSetupRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/setup'
+    | '/media/avatars/$userId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -134,6 +144,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/setup'
+    | '/media/avatars/$userId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -147,11 +158,13 @@ export interface FileRouteTypes {
     | '/_public/reset-password'
     | '/_public/setup'
     | '/_authenticated/'
+    | '/media/avatars/$userId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   PublicRouteRoute: typeof PublicRouteRouteWithChildren
+  MediaAvatarsUserIdRoute: typeof MediaAvatarsUserIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -233,6 +246,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicSetupRouteImport
       parentRoute: typeof PublicRouteRoute
     }
+    '/media/avatars/$userId': {
+      id: '/media/avatars/$userId'
+      path: '/media/avatars/$userId'
+      fullPath: '/media/avatars/$userId'
+      preLoaderRoute: typeof MediaAvatarsUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -276,6 +296,7 @@ const PublicRouteRouteWithChildren = PublicRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   PublicRouteRoute: PublicRouteRouteWithChildren,
+  MediaAvatarsUserIdRoute: MediaAvatarsUserIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

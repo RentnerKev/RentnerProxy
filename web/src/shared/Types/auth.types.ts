@@ -8,6 +8,7 @@ export interface AuthenticatedUser {
     readonly displayName: string
     readonly id: string
     readonly email: string
+    readonly profileImageVersion: number | null
     readonly roles: ReadonlyArray<string>
     readonly permissions: ReadonlyArray<PermissionKey>
     readonly themeMode: UserThemeMode
@@ -17,6 +18,7 @@ export interface UserSummary {
     readonly displayName: string
     readonly id: string
     readonly email: string
+    readonly profileImageVersion: number | null
     readonly status: UserStatus
     readonly roleKeys: ReadonlyArray<string>
     readonly createdAt: Date

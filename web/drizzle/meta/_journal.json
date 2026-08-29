@@ -15,6 +15,13 @@
             "when": 1787948710337,
             "tag": "0001_flat_scorpion",
             "breakpoints": true
+        },
+        {
+            "idx": 2,
+            "version": "7",
+            "when": 1788021280070,
+            "tag": "0002_complete_bromley",
+            "breakpoints": true
         }
     ]
 }

@@ -38,6 +38,7 @@ async function loadUserForUpdate(transaction: AuthTransaction, userId: string) {
             displayName: users.displayName,
             email: users.email,
             id: users.id,
+            profileImageVersion: users.profileImageVersion,
             status: users.status,
             updatedAt: users.updatedAt,
         })
@@ -85,10 +86,16 @@ async function assertActiveOwnerRemains(
 }
 
 function toUserSummary(
-    user: Omit<UserSummary, 'roleKeys'>,
+    user: Omit<UserSummary, 'profileImageVersion' | 'roleKeys'> & {
+        profileImageVersion: number
+    },
     roleKeys: ReadonlyArray<string>,
 ): UserSummary {
-    return { ...user, roleKeys }
+    return {
+        ...user,
+        profileImageVersion: user.profileImageVersion > 0 ? user.profileImageVersion : null,
+        roleKeys,
+    }
 }
 
 export async function listUsersService(): Promise<Array<UserSummary>> {
@@ -101,6 +108,7 @@ export async function listUsersService(): Promise<Array<UserSummary>> {
                 displayName: users.displayName,
                 email: users.email,
                 id: users.id,
+                profileImageVersion: users.profileImageVersion,
                 status: users.status,
                 updatedAt: users.updatedAt,
             })
@@ -216,6 +224,7 @@ export async function updateUserService(input: {
                     displayName: users.displayName,
                     email: users.email,
                     id: users.id,
+                    profileImageVersion: users.profileImageVersion,
                     status: users.status,
                     updatedAt: users.updatedAt,
                 })
@@ -290,6 +299,7 @@ export async function disableUserService(userId: string): Promise<UserSummary> {
                 displayName: users.displayName,
                 email: users.email,
                 id: users.id,
+                profileImageVersion: users.profileImageVersion,
                 status: users.status,
                 updatedAt: users.updatedAt,
             })

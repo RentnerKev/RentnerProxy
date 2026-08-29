@@ -2,7 +2,9 @@ import { sql } from 'drizzle-orm'
 import {
     boolean,
     check,
+    customType,
     index,
+    integer,
     text,
     timestamp,
     uniqueIndex,
@@ -13,6 +15,12 @@ import {
 import { USER_STATUSES } from '../../config/auth.config'
 import { DEFAULT_USER_THEME_MODE } from '../../config/theme.config'
 import { rentnerProxySchema } from './base'
+
+const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({
+    dataType: () => 'bytea',
+    fromDriver: (value) => new Uint8Array(value),
+    toDriver: (value) => value,
+})
 
 export const userStatus = rentnerProxySchema.enum('user_status', USER_STATUSES)
 export const users = rentnerProxySchema.table(
@@ -29,6 +37,8 @@ export const users = rentnerProxySchema.table(
         }),
         mustChangePassword: boolean('must_change_password').notNull().default(true),
         passwordHash: text('password_hash'),
+        profileImageVersion: integer('profile_image_version').notNull().default(0),
+        profileImageWebp: bytea('profile_image_webp'),
         status: userStatus('status').notNull().default('pending'),
         createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
             .notNull()
