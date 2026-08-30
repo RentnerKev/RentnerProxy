@@ -2,7 +2,6 @@ import { sql } from 'drizzle-orm'
 import {
     boolean,
     check,
-    customType,
     index,
     integer,
     text,
@@ -15,12 +14,7 @@ import {
 import { USER_STATUSES } from '../../config/auth.config'
 import { DEFAULT_USER_THEME_MODE } from '../../config/theme.config'
 import { rentnerProxySchema } from './base'
-
-const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({
-    dataType: () => 'bytea',
-    fromDriver: (value) => new Uint8Array(value),
-    toDriver: (value) => value,
-})
+import { bytea } from './columns'
 
 export const userStatus = rentnerProxySchema.enum('user_status', USER_STATUSES)
 export const users = rentnerProxySchema.table(

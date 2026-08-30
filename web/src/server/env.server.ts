@@ -1,5 +1,7 @@
 import '@tanstack/react-start/server-only'
 
+import { APP_ENCRYPTION_KEY_BYTES, WEBAUTHN_RP_NAME } from '../config/auth-security.config'
+
 const DEFAULT_APP_URL = 'http://localhost:5173'
 const DEFAULT_CONTROLLER_BASE_URL = 'http://127.0.0.1:8081'
 const SMTP_FROM_ADDRESS_PATTERN =
@@ -12,6 +14,12 @@ export interface SmtpConfiguration {
     readonly port: number
     readonly secure: boolean
     readonly user?: string
+}
+
+export interface WebAuthnConfiguration {
+    readonly origin: string
+    readonly rpId: string
+    readonly rpName: string
 }
 
 function normalizeHttpOrigin(value: string): string | null {
@@ -133,6 +141,71 @@ export function parseAppUrl(configured: string | undefined): string | null {
 
 export function getAppUrl(): string | null {
     return parseAppUrl(process.env.APP_URL)
+}
+
+export function parseAppEncryptionKey(configured: string | undefined): Uint8Array | null {
+    if (configured === undefined) {
+        return null
+    }
+
+    const value = configured.trim()
+
+    if (!/^[A-Za-z0-9+/]{43}=$/.test(value)) {
+        return null
+    }
+
+    try {
+        const decoded = Buffer.from(value, 'base64')
+
+        if (
+            decoded.byteLength !== APP_ENCRYPTION_KEY_BYTES ||
+            decoded.toString('base64') !== value
+        ) {
+            return null
+        }
+
+        return new Uint8Array(decoded)
+    } catch {
+        return null
+    }
+}
+
+export function getAppEncryptionKey(): Uint8Array | null {
+    return parseAppEncryptionKey(process.env.APP_ENCRYPTION_KEY)
+}
+
+export function parseWebAuthnRpId(
+    configured: string | undefined,
+    appUrl: string | null,
+): string | null {
+    if (configured === undefined || !appUrl) {
+        return null
+    }
+
+    const rpId = configured.trim().toLowerCase()
+
+    if (
+        !/^(?:localhost|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*)$/.test(
+            rpId,
+        )
+    ) {
+        return null
+    }
+
+    const hostname = new URL(appUrl).hostname.toLowerCase()
+
+    if (hostname !== rpId) {
+        return null
+    }
+
+    return rpId
+}
+
+export function getWebAuthnConfiguration(): WebAuthnConfiguration | null {
+    const origin = getAppUrl()
+    const rpId = parseWebAuthnRpId(process.env.WEBAUTHN_RP_ID, origin)
+
+    return origin && rpId ? { origin, rpId, rpName: WEBAUTHN_RP_NAME } : null
 }
 
 function parseSmtpHost(value: string): string | null {

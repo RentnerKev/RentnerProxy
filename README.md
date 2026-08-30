@@ -79,9 +79,16 @@ The development command starts both processes:
 - Controller health endpoint: `http://127.0.0.1:8081/health`
 
 Controller loopback defaults work without a local environment file. Copy `.env.example` to
-`.env`, configure PostgreSQL and Redis, and apply migrations with `bun run db:migrate`. Fresh
+`.env`, configure PostgreSQL, Redis, and the server-only authentication keys, and apply migrations with `bun run db:migrate`. Fresh
 installations redirect to `/setup`. SMTP must be configured to send user invitations and
 password-reset links.
+
+`APP_ENCRYPTION_KEY` must decode from base64 to exactly 32 bytes and must be kept outside source
+control. It encrypts authentication secrets at rest. `WEBAUTHN_RP_ID` is the WebAuthn relying-party
+ID and must match the hostname used by `APP_URL`; for local development the documented
+`http://localhost:5173` origin uses `localhost` (without the port). WebAuthn requires a secure
+context in deployed environments; browsers allow the `localhost` development exception. Use the
+same host consistently when testing passkeys.
 
 Common commands:
 

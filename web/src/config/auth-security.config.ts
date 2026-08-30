@@ -1,0 +1,24 @@
+export const APP_ENCRYPTION_KEY_BYTES = 32
+export const AES_GCM_IV_BYTES = 12
+
+export const TOTP_ISSUER = 'RentnerProxy'
+export const TOTP_ALGORITHM = 'SHA1'
+export const TOTP_DIGITS = 6
+export const TOTP_PERIOD_SECONDS = 30
+export const TOTP_VALIDATION_WINDOW = 1
+export const TOTP_SECRET_BYTES = 20
+
+export const RECOVERY_CODE_COUNT = 10
+export const RECOVERY_CODE_BYTES = 16
+
+export const TOTP_SETUP_CHALLENGE_DURATION_MS = 10 * 60 * 1_000
+export const LOGIN_MFA_CHALLENGE_DURATION_MS = 5 * 60 * 1_000
+export const WEBAUTHN_CHALLENGE_DURATION_MS = 5 * 60 * 1_000
+export const CHALLENGE_VERIFICATION_LOCK_DURATION_MS = 15 * 1_000
+export const MFA_CHALLENGE_MAX_ATTEMPTS = 5
+
+export const RECENT_AUTHENTICATION_DURATION_MS = 5 * 60 * 1_000
+
+export const WEBAUTHN_RP_NAME = 'RentnerProxy'
+export const WEBAUTHN_TIMEOUT_MS = 5 * 60 * 1_000
+export const PASSKEY_NAME_MAX_LENGTH = 100

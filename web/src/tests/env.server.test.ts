@@ -1,17 +1,22 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 
 import {
+    getAppEncryptionKey,
     getAppUrl,
     getControllerBaseUrl,
     getRedisUrl,
     getSmtpConfiguration,
+    getWebAuthnConfiguration,
+    parseAppEncryptionKey,
     parseAppUrl,
     parseDatabaseUrl,
     parseRedisUrl,
+    parseWebAuthnRpId,
 } from '../server/env.server'
 
 const ENVIRONMENT_VARIABLES = [
     'APP_URL',
+    'APP_ENCRYPTION_KEY',
     'NODE_ENV',
     'REDIS_URL',
     'RENTNERPROXY_CONTROLLER_URL',
@@ -21,6 +26,7 @@ const ENVIRONMENT_VARIABLES = [
     'SMTP_PORT',
     'SMTP_SECURE',
     'SMTP_USER',
+    'WEBAUTHN_RP_ID',
 ] as const
 const originalValues = new Map(
     ENVIRONMENT_VARIABLES.map((variable) => [variable, process.env[variable]] as const),
@@ -127,6 +133,62 @@ describe('getAppUrl', () => {
         expect(parseAppUrl('https://app.example/path')).toBeNull()
         expect(parseAppUrl('https://user:secret@app.example')).toBeNull()
         expect(parseAppUrl(' https://app.example:8443/ ')).toBe('https://app.example:8443')
+    })
+})
+
+describe('application encryption key', () => {
+    const validKey = Buffer.from('01234567890123456789012345678901').toString('base64')
+
+    test('accepts exactly 32 decoded bytes and rejects malformed values', () => {
+        expect(parseAppEncryptionKey(validKey)).toHaveLength(32)
+        expect(parseAppEncryptionKey(undefined)).toBeNull()
+        expect(parseAppEncryptionKey('   ')).toBeNull()
+        expect(parseAppEncryptionKey(validKey.slice(0, -2))).toBeNull()
+        expect(parseAppEncryptionKey(`${validKey.slice(0, -2)}$$`)).toBeNull()
+    })
+
+    test('reads the key only from the server environment', () => {
+        process.env.APP_ENCRYPTION_KEY = validKey
+
+        expect(getAppEncryptionKey()).toHaveLength(32)
+
+        delete process.env.APP_ENCRYPTION_KEY
+        expect(getAppEncryptionKey()).toBeNull()
+    })
+})
+
+describe('WebAuthn relying-party configuration', () => {
+    test('requires an exact RP hostname match and rejects malformed IDs', () => {
+        expect(parseWebAuthnRpId('localhost', 'http://localhost:3000')).toBe('localhost')
+        expect(parseWebAuthnRpId('APP.EXAMPLE', 'https://app.example')).toBe('app.example')
+        expect(parseWebAuthnRpId('example.com', 'https://login.example.com')).toBeNull()
+        expect(parseWebAuthnRpId('https://app.example', 'https://app.example')).toBeNull()
+        expect(parseWebAuthnRpId('app.example:443', 'https://app.example')).toBeNull()
+        expect(parseWebAuthnRpId(undefined, 'https://app.example')).toBeNull()
+        expect(parseWebAuthnRpId('app.example', null)).toBeNull()
+    })
+
+    test('builds a strict local configuration from APP_URL and WEBAUTHN_RP_ID', () => {
+        process.env.NODE_ENV = 'development'
+        delete process.env.APP_URL
+        process.env.WEBAUTHN_RP_ID = 'localhost'
+
+        expect(getWebAuthnConfiguration()).toEqual({
+            origin: 'http://localhost:5173',
+            rpId: 'localhost',
+            rpName: 'RentnerProxy',
+        })
+
+        process.env.WEBAUTHN_RP_ID = '127.0.0.1'
+        expect(getWebAuthnConfiguration()).toBeNull()
+
+        process.env.APP_URL = 'https://app.example'
+        process.env.WEBAUTHN_RP_ID = 'app.example'
+        expect(getWebAuthnConfiguration()).toEqual({
+            origin: 'https://app.example',
+            rpId: 'app.example',
+            rpName: 'RentnerProxy',
+        })
     })
 })
 
