@@ -57,12 +57,15 @@ export default function UserManagementPageView({
                     actorIsOwner={state.actorIsOwner}
                     canCreate={state.canCreate}
                     canDisable={state.canDisable}
+                    canEnable={state.canEnable}
                     canUpdate={state.canUpdate}
                     createDisabled={state.isRolesPending || state.isRolesError}
                     currentUserId={currentUserId}
+                    enablingUserId={state.enablingUserId}
                     isLoading={state.isLoadingUsers}
                     onCreate={handler.openCreate}
                     onDisable={handler.openDisable}
+                    onEnable={handler.enableUser}
                     onEdit={handler.openEditor}
                 />
             )}

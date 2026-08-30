@@ -14,7 +14,7 @@ const renderingRoots = ['features', 'integrations', 'layout', 'routes', 'shared'
 )
 const importPattern = /(?:from\s*|import\s*)['"]([^'"]+)['"]/g
 const permissionLiteralPattern =
-    /['"](?:app\.access|users\.(?:view|create|update|disable|assign_roles)|roles\.(?:view|create|update|delete|assign_permissions)|account\.(?:view|update))['"]/g
+    /['"](?:app\.access|users\.(?:view|create|update|disable|enable|assign_roles)|roles\.(?:view|create|update|delete|assign_permissions)|account\.(?:view|update))['"]/g
 const renderingLogicPattern =
     /\b(?:useCallback|useEffect|useForm|useId|useMatch|useMemo|useMutation|useNavigate|useQuery|useReactTable|useReducer|useRef|useRouter|useSearch|useState|useSuspenseQuery)\s*\(/
 const nativeTitleAttributePattern = /<[a-z][\w.-]*\b[^>]*\btitle\s*=/s

@@ -17,6 +17,8 @@ return { count, ttl }
 `
 const RATE_LIMIT_KEY_PREFIX = 'rentnerproxy:auth-rate-limit'
 const TEN_MINUTES_MS = 10 * 60 * 1_000
+const FIFTEEN_MINUTES_MS = 15 * 60 * 1_000
+const ONE_HOUR_MS = 60 * 60 * 1_000
 const UNKNOWN_CLIENT_IP = 'unknown'
 const RATE_LIMIT_SCOPE_PATTERN = /^[a-z][a-z0-9-]{0,63}$/
 const USER_ID_SCHEMA = z.uuid()
@@ -66,6 +68,16 @@ export interface LoginMfaRateLimitResult {
     readonly user: RateLimitResult
 }
 
+export interface InviteRateLimitRequest {
+    readonly actorUserId: string
+    readonly email: string
+}
+
+export interface InviteRateLimitResult {
+    readonly actor: RateLimitResult
+    readonly email: RateLimitResult
+}
+
 export interface AuthRateLimitDependencies extends RateLimitDependencies {
     readonly resolveClientIp: (request: Request) => string
     readonly warn: (reason: string) => void
@@ -95,6 +107,21 @@ export const LOGIN_MFA_USER_RATE_LIMIT = {
     scope: 'login-user',
     windowMs: TEN_MINUTES_MS,
 } as const satisfies RateLimitPolicy
+
+export const SENSITIVE_ACTION_RATE_LIMITS = {
+    passwordChange: {
+        limit: 10,
+        scope: 'password-change-user',
+        windowMs: FIFTEEN_MINUTES_MS,
+    },
+    invite: {
+        actor: { limit: 20, scope: 'invite-actor', windowMs: FIFTEEN_MINUTES_MS },
+        email: { limit: 5, scope: 'invite-target-email', windowMs: ONE_HOUR_MS },
+    },
+} as const satisfies Readonly<{
+    passwordChange: RateLimitPolicy
+    invite: Readonly<{ actor: RateLimitPolicy; email: RateLimitPolicy }>
+}>
 
 export class RateLimitError extends Error {
     readonly code = 'RATE_LIMITED'
@@ -324,4 +351,35 @@ export async function enforceLoginMfaRateLimit(
     ])
 
     return { ip, user }
+}
+
+export async function enforcePasswordChangeRateLimit(
+    userId: string,
+    overrides: Partial<RateLimitDependencies> = {},
+): Promise<RateLimitResult> {
+    const userKey = createUserRateLimitKey(
+        SENSITIVE_ACTION_RATE_LIMITS.passwordChange.scope,
+        userId,
+    )
+
+    return consumeRateLimitKey(SENSITIVE_ACTION_RATE_LIMITS.passwordChange, userKey, overrides)
+}
+
+export async function enforceInviteRateLimit(
+    request: InviteRateLimitRequest,
+    overrides: Partial<RateLimitDependencies> = {},
+): Promise<InviteRateLimitResult> {
+    const actorKey = createUserRateLimitKey(
+        SENSITIVE_ACTION_RATE_LIMITS.invite.actor.scope,
+        request.actorUserId,
+    )
+    const [actor, email] = await Promise.all([
+        consumeRateLimitKey(SENSITIVE_ACTION_RATE_LIMITS.invite.actor, actorKey, overrides),
+        consumeRateLimit(
+            { ...SENSITIVE_ACTION_RATE_LIMITS.invite.email, identifier: request.email },
+            overrides,
+        ),
+    ])
+
+    return { actor, email }
 }

@@ -428,7 +428,8 @@
                 "rolesNotReady": "Las opciones de roles todavía no están disponibles.",
                 "created": "Usuario creado e invitación enviada.",
                 "updated": "Usuario actualizado.",
-                "disabled": "Usuario desactivado y sesiones revocadas."
+                "disabled": "Usuario desactivado y sesiones revocadas.",
+                "enabled": "Usuario activado correctamente."
             },
             "states": {
                 "unavailableTitle": "Usuarios no disponibles",
@@ -440,13 +441,17 @@
                 "edit": "Editar",
                 "disable": "Desactivar",
                 "disabling": "Desactivando usuario…",
+                "enable": "Activar",
+                "enabling": "Activando usuario…",
                 "retryRoles": "Reintentar roles",
                 "open": "Abrir acciones para {{name}}",
                 "none": "No hay acciones disponibles",
                 "ownerEdit": "Solo un propietario puede editar esta cuenta.",
                 "ownerDisable": "Solo un propietario puede desactivar esta cuenta.",
+                "ownerEnable": "Solo un propietario puede activar esta cuenta.",
                 "selfDisable": "No puedes desactivar tu propia cuenta.",
-                "disableDescription": "Revocar sesiones y bloquear el inicio de sesión."
+                "disableDescription": "Revocar sesiones y bloquear el inicio de sesión.",
+                "enableDescription": "Permitir que esta cuenta vuelva a iniciar sesión."
             },
             "confirm": {
                 "disableTitle": "¿Desactivar usuario?",
@@ -510,6 +515,7 @@
                 "inviteFailed": "No se pudo invitar al usuario.",
                 "updateFailed": "No se pudo actualizar el usuario.",
                 "disableFailed": "No se pudo desactivar el usuario.",
+                "enableFailed": "No se pudo activar el usuario.",
                 "saveFailed": "No se pudo guardar el usuario.",
                 "editableRequired": "Se necesita un usuario editable."
             },
@@ -635,6 +641,7 @@
             "create": "Crear usuarios",
             "update": "Actualizar usuarios",
             "disable": "Desactivar usuarios",
+            "enable": "Activar usuarios",
             "assign_roles": "Asignar roles de usuario"
         },
         "roles": {

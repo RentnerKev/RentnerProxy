@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
-import { eq, inArray, like, notLike } from 'drizzle-orm'
+import { requestHandler } from '@tanstack/react-start/server'
+import { and, eq, inArray, like, notLike } from 'drizzle-orm'
 import * as OTPAuth from 'otpauth'
+
+import { SESSION_COOKIE_NAME } from '../config/auth.config'
 
 import {
     TOTP_ALGORITHM,
@@ -34,8 +37,9 @@ import {
 import { getDatabaseUrl, getRedisUrl } from '../server/env.server'
 import { getAuthDatabase } from '../server/Auth/Core/database.server'
 import { AuthDomainError } from '../server/Auth/Core/errors.server'
-import { acceptInviteService } from '../server/Auth/Setup/invites.service'
+import { acceptInviteService, issueInviteService } from '../server/Auth/Setup/invites.service'
 import { decryptSecret } from '../server/Auth/Core/encryption.server'
+import { changeCurrentPasswordService } from '../server/Auth/Account/account.service'
 import { loginService } from '../server/Auth/Login/login.service'
 import { hashPassword, verifyPassword } from '../server/Auth/Core/password.server'
 import {
@@ -50,6 +54,7 @@ import {
     resolveActiveUserAccessInTransaction,
 } from '../server/Auth/Access/rbac.service'
 import { ensureAuthorizationRegistryInTransaction } from '../server/Auth/Access/registry.service'
+import { enableUserService } from '../server/Admin/UserManagement/users.service'
 import {
     createSessionService,
     getSessionByTokenService,
@@ -75,6 +80,13 @@ import {
     normalizeRecoveryCode,
 } from '../server/Auth/TwoFactor/two-factor-credentials.server'
 import { consumeAuthChallenge } from '../server/redis/auth-challenges.service'
+import { closeRedisClient, getRedisClient } from '../server/redis/client.server'
+import {
+    RateLimitError,
+    SENSITIVE_ACTION_RATE_LIMITS,
+    createRateLimitKey,
+    createUserRateLimitKey,
+} from '../server/redis/rate-limiter.service'
 import {
     setupFirstOwnerService,
     type FirstOwnerSetupResult,
@@ -96,6 +108,7 @@ const SECURITY_INTEGRATION_ENABLED =
 const securityIntegrationTest = SECURITY_INTEGRATION_ENABLED ? test : test.skip
 
 let preparedPasswordHash = ''
+const createdRateLimitKeys = new Set<string>()
 
 function testEmail(label: string): string {
     return `${label}-${randomUUID()}${TEST_EMAIL_SUFFIX}`
@@ -117,6 +130,25 @@ async function captureError(promise: Promise<unknown>): Promise<unknown> {
         return null
     } catch (error) {
         return error
+    }
+}
+
+async function cleanRedisRateLimitKeys(): Promise<void> {
+    if (!SECURITY_INTEGRATION_ENABLED || createdRateLimitKeys.size === 0) {
+        createdRateLimitKeys.clear()
+        return
+    }
+
+    const client = getRedisClient()
+
+    if (!client) {
+        throw new Error('Redis integration client is unavailable during cleanup.')
+    }
+
+    try {
+        await client.send('DEL', [...createdRateLimitKeys])
+    } finally {
+        createdRateLimitKeys.clear()
     }
 }
 
@@ -250,6 +282,37 @@ async function loadActiveAccess(userId: string): Promise<AuthenticatedUser> {
     return access
 }
 
+async function runWithSessionToken<T>(token: string, operation: () => Promise<T>): Promise<T> {
+    let failed = false
+    let failure: unknown
+    let result: T | undefined
+    const handler = requestHandler(async () => {
+        try {
+            result = await operation()
+        } catch (error) {
+            failed = true
+            failure = error
+        }
+        return new Response(null, { status: failed ? 500 : 204 })
+    })
+
+    const request = new Request('http://localhost/')
+    // DOM test Requests strip Cookie during construction; this models an incoming server request.
+    request.headers.set('cookie', `${SESSION_COOKIE_NAME}=${token}`)
+    await handler(request, {})
+
+    if (failed) {
+        throw failure
+    }
+
+    return result as T
+}
+
+async function runAsUser<T>(userId: string, operation: () => Promise<T>): Promise<T> {
+    const session = await createSessionService(userId)
+    return runWithSessionToken(session.token, operation)
+}
+
 async function createPendingInvite(expired = false) {
     const user = await createTestUser({ status: 'pending', withPassword: false })
     const token = createOpaqueToken()
@@ -289,6 +352,9 @@ beforeAll(async () => {
     await getAuthDatabase().transaction((transaction) =>
         ensureAuthorizationRegistryInTransaction(transaction),
     )
+    if (SECURITY_INTEGRATION_ENABLED && !getRedisClient()) {
+        throw new Error('Redis integration client is unavailable.')
+    }
 })
 
 beforeEach(async () => {
@@ -301,6 +367,7 @@ afterEach(async () => {
     if (DATABASE_INTEGRATION_ENABLED) {
         await cleanTestRows()
     }
+    await cleanRedisRateLimitKeys()
 })
 
 afterAll(async () => {
@@ -309,6 +376,10 @@ afterAll(async () => {
     }
 
     await cleanTestRows()
+    await cleanRedisRateLimitKeys()
+    if (SECURITY_INTEGRATION_ENABLED) {
+        closeRedisClient()
+    }
 })
 
 describe('first-owner setup with PostgreSQL', () => {
@@ -515,18 +586,22 @@ describe('RBAC with PostgreSQL', () => {
 
     integrationTest('resolves owner, admin, viewer, and additive multi-role access', async () => {
         const customRoleKey = await createCustomRole([PERMISSIONS.USERS_VIEW])
+        const customEnableRoleKey = await createCustomRole([PERMISSIONS.USERS_ENABLE])
         const owner = await createTestUser({ roleKeys: [SYSTEM_ROLES.OWNER] })
         const admin = await createTestUser({ roleKeys: [SYSTEM_ROLES.ADMIN] })
         const viewer = await createTestUser({ roleKeys: [SYSTEM_ROLES.VIEWER] })
         const multiRole = await createTestUser({
             roleKeys: [SYSTEM_ROLES.VIEWER, customRoleKey],
         })
-        const [ownerAccess, adminAccess, viewerAccess, multiRoleAccess] = await Promise.all([
-            loadActiveAccess(owner.id),
-            loadActiveAccess(admin.id),
-            loadActiveAccess(viewer.id),
-            loadActiveAccess(multiRole.id),
-        ])
+        const explicitlyEnabled = await createTestUser({ roleKeys: [customEnableRoleKey] })
+        const [ownerAccess, adminAccess, viewerAccess, multiRoleAccess, explicitlyEnabledAccess] =
+            await Promise.all([
+                loadActiveAccess(owner.id),
+                loadActiveAccess(admin.id),
+                loadActiveAccess(viewer.id),
+                loadActiveAccess(multiRole.id),
+                loadActiveAccess(explicitlyEnabled.id),
+            ])
         const expectedMultiRolePermissions = [
             ...new Set([...permissionsForSystemRole(SYSTEM_ROLES.VIEWER), PERMISSIONS.USERS_VIEW]),
         ].toSorted()
@@ -544,7 +619,75 @@ describe('RBAC with PostgreSQL', () => {
             [SYSTEM_ROLES.VIEWER, customRoleKey].toSorted(),
         )
         expect(multiRoleAccess.permissions.toSorted()).toEqual(expectedMultiRolePermissions)
+        expect(ownerAccess.permissions).toContain(PERMISSIONS.USERS_ENABLE)
+        expect(adminAccess.permissions).toContain(PERMISSIONS.USERS_ENABLE)
+        expect(viewerAccess.permissions).not.toContain(PERMISSIONS.USERS_ENABLE)
+        expect(multiRoleAccess.permissions).not.toContain(PERMISSIONS.USERS_ENABLE)
+        expect(explicitlyEnabledAccess.permissions).toContain(PERMISSIONS.USERS_ENABLE)
     })
+
+    integrationTest(
+        'repairs missing system enable permission assignments idempotently',
+        async () => {
+            const customRoleKey = await createCustomRole([PERMISSIONS.USERS_VIEW])
+            const explicitRoleKey = await createCustomRole([PERMISSIONS.USERS_ENABLE])
+            const admin = await createTestUser({ roleKeys: [SYSTEM_ROLES.ADMIN] })
+            const viewer = await createTestUser({ roleKeys: [SYSTEM_ROLES.VIEWER] })
+            const custom = await createTestUser({ roleKeys: [customRoleKey] })
+            const explicit = await createTestUser({ roleKeys: [explicitRoleKey] })
+            const adminRole = requireFirstRow(
+                await getAuthDatabase()
+                    .select({ id: roles.id })
+                    .from(roles)
+                    .where(eq(roles.key, SYSTEM_ROLES.ADMIN)),
+                'Admin role was not found.',
+            )
+            const enablePermission = requireFirstRow(
+                await getAuthDatabase()
+                    .select({ id: permissions.id })
+                    .from(permissions)
+                    .where(eq(permissions.key, PERMISSIONS.USERS_ENABLE)),
+                'Enable permission was not found.',
+            )
+
+            await getAuthDatabase()
+                .delete(rolePermissions)
+                .where(
+                    and(
+                        eq(rolePermissions.roleId, adminRole.id),
+                        eq(rolePermissions.permissionId, enablePermission.id),
+                    ),
+                )
+            await getAuthDatabase().transaction((transaction) =>
+                ensureAuthorizationRegistryInTransaction(transaction),
+            )
+            await getAuthDatabase().transaction((transaction) =>
+                ensureAuthorizationRegistryInTransaction(transaction),
+            )
+
+            const [adminAccess, viewerAccess, customAccess, explicitAccess] = await Promise.all([
+                loadActiveAccess(admin.id),
+                loadActiveAccess(viewer.id),
+                loadActiveAccess(custom.id),
+                loadActiveAccess(explicit.id),
+            ])
+            expect(adminAccess.permissions).toContain(PERMISSIONS.USERS_ENABLE)
+            expect(viewerAccess.permissions).not.toContain(PERMISSIONS.USERS_ENABLE)
+            expect(customAccess.permissions).not.toContain(PERMISSIONS.USERS_ENABLE)
+            expect(explicitAccess.permissions).toContain(PERMISSIONS.USERS_ENABLE)
+
+            const repairedAssignments = await getAuthDatabase()
+                .select({ permissionId: rolePermissions.permissionId })
+                .from(rolePermissions)
+                .where(
+                    and(
+                        eq(rolePermissions.roleId, adminRole.id),
+                        eq(rolePermissions.permissionId, enablePermission.id),
+                    ),
+                )
+            expect(repairedAssignments).toHaveLength(1)
+        },
+    )
 
     integrationTest('denies missing permissions and owner assignment by an admin', async () => {
         const viewer = await createTestUser({ roleKeys: [SYSTEM_ROLES.VIEWER] })
@@ -595,6 +738,170 @@ describe('RBAC with PostgreSQL', () => {
         expect(twoOwnerCount).toBe(2)
         expect(finalCount).toBe(1)
     })
+})
+
+describe('user enablement with PostgreSQL', () => {
+    integrationTest(
+        'enables a disabled user without changing roles, credentials, or related rows',
+        async () => {
+            const admin = await createTestUser({ roleKeys: [SYSTEM_ROLES.ADMIN] })
+            const target = await createTestUser({
+                roleKeys: [SYSTEM_ROLES.VIEWER],
+                status: 'disabled',
+            })
+            const beforeUsers = await getAuthDatabase()
+                .select({
+                    createdAt: users.createdAt,
+                    passwordHash: users.passwordHash,
+                    status: users.status,
+                    updatedAt: users.updatedAt,
+                })
+                .from(users)
+                .where(eq(users.id, target.id))
+            const beforeUser = requireFirstRow(beforeUsers, 'Disabled target was not found.')
+            const beforeRoles = await getAuthDatabase()
+                .select({ roleKey: roles.key })
+                .from(userRoles)
+                .innerJoin(roles, eq(roles.id, userRoles.roleId))
+                .where(eq(userRoles.userId, target.id))
+            const beforeSessions = await getAuthDatabase()
+                .select({ id: sessions.id })
+                .from(sessions)
+                .where(eq(sessions.userId, target.id))
+            const beforeInvites = await getAuthDatabase()
+                .select({ id: userInvites.id })
+                .from(userInvites)
+                .where(eq(userInvites.userId, target.id))
+
+            const result = await runAsUser(admin.id, () => enableUserService(target.id))
+
+            expect(result).toMatchObject({
+                id: target.id,
+                roleKeys: [SYSTEM_ROLES.VIEWER],
+                status: 'active',
+            })
+            const afterUsers = await getAuthDatabase()
+                .select({
+                    createdAt: users.createdAt,
+                    passwordHash: users.passwordHash,
+                    status: users.status,
+                    updatedAt: users.updatedAt,
+                })
+                .from(users)
+                .where(eq(users.id, target.id))
+            const afterUser = requireFirstRow(afterUsers, 'Enabled target was not found.')
+            const afterRoles = await getAuthDatabase()
+                .select({ roleKey: roles.key })
+                .from(userRoles)
+                .innerJoin(roles, eq(roles.id, userRoles.roleId))
+                .where(eq(userRoles.userId, target.id))
+            const afterSessions = await getAuthDatabase()
+                .select({ id: sessions.id })
+                .from(sessions)
+                .where(eq(sessions.userId, target.id))
+            const afterInvites = await getAuthDatabase()
+                .select({ id: userInvites.id })
+                .from(userInvites)
+                .where(eq(userInvites.userId, target.id))
+
+            expect(afterUser.status).toBe('active')
+            expect(afterUser.createdAt).toEqual(beforeUser.createdAt)
+            expect(afterUser.passwordHash).toBe(beforeUser.passwordHash)
+            expect(afterUser.updatedAt.getTime()).toBeGreaterThanOrEqual(
+                beforeUser.updatedAt.getTime(),
+            )
+            expect(afterRoles).toEqual(beforeRoles)
+            expect(afterSessions).toEqual(beforeSessions)
+            expect(afterInvites).toEqual(beforeInvites)
+        },
+    )
+
+    integrationTest(
+        'rejects active, pending, incomplete-disabled, and unknown targets',
+        async () => {
+            const owner = await createTestUser({ roleKeys: [SYSTEM_ROLES.OWNER] })
+            const active = await createTestUser({ status: 'active' })
+            const pending = await createTestUser({ status: 'pending', withPassword: false })
+            const incompleteDisabled = await createTestUser({
+                status: 'disabled',
+                withPassword: false,
+            })
+
+            const errors = await Promise.all(
+                [active, pending, incompleteDisabled].map((user) =>
+                    captureError(runAsUser(owner.id, () => enableUserService(user.id))),
+                ),
+            )
+            for (const error of errors) {
+                expect(error).toBeInstanceOf(AuthDomainError)
+                expect(error).toMatchObject({ code: 'invalid_input' })
+            }
+            const missingError = await captureError(
+                runAsUser(owner.id, () => enableUserService(randomUUID())),
+            )
+            expect(missingError).toBeInstanceOf(AuthDomainError)
+            expect(missingError).toMatchObject({ code: 'user_not_found' })
+
+            const statuses = await getAuthDatabase()
+                .select({ id: users.id, status: users.status })
+                .from(users)
+                .where(inArray(users.id, [active.id, pending.id, incompleteDisabled.id]))
+            expect(statuses).toEqual(
+                expect.arrayContaining([
+                    { id: active.id, status: 'active' },
+                    { id: pending.id, status: 'pending' },
+                    { id: incompleteDisabled.id, status: 'disabled' },
+                ]),
+            )
+        },
+    )
+
+    integrationTest('denies missing permission and rejects a disabled actor', async () => {
+        const viewer = await createTestUser({ roleKeys: [SYSTEM_ROLES.VIEWER] })
+        const target = await createTestUser({ status: 'disabled' })
+        const viewerError = await captureError(
+            runAsUser(viewer.id, () => enableUserService(target.id)),
+        )
+        expect(viewerError).toBeInstanceOf(AuthDomainError)
+        expect(viewerError).toMatchObject({ code: 'permission_denied' })
+
+        const admin = await createTestUser({ roleKeys: [SYSTEM_ROLES.ADMIN] })
+        const adminSession = await createSessionService(admin.id)
+        await getAuthDatabase()
+            .update(users)
+            .set({ status: 'disabled' })
+            .where(eq(users.id, admin.id))
+        const disabledActorError = await captureError(
+            runWithSessionToken(adminSession.token, () => enableUserService(target.id)),
+        )
+        expect(disabledActorError).toBeInstanceOf(AuthDomainError)
+        expect(disabledActorError).toMatchObject({ code: 'authentication_required' })
+    })
+
+    integrationTest(
+        'lets an owner enable a disabled owner while an admin is rejected',
+        async () => {
+            const owner = await createTestUser({ roleKeys: [SYSTEM_ROLES.OWNER] })
+            const admin = await createTestUser({ roleKeys: [SYSTEM_ROLES.ADMIN] })
+            const disabledOwner = await createTestUser({
+                roleKeys: [SYSTEM_ROLES.OWNER],
+                status: 'disabled',
+            })
+
+            const adminError = await captureError(
+                runAsUser(admin.id, () => enableUserService(disabledOwner.id)),
+            )
+            expect(adminError).toBeInstanceOf(AuthDomainError)
+            expect(adminError).toMatchObject({ code: 'owner_required' })
+
+            const result = await runAsUser(owner.id, () => enableUserService(disabledOwner.id))
+            expect(result).toMatchObject({
+                id: disabledOwner.id,
+                roleKeys: [SYSTEM_ROLES.OWNER],
+                status: 'active',
+            })
+        },
+    )
 })
 
 describe('password reset with PostgreSQL', () => {
@@ -776,6 +1083,217 @@ describe('user invites with PostgreSQL', () => {
             'pending',
         )
     })
+})
+
+describe('sensitive action rate limits with PostgreSQL and Redis', () => {
+    securityIntegrationTest(
+        'admits ten wrong password changes, isolates users, and rejects the eleventh',
+        async () => {
+            const user = await createTestUser()
+            const otherUser = await createTestUser()
+            const userKey = createUserRateLimitKey(
+                SENSITIVE_ACTION_RATE_LIMITS.passwordChange.scope,
+                user.id,
+            )
+            const otherUserKey = createUserRateLimitKey(
+                SENSITIVE_ACTION_RATE_LIMITS.passwordChange.scope,
+                otherUser.id,
+            )
+            createdRateLimitKeys.add(userKey)
+            createdRateLimitKeys.add(otherUserKey)
+            const session = await createSessionService(user.id)
+            const otherSession = await createSessionService(otherUser.id)
+
+            for (let attempt = 0; attempt < 10; attempt += 1) {
+                // oxlint-disable-next-line eslint/no-await-in-loop -- Attempts must consume one shared Redis window in order.
+                const result = await runWithSessionToken(session.token, () =>
+                    changeCurrentPasswordService({
+                        currentPassword: 'wrong current password',
+                        password: NEW_PASSWORD,
+                    }),
+                )
+                expect(result).toEqual({ success: false, code: 'invalid_current_password' })
+            }
+
+            const eleventhError = await captureError(
+                runWithSessionToken(session.token, () =>
+                    changeCurrentPasswordService({
+                        currentPassword: 'wrong current password',
+                        password: NEW_PASSWORD,
+                    }),
+                ),
+            )
+            expect(eleventhError).toBeInstanceOf(RateLimitError)
+            expect(eleventhError).toMatchObject({
+                count: 11,
+                limit: SENSITIVE_ACTION_RATE_LIMITS.passwordChange.limit,
+                scope: SENSITIVE_ACTION_RATE_LIMITS.passwordChange.scope,
+            })
+
+            const otherResult = await runWithSessionToken(otherSession.token, () =>
+                changeCurrentPasswordService({
+                    currentPassword: 'wrong current password',
+                    password: NEW_PASSWORD,
+                }),
+            )
+            expect(otherResult).toEqual({ success: false, code: 'invalid_current_password' })
+
+            const storedUsers = await getAuthDatabase()
+                .select({ email: users.email, passwordHash: users.passwordHash })
+                .from(users)
+                .where(inArray(users.id, [user.id, otherUser.id]))
+            expect(storedUsers).toHaveLength(2)
+            expect(
+                storedUsers.every(
+                    (storedUser) =>
+                        storedUser.passwordHash !== null &&
+                        storedUser.passwordHash === preparedPasswordHash,
+                ),
+            ).toBeTrue()
+        },
+    )
+
+    securityIntegrationTest(
+        'resends one normalized pending invite five times and rejects the sixth',
+        async () => {
+            const actor = await createTestUser({ roleKeys: [SYSTEM_ROLES.ADMIN] })
+            const actorKey = createUserRateLimitKey(
+                SENSITIVE_ACTION_RATE_LIMITS.invite.actor.scope,
+                actor.id,
+            )
+            const inviteEmail = testEmail('pending-target')
+            const emailVariants = [
+                ` ${inviteEmail.toUpperCase()} `,
+                inviteEmail,
+                ` ${inviteEmail.toUpperCase()}`,
+                `${inviteEmail} `,
+                ` ${inviteEmail.toUpperCase()}`,
+            ]
+            const emailKey = createRateLimitKey(
+                SENSITIVE_ACTION_RATE_LIMITS.invite.email.scope,
+                emailVariants[0] ?? '',
+            )
+            createdRateLimitKeys.add(actorKey)
+            createdRateLimitKeys.add(emailKey)
+            const session = await createSessionService(actor.id)
+            const deliveries = []
+
+            for (const email of emailVariants) {
+                // oxlint-disable-next-line eslint/no-await-in-loop -- Each resend must replace the same pending invite in order.
+                const delivery = await runWithSessionToken(session.token, () =>
+                    issueInviteService({ email, roleKeys: [SYSTEM_ROLES.VIEWER] }),
+                )
+                deliveries.push(delivery)
+            }
+
+            const firstDelivery = requireFirstRow(deliveries, 'Initial invite was not delivered.')
+            expect(new Set(deliveries.map((delivery) => delivery.userId))).toEqual(
+                new Set([firstDelivery.userId]),
+            )
+            const lastDelivery = deliveries.at(-1)
+            if (!lastDelivery) {
+                throw new Error('Final invite was not delivered.')
+            }
+            const inviteBeforeDenial = requireFirstRow(
+                await getAuthDatabase()
+                    .select({ id: userInvites.id, tokenHash: userInvites.tokenHash })
+                    .from(userInvites)
+                    .where(eq(userInvites.userId, lastDelivery.userId)),
+                'Pending invite was not stored.',
+            )
+            expect(inviteBeforeDenial.tokenHash).toBe(await hashOpaqueToken(lastDelivery.token))
+
+            const sixthError = await captureError(
+                runWithSessionToken(session.token, () =>
+                    issueInviteService({
+                        email: ` ${inviteEmail.toUpperCase()} `,
+                        roleKeys: [SYSTEM_ROLES.VIEWER],
+                    }),
+                ),
+            )
+            expect(sixthError).toBeInstanceOf(RateLimitError)
+            expect(sixthError).toMatchObject({
+                count: 6,
+                limit: SENSITIVE_ACTION_RATE_LIMITS.invite.email.limit,
+                scope: SENSITIVE_ACTION_RATE_LIMITS.invite.email.scope,
+            })
+
+            const pendingUsers = await getAuthDatabase()
+                .select({ id: users.id, status: users.status })
+                .from(users)
+                .where(eq(users.id, lastDelivery.userId))
+            const inviteAfterDenial = await getAuthDatabase()
+                .select({ id: userInvites.id, tokenHash: userInvites.tokenHash })
+                .from(userInvites)
+                .where(eq(userInvites.userId, lastDelivery.userId))
+            expect(pendingUsers).toEqual([{ id: lastDelivery.userId, status: 'pending' }])
+            expect(inviteAfterDenial).toEqual([inviteBeforeDenial])
+        },
+    )
+
+    securityIntegrationTest(
+        'rejects the twenty-first invite for an actor without creating its user or invite',
+        async () => {
+            const actor = await createTestUser({ roleKeys: [SYSTEM_ROLES.ADMIN] })
+            const session = await createSessionService(actor.id)
+            const emails = Array.from({ length: 21 }, (_, index) =>
+                testEmail(`rate-limit-invite-${index}`),
+            )
+            createdRateLimitKeys.add(
+                createUserRateLimitKey(SENSITIVE_ACTION_RATE_LIMITS.invite.actor.scope, actor.id),
+            )
+            for (const email of emails) {
+                createdRateLimitKeys.add(
+                    createRateLimitKey(SENSITIVE_ACTION_RATE_LIMITS.invite.email.scope, email),
+                )
+            }
+
+            for (const email of emails.slice(0, 20)) {
+                // oxlint-disable-next-line eslint/no-await-in-loop -- Actor counter must cross its threshold deterministically.
+                await runWithSessionToken(session.token, () =>
+                    issueInviteService({ email, roleKeys: [SYSTEM_ROLES.VIEWER] }),
+                )
+            }
+
+            const beforeUsers = await getAuthDatabase()
+                .select({ email: users.email })
+                .from(users)
+                .where(inArray(users.email, emails))
+            const beforeInvites = await getAuthDatabase()
+                .select({ userId: userInvites.userId })
+                .from(userInvites)
+                .innerJoin(users, eq(users.id, userInvites.userId))
+                .where(inArray(users.email, emails))
+            const deniedEmail = emails.at(-1)
+            if (!deniedEmail) {
+                throw new Error('Rate-limit target email was not generated.')
+            }
+
+            const twentyFirstError = await captureError(
+                runWithSessionToken(session.token, () =>
+                    issueInviteService({ email: deniedEmail, roleKeys: [SYSTEM_ROLES.VIEWER] }),
+                ),
+            )
+            expect(twentyFirstError).toBeInstanceOf(RateLimitError)
+            expect(twentyFirstError).toMatchObject({
+                count: 21,
+                limit: SENSITIVE_ACTION_RATE_LIMITS.invite.actor.limit,
+                scope: SENSITIVE_ACTION_RATE_LIMITS.invite.actor.scope,
+            })
+
+            const afterUsers = await getAuthDatabase()
+                .select({ email: users.email })
+                .from(users)
+                .where(inArray(users.email, emails))
+            const afterInvites = await getAuthDatabase()
+                .select({ userId: userInvites.userId })
+                .from(userInvites)
+                .innerJoin(users, eq(users.id, userInvites.userId))
+                .where(inArray(users.email, emails))
+            expect(afterUsers).toEqual(beforeUsers)
+            expect(afterInvites).toEqual(beforeInvites)
+        },
+    )
 })
 
 describe('account security with PostgreSQL and Redis', () => {

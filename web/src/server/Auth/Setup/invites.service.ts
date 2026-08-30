@@ -16,6 +16,7 @@ import {
     PENDING_DISPLAY_NAME,
 } from '../Core/identity.server'
 import { hashPassword } from '../Core/password.server'
+import { enforceInviteRateLimit } from '../../redis/rate-limiter.service'
 import {
     assertRoleAssignmentAllowedInTransaction,
     getUserRoleKeysInTransaction,
@@ -37,6 +38,8 @@ export async function issueInviteService(input: {
 }): Promise<TokenDelivery & { readonly userId: string }> {
     const actor = await requirePermissionService(PERMISSIONS.USERS_CREATE)
     const email = normalizeEmail(input.email)
+    await enforceInviteRateLimit({ actorUserId: actor.id, email })
+
     const pendingDisplayName = normalizePendingDisplayName(input.displayName)
     const token = createOpaqueToken()
     const tokenHash = await hashOpaqueToken(token)

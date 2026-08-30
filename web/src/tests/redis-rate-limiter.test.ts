@@ -5,11 +5,14 @@ import {
     LOGIN_MFA_USER_RATE_LIMIT,
     RateLimitError,
     RateLimitUnavailableError,
+    SENSITIVE_ACTION_RATE_LIMITS,
     consumeRateLimit,
     createRateLimitKey,
     createUserRateLimitKey,
     enforceAuthRateLimit,
+    enforceInviteRateLimit,
     enforceLoginMfaRateLimit,
+    enforcePasswordChangeRateLimit,
     getClientIp,
 } from '../server/redis/rate-limiter.service'
 import type { RedisCommandClient } from '../server/redis/Types/redis.types'
@@ -347,6 +350,220 @@ describe('enforceLoginMfaRateLimit', () => {
             limit: 20,
             retryAfterMs: 120_000,
             scope: 'login-ip',
+        })
+    })
+})
+
+describe('sensitive authenticated action limits', () => {
+    const firstUserId = '019b85a0-7c29-7000-8abc-0123456789ab'
+    const secondUserId = '019b85a0-7c29-7000-8abc-0123456789ac'
+
+    test('limits password changes per trusted user UUID without an IP bucket', async () => {
+        const counts = new Map<string, number>()
+        const client = createClient((_command, args) => {
+            const key = args[2] ?? ''
+            const count = (counts.get(key) ?? 0) + 1
+            counts.set(key, count)
+            return Promise.resolve([count, 900_000])
+        })
+        const attempts = await Promise.allSettled(
+            Array.from({ length: 11 }, () =>
+                enforcePasswordChangeRateLimit(firstUserId, { getClient: () => client }),
+            ),
+        )
+        const otherUser = await enforcePasswordChangeRateLimit(secondUserId, {
+            getClient: () => client,
+        })
+        const failures = attempts.filter(
+            (attempt): attempt is PromiseRejectedResult => attempt.status === 'rejected',
+        )
+
+        expect(SENSITIVE_ACTION_RATE_LIMITS.passwordChange).toEqual({
+            limit: 10,
+            scope: 'password-change-user',
+            windowMs: 900_000,
+        })
+        expect(attempts.filter((attempt) => attempt.status === 'fulfilled')).toHaveLength(10)
+        expect(failures).toHaveLength(1)
+        expect(failures[0]?.reason).toMatchObject({
+            count: 11,
+            limit: 10,
+            scope: 'password-change-user',
+        })
+        expect(otherUser).toMatchObject({ count: 1, remaining: 9 })
+        expect(counts).toEqual(
+            new Map([
+                [createUserRateLimitKey('password-change-user', firstUserId), 11],
+                [createUserRateLimitKey('password-change-user', secondUserId), 1],
+            ]),
+        )
+    })
+
+    test('shares normalized target-email and actor counters for invitation creation and resend', async () => {
+        const keys: string[] = []
+        const client = createClient((_command, args) => {
+            const key = args[2]
+
+            if (key) {
+                keys.push(key)
+            }
+
+            return Promise.resolve([1, 900_000])
+        })
+        const invite = { actorUserId: firstUserId, email: ' Person@Example.com ' }
+
+        await enforceInviteRateLimit(invite, { getClient: () => client })
+        await enforceInviteRateLimit(
+            { ...invite, email: 'person@example.com' },
+            {
+                getClient: () => client,
+            },
+        )
+
+        expect(SENSITIVE_ACTION_RATE_LIMITS.invite).toEqual({
+            actor: { limit: 20, scope: 'invite-actor', windowMs: 900_000 },
+            email: { limit: 5, scope: 'invite-target-email', windowMs: 3_600_000 },
+        })
+        expect(keys).toEqual([
+            createUserRateLimitKey('invite-actor', firstUserId),
+            createRateLimitKey('invite-target-email', 'person@example.com'),
+            createUserRateLimitKey('invite-actor', firstUserId),
+            createRateLimitKey('invite-target-email', 'person@example.com'),
+        ])
+    })
+
+    test('limits invitations per actor across distinct targets while keeping actors independent', async () => {
+        const counts = new Map<string, number>()
+        const client = createClient((_command, args) => {
+            const key = args[2] ?? ''
+            const count = (counts.get(key) ?? 0) + 1
+            counts.set(key, count)
+            return Promise.resolve([count, 900_000])
+        })
+
+        const admitted = await Promise.all(
+            Array.from({ length: 20 }, (_, index) =>
+                enforceInviteRateLimit(
+                    {
+                        actorUserId: firstUserId,
+                        email: `actor-target-${index}@example.com`,
+                    },
+                    { getClient: () => client },
+                ),
+            ),
+        )
+        const denied = await captureError(
+            enforceInviteRateLimit(
+                { actorUserId: firstUserId, email: 'actor-target-20@example.com' },
+                { getClient: () => client },
+            ),
+        )
+        const secondActor = await enforceInviteRateLimit(
+            { actorUserId: secondUserId, email: 'second-actor-target@example.com' },
+            { getClient: () => client },
+        )
+
+        expect(admitted).toHaveLength(20)
+        expect(denied).toBeInstanceOf(RateLimitError)
+        expect(denied).toMatchObject({
+            count: 21,
+            limit: 20,
+            scope: 'invite-actor',
+        })
+        expect(secondActor).toMatchObject({
+            actor: { count: 1, limit: 20, remaining: 19 },
+            email: { count: 1, limit: 5, remaining: 4 },
+        })
+        expect(counts.get(createUserRateLimitKey('invite-actor', firstUserId))).toBe(21)
+        expect(counts.get(createUserRateLimitKey('invite-actor', secondUserId))).toBe(1)
+    })
+
+    test('shares the normalized target limit across actors while leaving another target available', async () => {
+        const counts = new Map<string, number>()
+        const client = createClient((_command, args) => {
+            const key = args[2] ?? ''
+            const count = (counts.get(key) ?? 0) + 1
+            counts.set(key, count)
+            return Promise.resolve([count, 3_600_000])
+        })
+        const attempts = [
+            { actorUserId: firstUserId, email: 'Target@Example.com' },
+            { actorUserId: secondUserId, email: ' target@example.com ' },
+            { actorUserId: firstUserId, email: 'TARGET@example.com' },
+            { actorUserId: secondUserId, email: 'target@example.com' },
+            { actorUserId: firstUserId, email: ' Target@Example.com ' },
+        ]
+
+        await Promise.all(
+            attempts.map((attempt) => enforceInviteRateLimit(attempt, { getClient: () => client })),
+        )
+        const denied = await captureError(
+            enforceInviteRateLimit(
+                { actorUserId: secondUserId, email: '  target@example.com  ' },
+                { getClient: () => client },
+            ),
+        )
+        const otherTarget = await enforceInviteRateLimit(
+            { actorUserId: secondUserId, email: 'different-target@example.com' },
+            { getClient: () => client },
+        )
+
+        expect(denied).toBeInstanceOf(RateLimitError)
+        expect(denied).toMatchObject({
+            count: 6,
+            limit: 5,
+            scope: 'invite-target-email',
+        })
+        expect(otherTarget).toMatchObject({
+            actor: { count: 4, limit: 20, remaining: 16 },
+            email: { count: 1, limit: 5, remaining: 4 },
+        })
+        expect(counts.get(createRateLimitKey('invite-target-email', 'target@example.com'))).toBe(6)
+        expect(
+            counts.get(createRateLimitKey('invite-target-email', 'different-target@example.com')),
+        ).toBe(1)
+    })
+
+    test('fails closed when Redis is unavailable before a sensitive action is admitted', async () => {
+        const passwordError = await captureError(
+            enforcePasswordChangeRateLimit(firstUserId, { getClient: () => null }),
+        )
+        const inviteError = await captureError(
+            enforceInviteRateLimit(
+                { actorUserId: firstUserId, email: 'person@example.com' },
+                { getClient: () => null },
+            ),
+        )
+
+        expect(passwordError).toMatchObject({
+            code: 'RATE_LIMIT_UNAVAILABLE',
+            reason: 'invalid_configuration',
+        })
+        expect(inviteError).toMatchObject({
+            code: 'RATE_LIMIT_UNAVAILABLE',
+            reason: 'invalid_configuration',
+        })
+    })
+
+    test('fails closed when a Redis command fails for password changes and invitations', async () => {
+        const client = createClient(() => Promise.reject(new Error('connection refused')))
+        const passwordError = await captureError(
+            enforcePasswordChangeRateLimit(firstUserId, { getClient: () => client }),
+        )
+        const inviteError = await captureError(
+            enforceInviteRateLimit(
+                { actorUserId: firstUserId, email: 'person@example.com' },
+                { getClient: () => client },
+            ),
+        )
+
+        expect(passwordError).toMatchObject({
+            code: 'RATE_LIMIT_UNAVAILABLE',
+            reason: 'request_failed',
+        })
+        expect(inviteError).toMatchObject({
+            code: 'RATE_LIMIT_UNAVAILABLE',
+            reason: 'request_failed',
         })
     })
 })

@@ -428,7 +428,8 @@
                 "rolesNotReady": "Les options de rôle ne sont pas encore disponibles.",
                 "created": "Utilisateur créé et invitation envoyée.",
                 "updated": "Utilisateur mis à jour.",
-                "disabled": "Utilisateur désactivé et sessions révoquées."
+                "disabled": "Utilisateur désactivé et sessions révoquées.",
+                "enabled": "Utilisateur activé avec succès."
             },
             "states": {
                 "unavailableTitle": "Utilisateurs indisponibles",
@@ -440,13 +441,17 @@
                 "edit": "Modifier",
                 "disable": "Désactiver",
                 "disabling": "Désactivation de l’utilisateur…",
+                "enable": "Activer",
+                "enabling": "Activation de l’utilisateur…",
                 "retryRoles": "Réessayer les rôles",
                 "open": "Ouvrir les actions pour {{name}}",
                 "none": "Aucune action disponible",
                 "ownerEdit": "Seul un propriétaire peut modifier ce compte.",
                 "ownerDisable": "Seul un propriétaire peut désactiver ce compte.",
+                "ownerEnable": "Seul un propriétaire peut activer ce compte.",
                 "selfDisable": "Vous ne pouvez pas désactiver votre propre compte.",
-                "disableDescription": "Révoquer les sessions et bloquer la connexion."
+                "disableDescription": "Révoquer les sessions et bloquer la connexion.",
+                "enableDescription": "Autoriser à nouveau la connexion à ce compte."
             },
             "confirm": {
                 "disableTitle": "Désactiver l’utilisateur ?",
@@ -510,6 +515,7 @@
                 "inviteFailed": "L’utilisateur n’a pas pu être invité.",
                 "updateFailed": "L’utilisateur n’a pas pu être mis à jour.",
                 "disableFailed": "L’utilisateur n’a pas pu être désactivé.",
+                "enableFailed": "L’utilisateur n’a pas pu être activé.",
                 "saveFailed": "L’utilisateur n’a pas pu être enregistré.",
                 "editableRequired": "Un utilisateur modifiable est requis."
             },
@@ -635,6 +641,7 @@
             "create": "Créer des utilisateurs",
             "update": "Mettre à jour les utilisateurs",
             "disable": "Désactiver des utilisateurs",
+            "enable": "Activer des utilisateurs",
             "assign_roles": "Attribuer des rôles utilisateur"
         },
         "roles": {

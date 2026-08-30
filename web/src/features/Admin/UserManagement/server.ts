@@ -5,6 +5,7 @@ import { requirePermissionService } from '../../../server/Auth/Access/authorizat
 import {
     createUserService,
     disableUserService,
+    enableUserService,
     listUsersService,
     updateUserService,
 } from '../../../server/Admin/UserManagement/users.service'
@@ -57,5 +58,17 @@ export const disableUserHandler = createServerFn({ method: 'POST' })
             return { success: true, message: 'admin.users.messages.disabled' }
         } catch (error) {
             return localizedActionFailure(error, 'admin.users.errors.disableFailed')
+        }
+    })
+
+export const enableUserHandler = createServerFn({ method: 'POST' })
+    .validator(userIdInputSchema)
+    .handler(async ({ data }): Promise<AuthActionResult> => {
+        try {
+            await requirePermissionService(PERMISSIONS.USERS_ENABLE)
+            await enableUserService(data.userId)
+            return { success: true, message: 'admin.users.messages.enabled' }
+        } catch (error) {
+            return localizedActionFailure(error, 'admin.users.errors.enableFailed')
         }
     })

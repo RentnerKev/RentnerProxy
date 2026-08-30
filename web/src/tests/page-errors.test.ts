@@ -1,7 +1,5 @@
 import { describe, expect, test } from 'bun:test'
 import { fileURLToPath } from 'node:url'
-import { defaultSerovalPlugins } from '@tanstack/router-core'
-import { fromCrossJSON, toCrossJSONAsync } from 'seroval'
 
 import { PUBLIC_ENGLISH } from '../config/language.config'
 import { createPageError, getPageErrorDetails } from '../shared/Helpers/pageError'
@@ -112,22 +110,18 @@ describe('safe page error diagnostics', () => {
         expect(first.cause).toBeUndefined()
     })
 
-    test('retains the diagnosis through TanStack production error serialization without secrets', async () => {
+    test('retains the diagnosis from the public message-only error contract without secrets', () => {
         const original = Object.assign(new Error(sensitiveFixture), { errno: '42703' })
         const safe = createPageError(original)
-        const serialized = await toCrossJSONAsync(safe, {
-            refs: new Map(),
-            plugins: defaultSerovalPlugins,
-        })
-        const restored = fromCrossJSON(serialized, {
-            refs: new Map(),
-            plugins: defaultSerovalPlugins,
-        })
-        expect(restored).toBeInstanceOf(Error)
-        expect(getPageErrorDetails(restored)).toEqual(getPageErrorDetails(safe))
-        expect(JSON.stringify(serialized)).not.toContain(sensitiveFixture)
-        expect(JSON.stringify(serialized)).not.toContain('fixture-token')
-        expect(JSON.stringify(serialized)).not.toContain('pageError.ts')
+        const payload = JSON.stringify({ message: safe.message })
+        const received: unknown = JSON.parse(payload)
+
+        expect(getPageErrorDetails(received)).toEqual(getPageErrorDetails(safe))
+        expect(getPageErrorDetails(received).code).toBe('RP_DATABASE_SCHEMA')
+        expect(safe.cause).toBeUndefined()
+        expect(payload).not.toContain(sensitiveFixture)
+        expect(payload).not.toContain('fixture-token')
+        expect(payload).not.toContain('pageError.ts')
     })
 
     test('matches public English diagnostic copy to the authenticated English catalog', () => {

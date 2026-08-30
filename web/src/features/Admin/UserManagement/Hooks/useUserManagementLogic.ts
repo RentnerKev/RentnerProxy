@@ -8,7 +8,7 @@ import type { RoleSummary, UserSummary } from '../../../../shared/Types/auth.typ
 import { roleManagementQueryKeys } from '../../RoleManagement/queryKeys'
 import { getRolesHandler } from '../../RoleManagement/server'
 import { userManagementQueryKeys } from '../queryKeys'
-import { disableUserHandler, getUsersHandler } from '../server'
+import { disableUserHandler, enableUserHandler, getUsersHandler } from '../server'
 import type { UserManagementPageProps } from '../Types/user-management-component-props.types'
 
 const EMPTY_USERS: UserSummary[] = []
@@ -59,6 +59,19 @@ export default function useUserManagementLogic({
             setDisableTarget(null)
         },
         onError: () => toast.error('admin.users.errors.disableFailed'),
+    })
+    const enableMutation = useMutation({
+        mutationFn: (user: UserSummary) => enableUserHandler({ data: { userId: user.id } }),
+        onSuccess: async (result) => {
+            if (!result.success) {
+                toast.error(result.message)
+                return
+            }
+
+            await queryClient.invalidateQueries({ queryKey: userManagementQueryKeys.all })
+            toast.success(result.message)
+        },
+        onError: () => toast.error('admin.users.errors.enableFailed'),
     })
     const assignableRoles = useMemo(() => {
         if (!canAssignRoles) {
@@ -117,6 +130,10 @@ export default function useUserManagementLogic({
             // The mutation callback reports transport failures while keeping the dialog open.
         }
     }, [disableMutation, disableTarget])
+    const enableUser = useCallback(
+        (user: UserSummary) => enableMutation.mutate(user),
+        [enableMutation],
+    )
     const handleFormSuccess = useCallback(() => {
         setShowCreate(false)
         setSelectedUser(null)
@@ -136,8 +153,12 @@ export default function useUserManagementLogic({
             canAssignRoles: canAssignRoles && !rolesQuery.isError,
             canCreate,
             canDisable: permissionSet.has(PERMISSIONS.USERS_DISABLE),
+            canEnable: permissionSet.has(PERMISSIONS.USERS_ENABLE),
             canUpdate: permissionSet.has(PERMISSIONS.USERS_UPDATE),
             disableTarget,
+            enablingUserId: enableMutation.isPending
+                ? (enableMutation.variables?.id ?? null)
+                : null,
             isDisabling: disableMutation.isPending,
             isLoadingUsers: usersQuery.isPending,
             isRolesError: rolesQuery.isError,
@@ -149,6 +170,7 @@ export default function useUserManagementLogic({
         },
         handler: {
             confirmDisable,
+            enableUser,
             handleFormSuccess,
             openCreate,
             openDisable,

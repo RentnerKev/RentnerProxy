@@ -8,6 +8,7 @@ import type { ChangePasswordResult, CurrentSession } from '../Core/Types/auth-se
 import { getAuthDatabase } from '../Core/database.server'
 import { AuthDomainError } from '../Core/errors.server'
 import { hashPassword, verifyPassword } from '../Core/password.server'
+import { enforcePasswordChangeRateLimit } from '../../redis/rate-limiter.service'
 import { requirePermissionInTransaction } from '../Access/rbac.service'
 import {
     getCurrentSessionService,
@@ -28,6 +29,8 @@ export async function changeCurrentPasswordService(input: {
     if (!currentSession.user.permissions.includes(PERMISSIONS.ACCOUNT_UPDATE)) {
         throw new AuthDomainError('permission_denied', 'Permission is required.')
     }
+
+    await enforcePasswordChangeRateLimit(currentSession.user.id)
 
     const passwordHash = await hashPassword(input.password)
     const now = new Date()

@@ -123,7 +123,8 @@ bun run check
 ```
 
 `bun run check` runs formatting, linting, TypeScript and Drizzle checks, tests, Clippy, Cargo
-checks, and both production builds.
+checks, and both production builds. `bun run db:migrate` also synchronizes the permission registry
+and built-in role defaults for existing installations; custom role permissions stay unchanged.
 
 ## Languages
 

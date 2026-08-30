@@ -9,7 +9,7 @@
         "dev:controller": "cargo run --manifest-path controller/Cargo.toml",
         "build": "bun --no-orphans scripts/build.ts",
         "build:web": "bun --bun vite build --config web/vite.config.ts && tsc --noEmit -p web/tsconfig.json",
-        "build:controller": "cargo build --manifest-path controller/Cargo.toml",
+        "build:controller": "cargo build --release --manifest-path controller/Cargo.toml",
         "typecheck": "tsc --noEmit -p web/tsconfig.json && tsc --noEmit -p scripts/tsconfig.json",
         "lint": "oxlint .",
         "format": "oxfmt . && cargo fmt --manifest-path controller/Cargo.toml",

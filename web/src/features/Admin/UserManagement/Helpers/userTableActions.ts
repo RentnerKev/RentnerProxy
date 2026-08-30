@@ -7,9 +7,12 @@ export function getUserTableActionItems(
     {
         actorIsOwner,
         canDisable,
+        canEnable,
         canUpdate,
         currentUserId,
+        enablingUserId,
         onDisable,
+        onEnable,
         onEdit,
         user,
     }: UserTableActionsProps,
@@ -41,6 +44,23 @@ export function getUserTableActionItems(
                 : selfProtected
                   ? t('admin.users.actions.selfDisable')
                   : t('admin.users.actions.disableDescription'),
+        })
+    }
+
+    if (canEnable && user.status === 'disabled') {
+        items.push({
+            label: t(
+                enablingUserId === user.id
+                    ? 'admin.users.actions.enabling'
+                    : 'admin.users.actions.enable',
+            ),
+            onSelect: () => onEnable(user),
+            disabled: ownerProtected || enablingUserId !== null,
+            description: t(
+                ownerProtected
+                    ? 'admin.users.actions.ownerEnable'
+                    : 'admin.users.actions.enableDescription',
+            ),
         })
     }
 

@@ -35,19 +35,30 @@ export interface UsersTableProps {
     readonly actorIsOwner: boolean
     readonly canCreate: boolean
     readonly canDisable: boolean
+    readonly canEnable: boolean
     readonly canUpdate: boolean
     readonly createDisabled: boolean
     readonly currentUserId: string
+    readonly enablingUserId: string | null
     readonly isLoading: boolean
     readonly onCreate: () => void
     readonly onDisable: (user: UserSummary) => void
+    readonly onEnable: (user: UserSummary) => void
     readonly onEdit: (user: UserSummary) => void
     readonly users: UserSummary[]
 }
 
 export type UserTableActionProps = Pick<
     UsersTableProps,
-    'actorIsOwner' | 'canDisable' | 'canUpdate' | 'currentUserId' | 'onDisable' | 'onEdit'
+    | 'actorIsOwner'
+    | 'canDisable'
+    | 'canEnable'
+    | 'canUpdate'
+    | 'currentUserId'
+    | 'enablingUserId'
+    | 'onDisable'
+    | 'onEnable'
+    | 'onEdit'
 >
 
 export interface UserTableActionsProps extends UserTableActionProps {

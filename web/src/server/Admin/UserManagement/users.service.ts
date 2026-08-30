@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 
-import { and, asc, eq, ne, sql } from 'drizzle-orm'
+import { and, asc, eq, isNotNull, ne, sql } from 'drizzle-orm'
 
 import { ACTIVE_OWNER_ADVISORY_LOCK_ID } from '../../../config/auth.config'
 import { PERMISSIONS } from '../../../config/permissions.config'
@@ -308,6 +308,62 @@ export async function disableUserService(userId: string): Promise<UserSummary> {
         await revokeAllUserSessionsInTransaction(transaction, user.id)
         await transaction.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id))
         await transaction.delete(userInvites).where(eq(userInvites.userId, user.id))
+
+        return toUserSummary(updatedUser, roleKeys)
+    })
+}
+
+export async function enableUserService(userId: string): Promise<UserSummary> {
+    const actor = await requirePermissionService(PERMISSIONS.USERS_ENABLE)
+    const db = getAuthDatabase()
+
+    return db.transaction(async (transaction) => {
+        await lockOwnerPolicy(transaction)
+        const transactionActor = await requirePermissionInTransaction(
+            transaction,
+            actor.id,
+            PERMISSIONS.USERS_ENABLE,
+        )
+        const user = await loadUserForUpdate(transaction, userId)
+
+        if (!user) {
+            throw new AuthDomainError('user_not_found', 'User was not found.')
+        }
+
+        if (user.status !== 'disabled') {
+            throw new AuthDomainError('invalid_input', 'Only disabled users may be enabled.')
+        }
+
+        const roleKeys = await getUserRoleKeysInTransaction(transaction, user.id)
+        assertOwnerManagementAllowed(transactionActor.roles, roleKeys, roleKeys)
+
+        const updatedRows = await transaction
+            .update(users)
+            .set({ status: 'active', updatedAt: new Date() })
+            .where(
+                and(
+                    eq(users.id, user.id),
+                    eq(users.status, 'disabled'),
+                    isNotNull(users.passwordHash),
+                ),
+            )
+            .returning({
+                createdAt: users.createdAt,
+                displayName: users.displayName,
+                email: users.email,
+                id: users.id,
+                profileImageVersion: users.profileImageVersion,
+                status: users.status,
+                updatedAt: users.updatedAt,
+            })
+        const updatedUser = updatedRows.at(0)
+
+        if (!updatedUser) {
+            throw new AuthDomainError(
+                'invalid_input',
+                'Account activation must be completed first.',
+            )
+        }
 
         return toUserSummary(updatedUser, roleKeys)
     })

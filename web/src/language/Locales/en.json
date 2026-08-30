@@ -425,7 +425,8 @@
                 "rolesNotReady": "Role options are not available yet.",
                 "created": "User created and invitation sent.",
                 "updated": "User updated.",
-                "disabled": "User disabled and sessions revoked."
+                "disabled": "User disabled and sessions revoked.",
+                "enabled": "User enabled successfully."
             },
             "states": {
                 "unavailableTitle": "Users unavailable",
@@ -437,13 +438,17 @@
                 "edit": "Edit",
                 "disable": "Disable",
                 "disabling": "Disabling user…",
+                "enable": "Enable",
+                "enabling": "Enabling user…",
                 "retryRoles": "Retry roles",
                 "open": "Open actions for {{name}}",
                 "none": "No actions available",
                 "ownerEdit": "Only an owner can edit this account.",
                 "ownerDisable": "Only an owner can disable this account.",
+                "ownerEnable": "Only an owner can enable this account.",
                 "selfDisable": "You cannot disable your own account.",
-                "disableDescription": "Revoke sessions and block sign-in."
+                "disableDescription": "Revoke sessions and block sign-in.",
+                "enableDescription": "Allow this account to sign in again."
             },
             "confirm": {
                 "disableTitle": "Disable user?",
@@ -507,6 +512,7 @@
                 "inviteFailed": "The user could not be invited.",
                 "updateFailed": "The user could not be updated.",
                 "disableFailed": "The user could not be disabled.",
+                "enableFailed": "The user could not be enabled.",
                 "saveFailed": "The user could not be saved.",
                 "editableRequired": "An editable user is required."
             },
@@ -635,6 +641,7 @@
             "create": "Create users",
             "update": "Update users",
             "disable": "Disable users",
+            "enable": "Enable users",
             "assign_roles": "Assign user roles"
         },
         "roles": {

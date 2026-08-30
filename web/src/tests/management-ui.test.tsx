@@ -8,6 +8,7 @@ import type { Root } from 'react-dom/client'
 
 import { PERMISSIONS, PERMISSION_REGISTRY } from '../config/permissions.config'
 import { roleManagementQueryKeys } from '../features/Admin/RoleManagement/queryKeys'
+import { userManagementQueryKeys } from '../features/Admin/UserManagement/queryKeys'
 import type { DateRangeValue } from '../shared/Calendar/Types/date-range-calendar.types'
 import { createTrimmedIncludesStringFilter } from '../shared/Table/Helpers/tableFilters'
 import type { ClientTableFeatures } from '../shared/Table/Hooks/useClientTableLogic'
@@ -22,6 +23,8 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act, useState } = await import('react')
+const { createMemoryHistory, createRootRoute, createRouter, RouterContextProvider } =
+    await import('@tanstack/react-router')
 const { createRoot } = await import('react-dom/client')
 const { default: RoleTableActions } =
     await import('../features/Admin/RoleManagement/Components/RoleTableActions')
@@ -46,6 +49,16 @@ const updateUserHandlerMock = mock(async (_input: unknown) => ({
     success: true,
     message: 'User updated.',
 }))
+const enableUserHandlerMock = mock(async (_input: unknown) => ({
+    success: true,
+    message: 'admin.users.messages.enabled',
+}))
+const disableUserHandlerMock = mock(async (_input: unknown) => ({
+    success: true,
+    message: 'admin.users.messages.disabled',
+}))
+const getUsersHandlerMock = mock(async (): Promise<UserSummary[]> => [])
+const getRolesHandlerMock = mock(async (): Promise<RoleManagementSummary[]> => [])
 const createRoleHandlerMock = mock(async (_input: unknown) => ({
     success: true,
     message: 'Role created.',
@@ -57,13 +70,18 @@ const updateRoleHandlerMock = mock(async (_input: unknown) => ({
 
 mock.module('../features/Admin/UserManagement/server', () => ({
     createUserHandler: createUserHandlerMock,
+    disableUserHandler: disableUserHandlerMock,
+    enableUserHandler: enableUserHandlerMock,
+    getUsersHandler: getUsersHandlerMock,
     updateUserHandler: updateUserHandlerMock,
 }))
 mock.module('../features/Admin/RoleManagement/server', () => ({
     createRoleHandler: createRoleHandlerMock,
+    getRolesHandler: getRolesHandlerMock,
     updateRoleHandler: updateRoleHandlerMock,
 }))
 
+const UserManagementPage = (await import('../features/Admin/UserManagement')).default
 const UserFormModal = (await import('../features/Admin/UserManagement/Components/UserFormModal'))
     .default
 const RoleFormModal = (await import('../features/Admin/RoleManagement/Components/RoleFormModal'))
@@ -235,6 +253,20 @@ beforeEach(() => {
     updateUserHandlerMock.mockReset()
     createRoleHandlerMock.mockReset()
     updateRoleHandlerMock.mockReset()
+    enableUserHandlerMock.mockReset()
+    disableUserHandlerMock.mockReset()
+    getUsersHandlerMock.mockReset()
+    getRolesHandlerMock.mockReset()
+    enableUserHandlerMock.mockResolvedValue({
+        success: true,
+        message: 'admin.users.messages.enabled',
+    })
+    disableUserHandlerMock.mockResolvedValue({
+        success: true,
+        message: 'admin.users.messages.disabled',
+    })
+    getUsersHandlerMock.mockResolvedValue([{ ...user, status: 'disabled' }])
+    getRolesHandlerMock.mockResolvedValue([])
     createUserHandlerMock.mockImplementation(async () => ({
         success: true,
         message: 'User created.',
@@ -546,12 +578,15 @@ const usersTableProps = {
     actorIsOwner: true,
     canCreate: false,
     canDisable: false,
+    canEnable: false,
     canUpdate: false,
     createDisabled: false,
     currentUserId: '00000000-0000-4000-8000-000000000099',
+    enablingUserId: null,
     isLoading: false,
     onCreate: () => undefined,
     onDisable: () => undefined,
+    onEnable: () => undefined,
     onEdit: () => undefined,
 }
 
@@ -621,6 +656,7 @@ describe('permission-aware row actions', () => {
     test('hides unavailable user actions and disables protected owner actions', async () => {
         await render(
             <UserTableActions
+                {...usersTableProps}
                 user={user}
                 actorIsOwner={false}
                 canDisable={false}
@@ -636,6 +672,7 @@ describe('permission-aware row actions', () => {
         await act(async () => {
             activeRoot?.render(
                 <UserTableActions
+                    {...usersTableProps}
                     user={ownerUser}
                     actorIsOwner={false}
                     canDisable
@@ -655,6 +692,7 @@ describe('permission-aware row actions', () => {
     test('disables the sensitive action for the current user', async () => {
         await render(
             <UserTableActions
+                {...usersTableProps}
                 user={user}
                 actorIsOwner={false}
                 canDisable
@@ -701,6 +739,153 @@ describe('permission-aware row actions', () => {
         expect(deleteItem?.hasAttribute('data-disabled')).toBeTrue()
         expect(deleteItem?.textContent).toContain('Assigned to 2 users.')
     })
+})
+
+async function renderUserManagement(
+    permissions: string[] = [
+        PERMISSIONS.USERS_VIEW,
+        PERMISSIONS.USERS_ENABLE,
+        PERMISSIONS.USERS_DISABLE,
+    ],
+): Promise<void> {
+    const router = createRouter({
+        history: createMemoryHistory({ initialEntries: ['/'] }),
+        routeTree: createRootRoute(),
+    })
+    await render(
+        withQueryClient(
+            <RouterContextProvider router={router}>
+                <UserManagementPage
+                    currentUserId={usersTableProps.currentUserId}
+                    currentUserRoleKeys={['admin']}
+                    permissions={permissions}
+                />
+            </RouterContextProvider>,
+        ),
+    )
+    await waitFor(() => getDataRows().some((row) => row.textContent?.includes(user.displayName)))
+}
+
+describe('user reactivation UI', () => {
+    test('offers Enable directly for a disabled row with permission', async () => {
+        const onEnable = mock(() => undefined)
+        const disabledUser = { ...user, status: 'disabled' as const }
+        await render(
+            <UserTableActions
+                {...usersTableProps}
+                canDisable
+                canEnable
+                user={disabledUser}
+                onEnable={onEnable}
+            />,
+        )
+        await openMenu(getButton('Open actions for Kevin Example'))
+        expect(document.querySelector('[role="menu"]')?.textContent).not.toContain('Disable')
+        await click(getMenuItem('Enable'))
+        expect(onEnable).toHaveBeenCalledWith(disabledUser)
+        expect(document.querySelector('[role="dialog"]')).toBeNull()
+    })
+
+    test.each(['active', 'pending'] as const)(
+        'does not offer Enable for a %s row',
+        async (status) => {
+            await render(
+                <UserTableActions
+                    {...usersTableProps}
+                    canDisable
+                    canEnable
+                    user={{ ...user, status }}
+                />,
+            )
+            await openMenu(getButton('Open actions for Kevin Example'))
+            expect(document.querySelector('[role="menu"]')?.textContent).not.toContain('Enable')
+            expect(getMenuItem('Disable').hasAttribute('data-disabled')).toBeFalse()
+        },
+    )
+
+    test('hides Enable from a user without the enable permission', async () => {
+        await renderUserManagement([PERMISSIONS.USERS_VIEW, PERMISSIONS.USERS_DISABLE])
+        expect(document.querySelector('[aria-label="Open actions for Kevin Example"]')).toBeNull()
+        expect(enableUserHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('prevents a non-owner from enabling an owner account', async () => {
+        await render(
+            <UserTableActions
+                {...usersTableProps}
+                actorIsOwner={false}
+                canEnable
+                user={{ ...user, status: 'disabled', roleKeys: ['owner'] }}
+            />,
+        )
+        await openMenu(getButton('Open actions for Kevin Example'))
+        expect(getMenuItem('Enable').hasAttribute('data-disabled')).toBeTrue()
+        expect(getMenuItem('Enable').textContent).toContain(
+            'Only an owner can enable this account.',
+        )
+    })
+
+    test('invalidates users and shows a localized success toast after Enable', async () => {
+        getUsersHandlerMock.mockResolvedValueOnce([{ ...user, status: 'disabled' }])
+        getUsersHandlerMock.mockResolvedValue([user])
+        await renderUserManagement()
+        const invalidate = spyOn(activeQueryClient!, 'invalidateQueries')
+        try {
+            await openMenu(getButton('Open actions for Kevin Example'))
+            await click(getMenuItem('Enable'))
+            await waitFor(() => document.querySelector('[data-toast-tone="success"]') !== null)
+
+            expect(enableUserHandlerMock).toHaveBeenCalledWith({ data: { userId: user.id } })
+            expect(invalidate).toHaveBeenCalledWith({ queryKey: userManagementQueryKeys.all })
+            expect(getUsersHandlerMock).toHaveBeenCalledTimes(2)
+            expect(
+                activeQueryClient!.getQueryData<UserSummary[]>(userManagementQueryKeys.all),
+            ).toEqual([user])
+            expect(document.querySelector('[data-toast-tone="success"]')?.textContent).toContain(
+                'User enabled successfully.',
+            )
+            expect(document.querySelector('[role="dialog"]')).toBeNull()
+        } finally {
+            invalidate.mockRestore()
+        }
+    })
+
+    test.each(['domain', 'transport'] as const)(
+        'reports an Enable %s failure without changing the row',
+        async (failure) => {
+            if (failure === 'domain') {
+                enableUserHandlerMock.mockResolvedValueOnce({
+                    success: false,
+                    message: 'errors.permission_denied',
+                })
+            } else {
+                enableUserHandlerMock.mockRejectedValueOnce(
+                    new Error('private transport diagnostics'),
+                )
+            }
+            await renderUserManagement()
+            const invalidate = spyOn(activeQueryClient!, 'invalidateQueries')
+            try {
+                await openMenu(getButton('Open actions for Kevin Example'))
+                await click(getMenuItem('Enable'))
+                await waitFor(() => document.querySelector('[data-toast-tone="error"]') !== null)
+
+                expect(invalidate).not.toHaveBeenCalled()
+                expect(document.querySelector('[data-toast-tone="error"]')?.textContent).toContain(
+                    failure === 'domain'
+                        ? 'You do not have permission to make this change.'
+                        : 'The user could not be enabled.',
+                )
+                expect(document.body.textContent).not.toContain('private transport diagnostics')
+                expect(document.querySelector('[data-toast-tone="success"]')).toBeNull()
+                expect(
+                    activeQueryClient!.getQueryData<UserSummary[]>(userManagementQueryKeys.all),
+                ).toEqual([{ ...user, status: 'disabled' }])
+            } finally {
+                invalidate.mockRestore()
+            }
+        },
+    )
 })
 
 function RoleDeleteHarness({ onDelete }: { readonly onDelete: () => void }) {

@@ -428,7 +428,8 @@
                 "rolesNotReady": "Rollenoptionen sind noch nicht verfügbar.",
                 "created": "Benutzer erstellt und Einladung gesendet.",
                 "updated": "Benutzer aktualisiert.",
-                "disabled": "Benutzer deaktiviert und Sitzungen widerrufen."
+                "disabled": "Benutzer deaktiviert und Sitzungen widerrufen.",
+                "enabled": "Benutzer erfolgreich aktiviert."
             },
             "states": {
                 "unavailableTitle": "Benutzer nicht verfügbar",
@@ -440,13 +441,17 @@
                 "edit": "Bearbeiten",
                 "disable": "Deaktivieren",
                 "disabling": "Benutzer wird deaktiviert…",
+                "enable": "Aktivieren",
+                "enabling": "Benutzer wird aktiviert…",
                 "retryRoles": "Rollen erneut laden",
                 "open": "Aktionen für {{name}} öffnen",
                 "none": "Keine Aktionen verfügbar",
                 "ownerEdit": "Nur ein Eigentümer kann dieses Konto bearbeiten.",
                 "ownerDisable": "Nur ein Eigentümer kann dieses Konto deaktivieren.",
+                "ownerEnable": "Nur ein Eigentümer kann dieses Konto aktivieren.",
                 "selfDisable": "Du kannst dein eigenes Konto nicht deaktivieren.",
-                "disableDescription": "Sitzungen widerrufen und Anmeldung blockieren."
+                "disableDescription": "Sitzungen widerrufen und Anmeldung blockieren.",
+                "enableDescription": "Die Anmeldung für dieses Konto wieder erlauben."
             },
             "confirm": {
                 "disableTitle": "Benutzer deaktivieren?",
@@ -510,6 +515,7 @@
                 "inviteFailed": "Der Benutzer konnte nicht eingeladen werden.",
                 "updateFailed": "Der Benutzer konnte nicht aktualisiert werden.",
                 "disableFailed": "Der Benutzer konnte nicht deaktiviert werden.",
+                "enableFailed": "Der Benutzer konnte nicht aktiviert werden.",
                 "saveFailed": "Der Benutzer konnte nicht gespeichert werden.",
                 "editableRequired": "Ein bearbeitbarer Benutzer ist erforderlich."
             },
@@ -635,6 +641,7 @@
             "create": "Benutzer erstellen",
             "update": "Benutzer aktualisieren",
             "disable": "Benutzer deaktivieren",
+            "enable": "Benutzer aktivieren",
             "assign_roles": "Benutzerrollen zuweisen"
         },
         "roles": {
