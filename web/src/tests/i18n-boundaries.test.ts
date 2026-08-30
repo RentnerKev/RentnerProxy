@@ -100,15 +100,15 @@ describe('language boundaries', () => {
             'features/FoundationStatus',
             'features/Auth/Account',
             'features/UserSettings',
-            'features/Theme',
-            'shared/ApplicationShell',
+            'layout/Components/Theme',
+            'layout/Components/ApplicationShell',
             'shared/Calendar',
             'shared/Table',
             'shared/Modal',
             'shared/Select',
             'shared/Avatar',
             'shared/Forms',
-            'shared/SystemStatePage',
+            'layout/Components/SystemStatePage',
         ]
         const files = (
             await Promise.all(roots.map((root) => sourceFiles(resolve(sourceRoot, root))))

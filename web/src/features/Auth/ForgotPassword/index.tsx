@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 
-import AuthShell from '../../../shared/AuthShell'
+import AuthShell from '../../../layout/Components/AuthShell'
 import ForgotPasswordForm from './Components/ForgotPasswordForm'
 import useForgotPasswordLogic from './Hooks/useForgotPasswordLogic'
 

@@ -1,4 +1,4 @@
-import AuthShell from '../../../../shared/AuthShell'
+import AuthShell from '../../../../layout/Components/AuthShell'
 import useTwoFactorLoginLogic from '../Hooks/useTwoFactorLoginLogic'
 import TwoFactorLoginForm from './TwoFactorLoginForm'
 

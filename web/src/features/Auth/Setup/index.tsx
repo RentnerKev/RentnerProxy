@@ -1,4 +1,4 @@
-import AuthShell from '../../../shared/AuthShell'
+import AuthShell from '../../../layout/Components/AuthShell'
 import SetupForm from './Components/SetupForm'
 import useSetupLogic from './Hooks/useSetupLogic'
 

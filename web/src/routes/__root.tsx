@@ -1,9 +1,7 @@
-import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router'
+import { createRootRoute } from '@tanstack/react-router'
 
-import QueryProvider from '../integrations/TanstackQuery'
-import { useDocumentLanguage } from '../language/useTranslationStore'
-import { TooltipProvider } from '../shared/Tooltip'
-import type { RootDocumentProps } from '../shared/Types/root-document.types'
+import RootLayout from '../layout'
+import RootDocument from '../layout/Components/RootDocument'
 import stylesUrl from '../styles.css?url'
 
 export const Route = createRootRoute({
@@ -24,34 +22,5 @@ export const Route = createRootRoute({
         links: [{ rel: 'stylesheet', href: stylesUrl }],
     }),
     shellComponent: RootDocument,
-    component: RootComponent,
+    component: RootLayout,
 })
-
-function RootComponent() {
-    return (
-        <TooltipProvider>
-            <QueryProvider>
-                <Outlet />
-            </QueryProvider>
-        </TooltipProvider>
-    )
-}
-
-function RootDocument({ children }: RootDocumentProps) {
-    const language = useDocumentLanguage()
-
-    return (
-        <html
-            lang={language}
-            className="min-h-full min-w-80 [font-synthesis:none] [scrollbar-gutter:stable] [text-rendering:optimizeLegibility]"
-        >
-            <head>
-                <HeadContent />
-            </head>
-            <body className="min-h-screen bg-navy-950 font-sans text-white antialiased selection:bg-brand-500 selection:text-navy-950">
-                {children}
-                <Scripts />
-            </body>
-        </html>
-    )
-}

@@ -16,7 +16,7 @@ const { createRoot } = await import('react-dom/client')
 const { createRootRoute, createRoute, createRouter, createMemoryHistory, Outlet, RouterProvider } =
     await import('@tanstack/react-router')
 const { default: GlobalErrorPage } =
-    await import('../shared/SystemStatePage/GlobalErrorPage')
+    await import('../layout/Components/SystemStatePage/GlobalErrorPage')
 let activeRoot: Root | null = null
 
 function errorRouter(loader: () => void, language?: AppLanguage) {

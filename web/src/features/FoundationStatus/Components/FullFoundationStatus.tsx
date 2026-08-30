@@ -1,6 +1,6 @@
 import useTranslationStore from '../../../language/useTranslationStore'
-import ApplicationFooter from '../../../shared/ApplicationShell/Components/ApplicationFooter'
-import ApplicationHeader from '../../../shared/ApplicationShell/Components/ApplicationHeader'
+import ApplicationFooter from '../../../layout/Components/ApplicationShell/Components/ApplicationFooter'
+import ApplicationHeader from '../../../layout/Components/ApplicationShell/Components/ApplicationHeader'
 import type { FoundationStatusViewProps } from '../Types/foundation-status.types'
 import ConnectionTrace from './ConnectionTrace'
 import ServiceStatus from './ServiceStatus'

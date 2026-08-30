@@ -6,10 +6,10 @@ import { fileURLToPath } from 'node:url'
 const sourceRoot = fileURLToPath(new URL('../', import.meta.url))
 const serverRoot = resolve(sourceRoot, 'server')
 const databaseRoot = resolve(sourceRoot, 'db')
-const clientRoots = ['features', 'routes', 'shared'].map((directory) =>
+const clientRoots = ['features', 'layout', 'routes', 'shared'].map((directory) =>
     resolve(sourceRoot, directory),
 )
-const renderingRoots = ['features', 'integrations', 'routes', 'shared'].map((directory) =>
+const renderingRoots = ['features', 'integrations', 'layout', 'routes', 'shared'].map((directory) =>
     resolve(sourceRoot, directory),
 )
 const importPattern = /(?:from\s*|import\s*)['"]([^'"]+)['"]/g
@@ -118,7 +118,7 @@ describe('web architecture boundaries', () => {
     })
 
     test('keeps every createServerFn transport boundary in a feature server.ts', async () => {
-        const roots = ['features', 'routes', 'server'].map((directory) =>
+        const roots = ['features', 'layout', 'routes', 'server'].map((directory) =>
             resolve(sourceRoot, directory),
         )
         const files = (await Promise.all(roots.map(collectFiles))).flat().filter(isTypeScriptFile)
@@ -143,7 +143,7 @@ describe('web architecture boundaries', () => {
     })
 
     test('uses the permission registry instead of scattered runtime literals', async () => {
-        const roots = ['features', 'routes', 'server', 'shared'].map((directory) =>
+        const roots = ['features', 'layout', 'routes', 'server', 'shared'].map((directory) =>
             resolve(sourceRoot, directory),
         )
         const files = (await Promise.all(roots.map(collectFiles))).flat().filter(isTypeScriptFile)

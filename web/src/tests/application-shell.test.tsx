@@ -13,9 +13,9 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { default: ApplicationTopbar } =
-    await import('../shared/ApplicationShell/Components/ApplicationTopbar')
+    await import('../layout/Components/ApplicationShell/Components/ApplicationTopbar')
 const { default: useApplicationNavigationLogic } =
-    await import('../shared/ApplicationShell/Hooks/useApplicationNavigationLogic')
+    await import('../layout/Components/ApplicationShell/Hooks/useApplicationNavigationLogic')
 const { TooltipProvider } = await import('../shared/Tooltip')
 
 let activeRoot: Root | null = null

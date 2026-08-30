@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 
-import AuthShell from '../../../shared/AuthShell'
+import AuthShell from '../../../layout/Components/AuthShell'
 import AcceptInviteForm from './Components/AcceptInviteForm'
 import FormMessage from '../../../shared/Forms/FormMessage'
 import useAcceptInviteLogic from './Hooks/useAcceptInviteLogic'
