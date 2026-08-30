@@ -36,6 +36,13 @@
             "when": 1788050308683,
             "tag": "0004_sleepy_network",
             "breakpoints": true
+        },
+        {
+            "idx": 5,
+            "version": "7",
+            "when": 1788053183706,
+            "tag": "0005_swift_mockingbird",
+            "breakpoints": true
         }
     ]
 }

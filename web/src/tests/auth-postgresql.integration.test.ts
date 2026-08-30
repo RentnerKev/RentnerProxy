@@ -463,21 +463,53 @@ describe('sessions with PostgreSQL', () => {
 
 describe('RBAC with PostgreSQL', () => {
     integrationTest(
-        "loads each user's persisted theme without leaking it to another user",
+        "loads each user's persisted settings independently and preserves sibling values on upsert",
         async () => {
             const darkUser = await createTestUser({ roleKeys: [SYSTEM_ROLES.VIEWER] })
             const lightUser = await createTestUser({ roleKeys: [SYSTEM_ROLES.VIEWER] })
 
             expect((await loadActiveAccess(darkUser.id)).themeMode).toBe('light')
             expect((await loadActiveAccess(lightUser.id)).themeMode).toBe('light')
+            expect((await loadActiveAccess(darkUser.id)).language).toBe('en')
+            expect((await loadActiveAccess(lightUser.id)).language).toBe('en')
 
             await getAuthDatabase().insert(userSettings).values({
+                language: 'de',
                 themeMode: 'dark',
                 userId: darkUser.id,
+            })
+            await getAuthDatabase().insert(userSettings).values({
+                language: 'fr',
+                themeMode: 'light',
+                userId: lightUser.id,
             })
 
             expect((await loadActiveAccess(darkUser.id)).themeMode).toBe('dark')
             expect((await loadActiveAccess(lightUser.id)).themeMode).toBe('light')
+            expect((await loadActiveAccess(darkUser.id)).language).toBe('de')
+            expect((await loadActiveAccess(lightUser.id)).language).toBe('fr')
+
+            await getAuthDatabase()
+                .insert(userSettings)
+                .values({ themeMode: 'light', userId: darkUser.id })
+                .onConflictDoUpdate({
+                    target: userSettings.userId,
+                    set: { themeMode: 'light' },
+                })
+            expect((await loadActiveAccess(darkUser.id)).themeMode).toBe('light')
+            expect((await loadActiveAccess(darkUser.id)).language).toBe('de')
+
+            await getAuthDatabase()
+                .insert(userSettings)
+                .values({ language: 'es', userId: darkUser.id })
+                .onConflictDoUpdate({
+                    target: userSettings.userId,
+                    set: { language: 'es' },
+                })
+            expect((await loadActiveAccess(darkUser.id)).themeMode).toBe('light')
+            expect((await loadActiveAccess(darkUser.id)).language).toBe('es')
+            expect((await loadActiveAccess(lightUser.id)).themeMode).toBe('light')
+            expect((await loadActiveAccess(lightUser.id)).language).toBe('fr')
         },
     )
 

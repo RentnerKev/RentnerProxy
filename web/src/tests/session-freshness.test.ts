@@ -14,6 +14,7 @@ function createSession(reauthenticatedAt: Date): CurrentSession {
             displayName: 'Test User',
             email: 'test@example.com',
             id: 'user-1',
+            language: 'en',
             permissions: [PERMISSIONS.APP_ACCESS],
             profileImageVersion: null,
             roles: [],

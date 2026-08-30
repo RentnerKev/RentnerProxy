@@ -1,0 +1,2 @@
+ALTER TABLE "rentnerproxy"."user_settings" ADD COLUMN "language" varchar(2) DEFAULT 'en' NOT NULL;--> statement-breakpoint
+ALTER TABLE "rentnerproxy"."user_settings" ADD CONSTRAINT "user_settings_language_check" CHECK ("rentnerproxy"."user_settings"."language" in ('en', 'de', 'es', 'fr'));

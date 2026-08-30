@@ -1,6 +1,7 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router'
 
 import QueryProvider from '../integrations/TanstackQuery'
+import { useDocumentLanguage } from '../language/useTranslationStore'
 import { TooltipProvider } from '../shared/Tooltip'
 import type { RootDocumentProps } from '../shared/Types/root-document.types'
 import stylesUrl from '../styles.css?url'
@@ -37,9 +38,11 @@ function RootComponent() {
 }
 
 function RootDocument({ children }: RootDocumentProps) {
+    const language = useDocumentLanguage()
+
     return (
         <html
-            lang="en"
+            lang={language}
             className="min-h-full min-w-80 [font-synthesis:none] [scrollbar-gutter:stable] [text-rendering:optimizeLegibility]"
         >
             <head>

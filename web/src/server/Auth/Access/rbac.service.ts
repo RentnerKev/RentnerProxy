@@ -7,6 +7,7 @@ import {
     SYSTEM_ROLES,
     type PermissionKey,
 } from '../../../config/permissions.config'
+import { FALLBACK_LANGUAGE } from '../../../config/language.config'
 import { DEFAULT_USER_THEME_MODE, isUserThemeMode } from '../../../config/theme.config'
 import {
     permissions,
@@ -17,6 +18,7 @@ import {
     userSettings,
 } from '../../../db/schema'
 import type { AuthenticatedUser } from '../../../shared/Types/auth.types'
+import { isAppLanguage } from '../../../config/language.config'
 import type { AuthTransaction } from '../Core/database.server'
 import { AuthDomainError } from '../Core/errors.server'
 
@@ -77,6 +79,7 @@ export async function resolveActiveUserAccessInTransaction(
             email: users.email,
             profileImageVersion: users.profileImageVersion,
             status: users.status,
+            language: userSettings.language,
             themeMode: userSettings.themeMode,
         })
         .from(users)
@@ -99,6 +102,7 @@ export async function resolveActiveUserAccessInTransaction(
         profileImageVersion: user.profileImageVersion > 0 ? user.profileImageVersion : null,
         roles: roleKeys,
         permissions: permissionKeys,
+        language: isAppLanguage(user.language) ? user.language : FALLBACK_LANGUAGE,
         themeMode: isUserThemeMode(user.themeMode) ? user.themeMode : DEFAULT_USER_THEME_MODE,
     }
 }
