@@ -109,7 +109,7 @@ describe('getAppUrl', () => {
         delete process.env.APP_URL
         process.env.NODE_ENV = 'development'
 
-        expect(getAppUrl()).toBe('http://127.0.0.1:3000')
+        expect(getAppUrl()).toBe('http://localhost:5173')
     })
 
     test('requires APP_URL in production', () => {

@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 
-const DEFAULT_APP_URL = 'http://127.0.0.1:3000'
+const DEFAULT_APP_URL = 'http://localhost:5173'
 const DEFAULT_CONTROLLER_BASE_URL = 'http://127.0.0.1:8081'
 const SMTP_FROM_ADDRESS_PATTERN =
     /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/

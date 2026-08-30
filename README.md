@@ -75,7 +75,7 @@ bun run dev
 
 The development command starts both processes:
 
-- Web application: `http://127.0.0.1:3000`
+- Web application: `http://localhost:5173`
 - Controller health endpoint: `http://127.0.0.1:8081/health`
 
 Controller loopback defaults work without a local environment file. Copy `.env.example` to
