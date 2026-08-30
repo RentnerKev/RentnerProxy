@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 
-import { and, eq, gt, isNull, sql } from 'drizzle-orm'
+import { and, eq, gt, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 
 import { PASSWORD_RESET_DURATION_MS } from '../../../config/auth.config'
 import { passwordResetTokens, users } from '../../../db/schema'
@@ -23,7 +23,8 @@ async function createPasswordResetDelivery(emailInput: string): Promise<TokenDel
 
     const token = createOpaqueToken()
     const tokenHash = await hashOpaqueToken(token)
-    const expiresAt = new Date(Date.now() + PASSWORD_RESET_DURATION_MS)
+    const now = new Date()
+    const expiresAt = new Date(now.getTime() + PASSWORD_RESET_DURATION_MS)
     const db = getAuthDatabase()
 
     return db.transaction(async (transaction) => {
@@ -39,7 +40,17 @@ async function createPasswordResetDelivery(emailInput: string): Promise<TokenDel
             return null
         }
 
-        await transaction.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id))
+        await transaction
+            .delete(passwordResetTokens)
+            .where(
+                and(
+                    eq(passwordResetTokens.userId, user.id),
+                    or(
+                        lte(passwordResetTokens.expiresAt, now),
+                        isNotNull(passwordResetTokens.consumedAt),
+                    ),
+                ),
+            )
         await transaction.insert(passwordResetTokens).values({
             expiresAt,
             tokenHash,
@@ -142,13 +153,13 @@ export async function consumePasswordResetService(input: {
             .set({ consumedAt: now })
             .where(
                 and(
-                    eq(passwordResetTokens.id, resetToken.id),
+                    eq(passwordResetTokens.userId, user.id),
                     isNull(passwordResetTokens.consumedAt),
                 ),
             )
             .returning({ id: passwordResetTokens.id })
 
-        if (consumedTokens.length !== 1) {
+        if (!consumedTokens.some((token) => token.id === resetToken.id)) {
             return { success: false as const, code: 'invalid_or_expired_token' as const }
         }
 

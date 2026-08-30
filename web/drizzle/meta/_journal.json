@@ -29,6 +29,13 @@
             "when": 1788026083477,
             "tag": "0003_wide_mordo",
             "breakpoints": true
+        },
+        {
+            "idx": 4,
+            "version": "7",
+            "when": 1788050308683,
+            "tag": "0004_sleepy_network",
+            "breakpoints": true
         }
     ]
 }

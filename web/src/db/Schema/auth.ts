@@ -148,7 +148,7 @@ export const passwordResetTokens = rentnerProxySchema.table(
         expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
     },
     (table) => [
-        uniqueIndex('password_reset_tokens_user_id_unique_idx').on(table.userId),
+        index('password_reset_tokens_user_id_idx').on(table.userId),
         uniqueIndex('password_reset_tokens_token_hash_unique_idx').on(table.tokenHash),
         index('password_reset_tokens_expires_at_idx').on(table.expiresAt),
     ],

@@ -1,0 +1,2 @@
+DROP INDEX "rentnerproxy"."password_reset_tokens_user_id_unique_idx";--> statement-breakpoint
+CREATE INDEX "password_reset_tokens_user_id_idx" ON "rentnerproxy"."password_reset_tokens" USING btree ("user_id");

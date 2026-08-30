@@ -637,6 +637,40 @@ describe('password reset with PostgreSQL', () => {
         expect(updatedUser.passwordHash).not.toBeNull()
         expect(await verifyPassword(NEW_PASSWORD, updatedUser.passwordHash ?? '')).toBeTrue()
     })
+
+    integrationTest('keeps issued links usable until one password reset succeeds', async () => {
+        const user = await createTestUser({ email: testEmail('parallel-reset') })
+        const firstDelivery = await issuePasswordResetService(user.email)
+        const secondDelivery = await issuePasswordResetService(user.email)
+
+        if (!firstDelivery || !secondDelivery) {
+            throw new Error('Password reset deliveries were not issued.')
+        }
+
+        const storedTokens = await getAuthDatabase()
+            .select({ tokenHash: passwordResetTokens.tokenHash })
+            .from(passwordResetTokens)
+            .where(eq(passwordResetTokens.userId, user.id))
+
+        expect(storedTokens.map((token) => token.tokenHash).toSorted()).toEqual(
+            [
+                await hashOpaqueToken(firstDelivery.token),
+                await hashOpaqueToken(secondDelivery.token),
+            ].toSorted(),
+        )
+        expect(
+            await consumePasswordResetService({
+                password: NEW_PASSWORD,
+                token: firstDelivery.token,
+            }),
+        ).toEqual({ success: true, userId: user.id })
+        expect(
+            await consumePasswordResetService({
+                password: NEW_PASSWORD,
+                token: secondDelivery.token,
+            }),
+        ).toEqual({ success: false, code: 'invalid_or_expired_token' })
+    })
 })
 
 describe('user invites with PostgreSQL', () => {
