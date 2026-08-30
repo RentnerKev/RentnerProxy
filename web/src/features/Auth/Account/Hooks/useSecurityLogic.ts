@@ -46,7 +46,7 @@ export default function useSecurityLogic() {
     })
     const confirmTotp = useMutation({
         mutationFn: (code: string) => {
-            if (!setup) throw new Error('Two-factor setup is no longer available.')
+            if (!setup) throw new Error('account.twoFactor.error.setupUnavailable')
             return confirmTotpSetupHandler({ data: { challengeId: setup.challengeId, code } })
         },
         onMutate: resetResult,

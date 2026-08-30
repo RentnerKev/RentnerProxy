@@ -33,7 +33,12 @@ import {
     getTwoFactorStatusService,
     regenerateRecoveryCodesService,
 } from '../../../server/Auth/TwoFactor/two-factor.service'
-import { actionFailure, enforceSensitiveLimit, type AuthActionResult } from '../serverHelpers'
+import {
+    enforceSensitiveLimit,
+    localizedActionFailure,
+    throwLocalizedQueryError,
+    type AuthActionResult,
+} from '../serverHelpers'
 import { changePasswordInputSchema, updateProfileImageInputSchema } from './validation'
 import {
     beginPasskeyReauthenticationInputSchema,
@@ -57,10 +62,10 @@ export const changePasswordHandler = createServerFn({ method: 'POST' })
                 password: data.password,
             })
             return result.success
-                ? { success: true, message: 'Password changed. Other sessions were revoked.' }
-                : { success: false, message: 'The current password is incorrect.' }
+                ? { success: true, message: 'account.password.success.changed' }
+                : { success: false, message: 'account.password.error.incorrectCurrentPassword' }
         } catch (error) {
-            return actionFailure(error, 'The password could not be changed.')
+            return localizedActionFailure(error, 'account.password.error.update')
         }
     })
 
@@ -70,9 +75,9 @@ export const updateProfileImageHandler = createServerFn({ method: 'POST' })
         try {
             await requirePermissionService(PERMISSIONS.ACCOUNT_UPDATE)
             await updateCurrentProfileImageService(data.imageDataUrl)
-            return { success: true, message: 'Profile picture updated.' }
+            return { success: true, message: 'account.profileImage.success.updated' }
         } catch (error) {
-            return actionFailure(error, 'The profile picture could not be updated.')
+            return localizedActionFailure(error, 'account.profileImage.error.update')
         }
     })
 
@@ -95,10 +100,7 @@ export const getSecurityStatusHandler = createServerFn({ method: 'GET' }).handle
             recentlyAuthenticated: isSessionRecentlyAuthenticated(session),
         }
     } catch (error) {
-        throw new Error(
-            actionFailure(error, 'Security settings are temporarily unavailable.').message,
-            { cause: error },
-        )
+        throwLocalizedQueryError(error, 'account.security.error.unavailable')
     }
 })
 
@@ -111,13 +113,13 @@ export const beginTotpSetupHandler = createServerFn({ method: 'POST' })
             const result = await beginTotpSetupService(session)
             return {
                 challengeId: result.flowId,
-                message: 'Two-factor setup started.',
+                message: 'account.twoFactor.success.setupStarted',
                 otpAuthUrl: result.otpAuthUri,
                 secret: result.secret,
                 success: true as const,
             }
         } catch (error) {
-            return actionFailure(error, 'Two-factor authentication could not be started.')
+            return localizedActionFailure(error, 'account.twoFactor.error.setupStart')
         }
     })
 
@@ -134,16 +136,16 @@ export const confirmTotpSetupHandler = createServerFn({ method: 'POST' })
             })
             return result.success
                 ? {
-                      message: 'Two-factor authentication enabled.',
+                      message: 'account.twoFactor.success.enabled',
                       recoveryCodes: result.recoveryCodes,
                       success: true as const,
                   }
                 : {
-                      message: 'The authenticator code is invalid or expired.',
+                      message: 'account.twoFactor.error.invalidCode',
                       success: false as const,
                   }
         } catch (error) {
-            return actionFailure(error, 'The authenticator code could not be verified.')
+            return localizedActionFailure(error, 'account.twoFactor.error.verify')
         }
     })
 
@@ -156,11 +158,11 @@ export const disableTotpHandler = createServerFn({ method: 'POST' })
             return {
                 success,
                 message: success
-                    ? 'Two-factor authentication disabled.'
-                    : 'Two-factor authentication is not enabled.',
+                    ? 'account.twoFactor.success.disabled'
+                    : 'account.twoFactor.error.notEnabled',
             }
         } catch (error) {
-            return actionFailure(error, 'Two-factor authentication could not be disabled.')
+            return localizedActionFailure(error, 'account.twoFactor.error.disable')
         }
     })
 
@@ -172,13 +174,13 @@ export const regenerateRecoveryCodesHandler = createServerFn({ method: 'POST' })
             const result = await regenerateRecoveryCodesService(session)
             return result.success
                 ? {
-                      message: 'Recovery codes regenerated.',
+                      message: 'account.twoFactor.success.recoveryCodesRegenerated',
                       recoveryCodes: result.recoveryCodes,
                       success: true as const,
                   }
-                : { message: 'Two-factor authentication is not enabled.', success: false as const }
+                : { message: 'account.twoFactor.error.notEnabled', success: false as const }
         } catch (error) {
-            return actionFailure(error, 'Recovery codes could not be regenerated.')
+            return localizedActionFailure(error, 'account.twoFactor.error.recoveryCodes')
         }
     })
 
@@ -191,12 +193,12 @@ export const beginPasskeyRegistrationHandler = createServerFn({ method: 'POST' }
             const result = await beginPasskeyRegistrationService(session)
             return {
                 challengeId: result.flowId,
-                message: 'Passkey registration started.',
+                message: 'account.passkeys.success.registrationStarted',
                 options: result.options,
                 success: true as const,
             }
         } catch (error) {
-            return actionFailure(error, 'Passkey registration could not be started.')
+            return localizedActionFailure(error, 'account.passkeys.error.registrationStart')
         }
     })
 
@@ -215,11 +217,11 @@ export const finishPasskeyRegistrationHandler = createServerFn({ method: 'POST' 
             return {
                 success: result.success,
                 message: result.success
-                    ? 'Passkey added.'
-                    : 'Passkey registration could not be verified.',
+                    ? 'account.passkeys.success.added'
+                    : 'account.passkeys.error.registrationVerification',
             }
         } catch (error) {
-            return actionFailure(error, 'Passkey registration could not be completed.')
+            return localizedActionFailure(error, 'account.passkeys.error.registrationComplete')
         }
     })
 
@@ -235,10 +237,12 @@ export const renamePasskeyHandler = createServerFn({ method: 'POST' })
             })
             return {
                 success,
-                message: success ? 'Passkey renamed.' : 'The passkey no longer exists.',
+                message: success
+                    ? 'account.passkeys.success.renamed'
+                    : 'account.passkeys.error.notFound',
             }
         } catch (error) {
-            return actionFailure(error, 'Passkey name could not be saved.')
+            return localizedActionFailure(error, 'account.passkeys.error.rename')
         }
     })
 
@@ -253,10 +257,12 @@ export const removePasskeyHandler = createServerFn({ method: 'POST' })
             })
             return {
                 success,
-                message: success ? 'Passkey removed.' : 'The passkey no longer exists.',
+                message: success
+                    ? 'account.passkeys.success.removed'
+                    : 'account.passkeys.error.notFound',
             }
         } catch (error) {
-            return actionFailure(error, 'Passkey could not be removed.')
+            return localizedActionFailure(error, 'account.passkeys.error.remove')
         }
     })
 
@@ -272,10 +278,12 @@ export const reauthenticatePasswordHandler = createServerFn({ method: 'POST' })
             )
             return {
                 success,
-                message: success ? 'Identity confirmed.' : 'The password is incorrect.',
+                message: success
+                    ? 'account.reauthentication.success.confirmed'
+                    : 'account.reauthentication.error.incorrectPassword',
             }
         } catch (error) {
-            return actionFailure(error, 'Reauthentication failed.')
+            return localizedActionFailure(error, 'account.reauthentication.error.failed')
         }
     })
 
@@ -288,12 +296,12 @@ export const beginPasskeyReauthenticationHandler = createServerFn({ method: 'POS
             const result = await beginPasskeyReauthenticationService(session)
             return {
                 challengeId: result.flowId,
-                message: 'Passkey verification started.',
+                message: 'account.reauthentication.success.passkeyStarted',
                 options: result.options,
                 success: true as const,
             }
         } catch (error) {
-            return actionFailure(error, 'Passkey reauthentication could not be started.')
+            return localizedActionFailure(error, 'account.reauthentication.error.passkeyStart')
         }
     })
 
@@ -310,10 +318,12 @@ export const finishPasskeyReauthenticationHandler = createServerFn({ method: 'PO
             })
             return {
                 success: result.success,
-                message: result.success ? 'Identity confirmed.' : 'Passkey verification failed.',
+                message: result.success
+                    ? 'account.reauthentication.success.confirmed'
+                    : 'account.reauthentication.error.passkeyVerification',
             }
         } catch (error) {
-            return actionFailure(error, 'Reauthentication failed.')
+            return localizedActionFailure(error, 'account.reauthentication.error.failed')
         }
     })
 

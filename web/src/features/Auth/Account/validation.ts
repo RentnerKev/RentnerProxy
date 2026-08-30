@@ -1,11 +1,7 @@
 import { z } from 'zod'
 
 import { PROFILE_IMAGE_MAX_DATA_URL_LENGTH } from '../../../config/profile-image.config'
-import {
-    addPasswordConfirmationIssue,
-    credentialPasswordSchema,
-    newPasswordSchema,
-} from '../Shared/validation'
+import { credentialPasswordSchema, newPasswordSchema } from '../Shared/validation'
 import {
     authenticationResponseSchema,
     opaqueAuthChallengeSchema,
@@ -18,7 +14,15 @@ export const changePasswordInputSchema = z
         password: newPasswordSchema,
         confirmPassword: z.string(),
     })
-    .superRefine(addPasswordConfirmationIssue)
+    .superRefine(function (values, context) {
+        if (values.password !== values.confirmPassword) {
+            context.addIssue({
+                code: 'custom',
+                path: ['confirmPassword'],
+                message: 'account.validation.passwordsDoNotMatch',
+            })
+        }
+    })
 export const updateProfileImageInputSchema = z.object({
     imageDataUrl: z
         .string()
@@ -31,9 +35,7 @@ export const beginPasskeyReauthenticationInputSchema = emptySecurityInputSchema
 export const reauthenticatePasswordInputSchema = z.object({
     credential: z.string().min(1).max(256),
 })
-export const totpCodeSchema = z
-    .string()
-    .regex(/^\d{6}$/, 'Enter the six-digit code from your authenticator app.')
+export const totpCodeSchema = z.string().regex(/^\d{6}$/, 'account.validation.authenticatorCode')
 export const totpSetupFormSchema = z.object({ code: totpCodeSchema })
 export const confirmTotpSetupInputSchema = z.object({
     challengeId: opaqueAuthChallengeSchema,

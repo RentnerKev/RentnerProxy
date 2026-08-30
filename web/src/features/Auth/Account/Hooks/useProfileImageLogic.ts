@@ -11,6 +11,12 @@ import { createCroppedProfileImageDataUrl, createProfileImageSource } from '../H
 const INITIAL_CROP: Point = { x: 0, y: 0 }
 const INITIAL_ZOOM = 1
 
+function getProfileImageErrorKey(error: unknown, fallback: string): string {
+    return error instanceof Error && error.message.startsWith('account.profileImage.error.')
+        ? error.message
+        : fallback
+}
+
 export default function useProfileImageLogic() {
     const queryClient = useQueryClient()
     const router = useRouter()
@@ -61,9 +67,7 @@ export default function useProfileImageLogic() {
             setZoom(INITIAL_ZOOM)
             setCroppedAreaPixels(null)
         } catch (error) {
-            setSelectionError(
-                error instanceof Error ? error.message : 'The selected image could not be opened.',
-            )
+            setSelectionError(getProfileImageErrorKey(error, 'account.profileImage.error.open'))
         }
     }, [])
 
@@ -113,11 +117,7 @@ export default function useProfileImageLogic() {
             setSuccessMessage(result.message)
             resetEditor()
         } catch (error) {
-            setSelectionError(
-                error instanceof Error
-                    ? error.message
-                    : 'The profile picture could not be updated.',
-            )
+            setSelectionError(getProfileImageErrorKey(error, 'account.profileImage.error.update'))
         } finally {
             setIsPreparing(false)
         }
@@ -132,7 +132,7 @@ export default function useProfileImageLogic() {
                 (mutation.data && !mutation.data.success
                     ? mutation.data.message
                     : mutation.isError
-                      ? 'The profile picture could not be updated.'
+                      ? 'account.profileImage.error.update'
                       : null),
             imageSrc,
             isOpen: imageSrc !== null,

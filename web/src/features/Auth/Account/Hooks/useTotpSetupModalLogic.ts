@@ -1,7 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
 
-import { getValidationMessage } from '../../Shared/validation'
+import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
 import type { TotpSetupFormValues } from '../Types/security.types'
 import { totpCodeSchema, totpSetupFormSchema } from '../validation'
 
@@ -37,7 +37,7 @@ export default function useTotpSetupModalLogic({
         handler: {
             back: () => setStep('scan'),
             close,
-            getCodeError: (value: string) => getValidationMessage(totpCodeSchema, value),
+            getCodeError: (value: string) => getValidationIssue(totpCodeSchema, value, 'code'),
             normalizeCode: (value: string) => value.replace(/\D/g, '').slice(0, 6),
             verify: () => setStep('verify'),
         },

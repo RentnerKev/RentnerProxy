@@ -4,8 +4,12 @@ export default function useRenamePasskeyModalLogic(
     initialName: string,
     onConfirm: (name: string) => void,
 ) {
-    const [name, setName] = useState(initialName)
-    const setNameFromInput = (value: string) => setName(value.slice(0, 100))
+    const [draft, setDraft] = useState<string | null>(null)
+    const name = draft ?? initialName
+
+    const setNameFromInput = (value: string) => {
+        setDraft(value.slice(0, 100))
+    }
     const confirm = () => {
         const trimmed = name.trim()
         if (trimmed) onConfirm(trimmed)

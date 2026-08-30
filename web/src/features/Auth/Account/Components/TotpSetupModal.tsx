@@ -4,6 +4,7 @@ import type { ChangeEvent } from 'react'
 import FieldError from '../../../../shared/Forms/FieldError'
 import { Modal } from '../../../../shared/Modal'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import useTotpSetupModalLogic from '../Hooks/useTotpSetupModalLogic'
 
 interface TotpSetupModalProps {
@@ -22,6 +23,7 @@ export default function TotpSetupModal({
     onClose,
 }: TotpSetupModalProps) {
     const logic = useTotpSetupModalLogic({ onClose, onConfirm })
+    const { t } = useTranslationStore()
 
     if (!setup) return null
 
@@ -32,11 +34,15 @@ export default function TotpSetupModal({
             onOpenChange={(open) => {
                 if (!open && !isPending) logic.handler.close()
             }}
-            title={isVerificationStep ? 'Verify authenticator' : 'Set up authenticator app'}
+            title={
+                isVerificationStep
+                    ? t('account.twoFactor.setup.verifyTitle')
+                    : t('account.twoFactor.setup.title')
+            }
             description={
                 isVerificationStep
-                    ? 'Enter the six-digit code from your authenticator app.'
-                    : 'Scan the QR code or enter the setup key in your authenticator app.'
+                    ? t('account.twoFactor.setup.verifyDescription')
+                    : t('account.twoFactor.setup.description')
             }
             closeDisabled={isPending}
             footer={
@@ -48,7 +54,7 @@ export default function TotpSetupModal({
                             disabled={isPending}
                             onClick={logic.handler.back}
                         >
-                            Back
+                            {t('account.twoFactor.setup.back')}
                         </button>
                         <logic.state.form.Subscribe
                             selector={(formState) =>
@@ -62,7 +68,9 @@ export default function TotpSetupModal({
                                     disabled={!canSubmit || isSubmitting || isPending}
                                     onClick={() => void logic.state.form.handleSubmit()}
                                 >
-                                    {isSubmitting || isPending ? 'Verifying…' : 'Verify and enable'}
+                                    {isSubmitting || isPending
+                                        ? t('account.twoFactor.setup.verifying')
+                                        : t('account.twoFactor.setup.verifyAndEnable')}
                                 </button>
                             )}
                         </logic.state.form.Subscribe>
@@ -75,7 +83,7 @@ export default function TotpSetupModal({
                             disabled={isPending}
                             onClick={logic.handler.close}
                         >
-                            Cancel
+                            {t('common.cancel')}
                         </button>
                         <button
                             type="button"
@@ -83,14 +91,16 @@ export default function TotpSetupModal({
                             disabled={isPending}
                             onClick={logic.handler.verify}
                         >
-                            Continue
+                            {t('account.twoFactor.setup.continue')}
                         </button>
                     </>
                 )
             }
         >
             <p className={uiClassNames.themedTechnicalLabel}>
-                Step {isVerificationStep ? '2' : '1'} of 2
+                {t('account.twoFactor.setup.step', {
+                    current: isVerificationStep ? 2 : 1,
+                })}
             </p>
             {isVerificationStep ? (
                 <form
@@ -111,7 +121,7 @@ export default function TotpSetupModal({
                         {(field) => (
                             <div className={uiClassNames.form.field}>
                                 <label className={uiClassNames.form.label} htmlFor={field.name}>
-                                    Authenticator code
+                                    {t('account.twoFactor.setup.authenticatorCode')}
                                 </label>
                                 <input
                                     id={field.name}
@@ -138,7 +148,7 @@ export default function TotpSetupModal({
                     </logic.state.form.Field>
                     {errorMessage ? (
                         <p role="alert" className="text-sm text-danger-text">
-                            {errorMessage}
+                            {t(errorMessage)}
                         </p>
                     ) : null}
                 </form>
@@ -146,17 +156,19 @@ export default function TotpSetupModal({
                 <div className="mt-5 grid gap-5 sm:grid-cols-[auto_1fr] sm:items-start">
                     <figure className="mx-auto rounded-xl bg-white p-4 sm:mx-0">
                         <QRCodeSVG value={setup.otpAuthUrl} size={176} aria-hidden="true" />
-                        <figcaption className="sr-only">Authenticator setup QR code</figcaption>
+                        <figcaption className="sr-only">
+                            {t('account.twoFactor.setup.qrCode')}
+                        </figcaption>
                     </figure>
                     <div className="grid gap-4">
                         <p className="text-sm leading-relaxed text-muted">
-                            Can’t scan the QR code? Enter this setup key manually:
+                            {t('account.twoFactor.setup.manualKey')}
                         </p>
                         <code className="break-all rounded-lg border border-border bg-surface-raised p-3 text-sm text-ink-soft">
                             {setup.secret}
                         </code>
                         <p className="text-sm leading-relaxed text-muted">
-                            Keep this dialog open until your authenticator has saved the account.
+                            {t('account.twoFactor.setup.keepOpen')}
                         </p>
                     </div>
                 </div>

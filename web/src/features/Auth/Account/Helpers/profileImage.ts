@@ -14,7 +14,7 @@ function loadImageElement(src: string): Promise<HTMLImageElement> {
         image.addEventListener('load', () => resolve(image), { once: true })
         image.addEventListener(
             'error',
-            () => reject(new Error('The selected file is not a readable image.')),
+            () => reject(new Error('account.profileImage.error.unreadable')),
             { once: true },
         )
         image.src = src
@@ -30,7 +30,7 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
                     return
                 }
 
-                reject(new Error('The selected crop could not be created.'))
+                reject(new Error('account.profileImage.error.cropCreation'))
             },
             'image/webp',
             0.92,
@@ -46,12 +46,12 @@ function blobToDataUrl(blob: Blob): Promise<string> {
             () =>
                 typeof reader.result === 'string'
                     ? resolve(reader.result)
-                    : reject(new Error('The selected crop could not be read.')),
+                    : reject(new Error('account.profileImage.error.cropRead')),
             { once: true },
         )
         reader.addEventListener(
             'error',
-            () => reject(new Error('The selected crop could not be read.')),
+            () => reject(new Error('account.profileImage.error.cropRead')),
             { once: true },
         )
         reader.readAsDataURL(blob)
@@ -65,7 +65,7 @@ function getClampedCrop(image: HTMLImageElement, crop: Area): Area {
     const height = Math.min(Math.round(crop.height), image.naturalHeight - y)
 
     if (width < 1 || height < 1) {
-        throw new Error('Move or zoom the image to choose a valid crop.')
+        throw new Error('account.profileImage.error.invalidCrop')
     }
 
     return { height, width, x, y }
@@ -77,11 +77,11 @@ export async function createProfileImageSource(file: File): Promise<string> {
             file.type as (typeof PROFILE_IMAGE_ACCEPTED_MIME_TYPES)[number],
         )
     ) {
-        throw new Error('Choose a JPEG, PNG, or WebP image.')
+        throw new Error('account.profileImage.error.unsupportedType')
     }
 
     if (file.size < 1 || file.size > PROFILE_IMAGE_MAX_SOURCE_BYTES) {
-        throw new Error('Choose an image smaller than 8 MB.')
+        throw new Error('account.profileImage.error.fileTooLarge')
     }
 
     const src = URL.createObjectURL(file)
@@ -95,7 +95,7 @@ export async function createProfileImageSource(file: File): Promise<string> {
             image.naturalHeight < 64 ||
             pixels > PROFILE_IMAGE_MAX_SOURCE_PIXELS
         ) {
-            throw new Error('Choose an image between 64 px and 40 megapixels.')
+            throw new Error('account.profileImage.error.invalidDimensions')
         }
 
         return src
@@ -117,7 +117,7 @@ export async function createCroppedProfileImageDataUrl(
     const context = canvas.getContext('2d')
 
     if (!context) {
-        throw new Error('Image editing is not supported by this browser.')
+        throw new Error('account.profileImage.error.unsupportedBrowser')
     }
 
     context.imageSmoothingEnabled = true

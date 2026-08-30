@@ -1,5 +1,6 @@
 import { Modal } from '../../../../shared/Modal'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import useRenamePasskeyModalLogic from '../Hooks/useRenamePasskeyModalLogic'
 
 interface RenamePasskeyModalProps {
@@ -22,17 +23,23 @@ export default function RenamePasskeyModal({
     onClose,
 }: RenamePasskeyModalProps) {
     const logic = useRenamePasskeyModalLogic(initialName, onConfirm)
+    const { t } = useTranslationStore()
+
     return (
         <Modal
             open={open}
             onOpenChange={(next) => {
                 if (!next && !isPending) onClose()
             }}
-            title={mode === 'add' ? 'Name this passkey' : 'Rename passkey'}
+            title={
+                mode === 'add'
+                    ? t('account.passkeys.name.addTitle')
+                    : t('account.passkeys.name.renameTitle')
+            }
             description={
                 mode === 'add'
-                    ? 'Choose a recognizable name before your authenticator creates the passkey.'
-                    : 'Choose a name that helps you recognize this authenticator.'
+                    ? t('account.passkeys.name.addDescription')
+                    : t('account.passkeys.name.renameDescription')
             }
             closeDisabled={isPending}
             footer={
@@ -43,7 +50,7 @@ export default function RenamePasskeyModal({
                         disabled={isPending}
                         onClick={onClose}
                     >
-                        Cancel
+                        {t('common.cancel')}
                     </button>
                     <button
                         type="button"
@@ -51,13 +58,17 @@ export default function RenamePasskeyModal({
                         disabled={isPending || !logic.state.canSubmit}
                         onClick={logic.handler.confirm}
                     >
-                        {isPending ? 'Saving…' : mode === 'add' ? 'Continue' : 'Save name'}
+                        {isPending
+                            ? t('common.saving')
+                            : mode === 'add'
+                              ? t('account.passkeys.name.continue')
+                              : t('account.passkeys.name.save')}
                     </button>
                 </>
             }
         >
             <label className={uiClassNames.form.field} htmlFor="passkey-name">
-                <span className={uiClassNames.form.label}>Passkey name</span>
+                <span className={uiClassNames.form.label}>{t('account.passkeys.name.label')}</span>
                 <input
                     id="passkey-name"
                     className={uiClassNames.form.control}
@@ -69,7 +80,7 @@ export default function RenamePasskeyModal({
             </label>
             {errorMessage ? (
                 <p role="alert" className="mt-3 text-sm text-danger-text">
-                    {errorMessage}
+                    {t(errorMessage)}
                 </p>
             ) : null}
         </Modal>

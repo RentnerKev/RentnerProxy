@@ -2,16 +2,15 @@ import FieldError from '../../../../shared/Forms/FieldError'
 import FormMessage from '../../../../shared/Forms/FormMessage'
 import PasswordInput from '../../../../shared/Forms/PasswordInput'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../../language/useTranslationStore'
+import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
 import type { ChangeEvent } from 'react'
 import type { ChangePasswordFormProps } from '../Types/account-component-props.types'
-import {
-    credentialPasswordSchema,
-    getPasswordConfirmationMessage,
-    getValidationMessage,
-    newPasswordSchema,
-} from '../../Shared/validation'
+import { credentialPasswordSchema, newPasswordSchema } from '../../Shared/validation'
 
 export default function ChangePasswordForm({ state }: ChangePasswordFormProps) {
+    const { t } = useTranslationStore()
+
     return (
         <form
             className={uiClassNames.form.stack}
@@ -25,13 +24,13 @@ export default function ChangePasswordForm({ state }: ChangePasswordFormProps) {
             <state.form.Field
                 name="currentPassword"
                 validators={{
-                    onBlur: ({ value }) => getValidationMessage(credentialPasswordSchema, value),
+                    onBlur: ({ value }) => getValidationIssue(credentialPasswordSchema, value),
                 }}
             >
                 {(field) => (
                     <div className={uiClassNames.form.field}>
                         <label className={uiClassNames.form.label} htmlFor={field.name}>
-                            Current password
+                            {t('account.password.currentPassword')}
                         </label>
                         <PasswordInput
                             id={field.name}
@@ -52,13 +51,13 @@ export default function ChangePasswordForm({ state }: ChangePasswordFormProps) {
             <state.form.Field
                 name="password"
                 validators={{
-                    onBlur: ({ value }) => getValidationMessage(newPasswordSchema, value),
+                    onBlur: ({ value }) => getValidationIssue(newPasswordSchema, value),
                 }}
             >
                 {(field) => (
                     <div className={uiClassNames.form.field}>
                         <label className={uiClassNames.form.label} htmlFor={field.name}>
-                            New password
+                            {t('account.password.newPassword')}
                         </label>
                         <PasswordInput
                             id={field.name}
@@ -79,17 +78,18 @@ export default function ChangePasswordForm({ state }: ChangePasswordFormProps) {
             <state.form.Field
                 name="confirmPassword"
                 validators={{
-                    onBlur: ({ value, fieldApi }) =>
-                        getPasswordConfirmationMessage(
-                            fieldApi.form.getFieldValue('password'),
-                            value,
-                        ),
+                    onBlur: ({ value, fieldApi }) => {
+                        const password = fieldApi.form.getFieldValue('password')
+                        return password === value
+                            ? undefined
+                            : 'account.validation.passwordsDoNotMatch'
+                    },
                 }}
             >
                 {(field) => (
                     <div className={uiClassNames.form.field}>
                         <label className={uiClassNames.form.label} htmlFor={field.name}>
-                            Confirm new password
+                            {t('account.password.confirmNewPassword')}
                         </label>
                         <PasswordInput
                             id={field.name}
@@ -113,7 +113,7 @@ export default function ChangePasswordForm({ state }: ChangePasswordFormProps) {
                 </FormMessage>
             ) : null}
             {state.isError ? (
-                <FormMessage tone="error">The password could not be changed.</FormMessage>
+                <FormMessage tone="error">account.password.error.update</FormMessage>
             ) : null}
             <state.form.Subscribe
                 selector={(formState) => [formState.canSubmit, formState.isSubmitting] as const}
@@ -124,7 +124,9 @@ export default function ChangePasswordForm({ state }: ChangePasswordFormProps) {
                         className={uiClassNames.button.primary}
                         disabled={!canSubmit || isSubmitting || state.isPending}
                     >
-                        {isSubmitting || state.isPending ? 'Changing password…' : 'Change password'}
+                        {isSubmitting || state.isPending
+                            ? t('account.password.changing')
+                            : t('account.password.change')}
                     </button>
                 )}
             </state.form.Subscribe>

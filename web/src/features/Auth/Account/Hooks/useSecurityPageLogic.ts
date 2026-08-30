@@ -13,8 +13,8 @@ type SecurityConfirmation =
     | { readonly kind: 'remove'; readonly passkeyId: string }
 
 type PasskeyNameRequest =
-    | { readonly kind: 'add'; readonly initialName: string }
-    | { readonly kind: 'rename'; readonly initialName: string; readonly passkeyId: string }
+    | { readonly kind: 'add' }
+    | { readonly kind: 'rename'; readonly initialName?: string; readonly passkeyId: string }
 
 export default function useSecurityPageLogic() {
     const security = useSecurityLogic()
@@ -51,7 +51,7 @@ export default function useSecurityPageLogic() {
         try {
             const started = await security.handler.beginPasskey()
             if (!started.success || !started.options || !started.challengeId) {
-                setPasskeyError(started.message ?? 'Passkey registration could not be started.')
+                setPasskeyError(started.message)
                 return false
             }
             const response = await startRegistration({ optionsJSON: started.options })
@@ -61,12 +61,12 @@ export default function useSecurityPageLogic() {
                 response,
             })
             if (!result.success) {
-                setPasskeyError(result.message ?? 'Passkey registration failed.')
+                setPasskeyError(result.message)
                 return false
             }
             return true
-        } catch (error) {
-            setPasskeyError(error instanceof Error ? error.message : 'Passkey registration failed.')
+        } catch {
+            setPasskeyError('account.passkeys.error.registrationFailed')
             return false
         }
     }
@@ -76,10 +76,10 @@ export default function useSecurityPageLogic() {
         try {
             const result = await security.handler.beginTotp()
             if (!result.success) {
-                setPasskeyError(result.message ?? 'Two-factor setup could not be started.')
+                setPasskeyError(result.message)
             }
         } catch {
-            setPasskeyError('Two-factor setup could not be started.')
+            setPasskeyError('account.twoFactor.error.setupStart')
         }
     }
 
@@ -108,7 +108,7 @@ export default function useSecurityPageLogic() {
         }
         if (action === 'add') {
             if (passkeyName) await registerPasskey(passkeyName)
-            else setNameRequest({ kind: 'add', initialName: 'Passkey' })
+            else setNameRequest({ kind: 'add' })
             resetReauthentication()
             return
         }
@@ -131,7 +131,7 @@ export default function useSecurityPageLogic() {
             const result = await reauthentication.handler.verifyPassword()
             if (result.success) await finishReauthentication()
         } catch {
-            setPasskeyError('Reauthentication failed. Try again.')
+            setPasskeyError('account.reauthentication.error.failed')
         }
     }
 
@@ -140,7 +140,7 @@ export default function useSecurityPageLogic() {
         try {
             const started = await reauthentication.handler.beginPasskey()
             if (!started.success || !started.challengeId || !started.options) {
-                setPasskeyError(started.message ?? 'Passkey reauthentication could not be started.')
+                setPasskeyError(started.message)
                 return
             }
             const response = await startAuthentication({ optionsJSON: started.options })
@@ -149,11 +149,9 @@ export default function useSecurityPageLogic() {
                 response,
             })
             if (result.success) await finishReauthentication()
-            else setPasskeyError(result.message ?? 'Passkey reauthentication failed.')
-        } catch (error) {
-            setPasskeyError(
-                error instanceof Error ? error.message : 'Passkey reauthentication failed.',
-            )
+            else setPasskeyError(result.message)
+        } catch {
+            setPasskeyError('account.reauthentication.error.passkeyVerification')
         }
     }
 
@@ -163,8 +161,9 @@ export default function useSecurityPageLogic() {
     }
 
     function requestAddPasskey() {
-        if (recentlyAuthenticated) setNameRequest({ kind: 'add', initialName: 'Passkey' })
-        else startReauthentication('add')
+        if (recentlyAuthenticated) {
+            setNameRequest({ kind: 'add' })
+        } else startReauthentication('add')
     }
 
     function requestDestructiveAction(action: DestructiveSecurityAction, passkeyId?: string) {
@@ -181,11 +180,11 @@ export default function useSecurityPageLogic() {
     function requestRename(passkeyId: string) {
         setPasskeyError(null)
         const passkey = security.state.status?.passkeys.find((entry) => entry.id === passkeyId)
-        setNameRequest({
-            kind: 'rename',
-            initialName: passkey?.name ?? 'Passkey',
-            passkeyId,
-        })
+        setNameRequest(
+            passkey?.name
+                ? { kind: 'rename', initialName: passkey.name, passkeyId }
+                : { kind: 'rename', passkeyId },
+        )
     }
 
     async function confirmPasskeyName(name: string) {
@@ -216,8 +215,8 @@ export default function useSecurityPageLogic() {
         } catch {
             setPasskeyError(
                 request.kind === 'add'
-                    ? 'Passkey registration failed.'
-                    : 'Passkey name could not be saved.',
+                    ? 'account.passkeys.error.registrationFailed'
+                    : 'account.passkeys.error.rename',
             )
         }
         if (success) setNameRequest(null)
@@ -242,7 +241,7 @@ export default function useSecurityPageLogic() {
                 setConfirmationError(result.message)
             }
         } catch {
-            setConfirmationError('The security change could not be completed. Try again.')
+            setConfirmationError('account.security.error.change')
         }
     }
 

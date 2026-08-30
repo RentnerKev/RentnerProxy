@@ -1,3 +1,4 @@
+import useTranslationStore from '../../../language/useTranslationStore'
 import FormMessage from '../../../shared/Forms/FormMessage'
 import PageHeader from '../../../shared/Management/PageHeader'
 import { ConfirmDialog } from '../../../shared/Modal/Components/ConfirmDialog'
@@ -15,10 +16,11 @@ import useSecurityPageLogic from './Hooks/useSecurityPageLogic'
 import type { AccountPageProps } from './Types/account-component-props.types'
 
 export default function AccountPage({ user }: AccountPageProps) {
+    const { t } = useTranslationStore()
     const viewModel = getAccountPageViewModel(user)
     const security = useSecurityPageLogic()
     const { state, handler } = security
-    const queryErrorMessage = state.error instanceof Error ? state.error.message : null
+    const queryErrorMessage = state.error ? 'account.security.error.unavailable' : null
     const resultMessage =
         state.passkeyError ?? queryErrorMessage ?? state.lastResult?.message ?? null
     const resultTone =
@@ -29,33 +31,33 @@ export default function AccountPage({ user }: AccountPageProps) {
         state.confirmation?.kind === 'remove' ? state.confirmation.passkeyId : null
     const confirmedPasskeyName = confirmedPasskeyId
         ? (state.status?.passkeys.find((passkey) => passkey.id === confirmedPasskeyId)?.name ??
-          'This passkey')
+          t('account.passkeys.defaultName'))
         : null
     const confirmationTitle =
         state.confirmation?.kind === 'remove'
-            ? 'Remove this passkey?'
+            ? t('account.confirmation.removePasskeyTitle')
             : state.confirmation?.kind === 'disable'
-              ? 'Disable two-factor authentication?'
-              : 'Regenerate recovery codes?'
+              ? t('account.confirmation.disableTwoFactorTitle')
+              : t('account.confirmation.regenerateRecoveryCodesTitle')
     const confirmationDescription =
         state.confirmation?.kind === 'remove'
-            ? `"${confirmedPasskeyName}" will no longer be available for signing in to your account.`
+            ? t('account.confirmation.removePasskeyDescription', { name: confirmedPasskeyName })
             : state.confirmation?.kind === 'disable'
-              ? 'Password sign-ins will no longer require an authenticator code.'
-              : 'Your existing recovery codes will stop working immediately.'
+              ? t('account.confirmation.disableTwoFactorDescription')
+              : t('account.confirmation.regenerateRecoveryCodesDescription')
     const confirmationLabel =
         state.confirmation?.kind === 'remove'
-            ? 'Remove passkey'
+            ? t('account.confirmation.removePasskey')
             : state.confirmation?.kind === 'disable'
-              ? 'Disable 2FA'
-              : 'Regenerate codes'
+              ? t('account.confirmation.disableTwoFactor')
+              : t('account.confirmation.regenerateRecoveryCodes')
 
     return (
         <>
             <PageHeader
-                eyebrow="Personal access"
-                title="Account"
-                description="Manage your profile picture, credentials, and security for this RentnerProxy account."
+                eyebrow={t('account.page.eyebrow')}
+                title={t('account.page.title')}
+                description={t('account.page.description')}
             />
             <div className={uiClassNames.management.grid}>
                 <div className={uiClassNames.management.accountGrid}>
@@ -110,7 +112,11 @@ export default function AccountPage({ user }: AccountPageProps) {
                 }
                 open={state.nameRequest !== null}
                 mode={state.nameRequest?.kind ?? 'add'}
-                initialName={state.nameRequest?.initialName ?? 'Passkey'}
+                initialName={
+                    state.nameRequest?.kind === 'rename' && state.nameRequest.initialName
+                        ? state.nameRequest.initialName
+                        : t('account.passkeys.defaultName')
+                }
                 isPending={state.isPending}
                 errorMessage={
                     state.passkeyError ??
@@ -144,7 +150,7 @@ export default function AccountPage({ user }: AccountPageProps) {
                 title={confirmationTitle}
                 description={confirmationDescription}
                 confirmLabel={confirmationLabel}
-                pendingLabel="Applying…"
+                pendingLabel={t('account.confirmation.applying')}
                 destructive
                 isPending={state.isPending}
                 errorMessage={state.confirmationError}

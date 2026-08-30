@@ -1,6 +1,7 @@
 import { Modal } from '../../../../shared/Modal'
 import PasswordInput from '../../../../shared/Forms/PasswordInput'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../../language/useTranslationStore'
 
 interface ReauthenticationModalProps {
     readonly open: boolean
@@ -22,14 +23,16 @@ export default function ReauthenticationModal({
     onPasskey,
     onClose,
 }: ReauthenticationModalProps) {
+    const { t } = useTranslationStore()
+
     return (
         <Modal
             open={open}
             onOpenChange={(next) => {
                 if (!next && !isPending) onClose()
             }}
-            title="Confirm this security change"
-            description="Reauthenticate to continue. Your existing session alone is not sufficient."
+            title={t('account.reauthentication.title')}
+            description={t('account.reauthentication.description')}
             closeDisabled={isPending}
             footer={
                 <>
@@ -39,7 +42,7 @@ export default function ReauthenticationModal({
                         disabled={isPending}
                         onClick={onClose}
                     >
-                        Cancel
+                        {t('common.cancel')}
                     </button>
                     <button
                         type="button"
@@ -47,14 +50,16 @@ export default function ReauthenticationModal({
                         disabled={isPending || !value}
                         onClick={onConfirm}
                     >
-                        Confirm
+                        {t('account.reauthentication.confirm')}
                     </button>
                 </>
             }
         >
             <div className="grid gap-4">
                 <label className={uiClassNames.form.field} htmlFor="reauth-password">
-                    <span className={uiClassNames.form.label}>Current password</span>
+                    <span className={uiClassNames.form.label}>
+                        {t('account.reauthentication.currentPassword')}
+                    </span>
                     <PasswordInput
                         id="reauth-password"
                         autoComplete="current-password"
@@ -68,11 +73,11 @@ export default function ReauthenticationModal({
                     disabled={isPending}
                     onClick={onPasskey}
                 >
-                    Use a passkey instead
+                    {t('account.reauthentication.usePasskey')}
                 </button>
                 {errorMessage ? (
                     <p role="alert" className="text-sm text-danger-text">
-                        {errorMessage}
+                        {t(errorMessage)}
                     </p>
                 ) : null}
             </div>

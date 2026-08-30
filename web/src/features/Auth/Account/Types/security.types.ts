@@ -16,7 +16,7 @@ export interface SecurityStatus {
 
 export interface SecurityActionResult {
     readonly success: boolean
-    readonly message?: string
+    readonly message: string
 }
 
 export interface TotpSetupFormValues {

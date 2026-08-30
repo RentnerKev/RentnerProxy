@@ -1,5 +1,6 @@
 import { Modal } from '../../../../shared/Modal'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import useRecoveryCodesModalLogic from '../Hooks/useRecoveryCodesModalLogic'
 
 interface RecoveryCodesModalProps {
@@ -8,6 +9,7 @@ interface RecoveryCodesModalProps {
 }
 export default function RecoveryCodesModal({ codes, onClose }: RecoveryCodesModalProps) {
     const logic = useRecoveryCodesModalLogic(codes)
+    const { t } = useTranslationStore()
     if (!codes) return null
     return (
         <Modal
@@ -15,8 +17,8 @@ export default function RecoveryCodesModal({ codes, onClose }: RecoveryCodesModa
             onOpenChange={(open) => {
                 if (!open) onClose()
             }}
-            title="Save your recovery codes"
-            description="These codes are shown only once. Each code can be used one time."
+            title={t('account.recoveryCodes.title')}
+            description={t('account.recoveryCodes.description')}
             footer={
                 <>
                     <button
@@ -24,10 +26,12 @@ export default function RecoveryCodesModal({ codes, onClose }: RecoveryCodesModa
                         className={uiClassNames.button.secondary}
                         onClick={logic.handler.copy}
                     >
-                        {logic.state.copied ? 'Copied' : 'Copy all'}
+                        {logic.state.copied
+                            ? t('account.recoveryCodes.copied')
+                            : t('account.recoveryCodes.copyAll')}
                     </button>
                     <button type="button" className={uiClassNames.button.primary} onClick={onClose}>
-                        I saved my recovery codes
+                        {t('account.recoveryCodes.saved')}
                     </button>
                 </>
             }

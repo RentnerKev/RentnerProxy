@@ -4,17 +4,20 @@ import Cropper from 'react-easy-crop'
 import FormMessage from '../../../../shared/Forms/FormMessage'
 import { Modal } from '../../../../shared/Modal'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type { ProfileImageCropDialogProps } from '../Types/account-component-props.types'
 
 export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialogProps) {
+    const { t } = useTranslationStore()
+
     return (
         <Modal
             open={logic.state.isOpen}
             onOpenChange={logic.handler.handleOpenChange}
             closeDisabled={logic.state.isPending}
             size="md"
-            title="Crop profile picture"
-            description="Move and zoom the image until the round preview looks right."
+            title={t('account.profileImage.crop.title')}
+            description={t('account.profileImage.crop.description')}
             footer={
                 <>
                     <button
@@ -23,7 +26,7 @@ export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialog
                         onClick={() => logic.handler.handleOpenChange(false)}
                         disabled={logic.state.isPending}
                     >
-                        Cancel
+                        {t('common.cancel')}
                     </button>
                     <button
                         type="button"
@@ -32,7 +35,9 @@ export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialog
                         disabled={!logic.state.canSave}
                     >
                         <Check aria-hidden="true" className="size-4" />
-                        {logic.state.isPending ? 'Saving picture…' : 'Save picture'}
+                        {logic.state.isPending
+                            ? t('account.profileImage.crop.saving')
+                            : t('account.profileImage.crop.save')}
                     </button>
                 </>
             }
@@ -58,7 +63,7 @@ export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialog
                                 '!border-[3px] !border-brand-500 !shadow-[0_0_0_9999px_rgb(2_10_11_/_72%)]',
                         }}
                         mediaProps={{ alt: '' }}
-                        cropperProps={{ 'aria-label': 'Profile picture crop area' }}
+                        cropperProps={{ 'aria-label': t('account.profileImage.crop.areaLabel') }}
                     />
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -67,7 +72,7 @@ export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialog
                         htmlFor="profile-image-zoom"
                     >
                         <ZoomIn aria-hidden="true" className="size-4 text-brand-text" />
-                        <span className="sr-only">Zoom</span>
+                        <span className="sr-only">{t('account.profileImage.crop.zoom')}</span>
                         <input
                             id="profile-image-zoom"
                             type="range"
@@ -77,7 +82,7 @@ export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialog
                             value={logic.state.zoom}
                             onChange={logic.handler.handleZoomInput}
                             className="h-2 flex-1 cursor-pointer accent-brand-500"
-                            aria-label="Zoom profile picture"
+                            aria-label={t('account.profileImage.crop.zoomLabel')}
                         />
                     </label>
                     <button
@@ -87,7 +92,7 @@ export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialog
                         disabled={logic.state.isPending}
                     >
                         <RotateCcw aria-hidden="true" className="size-4" />
-                        Reset position
+                        {t('account.profileImage.crop.reset')}
                     </button>
                 </div>
                 {logic.state.errorMessage ? (
