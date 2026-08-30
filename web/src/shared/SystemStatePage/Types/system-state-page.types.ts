@@ -5,6 +5,7 @@ export interface SystemStatePageProps {
     readonly children: ReactNode
     readonly code: string
     readonly description: string
+    readonly details?: ReactNode
     readonly eyebrow: string
     readonly imageSrc: string
     readonly title: string

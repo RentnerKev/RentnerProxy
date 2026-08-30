@@ -9,6 +9,8 @@ import {
 } from '@tanstack/react-start/server'
 
 import { isAuthDomainError } from '../../server/Auth/Core/errors.server'
+import { isRecord } from '../../shared/Helpers/isRecord'
+import { createPageError, getPageErrorDetails } from '../../shared/Helpers/pageError'
 import {
     enforceAuthRateLimit,
     enforceLoginMfaRateLimit,
@@ -32,6 +34,45 @@ export const GENERIC_RESET_MESSAGE =
     'If an account exists for this email address, a password reset link has been sent.'
 
 const MINIMUM_RESET_RESPONSE_MS = 600
+
+function getPageErrorLogDetails(error: unknown) {
+    const driverCodes = new Set<string>()
+    const locations = new Set<string>()
+    let cause = error
+    for (let depth = 0; depth < 8 && isRecord(cause); depth += 1) {
+        for (const value of [cause.code, cause.errno, cause.sqlState]) {
+            if (
+                typeof value === 'string' &&
+                /^(?:[A-Z0-9]{5}|ERR_POSTGRES_[A-Z_]{1,80})$/u.test(value)
+            ) {
+                driverCodes.add(value)
+            }
+        }
+        // Keep only project-relative call sites, never error messages, SQL, parameters, or URLs.
+        const frames = typeof cause.stack === 'string' ? cause.stack.split('\n').slice(-16) : []
+        for (const frame of frames) {
+            const match =
+                /^\s+at .+?[\\/](web[\\/](?:src|dist[\\/]server)[\\/][\w./\\$-]+:\d+:\d+)\)?$/u.exec(
+                    frame,
+                )
+            if (match) locations.add(match[1]!.replaceAll('\\', '/'))
+        }
+        cause = cause.cause
+    }
+    return { driverCodes: [...driverCodes], locations: [...locations].slice(0, 12) }
+}
+
+export function throwPageError(error: unknown): never {
+    const safeError = createPageError(error)
+    const details = getPageErrorDetails(safeError)
+    setResponseStatus(details.status)
+    console.error('[page-error]', {
+        code: details.code,
+        reference: details.reference,
+        ...getPageErrorLogDetails(error),
+    })
+    throw safeError
+}
 
 function setDomainErrorStatus(error: unknown): void {
     if (!isAuthDomainError(error)) {

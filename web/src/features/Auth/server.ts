@@ -4,9 +4,10 @@ import { getAuthStateService } from '../../server/Auth/Access/auth-state.service
 import { clearSessionCookie } from '../../server/Auth/Access/cookies.server'
 import { revokeCurrentSessionService } from '../../server/Auth/Access/sessions.service'
 import type { AuthActionResult } from './serverHelpers'
+import { throwPageError } from './serverHelpers'
 
 export const getAuthStateHandler = createServerFn({ method: 'GET' }).handler(async () => {
-    const state = await getAuthStateService()
+    const state = await getAuthStateService().catch(throwPageError)
 
     return {
         setupRequired: state.setupRequired,

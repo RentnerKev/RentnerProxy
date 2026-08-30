@@ -1,3 +1,4 @@
+import useTranslationStore from '../../../language/useTranslationStore'
 import ApplicationFooter from '../../ApplicationShell/Components/ApplicationFooter'
 import ApplicationHeader from '../../ApplicationShell/Components/ApplicationHeader'
 import type { SystemStatePageProps } from '../Types/system-state-page.types'
@@ -7,10 +8,12 @@ export default function SystemStatePage({
     children,
     code,
     description,
+    details,
     eyebrow,
     imageSrc,
     title,
 }: SystemStatePageProps) {
+    const { t } = useTranslationStore()
     return (
         <main className="relative isolate grid min-h-screen grid-rows-[auto_1fr_auto] overflow-x-hidden bg-navy-950 text-white">
             <div
@@ -18,7 +21,7 @@ export default function SystemStatePage({
                 aria-hidden="true"
             />
 
-            <ApplicationHeader label="System response" />
+            <ApplicationHeader label={t('system.response')} />
 
             <section className="mx-auto grid w-full max-w-7xl self-center gap-10 px-5 py-10 sm:px-8 sm:py-14 lg:grid-cols-[minmax(0,0.85fr)_minmax(25rem,1.15fr)] lg:items-center lg:gap-16 lg:px-12">
                 <div className="max-w-xl">
@@ -37,6 +40,7 @@ export default function SystemStatePage({
                         <p className="mt-6 max-w-lg text-base leading-7 text-mist-400 sm:text-lg">
                             {description}
                         </p>
+                        {details}
                     </div>
 
                     <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -59,7 +63,7 @@ export default function SystemStatePage({
                 </div>
             </section>
 
-            <ApplicationFooter label="Safe route recovery" />
+            <ApplicationFooter label={t('system.recovery')} />
         </main>
     )
 }
