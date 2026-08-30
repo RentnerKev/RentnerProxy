@@ -1,7 +1,6 @@
 import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
-import FormMessage from '../../../../shared/Forms/FormMessage'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { RoleFormFieldsProps } from '../Types/role-form-modal.types'
 import {
@@ -15,7 +14,6 @@ import PermissionCheckboxes from './PermissionCheckboxes'
 export default function RoleFormFields({
     assignablePermissionKeys,
     canEditPermissions,
-    errorMessage,
     form,
     formId,
     isCreate,
@@ -156,12 +154,6 @@ export default function RoleFormFields({
                     </fieldset>
                 )}
             </div>
-
-            {errorMessage ? (
-                <div className={uiClassNames.form.wide}>
-                    <FormMessage tone="error">{t(errorMessage)}</FormMessage>
-                </div>
-            ) : null}
         </>
     )
 }

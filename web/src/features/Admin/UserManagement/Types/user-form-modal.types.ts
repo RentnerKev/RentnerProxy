@@ -9,7 +9,6 @@ export type UserFormInstance = ReturnType<typeof useUserFormLogic>['state']['for
 export interface UserFormModalState {
     readonly canEditRoles: boolean
     readonly description: string
-    readonly errorMessage: string | null
     readonly form: UserFormInstance
     readonly formId: string
     readonly isCreate: boolean
@@ -26,7 +25,7 @@ export interface UserFormModalHandler {
 
 export type UserFormFieldsProps = Pick<
     UserFormModalState,
-    'canEditRoles' | 'errorMessage' | 'form' | 'formId' | 'isCreate' | 'status'
+    'canEditRoles' | 'form' | 'formId' | 'isCreate' | 'status'
 > & {
     readonly roles: readonly RoleSummary[]
     readonly user?: UserSummary | undefined

@@ -3,22 +3,22 @@ import { useRouter } from '@tanstack/react-router'
 import { useCallback, useMemo, useState } from 'react'
 
 import { PERMISSIONS } from '../../../../config/permissions.config'
+import useToast from '../../../../shared/Toast/Hooks/useToast'
 import type { RoleManagementSummary } from '../../../../shared/Types/auth.types'
 import { roleManagementQueryKeys } from '../queryKeys'
 import { deleteRoleHandler, getRolesHandler } from '../server'
 import type { RoleManagementPageProps } from '../Types/role-management-component-props.types'
-import useTranslationStore from '../../../../language/useTranslationStore'
 
 const EMPTY_ROLES: RoleManagementSummary[] = []
 
 export default function useRoleManagementLogic({ permissions }: RoleManagementPageProps) {
-    const { t } = useTranslationStore()
+    const toast = useToast()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canAssignPermissions = permissionSet.has(PERMISSIONS.ROLES_ASSIGN_PERMISSIONS)
     const [showCreate, setShowCreate] = useState(false)
     const [selectedRole, setSelectedRole] = useState<RoleManagementSummary | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<RoleManagementSummary | null>(null)
-    const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
     const queryClient = useQueryClient()
     const router = useRouter()
     const rolesQuery = useQuery({
@@ -30,22 +30,22 @@ export default function useRoleManagementLogic({ permissions }: RoleManagementPa
             deleteRoleHandler({ data: { roleId: role.id } }),
         onSuccess: async (result) => {
             if (!result.success) {
+                toast.error(result.message)
                 return
             }
 
             await queryClient.invalidateQueries({ queryKey: roleManagementQueryKeys.all })
-            setSuccessMessage(result.message)
+            toast.success(result.message)
             setDeleteTarget(null)
         },
+        onError: () => toast.error('admin.roles.errors.deleteFailed'),
     })
     const openCreate = useCallback(() => {
-        setSuccessMessage(null)
         setSelectedRole(null)
         setShowCreate(true)
     }, [])
     const setCreateOpen = useCallback((open: boolean) => setShowCreate(open), [])
     const openEditor = useCallback((role: RoleManagementSummary) => {
-        setSuccessMessage(null)
         setShowCreate(false)
         setSelectedRole(role)
     }, [])
@@ -61,7 +61,6 @@ export default function useRoleManagementLogic({ permissions }: RoleManagementPa
             }
 
             deleteMutation.reset()
-            setSuccessMessage(null)
             setDeleteTarget(role)
         },
         [deleteMutation],
@@ -75,15 +74,20 @@ export default function useRoleManagementLogic({ permissions }: RoleManagementPa
         },
         [deleteMutation],
     )
-    const confirmDelete = useCallback(() => {
-        if (deleteTarget) {
-            deleteMutation.mutate(deleteTarget)
+    const confirmDelete = useCallback(async () => {
+        if (!deleteTarget) {
+            return
+        }
+
+        try {
+            await deleteMutation.mutateAsync(deleteTarget)
+        } catch {
+            // The mutation callback reports transport failures while keeping the dialog open.
         }
     }, [deleteMutation, deleteTarget])
-    const handleFormSuccess = useCallback((message: string) => {
+    const handleFormSuccess = useCallback(() => {
         setShowCreate(false)
         setSelectedRole(null)
-        setSuccessMessage(message)
     }, [])
     const retry = useCallback(() => {
         void rolesQuery.refetch()
@@ -97,12 +101,6 @@ export default function useRoleManagementLogic({ permissions }: RoleManagementPa
             canCreate: permissionSet.has(PERMISSIONS.ROLES_CREATE) && canAssignPermissions,
             canDelete: permissionSet.has(PERMISSIONS.ROLES_DELETE),
             canUpdate: permissionSet.has(PERMISSIONS.ROLES_UPDATE),
-            deleteError:
-                deleteMutation.data && !deleteMutation.data.success
-                    ? deleteMutation.data.message
-                    : deleteMutation.isError
-                      ? t('admin.roles.errors.deleteFailed')
-                      : null,
             deleteTarget,
             isDeleting: deleteMutation.isPending,
             isError: rolesQuery.isError,
@@ -110,7 +108,6 @@ export default function useRoleManagementLogic({ permissions }: RoleManagementPa
             roles: rolesQuery.data ?? EMPTY_ROLES,
             selectedRole,
             showCreate,
-            successMessage,
         },
         handler: {
             confirmDelete,

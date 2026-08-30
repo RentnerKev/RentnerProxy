@@ -26,7 +26,7 @@ export interface RoleFormModalProps {
     readonly mode: 'create' | 'edit'
     readonly onCurrentUserChanged: () => Promise<void>
     readonly onOpenChange: (open: boolean) => void
-    readonly onSuccess: (message: string) => void
+    readonly onSuccess: () => void
     readonly open: boolean
     readonly role?: RoleManagementSummary | undefined
 }

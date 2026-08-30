@@ -2,7 +2,6 @@ import { displayNameSchema, emailSchema } from '../../../Auth/Shared/validation'
 import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
-import FormMessage from '../../../../shared/Forms/FormMessage'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { roleKeysSchema } from '../validation'
 import type { UserFormFieldsProps } from '../Types/user-form-modal.types'
@@ -13,7 +12,6 @@ const statusBadgeClassName =
 
 export default function UserFormFields({
     canEditRoles,
-    errorMessage,
     form,
     formId,
     isCreate,
@@ -138,12 +136,6 @@ export default function UserFormFields({
                     </fieldset>
                 )}
             </div>
-
-            {errorMessage ? (
-                <div className={uiClassNames.form.wide}>
-                    <FormMessage tone="error">{t(errorMessage)}</FormMessage>
-                </div>
-            ) : null}
         </>
     )
 }

@@ -1,12 +1,12 @@
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
+import useToast from '../../../../shared/Toast/Hooks/useToast'
 import { roleManagementQueryKeys } from '../queryKeys'
 import { createRoleHandler, updateRoleHandler } from '../server'
 import type { RoleFormModalProps } from '../Types/role-management-component-props.types'
 import type { RoleEditorFormValues } from '../Types/role-management-form.types'
 import { createRoleInputSchema } from '../validation'
-import useTranslationStore from '../../../../language/useTranslationStore'
 
 type UseRoleFormLogicParams = Pick<
     RoleFormModalProps,
@@ -26,7 +26,7 @@ export default function useRoleFormLogic({
     onSuccess,
     role,
 }: UseRoleFormLogicParams) {
-    const { t } = useTranslationStore()
+    const toast = useToast()
     const queryClient = useQueryClient()
     const mutation = useMutation({
         mutationFn: (values: RoleEditorFormValues) => {
@@ -49,6 +49,7 @@ export default function useRoleFormLogic({
         },
         onSuccess: async (result) => {
             if (!result.success) {
+                toast.error(result.message)
                 return
             }
 
@@ -58,8 +59,10 @@ export default function useRoleFormLogic({
                 await onCurrentUserChanged()
             }
 
-            onSuccess(result.message)
+            toast.success(result.message)
+            onSuccess()
         },
+        onError: () => toast.error('admin.roles.errors.saveFailed'),
     })
     const defaultValues: RoleEditorFormValues = {
         key: role?.key ?? '',
@@ -85,12 +88,6 @@ export default function useRoleFormLogic({
         state: {
             form,
             isPending: mutation.isPending,
-            errorMessage:
-                mutation.data && !mutation.data.success
-                    ? mutation.data.message
-                    : mutation.isError
-                      ? t('admin.roles.errors.saveFailed')
-                      : null,
         },
     }
 }

@@ -47,7 +47,6 @@ export default function useRoleFormModal({
             description: isCreate
                 ? t('admin.roles.form.createDescription')
                 : t('admin.roles.form.editDescription'),
-            errorMessage: formState.errorMessage,
             form: formState.form,
             formId,
             isCreate,

@@ -43,7 +43,6 @@ export default function useUserFormModal({
             description: isCreate
                 ? t('admin.users.form.createDescription')
                 : t('admin.users.form.editDescription'),
-            errorMessage: formState.errorMessage,
             form: formState.form,
             formId,
             isCreate,

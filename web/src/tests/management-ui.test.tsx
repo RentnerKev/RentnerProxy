@@ -36,6 +36,7 @@ const { default: DateRangeCalendar } = await import('../shared/Calendar')
 const { default: DataTable } = await import('../shared/Table')
 const { default: useClientTableLogic } = await import('../shared/Table/Hooks/useClientTableLogic')
 const { TooltipProvider } = await import('../shared/Tooltip')
+const { default: ToastProvider } = await import('../shared/Toast/Components/ToastProvider')
 
 const createUserHandlerMock = mock(async (_input: unknown) => ({
     success: true,
@@ -77,7 +78,11 @@ async function render(element: ReactElement): Promise<HTMLElement> {
     activeRoot = withLanguageRoot(createRoot(container))
 
     await act(async () => {
-        activeRoot?.render(element)
+        activeRoot?.render(
+            <TooltipProvider>
+                <ToastProvider>{element}</ToastProvider>
+            </TooltipProvider>,
+        )
     })
 
     return container
@@ -808,11 +813,37 @@ describe('user form modal', () => {
         expect(displayName).not.toBeNull()
         await setControlValue(displayName!, 'Changed Name')
         await click(getButton('Save changes'))
+        await waitFor(() =>
+            [...document.querySelectorAll<HTMLElement>('[data-toast-tone="error"]')].some(
+                (toast) =>
+                    toast.textContent?.includes('This email address is already in use.') ?? false,
+            ),
+        )
+        expect(document.querySelector('[role="dialog"]')).not.toBeNull()
+        expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(
+            'This email address is already in use.',
+        )
+        expect(displayName?.value).toBe('Changed Name')
         await waitFor(
             () =>
-                document.body.textContent?.includes('This email address is already in use.') ??
-                false,
+                document
+                    .querySelector('[aria-live="assertive"]')
+                    ?.textContent?.includes('This email address is already in use.') ?? false,
         )
+        expect(
+            document.querySelector('[aria-live="assertive"]')?.closest('[aria-hidden="true"]'),
+        ).toBeNull()
+
+        const closeToast = document.querySelector<HTMLButtonElement>(
+            '[data-toast-tone="error"] button[aria-label="Dismiss notification"]',
+        )!
+        await act(async () => {
+            closeToast.dispatchEvent(
+                new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }),
+            )
+        })
+        await click(closeToast)
+        await waitFor(() => document.querySelector('[data-toast-tone="error"]') === null)
         expect(document.querySelector('[role="dialog"]')).not.toBeNull()
         expect(displayName?.value).toBe('Changed Name')
     })

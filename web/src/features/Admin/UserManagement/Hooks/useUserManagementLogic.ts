@@ -3,13 +3,13 @@ import { useRouter } from '@tanstack/react-router'
 import { useCallback, useMemo, useState } from 'react'
 
 import { PERMISSIONS, SYSTEM_ROLES } from '../../../../config/permissions.config'
+import useToast from '../../../../shared/Toast/Hooks/useToast'
 import type { RoleSummary, UserSummary } from '../../../../shared/Types/auth.types'
 import { roleManagementQueryKeys } from '../../RoleManagement/queryKeys'
 import { getRolesHandler } from '../../RoleManagement/server'
 import { userManagementQueryKeys } from '../queryKeys'
 import { disableUserHandler, getUsersHandler } from '../server'
 import type { UserManagementPageProps } from '../Types/user-management-component-props.types'
-import useTranslationStore from '../../../../language/useTranslationStore'
 
 const EMPTY_USERS: UserSummary[] = []
 const EMPTY_ROLES: RoleSummary[] = []
@@ -19,7 +19,7 @@ export default function useUserManagementLogic({
     currentUserRoleKeys,
     permissions,
 }: UserManagementPageProps) {
-    const { t } = useTranslationStore()
+    const toast = useToast()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const actorIsOwner = currentUserRoleKeys.includes(SYSTEM_ROLES.OWNER)
     const canAssignRoles =
@@ -29,7 +29,7 @@ export default function useUserManagementLogic({
     const [showCreate, setShowCreate] = useState(false)
     const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null)
     const [disableTarget, setDisableTarget] = useState<UserSummary | null>(null)
-    const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
     const queryClient = useQueryClient()
     const router = useRouter()
     const usersQuery = useQuery({
@@ -45,6 +45,7 @@ export default function useUserManagementLogic({
         mutationFn: (user: UserSummary) => disableUserHandler({ data: { userId: user.id } }),
         onSuccess: async (result, user) => {
             if (!result.success) {
+                toast.error(result.message)
                 return
             }
 
@@ -54,9 +55,10 @@ export default function useUserManagementLogic({
                 await router.invalidate()
             }
 
-            setSuccessMessage(result.message)
+            toast.success(result.message)
             setDisableTarget(null)
         },
+        onError: () => toast.error('admin.users.errors.disableFailed'),
     })
     const assignableRoles = useMemo(() => {
         if (!canAssignRoles) {
@@ -75,13 +77,11 @@ export default function useUserManagementLogic({
         })
     }, [actorIsOwner, canAssignRoles, permissionSet, rolesQuery.data])
     const openCreate = useCallback(() => {
-        setSuccessMessage(null)
         setSelectedUser(null)
         setShowCreate(true)
     }, [])
     const setCreateOpen = useCallback((open: boolean) => setShowCreate(open), [])
     const openEditor = useCallback((user: UserSummary) => {
-        setSuccessMessage(null)
         setShowCreate(false)
         setSelectedUser(user)
     }, [])
@@ -93,7 +93,6 @@ export default function useUserManagementLogic({
     const openDisable = useCallback(
         (user: UserSummary) => {
             disableMutation.reset()
-            setSuccessMessage(null)
             setDisableTarget(user)
         },
         [disableMutation],
@@ -107,15 +106,20 @@ export default function useUserManagementLogic({
         },
         [disableMutation],
     )
-    const confirmDisable = useCallback(() => {
-        if (disableTarget) {
-            disableMutation.mutate(disableTarget)
+    const confirmDisable = useCallback(async () => {
+        if (!disableTarget) {
+            return
+        }
+
+        try {
+            await disableMutation.mutateAsync(disableTarget)
+        } catch {
+            // The mutation callback reports transport failures while keeping the dialog open.
         }
     }, [disableMutation, disableTarget])
-    const handleFormSuccess = useCallback((message: string) => {
+    const handleFormSuccess = useCallback(() => {
         setShowCreate(false)
         setSelectedUser(null)
-        setSuccessMessage(message)
     }, [])
     const retryUsers = useCallback(() => {
         void usersQuery.refetch()
@@ -133,12 +137,6 @@ export default function useUserManagementLogic({
             canCreate,
             canDisable: permissionSet.has(PERMISSIONS.USERS_DISABLE),
             canUpdate: permissionSet.has(PERMISSIONS.USERS_UPDATE),
-            disableError:
-                disableMutation.data && !disableMutation.data.success
-                    ? disableMutation.data.message
-                    : disableMutation.isError
-                      ? t('admin.users.errors.disableFailed')
-                      : null,
             disableTarget,
             isDisabling: disableMutation.isPending,
             isLoadingUsers: usersQuery.isPending,
@@ -147,7 +145,6 @@ export default function useUserManagementLogic({
             isUsersError: usersQuery.isError,
             selectedUser,
             showCreate,
-            successMessage,
             users: usersQuery.data ?? EMPTY_USERS,
         },
         handler: {

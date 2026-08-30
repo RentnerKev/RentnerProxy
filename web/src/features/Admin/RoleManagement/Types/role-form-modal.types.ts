@@ -10,7 +10,6 @@ export type RoleFormInstance = ReturnType<typeof useRoleFormLogic>['state']['for
 export interface RoleFormModalState {
     readonly canEditPermissions: boolean
     readonly description: string
-    readonly errorMessage: string | null
     readonly form: RoleFormInstance
     readonly formId: string
     readonly isCreate: boolean
@@ -26,7 +25,7 @@ export interface RoleFormModalHandler {
 
 export type RoleFormFieldsProps = Pick<
     RoleFormModalState,
-    'canEditPermissions' | 'errorMessage' | 'form' | 'formId' | 'isCreate'
+    'canEditPermissions' | 'form' | 'formId' | 'isCreate'
 > & {
     readonly assignablePermissionKeys: readonly PermissionKey[]
     readonly role?: RoleManagementSummary | undefined

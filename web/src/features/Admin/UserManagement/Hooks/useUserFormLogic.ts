@@ -2,13 +2,13 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { SYSTEM_ROLES } from '../../../../config/permissions.config'
+import useToast from '../../../../shared/Toast/Hooks/useToast'
 import { roleManagementQueryKeys } from '../../RoleManagement/queryKeys'
 import { userManagementQueryKeys } from '../queryKeys'
 import { createUserHandler, updateUserHandler } from '../server'
 import type { UserFormModalProps } from '../Types/user-management-component-props.types'
 import type { UserFormValues } from '../Types/user-management-form.types'
 import { inviteUserFormSchema, updateUserFormSchema } from '../validation'
-import useTranslationStore from '../../../../language/useTranslationStore'
 
 type UseUserFormLogicParams = Pick<
     UserFormModalProps,
@@ -30,7 +30,7 @@ export default function useUserFormLogic({
     roles,
     user,
 }: UseUserFormLogicParams) {
-    const { t } = useTranslationStore()
+    const toast = useToast()
     const queryClient = useQueryClient()
     const mutation = useMutation({
         mutationFn: (values: UserFormValues) => {
@@ -59,6 +59,7 @@ export default function useUserFormLogic({
         },
         onSuccess: async (result) => {
             if (!result.success) {
+                toast.error(result.message)
                 return
             }
 
@@ -78,8 +79,10 @@ export default function useUserFormLogic({
                 await onCurrentUserChanged()
             }
 
-            onSuccess(result.message)
+            toast.success(result.message)
+            onSuccess()
         },
+        onError: () => toast.error('admin.users.errors.saveFailed'),
     })
     const defaultRoleKey =
         roles.find((role) => role.key === SYSTEM_ROLES.VIEWER)?.key ?? roles.at(0)?.key ?? ''
@@ -107,12 +110,6 @@ export default function useUserFormLogic({
         state: {
             form,
             isPending: mutation.isPending,
-            errorMessage:
-                mutation.data && !mutation.data.success
-                    ? mutation.data.message
-                    : mutation.isError
-                      ? t('admin.users.errors.saveFailed')
-                      : null,
         },
     }
 }

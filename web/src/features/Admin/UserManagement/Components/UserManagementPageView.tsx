@@ -22,12 +22,6 @@ export default function UserManagementPageView({
                 description={t('admin.users.page.description')}
             />
 
-            {state.successMessage ? (
-                <div className="mb-4">
-                    <FormMessage tone="success">{t(state.successMessage)}</FormMessage>
-                </div>
-            ) : null}
-
             {state.isRolesError && state.canCreate ? (
                 <div className="mb-4 flex flex-wrap items-center gap-3">
                     <FormMessage tone="error">
@@ -122,7 +116,6 @@ export default function UserManagementPageView({
                     pendingLabel={t('admin.users.actions.disabling')}
                     destructive
                     isPending={state.isDisabling}
-                    errorMessage={state.disableError ? t(state.disableError) : null}
                     onConfirm={handler.confirmDisable}
                 />
             ) : null}

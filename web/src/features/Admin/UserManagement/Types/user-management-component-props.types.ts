@@ -25,7 +25,7 @@ export interface UserFormModalProps {
     readonly mode: 'create' | 'edit'
     readonly onCurrentUserChanged: () => Promise<void>
     readonly onOpenChange: (open: boolean) => void
-    readonly onSuccess: (message: string) => void
+    readonly onSuccess: () => void
     readonly open: boolean
     readonly roles: readonly RoleSummary[]
     readonly user?: UserSummary | undefined

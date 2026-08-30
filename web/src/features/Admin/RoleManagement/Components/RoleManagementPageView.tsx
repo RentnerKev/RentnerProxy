@@ -1,4 +1,3 @@
-import FormMessage from '../../../../shared/Forms/FormMessage'
 import ContentState from '../../../../shared/Management/ContentState'
 import PageHeader from '../../../../shared/Management/PageHeader'
 import { ConfirmDialog } from '../../../../shared/Modal/Components/ConfirmDialog'
@@ -20,12 +19,6 @@ export default function RoleManagementPageView({
                 title={t('admin.roles.page.title')}
                 description={t('admin.roles.page.description')}
             />
-
-            {state.successMessage ? (
-                <div className="mb-4">
-                    <FormMessage tone="success">{t(state.successMessage)}</FormMessage>
-                </div>
-            ) : null}
 
             {state.isError ? (
                 <ContentState
@@ -103,7 +96,6 @@ export default function RoleManagementPageView({
                     pendingLabel={t('admin.roles.actions.deleting')}
                     destructive
                     isPending={state.isDeleting}
-                    errorMessage={state.deleteError ? t(state.deleteError) : null}
                     onConfirm={handler.confirmDelete}
                 />
             ) : null}
