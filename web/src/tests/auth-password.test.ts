@@ -1,11 +1,23 @@
 import { describe, expect, test } from 'bun:test'
 
-import { hashPassword, verifyPassword } from '../server/Auth/Core/password.server'
+import {
+    hashPassword,
+    isValidPassword,
+    verifyPassword,
+} from '../server/Auth/Core/password.server'
 import { createOpaqueToken, hashOpaqueToken } from '../server/Auth/Core/tokens.server'
 
 const PASSWORD = 'correct horse battery staple'
 
 describe('password hashing', () => {
+    test('accepts any non-empty password within the technical size limit', () => {
+        expect(isValidPassword('x')).toBeTrue()
+        expect(isValidPassword(' ')).toBeTrue()
+        expect(isValidPassword('')).toBeFalse()
+        expect(isValidPassword('x'.repeat(256))).toBeTrue()
+        expect(isValidPassword('x'.repeat(257))).toBeFalse()
+    })
+
     test('uses Argon2id with a unique salt and never returns plaintext', async () => {
         const [firstHash, secondHash] = await Promise.all([
             hashPassword(PASSWORD),

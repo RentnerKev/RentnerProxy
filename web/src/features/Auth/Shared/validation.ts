@@ -21,7 +21,7 @@ export const credentialPasswordSchema = z
 
 export const newPasswordSchema = z
     .string()
-    .min(12, 'Password must contain at least 12 characters.')
+    .min(1, 'Enter a password.')
     .max(256, 'Password must contain at most 256 characters.')
 
 export function addPasswordConfirmationIssue(

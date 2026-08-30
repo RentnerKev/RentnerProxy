@@ -1,6 +1,5 @@
 export const USER_STATUSES = ['pending', 'active', 'disabled'] as const
 
-export const PASSWORD_MIN_LENGTH = 12
 export const PASSWORD_MAX_LENGTH = 256
 
 export const SESSION_COOKIE_NAME = 'rentnerproxy_session'

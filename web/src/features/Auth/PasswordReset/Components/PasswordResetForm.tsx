@@ -42,11 +42,8 @@ export default function PasswordResetForm({ state }: PasswordResetFormProps) {
                             onChange={(event: ChangeEvent<HTMLInputElement>) =>
                                 field.handleChange(event.target.value)
                             }
-                            aria-describedby={`${field.name}-hint ${field.name}-error`}
+                            aria-describedby={`${field.name}-error`}
                         />
-                        <p id={`${field.name}-hint`} className={uiClassNames.form.hint}>
-                            Use at least 12 characters.
-                        </p>
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
                 )}

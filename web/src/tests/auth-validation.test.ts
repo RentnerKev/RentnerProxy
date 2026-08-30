@@ -8,9 +8,10 @@ describe('authentication validation', () => {
         expect(emailSchema.parse('  Owner@Example.COM ')).toBe('owner@example.com')
     })
 
-    test('requires a twelve-character password without composition rules', () => {
-        expect(newPasswordSchema.safeParse('long simple phrase').success).toBeTrue()
-        expect(newPasswordSchema.safeParse('short').success).toBeFalse()
+    test('accepts any non-empty password without strength rules', () => {
+        expect(newPasswordSchema.safeParse('x').success).toBeTrue()
+        expect(newPasswordSchema.safeParse(' ').success).toBeTrue()
+        expect(newPasswordSchema.safeParse('').success).toBeFalse()
     })
 
     test('does not trim or otherwise mutate passwords', () => {
