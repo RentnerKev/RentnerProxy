@@ -183,6 +183,40 @@ afterEach(async () => {
 })
 
 describe('security action feedback', () => {
+    test.each([
+        [
+            'ERROR_INVALID_DOMAIN',
+            'Passkeys cannot be registered using an IP address. Open the app on localhost for local development, or use its HTTPS domain.',
+        ],
+        [
+            'ERROR_INVALID_RP_ID',
+            'This address does not match the configured passkey domain. Open the app at its configured APP_URL and try again.',
+        ],
+        ['UNRECOGNIZED_BROWSER_ERROR', 'Passkey registration failed.'],
+    ] as const)(
+        'explains browser registration error %s without losing the name or exposing raw details',
+        async (code, expectedMessage) => {
+            startRegistrationMock.mockRejectedValueOnce(
+                Object.assign(new Error('Internal diagnostic data must stay private.'), { code }),
+            )
+            await render()
+            await click(findButton('Add passkey')!)
+            const nameInput = document.querySelector<HTMLInputElement>('#passkey-name')!
+            await setInputValue(nameInput, 'My laptop')
+            await click(findButton('Continue')!)
+
+            await waitFor(() => errorToasts().length === 1)
+            expect(errorToasts()[0]?.textContent).toContain(expectedMessage)
+            expect(errorToasts()[0]?.textContent).not.toContain(
+                'Internal diagnostic data must stay private.',
+            )
+            expect(document.querySelector<HTMLInputElement>('#passkey-name')?.value).toBe(
+                'My laptop',
+            )
+            expect(startRegistrationMock).toHaveBeenCalledTimes(1)
+            expect(finishPasskeyMock).not.toHaveBeenCalled()
+        },
+    )
     test('restores the passkey name dialog once after a reauthenticated registration failure', async () => {
         await render()
 

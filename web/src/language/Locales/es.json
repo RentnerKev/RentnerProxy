@@ -365,6 +365,8 @@
                 "registrationVerification": "No se pudo verificar el registro de la clave de acceso.",
                 "registrationComplete": "No se pudo completar el registro de la clave de acceso.",
                 "registrationFailed": "El registro de la clave de acceso falló.",
+                "invalidDomain": "No se pueden registrar claves de acceso mediante una dirección IP. Abre la aplicación en localhost para el desarrollo local, o usa su dominio HTTPS.",
+                "invalidRpId": "Esta dirección no coincide con el dominio configurado para las claves de acceso. Abre la aplicación en su APP_URL configurada e inténtalo de nuevo.",
                 "notFound": "La clave de acceso ya no existe.",
                 "rename": "No se pudo guardar el nombre de la clave de acceso.",
                 "remove": "No se pudo eliminar la clave de acceso."

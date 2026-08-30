@@ -11,3 +11,12 @@ export function formatSecurityTimestamp(value: string, locale: string): string |
         timeZone: 'UTC',
     }).format(date)
 }
+
+export function getPasskeyRegistrationErrorKey(error: unknown) {
+    const code = error && typeof error === 'object' && 'code' in error ? error.code : null
+
+    if (code === 'ERROR_INVALID_DOMAIN') return 'account.passkeys.error.invalidDomain'
+    if (code === 'ERROR_INVALID_RP_ID') return 'account.passkeys.error.invalidRpId'
+
+    return 'account.passkeys.error.registrationFailed'
+}

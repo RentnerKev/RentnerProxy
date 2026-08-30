@@ -2,6 +2,7 @@ import { startAuthentication, startRegistration } from '@simplewebauthn/browser'
 import { useState } from 'react'
 
 import useToast from '../../../shared/Toast/Hooks/useToast'
+import { getPasskeyRegistrationErrorKey } from '../Helpers/security'
 import useReauthenticationLogic from './useReauthenticationLogic'
 import useSecurityLogic from './useSecurityLogic'
 
@@ -64,8 +65,8 @@ export default function useSecurityPageLogic() {
             }
             toast.success(result.message)
             return true
-        } catch {
-            toast.error('account.passkeys.error.registrationFailed')
+        } catch (error) {
+            toast.error(getPasskeyRegistrationErrorKey(error))
             return false
         }
     }

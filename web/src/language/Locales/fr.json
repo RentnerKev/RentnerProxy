@@ -365,6 +365,8 @@
                 "registrationVerification": "L’enregistrement de la clé d’accès n’a pas pu être vérifié.",
                 "registrationComplete": "L’enregistrement de la clé d’accès n’a pas pu être terminé.",
                 "registrationFailed": "L’enregistrement de la clé d’accès a échoué.",
+                "invalidDomain": "Les clés d’accès ne peuvent pas être enregistrées depuis une adresse IP. Ouvrez l’application sur localhost en développement local, ou utilisez son domaine HTTPS.",
+                "invalidRpId": "Cette adresse ne correspond pas au domaine configuré pour les clés d’accès. Ouvrez l’application à l’adresse APP_URL configurée et réessayez.",
                 "notFound": "La clé d’accès n’existe plus.",
                 "rename": "Le nom de la clé d’accès n’a pas pu être enregistré.",
                 "remove": "La clé d’accès n’a pas pu être supprimée."

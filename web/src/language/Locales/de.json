@@ -365,6 +365,8 @@
                 "registrationVerification": "Die Passkey-Registrierung konnte nicht verifiziert werden.",
                 "registrationComplete": "Die Passkey-Registrierung konnte nicht abgeschlossen werden.",
                 "registrationFailed": "Die Passkey-Registrierung ist fehlgeschlagen.",
+                "invalidDomain": "Passkeys können nicht über eine IP-Adresse registriert werden. Öffne die App lokal über localhost oder über ihre HTTPS-Domain.",
+                "invalidRpId": "Diese Adresse passt nicht zur konfigurierten Passkey-Domain. Öffne die App über die konfigurierte APP_URL und versuche es erneut.",
                 "notFound": "Der Passkey existiert nicht mehr.",
                 "rename": "Der Passkey-Name konnte nicht gespeichert werden.",
                 "remove": "Der Passkey konnte nicht entfernt werden."
