@@ -9,8 +9,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const { act, StrictMode } = await import('react')
 const { createRoot } = await import('react-dom/client')
-const { default: useFragmentToken } =
-    await import('../features/Auth/Shared/Hooks/useFragmentToken')
+const { default: useFragmentToken } = await import('../features/Auth/Shared/Hooks/useFragmentToken')
 
 let activeRoot: Root | null = null
 
@@ -22,7 +21,7 @@ function FragmentTokenHarness() {
 }
 
 async function renderFragment(fragment: string): Promise<HTMLOutputElement> {
-    window.location.hash = fragment
+    window.history.replaceState(null, '', `about:blank${fragment}`)
     const container = document.createElement('div')
     document.body.append(container)
     activeRoot = createRoot(container)
@@ -35,6 +34,7 @@ async function renderFragment(fragment: string): Promise<HTMLOutputElement> {
         )
         await Promise.resolve()
         await Promise.resolve()
+        await new Promise((resolve) => setTimeout(resolve, 0))
     })
 
     const output = container.querySelector('output')
@@ -77,6 +77,24 @@ describe('secure auth fragment tokens', () => {
 
         expect(output.dataset.state).toBe('missing')
         expect(output.textContent).toBe('')
+        expect(window.location.hash).toBe('')
+    })
+
+    test('captures a replacement token on the already mounted reset route', async () => {
+        const output = await renderFragment('#token=first-reset-token')
+
+        await act(async () => {
+            window.history.replaceState(null, '', 'about:blank#token=second-reset-token')
+            window.dispatchEvent(
+                new HashChangeEvent('hashchange', { newURL: window.location.href }),
+            )
+            await Promise.resolve()
+            await Promise.resolve()
+            await new Promise((resolve) => setTimeout(resolve, 0))
+        })
+
+        expect(output.dataset.state).toBe('present')
+        expect(output.textContent).toBe('second-reset-token')
         expect(window.location.hash).toBe('')
     })
 })
