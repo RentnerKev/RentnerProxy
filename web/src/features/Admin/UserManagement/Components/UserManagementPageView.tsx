@@ -6,51 +6,54 @@ import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { UserManagementPageViewProps } from '../Types/user-management-page-view.types'
 import UserFormModal from './UserFormModal'
 import UsersTable from './UsersTable'
+import useTranslationStore from '../../../../language/useTranslationStore'
 
 export default function UserManagementPageView({
     currentUserId,
     logic: { handler, state },
 }: UserManagementPageViewProps) {
+    const { t } = useTranslationStore()
+
     return (
         <>
             <PageHeader
-                eyebrow="Access directory"
-                title="Users"
-                description="Invite people, assign roles, and revoke every active session when access must end."
+                eyebrow={t('admin.users.page.eyebrow')}
+                title={t('admin.users.page.title')}
+                description={t('admin.users.page.description')}
             />
 
             {state.successMessage ? (
                 <div className="mb-4">
-                    <FormMessage tone="success">{state.successMessage}</FormMessage>
+                    <FormMessage tone="success">{t(state.successMessage)}</FormMessage>
                 </div>
             ) : null}
 
             {state.isRolesError && state.canCreate ? (
                 <div className="mb-4 flex flex-wrap items-center gap-3">
                     <FormMessage tone="error">
-                        Role options are unavailable. User profile editing remains available.
+                        {t('admin.users.messages.rolesUnavailable')}
                     </FormMessage>
                     <button
                         type="button"
                         className={uiClassNames.button.secondary}
                         onClick={handler.retryRoles}
                     >
-                        Retry roles
+                        {t('admin.users.actions.retryRoles')}
                     </button>
                 </div>
             ) : null}
 
             {state.isUsersError ? (
                 <ContentState
-                    title="Users unavailable"
-                    description="The access directory could not be loaded for this session."
+                    title={t('admin.users.states.unavailableTitle')}
+                    description={t('admin.users.states.unavailableDescription')}
                     action={
                         <button
                             type="button"
                             className={uiClassNames.button.secondary}
                             onClick={handler.retryUsers}
                         >
-                            Try again
+                            {t('common.retry')}
                         </button>
                     }
                 />
@@ -102,22 +105,24 @@ export default function UserManagementPageView({
                 <ConfirmDialog
                     open
                     onOpenChange={handler.setDisableOpen}
-                    title="Disable user?"
+                    title={t('admin.users.confirm.disableTitle')}
                     description={
                         <>
                             <span className="block">
-                                {state.disableTarget.displayName} will be unable to sign in.
+                                {t('admin.users.confirm.disableDescription', {
+                                    name: state.disableTarget.displayName,
+                                })}
                             </span>
                             <span className="mt-2 block">
-                                Every active session and pending access token will be revoked.
+                                {t('admin.users.confirm.disableSessions')}
                             </span>
                         </>
                     }
-                    confirmLabel="Disable user"
-                    pendingLabel="Disabling user…"
+                    confirmLabel={t('admin.users.actions.disable')}
+                    pendingLabel={t('admin.users.actions.disabling')}
                     destructive
                     isPending={state.isDisabling}
-                    errorMessage={state.disableError}
+                    errorMessage={state.disableError ? t(state.disableError) : null}
                     onConfirm={handler.confirmDisable}
                 />
             ) : null}

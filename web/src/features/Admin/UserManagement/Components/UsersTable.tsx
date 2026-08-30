@@ -1,11 +1,13 @@
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import DataTable from '../../../../shared/Table'
 import { Tooltip } from '../../../../shared/Tooltip'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import useUsersTableLogic from '../Hooks/useUsersTableLogic'
 import type { UsersTableProps } from '../Types/user-management-component-props.types'
 
 export default function UsersTable(props: UsersTableProps) {
     const { canCreate, createDisabled, isLoading, onCreate, users } = props
+    const { t } = useTranslationStore()
     const { state, handler } = useUsersTableLogic(props)
     const createButton = (
         <button
@@ -18,12 +20,12 @@ export default function UsersTable(props: UsersTableProps) {
             aria-disabled={createDisabled}
             onClick={createDisabled ? undefined : onCreate}
         >
-            Add user
+            {t('admin.users.actions.add')}
         </button>
     )
     const createAction = canCreate ? (
         createDisabled ? (
-            <Tooltip content="Role options are not available yet.">{createButton}</Tooltip>
+            <Tooltip content={t('admin.users.messages.rolesNotReady')}>{createButton}</Tooltip>
         ) : (
             createButton
         )
@@ -32,29 +34,29 @@ export default function UsersTable(props: UsersTableProps) {
     return (
         <DataTable
             table={state.table}
-            eyebrow="Directory"
-            title={`${users.length} ${users.length === 1 ? 'user' : 'users'}`}
-            description="Search the directory, refine individual columns, and manage access from one consistent view."
+            eyebrow={t('admin.users.table.eyebrow')}
+            title={t('admin.users.table.count', { count: users.length })}
+            description={t('admin.users.table.description')}
             searchInput={state.searchInput}
-            searchLabel="Search users"
-            searchPlaceholder="Search name, email, status, or role…"
+            searchLabel={t('admin.users.table.searchLabel')}
+            searchPlaceholder={t('admin.users.table.searchPlaceholder')}
             showColumnFilters={state.showColumnFilters}
             onSearchChange={handler.handleSearchInputChange}
             onToggleColumnFilters={handler.toggleColumnFilters}
             onResetFilters={handler.handleResetFilters}
             columnFilterConfigs={state.columnFilterConfigs}
             isLoading={isLoading}
-            loadingLabel="Loading users"
+            loadingLabel={t('admin.users.table.loading')}
             emptyState={{
-                title: 'No users yet',
-                description: 'Create the first user to start building the access directory.',
+                title: t('admin.users.table.emptyTitle'),
+                description: t('admin.users.table.emptyDescription'),
                 action: createAction,
             }}
             filteredEmptyState={{
-                title: 'No users match your filters',
-                description: 'Adjust the search or reset the active filters to see more users.',
+                title: t('admin.users.table.filteredEmptyTitle'),
+                description: t('admin.users.table.filteredEmptyDescription'),
             }}
-            itemLabel="users"
+            itemLabel={t('admin.users.table.itemLabel')}
             action={createAction}
             tableMinWidthClassName="min-w-[58rem]"
         />

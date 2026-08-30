@@ -8,10 +8,10 @@ export interface PermissionGroup {
 }
 
 const permissionGroupDefinitions = [
-    { label: 'Application', prefix: 'app.' },
-    { label: 'Users', prefix: 'users.' },
-    { label: 'Roles', prefix: 'roles.' },
-    { label: 'Account', prefix: 'account.' },
+    { label: 'permissions.group.app', prefix: 'app.' },
+    { label: 'permissions.group.users', prefix: 'users.' },
+    { label: 'permissions.group.roles', prefix: 'roles.' },
+    { label: 'permissions.group.account', prefix: 'account.' },
 ] as const
 
 export function getAvailablePermissionGroups(

@@ -131,6 +131,28 @@ export function throwPublicQueryError(error: unknown): never {
     throw new Error(getDomainErrorMessage(error, 'The requested data is temporarily unavailable.'))
 }
 
+function getLocalizedErrorKey(error: unknown, fallback: string): string {
+    if (error instanceof RateLimitError) {
+        return 'errors.rateLimited'
+    }
+
+    if (error instanceof RateLimitUnavailableError) {
+        return 'errors.authUnavailable'
+    }
+
+    return isAuthDomainError(error) ? `errors.${error.code}` : fallback
+}
+
+export function localizedActionFailure(error: unknown, fallback: string): AuthActionFailureResult {
+    actionFailure(error, fallback)
+    return { success: false, message: getLocalizedErrorKey(error, fallback) }
+}
+
+export function throwLocalizedQueryError(error: unknown, fallback = 'common.requestFailed'): never {
+    actionFailure(error, fallback)
+    throw new Error(getLocalizedErrorKey(error, fallback))
+}
+
 export async function enforceSensitiveLimit(
     action: AuthRateLimitAction,
     identifier: string,

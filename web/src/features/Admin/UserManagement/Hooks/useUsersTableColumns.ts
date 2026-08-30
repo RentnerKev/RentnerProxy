@@ -18,17 +18,19 @@ import {
 import type { ClientTableFeatures } from '../../../../shared/Table/Hooks/useClientTableLogic'
 import type { UserSummary } from '../../../../shared/Types/auth.types'
 import type { UserTableActionProps } from '../Types/user-management-component-props.types'
+import useTranslationStore from '../../../../language/useTranslationStore'
 
 const textFilter = createTrimmedIncludesStringFilter<UserSummary>()
 const roleFilter = createArrayIncludesFilter<UserSummary>()
 const dateFilter = createDateRangeFilter<UserSummary>()
 
 export default function useUsersTableColumns(actions: UserTableActionProps) {
+    const { t } = useTranslationStore()
     return useMemo<Array<ColumnDef<ClientTableFeatures, UserSummary>>>(
         () => [
             {
                 accessorKey: 'displayName',
-                header: 'Name',
+                header: t('admin.users.columns.name'),
                 sortFn: 'text',
                 filterFn: textFilter,
                 enableGlobalFilter: true,
@@ -36,7 +38,7 @@ export default function useUsersTableColumns(actions: UserTableActionProps) {
             },
             {
                 accessorKey: 'email',
-                header: 'Email',
+                header: t('admin.users.columns.email'),
                 sortFn: 'text',
                 filterFn: textFilter,
                 enableGlobalFilter: true,
@@ -44,7 +46,7 @@ export default function useUsersTableColumns(actions: UserTableActionProps) {
             },
             {
                 accessorKey: 'status',
-                header: 'Status',
+                header: t('admin.users.columns.status'),
                 sortFn: 'text',
                 filterFn: filterFn_equalsString,
                 enableGlobalFilter: true,
@@ -54,7 +56,7 @@ export default function useUsersTableColumns(actions: UserTableActionProps) {
             {
                 id: 'roles',
                 accessorFn: (user) => user.roleKeys,
-                header: 'Roles',
+                header: t('admin.users.columns.roles'),
                 enableSorting: false,
                 filterFn: roleFilter,
                 enableGlobalFilter: false,
@@ -63,14 +65,14 @@ export default function useUsersTableColumns(actions: UserTableActionProps) {
             },
             {
                 accessorKey: 'createdAt',
-                header: 'Created',
+                header: t('admin.users.columns.created'),
                 filterFn: dateFilter,
                 enableGlobalFilter: false,
                 cell: ({ getValue }) => createElement(UserCreatedAtCell, { value: getValue() }),
             },
             {
                 id: 'actions',
-                header: 'Actions',
+                header: t('admin.users.columns.actions'),
                 enableSorting: false,
                 enableColumnFilter: false,
                 enableGlobalFilter: false,
@@ -78,6 +80,6 @@ export default function useUsersTableColumns(actions: UserTableActionProps) {
                     createElement(UserTableActions, { ...actions, user: row.original }),
             },
         ],
-        [actions],
+        [actions, t],
     )
 }

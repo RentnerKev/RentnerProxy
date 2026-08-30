@@ -13,7 +13,7 @@ import { createTrimmedIncludesStringFilter } from '../shared/Table/Helpers/table
 import type { ClientTableFeatures } from '../shared/Table/Hooks/useClientTableLogic'
 import type { RoleManagementSummary, UserSummary } from '../shared/Types/auth.types'
 import type { TableColumnFilterConfigs } from '../shared/Table/Types/table.types'
-import { withLanguageRoot } from './Helpers/withTestLanguage'
+import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
 
 if (!GlobalRegistrator.isRegistered) {
     GlobalRegistrator.register()
@@ -27,10 +27,15 @@ const { default: RoleTableActions } =
     await import('../features/Admin/RoleManagement/Components/RoleTableActions')
 const { default: UserTableActions } =
     await import('../features/Admin/UserManagement/Components/UserTableActions')
+const { default: UsersTable } =
+    await import('../features/Admin/UserManagement/Components/UsersTable')
+const { default: RolesTable } =
+    await import('../features/Admin/RoleManagement/Components/RolesTable')
 const { ConfirmDialog } = await import('../shared/Modal/Components/ConfirmDialog')
 const { default: DateRangeCalendar } = await import('../shared/Calendar')
 const { default: DataTable } = await import('../shared/Table')
 const { default: useClientTableLogic } = await import('../shared/Table/Hooks/useClientTableLogic')
+const { TooltipProvider } = await import('../shared/Tooltip')
 
 const createUserHandlerMock = mock(async (_input: unknown) => ({
     success: true,
@@ -531,6 +536,81 @@ const viewerRole: RoleManagementSummary = {
     description: 'Read-only access',
     isSystem: true,
 }
+
+const usersTableProps = {
+    actorIsOwner: true,
+    canCreate: false,
+    canDisable: false,
+    canUpdate: false,
+    createDisabled: false,
+    currentUserId: '00000000-0000-4000-8000-000000000099',
+    isLoading: false,
+    onCreate: () => undefined,
+    onDisable: () => undefined,
+    onEdit: () => undefined,
+}
+
+const rolesTableProps = {
+    canCreate: false,
+    canDelete: false,
+    canUpdate: false,
+    isLoading: false,
+    onCreate: () => undefined,
+    onDelete: () => undefined,
+    onEdit: () => undefined,
+}
+
+describe('localized management filters', () => {
+    test('finds German status and system-role labels globally and keeps role values stable', async () => {
+        await render(
+            withTestLanguage(
+                <TooltipProvider>
+                    <UsersTable {...usersTableProps} users={[user]} />
+                </TooltipProvider>,
+                'de',
+            ),
+        )
+
+        const search = document.querySelector<HTMLInputElement>('input[type="search"]')
+        expect(search).not.toBeNull()
+        expect(document.body.textContent).toContain('Aktiv')
+        expect(document.body.textContent).toContain('Betrachter')
+
+        await setControlValue(search!, 'Betrachter')
+        await waitFor(() => getDataRows().length === 1)
+
+        await setControlValue(search!, 'Aktiv')
+        await waitFor(() => getDataRows().length === 1)
+
+        await click(getButton('Filter'))
+        await chooseSelectOption('Alle Rollen', 'Betrachter')
+        expect(getDataRows()).toHaveLength(1)
+    })
+
+    test('finds localized German system-role name and description in role column filters', async () => {
+        await render(
+            withTestLanguage(<RolesTable {...rolesTableProps} roles={[viewerRole]} />, 'de'),
+        )
+
+        expect(document.body.textContent).toContain('Betrachter')
+        expect(document.body.textContent).toContain('grundlegenden Anwendungs- und Kontozugriff')
+
+        await click(getButton('Filter'))
+        const nameFilter = document.querySelector<HTMLInputElement>(
+            'input[aria-label="Name oder Schlüssel filtern…"]',
+        )
+        expect(nameFilter).not.toBeNull()
+        await setControlValue(nameFilter!, 'Betrachter')
+        await waitFor(() => getDataRows().length === 1)
+
+        const descriptionFilter = document.querySelector<HTMLInputElement>(
+            'input[aria-label="Beschreibungen filtern…"]',
+        )
+        expect(descriptionFilter).not.toBeNull()
+        await setControlValue(descriptionFilter!, 'grundlegenden Anwendungs- und Kontozugriff')
+        await waitFor(() => getDataRows().length === 1)
+    })
+})
 
 describe('permission-aware row actions', () => {
     test('hides unavailable user actions and disables protected owner actions', async () => {

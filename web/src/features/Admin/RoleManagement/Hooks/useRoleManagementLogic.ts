@@ -7,10 +7,12 @@ import type { RoleManagementSummary } from '../../../../shared/Types/auth.types'
 import { roleManagementQueryKeys } from '../queryKeys'
 import { deleteRoleHandler, getRolesHandler } from '../server'
 import type { RoleManagementPageProps } from '../Types/role-management-component-props.types'
+import useTranslationStore from '../../../../language/useTranslationStore'
 
 const EMPTY_ROLES: RoleManagementSummary[] = []
 
 export default function useRoleManagementLogic({ permissions }: RoleManagementPageProps) {
+    const { t } = useTranslationStore()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canAssignPermissions = permissionSet.has(PERMISSIONS.ROLES_ASSIGN_PERMISSIONS)
     const [showCreate, setShowCreate] = useState(false)
@@ -99,7 +101,7 @@ export default function useRoleManagementLogic({ permissions }: RoleManagementPa
                 deleteMutation.data && !deleteMutation.data.success
                     ? deleteMutation.data.message
                     : deleteMutation.isError
-                      ? 'The role could not be deleted.'
+                      ? t('admin.roles.errors.deleteFailed')
                       : null,
             deleteTarget,
             isDeleting: deleteMutation.isPending,

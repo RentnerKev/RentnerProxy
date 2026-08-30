@@ -1,8 +1,6 @@
-import {
-    displayNameSchema,
-    emailSchema,
-    getValidationMessage,
-} from '../../../Auth/Shared/validation'
+import { displayNameSchema, emailSchema } from '../../../Auth/Shared/validation'
+import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
 import FormMessage from '../../../../shared/Forms/FormMessage'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
@@ -23,6 +21,7 @@ export default function UserFormFields({
     status,
     user,
 }: UserFormFieldsProps) {
+    const { t } = useTranslationStore()
     return (
         <>
             <form.Field
@@ -31,7 +30,7 @@ export default function UserFormFields({
                     onBlur: ({ value }) =>
                         isCreate && !value
                             ? undefined
-                            : getValidationMessage(displayNameSchema, value),
+                            : getValidationIssue(displayNameSchema, value),
                 }}
             >
                 {(field) => {
@@ -43,7 +42,8 @@ export default function UserFormFields({
                                 className={uiClassNames.form.label}
                                 htmlFor={`${formId}-${field.name}`}
                             >
-                                Display name{isCreate ? ' (optional)' : ''}
+                                {t('admin.users.form.displayName')}
+                                {isCreate ? ` (${t('admin.users.form.optional')})` : ''}
                             </label>
                             <input
                                 className={uiClassNames.form.control}
@@ -63,7 +63,7 @@ export default function UserFormFields({
             </form.Field>
             <form.Field
                 name="email"
-                validators={{ onBlur: ({ value }) => getValidationMessage(emailSchema, value) }}
+                validators={{ onBlur: ({ value }) => getValidationIssue(emailSchema, value) }}
             >
                 {(field) => {
                     const errorId = `${formId}-${field.name}-error`
@@ -74,7 +74,7 @@ export default function UserFormFields({
                                 className={uiClassNames.form.label}
                                 htmlFor={`${formId}-${field.name}`}
                             >
-                                Email address
+                                {t('admin.users.form.email')}
                             </label>
                             <input
                                 className={uiClassNames.form.control}
@@ -96,16 +96,16 @@ export default function UserFormFields({
             </form.Field>
 
             <div className={uiClassNames.form.field}>
-                <span className={uiClassNames.form.label}>Status</span>
+                <span className={uiClassNames.form.label}>{t('admin.users.form.status')}</span>
                 <div className="flex min-h-[2.85rem] items-center rounded-xl border border-input-border bg-surface-raised px-[0.85rem]">
                     <span className={statusBadgeClassName} data-status={status}>
-                        {status}
+                        {t(`admin.users.status.${status}`)}
                     </span>
                 </div>
                 <p className={uiClassNames.form.hint}>
                     {isCreate
-                        ? 'New accounts remain pending until the invitation is accepted.'
-                        : 'Disable access from the user action menu.'}
+                        ? t('admin.users.form.pendingHint')
+                        : t('admin.users.form.disabledHint')}
                 </p>
             </div>
 
@@ -115,23 +115,25 @@ export default function UserFormFields({
                         name="roleKeys"
                         mode="array"
                         validators={{
-                            onChange: ({ value }) => getValidationMessage(roleKeysSchema, value),
+                            onChange: ({ value }) => getValidationIssue(roleKeysSchema, value),
                         }}
                     >
                         {(field) => <RoleCheckboxes field={field} roles={roles} disabled={false} />}
                     </form.Field>
                 ) : (
                     <fieldset className={uiClassNames.permission.fieldset}>
-                        <legend>Roles</legend>
+                        <legend>{t('admin.users.form.roles')}</legend>
                         <div className={uiClassNames.chip.row}>
                             {(user?.roleKeys ?? []).map((role) => (
                                 <span className={uiClassNames.chip.item} key={role}>
-                                    {role}
+                                    {['owner', 'admin', 'viewer'].includes(role)
+                                        ? t(`systemRoles.${role}.name`)
+                                        : role}
                                 </span>
                             ))}
                         </div>
                         <p className={`${uiClassNames.form.hint} mt-2`}>
-                            You can update profile details, but not this user’s role assignments.
+                            {t('admin.users.form.rolesReadOnly')}
                         </p>
                     </fieldset>
                 )}
@@ -139,7 +141,7 @@ export default function UserFormFields({
 
             {errorMessage ? (
                 <div className={uiClassNames.form.wide}>
-                    <FormMessage tone="error">{errorMessage}</FormMessage>
+                    <FormMessage tone="error">{t(errorMessage)}</FormMessage>
                 </div>
             ) : null}
         </>

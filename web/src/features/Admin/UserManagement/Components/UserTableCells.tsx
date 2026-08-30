@@ -8,6 +8,8 @@ import type {
     UserRolesCellProps,
     UserStatusCellProps,
 } from '../Types/user-management-table-cell.types'
+import { useDateFormatter } from '../../../../language/useTranslationStore'
+import useTranslationStore from '../../../../language/useTranslationStore'
 
 const statusBadgeClassName =
     'inline-flex rounded-full bg-neutral px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold text-muted capitalize data-[status=active]:bg-success-bg data-[status=active]:text-success-text data-[status=disabled]:bg-danger-bg data-[status=disabled]:text-danger-text'
@@ -30,21 +32,25 @@ export function UserEmailCell({ value }: UserEmailCellProps) {
 }
 
 export function UserStatusCell({ value }: UserStatusCellProps) {
+    const { t } = useTranslationStore()
     return (
         <span className={statusBadgeClassName} data-status={value}>
-            {value}
+            {t(`admin.users.status.${value}`)}
         </span>
     )
 }
 
 export function UserRolesCell({ roleKeys }: UserRolesCellProps) {
+    const { t } = useTranslationStore()
     const visibleRoleKeys = getVisibleRoleKeys(roleKeys)
 
     return (
         <div className={uiClassNames.chip.row}>
             {visibleRoleKeys.map((roleKey) => (
                 <span className={uiClassNames.chip.item} key={roleKey}>
-                    {roleKey}
+                    {['owner', 'admin', 'viewer'].includes(roleKey)
+                        ? t(`systemRoles.${roleKey}.name`)
+                        : roleKey}
                 </span>
             ))}
             {roleKeys.length > visibleRoleKeys.length ? (
@@ -57,11 +63,10 @@ export function UserRolesCell({ roleKeys }: UserRolesCellProps) {
 }
 
 export function UserCreatedAtCell({ value }: UserCreatedAtCellProps) {
+    const dateFormatter = useDateFormatter()
     return (
         <span className="whitespace-nowrap text-muted">
             {formatUserCreatedAt(value, dateFormatter)}
         </span>
     )
 }
-
-const dateFormatter = new Intl.DateTimeFormat('en', { dateStyle: 'medium' })

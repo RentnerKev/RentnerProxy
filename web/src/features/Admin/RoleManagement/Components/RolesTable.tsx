@@ -1,43 +1,45 @@
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import DataTable from '../../../../shared/Table'
 import useRolesTableLogic from '../Hooks/useRolesTableLogic'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type { RolesTableProps } from '../Types/role-management-component-props.types'
 
 export default function RolesTable(props: RolesTableProps) {
+    const { t } = useTranslationStore()
     const { canCreate, isLoading, onCreate, roles } = props
     const { state, handler } = useRolesTableLogic(props)
     const createAction = canCreate ? (
         <button type="button" className={uiClassNames.button.add} onClick={onCreate}>
-            Add role
+            {t('admin.roles.actions.add')}
         </button>
     ) : undefined
 
     return (
         <DataTable
             table={state.table}
-            eyebrow="Registry"
-            title={`${roles.length} ${roles.length === 1 ? 'role' : 'roles'}`}
-            description="Review system policies and manage custom permission sets through one shared table workflow."
+            eyebrow={t('admin.roles.table.eyebrow')}
+            title={t('admin.roles.table.count', { count: roles.length })}
+            description={t('admin.roles.table.description')}
             searchInput={state.searchInput}
-            searchLabel="Search roles"
-            searchPlaceholder="Search name, key, description, or permission…"
+            searchLabel={t('admin.roles.table.searchLabel')}
+            searchPlaceholder={t('admin.roles.table.searchPlaceholder')}
             showColumnFilters={state.showColumnFilters}
             onSearchChange={handler.handleSearchInputChange}
             onToggleColumnFilters={handler.toggleColumnFilters}
             onResetFilters={handler.handleResetFilters}
             columnFilterConfigs={state.columnFilterConfigs}
             isLoading={isLoading}
-            loadingLabel="Loading roles"
+            loadingLabel={t('admin.roles.table.loading')}
             emptyState={{
-                title: 'No roles yet',
-                description: 'Create the first custom role to define a reusable access policy.',
+                title: t('admin.roles.table.emptyTitle'),
+                description: t('admin.roles.table.emptyDescription'),
                 action: createAction,
             }}
             filteredEmptyState={{
-                title: 'No roles match your filters',
-                description: 'Adjust the search or reset the active filters to see more roles.',
+                title: t('admin.roles.table.filteredEmptyTitle'),
+                description: t('admin.roles.table.filteredEmptyDescription'),
             }}
-            itemLabel="roles"
+            itemLabel={t('admin.roles.table.itemLabel')}
             action={createAction}
             tableMinWidthClassName="min-w-[64rem]"
         />

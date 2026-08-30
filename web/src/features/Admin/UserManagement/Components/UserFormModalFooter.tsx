@@ -1,4 +1,5 @@
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type { UserFormModalFooterProps } from '../Types/user-form-modal.types'
 
 export default function UserFormModalFooter({
@@ -9,6 +10,8 @@ export default function UserFormModalFooter({
     pendingSubmitLabel,
     submitLabel,
 }: UserFormModalFooterProps) {
+    const { t } = useTranslationStore()
+
     return (
         <>
             <button
@@ -17,7 +20,7 @@ export default function UserFormModalFooter({
                 disabled={isPending}
                 onClick={() => onOpenChange(false)}
             >
-                Cancel
+                {t('common.cancel')}
             </button>
             <form.Subscribe
                 selector={(formState) => [formState.canSubmit, formState.isSubmitting] as const}

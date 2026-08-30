@@ -9,8 +9,8 @@ import {
     updateUserService,
 } from '../../../server/Admin/UserManagement/users.service'
 import {
-    actionFailure,
-    throwPublicQueryError,
+    localizedActionFailure,
+    throwLocalizedQueryError,
     type AuthActionResult,
 } from '../../Auth/serverHelpers'
 import { inviteUserInputSchema, updateUserInputSchema, userIdInputSchema } from './validation'
@@ -20,7 +20,7 @@ export const getUsersHandler = createServerFn({ method: 'GET' }).handler(async (
         await requirePermissionService(PERMISSIONS.USERS_VIEW)
         return await listUsersService()
     } catch (error) {
-        throwPublicQueryError(error)
+        throwLocalizedQueryError(error, 'admin.users.errors.loadFailed')
     }
 })
 
@@ -30,9 +30,9 @@ export const createUserHandler = createServerFn({ method: 'POST' })
         try {
             await requirePermissionService(PERMISSIONS.USERS_CREATE)
             await createUserService(data)
-            return { success: true, message: 'User created and invitation sent.' }
+            return { success: true, message: 'admin.users.messages.created' }
         } catch (error) {
-            return actionFailure(error, 'The user could not be invited.')
+            return localizedActionFailure(error, 'admin.users.errors.inviteFailed')
         }
     })
 
@@ -42,9 +42,9 @@ export const updateUserHandler = createServerFn({ method: 'POST' })
         try {
             await requirePermissionService(PERMISSIONS.USERS_UPDATE)
             await updateUserService(data)
-            return { success: true, message: 'User updated.' }
+            return { success: true, message: 'admin.users.messages.updated' }
         } catch (error) {
-            return actionFailure(error, 'The user could not be updated.')
+            return localizedActionFailure(error, 'admin.users.errors.updateFailed')
         }
     })
 
@@ -54,8 +54,8 @@ export const disableUserHandler = createServerFn({ method: 'POST' })
         try {
             await requirePermissionService(PERMISSIONS.USERS_DISABLE)
             await disableUserService(data.userId)
-            return { success: true, message: 'User disabled and sessions revoked.' }
+            return { success: true, message: 'admin.users.messages.disabled' }
         } catch (error) {
-            return actionFailure(error, 'The user could not be disabled.')
+            return localizedActionFailure(error, 'admin.users.errors.disableFailed')
         }
     })

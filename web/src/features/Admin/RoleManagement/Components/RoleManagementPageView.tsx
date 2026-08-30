@@ -6,36 +6,38 @@ import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { RoleManagementPageViewProps } from '../Types/role-management-page-view.types'
 import RoleFormModal from './RoleFormModal'
 import RolesTable from './RolesTable'
+import useTranslationStore from '../../../../language/useTranslationStore'
 
 export default function RoleManagementPageView({
     currentUserRoleKeys,
     logic: { handler, state },
 }: RoleManagementPageViewProps) {
+    const { t } = useTranslationStore()
     return (
         <>
             <PageHeader
-                eyebrow="Authorization"
-                title="Roles"
-                description="Compose custom permission sets while the owner, administrator, and viewer system roles stay protected."
+                eyebrow={t('admin.roles.page.eyebrow')}
+                title={t('admin.roles.page.title')}
+                description={t('admin.roles.page.description')}
             />
 
             {state.successMessage ? (
                 <div className="mb-4">
-                    <FormMessage tone="success">{state.successMessage}</FormMessage>
+                    <FormMessage tone="success">{t(state.successMessage)}</FormMessage>
                 </div>
             ) : null}
 
             {state.isError ? (
                 <ContentState
-                    title="Roles unavailable"
-                    description="Role definitions could not be loaded for this session."
+                    title={t('admin.roles.states.unavailableTitle')}
+                    description={t('admin.roles.states.unavailableDescription')}
                     action={
                         <button
                             type="button"
                             className={uiClassNames.button.secondary}
                             onClick={handler.retry}
                         >
-                            Try again
+                            {t('common.retry')}
                         </button>
                     }
                 />
@@ -84,20 +86,24 @@ export default function RoleManagementPageView({
                 <ConfirmDialog
                     open
                     onOpenChange={handler.setDeleteOpen}
-                    title="Delete role?"
+                    title={t('admin.roles.confirm.deleteTitle')}
                     description={
                         <>
                             <span className="block">
-                                Are you sure you want to delete “{state.deleteTarget.name}”?
+                                {t('admin.roles.confirm.deleteDescription', {
+                                    name: state.deleteTarget.name,
+                                })}
                             </span>
-                            <span className="mt-2 block">This action cannot be undone.</span>
+                            <span className="mt-2 block">
+                                {t('admin.roles.confirm.deleteWarning')}
+                            </span>
                         </>
                     }
-                    confirmLabel="Delete role"
-                    pendingLabel="Deleting role…"
+                    confirmLabel={t('admin.roles.actions.delete')}
+                    pendingLabel={t('admin.roles.actions.deleting')}
                     destructive
                     isPending={state.isDeleting}
-                    errorMessage={state.deleteError}
+                    errorMessage={state.deleteError ? t(state.deleteError) : null}
                     onConfirm={handler.confirmDelete}
                 />
             ) : null}

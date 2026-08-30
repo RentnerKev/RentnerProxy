@@ -6,6 +6,7 @@ import { createRoleHandler, updateRoleHandler } from '../server'
 import type { RoleFormModalProps } from '../Types/role-management-component-props.types'
 import type { RoleEditorFormValues } from '../Types/role-management-form.types'
 import { createRoleInputSchema } from '../validation'
+import useTranslationStore from '../../../../language/useTranslationStore'
 
 type UseRoleFormLogicParams = Pick<
     RoleFormModalProps,
@@ -25,6 +26,7 @@ export default function useRoleFormLogic({
     onSuccess,
     role,
 }: UseRoleFormLogicParams) {
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const mutation = useMutation({
         mutationFn: (values: RoleEditorFormValues) => {
@@ -33,7 +35,7 @@ export default function useRoleFormLogic({
             }
 
             if (!role) {
-                throw new Error('An editable role is required.')
+                throw new Error('admin.roles.errors.editableRequired')
             }
 
             return updateRoleHandler({
@@ -87,7 +89,7 @@ export default function useRoleFormLogic({
                 mutation.data && !mutation.data.success
                     ? mutation.data.message
                     : mutation.isError
-                      ? 'The role could not be saved.'
+                      ? t('admin.roles.errors.saveFailed')
                       : null,
         },
     }

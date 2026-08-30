@@ -9,8 +9,8 @@ import {
     updateRoleService,
 } from '../../../server/Admin/RoleManagement/roles.service'
 import {
-    actionFailure,
-    throwPublicQueryError,
+    localizedActionFailure,
+    throwLocalizedQueryError,
     type AuthActionResult,
 } from '../../Auth/serverHelpers'
 import { createRoleInputSchema, roleIdInputSchema, updateRoleInputSchema } from './validation'
@@ -20,7 +20,7 @@ export const getRolesHandler = createServerFn({ method: 'GET' }).handler(async (
         await requirePermissionService(PERMISSIONS.ROLES_VIEW)
         return await listRolesService()
     } catch (error) {
-        throwPublicQueryError(error)
+        throwLocalizedQueryError(error, 'admin.roles.errors.loadFailed')
     }
 })
 
@@ -30,9 +30,9 @@ export const createRoleHandler = createServerFn({ method: 'POST' })
         try {
             await requirePermissionService(PERMISSIONS.ROLES_CREATE)
             await createRoleService(data)
-            return { success: true, message: 'Role created.' }
+            return { success: true, message: 'admin.roles.messages.created' }
         } catch (error) {
-            return actionFailure(error, 'The role could not be created.')
+            return localizedActionFailure(error, 'admin.roles.errors.createFailed')
         }
     })
 
@@ -47,9 +47,9 @@ export const updateRoleHandler = createServerFn({ method: 'POST' })
                 description: data.description,
                 ...(data.permissionKeys ? { permissionKeys: data.permissionKeys } : {}),
             })
-            return { success: true, message: 'Role updated.' }
+            return { success: true, message: 'admin.roles.messages.updated' }
         } catch (error) {
-            return actionFailure(error, 'The role could not be updated.')
+            return localizedActionFailure(error, 'admin.roles.errors.updateFailed')
         }
     })
 
@@ -59,8 +59,8 @@ export const deleteRoleHandler = createServerFn({ method: 'POST' })
         try {
             await requirePermissionService(PERMISSIONS.ROLES_DELETE)
             await deleteRoleService(data.roleId)
-            return { success: true, message: 'Role deleted.' }
+            return { success: true, message: 'admin.roles.messages.deleted' }
         } catch (error) {
-            return actionFailure(error, 'The role could not be deleted.')
+            return localizedActionFailure(error, 'admin.roles.errors.deleteFailed')
         }
     })

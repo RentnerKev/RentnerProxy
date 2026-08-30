@@ -1,4 +1,5 @@
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type { RoleFormModalFooterProps } from '../Types/role-form-modal.types'
 
 export default function RoleFormModalFooter({
@@ -9,6 +10,8 @@ export default function RoleFormModalFooter({
     pendingSubmitLabel,
     submitLabel,
 }: RoleFormModalFooterProps) {
+    const { t } = useTranslationStore()
+
     return (
         <>
             <button
@@ -17,7 +20,7 @@ export default function RoleFormModalFooter({
                 disabled={isPending}
                 onClick={() => onOpenChange(false)}
             >
-                Cancel
+                {t('common.cancel')}
             </button>
             <form.Subscribe
                 selector={(formState) => [formState.canSubmit, formState.isSubmitting] as const}

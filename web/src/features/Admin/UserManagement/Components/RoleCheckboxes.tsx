@@ -1,12 +1,14 @@
 import FieldError from '../../../../shared/Forms/FieldError'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { getNextSelectedRoleKeys, getRoleCheckboxInputId } from '../Helpers/roleCheckboxes'
 import type { RoleCheckboxesProps } from '../Types/user-management-component-props.types'
 
 export default function RoleCheckboxes({ disabled, field, roles }: RoleCheckboxesProps) {
+    const { t } = useTranslationStore()
     return (
         <fieldset className={uiClassNames.permission.fieldset} disabled={disabled}>
-            <legend>Roles</legend>
+            <legend>{t('admin.users.form.roles')}</legend>
             <div className={uiClassNames.permission.options}>
                 {roles.map((role) => {
                     const checked = field.state.value.includes(role.key)
@@ -24,7 +26,11 @@ export default function RoleCheckboxes({ disabled, field, roles }: RoleCheckboxe
                                 type="checkbox"
                                 name={field.name}
                                 value={role.key}
-                                aria-label={`Assign ${role.name} role`}
+                                aria-label={t('admin.users.roles.assign', {
+                                    role: role.isSystem
+                                        ? t(`systemRoles.${role.key}.name`)
+                                        : role.name,
+                                })}
                                 checked={checked}
                                 onChange={() =>
                                     field.handleChange(
@@ -34,7 +40,7 @@ export default function RoleCheckboxes({ disabled, field, roles }: RoleCheckboxe
                             />
                             <span className={uiClassNames.permission.copy}>
                                 <strong className={uiClassNames.permission.title}>
-                                    {role.name}
+                                    {role.isSystem ? t(`systemRoles.${role.key}.name`) : role.name}
                                 </strong>
                                 <small className={uiClassNames.permission.description}>
                                     {role.key}

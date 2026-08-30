@@ -1,4 +1,5 @@
-import { getValidationMessage } from '../../../Auth/Shared/validation'
+import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
 import FormMessage from '../../../../shared/Forms/FormMessage'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
@@ -20,11 +21,12 @@ export default function RoleFormFields({
     isCreate,
     role,
 }: RoleFormFieldsProps) {
+    const { t } = useTranslationStore()
     return (
         <>
             <form.Field
                 name="key"
-                validators={{ onBlur: ({ value }) => getValidationMessage(roleKeySchema, value) }}
+                validators={{ onBlur: ({ value }) => getValidationIssue(roleKeySchema, value) }}
             >
                 {(field) => {
                     const hintId = `${formId}-${field.name}-hint`
@@ -36,7 +38,7 @@ export default function RoleFormFields({
                                 className={uiClassNames.form.label}
                                 htmlFor={`${formId}-${field.name}`}
                             >
-                                Key
+                                {t('admin.roles.form.key')}
                             </label>
                             <input
                                 className={uiClassNames.form.control}
@@ -50,7 +52,7 @@ export default function RoleFormFields({
                                 aria-describedby={`${hintId} ${errorId}`}
                             />
                             <p id={hintId} className={uiClassNames.form.hint}>
-                                Stable lowercase identifier, for example support.readonly.
+                                {t('admin.roles.form.keyHint')}
                             </p>
                             <FieldError id={errorId} errors={field.state.meta.errors} />
                         </div>
@@ -59,7 +61,7 @@ export default function RoleFormFields({
             </form.Field>
             <form.Field
                 name="name"
-                validators={{ onBlur: ({ value }) => getValidationMessage(roleNameSchema, value) }}
+                validators={{ onBlur: ({ value }) => getValidationIssue(roleNameSchema, value) }}
             >
                 {(field) => {
                     const errorId = `${formId}-${field.name}-error`
@@ -70,7 +72,7 @@ export default function RoleFormFields({
                                 className={uiClassNames.form.label}
                                 htmlFor={`${formId}-${field.name}`}
                             >
-                                Name
+                                {t('admin.roles.form.name')}
                             </label>
                             <input
                                 className={uiClassNames.form.control}
@@ -90,7 +92,7 @@ export default function RoleFormFields({
             <form.Field
                 name="description"
                 validators={{
-                    onBlur: ({ value }) => getValidationMessage(roleDescriptionSchema, value),
+                    onBlur: ({ value }) => getValidationIssue(roleDescriptionSchema, value),
                 }}
             >
                 {(field) => {
@@ -102,7 +104,7 @@ export default function RoleFormFields({
                                 className={uiClassNames.form.label}
                                 htmlFor={`${formId}-${field.name}`}
                             >
-                                Description
+                                {t('admin.roles.form.description')}
                             </label>
                             <textarea
                                 className={uiClassNames.form.textarea}
@@ -127,7 +129,7 @@ export default function RoleFormFields({
                         mode="array"
                         validators={{
                             onChange: ({ value }) =>
-                                getValidationMessage(permissionKeysSchema, value),
+                                getValidationIssue(permissionKeysSchema, value),
                         }}
                     >
                         {(field) => (
@@ -140,16 +142,16 @@ export default function RoleFormFields({
                     </form.Field>
                 ) : (
                     <fieldset className={uiClassNames.permission.fieldset}>
-                        <legend>Permissions</legend>
+                        <legend>{t('admin.roles.form.permissions')}</legend>
                         <div className={uiClassNames.chip.row}>
                             {(role?.permissionKeys ?? []).map((permission) => (
                                 <span className={uiClassNames.chip.item} key={permission}>
-                                    {permission}
+                                    {t(`permissions.${permission}`)}
                                 </span>
                             ))}
                         </div>
                         <p className={`${uiClassNames.form.hint} mt-2`}>
-                            You can update role details, but not this permission set.
+                            {t('admin.roles.form.permissionsReadOnly')}
                         </p>
                     </fieldset>
                 )}
@@ -157,7 +159,7 @@ export default function RoleFormFields({
 
             {errorMessage ? (
                 <div className={uiClassNames.form.wide}>
-                    <FormMessage tone="error">{errorMessage}</FormMessage>
+                    <FormMessage tone="error">{t(errorMessage)}</FormMessage>
                 </div>
             ) : null}
         </>

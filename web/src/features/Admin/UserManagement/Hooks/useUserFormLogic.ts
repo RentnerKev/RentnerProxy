@@ -8,6 +8,7 @@ import { createUserHandler, updateUserHandler } from '../server'
 import type { UserFormModalProps } from '../Types/user-management-component-props.types'
 import type { UserFormValues } from '../Types/user-management-form.types'
 import { inviteUserFormSchema, updateUserFormSchema } from '../validation'
+import useTranslationStore from '../../../../language/useTranslationStore'
 
 type UseUserFormLogicParams = Pick<
     UserFormModalProps,
@@ -29,6 +30,7 @@ export default function useUserFormLogic({
     roles,
     user,
 }: UseUserFormLogicParams) {
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const mutation = useMutation({
         mutationFn: (values: UserFormValues) => {
@@ -43,7 +45,7 @@ export default function useUserFormLogic({
             }
 
             if (!user) {
-                throw new Error('An editable user is required.')
+                throw new Error('admin.users.errors.editableRequired')
             }
 
             return updateUserHandler({
@@ -109,7 +111,7 @@ export default function useUserFormLogic({
                 mutation.data && !mutation.data.success
                     ? mutation.data.message
                     : mutation.isError
-                      ? 'The user could not be saved.'
+                      ? t('admin.users.errors.saveFailed')
                       : null,
         },
     }

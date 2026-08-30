@@ -9,6 +9,7 @@ import { getRolesHandler } from '../../RoleManagement/server'
 import { userManagementQueryKeys } from '../queryKeys'
 import { disableUserHandler, getUsersHandler } from '../server'
 import type { UserManagementPageProps } from '../Types/user-management-component-props.types'
+import useTranslationStore from '../../../../language/useTranslationStore'
 
 const EMPTY_USERS: UserSummary[] = []
 const EMPTY_ROLES: RoleSummary[] = []
@@ -18,6 +19,7 @@ export default function useUserManagementLogic({
     currentUserRoleKeys,
     permissions,
 }: UserManagementPageProps) {
+    const { t } = useTranslationStore()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const actorIsOwner = currentUserRoleKeys.includes(SYSTEM_ROLES.OWNER)
     const canAssignRoles =
@@ -135,7 +137,7 @@ export default function useUserManagementLogic({
                 disableMutation.data && !disableMutation.data.success
                     ? disableMutation.data.message
                     : disableMutation.isError
-                      ? 'The user could not be disabled.'
+                      ? t('admin.users.errors.disableFailed')
                       : null,
             disableTarget,
             isDisabling: disableMutation.isPending,

@@ -1,4 +1,5 @@
 import { useCallback, useId } from 'react'
+import useTranslationStore from '../../../../language/useTranslationStore'
 
 import type { UserFormModalProps } from '../Types/user-management-component-props.types'
 import type { UserFormModalHandler, UserFormModalState } from '../Types/user-form-modal.types'
@@ -15,6 +16,7 @@ export default function useUserFormModal({
     readonly handler: UserFormModalHandler
 } {
     const formId = useId()
+    const { t } = useTranslationStore()
     const isCreate = mode === 'create'
     const canEditRoles =
         canAssignRoles &&
@@ -39,17 +41,21 @@ export default function useUserFormModal({
         state: {
             canEditRoles,
             description: isCreate
-                ? 'Create the account, assign its initial access, and send an invitation.'
-                : 'Update account information and assigned roles.',
+                ? t('admin.users.form.createDescription')
+                : t('admin.users.form.editDescription'),
             errorMessage: formState.errorMessage,
             form: formState.form,
             formId,
             isCreate,
             isPending: formState.isPending,
-            pendingSubmitLabel: isCreate ? 'Creating user…' : 'Saving user…',
+            pendingSubmitLabel: isCreate ? t('admin.users.form.creating') : t('common.saving'),
             status: isCreate ? 'pending' : (user?.status ?? 'pending'),
-            submitLabel: isCreate ? 'Create user' : 'Save changes',
-            title: isCreate ? 'Add user' : `Edit ${user?.displayName ?? 'user'}`,
+            submitLabel: isCreate ? t('admin.users.actions.create') : t('common.save'),
+            title: isCreate
+                ? t('admin.users.actions.add')
+                : t('admin.users.form.editTitle', {
+                      name: user?.displayName ?? t('admin.users.item'),
+                  }),
         },
         handler: { handleSubmit },
     }

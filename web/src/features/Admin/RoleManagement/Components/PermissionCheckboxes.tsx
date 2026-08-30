@@ -1,4 +1,5 @@
 import FieldError from '../../../../shared/Forms/FieldError'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import {
     getAvailablePermissionGroups,
@@ -12,11 +13,12 @@ export default function PermissionCheckboxes({
     disabled,
     field,
 }: PermissionCheckboxesProps) {
+    const { t } = useTranslationStore()
     const permissionGroups = getAvailablePermissionGroups(availablePermissionKeys)
 
     return (
         <fieldset className={uiClassNames.permission.fieldset} disabled={disabled}>
-            <legend>Permissions</legend>
+            <legend>{t('admin.roles.form.permissions')}</legend>
             <div className="grid gap-3 shell:grid-cols-2">
                 {permissionGroups.map((group) => (
                     <section
@@ -28,7 +30,7 @@ export default function PermissionCheckboxes({
                             id={`${field.name}-${group.prefix}-title`}
                             className="mb-2 text-sm font-extrabold text-ink-soft"
                         >
-                            {group.label}
+                            {t(group.label)}
                         </h3>
                         <div className={uiClassNames.permission.options}>
                             {group.permissions.map((permission) => {
@@ -43,7 +45,9 @@ export default function PermissionCheckboxes({
                                         className={uiClassNames.permission.option}
                                         key={permission.key}
                                         htmlFor={inputId}
-                                        aria-label={`Toggle ${permission.name} permission`}
+                                        aria-label={t('admin.roles.permissions.toggle', {
+                                            permission: t(`permissions.${permission.key}`),
+                                        })}
                                     >
                                         <input
                                             className={uiClassNames.permission.checkbox}
@@ -63,7 +67,7 @@ export default function PermissionCheckboxes({
                                         />
                                         <span className={uiClassNames.permission.copy}>
                                             <strong className={uiClassNames.permission.title}>
-                                                {permission.name}
+                                                {t(`permissions.${permission.key}`)}
                                             </strong>
                                             <small className={uiClassNames.permission.description}>
                                                 {permission.key}

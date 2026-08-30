@@ -1,4 +1,5 @@
 import { useCallback, useId } from 'react'
+import useTranslationStore from '../../../../language/useTranslationStore'
 
 import type { RoleFormModalProps } from '../Types/role-management-component-props.types'
 import type { RoleFormModalHandler, RoleFormModalState } from '../Types/role-form-modal.types'
@@ -15,6 +16,7 @@ export default function useRoleFormModal({
     readonly handler: RoleFormModalHandler
 } {
     const formId = useId()
+    const { t } = useTranslationStore()
     const isCreate = mode === 'create'
     const canEditPermissions =
         canAssignPermissions &&
@@ -43,16 +45,18 @@ export default function useRoleFormModal({
         state: {
             canEditPermissions,
             description: isCreate
-                ? 'Create a reusable role and choose the permissions it grants.'
-                : 'Update the custom role definition and its permission set.',
+                ? t('admin.roles.form.createDescription')
+                : t('admin.roles.form.editDescription'),
             errorMessage: formState.errorMessage,
             form: formState.form,
             formId,
             isCreate,
             isPending: formState.isPending,
-            pendingSubmitLabel: isCreate ? 'Creating role…' : 'Saving role…',
-            submitLabel: isCreate ? 'Create role' : 'Save changes',
-            title: isCreate ? 'Add role' : `Edit ${role?.name ?? 'role'}`,
+            pendingSubmitLabel: isCreate ? t('admin.roles.form.creating') : t('common.saving'),
+            submitLabel: isCreate ? t('admin.roles.actions.create') : t('common.save'),
+            title: isCreate
+                ? t('admin.roles.actions.add')
+                : t('admin.roles.form.editTitle', { name: role?.name ?? t('admin.roles.item') }),
         },
         handler: { handleSubmit },
     }
