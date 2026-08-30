@@ -9,6 +9,7 @@ export type AuthDomainErrorCode =
     | 'owner_required'
     | 'password_policy'
     | 'permission_denied'
+    | 'reauthentication_required'
     | 'role_in_use'
     | 'role_not_found'
     | 'service_unavailable'

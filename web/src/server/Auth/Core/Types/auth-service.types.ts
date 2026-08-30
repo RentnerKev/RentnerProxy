@@ -3,6 +3,7 @@ import type { AuthenticatedUser } from '../../../../shared/Types/auth.types'
 export interface CurrentSession {
     readonly id: string
     readonly expiresAt: Date
+    readonly reauthenticatedAt: Date
     readonly user: AuthenticatedUser
 }
 
@@ -21,6 +22,15 @@ export type AuthState =
 export type LoginResult =
     | {
           readonly success: true
+          readonly requiresTwoFactor: true
+          readonly challenge: {
+              readonly id: string
+              readonly expiresAt: Date
+          }
+      }
+    | {
+          readonly success: true
+          readonly requiresTwoFactor: false
           readonly user: AuthenticatedUser
           readonly session: {
               readonly id: string

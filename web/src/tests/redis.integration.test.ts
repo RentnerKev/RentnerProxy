@@ -6,6 +6,11 @@ import { getRedisUrl } from '../server/env.server'
 import { closeRedisClient, getRedisClient } from '../server/redis/client.server'
 import { checkRedisHealth } from '../server/redis/health.server'
 import {
+    consumeAuthChallenge,
+    createAuthChallenge,
+    getAuthChallenge,
+} from '../server/redis/auth-challenges.service'
+import {
     RateLimitError,
     consumeRateLimit,
     createRateLimitKey,
@@ -154,5 +159,45 @@ describe('Redis integration', () => {
 
         expect(persistedTtl).toBeGreaterThan(0)
         expect(persistedTtl).toBeLessThan(first.ttlMs)
+    })
+
+    integrationTest(
+        'persists expiring auth challenges and consumes them exactly once',
+        async () => {
+            const startedAt = Date.now()
+            const issued = await createAuthChallenge(
+                {
+                    challenge: 'redis-integration-challenge',
+                    createdAt: new Date().toISOString(),
+                    kind: 'webauthn-authentication',
+                },
+                2_000,
+            )
+
+            expect(issued.expiresAt.getTime()).toBeGreaterThanOrEqual(startedAt + 1_900)
+            expect(await getAuthChallenge('webauthn-authentication', issued.id)).toMatchObject({
+                challenge: 'redis-integration-challenge',
+                kind: 'webauthn-authentication',
+            })
+            expect(await consumeAuthChallenge('webauthn-authentication', issued.id)).toMatchObject({
+                challenge: 'redis-integration-challenge',
+            })
+            expect(await consumeAuthChallenge('webauthn-authentication', issued.id)).toBeNull()
+        },
+    )
+
+    integrationTest('expires auth challenges using their Redis TTL', async () => {
+        const issued = await createAuthChallenge(
+            {
+                challenge: 'short-lived-integration-challenge',
+                createdAt: new Date().toISOString(),
+                kind: 'webauthn-authentication',
+            },
+            75,
+        )
+
+        expect(await getAuthChallenge('webauthn-authentication', issued.id)).not.toBeNull()
+        await Bun.sleep(150)
+        expect(await getAuthChallenge('webauthn-authentication', issued.id)).toBeNull()
     })
 })

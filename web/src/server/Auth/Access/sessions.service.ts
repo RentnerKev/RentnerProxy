@@ -1,7 +1,8 @@
 import '@tanstack/react-start/server-only'
 
-import { and, eq, gt, lte } from 'drizzle-orm'
+import { and, eq, gt, lte, ne } from 'drizzle-orm'
 
+import { RECENT_AUTHENTICATION_DURATION_MS } from '../../../config/auth-security.config'
 import { SESSION_DURATION_MS, SESSION_LAST_SEEN_INTERVAL_MS } from '../../../config/auth.config'
 import { PERMISSIONS } from '../../../config/permissions.config'
 import { sessions, users } from '../../../db/schema'
@@ -12,43 +13,46 @@ import { AuthDomainError } from '../Core/errors.server'
 import { resolveActiveUserAccessInTransaction } from './rbac.service'
 import { createOpaqueToken, hashOpaqueToken, isValidOpaqueToken } from '../Core/tokens.server'
 
-export async function createSessionService(userId: string) {
+export async function createSessionInTransaction(transaction: AuthTransaction, userId: string) {
     const token = createOpaqueToken()
     const tokenHash = await hashOpaqueToken(token)
+    const now = new Date()
     const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
-    const db = getAuthDatabase()
+    const userRows = await transaction
+        .select({ id: users.id, status: users.status })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1)
+        .for('share')
+    const user = userRows.at(0)
 
-    return db.transaction(async (transaction) => {
-        const userRows = await transaction
-            .select({ id: users.id, status: users.status })
-            .from(users)
-            .where(eq(users.id, userId))
-            .limit(1)
-            .for('share')
-        const user = userRows.at(0)
+    if (!user || user.status !== 'active') {
+        throw new AuthDomainError('user_not_active', 'User is not active.')
+    }
 
-        if (!user || user.status !== 'active') {
-            throw new AuthDomainError('user_not_active', 'User is not active.')
-        }
+    const sessionRows = await transaction
+        .insert(sessions)
+        .values({ expiresAt, reauthenticatedAt: now, tokenHash, userId })
+        .returning({ id: sessions.id })
+    const session = sessionRows.at(0)
 
-        const sessionRows = await transaction
-            .insert(sessions)
-            .values({ expiresAt, tokenHash, userId })
-            .returning({ id: sessions.id })
-        const session = sessionRows.at(0)
+    if (!session) {
+        throw new AuthDomainError('service_unavailable', 'Session could not be created.')
+    }
 
-        if (!session) {
-            throw new AuthDomainError('service_unavailable', 'Session could not be created.')
-        }
+    const access = await resolveActiveUserAccessInTransaction(transaction, userId)
 
-        const access = await resolveActiveUserAccessInTransaction(transaction, userId)
+    if (!access || !access.permissions.includes(PERMISSIONS.APP_ACCESS)) {
+        throw new AuthDomainError('user_not_active', 'User is not active.')
+    }
 
-        if (!access) {
-            throw new AuthDomainError('user_not_active', 'User is not active.')
-        }
+    return { id: session.id, token, expiresAt, reauthenticatedAt: now, user: access }
+}
 
-        return { id: session.id, token, expiresAt, user: access }
-    })
+export async function createSessionService(userId: string) {
+    return getAuthDatabase().transaction((transaction) =>
+        createSessionInTransaction(transaction, userId),
+    )
 }
 
 export async function getSessionByTokenService(token: string): Promise<CurrentSession | null> {
@@ -66,6 +70,7 @@ export async function getSessionByTokenService(token: string): Promise<CurrentSe
             .select({
                 expiresAt: sessions.expiresAt,
                 id: sessions.id,
+                reauthenticatedAt: sessions.reauthenticatedAt,
                 userId: sessions.userId,
             })
             .from(sessions)
@@ -98,6 +103,7 @@ export async function getSessionByTokenService(token: string): Promise<CurrentSe
         return {
             id: session.id,
             expiresAt: session.expiresAt,
+            reauthenticatedAt: session.reauthenticatedAt,
             user,
         }
     })
@@ -132,4 +138,69 @@ export async function revokeAllUserSessionsInTransaction(
     userId: string,
 ): Promise<void> {
     await transaction.delete(sessions).where(eq(sessions.userId, userId))
+}
+
+export async function revokeOtherUserSessionsInTransaction(
+    transaction: AuthTransaction,
+    userId: string,
+    currentSessionId: string,
+): Promise<void> {
+    await transaction
+        .delete(sessions)
+        .where(and(eq(sessions.userId, userId), ne(sessions.id, currentSessionId)))
+}
+
+export async function requireRecentSessionInTransaction(
+    transaction: AuthTransaction,
+    currentSession: CurrentSession,
+): Promise<void> {
+    const now = new Date()
+    const rows = await transaction
+        .select({
+            expiresAt: sessions.expiresAt,
+            reauthenticatedAt: sessions.reauthenticatedAt,
+        })
+        .from(sessions)
+        .where(and(eq(sessions.id, currentSession.id), eq(sessions.userId, currentSession.user.id)))
+        .limit(1)
+        .for('update')
+    const session = rows.at(0)
+
+    if (!session || session.expiresAt.getTime() <= now.getTime()) {
+        throw new AuthDomainError('authentication_required', 'Authentication is required.')
+    }
+
+    const authenticationAge = now.getTime() - session.reauthenticatedAt.getTime()
+
+    if (authenticationAge < 0 || authenticationAge > RECENT_AUTHENTICATION_DURATION_MS) {
+        throw new AuthDomainError('reauthentication_required', 'Recent authentication is required.')
+    }
+}
+
+export async function markSessionReauthenticatedInTransaction(
+    transaction: AuthTransaction,
+    currentSession: CurrentSession,
+): Promise<boolean> {
+    const now = new Date()
+    const updated = await transaction
+        .update(sessions)
+        .set({ reauthenticatedAt: now })
+        .where(
+            and(
+                eq(sessions.id, currentSession.id),
+                eq(sessions.userId, currentSession.user.id),
+                gt(sessions.expiresAt, now),
+            ),
+        )
+        .returning({ id: sessions.id })
+
+    return updated.length === 1
+}
+
+export async function markCurrentSessionReauthenticatedService(
+    currentSession: CurrentSession,
+): Promise<boolean> {
+    return getAuthDatabase().transaction((transaction) =>
+        markSessionReauthenticatedInTransaction(transaction, currentSession),
+    )
 }

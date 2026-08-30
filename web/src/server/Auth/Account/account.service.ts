@@ -1,15 +1,19 @@
 import '@tanstack/react-start/server-only'
 
-import { and, eq, gt, ne } from 'drizzle-orm'
+import { and, eq, gt } from 'drizzle-orm'
 
 import { PERMISSIONS } from '../../../config/permissions.config'
 import { passwordResetTokens, sessions, users } from '../../../db/schema'
-import type { ChangePasswordResult } from '../Core/Types/auth-service.types'
+import type { ChangePasswordResult, CurrentSession } from '../Core/Types/auth-service.types'
 import { getAuthDatabase } from '../Core/database.server'
 import { AuthDomainError } from '../Core/errors.server'
 import { hashPassword, verifyPassword } from '../Core/password.server'
 import { requirePermissionInTransaction } from '../Access/rbac.service'
-import { getCurrentSessionService } from '../Access/sessions.service'
+import {
+    getCurrentSessionService,
+    markSessionReauthenticatedInTransaction,
+    revokeOtherUserSessionsInTransaction,
+} from '../Access/sessions.service'
 
 export async function changeCurrentPasswordService(input: {
     currentPassword: string
@@ -81,15 +85,42 @@ export async function changeCurrentPasswordService(input: {
         await transaction
             .delete(passwordResetTokens)
             .where(eq(passwordResetTokens.userId, currentSession.user.id))
-        await transaction
-            .delete(sessions)
-            .where(
-                and(
-                    eq(sessions.userId, currentSession.user.id),
-                    ne(sessions.id, currentSession.id),
-                ),
-            )
+        await revokeOtherUserSessionsInTransaction(
+            transaction,
+            currentSession.user.id,
+            currentSession.id,
+        )
+        await markSessionReauthenticatedInTransaction(transaction, currentSession)
 
         return { success: true as const }
+    })
+}
+
+export async function reauthenticateCurrentSessionWithPasswordService(
+    currentSession: CurrentSession,
+    password: string,
+): Promise<boolean> {
+    if (!password || password.length > 256) {
+        return false
+    }
+
+    return getAuthDatabase().transaction(async (transaction) => {
+        const rows = await transaction
+            .select({ passwordHash: users.passwordHash, status: users.status })
+            .from(users)
+            .where(eq(users.id, currentSession.user.id))
+            .limit(1)
+            .for('share')
+        const user = rows.at(0)
+
+        if (!user || user.status !== 'active' || !user.passwordHash) {
+            throw new AuthDomainError('authentication_required', 'Authentication is required.')
+        }
+
+        if (!(await verifyPassword(password, user.passwordHash))) {
+            return false
+        }
+
+        return markSessionReauthenticatedInTransaction(transaction, currentSession)
     })
 }

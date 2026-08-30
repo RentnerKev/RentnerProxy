@@ -2,6 +2,14 @@ import { randomUUID } from 'node:crypto'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { eq, inArray, like, notLike } from 'drizzle-orm'
+import * as OTPAuth from 'otpauth'
+
+import {
+    TOTP_ALGORITHM,
+    TOTP_DIGITS,
+    TOTP_ISSUER,
+    TOTP_PERIOD_SECONDS,
+} from '../config/auth-security.config'
 
 import {
     PERMISSIONS,
@@ -11,19 +19,23 @@ import {
 } from '../config/permissions.config'
 import {
     passwordResetTokens,
+    passkeys,
     permissions,
     rolePermissions,
     roles,
     sessions,
     userInvites,
+    userRecoveryCodes,
     userRoles,
     userSettings,
     users,
+    userTotpFactors,
 } from '../db/schema'
-import { getDatabaseUrl } from '../server/env.server'
+import { getDatabaseUrl, getRedisUrl } from '../server/env.server'
 import { getAuthDatabase } from '../server/Auth/Core/database.server'
 import { AuthDomainError } from '../server/Auth/Core/errors.server'
 import { acceptInviteService } from '../server/Auth/Setup/invites.service'
+import { decryptSecret } from '../server/Auth/Core/encryption.server'
 import { loginService } from '../server/Auth/Login/login.service'
 import { hashPassword, verifyPassword } from '../server/Auth/Core/password.server'
 import {
@@ -44,6 +56,26 @@ import {
     revokeSessionByTokenService,
 } from '../server/Auth/Access/sessions.service'
 import {
+    beginDiscoverablePasskeyAuthenticationService,
+    beginPasskeyRegistrationService,
+    deletePasskeyService,
+    renamePasskeyService,
+} from '../server/Auth/Passkey/passkey.service'
+import {
+    beginTotpSetupService,
+    completeLoginMfaWithRecoveryCodeService,
+    completeLoginMfaWithTotpService,
+    confirmTotpSetupService,
+    createLoginMfaChallengeService,
+    disableTotpService,
+    regenerateRecoveryCodesService,
+} from '../server/Auth/TwoFactor/two-factor.service'
+import {
+    hashRecoveryCode,
+    normalizeRecoveryCode,
+} from '../server/Auth/TwoFactor/two-factor-credentials.server'
+import { consumeAuthChallenge } from '../server/redis/auth-challenges.service'
+import {
     setupFirstOwnerService,
     type FirstOwnerSetupResult,
 } from '../server/Auth/Setup/setup.service'
@@ -57,6 +89,11 @@ const TEST_EMAIL_SUFFIX = '@auth-test.invalid'
 const TEST_ROLE_PREFIX = 'auth-test-'
 const CURRENT_PASSWORD = 'correct horse battery staple'
 const NEW_PASSWORD = 'new correct horse battery staple'
+const SECURITY_INTEGRATION_ENABLED =
+    DATABASE_INTEGRATION_ENABLED &&
+    process.env.RENTNERPROXY_REDIS_INTEGRATION === '1' &&
+    getRedisUrl() !== null
+const securityIntegrationTest = SECURITY_INTEGRATION_ENABLED ? test : test.skip
 
 let preparedPasswordHash = ''
 
@@ -342,7 +379,7 @@ describe('login with PostgreSQL', () => {
 
         expect(result.success).toBeTrue()
 
-        if (!result.success) {
+        if (!result.success || result.requiresTwoFactor) {
             throw new Error('Valid login unexpectedly failed.')
         }
 
@@ -414,11 +451,12 @@ describe('sessions with PostgreSQL', () => {
     })
 
     integrationTest('denies an existing session after app access is removed', async () => {
-        const roleKey = await createCustomRole([PERMISSIONS.USERS_VIEW])
-        const user = await createTestUser({ roleKeys: [roleKey] })
+        const user = await createTestUser()
         const session = await createSessionService(user.id)
 
-        expect(session.user.permissions).not.toContain(PERMISSIONS.APP_ACCESS)
+        expect(session.user.permissions).toContain(PERMISSIONS.APP_ACCESS)
+        await getAuthDatabase().delete(userRoles).where(eq(userRoles.userId, user.id))
+
         expect(await getSessionByTokenService(session.token)).toBeNull()
     })
 })
@@ -672,4 +710,316 @@ describe('user invites with PostgreSQL', () => {
             'pending',
         )
     })
+})
+
+describe('account security with PostgreSQL and Redis', () => {
+    securityIntegrationTest(
+        'enables TOTP, enforces MFA/replay rules, rotates recovery codes, and manages passkeys',
+        async () => {
+            const originalEncryptionKey = process.env.APP_ENCRYPTION_KEY
+            const originalAppUrl = process.env.APP_URL
+            const originalRpId = process.env.WEBAUTHN_RP_ID
+            process.env.APP_ENCRYPTION_KEY = Buffer.from(
+                crypto.getRandomValues(new Uint8Array(32)),
+            ).toString('base64')
+            process.env.APP_URL = 'http://localhost:3000'
+            process.env.WEBAUTHN_RP_ID = 'localhost'
+
+            try {
+                const user = await createTestUser({ roleKeys: [SYSTEM_ROLES.OWNER] })
+                const initialSession = await createSessionService(user.id)
+                const setup = await beginTotpSetupService(initialSession)
+                const setupTotp = new OTPAuth.TOTP({
+                    algorithm: TOTP_ALGORITHM,
+                    digits: TOTP_DIGITS,
+                    issuer: TOTP_ISSUER,
+                    label: user.email,
+                    period: TOTP_PERIOD_SECONDS,
+                    secret: setup.secret,
+                })
+                const activation = await confirmTotpSetupService({
+                    currentSession: initialSession,
+                    flowId: setup.flowId,
+                    token: setupTotp.generate(),
+                })
+
+                expect(setup.otpAuthUri).toStartWith('otpauth://totp/')
+                expect(activation.success).toBeTrue()
+                if (!activation.success) {
+                    throw new Error('TOTP activation unexpectedly failed.')
+                }
+                expect(activation.recoveryCodes).toHaveLength(10)
+                expect(
+                    await confirmTotpSetupService({
+                        currentSession: initialSession,
+                        flowId: setup.flowId,
+                        token: setupTotp.generate(),
+                    }),
+                ).toEqual({ code: 'challenge_expired', success: false })
+
+                const storedFactors = await getAuthDatabase()
+                    .select({
+                        ciphertext: userTotpFactors.secretCiphertext,
+                        iv: userTotpFactors.secretIv,
+                        lastUsedCounter: userTotpFactors.lastUsedCounter,
+                    })
+                    .from(userTotpFactors)
+                    .where(eq(userTotpFactors.userId, user.id))
+                const storedFactor = requireFirstRow(storedFactors, 'TOTP factor was not stored.')
+                const storedRecoveryCodes = await getAuthDatabase()
+                    .select({
+                        codeHash: userRecoveryCodes.codeHash,
+                        usedAt: userRecoveryCodes.usedAt,
+                    })
+                    .from(userRecoveryCodes)
+                    .where(eq(userRecoveryCodes.userId, user.id))
+
+                expect(storedFactor.iv).toHaveLength(12)
+                expect(new TextDecoder().decode(storedFactor.ciphertext)).not.toContain(
+                    setup.secret,
+                )
+                expect(
+                    await decryptSecret(
+                        { ciphertext: storedFactor.ciphertext, iv: storedFactor.iv },
+                        `rentnerproxy:totp:${user.id}`,
+                    ),
+                ).toBe(setup.secret)
+                expect(storedRecoveryCodes).toHaveLength(10)
+                expect(
+                    storedRecoveryCodes.every((code) => /^[a-f\d]{64}$/.test(code.codeHash)),
+                ).toBeTrue()
+                expect(storedRecoveryCodes.every((code) => code.usedAt === null)).toBeTrue()
+                const expectedRecoveryCodeHashes = await Promise.all(
+                    activation.recoveryCodes.map(async (plaintext) => {
+                        const normalized = normalizeRecoveryCode(plaintext)
+                        expect(normalized).not.toBeNull()
+                        return hashRecoveryCode(normalized ?? '')
+                    }),
+                )
+                expect(storedRecoveryCodes.map((code) => code.codeHash)).toEqual(
+                    expect.arrayContaining(expectedRecoveryCodeHashes),
+                )
+
+                const sessionsBeforePasswordLogin = await getAuthDatabase()
+                    .select({ id: sessions.id })
+                    .from(sessions)
+                    .where(eq(sessions.userId, user.id))
+                const passwordLogin = await loginService({
+                    email: user.email,
+                    password: CURRENT_PASSWORD,
+                })
+                const sessionsAfterPasswordLogin = await getAuthDatabase()
+                    .select({ id: sessions.id })
+                    .from(sessions)
+                    .where(eq(sessions.userId, user.id))
+
+                expect(passwordLogin.success).toBeTrue()
+                if (!passwordLogin.success || !passwordLogin.requiresTwoFactor) {
+                    throw new Error('Password login did not create an MFA challenge.')
+                }
+                expect(sessionsAfterPasswordLogin).toHaveLength(sessionsBeforePasswordLogin.length)
+
+                const recoveryLogin = await completeLoginMfaWithRecoveryCodeService({
+                    challengeId: passwordLogin.challenge.id,
+                    recoveryCode: activation.recoveryCodes[0] ?? '',
+                })
+                expect(recoveryLogin.success).toBeTrue()
+                expect(
+                    await completeLoginMfaWithRecoveryCodeService({
+                        challengeId: passwordLogin.challenge.id,
+                        recoveryCode: activation.recoveryCodes[0] ?? '',
+                    }),
+                ).toEqual({ code: 'challenge_expired', success: false })
+                if (!recoveryLogin.success) {
+                    throw new Error('Recovery-code login unexpectedly failed.')
+                }
+                const currentSession = await getSessionByTokenService(recoveryLogin.session.token)
+                if (!currentSession) {
+                    throw new Error('MFA session was not persisted.')
+                }
+                const consumedRecoveryRows = await getAuthDatabase()
+                    .select({ usedAt: userRecoveryCodes.usedAt })
+                    .from(userRecoveryCodes)
+                    .where(
+                        eq(
+                            userRecoveryCodes.codeHash,
+                            await hashRecoveryCode(
+                                normalizeRecoveryCode(activation.recoveryCodes[0] ?? '') ?? '',
+                            ),
+                        ),
+                    )
+                expect(
+                    requireFirstRow(consumedRecoveryRows, 'Recovery code was not found.').usedAt,
+                ).toBeInstanceOf(Date)
+
+                const usedCodeChallenge = await createLoginMfaChallengeService(user.id)
+                expect(
+                    await completeLoginMfaWithRecoveryCodeService({
+                        challengeId: usedCodeChallenge.id,
+                        recoveryCode: activation.recoveryCodes[0] ?? '',
+                    }),
+                ).toEqual({ code: 'authentication_failed', success: false })
+                await consumeAuthChallenge('login-mfa', usedCodeChallenge.id)
+
+                const regenerated = await regenerateRecoveryCodesService(currentSession)
+                expect(regenerated.success).toBeTrue()
+                if (!regenerated.success) {
+                    throw new Error('Recovery-code regeneration unexpectedly failed.')
+                }
+                expect(regenerated.recoveryCodes).toHaveLength(10)
+                const oldCodeChallenge = await createLoginMfaChallengeService(user.id)
+                expect(
+                    await completeLoginMfaWithRecoveryCodeService({
+                        challengeId: oldCodeChallenge.id,
+                        recoveryCode: activation.recoveryCodes[1] ?? '',
+                    }),
+                ).toEqual({ code: 'authentication_failed', success: false })
+                await consumeAuthChallenge('login-mfa', oldCodeChallenge.id)
+
+                const loginTotp = new OTPAuth.TOTP({
+                    algorithm: TOTP_ALGORITHM,
+                    digits: TOTP_DIGITS,
+                    issuer: TOTP_ISSUER,
+                    label: 'login',
+                    period: TOTP_PERIOD_SECONDS,
+                    secret: setup.secret,
+                })
+                const futureTimestamp = Date.now() + TOTP_PERIOD_SECONDS * 1_000
+                const futureToken = loginTotp.generate({ timestamp: futureTimestamp })
+                const totpChallenge = await createLoginMfaChallengeService(user.id)
+                const totpLogin = await completeLoginMfaWithTotpService({
+                    challengeId: totpChallenge.id,
+                    token: futureToken,
+                })
+                expect(totpLogin.success).toBeTrue()
+                const replayChallenge = await createLoginMfaChallengeService(user.id)
+                expect(
+                    await completeLoginMfaWithTotpService({
+                        challengeId: replayChallenge.id,
+                        token: futureToken,
+                    }),
+                ).toEqual({ code: 'authentication_failed', success: false })
+
+                const now = Date.now()
+                const validTokens = new Set(
+                    [-1, 0, 1].map((offset) =>
+                        loginTotp.generate({
+                            timestamp: now + offset * TOTP_PERIOD_SECONDS * 1_000,
+                        }),
+                    ),
+                )
+                let wrongToken = '000000'
+                while (validTokens.has(wrongToken)) {
+                    wrongToken = String(Number(wrongToken) + 1).padStart(6, '0')
+                }
+                const wrongChallenge = await createLoginMfaChallengeService(user.id)
+                expect(
+                    await completeLoginMfaWithTotpService({
+                        challengeId: wrongChallenge.id,
+                        token: wrongToken,
+                    }),
+                ).toEqual({ code: 'authentication_failed', success: false })
+                await consumeAuthChallenge('login-mfa', wrongChallenge.id)
+                const expiredChallenge = await createLoginMfaChallengeService(user.id)
+                await consumeAuthChallenge('login-mfa', expiredChallenge.id)
+                expect(
+                    await completeLoginMfaWithTotpService({
+                        challengeId: expiredChallenge.id,
+                        token: futureToken,
+                    }),
+                ).toEqual({ code: 'challenge_expired', success: false })
+
+                const registration = await beginPasskeyRegistrationService(currentSession)
+                expect(registration.options.attestation).toBe('none')
+                expect(registration.options.authenticatorSelection).toMatchObject({
+                    residentKey: 'required',
+                    userVerification: 'required',
+                })
+                expect(
+                    await consumeAuthChallenge('webauthn-registration', registration.flowId),
+                ).toMatchObject({ userId: user.id, sessionId: currentSession.id })
+                expect(
+                    await consumeAuthChallenge('webauthn-registration', registration.flowId),
+                ).toBeNull()
+
+                const authentication = await beginDiscoverablePasskeyAuthenticationService()
+                expect(authentication.options.userVerification).toBe('required')
+                expect(authentication.options.allowCredentials).toBeUndefined()
+                expect(
+                    await consumeAuthChallenge('webauthn-authentication', authentication.flowId),
+                ).toMatchObject({ challenge: authentication.options.challenge })
+
+                const credentialId = `integration-${randomUUID()}`
+                const insertedPasskeys = await getAuthDatabase()
+                    .insert(passkeys)
+                    .values({
+                        backedUp: true,
+                        counter: 0,
+                        credentialId,
+                        deviceType: 'multiDevice',
+                        name: 'Integration passkey',
+                        publicKey: new Uint8Array([1, 2, 3, 4]),
+                        transports: ['internal'],
+                        userId: user.id,
+                    })
+                    .returning({ id: passkeys.id })
+                const passkeyId = requireFirstRow(insertedPasskeys, 'Passkey was not stored.').id
+                const duplicateCredentialError = await captureError(
+                    Promise.resolve(
+                        getAuthDatabase()
+                            .insert(passkeys)
+                            .values({
+                                backedUp: false,
+                                counter: 0,
+                                credentialId,
+                                deviceType: 'singleDevice',
+                                name: 'Duplicate passkey',
+                                publicKey: new Uint8Array([5, 6, 7, 8]),
+                                transports: [],
+                                userId: user.id,
+                            })
+                            .returning({ id: passkeys.id }),
+                    ),
+                )
+                expect(duplicateCredentialError).toBeInstanceOf(Error)
+                expect(
+                    await renamePasskeyService({
+                        currentSession,
+                        name: 'Renamed integration passkey',
+                        passkeyId,
+                    }),
+                ).toBeTrue()
+                const renamedPasskeys = await getAuthDatabase()
+                    .select({ name: passkeys.name })
+                    .from(passkeys)
+                    .where(eq(passkeys.id, passkeyId))
+                expect(renamedPasskeys).toEqual([{ name: 'Renamed integration passkey' }])
+
+                expect(await disableTotpService(currentSession)).toBeTrue()
+                expect(
+                    await getAuthDatabase()
+                        .select({ id: userTotpFactors.id })
+                        .from(userTotpFactors)
+                        .where(eq(userTotpFactors.userId, user.id)),
+                ).toEqual([])
+                expect(
+                    await getAuthDatabase()
+                        .select({ id: userRecoveryCodes.id })
+                        .from(userRecoveryCodes)
+                        .where(eq(userRecoveryCodes.userId, user.id)),
+                ).toEqual([])
+                if (totpLogin.success) {
+                    expect(await getSessionByTokenService(totpLogin.session.token)).toBeNull()
+                }
+                expect(await deletePasskeyService({ currentSession, passkeyId })).toBeTrue()
+            } finally {
+                if (originalEncryptionKey === undefined) delete process.env.APP_ENCRYPTION_KEY
+                else process.env.APP_ENCRYPTION_KEY = originalEncryptionKey
+                if (originalAppUrl === undefined) delete process.env.APP_URL
+                else process.env.APP_URL = originalAppUrl
+                if (originalRpId === undefined) delete process.env.WEBAUTHN_RP_ID
+                else process.env.WEBAUTHN_RP_ID = originalRpId
+            }
+        },
+    )
 })
