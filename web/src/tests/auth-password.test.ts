@@ -1,10 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import {
-    hashPassword,
-    isValidPassword,
-    verifyPassword,
-} from '../server/Auth/Core/password.server'
+import { hashPassword, isValidPassword, verifyPassword } from '../server/Auth/Core/password.server'
 import { createOpaqueToken, hashOpaqueToken } from '../server/Auth/Core/tokens.server'
 
 const PASSWORD = 'correct horse battery staple'
