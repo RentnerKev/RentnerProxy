@@ -15,7 +15,7 @@
         "format": "oxfmt . && cargo fmt --manifest-path controller/Cargo.toml",
         "format:check": "oxfmt --check . && cargo fmt --manifest-path controller/Cargo.toml -- --check",
         "test": "bun run test:ts && bun run rust:test",
-        "test:ts": "bun test web/src",
+        "test:ts": "bun test --max-concurrency=1 web/src",
         "test:fuzz": "bun test web/src/tests/Fuzz",
         "db:generate": "drizzle-kit generate --config=web/drizzle.config.ts",
         "db:migrate": "bun web/src/db/migrate.ts",
