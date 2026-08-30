@@ -103,6 +103,7 @@ describe('language boundaries', () => {
             'layout/Components/ApplicationShell',
             'shared/Calendar',
             'shared/Table',
+            'shared/Toast',
             'shared/Modal',
             'shared/Select',
             'shared/Avatar',

@@ -170,3 +170,44 @@
 *::-webkit-scrollbar-thumb:hover {
     background: var(--color-brand-600);
 }
+
+@theme {
+    --animate-toast-enter: toast-enter 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    --animate-toast-leave: toast-leave 180ms ease-in;
+    --animate-toast-swipe: toast-swipe 180ms ease-out;
+    --animate-toast-progress: toast-progress linear forwards;
+
+    @keyframes toast-enter {
+        from {
+            opacity: 0;
+            transform: translateY(0.75rem) scale(0.98);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+    @keyframes toast-leave {
+        to {
+            opacity: 0;
+            transform: translateX(1rem) scale(0.98);
+        }
+    }
+    @keyframes toast-swipe {
+        from {
+            transform: translateX(var(--radix-toast-swipe-end-x));
+        }
+        to {
+            opacity: 0;
+            transform: translateX(calc(100% + 1rem));
+        }
+    }
+    @keyframes toast-progress {
+        from {
+            transform: scaleX(1);
+        }
+        to {
+            transform: scaleX(0);
+        }
+    }
+}

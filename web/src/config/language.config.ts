@@ -30,6 +30,16 @@ export const FLAG_IMAGES: Record<AppLanguage, string> = {
 
 // Shared controls on public routes stay English without loading a locale catalog.
 export const PUBLIC_ENGLISH: Record<string, string> = {
+    'toast.notification': 'Notification',
+    'toast.viewport': 'Notifications ({hotkey})',
+    'toast.dismiss': 'Dismiss notification',
+    'toast.copyError': 'Copy error message',
+    'toast.copied': 'Copied',
+    'toast.copyFailed': 'Could not copy. Select the message to copy it.',
+    'toast.titles.success': 'Success',
+    'toast.titles.error': 'Action failed',
+    'toast.titles.info': 'Information',
+    'toast.titles.warning': 'Please note',
     'common.appName': 'RentnerProxy',
     'common.cancel': 'Cancel',
     'common.confirm': 'Confirm',

@@ -1,4 +1,18 @@
 {
+    "toast": {
+        "notification": "Notificación",
+        "viewport": "Notificaciones ({hotkey})",
+        "dismiss": "Cerrar notificación",
+        "copyError": "Copiar mensaje de error",
+        "copied": "Copiado",
+        "copyFailed": "No se pudo copiar. Selecciona el mensaje para copiarlo.",
+        "titles": {
+            "success": "Éxito",
+            "error": "La acción ha fallado",
+            "info": "Información",
+            "warning": "Ten en cuenta"
+        }
+    },
     "common": {
         "appName": "RentnerProxy",
         "cancel": "Cancelar",
@@ -47,6 +61,7 @@
         }
     },
     "theme": {
+        "saved": "Tema guardado.",
         "light": "Claro",
         "dark": "Oscuro",
         "switchToLight": "Cambiar al modo claro",

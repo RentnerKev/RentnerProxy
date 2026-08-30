@@ -1,4 +1,18 @@
 {
+    "toast": {
+        "notification": "Notification",
+        "viewport": "Notifications ({hotkey})",
+        "dismiss": "Dismiss notification",
+        "copyError": "Copy error message",
+        "copied": "Copied",
+        "copyFailed": "Could not copy. Select the message to copy it.",
+        "titles": {
+            "success": "Success",
+            "error": "Action failed",
+            "info": "Information",
+            "warning": "Please note"
+        }
+    },
     "common": {
         "appName": "RentnerProxy",
         "cancel": "Cancel",
@@ -47,6 +61,7 @@
         }
     },
     "theme": {
+        "saved": "Theme saved.",
         "light": "Light",
         "dark": "Dark",
         "switchToLight": "Switch to light mode",
