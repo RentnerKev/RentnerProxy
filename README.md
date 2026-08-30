@@ -102,7 +102,11 @@ control. It encrypts authentication secrets at rest. `WEBAUTHN_RP_ID` is the Web
 ID and must match the hostname used by `APP_URL`; for local development the documented
 `http://localhost:5173` origin uses `localhost` (without the port). WebAuthn requires a secure
 context in deployed environments; browsers allow the `localhost` development exception. Use the
-same host consistently when testing passkeys.
+same host consistently when testing passkeys. IP addresses such as `127.0.0.1` cannot be used as
+WebAuthn RP IDs, even when the browser considers the loopback origin secure. Use
+`APP_URL=http://localhost:5173` and `WEBAUTHN_RP_ID=localhost` locally, then restart `bun run dev`
+after changing the environment. Sessions are host-specific, so switching from the IP address
+to `localhost` requires signing in again.
 
 Common commands:
 

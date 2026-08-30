@@ -1,5 +1,7 @@
 import '@tanstack/react-start/server-only'
 
+import { isIP } from 'node:net'
+
 import { APP_ENCRYPTION_KEY_BYTES, WEBAUTHN_RP_NAME } from '../config/auth-security.config'
 
 const DEFAULT_APP_URL = 'http://localhost:5173'
@@ -184,7 +186,9 @@ export function parseWebAuthnRpId(
 
     const rpId = configured.trim().toLowerCase()
 
+    // Loopback IPs can be secure contexts, but WebAuthn still requires a domain RP ID.
     if (
+        isIP(rpId) !== 0 ||
         !/^(?:localhost|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*)$/.test(
             rpId,
         )

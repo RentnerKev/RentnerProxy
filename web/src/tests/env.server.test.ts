@@ -168,6 +168,20 @@ describe('WebAuthn relying-party configuration', () => {
         expect(parseWebAuthnRpId('app.example', null)).toBeNull()
     })
 
+    test('rejects matching IPv4 and IPv6 origins and RP IDs', () => {
+        process.env.NODE_ENV = 'development'
+
+        process.env.APP_URL = 'http://127.0.0.1:5173'
+        process.env.WEBAUTHN_RP_ID = '127.0.0.1'
+        expect(parseWebAuthnRpId('127.0.0.1', 'http://127.0.0.1:5173')).toBeNull()
+        expect(getWebAuthnConfiguration()).toBeNull()
+
+        process.env.APP_URL = 'http://[::1]:5173'
+        process.env.WEBAUTHN_RP_ID = '::1'
+        expect(parseWebAuthnRpId('::1', 'http://[::1]:5173')).toBeNull()
+        expect(getWebAuthnConfiguration()).toBeNull()
+    })
+
     test('builds a strict local configuration from APP_URL and WEBAUTHN_RP_ID', () => {
         process.env.NODE_ENV = 'development'
         delete process.env.APP_URL
