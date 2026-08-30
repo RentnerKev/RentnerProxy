@@ -2,6 +2,7 @@ import type { RowData } from '@tanstack/react-table'
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { Fragment } from 'react'
 
+import useTranslationStore from '../../../language/useTranslationStore'
 import type { TableHeadProps } from '../Types/table.types'
 import TableColumnFilters from './TableColumnFilters'
 
@@ -10,6 +11,8 @@ export default function TableHead<TData extends RowData>({
     showColumnFilters,
     columnFilterConfigs,
 }: TableHeadProps<TData>) {
+    const { t } = useTranslationStore()
+
     return (
         <thead className="bg-surface-subtle font-mono text-[0.62rem] tracking-[0.07em] text-muted uppercase">
             <table.Subscribe
@@ -45,7 +48,9 @@ export default function TableHead<TData extends RowData>({
                                                     type="button"
                                                     onClick={header.column.getToggleSortingHandler()}
                                                     className="inline-flex cursor-pointer items-center gap-1.5 rounded-md text-left text-inherit outline-hidden transition-colors hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-                                                    aria-label={`Sort by ${header.column.id}`}
+                                                    aria-label={t('table.sortBy', {
+                                                        column: header.column.id,
+                                                    })}
                                                 >
                                                     <table.FlexRender header={header} />
                                                     <span

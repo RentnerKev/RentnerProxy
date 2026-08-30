@@ -1,14 +1,33 @@
 import type { CalendarDayViewModel, DateRangeValue } from '../Types/date-range-calendar.types'
+import type { Translate } from '../../../language/useTranslationStore'
 
-export const calendarWeekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
+export const calendarWeekdayKeys = [
+    'calendar.weekdays.mon',
+    'calendar.weekdays.tue',
+    'calendar.weekdays.wed',
+    'calendar.weekdays.thu',
+    'calendar.weekdays.fri',
+    'calendar.weekdays.sat',
+    'calendar.weekdays.sun',
+] as const
 
-const monthFormatter = new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric' })
-const shortDateFormatter = new Intl.DateTimeFormat('en', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-})
-const fullDateFormatter = new Intl.DateTimeFormat('en', { dateStyle: 'full' })
+export interface CalendarFormatters {
+    readonly fullDate: Intl.DateTimeFormat
+    readonly month: Intl.DateTimeFormat
+    readonly shortDate: Intl.DateTimeFormat
+}
+
+export function createCalendarFormatters(locale: string): CalendarFormatters {
+    return {
+        fullDate: new Intl.DateTimeFormat(locale, { dateStyle: 'full' }),
+        month: new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }),
+        shortDate: new Intl.DateTimeFormat(locale, {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+        }),
+    }
+}
 
 export function createLocalDate(year: number, month: number, day: number): Date {
     return new Date(year, month, day, 12)
@@ -76,27 +95,40 @@ export function getInitialMonth(value: DateRangeValue): Date {
     return startOfMonth(parseDateValue(value.from) ?? parseDateValue(value.to) ?? getToday())
 }
 
-export function getRangeLabel(value: DateRangeValue): string {
+export function getRangeLabel(
+    value: DateRangeValue,
+    formatters: CalendarFormatters,
+    t: Translate,
+): string {
     const from = parseDateValue(value.from)
     const to = parseDateValue(value.to)
 
     if (!from) {
-        return 'Any date'
+        return t('calendar.anyDate')
     }
 
     if (!to) {
-        return `From ${shortDateFormatter.format(from)}`
+        return t('calendar.fromDate', {
+            date: formatters.shortDate.format(from),
+        })
     }
 
-    return `${shortDateFormatter.format(from)} – ${shortDateFormatter.format(to)}`
+    return t('calendar.range', {
+        from: formatters.shortDate.format(from),
+        to: formatters.shortDate.format(to),
+    })
 }
 
-export function formatShortDate(date: Date | null): string {
-    return date ? shortDateFormatter.format(date) : 'Select date'
+export function formatShortDate(
+    date: Date | null,
+    formatters: CalendarFormatters,
+    t: Translate,
+): string {
+    return date ? formatters.shortDate.format(date) : t('calendar.selectDate')
 }
 
-export function formatMonth(date: Date): string {
-    return monthFormatter.format(date)
+export function formatMonth(date: Date, formatters: CalendarFormatters): string {
+    return formatters.month.format(date)
 }
 
 function isSameDay(first: Date | null, second: Date): boolean {
@@ -108,6 +140,7 @@ export function createCalendarWeeks(
     from: Date | null,
     to: Date | null,
     today: Date,
+    formatters: CalendarFormatters,
 ): ReadonlyArray<ReadonlyArray<CalendarDayViewModel>> {
     const firstDay = startOfMonth(visibleMonth)
     const mondayOffset = (firstDay.getDay() + 6) % 7
@@ -116,7 +149,7 @@ export function createCalendarWeeks(
         (date): CalendarDayViewModel => ({
             dateValue: formatDateValue(date),
             dayNumber: date.getDate(),
-            fullDateLabel: fullDateFormatter.format(date),
+            fullDateLabel: formatters.fullDate.format(date),
             isCurrentMonth: date.getMonth() === visibleMonth.getMonth(),
             isInRange: Boolean(
                 from && to && date.getTime() > from.getTime() && date.getTime() < to.getTime(),

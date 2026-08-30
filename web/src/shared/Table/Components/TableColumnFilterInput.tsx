@@ -2,6 +2,7 @@ import type { RowData } from '@tanstack/react-table'
 
 import DateRangeCalendar from '../../Calendar'
 import SelectControl from '../../Select'
+import useTranslationStore from '../../../language/useTranslationStore'
 import getDateRangeFilterValue from '../Helpers/getDateRangeFilterValue'
 import type { TableColumnFilterInputProps } from '../Types/table.types'
 
@@ -12,12 +13,17 @@ export default function TableColumnFilterInput<TData extends RowData>({
     column,
     config,
 }: TableColumnFilterInputProps<TData>) {
+    const { t } = useTranslationStore()
+
     if (config.type === 'select') {
+        const filterColumnLabel = t('table.filterColumn')
+        const allLabel = t('table.all')
+
         return (
             <SelectControl
                 value={String(column.getFilterValue() ?? '')}
-                ariaLabel={config.placeholder ?? 'Filter column'}
-                placeholder={config.placeholder ?? 'All'}
+                ariaLabel={config.placeholder ?? filterColumnLabel}
+                placeholder={config.placeholder ?? allLabel}
                 options={config.options}
                 onValueChange={(value) => column.setFilterValue(value || undefined)}
                 className="w-full"
@@ -29,7 +35,7 @@ export default function TableColumnFilterInput<TData extends RowData>({
         return (
             <DateRangeCalendar
                 value={getDateRangeFilterValue(column.getFilterValue())}
-                ariaLabel="Filter by date range"
+                ariaLabel={t('table.filterByDateRange')}
                 fromLabel={config.fromLabel}
                 toLabel={config.toLabel}
                 onValueChange={(value) => column.setFilterValue(value)}
@@ -42,8 +48,8 @@ export default function TableColumnFilterInput<TData extends RowData>({
             type="text"
             value={String(column.getFilterValue() ?? '')}
             maxLength={config.maxLength}
-            aria-label={config.placeholder ?? 'Filter column'}
-            placeholder={config.placeholder ?? 'Filter…'}
+            aria-label={config.placeholder ?? t('table.filterColumn')}
+            placeholder={config.placeholder ?? t('table.filterEllipsis')}
             onChange={(event) => column.setFilterValue(event.target.value || undefined)}
             className={controlClassName}
         />

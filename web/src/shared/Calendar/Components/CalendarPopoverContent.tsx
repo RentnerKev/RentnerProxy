@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import * as Popover from 'radix-ui/popover'
 
+import useTranslationStore from '../../../language/useTranslationStore'
 import type { CalendarPopoverContentProps } from '../Types/date-range-calendar.types'
 import CalendarMonthGrid from './CalendarMonthGrid'
 
@@ -12,6 +13,8 @@ export default function CalendarPopoverContent({
     state,
     toLabel,
 }: CalendarPopoverContentProps) {
+    const { t } = useTranslationStore()
+
     return (
         <Popover.Portal>
             <Popover.Content
@@ -47,7 +50,7 @@ export default function CalendarPopoverContent({
                         <div className="mb-3 flex items-center justify-between gap-3">
                             <button
                                 type="button"
-                                aria-label="Show previous month"
+                                aria-label={t('calendar.previousMonth')}
                                 onClick={handler.showPreviousMonth}
                                 className="grid size-9 place-items-center rounded-xl border border-border bg-surface text-muted transition-colors hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                             >
@@ -62,7 +65,7 @@ export default function CalendarPopoverContent({
                             </h3>
                             <button
                                 type="button"
-                                aria-label="Show next month"
+                                aria-label={t('calendar.nextMonth')}
                                 onClick={handler.showNextMonth}
                                 className="grid size-9 place-items-center rounded-xl border border-border bg-surface text-muted transition-colors hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                             >
@@ -93,7 +96,7 @@ export default function CalendarPopoverContent({
                                 onClick={handler.clear}
                                 className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-extrabold text-muted transition-colors hover:bg-surface-hover hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                             >
-                                Clear
+                                {t('calendar.clear')}
                             </button>
                         ) : null}
                     </div>

@@ -1,6 +1,8 @@
 import { X } from 'lucide-react'
 import * as Dialog from 'radix-ui/dialog'
 
+import useTranslationStore from '../../language/useTranslationStore'
+
 import useModalLogic from './Hooks/useModalLogic'
 import type { ModalProps, ModalSize } from './Types/modal.types'
 
@@ -20,6 +22,7 @@ export function Modal({
     size = 'md',
     closeDisabled = false,
 }: ModalProps) {
+    const { t } = useTranslationStore()
     const handler = useModalLogic({ closeDisabled, onOpenChange })
 
     return (
@@ -45,7 +48,7 @@ export function Modal({
                         <Dialog.Close
                             type="button"
                             disabled={closeDisabled}
-                            aria-label="Close dialog"
+                            aria-label={t('common.closeDialog')}
                             className="-mr-1 -mt-1 inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-transparent text-xl leading-none text-muted transition-colors hover:border-border-strong hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
                         >
                             <X aria-hidden="true" className="size-5" strokeWidth={1.8} />

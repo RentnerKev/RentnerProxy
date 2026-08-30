@@ -13,6 +13,7 @@ import { createTrimmedIncludesStringFilter } from '../shared/Table/Helpers/table
 import type { ClientTableFeatures } from '../shared/Table/Hooks/useClientTableLogic'
 import type { RoleManagementSummary, UserSummary } from '../shared/Types/auth.types'
 import type { TableColumnFilterConfigs } from '../shared/Table/Types/table.types'
+import { withLanguageRoot } from './Helpers/withTestLanguage'
 
 if (!GlobalRegistrator.isRegistered) {
     GlobalRegistrator.register()
@@ -68,7 +69,7 @@ let activeQueryClient: QueryClientInstance | null = null
 async function render(element: ReactElement): Promise<HTMLElement> {
     const container = document.createElement('div')
     document.body.append(container)
-    activeRoot = createRoot(container)
+    activeRoot = withLanguageRoot(createRoot(container))
 
     await act(async () => {
         activeRoot?.render(element)
@@ -413,12 +414,12 @@ describe('shared date range calendar', () => {
     test('completes and clears a date range through the custom popover', async () => {
         await render(<DateRangeCalendarHarness />)
 
-        await click(getButton('Created range: From Jan 10, 2026'))
+        await click(getButton('Created range: From 10 Jan 2026'))
         expect(document.body.textContent).toContain('January 2026')
-        await click(getButton('Monday, January 12, 2026'))
+        await click(getButton('Monday, 12 January 2026'))
         expect(document.body.textContent).toContain('2026-01-10 → 2026-01-12')
 
-        await click(getButton('Created range: Jan 10, 2026 – Jan 12, 2026'))
+        await click(getButton('Created range: 10 Jan 2026 – 12 Jan 2026'))
         await click(getButton('Clear'))
         expect(document.body.textContent).toContain('No date range')
     })
@@ -705,9 +706,7 @@ describe('user form modal', () => {
         expect(email).not.toBeNull()
         await setControlValue(email!, '')
         await click(getButton('Save changes'))
-        await waitFor(
-            () => document.body.textContent?.includes('Enter your email address.') ?? false,
-        )
+        await waitFor(() => document.body.textContent?.includes('This field is required.') ?? false)
         expect(updateUserHandlerMock).not.toHaveBeenCalled()
         expect(document.querySelector('[role="dialog"]')).not.toBeNull()
 

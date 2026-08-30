@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 
+import useTranslationStore from '../../../language/useTranslationStore'
 import {
     addMonths,
+    createCalendarFormatters,
     createCalendarWeeks,
     createSelectedRange,
     formatDateValue,
@@ -26,6 +28,7 @@ export default function useDateRangeCalendarLogic({
     onValueChange,
     value,
 }: DateRangeCalendarLogicParams): DateRangeCalendarLogic {
+    const { locale, t } = useTranslationStore()
     const [open, setOpen] = useState(false)
     const [visibleMonth, setVisibleMonth] = useState(() => getInitialMonth(value))
     const [focusedDateValue, setFocusedDateValue] = useState(
@@ -34,6 +37,7 @@ export default function useDateRangeCalendarLogic({
     const contentRef = useRef<HTMLDivElement | null>(null)
     const from = parseDateValue(value.from)
     const to = parseDateValue(value.to)
+    const formatters = useMemo(() => createCalendarFormatters(locale), [locale])
 
     const focusCalendarDate = (date: Date) => {
         const nextDateValue = formatDateValue(date)
@@ -102,15 +106,15 @@ export default function useDateRangeCalendarLogic({
         contentRef,
         state: {
             focusedDateValue,
-            fromDateLabel: formatShortDate(from),
+            fromDateLabel: formatShortDate(from, formatters, t),
             hasFrom: Boolean(from),
             hasTo: Boolean(to),
-            hint: from && !to ? 'Now choose an end date.' : 'Choose a start and end date.',
-            monthLabel: formatMonth(visibleMonth),
+            hint: from && !to ? t('calendar.hint.end') : t('calendar.hint.start'),
+            monthLabel: formatMonth(visibleMonth, formatters),
             open,
-            rangeLabel: getRangeLabel(value),
-            toDateLabel: formatShortDate(to),
-            weeks: createCalendarWeeks(visibleMonth, from, to, getToday()),
+            rangeLabel: getRangeLabel(value, formatters, t),
+            toDateLabel: formatShortDate(to, formatters, t),
+            weeks: createCalendarWeeks(visibleMonth, from, to, getToday(), formatters),
         },
         handler: {
             clear: () => onValueChange(undefined),

@@ -1,6 +1,8 @@
 import { Check, ChevronDown, ChevronUp } from 'lucide-react'
 import * as Select from 'radix-ui/select'
 
+import SelectOptionLabel from './Components/SelectOptionLabel'
+
 import { EMPTY_SELECT_VALUE, fromSelectValue, toSelectValue } from './Helpers/selectValue'
 import type { SelectControlProps } from './Types/select-control.types'
 
@@ -10,13 +12,16 @@ const itemClassName =
 export default function SelectControl({
     ariaLabel,
     className,
+    disabled,
     onValueChange,
     options,
     placeholder,
     value,
 }: SelectControlProps) {
+    const selectedOption = options.find((option) => option.value === value)
     return (
         <Select.Root
+            disabled={disabled ?? false}
             value={toSelectValue(value)}
             onValueChange={(nextValue) => onValueChange(fromSelectValue(nextValue))}
         >
@@ -24,7 +29,9 @@ export default function SelectControl({
                 aria-label={ariaLabel}
                 className={`group inline-flex h-9 min-w-0 items-center justify-between gap-2 rounded-lg border border-input-border bg-surface-raised px-2.5 text-left text-xs font-bold text-ink outline-hidden transition-[border-color,box-shadow,background-color] data-[placeholder]:text-muted-soft hover:border-border-strong focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/15 motion-reduce:transition-none ${className ?? ''}`}
             >
-                <Select.Value />
+                <Select.Value>
+                    {selectedOption ? <SelectOptionLabel option={selectedOption} /> : placeholder}
+                </Select.Value>
                 <Select.Icon className="shrink-0 text-muted transition-colors group-data-[state=open]:text-brand-text">
                     <ChevronDown
                         aria-hidden="true"
@@ -63,7 +70,9 @@ export default function SelectControl({
                                 value={option.value}
                                 className={itemClassName}
                             >
-                                <Select.ItemText>{option.label}</Select.ItemText>
+                                <Select.ItemText>
+                                    <SelectOptionLabel option={option} />
+                                </Select.ItemText>
                                 <Select.ItemIndicator className="absolute right-3 grid size-4 place-items-center">
                                     <Check
                                         aria-hidden="true"

@@ -2,6 +2,7 @@ import type { RowData } from '@tanstack/react-table'
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 
 import SelectControl from '../../Select'
+import useTranslationStore from '../../../language/useTranslationStore'
 import type { TablePaginationProps } from '../Types/table.types'
 
 const paginationButtonClassName =
@@ -12,6 +13,9 @@ export default function TablePagination<TData extends RowData>({
     itemLabel,
     pageSizeOptions,
 }: TablePaginationProps<TData>) {
+    const { t } = useTranslationStore()
+    const rowsPerPageLabel = t('table.pagination.rowsPerPage')
+
     return (
         <table.Subscribe
             selector={(state) => ({
@@ -35,15 +39,19 @@ export default function TablePagination<TData extends RowData>({
                         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted">
                             <p aria-live="polite">
                                 <span className="font-extrabold text-ink-soft">
-                                    {firstItem}–{lastItem}
-                                </span>{' '}
-                                of {filteredRowCount} {itemLabel}
+                                    {t('table.pagination.range', {
+                                        from: firstItem,
+                                        to: lastItem,
+                                        count: filteredRowCount,
+                                        item: itemLabel,
+                                    })}
+                                </span>
                             </p>
                             <div className="flex items-center gap-2">
-                                <span>Rows per page</span>
+                                <span>{rowsPerPageLabel}</span>
                                 <SelectControl
                                     value={String(pagination.pageSize)}
-                                    ariaLabel="Rows per page"
+                                    ariaLabel={rowsPerPageLabel}
                                     options={pageSizeOptions.map((pageSize) => ({
                                         label: String(pageSize),
                                         value: String(pageSize),
@@ -57,25 +65,24 @@ export default function TablePagination<TData extends RowData>({
                         </div>
 
                         <nav
-                            aria-label="Table pagination"
+                            aria-label={t('table.pagination.label')}
                             className="flex items-center justify-between gap-2 sm:justify-end"
                         >
                             <p
                                 className="mr-1 min-w-20 text-center text-xs text-muted"
                                 aria-live="polite"
                             >
-                                Page{' '}
-                                <span className="font-extrabold text-ink-soft">
-                                    {pagination.pageIndex + 1}
-                                </span>{' '}
-                                of {pageCount}
+                                {t('table.pagination.page', {
+                                    page: pagination.pageIndex + 1,
+                                    count: pageCount,
+                                })}
                             </p>
                             <button
                                 type="button"
                                 className={paginationButtonClassName}
                                 onClick={() => table.firstPage()}
                                 disabled={!table.getCanPreviousPage()}
-                                aria-label="Go to first page"
+                                aria-label={t('table.pagination.first')}
                             >
                                 <ChevronsLeft aria-hidden="true" className="size-4" />
                             </button>
@@ -84,7 +91,7 @@ export default function TablePagination<TData extends RowData>({
                                 className={paginationButtonClassName}
                                 onClick={() => table.previousPage()}
                                 disabled={!table.getCanPreviousPage()}
-                                aria-label="Go to previous page"
+                                aria-label={t('table.pagination.previous')}
                             >
                                 <ChevronLeft aria-hidden="true" className="size-4" />
                             </button>
@@ -93,7 +100,7 @@ export default function TablePagination<TData extends RowData>({
                                 className={paginationButtonClassName}
                                 onClick={() => table.nextPage()}
                                 disabled={!table.getCanNextPage()}
-                                aria-label="Go to next page"
+                                aria-label={t('table.pagination.next')}
                             >
                                 <ChevronRight aria-hidden="true" className="size-4" />
                             </button>
@@ -102,7 +109,7 @@ export default function TablePagination<TData extends RowData>({
                                 className={paginationButtonClassName}
                                 onClick={() => table.lastPage()}
                                 disabled={!table.getCanNextPage()}
-                                aria-label="Go to last page"
+                                aria-label={t('table.pagination.last')}
                             >
                                 <ChevronsRight aria-hidden="true" className="size-4" />
                             </button>

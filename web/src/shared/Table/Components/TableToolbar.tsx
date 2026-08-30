@@ -2,6 +2,7 @@ import type { RowData } from '@tanstack/react-table'
 import { ListFilter, Search } from 'lucide-react'
 
 import { uiClassNames } from '../../Styles/uiClassNames'
+import useTranslationStore from '../../../language/useTranslationStore'
 import type { TableToolbarProps } from '../Types/table.types'
 
 export default function TableToolbar<TData extends RowData>({
@@ -21,6 +22,8 @@ export default function TableToolbar<TData extends RowData>({
     onResetFilters,
     action,
 }: TableToolbarProps<TData>) {
+    const { t } = useTranslationStore()
+
     return (
         <div className="flex flex-col gap-4 border-b border-border px-[1.15rem] py-4">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -77,7 +80,7 @@ export default function TableToolbar<TData extends RowData>({
                                                 className="size-4"
                                                 strokeWidth={1.8}
                                             />
-                                            Filters
+                                            {t('table.filters')}
                                         </button>
                                     ) : null}
                                     {hasActiveFilters ? (
@@ -86,7 +89,7 @@ export default function TableToolbar<TData extends RowData>({
                                             onClick={onResetFilters}
                                             className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl border border-transparent px-3 text-sm font-extrabold text-muted transition-colors hover:border-border-strong hover:bg-surface-hover hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                                         >
-                                            Reset filters
+                                            {t('table.resetFilters')}
                                         </button>
                                     ) : null}
                                 </div>

@@ -1,5 +1,7 @@
 import { UserRound } from 'lucide-react'
 
+import useTranslationStore from '../../../language/useTranslationStore'
+
 import { Tooltip } from '../../Tooltip'
 import { getUserAvatarUrl } from '../Helpers/userAvatar'
 import useUserAvatarLogic from '../Hooks/useUserAvatarLogic'
@@ -17,11 +19,12 @@ export default function UserAvatar({
     size = 'md',
     userId,
 }: UserAvatarProps) {
+    const { t } = useTranslationStore()
     const src = getUserAvatarUrl(userId, profileImageVersion)
     const logic = useUserAvatarLogic(src)
 
     return (
-        <Tooltip content={`${displayName}'s profile picture`}>
+        <Tooltip content={t('common.profilePicture', { name: displayName })}>
             <span
                 className={`relative grid shrink-0 place-items-center overflow-hidden rounded-full border border-brand-500/30 bg-brand-500/10 text-brand-300 shadow-[0_0_0_3px_rgb(15_179_58_/_6%)] ${sizeClassNames[size]}`}
                 aria-hidden="true"

@@ -1,4 +1,5 @@
-import { calendarWeekdayLabels } from '../Helpers/dateRangeCalendar.helpers'
+import useTranslationStore from '../../../language/useTranslationStore'
+import { calendarWeekdayKeys } from '../Helpers/dateRangeCalendar.helpers'
 import type { CalendarMonthGridProps } from '../Types/date-range-calendar.types'
 
 export default function CalendarMonthGrid({
@@ -8,17 +9,19 @@ export default function CalendarMonthGrid({
     onSelectDate,
     weeks,
 }: CalendarMonthGridProps) {
+    const { t } = useTranslationStore()
+
     return (
-        <table aria-label="Calendar dates" className="w-full">
+        <table aria-label={t('calendar.dates')} className="w-full">
             <thead>
                 <tr>
-                    {calendarWeekdayLabels.map((label) => (
+                    {calendarWeekdayKeys.map((key) => (
                         <th
-                            key={label}
+                            key={key}
                             scope="col"
                             className="h-7 text-center font-mono text-[0.58rem] font-bold tracking-[0.08em] text-muted uppercase"
                         >
-                            {label}
+                            {t(key)}
                         </th>
                     ))}
                 </tr>

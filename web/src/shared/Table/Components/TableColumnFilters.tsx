@@ -1,5 +1,6 @@
 import type { RowData } from '@tanstack/react-table'
 
+import useTranslationStore from '../../../language/useTranslationStore'
 import type { TableColumnFiltersProps } from '../Types/table.types'
 import TableColumnFilterInput from './TableColumnFilterInput'
 
@@ -7,12 +8,16 @@ export default function TableColumnFilters<TData extends RowData>({
     headerGroup,
     filterConfigs,
 }: TableColumnFiltersProps<TData>) {
+    const { t } = useTranslationStore()
+
     return (
         <tr className="border-t border-border bg-surface">
             {headerGroup.headers.map((header) => {
                 const config = filterConfigs[header.column.id] ?? {
                     type: 'text',
-                    placeholder: `Filter ${String(header.column.columnDef.header ?? '')}…`,
+                    placeholder: t('table.filterColumnPlaceholder', {
+                        column: String(header.column.columnDef.header ?? ''),
+                    }),
                 }
 
                 return (

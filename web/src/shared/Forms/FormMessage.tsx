@@ -1,3 +1,4 @@
+import useTranslationStore from '../../language/useTranslationStore'
 import type { FormMessageProps } from './Types/form-component-props.types'
 
 const toneClassNames = {
@@ -7,12 +8,13 @@ const toneClassNames = {
 } as const
 
 export default function FormMessage({ children, tone }: FormMessageProps) {
+    const { t } = useTranslationStore()
     return (
         <p
             className={`mt-4 rounded-xl border p-[0.8rem] px-[0.9rem] text-[0.84rem] leading-[1.5] ${toneClassNames[tone]}`}
             role={tone === 'error' ? 'alert' : 'status'}
         >
-            {children}
+            {t(children, { defaultValue: children })}
         </p>
     )
 }

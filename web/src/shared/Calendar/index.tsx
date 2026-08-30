@@ -1,5 +1,6 @@
 import * as Popover from 'radix-ui/popover'
 
+import useTranslationStore from '../../language/useTranslationStore'
 import CalendarPopoverContent from './Components/CalendarPopoverContent'
 import CalendarTrigger from './Components/CalendarTrigger'
 import useDateRangeCalendarLogic from './Hooks/useDateRangeCalendarLogic'
@@ -8,12 +9,15 @@ import type { DateRangeCalendarProps } from './Types/date-range-calendar.types'
 export default function DateRangeCalendar({
     ariaLabel,
     className,
-    fromLabel = 'From',
+    fromLabel,
     onValueChange,
-    toLabel = 'To',
+    toLabel,
     value,
 }: DateRangeCalendarProps) {
+    const { t } = useTranslationStore()
     const { contentRef, state, handler } = useDateRangeCalendarLogic({ onValueChange, value })
+    const resolvedFromLabel = fromLabel ?? t('calendar.from')
+    const resolvedToLabel = toLabel ?? t('calendar.to')
 
     return (
         <Popover.Root open={state.open} onOpenChange={handler.handleOpenChange}>
@@ -28,10 +32,10 @@ export default function DateRangeCalendar({
             <CalendarPopoverContent
                 ariaLabel={ariaLabel}
                 contentRef={contentRef}
-                fromLabel={fromLabel}
+                fromLabel={resolvedFromLabel}
                 handler={handler}
                 state={state}
-                toLabel={toLabel}
+                toLabel={resolvedToLabel}
             />
         </Popover.Root>
     )
