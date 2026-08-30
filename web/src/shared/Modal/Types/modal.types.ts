@@ -18,7 +18,6 @@ export interface ConfirmDialogProps {
     readonly confirmLabel?: string
     readonly description: ReactNode
     readonly destructive?: boolean
-    readonly errorMessage?: ReactNode
     readonly isPending?: boolean
     readonly onConfirm: () => void | Promise<void>
     readonly onOpenChange: (open: boolean) => void

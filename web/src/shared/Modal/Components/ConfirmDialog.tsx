@@ -17,7 +17,6 @@ export function ConfirmDialog({
     destructive = false,
     isPending = false,
     onConfirm,
-    errorMessage,
 }: ConfirmDialogProps) {
     const { t } = useTranslationStore()
     const { handleConfirm } = useConfirmDialogLogic({ isPending, onConfirm })
@@ -51,17 +50,6 @@ export function ConfirmDialog({
                     </button>
                 </>
             }
-        >
-            {errorMessage ? (
-                <p
-                    role="alert"
-                    className="mb-4 rounded-xl border border-red-700/25 bg-danger-bg px-3.5 py-3 text-sm leading-relaxed text-danger-text"
-                >
-                    {typeof errorMessage === 'string'
-                        ? t(errorMessage, { defaultValue: errorMessage })
-                        : errorMessage}
-                </p>
-            ) : null}
-        </Modal>
+        />
     )
 }

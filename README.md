@@ -69,6 +69,13 @@ composes account identity, profile image, language, password, and security secti
 feature. Language/theme persistence remains in `web/src/server/UserSettings`, and account/security
 services remain in `web/src/server/Auth`. Reusable controls remain in `web/src/shared`.
 
+Action feedback uses the local toast components in `web/src/shared/Toast`, adapted from
+RentnerToasts and styled with the project's theme tokens. No private toast package is installed.
+Each public or authenticated layout owns its notification stack; changing users clears it.
+Toasts follow the current language, keep at most three messages, pause while hovered or focused,
+and support dismissal, swipe, and copying error messages. Field validation, permission notices,
+and persistent page/loading errors remain next to the affected content.
+
 ## Development
 
 Development requires Bun 1.4 or newer and Rust 1.85 or newer. PostgreSQL 18 or newer

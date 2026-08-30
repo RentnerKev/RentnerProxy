@@ -54,9 +54,11 @@ export function Modal({
                             <X aria-hidden="true" className="size-5" strokeWidth={1.8} />
                         </Dialog.Close>
                     </header>
-                    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 text-ink sm:px-6">
-                        {children}
-                    </div>
+                    {children != null ? (
+                        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 text-ink sm:px-6">
+                            {children}
+                        </div>
+                    ) : null}
                     {footer ? (
                         <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-surface-subtle px-5 py-4 sm:px-6">
                             {footer}
