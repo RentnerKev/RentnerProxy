@@ -1,5 +1,7 @@
 import { Link } from '@tanstack/react-router'
 
+import useTranslationStore from '../../language/useTranslationStore'
+
 import ApplicationNavigation from './Components/ApplicationNavigation'
 import ApplicationSidebarSurface from './Components/ApplicationSidebarSurface'
 import ApplicationTopbar from './Components/ApplicationTopbar'
@@ -18,8 +20,9 @@ export default function AuthenticatedShell({
     themeMode,
     user,
 }: AuthenticatedShellProps) {
+    const { t } = useTranslationStore()
     const navigation = useApplicationNavigationLogic()
-    const viewModel = getApplicationShellViewModel(user)
+    const viewModel = getApplicationShellViewModel(user, t)
     const layoutClassNames = getApplicationShellLayoutClassNames(
         navigation.state.isNavigationExpanded,
     )
@@ -37,7 +40,7 @@ export default function AuthenticatedShell({
                     <Link
                         to="/"
                         className={applicationShellClassNames.sidebar.logoLink}
-                        aria-label="RentnerProxy overview"
+                        aria-label={t('shell.overviewLink')}
                     >
                         <img
                             src="/rentnerproxy-logo-long.png"

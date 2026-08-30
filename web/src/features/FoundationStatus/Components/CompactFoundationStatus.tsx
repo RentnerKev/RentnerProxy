@@ -1,20 +1,21 @@
+import useTranslationStore from '../../../language/useTranslationStore'
 import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import type { FoundationStatusViewProps } from '../Types/foundation-status.types'
 
 export default function CompactFoundationStatus({ services }: FoundationStatusViewProps) {
+    const { t } = useTranslationStore()
     return (
         <section
             className="grid gap-6 rounded-[1.25rem] border border-border bg-surface p-[clamp(1.25rem,4vw,2rem)] shadow-panel"
-            aria-label="Foundation service status"
+            aria-label={t('foundation.serviceStatus')}
         >
             <div>
-                <p className={uiClassNames.technicalLabel}>Connection map</p>
+                <p className={uiClassNames.technicalLabel}>{t('foundation.connectionMap')}</p>
                 <h2 className="mt-[0.6rem] text-[clamp(1.3rem,3vw,1.8rem)] tracking-[-0.025em] text-ink-soft">
-                    Four services. One control path.
+                    {t('foundation.summary')}
                 </h2>
                 <p className="mt-[0.65rem] max-w-[40rem] leading-[1.55] text-muted">
-                    Each result is checked through the server boundary and refreshed every 30
-                    seconds.
+                    {t('foundation.refreshDescription')}
                 </p>
             </div>
             <div className="grid gap-3 shell:grid-cols-4" aria-live="polite">

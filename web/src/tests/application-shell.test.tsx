@@ -3,6 +3,8 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
+import { withLanguageRoot } from './Helpers/withTestLanguage'
+
 if (!GlobalRegistrator.isRegistered) {
     GlobalRegistrator.register()
 }
@@ -21,7 +23,7 @@ let activeRoot: Root | null = null
 async function render(element: ReactElement): Promise<HTMLElement> {
     const container = document.createElement('div')
     document.body.append(container)
-    activeRoot = createRoot(container)
+    activeRoot = withLanguageRoot(createRoot(container))
 
     await act(async () => {
         activeRoot?.render(<TooltipProvider>{element}</TooltipProvider>)

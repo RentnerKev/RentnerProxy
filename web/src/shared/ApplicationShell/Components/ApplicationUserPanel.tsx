@@ -1,6 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { LogOut, UserRound } from 'lucide-react'
 
+import useTranslationStore from '../../../language/useTranslationStore'
+
 import { UserAvatar } from '../../Avatar'
 import { applicationShellClassNames } from '../Styles/applicationShellClassNames'
 import type { ApplicationUserPanelProps } from '../Types/application-shell.types'
@@ -11,6 +13,7 @@ export default function ApplicationUserPanel({
     onLogout,
     user,
 }: ApplicationUserPanelProps) {
+    const { t } = useTranslationStore()
     const classNames = applicationShellClassNames.userPanel
 
     return (
@@ -31,7 +34,7 @@ export default function ApplicationUserPanel({
                 {canViewAccount ? (
                     <Link to="/account" className={classNames.accountAction}>
                         <UserRound aria-hidden="true" />
-                        Account
+                        {t('shell.account')}
                     </Link>
                 ) : null}
                 <button
@@ -42,7 +45,7 @@ export default function ApplicationUserPanel({
                     aria-busy={isLoggingOut}
                 >
                     <LogOut aria-hidden="true" />
-                    {isLoggingOut ? 'Signing out…' : 'Logout'}
+                    {t(isLoggingOut ? 'shell.signingOut' : 'shell.logout')}
                 </button>
             </div>
         </div>

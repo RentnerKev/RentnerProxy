@@ -1,5 +1,7 @@
 import { Moon, Sun } from 'lucide-react'
 
+import useTranslationStore from '../../../language/useTranslationStore'
+
 import type { ThemeModeSwitchProps } from '../Types/theme-component-props.types'
 import getThemeModeSwitchViewModel from '../Helpers/getThemeModeSwitchViewModel'
 
@@ -9,7 +11,8 @@ export default function ThemeModeSwitch({
     onToggle,
     themeMode,
 }: ThemeModeSwitchProps) {
-    const viewModel = getThemeModeSwitchViewModel(themeMode)
+    const { t } = useTranslationStore()
+    const viewModel = getThemeModeSwitchViewModel(themeMode, t)
 
     return (
         <div className="inline-flex flex-none items-center gap-[0.55rem]">
@@ -19,7 +22,7 @@ export default function ThemeModeSwitch({
                 className="group relative grid h-[2.05rem] w-16 grid-cols-2 items-center rounded-full border border-border-strong bg-surface-raised p-[0.2rem] text-muted shadow-[inset_0_1px_2px_rgb(2_10_11_/_12%)] transition-[border-color,background-color] duration-[180ms] hover:border-brand-500 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-brand-500 disabled:cursor-wait disabled:opacity-[0.68] motion-reduce:transition-none"
                 aria-busy={isSaving}
                 aria-checked={viewModel.isDark}
-                aria-label={`Switch to ${viewModel.targetLabel} mode`}
+                aria-label={t(viewModel.isDark ? 'theme.switchToLight' : 'theme.switchToDark')}
                 disabled={isSaving}
                 onClick={onToggle}
             >
@@ -42,7 +45,7 @@ export default function ThemeModeSwitch({
             </button>
             {errorMessage ? (
                 <span className="sr-only" role="alert">
-                    {errorMessage}
+                    {t(errorMessage, { defaultValue: errorMessage })}
                 </span>
             ) : null}
         </div>

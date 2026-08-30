@@ -1,8 +1,10 @@
+import type { Translate } from '../../../language/useTranslationStore'
 import type { FoundationHealth } from '../../../shared/Types/health.types'
 import type { FoundationStatusViewModel } from '../Types/foundation-status.types'
 
 export default function createFoundationStatusViewModel(
     health: FoundationHealth,
+    t: Translate,
 ): FoundationStatusViewModel {
     const controllerConnected = health.controller.state === 'connected'
     const databaseConnected = health.database.state === 'connected'
@@ -12,27 +14,27 @@ export default function createFoundationStatusViewModel(
         controllerConnected,
         services: [
             {
-                label: 'Web Application',
-                detail: 'Serving this foundation screen',
-                value: 'Running',
+                label: t('foundation.services.web.label'),
+                detail: t('foundation.services.web.detail'),
+                value: t('foundation.running'),
                 tone: 'positive',
             },
             {
-                label: 'Controller',
-                detail: 'Server-side health check',
-                value: controllerConnected ? 'Connected' : 'Unavailable',
+                label: t('foundation.services.controller.label'),
+                detail: t('foundation.services.controller.detail'),
+                value: t(controllerConnected ? 'foundation.connected' : 'foundation.unavailable'),
                 tone: controllerConnected ? 'positive' : 'warning',
             },
             {
-                label: 'Database',
-                detail: 'Server-side PostgreSQL health check',
-                value: databaseConnected ? 'Connected' : 'Unavailable',
+                label: t('foundation.services.database.label'),
+                detail: t('foundation.services.database.detail'),
+                value: t(databaseConnected ? 'foundation.connected' : 'foundation.unavailable'),
                 tone: databaseConnected ? 'positive' : 'warning',
             },
             {
-                label: 'Redis',
-                detail: 'Server-side Redis health check',
-                value: redisConnected ? 'Connected' : 'Unavailable',
+                label: t('foundation.services.redis.label'),
+                detail: t('foundation.services.redis.detail'),
+                value: t(redisConnected ? 'foundation.connected' : 'foundation.unavailable'),
                 tone: redisConnected ? 'positive' : 'warning',
             },
         ],

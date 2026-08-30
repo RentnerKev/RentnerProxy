@@ -1,8 +1,11 @@
 import { ArrowDown, ArrowRight } from 'lucide-react'
 
+import useTranslationStore from '../../../language/useTranslationStore'
+
 import type { ConnectionTraceProps } from '../Types/foundation-status.types'
 
 export default function ConnectionTrace({ connected }: ConnectionTraceProps) {
+    const { t } = useTranslationStore()
     const controllerNodeClassName = connected
         ? 'bg-brand-400 ring-brand-400/10'
         : 'bg-amber-300 ring-amber-300/10'
@@ -15,10 +18,10 @@ export default function ConnectionTrace({ connected }: ConnectionTraceProps) {
                 className={`absolute top-1/2 right-8 size-4 -translate-y-1/2 rounded-full border-[3px] border-navy-900 ring-8 xl:top-auto xl:right-auto xl:bottom-10 xl:left-1/2 xl:-translate-x-1/2 xl:translate-y-0 ${controllerNodeClassName}`}
             />
             <span className="absolute top-[calc(50%+1.3rem)] left-4 text-[0.62rem] font-bold tracking-[0.14em] text-mist-400 uppercase xl:top-0 xl:left-1/2 xl:-translate-x-1/2">
-                Web
+                {t('foundation.web')}
             </span>
             <span className="absolute top-[calc(50%+1.3rem)] right-0 text-[0.62rem] font-bold tracking-[0.14em] text-mist-400 uppercase xl:top-auto xl:right-auto xl:bottom-0 xl:left-1/2 xl:-translate-x-1/2 xl:translate-y-0">
-                Controller
+                {t('foundation.services.controller.label')}
             </span>
             <span className="absolute top-1/2 left-1/2 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/10 bg-navy-900 text-xs text-mist-400 shadow-lg shadow-black/20">
                 <ArrowRight className="size-3.5 xl:hidden" />

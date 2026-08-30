@@ -8,7 +8,7 @@ export interface ThemeModeSwitchProps {
 }
 
 export interface ThemeModeSwitchViewModel {
-    readonly currentLabel: 'Dark' | 'Light'
+    readonly currentLabel: string
     readonly isDark: boolean
     readonly targetLabel: 'dark' | 'light'
 }

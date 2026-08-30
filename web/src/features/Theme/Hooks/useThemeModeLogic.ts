@@ -33,7 +33,7 @@ export default function useThemeModeLogic(initialThemeMode: UserThemeMode) {
                 mutation.data && !mutation.data.success
                     ? mutation.data.message
                     : mutation.isError
-                      ? 'The theme could not be saved.'
+                      ? 'theme.saveFailed'
                       : null,
             isSaving: mutation.isPending,
             themeMode,

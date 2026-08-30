@@ -1,4 +1,5 @@
 import { PERMISSIONS } from '../../../config/permissions.config'
+import type { Translate } from '../../../language/useTranslationStore'
 import type {
     ApplicationShellViewModel,
     ApplicationUserSummary,
@@ -6,15 +7,16 @@ import type {
 
 export default function getApplicationShellViewModel(
     user: ApplicationUserSummary,
+    t: Translate,
 ): ApplicationShellViewModel {
     const permissionSet = new Set(user.permissions)
     const navigationItems: ApplicationShellViewModel['navigationItems'] = [
-        { to: '/', label: 'Overview', exact: true },
+        { to: '/', label: t('shell.overview'), exact: true },
         ...(permissionSet.has(PERMISSIONS.USERS_VIEW)
-            ? ([{ to: '/users', label: 'Users' }] as const)
+            ? ([{ to: '/users', label: t('shell.users') }] as const)
             : []),
         ...(permissionSet.has(PERMISSIONS.ROLES_VIEW)
-            ? ([{ to: '/roles', label: 'Roles' }] as const)
+            ? ([{ to: '/roles', label: t('shell.roles') }] as const)
             : []),
     ]
 
