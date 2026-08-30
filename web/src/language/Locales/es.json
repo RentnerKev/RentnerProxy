@@ -1,0 +1,696 @@
+{
+    "common": {
+        "appName": "RentnerProxy",
+        "cancel": "Cancelar",
+        "save": "Guardar cambios",
+        "saving": "Guardando…",
+        "retry": "Volver a intentar",
+        "loading": "Cargando…",
+        "requestFailed": "Los datos solicitados no están disponibles temporalmente. Vuelve a intentarlo.",
+        "confirm": "Confirmar",
+        "working": "Procesando…",
+        "closeDialog": "Cerrar diálogo",
+        "showPassword": "Mostrar contraseña",
+        "hidePassword": "Ocultar contraseña",
+        "openActions": "Abrir acciones",
+        "profilePicture": "Foto de perfil de {{name}}",
+        "backHome": "Volver al inicio"
+    },
+    "shell": {
+        "home": "Inicio de RentnerProxy",
+        "overviewLink": "Resumen de RentnerProxy",
+        "overview": "Resumen",
+        "users": "Usuarios",
+        "roles": "Roles",
+        "account": "Cuenta",
+        "logout": "Cerrar sesión",
+        "signingOut": "Cerrando sesión…",
+        "navigation": "Navegación de la aplicación",
+        "controlPlane": "Administración",
+        "collapseNavigation": "Contraer navegación",
+        "expandNavigation": "Expandir navegación"
+    },
+    "language": {
+        "title": "Idioma",
+        "description": "Elige el idioma de tu cuenta.",
+        "label": "Idioma de visualización",
+        "hint": "Selecciona un idioma y guarda los cambios para aplicarlo a tu cuenta. Las páginas públicas siempre están en inglés.",
+        "saving": "Guardando tu idioma…",
+        "saved": "Se ha guardado tu idioma.",
+        "saveFailed": "No se ha podido guardar tu idioma. Vuelve a intentarlo.",
+        "loadFailed": "No se ha podido cargar este idioma. Tu idioma actual no ha cambiado. Vuelve a intentarlo.",
+        "names": {
+            "en": "Inglés",
+            "de": "Alemán",
+            "es": "Español",
+            "fr": "Francés"
+        }
+    },
+    "theme": {
+        "light": "Claro",
+        "dark": "Oscuro",
+        "switchToLight": "Cambiar al modo claro",
+        "switchToDark": "Cambiar al modo oscuro",
+        "saveFailed": "No se ha podido guardar el tema."
+    },
+    "validation": {
+        "required": "Este campo es obligatorio.",
+        "minLength": "Introduce al menos {{count}} caracteres.",
+        "maxLength": "Introduce como máximo {{count}} caracteres.",
+        "minItems": "Selecciona al menos {{count}}.",
+        "maxItems": "Selecciona como máximo {{count}}.",
+        "numberMin": "Introduce un valor de al menos {{count}}.",
+        "numberMax": "Introduce un valor no superior a {{count}}.",
+        "emailInvalid": "Introduce una dirección de correo electrónico válida.",
+        "totpInvalid": "Introduce el código de seis dígitos de la aplicación de autenticación.",
+        "invalidValue": "Revisa este valor y vuelve a intentarlo.",
+        "selectOption": "Selecciona una opción disponible.",
+        "passwordMismatch": "Las contraseñas no coinciden."
+    },
+    "errors": {
+        "rateLimited": "Demasiadas solicitudes. Vuelve a intentarlo más tarde.",
+        "authUnavailable": "El servicio de autenticación no está disponible temporalmente.",
+        "authentication_required": "Tu sesión ha caducado. Inicia sesión de nuevo.",
+        "reauthentication_required": "Confirma tu identidad para continuar.",
+        "email_conflict": "Esta dirección de correo electrónico ya está en uso.",
+        "last_active_owner": "No se puede desactivar ni modificar al último propietario activo.",
+        "owner_required": "Solo un propietario puede realizar este cambio.",
+        "permission_denied": "No tienes permiso para realizar este cambio.",
+        "role_in_use": "Este rol sigue asignado a un usuario.",
+        "role_not_found": "El rol ya no existe.",
+        "system_role_immutable": "Los roles del sistema no se pueden modificar ni eliminar.",
+        "unknown_permission": "Uno o varios permisos seleccionados ya no están disponibles.",
+        "unknown_role": "Uno o varios roles seleccionados ya no están disponibles.",
+        "user_not_found": "El usuario ya no existe.",
+        "invalid_email": "Revisa la dirección de correo electrónico y vuelve a intentarlo.",
+        "invalid_input": "Revisa los valores introducidos y vuelve a intentarlo.",
+        "password_policy": "Revisa la contraseña y vuelve a intentarlo.",
+        "service_unavailable": "El servicio no está disponible temporalmente. Vuelve a intentarlo.",
+        "user_not_active": "Esta cuenta no está activa."
+    },
+    "system": {
+        "response": "Respuesta del sistema",
+        "recovery": "Regreso seguro a la aplicación",
+        "error": {
+            "eyebrow": "Interrupción inesperada",
+            "title": "Algo ha salido mal.",
+            "description": "Un error inesperado ha interrumpido esta página. Vuelve a intentarlo o regresa a la página de inicio.",
+            "nextStep": "Qué puedes hacer ahora",
+            "command": "Comando para la administración",
+            "code": "Código de error",
+            "reference": "Referencia del error",
+            "causes": {
+                "databaseSchema": {
+                    "title": "Se requiere actualizar la base de datos",
+                    "description": "La aplicación y el esquema de la base de datos no coinciden. Falta una tabla o un campo necesario.",
+                    "nextStep": "Un administrador debe aplicar las migraciones pendientes de la base de datos desde el directorio del proyecto. Después, vuelve a intentarlo."
+                },
+                "databaseBusy": {
+                    "title": "Límite de conexiones a la base de datos alcanzado",
+                    "description": "La base de datos no puede aceptar otra conexión en este momento.",
+                    "nextStep": "Vuelve a intentarlo en breve. Si el problema continúa, un administrador debe revisar el grupo de conexiones a la base de datos de la aplicación."
+                },
+                "databaseUnavailable": {
+                    "title": "Base de datos no disponible",
+                    "description": "RentnerProxy no puede conectarse a la base de datos configurada.",
+                    "nextStep": "Un administrador debe comprobar que PostgreSQL está en funcionamiento y que la configuración de conexión es correcta."
+                },
+                "databaseAuthentication": {
+                    "title": "Acceso a la base de datos rechazado",
+                    "description": "La base de datos ha rechazado las credenciales de acceso configuradas en la aplicación.",
+                    "nextStep": "Un administrador debe revisar la cuenta, la contraseña y los permisos de acceso configurados para la base de datos."
+                },
+                "sessionExpired": {
+                    "title": "Es necesario iniciar sesión",
+                    "description": "Tu sesión ya no es válida o esta página requiere que vuelvas a iniciar sesión.",
+                    "nextStep": "Regresa a la página de inicio, inicia sesión de nuevo y vuelve a abrir esta página."
+                },
+                "accessDenied": {
+                    "title": "Acceso denegado",
+                    "description": "Tu cuenta no tiene permiso para acceder a esta página o a sus datos.",
+                    "nextStep": "Regresa a la página de inicio. Si necesitas acceso, pide a un administrador que revise los permisos de tu cuenta."
+                },
+                "notFound": {
+                    "title": "No se encontraron los datos solicitados",
+                    "description": "Los datos solicitados ya no existen o ya no están disponibles.",
+                    "nextStep": "Regresa a la página de inicio y vuelve a abrir el elemento desde la lista actual."
+                },
+                "rateLimited": {
+                    "title": "Demasiadas solicitudes",
+                    "description": "Se ha alcanzado temporalmente el límite de solicitudes.",
+                    "nextStep": "Espera un momento antes de volver a intentarlo. Evita actualizar la página repetidamente."
+                },
+                "serviceUnavailable": {
+                    "title": "Un servicio necesario no está disponible",
+                    "description": "Un servicio necesario para cargar esta página no está disponible temporalmente.",
+                    "nextStep": "Vuelve a intentarlo en breve. Si el problema continúa, envía el código y la referencia del error a un administrador para que revise los registros del servidor."
+                },
+                "network": {
+                    "title": "Conexión interrumpida",
+                    "description": "No se ha podido completar la conexión con la aplicación.",
+                    "nextStep": "Comprueba tu conexión de red y vuelve a intentarlo. Si otras páginas funcionan, un administrador debe revisar el servidor de la aplicación."
+                },
+                "assetLoad": {
+                    "title": "No se pudieron cargar los archivos de la aplicación",
+                    "description": "No se ha podido descargar un archivo necesario de la aplicación o del idioma.",
+                    "nextStep": "Vuelve a intentarlo para recargar la página. Si el problema continúa, comprueba tu conexión y pide a un administrador que revise el despliegue."
+                },
+                "unexpected": {
+                    "title": "No se pudo cargar la página",
+                    "description": "Se ha producido un error inesperado. La aplicación no ha podido determinar una causa más concreta.",
+                    "nextStep": "Vuelve a intentarlo. Si el problema continúa, envía el código y cualquier referencia del error a un administrador para que revise los registros del navegador y del servidor."
+                }
+            }
+        },
+        "notFound": {
+            "eyebrow": "Página no disponible",
+            "title": "Página no encontrada.",
+            "description": "La página que buscas no existe o se ha movido. RentnerProxy sigue funcionando."
+        }
+    },
+    "foundation": {
+        "description": "Una comprobación rápida de las conexiones de todos los servicios de esta instancia de RentnerProxy.",
+        "loading": {
+            "title": "Comprobando conexiones",
+            "description": "RentnerProxy está comprobando el controlador, PostgreSQL y Redis."
+        },
+        "error": {
+            "title": "Comprobación de estado no disponible",
+            "description": "La aplicación está funcionando, pero no se ha podido actualizar el estado de los servicios."
+        },
+        "running": "En ejecución",
+        "connected": "Conectado",
+        "unavailable": "No disponible",
+        "local": "Servicios base · Local",
+        "status": "Estado de los servicios base",
+        "environment": "Entorno de desarrollo",
+        "environmentDescription": "Disponibilidad de los servicios locales, verificada desde el servidor.",
+        "serviceStatus": "Estado de los servicios base",
+        "footer": "Estado de los servicios base · Conexiones verificadas por el servidor",
+        "connectionMap": "Mapa de conexiones",
+        "summary": "Cuatro servicios. Un punto de control.",
+        "refreshDescription": "Cada resultado se verifica desde el servidor y se actualiza cada 30 segundos.",
+        "web": "Web",
+        "services": {
+            "web": {
+                "label": "Aplicación web",
+                "detail": "Muestra esta vista de los servicios"
+            },
+            "controller": {
+                "label": "Controlador",
+                "detail": "Comprobación de estado desde el servidor"
+            },
+            "database": {
+                "label": "Base de datos",
+                "detail": "Comprobación de PostgreSQL desde el servidor"
+            },
+            "redis": {
+                "label": "Redis",
+                "detail": "Comprobación de Redis desde el servidor"
+            }
+        }
+    },
+    "account": {
+        "page": {
+            "eyebrow": "Acceso personal",
+            "title": "Cuenta",
+            "description": "Gestiona tu foto de perfil, credenciales, idioma y seguridad de esta cuenta de RentnerProxy."
+        },
+        "identity": {
+            "signedInAs": "Sesión iniciada como"
+        },
+        "password": {
+            "sectionEyebrow": "Credenciales",
+            "title": "Cambiar contraseña",
+            "currentPassword": "Contraseña actual",
+            "newPassword": "Nueva contraseña",
+            "confirmNewPassword": "Confirmar nueva contraseña",
+            "changing": "Cambiando contraseña…",
+            "change": "Cambiar contraseña",
+            "success": {
+                "changed": "Contraseña cambiada. Se revocaron las demás sesiones."
+            },
+            "error": {
+                "update": "No se pudo cambiar la contraseña.",
+                "incorrectCurrentPassword": "La contraseña actual es incorrecta."
+            }
+        },
+        "profileImage": {
+            "sectionEyebrow": "Imagen personal",
+            "title": "Foto de perfil",
+            "description": "Elige una imagen JPEG, PNG o WebP. Puedes colocarla en un recorte circular antes de guardarla.",
+            "change": "Cambiar imagen",
+            "choose": "Elegir imagen",
+            "inputLabel": "Elegir foto de perfil",
+            "maximumSize": "Máximo 8 MB",
+            "noPermission": "No tienes permiso para actualizar esta foto de perfil.",
+            "crop": {
+                "title": "Recortar foto de perfil",
+                "description": "Mueve y amplía la imagen hasta que la vista previa circular quede bien.",
+                "areaLabel": "Área de recorte de la foto de perfil",
+                "zoom": "Ampliar",
+                "zoomLabel": "Ampliar foto de perfil",
+                "reset": "Restablecer posición",
+                "saving": "Guardando imagen…",
+                "save": "Guardar imagen"
+            },
+            "success": {
+                "updated": "Foto de perfil actualizada."
+            },
+            "error": {
+                "update": "No se pudo actualizar la foto de perfil.",
+                "open": "No se pudo abrir la imagen seleccionada.",
+                "unreadable": "El archivo seleccionado no es una imagen legible.",
+                "cropCreation": "No se pudo crear el recorte seleccionado.",
+                "cropRead": "No se pudo leer el recorte seleccionado.",
+                "invalidCrop": "Mueve o amplía la imagen para elegir un recorte válido.",
+                "unsupportedType": "Elige una imagen JPEG, PNG o WebP.",
+                "fileTooLarge": "Elige una imagen de menos de 8 MB.",
+                "invalidDimensions": "Elige una imagen entre 64 px y 40 megapíxeles.",
+                "unsupportedBrowser": "La edición de imágenes no es compatible con este navegador."
+            }
+        },
+        "security": {
+            "sectionEyebrow": "Protección de la cuenta",
+            "title": "Seguridad",
+            "loading": "Cargando configuración de seguridad",
+            "error": {
+                "unavailable": "La configuración de seguridad no está disponible temporalmente.",
+                "change": "No se pudo completar el cambio de seguridad. Inténtalo de nuevo."
+            }
+        },
+        "twoFactor": {
+            "title": "Autenticación de dos factores",
+            "description": "Protege los inicios de sesión con una aplicación de autenticación.",
+            "enabled": "Activada",
+            "disabled": "Desactivada",
+            "enable": "Activar autenticación de dos factores",
+            "disable": "Desactivar 2FA",
+            "regenerateRecoveryCodes": "Regenerar códigos de recuperación",
+            "recoveryCodesAvailable": "Códigos de recuperación disponibles: {{count}}",
+            "setup": {
+                "title": "Configurar aplicación de autenticación",
+                "description": "Escanea el código QR o introduce la clave de configuración en tu aplicación de autenticación.",
+                "verifyTitle": "Verificar autenticador",
+                "verifyDescription": "Introduce el código de seis dígitos de tu aplicación de autenticación.",
+                "step": "Paso {{current}} de 2",
+                "back": "Atrás",
+                "verifying": "Verificando…",
+                "verifyAndEnable": "Verificar y activar",
+                "continue": "Continuar",
+                "authenticatorCode": "Código del autenticador",
+                "qrCode": "Código QR de configuración del autenticador",
+                "manualKey": "¿No puedes escanear el código QR? Introduce esta clave de configuración manualmente:",
+                "keepOpen": "Mantén este cuadro de diálogo abierto hasta que el autenticador haya guardado la cuenta."
+            },
+            "success": {
+                "setupStarted": "Configuración de dos factores iniciada.",
+                "enabled": "Autenticación de dos factores activada.",
+                "disabled": "Autenticación de dos factores desactivada.",
+                "recoveryCodesRegenerated": "Códigos de recuperación regenerados."
+            },
+            "error": {
+                "setupStart": "No se pudo iniciar la autenticación de dos factores.",
+                "invalidCode": "El código del autenticador no es válido o ha caducado.",
+                "verify": "No se pudo verificar el código del autenticador.",
+                "notEnabled": "La autenticación de dos factores no está activada.",
+                "disable": "No se pudo desactivar la autenticación de dos factores.",
+                "recoveryCodes": "No se pudieron regenerar los códigos de recuperación.",
+                "setupUnavailable": "La configuración de dos factores ya no está disponible."
+            }
+        },
+        "passkeys": {
+            "title": "Claves de acceso",
+            "description": "Usa Windows Hello, Touch ID, llaves de seguridad o gestores de contraseñas.",
+            "add": "Añadir clave de acceso",
+            "empty": "Aún no se han añadido claves de acceso.",
+            "addedAt": "Añadida el {{date}}",
+            "lastUsedAt": "Último uso: {{date}}",
+            "unknownDate": "Fecha desconocida",
+            "rename": "Cambiar nombre",
+            "remove": "Eliminar",
+            "defaultName": "Clave de acceso",
+            "name": {
+                "addTitle": "Nombra esta clave de acceso",
+                "addDescription": "Elige un nombre reconocible antes de que el autenticador cree la clave de acceso.",
+                "renameTitle": "Cambiar nombre de la clave de acceso",
+                "renameDescription": "Elige un nombre que te ayude a reconocer este autenticador.",
+                "label": "Nombre de la clave de acceso",
+                "continue": "Continuar",
+                "save": "Guardar nombre"
+            },
+            "success": {
+                "registrationStarted": "Registro de clave de acceso iniciado.",
+                "added": "Clave de acceso añadida.",
+                "renamed": "Nombre de clave de acceso actualizado.",
+                "removed": "Clave de acceso eliminada."
+            },
+            "error": {
+                "registrationStart": "No se pudo iniciar el registro de la clave de acceso.",
+                "registrationVerification": "No se pudo verificar el registro de la clave de acceso.",
+                "registrationComplete": "No se pudo completar el registro de la clave de acceso.",
+                "registrationFailed": "El registro de la clave de acceso falló.",
+                "notFound": "La clave de acceso ya no existe.",
+                "rename": "No se pudo guardar el nombre de la clave de acceso.",
+                "remove": "No se pudo eliminar la clave de acceso."
+            }
+        },
+        "reauthentication": {
+            "title": "Confirmar este cambio de seguridad",
+            "description": "Vuelve a autenticarte para continuar. La sesión actual por sí sola no es suficiente.",
+            "currentPassword": "Contraseña actual",
+            "confirm": "Confirmar",
+            "usePasskey": "Usar una clave de acceso en su lugar",
+            "success": {
+                "confirmed": "Identidad confirmada.",
+                "passkeyStarted": "Verificación de clave de acceso iniciada."
+            },
+            "error": {
+                "failed": "La reautenticación falló.",
+                "incorrectPassword": "La contraseña es incorrecta.",
+                "passkeyStart": "No se pudo iniciar la reautenticación con clave de acceso.",
+                "passkeyVerification": "La verificación de la clave de acceso falló."
+            }
+        },
+        "recoveryCodes": {
+            "title": "Guardar tus códigos de recuperación",
+            "description": "Estos códigos se muestran una sola vez. Cada código puede utilizarse una vez.",
+            "copied": "Copiado",
+            "copyAll": "Copiar todo",
+            "saved": "He guardado mis códigos de recuperación"
+        },
+        "confirmation": {
+            "removePasskeyTitle": "¿Eliminar esta clave de acceso?",
+            "removePasskeyDescription": "“{{name}}” ya no estará disponible para iniciar sesión en tu cuenta.",
+            "disableTwoFactorTitle": "¿Desactivar autenticación de dos factores?",
+            "disableTwoFactorDescription": "Los inicios de sesión con contraseña ya no requerirán un código del autenticador.",
+            "regenerateRecoveryCodesTitle": "¿Regenerar códigos de recuperación?",
+            "regenerateRecoveryCodesDescription": "Tus códigos de recuperación actuales dejarán de funcionar inmediatamente.",
+            "removePasskey": "Eliminar clave de acceso",
+            "disableTwoFactor": "Desactivar 2FA",
+            "regenerateRecoveryCodes": "Regenerar códigos",
+            "applying": "Aplicando…"
+        },
+        "validation": {
+            "passwordsDoNotMatch": "Las contraseñas no coinciden.",
+            "authenticatorCode": "Introduce el código de seis dígitos de tu aplicación de autenticación."
+        }
+    },
+    "admin": {
+        "users": {
+            "validation": {
+                "rolesRequired": "Selecciona al menos un rol."
+            },
+            "page": {
+                "eyebrow": "Directorio de acceso",
+                "title": "Usuarios",
+                "description": "Invita a personas, asigna roles y revoca todas las sesiones activas cuando deba finalizar el acceso."
+            },
+            "messages": {
+                "rolesUnavailable": "Las opciones de roles no están disponibles. El perfil del usuario aún se puede editar.",
+                "rolesNotReady": "Las opciones de roles todavía no están disponibles.",
+                "created": "Usuario creado e invitación enviada.",
+                "updated": "Usuario actualizado.",
+                "disabled": "Usuario desactivado y sesiones revocadas."
+            },
+            "states": {
+                "unavailableTitle": "Usuarios no disponibles",
+                "unavailableDescription": "No se pudo cargar el directorio de acceso para esta sesión."
+            },
+            "actions": {
+                "add": "Añadir usuario",
+                "create": "Crear usuario",
+                "edit": "Editar",
+                "disable": "Desactivar",
+                "disabling": "Desactivando usuario…",
+                "retryRoles": "Reintentar roles",
+                "open": "Abrir acciones para {{name}}",
+                "none": "No hay acciones disponibles",
+                "ownerEdit": "Solo un propietario puede editar esta cuenta.",
+                "ownerDisable": "Solo un propietario puede desactivar esta cuenta.",
+                "selfDisable": "No puedes desactivar tu propia cuenta.",
+                "disableDescription": "Revocar sesiones y bloquear el inicio de sesión."
+            },
+            "confirm": {
+                "disableTitle": "¿Desactivar usuario?",
+                "disableDescription": "{{name}} no podrá iniciar sesión.",
+                "disableSessions": "Se revocarán todas las sesiones activas y los tokens de acceso pendientes."
+            },
+            "form": {
+                "displayName": "Nombre visible",
+                "optional": "opcional",
+                "email": "Dirección de correo",
+                "status": "Estado",
+                "pendingHint": "Las cuentas nuevas quedan pendientes hasta aceptar la invitación.",
+                "disabledHint": "Desactiva el acceso desde el menú de acciones del usuario.",
+                "roles": "Roles",
+                "rolesReadOnly": "Puedes actualizar los datos del perfil, pero no las asignaciones de roles de este usuario.",
+                "createDescription": "Crea la cuenta, asigna su acceso inicial y envía una invitación.",
+                "editDescription": "Actualiza la información de la cuenta y sus roles asignados.",
+                "creating": "Creando usuario…",
+                "editTitle": "Editar {{name}}"
+            },
+            "roles": {
+                "assign": "Asignar el rol {{role}}"
+            },
+            "status": {
+                "active": "Activo",
+                "pending": "Pendiente",
+                "disabled": "Desactivado"
+            },
+            "columns": {
+                "name": "Nombre",
+                "email": "Correo",
+                "status": "Estado",
+                "roles": "Roles",
+                "created": "Creado",
+                "actions": "Acciones"
+            },
+            "filters": {
+                "names": "Filtrar nombres…",
+                "email": "Filtrar correo…",
+                "allStatuses": "Todos los estados",
+                "allRoles": "Todos los roles",
+                "createdFrom": "Creado desde",
+                "createdTo": "Creado hasta"
+            },
+            "table": {
+                "eyebrow": "Directorio",
+                "count_one": "{{count}} usuario",
+                "count_other": "{{count}} usuarios",
+                "description": "Busca en el directorio, ajusta columnas individuales y administra el acceso desde una vista coherente.",
+                "searchLabel": "Buscar usuarios",
+                "searchPlaceholder": "Buscar nombre, correo, estado o rol…",
+                "loading": "Cargando usuarios",
+                "emptyTitle": "Aún no hay usuarios",
+                "emptyDescription": "Crea el primer usuario para empezar a construir el directorio de acceso.",
+                "filteredEmptyTitle": "Ningún usuario coincide con tus filtros",
+                "filteredEmptyDescription": "Ajusta la búsqueda o restablece los filtros activos para ver más usuarios.",
+                "itemLabel": "usuarios"
+            },
+            "errors": {
+                "loadFailed": "No se pudieron cargar los datos de usuarios.",
+                "inviteFailed": "No se pudo invitar al usuario.",
+                "updateFailed": "No se pudo actualizar el usuario.",
+                "disableFailed": "No se pudo desactivar el usuario.",
+                "saveFailed": "No se pudo guardar el usuario.",
+                "editableRequired": "Se necesita un usuario editable."
+            },
+            "item": "usuario"
+        },
+        "roles": {
+            "validation": {
+                "keyMin": "La clave del rol debe tener al menos 2 caracteres.",
+                "keyMax": "La clave del rol debe tener como máximo 100 caracteres.",
+                "keyPattern": "Usa letras minúsculas, números, puntos, guiones o guiones bajos.",
+                "nameRequired": "Introduce un nombre de rol.",
+                "nameMax": "El nombre del rol debe tener como máximo 100 caracteres.",
+                "descriptionMax": "La descripción debe tener como máximo 500 caracteres."
+            },
+            "messages": {
+                "created": "Rol creado.",
+                "updated": "Rol actualizado.",
+                "deleted": "Rol eliminado."
+            },
+            "page": {
+                "eyebrow": "Autorización",
+                "title": "Roles",
+                "description": "Crea conjuntos de permisos personalizados mientras los roles de sistema propietario, administrador y lector permanecen protegidos."
+            },
+            "states": {
+                "unavailableTitle": "Roles no disponibles",
+                "unavailableDescription": "No se pudieron cargar las definiciones de roles para esta sesión."
+            },
+            "actions": {
+                "add": "Añadir rol",
+                "create": "Crear rol",
+                "edit": "Editar",
+                "delete": "Eliminar",
+                "deleting": "Eliminando rol…",
+                "protected": "Protegido",
+                "open": "Abrir acciones para {{name}}",
+                "none": "No hay acciones disponibles",
+                "assignedTo_one": "Asignado a {{count}} usuario.",
+                "assignedTo_other": "Asignado a {{count}} usuarios.",
+                "removeDescription": "Eliminar permanentemente este rol personalizado."
+            },
+            "confirm": {
+                "deleteTitle": "¿Eliminar rol?",
+                "deleteDescription": "¿Seguro que quieres eliminar «{{name}}»?",
+                "deleteWarning": "Esta acción no se puede deshacer."
+            },
+            "form": {
+                "key": "Clave",
+                "keyHint": "Identificador estable en minúsculas, por ejemplo support.readonly.",
+                "name": "Nombre",
+                "description": "Descripción",
+                "permissions": "Permisos",
+                "permissionsReadOnly": "Puedes actualizar los detalles del rol, pero no este conjunto de permisos.",
+                "createDescription": "Crea un rol reutilizable y elige los permisos que concede.",
+                "editDescription": "Actualiza la definición del rol personalizado y su conjunto de permisos.",
+                "creating": "Creando rol…",
+                "editTitle": "Editar {{name}}"
+            },
+            "columns": {
+                "name": "Nombre",
+                "description": "Descripción",
+                "type": "Tipo",
+                "permissions": "Permisos",
+                "users": "Usuarios",
+                "created": "Creado",
+                "actions": "Acciones"
+            },
+            "filters": {
+                "nameOrKey": "Filtrar nombre o clave…",
+                "descriptions": "Filtrar descripciones…",
+                "allTypes": "Todos los tipos",
+                "createdFrom": "Creado desde",
+                "createdTo": "Creado hasta"
+            },
+            "type": {
+                "system": "Sistema",
+                "custom": "Personalizado"
+            },
+            "table": {
+                "eyebrow": "Registro",
+                "count_one": "{{count}} rol",
+                "count_other": "{{count}} roles",
+                "description": "Revisa las políticas del sistema y administra conjuntos de permisos personalizados desde una tabla común.",
+                "searchLabel": "Buscar roles",
+                "searchPlaceholder": "Buscar nombre, clave, descripción o permiso…",
+                "loading": "Cargando roles",
+                "emptyTitle": "Aún no hay roles",
+                "emptyDescription": "Crea el primer rol personalizado para definir una política de acceso reutilizable.",
+                "filteredEmptyTitle": "Ningún rol coincide con tus filtros",
+                "filteredEmptyDescription": "Ajusta la búsqueda o restablece los filtros activos para ver más roles.",
+                "itemLabel": "roles"
+            },
+            "cells": {
+                "permissionsAssigned_one": "{{count}} asignado",
+                "permissionsAssigned_other": "{{count}} asignados"
+            },
+            "permissions": {
+                "toggle": "Activar o desactivar el permiso {{permission}}"
+            },
+            "errors": {
+                "loadFailed": "No se pudieron cargar los datos de roles.",
+                "createFailed": "No se pudo crear el rol.",
+                "updateFailed": "No se pudo actualizar el rol.",
+                "deleteFailed": "No se pudo eliminar el rol.",
+                "saveFailed": "No se pudo guardar el rol.",
+                "editableRequired": "Se necesita un rol editable."
+            },
+            "item": "rol"
+        }
+    },
+    "permissions": {
+        "group": {
+            "app": "Aplicación",
+            "users": "Usuarios",
+            "roles": "Roles",
+            "account": "Cuenta"
+        },
+        "app": {
+            "access": "Acceso a la aplicación"
+        },
+        "users": {
+            "view": "Ver usuarios",
+            "create": "Crear usuarios",
+            "update": "Actualizar usuarios",
+            "disable": "Desactivar usuarios",
+            "assign_roles": "Asignar roles de usuario"
+        },
+        "roles": {
+            "view": "Ver roles",
+            "create": "Crear roles",
+            "update": "Actualizar roles",
+            "delete": "Eliminar roles",
+            "assign_permissions": "Asignar permisos de roles"
+        },
+        "account": {
+            "view": "Ver cuenta propia",
+            "update": "Actualizar cuenta propia"
+        }
+    },
+    "systemRoles": {
+        "owner": {
+            "name": "Propietario",
+            "description": "Rol integrado con todos los permisos registrados."
+        },
+        "admin": {
+            "name": "Administrador",
+            "description": "Rol integrado para administrar usuarios y roles personalizados sin privilegios de propietario."
+        },
+        "viewer": {
+            "name": "Lector",
+            "description": "Rol integrado para el acceso básico a la aplicación y a la cuenta."
+        }
+    },
+    "table": {
+        "filterColumn": "Filtrar columna",
+        "all": "Todos",
+        "filterEllipsis": "Filtrar…",
+        "filterByDateRange": "Filtrar por intervalo de fechas",
+        "filterColumnPlaceholder": "Filtrar {{column}}…",
+        "cell": "Celda {{column}}",
+        "sortBy": "Ordenar por {{column}}",
+        "loadingColumn": "{{label}}, columna {{column}}",
+        "filters": "Filtros",
+        "resetFilters": "Restablecer filtros",
+        "pagination": {
+            "range": "{{from}}–{{to}} de {{count}} {{item}}",
+            "rowsPerPage": "Filas por página",
+            "label": "Paginación de tabla",
+            "page": "Página {{page}} de {{count}}",
+            "first": "Ir a la primera página",
+            "previous": "Ir a la página anterior",
+            "next": "Ir a la página siguiente",
+            "last": "Ir a la última página"
+        }
+    },
+    "calendar": {
+        "dates": "Días del calendario",
+        "previousMonth": "Mostrar mes anterior",
+        "nextMonth": "Mostrar mes siguiente",
+        "clear": "Borrar",
+        "from": "Desde",
+        "to": "Hasta",
+        "anyDate": "Cualquier fecha",
+        "fromDate": "Desde {{date}}",
+        "range": "{{from}} – {{to}}",
+        "selectDate": "Seleccionar fecha",
+        "hint": {
+            "start": "Elija una fecha de inicio y una fecha final.",
+            "end": "Ahora elija una fecha final."
+        },
+        "weekdays": {
+            "mon": "Lun",
+            "tue": "Mar",
+            "wed": "Mié",
+            "thu": "Jue",
+            "fri": "Vie",
+            "sat": "Sáb",
+            "sun": "Dom"
+        }
+    }
+}

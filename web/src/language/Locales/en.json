@@ -1,0 +1,696 @@
+{
+    "common": {
+        "appName": "RentnerProxy",
+        "cancel": "Cancel",
+        "save": "Save changes",
+        "saving": "Saving…",
+        "retry": "Try again",
+        "loading": "Loading…",
+        "requestFailed": "The requested data is temporarily unavailable. Try again.",
+        "confirm": "Confirm",
+        "working": "Working…",
+        "closeDialog": "Close dialog",
+        "showPassword": "Show password",
+        "hidePassword": "Hide password",
+        "openActions": "Open actions",
+        "profilePicture": "{{name}}'s profile picture",
+        "backHome": "Back to home"
+    },
+    "shell": {
+        "home": "RentnerProxy home",
+        "overviewLink": "RentnerProxy overview",
+        "overview": "Overview",
+        "users": "Users",
+        "roles": "Roles",
+        "account": "Account",
+        "logout": "Logout",
+        "signingOut": "Signing out…",
+        "navigation": "Application navigation",
+        "controlPlane": "Control plane",
+        "collapseNavigation": "Collapse navigation",
+        "expandNavigation": "Expand navigation"
+    },
+    "language": {
+        "title": "Language",
+        "description": "Choose the language for your account.",
+        "label": "Display language",
+        "hint": "Select a language and save your changes to apply it to your account. Public pages always use English.",
+        "saving": "Saving your language…",
+        "saved": "Your language has been saved.",
+        "saveFailed": "Your language could not be saved. Try again.",
+        "loadFailed": "This language could not be loaded. Your current language has not changed. Try again.",
+        "names": {
+            "en": "English",
+            "de": "German",
+            "es": "Spanish",
+            "fr": "French"
+        }
+    },
+    "theme": {
+        "light": "Light",
+        "dark": "Dark",
+        "switchToLight": "Switch to light mode",
+        "switchToDark": "Switch to dark mode",
+        "saveFailed": "The theme could not be saved."
+    },
+    "validation": {
+        "required": "This field is required.",
+        "minLength": "Enter at least {{count}} characters.",
+        "maxLength": "Enter no more than {{count}} characters.",
+        "minItems": "Choose at least {{count}}.",
+        "maxItems": "Choose no more than {{count}}.",
+        "numberMin": "Enter a value of at least {{count}}.",
+        "numberMax": "Enter a value no greater than {{count}}.",
+        "emailInvalid": "Enter a valid email address.",
+        "totpInvalid": "Enter the six-digit authenticator code.",
+        "invalidValue": "Review this value and try again.",
+        "selectOption": "Select an available option.",
+        "passwordMismatch": "The passwords do not match."
+    },
+    "errors": {
+        "rateLimited": "Too many requests. Try again later.",
+        "authUnavailable": "Authentication service temporarily unavailable.",
+        "authentication_required": "Your session has expired. Sign in again.",
+        "reauthentication_required": "Confirm your identity to continue.",
+        "email_conflict": "This email address is already in use.",
+        "last_active_owner": "The last active owner cannot be disabled or changed.",
+        "owner_required": "Only an owner can make this change.",
+        "permission_denied": "You do not have permission to make this change.",
+        "role_in_use": "This role is still assigned to a user.",
+        "role_not_found": "The role no longer exists.",
+        "system_role_immutable": "System roles cannot be changed or deleted.",
+        "unknown_permission": "One or more selected permissions are no longer available.",
+        "unknown_role": "One or more selected roles are no longer available.",
+        "user_not_found": "The user no longer exists.",
+        "invalid_email": "Review the email address and try again.",
+        "invalid_input": "Review the submitted values and try again.",
+        "password_policy": "Review the password and try again.",
+        "service_unavailable": "The service is temporarily unavailable. Try again.",
+        "user_not_active": "This account is not active."
+    },
+    "system": {
+        "response": "System response",
+        "recovery": "Safe route recovery",
+        "error": {
+            "eyebrow": "Unexpected interruption",
+            "title": "Something went wrong.",
+            "description": "An unexpected error interrupted this page. Try again, or return to the homepage to continue from a safe route.",
+            "nextStep": "What to do next",
+            "command": "Command for the administrator",
+            "code": "Error code",
+            "reference": "Error reference",
+            "causes": {
+                "databaseSchema": {
+                    "title": "Database update required",
+                    "description": "The application and database schema do not match. A required table or field is missing.",
+                    "nextStep": "An administrator should apply pending database migrations from the project directory, then try again."
+                },
+                "databaseBusy": {
+                    "title": "Database connection limit reached",
+                    "description": "The database cannot accept another connection right now.",
+                    "nextStep": "Try again shortly. If this continues, an administrator should check the application's database connection pool."
+                },
+                "databaseUnavailable": {
+                    "title": "Database unavailable",
+                    "description": "RentnerProxy cannot connect to the configured database.",
+                    "nextStep": "An administrator should check that PostgreSQL is running and that the database connection settings are correct."
+                },
+                "databaseAuthentication": {
+                    "title": "Database access rejected",
+                    "description": "The database rejected the application's configured access credentials.",
+                    "nextStep": "An administrator should check the configured database account, password, and access permissions."
+                },
+                "sessionExpired": {
+                    "title": "Sign-in required",
+                    "description": "Your session is no longer valid, or this page requires a new sign-in.",
+                    "nextStep": "Return to the homepage, sign in again, and reopen this page."
+                },
+                "accessDenied": {
+                    "title": "Access denied",
+                    "description": "Your account does not have permission to access this page or its data.",
+                    "nextStep": "Return to the homepage. If you need access, ask an administrator to check your account's permissions."
+                },
+                "notFound": {
+                    "title": "Requested data not found",
+                    "description": "The requested data no longer exists or is no longer available.",
+                    "nextStep": "Return to the homepage and reopen the item from the current list."
+                },
+                "rateLimited": {
+                    "title": "Too many requests",
+                    "description": "The request limit has been reached temporarily.",
+                    "nextStep": "Wait a moment before trying again. Avoid repeatedly refreshing the page."
+                },
+                "serviceUnavailable": {
+                    "title": "A required service is unavailable",
+                    "description": "A service needed to load this page is temporarily unavailable.",
+                    "nextStep": "Try again shortly. If this continues, send the error code and reference to an administrator to check the server logs."
+                },
+                "network": {
+                    "title": "Connection interrupted",
+                    "description": "The connection to the application could not be completed.",
+                    "nextStep": "Check your network connection and try again. If other pages work, an administrator should check the application server."
+                },
+                "assetLoad": {
+                    "title": "Application files could not be loaded",
+                    "description": "A required application or language file could not be downloaded.",
+                    "nextStep": "Try again to reload the page. If this continues, check your connection and ask an administrator to check the deployment."
+                },
+                "unexpected": {
+                    "title": "The page could not be loaded",
+                    "description": "An unexpected error occurred. The application could not determine a more specific cause.",
+                    "nextStep": "Try again. If this continues, send the error code and any reference to an administrator to check the browser and server logs."
+                }
+            }
+        },
+        "notFound": {
+            "eyebrow": "Route unavailable",
+            "title": "Page not found.",
+            "description": "The page you are looking for does not exist or may have moved. The RentnerProxy foundation is still running."
+        }
+    },
+    "foundation": {
+        "description": "A compact connection check for every service that supports this RentnerProxy instance.",
+        "loading": {
+            "title": "Checking connections",
+            "description": "RentnerProxy is verifying the controller, PostgreSQL, and Redis."
+        },
+        "error": {
+            "title": "Health check unavailable",
+            "description": "The application is running, but the service status could not be refreshed."
+        },
+        "running": "Running",
+        "connected": "Connected",
+        "unavailable": "Unavailable",
+        "local": "Foundation · Local",
+        "status": "Foundation status",
+        "environment": "Development Environment",
+        "environmentDescription": "Local service readiness, verified through the server boundary.",
+        "serviceStatus": "Foundation service status",
+        "footer": "Foundation status · Connection state is server-verified",
+        "connectionMap": "Connection map",
+        "summary": "Four services. One control path.",
+        "refreshDescription": "Each result is checked through the server boundary and refreshed every 30 seconds.",
+        "web": "Web",
+        "services": {
+            "web": {
+                "label": "Web Application",
+                "detail": "Serving this foundation screen"
+            },
+            "controller": {
+                "label": "Controller",
+                "detail": "Server-side health check"
+            },
+            "database": {
+                "label": "Database",
+                "detail": "Server-side PostgreSQL health check"
+            },
+            "redis": {
+                "label": "Redis",
+                "detail": "Server-side Redis health check"
+            }
+        }
+    },
+    "account": {
+        "page": {
+            "eyebrow": "Personal access",
+            "title": "Account",
+            "description": "Manage your profile picture, credentials, language, and security for this RentnerProxy account."
+        },
+        "identity": {
+            "signedInAs": "Signed in as"
+        },
+        "password": {
+            "sectionEyebrow": "Credentials",
+            "title": "Change password",
+            "currentPassword": "Current password",
+            "newPassword": "New password",
+            "confirmNewPassword": "Confirm new password",
+            "changing": "Changing password…",
+            "change": "Change password",
+            "success": {
+                "changed": "Password changed. Other sessions were revoked."
+            },
+            "error": {
+                "update": "The password could not be changed.",
+                "incorrectCurrentPassword": "The current password is incorrect."
+            }
+        },
+        "profileImage": {
+            "sectionEyebrow": "Personal image",
+            "title": "Profile picture",
+            "description": "Choose a JPEG, PNG, or WebP image. You can position it in a round crop before saving.",
+            "change": "Change picture",
+            "choose": "Choose picture",
+            "inputLabel": "Choose profile picture",
+            "maximumSize": "Maximum 8 MB",
+            "noPermission": "You do not have permission to update this profile picture.",
+            "crop": {
+                "title": "Crop profile picture",
+                "description": "Move and zoom the image until the round preview looks right.",
+                "areaLabel": "Profile picture crop area",
+                "zoom": "Zoom",
+                "zoomLabel": "Zoom profile picture",
+                "reset": "Reset position",
+                "saving": "Saving picture…",
+                "save": "Save picture"
+            },
+            "success": {
+                "updated": "Profile picture updated."
+            },
+            "error": {
+                "update": "The profile picture could not be updated.",
+                "open": "The selected image could not be opened.",
+                "unreadable": "The selected file is not a readable image.",
+                "cropCreation": "The selected crop could not be created.",
+                "cropRead": "The selected crop could not be read.",
+                "invalidCrop": "Move or zoom the image to choose a valid crop.",
+                "unsupportedType": "Choose a JPEG, PNG, or WebP image.",
+                "fileTooLarge": "Choose an image smaller than 8 MB.",
+                "invalidDimensions": "Choose an image between 64 px and 40 megapixels.",
+                "unsupportedBrowser": "Image editing is not supported by this browser."
+            }
+        },
+        "security": {
+            "sectionEyebrow": "Account protection",
+            "title": "Security",
+            "loading": "Loading security settings",
+            "error": {
+                "unavailable": "Security settings are temporarily unavailable.",
+                "change": "The security change could not be completed. Try again."
+            }
+        },
+        "twoFactor": {
+            "title": "Two-factor authentication",
+            "description": "Protect sign-ins with an authenticator app.",
+            "enabled": "Enabled",
+            "disabled": "Disabled",
+            "enable": "Enable two-factor authentication",
+            "disable": "Disable 2FA",
+            "regenerateRecoveryCodes": "Regenerate recovery codes",
+            "recoveryCodesAvailable": "Recovery codes available: {{count}}",
+            "setup": {
+                "title": "Set up authenticator app",
+                "description": "Scan the QR code or enter the setup key in your authenticator app.",
+                "verifyTitle": "Verify authenticator",
+                "verifyDescription": "Enter the six-digit code from your authenticator app.",
+                "step": "Step {{current}} of 2",
+                "back": "Back",
+                "verifying": "Verifying…",
+                "verifyAndEnable": "Verify and enable",
+                "continue": "Continue",
+                "authenticatorCode": "Authenticator code",
+                "qrCode": "Authenticator setup QR code",
+                "manualKey": "Can’t scan the QR code? Enter this setup key manually:",
+                "keepOpen": "Keep this dialog open until your authenticator has saved the account."
+            },
+            "success": {
+                "setupStarted": "Two-factor setup started.",
+                "enabled": "Two-factor authentication enabled.",
+                "disabled": "Two-factor authentication disabled.",
+                "recoveryCodesRegenerated": "Recovery codes regenerated."
+            },
+            "error": {
+                "setupStart": "Two-factor authentication could not be started.",
+                "invalidCode": "The authenticator code is invalid or expired.",
+                "verify": "The authenticator code could not be verified.",
+                "notEnabled": "Two-factor authentication is not enabled.",
+                "disable": "Two-factor authentication could not be disabled.",
+                "recoveryCodes": "Recovery codes could not be regenerated.",
+                "setupUnavailable": "Two-factor setup is no longer available."
+            }
+        },
+        "passkeys": {
+            "title": "Passkeys",
+            "description": "Use Windows Hello, Touch ID, security keys, or password managers.",
+            "add": "Add passkey",
+            "empty": "No passkeys have been added yet.",
+            "addedAt": "Added {{date}}",
+            "lastUsedAt": "Last used {{date}}",
+            "unknownDate": "Unknown date",
+            "rename": "Rename",
+            "remove": "Remove",
+            "defaultName": "Passkey",
+            "name": {
+                "addTitle": "Name this passkey",
+                "addDescription": "Choose a recognizable name before your authenticator creates the passkey.",
+                "renameTitle": "Rename passkey",
+                "renameDescription": "Choose a name that helps you recognize this authenticator.",
+                "label": "Passkey name",
+                "continue": "Continue",
+                "save": "Save name"
+            },
+            "success": {
+                "registrationStarted": "Passkey registration started.",
+                "added": "Passkey added.",
+                "renamed": "Passkey renamed.",
+                "removed": "Passkey removed."
+            },
+            "error": {
+                "registrationStart": "Passkey registration could not be started.",
+                "registrationVerification": "Passkey registration could not be verified.",
+                "registrationComplete": "Passkey registration could not be completed.",
+                "registrationFailed": "Passkey registration failed.",
+                "notFound": "The passkey no longer exists.",
+                "rename": "Passkey name could not be saved.",
+                "remove": "Passkey could not be removed."
+            }
+        },
+        "reauthentication": {
+            "title": "Confirm this security change",
+            "description": "Reauthenticate to continue. Your existing session alone is not sufficient.",
+            "currentPassword": "Current password",
+            "confirm": "Confirm",
+            "usePasskey": "Use a passkey instead",
+            "success": {
+                "confirmed": "Identity confirmed.",
+                "passkeyStarted": "Passkey verification started."
+            },
+            "error": {
+                "failed": "Reauthentication failed.",
+                "incorrectPassword": "The password is incorrect.",
+                "passkeyStart": "Passkey reauthentication could not be started.",
+                "passkeyVerification": "Passkey verification failed."
+            }
+        },
+        "recoveryCodes": {
+            "title": "Save your recovery codes",
+            "description": "These codes are shown only once. Each code can be used one time.",
+            "copied": "Copied",
+            "copyAll": "Copy all",
+            "saved": "I saved my recovery codes"
+        },
+        "confirmation": {
+            "removePasskeyTitle": "Remove this passkey?",
+            "removePasskeyDescription": "“{{name}}” will no longer be available for signing in to your account.",
+            "disableTwoFactorTitle": "Disable two-factor authentication?",
+            "disableTwoFactorDescription": "Password sign-ins will no longer require an authenticator code.",
+            "regenerateRecoveryCodesTitle": "Regenerate recovery codes?",
+            "regenerateRecoveryCodesDescription": "Your existing recovery codes will stop working immediately.",
+            "removePasskey": "Remove passkey",
+            "disableTwoFactor": "Disable 2FA",
+            "regenerateRecoveryCodes": "Regenerate codes",
+            "applying": "Applying…"
+        },
+        "validation": {
+            "passwordsDoNotMatch": "Passwords do not match.",
+            "authenticatorCode": "Enter the six-digit code from your authenticator app."
+        }
+    },
+    "admin": {
+        "users": {
+            "page": {
+                "eyebrow": "Access directory",
+                "title": "Users",
+                "description": "Invite people, assign roles, and revoke every active session when access must end."
+            },
+            "messages": {
+                "rolesUnavailable": "Role options are unavailable. User profile editing remains available.",
+                "rolesNotReady": "Role options are not available yet.",
+                "created": "User created and invitation sent.",
+                "updated": "User updated.",
+                "disabled": "User disabled and sessions revoked."
+            },
+            "states": {
+                "unavailableTitle": "Users unavailable",
+                "unavailableDescription": "The access directory could not be loaded for this session."
+            },
+            "actions": {
+                "add": "Add user",
+                "create": "Create user",
+                "edit": "Edit",
+                "disable": "Disable",
+                "disabling": "Disabling user…",
+                "retryRoles": "Retry roles",
+                "open": "Open actions for {{name}}",
+                "none": "No actions available",
+                "ownerEdit": "Only an owner can edit this account.",
+                "ownerDisable": "Only an owner can disable this account.",
+                "selfDisable": "You cannot disable your own account.",
+                "disableDescription": "Revoke sessions and block sign-in."
+            },
+            "confirm": {
+                "disableTitle": "Disable user?",
+                "disableDescription": "{{name}} will be unable to sign in.",
+                "disableSessions": "Every active session and pending access token will be revoked."
+            },
+            "form": {
+                "displayName": "Display name",
+                "optional": "optional",
+                "email": "Email address",
+                "status": "Status",
+                "pendingHint": "New accounts remain pending until the invitation is accepted.",
+                "disabledHint": "Disable access from the user action menu.",
+                "roles": "Roles",
+                "rolesReadOnly": "You can update profile details, but not this user’s role assignments.",
+                "createDescription": "Create the account, assign its initial access, and send an invitation.",
+                "editDescription": "Update account information and assigned roles.",
+                "creating": "Creating user…",
+                "editTitle": "Edit {{name}}"
+            },
+            "roles": {
+                "assign": "Assign {{role}} role"
+            },
+            "status": {
+                "active": "Active",
+                "pending": "Pending",
+                "disabled": "Disabled"
+            },
+            "columns": {
+                "name": "Name",
+                "email": "Email",
+                "status": "Status",
+                "roles": "Roles",
+                "created": "Created",
+                "actions": "Actions"
+            },
+            "filters": {
+                "names": "Filter names…",
+                "email": "Filter email…",
+                "allStatuses": "All statuses",
+                "allRoles": "All roles",
+                "createdFrom": "Created from",
+                "createdTo": "Created to"
+            },
+            "table": {
+                "eyebrow": "Directory",
+                "count_one": "{{count}} user",
+                "count_other": "{{count}} users",
+                "description": "Search the directory, refine individual columns, and manage access from one consistent view.",
+                "searchLabel": "Search users",
+                "searchPlaceholder": "Search name, email, status, or role…",
+                "loading": "Loading users",
+                "emptyTitle": "No users yet",
+                "emptyDescription": "Create the first user to start building the access directory.",
+                "filteredEmptyTitle": "No users match your filters",
+                "filteredEmptyDescription": "Adjust the search or reset the active filters to see more users.",
+                "itemLabel": "users"
+            },
+            "errors": {
+                "loadFailed": "User data could not be loaded.",
+                "inviteFailed": "The user could not be invited.",
+                "updateFailed": "The user could not be updated.",
+                "disableFailed": "The user could not be disabled.",
+                "saveFailed": "The user could not be saved.",
+                "editableRequired": "An editable user is required."
+            },
+            "validation": {
+                "rolesRequired": "Select at least one role."
+            },
+            "item": "user"
+        },
+        "roles": {
+            "page": {
+                "eyebrow": "Authorization",
+                "title": "Roles",
+                "description": "Compose custom permission sets while the owner, administrator, and viewer system roles stay protected."
+            },
+            "states": {
+                "unavailableTitle": "Roles unavailable",
+                "unavailableDescription": "Role definitions could not be loaded for this session."
+            },
+            "messages": {
+                "created": "Role created.",
+                "updated": "Role updated.",
+                "deleted": "Role deleted."
+            },
+            "actions": {
+                "add": "Add role",
+                "create": "Create role",
+                "edit": "Edit",
+                "delete": "Delete",
+                "deleting": "Deleting role…",
+                "protected": "Protected",
+                "open": "Open actions for {{name}}",
+                "none": "No actions available",
+                "assignedTo_one": "Assigned to {{count}} user.",
+                "assignedTo_other": "Assigned to {{count}} users.",
+                "removeDescription": "Permanently remove this custom role."
+            },
+            "confirm": {
+                "deleteTitle": "Delete role?",
+                "deleteDescription": "Are you sure you want to delete “{{name}}”?",
+                "deleteWarning": "This action cannot be undone."
+            },
+            "form": {
+                "key": "Key",
+                "keyHint": "Stable lowercase identifier, for example support.readonly.",
+                "name": "Name",
+                "description": "Description",
+                "permissions": "Permissions",
+                "permissionsReadOnly": "You can update role details, but not this permission set.",
+                "createDescription": "Create a reusable role and choose the permissions it grants.",
+                "editDescription": "Update the custom role definition and its permission set.",
+                "creating": "Creating role…",
+                "editTitle": "Edit {{name}}"
+            },
+            "columns": {
+                "name": "Name",
+                "description": "Description",
+                "type": "Type",
+                "permissions": "Permissions",
+                "users": "Users",
+                "created": "Created",
+                "actions": "Actions"
+            },
+            "filters": {
+                "nameOrKey": "Filter name or key…",
+                "descriptions": "Filter descriptions…",
+                "allTypes": "All types",
+                "createdFrom": "Created from",
+                "createdTo": "Created to"
+            },
+            "type": {
+                "system": "System",
+                "custom": "Custom"
+            },
+            "table": {
+                "eyebrow": "Registry",
+                "count_one": "{{count}} role",
+                "count_other": "{{count}} roles",
+                "description": "Review system policies and manage custom permission sets through one shared table workflow.",
+                "searchLabel": "Search roles",
+                "searchPlaceholder": "Search name, key, description, or permission…",
+                "loading": "Loading roles",
+                "emptyTitle": "No roles yet",
+                "emptyDescription": "Create the first custom role to define a reusable access policy.",
+                "filteredEmptyTitle": "No roles match your filters",
+                "filteredEmptyDescription": "Adjust the search or reset the active filters to see more roles.",
+                "itemLabel": "roles"
+            },
+            "cells": {
+                "permissionsAssigned_one": "{{count}} assigned",
+                "permissionsAssigned_other": "{{count}} assigned"
+            },
+            "permissions": {
+                "toggle": "Toggle {{permission}} permission"
+            },
+            "errors": {
+                "loadFailed": "Role data could not be loaded.",
+                "createFailed": "The role could not be created.",
+                "updateFailed": "The role could not be updated.",
+                "deleteFailed": "The role could not be deleted.",
+                "saveFailed": "The role could not be saved.",
+                "editableRequired": "An editable role is required."
+            },
+            "validation": {
+                "keyMin": "Role key must contain at least 2 characters.",
+                "keyMax": "Role key must contain at most 100 characters.",
+                "keyPattern": "Use lowercase letters, numbers, dots, dashes, or underscores.",
+                "nameRequired": "Enter a role name.",
+                "nameMax": "Role name must contain at most 100 characters.",
+                "descriptionMax": "Description must contain at most 500 characters."
+            },
+            "item": "role"
+        }
+    },
+    "permissions": {
+        "group": {
+            "app": "Application",
+            "users": "Users",
+            "roles": "Roles",
+            "account": "Account"
+        },
+        "app": {
+            "access": "Application access"
+        },
+        "users": {
+            "view": "View users",
+            "create": "Create users",
+            "update": "Update users",
+            "disable": "Disable users",
+            "assign_roles": "Assign user roles"
+        },
+        "roles": {
+            "view": "View roles",
+            "create": "Create roles",
+            "update": "Update roles",
+            "delete": "Delete roles",
+            "assign_permissions": "Assign role permissions"
+        },
+        "account": {
+            "view": "View own account",
+            "update": "Update own account"
+        }
+    },
+    "systemRoles": {
+        "owner": {
+            "name": "Owner",
+            "description": "Built-in role with every registered permission."
+        },
+        "admin": {
+            "name": "Administrator",
+            "description": "Built-in role for user and custom-role administration without owner powers."
+        },
+        "viewer": {
+            "name": "Viewer",
+            "description": "Built-in role for basic application and account access."
+        }
+    },
+    "table": {
+        "filterColumn": "Filter column",
+        "all": "All",
+        "filterEllipsis": "Filter…",
+        "filterByDateRange": "Filter by date range",
+        "filterColumnPlaceholder": "Filter {{column}}…",
+        "cell": "{{column}} cell",
+        "sortBy": "Sort by {{column}}",
+        "loadingColumn": "{{label}}, column {{column}}",
+        "filters": "Filters",
+        "resetFilters": "Reset filters",
+        "pagination": {
+            "range": "{{from}}–{{to}} of {{count}} {{item}}",
+            "rowsPerPage": "Rows per page",
+            "label": "Table pagination",
+            "page": "Page {{page}} of {{count}}",
+            "first": "Go to first page",
+            "previous": "Go to previous page",
+            "next": "Go to next page",
+            "last": "Go to last page"
+        }
+    },
+    "calendar": {
+        "dates": "Calendar dates",
+        "previousMonth": "Show previous month",
+        "nextMonth": "Show next month",
+        "clear": "Clear",
+        "from": "From",
+        "to": "To",
+        "anyDate": "Any date",
+        "fromDate": "From {{date}}",
+        "range": "{{from}} – {{to}}",
+        "selectDate": "Select date",
+        "hint": {
+            "start": "Choose a start and end date.",
+            "end": "Now choose an end date."
+        },
+        "weekdays": {
+            "mon": "Mon",
+            "tue": "Tue",
+            "wed": "Wed",
+            "thu": "Thu",
+            "fri": "Fri",
+            "sat": "Sat",
+            "sun": "Sun"
+        }
+    }
+}
