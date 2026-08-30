@@ -62,6 +62,13 @@ a server function, so connection URLs, credentials, and internal network details
 returned to the client. Dependency outages do not crash the web process; authentication fails
 closed while Redis abuse protection is unavailable.
 
+Layout composition lives in `web/src/layout`, with application, authentication, and error-page
+shells plus the theme control under `layout/Components`. `web/src/features/UserSettings/index.tsx`
+composes account identity, profile image, language, password, and security sections from
+`UserSettings/Components`. Their hooks, types, validation, and server functions live in the same
+feature. Language/theme persistence remains in `web/src/server/UserSettings`, and account/security
+services remain in `web/src/server/Auth`. Reusable controls remain in `web/src/shared`.
+
 ## Development
 
 Development requires Bun 1.4 or newer and Rust 1.85 or newer. PostgreSQL 18 or newer
@@ -106,6 +113,30 @@ bun run check
 
 `bun run check` runs formatting, linting, TypeScript and Drizzle checks, tests, Clippy, Cargo
 checks, and both production builds.
+
+## Languages
+
+Authenticated pages support English, German, Spanish, and French. Users select their language
+in **Account → Language** and click **Save changes**. Selection alone does not save or switch the
+interface language. After a successful save, the preference is stored in `user_settings.language`
+and survives sign-out, reloads, and device changes. Existing users default to English. Apply the included database
+migration with `bun run db:migrate` before starting the updated application.
+
+The language directory follows TanstackDummy: one `useTranslationStore.ts` and `Locales/`.
+Loaders, supported languages, and flags are configured in `web/src/config/language.config.ts`.
+All authenticated interface copy lives in `web/src/language/Locales/{en,de,es,fr}.json`,
+including validation, status messages, dialogs, tables, and accessibility labels. Keys and
+interpolation variables must match across catalogs. Custom user data is not translated.
+
+Public routes always remain English and do not load these catalogs. After authentication,
+the server loads the user's selected catalog plus the English fallback. Each request and
+authenticated user has an independent i18next instance; there is no global language or
+local-storage preference shared between users. Regression tests cover these boundaries,
+catalog completeness, language switching, and persisted settings.
+
+To add a language, extend the supported languages and explicit loaders in
+`web/src/config/language.config.ts`, all catalogs, and the local flag assets. Also extend the
+`user_settings.language` database constraint through a migration.
 
 ## Scope
 
