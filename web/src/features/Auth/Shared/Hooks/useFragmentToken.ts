@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export default function useFragmentToken() {
     const [token, setToken] = useState<string | null | undefined>(undefined)
+    const hasReadFragment = useRef(false)
 
     useEffect(() => {
+        if (hasReadFragment.current) {
+            return
+        }
+
+        hasReadFragment.current = true
         const parameters = new URLSearchParams(window.location.hash.slice(1))
         const fragmentToken = parameters.get('token')
 

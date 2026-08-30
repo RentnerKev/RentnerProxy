@@ -37,6 +37,16 @@ export async function requireAnonymousRoute() {
     return state
 }
 
+export async function requireInitializedRoute() {
+    const state = await getAuthStateHandler()
+
+    if (state.setupRequired) {
+        throw redirect({ to: '/setup' })
+    }
+
+    return state
+}
+
 export async function requireAuthenticatedRoute() {
     const state = await getAuthStateHandler()
 

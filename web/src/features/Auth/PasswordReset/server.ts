@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 
+import { clearSessionCookie } from '../../../server/Auth/Access/cookies.server'
 import { consumePasswordResetService } from '../../../server/Auth/PasswordReset/password-reset.service'
 import {
     actionFailure,
@@ -19,12 +20,15 @@ export const resetPasswordHandler = createServerFn({ method: 'POST' })
                 password: data.password,
             })
 
-            return result.success
-                ? { success: true, message: 'Password updated. Sign in with your new password.' }
-                : {
-                      success: false,
-                      message: 'This password reset link is invalid or has expired.',
-                  }
+            if (!result.success) {
+                return {
+                    success: false,
+                    message: 'This password reset link is invalid or has expired.',
+                }
+            }
+
+            clearSessionCookie()
+            return { success: true, message: 'Password updated. Sign in with your new password.' }
         } catch (error) {
             return actionFailure(error, AUTH_UNAVAILABLE_MESSAGE)
         }
