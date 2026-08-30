@@ -2,6 +2,7 @@ import '@tanstack/react-start/server-only'
 
 import { createHash } from 'node:crypto'
 import { isIP } from 'node:net'
+import { z } from 'zod'
 
 import { getRedisClient } from './client.server'
 import type { RedisCommandClient } from './Types/redis.types'
@@ -18,6 +19,7 @@ const RATE_LIMIT_KEY_PREFIX = 'rentnerproxy:auth-rate-limit'
 const TEN_MINUTES_MS = 10 * 60 * 1_000
 const UNKNOWN_CLIENT_IP = 'unknown'
 const RATE_LIMIT_SCOPE_PATTERN = /^[a-z][a-z0-9-]{0,63}$/
+const USER_ID_SCHEMA = z.uuid()
 
 export type AuthRateLimitAction = 'invite' | 'login' | 'reset' | 'setup'
 export type AuthRateLimitDimension = 'email' | 'ip'
@@ -54,6 +56,16 @@ export interface AuthRateLimitResult {
     readonly ip: RateLimitResult
 }
 
+export interface LoginMfaRateLimitRequest {
+    readonly request: Request
+    readonly userId: string
+}
+
+export interface LoginMfaRateLimitResult {
+    readonly ip: RateLimitResult
+    readonly user: RateLimitResult
+}
+
 export interface AuthRateLimitDependencies extends RateLimitDependencies {
     readonly resolveClientIp: (request: Request) => string
     readonly warn: (reason: string) => void
@@ -77,6 +89,12 @@ export const AUTH_RATE_LIMITS = {
         email: { limit: 8, scope: 'invite-email', windowMs: TEN_MINUTES_MS },
     },
 } as const satisfies Record<AuthRateLimitAction, Record<AuthRateLimitDimension, RateLimitPolicy>>
+
+export const LOGIN_MFA_USER_RATE_LIMIT = {
+    limit: 8,
+    scope: 'login-user',
+    windowMs: TEN_MINUTES_MS,
+} as const satisfies RateLimitPolicy
 
 export class RateLimitError extends Error {
     readonly code = 'RATE_LIMITED'
@@ -123,6 +141,18 @@ export function createRateLimitKey(scope: string, identifier: string): string {
     return `${RATE_LIMIT_KEY_PREFIX}:${scope}:${hashRateLimitIdentifier(identifier)}`
 }
 
+// Database user IDs are non-secret UUIDs, not credentials or password hashes.
+export function createUserRateLimitKey(scope: string, userId: string): string {
+    const normalizedUserId = userId.trim().toLowerCase()
+    const parsedUserId = USER_ID_SCHEMA.safeParse(normalizedUserId)
+
+    if (!RATE_LIMIT_SCOPE_PATTERN.test(scope) || !parsedUserId.success) {
+        throw new RateLimitUnavailableError('invalid_policy')
+    }
+
+    return `${RATE_LIMIT_KEY_PREFIX}:${scope}:${parsedUserId.data}`
+}
+
 function parseRateLimitResponse(value: unknown): Readonly<{ count: number; ttlMs: number }> | null {
     if (!Array.isArray(value) || value.length !== 2) {
         return null
@@ -144,9 +174,10 @@ function parseRateLimitResponse(value: unknown): Readonly<{ count: number; ttlMs
     return { count, ttlMs }
 }
 
-export async function consumeRateLimit(
-    request: RateLimitRequest,
-    overrides: Partial<RateLimitDependencies> = {},
+async function consumeRateLimitKey(
+    request: RateLimitPolicy,
+    key: string,
+    overrides: Partial<RateLimitDependencies>,
 ): Promise<RateLimitResult> {
     if (
         !Number.isSafeInteger(request.limit) ||
@@ -170,7 +201,6 @@ export async function consumeRateLimit(
         throw new RateLimitUnavailableError('invalid_configuration')
     }
 
-    const key = createRateLimitKey(request.scope, request.identifier)
     let response: unknown
 
     try {
@@ -202,6 +232,17 @@ export async function consumeRateLimit(
     }
 }
 
+export async function consumeRateLimit(
+    request: RateLimitRequest,
+    overrides: Partial<RateLimitDependencies> = {},
+): Promise<RateLimitResult> {
+    return consumeRateLimitKey(
+        request,
+        createRateLimitKey(request.scope, request.identifier),
+        overrides,
+    )
+}
+
 export function getClientIp(request: Request): string {
     // A web Request has no peer socket address. Forwarded headers remain untrusted until the
     // deployment defines a trusted-proxy boundary, so forged X-Forwarded-For/X-Real-IP values
@@ -216,15 +257,14 @@ const defaultAuthDependencies: AuthRateLimitDependencies = {
     warn: (reason) => console.warn(`[auth-rate-limit] ${reason}`),
 }
 
-export async function enforceAuthRateLimit(
-    request: AuthRateLimitRequest,
-    overrides: Partial<AuthRateLimitDependencies> = {},
-): Promise<AuthRateLimitResult> {
-    const dependencies = { ...defaultAuthDependencies, ...overrides }
+function resolveRateLimitClientIp(
+    request: Request,
+    dependencies: AuthRateLimitDependencies,
+): string {
     let clientIp = UNKNOWN_CLIENT_IP
 
     try {
-        const resolvedClientIp = dependencies.resolveClientIp(request.request).trim()
+        const resolvedClientIp = dependencies.resolveClientIp(request).trim()
 
         if (isIP(resolvedClientIp)) {
             clientIp = resolvedClientIp
@@ -233,6 +273,16 @@ export async function enforceAuthRateLimit(
         // A missing peer address must not bypass the account limit or make forwarded headers
         // implicitly trusted. The shared unknown-IP bucket is the conservative fallback.
     }
+
+    return clientIp
+}
+
+export async function enforceAuthRateLimit(
+    request: AuthRateLimitRequest,
+    overrides: Partial<AuthRateLimitDependencies> = {},
+): Promise<AuthRateLimitResult> {
+    const dependencies = { ...defaultAuthDependencies, ...overrides }
+    const clientIp = resolveRateLimitClientIp(request.request, dependencies)
 
     if (clientIp === UNKNOWN_CLIENT_IP) {
         dependencies.warn('client IP unavailable; applying unknown-IP and email limits')
@@ -248,4 +298,30 @@ export async function enforceAuthRateLimit(
     ])
 
     return { email, ip }
+}
+
+export async function enforceLoginMfaRateLimit(
+    request: LoginMfaRateLimitRequest,
+    overrides: Partial<AuthRateLimitDependencies> = {},
+): Promise<LoginMfaRateLimitResult> {
+    const userKey = createUserRateLimitKey(LOGIN_MFA_USER_RATE_LIMIT.scope, request.userId)
+    const dependencies = { ...defaultAuthDependencies, ...overrides }
+    const clientIp = resolveRateLimitClientIp(request.request, dependencies)
+
+    if (clientIp === UNKNOWN_CLIENT_IP) {
+        dependencies.warn('client IP unavailable; applying unknown-IP and user limits')
+    }
+
+    const rateLimitDependencies: RateLimitDependencies = {
+        getClient: dependencies.getClient,
+    }
+    const [ip, user] = await Promise.all([
+        consumeRateLimit(
+            { ...AUTH_RATE_LIMITS.login.ip, identifier: clientIp },
+            rateLimitDependencies,
+        ),
+        consumeRateLimitKey(LOGIN_MFA_USER_RATE_LIMIT, userKey, rateLimitDependencies),
+    ])
+
+    return { ip, user }
 }

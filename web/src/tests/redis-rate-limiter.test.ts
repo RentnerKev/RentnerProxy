@@ -2,10 +2,14 @@ import { describe, expect, test } from 'bun:test'
 
 import {
     AUTH_RATE_LIMITS,
+    LOGIN_MFA_USER_RATE_LIMIT,
     RateLimitError,
     RateLimitUnavailableError,
     consumeRateLimit,
+    createRateLimitKey,
+    createUserRateLimitKey,
     enforceAuthRateLimit,
+    enforceLoginMfaRateLimit,
     getClientIp,
 } from '../server/redis/rate-limiter.service'
 import type { RedisCommandClient } from '../server/redis/Types/redis.types'
@@ -201,5 +205,148 @@ describe('enforceAuthRateLimit', () => {
         )
 
         expect(warnings).toEqual(['client IP unavailable; applying unknown-IP and email limits'])
+    })
+})
+
+describe('enforceLoginMfaRateLimit', () => {
+    const userId = '019b85a0-7c29-7000-8abc-0123456789ab'
+
+    test('keeps the hashed IP bucket and uses a normalized UUID in a separate user bucket', async () => {
+        const calls: Array<Readonly<{ args: string[]; command: string }>> = []
+        const warnings: string[] = []
+        const client = createClient((command, args) => {
+            calls.push({ args, command })
+            return Promise.resolve([1, 600_000])
+        })
+
+        const result = await enforceLoginMfaRateLimit(
+            {
+                request: new Request('http://127.0.0.1/login/two-factor'),
+                userId: ` ${userId.toUpperCase()} `,
+            },
+            {
+                getClient: () => client,
+                resolveClientIp: () => '203.0.113.7',
+                warn: (reason) => warnings.push(reason),
+            },
+        )
+
+        expect(LOGIN_MFA_USER_RATE_LIMIT).toEqual({
+            limit: 8,
+            scope: 'login-user',
+            windowMs: 600_000,
+        })
+        expect(calls.map((call) => call.args[2]).toSorted()).toEqual(
+            [
+                createRateLimitKey('login-ip', '203.0.113.7'),
+                `rentnerproxy:auth-rate-limit:login-user:${userId}`,
+            ].toSorted(),
+        )
+        expect(
+            calls.every((call) => call.command === 'EVAL' && call.args[3] === '600000'),
+        ).toBeTrue()
+        expect(result.ip).toMatchObject({ count: 1, limit: 20, remaining: 19 })
+        expect(result.user).toMatchObject({ count: 1, limit: 8, remaining: 7 })
+        expect(warnings).toEqual([])
+    })
+
+    test.each(['', 'user-1', 'person@example.com', `${userId}:other`])(
+        'rejects invalid user ID %s before issuing any Redis command',
+        async (invalidUserId) => {
+            const calls: string[] = []
+            const client = createClient((command) => {
+                calls.push(command)
+                return Promise.resolve([1, 600_000])
+            })
+            const error = await captureError(
+                enforceLoginMfaRateLimit(
+                    {
+                        request: new Request('http://127.0.0.1/login/two-factor'),
+                        userId: invalidUserId,
+                    },
+                    { getClient: () => client, resolveClientIp: () => '203.0.113.7' },
+                ),
+            )
+
+            expect(error).toBeInstanceOf(RateLimitUnavailableError)
+            expect(error).toMatchObject({ reason: 'invalid_policy' })
+            expect(calls).toEqual([])
+        },
+    )
+
+    test('rejects unsafe scopes for UUID keys', () => {
+        expect(() => createUserRateLimitKey('login-user:other', userId)).toThrow(
+            RateLimitUnavailableError,
+        )
+    })
+
+    test('ignores forwarded headers and retains the unknown-IP fallback', async () => {
+        const keys: string[] = []
+        const warnings: string[] = []
+        const client = createClient((_command, args) => {
+            if (args[2]) keys.push(args[2])
+            return Promise.resolve([1, 600_000])
+        })
+        await enforceLoginMfaRateLimit(
+            {
+                request: new Request('http://127.0.0.1/login/two-factor', {
+                    headers: { 'x-forwarded-for': '198.51.100.8' },
+                }),
+                userId,
+            },
+            { getClient: () => client, warn: (reason) => warnings.push(reason) },
+        )
+
+        expect(keys).toContain(createRateLimitKey('login-ip', 'unknown'))
+        expect(keys).toContain(createUserRateLimitKey('login-user', userId))
+        expect(keys.join(' ')).not.toContain('198.51.100.8')
+        expect(warnings).toEqual(['client IP unavailable; applying unknown-IP and user limits'])
+    })
+
+    test('keeps one per-user limit across different client IPs', async () => {
+        const counts = new Map<string, number>()
+        const client = createClient((_command, args) => {
+            const key = args[2] ?? ''
+            const count = (counts.get(key) ?? 0) + 1
+            counts.set(key, count)
+            return Promise.resolve([count, 600_000])
+        })
+        const outcomes = await Promise.allSettled(
+            Array.from({ length: 9 }, (_, index) =>
+                enforceLoginMfaRateLimit(
+                    { request: new Request('http://127.0.0.1/login/two-factor'), userId },
+                    { getClient: () => client, resolveClientIp: () => `203.0.113.${index + 1}` },
+                ),
+            ),
+        )
+        const failures = outcomes.filter(
+            (outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected',
+        )
+
+        expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(8)
+        expect(failures).toHaveLength(1)
+        expect(failures[0]?.reason).toBeInstanceOf(RateLimitError)
+        expect(failures[0]?.reason).toMatchObject({ count: 9, limit: 8, scope: 'login-user' })
+        expect(counts.get(createUserRateLimitKey('login-user', userId))).toBe(9)
+    })
+
+    test('still blocks an exhausted IP bucket', async () => {
+        const client = createClient((_command, args) =>
+            Promise.resolve([args[2]?.includes(':login-ip:') ? 21 : 1, 120_000]),
+        )
+        const error = await captureError(
+            enforceLoginMfaRateLimit(
+                { request: new Request('http://127.0.0.1/login/two-factor'), userId },
+                { getClient: () => client, resolveClientIp: () => '203.0.113.7' },
+            ),
+        )
+
+        expect(error).toBeInstanceOf(RateLimitError)
+        expect(error).toMatchObject({
+            count: 21,
+            limit: 20,
+            retryAfterMs: 120_000,
+            scope: 'login-ip',
+        })
     })
 })

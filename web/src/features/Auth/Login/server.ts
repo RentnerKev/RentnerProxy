@@ -22,6 +22,7 @@ import {
     actionFailure,
     AUTH_UNAVAILABLE_MESSAGE,
     enforceAnonymousSensitiveLimit,
+    enforceLoginMfaLimit,
     enforceSensitiveLimit,
     GENERIC_LOGIN_MESSAGE,
     type AuthActionResult,
@@ -111,7 +112,7 @@ export const completeTwoFactorLoginHandler = createServerFn({ method: 'POST' })
                     restartLogin: true,
                 }
             }
-            await enforceSensitiveLimit('login', challenge.userId)
+            await enforceLoginMfaLimit(challenge.userId)
             const result = data.code
                 ? await completeLoginMfaWithTotpService({ challengeId, token: data.code })
                 : await completeLoginMfaWithRecoveryCodeService({

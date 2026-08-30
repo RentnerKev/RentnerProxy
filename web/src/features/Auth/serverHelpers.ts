@@ -11,6 +11,7 @@ import {
 import { isAuthDomainError } from '../../server/Auth/Core/errors.server'
 import {
     enforceAuthRateLimit,
+    enforceLoginMfaRateLimit,
     RateLimitError,
     RateLimitUnavailableError,
     type AuthRateLimitAction,
@@ -137,6 +138,14 @@ export async function enforceSensitiveLimit(
     const request = getRequest()
     await enforceAuthRateLimit(
         { action, email: identifier, request },
+        { resolveClientIp: () => getRequestIP() ?? 'unknown' },
+    )
+}
+
+export async function enforceLoginMfaLimit(userId: string): Promise<void> {
+    const request = getRequest()
+    await enforceLoginMfaRateLimit(
+        { request, userId },
         { resolveClientIp: () => getRequestIP() ?? 'unknown' },
     )
 }
