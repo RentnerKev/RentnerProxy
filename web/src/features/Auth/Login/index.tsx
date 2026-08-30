@@ -1,12 +1,9 @@
 import { Link } from '@tanstack/react-router'
-
 import AuthShell from '../../../shared/AuthShell'
 import LoginForm from './Components/LoginForm'
 import useLoginLogic from './Hooks/useLoginLogic'
-
 export default function LoginPage() {
-    const { state } = useLoginLogic()
-
+    const { state, handler } = useLoginLogic()
     return (
         <AuthShell
             eyebrow="Secure access"
@@ -18,7 +15,7 @@ export default function LoginPage() {
                 </>
             }
         >
-            <LoginForm state={state} />
+            <LoginForm state={state} onPasskeyLogin={handler.handlePasskeyLogin} />
         </AuthShell>
     )
 }

@@ -6,6 +6,11 @@ import {
     credentialPasswordSchema,
     newPasswordSchema,
 } from '../Shared/validation'
+import {
+    authenticationResponseSchema,
+    opaqueAuthChallengeSchema,
+    registrationResponseSchema,
+} from '../Shared/webauthn.validation'
 
 export const changePasswordInputSchema = z
     .object({
@@ -14,10 +19,40 @@ export const changePasswordInputSchema = z
         confirmPassword: z.string(),
     })
     .superRefine(addPasswordConfirmationIssue)
-
 export const updateProfileImageInputSchema = z.object({
     imageDataUrl: z
         .string()
         .max(PROFILE_IMAGE_MAX_DATA_URL_LENGTH)
         .regex(/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/),
+})
+
+export const emptySecurityInputSchema = z.object({})
+export const beginPasskeyReauthenticationInputSchema = emptySecurityInputSchema
+export const reauthenticatePasswordInputSchema = z.object({
+    credential: z.string().min(1).max(256),
+})
+export const totpCodeSchema = z
+    .string()
+    .regex(/^\d{6}$/, 'Enter the six-digit code from your authenticator app.')
+export const totpSetupFormSchema = z.object({ code: totpCodeSchema })
+export const confirmTotpSetupInputSchema = z.object({
+    challengeId: opaqueAuthChallengeSchema,
+    code: totpCodeSchema,
+})
+export const disableTotpInputSchema = emptySecurityInputSchema
+export const renamePasskeyInputSchema = z.object({
+    passkeyId: z.string().uuid(),
+    name: z.string().trim().min(1).max(100),
+})
+export const removePasskeyInputSchema = z.object({
+    passkeyId: z.string().uuid(),
+})
+export const finishPasskeyRegistrationInputSchema = z.object({
+    challengeId: opaqueAuthChallengeSchema,
+    name: z.string().trim().min(1).max(100).optional(),
+    response: registrationResponseSchema,
+})
+export const finishPasskeyReauthenticationInputSchema = z.object({
+    challengeId: opaqueAuthChallengeSchema,
+    response: authenticationResponseSchema,
 })

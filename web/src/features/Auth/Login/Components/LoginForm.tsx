@@ -1,6 +1,5 @@
 import { Link } from '@tanstack/react-router'
 import type { ChangeEvent } from 'react'
-
 import FieldError from '../../../../shared/Forms/FieldError'
 import FormMessage from '../../../../shared/Forms/FormMessage'
 import PasswordInput from '../../../../shared/Forms/PasswordInput'
@@ -11,8 +10,7 @@ import {
     emailSchema,
     getValidationMessage,
 } from '../../Shared/validation'
-
-export default function LoginForm({ state }: LoginFormProps) {
+export default function LoginForm({ state, onPasskeyLogin }: LoginFormProps) {
     return (
         <form
             className={uiClassNames.form.stack}
@@ -25,9 +23,7 @@ export default function LoginForm({ state }: LoginFormProps) {
         >
             <state.form.Field
                 name="email"
-                validators={{
-                    onBlur: ({ value }) => getValidationMessage(emailSchema, value),
-                }}
+                validators={{ onBlur: ({ value }) => getValidationMessage(emailSchema, value) }}
             >
                 {(field) => (
                     <div className={uiClassNames.form.field}>
@@ -86,7 +82,10 @@ export default function LoginForm({ state }: LoginFormProps) {
             {state.result && !state.result.success ? (
                 <FormMessage tone="error">{state.result.message}</FormMessage>
             ) : null}
-            {state.isError ? (
+            {state.passkeyResult && !state.passkeyResult.success ? (
+                <FormMessage tone="error">{state.passkeyResult.message}</FormMessage>
+            ) : null}
+            {state.isError || state.isPasskeyError ? (
                 <FormMessage tone="error">
                     Authentication service temporarily unavailable.
                 </FormMessage>
@@ -98,12 +97,22 @@ export default function LoginForm({ state }: LoginFormProps) {
                     <button
                         type="submit"
                         className={uiClassNames.button.primary}
-                        disabled={!canSubmit || isSubmitting || state.isPending}
+                        disabled={
+                            !canSubmit || isSubmitting || state.isPending || state.isPasskeyPending
+                        }
                     >
                         {isSubmitting || state.isPending ? 'Signing in…' : 'Sign in'}
                     </button>
                 )}
             </state.form.Subscribe>
+            <button
+                type="button"
+                className={uiClassNames.button.secondary}
+                onClick={onPasskeyLogin}
+                disabled={state.isPending || state.isPasskeyPending}
+            >
+                {state.isPasskeyPending ? 'Checking passkey…' : 'Sign in with passkey'}
+            </button>
         </form>
     )
 }

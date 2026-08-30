@@ -21,6 +21,10 @@ export interface AuthActionResult {
     readonly message: string
 }
 
+export interface AuthActionFailureResult extends AuthActionResult {
+    readonly success: false
+}
+
 export const AUTH_UNAVAILABLE_MESSAGE = 'Authentication service temporarily unavailable.'
 export const GENERIC_LOGIN_MESSAGE = 'Invalid email or password.'
 export const GENERIC_RESET_MESSAGE =
@@ -38,6 +42,7 @@ function setDomainErrorStatus(error: unknown): void {
         case 'authentication_required':
             setResponseStatus(401)
             return
+        case 'reauthentication_required':
         case 'permission_denied':
         case 'owner_required':
             setResponseStatus(403)
@@ -73,6 +78,8 @@ function getDomainErrorMessage(error: unknown, fallback: string): string {
     switch (error.code) {
         case 'authentication_required':
             return 'Your session has expired. Sign in again.'
+        case 'reauthentication_required':
+            return 'Confirm your identity to continue.'
         case 'email_conflict':
             return 'This email address is already in use.'
         case 'last_active_owner':
@@ -102,7 +109,7 @@ function getDomainErrorMessage(error: unknown, fallback: string): string {
     }
 }
 
-export function actionFailure(error: unknown, fallback: string): AuthActionResult {
+export function actionFailure(error: unknown, fallback: string): AuthActionFailureResult {
     if (error instanceof RateLimitError) {
         setResponseStatus(429)
         setResponseHeader('Retry-After', String(Math.max(1, Math.ceil(error.retryAfterMs / 1_000))))
@@ -131,6 +138,22 @@ export async function enforceSensitiveLimit(
     await enforceAuthRateLimit(
         { action, email: identifier, request },
         { resolveClientIp: () => getRequestIP() ?? 'unknown' },
+    )
+}
+
+export async function enforceAnonymousSensitiveLimit(
+    action: AuthRateLimitAction,
+    scope: string,
+): Promise<void> {
+    const request = getRequest()
+    const clientIp = getRequestIP() ?? 'unknown'
+    await enforceAuthRateLimit(
+        {
+            action,
+            email: `${scope}:${clientIp}`,
+            request,
+        },
+        { resolveClientIp: () => clientIp },
     )
 }
 

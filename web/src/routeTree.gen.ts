@@ -20,6 +20,7 @@ import { Route as PublicForgotPasswordRouteImport } from './routes/_public/forgo
 import { Route as PublicLoginRouteImport } from './routes/_public/login'
 import { Route as PublicResetPasswordRouteImport } from './routes/_public/reset-password'
 import { Route as PublicSetupRouteImport } from './routes/_public/setup'
+import { Route as PublicLoginTwoFactorRouteImport } from './routes/_public/login.two-factor'
 import { Route as MediaAvatarsUserIdRouteImport } from './routes/media/avatars/$userId'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -75,6 +76,11 @@ const PublicSetupRoute = PublicSetupRouteImport.update({
   path: '/setup',
   getParentRoute: () => PublicRouteRoute,
 } as any)
+const PublicLoginTwoFactorRoute = PublicLoginTwoFactorRouteImport.update({
+  id: '/two-factor',
+  path: '/two-factor',
+  getParentRoute: () => PublicLoginRoute,
+} as any)
 const MediaAvatarsUserIdRoute = MediaAvatarsUserIdRouteImport.update({
   id: '/media/avatars/$userId',
   path: '/media/avatars/$userId',
@@ -88,9 +94,10 @@ export interface FileRoutesByFullPath {
   '/users': typeof AuthenticatedUsersRoute
   '/accept-invite': typeof PublicAcceptInviteRoute
   '/forgot-password': typeof PublicForgotPasswordRoute
-  '/login': typeof PublicLoginRoute
+  '/login': typeof PublicLoginRouteWithChildren
   '/reset-password': typeof PublicResetPasswordRoute
   '/setup': typeof PublicSetupRoute
+  '/login/two-factor': typeof PublicLoginTwoFactorRoute
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
 }
 export interface FileRoutesByTo {
@@ -100,9 +107,10 @@ export interface FileRoutesByTo {
   '/users': typeof AuthenticatedUsersRoute
   '/accept-invite': typeof PublicAcceptInviteRoute
   '/forgot-password': typeof PublicForgotPasswordRoute
-  '/login': typeof PublicLoginRoute
+  '/login': typeof PublicLoginRouteWithChildren
   '/reset-password': typeof PublicResetPasswordRoute
   '/setup': typeof PublicSetupRoute
+  '/login/two-factor': typeof PublicLoginTwoFactorRoute
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
 }
 export interface FileRoutesById {
@@ -114,10 +122,11 @@ export interface FileRoutesById {
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_public/accept-invite': typeof PublicAcceptInviteRoute
   '/_public/forgot-password': typeof PublicForgotPasswordRoute
-  '/_public/login': typeof PublicLoginRoute
+  '/_public/login': typeof PublicLoginRouteWithChildren
   '/_public/reset-password': typeof PublicResetPasswordRoute
   '/_public/setup': typeof PublicSetupRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_public/login/two-factor': typeof PublicLoginTwoFactorRoute
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
 }
 export interface FileRouteTypes {
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/setup'
+    | '/login/two-factor'
     | '/media/avatars/$userId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/setup'
+    | '/login/two-factor'
     | '/media/avatars/$userId'
   id:
     | '__root__'
@@ -158,6 +169,7 @@ export interface FileRouteTypes {
     | '/_public/reset-password'
     | '/_public/setup'
     | '/_authenticated/'
+    | '/_public/login/two-factor'
     | '/media/avatars/$userId'
   fileRoutesById: FileRoutesById
 }
@@ -246,6 +258,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicSetupRouteImport
       parentRoute: typeof PublicRouteRoute
     }
+    '/_public/login/two-factor': {
+      id: '/_public/login/two-factor'
+      path: '/two-factor'
+      fullPath: '/login/two-factor'
+      preLoaderRoute: typeof PublicLoginTwoFactorRouteImport
+      parentRoute: typeof PublicLoginRoute
+    }
     '/media/avatars/$userId': {
       id: '/media/avatars/$userId'
       path: '/media/avatars/$userId'
@@ -273,10 +292,22 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface PublicLoginRouteChildren {
+  PublicLoginTwoFactorRoute: typeof PublicLoginTwoFactorRoute
+}
+
+const PublicLoginRouteChildren: PublicLoginRouteChildren = {
+  PublicLoginTwoFactorRoute: PublicLoginTwoFactorRoute,
+}
+
+const PublicLoginRouteWithChildren = PublicLoginRoute._addFileChildren(
+  PublicLoginRouteChildren,
+)
+
 interface PublicRouteRouteChildren {
   PublicAcceptInviteRoute: typeof PublicAcceptInviteRoute
   PublicForgotPasswordRoute: typeof PublicForgotPasswordRoute
-  PublicLoginRoute: typeof PublicLoginRoute
+  PublicLoginRoute: typeof PublicLoginRouteWithChildren
   PublicResetPasswordRoute: typeof PublicResetPasswordRoute
   PublicSetupRoute: typeof PublicSetupRoute
 }
@@ -284,7 +315,7 @@ interface PublicRouteRouteChildren {
 const PublicRouteRouteChildren: PublicRouteRouteChildren = {
   PublicAcceptInviteRoute: PublicAcceptInviteRoute,
   PublicForgotPasswordRoute: PublicForgotPasswordRoute,
-  PublicLoginRoute: PublicLoginRoute,
+  PublicLoginRoute: PublicLoginRouteWithChildren,
   PublicResetPasswordRoute: PublicResetPasswordRoute,
   PublicSetupRoute: PublicSetupRoute,
 }
