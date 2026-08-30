@@ -2,7 +2,6 @@ import { Link } from '@tanstack/react-router'
 import type { ChangeEvent } from 'react'
 
 import FieldError from '../../../../shared/Forms/FieldError'
-import FormMessage from '../../../../shared/Forms/FormMessage'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { TwoFactorLoginFormProps } from '../Types/login-component-props.types'
 
@@ -60,9 +59,6 @@ export default function TwoFactorLoginForm({
                     </state.form.Field>
                 )}
             </state.form.Subscribe>
-            {state.errorMessage ? (
-                <FormMessage tone="error">{state.errorMessage}</FormMessage>
-            ) : null}
             <state.form.Subscribe
                 selector={(formState) =>
                     [formState.canSubmit, formState.isSubmitting, formState.values.mode] as const

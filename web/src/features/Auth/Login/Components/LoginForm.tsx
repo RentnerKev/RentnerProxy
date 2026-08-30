@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import type { ChangeEvent } from 'react'
 import FieldError from '../../../../shared/Forms/FieldError'
-import FormMessage from '../../../../shared/Forms/FormMessage'
 import PasswordInput from '../../../../shared/Forms/PasswordInput'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { LoginFormProps } from '../Types/login-component-props.types'
@@ -79,17 +78,6 @@ export default function LoginForm({ state, onPasskeyLogin }: LoginFormProps) {
                     </div>
                 )}
             </state.form.Field>
-            {state.result && !state.result.success ? (
-                <FormMessage tone="error">{state.result.message}</FormMessage>
-            ) : null}
-            {state.passkeyResult && !state.passkeyResult.success ? (
-                <FormMessage tone="error">{state.passkeyResult.message}</FormMessage>
-            ) : null}
-            {state.isError || state.isPasskeyError ? (
-                <FormMessage tone="error">
-                    Authentication service temporarily unavailable.
-                </FormMessage>
-            ) : null}
             <state.form.Subscribe
                 selector={(formState) => [formState.canSubmit, formState.isSubmitting] as const}
             >

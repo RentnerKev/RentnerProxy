@@ -2,6 +2,7 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 
+import useToast from '../../../../shared/Toast/Hooks/useToast'
 import { completeTwoFactorLoginHandler, getTwoFactorChallengeStatusHandler } from '../server'
 import type { TwoFactorLoginFormValues, TwoFactorLoginMode } from '../Types/login-security.types'
 import {
@@ -13,6 +14,7 @@ import {
 export default function useTwoFactorLoginLogic() {
     const navigate = useNavigate()
     const router = useRouter()
+    const toast = useToast()
     const status = useQuery({
         queryKey: ['auth', 'two-factor-challenge'],
         queryFn: () => getTwoFactorChallengeStatusHandler({ data: {} }),
@@ -34,7 +36,10 @@ export default function useTwoFactorLoginLogic() {
             if ('restartLogin' in result && result.restartLogin) {
                 await navigate({ to: '/login', replace: true })
             }
+
+            toast.error(result.message)
         },
+        onError: () => toast.error('Authentication service temporarily unavailable.'),
     })
     const defaultValues: TwoFactorLoginFormValues = {
         mode: 'totp',
@@ -45,7 +50,12 @@ export default function useTwoFactorLoginLogic() {
         validators: { onSubmit: twoFactorLoginFormSchema },
         onSubmit: async ({ value }) => {
             mutation.reset()
-            await mutation.mutateAsync(value)
+
+            try {
+                await mutation.mutateAsync(value)
+            } catch {
+                // The mutation callback reports transport failures.
+            }
         },
     })
 
@@ -63,12 +73,6 @@ export default function useTwoFactorLoginLogic() {
             isPending: mutation.isPending,
             isValid: status.data?.valid ?? false,
             methods,
-            errorMessage:
-                mutation.data && !mutation.data.success
-                    ? mutation.data.message
-                    : mutation.error instanceof Error
-                      ? mutation.error.message
-                      : null,
         },
         handler: {
             getCredentialError: getTwoFactorCredentialError,

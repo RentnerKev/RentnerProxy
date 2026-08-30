@@ -1,5 +1,4 @@
 import FieldError from '../../../../shared/Forms/FieldError'
-import FormMessage from '../../../../shared/Forms/FormMessage'
 import PasswordInput from '../../../../shared/Forms/PasswordInput'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { ChangeEvent } from 'react'
@@ -108,14 +107,6 @@ export default function AcceptInviteForm({ state }: AcceptInviteFormProps) {
                     </div>
                 )}
             </state.form.Field>
-            {state.result && !state.result.success ? (
-                <FormMessage tone="error">{state.result.message}</FormMessage>
-            ) : null}
-            {state.isError ? (
-                <FormMessage tone="error">
-                    Authentication service temporarily unavailable.
-                </FormMessage>
-            ) : null}
             <state.form.Subscribe
                 selector={(formState) => [formState.canSubmit, formState.isSubmitting] as const}
             >
