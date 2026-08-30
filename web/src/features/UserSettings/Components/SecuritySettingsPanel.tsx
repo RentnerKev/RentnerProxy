@@ -12,13 +12,6 @@ export default function SecuritySettingsPanel() {
     const { t } = useTranslationStore()
     const security = useSecurityPageLogic()
     const { state, handler } = security
-    const queryErrorMessage = state.error ? 'account.security.error.unavailable' : null
-    const resultMessage =
-        state.passkeyError ?? queryErrorMessage ?? state.lastResult?.message ?? null
-    const resultTone =
-        state.passkeyError || queryErrorMessage || (state.lastResult && !state.lastResult.success)
-            ? 'error'
-            : 'success'
     const confirmedPasskeyId =
         state.confirmation?.kind === 'remove' ? state.confirmation.passkeyId : null
     const confirmedPasskeyName = confirmedPasskeyId
@@ -46,7 +39,9 @@ export default function SecuritySettingsPanel() {
 
     return (
         <>
-            {resultMessage ? <FormMessage tone={resultTone}>{resultMessage}</FormMessage> : null}
+            {state.error ? (
+                <FormMessage tone="error">account.security.error.unavailable</FormMessage>
+            ) : null}
             <SecuritySection
                 status={state.status}
                 isLoading={state.isLoading}
@@ -61,42 +56,27 @@ export default function SecuritySettingsPanel() {
                 }
             />
             <TotpSetupModal
-                key={state.setup?.challengeId ?? 'closed'}
+                key={`totp-${state.setup?.challengeId ?? 'closed'}`}
                 setup={state.setup}
                 isPending={state.isPending}
-                errorMessage={
-                    state.lastResult && !state.lastResult.success
-                        ? (state.lastResult.message ?? null)
-                        : null
-                }
                 onConfirm={handler.confirmTotp}
                 onClose={handler.resetSetup}
             />
             <RecoveryCodesModal
-                key={state.recoveryCodes?.join(':') ?? 'closed'}
+                key={`recovery-${state.recoveryCodes?.join(':') ?? 'closed'}`}
                 codes={state.recoveryCodes}
                 onClose={handler.resetRecoveryCodes}
             />
             <RenamePasskeyModal
                 key={
                     state.nameRequest?.kind === 'rename'
-                        ? state.nameRequest.passkeyId
-                        : (state.nameRequest?.kind ?? 'closed')
+                        ? `passkey-name-${state.nameRequest.passkeyId}`
+                        : `passkey-name-${state.nameRequest?.kind ?? 'closed'}`
                 }
                 open={state.nameRequest !== null}
                 mode={state.nameRequest?.kind ?? 'add'}
-                initialName={
-                    state.nameRequest?.kind === 'rename' && state.nameRequest.initialName
-                        ? state.nameRequest.initialName
-                        : t('account.passkeys.defaultName')
-                }
+                initialName={state.nameRequest?.initialName ?? t('account.passkeys.defaultName')}
                 isPending={state.isPending}
-                errorMessage={
-                    state.passkeyError ??
-                    (state.lastResult && !state.lastResult.success
-                        ? (state.lastResult.message ?? null)
-                        : null)
-                }
                 onConfirm={handler.confirmPasskeyName}
                 onClose={handler.closePasskeyName}
             />
@@ -104,12 +84,6 @@ export default function SecuritySettingsPanel() {
                 open={state.reauthAction !== null}
                 isPending={state.reauthentication.state.isPending || state.isPending}
                 value={state.reauthentication.state.credential}
-                errorMessage={
-                    state.reauthentication.state.result &&
-                    !state.reauthentication.state.result.success
-                        ? state.reauthentication.state.result.message
-                        : state.passkeyError
-                }
                 onChange={state.reauthentication.handler.setCredential}
                 onConfirm={handler.confirmReauthentication}
                 onPasskey={handler.reauthenticateWithPasskey}
@@ -126,7 +100,6 @@ export default function SecuritySettingsPanel() {
                 pendingLabel={t('account.confirmation.applying')}
                 destructive
                 isPending={state.isPending}
-                errorMessage={state.confirmationError}
                 onConfirm={handler.confirmDestructiveAction}
             />
         </>

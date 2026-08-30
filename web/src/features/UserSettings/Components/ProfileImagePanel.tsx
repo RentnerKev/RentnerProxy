@@ -60,12 +60,6 @@ export default function ProfileImagePanel({ canUpdateProfileImage, user }: Profi
             {!canUpdateProfileImage ? (
                 <FormMessage tone="info">account.profileImage.noPermission</FormMessage>
             ) : null}
-            {logic.state.errorMessage && !logic.state.isOpen ? (
-                <FormMessage tone="error">{logic.state.errorMessage}</FormMessage>
-            ) : null}
-            {logic.state.successMessage ? (
-                <FormMessage tone="success">{logic.state.successMessage}</FormMessage>
-            ) : null}
             <ProfileImageCropDialog logic={logic} />
         </section>
     )

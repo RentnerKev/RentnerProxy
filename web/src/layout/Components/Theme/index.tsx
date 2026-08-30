@@ -5,12 +5,7 @@ import useTranslationStore from '../../../language/useTranslationStore'
 import type { ThemeModeSwitchProps } from './Types/theme-component-props.types'
 import getThemeModeSwitchViewModel from './Helpers/getThemeModeSwitchViewModel'
 
-export default function ThemeModeSwitch({
-    errorMessage,
-    isSaving,
-    onToggle,
-    themeMode,
-}: ThemeModeSwitchProps) {
+export default function ThemeModeSwitch({ isSaving, onToggle, themeMode }: ThemeModeSwitchProps) {
     const { t } = useTranslationStore()
     const viewModel = getThemeModeSwitchViewModel(themeMode, t)
 
@@ -43,11 +38,6 @@ export default function ThemeModeSwitch({
                     aria-hidden="true"
                 />
             </button>
-            {errorMessage ? (
-                <span className="sr-only" role="alert">
-                    {t(errorMessage, { defaultValue: errorMessage })}
-                </span>
-            ) : null}
         </div>
     )
 }

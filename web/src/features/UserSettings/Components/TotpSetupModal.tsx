@@ -10,7 +10,6 @@ import useTotpSetupModalLogic from '../Hooks/useTotpSetupModalLogic'
 interface TotpSetupModalProps {
     readonly setup: { challengeId: string; secret: string; otpAuthUrl: string } | null
     readonly isPending: boolean
-    readonly errorMessage?: string | null
     readonly onConfirm: (code: string) => Promise<unknown>
     readonly onClose: () => void
 }
@@ -18,7 +17,6 @@ interface TotpSetupModalProps {
 export default function TotpSetupModal({
     setup,
     isPending,
-    errorMessage,
     onConfirm,
     onClose,
 }: TotpSetupModalProps) {
@@ -146,11 +144,6 @@ export default function TotpSetupModal({
                             </div>
                         )}
                     </logic.state.form.Field>
-                    {errorMessage ? (
-                        <p role="alert" className="text-sm text-danger-text">
-                            {t(errorMessage)}
-                        </p>
-                    ) : null}
                 </form>
             ) : (
                 <div className="mt-5 grid gap-5 sm:grid-cols-[auto_1fr] sm:items-start">

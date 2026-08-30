@@ -1,7 +1,6 @@
 import { Languages } from 'lucide-react'
 
 import useTranslationStore from '../../../language/useTranslationStore'
-import FormMessage from '../../../shared/Forms/FormMessage'
 import SelectControl from '../../../shared/Select'
 import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import useLanguageSettingsLogic from '../Hooks/useLanguageSettingsLogic'
@@ -51,12 +50,6 @@ export default function LanguageSettingsPanel() {
                         {t(state.isSaving ? 'language.saving' : 'language.hint')}
                     </output>
                 </div>
-                {state.errorMessage ? (
-                    <FormMessage tone="error">{state.errorMessage}</FormMessage>
-                ) : null}
-                {state.saved && !state.errorMessage ? (
-                    <FormMessage tone="success">{t('language.saved')}</FormMessage>
-                ) : null}
                 <button
                     type="submit"
                     className={`${uiClassNames.button.primary} justify-self-start`}

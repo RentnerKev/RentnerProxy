@@ -7,7 +7,6 @@ interface ReauthenticationModalProps {
     readonly open: boolean
     readonly isPending: boolean
     readonly value: string
-    readonly errorMessage?: string | null
     readonly onChange: (value: string) => void
     readonly onConfirm: () => void
     readonly onPasskey: () => void
@@ -17,7 +16,6 @@ export default function ReauthenticationModal({
     open,
     isPending,
     value,
-    errorMessage,
     onChange,
     onConfirm,
     onPasskey,
@@ -75,11 +73,6 @@ export default function ReauthenticationModal({
                 >
                     {t('account.reauthentication.usePasskey')}
                 </button>
-                {errorMessage ? (
-                    <p role="alert" className="text-sm text-danger-text">
-                        {t(errorMessage)}
-                    </p>
-                ) : null}
             </div>
         </Modal>
     )

@@ -1,5 +1,4 @@
 import FieldError from '../../../shared/Forms/FieldError'
-import FormMessage from '../../../shared/Forms/FormMessage'
 import PasswordInput from '../../../shared/Forms/PasswordInput'
 import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import useTranslationStore from '../../../language/useTranslationStore'
@@ -107,14 +106,6 @@ export default function ChangePasswordForm({ state }: ChangePasswordFormProps) {
                     </div>
                 )}
             </state.form.Field>
-            {state.result ? (
-                <FormMessage tone={state.result.success ? 'success' : 'error'}>
-                    {state.result.message}
-                </FormMessage>
-            ) : null}
-            {state.isError ? (
-                <FormMessage tone="error">account.password.error.update</FormMessage>
-            ) : null}
             <state.form.Subscribe
                 selector={(formState) => [formState.canSubmit, formState.isSubmitting] as const}
             >

@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 import type { ChangeEvent } from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Area, Point } from 'react-easy-crop'
 
 import { userManagementQueryKeys } from '../../Admin/UserManagement/queryKeys'
 import { updateProfileImageHandler } from '../server'
+import useToast from '../../../shared/Toast/Hooks/useToast'
 import { createCroppedProfileImageDataUrl, createProfileImageSource } from '../Helpers/profileImage'
 
 const INITIAL_CROP: Point = { x: 0, y: 0 }
@@ -18,14 +19,14 @@ function getProfileImageErrorKey(error: unknown, fallback: string): string {
 }
 
 export default function useProfileImageLogic() {
+    const toast = useToast()
+    const saveInFlight = useRef(false)
     const queryClient = useQueryClient()
     const router = useRouter()
     const [imageSrc, setImageSrc] = useState<string | null>(null)
     const [crop, setCrop] = useState<Point>(INITIAL_CROP)
     const [zoom, setZoom] = useState(INITIAL_ZOOM)
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
-    const [selectionError, setSelectionError] = useState<string | null>(null)
-    const [successMessage, setSuccessMessage] = useState<string | null>(null)
     const [isPreparing, setIsPreparing] = useState(false)
     const mutation = useMutation({
         mutationFn: (imageDataUrl: string) => updateProfileImageHandler({ data: { imageDataUrl } }),
@@ -46,30 +47,29 @@ export default function useProfileImageLogic() {
         setCrop(INITIAL_CROP)
         setZoom(INITIAL_ZOOM)
         setCroppedAreaPixels(null)
-        setSelectionError(null)
         mutation.reset()
     }, [mutation])
 
-    const handleFileChange = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
-        const file = event.currentTarget.files?.item(0)
-        event.currentTarget.value = ''
+    const handleFileChange = useCallback(
+        async (event: ChangeEvent<HTMLInputElement>) => {
+            const file = event.currentTarget.files?.item(0)
+            event.currentTarget.value = ''
 
-        if (!file) {
-            return
-        }
+            if (!file) {
+                return
+            }
 
-        setSelectionError(null)
-        setSuccessMessage(null)
-
-        try {
-            setImageSrc(await createProfileImageSource(file))
-            setCrop(INITIAL_CROP)
-            setZoom(INITIAL_ZOOM)
-            setCroppedAreaPixels(null)
-        } catch (error) {
-            setSelectionError(getProfileImageErrorKey(error, 'account.profileImage.error.open'))
-        }
-    }, [])
+            try {
+                setImageSrc(await createProfileImageSource(file))
+                setCrop(INITIAL_CROP)
+                setZoom(INITIAL_ZOOM)
+                setCroppedAreaPixels(null)
+            } catch (error) {
+                toast.error(getProfileImageErrorKey(error, 'account.profileImage.error.open'))
+            }
+        },
+        [toast],
+    )
 
     const handleCropComplete = useCallback((_croppedArea: Area, pixels: Area) => {
         setCroppedAreaPixels(pixels)
@@ -94,12 +94,12 @@ export default function useProfileImageLogic() {
     )
 
     const handleSave = useCallback(async () => {
-        if (!imageSrc || !croppedAreaPixels || isPending) {
+        if (!imageSrc || !croppedAreaPixels || isPending || saveInFlight.current) {
             return
         }
 
+        saveInFlight.current = true
         mutation.reset()
-        setSelectionError(null)
         setIsPreparing(true)
 
         try {
@@ -107,6 +107,7 @@ export default function useProfileImageLogic() {
             const result = await mutation.mutateAsync(imageDataUrl)
 
             if (!result.success) {
+                toast.error(result.message)
                 return
             }
 
@@ -114,30 +115,23 @@ export default function useProfileImageLogic() {
                 queryClient.invalidateQueries({ queryKey: userManagementQueryKeys.all }),
                 router.invalidate(),
             ])
-            setSuccessMessage(result.message)
+            toast.success(result.message)
             resetEditor()
         } catch (error) {
-            setSelectionError(getProfileImageErrorKey(error, 'account.profileImage.error.update'))
+            toast.error(getProfileImageErrorKey(error, 'account.profileImage.error.update'))
         } finally {
+            saveInFlight.current = false
             setIsPreparing(false)
         }
-    }, [croppedAreaPixels, imageSrc, isPending, mutation, queryClient, resetEditor, router])
+    }, [croppedAreaPixels, imageSrc, isPending, mutation, queryClient, resetEditor, router, toast])
 
     return {
         state: {
             canSave: Boolean(imageSrc && croppedAreaPixels) && !isPending,
             crop,
-            errorMessage:
-                selectionError ??
-                (mutation.data && !mutation.data.success
-                    ? mutation.data.message
-                    : mutation.isError
-                      ? 'account.profileImage.error.update'
-                      : null),
             imageSrc,
             isOpen: imageSrc !== null,
             isPending,
-            successMessage,
             zoom,
         },
         handler: {

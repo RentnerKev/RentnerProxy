@@ -8,9 +8,11 @@ import useTranslationStore, {
     type AppLanguage,
 } from '../../../language/useTranslationStore'
 import { updateCurrentUserLanguageHandler } from '../server'
+import useToast from '../../../shared/Toast/Hooks/useToast'
 
 export default function useLanguageSettingsLogic() {
     const router = useRouter()
+    const toast = useToast()
     const { language, setLanguage, t } = useTranslationStore()
     const [draftLanguage, setDraftLanguage] = useState<AppLanguage | null>(null)
     const saveInFlight = useRef(false)
@@ -37,28 +39,29 @@ export default function useLanguageSettingsLogic() {
         onSuccess: (result) => {
             if (result.success) {
                 setDraftLanguage(null)
+                toast.success(result.message)
                 void router.invalidate()
+            } else {
+                toast.error(result.message)
             }
+        },
+        onError: (error) => {
+            toast.error(
+                error.message === 'language.loadFailed'
+                    ? 'language.loadFailed'
+                    : 'language.saveFailed',
+            )
         },
         onSettled: () => {
             saveInFlight.current = false
         },
     })
-    const errorMessage = mutation.isError
-        ? mutation.error instanceof Error && mutation.error.message === 'language.loadFailed'
-            ? 'language.loadFailed'
-            : 'language.saveFailed'
-        : mutation.data && !mutation.data.success
-          ? mutation.data.message
-          : null
 
     return {
         state: {
             selectedLanguage,
             isDirty,
             isSaving: mutation.isPending,
-            errorMessage,
-            saved: mutation.isSuccess && mutation.data.success && !isDirty,
             options: AVAILABLE_LANGUAGES.map((value) => ({
                 value,
                 label: t(`language.names.${value}`),

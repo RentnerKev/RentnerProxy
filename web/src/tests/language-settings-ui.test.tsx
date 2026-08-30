@@ -13,6 +13,8 @@ const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { createMemoryHistory, createRootRoute, createRouter, RouterContextProvider } =
     await import('@tanstack/react-router')
+const { default: ToastProvider } = await import('../shared/Toast/Components/ToastProvider')
+const { TooltipProvider } = await import('../shared/Tooltip')
 
 const settingsRouter = createRouter({
     routeTree: createRootRoute(),
@@ -66,9 +68,15 @@ async function render(element: ReactElement): Promise<HTMLElement> {
     await act(async () => {
         activeRoot?.render(
             withTestLanguage(
-                <RouterContextProvider router={settingsRouter}>
-                    <QueryClientProvider client={activeQueryClient!}>{element}</QueryClientProvider>
-                </RouterContextProvider>,
+                <TooltipProvider>
+                    <ToastProvider>
+                        <RouterContextProvider router={settingsRouter}>
+                            <QueryClientProvider client={activeQueryClient!}>
+                                {element}
+                            </QueryClientProvider>
+                        </RouterContextProvider>
+                    </ToastProvider>
+                </TooltipProvider>,
             ),
         )
     })
@@ -84,6 +92,13 @@ async function waitFor(condition: () => boolean): Promise<void> {
         })
     }
     expect(condition()).toBe(true)
+}
+
+function getToastMessages(container: HTMLElement, tone?: string): Array<string> {
+    const selector = tone ? '[data-toast-tone="' + tone + '"]' : '[data-toast-tone]'
+    return [...container.querySelectorAll<HTMLElement>(selector)].map(
+        (toast) => toast.textContent ?? '',
+    )
 }
 
 async function chooseLanguage(container: HTMLElement, label: string): Promise<void> {
@@ -204,14 +219,16 @@ describe('language settings panel', () => {
         await act(async () => {
             resolveSave({ success: true, language: 'de', message: 'language.saved' })
         })
-        await waitFor(
-            () => container.textContent?.includes('Deine Sprache wurde gespeichert.') ?? false,
+        await waitFor(() =>
+            getToastMessages(container, 'success').some((text) =>
+                text.includes('Deine Sprache wurde gespeichert.'),
+            ),
         )
         expect(container.querySelector('[data-testid="language-probe"]')?.textContent).toBe('Konto')
         expect(document.documentElement.lang).toBe('de')
     })
 
-    test('clears saved feedback for a new draft and disables Save when reverting it', async () => {
+    test('keeps the saved toast while changing a new draft and disables Save when reverting it', async () => {
         updateLanguageHandler.mockResolvedValue({
             success: true,
             language: 'de',
@@ -226,16 +243,26 @@ describe('language settings panel', () => {
 
         await chooseLanguage(container, 'German')
         await click(container.querySelector<HTMLButtonElement>('button[type="submit"]')!)
-        await waitFor(
-            () => container.textContent?.includes('Deine Sprache wurde gespeichert.') ?? false,
+        await waitFor(() =>
+            getToastMessages(container, 'success').some((text) =>
+                text.includes('Deine Sprache wurde gespeichert.'),
+            ),
         )
 
         expect(updateLanguageHandler).toHaveBeenCalledWith({ data: { language: 'de' } })
-        expect(container.textContent).toContain('Deine Sprache wurde gespeichert.')
+        expect(
+            getToastMessages(container, 'success').some((text) =>
+                text.includes('Deine Sprache wurde gespeichert.'),
+            ),
+        ).toBeTrue()
         expect(invalidate).toHaveBeenCalledTimes(1)
 
         await chooseLanguage(container, 'Spanisch')
-        expect(container.textContent).not.toContain('Deine Sprache wurde gespeichert.')
+        expect(
+            getToastMessages(container, 'success').some((text) =>
+                text.includes('Deine Sprache wurde gespeichert.'),
+            ),
+        ).toBeTrue()
         expect(document.documentElement.lang).toBe('de')
         expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(
             false,
@@ -263,8 +290,10 @@ describe('language settings panel', () => {
         await chooseLanguage(container, 'German')
         const save = container.querySelector<HTMLButtonElement>('button[type="submit"]')!
         await click(save)
-        await waitFor(
-            () => container.textContent?.includes('Your language could not be saved.') ?? false,
+        await waitFor(() =>
+            getToastMessages(container, 'error').some((text) =>
+                text.includes('Your language could not be saved.'),
+            ),
         )
         expect(
             container
@@ -274,11 +303,17 @@ describe('language settings panel', () => {
         expect(save.disabled).toBe(false)
 
         await click(save)
-        await waitFor(
-            () => container.textContent?.includes('Deine Sprache wurde gespeichert.') ?? false,
+        await waitFor(() =>
+            getToastMessages(container, 'success').some((text) =>
+                text.includes('Deine Sprache wurde gespeichert.'),
+            ),
         )
         expect(updateLanguageHandler).toHaveBeenCalledTimes(2)
-        expect(container.textContent).toContain('Deine Sprache wurde gespeichert.')
+        expect(
+            getToastMessages(container, 'success').some((text) =>
+                text.includes('Deine Sprache wurde gespeichert.'),
+            ),
+        ).toBeTrue()
     })
 
     test('keeps the active catalog and draft retryable when loading the selected catalog fails', async () => {
@@ -296,9 +331,10 @@ describe('language settings panel', () => {
             await chooseLanguage(container, 'German')
             const save = container.querySelector<HTMLButtonElement>('button[type="submit"]')!
             await click(save)
-            await waitFor(
-                () =>
-                    container.textContent?.includes('This language could not be loaded.') ?? false,
+            await waitFor(() =>
+                getToastMessages(container, 'error').some((text) =>
+                    text.includes('This language could not be loaded.'),
+                ),
             )
             expect(updateLanguageHandler).toHaveBeenCalledTimes(0)
             expect(
@@ -326,16 +362,20 @@ describe('language settings panel', () => {
         await chooseLanguage(container, 'German')
         const save = container.querySelector<HTMLButtonElement>('button[type="submit"]')!
         await click(save)
-        await waitFor(
-            () => container.textContent?.includes('Your language could not be saved.') ?? false,
+        await waitFor(() =>
+            getToastMessages(container, 'error').some((text) =>
+                text.includes('Your language could not be saved.'),
+            ),
         )
         expect(container.querySelector('[role="combobox"]')?.textContent).toContain('German')
         expect(document.documentElement.lang).toBe('en')
         expect(save.disabled).toBe(false)
 
         await click(save)
-        await waitFor(
-            () => container.textContent?.includes('Deine Sprache wurde gespeichert.') ?? false,
+        await waitFor(() =>
+            getToastMessages(container, 'success').some((text) =>
+                text.includes('Deine Sprache wurde gespeichert.'),
+            ),
         )
         expect(document.documentElement.lang).toBe('de')
         expect(updateLanguageHandler).toHaveBeenCalledTimes(2)

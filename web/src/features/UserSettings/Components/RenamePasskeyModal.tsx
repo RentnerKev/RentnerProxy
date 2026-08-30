@@ -4,7 +4,6 @@ import useTranslationStore from '../../../language/useTranslationStore'
 import useRenamePasskeyModalLogic from '../Hooks/useRenamePasskeyModalLogic'
 
 interface RenamePasskeyModalProps {
-    readonly errorMessage?: string | null
     readonly initialName: string
     readonly isPending: boolean
     readonly mode: 'add' | 'rename'
@@ -14,7 +13,6 @@ interface RenamePasskeyModalProps {
 }
 
 export default function RenamePasskeyModal({
-    errorMessage,
     initialName,
     isPending,
     mode,
@@ -78,11 +76,6 @@ export default function RenamePasskeyModal({
                     onChange={(event) => logic.handler.setName(event.target.value)}
                 />
             </label>
-            {errorMessage ? (
-                <p role="alert" className="mt-3 text-sm text-danger-text">
-                    {t(errorMessage)}
-                </p>
-            ) : null}
         </Modal>
     )
 }

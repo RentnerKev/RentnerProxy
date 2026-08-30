@@ -13,7 +13,7 @@ import {
     removePasskeyHandler,
     renamePasskeyHandler,
 } from '../server'
-import type { SecurityActionResult, SerializedRegistrationResponse } from '../Types/security.types'
+import type { SerializedRegistrationResponse } from '../Types/security.types'
 
 export default function useSecurityLogic() {
     const queryClient = useQueryClient()
@@ -27,15 +27,10 @@ export default function useSecurityLogic() {
         otpAuthUrl: string
     } | null>(null)
     const [recoveryCodes, setRecoveryCodes] = useState<ReadonlyArray<string> | null>(null)
-    const [lastResult, setLastResult] = useState<SecurityActionResult | null>(null)
     const refresh = () => queryClient.invalidateQueries({ queryKey: securityQueryKeys.status })
-    const resetResult = () => setLastResult(null)
-    const recordResult = (result: SecurityActionResult) => setLastResult(result)
     const beginTotp = useMutation({
         mutationFn: () => beginTotpSetupHandler({ data: {} }),
-        onMutate: resetResult,
         onSuccess: (result) => {
-            recordResult(result)
             if (result.success && result.challengeId && result.secret && result.otpAuthUrl)
                 setSetup({
                     challengeId: result.challengeId,
@@ -49,9 +44,7 @@ export default function useSecurityLogic() {
             if (!setup) throw new Error('account.twoFactor.error.setupUnavailable')
             return confirmTotpSetupHandler({ data: { challengeId: setup.challengeId, code } })
         },
-        onMutate: resetResult,
         onSuccess: async (result) => {
-            recordResult(result)
             if (result.success) {
                 if (result.recoveryCodes) setRecoveryCodes(result.recoveryCodes)
                 setSetup(null)
@@ -61,17 +54,13 @@ export default function useSecurityLogic() {
     })
     const disableTotp = useMutation({
         mutationFn: () => disableTotpHandler({ data: {} }),
-        onMutate: resetResult,
         onSuccess: async (result) => {
-            recordResult(result)
             if (result.success) await refresh()
         },
     })
     const regenerate = useMutation({
         mutationFn: () => regenerateRecoveryCodesHandler({ data: {} }),
-        onMutate: resetResult,
         onSuccess: async (result) => {
-            recordResult(result)
             if (result.success) {
                 setRecoveryCodes(result.recoveryCodes ?? [])
                 await refresh()
@@ -80,8 +69,6 @@ export default function useSecurityLogic() {
     })
     const beginPasskey = useMutation({
         mutationFn: () => beginPasskeyRegistrationHandler({ data: {} }),
-        onMutate: resetResult,
-        onSuccess: recordResult,
     })
     const finishPasskey = useMutation({
         mutationFn: (input: {
@@ -89,32 +76,25 @@ export default function useSecurityLogic() {
             name: string
             response: SerializedRegistrationResponse
         }) => finishPasskeyRegistrationHandler({ data: input }),
-        onMutate: resetResult,
         onSuccess: async (result) => {
-            recordResult(result)
             if (result.success) await refresh()
         },
     })
     const rename = useMutation({
         mutationFn: (input: { passkeyId: string; name: string }) =>
             renamePasskeyHandler({ data: input }),
-        onMutate: resetResult,
         onSuccess: async (result) => {
-            recordResult(result)
             if (result.success) await refresh()
         },
     })
     const remove = useMutation({
         mutationFn: (input: { passkeyId: string }) => removePasskeyHandler({ data: input }),
-        onMutate: resetResult,
         onSuccess: async (result) => {
-            recordResult(result)
             if (result.success) await refresh()
         },
     })
     const resetSetup = () => {
         setSetup(null)
-        resetResult()
         beginTotp.reset()
         confirmTotp.reset()
     }
@@ -138,7 +118,6 @@ export default function useSecurityLogic() {
                 finishPasskey.isPending ||
                 rename.isPending ||
                 remove.isPending,
-            lastResult,
         },
         handler: {
             beginTotp: () => beginTotp.mutateAsync(),

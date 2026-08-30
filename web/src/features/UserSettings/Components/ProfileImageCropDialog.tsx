@@ -1,7 +1,6 @@
 import { Check, RotateCcw, ZoomIn } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 
-import FormMessage from '../../../shared/Forms/FormMessage'
 import { Modal } from '../../../shared/Modal'
 import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import useTranslationStore from '../../../language/useTranslationStore'
@@ -95,9 +94,6 @@ export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialog
                         {t('account.profileImage.crop.reset')}
                     </button>
                 </div>
-                {logic.state.errorMessage ? (
-                    <FormMessage tone="error">{logic.state.errorMessage}</FormMessage>
-                ) : null}
             </div>
         </Modal>
     )

@@ -18,7 +18,6 @@ export default function AuthenticatedRouteLayout({ user }: AuthenticatedRouteLay
             themeMode={theme.state.themeMode}
             themeControl={
                 <ThemeModeSwitch
-                    errorMessage={theme.state.errorMessage}
                     isSaving={theme.state.isSaving}
                     onToggle={theme.handler.handleToggle}
                     themeMode={theme.state.themeMode}
