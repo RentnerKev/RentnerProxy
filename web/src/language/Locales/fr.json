@@ -42,7 +42,8 @@
         "navigation": "Navigation de l’application",
         "controlPlane": "Administration",
         "collapseNavigation": "Réduire la navigation",
-        "expandNavigation": "Développer la navigation"
+        "expandNavigation": "Développer la navigation",
+        "proxyHosts": "Hôtes proxy"
     },
     "language": {
         "title": "Langue",
@@ -624,6 +625,126 @@
                 "editableRequired": "Un rôle modifiable est requis."
             },
             "item": "rôle"
+        },
+        "proxyHosts": {
+            "page": {
+                "eyebrow": "Gestion des proxys",
+                "title": "Hôtes proxy",
+                "description": "Gérez les domaines et les destinations de transfert. Activé et désactivé décrivent uniquement la configuration enregistrée ; aucun moteur proxy n’est encore connecté."
+            },
+            "messages": {
+                "created": "Hôte proxy créé avec succès.",
+                "updated": "Hôte proxy mis à jour avec succès.",
+                "deleted": "Hôte proxy supprimé avec succès.",
+                "enabled": "Hôte proxy activé avec succès.",
+                "disabled": "Hôte proxy désactivé avec succès."
+            },
+            "states": {
+                "unavailableTitle": "Les hôtes proxy sont indisponibles",
+                "unavailableDescription": "Impossible de charger les hôtes proxy enregistrés. Réessayez."
+            },
+            "actions": {
+                "add": "Ajouter un hôte proxy",
+                "create": "Créer un hôte proxy",
+                "edit": "Modifier",
+                "enable": "Activer",
+                "disable": "Désactiver",
+                "delete": "Supprimer",
+                "deleting": "Suppression…",
+                "disabling": "Désactivation…",
+                "open": "Ouvrir les actions pour {{name}}",
+                "none": "Aucune action disponible",
+                "disableDescription": "Enregistrer cet hôte proxy comme désactivé.",
+                "enableDescription": "Enregistrer cet hôte proxy comme activé.",
+                "deleteDescription": "Supprimer définitivement « {{name}} »."
+            },
+            "confirm": {
+                "deleteTitle": "Supprimer l’hôte proxy ?",
+                "deleteDescription": "L’hôte proxy pour « {{name}} » et toutes ses attributions de domaines seront supprimés.",
+                "deleteWarning": "Cette action est irréversible.",
+                "deleteLabel": "Supprimer l’hôte proxy",
+                "disableTitle": "Désactiver l’hôte proxy ?",
+                "disableDescription": "L’hôte proxy sera enregistré comme désactivé. Le trafic ne change pas pour le moment, car aucun moteur proxy n’est connecté.",
+                "disableLabel": "Désactiver l’hôte proxy",
+                "saveDisabled": "Enregistrer et désactiver"
+            },
+            "form": {
+                "description": "Enregistrez des domaines et une destination de transfert. Ces paramètres n’appliquent pas de configuration proxy en fonctionnement.",
+                "editTitle": "Modifier l’hôte proxy",
+                "creating": "Création…",
+                "domains": "Domaines",
+                "domainLabel": "Domaine {{number}}",
+                "domainPlaceholder": "exemple.fr",
+                "removeDomain": "Supprimer le domaine {{number}}",
+                "addDomain": "Ajouter un domaine",
+                "domainsHint": "Ajoutez entre 1 et 50 noms DNS. Les noms internationaux sont enregistrés en ASCII/Punycode. Les jokers et les adresses IP ne sont pas pris en charge ici.",
+                "forwardScheme": "Protocole de transfert",
+                "forwardHost": "Hôte de destination",
+                "forwardPort": "Port de destination",
+                "forwardHostPlaceholder": "192.168.1.50",
+                "forwardHostHint": "Saisissez un nom d’hôte ou une adresse IPv4 ou IPv6 sans protocole, chemin ni port.",
+                "enabledHint": "État souhaité uniquement. Aucun moteur proxy n’est encore connecté.",
+                "statusReadOnly": "Vous n’avez pas la permission de modifier l’état enregistré de cet hôte proxy."
+            },
+            "status": {
+                "enabled": "Activé",
+                "disabled": "Désactivé"
+            },
+            "scheme": {
+                "http": "HTTP",
+                "https": "HTTPS"
+            },
+            "columns": {
+                "domains": "Domaines",
+                "forward": "Destination de transfert",
+                "status": "État",
+                "created": "Créé",
+                "actions": "Actions"
+            },
+            "filters": {
+                "domains": "Filtrer les domaines…",
+                "allSchemes": "Tous les protocoles",
+                "allStatuses": "Tous les états",
+                "createdFrom": "Créé à partir du",
+                "createdTo": "Créé jusqu’au"
+            },
+            "cells": {
+                "moreDomains": "Afficher {{count}} domaines supplémentaires",
+                "showDomain": "Afficher le domaine {{domain}}"
+            },
+            "table": {
+                "eyebrow": "Configuration enregistrée",
+                "count_one": "{{count}} hôte proxy",
+                "count_other": "{{count}} hôtes proxy",
+                "description": "Consultez les domaines enregistrés, les destinations de transfert et l’état souhaité.",
+                "searchLabel": "Rechercher des hôtes proxy",
+                "searchPlaceholder": "Rechercher un domaine, une destination, un protocole, un port ou un état…",
+                "loading": "Chargement des hôtes proxy",
+                "emptyTitle": "Aucun hôte proxy pour le moment",
+                "emptyDescription": "Ajoutez un hôte proxy pour enregistrer des domaines et une destination de transfert.",
+                "filteredEmptyTitle": "Aucun hôte proxy ne correspond aux filtres",
+                "filteredEmptyDescription": "Modifiez la recherche ou réinitialisez les filtres actifs pour voir d’autres hôtes proxy.",
+                "itemLabel": "hôtes proxy"
+            },
+            "errors": {
+                "loadFailed": "Impossible de charger les hôtes proxy.",
+                "saveFailed": "Impossible d’enregistrer l’hôte proxy.",
+                "deleteFailed": "Impossible de supprimer l’hôte proxy.",
+                "enableFailed": "Impossible d’activer l’hôte proxy.",
+                "disableFailed": "Impossible de désactiver l’hôte proxy.",
+                "domain_conflict": "Ce domaine est déjà attribué à un autre hôte proxy.",
+                "proxy_host_not_found": "L’hôte proxy n’existe plus.",
+                "invalid_status_transition": "L’hôte proxy est déjà dans cet état. Actualisez la liste et réessayez.",
+                "invalid_input": "Vérifiez les valeurs de l’hôte proxy et réessayez."
+            },
+            "validation": {
+                "domain": "Saisissez un nom DNS valide sans URL, adresse IP ni joker.",
+                "domainsRequired": "Ajoutez au moins un domaine.",
+                "domainsLimit": "Un hôte proxy ne peut pas avoir plus de 50 domaines.",
+                "duplicateDomain": "Ce domaine figure plusieurs fois dans la liste.",
+                "forwardHost": "Saisissez un nom d’hôte ou une adresse IPv4 ou IPv6 valides sans protocole, chemin ni port.",
+                "port": "Saisissez un numéro de port entier entre 1 et 65535."
+            }
         }
     },
     "permissions": {
@@ -631,7 +752,8 @@
             "app": "Application",
             "users": "Utilisateurs",
             "roles": "Rôles",
-            "account": "Compte"
+            "account": "Compte",
+            "proxy_hosts": "Hôtes proxy"
         },
         "app": {
             "access": "Accès à l’application"
@@ -654,6 +776,14 @@
         "account": {
             "view": "Voir son propre compte",
             "update": "Mettre à jour son propre compte"
+        },
+        "proxy_hosts": {
+            "view": "Afficher les hôtes proxy",
+            "create": "Créer des hôtes proxy",
+            "update": "Modifier les hôtes proxy",
+            "delete": "Supprimer les hôtes proxy",
+            "enable": "Activer les hôtes proxy",
+            "disable": "Désactiver les hôtes proxy"
         }
     },
     "systemRoles": {

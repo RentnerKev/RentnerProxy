@@ -42,7 +42,8 @@
         "navigation": "Anwendungsnavigation",
         "controlPlane": "Verwaltung",
         "collapseNavigation": "Navigation einklappen",
-        "expandNavigation": "Navigation ausklappen"
+        "expandNavigation": "Navigation ausklappen",
+        "proxyHosts": "Proxy-Hosts"
     },
     "language": {
         "title": "Sprache",
@@ -624,6 +625,126 @@
                 "editableRequired": "Eine bearbeitbare Rolle ist erforderlich."
             },
             "item": "Rolle"
+        },
+        "proxyHosts": {
+            "page": {
+                "eyebrow": "Proxy-Verwaltung",
+                "title": "Proxy-Hosts",
+                "description": "Verwalte Domains und Weiterleitungsziele. Aktiviert und deaktiviert beschreiben nur die gespeicherte Konfiguration; eine Proxy-Engine ist noch nicht angebunden."
+            },
+            "messages": {
+                "created": "Proxy-Host erfolgreich erstellt.",
+                "updated": "Proxy-Host erfolgreich aktualisiert.",
+                "deleted": "Proxy-Host erfolgreich gelöscht.",
+                "enabled": "Proxy-Host erfolgreich aktiviert.",
+                "disabled": "Proxy-Host erfolgreich deaktiviert."
+            },
+            "states": {
+                "unavailableTitle": "Proxy-Hosts sind nicht verfügbar",
+                "unavailableDescription": "Die gespeicherten Proxy-Hosts konnten nicht geladen werden. Versuche es erneut."
+            },
+            "actions": {
+                "add": "Proxy-Host hinzufügen",
+                "create": "Proxy-Host erstellen",
+                "edit": "Bearbeiten",
+                "enable": "Aktivieren",
+                "disable": "Deaktivieren",
+                "delete": "Löschen",
+                "deleting": "Wird gelöscht…",
+                "disabling": "Wird deaktiviert…",
+                "open": "Aktionen für {{name}} öffnen",
+                "none": "Keine Aktionen verfügbar",
+                "disableDescription": "Diesen Proxy-Host als deaktiviert speichern.",
+                "enableDescription": "Diesen Proxy-Host als aktiviert speichern.",
+                "deleteDescription": "„{{name}}“ dauerhaft entfernen."
+            },
+            "confirm": {
+                "deleteTitle": "Proxy-Host löschen?",
+                "deleteDescription": "Der Proxy-Host für „{{name}}“ und alle seine Domain-Zuordnungen werden entfernt.",
+                "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+                "deleteLabel": "Proxy-Host löschen",
+                "disableTitle": "Proxy-Host deaktivieren?",
+                "disableDescription": "Der Proxy-Host wird als deaktiviert gespeichert. Der Datenverkehr ändert sich dadurch derzeit nicht, da noch keine Proxy-Engine angebunden ist.",
+                "disableLabel": "Proxy-Host deaktivieren",
+                "saveDisabled": "Speichern und deaktivieren"
+            },
+            "form": {
+                "description": "Speichere Domains und ein Weiterleitungsziel. Diese Einstellungen wenden noch keine laufende Proxy-Konfiguration an.",
+                "editTitle": "Proxy-Host bearbeiten",
+                "creating": "Wird erstellt…",
+                "domains": "Domains",
+                "domainLabel": "Domain {{number}}",
+                "domainPlaceholder": "beispiel.de",
+                "removeDomain": "Domain {{number}} entfernen",
+                "addDomain": "Domain hinzufügen",
+                "domainsHint": "Füge 1–50 DNS-Namen hinzu. Internationale Namen werden als ASCII/Punycode gespeichert. Wildcards und IP-Adressen werden hier nicht unterstützt.",
+                "forwardScheme": "Weiterleitungsschema",
+                "forwardHost": "Zielhost",
+                "forwardPort": "Zielport",
+                "forwardHostPlaceholder": "192.168.1.50",
+                "forwardHostHint": "Gib einen Hostnamen, eine IPv4- oder IPv6-Adresse ohne Schema, Pfad oder Port ein.",
+                "enabledHint": "Nur der gewünschte Zustand. Eine Proxy-Engine ist noch nicht angebunden.",
+                "statusReadOnly": "Du hast keine Berechtigung, den gespeicherten Status dieses Proxy-Hosts zu ändern."
+            },
+            "status": {
+                "enabled": "Aktiviert",
+                "disabled": "Deaktiviert"
+            },
+            "scheme": {
+                "http": "HTTP",
+                "https": "HTTPS"
+            },
+            "columns": {
+                "domains": "Domains",
+                "forward": "Weiterleitungsziel",
+                "status": "Status",
+                "created": "Erstellt",
+                "actions": "Aktionen"
+            },
+            "filters": {
+                "domains": "Domains filtern…",
+                "allSchemes": "Alle Schemas",
+                "allStatuses": "Alle Status",
+                "createdFrom": "Erstellt ab",
+                "createdTo": "Erstellt bis"
+            },
+            "cells": {
+                "moreDomains": "{{count}} weitere Domains anzeigen",
+                "showDomain": "Domain {{domain}} anzeigen"
+            },
+            "table": {
+                "eyebrow": "Gespeicherte Konfiguration",
+                "count_one": "{{count}} Proxy-Host",
+                "count_other": "{{count}} Proxy-Hosts",
+                "description": "Prüfe gespeicherte Domains, Weiterleitungsziele und den gewünschten Zustand.",
+                "searchLabel": "Proxy-Hosts suchen",
+                "searchPlaceholder": "Domains, Ziel, Schema, Port oder Status suchen…",
+                "loading": "Proxy-Hosts werden geladen",
+                "emptyTitle": "Noch keine Proxy-Hosts",
+                "emptyDescription": "Füge einen Proxy-Host hinzu, um Domains und ein Weiterleitungsziel zu speichern.",
+                "filteredEmptyTitle": "Keine Proxy-Hosts passen zu deinen Filtern",
+                "filteredEmptyDescription": "Passe die Suche an oder setze die aktiven Filter zurück, um weitere Proxy-Hosts zu sehen.",
+                "itemLabel": "Proxy-Hosts"
+            },
+            "errors": {
+                "loadFailed": "Proxy-Hosts konnten nicht geladen werden.",
+                "saveFailed": "Der Proxy-Host konnte nicht gespeichert werden.",
+                "deleteFailed": "Der Proxy-Host konnte nicht gelöscht werden.",
+                "enableFailed": "Der Proxy-Host konnte nicht aktiviert werden.",
+                "disableFailed": "Der Proxy-Host konnte nicht deaktiviert werden.",
+                "domain_conflict": "Diese Domain ist bereits einem anderen Proxy-Host zugeordnet.",
+                "proxy_host_not_found": "Der Proxy-Host existiert nicht mehr.",
+                "invalid_status_transition": "Der Proxy-Host befindet sich bereits in diesem Zustand. Lade die Liste neu und versuche es erneut.",
+                "invalid_input": "Prüfe die Angaben zum Proxy-Host und versuche es erneut."
+            },
+            "validation": {
+                "domain": "Gib einen gültigen DNS-Namen ohne URL, IP-Adresse oder Wildcard ein.",
+                "domainsRequired": "Füge mindestens eine Domain hinzu.",
+                "domainsLimit": "Ein Proxy-Host kann höchstens 50 Domains haben.",
+                "duplicateDomain": "Diese Domain ist mehrfach aufgeführt.",
+                "forwardHost": "Gib einen gültigen Hostnamen, eine IPv4- oder IPv6-Adresse ohne Schema, Pfad oder Port ein.",
+                "port": "Gib eine ganze Portnummer von 1 bis 65535 ein."
+            }
         }
     },
     "permissions": {
@@ -631,7 +752,8 @@
             "app": "Anwendung",
             "users": "Benutzer",
             "roles": "Rollen",
-            "account": "Konto"
+            "account": "Konto",
+            "proxy_hosts": "Proxy-Hosts"
         },
         "app": {
             "access": "Anwendungszugriff"
@@ -654,6 +776,14 @@
         "account": {
             "view": "Eigenes Konto anzeigen",
             "update": "Eigenes Konto aktualisieren"
+        },
+        "proxy_hosts": {
+            "view": "Proxy-Hosts ansehen",
+            "create": "Proxy-Hosts erstellen",
+            "update": "Proxy-Hosts bearbeiten",
+            "delete": "Proxy-Hosts löschen",
+            "enable": "Proxy-Hosts aktivieren",
+            "disable": "Proxy-Hosts deaktivieren"
         }
     },
     "systemRoles": {

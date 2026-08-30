@@ -1,5 +1,11 @@
 export const PERMISSIONS = {
     APP_ACCESS: 'app.access',
+    PROXY_HOSTS_VIEW: 'proxy_hosts.view',
+    PROXY_HOSTS_CREATE: 'proxy_hosts.create',
+    PROXY_HOSTS_UPDATE: 'proxy_hosts.update',
+    PROXY_HOSTS_DELETE: 'proxy_hosts.delete',
+    PROXY_HOSTS_ENABLE: 'proxy_hosts.enable',
+    PROXY_HOSTS_DISABLE: 'proxy_hosts.disable',
     USERS_VIEW: 'users.view',
     USERS_CREATE: 'users.create',
     USERS_UPDATE: 'users.update',
@@ -19,6 +25,12 @@ export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]
 
 export const PERMISSION_REGISTRY = [
     { key: PERMISSIONS.APP_ACCESS, name: 'Application access' },
+    { key: PERMISSIONS.PROXY_HOSTS_VIEW, name: 'View proxy hosts' },
+    { key: PERMISSIONS.PROXY_HOSTS_CREATE, name: 'Create proxy hosts' },
+    { key: PERMISSIONS.PROXY_HOSTS_UPDATE, name: 'Update proxy hosts' },
+    { key: PERMISSIONS.PROXY_HOSTS_DELETE, name: 'Delete proxy hosts' },
+    { key: PERMISSIONS.PROXY_HOSTS_ENABLE, name: 'Enable proxy hosts' },
+    { key: PERMISSIONS.PROXY_HOSTS_DISABLE, name: 'Disable proxy hosts' },
     { key: PERMISSIONS.USERS_VIEW, name: 'View users' },
     { key: PERMISSIONS.USERS_CREATE, name: 'Create users' },
     { key: PERMISSIONS.USERS_UPDATE, name: 'Update users' },
@@ -60,6 +72,12 @@ export const SYSTEM_ROLE_REGISTRY = [
         description: 'Built-in role for user and custom-role administration without owner powers.',
         permissionKeys: [
             PERMISSIONS.APP_ACCESS,
+            PERMISSIONS.PROXY_HOSTS_VIEW,
+            PERMISSIONS.PROXY_HOSTS_CREATE,
+            PERMISSIONS.PROXY_HOSTS_UPDATE,
+            PERMISSIONS.PROXY_HOSTS_DELETE,
+            PERMISSIONS.PROXY_HOSTS_ENABLE,
+            PERMISSIONS.PROXY_HOSTS_DISABLE,
             PERMISSIONS.USERS_VIEW,
             PERMISSIONS.USERS_CREATE,
             PERMISSIONS.USERS_UPDATE,
@@ -81,6 +99,7 @@ export const SYSTEM_ROLE_REGISTRY = [
         description: 'Built-in role for basic application and account access.',
         permissionKeys: [
             PERMISSIONS.APP_ACCESS,
+            PERMISSIONS.PROXY_HOSTS_VIEW,
             PERMISSIONS.ACCOUNT_VIEW,
             PERMISSIONS.ACCOUNT_UPDATE,
         ],

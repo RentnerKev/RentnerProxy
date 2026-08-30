@@ -42,7 +42,8 @@
         "navigation": "Application navigation",
         "controlPlane": "Control plane",
         "collapseNavigation": "Collapse navigation",
-        "expandNavigation": "Expand navigation"
+        "expandNavigation": "Expand navigation",
+        "proxyHosts": "Proxy hosts"
     },
     "language": {
         "title": "Language",
@@ -624,6 +625,126 @@
                 "descriptionMax": "Description must contain at most 500 characters."
             },
             "item": "role"
+        },
+        "proxyHosts": {
+            "page": {
+                "eyebrow": "Proxy management",
+                "title": "Proxy hosts",
+                "description": "Manage domains and forwarding targets. Enabled and disabled describe saved configuration only; no proxy engine is connected yet."
+            },
+            "messages": {
+                "created": "Proxy host created successfully.",
+                "updated": "Proxy host updated successfully.",
+                "deleted": "Proxy host deleted successfully.",
+                "enabled": "Proxy host enabled successfully.",
+                "disabled": "Proxy host disabled successfully."
+            },
+            "states": {
+                "unavailableTitle": "Proxy hosts are unavailable",
+                "unavailableDescription": "The saved proxy hosts could not be loaded. Try again."
+            },
+            "actions": {
+                "add": "Add proxy host",
+                "create": "Create proxy host",
+                "edit": "Edit",
+                "enable": "Enable",
+                "disable": "Disable",
+                "delete": "Delete",
+                "deleting": "Deleting…",
+                "disabling": "Disabling…",
+                "open": "Open actions for {{name}}",
+                "none": "No actions available",
+                "disableDescription": "Save this proxy host as disabled.",
+                "enableDescription": "Save this proxy host as enabled.",
+                "deleteDescription": "Permanently remove “{{name}}”."
+            },
+            "confirm": {
+                "deleteTitle": "Delete proxy host?",
+                "deleteDescription": "The proxy host for “{{name}}” and all its domain assignments will be removed.",
+                "deleteWarning": "This action cannot be undone.",
+                "deleteLabel": "Delete proxy host",
+                "disableTitle": "Disable proxy host?",
+                "disableDescription": "This saves the proxy host as disabled. It does not change traffic now because no proxy engine is connected.",
+                "disableLabel": "Disable proxy host",
+                "saveDisabled": "Save and disable"
+            },
+            "form": {
+                "description": "Save domains and a forwarding target. These settings do not apply a live proxy configuration.",
+                "editTitle": "Edit proxy host",
+                "creating": "Creating…",
+                "domains": "Domains",
+                "domainLabel": "Domain {{number}}",
+                "domainPlaceholder": "example.com",
+                "removeDomain": "Remove domain {{number}}",
+                "addDomain": "Add domain",
+                "domainsHint": "Add 1–50 DNS names. International names are saved as ASCII/Punycode. Wildcards and IP addresses are not supported here.",
+                "forwardScheme": "Forward scheme",
+                "forwardHost": "Forward host",
+                "forwardPort": "Forward port",
+                "forwardHostPlaceholder": "192.168.1.50",
+                "forwardHostHint": "Enter a hostname, IPv4 or IPv6 address without a scheme, path or port.",
+                "enabledHint": "Desired state only. No proxy engine is connected yet.",
+                "statusReadOnly": "You do not have permission to change this proxy host’s saved status."
+            },
+            "status": {
+                "enabled": "Enabled",
+                "disabled": "Disabled"
+            },
+            "scheme": {
+                "http": "HTTP",
+                "https": "HTTPS"
+            },
+            "columns": {
+                "domains": "Domains",
+                "forward": "Forward target",
+                "status": "Status",
+                "created": "Created",
+                "actions": "Actions"
+            },
+            "filters": {
+                "domains": "Filter domains…",
+                "allSchemes": "All schemes",
+                "allStatuses": "All statuses",
+                "createdFrom": "Created from",
+                "createdTo": "Created to"
+            },
+            "cells": {
+                "moreDomains": "Show {{count}} more domains",
+                "showDomain": "Show domain {{domain}}"
+            },
+            "table": {
+                "eyebrow": "Saved configuration",
+                "count_one": "{{count}} proxy host",
+                "count_other": "{{count}} proxy hosts",
+                "description": "Inspect saved domains, forwarding targets, and desired state.",
+                "searchLabel": "Search proxy hosts",
+                "searchPlaceholder": "Search domains, target, scheme, port, or status…",
+                "loading": "Loading proxy hosts",
+                "emptyTitle": "No proxy hosts yet",
+                "emptyDescription": "Add a proxy host to save domains and a forwarding target.",
+                "filteredEmptyTitle": "No proxy hosts match your filters",
+                "filteredEmptyDescription": "Adjust the search or reset the active filters to see more proxy hosts.",
+                "itemLabel": "proxy hosts"
+            },
+            "errors": {
+                "loadFailed": "Proxy hosts could not be loaded.",
+                "saveFailed": "The proxy host could not be saved.",
+                "deleteFailed": "The proxy host could not be deleted.",
+                "enableFailed": "The proxy host could not be enabled.",
+                "disableFailed": "The proxy host could not be disabled.",
+                "domain_conflict": "This domain is already assigned to another proxy host.",
+                "proxy_host_not_found": "The proxy host no longer exists.",
+                "invalid_status_transition": "The proxy host is already in that state. Refresh the list and try again.",
+                "invalid_input": "Review the proxy host values and try again."
+            },
+            "validation": {
+                "domain": "Enter a valid DNS name without a URL, IP address or wildcard.",
+                "domainsRequired": "Add at least one domain.",
+                "domainsLimit": "A proxy host can have no more than 50 domains.",
+                "duplicateDomain": "This domain is listed more than once.",
+                "forwardHost": "Enter a valid hostname, IPv4 or IPv6 address without a scheme, path or port.",
+                "port": "Enter a whole-number port from 1 to 65535."
+            }
         }
     },
     "permissions": {
@@ -631,7 +752,8 @@
             "app": "Application",
             "users": "Users",
             "roles": "Roles",
-            "account": "Account"
+            "account": "Account",
+            "proxy_hosts": "Proxy hosts"
         },
         "app": {
             "access": "Application access"
@@ -654,6 +776,14 @@
         "account": {
             "view": "View own account",
             "update": "Update own account"
+        },
+        "proxy_hosts": {
+            "view": "View proxy hosts",
+            "create": "Create proxy hosts",
+            "update": "Update proxy hosts",
+            "delete": "Delete proxy hosts",
+            "enable": "Enable proxy hosts",
+            "disable": "Disable proxy hosts"
         }
     },
     "systemRoles": {

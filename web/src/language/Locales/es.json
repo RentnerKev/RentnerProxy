@@ -42,7 +42,8 @@
         "navigation": "Navegación de la aplicación",
         "controlPlane": "Administración",
         "collapseNavigation": "Contraer navegación",
-        "expandNavigation": "Expandir navegación"
+        "expandNavigation": "Expandir navegación",
+        "proxyHosts": "Hosts proxy"
     },
     "language": {
         "title": "Idioma",
@@ -624,6 +625,126 @@
                 "editableRequired": "Se necesita un rol editable."
             },
             "item": "rol"
+        },
+        "proxyHosts": {
+            "page": {
+                "eyebrow": "Gestión de proxy",
+                "title": "Hosts proxy",
+                "description": "Gestiona dominios y destinos de reenvío. Activado y desactivado solo describen la configuración guardada; todavía no hay un motor proxy conectado."
+            },
+            "messages": {
+                "created": "Host proxy creado correctamente.",
+                "updated": "Host proxy actualizado correctamente.",
+                "deleted": "Host proxy eliminado correctamente.",
+                "enabled": "Host proxy activado correctamente.",
+                "disabled": "Host proxy desactivado correctamente."
+            },
+            "states": {
+                "unavailableTitle": "Los hosts proxy no están disponibles",
+                "unavailableDescription": "No se pudieron cargar los hosts proxy guardados. Inténtalo de nuevo."
+            },
+            "actions": {
+                "add": "Añadir host proxy",
+                "create": "Crear host proxy",
+                "edit": "Editar",
+                "enable": "Activar",
+                "disable": "Desactivar",
+                "delete": "Eliminar",
+                "deleting": "Eliminando…",
+                "disabling": "Desactivando…",
+                "open": "Abrir acciones de {{name}}",
+                "none": "No hay acciones disponibles",
+                "disableDescription": "Guardar este host proxy como desactivado.",
+                "enableDescription": "Guardar este host proxy como activado.",
+                "deleteDescription": "Eliminar “{{name}}” de forma permanente."
+            },
+            "confirm": {
+                "deleteTitle": "¿Eliminar el host proxy?",
+                "deleteDescription": "Se eliminarán el host proxy de “{{name}}” y todas sus asignaciones de dominio.",
+                "deleteWarning": "Esta acción no se puede deshacer.",
+                "deleteLabel": "Eliminar host proxy",
+                "disableTitle": "¿Desactivar el host proxy?",
+                "disableDescription": "El host proxy se guardará como desactivado. Esto no modifica el tráfico ahora porque no hay un motor proxy conectado.",
+                "disableLabel": "Desactivar host proxy",
+                "saveDisabled": "Guardar y desactivar"
+            },
+            "form": {
+                "description": "Guarda dominios y un destino de reenvío. Estos ajustes no aplican una configuración proxy en funcionamiento.",
+                "editTitle": "Editar host proxy",
+                "creating": "Creando…",
+                "domains": "Dominios",
+                "domainLabel": "Dominio {{number}}",
+                "domainPlaceholder": "ejemplo.es",
+                "removeDomain": "Eliminar dominio {{number}}",
+                "addDomain": "Añadir dominio",
+                "domainsHint": "Añade entre 1 y 50 nombres DNS. Los nombres internacionales se guardan como ASCII/Punycode. Aquí no se admiten comodines ni direcciones IP.",
+                "forwardScheme": "Esquema de reenvío",
+                "forwardHost": "Host de destino",
+                "forwardPort": "Puerto de destino",
+                "forwardHostPlaceholder": "192.168.1.50",
+                "forwardHostHint": "Introduce un nombre de host o una dirección IPv4 o IPv6 sin esquema, ruta ni puerto.",
+                "enabledHint": "Solo el estado deseado. Todavía no hay un motor proxy conectado.",
+                "statusReadOnly": "No tienes permiso para cambiar el estado guardado de este host proxy."
+            },
+            "status": {
+                "enabled": "Activado",
+                "disabled": "Desactivado"
+            },
+            "scheme": {
+                "http": "HTTP",
+                "https": "HTTPS"
+            },
+            "columns": {
+                "domains": "Dominios",
+                "forward": "Destino de reenvío",
+                "status": "Estado",
+                "created": "Creado",
+                "actions": "Acciones"
+            },
+            "filters": {
+                "domains": "Filtrar dominios…",
+                "allSchemes": "Todos los esquemas",
+                "allStatuses": "Todos los estados",
+                "createdFrom": "Creado desde",
+                "createdTo": "Creado hasta"
+            },
+            "cells": {
+                "moreDomains": "Mostrar {{count}} dominios más",
+                "showDomain": "Mostrar dominio {{domain}}"
+            },
+            "table": {
+                "eyebrow": "Configuración guardada",
+                "count_one": "{{count}} host proxy",
+                "count_other": "{{count}} hosts proxy",
+                "description": "Consulta los dominios guardados, los destinos de reenvío y el estado deseado.",
+                "searchLabel": "Buscar hosts proxy",
+                "searchPlaceholder": "Buscar dominios, destino, esquema, puerto o estado…",
+                "loading": "Cargando hosts proxy",
+                "emptyTitle": "Todavía no hay hosts proxy",
+                "emptyDescription": "Añade un host proxy para guardar dominios y un destino de reenvío.",
+                "filteredEmptyTitle": "Ningún host proxy coincide con los filtros",
+                "filteredEmptyDescription": "Ajusta la búsqueda o restablece los filtros activos para ver más hosts proxy.",
+                "itemLabel": "hosts proxy"
+            },
+            "errors": {
+                "loadFailed": "No se pudieron cargar los hosts proxy.",
+                "saveFailed": "No se pudo guardar el host proxy.",
+                "deleteFailed": "No se pudo eliminar el host proxy.",
+                "enableFailed": "No se pudo activar el host proxy.",
+                "disableFailed": "No se pudo desactivar el host proxy.",
+                "domain_conflict": "Este dominio ya está asignado a otro host proxy.",
+                "proxy_host_not_found": "El host proxy ya no existe.",
+                "invalid_status_transition": "El host proxy ya está en ese estado. Actualiza la lista e inténtalo de nuevo.",
+                "invalid_input": "Revisa los valores del host proxy e inténtalo de nuevo."
+            },
+            "validation": {
+                "domain": "Introduce un nombre DNS válido sin URL, dirección IP ni comodín.",
+                "domainsRequired": "Añade al menos un dominio.",
+                "domainsLimit": "Un host proxy no puede tener más de 50 dominios.",
+                "duplicateDomain": "Este dominio aparece más de una vez.",
+                "forwardHost": "Introduce un nombre de host o una dirección IPv4 o IPv6 válidos sin esquema, ruta ni puerto.",
+                "port": "Introduce un número de puerto entero entre 1 y 65535."
+            }
         }
     },
     "permissions": {
@@ -631,7 +752,8 @@
             "app": "Aplicación",
             "users": "Usuarios",
             "roles": "Roles",
-            "account": "Cuenta"
+            "account": "Cuenta",
+            "proxy_hosts": "Hosts proxy"
         },
         "app": {
             "access": "Acceso a la aplicación"
@@ -654,6 +776,14 @@
         "account": {
             "view": "Ver cuenta propia",
             "update": "Actualizar cuenta propia"
+        },
+        "proxy_hosts": {
+            "view": "Ver hosts proxy",
+            "create": "Crear hosts proxy",
+            "update": "Modificar hosts proxy",
+            "delete": "Eliminar hosts proxy",
+            "enable": "Activar hosts proxy",
+            "disable": "Desactivar hosts proxy"
         }
     },
     "systemRoles": {
