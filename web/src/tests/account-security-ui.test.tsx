@@ -13,7 +13,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { default: SecuritySection } =
-    await import('../features/Auth/Account/Components/SecuritySection')
+    await import('../features/UserSettings/Components/SecuritySection')
 
 let activeRoot: Root | null = null
 

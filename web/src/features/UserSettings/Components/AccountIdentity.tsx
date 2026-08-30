@@ -1,6 +1,6 @@
-import type { AccountIdentityProps } from '../Types/account-component-props.types'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
-import useTranslationStore from '../../../../language/useTranslationStore'
+import type { AccountIdentityProps } from '../Types/user-settings-component-props.types'
+import { uiClassNames } from '../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../language/useTranslationStore'
 
 export default function AccountIdentity({ user }: AccountIdentityProps) {
     const { t } = useTranslationStore()

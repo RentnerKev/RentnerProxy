@@ -5,7 +5,7 @@ import {
     PROFILE_IMAGE_CLIENT_OUTPUT_SIZE,
     PROFILE_IMAGE_MAX_SOURCE_BYTES,
     PROFILE_IMAGE_MAX_SOURCE_PIXELS,
-} from '../../../../config/profile-image.config'
+} from '../../../config/profile-image.config'
 
 function loadImageElement(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {

@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { PERMISSIONS } from '../../config/permissions.config'
-import AccountPage from '../../features/Auth/Account'
+import UserSettingsPage from '../../features/UserSettings'
 import { requirePermissionRoute } from '../../features/Auth/route-guards'
 
 export const Route = createFileRoute('/_authenticated/account')({
@@ -12,5 +12,5 @@ export const Route = createFileRoute('/_authenticated/account')({
 function AccountRoute() {
     const { user } = Route.useRouteContext()
 
-    return <AccountPage user={user} />
+    return <UserSettingsPage user={user} />
 }

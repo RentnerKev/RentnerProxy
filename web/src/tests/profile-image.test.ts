@@ -6,7 +6,7 @@ import {
     PROFILE_IMAGE_MAX_WEBP_BYTES,
     PROFILE_IMAGE_SERVER_OUTPUT_SIZE,
 } from '../config/profile-image.config'
-import { updateProfileImageInputSchema } from '../features/Auth/Account/validation'
+import { updateProfileImageInputSchema } from '../features/UserSettings/validation'
 import { createNormalizedProfileImageWebp } from '../server/Auth/Account/profile-image-processing.server'
 import { getUserAvatarUrl } from '../shared/Avatar'
 

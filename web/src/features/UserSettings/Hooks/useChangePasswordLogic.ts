@@ -3,9 +3,9 @@ import { useMutation } from '@tanstack/react-query'
 
 import { changePasswordHandler } from '../server'
 import { changePasswordInputSchema } from '../validation'
-import type { ChangePasswordFormValues } from '../Types/account-form.types'
+import type { ChangePasswordFormValues } from '../Types/change-password-form.types'
 
-export default function useAccountLogic() {
+export default function useChangePasswordLogic() {
     const mutation = useMutation({
         mutationFn: (values: ChangePasswordFormValues) => changePasswordHandler({ data: values }),
     })

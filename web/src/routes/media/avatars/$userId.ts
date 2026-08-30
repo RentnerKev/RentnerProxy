@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { getProfileImageResponse } from '../../../features/Auth/Account/server'
+import { getProfileImageResponse } from '../../../features/UserSettings/server'
 
 export const Route = createFileRoute('/media/avatars/$userId')({
     server: {

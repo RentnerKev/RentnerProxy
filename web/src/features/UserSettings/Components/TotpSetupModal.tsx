@@ -1,10 +1,10 @@
 import { QRCodeSVG } from 'qrcode.react'
 import type { ChangeEvent } from 'react'
 
-import FieldError from '../../../../shared/Forms/FieldError'
-import { Modal } from '../../../../shared/Modal'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
-import useTranslationStore from '../../../../language/useTranslationStore'
+import FieldError from '../../../shared/Forms/FieldError'
+import { Modal } from '../../../shared/Modal'
+import { uiClassNames } from '../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../language/useTranslationStore'
 import useTotpSetupModalLogic from '../Hooks/useTotpSetupModalLogic'
 
 interface TotpSetupModalProps {

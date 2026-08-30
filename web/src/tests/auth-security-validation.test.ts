@@ -6,7 +6,7 @@ import {
     finishPasskeyRegistrationInputSchema,
     finishPasskeyReauthenticationInputSchema,
     renamePasskeyInputSchema,
-} from '../features/Auth/Account/validation'
+} from '../features/UserSettings/validation'
 
 const opaqueChallenge = createOpaqueToken()
 const credentialId = 'AQIDBA'

@@ -1,10 +1,10 @@
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
-import useTranslationStore from '../../../../language/useTranslationStore'
+import { uiClassNames } from '../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../language/useTranslationStore'
 import ChangePasswordForm from './ChangePasswordForm'
-import useAccountLogic from '../Hooks/useAccountLogic'
+import useChangePasswordLogic from '../Hooks/useChangePasswordLogic'
 
 export default function ChangePasswordPanel() {
-    const { state } = useAccountLogic()
+    const { state } = useChangePasswordLogic()
     const { t } = useTranslationStore()
 
     return (

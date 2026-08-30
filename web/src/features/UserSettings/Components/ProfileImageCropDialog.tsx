@@ -1,11 +1,11 @@
 import { Check, RotateCcw, ZoomIn } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 
-import FormMessage from '../../../../shared/Forms/FormMessage'
-import { Modal } from '../../../../shared/Modal'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import type { ProfileImageCropDialogProps } from '../Types/account-component-props.types'
+import FormMessage from '../../../shared/Forms/FormMessage'
+import { Modal } from '../../../shared/Modal'
+import { uiClassNames } from '../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../language/useTranslationStore'
+import type { ProfileImageCropDialogProps } from '../Types/user-settings-component-props.types'
 
 export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialogProps) {
     const { t } = useTranslationStore()

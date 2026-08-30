@@ -1,12 +1,12 @@
 import { Camera, ImageUp } from 'lucide-react'
 
-import { UserAvatar } from '../../../../shared/Avatar'
-import FormMessage from '../../../../shared/Forms/FormMessage'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
-import { PROFILE_IMAGE_ACCEPT } from '../../../../config/profile-image.config'
-import useTranslationStore from '../../../../language/useTranslationStore'
+import { UserAvatar } from '../../../shared/Avatar'
+import FormMessage from '../../../shared/Forms/FormMessage'
+import { uiClassNames } from '../../../shared/Styles/uiClassNames'
+import { PROFILE_IMAGE_ACCEPT } from '../../../config/profile-image.config'
+import useTranslationStore from '../../../language/useTranslationStore'
 import useProfileImageLogic from '../Hooks/useProfileImageLogic'
-import type { ProfileImagePanelProps } from '../Types/account-component-props.types'
+import type { ProfileImagePanelProps } from '../Types/user-settings-component-props.types'
 import ProfileImageCropDialog from './ProfileImageCropDialog'
 
 export default function ProfileImagePanel({ canUpdateProfileImage, user }: ProfileImagePanelProps) {

@@ -1,7 +1,7 @@
 import { Fingerprint, KeyRound, LoaderCircle, ShieldCheck, ShieldOff } from 'lucide-react'
 
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
-import useTranslationStore from '../../../../language/useTranslationStore'
+import { uiClassNames } from '../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../language/useTranslationStore'
 import { formatSecurityTimestamp } from '../Helpers/security'
 import type { SecurityStatus } from '../Types/security.types'
 

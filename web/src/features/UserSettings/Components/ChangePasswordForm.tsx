@@ -1,12 +1,12 @@
-import FieldError from '../../../../shared/Forms/FieldError'
-import FormMessage from '../../../../shared/Forms/FormMessage'
-import PasswordInput from '../../../../shared/Forms/PasswordInput'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
+import FieldError from '../../../shared/Forms/FieldError'
+import FormMessage from '../../../shared/Forms/FormMessage'
+import PasswordInput from '../../../shared/Forms/PasswordInput'
+import { uiClassNames } from '../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../language/useTranslationStore'
+import { getValidationIssue } from '../../../shared/Forms/Helpers/getFieldErrorMessage'
 import type { ChangeEvent } from 'react'
-import type { ChangePasswordFormProps } from '../Types/account-component-props.types'
-import { credentialPasswordSchema, newPasswordSchema } from '../../Shared/validation'
+import type { ChangePasswordFormProps } from '../Types/user-settings-component-props.types'
+import { credentialPasswordSchema, newPasswordSchema } from '../../Auth/Shared/validation'
 
 export default function ChangePasswordForm({ state }: ChangePasswordFormProps) {
     const { t } = useTranslationStore()

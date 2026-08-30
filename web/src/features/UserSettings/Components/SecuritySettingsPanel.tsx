@@ -1,24 +1,15 @@
 import useTranslationStore from '../../../language/useTranslationStore'
 import FormMessage from '../../../shared/Forms/FormMessage'
-import PageHeader from '../../../shared/Management/PageHeader'
 import { ConfirmDialog } from '../../../shared/Modal/Components/ConfirmDialog'
-import { uiClassNames } from '../../../shared/Styles/uiClassNames'
-import LanguageSettingsPanel from '../../UserSettings/Components/LanguageSettingsPanel'
-import AccountIdentity from './Components/AccountIdentity'
-import ChangePasswordPanel from './Components/ChangePasswordPanel'
-import ProfileImagePanel from './Components/ProfileImagePanel'
-import ReauthenticationModal from './Components/ReauthenticationModal'
-import RecoveryCodesModal from './Components/RecoveryCodesModal'
-import RenamePasskeyModal from './Components/RenamePasskeyModal'
-import SecuritySection from './Components/SecuritySection'
-import TotpSetupModal from './Components/TotpSetupModal'
-import { getAccountPageViewModel } from './Helpers/accountPage'
-import useSecurityPageLogic from './Hooks/useSecurityPageLogic'
-import type { AccountPageProps } from './Types/account-component-props.types'
+import ReauthenticationModal from './ReauthenticationModal'
+import RecoveryCodesModal from './RecoveryCodesModal'
+import RenamePasskeyModal from './RenamePasskeyModal'
+import SecuritySection from './SecuritySection'
+import TotpSetupModal from './TotpSetupModal'
+import useSecurityPageLogic from '../Hooks/useSecurityPageLogic'
 
-export default function AccountPage({ user }: AccountPageProps) {
+export default function SecuritySettingsPanel() {
     const { t } = useTranslationStore()
-    const viewModel = getAccountPageViewModel(user)
     const security = useSecurityPageLogic()
     const { state, handler } = security
     const queryErrorMessage = state.error ? 'account.security.error.unavailable' : null
@@ -55,40 +46,20 @@ export default function AccountPage({ user }: AccountPageProps) {
 
     return (
         <>
-            <PageHeader
-                eyebrow={t('account.page.eyebrow')}
-                title={t('account.page.title')}
-                description={t('account.page.description')}
+            {resultMessage ? <FormMessage tone={resultTone}>{resultMessage}</FormMessage> : null}
+            <SecuritySection
+                status={state.status}
+                isLoading={state.isLoading}
+                isPending={state.isPending}
+                onEnableTotp={handler.requestEnableTotp}
+                onAddPasskey={handler.requestAddPasskey}
+                onDisableTotp={() => handler.requestDestructiveAction('disable')}
+                onRegenerateCodes={() => handler.requestDestructiveAction('regenerate')}
+                onRenamePasskey={handler.requestRename}
+                onRemovePasskey={(passkeyId) =>
+                    handler.requestDestructiveAction('remove', passkeyId)
+                }
             />
-            <div className={uiClassNames.management.grid}>
-                <div className={uiClassNames.management.accountGrid}>
-                    <div className="grid gap-4">
-                        <AccountIdentity user={user} />
-                        <ProfileImagePanel
-                            canUpdateProfileImage={viewModel.canUpdateProfileImage}
-                            user={user}
-                        />
-                        <LanguageSettingsPanel />
-                    </div>
-                    <ChangePasswordPanel />
-                </div>
-                {resultMessage ? (
-                    <FormMessage tone={resultTone}>{resultMessage}</FormMessage>
-                ) : null}
-                <SecuritySection
-                    status={state.status}
-                    isLoading={state.isLoading}
-                    isPending={state.isPending}
-                    onEnableTotp={handler.requestEnableTotp}
-                    onAddPasskey={handler.requestAddPasskey}
-                    onDisableTotp={() => handler.requestDestructiveAction('disable')}
-                    onRegenerateCodes={() => handler.requestDestructiveAction('regenerate')}
-                    onRenamePasskey={handler.requestRename}
-                    onRemovePasskey={(passkeyId) =>
-                        handler.requestDestructiveAction('remove', passkeyId)
-                    }
-                />
-            </div>
             <TotpSetupModal
                 key={state.setup?.challengeId ?? 'closed'}
                 setup={state.setup}

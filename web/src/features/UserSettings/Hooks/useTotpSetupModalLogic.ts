@@ -1,7 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
 
-import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
+import { getValidationIssue } from '../../../shared/Forms/Helpers/getFieldErrorMessage'
 import type { TotpSetupFormValues } from '../Types/security.types'
 import { totpCodeSchema, totpSetupFormSchema } from '../validation'
 

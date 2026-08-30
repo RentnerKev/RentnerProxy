@@ -1,6 +1,6 @@
-import { Modal } from '../../../../shared/Modal'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
-import useTranslationStore from '../../../../language/useTranslationStore'
+import { Modal } from '../../../shared/Modal'
+import { uiClassNames } from '../../../shared/Styles/uiClassNames'
+import useTranslationStore from '../../../language/useTranslationStore'
 import useRenamePasskeyModalLogic from '../Hooks/useRenamePasskeyModalLogic'
 
 interface RenamePasskeyModalProps {

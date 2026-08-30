@@ -4,7 +4,7 @@ import type { ChangeEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import type { Area, Point } from 'react-easy-crop'
 
-import { userManagementQueryKeys } from '../../../Admin/UserManagement/queryKeys'
+import { userManagementQueryKeys } from '../../Admin/UserManagement/queryKeys'
 import { updateProfileImageHandler } from '../server'
 import { createCroppedProfileImageDataUrl, createProfileImageSource } from '../Helpers/profileImage'
 

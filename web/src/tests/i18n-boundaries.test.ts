@@ -98,7 +98,6 @@ describe('language boundaries', () => {
         const roots = [
             'features/Admin',
             'features/FoundationStatus',
-            'features/Auth/Account',
             'features/UserSettings',
             'layout/Components/Theme',
             'layout/Components/ApplicationShell',
