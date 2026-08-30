@@ -9,7 +9,7 @@ function filterTrimmedIncludesString<TData extends RowData>(
     filterValue: unknown,
 ) {
     return String(row.getValue(columnId) ?? '')
-        .toLocaleLowerCase()
+        .toLocaleLowerCase('en-US')
         .includes(String(filterValue))
 }
 
@@ -19,7 +19,7 @@ export function createTrimmedIncludesStringFilter<TData extends RowData>(): Filt
 > {
     const filter: FilterFn<ClientTableFeatures, TData> = filterTrimmedIncludesString
 
-    filter.resolveFilterValue = (value) => String(value).trim().toLocaleLowerCase()
+    filter.resolveFilterValue = (value) => String(value).trim().toLocaleLowerCase('en-US')
     filter.autoRemove = (value) => !String(value).trim()
 
     return filter
@@ -40,7 +40,7 @@ export function createDateRangeFilter<TData extends RowData>(): FilterFn<
         }
 
         if (range?.from) {
-            const from = new Date(`${range.from}T00:00:00`).getTime()
+            const from = new Date(`${range.from}T00:00:00Z`).getTime()
 
             if (!Number.isNaN(from) && timestamp < from) {
                 return false
@@ -48,8 +48,8 @@ export function createDateRangeFilter<TData extends RowData>(): FilterFn<
         }
 
         if (range?.to) {
-            const toDate = new Date(`${range.to}T00:00:00`)
-            toDate.setHours(23, 59, 59, 999)
+            const toDate = new Date(`${range.to}T00:00:00Z`)
+            toDate.setUTCHours(23, 59, 59, 999)
 
             if (!Number.isNaN(toDate.getTime()) && timestamp > toDate.getTime()) {
                 return false
@@ -75,6 +75,6 @@ export function createSortedUniqueFilterOptions(
     values: ReadonlyArray<string>,
 ): Array<TableFilterOption> {
     return [...new Set(values)]
-        .toSorted((left, right) => left.localeCompare(right))
+        .toSorted((left, right) => left.localeCompare(right, 'en-US'))
         .map((value) => ({ label: value, value }))
 }
