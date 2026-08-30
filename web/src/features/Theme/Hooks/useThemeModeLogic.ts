@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 
 import type { UserThemeMode } from '../../../config/theme.config'
-import { updateCurrentUserThemeModeHandler } from '../server'
+import { updateCurrentUserThemeModeHandler } from '../../UserSettings/server'
 
 export default function useThemeModeLogic(initialThemeMode: UserThemeMode) {
     const confirmedThemeMode = useRef(initialThemeMode)

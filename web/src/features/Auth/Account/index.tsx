@@ -3,6 +3,7 @@ import FormMessage from '../../../shared/Forms/FormMessage'
 import PageHeader from '../../../shared/Management/PageHeader'
 import { ConfirmDialog } from '../../../shared/Modal/Components/ConfirmDialog'
 import { uiClassNames } from '../../../shared/Styles/uiClassNames'
+import LanguageSettingsPanel from '../../UserSettings/Components/LanguageSettingsPanel'
 import AccountIdentity from './Components/AccountIdentity'
 import ChangePasswordPanel from './Components/ChangePasswordPanel'
 import ProfileImagePanel from './Components/ProfileImagePanel'
@@ -67,6 +68,7 @@ export default function AccountPage({ user }: AccountPageProps) {
                             canUpdateProfileImage={viewModel.canUpdateProfileImage}
                             user={user}
                         />
+                        <LanguageSettingsPanel />
                     </div>
                     <ChangePasswordPanel />
                 </div>

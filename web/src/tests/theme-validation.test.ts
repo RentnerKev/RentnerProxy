@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { updateThemeModeInputSchema } from '../features/Theme/validation'
+import { updateThemeModeInputSchema } from '../features/UserSettings/validation'
 
 describe('theme validation', () => {
     test('accepts each supported theme mode', () => {
