@@ -44,9 +44,10 @@ interface ControllerRequestOptions {
     readonly timeoutMs: number
     readonly privileged?: boolean
     readonly body?: string
-    readonly method?: 'GET' | 'PUT' | 'POST'
+    readonly method?: 'GET' | 'PUT' | 'POST' | 'DELETE'
     readonly responseLimit?: number
     readonly allowNotFound?: boolean
+    readonly acceptErrorResponse?: boolean
 }
 
 async function readBoundedJson(
@@ -78,23 +79,31 @@ async function readBoundedJson(
     }
 }
 
-async function controllerRequest(
+export async function controllerRequest(
     path:
         | '/health'
         | '/internal/v1/proxy/status'
         | '/internal/v1/proxy/config'
         | '/internal/v1/proxy/config/preview'
         | `/internal/v1/proxy/hosts/${string}/config`
-        | `/internal/v1/proxy/hosts/${string}/config/preview`,
+        | `/internal/v1/proxy/hosts/${string}/config/preview`
+        | '/internal/v1/certificates'
+        | `/internal/v1/certificates/${string}`,
     options: ControllerRequestOptions,
 ): Promise<unknown> {
     const baseUrl = getControllerBaseUrl()
     if (!baseUrl) return null
 
     const headers: Record<string, string> = { accept: 'application/json' }
-    if (options.privileged) {
+    const isCertificateRequest =
+        path === '/internal/v1/certificates' || path.startsWith('/internal/v1/certificates/')
+    if (options.privileged || isCertificateRequest) {
         const token = getControllerToken()
-        if (token === null || (!token && !isLoopbackControllerUrl(baseUrl))) return null
+        if (
+            token === null ||
+            (!token && (isCertificateRequest || !isLoopbackControllerUrl(baseUrl)))
+        )
+            return null
         if (token) headers.authorization = 'Bearer ' + token
     }
 
@@ -111,14 +120,21 @@ async function controllerRequest(
             redirect: 'error',
         })
 
-        if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) {
+        if (
+            (!response.ok && !options.acceptErrorResponse) ||
+            !response.headers.get('content-type')?.includes('application/json')
+        ) {
             await response.body?.cancel()
             if (response.status === 404 && options.allowNotFound) return null
             console.warn('[controller] request unavailable', { path, status: response.status })
             return null
         }
 
-        return await readBoundedJson(response, options.responseLimit)
+        const payload = await readBoundedJson(response, options.responseLimit)
+        if (response.ok) return payload
+        // Error responses can only carry a bounded code, never a successful DTO.
+        const error = z.object({ error: z.string().max(64) }).safeParse(payload)
+        return error.success ? error.data : null
     } catch {
         // Never log the URL, token, response body, or a raw network/engine error.
         console.warn('[controller] request unavailable', { path })

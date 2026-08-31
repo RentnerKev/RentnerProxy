@@ -20,6 +20,8 @@ export async function readProxyRuntimeSnapshot(
             forwardHost: proxyHosts.forwardHost,
             forwardPort: proxyHosts.forwardPort,
             advancedConfig: proxyHosts.advancedConfig,
+            certificateId: proxyHosts.certificateId,
+            forceHttps: proxyHosts.forceHttps,
         })
         .from(proxyHosts)
         .leftJoin(proxyHostDomains, eq(proxyHostDomains.proxyHostId, proxyHosts.id))
@@ -34,6 +36,8 @@ export async function readProxyRuntimeSnapshot(
             forwardHost: string
             forwardPort: number
             advancedConfig: string
+            certificateId: string | null
+            forceHttps: boolean
             enabled: boolean
         }
     >()
@@ -48,6 +52,8 @@ export async function readProxyRuntimeSnapshot(
                 forwardHost: row.forwardHost,
                 forwardPort: row.forwardPort,
                 advancedConfig: row.advancedConfig,
+                certificateId: row.certificateId,
+                forceHttps: row.forceHttps,
                 enabled: true,
             }
             hosts.set(row.id, host)
@@ -77,6 +83,8 @@ export async function readProxyRuntimeHost(
             forwardHost: proxyHosts.forwardHost,
             forwardPort: proxyHosts.forwardPort,
             advancedConfig: proxyHosts.advancedConfig,
+            certificateId: proxyHosts.certificateId,
+            forceHttps: proxyHosts.forceHttps,
             enabled: proxyHosts.enabled,
         })
         .from(proxyHosts)
@@ -92,6 +100,8 @@ export async function readProxyRuntimeHost(
         forwardHost: first.forwardHost,
         forwardPort: first.forwardPort,
         advancedConfig: first.advancedConfig,
+        certificateId: first.certificateId,
+        forceHttps: first.forceHttps,
         enabled: first.enabled,
     }
 }

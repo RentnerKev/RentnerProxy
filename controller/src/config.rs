@@ -5,8 +5,12 @@ pub(crate) const CONTROLLER_TOKEN_ENV: &str = "RENTNERPROXY_CONTROLLER_TOKEN";
 const PROXY_ENGINE_BIN_ENV: &str = "RENTNERPROXY_PROXY_ENGINE_BIN";
 const PROXY_STATE_DIR_ENV: &str = "RENTNERPROXY_PROXY_STATE_DIR";
 const PROXY_HTTP_PORT_ENV: &str = "RENTNERPROXY_PROXY_HTTP_PORT";
+const PROXY_HTTPS_PORT_ENV: &str = "RENTNERPROXY_PROXY_HTTPS_PORT";
+const PROXY_PUBLIC_HTTPS_PORT_ENV: &str = "RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT";
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:8081";
 const DEFAULT_PROXY_HTTP_PORT: u16 = 8_080;
+const DEFAULT_PROXY_HTTPS_PORT: u16 = 8_443;
+const DEFAULT_PROXY_PUBLIC_HTTPS_PORT: u16 = 443;
 
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct ControllerToken(String);
@@ -30,6 +34,8 @@ pub(crate) struct Config {
     pub(crate) proxy_engine_bin: Option<PathBuf>,
     pub(crate) proxy_state_dir: PathBuf,
     pub(crate) proxy_http_port: u16,
+    pub(crate) proxy_https_port: u16,
+    pub(crate) proxy_public_https_port: u16,
 }
 
 #[derive(Debug)]
@@ -128,16 +134,29 @@ impl Config {
             (!value.is_empty()).then(|| PathBuf::from(value))
         });
         let proxy_http_port = read_env(PROXY_HTTP_PORT_ENV)?;
+        let proxy_https_port = read_env(PROXY_HTTPS_PORT_ENV)?;
+        let proxy_public_https_port = read_env(PROXY_PUBLIC_HTTPS_PORT_ENV)?;
         let require_state_dir = cfg!(not(debug_assertions)) && proxy_engine_bin.is_some();
 
-        Self::from_values(
+        let mut config = Self::from_values(
             Some(&listen_addr),
             controller_token.as_deref(),
             proxy_engine_bin,
             proxy_state_dir,
             proxy_http_port.as_deref(),
             require_state_dir,
-        )
+        )?;
+        config.proxy_https_port = parse_proxy_port(
+            proxy_https_port.as_deref(),
+            PROXY_HTTPS_PORT_ENV,
+            DEFAULT_PROXY_HTTPS_PORT,
+        )?;
+        config.proxy_public_https_port = parse_proxy_port(
+            proxy_public_https_port.as_deref(),
+            PROXY_PUBLIC_HTTPS_PORT_ENV,
+            DEFAULT_PROXY_PUBLIC_HTTPS_PORT,
+        )?;
+        Ok(config)
     }
 
     pub(crate) fn from_values(
@@ -196,8 +215,27 @@ impl Config {
             proxy_engine_bin,
             proxy_state_dir,
             proxy_http_port,
+            proxy_https_port: DEFAULT_PROXY_HTTPS_PORT,
+            proxy_public_https_port: DEFAULT_PROXY_PUBLIC_HTTPS_PORT,
         })
     }
+}
+
+fn parse_proxy_port(
+    value: Option<&str>,
+    variable: &'static str,
+    default: u16,
+) -> Result<u16, ConfigError> {
+    value
+        .map(|value| {
+            value
+                .parse::<u16>()
+                .ok()
+                .filter(|port| *port != 0)
+                .ok_or(ConfigError::InvalidProxyHttpPort { variable })
+        })
+        .transpose()?
+        .map_or(Ok(default), Ok)
 }
 
 fn read_env(variable: &'static str) -> Result<Option<String>, ConfigError> {

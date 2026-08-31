@@ -1,4 +1,4 @@
-# Local HTTP runtime only. This is not the production application stack.
+# Local HTTP/HTTPS runtime. This is not the production application stack.
 name: rentnerproxy-proxy-dev
 
 services:
@@ -9,8 +9,10 @@ services:
         environment:
             RENTNERPROXY_CONTROLLER_TOKEN: ${RENTNERPROXY_CONTROLLER_TOKEN:?Set a random server-only controller token (32-256 base64url/hex characters)}
             RUST_LOG: ${RUST_LOG:-info}
+            RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT: ${RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT:-${RENTNERPROXY_PROXY_DEV_HTTPS_PORT:-18443}}
         ports:
             - '127.0.0.1:${RENTNERPROXY_PROXY_DEV_HTTP_PORT:-18080}:8080'
+            - '127.0.0.1:${RENTNERPROXY_PROXY_DEV_HTTPS_PORT:-18443}:8443'
             - '127.0.0.1:${RENTNERPROXY_PROXY_DEV_CONTROLLER_PORT:-18081}:8081'
         extra_hosts:
             - 'host.docker.internal:host-gateway'

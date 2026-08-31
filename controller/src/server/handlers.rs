@@ -2,15 +2,21 @@ use axum::{
     Json,
     body::Bytes,
     extract::{Path, State, rejection::BytesRejection},
-    http::{HeaderValue, header::CACHE_CONTROL},
+    http::{
+        HeaderMap, HeaderValue, StatusCode,
+        header::{CACHE_CONTROL, CONTENT_TYPE, HOST},
+    },
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
 
 use crate::{
     models::{ApplyOutcome, ProxyConfigRequest, ProxyRuntimeStatus, ValidatedProxyConfig},
-    proxy::{is_canonical_uuid, validate_proxy_config},
-    runtime::RuntimeError,
+    proxy::{is_canonical_domain, is_canonical_uuid, is_canonical_uuid_v7, validate_proxy_config},
+    runtime::{
+        CertificateError, CertificateImportRequest, CertificateIssueRequest, CertificateMetadata,
+        RuntimeError,
+    },
 };
 
 use super::{AppState, error::ApiError};
@@ -30,10 +36,155 @@ pub(super) async fn health() -> Json<HealthResponse> {
     })
 }
 
+pub(super) async fn challenge_response(
+    Path(token): Path<String>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(domain) = challenge_domain(&headers) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    if !is_challenge_token(&token) {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    let Some(value) = state.challenges.get(&domain, &token).await else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    (
+        StatusCode::OK,
+        [
+            (
+                CONTENT_TYPE,
+                HeaderValue::from_static("text/plain; charset=utf-8"),
+            ),
+            (CACHE_CONTROL, HeaderValue::from_static("no-store")),
+        ],
+        value,
+    )
+        .into_response()
+}
+
+fn challenge_domain(headers: &HeaderMap) -> Option<String> {
+    let host = headers.get(HOST)?.to_str().ok()?.to_ascii_lowercase();
+    let domain = host
+        .split_once(':')
+        .map_or(host.as_str(), |(domain, _)| domain);
+    is_canonical_domain(domain).then(|| domain.to_owned())
+}
+
+fn is_challenge_token(value: &str) -> bool {
+    (1..=128).contains(&value.len())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+}
+
 pub(super) async fn proxy_status(
     State(state): State<AppState>,
 ) -> Result<Json<ProxyRuntimeStatus>, ApiError> {
     Ok(Json(state.runtime.status().await))
+}
+
+pub(super) async fn list_certificates(State(state): State<AppState>) -> Result<Response, ApiError> {
+    Ok(no_store_json(CertificateListResponse {
+        certificates: state
+            .runtime
+            .certificates()
+            .await
+            .map_err(certificate_error)?,
+    }))
+}
+
+pub(super) async fn get_certificate(
+    Path(id): Path<String>,
+    State(state): State<AppState>,
+) -> Result<Response, ApiError> {
+    certificate_id(&id)?;
+    Ok(no_store_json(
+        state
+            .runtime
+            .certificate(&id)
+            .await
+            .map_err(certificate_error)?,
+    ))
+}
+
+pub(super) async fn import_certificate(
+    Path(id): Path<String>,
+    State(state): State<AppState>,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    certificate_id(&id)?;
+    let body = body.map_err(|_| ApiError::certificate(CertificateError::InvalidCertificate))?;
+    let request = serde_json::from_slice::<CertificateImportRequest>(&body)
+        .map_err(|_| ApiError::certificate(CertificateError::InvalidCertificate))?;
+    Ok(no_store_json(
+        state
+            .runtime
+            .import_certificate(&id, request)
+            .await
+            .map_err(certificate_error)?,
+    ))
+}
+
+pub(super) async fn issue_certificate(
+    Path(id): Path<String>,
+    State(state): State<AppState>,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    certificate_id(&id)?;
+    let body = body.map_err(|_| ApiError::certificate(CertificateError::AcmeDomainInvalid))?;
+    let request = serde_json::from_slice::<CertificateIssueRequest>(&body)
+        .map_err(|_| ApiError::certificate(CertificateError::AcmeDomainInvalid))?;
+    let metadata = state
+        .runtime
+        .start_acme_issue(id, request, state.challenges.clone())
+        .await
+        .map_err(certificate_error)?;
+    Ok(no_store_status_json(StatusCode::ACCEPTED, metadata))
+}
+
+pub(super) async fn renew_certificate(
+    Path(id): Path<String>,
+    State(state): State<AppState>,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    certificate_id(&id)?;
+    let body = body.map_err(|_| ApiError::certificate(CertificateError::AcmeFailed))?;
+    if !body.is_empty() && serde_json::from_slice::<serde_json::Value>(&body).is_err() {
+        return Err(ApiError::certificate(CertificateError::AcmeFailed));
+    }
+    let metadata = state
+        .runtime
+        .start_acme_renewal(id, state.challenges.clone())
+        .await
+        .map_err(certificate_error)?;
+    Ok(no_store_status_json(StatusCode::ACCEPTED, metadata))
+}
+
+pub(super) async fn delete_certificate(
+    Path(id): Path<String>,
+    State(state): State<AppState>,
+) -> Result<Response, ApiError> {
+    certificate_id(&id)?;
+    state
+        .runtime
+        .delete_certificate(&id)
+        .await
+        .map_err(certificate_error)?;
+    Ok(no_store_json(DeletedCertificateResponse { deleted: true }))
+}
+
+fn certificate_id(id: &str) -> Result<(), ApiError> {
+    if is_canonical_uuid_v7(id) {
+        Ok(())
+    } else {
+        Err(ApiError::certificate(CertificateError::NotFound))
+    }
+}
+
+fn certificate_error(error: CertificateError) -> ApiError {
+    ApiError::certificate(error)
 }
 
 pub(super) async fn apply_proxy_config(
@@ -117,6 +268,7 @@ pub(super) async fn preview_proxy_config(
     let config = state
         .runtime
         .preview_config(&configuration)
+        .await
         .map_err(runtime_error)?;
     Ok(no_store_json(ProxyConfigPreviewResponse {
         config,
@@ -143,12 +295,31 @@ fn runtime_error(error: RuntimeError) -> ApiError {
     }
 }
 
+fn no_store_status_json<T: Serialize>(status: StatusCode, payload: T) -> Response {
+    let mut response = (status, Json(payload)).into_response();
+    response
+        .headers_mut()
+        .insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
+}
+
 fn no_store_json<T: Serialize>(payload: T) -> Response {
     let mut response = Json(payload).into_response();
     response
         .headers_mut()
         .insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
     response
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CertificateListResponse {
+    certificates: Vec<CertificateMetadata>,
+}
+
+#[derive(Serialize)]
+struct DeletedCertificateResponse {
+    deleted: bool,
 }
 
 #[derive(Serialize)]

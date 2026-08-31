@@ -2,12 +2,20 @@
 name = "rentnerproxy-controller"
 version = "0.0.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 license = "MIT"
 
 [dependencies]
 axum = { version = "0.8.9", default-features = false, features = ["json", "tokio", "http1"] }
+instant-acme = { version = "0.8.5", default-features = false, features = [
+    "hyper-rustls",
+    "ring",
+    "rcgen",
+] }
 libc = "0.2.189"
+rustls = { version = "0.23.43", default-features = false, features = ["ring", "std", "tls12"] }
+time = { version = "0.3.55", default-features = false, features = ["formatting", "parsing", "std"] }
+x509-parser = "0.18.1"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 sha2 = "0.10.9"
@@ -30,4 +38,5 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
 ] }
 
 [dev-dependencies]
+rcgen = "0.14.10"
 tower = { version = "0.5.3", features = ["util"] }

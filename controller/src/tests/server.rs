@@ -77,6 +77,8 @@ fn valid_payload() -> Vec<u8> {
         forward_port: 4_000,
         http_settings: ProxyHttpSettings::default(),
         advanced_config: String::new(),
+        certificate_id: None,
+        force_https: false,
     }];
     serde_json::to_vec(&ProxyConfigRequest {
         version: 1,
@@ -108,6 +110,8 @@ fn custom_payload() -> Vec<u8> {
         forward_port: 4_000,
         http_settings: ProxyHttpSettings::default(),
         advanced_config: String::new(),
+        certificate_id: None,
+        force_https: false,
     }];
     let http_settings = ProxyHttpSettings {
         client_max_body_size_bytes: Some(10_485_760),
@@ -478,4 +482,103 @@ async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
         .await
         .unwrap();
     assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
+}
+
+const CERTIFICATE_ENDPOINTS: [(&str, &str); 6] = [
+    ("GET", "/internal/v1/certificates"),
+    (
+        "GET",
+        "/internal/v1/certificates/0198d98a-0000-7000-8000-000000000001",
+    ),
+    (
+        "DELETE",
+        "/internal/v1/certificates/0198d98a-0000-7000-8000-000000000001",
+    ),
+    (
+        "POST",
+        "/internal/v1/certificates/0198d98a-0000-7000-8000-000000000001/import",
+    ),
+    (
+        "POST",
+        "/internal/v1/certificates/0198d98a-0000-7000-8000-000000000001/issue",
+    ),
+    (
+        "POST",
+        "/internal/v1/certificates/0198d98a-0000-7000-8000-000000000001/renew",
+    ),
+];
+
+#[tokio::test]
+async fn certificate_endpoints_require_a_configured_token_even_on_loopback() {
+    let router = test_app(None).await;
+    for (method, path) in CERTIFICATE_ENDPOINTS {
+        for authorization in [None, Some("Bearer unconfigured-local-token")] {
+            let mut request = Request::builder().method(method).uri(path);
+            if let Some(value) = authorization {
+                request = request.header("authorization", value);
+            }
+            let response = router
+                .clone()
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "{method} {path}"
+            );
+        }
+    }
+    for path in ["/health", "/internal/v1/proxy/status"] {
+        let response = router
+            .clone()
+            .oneshot(request_with_method("GET", path, Body::empty()))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+}
+
+#[tokio::test]
+async fn certificate_endpoints_reject_missing_or_wrong_tokens_and_accept_the_configured_token() {
+    let token_text = "0123456789abcdef0123456789abcdef";
+    let token = Config::from_values(None, Some(token_text), None, None, None, false)
+        .unwrap()
+        .controller_token
+        .unwrap();
+    let router = test_app(Some(token)).await;
+    for (method, path) in CERTIFICATE_ENDPOINTS {
+        for authorization in [None, Some("Bearer incorrect-controller-token")] {
+            let mut request = Request::builder().method(method).uri(path);
+            if let Some(value) = authorization {
+                request = request.header("authorization", value);
+            }
+            let response = router
+                .clone()
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "{method} {path}"
+            );
+        }
+    }
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/internal/v1/certificates")
+                .header("authorization", format!("Bearer {token_text}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(response.into_body(), 4_096)
+        .await
+        .unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(body, serde_json::json!({"certificates": []}));
 }

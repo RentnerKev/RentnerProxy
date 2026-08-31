@@ -20,7 +20,9 @@ const environment: NodeJS.ProcessEnv = {
     RENTNERPROXY_CONTROLLER_TOKEN: token,
     // Docker allocates free loopback ports, so normal dev services remain untouched.
     RENTNERPROXY_PROXY_DEV_HTTP_PORT: '0',
+    RENTNERPROXY_PROXY_DEV_HTTPS_PORT: '0',
     RENTNERPROXY_PROXY_DEV_CONTROLLER_PORT: '0',
+    RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT: '443',
     POSTGRES_PASSWORD: databasePassword,
 }
 const compose = ['docker', 'compose', '-p', project, '-f', 'compose.proxy-dev.yml']

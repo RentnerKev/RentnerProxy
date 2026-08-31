@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
+import CertificateRequestModal from '../../CertificateManagement/Components/CertificateRequestModal'
 import ContentState from '../../../../shared/Management/ContentState'
 import PageHeader from '../../../../shared/Management/PageHeader'
 import { ConfirmDialog } from '../../../../shared/Modal/Components/ConfirmDialog'
@@ -63,12 +64,14 @@ export default function ProxyHostManagementPageView({
                     canDelete={state.canDelete}
                     canEnable={state.canEnable}
                     canDisable={state.canDisable}
+                    canRequestCertificate={state.canRequestCertificate}
                     isPending={state.isMutating}
                     onEdit={handler.openEditor}
                     onConfig={handler.openConfigEditor}
                     onDelete={handler.openDelete}
                     onDisable={handler.openDisable}
                     onEnable={handler.enable}
+                    onRequestCertificate={handler.openCertificateRequest}
                 />
             )}
             {state.configTarget ? (
@@ -81,12 +84,23 @@ export default function ProxyHostManagementPageView({
                     onOpenChange={handler.setConfigEditorOpen}
                 />
             ) : null}
+            {state.certificateRequestTarget ? (
+                <CertificateRequestModal
+                    key={state.certificateRequestTarget.id}
+                    open
+                    initialDomains={state.certificateRequestTarget.domains}
+                    initialName={state.certificateRequestTarget.domains[0] ?? ''}
+                    onOpenChange={handler.setCertificateRequestOpen}
+                    onSuccess={handler.handleCertificateRequestSuccess}
+                />
+            ) : null}
             {state.showCreate ? (
                 <ProxyHostFormModal
                     open
                     mode="create"
                     canEnable={state.canEnable}
                     canDisable={state.canDisable}
+                    canAssignCertificates={state.canAssignCertificates}
                     onOpenChange={handler.setCreateOpen}
                     onSuccess={handler.handleFormSuccess}
                 />
@@ -99,6 +113,7 @@ export default function ProxyHostManagementPageView({
                     proxyHost={state.selectedProxyHost}
                     canEnable={state.canEnable}
                     canDisable={state.canDisable}
+                    canAssignCertificates={state.canAssignCertificates}
                     onOpenChange={handler.setEditorOpen}
                     onSuccess={handler.handleFormSuccess}
                 />

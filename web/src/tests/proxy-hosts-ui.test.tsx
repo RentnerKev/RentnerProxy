@@ -6,6 +6,7 @@ import type { Root } from 'react-dom/client'
 
 import { PERMISSIONS } from '../config/permissions.config'
 import type { ProxyHostSummary } from '../shared/Types/proxy-hosts.types'
+import type { CertificateSummary } from '../shared/Types/certificates.types'
 import type {
     ProxyHostActionResult,
     ProxyRuntimeSyncStatus,
@@ -146,6 +147,17 @@ mock.module('../features/Admin/ProxyHostManagement/server', () => ({
     updateProxyHostHandler: updateProxyHostHandlerMock,
 }))
 
+const getAssignableCertificatesHandlerMock = mock(async (): Promise<CertificateSummary[]> => [])
+const requestCertificateHandlerMock = mock(async () => ({
+    success: true,
+    message: 'admin.certificates.messages.requested',
+}))
+
+mock.module('../features/Admin/CertificateManagement/server', () => ({
+    getAssignableCertificatesHandler: getAssignableCertificatesHandlerMock,
+    requestCertificateHandler: requestCertificateHandlerMock,
+}))
+
 let activeRoot: Root | null = null
 let activeQueryClient: QueryClientInstance | null = null
 
@@ -158,7 +170,27 @@ const enabledHost: ProxyHostSummary = {
     forwardScheme: 'http',
     id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54019',
     updatedAt: new Date('2026-01-02T12:00:00Z'),
+    certificateId: null,
+    forceHttps: false,
 }
+const assignableCertificate: CertificateSummary = {
+    id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54022',
+    name: 'Edge TLS',
+    domains: ['app.example.com'],
+    source: 'acme',
+    environment: 'staging',
+    status: 'valid',
+    operation: 'idle',
+    issuedAt: new Date('2026-01-01T12:00:00Z'),
+    expiresAt: new Date('2026-04-01T12:00:00Z'),
+    issuer: 'Pebble',
+    fingerprint: 'SHA256:fixture',
+    lastErrorCode: null,
+    assignedHostCount: 0,
+    createdAt: new Date('2026-01-01T12:00:00Z'),
+    updatedAt: new Date('2026-01-01T12:00:00Z'),
+}
+
 const disabledHost: ProxyHostSummary = {
     ...enabledHost,
     createdAt: new Date('2026-01-03T12:00:00Z'),
@@ -363,6 +395,10 @@ beforeEach(() => {
     deleteProxyHostHandlerMock.mockReset()
     enableProxyHostHandlerMock.mockReset()
     disableProxyHostHandlerMock.mockReset()
+    getAssignableCertificatesHandlerMock.mockReset().mockResolvedValue([])
+    requestCertificateHandlerMock
+        .mockReset()
+        .mockResolvedValue({ success: true, message: 'admin.certificates.messages.requested' })
     getProxyHostsHandlerMock.mockResolvedValue([enabledHost, disabledHost])
     getProxyRuntimeStatusHandlerMock.mockResolvedValue({
         available: true,
@@ -401,6 +437,8 @@ beforeEach(() => {
         message: 'admin.proxyHosts.messages.disabled',
         runtimeStatus: 'applied',
     })
+
+    getAssignableCertificatesHandlerMock.mockResolvedValue([])
 })
 
 afterEach(async () => {
@@ -606,11 +644,13 @@ describe('ProxyHost permissions and row actions', () => {
 function FormHarness({
     canDisable = true,
     canEnable = true,
+    canAssignCertificates = false,
     mode,
     proxyHost,
 }: {
     canDisable?: boolean
     canEnable?: boolean
+    canAssignCertificates?: boolean
     mode: 'create' | 'edit'
     proxyHost?: ProxyHostSummary
 }) {
@@ -622,6 +662,7 @@ function FormHarness({
             {...(proxyHost ? { proxyHost } : {})}
             canEnable={canEnable}
             canDisable={canDisable}
+            canAssignCertificates={canAssignCertificates}
             onOpenChange={setOpen}
             onSuccess={() => setOpen(false)}
         />
@@ -657,6 +698,8 @@ describe('ProxyHost form modal', () => {
         expect(createProxyHostHandlerMock).toHaveBeenCalledWith({
             data: {
                 domains: ['example.com', 'other.example'],
+                certificateId: null,
+                forceHttps: false,
                 enabled: true,
                 forwardHost: 'backend.internal',
                 forwardPort: 80,
@@ -727,6 +770,8 @@ describe('ProxyHost form modal', () => {
         expect(createProxyHostHandlerMock).toHaveBeenCalledWith({
             data: {
                 domains: ['example.com', 'other.example.com'],
+                certificateId: null,
+                forceHttps: false,
                 enabled: true,
                 forwardHost: 'backend.internal',
                 forwardPort: 80,
@@ -909,6 +954,40 @@ describe('ProxyHost confirmation and mutation flows', () => {
     )
 })
 
+test('assigns a usable certificate and enables HTTPS redirect', async () => {
+    getAssignableCertificatesHandlerMock.mockResolvedValueOnce([assignableCertificate])
+    await render(withQueryClient(<FormHarness mode="create" canAssignCertificates />))
+    const domain = document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!
+    await setControlValue(domain, 'app.example.com')
+    await blurControl(domain)
+    await waitFor(() => document.querySelector('button[aria-label="TLS certificate"]') !== null)
+    await chooseSelectOption('TLS certificate', 'Edge TLS \u00b7 app.example.com')
+    const checkboxes = [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')]
+    expect(checkboxes.length).toBeGreaterThanOrEqual(2)
+    const forceHttps = document.querySelector<HTMLInputElement>('input[id$="forceHttps"]')!
+    await waitFor(() => forceHttps.disabled === false)
+    await act(async () => {
+        forceHttps.click()
+        await Promise.resolve()
+    })
+    const forwardHost = document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!
+    await setControlValue(forwardHost, 'backend.internal')
+    await blurControl(forwardHost)
+    await click(getButton('Create proxy host'))
+    await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
+    expect(createProxyHostHandlerMock).toHaveBeenCalledWith({
+        data: {
+            domains: ['app.example.com'],
+            enabled: true,
+            certificateId: assignableCertificate.id,
+            forceHttps: true,
+            forwardHost: 'backend.internal',
+            forwardPort: 80,
+            forwardScheme: 'http',
+        },
+    })
+    await waitForToast('success')
+})
 describe('Proxy host configuration editor', () => {
     const editPermissions = [
         PERMISSIONS.PROXY_HOSTS_VIEW,

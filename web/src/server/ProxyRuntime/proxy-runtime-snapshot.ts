@@ -25,15 +25,22 @@ export const MAX_RUNTIME_PROXY_HOSTS = 1_000
 export const MAX_RUNTIME_PAYLOAD_BYTES = 16 * 1_024 * 1_024
 export const PROXY_RUNTIME_REVISION_PATTERN = /^sha256:[a-f0-9]{64}$/u
 
-const runtimeHostSchema = z.object({
-    id: z.uuid(),
-    domains: proxyHostDomainsSchema,
-    forwardScheme: z.enum(['http', 'https']),
-    forwardHost: proxyForwardHostSchema,
-    forwardPort: proxyForwardPortSchema,
-    httpSettings: proxyHttpSettingsSchema.optional(),
-    advancedConfig: proxyAdvancedConfigSchema.default(''),
-})
+const runtimeHostSchema = z
+    .object({
+        id: z.uuid(),
+        domains: proxyHostDomainsSchema,
+        forwardScheme: z.enum(['http', 'https']),
+        forwardHost: proxyForwardHostSchema,
+        forwardPort: proxyForwardPortSchema,
+        httpSettings: proxyHttpSettingsSchema.optional(),
+        advancedConfig: proxyAdvancedConfigSchema.default(''),
+        certificateId: z.uuid().nullish(),
+        forceHttps: z.boolean().default(false),
+    })
+    .refine(
+        (host) => !host.forceHttps || !!host.certificateId,
+        'Force HTTPS requires a certificate.',
+    )
 
 function compareAscii(left: string, right: string): number {
     return left < right ? -1 : left > right ? 1 : 0
@@ -75,6 +82,8 @@ export function createProxyRuntimeSnapshot(
                 },
                 Object.keys(hostSettings).length === 0 ? {} : { httpSettings: hostSettings },
                 host.advancedConfig === '' ? {} : { advancedConfig: host.advancedConfig },
+                host.certificateId ? { certificateId: host.certificateId.toLowerCase() } : {},
+                host.forceHttps ? { forceHttps: true } : {},
             )
         })
         .toSorted((left, right) => compareAscii(left.id, right.id))
@@ -82,11 +91,14 @@ export function createProxyRuntimeSnapshot(
     const hasHostSettings = proxyHosts.some(
         (host) => host.httpSettings !== undefined || host.advancedConfig !== undefined,
     )
-    const snapshot = hasHostSettings
-        ? ({ version: 3, proxyHosts, httpSettings: normalizedSettings } as const)
-        : Object.keys(normalizedSettings).length === 0
-          ? ({ version: 1, proxyHosts } as const)
-          : ({ version: 2, proxyHosts, httpSettings: normalizedSettings } as const)
+    const hasCertificates = proxyHosts.some((host) => host.certificateId !== undefined)
+    const snapshot = hasCertificates
+        ? ({ version: 4, proxyHosts, httpSettings: normalizedSettings } as const)
+        : hasHostSettings
+          ? ({ version: 3, proxyHosts, httpSettings: normalizedSettings } as const)
+          : Object.keys(normalizedSettings).length === 0
+            ? ({ version: 1, proxyHosts } as const)
+            : ({ version: 2, proxyHosts, httpSettings: normalizedSettings } as const)
     const canonical = JSON.stringify(snapshot)
 
     if (Buffer.byteLength(canonical) + 100 > MAX_RUNTIME_PAYLOAD_BYTES) {

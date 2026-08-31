@@ -93,9 +93,17 @@ export async function getProxyHostConfigEditorService(
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
     const id = proxyHostConfigEditorIdSchema.parse({ proxyHostId }).proxyHostId
     const state = await loadHostEditorState(id, actor.id)
+    // Ordinary DTOs do not need Controller-owned certificate filesystem paths.
+    const visibleHost = state.canReadAdvancedConfig
+        ? state.host
+        : {
+              ...state.host,
+              certificateId: null,
+              forceHttps: false,
+          }
     // The structured editor's template is always generated without expert text.
     const defaultsSnapshot = createProxyRuntimeSnapshot(
-        [{ ...state.host, enabled: true, advancedConfig: '' }],
+        [{ ...visibleHost, enabled: true, advancedConfig: '' }],
         state.httpSettings,
     )
     const generatedSnapshot = state.canReadAdvancedConfig
@@ -103,7 +111,7 @@ export async function getProxyHostConfigEditorService(
         : createProxyRuntimeSnapshot(
               [
                   {
-                      ...state.host,
+                      ...visibleHost,
                       enabled: true,
                       httpSettings: state.hostSettings,
                       advancedConfig: '',
@@ -149,7 +157,15 @@ export async function previewProxyHostConfigEditorService(
         ? (parsed.advancedConfig ?? state.host.advancedConfig ?? '')
         : ''
     const snapshot = createProxyRuntimeSnapshot(
-        [{ ...state.host, enabled: true, httpSettings: settings, advancedConfig }],
+        [
+            {
+                ...state.host,
+                enabled: true,
+                httpSettings: settings,
+                advancedConfig,
+                ...(state.canReadAdvancedConfig ? {} : { certificateId: null, forceHttps: false }),
+            },
+        ],
         state.httpSettings,
     )
     const result = await previewProxyHostConfiguration(parsed.proxyHostId, snapshot)

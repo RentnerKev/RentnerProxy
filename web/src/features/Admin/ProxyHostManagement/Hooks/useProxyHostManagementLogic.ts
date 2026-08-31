@@ -22,6 +22,8 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const [showCreate, setShowCreate] = useState(false)
     const [configTarget, setConfigTarget] = useState<ProxyHostSummary | null>(null)
+    const [certificateRequestTarget, setCertificateRequestTarget] =
+        useState<ProxyHostSummary | null>(null)
     const [selectedProxyHost, setSelectedProxyHost] = useState<ProxyHostSummary | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<ProxyHostSummary | null>(null)
     const [disableTarget, setDisableTarget] = useState<ProxyHostSummary | null>(null)
@@ -116,6 +118,15 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
         },
         onError: () => toast.error('admin.proxyHosts.errors.enableFailed'),
     })
+    const openCertificateRequest = useCallback((proxyHost: ProxyHostSummary) => {
+        setConfigTarget(null)
+        setSelectedProxyHost(null)
+        setShowCreate(false)
+        setCertificateRequestTarget(proxyHost)
+    }, [])
+    const setCertificateRequestOpen = useCallback((open: boolean) => {
+        if (!open) setCertificateRequestTarget(null)
+    }, [])
     const openConfigEditor = useCallback((proxyHost: ProxyHostSummary) => {
         setSelectedProxyHost(null)
         setShowCreate(false)
@@ -185,6 +196,10 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
     const apply = useCallback(() => {
         applyMutation.mutate()
     }, [applyMutation])
+    const handleCertificateRequestSuccess = useCallback(async () => {
+        await queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.all })
+        setCertificateRequestTarget(null)
+    }, [queryClient])
     const handleFormSuccess = useCallback(() => {
         setShowCreate(false)
         setSelectedProxyHost(null)
@@ -197,6 +212,10 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
         state: {
             canApply: permissionSet.has(PERMISSIONS.PROXY_HOSTS_APPLY),
             canAdvancedConfig: permissionSet.has(PERMISSIONS.PROXY_HOSTS_ADVANCED_CONFIG),
+            canAssignCertificates:
+                permissionSet.has(PERMISSIONS.PROXY_HOSTS_CREATE) ||
+                permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE),
+            canRequestCertificate: permissionSet.has(PERMISSIONS.CERTIFICATES_ISSUE),
             canEditConfig:
                 permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE) &&
                 permissionSet.has(PERMISSIONS.PROXY_HOSTS_APPLY),
@@ -219,6 +238,7 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
             selectedProxyHost,
             showCreate,
             configTarget,
+            certificateRequestTarget,
         },
         handler: {
             apply,
@@ -226,8 +246,11 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
             confirmDisable,
             enable,
             handleFormSuccess,
+            handleCertificateRequestSuccess,
             openCreate,
             openConfigEditor,
+            openCertificateRequest,
+            setCertificateRequestOpen,
             setConfigEditorOpen,
             openDelete,
             openDisable,

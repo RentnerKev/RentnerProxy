@@ -1,7 +1,8 @@
 import { useForm } from '@tanstack/react-form'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
-
+import { certificateManagementQueryKeys } from '../../CertificateManagement/queryKeys'
+import { getAssignableCertificatesHandler } from '../../CertificateManagement/server'
 import { MAX_PROXY_HOST_DOMAINS } from '../../../../config/proxy-hosts.config'
 import useToast from '../../../../shared/Toast/Hooks/useToast'
 import { proxyHostManagementQueryKeys } from '../queryKeys'
@@ -14,12 +15,13 @@ import { proxyHostFormSchema } from '../validation'
 
 type UseProxyHostFormLogicParams = Pick<
     ProxyHostFormModalProps,
-    'canEnable' | 'canDisable' | 'mode' | 'onSuccess' | 'proxyHost'
+    'canEnable' | 'canDisable' | 'canAssignCertificates' | 'mode' | 'onSuccess' | 'proxyHost'
 >
 
 export default function useProxyHostFormLogic({
     canEnable,
     canDisable,
+    canAssignCertificates = false,
     mode,
     onSuccess,
     proxyHost,
@@ -31,13 +33,17 @@ export default function useProxyHostFormLogic({
     )
     const [pendingDisableValues, setPendingDisableValues] =
         useState<ProxyHostEditorFormValues | null>(null)
+    const certificatesQuery = useQuery({
+        queryKey: certificateManagementQueryKeys.assignable,
+        queryFn: () => getAssignableCertificatesHandler(),
+        enabled: canAssignCertificates,
+        staleTime: 30_000,
+    })
     const mutation = useMutation({
         mutationFn: (values: ProxyHostEditorFormValues) => {
             const data = proxyHostFormSchema.parse(values)
-
             if (mode === 'create') return createProxyHostHandler({ data })
             if (!proxyHost) throw new Error('admin.proxyHosts.errors.proxy_host_not_found')
-
             return updateProxyHostHandler({ data: { ...data, proxyHostId: proxyHost.id } })
         },
         onSuccess: async (result) => {
@@ -45,7 +51,6 @@ export default function useProxyHostFormLogic({
                 toast.error(result.message)
                 return
             }
-
             await Promise.all([
                 queryClient.invalidateQueries({
                     queryKey: proxyHostManagementQueryKeys.all,
@@ -54,12 +59,13 @@ export default function useProxyHostFormLogic({
                 queryClient.invalidateQueries({
                     queryKey: proxyHostManagementQueryKeys.runtimeStatus,
                 }),
+                queryClient.invalidateQueries({
+                    queryKey: certificateManagementQueryKeys.assignable,
+                }),
             ])
-            if (result.runtimeStatus === 'pending') {
+            if (result.runtimeStatus === 'pending')
                 toast.warning('admin.proxyHosts.runtime.savedPending')
-            } else {
-                toast.success(result.message)
-            }
+            else toast.success(result.message)
             setPendingDisableValues(null)
             onSuccess()
         },
@@ -71,18 +77,18 @@ export default function useProxyHostFormLogic({
         forwardHost: proxyHost?.forwardHost ?? '',
         forwardPort: String(proxyHost?.forwardPort ?? 80),
         enabled: proxyHost?.enabled ?? true,
+        certificateId: proxyHost?.certificateId ?? null,
+        forceHttps: proxyHost?.forceHttps ?? false,
     }
     const form = useForm({
         defaultValues,
         validators: { onSubmit: proxyHostFormSchema },
         onSubmit: async ({ value }) => {
             mutation.reset()
-
             if (mode === 'edit' && proxyHost?.enabled && !value.enabled) {
                 setPendingDisableValues({ ...value, domains: [...value.domains] })
                 return
             }
-
             await mutation.mutateAsync(value).catch(() => undefined)
         },
     })
@@ -103,14 +109,14 @@ export default function useProxyHostFormLogic({
         if (!open) setPendingDisableValues(null)
     }, [])
     const confirmDisable = useCallback(async () => {
-        if (pendingDisableValues) {
+        if (pendingDisableValues)
             await mutation.mutateAsync(pendingDisableValues).catch(() => undefined)
-        }
     }, [mutation, pendingDisableValues])
-
     return {
         state: {
+            canAssignCertificates,
             canChangeEnabled: mode === 'create' || (proxyHost?.enabled ? canDisable : canEnable),
+            assignableCertificates: certificatesQuery.data ?? [],
             disableConfirmationOpen: pendingDisableValues !== null,
             domainKeys,
             form,

@@ -39,6 +39,7 @@ import {
 } from '../../../server/ProxyRuntime/proxy-runtime.service'
 import { requirePermissionService } from '../../../server/Auth/Access/authorization.service'
 import { ProxyHostDomainError } from '../../../server/Admin/ProxyHostManagement/proxy-hosts.errors'
+import { CertificateDomainError } from '../../../server/Admin/CertificateManagement/certificates.errors'
 import {
     createProxyHostService,
     deleteProxyHostService,
@@ -60,6 +61,10 @@ import {
 } from './validation'
 
 function proxyHostActionFailure(error: unknown, fallback: string): AuthActionFailureResult {
+    if (error instanceof CertificateDomainError) {
+        setResponseStatus(error.code === 'controller_unavailable' ? 503 : 422)
+        return { success: false, message: `admin.certificates.errors.${error.code}` }
+    }
     if (error instanceof ProxyHostDomainError) {
         setResponseStatus(
             error.code === 'proxy_host_not_found'

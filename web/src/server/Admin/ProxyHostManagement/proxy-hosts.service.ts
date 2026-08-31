@@ -12,6 +12,7 @@ import {
     writeProxyHostHttpSettings,
 } from '../../ProxyRuntime/proxy-runtime-settings'
 import { requirePermissionService } from '../../Auth/Access/authorization.service'
+import { validateCertificateAssignmentInTransaction } from '../CertificateManagement/certificates.service'
 import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
 import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
 import {
@@ -33,6 +34,8 @@ type ProxyHostRow = {
     forwardHost: string
     forwardPort: number
     enabled: boolean
+    certificateId: string | null
+    forceHttps: boolean
     createdAt: Date
     updatedAt: Date
 }
@@ -49,6 +52,8 @@ function toProxyHostSummary(
         createdAt: proxyHost.createdAt,
         domains: domains.toSorted(),
         enabled: proxyHost.enabled,
+        certificateId: proxyHost.certificateId,
+        forceHttps: proxyHost.forceHttps,
         forwardHost: proxyHost.forwardHost,
         forwardPort: proxyHost.forwardPort,
         forwardScheme: proxyHost.forwardScheme,
@@ -65,6 +70,8 @@ async function loadProxyHostForUpdate(
         .select({
             createdAt: proxyHosts.createdAt,
             enabled: proxyHosts.enabled,
+            certificateId: proxyHosts.certificateId,
+            forceHttps: proxyHosts.forceHttps,
             forwardHost: proxyHosts.forwardHost,
             forwardPort: proxyHosts.forwardPort,
             forwardScheme: proxyHosts.forwardScheme,
@@ -162,6 +169,8 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
             createdAt: proxyHosts.createdAt,
             domain: proxyHostDomains.domain,
             enabled: proxyHosts.enabled,
+            certificateId: proxyHosts.certificateId,
+            forceHttps: proxyHosts.forceHttps,
             forwardHost: proxyHosts.forwardHost,
             forwardPort: proxyHosts.forwardPort,
             forwardScheme: proxyHosts.forwardScheme,
@@ -189,6 +198,8 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
                 {
                     createdAt: row.createdAt,
                     enabled: row.enabled,
+                    certificateId: row.certificateId,
+                    forceHttps: row.forceHttps,
                     forwardHost: row.forwardHost,
                     forwardPort: row.forwardPort,
                     forwardScheme: row.forwardScheme,
@@ -225,10 +236,20 @@ export async function createProxyHostService(
                 PERMISSIONS.PROXY_HOSTS_CREATE,
             )
             await assertDomainsAvailableInTransaction(transaction, domains)
+            const certificateId = parsedInput.certificateId?.toLowerCase() ?? null
+            const forceHttps = parsedInput.forceHttps ?? false
+            await validateCertificateAssignmentInTransaction(
+                transaction,
+                certificateId,
+                forceHttps,
+                domains,
+            )
             const rows = await transaction
                 .insert(proxyHosts)
                 .values({
                     enabled: parsedInput.enabled,
+                    certificateId,
+                    forceHttps,
                     forwardHost: parsedInput.forwardHost,
                     forwardPort: parsedInput.forwardPort,
                     forwardScheme: parsedInput.forwardScheme,
@@ -236,6 +257,8 @@ export async function createProxyHostService(
                 .returning({
                     createdAt: proxyHosts.createdAt,
                     enabled: proxyHosts.enabled,
+                    certificateId: proxyHosts.certificateId,
+                    forceHttps: proxyHosts.forceHttps,
                     forwardHost: proxyHosts.forwardHost,
                     forwardPort: proxyHosts.forwardPort,
                     forwardScheme: proxyHosts.forwardScheme,
@@ -299,10 +322,24 @@ export async function updateProxyHostService(
             }
 
             await assertDomainsAvailableInTransaction(transaction, domains, proxyHost.id)
+            // Omitted fields preserve an existing assignment for older clients and ordinary edits.
+            const certificateId =
+                parsedInput.certificateId === undefined
+                    ? proxyHost.certificateId
+                    : (parsedInput.certificateId?.toLowerCase() ?? null)
+            const forceHttps = parsedInput.forceHttps ?? proxyHost.forceHttps
+            await validateCertificateAssignmentInTransaction(
+                transaction,
+                certificateId,
+                forceHttps,
+                domains,
+            )
             const rows = await transaction
                 .update(proxyHosts)
                 .set({
                     enabled: parsedInput.enabled,
+                    certificateId,
+                    forceHttps,
                     forwardHost: parsedInput.forwardHost,
                     forwardPort: parsedInput.forwardPort,
                     forwardScheme: parsedInput.forwardScheme,
@@ -312,6 +349,8 @@ export async function updateProxyHostService(
                 .returning({
                     createdAt: proxyHosts.createdAt,
                     enabled: proxyHosts.enabled,
+                    certificateId: proxyHosts.certificateId,
+                    forceHttps: proxyHosts.forceHttps,
                     forwardHost: proxyHosts.forwardHost,
                     forwardPort: proxyHosts.forwardPort,
                     forwardScheme: proxyHosts.forwardScheme,
@@ -387,6 +426,15 @@ async function setProxyHostEnabledService(
             )
         }
 
+        const domains = await loadProxyHostDomainsInTransaction(transaction, proxyHost.id)
+        if (enabled) {
+            await validateCertificateAssignmentInTransaction(
+                transaction,
+                proxyHost.certificateId,
+                proxyHost.forceHttps,
+                domains,
+            )
+        }
         const rows = await transaction
             .update(proxyHosts)
             .set({ enabled, updatedAt: new Date() })
@@ -394,6 +442,8 @@ async function setProxyHostEnabledService(
             .returning({
                 createdAt: proxyHosts.createdAt,
                 enabled: proxyHosts.enabled,
+                certificateId: proxyHosts.certificateId,
+                forceHttps: proxyHosts.forceHttps,
                 forwardHost: proxyHosts.forwardHost,
                 forwardPort: proxyHosts.forwardPort,
                 forwardScheme: proxyHosts.forwardScheme,
@@ -406,10 +456,7 @@ async function setProxyHostEnabledService(
             throw new ProxyHostDomainError('proxy_host_not_found', 'Proxy host was not found.')
         }
 
-        return toProxyHostSummary(
-            updatedProxyHost,
-            await loadProxyHostDomainsInTransaction(transaction, proxyHost.id),
-        )
+        return toProxyHostSummary(updatedProxyHost, domains)
     })
 
     return { ...saved, runtimeStatus: await reconcileProxyConfigurationService() }

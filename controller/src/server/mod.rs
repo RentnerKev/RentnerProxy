@@ -1,4 +1,5 @@
 pub(crate) mod auth;
+pub(crate) mod challenges;
 mod error;
 mod handlers;
 
@@ -11,10 +12,14 @@ use axum::{
 
 use crate::{config::ControllerToken, runtime::ProxyRuntime};
 
-use auth::authorize_internal_request;
+use challenges::ChallengeStore;
+
+use auth::{authorize_certificate_request, authorize_internal_request};
 use handlers::{
-    apply_proxy_config, health, preview_proxy_config, preview_proxy_host_config, proxy_status,
-    read_proxy_config, read_proxy_host_config,
+    apply_proxy_config, challenge_response, delete_certificate, get_certificate, health,
+    import_certificate, issue_certificate, list_certificates, preview_proxy_config,
+    preview_proxy_host_config, proxy_status, read_proxy_config, read_proxy_host_config,
+    renew_certificate,
 };
 
 const MAX_PROXY_CONFIG_BODY_BYTES: usize = 16 * 1024 * 1024;
@@ -23,6 +28,7 @@ const MAX_PROXY_CONFIG_BODY_BYTES: usize = 16 * 1024 * 1024;
 pub(crate) struct AppState {
     runtime: Arc<ProxyRuntime>,
     controller_token: Option<ControllerToken>,
+    pub(crate) challenges: ChallengeStore,
 }
 
 impl AppState {
@@ -33,11 +39,34 @@ impl AppState {
         Self {
             runtime,
             controller_token,
+            challenges: ChallengeStore::new(),
         }
     }
 }
 
 pub(crate) fn app_with_state(state: AppState) -> Router {
+    let certificates = Router::new()
+        .route("/internal/v1/certificates", get(list_certificates))
+        .route(
+            "/internal/v1/certificates/{id}",
+            get(get_certificate).delete(delete_certificate),
+        )
+        .route(
+            "/internal/v1/certificates/{id}/import",
+            post(import_certificate),
+        )
+        .route(
+            "/internal/v1/certificates/{id}/issue",
+            post(issue_certificate),
+        )
+        .route(
+            "/internal/v1/certificates/{id}/renew",
+            post(renew_certificate),
+        )
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            authorize_certificate_request,
+        ));
     let internal = Router::new()
         .route("/internal/v1/proxy/status", get(proxy_status))
         .route(
@@ -62,6 +91,11 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
         ));
     Router::new()
         .route("/health", get(health))
+        .route(
+            "/.well-known/acme-challenge/{token}",
+            get(challenge_response),
+        )
+        .merge(certificates)
         .merge(internal)
         .layer(axum::extract::DefaultBodyLimit::max(
             MAX_PROXY_CONFIG_BODY_BYTES,

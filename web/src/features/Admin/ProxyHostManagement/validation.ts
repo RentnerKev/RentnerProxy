@@ -66,6 +66,8 @@ export const createProxyHostInputSchema = z.object({
     forwardHost: proxyForwardHostSchema,
     forwardPort: proxyForwardPortSchema,
     enabled: z.boolean(),
+    certificateId: z.uuid().nullable().optional(),
+    forceHttps: z.boolean().optional(),
 })
 
 export const proxyHostFormSchema = createProxyHostInputSchema.extend({

@@ -20,6 +20,17 @@ pub(super) async fn authorize_internal_request(
     }
 }
 
+pub(super) async fn authorize_certificate_request(
+    state: State<AppState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if state.controller_token.is_none() {
+        return ApiError::unauthorized().into_response();
+    }
+    authorize_internal_request(state, request, next).await
+}
+
 fn authorize(headers: &HeaderMap, token: Option<&ControllerToken>) -> Result<(), ApiError> {
     let Some(token) = token else {
         return Ok(());

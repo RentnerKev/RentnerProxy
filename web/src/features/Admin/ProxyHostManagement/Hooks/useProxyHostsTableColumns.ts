@@ -24,6 +24,7 @@ const dateFilter = createDateRangeFilter<ProxyHostSummary>()
 export default function useProxyHostsTableColumns({
     canDelete,
     canDisable,
+    canRequestCertificate,
     canEnable,
     canUpdate,
     isPending,
@@ -32,6 +33,7 @@ export default function useProxyHostsTableColumns({
     onDisable,
     onEdit,
     onEnable,
+    onRequestCertificate,
 }: ProxyHostTableActionProps) {
     const { t } = useTranslationStore()
 
@@ -82,7 +84,14 @@ export default function useProxyHostsTableColumns({
             },
         ]
 
-        if (canUpdate || canDelete || canEnable || canDisable || onConfig) {
+        if (
+            canUpdate ||
+            canDelete ||
+            canEnable ||
+            canDisable ||
+            canRequestCertificate ||
+            onConfig
+        ) {
             columns.push({
                 id: 'actions',
                 header: t('admin.proxyHosts.columns.actions'),
@@ -102,6 +111,7 @@ export default function useProxyHostsTableColumns({
                         onDisable,
                         onEdit,
                         onEnable,
+                        ...(onRequestCertificate ? { onRequestCertificate } : {}),
                     }),
             })
         }
@@ -111,6 +121,7 @@ export default function useProxyHostsTableColumns({
         canDelete,
         canDisable,
         canEnable,
+        canRequestCertificate,
         canUpdate,
         isPending,
         onConfig,
@@ -118,6 +129,7 @@ export default function useProxyHostsTableColumns({
         onDisable,
         onEdit,
         onEnable,
+        onRequestCertificate,
         t,
     ])
 }

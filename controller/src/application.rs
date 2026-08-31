@@ -32,7 +32,12 @@ pub async fn run() -> ExitCode {
 
 async fn serve() -> Result<(), Box<dyn Error + Send + Sync>> {
     let config = Config::from_env()?;
-    let settings = RuntimeSettings::new(config.proxy_state_dir.clone(), config.proxy_http_port);
+    let listener = TcpListener::bind(config.listen_addr).await?;
+    let local_addr = listener.local_addr()?;
+    let mut settings = RuntimeSettings::new(config.proxy_state_dir.clone(), config.proxy_http_port);
+    settings.https_port = config.proxy_https_port;
+    settings.public_https_port = config.proxy_public_https_port;
+    settings.controller_port = local_addr.port();
     let engine = config.proxy_engine_bin.map(|binary| {
         Arc::new(ProcessEngine::new(
             binary,
@@ -41,16 +46,15 @@ async fn serve() -> Result<(), Box<dyn Error + Send + Sync>> {
         )) as Arc<dyn ProxyEngine>
     });
     let runtime = ProxyRuntime::new(settings, engine);
-    let listener = TcpListener::bind(config.listen_addr).await?;
-    let local_addr = listener.local_addr()?;
     info!(target: "rentnerproxy_controller", %local_addr, "controller listening");
     runtime.initialize().await;
-    let result = axum::serve(
-        listener,
-        app_with_state(AppState::new(runtime.clone(), config.controller_token)),
-    )
-    .with_graceful_shutdown(wait_for_shutdown())
-    .await;
+    let state = AppState::new(runtime.clone(), config.controller_token);
+    runtime
+        .start_renewal_scheduler(state.challenges.clone())
+        .await;
+    let result = axum::serve(listener, app_with_state(state))
+        .with_graceful_shutdown(wait_for_shutdown())
+        .await;
     runtime.shutdown().await;
     result?;
     Ok(())

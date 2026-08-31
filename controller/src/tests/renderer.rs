@@ -1,9 +1,12 @@
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
 use crate::{
     models::ProxyHttpSettings,
     proxy::validate_proxy_config,
-    runtime::renderer::{RenderSettings, render_config, render_host_config},
+    runtime::renderer::{
+        RenderSettings, TlsMaterial, TlsRenderSettings, render_config, render_config_with_tls,
+        render_host_config,
+    },
     tests::fixtures::{host, request, request_with_settings},
 };
 
@@ -38,7 +41,9 @@ fn renderer_is_deterministic_and_covers_proxy_defaults() {
         .unwrap_or_else(|error| panic!("renderer should succeed: {error:?}"));
 
     assert!(rendered.contains("listen 8080 default_server;"));
-    assert!(rendered.contains("server_name _;\n        return 404;"));
+    assert!(
+        rendered.contains("server_name _;\n\n        location ^~ /.well-known/acme-challenge/")
+    );
     if cfg!(windows) {
         assert!(!rendered.contains("listen unix:"));
     } else {
@@ -110,7 +115,8 @@ fn renderer_supports_a_zero_host_baseline_without_a_probe() {
 
     assert!(rendered.contains("# rentnerproxy-revision: none"));
     assert!(rendered.contains("return 404;"));
-    assert!(!rendered.contains("proxy_pass"));
+    assert!(rendered.contains("proxy_pass http://127.0.0.1:8081;"));
+    assert!(!rendered.contains("proxy_pass http://backend"));
     assert!(!rendered.contains("rentnerproxy: managed HTTP settings"));
 }
 
@@ -176,7 +182,7 @@ fn legacy_hosts_keep_their_active_renderer_shape() {
         &format!("# rentnerproxy-revision: {}", configuration.revision),
     );
     let (prefix, _) = baseline.rsplit_once("}\n").unwrap();
-    let expected_host = "    server {\n        listen 8080;\n        server_name demo.test;\n\n        location / {\n            proxy_pass http://backend:4000;\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_set_header X-Real-IP $remote_addr;\n            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n            proxy_set_header X-Forwarded-Proto $scheme;\n            proxy_set_header Upgrade $http_upgrade;\n            proxy_set_header Connection $connection_upgrade;\n        }\n    }\n";
+    let expected_host = "    server {\n        listen 8080;\n        server_name demo.test;\n\n        location ^~ /.well-known/acme-challenge/ {\n            proxy_pass http://127.0.0.1:8081;\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_pass_request_body off;\n            proxy_set_header Content-Length \"\";\n            proxy_set_header Connection \"\";\n        }\n\n        location / {\n            proxy_pass http://backend:4000;\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_set_header X-Real-IP $remote_addr;\n            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n            proxy_set_header X-Forwarded-Proto $scheme;\n            proxy_set_header Upgrade $http_upgrade;\n            proxy_set_header Connection $connection_upgrade;\n        }\n    }\n";
     assert_eq!(rendered, format!("{prefix}\n{expected_host}}}\n"));
     assert!(!rendered.contains("host HTTP settings"));
     assert!(!rendered.contains("advanced proxy host configuration"));
@@ -216,4 +222,62 @@ fn host_http_settings_override_the_global_http_default_at_server_scope() {
     let host_override = rendered.find("        proxy_read_timeout 300s;").unwrap();
     assert!(global < host_override);
     assert!(!rendered.contains("host HTTP settings begin"));
+}
+
+#[test]
+fn tls_renderer_keeps_per_host_settings_and_advanced_text_byte_exact() {
+    let certificate_id = "0198d98a-0000-7000-8000-000000000001";
+    let mut configured_host = host(
+        "00000000-0000-0000-0000-000000000000",
+        &["demo.test"],
+        "http",
+        "backend",
+        4_000,
+    );
+    configured_host.certificate_id = Some(certificate_id.to_owned());
+    configured_host.force_https = true;
+    configured_host.http_settings = ProxyHttpSettings {
+        client_max_body_size_bytes: Some(10_485_760),
+        proxy_read_timeout_seconds: Some(300),
+        ..ProxyHttpSettings::default()
+    };
+    configured_host.advanced_config = concat!(
+        "# Preserve literal generated-looking text\n",
+        "set $expert_upstream http://127.0.0.1:8081;\n",
+        "return 308 https://$host$request_uri;\n"
+    )
+    .to_owned();
+    let configuration = validate_proxy_config(request(vec![configured_host.clone()]))
+        .unwrap_or_else(|error| panic!("configuration should validate: {error:?}"));
+    let root = std::env::temp_dir().join("rentnerproxy-renderer-tls-material");
+    let materials = BTreeMap::from([(
+        certificate_id.to_owned(),
+        TlsMaterial {
+            fullchain_path: root.join("fullchain.pem"),
+            private_key_path: root.join("privatekey.pem"),
+        },
+    )]);
+
+    let rendered = render_config_with_tls(
+        &configuration,
+        &RenderSettings {
+            http_port: 8_080,
+            probe_socket: None,
+        },
+        &TlsRenderSettings {
+            https_port: 8_443,
+            public_https_port: 18_443,
+            controller_port: 9_999,
+        },
+        &materials,
+    )
+    .unwrap_or_else(|error| panic!("TLS renderer should succeed: {error:?}"));
+
+    assert!(rendered.contains("proxy_pass http://127.0.0.1:9999;"));
+    assert!(rendered.contains("return 308 https://$host:18443$request_uri;"));
+    assert!(rendered.contains("        client_max_body_size 10485760;"));
+    assert!(rendered.contains("        proxy_read_timeout 300s;"));
+    assert!(rendered.contains(configured_host.advanced_config.as_str()));
+    assert!(rendered.contains("set $expert_upstream http://127.0.0.1:8081;"));
+    assert!(rendered.contains("return 308 https://$host$request_uri;"));
 }

@@ -1,4 +1,6 @@
+mod acme;
 mod apply;
+mod certificates;
 pub(crate) mod clock;
 mod engine;
 pub(crate) mod renderer;
@@ -12,19 +14,33 @@ use std::{
     time::Duration,
 };
 
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+
 use serde::{Deserialize, Serialize};
-use tokio::{sync::Mutex, time::timeout};
+use tokio::{
+    sync::Mutex,
+    task::JoinHandle,
+    time::{interval, timeout},
+};
 use tracing::{info, warn};
 
 use crate::{
-    models::{ProxyRuntimeStatus, ValidatedProxyConfig},
-    proxy::{is_canonical_uuid, revision_from_config},
+    models::{ProxyConfigRequest, ProxyRuntimeStatus, ValidatedProxyConfig},
+    proxy::{is_canonical_uuid, revision_from_config, validate_proxy_config},
 };
 
+use certificates::StagedCertificate;
+#[cfg(test)]
+pub(crate) use certificates::{CertificateEnvironment, CertificateSource, CertificateStatus};
+pub(crate) use certificates::{
+    CertificateError, CertificateImportRequest, CertificateIssueRequest, CertificateMetadata,
+    CertificateStore,
+};
 pub(crate) use engine::{EngineError, EngineFuture, ProcessEngine, ProxyEngine};
 use renderer::{
     MAX_RENDERED_PROXY_CONFIG_BYTES, MAX_RENDERED_PROXY_HOST_SOURCE_BYTES, RenderError,
-    RenderSettings, render_config, render_host_config, render_host_sources,
+    RenderSettings, TlsMaterial, TlsRenderSettings, render_config, render_config_with_tls,
+    render_host_config_for_runtime, render_host_sources_for_runtime,
 };
 use state::{
     ACTIVE_CONFIG_FILE, CANDIDATE_CONFIG_FILE, LAST_APPLY_FILE, LAST_GOOD_CONFIG_FILE,
@@ -35,12 +51,16 @@ use state::{
 const PROBE_SOCKET_FILE: &str = "runtime-probe.sock";
 const BASELINE_PROBE_REVISION: &str = "none";
 const ACTIVE_HOST_SOURCES_FILE: &str = "active-host-sources.json";
+const ACTIVE_CONFIGURATION_FILE: &str = "active-proxy-snapshot.json";
 const MAX_ACTIVE_HOST_SOURCES_BYTES: usize = MAX_RENDERED_PROXY_CONFIG_BYTES * 6 + 1024 * 1024;
 
 #[derive(Clone, Debug)]
 pub(crate) struct RuntimeSettings {
     pub(crate) state_dir: PathBuf,
     pub(crate) http_port: u16,
+    pub(crate) https_port: u16,
+    pub(crate) public_https_port: u16,
+    pub(crate) controller_port: u16,
     pub(crate) lock_wait: Duration,
     pub(crate) stage_timeout: Duration,
 }
@@ -50,6 +70,9 @@ impl RuntimeSettings {
         Self {
             state_dir,
             http_port,
+            https_port: 8_443,
+            public_https_port: 443,
+            controller_port: 8_081,
             lock_wait: Duration::from_secs(2),
             stage_timeout: Duration::from_secs(4),
         }
@@ -101,6 +124,9 @@ pub(crate) struct ProxyRuntime {
     engine: Option<Arc<dyn ProxyEngine>>,
     state: Mutex<RuntimeState>,
     apply_lock: Mutex<()>,
+    active_configuration: Mutex<Option<ValidatedProxyConfig>>,
+    certificate_store: CertificateStore,
+    renewal_task: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl ProxyRuntime {
@@ -108,6 +134,7 @@ impl ProxyRuntime {
         settings: RuntimeSettings,
         engine: Option<Arc<dyn ProxyEngine>>,
     ) -> Arc<Self> {
+        let certificate_store = CertificateStore::new(settings.state_dir.clone());
         Arc::new(Self {
             settings,
             engine,
@@ -117,6 +144,9 @@ impl ProxyRuntime {
                 engine_available: true,
             }),
             apply_lock: Mutex::new(()),
+            active_configuration: Mutex::new(None),
+            certificate_store,
+            renewal_task: Mutex::new(None),
         })
     }
 
@@ -124,6 +154,11 @@ impl ProxyRuntime {
         if prepare_state_dir(&self.settings.state_dir).is_err() {
             self.mark_unavailable().await;
             warn!(stage = "state_directory", "proxy runtime is unavailable");
+            return;
+        }
+        if self.certificate_store.initialize().await.is_err() {
+            self.mark_unavailable().await;
+            warn!(stage = "certificate_store", "proxy runtime is unavailable");
             return;
         }
 
@@ -193,21 +228,20 @@ impl ProxyRuntime {
                 let restored = last_good
                     .as_ref()
                     .filter(|last_good| *last_good != &active_contents);
-                if let Some(last_good) = restored {
-                    if atomic_write(&active_path, last_good.as_bytes()).is_ok()
-                        && self
-                            .start_configuration(engine, &active_path, last_good)
-                            .await
-                            .is_ok()
-                    {
-                        active_contents = last_good.clone();
-                        persist_active_as_last_good = false;
-                        engine_available = true;
-                        info!(
-                            stage = "startup_recovery",
-                            "proxy runtime restored last-good configuration"
-                        );
-                    }
+                if let Some(last_good) = restored
+                    && atomic_write(&active_path, last_good.as_bytes()).is_ok()
+                    && self
+                        .start_configuration(engine, &active_path, last_good)
+                        .await
+                        .is_ok()
+                {
+                    active_contents = last_good.clone();
+                    persist_active_as_last_good = false;
+                    engine_available = true;
+                    info!(
+                        stage = "startup_recovery",
+                        "proxy runtime restored last-good configuration"
+                    );
                 }
             } else {
                 engine_available = true;
@@ -228,10 +262,178 @@ impl ProxyRuntime {
                 "proxy runtime could not persist its last-good configuration"
             );
         }
+        let restored_configuration = self.restore_active_configuration(&active_contents).await;
         let mut state = self.state.lock().await;
         state.active_revision = revision_from_config(&active_contents);
         state.last_apply_at = read_trimmed(&self.last_apply_path());
         state.engine_available = engine_available;
+        drop(state);
+        *self.active_configuration.lock().await = restored_configuration;
+    }
+
+    async fn restore_active_configuration(
+        &self,
+        active_contents: &str,
+    ) -> Option<ValidatedProxyConfig> {
+        let mut reader = std::fs::File::open(self.active_configuration_path())
+            .ok()?
+            .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).ok()?;
+        if bytes.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
+            return None;
+        }
+        let request = serde_json::from_slice::<ProxyConfigRequest>(&bytes).ok()?;
+        let configuration = validate_proxy_config(request).ok()?;
+        if revision_from_config(active_contents).as_deref() != Some(configuration.revision.as_str())
+        {
+            return None;
+        }
+        self.render_proxy_config_for_apply(&configuration, None)
+            .await
+            .ok()
+            .filter(|rendered| rendered == active_contents)
+            .map(|_| configuration)
+    }
+
+    fn persist_active_configuration(
+        &self,
+        configuration: &ValidatedProxyConfig,
+    ) -> Result<(), RuntimeError> {
+        let request = ProxyConfigRequest {
+            version: snapshot_version(configuration),
+            revision: configuration.revision.clone(),
+            proxy_hosts: configuration.proxy_hosts.clone(),
+            http_settings: configuration.http_settings.clone(),
+        };
+        let bytes = serde_json::to_vec(&request).map_err(|_| RuntimeError::ApplyFailed)?;
+        if bytes.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
+            return Err(RuntimeError::ConfigTooLarge);
+        }
+        atomic_write(&self.active_configuration_path(), &bytes)
+            .map_err(|_| RuntimeError::ApplyFailed)
+    }
+    pub(crate) async fn start_renewal_scheduler(
+        self: &Arc<Self>,
+        challenges: crate::server::challenges::ChallengeStore,
+    ) {
+        let mut task = self.renewal_task.lock().await;
+        if task.is_some() {
+            return;
+        }
+        let runtime = Arc::clone(self);
+        *task = Some(tokio::spawn(async move {
+            let mut timer = interval(Duration::from_secs(6 * 60 * 60));
+            loop {
+                timer.tick().await;
+                runtime.renew_due_certificates(challenges.clone()).await;
+            }
+        }));
+    }
+
+    async fn renew_due_certificates(
+        self: &Arc<Self>,
+        challenges: crate::server::challenges::ChallengeStore,
+    ) {
+        let Ok(certificates) = self.certificate_store.list().await else {
+            return;
+        };
+        for certificate in certificates {
+            if certificate.source != certificates::CertificateSource::Acme
+                || certificate.operation != certificates::CertificateOperation::Idle
+                || certificate.status != certificates::CertificateStatus::Valid
+                || !Self::renewal_is_due(&certificate)
+            {
+                continue;
+            }
+            if !self
+                .certificate_store
+                .renewal_is_allowed(&certificate.id)
+                .await
+            {
+                continue;
+            }
+            let _ = self
+                .start_scheduled_acme_renewal(certificate.id, challenges.clone())
+                .await;
+        }
+    }
+
+    pub(crate) async fn certificates(&self) -> Result<Vec<CertificateMetadata>, CertificateError> {
+        self.certificate_store.list().await
+    }
+
+    pub(crate) async fn certificate(
+        &self,
+        id: &str,
+    ) -> Result<CertificateMetadata, CertificateError> {
+        self.certificate_store.get(id).await
+    }
+
+    pub(crate) async fn import_certificate(
+        self: &Arc<Self>,
+        id: &str,
+        request: CertificateImportRequest,
+    ) -> Result<CertificateMetadata, CertificateError> {
+        let runtime = Arc::clone(self);
+        let id = id.to_owned();
+        tokio::spawn(async move { runtime.import_certificate_inner(&id, request).await })
+            .await
+            .unwrap_or(Err(CertificateError::StoreUnavailable))
+    }
+
+    async fn import_certificate_inner(
+        self: &Arc<Self>,
+        id: &str,
+        request: CertificateImportRequest,
+    ) -> Result<CertificateMetadata, CertificateError> {
+        let staged = self.certificate_store.stage_manual(id, request).await?;
+        self.commit_or_reapply_staged_certificate(staged).await
+    }
+
+    pub(crate) async fn activate_acme_certificate(
+        self: &Arc<Self>,
+        id: &str,
+        request: &CertificateIssueRequest,
+        certificate_pem: String,
+        private_key_pem: String,
+    ) -> Result<CertificateMetadata, CertificateError> {
+        let staged = self
+            .certificate_store
+            .stage_acme(id, request, certificate_pem, private_key_pem)
+            .await?;
+        self.commit_or_reapply_staged_certificate(staged).await
+    }
+
+    async fn commit_or_reapply_staged_certificate(
+        self: &Arc<Self>,
+        staged: StagedCertificate,
+    ) -> Result<CertificateMetadata, CertificateError> {
+        let id = staged.id().to_owned();
+        if self.apply_staged_for_active(staged.clone()).await.is_err() {
+            self.certificate_store.discard_staged(&staged).await;
+            return Err(CertificateError::RuntimeApplyFailed);
+        }
+        self.certificate_store.get(&id).await
+    }
+    pub(crate) async fn delete_certificate(&self, id: &str) -> Result<(), CertificateError> {
+        let _apply_guard = timeout(self.settings.lock_wait, self.apply_lock.lock())
+            .await
+            .map_err(|_| CertificateError::InUse)?;
+        let marker = format!("/certificates/{id}/versions/");
+        let active_or_last_good = [self.active_path(), self.last_good_path()];
+        let in_use = active_or_last_good
+            .iter()
+            .any(|path| match std::fs::read_to_string(path) {
+                Ok(contents) => contents.contains(&marker),
+                Err(_) => true,
+            })
+            || match std::fs::read_to_string(self.candidate_path()) {
+                Ok(contents) => contents.contains(&marker),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+                Err(_) => true,
+            };
+        self.certificate_store.delete_if_unused(id, in_use).await
     }
 
     pub(crate) async fn status(&self) -> ProxyRuntimeStatus {
@@ -255,11 +457,12 @@ impl ProxyRuntime {
         }
     }
 
-    pub(crate) fn preview_config(
+    pub(crate) async fn preview_config(
         &self,
         configuration: &ValidatedProxyConfig,
     ) -> Result<String, RuntimeError> {
-        self.render_proxy_config(Some(configuration))
+        self.render_proxy_config_for_apply(configuration, None)
+            .await
     }
 
     pub(crate) async fn active_config(&self) -> Result<(String, Option<String>), RuntimeError> {
@@ -294,7 +497,12 @@ impl ProxyRuntime {
             .iter()
             .find(|host| host.id == host_id)
             .ok_or(RuntimeError::HostConfigNotFound)?;
-        let source = render_host_config(host, self.settings.http_port);
+        let source = render_host_config_for_runtime(
+            host,
+            self.settings.http_port,
+            self.settings.controller_port,
+            self.settings.public_https_port,
+        );
         if source.len() > MAX_RENDERED_PROXY_HOST_SOURCE_BYTES {
             return Err(RuntimeError::ConfigTooLarge);
         }
@@ -355,12 +563,18 @@ impl ProxyRuntime {
         &self,
         configuration: &ValidatedProxyConfig,
     ) -> Result<ActiveHostSources, RuntimeError> {
-        let host_sources = render_host_sources(configuration, self.settings.http_port).map_err(
-            |error| match error {
-                RenderError::ConfigTooLarge => RuntimeError::ConfigTooLarge,
-                RenderError::InvalidProbeSocket => RuntimeError::ApplyFailed,
-            },
-        )?;
+        let host_sources = render_host_sources_for_runtime(
+            configuration,
+            self.settings.http_port,
+            self.settings.controller_port,
+            self.settings.public_https_port,
+        )
+        .map_err(|error| match error {
+            RenderError::ConfigTooLarge => RuntimeError::ConfigTooLarge,
+            RenderError::InvalidProbeSocket
+            | RenderError::InvalidCertificatePath
+            | RenderError::MissingCertificate => RuntimeError::ApplyFailed,
+        })?;
         Ok(ActiveHostSources {
             revision: configuration.revision.clone(),
             host_sources,
@@ -376,23 +590,73 @@ impl ProxyRuntime {
             .map_err(|_| RuntimeError::ApplyFailed)
     }
 
-    fn render_proxy_config(
+    async fn render_proxy_config_for_apply(
         &self,
-        configuration: Option<&ValidatedProxyConfig>,
+        configuration: &ValidatedProxyConfig,
+        staged: Option<&StagedCertificate>,
     ) -> Result<String, RuntimeError> {
-        render_config(configuration, &self.settings.render_settings()).map_err(
-            |error| match error {
-                RenderError::ConfigTooLarge => RuntimeError::ConfigTooLarge,
-                RenderError::InvalidProbeSocket => RuntimeError::ApplyFailed,
+        let mut materials = BTreeMap::new();
+        for host in &configuration.proxy_hosts {
+            let Some(certificate_id) = host.certificate_id.as_deref() else {
+                continue;
+            };
+            let staged_certificate = staged.filter(|staged| staged.id() == certificate_id);
+            let covers_domains = match staged_certificate {
+                Some(staged) => staged.covers_domains(&host.domains),
+                None => self
+                    .certificate_store
+                    .covers_domains(certificate_id, &host.domains)
+                    .await
+                    .map_err(|_| RuntimeError::ApplyFailed)?,
+            };
+            if !covers_domains {
+                return Err(RuntimeError::ApplyFailed);
+            }
+            let material = match staged_certificate {
+                Some(staged) => self
+                    .certificate_store
+                    .staged_material(staged)
+                    .map_err(|_| RuntimeError::ApplyFailed)?,
+                None => self
+                    .certificate_store
+                    .material(certificate_id)
+                    .await
+                    .map_err(|_| RuntimeError::ApplyFailed)?,
+            };
+            materials.insert(
+                certificate_id.to_owned(),
+                TlsMaterial {
+                    fullchain_path: material.fullchain_path,
+                    private_key_path: material.private_key_path,
+                },
+            );
+        }
+        render_config_with_tls(
+            configuration,
+            &self.settings.render_settings(),
+            &TlsRenderSettings {
+                https_port: self.settings.https_port,
+                public_https_port: self.settings.public_https_port,
+                controller_port: self.settings.controller_port,
             },
+            &materials,
         )
+        .map_err(|error| match error {
+            RenderError::ConfigTooLarge => RuntimeError::ConfigTooLarge,
+            RenderError::InvalidProbeSocket
+            | RenderError::InvalidCertificatePath
+            | RenderError::MissingCertificate => RuntimeError::ApplyFailed,
+        })
     }
 
     pub(crate) async fn shutdown(&self) {
-        if let Some(engine) = &self.engine {
-            if engine.shutdown().await.is_err() {
-                warn!(stage = "shutdown", "proxy engine did not stop cleanly");
-            }
+        if let Some(task) = self.renewal_task.lock().await.take() {
+            task.abort();
+        }
+        if let Some(engine) = &self.engine
+            && engine.shutdown().await.is_err()
+        {
+            warn!(stage = "shutdown", "proxy engine did not stop cleanly");
         }
     }
 
@@ -425,6 +689,24 @@ impl ProxyRuntime {
         self.state.lock().await.engine_available = false;
     }
 
+    fn renewal_is_due(certificate: &CertificateMetadata) -> bool {
+        let Some(expires_at) = certificate.expires_at.as_deref() else {
+            return false;
+        };
+        let Ok(expires_at) = OffsetDateTime::parse(expires_at, &Rfc3339) else {
+            return false;
+        };
+        let now = OffsetDateTime::now_utc();
+        let minimum_window = Duration::from_secs(30 * 24 * 60 * 60).as_secs() as i64;
+        let one_third = certificate
+            .issued_at
+            .as_deref()
+            .and_then(|issued_at| OffsetDateTime::parse(issued_at, &Rfc3339).ok())
+            .map(|issued_at| (expires_at - issued_at).whole_seconds() / 3)
+            .unwrap_or(minimum_window);
+        expires_at - now <= time::Duration::seconds(minimum_window.max(one_third))
+    }
+
     fn active_path(&self) -> PathBuf {
         self.settings.state_dir.join(ACTIVE_CONFIG_FILE)
     }
@@ -441,7 +723,30 @@ impl ProxyRuntime {
         self.settings.state_dir.join(LAST_APPLY_FILE)
     }
 
+    fn active_configuration_path(&self) -> PathBuf {
+        self.settings.state_dir.join(ACTIVE_CONFIGURATION_FILE)
+    }
     fn active_host_sources_path(&self) -> PathBuf {
         self.settings.state_dir.join(ACTIVE_HOST_SOURCES_FILE)
+    }
+}
+
+fn snapshot_version(configuration: &ValidatedProxyConfig) -> u8 {
+    if configuration
+        .proxy_hosts
+        .iter()
+        .any(|host| host.certificate_id.is_some())
+    {
+        4
+    } else if configuration
+        .proxy_hosts
+        .iter()
+        .any(|host| !host.http_settings.is_empty() || !host.advanced_config.is_empty())
+    {
+        3
+    } else if !configuration.http_settings.is_empty() {
+        2
+    } else {
+        1
     }
 }

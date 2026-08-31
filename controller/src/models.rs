@@ -45,6 +45,10 @@ pub(crate) struct ProxyHost {
     pub(crate) http_settings: ProxyHttpSettings,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub(crate) advanced_config: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) certificate_id: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) force_https: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

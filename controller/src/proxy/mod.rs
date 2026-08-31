@@ -26,7 +26,7 @@ pub(crate) enum ProxyValidationError {
 pub(crate) fn validate_proxy_config(
     mut request: ProxyConfigRequest,
 ) -> Result<ValidatedProxyConfig, ProxyValidationError> {
-    if !matches!(request.version, 1..=3) || !is_revision(&request.revision) {
+    if !matches!(request.version, 1..=4) || !is_revision(&request.revision) {
         return Err(ProxyValidationError::InvalidConfiguration);
     }
 
@@ -37,9 +37,18 @@ pub(crate) fn validate_proxy_config(
         .proxy_hosts
         .iter()
         .any(|host| !host.http_settings.is_empty() || !host.advanced_config.is_empty());
-    if (request.version == 1 && (!request.http_settings.is_empty() || has_host_configuration))
-        || (request.version == 2 && (request.http_settings.is_empty() || has_host_configuration))
-        || (request.version == 3 && !has_host_configuration)
+    let has_tls_configuration = request
+        .proxy_hosts
+        .iter()
+        .any(|host| host.certificate_id.is_some());
+    if (request.version == 1
+        && (!request.http_settings.is_empty() || has_host_configuration || has_tls_configuration))
+        || (request.version == 2
+            && (request.http_settings.is_empty()
+                || has_host_configuration
+                || has_tls_configuration))
+        || (request.version == 3 && (!has_host_configuration || has_tls_configuration))
+        || (request.version == 4 && !has_tls_configuration)
     {
         return Err(ProxyValidationError::InvalidConfiguration);
     }
@@ -66,6 +75,11 @@ pub(crate) fn validate_proxy_config(
             || host.forward_port == 0
             || !has_valid_http_settings(&host.http_settings)
             || !has_valid_advanced_config(&host.advanced_config)
+            || host
+                .certificate_id
+                .as_deref()
+                .is_some_and(|id| !is_canonical_uuid_v7(id))
+            || (host.force_https && host.certificate_id.is_none())
         {
             return Err(ProxyValidationError::ValidationFailed);
         }
@@ -127,7 +141,13 @@ pub(crate) fn is_canonical_uuid(value: &str) -> bool {
         })
 }
 
-fn is_canonical_domain(value: &str) -> bool {
+pub(crate) fn is_canonical_uuid_v7(value: &str) -> bool {
+    is_canonical_uuid(value)
+        && value.as_bytes().get(14) == Some(&b'7')
+        && matches!(value.as_bytes().get(19), Some(b'8' | b'9' | b'a' | b'b'))
+}
+
+pub(crate) fn is_canonical_domain(value: &str) -> bool {
     value.len() <= 253
         && !value.is_empty()
         && value == value.to_ascii_lowercase()

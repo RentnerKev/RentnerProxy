@@ -7,6 +7,8 @@ export interface ProxyHostSummary {
     readonly forwardHost: string
     readonly forwardPort: number
     readonly enabled: boolean
+    readonly certificateId: string | null
+    readonly forceHttps: boolean
     readonly createdAt: Date
     readonly updatedAt: Date
 }

@@ -85,6 +85,26 @@ fn versioned_revisions_are_stable_and_cross_language_compatible() {
 }
 
 #[test]
+fn v4_tls_snapshot_matches_the_web_hash_vector() {
+    let mut host = host(
+        "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
+        &["demo.test", "www.demo.test"],
+        "http",
+        "backend.internal",
+        4_000,
+    );
+    host.certificate_id = Some("0198d98a-0000-7000-8000-000000000001".to_owned());
+    host.force_https = true;
+    let request = request(vec![host]);
+    assert_eq!(request.version, 4);
+    assert_eq!(
+        request.revision,
+        "sha256:60ef13937bd04f3c5636c01b13c37431192b04fa7c9ba277e2dd4d89afe9c279"
+    );
+    assert!(validate_proxy_config(request).is_ok());
+}
+
+#[test]
 fn rejects_invalid_http_settings_versions_bounds_and_fields() {
     let hosts = vec![host(
         "00000000-0000-0000-0000-000000000000",

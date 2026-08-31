@@ -43,7 +43,8 @@
         "controlPlane": "Control plane",
         "collapseNavigation": "Collapse navigation",
         "expandNavigation": "Expand navigation",
-        "proxyHosts": "Proxy hosts"
+        "proxyHosts": "Proxy hosts",
+        "certificates": "Certificates"
     },
     "language": {
         "title": "Language",
@@ -626,6 +627,158 @@
             },
             "item": "role"
         },
+        "certificates": {
+            "page": {
+                "eyebrow": "TLS management",
+                "title": "Certificates",
+                "description": "Manage imported certificates and ACME issuance for proxy hosts."
+            },
+            "table": {
+                "eyebrow": "Certificate store",
+                "count_one": "{{count}} certificate",
+                "count_other": "{{count}} certificates",
+                "description": "Review certificate coverage, lifecycle status, and host assignments.",
+                "searchLabel": "Search certificates",
+                "searchPlaceholder": "Search name, domain, source, or status...",
+                "loading": "Loading certificates",
+                "emptyTitle": "No certificates yet",
+                "emptyDescription": "Import a certificate or request one through ACME.",
+                "filteredEmptyTitle": "No certificates match your filters",
+                "filteredEmptyDescription": "Adjust the search or reset the active filters.",
+                "itemLabel": "certificates"
+            },
+            "columns": {
+                "name": "Name",
+                "domains": "Domains",
+                "source": "Source",
+                "status": "Status",
+                "expires": "Expires",
+                "actions": "Actions"
+            },
+            "source": {
+                "manual": "Manual",
+                "acme": "ACME"
+            },
+            "status": {
+                "pending": "Pending",
+                "valid": "Valid",
+                "expiring": "Expiring soon",
+                "expired": "Expired",
+                "failed": "Failed"
+            },
+            "cells": {
+                "moreDomains": "Show {{count}} more domains"
+            },
+            "actions": {
+                "import": "Import certificate",
+                "request": "Request with ACME",
+                "requestForHost": "Request certificate for this host",
+                "details": "Details",
+                "renew": "Renew",
+                "replace": "Replace",
+                "delete": "Delete",
+                "saving": "Saving...",
+                "requesting": "Requesting...",
+                "renewing": "Renewing...",
+                "deleting": "Deleting...",
+                "open": "Open certificate actions for {{name}}"
+            },
+            "details": {
+                "title": "Certificate: {{name}}",
+                "description": "Metadata and current assignment information.",
+                "metadata": "Certificate metadata",
+                "issuer": "Issuer",
+                "issuedAt": "Issued",
+                "fingerprint": "Fingerprint",
+                "assignedHosts": "Assigned proxy hosts"
+            },
+            "import": {
+                "title": "Import certificate",
+                "description": "Provide a certificate and matching private key. PEM values are submitted only for this action."
+            },
+            "replace": {
+                "title": "Replace certificate",
+                "description": "Replace the stored material while keeping this certificate assignment."
+            },
+            "form": {
+                "name": "Name",
+                "certificatePem": "Certificate PEM",
+                "certificatePemHint": "Paste the PEM certificate chain without changing its contents.",
+                "privateKeyPem": "Private key PEM",
+                "privateKeyPemHint": "The key is sent only for this request and is never placed in browser cache.",
+                "chainPem": "Chain PEM (optional)",
+                "chainPemHint": "Add the issuer chain when it is not included in the certificate.",
+                "domains": "Domains",
+                "domainsHint": "Enter one public DNS name per line.",
+                "environment": "ACME environment",
+                "stagingHint": "Staging is selected by default and does not issue a production-trusted certificate.",
+                "contactEmail": "Contact email (optional)",
+                "contactHint": "Used for ACME notices when supported by the issuer.",
+                "acceptTerms": "I accept the ACME terms of service",
+                "termsHint": "Production requests require explicit acceptance."
+            },
+            "environment": {
+                "staging": "Staging",
+                "production": "Production"
+            },
+            "request": {
+                "title": "Request ACME certificate",
+                "description": "Request a certificate for public domains through the selected ACME environment.",
+                "networkHint": "ACME validation needs public DNS and reachable port 80 for each domain."
+            },
+            "confirm": {
+                "renewTitle": "Renew {{name}}?",
+                "renewDescription": "Start a new ACME order for this certificate.",
+                "deleteTitle": "Delete {{name}}?",
+                "deleteDescription": "This removes the certificate and is blocked while a proxy host still uses it."
+            },
+            "states": {
+                "unavailableTitle": "Certificates are unavailable",
+                "unavailableDescription": "The certificate list could not be loaded. Try again."
+            },
+            "filters": {
+                "allSources": "All sources",
+                "allStatuses": "All statuses"
+            },
+            "messages": {
+                "imported": "Certificate imported.",
+                "replaced": "Certificate replaced.",
+                "requested": "Certificate request started.",
+                "renewing": "Certificate renewal started.",
+                "deleted": "Certificate deleted."
+            },
+            "errors": {
+                "loadFailed": "Certificates could not be loaded.",
+                "actionFailed": "The certificate action could not be completed.",
+                "importFailed": "The certificate could not be imported.",
+                "requestFailed": "The ACME request could not be started.",
+                "renewFailed": "The certificate could not be renewed.",
+                "deleteFailed": "The certificate could not be deleted.",
+                "invalid_input": "Review the submitted certificate values.",
+                "invalid_certificate": "The certificate is invalid.",
+                "key_mismatch": "The private key does not match the certificate.",
+                "certificate_expired": "The certificate is expired.",
+                "domain_mismatch": "The certificate does not cover all host domains.",
+                "certificate_not_found": "The certificate no longer exists.",
+                "certificate_in_use": "The certificate is still assigned to a proxy host.",
+                "operation_in_progress": "Another certificate operation is already running.",
+                "acme_terms_required": "Accept the ACME terms before requesting a certificate.",
+                "acme_domain_invalid": "ACME requires public DNS domains.",
+                "acme_failed": "The ACME order failed.",
+                "runtime_apply_failed": "The certificate was saved but could not be applied to the proxy runtime.",
+                "certificate_store_unavailable": "The certificate store is unavailable.",
+                "controller_unavailable": "The proxy controller is unavailable."
+            },
+            "validation": {
+                "name": "Enter a certificate name.",
+                "certificatePem": "Enter a certificate PEM.",
+                "privateKeyPem": "Enter a private key PEM.",
+                "pemLimit": "This PEM value is too large.",
+                "publicDomain": "Use a public DNS domain.",
+                "email": "Enter a valid email address.",
+                "terms": "Accept the ACME terms."
+            }
+        },
         "proxyHosts": {
             "page": {
                 "eyebrow": "Proxy management",
@@ -699,7 +852,13 @@
                 "forwardHostPlaceholder": "192.168.1.50",
                 "forwardHostHint": "Enter a hostname, IPv4 or IPv6 address without a scheme, path or port.",
                 "enabledHint": "Enabled hosts are included in the next proxy runtime configuration.",
-                "statusReadOnly": "You do not have permission to change this proxy host’s saved status."
+                "statusReadOnly": "You do not have permission to change this proxy host’s saved status.",
+                "certificate": "TLS certificate",
+                "noCertificate": "No certificate",
+                "certificateHint": "Assign a usable certificate covering every host domain.",
+                "forceHttps": "Force HTTPS",
+                "forceHttpsHint": "Redirect HTTP requests to HTTPS for this host.",
+                "forceHttpsRequiresCertificate": "Assign a usable certificate covering all domains first."
             },
             "status": {
                 "enabled": "Enabled",

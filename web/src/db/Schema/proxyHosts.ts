@@ -3,6 +3,7 @@ import { boolean, check, index, integer, text, timestamp, uuid, varchar } from '
 
 import type { ProxyHostForwardScheme } from '../../config/proxy-hosts.config'
 import { rentnerProxySchema } from './base'
+import { certificates } from './certificates'
 
 export const proxyHosts = rentnerProxySchema.table(
     'proxy_hosts',
@@ -16,6 +17,10 @@ export const proxyHosts = rentnerProxySchema.table(
         forwardHost: varchar('forward_host', { length: 253 }).notNull(),
         forwardPort: integer('forward_port').notNull(),
         enabled: boolean('enabled').notNull().default(true),
+        certificateId: uuid('certificate_id').references(() => certificates.id, {
+            onDelete: 'restrict',
+        }),
+        forceHttps: boolean('force_https').notNull().default(false),
         advancedConfig: text('advanced_config').notNull().default(''),
         createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
             .notNull()
@@ -29,6 +34,11 @@ export const proxyHosts = rentnerProxySchema.table(
         check('proxy_hosts_forward_port_check', sql`${table.forwardPort} between 1 and 65535`),
         check('proxy_hosts_forward_host_check', sql`length(btrim(${table.forwardHost})) > 0`),
         index('proxy_hosts_enabled_idx').on(table.enabled),
+        index('proxy_hosts_certificate_id_idx').on(table.certificateId),
+        check(
+            'proxy_hosts_force_https_check',
+            sql`${table.forceHttps} = false or ${table.certificateId} is not null`,
+        ),
     ],
 )
 

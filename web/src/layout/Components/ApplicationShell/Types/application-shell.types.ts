@@ -30,7 +30,7 @@ export interface AuthenticatedShellProps {
 export interface ApplicationNavigationItem {
     readonly exact?: boolean
     readonly label: string
-    readonly to: '/' | '/proxy-hosts' | '/roles' | '/users'
+    readonly to: '/' | '/proxy-hosts' | '/certificates' | '/roles' | '/users'
 }
 
 export interface ApplicationNavigationProps {

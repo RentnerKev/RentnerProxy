@@ -4,8 +4,28 @@ pub(super) const ACTIVE_CONFIG_FILE: &str = "active.conf";
 pub(super) const CANDIDATE_CONFIG_FILE: &str = "candidate.conf";
 pub(super) const LAST_GOOD_CONFIG_FILE: &str = "last-good.conf";
 pub(super) const LAST_APPLY_FILE: &str = "last-apply-at";
+
 pub(super) fn prepare_state_dir(path: &Path) -> std::io::Result<()> {
-    std::fs::create_dir_all(path)?;
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_dir() && !metadata.file_type().is_symlink() => {}
+        Ok(_) => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "runtime state path is not a regular directory",
+            ));
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            std::fs::create_dir_all(path)?
+        }
+        Err(error) => return Err(error),
+    }
+    let metadata = std::fs::symlink_metadata(path)?;
+    if metadata.file_type().is_symlink() || !metadata.file_type().is_dir() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "runtime state path is not a regular directory",
+        ));
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -28,10 +48,6 @@ pub(super) fn atomic_write(path: &Path, contents: &[u8]) -> std::io::Result<()> 
 }
 
 pub(super) fn replace_file(source: &Path, destination: &Path) -> std::io::Result<()> {
-    #[cfg(windows)]
-    if destination.exists() {
-        std::fs::remove_file(destination)?;
-    }
     std::fs::rename(source, destination)?;
     #[cfg(unix)]
     sync_parent_directory(destination)?;

@@ -1,5 +1,7 @@
+mod acme;
+mod certificates;
 mod config;
-mod fixtures;
+pub(crate) mod fixtures;
 mod proxy;
 mod renderer;
 mod runtime;

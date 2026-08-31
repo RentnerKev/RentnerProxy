@@ -9,6 +9,7 @@
         "dev:controller": "cargo run --manifest-path controller/Cargo.toml",
         "proxy:test-upstream": "bun scripts/proxy-test-upstream.ts",
         "proxy:smoke": "bun --no-orphans scripts/proxy-smoke.ts",
+        "certificates:smoke": "bun --no-orphans scripts/certificate-smoke.ts",
         "build": "bun --no-orphans scripts/build.ts",
         "build:web": "bun --bun vite build --config web/vite.config.ts && tsc --noEmit -p web/tsconfig.json",
         "build:controller": "cargo build --release --manifest-path controller/Cargo.toml",

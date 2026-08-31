@@ -18,7 +18,8 @@ use crate::{
     },
     proxy::{revision_for_configuration, validate_proxy_config},
     runtime::{
-        EngineError, EngineFuture, ProxyEngine, ProxyRuntime, RuntimeError, RuntimeSettings,
+        CertificateError, CertificateImportRequest, EngineError, EngineFuture, ProxyEngine,
+        ProxyRuntime, RuntimeError, RuntimeSettings,
         clock::{civil_from_days, utc_now},
         renderer::{MAX_RENDERED_PROXY_CONFIG_BYTES, RenderSettings, render_config},
     },
@@ -63,10 +64,10 @@ impl ProxyEngine for FakeEngine {
         Box::pin(async move {
             self.tested_paths.lock().await.push(path.to_path_buf());
             let call = self.test_calls.fetch_add(1, Ordering::SeqCst);
-            if call > 0 {
-                if let Some(delay) = self.second_test_delay {
-                    tokio::time::sleep(delay).await;
-                }
+            if call > 0
+                && let Some(delay) = self.second_test_delay
+            {
+                tokio::time::sleep(delay).await;
             }
             Self::next_result(&self.test_results).await
         })
@@ -130,6 +131,8 @@ fn configuration_with_settings(
         forward_port: port,
         http_settings: ProxyHttpSettings::default(),
         advanced_config: String::new(),
+        certificate_id: None,
+        force_https: false,
     }];
     let version = if http_settings.is_empty() { 1 } else { 2 };
     validate_proxy_config(ProxyConfigRequest {
@@ -149,6 +152,8 @@ fn configuration_with_advanced(port: u16, advanced_config: &str) -> ValidatedPro
         forward_port: port,
         http_settings: ProxyHttpSettings::default(),
         advanced_config: advanced_config.to_owned(),
+        certificate_id: None,
+        force_https: false,
     }];
     let http_settings = ProxyHttpSettings::default();
     validate_proxy_config(ProxyConfigRequest {
@@ -185,6 +190,226 @@ async fn candidate_is_tested_before_active_configuration_changes() {
     );
 }
 
+fn tls_configuration(certificate_id: &str) -> ValidatedProxyConfig {
+    let hosts = vec![ProxyHost {
+        id: "00000000-0000-0000-0000-000000000000".to_owned(),
+        domains: vec!["demo.test".to_owned()],
+        forward_scheme: "http".to_owned(),
+        forward_host: "backend".to_owned(),
+        forward_port: 4_000,
+        http_settings: ProxyHttpSettings::default(),
+        advanced_config: String::new(),
+        certificate_id: Some(certificate_id.to_owned()),
+        force_https: true,
+    }];
+    let http_settings = ProxyHttpSettings::default();
+    validate_proxy_config(ProxyConfigRequest {
+        version: 4,
+        revision: revision_for_configuration(&hosts, &http_settings),
+        proxy_hosts: hosts,
+        http_settings,
+    })
+    .expect("TLS configuration should validate")
+}
+
+fn certificate_import_request() -> CertificateImportRequest {
+    let certificate = rcgen::generate_simple_self_signed(vec!["demo.test".to_owned()])
+        .expect("test certificate should generate");
+    CertificateImportRequest {
+        certificate_pem: certificate.cert.pem(),
+        private_key_pem: certificate.signing_key.serialize_pem(),
+        chain_pem: None,
+        required_domains: Some(vec!["demo.test".to_owned()]),
+    }
+}
+
+#[tokio::test]
+async fn failed_certificate_replacement_preserves_active_material_and_configuration() {
+    let engine = Arc::new(FakeEngine {
+        test_results: Mutex::new(VecDeque::from([
+            Ok(()),
+            Ok(()),
+            Err(EngineError::CommandFailed),
+        ])),
+        reload_results: Mutex::new(VecDeque::from([Ok(())])),
+        ..FakeEngine::succeeds()
+    });
+    let (runtime, settings) = test_runtime(Some(engine));
+    runtime.initialize().await;
+    let certificate_id = "0198d98a-0000-7000-8000-000000000001";
+    runtime
+        .import_certificate(certificate_id, certificate_import_request())
+        .await
+        .expect("initial certificate should import before it is assigned");
+    let configuration = tls_configuration(certificate_id);
+    assert_eq!(
+        runtime.apply(configuration).await,
+        Ok(ApplyOutcome::Applied)
+    );
+    let before_metadata = runtime
+        .certificate(certificate_id)
+        .await
+        .expect("initial metadata should exist");
+    let before_active = std::fs::read(settings.state_dir.join("active.conf"))
+        .expect("active configuration should exist");
+
+    assert_eq!(
+        runtime
+            .import_certificate(certificate_id, certificate_import_request())
+            .await,
+        Err(CertificateError::RuntimeApplyFailed)
+    );
+    assert_eq!(
+        runtime
+            .certificate(certificate_id)
+            .await
+            .expect("old metadata should remain"),
+        before_metadata
+    );
+    assert_eq!(
+        std::fs::read(settings.state_dir.join("active.conf"))
+            .expect("active configuration should remain"),
+        before_active
+    );
+}
+#[tokio::test]
+async fn tls_missing_material_and_reload_failure_preserve_active_material_pointer() {
+    let engine = Arc::new(FakeEngine {
+        test_results: Mutex::new(VecDeque::from([Ok(()), Ok(()), Ok(())])),
+        reload_results: Mutex::new(VecDeque::from([
+            Ok(()),
+            Err(EngineError::CommandFailed),
+            Ok(()),
+        ])),
+        ..FakeEngine::succeeds()
+    });
+    let (runtime, settings) = test_runtime(Some(engine));
+    runtime.initialize().await;
+    let certificate_id = "0198d98a-0000-7000-8000-000000000001";
+    runtime
+        .import_certificate(certificate_id, certificate_import_request())
+        .await
+        .expect("initial certificate should import before it is assigned");
+    let configuration = tls_configuration(certificate_id);
+    runtime
+        .apply(configuration.clone())
+        .await
+        .expect("initial TLS configuration should apply");
+    let before_metadata = runtime
+        .certificate(certificate_id)
+        .await
+        .expect("initial metadata should exist");
+    let before_active = std::fs::read(settings.state_dir.join("active.conf"))
+        .expect("active TLS configuration should exist");
+
+    assert_eq!(
+        runtime
+            .apply(tls_configuration("0198d98a-0000-7000-8000-000000000002"))
+            .await,
+        Err(RuntimeError::ApplyFailed)
+    );
+    assert_eq!(
+        std::fs::read(settings.state_dir.join("active.conf"))
+            .expect("missing material must not replace active configuration"),
+        before_active
+    );
+
+    assert_eq!(
+        runtime
+            .import_certificate(certificate_id, certificate_import_request())
+            .await,
+        Err(CertificateError::RuntimeApplyFailed)
+    );
+    assert_eq!(
+        runtime
+            .certificate(certificate_id)
+            .await
+            .expect("failed TLS reload must keep old metadata pointer"),
+        before_metadata
+    );
+    assert_eq!(
+        std::fs::read(settings.state_dir.join("active.conf"))
+            .expect("failed TLS reload must restore active configuration"),
+        before_active
+    );
+    assert_eq!(
+        runtime.status().await.active_revision,
+        Some(configuration.revision)
+    );
+}
+
+#[tokio::test]
+async fn canceled_import_continues_to_a_complete_active_tls_version() {
+    let engine = Arc::new(FakeEngine {
+        test_results: Mutex::new(VecDeque::from([Ok(()), Ok(()), Ok(())])),
+        reload_results: Mutex::new(VecDeque::from([Ok(()), Ok(()), Ok(())])),
+        second_test_delay: Some(Duration::from_millis(100)),
+        ..FakeEngine::succeeds()
+    });
+    let suffix = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let state_dir = std::env::temp_dir().join(format!(
+        "rentnerproxy-runtime-canceled-import-test-{}-{suffix}",
+        std::process::id()
+    ));
+    let mut settings = RuntimeSettings::new(state_dir, 18_080);
+    settings.lock_wait = Duration::from_secs(1);
+    settings.stage_timeout = Duration::from_secs(1);
+    let runtime = ProxyRuntime::new(settings.clone(), Some(engine.clone()));
+    runtime.initialize().await;
+    let certificate_id = "0198d98a-0000-7000-8000-000000000001";
+    runtime
+        .import_certificate(certificate_id, certificate_import_request())
+        .await
+        .expect("initial certificate should import before it is assigned");
+    runtime
+        .apply(tls_configuration(certificate_id))
+        .await
+        .expect("initial TLS configuration should apply");
+    let before_active = std::fs::read(settings.state_dir.join("active.conf"))
+        .expect("initial TLS configuration should exist");
+    let before_fingerprint = runtime
+        .certificate(certificate_id)
+        .await
+        .expect("initial TLS metadata should exist")
+        .fingerprint;
+
+    let import_runtime = runtime.clone();
+    let aborted_import = tokio::spawn(async move {
+        import_runtime
+            .import_certificate(certificate_id, certificate_import_request())
+            .await
+    });
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while engine.test_calls.load(Ordering::SeqCst) < 3 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("replacement import should reach the delayed config test");
+    aborted_import.abort();
+    let _ = aborted_import.await;
+
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            let active = std::fs::read(settings.state_dir.join("active.conf"))
+                .expect("active TLS configuration should remain readable");
+            let metadata = runtime
+                .certificate(certificate_id)
+                .await
+                .expect("TLS metadata should remain readable");
+            if active != before_active && metadata.fingerprint != before_fingerprint {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("detached import should complete after caller cancellation");
+    runtime
+        .import_certificate(certificate_id, certificate_import_request())
+        .await
+        .expect("completed detached import must release its certificate lease");
+}
 #[tokio::test]
 async fn invalid_candidate_preserves_active_configuration() {
     let engine = Arc::new(FakeEngine {
@@ -321,8 +546,8 @@ async fn active_config_rejects_sources_over_hard_limit() {
     );
 }
 
-#[test]
-fn preview_rejects_rendered_sources_over_hard_limit() {
+#[tokio::test]
+async fn preview_rejects_rendered_sources_over_hard_limit() {
     let (runtime, _) = test_runtime(None);
     let configuration = ValidatedProxyConfig {
         revision: format!("sha256:{}", "0".repeat(64)),
@@ -334,12 +559,14 @@ fn preview_rejects_rendered_sources_over_hard_limit() {
             forward_port: 4_000,
             http_settings: ProxyHttpSettings::default(),
             advanced_config: String::new(),
+            certificate_id: None,
+            force_https: false,
         }],
         http_settings: ProxyHttpSettings::default(),
     };
 
     assert_eq!(
-        runtime.preview_config(&configuration),
+        runtime.preview_config(&configuration).await,
         Err(RuntimeError::ConfigTooLarge)
     );
 }
@@ -562,6 +789,8 @@ async fn active_host_sources_keep_two_hosts_isolated() {
             forward_port: 4_000,
             http_settings: ProxyHttpSettings::default(),
             advanced_config: "add_header X-Host first;".to_owned(),
+            certificate_id: None,
+            force_https: false,
         },
         ProxyHost {
             id: "10000000-0000-0000-0000-000000000000".to_owned(),
@@ -571,6 +800,8 @@ async fn active_host_sources_keep_two_hosts_isolated() {
             forward_port: 4_001,
             http_settings: ProxyHttpSettings::default(),
             advanced_config: "add_header X-Host second;".to_owned(),
+            certificate_id: None,
+            force_https: false,
         },
     ];
     let http_settings = ProxyHttpSettings::default();
@@ -602,4 +833,23 @@ async fn active_host_sources_keep_two_hosts_isolated() {
     assert!(second.contains("X-Host second"));
     assert!(!second.contains("first-backend"));
     assert!(!second.contains("X-Host first"));
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn rejects_a_symlink_state_root_before_starting_the_engine() {
+    let engine = Arc::new(FakeEngine::succeeds());
+    let (runtime, settings) = test_runtime(Some(engine.clone()));
+    let target = settings.state_dir.with_extension("target");
+    std::fs::create_dir_all(&target).expect("test target should create");
+    std::os::unix::fs::symlink(&target, &settings.state_dir)
+        .expect("test state symlink should create");
+
+    runtime.initialize().await;
+
+    let status = runtime.status().await;
+    assert!(!status.available);
+    assert!(!status.running);
+    assert_eq!(engine.test_calls.load(Ordering::SeqCst), 0);
+    assert!(!target.join("active.conf").exists());
 }

@@ -4,7 +4,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-use crate::proxy::ProxyValidationError;
+use crate::{proxy::ProxyValidationError, runtime::CertificateError};
 
 pub(super) struct ApiError {
     status: StatusCode,
@@ -65,6 +65,27 @@ impl ApiError {
         Self {
             status: StatusCode::CONFLICT,
             error: "busy",
+        }
+    }
+
+    pub(super) fn certificate(error: CertificateError) -> Self {
+        let status = match error {
+            CertificateError::InvalidCertificate
+            | CertificateError::KeyMismatch
+            | CertificateError::CertificateExpired
+            | CertificateError::DomainMismatch
+            | CertificateError::TermsRequired
+            | CertificateError::AcmeDomainInvalid => StatusCode::UNPROCESSABLE_ENTITY,
+            CertificateError::NotFound => StatusCode::NOT_FOUND,
+            CertificateError::InUse | CertificateError::OperationInProgress => StatusCode::CONFLICT,
+            CertificateError::AcmeFailed | CertificateError::RuntimeApplyFailed => {
+                StatusCode::BAD_GATEWAY
+            }
+            CertificateError::StoreUnavailable => StatusCode::SERVICE_UNAVAILABLE,
+        };
+        Self {
+            status,
+            error: error.code(),
         }
     }
 

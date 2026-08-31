@@ -1,6 +1,7 @@
 import type { FormEventHandler } from 'react'
 import type { z } from 'zod'
 
+import type { CertificateSummary } from '../../../../shared/Types/certificates.types'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
 import type useProxyHostFormLogic from '../Hooks/useProxyHostFormLogic'
 import type { proxyHostFormSchema } from '../validation'
@@ -11,6 +12,7 @@ export type ProxyHostFormInstance = ReturnType<typeof useProxyHostFormLogic>['st
 export interface ProxyHostFormModalProps {
     readonly canEnable: boolean
     readonly canDisable: boolean
+    readonly canAssignCertificates?: boolean
     readonly mode: 'create' | 'edit'
     readonly onOpenChange: (open: boolean) => void
     readonly onSuccess: () => void
@@ -19,6 +21,8 @@ export interface ProxyHostFormModalProps {
 }
 
 export interface ProxyHostFormModalState {
+    readonly canAssignCertificates: boolean
+    readonly assignableCertificates: readonly CertificateSummary[]
     readonly canChangeEnabled: boolean
     readonly description: string
     readonly disableConfirmationOpen: boolean
@@ -41,7 +45,13 @@ export interface ProxyHostFormModalHandler {
 
 export type ProxyHostFormFieldsProps = Pick<
     ProxyHostFormModalState,
-    'canChangeEnabled' | 'domainKeys' | 'form' | 'formId' | 'isPending'
+    | 'canChangeEnabled'
+    | 'canAssignCertificates'
+    | 'assignableCertificates'
+    | 'domainKeys'
+    | 'form'
+    | 'formId'
+    | 'isPending'
 > &
     Pick<ProxyHostFormModalHandler, 'addDomain' | 'removeDomain'>
 

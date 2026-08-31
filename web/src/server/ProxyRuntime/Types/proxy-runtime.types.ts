@@ -9,10 +9,12 @@ export interface ProxyRuntimeHost {
     readonly forwardPort: number
     readonly httpSettings?: ProxyHttpSettings
     readonly advancedConfig?: string
+    readonly certificateId?: string | null
+    readonly forceHttps?: boolean
 }
 
 export interface ProxyRuntimeSnapshot {
-    readonly version: 1 | 2 | 3
+    readonly version: 1 | 2 | 3 | 4
     readonly revision: string
     readonly proxyHosts: ReadonlyArray<ProxyRuntimeHost>
     readonly httpSettings?: ProxyHttpSettings

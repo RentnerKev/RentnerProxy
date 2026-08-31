@@ -10,6 +10,7 @@ export function getProxyHostTableActionItems(
     {
         canDelete,
         canDisable,
+        canRequestCertificate,
         canEnable,
         canUpdate,
         isPending,
@@ -18,6 +19,7 @@ export function getProxyHostTableActionItems(
         onDisable,
         onEdit,
         onEnable,
+        onRequestCertificate,
         host,
     }: ProxyHostTableActionsProps,
     t: Translate,
@@ -29,6 +31,14 @@ export function getProxyHostTableActionItems(
         items.push({
             label: t('admin.proxyHosts.actions.edit'),
             onSelect: () => onEdit(host),
+            disabled: isPending,
+        })
+    }
+
+    if (canRequestCertificate && onRequestCertificate) {
+        items.push({
+            label: t('admin.certificates.actions.requestForHost'),
+            onSelect: () => onRequestCertificate(host),
             disabled: isPending,
         })
     }
