@@ -630,7 +630,21 @@
             "page": {
                 "eyebrow": "Proxy management",
                 "title": "Proxy hosts",
-                "description": "Manage domains and forwarding targets. Enabled and disabled describe saved configuration only; no proxy engine is connected yet."
+                "description": "Manage domains, forwarding targets, and the proxy runtime configuration."
+            },
+            "runtime": {
+                "title": "Proxy runtime",
+                "synced": "Proxy runtime synchronized",
+                "syncedDescription": "The active proxy configuration matches the saved configuration.",
+                "pending": "Saved changes are waiting to be applied.",
+                "pendingDescription": "The last successfully applied configuration remains active until the saved changes are applied.",
+                "unavailable": "Proxy runtime unavailable.",
+                "unavailableDescription": "The proxy runtime cannot currently be reached. Saved changes remain queued for a later apply.",
+                "apply": "Apply changes",
+                "applying": "Applying…",
+                "applied": "Proxy runtime updated successfully.",
+                "applyFailed": "The proxy runtime could not be updated. Saved changes remain available to apply later.",
+                "savedPending": "Saved changes are waiting to be applied."
             },
             "messages": {
                 "created": "Proxy host created successfully.",
@@ -664,12 +678,12 @@
                 "deleteWarning": "This action cannot be undone.",
                 "deleteLabel": "Delete proxy host",
                 "disableTitle": "Disable proxy host?",
-                "disableDescription": "This saves the proxy host as disabled. It does not change traffic now because no proxy engine is connected.",
+                "disableDescription": "This saves the proxy host as disabled and removes it from the next proxy runtime configuration.",
                 "disableLabel": "Disable proxy host",
                 "saveDisabled": "Save and disable"
             },
             "form": {
-                "description": "Save domains and a forwarding target. These settings do not apply a live proxy configuration.",
+                "description": "Save domains and a forwarding target for the proxy runtime configuration.",
                 "editTitle": "Edit proxy host",
                 "creating": "Creating…",
                 "domains": "Domains",
@@ -683,7 +697,7 @@
                 "forwardPort": "Forward port",
                 "forwardHostPlaceholder": "192.168.1.50",
                 "forwardHostHint": "Enter a hostname, IPv4 or IPv6 address without a scheme, path or port.",
-                "enabledHint": "Desired state only. No proxy engine is connected yet.",
+                "enabledHint": "Enabled hosts are included in the next proxy runtime configuration.",
                 "statusReadOnly": "You do not have permission to change this proxy host’s saved status."
             },
             "status": {

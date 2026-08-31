@@ -630,7 +630,21 @@
             "page": {
                 "eyebrow": "Gestión de proxy",
                 "title": "Hosts proxy",
-                "description": "Gestiona dominios y destinos de reenvío. Activado y desactivado solo describen la configuración guardada; todavía no hay un motor proxy conectado."
+                "description": "Gestiona dominios, destinos de reenvío y la configuración del motor proxy."
+            },
+            "runtime": {
+                "title": "Motor proxy",
+                "synced": "Motor proxy sincronizado",
+                "syncedDescription": "La configuración proxy activa coincide con la configuración guardada.",
+                "pending": "Los cambios guardados están pendientes de aplicación.",
+                "pendingDescription": "La última configuración aplicada correctamente permanece activa hasta aplicar los cambios guardados.",
+                "unavailable": "El motor proxy no está disponible.",
+                "unavailableDescription": "El motor proxy no está disponible en este momento. Los cambios guardados quedan pendientes para aplicarlos más tarde.",
+                "apply": "Aplicar cambios",
+                "applying": "Aplicando…",
+                "applied": "El motor proxy se actualizó correctamente.",
+                "applyFailed": "No se pudo actualizar el motor proxy. Los cambios guardados se pueden aplicar más tarde.",
+                "savedPending": "Los cambios guardados están pendientes de aplicación."
             },
             "messages": {
                 "created": "Host proxy creado correctamente.",
@@ -664,12 +678,12 @@
                 "deleteWarning": "Esta acción no se puede deshacer.",
                 "deleteLabel": "Eliminar host proxy",
                 "disableTitle": "¿Desactivar el host proxy?",
-                "disableDescription": "El host proxy se guardará como desactivado. Esto no modifica el tráfico ahora porque no hay un motor proxy conectado.",
+                "disableDescription": "El host proxy se guardará como desactivado y se excluirá de la próxima configuración del motor proxy.",
                 "disableLabel": "Desactivar host proxy",
                 "saveDisabled": "Guardar y desactivar"
             },
             "form": {
-                "description": "Guarda dominios y un destino de reenvío. Estos ajustes no aplican una configuración proxy en funcionamiento.",
+                "description": "Guarda dominios y un destino de reenvío para la configuración del motor proxy.",
                 "editTitle": "Editar host proxy",
                 "creating": "Creando…",
                 "domains": "Dominios",
@@ -683,7 +697,7 @@
                 "forwardPort": "Puerto de destino",
                 "forwardHostPlaceholder": "192.168.1.50",
                 "forwardHostHint": "Introduce un nombre de host o una dirección IPv4 o IPv6 sin esquema, ruta ni puerto.",
-                "enabledHint": "Solo el estado deseado. Todavía no hay un motor proxy conectado.",
+                "enabledHint": "Los hosts activados se incluirán en la próxima configuración del motor proxy.",
                 "statusReadOnly": "No tienes permiso para cambiar el estado guardado de este host proxy."
             },
             "status": {

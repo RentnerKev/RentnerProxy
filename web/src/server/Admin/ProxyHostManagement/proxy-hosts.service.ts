@@ -5,6 +5,8 @@ import { and, asc, eq, inArray, ne } from 'drizzle-orm'
 import { PERMISSIONS } from '../../../config/permissions.config'
 import { proxyHostDomains, proxyHosts } from '../../../db/schema'
 import type { ProxyHostSummary } from '../../../shared/Types/proxy-hosts.types'
+import type { ProxyRuntimeMutationStatus } from '../../../shared/Types/proxy-runtime.types'
+import { reconcileProxyConfigurationService } from '../../ProxyRuntime/proxy-runtime.service'
 import { requirePermissionService } from '../../Auth/Access/authorization.service'
 import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
 import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
@@ -16,6 +18,10 @@ import {
     type UpdateProxyHostInput,
 } from '../../../features/Admin/ProxyHostManagement/validation'
 import { mapProxyHostDomainUniqueViolation, ProxyHostDomainError } from './proxy-hosts.errors'
+
+export type ProxyHostMutationSummary = ProxyHostSummary & {
+    readonly runtimeStatus: ProxyRuntimeMutationStatus
+}
 
 type ProxyHostRow = {
     id: string
@@ -201,13 +207,13 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
 
 export async function createProxyHostService(
     input: CreateProxyHostInput,
-): Promise<ProxyHostSummary> {
+): Promise<ProxyHostMutationSummary> {
     const parsedInput = parseCreateInput(input)
     const domains = parsedInput.domains.toSorted()
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_CREATE)
 
     try {
-        return await getAuthDatabase().transaction(async (transaction) => {
+        const saved = await getAuthDatabase().transaction(async (transaction) => {
             await requirePermissionInTransaction(
                 transaction,
                 actor.id,
@@ -243,6 +249,8 @@ export async function createProxyHostService(
 
             return toProxyHostSummary(proxyHost, domains)
         })
+
+        return { ...saved, runtimeStatus: await reconcileProxyConfigurationService() }
     } catch (error) {
         const domainConflict = mapProxyHostDomainUniqueViolation(error)
 
@@ -256,13 +264,13 @@ export async function createProxyHostService(
 
 export async function updateProxyHostService(
     input: UpdateProxyHostInput,
-): Promise<ProxyHostSummary> {
+): Promise<ProxyHostMutationSummary> {
     const parsedInput = parseUpdateInput(input)
     const domains = parsedInput.domains.toSorted()
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_UPDATE)
 
     try {
-        return await getAuthDatabase().transaction(async (transaction) => {
+        const saved = await getAuthDatabase().transaction(async (transaction) => {
             await requirePermissionInTransaction(
                 transaction,
                 actor.id,
@@ -314,6 +322,8 @@ export async function updateProxyHostService(
 
             return toProxyHostSummary(updatedProxyHost, domains)
         })
+
+        return { ...saved, runtimeStatus: await reconcileProxyConfigurationService() }
     } catch (error) {
         const domainConflict = mapProxyHostDomainUniqueViolation(error)
 
@@ -325,7 +335,9 @@ export async function updateProxyHostService(
     }
 }
 
-export async function deleteProxyHostService(proxyHostId: string): Promise<void> {
+export async function deleteProxyHostService(
+    proxyHostId: string,
+): Promise<{ readonly runtimeStatus: ProxyRuntimeMutationStatus }> {
     const id = parseProxyHostId(proxyHostId)
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_DELETE)
 
@@ -339,17 +351,19 @@ export async function deleteProxyHostService(proxyHostId: string): Promise<void>
 
         await transaction.delete(proxyHosts).where(eq(proxyHosts.id, proxyHost.id))
     })
+
+    return { runtimeStatus: await reconcileProxyConfigurationService() }
 }
 
 async function setProxyHostEnabledService(
     proxyHostId: string,
     enabled: boolean,
-): Promise<ProxyHostSummary> {
+): Promise<ProxyHostMutationSummary> {
     const id = parseProxyHostId(proxyHostId)
     const permission = enabled ? PERMISSIONS.PROXY_HOSTS_ENABLE : PERMISSIONS.PROXY_HOSTS_DISABLE
     const actor = await requirePermissionService(permission)
 
-    return getAuthDatabase().transaction(async (transaction) => {
+    const saved = await getAuthDatabase().transaction(async (transaction) => {
         await requirePermissionInTransaction(transaction, actor.id, permission)
         const proxyHost = await loadProxyHostForUpdate(transaction, id)
 
@@ -388,12 +402,14 @@ async function setProxyHostEnabledService(
             await loadProxyHostDomainsInTransaction(transaction, proxyHost.id),
         )
     })
+
+    return { ...saved, runtimeStatus: await reconcileProxyConfigurationService() }
 }
 
-export function enableProxyHostService(proxyHostId: string): Promise<ProxyHostSummary> {
+export function enableProxyHostService(proxyHostId: string): Promise<ProxyHostMutationSummary> {
     return setProxyHostEnabledService(proxyHostId, true)
 }
 
-export function disableProxyHostService(proxyHostId: string): Promise<ProxyHostSummary> {
+export function disableProxyHostService(proxyHostId: string): Promise<ProxyHostMutationSummary> {
     return setProxyHostEnabledService(proxyHostId, false)
 }

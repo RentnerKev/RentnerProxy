@@ -21,6 +21,7 @@ import {
     userRoles,
     users,
 } from '../db/schema'
+import { applyProxyConfigurationService } from '../server/ProxyRuntime/proxy-runtime.service'
 import { getAuthDatabase } from '../server/Auth/Core/database.server'
 import { AuthDomainError } from '../server/Auth/Core/errors.server'
 import { ensureAuthorizationRegistryInTransaction } from '../server/Auth/Access/registry.service'
@@ -48,6 +49,11 @@ const TEST_EMAIL_SUFFIX = '@proxy-host-test.invalid'
 const TEST_ROLE_PREFIX = 'proxy-host-test-'
 
 let dedicatedDatabaseVerified = false
+const originalControllerEnvironment = new Map(
+    ['RENTNERPROXY_CONTROLLER_URL', 'RENTNERPROXY_CONTROLLER_TOKEN'].map(
+        (variable) => [variable, process.env[variable]] as const,
+    ),
+)
 
 function requireFirstRow<T>(rows: ReadonlyArray<T>, message: string): T {
     const row = rows.at(0)
@@ -218,6 +224,62 @@ async function cleanTestRows(): Promise<void> {
     })
 }
 
+interface FakeController {
+    readonly applyRevisions: string[]
+    readonly server: ReturnType<typeof Bun.serve>
+}
+
+function startFakeController(failApply: boolean): FakeController {
+    const applyRevisions: string[] = []
+    const server = Bun.serve({
+        hostname: '127.0.0.1',
+        port: 0,
+        async fetch(request) {
+            const url = new URL(request.url)
+
+            if (request.method === 'PUT' && url.pathname === '/internal/v1/proxy/config') {
+                if (failApply) {
+                    applyRevisions.push('failed')
+                    return new Response('unavailable', { status: 503 })
+                }
+
+                const payload = (await request.json()) as { revision?: unknown }
+                if (typeof payload.revision !== 'string') {
+                    return new Response('invalid', { status: 400 })
+                }
+
+                applyRevisions.push(payload.revision)
+                return Response.json({
+                    activeRevision: payload.revision,
+                    lastApplyAt: null,
+                    status: 'applied',
+                })
+            }
+
+            return new Response('not found', { status: 404 })
+        },
+    })
+    process.env.RENTNERPROXY_CONTROLLER_URL = server.url.origin
+    process.env.RENTNERPROXY_CONTROLLER_TOKEN = 'C'.repeat(32)
+    return { applyRevisions, server }
+}
+
+async function insertRawProxyHost(input: CreateProxyHostInput): Promise<string> {
+    const rows = await getAuthDatabase()
+        .insert(proxyHosts)
+        .values({
+            enabled: input.enabled,
+            forwardHost: input.forwardHost,
+            forwardPort: input.forwardPort,
+            forwardScheme: input.forwardScheme,
+        })
+        .returning({ id: proxyHosts.id })
+    const id = requireFirstRow(rows, 'Raw runtime test host was not inserted.').id
+    await getAuthDatabase()
+        .insert(proxyHostDomains)
+        .values(input.domains.map((domain) => ({ domain, proxyHostId: id })))
+    return id
+}
 async function assertDedicatedProxyHostDatabase(): Promise<void> {
     const [otherUsers, otherProxyHosts] = await Promise.all([
         getAuthDatabase()
@@ -270,6 +332,10 @@ afterEach(async () => {
     if (dedicatedDatabaseVerified) {
         await cleanTestRows()
     }
+    for (const [variable, originalValue] of originalControllerEnvironment) {
+        if (originalValue === undefined) delete process.env[variable]
+        else process.env[variable] = originalValue
+    }
 })
 
 describe('ProxyHost management with PostgreSQL', () => {
@@ -316,7 +382,10 @@ describe('ProxyHost management with PostgreSQL', () => {
                 id: created.id,
             })
             expect(updated.updatedAt.getTime()).toBeGreaterThanOrEqual(created.updatedAt.getTime())
-            expect(await runAsUser(owner.id, getProxyHostsService)).toEqual([updated])
+            const { runtimeStatus: _runtimeStatus, ...updatedWithoutRuntimeStatus } = updated
+            expect(await runAsUser(owner.id, getProxyHostsService)).toEqual([
+                updatedWithoutRuntimeStatus,
+            ])
 
             await runAsUser(owner.id, () => deleteProxyHostService(created.id))
             expect(
@@ -755,6 +824,180 @@ describe('ProxyHost management with PostgreSQL', () => {
             expect(await loadRolePermissionKeys(admin.key)).toEqual(
                 PERMISSION_REGISTRY.map((permission) => permission.key).toSorted(),
             )
+        },
+    )
+})
+
+describe('manual runtime apply permissions', () => {
+    integrationTest(
+        'grants manual apply to owner/admin and only explicitly assigned custom roles',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const admin = await createTestUser([SYSTEM_ROLES.ADMIN])
+            const viewer = await createTestUser([SYSTEM_ROLES.VIEWER])
+            const deniedRole = await createCustomRole([PERMISSIONS.APP_ACCESS])
+            const denied = await createTestUser([deniedRole.key])
+            const grantedRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.PROXY_HOSTS_APPLY,
+            ])
+            const granted = await createTestUser([grantedRole.key])
+            const controller = startFakeController(false)
+            try {
+                expect(await runAsUser(owner.id, applyProxyConfigurationService)).toBe('applied')
+                expect(await runAsUser(admin.id, applyProxyConfigurationService)).toBe('applied')
+                expect(await runAsUser(granted.id, applyProxyConfigurationService)).toBe('applied')
+                expect(
+                    await captureError(runAsUser(viewer.id, applyProxyConfigurationService)),
+                ).toBeInstanceOf(AuthDomainError)
+                expect(
+                    await captureError(runAsUser(denied.id, applyProxyConfigurationService)),
+                ).toBeInstanceOf(AuthDomainError)
+                expect(controller.applyRevisions.length).toBeGreaterThan(0)
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+})
+describe('runtime reconcile after PostgreSQL mutations', () => {
+    integrationTest.each([
+        ['applied', false],
+        ['pending', true],
+    ] as const)(
+        'reports %s after create and leaves the committed host',
+        async (expected, failApply) => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const controller = startFakeController(failApply)
+            try {
+                const input = proxyHostInput('runtime-create')
+                const result = await runAsUser(owner.id, () => createProxyHostService(input))
+                const persisted = await getAuthDatabase()
+                    .select({ id: proxyHosts.id })
+                    .from(proxyHosts)
+                    .innerJoin(proxyHostDomains, eq(proxyHostDomains.proxyHostId, proxyHosts.id))
+                    .where(eq(proxyHostDomains.domain, input.domains[0]!))
+
+                expect(result.runtimeStatus).toBe(expected)
+                expect(persisted).toHaveLength(1)
+                expect(controller.applyRevisions.length).toBeGreaterThan(0)
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+
+    integrationTest.each([
+        ['applied', false],
+        ['pending', true],
+    ] as const)(
+        'reports %s after update and leaves the committed values',
+        async (expected, failApply) => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const original = proxyHostInput('runtime-update-original')
+            const proxyHostId = await insertRawProxyHost(original)
+            const controller = startFakeController(failApply)
+            try {
+                const input = proxyHostInput('runtime-update-new')
+                const result = await runAsUser(owner.id, () =>
+                    updateProxyHostService({ ...input, proxyHostId }),
+                )
+                const persisted = requireFirstRow(
+                    await getAuthDatabase()
+                        .select({ forwardPort: proxyHosts.forwardPort })
+                        .from(proxyHosts)
+                        .where(eq(proxyHosts.id, proxyHostId)),
+                    'Updated runtime test host was not persisted.',
+                )
+
+                expect(result.runtimeStatus).toBe(expected)
+                expect(persisted.forwardPort).toBe(input.forwardPort)
+                expect(controller.applyRevisions.length).toBeGreaterThan(0)
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+
+    integrationTest.each([
+        ['applied', false],
+        ['pending', true],
+    ] as const)(
+        'reports %s after delete and leaves the committed deletion',
+        async (expected, failApply) => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const proxyHostId = await insertRawProxyHost(proxyHostInput('runtime-delete'))
+            const controller = startFakeController(failApply)
+            try {
+                const result = await runAsUser(owner.id, () => deleteProxyHostService(proxyHostId))
+                const persisted = await getAuthDatabase()
+                    .select({ id: proxyHosts.id })
+                    .from(proxyHosts)
+                    .where(eq(proxyHosts.id, proxyHostId))
+
+                expect(result.runtimeStatus).toBe(expected)
+                expect(persisted).toEqual([])
+                expect(controller.applyRevisions.length).toBeGreaterThan(0)
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+
+    integrationTest.each([
+        ['applied', false],
+        ['pending', true],
+    ] as const)(
+        'reports %s after disable and leaves the committed status',
+        async (expected, failApply) => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const proxyHostId = await insertRawProxyHost(proxyHostInput('runtime-disable'))
+            const controller = startFakeController(failApply)
+            try {
+                const result = await runAsUser(owner.id, () => disableProxyHostService(proxyHostId))
+                const persisted = requireFirstRow(
+                    await getAuthDatabase()
+                        .select({ enabled: proxyHosts.enabled })
+                        .from(proxyHosts)
+                        .where(eq(proxyHosts.id, proxyHostId)),
+                    'Disabled runtime test host was not persisted.',
+                )
+
+                expect(result.runtimeStatus).toBe(expected)
+                expect(persisted.enabled).toBeFalse()
+                expect(controller.applyRevisions.length).toBeGreaterThan(0)
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+
+    integrationTest.each([
+        ['applied', false],
+        ['pending', true],
+    ] as const)(
+        'reports %s after enable and leaves the committed status',
+        async (expected, failApply) => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const input = proxyHostInput('runtime-enable')
+            const proxyHostId = await insertRawProxyHost({ ...input, enabled: false })
+            const controller = startFakeController(failApply)
+            try {
+                const result = await runAsUser(owner.id, () => enableProxyHostService(proxyHostId))
+                const persisted = requireFirstRow(
+                    await getAuthDatabase()
+                        .select({ enabled: proxyHosts.enabled })
+                        .from(proxyHosts)
+                        .where(eq(proxyHosts.id, proxyHostId)),
+                    'Enabled runtime test host was not persisted.',
+                )
+
+                expect(result.runtimeStatus).toBe(expected)
+                expect(persisted.enabled).toBeTrue()
+                expect(controller.applyRevisions.length).toBeGreaterThan(0)
+            } finally {
+                await controller.server.stop(true)
+            }
         },
     )
 })

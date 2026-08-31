@@ -14,11 +14,12 @@ const proxyHostPermissions: string[] = [
     PERMISSIONS.PROXY_HOSTS_DELETE,
     PERMISSIONS.PROXY_HOSTS_ENABLE,
     PERMISSIONS.PROXY_HOSTS_DISABLE,
+    PERMISSIONS.PROXY_HOSTS_APPLY,
 ]
 const proxyHostPermissionSet = new Set(proxyHostPermissions)
 
 describe('ProxyHost permissions', () => {
-    test('registers all six ProxyHost permissions exactly once', () => {
+    test('registers all seven ProxyHost permissions exactly once', () => {
         expect(proxyHostPermissions).toEqual([
             'proxy_hosts.view',
             'proxy_hosts.create',
@@ -26,11 +27,12 @@ describe('ProxyHost permissions', () => {
             'proxy_hosts.delete',
             'proxy_hosts.enable',
             'proxy_hosts.disable',
+            'proxy_hosts.apply',
         ])
-        expect(new Set(proxyHostPermissions).size).toBe(6)
+        expect(new Set(proxyHostPermissions).size).toBe(7)
         expect(
             PERMISSION_REGISTRY.filter(({ key }) => proxyHostPermissionSet.has(key)),
-        ).toHaveLength(6)
+        ).toHaveLength(7)
     })
 
     test('grants all ProxyHost permissions to owner and admin, view only to viewer', () => {

@@ -630,7 +630,21 @@
             "page": {
                 "eyebrow": "Proxy-Verwaltung",
                 "title": "Proxy-Hosts",
-                "description": "Verwalte Domains und Weiterleitungsziele. Aktiviert und deaktiviert beschreiben nur die gespeicherte Konfiguration; eine Proxy-Engine ist noch nicht angebunden."
+                "description": "Verwalte Domains, Weiterleitungsziele und die Proxy-Runtime-Konfiguration."
+            },
+            "runtime": {
+                "title": "Proxy-Runtime",
+                "synced": "Proxy-Runtime synchronisiert",
+                "syncedDescription": "Die aktive Proxy-Konfiguration entspricht der gespeicherten Konfiguration.",
+                "pending": "Gespeicherte Änderungen warten auf die Anwendung.",
+                "pendingDescription": "Die zuletzt erfolgreich angewendete Konfiguration bleibt aktiv, bis die gespeicherten Änderungen angewendet werden.",
+                "unavailable": "Proxy-Runtime nicht verfügbar.",
+                "unavailableDescription": "Die Proxy-Runtime ist derzeit nicht erreichbar. Gespeicherte Änderungen bleiben für eine spätere Anwendung vorgemerkt.",
+                "apply": "Änderungen anwenden",
+                "applying": "Wird angewendet…",
+                "applied": "Proxy-Runtime erfolgreich aktualisiert.",
+                "applyFailed": "Die Proxy-Runtime konnte nicht aktualisiert werden. Gespeicherte Änderungen können später angewendet werden.",
+                "savedPending": "Gespeicherte Änderungen warten auf die Anwendung."
             },
             "messages": {
                 "created": "Proxy-Host erfolgreich erstellt.",
@@ -664,12 +678,12 @@
                 "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
                 "deleteLabel": "Proxy-Host löschen",
                 "disableTitle": "Proxy-Host deaktivieren?",
-                "disableDescription": "Der Proxy-Host wird als deaktiviert gespeichert. Der Datenverkehr ändert sich dadurch derzeit nicht, da noch keine Proxy-Engine angebunden ist.",
+                "disableDescription": "Der Proxy-Host wird als deaktiviert gespeichert und aus der nächsten Proxy-Runtime-Konfiguration entfernt.",
                 "disableLabel": "Proxy-Host deaktivieren",
                 "saveDisabled": "Speichern und deaktivieren"
             },
             "form": {
-                "description": "Speichere Domains und ein Weiterleitungsziel. Diese Einstellungen wenden noch keine laufende Proxy-Konfiguration an.",
+                "description": "Speichere Domains und ein Weiterleitungsziel für die Proxy-Runtime-Konfiguration.",
                 "editTitle": "Proxy-Host bearbeiten",
                 "creating": "Wird erstellt…",
                 "domains": "Domains",
@@ -683,7 +697,7 @@
                 "forwardPort": "Zielport",
                 "forwardHostPlaceholder": "192.168.1.50",
                 "forwardHostHint": "Gib einen Hostnamen, eine IPv4- oder IPv6-Adresse ohne Schema, Pfad oder Port ein.",
-                "enabledHint": "Nur der gewünschte Zustand. Eine Proxy-Engine ist noch nicht angebunden.",
+                "enabledHint": "Aktivierte Hosts werden in die nächste Proxy-Runtime-Konfiguration aufgenommen.",
                 "statusReadOnly": "Du hast keine Berechtigung, den gespeicherten Status dieses Proxy-Hosts zu ändern."
             },
             "status": {

@@ -630,7 +630,21 @@
             "page": {
                 "eyebrow": "Gestion des proxys",
                 "title": "Hôtes proxy",
-                "description": "Gérez les domaines et les destinations de transfert. Activé et désactivé décrivent uniquement la configuration enregistrée ; aucun moteur proxy n’est encore connecté."
+                "description": "Gérez les domaines, les destinations de transfert et la configuration du moteur proxy."
+            },
+            "runtime": {
+                "title": "Moteur proxy",
+                "synced": "Moteur proxy synchronisé",
+                "syncedDescription": "La configuration proxy active correspond à la configuration enregistrée.",
+                "pending": "Les modifications enregistrées sont en attente d’application.",
+                "pendingDescription": "La dernière configuration appliquée avec succès reste active jusqu’à l’application des modifications enregistrées.",
+                "unavailable": "Moteur proxy indisponible.",
+                "unavailableDescription": "Le moteur proxy est actuellement inaccessible. Les modifications enregistrées restent en attente d’une application ultérieure.",
+                "apply": "Appliquer les modifications",
+                "applying": "Application…",
+                "applied": "Le moteur proxy a été mis à jour.",
+                "applyFailed": "Impossible de mettre à jour le moteur proxy. Les modifications enregistrées pourront être appliquées plus tard.",
+                "savedPending": "Les modifications enregistrées sont en attente d’application."
             },
             "messages": {
                 "created": "Hôte proxy créé avec succès.",
@@ -664,12 +678,12 @@
                 "deleteWarning": "Cette action est irréversible.",
                 "deleteLabel": "Supprimer l’hôte proxy",
                 "disableTitle": "Désactiver l’hôte proxy ?",
-                "disableDescription": "L’hôte proxy sera enregistré comme désactivé. Le trafic ne change pas pour le moment, car aucun moteur proxy n’est connecté.",
+                "disableDescription": "L’hôte proxy sera enregistré comme désactivé et exclu de la prochaine configuration du moteur proxy.",
                 "disableLabel": "Désactiver l’hôte proxy",
                 "saveDisabled": "Enregistrer et désactiver"
             },
             "form": {
-                "description": "Enregistrez des domaines et une destination de transfert. Ces paramètres n’appliquent pas de configuration proxy en fonctionnement.",
+                "description": "Enregistrez des domaines et une destination de transfert pour la configuration du moteur proxy.",
                 "editTitle": "Modifier l’hôte proxy",
                 "creating": "Création…",
                 "domains": "Domaines",
@@ -683,7 +697,7 @@
                 "forwardPort": "Port de destination",
                 "forwardHostPlaceholder": "192.168.1.50",
                 "forwardHostHint": "Saisissez un nom d’hôte ou une adresse IPv4 ou IPv6 sans protocole, chemin ni port.",
-                "enabledHint": "État souhaité uniquement. Aucun moteur proxy n’est encore connecté.",
+                "enabledHint": "Les hôtes activés seront inclus dans la prochaine configuration du moteur proxy.",
                 "statusReadOnly": "Vous n’avez pas la permission de modifier l’état enregistré de cet hôte proxy."
             },
             "status": {
