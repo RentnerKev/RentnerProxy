@@ -9,6 +9,7 @@ import type { ProxyHostSummary } from '../shared/Types/proxy-hosts.types'
 import type {
     ProxyHostActionResult,
     ProxyRuntimeSyncStatus,
+    ProxyHostConfigEditorData,
 } from '../shared/Types/proxy-runtime.types'
 import { proxyHostManagementQueryKeys } from '../features/Admin/ProxyHostManagement/queryKeys'
 import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
@@ -78,7 +79,63 @@ const disableProxyHostHandlerMock = mock(
     }),
 )
 
+function hostConfig(settings: string, domain = 'app.example.com'): string {
+    return [
+        'server {',
+        '    listen 8080;',
+        '    server_name ' + domain + ';',
+        '',
+        '    # rentnerproxy: host HTTP settings begin',
+        ...(settings ? settings.split('\n').map((line) => '    ' + line) : []),
+        '    # rentnerproxy: host HTTP settings end',
+        '',
+        '    location / {',
+        '        proxy_pass http://192.0.2.10:8080;',
+        '    }',
+        '}',
+        '',
+    ].join('\n')
+}
+
+const editorBaseRevision = 'sha256:' + '1'.repeat(64)
+const editorFixture: ProxyHostConfigEditorData = {
+    proxyHostId: '018f2f52-7c1b-7cc0-9f3c-6a9952c54019',
+    hostLabel: 'app.example.com',
+    enabled: true,
+    commonSettingsSource: 'client_max_body_size 10m;',
+    baseRevision: editorBaseRevision,
+    settingsSource: 'proxy_read_timeout 90s;',
+    active: { config: hostConfig('proxy_read_timeout 90s;'), revision: editorBaseRevision },
+    generated: { config: hostConfig('proxy_read_timeout 90s;'), revision: editorBaseRevision },
+    defaults: { config: hostConfig(''), revision: null },
+}
+const getProxyHostConfigEditorHandlerMock = mock(
+    async (_input: unknown): Promise<ProxyHostConfigEditorData> => editorFixture,
+)
+const previewProxyHostConfigEditorHandlerMock = mock(async (_input: unknown) => ({
+    config: hostConfig('proxy_read_timeout 120s;'),
+    revision: editorBaseRevision,
+}))
+const saveProxyHostConfigEditorHandlerMock = mock(
+    async (_input: unknown): Promise<ProxyHostActionResult> => ({
+        success: true,
+        message: 'admin.proxyHosts.config.saved',
+        runtimeStatus: 'applied',
+    }),
+)
+const resetProxyHostConfigEditorHandlerMock = mock(
+    async (_input: unknown): Promise<ProxyHostActionResult> => ({
+        success: true,
+        message: 'admin.proxyHosts.config.reset',
+        runtimeStatus: 'applied',
+    }),
+)
+
 mock.module('../features/Admin/ProxyHostManagement/server', () => ({
+    getProxyHostConfigEditorHandler: getProxyHostConfigEditorHandlerMock,
+    previewProxyHostConfigEditorHandler: previewProxyHostConfigEditorHandlerMock,
+    saveProxyHostConfigEditorHandler: saveProxyHostConfigEditorHandlerMock,
+    resetProxyHostConfigEditorHandler: resetProxyHostConfigEditorHandlerMock,
     createProxyHostHandler: createProxyHostHandlerMock,
     deleteProxyHostHandler: deleteProxyHostHandlerMock,
     disableProxyHostHandler: disableProxyHostHandlerMock,
@@ -223,7 +280,7 @@ async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<voi
     const waitUntil = async (deadline: number): Promise<void> => {
         if (condition()) return
         if (Date.now() >= deadline) {
-            expect(condition()).toBeTrue()
+            expect(condition(), 'Timed out waiting for: ' + condition.toString()).toBeTrue()
             return
         }
         await act(async () => {
@@ -283,6 +340,21 @@ function getLastButton(label: string): HTMLButtonElement {
 }
 
 beforeEach(() => {
+    getProxyHostConfigEditorHandlerMock.mockReset().mockResolvedValue(editorFixture)
+    previewProxyHostConfigEditorHandlerMock.mockReset().mockResolvedValue({
+        config: hostConfig('proxy_read_timeout 120s;'),
+        revision: editorBaseRevision,
+    })
+    saveProxyHostConfigEditorHandlerMock.mockReset().mockResolvedValue({
+        success: true,
+        message: 'admin.proxyHosts.config.saved',
+        runtimeStatus: 'applied',
+    })
+    resetProxyHostConfigEditorHandlerMock.mockReset().mockResolvedValue({
+        success: true,
+        message: 'admin.proxyHosts.config.reset',
+        runtimeStatus: 'applied',
+    })
     getProxyHostsHandlerMock.mockReset()
     getProxyRuntimeStatusHandlerMock.mockReset()
     applyProxyConfigurationHandlerMock.mockReset()
@@ -334,6 +406,9 @@ beforeEach(() => {
 afterEach(async () => {
     if (activeRoot) {
         await act(async () => activeRoot?.unmount())
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 0))
+        })
     }
     activeRoot = null
     activeQueryClient?.clear()
@@ -460,11 +535,14 @@ describe('ProxyHost management table', () => {
 })
 
 describe('ProxyHost permissions and row actions', () => {
-    test('Viewer sees read-only content and no management action', async () => {
+    test('Viewer can inspect Config but has no mutation actions', async () => {
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => getRows().length === 2)
         expect(document.body.textContent).not.toContain('Add proxy host')
-        expect(document.querySelector('[aria-label="Open actions for app.example.com"]')).toBeNull()
+        await openMenu(getButton('Open actions for app.example.com'))
+        expect(
+            [...document.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent),
+        ).toEqual(['Config'])
     })
 
     test('shows only dynamic custom actions for the granted permissions', async () => {
@@ -829,4 +907,547 @@ describe('ProxyHost confirmation and mutation flows', () => {
             expect(document.querySelector('[data-toast-tone="success"]')).toBeNull()
         },
     )
+})
+
+describe('Proxy host configuration editor', () => {
+    const editPermissions = [
+        PERMISSIONS.PROXY_HOSTS_VIEW,
+        PERMISSIONS.PROXY_HOSTS_UPDATE,
+        PERMISSIONS.PROXY_HOSTS_APPLY,
+    ] as const
+
+    async function openEditor(
+        permissions: readonly (typeof PERMISSIONS)[keyof typeof PERMISSIONS][] = editPermissions,
+    ): Promise<HTMLTextAreaElement> {
+        await renderPage(permissions)
+        await waitFor(() => getRows().length === 2)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Config'))
+        await waitFor(
+            () =>
+                document.querySelector<HTMLTextAreaElement>('#proxy-settings-source')?.value ===
+                hostConfig(editorFixture.settingsSource),
+        )
+        return document.querySelector<HTMLTextAreaElement>('#proxy-settings-source')!
+    }
+
+    test('loads config only when opened and gives viewers a safe read-only source', async () => {
+        getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+            ...editorFixture,
+            active: { config: '<script>unsafe()</script>', revision: editorBaseRevision },
+        })
+        await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_ADVANCED_CONFIG])
+        await waitFor(() => getRows().length === 2)
+        expect(getProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Config'))
+        await waitFor(() => document.querySelector('#proxy-settings-source') !== null)
+        const editor = document.querySelector<HTMLTextAreaElement>('#proxy-settings-source')!
+        expect(editor.readOnly).toBeTrue()
+        expect(getProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: { proxyHostId: enabledHost.id },
+        })
+        expect(document.body.textContent).toContain('Config · app.example.com')
+        await click(getButton('Active config'))
+        expect(document.body.textContent).toContain('<script>unsafe()</script>')
+        expect(document.querySelector('script')).toBeNull()
+        await click(getButton('Generated defaults'))
+        expect(editor.value).toBe(hostConfig(''))
+        expect(document.body.textContent).not.toContain('Save and apply')
+        expect(document.body.textContent).not.toContain('Restore defaults')
+    })
+
+    test('update permission without apply permission cannot edit settings', async () => {
+        const editor = await openEditor([
+            PERMISSIONS.PROXY_HOSTS_VIEW,
+            PERMISSIONS.PROXY_HOSTS_UPDATE,
+        ])
+        expect(editor.readOnly).toBeTrue()
+        expect(document.body.textContent).not.toContain('Save and apply')
+        expect(saveProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('rejects raw directives locally and preview never saves settings', async () => {
+        const editor = await openEditor()
+        await setControlValue(editor, hostConfig('include /tmp/arbitrary.conf;'))
+        await click(getButton('Save and apply'))
+        expect(saveProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+        expect(document.body.textContent).toContain('Invalid setting on line 1')
+
+        await setControlValue(editor, hostConfig('proxy_read_timeout 120s;'))
+        await click(getLastButton('Preview'))
+        await waitFor(() => previewProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(previewProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: { proxyHostId: enabledHost.id, settingsSource: 'proxy_read_timeout 120s;' },
+        })
+        await waitFor(
+            () => editor.readOnly && editor.value === hostConfig('proxy_read_timeout 120s;'),
+        )
+        expect(saveProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+        expect(resetProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+
+        await click(getButton('Edit config'))
+        await setControlValue(editor, hostConfig('proxy_read_timeout 121s;'))
+        expect(editor.value).toBe(hostConfig('proxy_read_timeout 121s;'))
+        expect(getButton('Preview').disabled).toBeTrue()
+    })
+
+    test('keeps dirty drafts and their original revision across background refresh and conflicts', async () => {
+        const editor = await openEditor()
+        await setControlValue(editor, hostConfig('proxy_read_timeout 120s;'))
+        await act(async () => {
+            activeQueryClient!.setQueryData(
+                proxyHostManagementQueryKeys.hostConfigEditor(enabledHost.id),
+                {
+                    ...editorFixture,
+                    baseRevision: 'sha256:' + '2'.repeat(64),
+                    settingsSource: 'proxy_read_timeout 180s;',
+                    defaults: { config: hostConfig('', 'changed.example.com'), revision: null },
+                },
+            )
+        })
+        expect(editor.value).toBe(hostConfig('proxy_read_timeout 120s;'))
+        saveProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+            success: false,
+            message: 'admin.proxyHosts.config.errors.configuration_conflict',
+        })
+        await click(getButton('Save and apply'))
+        await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(saveProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: {
+                proxyHostId: enabledHost.id,
+                baseRevision: editorBaseRevision,
+                settingsSource: 'proxy_read_timeout 120s;',
+            },
+        })
+        expect(editor.value).toBe(hostConfig('proxy_read_timeout 120s;'))
+        expect(document.querySelector('#proxy-settings-source')).not.toBeNull()
+        expect(document.body.textContent).toContain('The saved configuration changed')
+        await waitForToast('error')
+    })
+
+    test('reports saved but unapplied changes as pending and refreshes runtime status', async () => {
+        const editor = await openEditor()
+        await setControlValue(editor, hostConfig('proxy_read_timeout 120s;'))
+        saveProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+            success: true,
+            message: 'admin.proxyHosts.runtime.savedPending',
+            runtimeStatus: 'pending',
+        })
+        await click(getButton('Save and apply'))
+        await waitFor(() => document.querySelector('#proxy-settings-source') === null)
+        await waitForToast('warning')
+        expect(getProxyRuntimeStatusHandlerMock.mock.calls.length).toBeGreaterThanOrEqual(2)
+        expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('requires confirmation before resetting only the custom settings', async () => {
+        await openEditor()
+        await click(getButton('Restore defaults'))
+        expect(resetProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+        expect(document.body.textContent).toContain('Your hosts and forwarding targets are kept.')
+        expect(document.body.textContent).toContain(
+            'Other hosts and shared defaults remain unchanged.',
+        )
+        await click(getButton('Restore and apply'))
+        await waitFor(() => resetProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(resetProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: { proxyHostId: enabledHost.id, baseRevision: editorBaseRevision },
+        })
+        await waitFor(() => document.querySelector('#proxy-settings-source') === null)
+        expect(deleteProxyHostHandlerMock).not.toHaveBeenCalled()
+        expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+        await waitForToast('success')
+    })
+
+    test('protects generated host, target and listener directives from raw edits', async () => {
+        const editor = await openEditor()
+        await setControlValue(
+            editor,
+            editor.value.replace(
+                'proxy_pass http://192.0.2.10:8080;',
+                'proxy_pass http://another.internal;',
+            ),
+        )
+        await click(getButton('Save and apply'))
+        expect(saveProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+        expect(document.body.textContent).toContain(
+            'Change only the settings between the marked lines',
+        )
+        await click(getLastButton('Preview'))
+        expect(previewProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('switches color presets without altering the source or saving', async () => {
+        const editor = await openEditor()
+        expect(document.querySelectorAll('[data-nginx-token="directive"]').length).toBeGreaterThan(
+            0,
+        )
+        expect(document.querySelectorAll('[data-nginx-token="comment"]').length).toBeGreaterThan(0)
+        expect(document.querySelector('[data-editor-theme="system"]')).not.toBeNull()
+        await click(getButton('Midnight'))
+        expect(document.querySelector('[data-editor-theme="midnight"]')).not.toBeNull()
+        expect(getButton('Midnight').getAttribute('aria-pressed')).toBe('true')
+        await click(getButton('Paper'))
+        expect(document.querySelector('[data-editor-theme="paper"]')).not.toBeNull()
+        expect(editor.value).toBe(hostConfig(editorFixture.settingsSource))
+        expect(saveProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('opens another host with its own cache, source and disabled-state save', async () => {
+        await openEditor()
+        await click(getButton('Cancel'))
+        await waitFor(() => document.querySelector('[role="dialog"]') === null)
+        // Radix restores focus asynchronously after the dialog unmounts.
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+        })
+        const otherData = {
+            ...editorFixture,
+            proxyHostId: disabledHost.id,
+            hostLabel: disabledHost.domains[0]!,
+            enabled: false,
+            settingsSource: 'proxy_read_timeout 45s;',
+            active: null,
+            defaults: { config: hostConfig('', 'disabled.example.com'), revision: null },
+        }
+        getProxyHostConfigEditorHandlerMock.mockResolvedValue(otherData)
+        await openMenu(getButton('Open actions for disabled.example.com'))
+        await click(getMenuItem('Config'))
+        await waitFor(
+            () =>
+                document.querySelector<HTMLTextAreaElement>('#proxy-settings-source')?.value ===
+                hostConfig('proxy_read_timeout 45s;', 'disabled.example.com'),
+        )
+        expect(getProxyHostConfigEditorHandlerMock).toHaveBeenLastCalledWith({
+            data: { proxyHostId: disabledHost.id },
+        })
+        expect(document.body.textContent).toContain('This proxy is saved as disabled.')
+        expect(document.body.textContent).toContain('Config · disabled.example.com')
+        await click(getButton('Save for later'))
+        await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(saveProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: {
+                proxyHostId: disabledHost.id,
+                baseRevision: editorBaseRevision,
+                settingsSource: 'proxy_read_timeout 45s;',
+            },
+        })
+        await waitFor(() => document.querySelector('#proxy-settings-source') === null)
+        await waitForToast('success')
+    })
+
+    test('keeps an offline draft valid when the controller returns in the background', async () => {
+        getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+            ...editorFixture,
+            active: null,
+            defaults: null,
+            generated: null,
+        })
+        await renderPage(editPermissions)
+        await waitFor(() => getRows().length === 2)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Config'))
+        await waitFor(
+            () =>
+                document.querySelector<HTMLTextAreaElement>('#proxy-settings-source')?.value ===
+                editorFixture.settingsSource,
+        )
+        const editor = document.querySelector<HTMLTextAreaElement>('#proxy-settings-source')!
+        await setControlValue(editor, 'proxy_read_timeout 120s;')
+        await act(async () => {
+            activeQueryClient!.setQueryData(
+                proxyHostManagementQueryKeys.hostConfigEditor(enabledHost.id),
+                editorFixture,
+            )
+        })
+        expect(editor.value).toBe('proxy_read_timeout 120s;')
+        await click(getButton('Save and apply'))
+        await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(saveProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: {
+                proxyHostId: enabledHost.id,
+                baseRevision: editorBaseRevision,
+                settingsSource: 'proxy_read_timeout 120s;',
+            },
+        })
+        await waitFor(() => document.querySelector('#proxy-settings-source') === null)
+        await waitForToast('success')
+    })
+})
+
+describe('Proxy editor explicit reload', () => {
+    test('keeps the draft on cancel and reloads source plus revision after confirmation', async () => {
+        await renderPage([
+            PERMISSIONS.PROXY_HOSTS_VIEW,
+            PERMISSIONS.PROXY_HOSTS_UPDATE,
+            PERMISSIONS.PROXY_HOSTS_APPLY,
+        ])
+        await waitFor(() => getRows().length === 2)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Config'))
+        await waitFor(() => document.querySelector('#proxy-settings-source') !== null)
+        const editor = document.querySelector<HTMLTextAreaElement>('#proxy-settings-source')!
+        await setControlValue(editor, hostConfig('proxy_read_timeout 120s;'))
+        await click(getButton('Reload'))
+        expect(getProxyHostConfigEditorHandlerMock).toHaveBeenCalledTimes(1)
+        await click(getLastButton('Cancel'))
+        expect(editor.value).toBe(hostConfig('proxy_read_timeout 120s;'))
+
+        const nextRevision = 'sha256:' + '2'.repeat(64)
+        getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+            ...editorFixture,
+            baseRevision: nextRevision,
+            settingsSource: 'proxy_read_timeout 180s;',
+        })
+        await click(getButton('Reload'))
+        await click(getButton('Discard draft and reload'))
+        await waitFor(() => editor.value === hostConfig('proxy_read_timeout 180s;'))
+        await click(getButton('Save and apply'))
+        await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(saveProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: {
+                proxyHostId: enabledHost.id,
+                baseRevision: nextRevision,
+                settingsSource: 'proxy_read_timeout 180s;',
+            },
+        })
+        await waitForToast('success')
+    })
+})
+
+type AdvancedProxyHostConfigEditorData = ProxyHostConfigEditorData & {
+    readonly advancedConfig?: string
+}
+
+const advancedEditorSource =
+    '# trusted expert setting\nlocation = /custom-health {\n    return 200 "healthy";\n}\n'
+const advancedEditorFixture = {
+    ...editorFixture,
+    advancedConfig: advancedEditorSource,
+} satisfies AdvancedProxyHostConfigEditorData
+
+const expertViewPermissions = [
+    PERMISSIONS.PROXY_HOSTS_VIEW,
+    PERMISSIONS.PROXY_HOSTS_ADVANCED_CONFIG,
+] as const
+const expertEditPermissions = [
+    PERMISSIONS.PROXY_HOSTS_VIEW,
+    PERMISSIONS.PROXY_HOSTS_UPDATE,
+    PERMISSIONS.PROXY_HOSTS_APPLY,
+    PERMISSIONS.PROXY_HOSTS_ADVANCED_CONFIG,
+] as const
+
+describe('Proxy host advanced configuration editor', () => {
+    async function openAdvancedEditor(
+        permissions: readonly (typeof PERMISSIONS)[keyof typeof PERMISSIONS][] = expertEditPermissions,
+    ): Promise<HTMLTextAreaElement> {
+        getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce(advancedEditorFixture)
+        await renderPage(permissions)
+        await waitFor(() => getRows().length === 2)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Config'))
+        await waitFor(() => document.querySelector('#proxy-advanced-config-source') !== null)
+        return document.querySelector<HTMLTextAreaElement>('#proxy-advanced-config-source')!
+    }
+
+    test('hides raw configuration for non-experts even if a DTO accidentally contains it', async () => {
+        getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce(advancedEditorFixture)
+        await renderPage([
+            PERMISSIONS.PROXY_HOSTS_VIEW,
+            PERMISSIONS.PROXY_HOSTS_UPDATE,
+            PERMISSIONS.PROXY_HOSTS_APPLY,
+        ])
+        await waitFor(() => getRows().length === 2)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Config'))
+        await waitFor(() => document.querySelector('#proxy-settings-source') !== null)
+
+        expect(document.querySelector('#proxy-advanced-config-source')).toBeNull()
+        expect(document.body.textContent).not.toContain(advancedEditorSource)
+    })
+
+    test('shows the raw editor read-only to experts without update and apply', async () => {
+        const editor = await openAdvancedEditor(expertViewPermissions)
+
+        expect(editor.readOnly).toBeTrue()
+        expect(document.body.textContent).toContain('Custom Nginx Configuration')
+        expect(document.body.textContent).not.toContain('Save and apply')
+        expect(document.body.textContent).not.toContain('Restore defaults')
+    })
+
+    test('preserves expert text with locations and quotes in preview and save payloads', async () => {
+        const editor = await openAdvancedEditor()
+        const source =
+            '# quoted value\nlocation = /health?probe=1 {\n    add_header X-Test "enabled value" always;\n    return 200 "healthy";\n}\n'
+
+        await setControlValue(editor, source)
+        await click(getLastButton('Preview'))
+        await waitFor(() => previewProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(previewProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: {
+                proxyHostId: enabledHost.id,
+                settingsSource: editorFixture.settingsSource,
+                advancedConfig: source,
+            },
+        })
+
+        await click(getButton('Edit config'))
+        await click(getButton('Save and apply'))
+        await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(saveProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: {
+                proxyHostId: enabledHost.id,
+                baseRevision: editorBaseRevision,
+                settingsSource: editorFixture.settingsSource,
+                advancedConfig: source,
+            },
+        })
+        await waitFor(() => document.querySelector('[role=dialog]') === null)
+        await waitForToast('success')
+    })
+
+    test('rejects oversized UTF-8 and NUL raw values before preview or save', async () => {
+        const editor = await openAdvancedEditor()
+        const oversized = '😀'.repeat(16_385)
+
+        await setControlValue(editor, oversized)
+        await click(getButton('Save and apply'))
+        expect(saveProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+        expect(previewProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+        expect(document.body.textContent).toContain(
+            'The custom configuration exceeds the 64 KiB UTF-8 size limit.',
+        )
+
+        await setControlValue(editor, 'safe\0value')
+        await click(getLastButton('Preview'))
+        expect(previewProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+        expect(document.body.textContent).toContain(
+            'Invalid advanced configuration: enter valid text without NUL characters.',
+        )
+    })
+
+    test('keeps a raw-only draft and its original revision during a background refresh', async () => {
+        const editor = await openAdvancedEditor()
+        const draft = 'location = /raw-only {\n    return 200 "draft";\n}\n'
+        const nextRevision = 'sha256:' + '2'.repeat(64)
+
+        await setControlValue(editor, draft)
+        await act(async () => {
+            activeQueryClient!.setQueryData(
+                proxyHostManagementQueryKeys.hostConfigEditor(enabledHost.id, true),
+                {
+                    ...advancedEditorFixture,
+                    baseRevision: nextRevision,
+                    advancedConfig: 'location = /server-value { return 200 "new"; }',
+                },
+            )
+        })
+        expect(editor.value).toBe(draft)
+
+        await click(getButton('Save and apply'))
+        await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(saveProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: {
+                proxyHostId: enabledHost.id,
+                baseRevision: editorBaseRevision,
+                settingsSource: editorFixture.settingsSource,
+                advancedConfig: draft,
+            },
+        })
+        await waitFor(() => document.querySelector('[role=dialog]') === null)
+        await waitForToast('success')
+    })
+
+    test('requires explicit reload confirmation for raw-only changes', async () => {
+        const editor = await openAdvancedEditor()
+        const draft = 'location = /reload-test { return 200 "draft"; }'
+        await setControlValue(editor, draft)
+
+        await click(getButton('Reload'))
+        expect(getProxyHostConfigEditorHandlerMock).toHaveBeenCalledTimes(1)
+        expect(document.body.textContent).toContain('Reload saved configuration?')
+        await click(getLastButton('Cancel'))
+        expect(editor.value).toBe(draft)
+
+        const latest = {
+            ...advancedEditorFixture,
+            advancedConfig: 'location = /reload-test { return 200 "latest"; }',
+        }
+        getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce(latest)
+        await click(getButton('Reload'))
+        await click(getButton('Discard draft and reload'))
+        await waitFor(
+            () =>
+                document.querySelector<HTMLTextAreaElement>('#proxy-advanced-config-source')
+                    ?.value === latest.advancedConfig,
+        )
+    })
+
+    test('sends resetAdvancedConfig only for an expert reset', async () => {
+        await openAdvancedEditor()
+        await click(getButton('Restore defaults'))
+        await click(getButton('Restore and apply'))
+        await waitFor(() => resetProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(resetProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: {
+                proxyHostId: enabledHost.id,
+                baseRevision: editorBaseRevision,
+                resetAdvancedConfig: true,
+            },
+        })
+        await waitFor(() => document.querySelector('[role=dialog]') === null)
+        await waitForToast('success')
+    })
+
+    test('omits resetAdvancedConfig for an existing non-expert reset', async () => {
+        getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce(advancedEditorFixture)
+        await renderPage([
+            PERMISSIONS.PROXY_HOSTS_VIEW,
+            PERMISSIONS.PROXY_HOSTS_UPDATE,
+            PERMISSIONS.PROXY_HOSTS_APPLY,
+        ])
+        await waitFor(() => getRows().length === 2)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Config'))
+        await waitFor(() => document.querySelector('#proxy-settings-source') !== null)
+        await click(getButton('Restore defaults'))
+        await click(getButton('Restore and apply'))
+        await waitFor(() => resetProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(resetProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: { proxyHostId: enabledHost.id, baseRevision: editorBaseRevision },
+        })
+        await waitFor(() => document.querySelector('[role=dialog]') === null)
+        await waitForToast('success')
+    })
+
+    test('drops raw draft and preview when permission changes while the modal is open', async () => {
+        const editor = await openAdvancedEditor()
+        const privateSource = 'location = /permission-change { return 200 "private"; }'
+        await setControlValue(editor, privateSource)
+        await click(getLastButton('Preview'))
+        await waitFor(() => document.body.textContent?.includes('Preview') === true)
+        await click(getButton('Edit config'))
+
+        await act(async () => {
+            activeRoot?.render(
+                <TooltipProvider>
+                    <ToastProvider>
+                        <QueryClientProvider client={activeQueryClient!}>
+                            <ProxyHostManagementPage
+                                permissions={[
+                                    PERMISSIONS.PROXY_HOSTS_VIEW,
+                                    PERMISSIONS.PROXY_HOSTS_UPDATE,
+                                    PERMISSIONS.PROXY_HOSTS_APPLY,
+                                ]}
+                            />
+                        </QueryClientProvider>
+                    </ToastProvider>
+                </TooltipProvider>,
+            )
+            await Promise.resolve()
+        })
+        await waitFor(() => document.querySelector('#proxy-advanced-config-source') === null)
+        expect(document.body.textContent).not.toContain(privateSource)
+    })
 })

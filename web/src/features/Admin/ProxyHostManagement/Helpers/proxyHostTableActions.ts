@@ -13,6 +13,7 @@ export function getProxyHostTableActionItems(
         canEnable,
         canUpdate,
         isPending,
+        onConfig,
         onDelete,
         onDisable,
         onEdit,
@@ -28,6 +29,14 @@ export function getProxyHostTableActionItems(
         items.push({
             label: t('admin.proxyHosts.actions.edit'),
             onSelect: () => onEdit(host),
+            disabled: isPending,
+        })
+    }
+
+    if (onConfig) {
+        items.push({
+            label: t('admin.proxyHosts.actions.config'),
+            onSelect: () => onConfig(host),
             disabled: isPending,
         })
     }

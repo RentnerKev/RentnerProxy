@@ -27,6 +27,7 @@ export default function useProxyHostsTableColumns({
     canEnable,
     canUpdate,
     isPending,
+    onConfig,
     onDelete,
     onDisable,
     onEdit,
@@ -81,7 +82,7 @@ export default function useProxyHostsTableColumns({
             },
         ]
 
-        if (canUpdate || canDelete || canEnable || canDisable) {
+        if (canUpdate || canDelete || canEnable || canDisable || onConfig) {
             columns.push({
                 id: 'actions',
                 header: t('admin.proxyHosts.columns.actions'),
@@ -96,6 +97,7 @@ export default function useProxyHostsTableColumns({
                         canUpdate,
                         host: row.original,
                         isPending,
+                        ...(onConfig ? { onConfig } : {}),
                         onDelete,
                         onDisable,
                         onEdit,
@@ -111,6 +113,7 @@ export default function useProxyHostsTableColumns({
         canEnable,
         canUpdate,
         isPending,
+        onConfig,
         onDelete,
         onDisable,
         onEdit,

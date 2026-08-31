@@ -7,6 +7,7 @@ import { ConfirmDialog } from '../../../../shared/Modal/Components/ConfirmDialog
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { ProxyHostManagementPageViewProps } from '../Types/proxy-host-management.types'
 import ProxyHostFormModal from './ProxyHostFormModal'
+import ProxyConfigEditorModal from './ProxyConfigEditorModal'
 import ProxyHostsTable from './ProxyHostsTable'
 import ProxyRuntimeStatusPanel from './ProxyRuntimeStatusPanel'
 
@@ -64,11 +65,22 @@ export default function ProxyHostManagementPageView({
                     canDisable={state.canDisable}
                     isPending={state.isMutating}
                     onEdit={handler.openEditor}
+                    onConfig={handler.openConfigEditor}
                     onDelete={handler.openDelete}
                     onDisable={handler.openDisable}
                     onEnable={handler.enable}
                 />
             )}
+            {state.configTarget ? (
+                <ProxyConfigEditorModal
+                    key={state.configTarget.id + ':' + state.canAdvancedConfig}
+                    proxyHost={state.configTarget}
+                    open
+                    canEdit={state.canEditConfig}
+                    canAdvancedConfig={state.canAdvancedConfig}
+                    onOpenChange={handler.setConfigEditorOpen}
+                />
+            ) : null}
             {state.showCreate ? (
                 <ProxyHostFormModal
                     open

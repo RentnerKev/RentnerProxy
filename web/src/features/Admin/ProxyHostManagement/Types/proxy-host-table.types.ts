@@ -12,6 +12,7 @@ export interface ProxyHostsTableProps {
     readonly canDisable: boolean
     readonly isPending: boolean
     readonly onEdit: (host: ProxyHostSummary) => void
+    readonly onConfig?: (host: ProxyHostSummary) => void
     readonly onDelete: (host: ProxyHostSummary) => void
     readonly onDisable: (host: ProxyHostSummary) => void
     readonly onEnable: (host: ProxyHostSummary) => void
@@ -25,6 +26,7 @@ export type ProxyHostTableActionProps = Pick<
     | 'canDisable'
     | 'isPending'
     | 'onEdit'
+    | 'onConfig'
     | 'onDelete'
     | 'onDisable'
     | 'onEnable'

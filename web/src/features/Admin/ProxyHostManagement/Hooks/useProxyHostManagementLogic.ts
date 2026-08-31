@@ -21,6 +21,7 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
     const toast = useToast()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const [showCreate, setShowCreate] = useState(false)
+    const [configTarget, setConfigTarget] = useState<ProxyHostSummary | null>(null)
     const [selectedProxyHost, setSelectedProxyHost] = useState<ProxyHostSummary | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<ProxyHostSummary | null>(null)
     const [disableTarget, setDisableTarget] = useState<ProxyHostSummary | null>(null)
@@ -115,12 +116,22 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
         },
         onError: () => toast.error('admin.proxyHosts.errors.enableFailed'),
     })
+    const openConfigEditor = useCallback((proxyHost: ProxyHostSummary) => {
+        setSelectedProxyHost(null)
+        setShowCreate(false)
+        setConfigTarget(proxyHost)
+    }, [])
+    const setConfigEditorOpen = useCallback((open: boolean) => {
+        if (!open) setConfigTarget(null)
+    }, [])
     const openCreate = useCallback(() => {
+        setConfigTarget(null)
         setSelectedProxyHost(null)
         setShowCreate(true)
     }, [])
     const setCreateOpen = useCallback((open: boolean) => setShowCreate(open), [])
     const openEditor = useCallback((proxyHost: ProxyHostSummary) => {
+        setConfigTarget(null)
         setShowCreate(false)
         setSelectedProxyHost(proxyHost)
     }, [])
@@ -185,6 +196,10 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
     return {
         state: {
             canApply: permissionSet.has(PERMISSIONS.PROXY_HOSTS_APPLY),
+            canAdvancedConfig: permissionSet.has(PERMISSIONS.PROXY_HOSTS_ADVANCED_CONFIG),
+            canEditConfig:
+                permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE) &&
+                permissionSet.has(PERMISSIONS.PROXY_HOSTS_APPLY),
             canCreate: permissionSet.has(PERMISSIONS.PROXY_HOSTS_CREATE),
             canDelete: permissionSet.has(PERMISSIONS.PROXY_HOSTS_DELETE),
             canDisable: permissionSet.has(PERMISSIONS.PROXY_HOSTS_DISABLE),
@@ -203,6 +218,7 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
             runtimeStatus: runtimeStatusQuery.data,
             selectedProxyHost,
             showCreate,
+            configTarget,
         },
         handler: {
             apply,
@@ -211,6 +227,8 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
             enable,
             handleFormSuccess,
             openCreate,
+            openConfigEditor,
+            setConfigEditorOpen,
             openDelete,
             openDisable,
             openEditor,
