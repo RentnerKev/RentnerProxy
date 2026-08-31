@@ -6,9 +6,11 @@ import useToast from '../../../../shared/Toast/Hooks/useToast'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
 import { proxyHostManagementQueryKeys } from '../queryKeys'
 import {
+    applyProxyConfigurationHandler,
     deleteProxyHostHandler,
     disableProxyHostHandler,
     enableProxyHostHandler,
+    getProxyRuntimeStatusHandler,
     getProxyHostsHandler,
 } from '../server'
 import type { ProxyHostManagementPageProps } from '../Types/proxy-host-management.types'
@@ -27,6 +29,36 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
         queryKey: proxyHostManagementQueryKeys.all,
         queryFn: () => getProxyHostsHandler(),
     })
+    const runtimeStatusQuery = useQuery({
+        queryKey: proxyHostManagementQueryKeys.runtimeStatus,
+        queryFn: () => getProxyRuntimeStatusHandler(),
+        refetchInterval: 15_000,
+        refetchIntervalInBackground: false,
+    })
+    const invalidateProxyHostQueries = useCallback(async () => {
+        await Promise.all([
+            queryClient.invalidateQueries({
+                queryKey: proxyHostManagementQueryKeys.all,
+                exact: true,
+            }),
+            queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.runtimeStatus }),
+        ])
+    }, [queryClient])
+    const applyMutation = useMutation({
+        mutationFn: () => applyProxyConfigurationHandler(),
+        onSuccess: async (result) => {
+            await queryClient.invalidateQueries({
+                queryKey: proxyHostManagementQueryKeys.runtimeStatus,
+            })
+            if (!result.success) {
+                toast.error(result.message)
+                return
+            }
+
+            toast.success(result.message)
+        },
+        onError: () => toast.error('admin.proxyHosts.runtime.applyFailed'),
+    })
     const deleteMutation = useMutation({
         mutationFn: (proxyHost: ProxyHostSummary) =>
             deleteProxyHostHandler({ data: { proxyHostId: proxyHost.id } }),
@@ -36,8 +68,12 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
                 return
             }
 
-            await queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.all })
-            toast.success(result.message)
+            await invalidateProxyHostQueries()
+            if (result.runtimeStatus === 'pending') {
+                toast.warning('admin.proxyHosts.runtime.savedPending')
+            } else {
+                toast.success(result.message)
+            }
             setDeleteTarget(null)
         },
         onError: () => toast.error('admin.proxyHosts.errors.deleteFailed'),
@@ -51,8 +87,12 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
                 return
             }
 
-            await queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.all })
-            toast.success(result.message)
+            await invalidateProxyHostQueries()
+            if (result.runtimeStatus === 'pending') {
+                toast.warning('admin.proxyHosts.runtime.savedPending')
+            } else {
+                toast.success(result.message)
+            }
             setDisableTarget(null)
         },
         onError: () => toast.error('admin.proxyHosts.errors.disableFailed'),
@@ -66,8 +106,12 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
                 return
             }
 
-            await queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.all })
-            toast.success(result.message)
+            await invalidateProxyHostQueries()
+            if (result.runtimeStatus === 'pending') {
+                toast.warning('admin.proxyHosts.runtime.savedPending')
+            } else {
+                toast.success(result.message)
+            }
         },
         onError: () => toast.error('admin.proxyHosts.errors.enableFailed'),
     })
@@ -127,6 +171,9 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
         },
         [enableMutation],
     )
+    const apply = useCallback(() => {
+        applyMutation.mutate()
+    }, [applyMutation])
     const handleFormSuccess = useCallback(() => {
         setShowCreate(false)
         setSelectedProxyHost(null)
@@ -137,6 +184,7 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
 
     return {
         state: {
+            canApply: permissionSet.has(PERMISSIONS.PROXY_HOSTS_APPLY),
             canCreate: permissionSet.has(PERMISSIONS.PROXY_HOSTS_CREATE),
             canDelete: permissionSet.has(PERMISSIONS.PROXY_HOSTS_DELETE),
             canDisable: permissionSet.has(PERMISSIONS.PROXY_HOSTS_DISABLE),
@@ -146,15 +194,18 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
             disableTarget,
             isDeleting: deleteMutation.isPending,
             isDisabling: disableMutation.isPending,
+            isApplying: applyMutation.isPending,
             isMutating:
                 deleteMutation.isPending || disableMutation.isPending || enableMutation.isPending,
             isError: proxyHostsQuery.isError,
             isLoading: proxyHostsQuery.isPending,
             proxyHosts: proxyHostsQuery.data ?? EMPTY_PROXY_HOSTS,
+            runtimeStatus: runtimeStatusQuery.data,
             selectedProxyHost,
             showCreate,
         },
         handler: {
+            apply,
             confirmDelete,
             confirmDisable,
             enable,

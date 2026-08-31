@@ -8,6 +8,7 @@ import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { ProxyHostManagementPageViewProps } from '../Types/proxy-host-management.types'
 import ProxyHostFormModal from './ProxyHostFormModal'
 import ProxyHostsTable from './ProxyHostsTable'
+import ProxyRuntimeStatusPanel from './ProxyRuntimeStatusPanel'
 
 export default function ProxyHostManagementPageView({
     logic: { state, handler },
@@ -31,6 +32,12 @@ export default function ProxyHostManagementPageView({
                 eyebrow={t('admin.proxyHosts.page.eyebrow')}
                 title={t('admin.proxyHosts.page.title')}
                 description={t('admin.proxyHosts.page.description')}
+            />
+            <ProxyRuntimeStatusPanel
+                canApply={state.canApply}
+                isApplying={state.isApplying}
+                onApply={handler.apply}
+                status={state.runtimeStatus}
             />
             {state.isError ? (
                 <ContentState

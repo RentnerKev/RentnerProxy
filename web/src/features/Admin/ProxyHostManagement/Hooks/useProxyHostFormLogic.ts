@@ -46,8 +46,20 @@ export default function useProxyHostFormLogic({
                 return
             }
 
-            await queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.all })
-            toast.success(result.message)
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: proxyHostManagementQueryKeys.all,
+                    exact: true,
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: proxyHostManagementQueryKeys.runtimeStatus,
+                }),
+            ])
+            if (result.runtimeStatus === 'pending') {
+                toast.warning('admin.proxyHosts.runtime.savedPending')
+            } else {
+                toast.success(result.message)
+            }
             setPendingDisableValues(null)
             onSuccess()
         },

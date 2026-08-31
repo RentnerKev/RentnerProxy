@@ -6,6 +6,10 @@ import type { Root } from 'react-dom/client'
 
 import { PERMISSIONS } from '../config/permissions.config'
 import type { ProxyHostSummary } from '../shared/Types/proxy-hosts.types'
+import type {
+    ProxyHostActionResult,
+    ProxyRuntimeSyncStatus,
+} from '../shared/Types/proxy-runtime.types'
 import { proxyHostManagementQueryKeys } from '../features/Admin/ProxyHostManagement/queryKeys'
 import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
 
@@ -22,35 +26,66 @@ const { default: ProxyHostFormModal } =
     await import('../features/Admin/ProxyHostManagement/Components/ProxyHostFormModal')
 const { default: ProxyHostTableActions } =
     await import('../features/Admin/ProxyHostManagement/Components/ProxyHostTableActions')
+const { default: ProxyRuntimeStatusPanel } =
+    await import('../features/Admin/ProxyHostManagement/Components/ProxyRuntimeStatusPanel')
 
 const getProxyHostsHandlerMock = mock(async (): Promise<ProxyHostSummary[]> => [])
-const createProxyHostHandlerMock = mock(async (_input: unknown) => ({
-    success: true,
-    message: 'admin.proxyHosts.messages.created',
+const getProxyRuntimeStatusHandlerMock = mock(async (): Promise<ProxyRuntimeSyncStatus> => ({
+    available: true,
+    running: true,
+    activeRevision: 'sha256:active',
+    desiredRevision: 'sha256:active',
+    lastApplyAt: '2026-01-02T12:00:00.000Z',
+    state: 'synced' as const,
 }))
-const updateProxyHostHandlerMock = mock(async (_input: unknown) => ({
+const applyProxyConfigurationHandlerMock = mock(async () => ({
     success: true,
-    message: 'admin.proxyHosts.messages.updated',
+    message: 'admin.proxyHosts.runtime.applied',
 }))
-const deleteProxyHostHandlerMock = mock(async (_input: unknown) => ({
-    success: true,
-    message: 'admin.proxyHosts.messages.deleted',
-}))
-const enableProxyHostHandlerMock = mock(async (_input: unknown) => ({
-    success: true,
-    message: 'admin.proxyHosts.messages.enabled',
-}))
-const disableProxyHostHandlerMock = mock(async (_input: unknown) => ({
-    success: true,
-    message: 'admin.proxyHosts.messages.disabled',
-}))
+const createProxyHostHandlerMock = mock(
+    async (_input: unknown): Promise<ProxyHostActionResult> => ({
+        success: true,
+        message: 'admin.proxyHosts.messages.created',
+        runtimeStatus: 'applied',
+    }),
+)
+const updateProxyHostHandlerMock = mock(
+    async (_input: unknown): Promise<ProxyHostActionResult> => ({
+        success: true,
+        message: 'admin.proxyHosts.messages.updated',
+        runtimeStatus: 'applied',
+    }),
+)
+const deleteProxyHostHandlerMock = mock(
+    async (_input: unknown): Promise<ProxyHostActionResult> => ({
+        success: true,
+        message: 'admin.proxyHosts.messages.deleted',
+        runtimeStatus: 'applied',
+    }),
+)
+const enableProxyHostHandlerMock = mock(
+    async (_input: unknown): Promise<ProxyHostActionResult> => ({
+        success: true,
+        message: 'admin.proxyHosts.messages.enabled',
+        runtimeStatus: 'applied',
+    }),
+)
+const disableProxyHostHandlerMock = mock(
+    async (_input: unknown): Promise<ProxyHostActionResult> => ({
+        success: true,
+        message: 'admin.proxyHosts.messages.disabled',
+        runtimeStatus: 'applied',
+    }),
+)
 
 mock.module('../features/Admin/ProxyHostManagement/server', () => ({
     createProxyHostHandler: createProxyHostHandlerMock,
     deleteProxyHostHandler: deleteProxyHostHandlerMock,
     disableProxyHostHandler: disableProxyHostHandlerMock,
     enableProxyHostHandler: enableProxyHostHandlerMock,
+    getProxyRuntimeStatusHandler: getProxyRuntimeStatusHandlerMock,
     getProxyHostsHandler: getProxyHostsHandlerMock,
+    applyProxyConfigurationHandler: applyProxyConfigurationHandlerMock,
     updateProxyHostHandler: updateProxyHostHandlerMock,
 }))
 
@@ -200,7 +235,10 @@ async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<voi
     await waitUntil(Date.now() + timeoutMs)
 }
 
-async function waitForToast(tone: 'error' | 'success', message?: string): Promise<void> {
+async function waitForToast(
+    tone: 'error' | 'success' | 'warning',
+    message?: string,
+): Promise<void> {
     await waitFor(() => document.querySelector('[data-toast-tone="' + tone + '"]') !== null)
     await waitFor(() => {
         const announcement = document.querySelector('[aria-live]')
@@ -246,31 +284,50 @@ function getLastButton(label: string): HTMLButtonElement {
 
 beforeEach(() => {
     getProxyHostsHandlerMock.mockReset()
+    getProxyRuntimeStatusHandlerMock.mockReset()
+    applyProxyConfigurationHandlerMock.mockReset()
     createProxyHostHandlerMock.mockReset()
     updateProxyHostHandlerMock.mockReset()
     deleteProxyHostHandlerMock.mockReset()
     enableProxyHostHandlerMock.mockReset()
     disableProxyHostHandlerMock.mockReset()
     getProxyHostsHandlerMock.mockResolvedValue([enabledHost, disabledHost])
+    getProxyRuntimeStatusHandlerMock.mockResolvedValue({
+        available: true,
+        running: true,
+        activeRevision: 'sha256:active',
+        desiredRevision: 'sha256:active',
+        lastApplyAt: '2026-01-02T12:00:00.000Z',
+        state: 'synced',
+    })
+    applyProxyConfigurationHandlerMock.mockResolvedValue({
+        success: true,
+        message: 'admin.proxyHosts.runtime.applied',
+    })
     createProxyHostHandlerMock.mockResolvedValue({
         success: true,
         message: 'admin.proxyHosts.messages.created',
+        runtimeStatus: 'applied',
     })
     updateProxyHostHandlerMock.mockResolvedValue({
         success: true,
         message: 'admin.proxyHosts.messages.updated',
+        runtimeStatus: 'applied',
     })
     deleteProxyHostHandlerMock.mockResolvedValue({
         success: true,
         message: 'admin.proxyHosts.messages.deleted',
+        runtimeStatus: 'applied',
     })
     enableProxyHostHandlerMock.mockResolvedValue({
         success: true,
         message: 'admin.proxyHosts.messages.enabled',
+        runtimeStatus: 'applied',
     })
     disableProxyHostHandlerMock.mockResolvedValue({
         success: true,
         message: 'admin.proxyHosts.messages.disabled',
+        runtimeStatus: 'applied',
     })
 })
 
@@ -434,6 +491,38 @@ describe('ProxyHost permissions and row actions', () => {
         expect(document.querySelector('[role="menu"]')?.textContent).toContain('Delete')
         expect(document.querySelector('[role="menu"]')?.textContent).not.toContain('Disable')
     })
+
+    test('viewer sees runtime status without an apply action', async () => {
+        await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
+        await waitFor(() => getRows().length === 2)
+        expect(document.body.textContent).toContain('Proxy runtime synchronized')
+        expect(document.body.textContent).not.toContain('Apply changes')
+    })
+
+    test('apply permission sees the action when the runtime is pending', async () => {
+        const onApply = mock(() => undefined)
+        await render(
+            withTestLanguage(
+                <ProxyRuntimeStatusPanel
+                    canApply
+                    isApplying={false}
+                    onApply={onApply}
+                    status={{
+                        available: true,
+                        running: true,
+                        activeRevision: 'sha256:old',
+                        desiredRevision: 'sha256:new',
+                        lastApplyAt: null,
+                        state: 'pending',
+                    }}
+                />,
+            ),
+        )
+        expect(document.body.textContent).toContain('Saved changes are waiting to be applied.')
+        expect(getButton('Apply changes')).toBeDefined()
+        await click(getButton('Apply changes'))
+        expect(onApply).toHaveBeenCalledTimes(1)
+    })
 })
 
 function FormHarness({
@@ -496,12 +585,37 @@ describe('ProxyHost form modal', () => {
                 forwardScheme: 'http',
             },
         })
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: proxyHostManagementQueryKeys.all })
+        expect(invalidate).toHaveBeenCalledWith({
+            queryKey: proxyHostManagementQueryKeys.all,
+            exact: true,
+        })
+        expect(invalidate).toHaveBeenCalledWith({
+            queryKey: proxyHostManagementQueryKeys.runtimeStatus,
+        })
         await waitForToast('success', 'Proxy host created successfully.')
         expect(document.querySelector('[data-toast-tone="success"]')?.textContent).toContain(
             'Proxy host created successfully.',
         )
         invalidate.mockRestore()
+    })
+
+    test('closes after a saved but pending runtime apply and shows a warning', async () => {
+        createProxyHostHandlerMock.mockResolvedValueOnce({
+            success: true,
+            message: 'admin.proxyHosts.messages.created',
+            runtimeStatus: 'pending',
+        })
+        await render(withQueryClient(<FormHarness mode="create" />))
+        const domain = document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!
+        await setControlValue(domain, 'pending.example.com')
+        await blurControl(domain)
+        const forwardHost = document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!
+        await setControlValue(forwardHost, 'backend.internal')
+        await blurControl(forwardHost)
+        await blurControl(document.querySelector<HTMLInputElement>('input[name="forwardPort"]')!)
+        await click(getButton('Create proxy host'))
+        await waitForToast('warning', 'Saved changes are waiting to be applied.')
+        await waitFor(() => document.querySelector('[role="dialog"]') === null)
     })
 
     test('clears a normalized duplicate after correction and submits successfully', async () => {
@@ -610,6 +724,7 @@ describe('ProxyHost form modal', () => {
         updateProxyHostHandlerMock.mockResolvedValueOnce({
             success: true,
             message: 'admin.proxyHosts.messages.updated',
+            runtimeStatus: 'applied',
         })
         await click(getButton('Save changes'))
         await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 2)
