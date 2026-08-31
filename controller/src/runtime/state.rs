@@ -21,6 +21,13 @@ pub(super) struct SafeDir {
 
 impl SafeDir {
     pub(super) fn open(path: &Path) -> std::io::Result<Self> {
+        if path.to_string_lossy().is_empty()
+            || path.to_string_lossy().contains("..")
+            || path.to_string_lossy().contains('\0')
+            || !path.is_absolute()
+        {
+            return Err(invalid_state_path());
+        }
         let path = resolve_existing_path(path)?;
         // codeql[rust/path-injection] The root path was canonicalized and validated above.
         let metadata = fs::symlink_metadata(&path)?;
@@ -102,7 +109,17 @@ impl SafeDir {
     }
 
     pub(super) fn open_file(&self, component: &str) -> std::io::Result<File> {
-        let candidate = self.child(component)?;
+        if component.is_empty()
+            || component.contains("..")
+            || component.contains('/')
+            || component.contains('\\')
+        {
+            return Err(invalid_state_path());
+        }
+        let candidate = self.path.join(component);
+        if candidate.parent() != Some(self.path.as_path()) {
+            return Err(invalid_state_path());
+        }
         let path = candidate.canonicalize()?;
         ensure_direct_child(&self.path, &path)?;
         #[cfg(unix)]
