@@ -19,18 +19,19 @@
 </p>
 
 > [!IMPORTANT]
-> RentnerProxy is an early development foundation. It is not installable yet, does not
-> manage reverse proxies, and is not ready for production use.
+> RentnerProxy is an early development project with a local HTTP proxy runtime. It is not
+> a packaged production installation and is not ready for production use.
 
 ## Current foundation
 
-The repository currently contains two runtime components, one persistence service, and one
+The repository currently contains three runtime components, one persistence service, and one
 ephemeral service:
 
 - `web/`: a TanStack Start application with opaque sessions, RBAC, and server-only Drizzle ORM
   access to PostgreSQL.
-- `controller/`: a minimal Rust service exposing a loopback-only `GET /health` endpoint.
-- PostgreSQL 18: the external primary database; it is not started by this repository.
+- `controller/`: an internal Rust health/configuration API managing the HTTP proxy runtime.
+- OpenResty: the actual HTTP reverse proxy, available through an isolated local dev container.
+- PostgreSQL 18: the external primary database; the explicit smoke test creates its own isolated test instance.
 - Redis: external ephemeral storage for authentication rate limiting.
 
 ```text
@@ -152,7 +153,7 @@ To add a language, extend the supported languages and explicit loaders in
 
 ## Scope
 
-Proxy management, NGINX/OpenResty integration, certificates, background jobs, audit logging, and
+Certificates, background jobs, audit logging, and
 Docker deployment remain separate development steps.
 
 ## License
