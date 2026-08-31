@@ -1,3 +1,12 @@
-pub mod config;
-pub mod server;
-pub mod shutdown;
+mod application;
+mod config;
+mod models;
+mod proxy;
+mod runtime;
+mod server;
+mod shutdown;
+
+pub use application::run;
+
+#[cfg(test)]
+mod tests;

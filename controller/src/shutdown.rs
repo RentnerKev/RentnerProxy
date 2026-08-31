@@ -1,6 +1,6 @@
 use tokio::signal;
 
-pub async fn wait_for_shutdown() {
+pub(crate) async fn wait_for_shutdown() {
     #[cfg(unix)]
     {
         let mut terminate = match signal::unix::signal(signal::unix::SignalKind::terminate()) {
