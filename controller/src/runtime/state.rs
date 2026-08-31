@@ -373,7 +373,10 @@ fn create_private_directory(path: &Path) -> std::io::Result<()> {
 }
 
 fn open_regular_file(path: &Path) -> std::io::Result<File> {
-    validate_path(path)?;
+    let value = path.to_string_lossy();
+    if value.is_empty() || value.contains("..") || value.contains('\0') {
+        return Err(invalid_state_path());
+    }
     let mut options = OpenOptions::new();
     options.read(true);
     #[cfg(unix)]
@@ -399,7 +402,10 @@ fn ensure_direct_child(parent: &Path, path: &Path) -> std::io::Result<()> {
 }
 
 fn ensure_directory(path: &Path) -> std::io::Result<()> {
-    validate_path(path)?;
+    let value = path.to_string_lossy();
+    if value.is_empty() || value.contains("..") || value.contains('\0') {
+        return Err(invalid_state_path());
+    }
     let path = path.canonicalize()?;
     let metadata = fs::symlink_metadata(&path)?;
     if is_link(&metadata) || !metadata.file_type().is_dir() {
@@ -420,7 +426,10 @@ fn ensure_private_directory(path: &Path) -> std::io::Result<()> {
 }
 
 fn ensure_regular_file_path(path: &Path) -> std::io::Result<()> {
-    validate_path(path)?;
+    let value = path.to_string_lossy();
+    if value.is_empty() || value.contains("..") || value.contains('\0') {
+        return Err(invalid_state_path());
+    }
     let path = path.canonicalize()?;
     let metadata = fs::symlink_metadata(&path)?;
     ensure_regular_file_metadata(&metadata)
