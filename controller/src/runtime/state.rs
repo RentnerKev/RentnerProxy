@@ -22,7 +22,7 @@ pub(super) struct SafeDir {
 impl SafeDir {
     pub(super) fn open(path: &Path) -> std::io::Result<Self> {
         let path = resolve_existing_path(path)?;
-        ensure_directory(&path)?;
+        ensure_private_directory(&path)?;
         Ok(Self { path })
     }
 
@@ -32,7 +32,7 @@ impl SafeDir {
 
     pub(super) fn open_dir(&self, component: &str) -> std::io::Result<Self> {
         let path = self.existing_child(component)?;
-        ensure_directory(&path)?;
+        ensure_private_directory(&path)?;
         Ok(Self { path })
     }
 
@@ -45,7 +45,7 @@ impl SafeDir {
                 if path != candidate {
                     return Err(invalid_state_path());
                 }
-                ensure_directory(&path)?;
+                ensure_private_directory(&path)?;
                 Ok(Self { path })
             }
             Err(error) if error.kind() == ErrorKind::NotFound => {
@@ -54,7 +54,7 @@ impl SafeDir {
                 create_private_directory(&candidate)?;
                 let path = candidate.canonicalize()?;
                 ensure_direct_child(&self.path, &path)?;
-                ensure_directory(&path)?;
+                ensure_private_directory(&path)?;
                 Ok(Self { path })
             }
             Err(error) => Err(error),
@@ -348,7 +348,7 @@ fn create_missing_state_directory(path: &Path) -> std::io::Result<PathBuf> {
         create_private_directory(&candidate)?;
         let child = candidate.canonicalize()?;
         ensure_direct_child(&parent, &child)?;
-        ensure_directory(&child)?;
+        ensure_private_directory(&child)?;
         parent = child;
     }
     Ok(parent)
@@ -403,6 +403,12 @@ fn ensure_directory(path: &Path) -> std::io::Result<()> {
     if is_link(&metadata) || !metadata.file_type().is_dir() {
         return Err(invalid_state_path());
     }
+    Ok(())
+}
+
+fn ensure_private_directory(path: &Path) -> std::io::Result<()> {
+    let path = path.canonicalize()?;
+    ensure_directory(&path)?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
