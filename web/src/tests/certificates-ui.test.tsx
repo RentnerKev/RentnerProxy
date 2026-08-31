@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { QueryClient as QueryClientInstance } from '@tanstack/react-query'
@@ -287,7 +288,12 @@ describe('certificate management UI', () => {
         await click(button('Import certificate'))
         await waitFor(() => document.querySelector('#certificate-import-privateKeyPem') !== null)
         const certificatePem = '-----BEGIN CERTIFICATE-----\nCERT\n-----END CERTIFICATE-----'
-        const privateKeyPem = '-----BEGIN PRIVATE KEY-----\nSECRET\n-----END PRIVATE KEY-----'
+        const privateKeyPem = generateKeyPairSync('ed25519')
+            .privateKey.export({
+                type: 'pkcs8',
+                format: 'pem',
+            })
+            .toString()
         await setValue(document.querySelector('#certificate-import-name')!, 'Imported edge')
         await setValue(
             document.querySelector('#certificate-import-certificatePem')!,

@@ -79,7 +79,8 @@ and persistent page/loading errors remain next to the affected content.
 
 ## Development
 
-Development requires Bun 1.4 or newer and Rust 1.85 or newer. PostgreSQL 18 or newer
+Development requires Bun 1.4 or newer and Rust 1.88 or newer. CI and the runtime
+container use Rust 1.97.1. PostgreSQL 18 or newer
 is required for persistence because the schema uses native `uuidv7()`; the current target is
 18.6. Redis is required for authentication abuse protection.
 

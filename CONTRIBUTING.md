@@ -11,7 +11,7 @@ Never include credentials, tokens, private configuration, personal data, or unre
 ## Development workflow
 
 1. Fork the repository and create a focused feature branch from `main`.
-2. Install the documented Bun 1.4 and Rust 1.85 toolchains.
+2. Install Bun 1.4 and Rust 1.97.1 to match CI (the controller requires Rust 1.88 or newer).
 3. Install dependencies with `bun install --frozen-lockfile`.
 4. Make a small, self-contained change and add or update tests where appropriate.
 5. Run `bun run check` before opening a pull request.

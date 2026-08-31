@@ -1045,3 +1045,111 @@ async fn trusted_ca_previews_are_pure_and_apply_materializes() {
         trusted_ca.pem
     );
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn active_sources_reject_symlinked_files_outside_the_state_directory() {
+    let engine = Arc::new(FakeEngine::succeeds());
+    let (runtime, settings) = test_runtime(Some(engine));
+    runtime.initialize().await;
+    runtime.apply(configuration(4_000)).await.unwrap();
+
+    let active_path = settings.state_dir.join("active.conf");
+    let external_active = settings.state_dir.with_extension("external-active");
+    std::fs::rename(&active_path, &external_active).unwrap();
+    std::os::unix::fs::symlink(&external_active, &active_path).unwrap();
+    assert_eq!(
+        runtime.active_config().await,
+        Err(RuntimeError::Unavailable)
+    );
+    assert_eq!(
+        runtime
+            .active_host_config("00000000-0000-0000-0000-000000000000")
+            .await,
+        Err(RuntimeError::Unavailable)
+    );
+
+    std::fs::remove_file(&active_path).unwrap();
+    std::fs::rename(&external_active, &active_path).unwrap();
+    let sources_path = settings.state_dir.join("active-host-sources.json");
+    let external_sources = settings.state_dir.with_extension("external-sources");
+    std::fs::rename(&sources_path, &external_sources).unwrap();
+    std::os::unix::fs::symlink(&external_sources, &sources_path).unwrap();
+    assert_eq!(
+        runtime
+            .active_host_config("00000000-0000-0000-0000-000000000000")
+            .await,
+        Err(RuntimeError::HostConfigNotFound)
+    );
+    assert!(runtime.active_config().await.is_ok());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn active_sources_reject_a_state_directory_replaced_with_a_symlink() {
+    let engine = Arc::new(FakeEngine::succeeds());
+    let (runtime, settings) = test_runtime(Some(engine));
+    runtime.initialize().await;
+    runtime.apply(configuration(4_000)).await.unwrap();
+
+    let external_directory = settings.state_dir.with_extension("external-state");
+    std::fs::rename(&settings.state_dir, &external_directory).unwrap();
+    std::os::unix::fs::symlink(&external_directory, &settings.state_dir).unwrap();
+    assert_eq!(
+        runtime.active_config().await,
+        Err(RuntimeError::Unavailable)
+    );
+    assert_eq!(
+        runtime
+            .active_host_config("00000000-0000-0000-0000-000000000000")
+            .await,
+        Err(RuntimeError::Unavailable)
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn applying_a_configuration_never_follows_a_planted_temporary_symlink() {
+    let engine = Arc::new(FakeEngine::succeeds());
+    let (runtime, settings) = test_runtime(Some(engine));
+    runtime.initialize().await;
+
+    let external_file = settings.state_dir.with_extension("external-write-target");
+    let sentinel = b"unrelated file must remain unchanged";
+    std::fs::write(&external_file, sentinel).unwrap();
+    let planted_temporary = settings.state_dir.join("candidate.tmp");
+    std::os::unix::fs::symlink(&external_file, &planted_temporary).unwrap();
+
+    assert_eq!(
+        runtime.apply(configuration(4_000)).await,
+        Ok(ApplyOutcome::Applied)
+    );
+    assert_eq!(std::fs::read(&external_file).unwrap(), sentinel);
+    assert!(
+        std::fs::symlink_metadata(planted_temporary)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+}
+
+#[tokio::test]
+async fn active_host_source_rejects_path_like_host_ids_before_reading_files() {
+    let (runtime, settings) = test_runtime(None);
+    for host_id in [
+        "..",
+        "../active.conf",
+        r"..\active.conf",
+        "/active.conf",
+        r"C:\active.conf",
+        r"\\server\share\active.conf",
+        "00000000-0000-0000-0000-000000000000/active.conf",
+    ] {
+        assert_eq!(
+            runtime.active_host_config(host_id).await,
+            Err(RuntimeError::HostConfigNotFound),
+            "host id {host_id:?} must never select a file"
+        );
+    }
+    assert!(!settings.state_dir.exists());
+}

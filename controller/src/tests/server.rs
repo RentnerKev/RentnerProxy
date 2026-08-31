@@ -546,8 +546,8 @@ async fn certificate_endpoints_require_a_configured_token_even_on_loopback() {
 
 #[tokio::test]
 async fn certificate_endpoints_reject_missing_or_wrong_tokens_and_accept_the_configured_token() {
-    let token_text = "0123456789abcdef0123456789abcdef";
-    let token = Config::from_values(None, Some(token_text), None, None, None, false)
+    let token_text = "a".repeat(32);
+    let token = Config::from_values(None, Some(&token_text), None, None, None, false)
         .unwrap()
         .controller_token
         .unwrap();

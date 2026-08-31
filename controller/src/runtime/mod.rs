@@ -45,7 +45,7 @@ use renderer::{
 };
 use state::{
     ACTIVE_CONFIG_FILE, CANDIDATE_CONFIG_FILE, LAST_APPLY_FILE, LAST_GOOD_CONFIG_FILE,
-    atomic_write, prepare_state_dir, read_trimmed,
+    atomic_write, open_state_file, prepare_state_dir, read_trimmed,
 };
 use trusted_cas::TrustedCaStore;
 
@@ -287,9 +287,10 @@ impl ProxyRuntime {
         &self,
         active_contents: &str,
     ) -> Option<ValidatedProxyConfig> {
-        let mut reader = std::fs::File::open(self.active_configuration_path())
-            .ok()?
-            .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
+        let mut reader =
+            open_state_file(&self.settings.state_dir, &self.active_configuration_path())
+                .ok()?
+                .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).ok()?;
         if bytes.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
@@ -482,7 +483,7 @@ impl ProxyRuntime {
         let _apply_guard = timeout(self.settings.lock_wait, self.apply_lock.lock())
             .await
             .map_err(|_| RuntimeError::Busy)?;
-        let mut reader = std::fs::File::open(self.active_path())
+        let mut reader = open_state_file(&self.settings.state_dir, &self.active_path())
             .map_err(|_| RuntimeError::Unavailable)?
             .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
         let mut bytes = Vec::new();
@@ -536,7 +537,7 @@ impl ProxyRuntime {
             .await
             .map_err(|_| RuntimeError::Busy)?;
 
-        let mut active_reader = std::fs::File::open(self.active_path())
+        let mut active_reader = open_state_file(&self.settings.state_dir, &self.active_path())
             .map_err(|_| RuntimeError::Unavailable)?
             .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
         let mut active_bytes = Vec::new();
@@ -551,9 +552,10 @@ impl ProxyRuntime {
         let active_revision =
             revision_from_config(&active_contents).ok_or(RuntimeError::HostConfigNotFound)?;
 
-        let mut source_reader = std::fs::File::open(self.active_host_sources_path())
-            .map_err(|_| RuntimeError::HostConfigNotFound)?
-            .take((MAX_ACTIVE_HOST_SOURCES_BYTES as u64) + 1);
+        let mut source_reader =
+            open_state_file(&self.settings.state_dir, &self.active_host_sources_path())
+                .map_err(|_| RuntimeError::HostConfigNotFound)?
+                .take((MAX_ACTIVE_HOST_SOURCES_BYTES as u64) + 1);
         let mut source_bytes = Vec::new();
         source_reader
             .read_to_end(&mut source_bytes)

@@ -58,7 +58,10 @@ jobs:
                   ignore_path="$RUNNER_TEMP/.gitleaksignore"
 
                   printf '%s\n' '[extend]' 'useDefault = true' > "$config_path"
-                  : > "$ignore_path"
+                  # This historical finding is a synthetic controller test token, not a credential.
+                  # Exempt only that exact occurrence; all new findings still fail the scan.
+                  printf '%s\n' \
+                      'cbaa7450afc314e4dcd3bda162660795ac4021d6:controller/src/tests/server.rs:generic-api-key:544' > "$ignore_path"
 
                   case "$EVENT_NAME" in
                       pull_request)
