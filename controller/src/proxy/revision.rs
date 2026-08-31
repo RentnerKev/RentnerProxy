@@ -1,7 +1,7 @@
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-use crate::models::ProxyHost;
+use crate::models::{ProxyHost, ProxyHttpSettings};
 
 pub(crate) fn revision_for_hosts(hosts: &[ProxyHost]) -> String {
     let snapshot = CanonicalSnapshot {
@@ -10,6 +10,41 @@ pub(crate) fn revision_for_hosts(hosts: &[ProxyHost]) -> String {
     };
     let bytes = serde_json::to_vec(&snapshot)
         .expect("canonical proxy snapshot only contains serializable strings and numbers");
+    let hash = Sha256::digest(bytes);
+    format!("sha256:{hash:x}")
+}
+
+pub(crate) fn revision_for_configuration(
+    hosts: &[ProxyHost],
+    http_settings: &ProxyHttpSettings,
+) -> String {
+    let hosts = canonical_hosts(hosts);
+    if hosts
+        .iter()
+        .any(|host| !host.http_settings.is_empty() || !host.advanced_config.is_empty())
+    {
+        let snapshot = CanonicalHostConfigurationSnapshot {
+            version: 3,
+            proxy_hosts: hosts,
+            http_settings,
+        };
+        let bytes = serde_json::to_vec(&snapshot)
+            .expect("canonical proxy configuration only contains serializable strings and numbers");
+        let hash = Sha256::digest(bytes);
+        return format!("sha256:{hash:x}");
+    }
+
+    if http_settings.is_empty() {
+        return revision_for_hosts(&hosts);
+    }
+
+    let snapshot = CanonicalConfigurationSnapshot {
+        version: 2,
+        proxy_hosts: hosts,
+        http_settings,
+    };
+    let bytes = serde_json::to_vec(&snapshot)
+        .expect("canonical proxy configuration only contains serializable strings and numbers");
     let hash = Sha256::digest(bytes);
     format!("sha256:{hash:x}")
 }
@@ -26,6 +61,7 @@ pub(super) fn canonical_hosts(hosts: &[ProxyHost]) -> Vec<ProxyHost> {
     let mut hosts = hosts.to_vec();
     for host in &mut hosts {
         host.domains.sort_unstable();
+        host.advanced_config = super::normalize_advanced_config(&host.advanced_config);
     }
     hosts.sort_unstable_by(|left, right| left.id.cmp(&right.id));
     hosts
@@ -36,6 +72,22 @@ pub(super) fn canonical_hosts(hosts: &[ProxyHost]) -> Vec<ProxyHost> {
 struct CanonicalSnapshot {
     version: u8,
     proxy_hosts: Vec<ProxyHost>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CanonicalConfigurationSnapshot<'a> {
+    version: u8,
+    proxy_hosts: Vec<ProxyHost>,
+    http_settings: &'a ProxyHttpSettings,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CanonicalHostConfigurationSnapshot<'a> {
+    version: u8,
+    proxy_hosts: Vec<ProxyHost>,
+    http_settings: &'a ProxyHttpSettings,
 }
 
 pub(super) fn is_revision(value: &str) -> bool {

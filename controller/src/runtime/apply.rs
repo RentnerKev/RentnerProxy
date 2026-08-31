@@ -11,7 +11,6 @@ use crate::{
 use super::{
     BASELINE_PROBE_REVISION, EngineError, ProxyRuntime, RuntimeError,
     clock::{elapsed_millis, utc_now},
-    renderer::render_config,
     state::{atomic_write, replace_file},
 };
 
@@ -52,8 +51,8 @@ impl ProxyRuntime {
             return Ok(ApplyOutcome::Unchanged);
         }
 
-        let candidate = render_config(Some(&configuration), &self.settings.render_settings())
-            .map_err(|_| RuntimeError::ApplyFailed)?;
+        let candidate = self.render_proxy_config(Some(&configuration))?;
+        let active_host_sources = self.render_active_host_sources(&configuration)?;
         let candidate_path = self.candidate_path();
         let active_path = self.active_path();
         if atomic_write(&candidate_path, candidate.as_bytes()).is_err() {
@@ -109,6 +108,12 @@ impl ProxyRuntime {
 
         if atomic_write(&self.last_good_path(), candidate.as_bytes()).is_err() {
             warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "last_good", "active proxy backup refresh failed");
+        }
+        if self
+            .persist_active_host_sources(&active_host_sources)
+            .is_err()
+        {
+            warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "active_host_sources", "proxy host source metadata was not persisted");
         }
         let applied_at = utc_now();
         if atomic_write(&self.last_apply_path(), applied_at.as_bytes()).is_err() {

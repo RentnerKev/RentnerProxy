@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
+    models::ProxyHttpSettings,
     proxy::validate_proxy_config,
-    runtime::renderer::{RenderSettings, render_config},
-    tests::fixtures::{host, request},
+    runtime::renderer::{RenderSettings, render_config, render_host_config},
+    tests::fixtures::{host, request, request_with_settings},
 };
 
 #[test]
@@ -57,6 +58,46 @@ fn renderer_is_deterministic_and_covers_proxy_defaults() {
 }
 
 #[test]
+fn renderer_emits_only_the_allowlisted_typed_http_settings() {
+    let configuration = validate_proxy_config(request_with_settings(
+        vec![host(
+            "00000000-0000-0000-0000-000000000000",
+            &["demo.test"],
+            "http",
+            "backend",
+            4_000,
+        )],
+        ProxyHttpSettings {
+            client_max_body_size_bytes: Some(10_485_760),
+            proxy_connect_timeout_seconds: Some(15),
+            proxy_read_timeout_seconds: Some(300),
+            proxy_send_timeout_seconds: Some(300),
+            send_timeout_seconds: Some(30),
+            keepalive_timeout_seconds: Some(75),
+        },
+    ))
+    .unwrap_or_else(|error| panic!("configuration should validate: {error:?}"));
+    let rendered = render_config(
+        Some(&configuration),
+        &RenderSettings {
+            http_port: 8_080,
+            probe_socket: None,
+        },
+    )
+    .unwrap_or_else(|error| panic!("renderer should succeed: {error:?}"));
+
+    assert!(rendered.contains("# rentnerproxy: managed HTTP settings"));
+    assert!(rendered.contains("client_max_body_size 10485760;"));
+    assert!(rendered.contains("proxy_connect_timeout 15s;"));
+    assert!(rendered.contains("proxy_read_timeout 300s;"));
+    assert!(rendered.contains("proxy_send_timeout 300s;"));
+    assert!(rendered.contains("send_timeout 30s;"));
+    assert!(rendered.contains("keepalive_timeout 75s;"));
+    assert!(!rendered.contains("load_module"));
+    assert!(!rendered.contains("include "));
+}
+
+#[test]
 fn renderer_supports_a_zero_host_baseline_without_a_probe() {
     let rendered = render_config(
         None,
@@ -70,4 +111,109 @@ fn renderer_supports_a_zero_host_baseline_without_a_probe() {
     assert!(rendered.contains("# rentnerproxy-revision: none"));
     assert!(rendered.contains("return 404;"));
     assert!(!rendered.contains("proxy_pass"));
+    assert!(!rendered.contains("rentnerproxy: managed HTTP settings"));
+}
+
+#[test]
+fn host_preview_marks_structured_settings_and_preserves_advanced_text() {
+    let mut configured_host = host(
+        "00000000-0000-0000-0000-000000000000",
+        &["demo.test"],
+        "http",
+        "backend",
+        4_000,
+    );
+    configured_host.http_settings = ProxyHttpSettings {
+        proxy_read_timeout_seconds: Some(300),
+        send_timeout_seconds: Some(30),
+        ..ProxyHttpSettings::default()
+    };
+    configured_host.advanced_config = "# expert config\nadd_header X-Test \"hello\" always;\nlocation = /advanced-test {\n    return 200 \"advanced-ok\";\n}\n".to_owned();
+
+    let preview = render_host_config(&configured_host, 8_080);
+    assert!(preview.starts_with("server {\n    listen 8080;\n"));
+    assert!(preview.contains(
+        "    # rentnerproxy: host HTTP settings begin\n    proxy_read_timeout 300s;\n    send_timeout 30s;\n    # rentnerproxy: host HTTP settings end\n"
+    ));
+    let location_end = preview.find("    }\n\n").unwrap();
+    let raw_start = preview.find("# expert config\n").unwrap();
+    assert!(raw_start > location_end);
+    assert!(preview.contains(configured_host.advanced_config.as_str()));
+    assert!(preview.ends_with("}\n"));
+
+    let empty_preview = render_host_config(
+        &host(
+            "10000000-0000-0000-0000-000000000000",
+            &["empty.test"],
+            "http",
+            "backend",
+            4_000,
+        ),
+        8_080,
+    );
+    assert!(empty_preview.contains(
+        "    # rentnerproxy: host HTTP settings begin\n    # rentnerproxy: host HTTP settings end\n"
+    ));
+}
+
+#[test]
+fn legacy_hosts_keep_their_active_renderer_shape() {
+    let configuration = validate_proxy_config(request(vec![host(
+        "00000000-0000-0000-0000-000000000000",
+        &["demo.test"],
+        "http",
+        "backend",
+        4_000,
+    )]))
+    .unwrap();
+    let settings = RenderSettings {
+        http_port: 8_080,
+        probe_socket: None,
+    };
+    let rendered = render_config(Some(&configuration), &settings).unwrap();
+    let baseline = render_config(None, &settings).unwrap().replace(
+        "# rentnerproxy-revision: none",
+        &format!("# rentnerproxy-revision: {}", configuration.revision),
+    );
+    let (prefix, _) = baseline.rsplit_once("}\n").unwrap();
+    let expected_host = "    server {\n        listen 8080;\n        server_name demo.test;\n\n        location / {\n            proxy_pass http://backend:4000;\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_set_header X-Real-IP $remote_addr;\n            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n            proxy_set_header X-Forwarded-Proto $scheme;\n            proxy_set_header Upgrade $http_upgrade;\n            proxy_set_header Connection $connection_upgrade;\n        }\n    }\n";
+    assert_eq!(rendered, format!("{prefix}\n{expected_host}}}\n"));
+    assert!(!rendered.contains("host HTTP settings"));
+    assert!(!rendered.contains("advanced proxy host configuration"));
+}
+
+#[test]
+fn host_http_settings_override_the_global_http_default_at_server_scope() {
+    let mut configured_host = host(
+        "00000000-0000-0000-0000-000000000000",
+        &["demo.test"],
+        "http",
+        "backend",
+        4_000,
+    );
+    configured_host.http_settings = ProxyHttpSettings {
+        proxy_read_timeout_seconds: Some(300),
+        ..ProxyHttpSettings::default()
+    };
+    let configuration = validate_proxy_config(request_with_settings(
+        vec![configured_host],
+        ProxyHttpSettings {
+            proxy_read_timeout_seconds: Some(120),
+            ..ProxyHttpSettings::default()
+        },
+    ))
+    .unwrap();
+    let rendered = render_config(
+        Some(&configuration),
+        &RenderSettings {
+            http_port: 8_080,
+            probe_socket: None,
+        },
+    )
+    .unwrap();
+
+    let global = rendered.find("    proxy_read_timeout 120s;").unwrap();
+    let host_override = rendered.find("        proxy_read_timeout 300s;").unwrap();
+    assert!(global < host_override);
+    assert!(!rendered.contains("host HTTP settings begin"));
 }

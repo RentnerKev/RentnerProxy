@@ -5,18 +5,27 @@ pub(crate) mod renderer;
 mod state;
 
 use std::{
+    collections::BTreeMap,
+    io::Read,
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
 };
 
+use serde::{Deserialize, Serialize};
 use tokio::{sync::Mutex, time::timeout};
 use tracing::{info, warn};
 
-use crate::{models::ProxyRuntimeStatus, proxy::revision_from_config};
+use crate::{
+    models::{ProxyRuntimeStatus, ValidatedProxyConfig},
+    proxy::{is_canonical_uuid, revision_from_config},
+};
 
 pub(crate) use engine::{EngineError, EngineFuture, ProcessEngine, ProxyEngine};
-use renderer::{RenderSettings, render_config};
+use renderer::{
+    MAX_RENDERED_PROXY_CONFIG_BYTES, MAX_RENDERED_PROXY_HOST_SOURCE_BYTES, RenderError,
+    RenderSettings, render_config, render_host_config, render_host_sources,
+};
 use state::{
     ACTIVE_CONFIG_FILE, CANDIDATE_CONFIG_FILE, LAST_APPLY_FILE, LAST_GOOD_CONFIG_FILE,
     atomic_write, prepare_state_dir, read_trimmed,
@@ -25,6 +34,8 @@ use state::{
 #[cfg(unix)]
 const PROBE_SOCKET_FILE: &str = "runtime-probe.sock";
 const BASELINE_PROBE_REVISION: &str = "none";
+const ACTIVE_HOST_SOURCES_FILE: &str = "active-host-sources.json";
+const MAX_ACTIVE_HOST_SOURCES_BYTES: usize = MAX_RENDERED_PROXY_CONFIG_BYTES * 6 + 1024 * 1024;
 
 #[derive(Clone, Debug)]
 pub(crate) struct RuntimeSettings {
@@ -68,6 +79,15 @@ pub(crate) enum RuntimeError {
     Busy,
     Unavailable,
     ApplyFailed,
+    ConfigTooLarge,
+    HostConfigNotFound,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct ActiveHostSources {
+    revision: String,
+    host_sources: BTreeMap<String, String>,
 }
 
 struct RuntimeState {
@@ -235,6 +255,139 @@ impl ProxyRuntime {
         }
     }
 
+    pub(crate) fn preview_config(
+        &self,
+        configuration: &ValidatedProxyConfig,
+    ) -> Result<String, RuntimeError> {
+        self.render_proxy_config(Some(configuration))
+    }
+
+    pub(crate) async fn active_config(&self) -> Result<(String, Option<String>), RuntimeError> {
+        let _apply_guard = timeout(self.settings.lock_wait, self.apply_lock.lock())
+            .await
+            .map_err(|_| RuntimeError::Busy)?;
+        let mut reader = std::fs::File::open(self.active_path())
+            .map_err(|_| RuntimeError::Unavailable)?
+            .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
+        let mut bytes = Vec::new();
+        reader
+            .read_to_end(&mut bytes)
+            .map_err(|_| RuntimeError::Unavailable)?;
+        if bytes.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
+            return Err(RuntimeError::ConfigTooLarge);
+        }
+        let contents = String::from_utf8(bytes).map_err(|_| RuntimeError::Unavailable)?;
+        let revision = revision_from_config(&contents);
+        Ok((contents, revision))
+    }
+
+    pub(crate) fn preview_host_config(
+        &self,
+        configuration: &ValidatedProxyConfig,
+        host_id: &str,
+    ) -> Result<String, RuntimeError> {
+        if !is_canonical_uuid(host_id) {
+            return Err(RuntimeError::HostConfigNotFound);
+        }
+        let host = configuration
+            .proxy_hosts
+            .iter()
+            .find(|host| host.id == host_id)
+            .ok_or(RuntimeError::HostConfigNotFound)?;
+        let source = render_host_config(host, self.settings.http_port);
+        if source.len() > MAX_RENDERED_PROXY_HOST_SOURCE_BYTES {
+            return Err(RuntimeError::ConfigTooLarge);
+        }
+        Ok(source)
+    }
+
+    pub(crate) async fn active_host_config(
+        &self,
+        host_id: &str,
+    ) -> Result<(String, String), RuntimeError> {
+        if !is_canonical_uuid(host_id) {
+            return Err(RuntimeError::HostConfigNotFound);
+        }
+        let _apply_guard = timeout(self.settings.lock_wait, self.apply_lock.lock())
+            .await
+            .map_err(|_| RuntimeError::Busy)?;
+
+        let mut active_reader = std::fs::File::open(self.active_path())
+            .map_err(|_| RuntimeError::Unavailable)?
+            .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
+        let mut active_bytes = Vec::new();
+        active_reader
+            .read_to_end(&mut active_bytes)
+            .map_err(|_| RuntimeError::Unavailable)?;
+        if active_bytes.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
+            return Err(RuntimeError::ConfigTooLarge);
+        }
+        let active_contents =
+            String::from_utf8(active_bytes).map_err(|_| RuntimeError::Unavailable)?;
+        let active_revision =
+            revision_from_config(&active_contents).ok_or(RuntimeError::HostConfigNotFound)?;
+
+        let mut source_reader = std::fs::File::open(self.active_host_sources_path())
+            .map_err(|_| RuntimeError::HostConfigNotFound)?
+            .take((MAX_ACTIVE_HOST_SOURCES_BYTES as u64) + 1);
+        let mut source_bytes = Vec::new();
+        source_reader
+            .read_to_end(&mut source_bytes)
+            .map_err(|_| RuntimeError::HostConfigNotFound)?;
+        if source_bytes.len() > MAX_ACTIVE_HOST_SOURCES_BYTES {
+            return Err(RuntimeError::HostConfigNotFound);
+        }
+        let sources = serde_json::from_slice::<ActiveHostSources>(&source_bytes)
+            .map_err(|_| RuntimeError::HostConfigNotFound)?;
+        if sources.revision != active_revision {
+            return Err(RuntimeError::HostConfigNotFound);
+        }
+        let source = sources
+            .host_sources
+            .get(host_id)
+            .filter(|source| source.len() <= MAX_RENDERED_PROXY_HOST_SOURCE_BYTES)
+            .cloned()
+            .ok_or(RuntimeError::HostConfigNotFound)?;
+        Ok((source, active_revision))
+    }
+
+    fn render_active_host_sources(
+        &self,
+        configuration: &ValidatedProxyConfig,
+    ) -> Result<ActiveHostSources, RuntimeError> {
+        let host_sources = render_host_sources(configuration, self.settings.http_port).map_err(
+            |error| match error {
+                RenderError::ConfigTooLarge => RuntimeError::ConfigTooLarge,
+                RenderError::InvalidProbeSocket => RuntimeError::ApplyFailed,
+            },
+        )?;
+        Ok(ActiveHostSources {
+            revision: configuration.revision.clone(),
+            host_sources,
+        })
+    }
+
+    fn persist_active_host_sources(&self, sources: &ActiveHostSources) -> Result<(), RuntimeError> {
+        let bytes = serde_json::to_vec(sources).map_err(|_| RuntimeError::ApplyFailed)?;
+        if bytes.len() > MAX_ACTIVE_HOST_SOURCES_BYTES {
+            return Err(RuntimeError::ConfigTooLarge);
+        }
+        atomic_write(&self.active_host_sources_path(), &bytes)
+            .map_err(|_| RuntimeError::ApplyFailed)
+    }
+
+    fn render_proxy_config(
+        &self,
+        configuration: Option<&ValidatedProxyConfig>,
+    ) -> Result<String, RuntimeError> {
+        render_config(configuration, &self.settings.render_settings()).map_err(
+            |error| match error {
+                RenderError::ConfigTooLarge => RuntimeError::ConfigTooLarge,
+                RenderError::InvalidProbeSocket => RuntimeError::ApplyFailed,
+            },
+        )
+    }
+
     pub(crate) async fn shutdown(&self) {
         if let Some(engine) = &self.engine {
             if engine.shutdown().await.is_err() {
@@ -286,5 +439,9 @@ impl ProxyRuntime {
 
     fn last_apply_path(&self) -> PathBuf {
         self.settings.state_dir.join(LAST_APPLY_FILE)
+    }
+
+    fn active_host_sources_path(&self) -> PathBuf {
+        self.settings.state_dir.join(ACTIVE_HOST_SOURCES_FILE)
     }
 }

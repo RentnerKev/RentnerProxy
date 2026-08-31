@@ -6,13 +6,16 @@ use std::sync::Arc;
 
 use axum::{
     Router, middleware,
-    routing::{get, put},
+    routing::{get, post},
 };
 
 use crate::{config::ControllerToken, runtime::ProxyRuntime};
 
 use auth::authorize_internal_request;
-use handlers::{apply_proxy_config, health, proxy_status};
+use handlers::{
+    apply_proxy_config, health, preview_proxy_config, preview_proxy_host_config, proxy_status,
+    read_proxy_config, read_proxy_host_config,
+};
 
 const MAX_PROXY_CONFIG_BODY_BYTES: usize = 16 * 1024 * 1024;
 
@@ -37,7 +40,22 @@ impl AppState {
 pub(crate) fn app_with_state(state: AppState) -> Router {
     let internal = Router::new()
         .route("/internal/v1/proxy/status", get(proxy_status))
-        .route("/internal/v1/proxy/config", put(apply_proxy_config))
+        .route(
+            "/internal/v1/proxy/config",
+            get(read_proxy_config).put(apply_proxy_config),
+        )
+        .route(
+            "/internal/v1/proxy/config/preview",
+            post(preview_proxy_config),
+        )
+        .route(
+            "/internal/v1/proxy/hosts/{id}/config",
+            get(read_proxy_host_config),
+        )
+        .route(
+            "/internal/v1/proxy/hosts/{id}/config/preview",
+            post(preview_proxy_host_config),
+        )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             authorize_internal_request,

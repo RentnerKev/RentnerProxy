@@ -5,12 +5,15 @@ use std::{
     net::{Ipv4Addr, Ipv6Addr},
 };
 
-use crate::models::{ProxyConfigRequest, ValidatedProxyConfig};
+use crate::models::{ProxyConfigRequest, ProxyHttpSettings, ValidatedProxyConfig};
 
+#[cfg(test)]
+pub(crate) use revision::revision_for_hosts;
 use revision::{canonical_hosts, is_revision};
-pub(crate) use revision::{revision_for_hosts, revision_from_config};
+pub(crate) use revision::{revision_for_configuration, revision_from_config};
 
 pub(crate) const MAX_PROXY_HOSTS: usize = 1_000;
+pub(crate) const MAX_ADVANCED_CONFIG_BYTES: usize = 64 * 1024;
 const MAX_DOMAINS_PER_HOST: usize = 50;
 const MAX_TOTAL_DOMAINS: usize = 50_000;
 
@@ -21,10 +24,28 @@ pub(crate) enum ProxyValidationError {
 }
 
 pub(crate) fn validate_proxy_config(
-    request: ProxyConfigRequest,
+    mut request: ProxyConfigRequest,
 ) -> Result<ValidatedProxyConfig, ProxyValidationError> {
-    if request.version != 1 || !is_revision(&request.revision) {
+    if !matches!(request.version, 1..=3) || !is_revision(&request.revision) {
         return Err(ProxyValidationError::InvalidConfiguration);
+    }
+
+    for host in &mut request.proxy_hosts {
+        host.advanced_config = normalize_advanced_config(&host.advanced_config);
+    }
+    let has_host_configuration = request
+        .proxy_hosts
+        .iter()
+        .any(|host| !host.http_settings.is_empty() || !host.advanced_config.is_empty());
+    if (request.version == 1 && (!request.http_settings.is_empty() || has_host_configuration))
+        || (request.version == 2 && (request.http_settings.is_empty() || has_host_configuration))
+        || (request.version == 3 && !has_host_configuration)
+    {
+        return Err(ProxyValidationError::InvalidConfiguration);
+    }
+
+    if !has_valid_http_settings(&request.http_settings) {
+        return Err(ProxyValidationError::ValidationFailed);
     }
 
     if request.proxy_hosts.len() > MAX_PROXY_HOSTS {
@@ -43,6 +64,8 @@ pub(crate) fn validate_proxy_config(
             || !matches!(host.forward_scheme.as_str(), "http" | "https")
             || !is_valid_forward_host(&host.forward_host)
             || host.forward_port == 0
+            || !has_valid_http_settings(&host.http_settings)
+            || !has_valid_advanced_config(&host.advanced_config)
         {
             return Err(ProxyValidationError::ValidationFailed);
         }
@@ -60,7 +83,7 @@ pub(crate) fn validate_proxy_config(
     }
 
     let canonical_hosts = canonical_hosts(&request.proxy_hosts);
-    let actual_revision = revision_for_hosts(&canonical_hosts);
+    let actual_revision = revision_for_configuration(&canonical_hosts, &request.http_settings);
     if request.revision != actual_revision {
         return Err(ProxyValidationError::ValidationFailed);
     }
@@ -68,10 +91,32 @@ pub(crate) fn validate_proxy_config(
     Ok(ValidatedProxyConfig {
         revision: request.revision,
         proxy_hosts: canonical_hosts,
+        http_settings: request.http_settings,
     })
 }
 
-fn is_canonical_uuid(value: &str) -> bool {
+fn has_valid_http_settings(settings: &ProxyHttpSettings) -> bool {
+    option_in_range(settings.client_max_body_size_bytes, 1_024, 1_073_741_824)
+        && option_in_range(settings.proxy_connect_timeout_seconds, 1, 60)
+        && option_in_range(settings.proxy_read_timeout_seconds, 1, 3_600)
+        && option_in_range(settings.proxy_send_timeout_seconds, 1, 3_600)
+        && option_in_range(settings.send_timeout_seconds, 1, 300)
+        && option_in_range(settings.keepalive_timeout_seconds, 1, 300)
+}
+
+fn option_in_range(value: Option<u32>, minimum: u32, maximum: u32) -> bool {
+    value.is_none_or(|value| (minimum..=maximum).contains(&value))
+}
+
+fn has_valid_advanced_config(value: &str) -> bool {
+    value.len() <= MAX_ADVANCED_CONFIG_BYTES && !value.as_bytes().contains(&0)
+}
+
+pub(crate) fn normalize_advanced_config(value: &str) -> String {
+    value.replace("\r\n", "\n")
+}
+
+pub(crate) fn is_canonical_uuid(value: &str) -> bool {
     value.len() == 36
         && value.bytes().enumerate().all(|(index, byte)| {
             if matches!(index, 8 | 13 | 18 | 23) {

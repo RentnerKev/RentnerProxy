@@ -18,8 +18,8 @@ use tower::ServiceExt;
 
 use crate::{
     config::{Config, ControllerToken},
-    models::{ProxyConfigRequest, ProxyHost},
-    proxy::revision_for_hosts,
+    models::{ProxyConfigRequest, ProxyHost, ProxyHttpSettings},
+    proxy::{revision_for_configuration, revision_for_hosts},
     runtime::{EngineFuture, ProxyEngine, ProxyRuntime, RuntimeSettings},
     server::{AppState, app_with_state, auth::constant_time_equal},
 };
@@ -75,21 +75,55 @@ fn valid_payload() -> Vec<u8> {
         forward_scheme: "http".to_owned(),
         forward_host: "backend".to_owned(),
         forward_port: 4_000,
+        http_settings: ProxyHttpSettings::default(),
+        advanced_config: String::new(),
     }];
     serde_json::to_vec(&ProxyConfigRequest {
         version: 1,
         revision: revision_for_hosts(&hosts),
         proxy_hosts: hosts,
+        http_settings: ProxyHttpSettings::default(),
     })
     .unwrap()
 }
 
 fn request(uri: &str, body: Vec<u8>) -> Request<Body> {
+    request_with_method("PUT", uri, Body::from(body))
+}
+
+fn request_with_method(method: &str, uri: &str, body: Body) -> Request<Body> {
     Request::builder()
-        .method("PUT")
+        .method(method)
         .uri(uri)
-        .body(Body::from(body))
+        .body(body)
         .unwrap()
+}
+
+fn custom_payload() -> Vec<u8> {
+    let hosts = vec![ProxyHost {
+        id: "00000000-0000-0000-0000-000000000000".to_owned(),
+        domains: vec!["demo.test".to_owned()],
+        forward_scheme: "http".to_owned(),
+        forward_host: "backend".to_owned(),
+        forward_port: 4_000,
+        http_settings: ProxyHttpSettings::default(),
+        advanced_config: String::new(),
+    }];
+    let http_settings = ProxyHttpSettings {
+        client_max_body_size_bytes: Some(10_485_760),
+        proxy_connect_timeout_seconds: Some(15),
+        proxy_read_timeout_seconds: Some(300),
+        proxy_send_timeout_seconds: Some(300),
+        send_timeout_seconds: Some(30),
+        keepalive_timeout_seconds: Some(75),
+    };
+    serde_json::to_vec(&ProxyConfigRequest {
+        version: 2,
+        revision: revision_for_configuration(&hosts, &http_settings),
+        proxy_hosts: hosts,
+        http_settings,
+    })
+    .unwrap()
 }
 
 #[tokio::test]
@@ -134,6 +168,117 @@ async fn proxy_endpoints_require_configured_authentication() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn source_endpoints_are_authenticated_and_preview_is_pure() {
+    let token = Config::from_values(
+        None,
+        Some("0123456789abcdef0123456789abcdef"),
+        None,
+        None,
+        None,
+        false,
+    )
+    .unwrap()
+    .controller_token
+    .unwrap();
+    let protected = test_app(Some(token)).await;
+    for request in [
+        request_with_method("GET", "/internal/v1/proxy/config", Body::empty()),
+        request_with_method(
+            "POST",
+            "/internal/v1/proxy/config/preview",
+            Body::from(valid_payload()),
+        ),
+    ] {
+        let response = protected.clone().oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    let router = test_app(None).await;
+    let preview = router
+        .clone()
+        .oneshot(request_with_method(
+            "POST",
+            "/internal/v1/proxy/config/preview",
+            Body::from(custom_payload()),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(preview.status(), StatusCode::OK);
+    assert_eq!(preview.headers().get("cache-control").unwrap(), "no-store");
+    let preview: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(preview.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        preview["config"]
+            .as_str()
+            .unwrap()
+            .contains("managed HTTP settings")
+    );
+    let revision = preview["revision"].as_str().unwrap().to_owned();
+
+    let before_apply = router
+        .clone()
+        .oneshot(request_with_method(
+            "GET",
+            "/internal/v1/proxy/config",
+            Body::empty(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(before_apply.status(), StatusCode::OK);
+    assert_eq!(
+        before_apply.headers().get("cache-control").unwrap(),
+        "no-store"
+    );
+    let before_apply: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(before_apply.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(before_apply["activeRevision"], serde_json::Value::Null);
+    assert!(
+        !before_apply["config"]
+            .as_str()
+            .unwrap()
+            .contains("managed HTTP settings")
+    );
+
+    let applied = router
+        .clone()
+        .oneshot(request("/internal/v1/proxy/config", custom_payload()))
+        .await
+        .unwrap();
+    assert_eq!(applied.status(), StatusCode::OK);
+    let active = router
+        .oneshot(request_with_method(
+            "GET",
+            "/internal/v1/proxy/config",
+            Body::empty(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(active.status(), StatusCode::OK);
+    assert_eq!(active.headers().get("cache-control").unwrap(), "no-store");
+    let active: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(active.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(active["activeRevision"], revision);
+    assert!(
+        active["config"]
+            .as_str()
+            .unwrap()
+            .contains("keepalive_timeout 75s;")
+    );
 }
 
 #[tokio::test]
@@ -207,4 +352,130 @@ fn constant_time_comparison_checks_equal_and_unequal_values() {
     assert!(constant_time_equal(b"abc", b"abc"));
     assert!(!constant_time_equal(b"abc", b"abd"));
     assert!(!constant_time_equal(b"abc", b"abcd"));
+}
+
+#[tokio::test]
+async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
+    let token = Config::from_values(
+        None,
+        Some("0123456789abcdef0123456789abcdef"),
+        None,
+        None,
+        None,
+        false,
+    )
+    .unwrap()
+    .controller_token
+    .unwrap();
+    let protected = test_app(Some(token)).await;
+    for request in [
+        request_with_method(
+            "GET",
+            "/internal/v1/proxy/hosts/00000000-0000-0000-0000-000000000000/config",
+            Body::empty(),
+        ),
+        request_with_method(
+            "POST",
+            "/internal/v1/proxy/hosts/00000000-0000-0000-0000-000000000000/config/preview",
+            Body::from(valid_payload()),
+        ),
+    ] {
+        let response = protected.clone().oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    let router = test_app(None).await;
+    let host_path = "/internal/v1/proxy/hosts/00000000-0000-0000-0000-000000000000/config";
+    let before_apply = router
+        .clone()
+        .oneshot(request_with_method("GET", host_path, Body::empty()))
+        .await
+        .unwrap();
+    assert_eq!(before_apply.status(), StatusCode::NOT_FOUND);
+
+    let preview = router
+        .clone()
+        .oneshot(request_with_method(
+            "POST",
+            "/internal/v1/proxy/hosts/00000000-0000-0000-0000-000000000000/config/preview",
+            Body::from(valid_payload()),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(preview.status(), StatusCode::OK);
+    assert_eq!(preview.headers().get("cache-control").unwrap(), "no-store");
+    let preview: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(preview.into_body(), 512 * 1024)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        preview["config"]
+            .as_str()
+            .unwrap()
+            .starts_with("server {\n")
+    );
+    assert!(
+        preview["config"]
+            .as_str()
+            .unwrap()
+            .contains("host HTTP settings begin")
+    );
+    assert!(!preview["config"].as_str().unwrap().contains("\nhttp {\n"));
+    let revision = preview["revision"].as_str().unwrap().to_owned();
+
+    let bad_snapshot = router
+        .clone()
+        .oneshot(request_with_method(
+            "POST",
+            "/internal/v1/proxy/hosts/10000000-0000-0000-0000-000000000000/config/preview",
+            Body::from(valid_payload()),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(bad_snapshot.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    let applied = router
+        .clone()
+        .oneshot(request("/internal/v1/proxy/config", valid_payload()))
+        .await
+        .unwrap();
+    assert_eq!(applied.status(), StatusCode::OK);
+    let active = router
+        .clone()
+        .oneshot(request_with_method("GET", host_path, Body::empty()))
+        .await
+        .unwrap();
+    assert_eq!(active.status(), StatusCode::OK);
+    assert_eq!(active.headers().get("cache-control").unwrap(), "no-store");
+    let active: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(active.into_body(), 512 * 1024)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(active["activeRevision"], revision);
+    assert!(
+        active["config"]
+            .as_str()
+            .unwrap()
+            .starts_with("    server {\n")
+    );
+    assert!(
+        !active["config"]
+            .as_str()
+            .unwrap()
+            .contains("host HTTP settings begin")
+    );
+
+    let unknown = router
+        .oneshot(request_with_method(
+            "GET",
+            "/internal/v1/proxy/hosts/10000000-0000-0000-0000-000000000000/config",
+            Body::empty(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
 }

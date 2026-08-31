@@ -54,6 +54,13 @@ impl ApiError {
         }
     }
 
+    pub(super) fn not_found() -> Self {
+        Self {
+            status: StatusCode::NOT_FOUND,
+            error: "not_found",
+        }
+    }
+
     pub(super) fn busy() -> Self {
         Self {
             status: StatusCode::CONFLICT,

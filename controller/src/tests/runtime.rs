@@ -13,12 +13,14 @@ use std::{
 use tokio::sync::Mutex;
 
 use crate::{
-    models::{ApplyOutcome, ProxyConfigRequest, ProxyHost, ValidatedProxyConfig},
-    proxy::{revision_for_hosts, validate_proxy_config},
+    models::{
+        ApplyOutcome, ProxyConfigRequest, ProxyHost, ProxyHttpSettings, ValidatedProxyConfig,
+    },
+    proxy::{revision_for_configuration, validate_proxy_config},
     runtime::{
         EngineError, EngineFuture, ProxyEngine, ProxyRuntime, RuntimeError, RuntimeSettings,
         clock::{civil_from_days, utc_now},
-        renderer::{RenderSettings, render_config},
+        renderer::{MAX_RENDERED_PROXY_CONFIG_BYTES, RenderSettings, render_config},
     },
 };
 
@@ -113,20 +115,51 @@ fn test_runtime(engine: Option<Arc<dyn ProxyEngine>>) -> (Arc<ProxyRuntime>, Run
 }
 
 fn configuration(port: u16) -> ValidatedProxyConfig {
+    configuration_with_settings(port, ProxyHttpSettings::default())
+}
+
+fn configuration_with_settings(
+    port: u16,
+    http_settings: ProxyHttpSettings,
+) -> ValidatedProxyConfig {
     let hosts = vec![ProxyHost {
         id: "00000000-0000-0000-0000-000000000000".to_owned(),
         domains: vec!["demo.test".to_owned()],
         forward_scheme: "http".to_owned(),
         forward_host: "backend".to_owned(),
         forward_port: port,
+        http_settings: ProxyHttpSettings::default(),
+        advanced_config: String::new(),
     }];
+    let version = if http_settings.is_empty() { 1 } else { 2 };
     validate_proxy_config(ProxyConfigRequest {
-        version: 1,
-        revision: revision_for_hosts(&hosts),
+        version,
+        revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
+        http_settings,
     })
     .unwrap()
 }
+fn configuration_with_advanced(port: u16, advanced_config: &str) -> ValidatedProxyConfig {
+    let hosts = vec![ProxyHost {
+        id: "00000000-0000-0000-0000-000000000000".to_owned(),
+        domains: vec!["demo.test".to_owned()],
+        forward_scheme: "http".to_owned(),
+        forward_host: "backend".to_owned(),
+        forward_port: port,
+        http_settings: ProxyHttpSettings::default(),
+        advanced_config: advanced_config.to_owned(),
+    }];
+    let http_settings = ProxyHttpSettings::default();
+    validate_proxy_config(ProxyConfigRequest {
+        version: 3,
+        revision: revision_for_configuration(&hosts, &http_settings),
+        proxy_hosts: hosts,
+        http_settings,
+    })
+    .unwrap()
+}
+
 #[tokio::test]
 async fn candidate_is_tested_before_active_configuration_changes() {
     let engine = Arc::new(FakeEngine::succeeds());
@@ -200,6 +233,39 @@ async fn reload_failure_rolls_back_and_failed_recovery_does_not_advance_revision
 }
 
 #[tokio::test]
+async fn custom_http_settings_follow_normal_apply_and_rollback() {
+    let engine = Arc::new(FakeEngine {
+        test_results: Mutex::new(VecDeque::from([Ok(()), Ok(())])),
+        reload_results: Mutex::new(VecDeque::from([Err(EngineError::CommandFailed), Ok(())])),
+        ..FakeEngine::succeeds()
+    });
+    let (runtime, settings) = test_runtime(Some(engine.clone()));
+    runtime.initialize().await;
+    let before = std::fs::read(settings.state_dir.join("active.conf")).unwrap();
+    let attempted = configuration_with_settings(
+        4_000,
+        ProxyHttpSettings {
+            client_max_body_size_bytes: Some(10_485_760),
+            proxy_read_timeout_seconds: Some(300),
+            ..ProxyHttpSettings::default()
+        },
+    );
+
+    assert_eq!(
+        runtime.apply(attempted.clone()).await,
+        Err(RuntimeError::ApplyFailed)
+    );
+    let active = std::fs::read(settings.state_dir.join("active.conf")).unwrap();
+    assert_eq!(active, before);
+    assert!(!String::from_utf8_lossy(&active).contains("rentnerproxy: managed HTTP settings"));
+    assert_eq!(engine.reload_count.load(Ordering::SeqCst), 2);
+    assert_ne!(
+        runtime.status().await.active_revision.as_deref(),
+        Some(attempted.revision.as_str())
+    );
+}
+
+#[tokio::test]
 async fn idempotence_timeout_and_serialization_are_safe() {
     let engine = Arc::new(FakeEngine {
         second_test_delay: Some(Duration::from_millis(100)),
@@ -237,6 +303,45 @@ async fn idempotence_timeout_and_serialization_are_safe() {
     );
     assert_eq!(normal.apply(config).await, Ok(ApplyOutcome::Unchanged));
     assert_eq!(normal_engine.reload_count.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn active_config_rejects_sources_over_hard_limit() {
+    let (runtime, settings) = test_runtime(None);
+    runtime.initialize().await;
+    std::fs::write(
+        settings.state_dir.join("active.conf"),
+        vec![b'x'; MAX_RENDERED_PROXY_CONFIG_BYTES + 1],
+    )
+    .unwrap();
+
+    assert_eq!(
+        runtime.active_config().await,
+        Err(RuntimeError::ConfigTooLarge)
+    );
+}
+
+#[test]
+fn preview_rejects_rendered_sources_over_hard_limit() {
+    let (runtime, _) = test_runtime(None);
+    let configuration = ValidatedProxyConfig {
+        revision: format!("sha256:{}", "0".repeat(64)),
+        proxy_hosts: vec![ProxyHost {
+            id: "00000000-0000-0000-0000-000000000000".to_owned(),
+            domains: vec!["a".repeat(MAX_RENDERED_PROXY_CONFIG_BYTES)],
+            forward_scheme: "http".to_owned(),
+            forward_host: "backend".to_owned(),
+            forward_port: 4_000,
+            http_settings: ProxyHttpSettings::default(),
+            advanced_config: String::new(),
+        }],
+        http_settings: ProxyHttpSettings::default(),
+    };
+
+    assert_eq!(
+        runtime.preview_config(&configuration),
+        Err(RuntimeError::ConfigTooLarge)
+    );
 }
 
 #[tokio::test]
@@ -337,4 +442,164 @@ fn timestamps_are_utc_and_calendar_conversion_is_stable() {
     assert_eq!(civil_from_days(0), (1970, 1, 1));
     assert_eq!(civil_from_days(11_323), (2001, 1, 1));
     assert!(utc_now().ends_with('Z'));
+}
+
+#[tokio::test]
+async fn active_host_source_is_written_only_after_a_successful_apply() {
+    let engine = Arc::new(FakeEngine::succeeds());
+    let (runtime, settings) = test_runtime(Some(engine));
+    runtime.initialize().await;
+    let configuration = configuration_with_advanced(
+        4_000,
+        "# expert config\nadd_header X-Test \"active\" always;\n",
+    );
+
+    assert_eq!(
+        runtime.apply(configuration.clone()).await,
+        Ok(ApplyOutcome::Applied)
+    );
+    let (source, active_revision) = runtime
+        .active_host_config("00000000-0000-0000-0000-000000000000")
+        .await
+        .unwrap();
+    assert_eq!(active_revision, configuration.revision);
+    assert!(source.starts_with("    server {\n"));
+    assert!(source.contains("add_header X-Test \"active\" always;"));
+    assert!(!source.contains("host HTTP settings begin"));
+    let active = std::fs::read_to_string(settings.state_dir.join("active.conf")).unwrap();
+    assert!(active.contains(source.as_str()));
+}
+
+#[tokio::test]
+async fn rejected_candidate_keeps_the_previous_host_source() {
+    let engine = Arc::new(FakeEngine {
+        test_results: Mutex::new(VecDeque::from([
+            Ok(()),
+            Ok(()),
+            Err(EngineError::CommandFailed),
+        ])),
+        ..FakeEngine::succeeds()
+    });
+    let (runtime, _) = test_runtime(Some(engine));
+    runtime.initialize().await;
+    let first = configuration_with_advanced(4_000, "add_header X-Revision \"first\";");
+    assert_eq!(
+        runtime.apply(first.clone()).await,
+        Ok(ApplyOutcome::Applied)
+    );
+    let (before, before_revision) = runtime
+        .active_host_config("00000000-0000-0000-0000-000000000000")
+        .await
+        .unwrap();
+
+    let rejected = configuration_with_advanced(4_001, "add_header X-Revision \"second\";");
+    assert_eq!(
+        runtime.apply(rejected).await,
+        Err(RuntimeError::ApplyFailed)
+    );
+    let (after, after_revision) = runtime
+        .active_host_config("00000000-0000-0000-0000-000000000000")
+        .await
+        .unwrap();
+    assert_eq!(after, before);
+    assert_eq!(after_revision, before_revision);
+    assert!(after.contains("X-Revision \"first\""));
+}
+
+#[tokio::test]
+async fn active_host_source_returns_not_found_for_stale_or_unreadable_sidecars() {
+    let engine = Arc::new(FakeEngine::succeeds());
+    let (runtime, settings) = test_runtime(Some(engine));
+    runtime.initialize().await;
+    assert_eq!(
+        runtime
+            .apply(configuration_with_advanced(4_000, "return 204;"))
+            .await,
+        Ok(ApplyOutcome::Applied)
+    );
+    let sidecar = settings.state_dir.join("active-host-sources.json");
+    std::fs::write(
+        &sidecar,
+        br#"{"revision":"sha256:0000000000000000000000000000000000000000000000000000000000000000","hostSources":{}}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        runtime
+            .active_host_config("00000000-0000-0000-0000-000000000000")
+            .await,
+        Err(RuntimeError::HostConfigNotFound)
+    );
+
+    std::fs::write(&sidecar, b"{").unwrap();
+    assert_eq!(
+        runtime
+            .active_host_config("00000000-0000-0000-0000-000000000000")
+            .await,
+        Err(RuntimeError::HostConfigNotFound)
+    );
+
+    std::fs::remove_file(&sidecar).unwrap();
+    std::fs::create_dir(&sidecar).unwrap();
+    assert_eq!(
+        runtime
+            .active_host_config("00000000-0000-0000-0000-000000000000")
+            .await,
+        Err(RuntimeError::HostConfigNotFound)
+    );
+}
+
+#[tokio::test]
+async fn active_host_sources_keep_two_hosts_isolated() {
+    let engine = Arc::new(FakeEngine::succeeds());
+    let (runtime, _) = test_runtime(Some(engine));
+    runtime.initialize().await;
+    let hosts = vec![
+        ProxyHost {
+            id: "00000000-0000-0000-0000-000000000000".to_owned(),
+            domains: vec!["first.test".to_owned()],
+            forward_scheme: "http".to_owned(),
+            forward_host: "first-backend".to_owned(),
+            forward_port: 4_000,
+            http_settings: ProxyHttpSettings::default(),
+            advanced_config: "add_header X-Host first;".to_owned(),
+        },
+        ProxyHost {
+            id: "10000000-0000-0000-0000-000000000000".to_owned(),
+            domains: vec!["second.test".to_owned()],
+            forward_scheme: "http".to_owned(),
+            forward_host: "second-backend".to_owned(),
+            forward_port: 4_001,
+            http_settings: ProxyHttpSettings::default(),
+            advanced_config: "add_header X-Host second;".to_owned(),
+        },
+    ];
+    let http_settings = ProxyHttpSettings::default();
+    let configuration = validate_proxy_config(ProxyConfigRequest {
+        version: 3,
+        revision: revision_for_configuration(&hosts, &http_settings),
+        proxy_hosts: hosts,
+        http_settings,
+    })
+    .unwrap();
+    assert_eq!(
+        runtime.apply(configuration).await,
+        Ok(ApplyOutcome::Applied)
+    );
+
+    let (first, _) = runtime
+        .active_host_config("00000000-0000-0000-0000-000000000000")
+        .await
+        .unwrap();
+    let (second, _) = runtime
+        .active_host_config("10000000-0000-0000-0000-000000000000")
+        .await
+        .unwrap();
+    assert!(first.contains("first-backend"));
+    assert!(first.contains("X-Host first"));
+    assert!(!first.contains("second-backend"));
+    assert!(!first.contains("X-Host second"));
+    assert!(second.contains("second-backend"));
+    assert!(second.contains("X-Host second"));
+    assert!(!second.contains("first-backend"));
+    assert!(!second.contains("X-Host first"));
 }
