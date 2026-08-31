@@ -492,10 +492,10 @@ describe('ProxyHost permissions and row actions', () => {
         expect(document.querySelector('[role="menu"]')?.textContent).not.toContain('Disable')
     })
 
-    test('viewer sees runtime status without an apply action', async () => {
+    test('hides synchronized runtime status and its apply action', async () => {
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => getRows().length === 2)
-        expect(document.body.textContent).toContain('Proxy runtime synchronized')
+        expect(document.body.textContent).not.toContain('Proxy runtime synchronized')
         expect(document.body.textContent).not.toContain('Apply changes')
     })
 

@@ -26,6 +26,8 @@ export default function ProxyRuntimeStatusPanel({
     const showApply =
         canApply && status !== undefined && status.desiredRevision !== status.activeRevision
 
+    if (state === 'synced' && !showApply) return null
+
     return (
         <section
             className={`mb-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-[clamp(1rem,3vw,1.25rem)] ${statusStyles[state]}`}
