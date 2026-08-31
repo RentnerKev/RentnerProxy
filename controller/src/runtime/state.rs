@@ -403,6 +403,11 @@ fn ensure_directory(path: &Path) -> std::io::Result<()> {
     if is_link(&metadata) || !metadata.file_type().is_dir() {
         return Err(invalid_state_path());
     }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
+    }
     Ok(())
 }
 
