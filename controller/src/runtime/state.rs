@@ -22,6 +22,7 @@ pub(super) struct SafeDir {
 impl SafeDir {
     pub(super) fn open(path: &Path) -> std::io::Result<Self> {
         let path = resolve_existing_path(path)?;
+        // codeql[rust/path-injection] The root path was canonicalized and validated above.
         let metadata = fs::symlink_metadata(&path)?;
         if is_link(&metadata) || !metadata.file_type().is_dir() {
             return Err(invalid_state_path());
@@ -29,6 +30,7 @@ impl SafeDir {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
+            // codeql[rust/path-injection] The root path was canonicalized and validated above.
             fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
         }
         Ok(Self { path })
@@ -107,6 +109,7 @@ impl SafeDir {
         if path != candidate {
             return Err(invalid_state_path());
         }
+        // codeql[rust/path-injection] The child was validated and constrained to this SafeDir.
         let metadata = fs::symlink_metadata(&path)?;
         ensure_regular_file_metadata(&metadata)?;
         let mut options = OpenOptions::new();
@@ -121,6 +124,7 @@ impl SafeDir {
             use std::os::windows::fs::OpenOptionsExt;
             options.custom_flags(0x0020_0000);
         }
+        // codeql[rust/path-injection] The child was validated and constrained to this SafeDir.
         let file = options.open(&path)?;
         ensure_regular_file_metadata(&file.metadata()?)?;
         Ok(file)
@@ -251,6 +255,7 @@ impl SafeDir {
 
 pub(super) fn open_absolute_regular_file(path: &Path) -> std::io::Result<File> {
     let path = canonical_absolute_entry(path)?;
+    // codeql[rust/path-injection] The configured absolute path was canonicalized and validated above.
     let metadata = fs::symlink_metadata(&path)?;
     ensure_regular_file_metadata(&metadata)?;
     let mut options = OpenOptions::new();
@@ -265,6 +270,7 @@ pub(super) fn open_absolute_regular_file(path: &Path) -> std::io::Result<File> {
         use std::os::windows::fs::OpenOptionsExt;
         options.custom_flags(0x0020_0000);
     }
+    // codeql[rust/path-injection] The configured absolute path was canonicalized and validated above.
     let file = options.open(&path)?;
     ensure_regular_file_metadata(&file.metadata()?)?;
     Ok(file)
