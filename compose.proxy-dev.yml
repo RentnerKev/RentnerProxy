@@ -1,0 +1,26 @@
+# Local HTTP runtime only. This is not the production application stack.
+name: rentnerproxy-proxy-dev
+
+services:
+    proxy-runtime:
+        build:
+            context: .
+            dockerfile: docker/proxy-runtime/Dockerfile
+        environment:
+            RENTNERPROXY_CONTROLLER_TOKEN: ${RENTNERPROXY_CONTROLLER_TOKEN:?Set a random server-only controller token (32-256 base64url/hex characters)}
+            RUST_LOG: ${RUST_LOG:-info}
+        ports:
+            - '127.0.0.1:${RENTNERPROXY_PROXY_DEV_HTTP_PORT:-18080}:8080'
+            - '127.0.0.1:${RENTNERPROXY_PROXY_DEV_CONTROLLER_PORT:-18081}:8081'
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        volumes:
+            - proxy-state:/var/lib/rentnerproxy/proxy
+        security_opt:
+            - no-new-privileges:true
+        cap_drop:
+            - ALL
+        stop_grace_period: 15s
+
+volumes:
+    proxy-state:

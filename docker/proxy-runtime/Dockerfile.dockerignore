@@ -1,0 +1,6 @@
+**
+!controller/
+!controller/Cargo.toml
+!controller/Cargo.lock
+!controller/src/
+!controller/src/**
