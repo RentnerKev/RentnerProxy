@@ -22,7 +22,15 @@ pub(super) struct SafeDir {
 impl SafeDir {
     pub(super) fn open(path: &Path) -> std::io::Result<Self> {
         let path = resolve_existing_path(path)?;
-        ensure_private_directory(&path)?;
+        let metadata = fs::symlink_metadata(&path)?;
+        if is_link(&metadata) || !metadata.file_type().is_dir() {
+            return Err(invalid_state_path());
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
+        }
         Ok(Self { path })
     }
 
@@ -31,8 +39,22 @@ impl SafeDir {
     }
 
     pub(super) fn open_dir(&self, component: &str) -> std::io::Result<Self> {
-        let path = self.existing_child(component)?;
-        ensure_private_directory(&path)?;
+        let candidate = self.child(component)?;
+        let path = candidate.canonicalize()?;
+        ensure_direct_child(&self.path, &path)?;
+        #[cfg(unix)]
+        if path != candidate {
+            return Err(invalid_state_path());
+        }
+        let metadata = fs::symlink_metadata(&path)?;
+        if is_link(&metadata) || !metadata.file_type().is_dir() {
+            return Err(invalid_state_path());
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
+        }
         Ok(Self { path })
     }
 
@@ -45,7 +67,15 @@ impl SafeDir {
                 if path != candidate {
                     return Err(invalid_state_path());
                 }
-                ensure_private_directory(&path)?;
+                let metadata = fs::symlink_metadata(&path)?;
+                if is_link(&metadata) || !metadata.file_type().is_dir() {
+                    return Err(invalid_state_path());
+                }
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
+                }
                 Ok(Self { path })
             }
             Err(error) if error.kind() == ErrorKind::NotFound => {
@@ -54,7 +84,15 @@ impl SafeDir {
                 create_private_directory(&candidate)?;
                 let path = candidate.canonicalize()?;
                 ensure_direct_child(&self.path, &path)?;
-                ensure_private_directory(&path)?;
+                let metadata = fs::symlink_metadata(&path)?;
+                if is_link(&metadata) || !metadata.file_type().is_dir() {
+                    return Err(invalid_state_path());
+                }
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
+                }
                 Ok(Self { path })
             }
             Err(error) => Err(error),
@@ -62,8 +100,30 @@ impl SafeDir {
     }
 
     pub(super) fn open_file(&self, component: &str) -> std::io::Result<File> {
-        let path = self.existing_regular_file(component)?;
-        open_regular_file(&path)
+        let candidate = self.child(component)?;
+        let path = candidate.canonicalize()?;
+        ensure_direct_child(&self.path, &path)?;
+        #[cfg(unix)]
+        if path != candidate {
+            return Err(invalid_state_path());
+        }
+        let metadata = fs::symlink_metadata(&path)?;
+        ensure_regular_file_metadata(&metadata)?;
+        let mut options = OpenOptions::new();
+        options.read(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            options.custom_flags(0x0020_0000);
+        }
+        let file = options.open(&path)?;
+        ensure_regular_file_metadata(&file.metadata()?)?;
+        Ok(file)
     }
 
     pub(super) fn read_file(&self, component: &str, maximum: usize) -> std::io::Result<Vec<u8>> {
@@ -92,7 +152,8 @@ impl SafeDir {
         match destination.canonicalize() {
             Ok(path) => {
                 ensure_direct_child(&self.path, &path)?;
-                ensure_regular_file_path(&path)?;
+                let metadata = fs::symlink_metadata(&path)?;
+                ensure_regular_file_metadata(&metadata)?;
             }
             Err(error) if error.kind() == ErrorKind::NotFound => {}
             Err(error) => return Err(error),
@@ -159,12 +220,6 @@ impl SafeDir {
     }
 
     fn existing_regular_file(&self, component: &str) -> std::io::Result<PathBuf> {
-        let path = self.existing_child(component)?;
-        ensure_regular_file_path(&path)?;
-        Ok(path)
-    }
-
-    fn existing_child(&self, component: &str) -> std::io::Result<PathBuf> {
         let candidate = self.child(component)?;
         let path = candidate.canonicalize()?;
         ensure_direct_child(&self.path, &path)?;
@@ -172,6 +227,8 @@ impl SafeDir {
         if path != candidate {
             return Err(invalid_state_path());
         }
+        let metadata = fs::symlink_metadata(&path)?;
+        ensure_regular_file_metadata(&metadata)?;
         Ok(path)
     }
 
@@ -194,8 +251,23 @@ impl SafeDir {
 
 pub(super) fn open_absolute_regular_file(path: &Path) -> std::io::Result<File> {
     let path = canonical_absolute_entry(path)?;
-    ensure_regular_file_path(&path)?;
-    open_regular_file(&path)
+    let metadata = fs::symlink_metadata(&path)?;
+    ensure_regular_file_metadata(&metadata)?;
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        options.custom_flags(0x0020_0000);
+    }
+    let file = options.open(&path)?;
+    ensure_regular_file_metadata(&file.metadata()?)?;
+    Ok(file)
 }
 
 pub(super) fn prepare_state_dir(path: &Path) -> std::io::Result<()> {
@@ -342,13 +414,24 @@ fn create_missing_state_directory(path: &Path) -> std::io::Result<PathBuf> {
         }
     };
     let mut parent = root;
-    ensure_directory(&parent)?;
+    let metadata = fs::symlink_metadata(&parent)?;
+    if is_link(&metadata) || !metadata.file_type().is_dir() {
+        return Err(invalid_state_path());
+    }
     for component in missing.iter().rev() {
         let candidate = parent.join(component);
         create_private_directory(&candidate)?;
         let child = candidate.canonicalize()?;
         ensure_direct_child(&parent, &child)?;
-        ensure_private_directory(&child)?;
+        let metadata = fs::symlink_metadata(&child)?;
+        if is_link(&metadata) || !metadata.file_type().is_dir() {
+            return Err(invalid_state_path());
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&child, fs::Permissions::from_mode(0o700))?;
+        }
         parent = child;
     }
     Ok(parent)
@@ -372,67 +455,11 @@ fn create_private_directory(path: &Path) -> std::io::Result<()> {
     }
 }
 
-fn open_regular_file(path: &Path) -> std::io::Result<File> {
-    let value = path.to_string_lossy();
-    if value.is_empty() || value.contains("..") || value.contains('\0') {
-        return Err(invalid_state_path());
-    }
-    let mut options = OpenOptions::new();
-    options.read(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::OpenOptionsExt;
-        options.custom_flags(0x0020_0000);
-    }
-    let file = options.open(path)?;
-    ensure_regular_file_metadata(&file.metadata()?)?;
-    Ok(file)
-}
-
 fn ensure_direct_child(parent: &Path, path: &Path) -> std::io::Result<()> {
     if !path.starts_with(parent) || path.parent() != Some(parent) {
         return Err(invalid_state_path());
     }
     Ok(())
-}
-
-fn ensure_directory(path: &Path) -> std::io::Result<()> {
-    let value = path.to_string_lossy();
-    if value.is_empty() || value.contains("..") || value.contains('\0') {
-        return Err(invalid_state_path());
-    }
-    let path = path.canonicalize()?;
-    let metadata = fs::symlink_metadata(&path)?;
-    if is_link(&metadata) || !metadata.file_type().is_dir() {
-        return Err(invalid_state_path());
-    }
-    Ok(())
-}
-
-fn ensure_private_directory(path: &Path) -> std::io::Result<()> {
-    let path = path.canonicalize()?;
-    ensure_directory(&path)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
-    }
-    Ok(())
-}
-
-fn ensure_regular_file_path(path: &Path) -> std::io::Result<()> {
-    let value = path.to_string_lossy();
-    if value.is_empty() || value.contains("..") || value.contains('\0') {
-        return Err(invalid_state_path());
-    }
-    let path = path.canonicalize()?;
-    let metadata = fs::symlink_metadata(&path)?;
-    ensure_regular_file_metadata(&metadata)
 }
 
 fn ensure_regular_file_metadata(metadata: &Metadata) -> std::io::Result<()> {
