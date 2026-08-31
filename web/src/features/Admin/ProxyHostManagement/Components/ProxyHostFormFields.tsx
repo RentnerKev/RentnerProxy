@@ -7,12 +7,16 @@ import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { ProxyHostFormFieldsProps } from '../Types/proxy-host-form.types'
 import { proxyForwardHostSchema, proxyHostFormSchema } from '../validation'
 import DomainInputs from './DomainInputs'
+import UpstreamTlsFields from './UpstreamTlsFields'
 
 export default function ProxyHostFormFields({
     addDomain,
     canChangeEnabled,
     canAssignCertificates,
     assignableCertificates,
+    assignableTrustedCas,
+    trustedCasLoadFailed,
+    trustedCasLoading,
     domainKeys,
     form,
     formId,
@@ -47,7 +51,13 @@ export default function ProxyHostFormFields({
                             ]}
                             value={field.state.value}
                             onValueChange={(value) => {
-                                if (value === 'http' || value === 'https') field.handleChange(value)
+                                if (value !== 'http' && value !== 'https') return
+                                if (value !== field.state.value) {
+                                    form.setFieldValue('verifyUpstreamTls', true)
+                                    form.setFieldValue('upstreamTlsServerName', null)
+                                    form.setFieldValue('trustedCaId', null)
+                                }
+                                field.handleChange(value)
                             }}
                         />
                         <FieldError
@@ -131,6 +141,14 @@ export default function ProxyHostFormFields({
                     )
                 }}
             </form.Field>
+            <UpstreamTlsFields
+                form={form}
+                formId={formId}
+                isPending={isPending}
+                assignableTrustedCas={assignableTrustedCas}
+                trustedCasLoadFailed={trustedCasLoadFailed}
+                trustedCasLoading={trustedCasLoading}
+            />
             <form.Field name="certificateId">
                 {(field) => {
                     const usableCertificates = assignableCertificates.filter(

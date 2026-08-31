@@ -777,6 +777,11 @@
                 "publicDomain": "Use a public DNS domain.",
                 "email": "Enter a valid email address.",
                 "terms": "Accept the ACME terms."
+            },
+            "tabs": {
+                "label": "Certificate type",
+                "server": "Server certificates",
+                "trusted": "Trusted CAs"
             }
         },
         "proxyHosts": {
@@ -917,7 +922,10 @@
                 "domainsLimit": "A proxy host can have no more than 50 domains.",
                 "duplicateDomain": "This domain is listed more than once.",
                 "forwardHost": "Enter a valid hostname, IPv4 or IPv6 address without a scheme, path or port.",
-                "port": "Enter a whole-number port from 1 to 65535."
+                "port": "Enter a whole-number port from 1 to 65535.",
+                "upstreamTlsServerName": "Enter a DNS server name without a URL, port, IP address or wildcard.",
+                "trustedCaRequiresVerification": "Custom trusted CAs require upstream certificate verification.",
+                "upstreamTlsIpNameRequired": "Enter the DNS name on the upstream certificate when connecting to an IP address."
             },
             "config": {
                 "open": "Nginx config",
@@ -997,6 +1005,103 @@
                     "resetDescription": "Restore the six HTTP settings and clear the expert configuration for “{{name}}”? Other hosts, shared defaults and forwarding targets remain unchanged.",
                     "savedPending": "Proxy host saved, but the configuration could not be applied. The previous working configuration remains active."
                 }
+            },
+            "upstreamTls": {
+                "title": "Upstream TLS",
+                "verify": "Verify upstream certificate",
+                "verifyHint": "Verify the certificate chain and the expected upstream identity.",
+                "serverName": "TLS server name",
+                "serverNamePlaceholder": "backend.internal.example",
+                "automatic": "Automatic: {{name}}",
+                "serverNameHint": "The expected certificate name and SNI. Leave empty to use the forward host. This does not change the HTTP Host header.",
+                "ipHint": "For IP targets this runtime requires a DNS certificate name, even with an IP SAN. The TCP connection still uses the configured IP.",
+                "ipNameRequired": "Enter the DNS name from the upstream certificate to verify this IP target.",
+                "trustedCa": "Trusted CA",
+                "systemTrust": "System trust store",
+                "trustHint": "System trust uses the runtime CA bundle. A custom CA replaces system trust for this host.",
+                "insecureWarning": "Upstream certificate verification is disabled. The connection is encrypted, but RentnerProxy cannot verify the identity of the upstream server.",
+                "verificationDisabled": "Certificate verification disabled",
+                "caUnavailable": "Selected CA unavailable",
+                "caLoadFailed": "Trusted CAs could not be loaded. The current selection is retained."
+            }
+        },
+        "trustedCas": {
+            "page": {
+                "eyebrow": "Certificates",
+                "title": "Trusted CAs",
+                "description": "Public CA certificates used to verify HTTPS upstreams. These contain no private keys and are separate from server certificates."
+            },
+            "table": {
+                "eyebrow": "Upstream trust",
+                "count_one": "{{count}} trusted CA",
+                "count_other": "{{count}} trusted CAs",
+                "description": "Manage the certificate authorities trusted by your HTTPS upstreams.",
+                "searchLabel": "Search trusted CAs",
+                "searchPlaceholder": "Name, subject, issuer or fingerprint",
+                "loading": "Loading trusted CAs…",
+                "emptyTitle": "No custom trusted CAs",
+                "emptyDescription": "HTTPS upstreams use the system trust store unless you select a custom CA.",
+                "filteredEmptyTitle": "No matching trusted CAs",
+                "filteredEmptyDescription": "Try another search or clear the filters.",
+                "itemLabel": "trusted CAs"
+            },
+            "columns": {
+                "name": "Name",
+                "subject": "Subject",
+                "issuer": "Issuer",
+                "fingerprint": "SHA-256 fingerprint",
+                "expires": "Expires",
+                "actions": "Actions"
+            },
+            "actions": {
+                "import": "Import trusted CA",
+                "replace": "Replace CA bundle",
+                "delete": "Delete trusted CA",
+                "deleteInUse": "Assigned to proxy hosts — cannot delete",
+                "deleting": "Deleting trusted CA…",
+                "open": "Actions for {{name}}"
+            },
+            "import": {
+                "title": "Import trusted CA",
+                "description": "Import a public CA certificate or a PEM bundle containing only CA certificates."
+            },
+            "replace": {
+                "title": "Replace trusted CA",
+                "description": "All proxy hosts using this CA will receive the new bundle through the normal configuration apply process."
+            },
+            "form": {
+                "name": "Name",
+                "pem": "CA certificate / bundle",
+                "pemHint": "PEM certificates only, up to 256 KiB. Every certificate must be a CA certificate. Private keys are not accepted."
+            },
+            "confirm": {
+                "deleteTitle": "Delete “{{name}}”?",
+                "deleteDescription": "Only unused CAs can be deleted. Assigned CAs must first be removed from their proxy hosts."
+            },
+            "states": {
+                "unavailableTitle": "Trusted CAs unavailable",
+                "unavailableDescription": "The trusted CA list could not be loaded. Retry in a moment."
+            },
+            "validation": {
+                "name": "Enter a name of 1–120 characters.",
+                "pem": "Provide a valid certificate-only PEM bundle, at most 256 KiB.",
+                "pemLimit": "CA bundle must not exceed 256 KiB."
+            },
+            "errors": {
+                "invalidInput": "The CA bundle is invalid. Check its PEM format, validity and CA constraints.",
+                "notFound": "This trusted CA no longer exists.",
+                "duplicate": "This CA bundle has already been imported.",
+                "inUse": "This CA is assigned to a proxy host and cannot be deleted.",
+                "controllerUnavailable": "CA validation is temporarily unavailable. No unvalidated material was saved.",
+                "saveFailed": "The trusted CA could not be saved.",
+                "deleteFailed": "The trusted CA could not be deleted.",
+                "loadFailed": "The trusted CA list could not be loaded. Retry in a moment."
+            },
+            "messages": {
+                "created": "Trusted CA imported.",
+                "replaced": "Trusted CA replaced.",
+                "deleted": "Trusted CA deleted.",
+                "savedPending": "Trusted CA saved. The configuration is pending; the previous working configuration remains active."
             }
         }
     },
@@ -1006,7 +1111,8 @@
             "users": "Users",
             "roles": "Roles",
             "account": "Account",
-            "proxy_hosts": "Proxy hosts"
+            "proxy_hosts": "Proxy hosts",
+            "trusted_cas": "Trusted CAs"
         },
         "app": {
             "access": "Application access"
@@ -1038,6 +1144,12 @@
             "enable": "Enable proxy hosts",
             "disable": "Disable proxy hosts",
             "advanced_config": "Manage expert proxy configuration"
+        },
+        "trusted_cas": {
+            "view": "View trusted CAs",
+            "create": "Import trusted CAs",
+            "update": "Replace trusted CA bundles",
+            "delete": "Delete unused trusted CAs"
         }
     },
     "systemRoles": {

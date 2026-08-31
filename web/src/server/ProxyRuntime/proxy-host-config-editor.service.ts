@@ -27,7 +27,7 @@ import {
     previewProxyHostConfiguration,
 } from '../Foundation/controller.server'
 import { ProxyConfigEditorError } from './proxy-config-editor.service'
-import { readProxyRuntimeHost } from './proxy-runtime-data'
+import { readProxyRuntimeHost, readProxyRuntimeTrustedCas } from './proxy-runtime-data'
 import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot'
 import {
     lockProxyRuntimeSettings,
@@ -42,9 +42,11 @@ async function readHostEditorState(transaction: AuthTransaction, proxyHostId: st
     if (!host) throw new ProxyConfigEditorError('host_not_found')
     const httpSettings = await readProxyHttpSettings(transaction)
     const hostSettings = await readProxyHostHttpSettings(transaction, host.id)
+    const trustedCas = await readProxyRuntimeTrustedCas(transaction, [host])
     const snapshot = createProxyRuntimeSnapshot(
         [{ ...host, enabled: true, httpSettings: hostSettings }],
         httpSettings,
+        trustedCas,
     )
     // Another host's edit must not invalidate this host's draft. Shared defaults do.
     const baseRevision =
@@ -54,7 +56,7 @@ async function readHostEditorState(transaction: AuthTransaction, proxyHostId: st
                 JSON.stringify({ version: 1, enabled: host.enabled, revision: snapshot.revision }),
             )
             .digest('hex')
-    return { host, httpSettings, hostSettings, snapshot, baseRevision }
+    return { host, httpSettings, hostSettings, trustedCas, snapshot, baseRevision }
 }
 
 async function loadHostEditorState(
@@ -105,6 +107,7 @@ export async function getProxyHostConfigEditorService(
     const defaultsSnapshot = createProxyRuntimeSnapshot(
         [{ ...visibleHost, enabled: true, advancedConfig: '' }],
         state.httpSettings,
+        state.trustedCas,
     )
     const generatedSnapshot = state.canReadAdvancedConfig
         ? state.snapshot
@@ -118,6 +121,7 @@ export async function getProxyHostConfigEditorService(
                   },
               ],
               state.httpSettings,
+              state.trustedCas,
           )
     const defaultsRequest = previewProxyHostConfiguration(id, defaultsSnapshot)
     const [active, defaults, generated] = await Promise.all([
@@ -167,6 +171,7 @@ export async function previewProxyHostConfigEditorService(
             },
         ],
         state.httpSettings,
+        state.trustedCas,
     )
     const result = await previewProxyHostConfiguration(parsed.proxyHostId, snapshot)
     if (!result) throw new ProxyConfigEditorError('runtime_unavailable')

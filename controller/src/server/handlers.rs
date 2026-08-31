@@ -12,7 +12,10 @@ use serde::Serialize;
 
 use crate::{
     models::{ApplyOutcome, ProxyConfigRequest, ProxyRuntimeStatus, ValidatedProxyConfig},
-    proxy::{is_canonical_domain, is_canonical_uuid, is_canonical_uuid_v7, validate_proxy_config},
+    proxy::{
+        TrustedCaValidationRequest, is_canonical_domain, is_canonical_uuid, is_canonical_uuid_v7,
+        validate_proxy_config, validate_trusted_ca_pem,
+    },
     runtime::{
         CertificateError, CertificateImportRequest, CertificateIssueRequest, CertificateMetadata,
         RuntimeError,
@@ -109,6 +112,16 @@ pub(super) async fn get_certificate(
     ))
 }
 
+pub(super) async fn validate_trusted_ca(
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let body = body.map_err(|_| ApiError::invalid_trusted_ca())?;
+    let request = serde_json::from_slice::<TrustedCaValidationRequest>(&body)
+        .map_err(|_| ApiError::invalid_trusted_ca())?;
+    Ok(no_store_json(
+        validate_trusted_ca_pem(&request.pem).map_err(|_| ApiError::invalid_trusted_ca())?,
+    ))
+}
 pub(super) async fn import_certificate(
     Path(id): Path<String>,
     State(state): State<AppState>,

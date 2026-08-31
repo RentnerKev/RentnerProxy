@@ -1,16 +1,23 @@
 mod revision;
+mod trusted_ca;
 
 use std::{
     collections::HashSet,
     net::{Ipv4Addr, Ipv6Addr},
 };
 
-use crate::models::{ProxyConfigRequest, ProxyHttpSettings, ValidatedProxyConfig};
+use crate::models::{ProxyConfigRequest, ProxyHttpSettings, TrustedCa, ValidatedProxyConfig};
 
 #[cfg(test)]
+pub(crate) use revision::revision_for_configuration;
+#[cfg(test)]
 pub(crate) use revision::revision_for_hosts;
-use revision::{canonical_hosts, is_revision};
-pub(crate) use revision::{revision_for_configuration, revision_from_config};
+use revision::{canonical_hosts, canonical_trusted_cas, is_revision};
+pub(crate) use revision::{revision_for_configuration_with_trusted_cas, revision_from_config};
+pub(crate) use trusted_ca::{
+    MAX_TRUSTED_CA_PEM_BYTES, TrustedCaValidationRequest, validate_trusted_ca,
+    validate_trusted_ca_pem,
+};
 
 pub(crate) const MAX_PROXY_HOSTS: usize = 1_000;
 pub(crate) const MAX_ADVANCED_CONFIG_BYTES: usize = 64 * 1024;
@@ -26,7 +33,7 @@ pub(crate) enum ProxyValidationError {
 pub(crate) fn validate_proxy_config(
     mut request: ProxyConfigRequest,
 ) -> Result<ValidatedProxyConfig, ProxyValidationError> {
-    if !matches!(request.version, 1..=4) || !is_revision(&request.revision) {
+    if !matches!(request.version, 1..=5) || !is_revision(&request.revision) {
         return Err(ProxyValidationError::InvalidConfiguration);
     }
 
@@ -41,14 +48,26 @@ pub(crate) fn validate_proxy_config(
         .proxy_hosts
         .iter()
         .any(|host| host.certificate_id.is_some());
-    if (request.version == 1
-        && (!request.http_settings.is_empty() || has_host_configuration || has_tls_configuration))
+    let has_https_upstream = request
+        .proxy_hosts
+        .iter()
+        .any(|host| host.forward_scheme == "https");
+    let has_upstream_tls_configuration = request
+        .proxy_hosts
+        .iter()
+        .any(|host| host.upstream_tls.is_some());
+    if (request.version <= 4 && (has_upstream_tls_configuration || !request.trusted_cas.is_empty()))
+        || (request.version == 1
+            && (!request.http_settings.is_empty()
+                || has_host_configuration
+                || has_tls_configuration))
         || (request.version == 2
             && (request.http_settings.is_empty()
                 || has_host_configuration
                 || has_tls_configuration))
         || (request.version == 3 && (!has_host_configuration || has_tls_configuration))
         || (request.version == 4 && !has_tls_configuration)
+        || (request.version == 5 && (!has_https_upstream || !has_upstream_tls_configuration))
     {
         return Err(ProxyValidationError::InvalidConfiguration);
     }
@@ -80,6 +99,7 @@ pub(crate) fn validate_proxy_config(
                 .as_deref()
                 .is_some_and(|id| !is_canonical_uuid_v7(id))
             || (host.force_https && host.certificate_id.is_none())
+            || !has_valid_upstream_tls(host)
         {
             return Err(ProxyValidationError::ValidationFailed);
         }
@@ -96,8 +116,43 @@ pub(crate) fn validate_proxy_config(
         }
     }
 
+    if request.version == 5 {
+        if request
+            .proxy_hosts
+            .iter()
+            .any(|host| (host.forward_scheme == "https") != host.upstream_tls.is_some())
+        {
+            return Err(ProxyValidationError::ValidationFailed);
+        }
+        validate_and_canonicalize_trusted_cas(&mut request.trusted_cas)?;
+        let trusted_ca_ids = request
+            .trusted_cas
+            .iter()
+            .map(|trusted_ca| trusted_ca.id.as_str())
+            .collect::<HashSet<_>>();
+        let referenced_ca_ids = request
+            .proxy_hosts
+            .iter()
+            .filter_map(|host| host.upstream_tls.as_ref()?.trusted_ca_id.as_deref())
+            .collect::<HashSet<_>>();
+        if referenced_ca_ids
+            .iter()
+            .any(|id| !trusted_ca_ids.contains(id))
+            || trusted_ca_ids
+                .iter()
+                .any(|id| !referenced_ca_ids.contains(id))
+        {
+            return Err(ProxyValidationError::ValidationFailed);
+        }
+    }
+
     let canonical_hosts = canonical_hosts(&request.proxy_hosts);
-    let actual_revision = revision_for_configuration(&canonical_hosts, &request.http_settings);
+    let canonical_trusted_cas = canonical_trusted_cas(&request.trusted_cas);
+    let actual_revision = revision_for_configuration_with_trusted_cas(
+        &canonical_hosts,
+        &request.http_settings,
+        &canonical_trusted_cas,
+    );
     if request.revision != actual_revision {
         return Err(ProxyValidationError::ValidationFailed);
     }
@@ -106,7 +161,54 @@ pub(crate) fn validate_proxy_config(
         revision: request.revision,
         proxy_hosts: canonical_hosts,
         http_settings: request.http_settings,
+        trusted_cas: canonical_trusted_cas,
     })
+}
+
+fn has_valid_upstream_tls(host: &crate::models::ProxyHost) -> bool {
+    let Some(upstream_tls) = host.upstream_tls.as_ref() else {
+        return true;
+    };
+    if host.forward_scheme != "https"
+        || upstream_tls
+            .server_name
+            .as_deref()
+            .is_some_and(|server_name| !is_canonical_domain(server_name))
+        || upstream_tls
+            .trusted_ca_id
+            .as_deref()
+            .is_some_and(|id| !is_canonical_uuid_v7(id))
+        || (!upstream_tls.verify && upstream_tls.trusted_ca_id.is_some())
+    {
+        return false;
+    }
+    if upstream_tls.verify
+        && is_ip_address(&host.forward_host)
+        && upstream_tls.server_name.is_none()
+    {
+        return false;
+    }
+    true
+}
+
+fn validate_and_canonicalize_trusted_cas(
+    trusted_cas: &mut [TrustedCa],
+) -> Result<(), ProxyValidationError> {
+    let mut ids = HashSet::with_capacity(trusted_cas.len());
+    for trusted_ca in trusted_cas {
+        if !is_canonical_uuid_v7(&trusted_ca.id) || !ids.insert(trusted_ca.id.as_str()) {
+            return Err(ProxyValidationError::ValidationFailed);
+        }
+        let validated = trusted_ca::validate_trusted_ca(trusted_ca)
+            .map_err(|_| ProxyValidationError::ValidationFailed)?;
+        trusted_ca.pem = validated.pem;
+        trusted_ca.fingerprint_sha256 = validated.fingerprint_sha256;
+    }
+    Ok(())
+}
+
+fn is_ip_address(value: &str) -> bool {
+    value.parse::<Ipv4Addr>().is_ok() || value.parse::<Ipv6Addr>().is_ok()
 }
 
 fn has_valid_http_settings(settings: &ProxyHttpSettings) -> bool {

@@ -15,7 +15,8 @@ export default function getApplicationShellViewModel(
         ...(permissionSet.has(PERMISSIONS.PROXY_HOSTS_VIEW)
             ? ([{ to: '/proxy-hosts', label: t('shell.proxyHosts') }] as const)
             : []),
-        ...(permissionSet.has(PERMISSIONS.CERTIFICATES_VIEW)
+        ...(permissionSet.has(PERMISSIONS.CERTIFICATES_VIEW) ||
+        permissionSet.has(PERMISSIONS.TRUSTED_CAS_VIEW)
             ? ([{ to: '/certificates', label: t('shell.certificates') }] as const)
             : []),
         ...(permissionSet.has(PERMISSIONS.USERS_VIEW)

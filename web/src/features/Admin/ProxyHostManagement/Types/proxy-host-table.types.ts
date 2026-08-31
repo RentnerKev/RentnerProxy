@@ -46,6 +46,7 @@ export interface ProxyHostDomainsCellProps {
 
 export interface ProxyHostForwardCellProps {
     readonly forwardScheme: ProxyHostSummary['forwardScheme']
+    readonly verifyUpstreamTls?: boolean
     readonly forwardHost: string
     readonly forwardPort: number
 }

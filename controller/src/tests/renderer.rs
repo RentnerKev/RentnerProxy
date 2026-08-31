@@ -1,11 +1,11 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 use crate::{
-    models::ProxyHttpSettings,
+    models::{ProxyHttpSettings, TrustedCa, UpstreamTls, ValidatedProxyConfig},
     proxy::validate_proxy_config,
     runtime::renderer::{
-        RenderSettings, TlsMaterial, TlsRenderSettings, render_config, render_config_with_tls,
-        render_host_config,
+        RenderError, RenderSettings, TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings,
+        render_config, render_config_with_tls, render_host_config,
     },
     tests::fixtures::{host, request, request_with_settings},
 };
@@ -258,6 +258,10 @@ fn tls_renderer_keeps_per_host_settings_and_advanced_text_byte_exact() {
         },
     )]);
 
+    let upstream_tls = UpstreamTlsRenderSettings {
+        system_ca_bundle: root.join("system-ca.pem"),
+        trusted_ca_paths: BTreeMap::new(),
+    };
     let rendered = render_config_with_tls(
         &configuration,
         &RenderSettings {
@@ -270,6 +274,7 @@ fn tls_renderer_keeps_per_host_settings_and_advanced_text_byte_exact() {
             controller_port: 9_999,
         },
         &materials,
+        &upstream_tls,
     )
     .unwrap_or_else(|error| panic!("TLS renderer should succeed: {error:?}"));
 
@@ -280,4 +285,144 @@ fn tls_renderer_keeps_per_host_settings_and_advanced_text_byte_exact() {
     assert!(rendered.contains(configured_host.advanced_config.as_str()));
     assert!(rendered.contains("set $expert_upstream http://127.0.0.1:8081;"));
     assert!(rendered.contains("return 308 https://$host$request_uri;"));
+}
+
+#[test]
+fn renderer_applies_verified_custom_and_explicit_insecure_upstream_tls_policy() {
+    let mut secure_host = host(
+        "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
+        &["secure.test"],
+        "https",
+        "backend.internal",
+        4_443,
+    );
+    let custom_ca_id = "0198d98a-0000-7000-8000-000000000001";
+    secure_host.upstream_tls = Some(UpstreamTls {
+        verify: true,
+        server_name: None,
+        trusted_ca_id: Some(custom_ca_id.to_owned()),
+    });
+    let config = ValidatedProxyConfig {
+        revision: format!("sha256:{}", "1".repeat(64)),
+        proxy_hosts: vec![secure_host],
+        http_settings: ProxyHttpSettings::default(),
+        trusted_cas: vec![TrustedCa {
+            id: custom_ca_id.to_owned(),
+            pem: "unused by renderer".to_owned(),
+            fingerprint_sha256: format!("sha256:{}", "2".repeat(64)),
+        }],
+    };
+    let root = std::env::temp_dir().join("rentnerproxy-upstream-tls-renderer");
+    let custom_ca_path = root.join("trusted-cas").join(custom_ca_id).join("2.pem");
+    let upstream_tls = UpstreamTlsRenderSettings {
+        system_ca_bundle: root.join("system-ca.pem"),
+        trusted_ca_paths: BTreeMap::from([(custom_ca_id.to_owned(), custom_ca_path.clone())]),
+    };
+    let rendered = render_config_with_tls(
+        &config,
+        &RenderSettings {
+            http_port: 8_080,
+            probe_socket: None,
+        },
+        &TlsRenderSettings {
+            https_port: 8_443,
+            public_https_port: 443,
+            controller_port: 8_081,
+        },
+        &BTreeMap::new(),
+        &upstream_tls,
+    )
+    .expect("verified custom CA renderer should succeed");
+    assert!(rendered.contains("proxy_ssl_server_name on;"));
+    assert!(rendered.contains("proxy_ssl_name backend.internal;"));
+    assert!(rendered.contains("proxy_ssl_verify on;"));
+    assert!(rendered.contains("proxy_ssl_verify_depth 5;"));
+    assert!(
+        rendered.contains(
+            format!(
+                "proxy_ssl_trusted_certificate {};",
+                custom_ca_path.to_string_lossy().replace('\\', "/")
+            )
+            .as_str()
+        )
+    );
+    assert!(!rendered.contains("proxy_ssl_verify off;"));
+
+    let mut insecure_ip_host = host(
+        "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
+        &["insecure.test"],
+        "https",
+        "10.10.0.25",
+        4_443,
+    );
+    insecure_ip_host.upstream_tls = Some(UpstreamTls {
+        verify: false,
+        server_name: None,
+        trusted_ca_id: None,
+    });
+    let insecure_config = ValidatedProxyConfig {
+        revision: format!("sha256:{}", "3".repeat(64)),
+        proxy_hosts: vec![insecure_ip_host],
+        http_settings: ProxyHttpSettings::default(),
+        trusted_cas: Vec::new(),
+    };
+    let insecure = render_config_with_tls(
+        &insecure_config,
+        &RenderSettings {
+            http_port: 8_080,
+            probe_socket: None,
+        },
+        &TlsRenderSettings {
+            https_port: 8_443,
+            public_https_port: 443,
+            controller_port: 8_081,
+        },
+        &BTreeMap::new(),
+        &upstream_tls,
+    )
+    .expect("explicit insecure override should render");
+    assert!(insecure.contains("proxy_ssl_server_name off;"));
+    assert!(insecure.contains("proxy_ssl_verify off;"));
+    assert!(!insecure.contains("proxy_ssl_name 10.10.0.25;"));
+    assert!(!insecure.contains("proxy_ssl_trusted_certificate"));
+}
+
+#[test]
+fn renderer_rejects_nginx_metacharacters_in_system_ca_paths() {
+    let mut upstream = host(
+        "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
+        &["system-ca.test"],
+        "https",
+        "backend.internal",
+        4_443,
+    );
+    upstream.upstream_tls = Some(UpstreamTls {
+        verify: true,
+        server_name: None,
+        trusted_ca_id: None,
+    });
+    let configuration = ValidatedProxyConfig {
+        revision: format!("sha256:{}", "4".repeat(64)),
+        proxy_hosts: vec![upstream],
+        http_settings: ProxyHttpSettings::default(),
+        trusted_cas: Vec::new(),
+    };
+    let result = render_config_with_tls(
+        &configuration,
+        &RenderSettings {
+            http_port: 8_080,
+            probe_socket: None,
+        },
+        &TlsRenderSettings {
+            https_port: 8_443,
+            public_https_port: 443,
+            controller_port: 8_081,
+        },
+        &BTreeMap::new(),
+        &UpstreamTlsRenderSettings {
+            system_ca_bundle: std::env::temp_dir().join("rentnerproxy-$host-ca.pem"),
+            trusted_ca_paths: BTreeMap::new(),
+        },
+    );
+    assert_eq!(result, Err(RenderError::InvalidCertificatePath));
 }

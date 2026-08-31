@@ -69,11 +69,20 @@ export function ProxyHostForwardCell({
     forwardHost,
     forwardPort,
     forwardScheme,
+    verifyUpstreamTls,
 }: ProxyHostForwardCellProps) {
+    const { t } = useTranslationStore()
     return (
-        <span className="whitespace-nowrap font-mono text-[0.72rem] text-muted">
-            {formatProxyHostForward(forwardScheme, forwardHost, forwardPort)}
-        </span>
+        <div className="grid justify-items-start gap-2">
+            <span className="whitespace-nowrap font-mono text-[0.72rem] text-muted">
+                {formatProxyHostForward(forwardScheme, forwardHost, forwardPort)}
+            </span>
+            {forwardScheme === 'https' && verifyUpstreamTls === false ? (
+                <span className="inline-flex max-w-64 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs font-bold text-ink-soft">
+                    {t('admin.proxyHosts.upstreamTls.verificationDisabled')}
+                </span>
+            ) : null}
+        </div>
     )
 }
 

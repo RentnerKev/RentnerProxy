@@ -79,12 +79,14 @@ fn valid_payload() -> Vec<u8> {
         advanced_config: String::new(),
         certificate_id: None,
         force_https: false,
+        upstream_tls: None,
     }];
     serde_json::to_vec(&ProxyConfigRequest {
         version: 1,
         revision: revision_for_hosts(&hosts),
         proxy_hosts: hosts,
         http_settings: ProxyHttpSettings::default(),
+        trusted_cas: Vec::new(),
     })
     .unwrap()
 }
@@ -112,6 +114,7 @@ fn custom_payload() -> Vec<u8> {
         advanced_config: String::new(),
         certificate_id: None,
         force_https: false,
+        upstream_tls: None,
     }];
     let http_settings = ProxyHttpSettings {
         client_max_body_size_bytes: Some(10_485_760),
@@ -126,6 +129,7 @@ fn custom_payload() -> Vec<u8> {
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
         http_settings,
+        trusted_cas: Vec::new(),
     })
     .unwrap()
 }
@@ -484,7 +488,7 @@ async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
     assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
 }
 
-const CERTIFICATE_ENDPOINTS: [(&str, &str); 6] = [
+const CERTIFICATE_ENDPOINTS: [(&str, &str); 7] = [
     ("GET", "/internal/v1/certificates"),
     (
         "GET",
@@ -506,6 +510,7 @@ const CERTIFICATE_ENDPOINTS: [(&str, &str); 6] = [
         "POST",
         "/internal/v1/certificates/0198d98a-0000-7000-8000-000000000001/renew",
     ),
+    ("POST", "/internal/v1/trusted-cas/validate"),
 ];
 
 #[tokio::test]
@@ -581,4 +586,85 @@ async fn certificate_endpoints_reject_missing_or_wrong_tokens_and_accept_the_con
         .unwrap();
     let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(body, serde_json::json!({"certificates": []}));
+}
+
+fn trusted_ca_pem() -> String {
+    let mut parameters = rcgen::CertificateParams::new(vec!["test-ca.internal".to_owned()])
+        .expect("test CA names should be valid");
+    parameters.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+    parameters.key_usages = vec![rcgen::KeyUsagePurpose::KeyCertSign];
+    let key_pair = rcgen::KeyPair::generate().expect("test CA key should generate");
+    parameters
+        .self_signed(&key_pair)
+        .expect("test CA certificate should generate")
+        .pem()
+}
+
+#[tokio::test]
+async fn trusted_ca_validation_endpoint_is_protected_and_returns_canonical_metadata() {
+    let token = Config::from_values(
+        None,
+        Some("0123456789abcdef0123456789abcdef"),
+        None,
+        None,
+        None,
+        false,
+    )
+    .expect("test token should parse")
+    .controller_token
+    .expect("test token should exist");
+    let router = test_app(Some(token)).await;
+    let body = serde_json::json!({ "pem": trusted_ca_pem() }).to_string();
+
+    let unauthorized = router
+        .clone()
+        .oneshot(request_with_method(
+            "POST",
+            "/internal/v1/trusted-cas/validate",
+            Body::from(body.clone()),
+        ))
+        .await
+        .expect("route should respond");
+    assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+
+    let accepted = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/internal/v1/trusted-cas/validate")
+                .header("authorization", "Bearer 0123456789abcdef0123456789abcdef")
+                .body(Body::from(body))
+                .expect("test request should build"),
+        )
+        .await
+        .expect("route should respond");
+    assert_eq!(accepted.status(), StatusCode::OK);
+    assert_eq!(
+        accepted.headers().get("cache-control"),
+        Some(&"no-store".parse().unwrap())
+    );
+    let accepted: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(accepted.into_body(), usize::MAX)
+            .await
+            .expect("body should read"),
+    )
+    .expect("metadata should be JSON");
+    assert!(
+        accepted["pem"]
+            .as_str()
+            .is_some_and(|pem| pem.ends_with('\n'))
+    );
+    assert!(
+        accepted["fingerprintSha256"]
+            .as_str()
+            .is_some_and(|fingerprint| fingerprint.starts_with("sha256:"))
+    );
+    assert!(
+        accepted["subject"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty())
+    );
+    assert!(accepted["notBefore"].as_str().is_some());
+    assert!(accepted["notAfter"].as_str().is_some());
 }

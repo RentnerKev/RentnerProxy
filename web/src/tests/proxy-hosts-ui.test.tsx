@@ -158,6 +158,23 @@ mock.module('../features/Admin/CertificateManagement/server', () => ({
     requestCertificateHandler: requestCertificateHandlerMock,
 }))
 
+const assignableTrustedCa = {
+    id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54051',
+    name: 'HomeLab Root CA',
+    subject: 'CN=HomeLab Root CA',
+    issuer: 'CN=HomeLab Root CA',
+    fingerprintSha256: 'sha256:' + 'a'.repeat(64),
+    notBefore: new Date('2026-01-01T00:00:00Z'),
+    notAfter: new Date('2036-01-01T00:00:00Z'),
+    assignedHostCount: 0,
+    createdAt: new Date('2026-01-01T00:00:00Z'),
+    updatedAt: new Date('2026-01-01T00:00:00Z'),
+}
+const getAssignableTrustedCasHandlerMock = mock(async () => [assignableTrustedCa])
+mock.module('../features/Admin/TrustedCaManagement/server', () => ({
+    getAssignableTrustedCasHandler: getAssignableTrustedCasHandlerMock,
+}))
+
 let activeRoot: Root | null = null
 let activeQueryClient: QueryClientInstance | null = null
 
@@ -172,6 +189,9 @@ const enabledHost: ProxyHostSummary = {
     updatedAt: new Date('2026-01-02T12:00:00Z'),
     certificateId: null,
     forceHttps: false,
+    verifyUpstreamTls: true,
+    upstreamTlsServerName: null,
+    trustedCaId: null,
 }
 const assignableCertificate: CertificateSummary = {
     id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54022',
@@ -195,6 +215,7 @@ const disabledHost: ProxyHostSummary = {
     ...enabledHost,
     createdAt: new Date('2026-01-03T12:00:00Z'),
     domains: ['disabled.example.com'],
+    verifyUpstreamTls: false,
     enabled: false,
     forwardHost: '2001:db8::1',
     forwardPort: 443,
@@ -396,6 +417,7 @@ beforeEach(() => {
     enableProxyHostHandlerMock.mockReset()
     disableProxyHostHandlerMock.mockReset()
     getAssignableCertificatesHandlerMock.mockReset().mockResolvedValue([])
+    getAssignableTrustedCasHandlerMock.mockReset().mockResolvedValue([assignableTrustedCa])
     requestCertificateHandlerMock
         .mockReset()
         .mockResolvedValue({ success: true, message: 'admin.certificates.messages.requested' })
@@ -700,6 +722,9 @@ describe('ProxyHost form modal', () => {
                 domains: ['example.com', 'other.example'],
                 certificateId: null,
                 forceHttps: false,
+                verifyUpstreamTls: true,
+                upstreamTlsServerName: null,
+                trustedCaId: null,
                 enabled: true,
                 forwardHost: 'backend.internal',
                 forwardPort: 80,
@@ -772,6 +797,9 @@ describe('ProxyHost form modal', () => {
                 domains: ['example.com', 'other.example.com'],
                 certificateId: null,
                 forceHttps: false,
+                verifyUpstreamTls: true,
+                upstreamTlsServerName: null,
+                trustedCaId: null,
                 enabled: true,
                 forwardHost: 'backend.internal',
                 forwardPort: 80,
@@ -981,6 +1009,9 @@ test('assigns a usable certificate and enables HTTPS redirect', async () => {
             enabled: true,
             certificateId: assignableCertificate.id,
             forceHttps: true,
+            verifyUpstreamTls: true,
+            upstreamTlsServerName: null,
+            trustedCaId: null,
             forwardHost: 'backend.internal',
             forwardPort: 80,
             forwardScheme: 'http',
@@ -1529,4 +1560,214 @@ describe('Proxy host advanced configuration editor', () => {
         await waitFor(() => document.querySelector('#proxy-advanced-config-source') === null)
         expect(document.body.textContent).not.toContain(privateSource)
     })
+})
+
+describe('HTTPS upstream TLS controls', () => {
+    async function openForm(
+        proxyHost?: ProxyHostSummary,
+        language: 'en' | 'de' | 'es' | 'fr' = 'en',
+    ) {
+        await render(
+            withQueryClient(
+                withTestLanguage(
+                    <ProxyHostFormModal
+                        canEnable
+                        canDisable
+                        mode={proxyHost ? 'edit' : 'create'}
+                        open
+                        onOpenChange={() => {}}
+                        onSuccess={() => {}}
+                        {...(proxyHost ? { proxyHost } : {})}
+                    />,
+                    language,
+                ),
+            ),
+        )
+        await waitFor(() => document.querySelector('input[name="forwardHost"]') !== null)
+        await waitFor(() => getAssignableTrustedCasHandlerMock.mock.calls.length > 0)
+    }
+
+    async function prepareNewHttpsHost() {
+        await openForm()
+        await setControlValue(document.querySelector('input[name="domains[0]"]')!, 'secure.test')
+        await setControlValue(document.querySelector('input[name="forwardHost"]')!, 'backend.test')
+        await setControlValue(document.querySelector('input[name="forwardPort"]')!, '8443')
+        await chooseSelectOption('Forward scheme', 'HTTPS')
+        await waitFor(() => document.querySelector('input[name="verifyUpstreamTls"]') !== null)
+    }
+
+    test('HTTP hides TLS controls and new HTTPS hosts default to verification with system trust', async () => {
+        await openForm()
+        expect(document.querySelector('input[name="verifyUpstreamTls"]')).toBeNull()
+        expect(document.querySelector('input[name="upstreamTlsServerName"]')).toBeNull()
+        await setControlValue(document.querySelector('input[name="forwardHost"]')!, 'backend.test')
+        await chooseSelectOption('Forward scheme', 'HTTPS')
+        const verify = document.querySelector<HTMLInputElement>('input[name="verifyUpstreamTls"]')!
+        expect(verify.checked).toBeTrue()
+        expect(document.body.textContent).toContain('System trust store')
+        expect(
+            document.querySelector<HTMLInputElement>('input[name="upstreamTlsServerName"]')!
+                .placeholder,
+        ).toBe('Automatic: backend.test')
+        expect(document.body.textContent).not.toContain(
+            'Upstream certificate verification is disabled.',
+        )
+    })
+
+    test('submits the secure default without manual TLS configuration', async () => {
+        await prepareNewHttpsHost()
+        await click(getLastButton('Create proxy host'))
+        await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
+        expect(createProxyHostHandlerMock.mock.calls[0]![0]).toMatchObject({
+            data: {
+                forwardScheme: 'https',
+                verifyUpstreamTls: true,
+                upstreamTlsServerName: null,
+                trustedCaId: null,
+            },
+        })
+    })
+
+    test('custom CA and DNS identity override are submitted for an IP connection target', async () => {
+        await prepareNewHttpsHost()
+        await setControlValue(document.querySelector('input[name="forwardHost"]')!, '10.10.0.25')
+        expect(document.body.textContent).toContain(
+            'Enter the DNS name from the upstream certificate',
+        )
+        await setControlValue(
+            document.querySelector('input[name="upstreamTlsServerName"]')!,
+            'backend.test',
+        )
+        await waitFor(() => !getButton('Trusted CA').disabled)
+        await chooseSelectOption('Trusted CA', 'HomeLab Root CA')
+        await click(getLastButton('Create proxy host'))
+        await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
+        expect(createProxyHostHandlerMock.mock.calls[0]![0]).toMatchObject({
+            data: {
+                forwardHost: '10.10.0.25',
+                verifyUpstreamTls: true,
+                upstreamTlsServerName: 'backend.test',
+                trustedCaId: assignableTrustedCa.id,
+            },
+        })
+    })
+
+    test('an explicit insecure override warns, removes CA selection and keeps DNS SNI', async () => {
+        await prepareNewHttpsHost()
+        await setControlValue(
+            document.querySelector('input[name="upstreamTlsServerName"]')!,
+            'virtual.backend.test',
+        )
+        await chooseSelectOption('Trusted CA', 'HomeLab Root CA')
+        await act(async () => {
+            document.querySelector<HTMLInputElement>('input[name="verifyUpstreamTls"]')!.click()
+        })
+        expect(document.body.textContent).toContain(
+            'Upstream certificate verification is disabled.',
+        )
+        expect(document.querySelector('button[aria-label="Trusted CA"]')).toBeNull()
+        expect(
+            document.querySelector<HTMLInputElement>('input[name="upstreamTlsServerName"]')!.value,
+        ).toBe('virtual.backend.test')
+        await click(getLastButton('Create proxy host'))
+        await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
+        expect(createProxyHostHandlerMock.mock.calls[0]![0]).toMatchObject({
+            data: {
+                verifyUpstreamTls: false,
+                upstreamTlsServerName: 'virtual.backend.test',
+                trustedCaId: null,
+            },
+        })
+    })
+
+    test('existing insecure HTTPS hosts retain their explicit opt-out in the editor', async () => {
+        await openForm({
+            ...enabledHost,
+            forwardScheme: 'https',
+            forwardHost: 'backend.test',
+            verifyUpstreamTls: false,
+        })
+        expect(
+            document.querySelector<HTMLInputElement>('input[name="verifyUpstreamTls"]')!.checked,
+        ).toBeFalse()
+        expect(document.body.textContent).toContain(
+            'Upstream certificate verification is disabled.',
+        )
+        await click(getLastButton('Save'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock.mock.calls[0]![0]).toMatchObject({
+            data: { verifyUpstreamTls: false },
+        })
+    })
+
+    test('the list flags existing insecure HTTPS hosts without claiming upstream health', async () => {
+        getProxyHostsHandlerMock.mockResolvedValue([
+            { ...enabledHost, forwardScheme: 'https', verifyUpstreamTls: false },
+        ])
+        await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
+        await waitFor(
+            () => document.body.textContent?.includes('Certificate verification disabled') === true,
+        )
+        expect(document.body.textContent).not.toContain('Upstream healthy')
+    })
+
+    test('HTTPS to HTTP clears TLS fields and returning to HTTPS restores verification', async () => {
+        await openForm({
+            ...enabledHost,
+            forwardScheme: 'https',
+            verifyUpstreamTls: false,
+            upstreamTlsServerName: 'backend.test',
+        })
+        await chooseSelectOption('Forward scheme', 'HTTP')
+        expect(document.querySelector('input[name="verifyUpstreamTls"]')).toBeNull()
+        await chooseSelectOption('Forward scheme', 'HTTPS')
+        expect(
+            document.querySelector<HTMLInputElement>('input[name="verifyUpstreamTls"]')!.checked,
+        ).toBeTrue()
+        expect(
+            document.querySelector<HTMLInputElement>('input[name="upstreamTlsServerName"]')!.value,
+        ).toBe('')
+        expect(document.body.textContent).toContain('System trust store')
+    })
+
+    test('CA loading failure retains the assigned CA instead of switching to system trust', async () => {
+        getAssignableTrustedCasHandlerMock.mockRejectedValue(new Error('test unavailable'))
+        await openForm({
+            ...enabledHost,
+            forwardScheme: 'https',
+            forwardHost: 'backend.test',
+            verifyUpstreamTls: true,
+            trustedCaId: assignableTrustedCa.id,
+        })
+        await waitFor(
+            () => document.body.textContent?.includes('Trusted CAs could not be loaded.') === true,
+        )
+        expect(getButton('Trusted CA').disabled).toBeTrue()
+        expect(getButton('Trusted CA').textContent).toContain('Selected CA unavailable')
+        await click(getLastButton('Save'))
+        await waitFor(() => updateProxyHostHandlerMock.mock.calls.length === 1)
+        expect(updateProxyHostHandlerMock.mock.calls[0]![0]).toMatchObject({
+            data: { trustedCaId: assignableTrustedCa.id, verifyUpstreamTls: true },
+        })
+    })
+
+    for (const [language, warning] of [
+        ['en', 'The connection is encrypted, but RentnerProxy cannot verify the identity'],
+        ['de', 'Die Verbindung ist verschlüsselt, aber RentnerProxy kann die Identität'],
+        ['es', 'La conexión está cifrada, pero RentnerProxy no puede verificar la identidad'],
+        ['fr', 'La connexion est chiffrée, mais RentnerProxy ne peut pas vérifier l’identité'],
+    ] as const) {
+        test('insecure warning is localized in ' + language, async () => {
+            await openForm(
+                {
+                    ...enabledHost,
+                    forwardScheme: 'https',
+                    forwardHost: 'backend.test',
+                    verifyUpstreamTls: false,
+                },
+                language,
+            )
+            expect(document.body.textContent).toContain(warning)
+        })
+    }
 })

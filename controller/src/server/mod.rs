@@ -19,7 +19,7 @@ use handlers::{
     apply_proxy_config, challenge_response, delete_certificate, get_certificate, health,
     import_certificate, issue_certificate, list_certificates, preview_proxy_config,
     preview_proxy_host_config, proxy_status, read_proxy_config, read_proxy_host_config,
-    renew_certificate,
+    renew_certificate, validate_trusted_ca,
 };
 
 const MAX_PROXY_CONFIG_BODY_BYTES: usize = 16 * 1024 * 1024;
@@ -62,6 +62,10 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
         .route(
             "/internal/v1/certificates/{id}/renew",
             post(renew_certificate),
+        )
+        .route(
+            "/internal/v1/trusted-cas/validate",
+            post(validate_trusted_ca),
         )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

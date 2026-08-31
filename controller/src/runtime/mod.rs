@@ -5,6 +5,7 @@ pub(crate) mod clock;
 mod engine;
 pub(crate) mod renderer;
 mod state;
+mod trusted_cas;
 
 use std::{
     collections::BTreeMap,
@@ -39,13 +40,14 @@ pub(crate) use certificates::{
 pub(crate) use engine::{EngineError, EngineFuture, ProcessEngine, ProxyEngine};
 use renderer::{
     MAX_RENDERED_PROXY_CONFIG_BYTES, MAX_RENDERED_PROXY_HOST_SOURCE_BYTES, RenderError,
-    RenderSettings, TlsMaterial, TlsRenderSettings, render_config, render_config_with_tls,
-    render_host_config_for_runtime, render_host_sources_for_runtime,
+    RenderSettings, TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings, render_config,
+    render_config_with_tls, render_host_config_for_runtime, render_host_sources_for_runtime,
 };
 use state::{
     ACTIVE_CONFIG_FILE, CANDIDATE_CONFIG_FILE, LAST_APPLY_FILE, LAST_GOOD_CONFIG_FILE,
     atomic_write, prepare_state_dir, read_trimmed,
 };
+use trusted_cas::TrustedCaStore;
 
 #[cfg(unix)]
 const PROBE_SOCKET_FILE: &str = "runtime-probe.sock";
@@ -63,6 +65,7 @@ pub(crate) struct RuntimeSettings {
     pub(crate) controller_port: u16,
     pub(crate) lock_wait: Duration,
     pub(crate) stage_timeout: Duration,
+    pub(crate) system_ca_bundle: PathBuf,
 }
 
 impl RuntimeSettings {
@@ -75,6 +78,7 @@ impl RuntimeSettings {
             controller_port: 8_081,
             lock_wait: Duration::from_secs(2),
             stage_timeout: Duration::from_secs(4),
+            system_ca_bundle: PathBuf::from("/etc/ssl/certs/ca-certificates.crt"),
         }
     }
 
@@ -126,6 +130,7 @@ pub(crate) struct ProxyRuntime {
     apply_lock: Mutex<()>,
     active_configuration: Mutex<Option<ValidatedProxyConfig>>,
     certificate_store: CertificateStore,
+    trusted_ca_store: TrustedCaStore,
     renewal_task: Mutex<Option<JoinHandle<()>>>,
 }
 
@@ -135,6 +140,7 @@ impl ProxyRuntime {
         engine: Option<Arc<dyn ProxyEngine>>,
     ) -> Arc<Self> {
         let certificate_store = CertificateStore::new(settings.state_dir.clone());
+        let trusted_ca_store = TrustedCaStore::new(settings.state_dir.clone());
         Arc::new(Self {
             settings,
             engine,
@@ -146,6 +152,7 @@ impl ProxyRuntime {
             apply_lock: Mutex::new(()),
             active_configuration: Mutex::new(None),
             certificate_store,
+            trusted_ca_store,
             renewal_task: Mutex::new(None),
         })
     }
@@ -159,6 +166,11 @@ impl ProxyRuntime {
         if self.certificate_store.initialize().await.is_err() {
             self.mark_unavailable().await;
             warn!(stage = "certificate_store", "proxy runtime is unavailable");
+            return;
+        }
+        if self.trusted_ca_store.initialize().is_err() {
+            self.mark_unavailable().await;
+            warn!(stage = "trusted_ca_store", "proxy runtime is unavailable");
             return;
         }
 
@@ -289,7 +301,7 @@ impl ProxyRuntime {
         {
             return None;
         }
-        self.render_proxy_config_for_apply(&configuration, None)
+        self.render_proxy_config_for_apply(&configuration, None, true)
             .await
             .ok()
             .filter(|rendered| rendered == active_contents)
@@ -305,6 +317,7 @@ impl ProxyRuntime {
             revision: configuration.revision.clone(),
             proxy_hosts: configuration.proxy_hosts.clone(),
             http_settings: configuration.http_settings.clone(),
+            trusted_cas: configuration.trusted_cas.clone(),
         };
         let bytes = serde_json::to_vec(&request).map_err(|_| RuntimeError::ApplyFailed)?;
         if bytes.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
@@ -461,7 +474,7 @@ impl ProxyRuntime {
         &self,
         configuration: &ValidatedProxyConfig,
     ) -> Result<String, RuntimeError> {
-        self.render_proxy_config_for_apply(configuration, None)
+        self.render_proxy_config_for_apply(configuration, None, false)
             .await
     }
 
@@ -497,12 +510,15 @@ impl ProxyRuntime {
             .iter()
             .find(|host| host.id == host_id)
             .ok_or(RuntimeError::HostConfigNotFound)?;
+        let upstream_tls = self.upstream_tls_render_settings(configuration, false)?;
         let source = render_host_config_for_runtime(
             host,
             self.settings.http_port,
             self.settings.controller_port,
             self.settings.public_https_port,
-        );
+            Some(&upstream_tls),
+        )
+        .map_err(|_| RuntimeError::ApplyFailed)?;
         if source.len() > MAX_RENDERED_PROXY_HOST_SOURCE_BYTES {
             return Err(RuntimeError::ConfigTooLarge);
         }
@@ -563,17 +579,20 @@ impl ProxyRuntime {
         &self,
         configuration: &ValidatedProxyConfig,
     ) -> Result<ActiveHostSources, RuntimeError> {
+        let upstream_tls = self.upstream_tls_render_settings(configuration, false)?;
         let host_sources = render_host_sources_for_runtime(
             configuration,
             self.settings.http_port,
             self.settings.controller_port,
             self.settings.public_https_port,
+            Some(&upstream_tls),
         )
         .map_err(|error| match error {
             RenderError::ConfigTooLarge => RuntimeError::ConfigTooLarge,
             RenderError::InvalidProbeSocket
             | RenderError::InvalidCertificatePath
-            | RenderError::MissingCertificate => RuntimeError::ApplyFailed,
+            | RenderError::MissingCertificate
+            | RenderError::MissingTrustedCa => RuntimeError::ApplyFailed,
         })?;
         Ok(ActiveHostSources {
             revision: configuration.revision.clone(),
@@ -594,6 +613,7 @@ impl ProxyRuntime {
         &self,
         configuration: &ValidatedProxyConfig,
         staged: Option<&StagedCertificate>,
+        materialize_upstream_tls: bool,
     ) -> Result<String, RuntimeError> {
         let mut materials = BTreeMap::new();
         for host in &configuration.proxy_hosts {
@@ -631,6 +651,8 @@ impl ProxyRuntime {
                 },
             );
         }
+        let upstream_tls =
+            self.upstream_tls_render_settings(configuration, materialize_upstream_tls)?;
         render_config_with_tls(
             configuration,
             &self.settings.render_settings(),
@@ -640,15 +662,45 @@ impl ProxyRuntime {
                 controller_port: self.settings.controller_port,
             },
             &materials,
+            &upstream_tls,
         )
         .map_err(|error| match error {
             RenderError::ConfigTooLarge => RuntimeError::ConfigTooLarge,
             RenderError::InvalidProbeSocket
             | RenderError::InvalidCertificatePath
-            | RenderError::MissingCertificate => RuntimeError::ApplyFailed,
+            | RenderError::MissingCertificate
+            | RenderError::MissingTrustedCa => RuntimeError::ApplyFailed,
         })
     }
 
+    fn upstream_tls_render_settings(
+        &self,
+        configuration: &ValidatedProxyConfig,
+        materialize: bool,
+    ) -> Result<UpstreamTlsRenderSettings, RuntimeError> {
+        let uses_system_trust = configuration.proxy_hosts.iter().any(|host| {
+            host.upstream_tls.as_ref().is_some_and(|upstream_tls| {
+                upstream_tls.verify && upstream_tls.trusted_ca_id.is_none()
+            })
+        });
+        if uses_system_trust && !is_readable_system_ca_bundle(&self.settings.system_ca_bundle) {
+            return Err(RuntimeError::ApplyFailed);
+        }
+        let mut trusted_ca_paths = BTreeMap::new();
+        for trusted_ca in &configuration.trusted_cas {
+            let material = if materialize {
+                self.trusted_ca_store.materialize(trusted_ca)
+            } else {
+                self.trusted_ca_store.material_for(trusted_ca)
+            }
+            .map_err(|_| RuntimeError::ApplyFailed)?;
+            trusted_ca_paths.insert(trusted_ca.id.clone(), material.pem_path);
+        }
+        Ok(UpstreamTlsRenderSettings {
+            system_ca_bundle: self.settings.system_ca_bundle.clone(),
+            trusted_ca_paths,
+        })
+    }
     pub(crate) async fn shutdown(&self) {
         if let Some(task) = self.renewal_task.lock().await.take() {
             task.abort();
@@ -731,8 +783,29 @@ impl ProxyRuntime {
     }
 }
 
+fn is_readable_system_ca_bundle(path: &Path) -> bool {
+    if !path.is_absolute()
+        || std::fs::symlink_metadata(path)
+            .map(|metadata| !metadata.file_type().is_file() || metadata.file_type().is_symlink())
+            .unwrap_or(true)
+    {
+        return false;
+    }
+    let mut file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(_) => return false,
+    };
+    let mut byte = [0u8; 1];
+    file.read(&mut byte).is_ok_and(|read| read > 0)
+}
 fn snapshot_version(configuration: &ValidatedProxyConfig) -> u8 {
     if configuration
+        .proxy_hosts
+        .iter()
+        .any(|host| host.upstream_tls.is_some())
+    {
+        5
+    } else if configuration
         .proxy_hosts
         .iter()
         .any(|host| host.certificate_id.is_some())

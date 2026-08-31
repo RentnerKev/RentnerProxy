@@ -1,6 +1,8 @@
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
+import { trustedCaManagementQueryKeys } from '../../TrustedCaManagement/queryKeys'
+import { getAssignableTrustedCasHandler } from '../../TrustedCaManagement/server'
 import { certificateManagementQueryKeys } from '../../CertificateManagement/queryKeys'
 import { getAssignableCertificatesHandler } from '../../CertificateManagement/server'
 import { MAX_PROXY_HOST_DOMAINS } from '../../../../config/proxy-hosts.config'
@@ -33,6 +35,11 @@ export default function useProxyHostFormLogic({
     )
     const [pendingDisableValues, setPendingDisableValues] =
         useState<ProxyHostEditorFormValues | null>(null)
+    const trustedCasQuery = useQuery({
+        queryKey: trustedCaManagementQueryKeys.assignable,
+        queryFn: () => getAssignableTrustedCasHandler(),
+        staleTime: 30_000,
+    })
     const certificatesQuery = useQuery({
         queryKey: certificateManagementQueryKeys.assignable,
         queryFn: () => getAssignableCertificatesHandler(),
@@ -52,6 +59,7 @@ export default function useProxyHostFormLogic({
                 return
             }
             await Promise.all([
+                queryClient.invalidateQueries({ queryKey: trustedCaManagementQueryKeys.all }),
                 queryClient.invalidateQueries({
                     queryKey: proxyHostManagementQueryKeys.all,
                     exact: true,
@@ -79,6 +87,10 @@ export default function useProxyHostFormLogic({
         enabled: proxyHost?.enabled ?? true,
         certificateId: proxyHost?.certificateId ?? null,
         forceHttps: proxyHost?.forceHttps ?? false,
+        verifyUpstreamTls:
+            proxyHost?.forwardScheme === 'https' ? (proxyHost.verifyUpstreamTls ?? true) : true,
+        upstreamTlsServerName: proxyHost?.upstreamTlsServerName ?? null,
+        trustedCaId: proxyHost?.trustedCaId ?? null,
     }
     const form = useForm({
         defaultValues,
@@ -117,6 +129,9 @@ export default function useProxyHostFormLogic({
             canAssignCertificates,
             canChangeEnabled: mode === 'create' || (proxyHost?.enabled ? canDisable : canEnable),
             assignableCertificates: certificatesQuery.data ?? [],
+            assignableTrustedCas: trustedCasQuery.data ?? [],
+            trustedCasLoadFailed: trustedCasQuery.isError,
+            trustedCasLoading: trustedCasQuery.isPending,
             disableConfirmationOpen: pendingDisableValues !== null,
             domainKeys,
             form,

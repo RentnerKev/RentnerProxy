@@ -23,6 +23,9 @@ export interface ProxyHostFormModalProps {
 export interface ProxyHostFormModalState {
     readonly canAssignCertificates: boolean
     readonly assignableCertificates: readonly CertificateSummary[]
+    readonly assignableTrustedCas: ReadonlyArray<{ readonly id: string; readonly name: string }>
+    readonly trustedCasLoadFailed: boolean
+    readonly trustedCasLoading: boolean
     readonly canChangeEnabled: boolean
     readonly description: string
     readonly disableConfirmationOpen: boolean
@@ -48,6 +51,9 @@ export type ProxyHostFormFieldsProps = Pick<
     | 'canChangeEnabled'
     | 'canAssignCertificates'
     | 'assignableCertificates'
+    | 'assignableTrustedCas'
+    | 'trustedCasLoadFailed'
+    | 'trustedCasLoading'
     | 'domainKeys'
     | 'form'
     | 'formId'

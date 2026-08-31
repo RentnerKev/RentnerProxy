@@ -14,9 +14,13 @@ use tokio::sync::Mutex;
 
 use crate::{
     models::{
-        ApplyOutcome, ProxyConfigRequest, ProxyHost, ProxyHttpSettings, ValidatedProxyConfig,
+        ApplyOutcome, ProxyConfigRequest, ProxyHost, ProxyHttpSettings, TrustedCa, UpstreamTls,
+        ValidatedProxyConfig,
     },
-    proxy::{revision_for_configuration, validate_proxy_config},
+    proxy::{
+        revision_for_configuration, revision_for_configuration_with_trusted_cas,
+        validate_proxy_config, validate_trusted_ca_pem,
+    },
     runtime::{
         CertificateError, CertificateImportRequest, EngineError, EngineFuture, ProxyEngine,
         ProxyRuntime, RuntimeError, RuntimeSettings,
@@ -133,6 +137,7 @@ fn configuration_with_settings(
         advanced_config: String::new(),
         certificate_id: None,
         force_https: false,
+        upstream_tls: None,
     }];
     let version = if http_settings.is_empty() { 1 } else { 2 };
     validate_proxy_config(ProxyConfigRequest {
@@ -140,6 +145,7 @@ fn configuration_with_settings(
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
         http_settings,
+        trusted_cas: Vec::new(),
     })
     .unwrap()
 }
@@ -154,6 +160,7 @@ fn configuration_with_advanced(port: u16, advanced_config: &str) -> ValidatedPro
         advanced_config: advanced_config.to_owned(),
         certificate_id: None,
         force_https: false,
+        upstream_tls: None,
     }];
     let http_settings = ProxyHttpSettings::default();
     validate_proxy_config(ProxyConfigRequest {
@@ -161,6 +168,7 @@ fn configuration_with_advanced(port: u16, advanced_config: &str) -> ValidatedPro
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
         http_settings,
+        trusted_cas: Vec::new(),
     })
     .unwrap()
 }
@@ -201,6 +209,7 @@ fn tls_configuration(certificate_id: &str) -> ValidatedProxyConfig {
         advanced_config: String::new(),
         certificate_id: Some(certificate_id.to_owned()),
         force_https: true,
+        upstream_tls: None,
     }];
     let http_settings = ProxyHttpSettings::default();
     validate_proxy_config(ProxyConfigRequest {
@@ -208,10 +217,62 @@ fn tls_configuration(certificate_id: &str) -> ValidatedProxyConfig {
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
         http_settings,
+        trusted_cas: Vec::new(),
     })
     .expect("TLS configuration should validate")
 }
 
+fn trusted_ca() -> TrustedCa {
+    let mut parameters = rcgen::CertificateParams::new(vec!["test-ca.internal".to_owned()])
+        .expect("test CA names should be valid");
+    parameters.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+    parameters.key_usages = vec![rcgen::KeyUsagePurpose::KeyCertSign];
+    let key_pair = rcgen::KeyPair::generate().expect("test CA key should generate");
+    let parsed = validate_trusted_ca_pem(
+        &parameters
+            .self_signed(&key_pair)
+            .expect("test CA certificate should generate")
+            .pem(),
+    )
+    .expect("test CA should validate");
+    TrustedCa {
+        id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
+        pem: parsed.pem,
+        fingerprint_sha256: parsed.fingerprint_sha256,
+    }
+}
+
+fn upstream_tls_configuration(trusted_ca: TrustedCa) -> ValidatedProxyConfig {
+    let hosts = vec![ProxyHost {
+        id: "00000000-0000-0000-0000-000000000000".to_owned(),
+        domains: vec!["demo.test".to_owned()],
+        forward_scheme: "https".to_owned(),
+        forward_host: "backend.internal".to_owned(),
+        forward_port: 4_443,
+        http_settings: ProxyHttpSettings::default(),
+        advanced_config: String::new(),
+        certificate_id: None,
+        force_https: false,
+        upstream_tls: Some(UpstreamTls {
+            verify: true,
+            server_name: None,
+            trusted_ca_id: Some(trusted_ca.id.clone()),
+        }),
+    }];
+    let http_settings = ProxyHttpSettings::default();
+    validate_proxy_config(ProxyConfigRequest {
+        version: 5,
+        revision: revision_for_configuration_with_trusted_cas(
+            &hosts,
+            &http_settings,
+            std::slice::from_ref(&trusted_ca),
+        ),
+        proxy_hosts: hosts,
+        http_settings,
+        trusted_cas: vec![trusted_ca],
+    })
+    .expect("trusted CA upstream TLS configuration should validate")
+}
 fn certificate_import_request() -> CertificateImportRequest {
     let certificate = rcgen::generate_simple_self_signed(vec!["demo.test".to_owned()])
         .expect("test certificate should generate");
@@ -561,8 +622,10 @@ async fn preview_rejects_rendered_sources_over_hard_limit() {
             advanced_config: String::new(),
             certificate_id: None,
             force_https: false,
+            upstream_tls: None,
         }],
         http_settings: ProxyHttpSettings::default(),
+        trusted_cas: Vec::new(),
     };
 
     assert_eq!(
@@ -791,6 +854,7 @@ async fn active_host_sources_keep_two_hosts_isolated() {
             advanced_config: "add_header X-Host first;".to_owned(),
             certificate_id: None,
             force_https: false,
+            upstream_tls: None,
         },
         ProxyHost {
             id: "10000000-0000-0000-0000-000000000000".to_owned(),
@@ -802,6 +866,7 @@ async fn active_host_sources_keep_two_hosts_isolated() {
             advanced_config: "add_header X-Host second;".to_owned(),
             certificate_id: None,
             force_https: false,
+            upstream_tls: None,
         },
     ];
     let http_settings = ProxyHttpSettings::default();
@@ -810,6 +875,7 @@ async fn active_host_sources_keep_two_hosts_isolated() {
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
         http_settings,
+        trusted_cas: Vec::new(),
     })
     .unwrap();
     assert_eq!(
@@ -852,4 +918,130 @@ async fn rejects_a_symlink_state_root_before_starting_the_engine() {
     assert!(!status.running);
     assert_eq!(engine.test_calls.load(Ordering::SeqCst), 0);
     assert!(!target.join("active.conf").exists());
+}
+
+#[tokio::test]
+async fn trusted_ca_material_is_atomic_retained_and_corruption_fails_before_unchanged_apply() {
+    let engine = Arc::new(FakeEngine::succeeds());
+    let (runtime, settings) = test_runtime(Some(engine));
+    runtime.initialize().await;
+
+    let first_ca = trusted_ca();
+    let first_configuration = upstream_tls_configuration(first_ca.clone());
+    assert_eq!(
+        runtime.apply(first_configuration.clone()).await,
+        Ok(ApplyOutcome::Applied)
+    );
+    let first_path = settings
+        .state_dir
+        .join("trusted-cas")
+        .join(&first_ca.id)
+        .join(format!(
+            "{}.pem",
+            first_ca
+                .fingerprint_sha256
+                .strip_prefix("sha256:")
+                .expect("test fingerprint prefix")
+        ));
+    assert_eq!(
+        std::fs::read_to_string(&first_path).expect("material should exist"),
+        first_ca.pem
+    );
+    let first_active = std::fs::read(settings.state_dir.join("active.conf"))
+        .expect("active configuration should exist");
+    assert!(
+        String::from_utf8_lossy(&first_active)
+            .contains(first_path.to_string_lossy().replace('\\', "/").as_str())
+    );
+
+    let second_ca = trusted_ca();
+    let second_configuration = upstream_tls_configuration(second_ca.clone());
+    assert_eq!(
+        runtime.apply(second_configuration.clone()).await,
+        Ok(ApplyOutcome::Applied)
+    );
+    let second_path = settings
+        .state_dir
+        .join("trusted-cas")
+        .join(&second_ca.id)
+        .join(format!(
+            "{}.pem",
+            second_ca
+                .fingerprint_sha256
+                .strip_prefix("sha256:")
+                .expect("test fingerprint prefix")
+        ));
+    assert!(second_path.exists());
+    assert!(
+        first_path.exists(),
+        "old material remains available for last-good rollback"
+    );
+
+    std::fs::write(&second_path, b"corrupt").expect("test material should corrupt");
+    let before_failed_apply = std::fs::read(settings.state_dir.join("active.conf"))
+        .expect("active configuration should remain readable");
+    assert_eq!(
+        runtime.apply(second_configuration).await,
+        Err(RuntimeError::ApplyFailed)
+    );
+    assert_eq!(
+        std::fs::read(settings.state_dir.join("active.conf"))
+            .expect("active configuration should remain readable"),
+        before_failed_apply,
+        "corrupt current material cannot pass the unchanged fast path"
+    );
+}
+
+#[tokio::test]
+async fn trusted_ca_previews_are_pure_and_apply_materializes() {
+    let engine = Arc::new(FakeEngine::succeeds());
+    let (runtime, settings) = test_runtime(Some(engine));
+    runtime.initialize().await;
+
+    let trusted_ca = trusted_ca();
+    let configuration = upstream_tls_configuration(trusted_ca.clone());
+    let material_path = settings
+        .state_dir
+        .join("trusted-cas")
+        .join(&trusted_ca.id)
+        .join(format!(
+            "{}.pem",
+            trusted_ca
+                .fingerprint_sha256
+                .strip_prefix("sha256:")
+                .expect("test fingerprint prefix")
+        ));
+    let rendered_path = material_path.to_string_lossy().replace('\\', "/");
+    assert!(!material_path.exists());
+
+    let preview = runtime
+        .preview_config(&configuration)
+        .await
+        .expect("full preview should render");
+    assert!(preview.contains(format!("proxy_ssl_trusted_certificate {rendered_path};").as_str()));
+    assert!(
+        !material_path.exists(),
+        "full preview must not materialize trusted CA files"
+    );
+
+    let host_preview = runtime
+        .preview_host_config(&configuration, "00000000-0000-0000-0000-000000000000")
+        .expect("host preview should render");
+    assert!(
+        host_preview.contains(format!("proxy_ssl_trusted_certificate {rendered_path};").as_str())
+    );
+    assert!(
+        !material_path.exists(),
+        "host preview must not materialize trusted CA files"
+    );
+
+    assert_eq!(
+        runtime.apply(configuration).await,
+        Ok(ApplyOutcome::Applied),
+        "apply must materialize the selected trusted CA"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&material_path).expect("apply should write trusted CA material"),
+        trusted_ca.pem
+    );
 }

@@ -1,13 +1,43 @@
 // oxlint-disable-next-line import/no-unassigned-import -- Keeps database snapshot reads behind the server boundary.
 import '@tanstack/react-start/server-only'
 
-import { asc, eq } from 'drizzle-orm'
+import { asc, eq, inArray } from 'drizzle-orm'
 
-import { proxyHostDomains, proxyHosts } from '../../db/schema'
+import { proxyHostDomains, proxyHosts, trustedCas } from '../../db/schema'
 import type { AuthTransaction } from '../Auth/Core/database.server'
 import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot'
 import { readProxyHttpSettings, readProxyHostHttpSettingsMap } from './proxy-runtime-settings'
-import type { ProxyRuntimeHost, ProxyRuntimeSnapshot } from './Types/proxy-runtime.types'
+import type {
+    ProxyRuntimeHost,
+    ProxyRuntimeSnapshot,
+    ProxyRuntimeTrustedCa,
+    ProxyRuntimeUpstreamTls,
+} from './Types/proxy-runtime.types'
+
+export async function readProxyRuntimeTrustedCas(
+    transaction: AuthTransaction,
+    hosts: ReadonlyArray<ProxyRuntimeHost>,
+): Promise<ProxyRuntimeTrustedCa[]> {
+    const ids = [
+        ...new Set(
+            hosts.flatMap((host) =>
+                host.forwardScheme === 'https' && host.upstreamTls?.trustedCaId
+                    ? [host.upstreamTls.trustedCaId]
+                    : [],
+            ),
+        ),
+    ]
+    if (ids.length === 0) return []
+    return transaction
+        .select({
+            id: trustedCas.id,
+            pem: trustedCas.pem,
+            fingerprintSha256: trustedCas.fingerprintSha256,
+        })
+        .from(trustedCas)
+        .where(inArray(trustedCas.id, ids))
+        .orderBy(asc(trustedCas.id))
+}
 
 export async function readProxyRuntimeSnapshot(
     transaction: AuthTransaction,
@@ -22,6 +52,9 @@ export async function readProxyRuntimeSnapshot(
             advancedConfig: proxyHosts.advancedConfig,
             certificateId: proxyHosts.certificateId,
             forceHttps: proxyHosts.forceHttps,
+            verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
+            upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
+            trustedCaId: proxyHosts.trustedCaId,
         })
         .from(proxyHosts)
         .leftJoin(proxyHostDomains, eq(proxyHostDomains.proxyHostId, proxyHosts.id))
@@ -38,6 +71,7 @@ export async function readProxyRuntimeSnapshot(
             advancedConfig: string
             certificateId: string | null
             forceHttps: boolean
+            upstreamTls?: ProxyRuntimeUpstreamTls
             enabled: boolean
         }
     >()
@@ -54,6 +88,15 @@ export async function readProxyRuntimeSnapshot(
                 advancedConfig: row.advancedConfig,
                 certificateId: row.certificateId,
                 forceHttps: row.forceHttps,
+                ...(row.forwardScheme === 'https'
+                    ? {
+                          upstreamTls: {
+                              verify: row.verifyUpstreamTls,
+                              serverName: row.upstreamTlsServerName,
+                              trustedCaId: row.trustedCaId,
+                          },
+                      }
+                    : {}),
                 enabled: true,
             }
             hosts.set(row.id, host)
@@ -68,7 +111,8 @@ export async function readProxyRuntimeSnapshot(
             httpSettings: hostSettings.get(host.id) ?? {},
         }),
     )
-    return createProxyRuntimeSnapshot(configuredHosts, httpSettings)
+    const referencedCas = await readProxyRuntimeTrustedCas(transaction, configuredHosts)
+    return createProxyRuntimeSnapshot(configuredHosts, httpSettings, referencedCas)
 }
 
 export async function readProxyRuntimeHost(
@@ -85,6 +129,9 @@ export async function readProxyRuntimeHost(
             advancedConfig: proxyHosts.advancedConfig,
             certificateId: proxyHosts.certificateId,
             forceHttps: proxyHosts.forceHttps,
+            verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
+            upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
+            trustedCaId: proxyHosts.trustedCaId,
             enabled: proxyHosts.enabled,
         })
         .from(proxyHosts)
@@ -102,6 +149,15 @@ export async function readProxyRuntimeHost(
         advancedConfig: first.advancedConfig,
         certificateId: first.certificateId,
         forceHttps: first.forceHttps,
+        ...(first.forwardScheme === 'https'
+            ? {
+                  upstreamTls: {
+                      verify: first.verifyUpstreamTls,
+                      serverName: first.upstreamTlsServerName,
+                      trustedCaId: first.trustedCaId,
+                  },
+              }
+            : {}),
         enabled: first.enabled,
     }
 }

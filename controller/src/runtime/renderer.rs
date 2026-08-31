@@ -28,11 +28,18 @@ pub(crate) struct TlsMaterial {
     pub(crate) private_key_path: PathBuf,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct UpstreamTlsRenderSettings {
+    pub(crate) system_ca_bundle: PathBuf,
+    pub(crate) trusted_ca_paths: BTreeMap<String, PathBuf>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RenderError {
     InvalidProbeSocket,
     InvalidCertificatePath,
     MissingCertificate,
+    MissingTrustedCa,
     ConfigTooLarge,
 }
 
@@ -40,7 +47,7 @@ pub(crate) fn render_config(
     config: Option<&ValidatedProxyConfig>,
     settings: &RenderSettings,
 ) -> Result<String, RenderError> {
-    render_config_with_ports(config, settings, 8_081, 443)
+    render_config_with_ports(config, settings, 8_081, 443, None)
 }
 
 fn render_config_with_ports(
@@ -48,6 +55,7 @@ fn render_config_with_ports(
     settings: &RenderSettings,
     controller_port: u16,
     public_https_port: u16,
+    upstream_tls: Option<&UpstreamTlsRenderSettings>,
 ) -> Result<String, RenderError> {
     let revision = config.map_or("none", |config| config.revision.as_str());
     let probe = settings
@@ -79,7 +87,8 @@ fn render_config_with_ports(
                 settings.http_port,
                 controller_port,
                 public_https_port,
-            ));
+                upstream_tls,
+            )?);
         }
     }
 
@@ -95,12 +104,14 @@ pub(crate) fn render_config_with_tls(
     settings: &RenderSettings,
     tls: &TlsRenderSettings,
     materials: &BTreeMap<String, TlsMaterial>,
+    upstream_tls: &UpstreamTlsRenderSettings,
 ) -> Result<String, RenderError> {
     let mut output = render_config_with_ports(
         Some(config),
         settings,
         tls.controller_port,
         tls.public_https_port,
+        Some(upstream_tls),
     )?;
     if !output.ends_with("}\n") {
         return Err(RenderError::ConfigTooLarge);
@@ -118,7 +129,7 @@ pub(crate) fn render_config_with_tls(
             .get(certificate_id)
             .ok_or(RenderError::MissingCertificate)?;
         output.push('\n');
-        output.push_str(&render_tls_server(host, tls, material)?);
+        output.push_str(&render_tls_server(host, tls, material, upstream_tls)?);
     }
     output.push_str("}\n");
     if output.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
@@ -131,6 +142,7 @@ fn render_tls_server(
     host: &crate::models::ProxyHost,
     tls: &TlsRenderSettings,
     material: &TlsMaterial,
+    upstream_tls: &UpstreamTlsRenderSettings,
 ) -> Result<String, RenderError> {
     let certificate = certificate_path(&material.fullchain_path)?;
     let private_key = certificate_path(&material.private_key_path)?;
@@ -156,10 +168,7 @@ fn render_tls_server(
         append_host_http_settings(&mut settings, &host.http_settings, "        ");
         output.insert_str(location_offset, &settings);
     }
-    if host.forward_scheme == "https" {
-        output
-            .push_str("            proxy_ssl_server_name on;\n            proxy_ssl_verify off;\n");
-    }
+    append_upstream_tls(&mut output, host, Some(upstream_tls), "            ")?;
     output.push_str("        }\n");
     if !host.advanced_config.is_empty() {
         output.push_str(
@@ -174,6 +183,50 @@ fn render_tls_server(
     Ok(output)
 }
 
+fn append_upstream_tls(
+    output: &mut String,
+    host: &crate::models::ProxyHost,
+    settings: Option<&UpstreamTlsRenderSettings>,
+    indent: &str,
+) -> Result<(), RenderError> {
+    if host.forward_scheme != "https" {
+        return Ok(());
+    }
+    let Some(upstream_tls) = host.upstream_tls.as_ref() else {
+        output.push_str(&format!(
+            "{indent}proxy_ssl_server_name on;\n{indent}proxy_ssl_verify off;\n"
+        ));
+        return Ok(());
+    };
+    let settings = settings.ok_or(RenderError::MissingTrustedCa)?;
+    let server_name = upstream_tls.server_name.as_deref().or_else(|| {
+        (host.forward_host.parse::<std::net::IpAddr>().is_err())
+            .then_some(host.forward_host.as_str())
+    });
+    if let Some(server_name) = server_name {
+        output.push_str(&format!(
+            "{indent}proxy_ssl_server_name on;\n{indent}proxy_ssl_name {server_name};\n"
+        ));
+    } else {
+        output.push_str(&format!("{indent}proxy_ssl_server_name off;\n"));
+    }
+    if upstream_tls.verify {
+        let trusted_certificate = match upstream_tls.trusted_ca_id.as_deref() {
+            Some(id) => settings
+                .trusted_ca_paths
+                .get(id)
+                .ok_or(RenderError::MissingTrustedCa)?,
+            None => &settings.system_ca_bundle,
+        };
+        let trusted_certificate = certificate_path(trusted_certificate)?;
+        output.push_str(&format!(
+            "{indent}proxy_ssl_verify on;\n{indent}proxy_ssl_verify_depth 5;\n{indent}proxy_ssl_trusted_certificate {trusted_certificate};\n"
+        ));
+    } else {
+        output.push_str(&format!("{indent}proxy_ssl_verify off;\n"));
+    }
+    Ok(())
+}
 fn certificate_path(path: &Path) -> Result<String, RenderError> {
     let value = path
         .to_str()
@@ -182,7 +235,8 @@ fn certificate_path(path: &Path) -> Result<String, RenderError> {
     if !path.is_absolute()
         || value.is_empty()
         || value.bytes().any(|byte| {
-            byte.is_ascii_whitespace() || matches!(byte, b';' | b'{' | b'}' | b'#' | b'"')
+            byte.is_ascii_whitespace()
+                || matches!(byte, b';' | b'{' | b'}' | b'#' | b'$' | b'"' | b'\'')
         })
     {
         return Err(RenderError::InvalidCertificatePath);
@@ -192,7 +246,8 @@ fn certificate_path(path: &Path) -> Result<String, RenderError> {
 
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn render_host_config(host: &crate::models::ProxyHost, http_port: u16) -> String {
-    render_host_config_for_runtime(host, http_port, 8_081, 443)
+    render_host_config_for_runtime(host, http_port, 8_081, 443, None)
+        .expect("legacy host rendering requires no upstream TLS material")
 }
 
 pub(crate) fn render_host_config_for_runtime(
@@ -200,12 +255,14 @@ pub(crate) fn render_host_config_for_runtime(
     http_port: u16,
     controller_port: u16,
     public_https_port: u16,
-) -> String {
+    upstream_tls: Option<&UpstreamTlsRenderSettings>,
+) -> Result<String, RenderError> {
     render_host_config_with_indentation(
         host,
         http_port,
         controller_port,
         public_https_port,
+        upstream_tls,
         "",
         "    ",
         true,
@@ -217,27 +274,31 @@ fn render_active_host_config(
     http_port: u16,
     controller_port: u16,
     public_https_port: u16,
-) -> String {
+    upstream_tls: Option<&UpstreamTlsRenderSettings>,
+) -> Result<String, RenderError> {
     render_host_config_with_indentation(
         host,
         http_port,
         controller_port,
         public_https_port,
+        upstream_tls,
         "    ",
         "        ",
         false,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_host_config_with_indentation(
     host: &crate::models::ProxyHost,
     http_port: u16,
     controller_port: u16,
     public_https_port: u16,
+    upstream_tls: Option<&UpstreamTlsRenderSettings>,
     server_indent: &str,
     directive_indent: &str,
     include_setting_markers: bool,
-) -> String {
+) -> Result<String, RenderError> {
     let nested_indent = format!("{directive_indent}    ");
     let upstream_host = if host.forward_host.parse::<Ipv6Addr>().is_ok() {
         format!("[{}]", host.forward_host)
@@ -288,11 +349,7 @@ fn render_host_config_with_indentation(
         output.push_str(&format!(
         ";\n{nested_indent}proxy_http_version 1.1;\n{nested_indent}proxy_set_header Host $host;\n{nested_indent}proxy_set_header X-Real-IP $remote_addr;\n{nested_indent}proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n{nested_indent}proxy_set_header X-Forwarded-Proto $scheme;\n{nested_indent}proxy_set_header Upgrade $http_upgrade;\n{nested_indent}proxy_set_header Connection $connection_upgrade;\n",
     ));
-        if host.forward_scheme == "https" {
-            output.push_str(&format!(
-                "{nested_indent}proxy_ssl_server_name on;\n{nested_indent}proxy_ssl_verify off;\n"
-            ));
-        }
+        append_upstream_tls(&mut output, host, upstream_tls, &nested_indent)?;
         output.push_str(&format!("{directive_indent}}}\n"));
     }
     if !host.advanced_config.is_empty() {
@@ -305,7 +362,7 @@ fn render_host_config_with_indentation(
         }
     }
     output.push_str(&format!("{server_indent}}}\n"));
-    output
+    Ok(output)
 }
 
 #[allow(dead_code)]
@@ -313,7 +370,7 @@ pub(crate) fn render_host_sources(
     configuration: &ValidatedProxyConfig,
     http_port: u16,
 ) -> Result<std::collections::BTreeMap<String, String>, RenderError> {
-    render_host_sources_for_runtime(configuration, http_port, 8_081, 443)
+    render_host_sources_for_runtime(configuration, http_port, 8_081, 443, None)
 }
 
 pub(crate) fn render_host_sources_for_runtime(
@@ -321,10 +378,17 @@ pub(crate) fn render_host_sources_for_runtime(
     http_port: u16,
     controller_port: u16,
     public_https_port: u16,
+    upstream_tls: Option<&UpstreamTlsRenderSettings>,
 ) -> Result<std::collections::BTreeMap<String, String>, RenderError> {
     let mut sources = std::collections::BTreeMap::new();
     for host in &configuration.proxy_hosts {
-        let source = render_active_host_config(host, http_port, controller_port, public_https_port);
+        let source = render_active_host_config(
+            host,
+            http_port,
+            controller_port,
+            public_https_port,
+            upstream_tls,
+        )?;
         if source.len() > MAX_RENDERED_PROXY_HOST_SOURCE_BYTES {
             return Err(RenderError::ConfigTooLarge);
         }

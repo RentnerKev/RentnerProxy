@@ -777,6 +777,11 @@
                 "publicDomain": "Verwende eine öffentliche DNS-Domain.",
                 "email": "Gib eine gültige E-Mail-Adresse ein.",
                 "terms": "Akzeptiere die ACME-Bedingungen."
+            },
+            "tabs": {
+                "label": "Zertifikatstyp",
+                "server": "Serverzertifikate",
+                "trusted": "Vertrauenswürdige CAs"
             }
         },
         "proxyHosts": {
@@ -917,7 +922,10 @@
                 "domainsLimit": "Ein Proxy-Host kann höchstens 50 Domains haben.",
                 "duplicateDomain": "Diese Domain ist mehrfach aufgeführt.",
                 "forwardHost": "Gib einen gültigen Hostnamen, eine IPv4- oder IPv6-Adresse ohne Schema, Pfad oder Port ein.",
-                "port": "Gib eine ganze Portnummer von 1 bis 65535 ein."
+                "port": "Gib eine ganze Portnummer von 1 bis 65535 ein.",
+                "upstreamTlsServerName": "Gib einen DNS-Servernamen ohne URL, Port, IP-Adresse oder Platzhalter ein.",
+                "trustedCaRequiresVerification": "Eigene vertrauenswürdige CAs erfordern die Upstream-Zertifikatsprüfung.",
+                "upstreamTlsIpNameRequired": "Gib bei einer Verbindung über eine IP-Adresse den DNS-Namen aus dem Upstream-Zertifikat ein."
             },
             "config": {
                 "open": "Nginx-Config",
@@ -997,6 +1005,103 @@
                     "resetDescription": "Die sechs HTTP-Einstellungen zurücksetzen und die Expertenkonfiguration für „{{name}}“ leeren? Andere Hosts, gemeinsame Standardwerte und Weiterleitungsziele bleiben unverändert.",
                     "savedPending": "Proxy-Host gespeichert, die Konfiguration konnte jedoch nicht angewendet werden. Die bisher funktionierende Konfiguration bleibt aktiv."
                 }
+            },
+            "upstreamTls": {
+                "title": "Upstream-TLS",
+                "verify": "Upstream-Zertifikat prüfen",
+                "verifyHint": "Zertifikatskette und erwartete Identität des Upstreams prüfen.",
+                "serverName": "TLS-Servername",
+                "serverNamePlaceholder": "backend.internal.example",
+                "automatic": "Automatisch: {{name}}",
+                "serverNameHint": "Erwarteter Zertifikatsname und SNI. Leer lassen, um den Forward-Host zu verwenden. Der HTTP-Host-Header bleibt unverändert.",
+                "ipHint": "Bei IP-Zielen benötigt diese Runtime einen DNS-Zertifikatsnamen, auch bei einem IP-SAN. Die TCP-Verbindung verwendet weiterhin die konfigurierte IP.",
+                "ipNameRequired": "Gib den DNS-Namen aus dem Upstream-Zertifikat ein, um dieses IP-Ziel zu prüfen.",
+                "trustedCa": "Vertrauenswürdige CA",
+                "systemTrust": "System-Vertrauensspeicher",
+                "trustHint": "Systemvertrauen nutzt das CA-Bundle der Runtime. Eine eigene CA ersetzt für diesen Host das Systemvertrauen.",
+                "insecureWarning": "Die Prüfung des Upstream-Zertifikats ist deaktiviert. Die Verbindung ist verschlüsselt, aber RentnerProxy kann die Identität des Upstream-Servers nicht prüfen.",
+                "verificationDisabled": "Zertifikatsprüfung deaktiviert",
+                "caUnavailable": "Ausgewählte CA nicht verfügbar",
+                "caLoadFailed": "Vertrauenswürdige CAs konnten nicht geladen werden. Die aktuelle Auswahl bleibt erhalten."
+            }
+        },
+        "trustedCas": {
+            "page": {
+                "eyebrow": "Zertifikate",
+                "title": "Vertrauenswürdige CAs",
+                "description": "Öffentliche CA-Zertifikate zur Prüfung von HTTPS-Upstreams. Sie enthalten keine privaten Schlüssel und sind von Serverzertifikaten getrennt."
+            },
+            "table": {
+                "eyebrow": "Upstream-Vertrauen",
+                "count_one": "{{count}} vertrauenswürdige CA",
+                "count_other": "{{count}} vertrauenswürdige CAs",
+                "description": "Verwalte die Zertifizierungsstellen, denen deine HTTPS-Upstreams vertrauen.",
+                "searchLabel": "Vertrauenswürdige CAs suchen",
+                "searchPlaceholder": "Name, Inhaber, Aussteller oder Fingerabdruck",
+                "loading": "Vertrauenswürdige CAs werden geladen…",
+                "emptyTitle": "Keine eigenen vertrauenswürdigen CAs",
+                "emptyDescription": "HTTPS-Upstreams verwenden den System-Vertrauensspeicher, solange du keine eigene CA auswählst.",
+                "filteredEmptyTitle": "Keine passenden vertrauenswürdigen CAs",
+                "filteredEmptyDescription": "Versuche eine andere Suche oder entferne die Filter.",
+                "itemLabel": "vertrauenswürdige CAs"
+            },
+            "columns": {
+                "name": "Name",
+                "subject": "Inhaber",
+                "issuer": "Aussteller",
+                "fingerprint": "SHA-256-Fingerabdruck",
+                "expires": "Gültig bis",
+                "actions": "Aktionen"
+            },
+            "actions": {
+                "import": "CA importieren",
+                "replace": "CA-Bundle ersetzen",
+                "delete": "CA löschen",
+                "deleteInUse": "Proxy-Hosts zugewiesen – Löschen nicht möglich",
+                "deleting": "CA wird gelöscht…",
+                "open": "Aktionen für {{name}}"
+            },
+            "import": {
+                "title": "Vertrauenswürdige CA importieren",
+                "description": "Importiere ein öffentliches CA-Zertifikat oder ein PEM-Bundle, das ausschließlich CA-Zertifikate enthält."
+            },
+            "replace": {
+                "title": "Vertrauenswürdige CA ersetzen",
+                "description": "Alle Proxy-Hosts, die diese CA nutzen, erhalten das neue Bundle beim regulären Anwenden der Konfiguration."
+            },
+            "form": {
+                "name": "Name",
+                "pem": "CA-Zertifikat / Bundle",
+                "pemHint": "Nur PEM-Zertifikate, maximal 256 KiB. Jedes Zertifikat muss ein CA-Zertifikat sein. Private Schlüssel werden abgelehnt."
+            },
+            "confirm": {
+                "deleteTitle": "„{{name}}“ löschen?",
+                "deleteDescription": "Nur ungenutzte CAs können gelöscht werden. Entferne vorhandene Zuweisungen zuerst aus den Proxy-Hosts."
+            },
+            "states": {
+                "unavailableTitle": "Vertrauenswürdige CAs nicht verfügbar",
+                "unavailableDescription": "Die CA-Liste konnte nicht geladen werden. Versuche es gleich erneut."
+            },
+            "validation": {
+                "name": "Gib einen Namen mit 1–120 Zeichen ein.",
+                "pem": "Gib ein gültiges PEM-Bundle mit ausschließlich Zertifikaten und maximal 256 KiB an.",
+                "pemLimit": "Das CA-Bundle darf maximal 256 KiB groß sein."
+            },
+            "errors": {
+                "invalidInput": "Das CA-Bundle ist ungültig. Prüfe PEM-Format, Gültigkeit und CA-Eigenschaften.",
+                "notFound": "Diese vertrauenswürdige CA existiert nicht mehr.",
+                "duplicate": "Dieses CA-Bundle wurde bereits importiert.",
+                "inUse": "Diese CA ist einem Proxy-Host zugewiesen und kann nicht gelöscht werden.",
+                "controllerUnavailable": "Die CA-Prüfung ist vorübergehend nicht verfügbar. Ungeprüftes Material wurde nicht gespeichert.",
+                "saveFailed": "Die vertrauenswürdige CA konnte nicht gespeichert werden.",
+                "deleteFailed": "Die vertrauenswürdige CA konnte nicht gelöscht werden.",
+                "loadFailed": "Die CA-Liste konnte nicht geladen werden. Versuche es gleich erneut."
+            },
+            "messages": {
+                "created": "Vertrauenswürdige CA importiert.",
+                "replaced": "Vertrauenswürdige CA ersetzt.",
+                "deleted": "Vertrauenswürdige CA gelöscht.",
+                "savedPending": "CA gespeichert. Die Konfiguration ist noch ausstehend; die zuvor funktionierende Konfiguration bleibt aktiv."
             }
         }
     },
@@ -1006,7 +1111,8 @@
             "users": "Benutzer",
             "roles": "Rollen",
             "account": "Konto",
-            "proxy_hosts": "Proxy-Hosts"
+            "proxy_hosts": "Proxy-Hosts",
+            "trusted_cas": "Vertrauenswürdige CAs"
         },
         "app": {
             "access": "Anwendungszugriff"
@@ -1038,6 +1144,12 @@
             "enable": "Proxy-Hosts aktivieren",
             "disable": "Proxy-Hosts deaktivieren",
             "advanced_config": "Expertenkonfiguration für Proxy-Hosts verwalten"
+        },
+        "trusted_cas": {
+            "view": "Vertrauenswürdige CAs anzeigen",
+            "create": "Vertrauenswürdige CAs importieren",
+            "update": "Vertrauenswürdige CA-Bundles ersetzen",
+            "delete": "Ungenutzte vertrauenswürdige CAs löschen"
         }
     },
     "systemRoles": {

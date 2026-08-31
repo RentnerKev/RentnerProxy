@@ -68,6 +68,12 @@ impl ApiError {
         }
     }
 
+    pub(super) fn invalid_trusted_ca() -> Self {
+        Self {
+            status: StatusCode::UNPROCESSABLE_ENTITY,
+            error: "invalid_trusted_ca",
+        }
+    }
     pub(super) fn certificate(error: CertificateError) -> Self {
         let status = match error {
             CertificateError::InvalidCertificate

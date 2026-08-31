@@ -1,10 +1,17 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { PERMISSIONS } from '../../config/permissions.config'
 import CertificateManagementPage from '../../features/Admin/CertificateManagement'
-import { requirePermissionRoute } from '../../features/Auth/route-guards'
 
 export const Route = createFileRoute('/_authenticated/certificates')({
-    beforeLoad: requirePermissionRoute(PERMISSIONS.CERTIFICATES_VIEW),
+    beforeLoad: ({ context }) => {
+        const permissions = context.user.permissions
+        if (
+            !permissions.includes(PERMISSIONS.CERTIFICATES_VIEW) &&
+            !permissions.includes(PERMISSIONS.TRUSTED_CAS_VIEW)
+        ) {
+            throw redirect({ to: '/' })
+        }
+    },
     component: CertificatesRoute,
 })
 

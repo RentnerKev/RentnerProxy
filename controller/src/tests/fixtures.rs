@@ -20,6 +20,7 @@ pub(super) fn host(
         advanced_config: String::new(),
         certificate_id: None,
         force_https: false,
+        upstream_tls: None,
     }
 }
 
@@ -31,7 +32,9 @@ pub(super) fn request_with_settings(
     hosts: Vec<ProxyHost>,
     http_settings: ProxyHttpSettings,
 ) -> ProxyConfigRequest {
-    let version = if hosts.iter().any(|host| host.certificate_id.is_some()) {
+    let version = if hosts.iter().any(|host| host.upstream_tls.is_some()) {
+        5
+    } else if hosts.iter().any(|host| host.certificate_id.is_some()) {
         4
     } else if hosts
         .iter()
@@ -48,6 +51,7 @@ pub(super) fn request_with_settings(
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
         http_settings,
+        trusted_cas: Vec::new(),
     }
 }
 

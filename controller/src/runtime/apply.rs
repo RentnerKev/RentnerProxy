@@ -94,7 +94,7 @@ impl ProxyRuntime {
             return Err(RuntimeError::Unavailable);
         }
         let candidate = self
-            .render_proxy_config_for_apply(&configuration, staged)
+            .render_proxy_config_for_apply(&configuration, staged, true)
             .await?;
         let active_host_sources = self.render_active_host_sources(&configuration)?;
         let candidate_path = self.candidate_path();

@@ -61,6 +61,7 @@ export default function useProxyHostsTableColumns({
                         forwardHost: row.original.forwardHost,
                         forwardPort: row.original.forwardPort,
                         forwardScheme: row.original.forwardScheme,
+                        verifyUpstreamTls: row.original.verifyUpstreamTls,
                     }),
             },
             {

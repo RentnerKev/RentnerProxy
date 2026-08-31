@@ -37,6 +37,7 @@ async fn serve() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut settings = RuntimeSettings::new(config.proxy_state_dir.clone(), config.proxy_http_port);
     settings.https_port = config.proxy_https_port;
     settings.public_https_port = config.proxy_public_https_port;
+    settings.system_ca_bundle = config.system_ca_bundle;
     settings.controller_port = local_addr.port();
     let engine = config.proxy_engine_bin.map(|binary| {
         Arc::new(ProcessEngine::new(

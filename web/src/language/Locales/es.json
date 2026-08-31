@@ -777,6 +777,11 @@
                 "publicDomain": "Usa un dominio DNS público.",
                 "email": "Introduce una dirección de correo válida.",
                 "terms": "Acepta los términos de ACME."
+            },
+            "tabs": {
+                "label": "Tipo de certificado",
+                "server": "Certificados de servidor",
+                "trusted": "CA de confianza"
             }
         },
         "proxyHosts": {
@@ -917,7 +922,10 @@
                 "domainsLimit": "Un host proxy no puede tener más de 50 dominios.",
                 "duplicateDomain": "Este dominio aparece más de una vez.",
                 "forwardHost": "Introduce un nombre de host o una dirección IPv4 o IPv6 válidos sin esquema, ruta ni puerto.",
-                "port": "Introduce un número de puerto entero entre 1 y 65535."
+                "port": "Introduce un número de puerto entero entre 1 y 65535.",
+                "upstreamTlsServerName": "Introduce un nombre DNS sin URL, puerto, dirección IP ni comodín.",
+                "trustedCaRequiresVerification": "Las CA personalizadas requieren verificar el certificado del servidor de destino.",
+                "upstreamTlsIpNameRequired": "Al conectar a una dirección IP, introduce el nombre DNS del certificado del servidor de destino."
             },
             "config": {
                 "open": "Config. Nginx",
@@ -997,6 +1005,103 @@
                     "resetDescription": "¿Restaurar los seis ajustes HTTP y borrar la configuración experta de «{{name}}»? Los demás hosts, los valores compartidos y los destinos de reenvío no cambian.",
                     "savedPending": "Host proxy guardado, pero no se pudo aplicar la configuración. La configuración anterior que funcionaba permanece activa."
                 }
+            },
+            "upstreamTls": {
+                "title": "TLS del servidor de destino",
+                "verify": "Verificar certificado del servidor de destino",
+                "verifyHint": "Verifica la cadena de certificados y la identidad esperada del servidor de destino.",
+                "serverName": "Nombre del servidor TLS",
+                "serverNamePlaceholder": "backend.internal.example",
+                "automatic": "Automático: {{name}}",
+                "serverNameHint": "Nombre esperado del certificado y SNI. Déjalo vacío para usar el host de destino. No modifica la cabecera HTTP Host.",
+                "ipHint": "Para destinos IP, este motor requiere un nombre DNS del certificado, incluso con un SAN de tipo IP. La conexión TCP sigue usando la IP configurada.",
+                "ipNameRequired": "Introduce el nombre DNS del certificado del servidor para verificar este destino IP.",
+                "trustedCa": "CA de confianza",
+                "systemTrust": "Almacén de confianza del sistema",
+                "trustHint": "La confianza del sistema usa el paquete de CA del motor. Una CA personalizada sustituye esa confianza para este host.",
+                "insecureWarning": "La verificación del certificado del servidor de destino está desactivada. La conexión está cifrada, pero RentnerProxy no puede verificar la identidad del servidor de destino.",
+                "verificationDisabled": "Verificación del certificado desactivada",
+                "caUnavailable": "CA seleccionada no disponible",
+                "caLoadFailed": "No se pudieron cargar las CA de confianza. Se conserva la selección actual."
+            }
+        },
+        "trustedCas": {
+            "page": {
+                "eyebrow": "Certificados",
+                "title": "CA de confianza",
+                "description": "Certificados públicos de CA para verificar servidores HTTPS de destino. No contienen claves privadas y están separados de los certificados de servidor."
+            },
+            "table": {
+                "eyebrow": "Confianza del destino",
+                "count_one": "{{count}} CA de confianza",
+                "count_other": "{{count}} CA de confianza",
+                "description": "Gestiona las autoridades de certificación de confianza para tus servidores HTTPS de destino.",
+                "searchLabel": "Buscar CA de confianza",
+                "searchPlaceholder": "Nombre, sujeto, emisor o huella",
+                "loading": "Cargando CA de confianza…",
+                "emptyTitle": "No hay CA de confianza personalizadas",
+                "emptyDescription": "Los servidores HTTPS de destino usan la confianza del sistema salvo que selecciones una CA personalizada.",
+                "filteredEmptyTitle": "No hay CA de confianza coincidentes",
+                "filteredEmptyDescription": "Prueba otra búsqueda o borra los filtros.",
+                "itemLabel": "CA de confianza"
+            },
+            "columns": {
+                "name": "Nombre",
+                "subject": "Sujeto",
+                "issuer": "Emisor",
+                "fingerprint": "Huella SHA-256",
+                "expires": "Caduca",
+                "actions": "Acciones"
+            },
+            "actions": {
+                "import": "Importar CA de confianza",
+                "replace": "Sustituir paquete de CA",
+                "delete": "Eliminar CA de confianza",
+                "deleteInUse": "Asignada a hosts proxy; no se puede eliminar",
+                "deleting": "Eliminando CA de confianza…",
+                "open": "Acciones para {{name}}"
+            },
+            "import": {
+                "title": "Importar CA de confianza",
+                "description": "Importa un certificado público de CA o un paquete PEM que contenga únicamente certificados de CA."
+            },
+            "replace": {
+                "title": "Sustituir CA de confianza",
+                "description": "Todos los hosts proxy que usan esta CA recibirán el nuevo paquete al aplicar la configuración de forma habitual."
+            },
+            "form": {
+                "name": "Nombre",
+                "pem": "Certificado / paquete de CA",
+                "pemHint": "Solo certificados PEM, hasta 256 KiB. Todos deben ser certificados de CA. No se aceptan claves privadas."
+            },
+            "confirm": {
+                "deleteTitle": "¿Eliminar «{{name}}»?",
+                "deleteDescription": "Solo se pueden eliminar las CA sin uso. Primero elimina sus asignaciones de los hosts proxy."
+            },
+            "states": {
+                "unavailableTitle": "CA de confianza no disponibles",
+                "unavailableDescription": "No se pudo cargar la lista de CA de confianza. Inténtalo de nuevo en un momento."
+            },
+            "validation": {
+                "name": "Introduce un nombre de entre 1 y 120 caracteres.",
+                "pem": "Proporciona un paquete PEM válido que solo contenga certificados, de hasta 256 KiB.",
+                "pemLimit": "El paquete de CA no debe superar los 256 KiB."
+            },
+            "errors": {
+                "invalidInput": "El paquete de CA no es válido. Revisa el formato PEM, la vigencia y las restricciones de CA.",
+                "notFound": "Esta CA de confianza ya no existe.",
+                "duplicate": "Este paquete de CA ya se ha importado.",
+                "inUse": "Esta CA está asignada a un host proxy y no se puede eliminar.",
+                "controllerUnavailable": "La validación de CA no está disponible temporalmente. No se ha guardado material sin validar.",
+                "saveFailed": "No se pudo guardar la CA de confianza.",
+                "deleteFailed": "No se pudo eliminar la CA de confianza.",
+                "loadFailed": "No se pudo cargar la lista de CA de confianza. Inténtalo de nuevo en un momento."
+            },
+            "messages": {
+                "created": "CA de confianza importada.",
+                "replaced": "CA de confianza sustituida.",
+                "deleted": "CA de confianza eliminada.",
+                "savedPending": "CA guardada. La configuración está pendiente; la configuración anterior sigue activa."
             }
         }
     },
@@ -1006,7 +1111,8 @@
             "users": "Usuarios",
             "roles": "Roles",
             "account": "Cuenta",
-            "proxy_hosts": "Hosts proxy"
+            "proxy_hosts": "Hosts proxy",
+            "trusted_cas": "CA de confianza"
         },
         "app": {
             "access": "Acceso a la aplicación"
@@ -1038,6 +1144,12 @@
             "enable": "Activar hosts proxy",
             "disable": "Desactivar hosts proxy",
             "advanced_config": "Administrar la configuración experta de los hosts proxy"
+        },
+        "trusted_cas": {
+            "view": "Ver CA de confianza",
+            "create": "Importar CA de confianza",
+            "update": "Sustituir paquetes de CA de confianza",
+            "delete": "Eliminar CA de confianza sin uso"
         }
     },
     "systemRoles": {

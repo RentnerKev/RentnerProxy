@@ -4,6 +4,7 @@ import { boolean, check, index, integer, text, timestamp, uuid, varchar } from '
 import type { ProxyHostForwardScheme } from '../../config/proxy-hosts.config'
 import { rentnerProxySchema } from './base'
 import { certificates } from './certificates'
+import { trustedCas } from './trustedCas'
 
 export const proxyHosts = rentnerProxySchema.table(
     'proxy_hosts',
@@ -21,6 +22,11 @@ export const proxyHosts = rentnerProxySchema.table(
             onDelete: 'restrict',
         }),
         forceHttps: boolean('force_https').notNull().default(false),
+        verifyUpstreamTls: boolean('verify_upstream_tls').notNull().default(true),
+        upstreamTlsServerName: varchar('upstream_tls_server_name', { length: 253 }),
+        trustedCaId: uuid('trusted_ca_id').references(() => trustedCas.id, {
+            onDelete: 'restrict',
+        }),
         advancedConfig: text('advanced_config').notNull().default(''),
         createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
             .notNull()
@@ -35,6 +41,11 @@ export const proxyHosts = rentnerProxySchema.table(
         check('proxy_hosts_forward_host_check', sql`length(btrim(${table.forwardHost})) > 0`),
         index('proxy_hosts_enabled_idx').on(table.enabled),
         index('proxy_hosts_certificate_id_idx').on(table.certificateId),
+        index('proxy_hosts_trusted_ca_id_idx').on(table.trustedCaId),
+        check(
+            'proxy_hosts_trusted_ca_verification_check',
+            sql`${table.trustedCaId} is null or (${table.forwardScheme} = 'https' and ${table.verifyUpstreamTls} = true)`,
+        ),
         check(
             'proxy_hosts_force_https_check',
             sql`${table.forceHttps} = false or ${table.certificateId} is not null`,

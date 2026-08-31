@@ -23,6 +23,8 @@ import {
     type UpdateProxyHostInput,
 } from '../../../features/Admin/ProxyHostManagement/validation'
 import { mapProxyHostDomainUniqueViolation, ProxyHostDomainError } from './proxy-hosts.errors'
+import { normalizeUpstreamTlsSettings } from './upstream-tls.service'
+import { validateTrustedCaAssignmentInTransaction } from '../TrustedCaManagement/trusted-cas.service'
 
 export type ProxyHostMutationSummary = ProxyHostSummary & {
     readonly runtimeStatus: ProxyRuntimeMutationStatus
@@ -36,6 +38,9 @@ type ProxyHostRow = {
     enabled: boolean
     certificateId: string | null
     forceHttps: boolean
+    verifyUpstreamTls: boolean
+    upstreamTlsServerName: string | null
+    trustedCaId: string | null
     createdAt: Date
     updatedAt: Date
 }
@@ -54,6 +59,9 @@ function toProxyHostSummary(
         enabled: proxyHost.enabled,
         certificateId: proxyHost.certificateId,
         forceHttps: proxyHost.forceHttps,
+        verifyUpstreamTls: proxyHost.verifyUpstreamTls,
+        upstreamTlsServerName: proxyHost.upstreamTlsServerName,
+        trustedCaId: proxyHost.trustedCaId,
         forwardHost: proxyHost.forwardHost,
         forwardPort: proxyHost.forwardPort,
         forwardScheme: proxyHost.forwardScheme,
@@ -72,6 +80,9 @@ async function loadProxyHostForUpdate(
             enabled: proxyHosts.enabled,
             certificateId: proxyHosts.certificateId,
             forceHttps: proxyHosts.forceHttps,
+            verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
+            upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
+            trustedCaId: proxyHosts.trustedCaId,
             forwardHost: proxyHosts.forwardHost,
             forwardPort: proxyHosts.forwardPort,
             forwardScheme: proxyHosts.forwardScheme,
@@ -171,6 +182,9 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
             enabled: proxyHosts.enabled,
             certificateId: proxyHosts.certificateId,
             forceHttps: proxyHosts.forceHttps,
+            verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
+            upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
+            trustedCaId: proxyHosts.trustedCaId,
             forwardHost: proxyHosts.forwardHost,
             forwardPort: proxyHosts.forwardPort,
             forwardScheme: proxyHosts.forwardScheme,
@@ -200,6 +214,9 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
                     enabled: row.enabled,
                     certificateId: row.certificateId,
                     forceHttps: row.forceHttps,
+                    verifyUpstreamTls: row.verifyUpstreamTls,
+                    upstreamTlsServerName: row.upstreamTlsServerName,
+                    trustedCaId: row.trustedCaId,
                     forwardHost: row.forwardHost,
                     forwardPort: row.forwardPort,
                     forwardScheme: row.forwardScheme,
@@ -238,6 +255,8 @@ export async function createProxyHostService(
             await assertDomainsAvailableInTransaction(transaction, domains)
             const certificateId = parsedInput.certificateId?.toLowerCase() ?? null
             const forceHttps = parsedInput.forceHttps ?? false
+            const upstreamTls = normalizeUpstreamTlsSettings(parsedInput)
+            await validateTrustedCaAssignmentInTransaction(transaction, upstreamTls.trustedCaId)
             await validateCertificateAssignmentInTransaction(
                 transaction,
                 certificateId,
@@ -250,6 +269,7 @@ export async function createProxyHostService(
                     enabled: parsedInput.enabled,
                     certificateId,
                     forceHttps,
+                    ...upstreamTls,
                     forwardHost: parsedInput.forwardHost,
                     forwardPort: parsedInput.forwardPort,
                     forwardScheme: parsedInput.forwardScheme,
@@ -259,6 +279,9 @@ export async function createProxyHostService(
                     enabled: proxyHosts.enabled,
                     certificateId: proxyHosts.certificateId,
                     forceHttps: proxyHosts.forceHttps,
+                    verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
+                    upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
+                    trustedCaId: proxyHosts.trustedCaId,
                     forwardHost: proxyHosts.forwardHost,
                     forwardPort: proxyHosts.forwardPort,
                     forwardScheme: proxyHosts.forwardScheme,
@@ -328,6 +351,8 @@ export async function updateProxyHostService(
                     ? proxyHost.certificateId
                     : (parsedInput.certificateId?.toLowerCase() ?? null)
             const forceHttps = parsedInput.forceHttps ?? proxyHost.forceHttps
+            const upstreamTls = normalizeUpstreamTlsSettings(parsedInput, proxyHost)
+            await validateTrustedCaAssignmentInTransaction(transaction, upstreamTls.trustedCaId)
             await validateCertificateAssignmentInTransaction(
                 transaction,
                 certificateId,
@@ -340,6 +365,7 @@ export async function updateProxyHostService(
                     enabled: parsedInput.enabled,
                     certificateId,
                     forceHttps,
+                    ...upstreamTls,
                     forwardHost: parsedInput.forwardHost,
                     forwardPort: parsedInput.forwardPort,
                     forwardScheme: parsedInput.forwardScheme,
@@ -351,6 +377,9 @@ export async function updateProxyHostService(
                     enabled: proxyHosts.enabled,
                     certificateId: proxyHosts.certificateId,
                     forceHttps: proxyHosts.forceHttps,
+                    verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
+                    upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
+                    trustedCaId: proxyHosts.trustedCaId,
                     forwardHost: proxyHosts.forwardHost,
                     forwardPort: proxyHosts.forwardPort,
                     forwardScheme: proxyHosts.forwardScheme,
@@ -428,6 +457,7 @@ async function setProxyHostEnabledService(
 
         const domains = await loadProxyHostDomainsInTransaction(transaction, proxyHost.id)
         if (enabled) {
+            await validateTrustedCaAssignmentInTransaction(transaction, proxyHost.trustedCaId)
             await validateCertificateAssignmentInTransaction(
                 transaction,
                 proxyHost.certificateId,
@@ -444,6 +474,9 @@ async function setProxyHostEnabledService(
                 enabled: proxyHosts.enabled,
                 certificateId: proxyHosts.certificateId,
                 forceHttps: proxyHosts.forceHttps,
+                verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
+                upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
+                trustedCaId: proxyHosts.trustedCaId,
                 forwardHost: proxyHosts.forwardHost,
                 forwardPort: proxyHosts.forwardPort,
                 forwardScheme: proxyHosts.forwardScheme,

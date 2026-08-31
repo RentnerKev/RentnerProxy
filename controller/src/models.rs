@@ -8,6 +8,8 @@ pub(crate) struct ProxyConfigRequest {
     pub(crate) proxy_hosts: Vec<ProxyHost>,
     #[serde(default, skip_serializing_if = "ProxyHttpSettings::is_empty")]
     pub(crate) http_settings: ProxyHttpSettings,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) trusted_cas: Vec<TrustedCa>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
@@ -49,6 +51,24 @@ pub(crate) struct ProxyHost {
     pub(crate) certificate_id: Option<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub(crate) force_https: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) upstream_tls: Option<UpstreamTls>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct UpstreamTls {
+    pub(crate) verify: bool,
+    pub(crate) server_name: Option<String>,
+    pub(crate) trusted_ca_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct TrustedCa {
+    pub(crate) id: String,
+    pub(crate) pem: String,
+    pub(crate) fingerprint_sha256: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -56,6 +76,7 @@ pub(crate) struct ValidatedProxyConfig {
     pub(crate) revision: String,
     pub(crate) proxy_hosts: Vec<ProxyHost>,
     pub(crate) http_settings: ProxyHttpSettings,
+    pub(crate) trusted_cas: Vec<TrustedCa>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

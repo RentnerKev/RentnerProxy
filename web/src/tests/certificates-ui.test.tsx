@@ -5,7 +5,7 @@ import type { Root } from 'react-dom/client'
 
 import { PERMISSIONS } from '../config/permissions.config'
 import type { CertificateSummary } from '../shared/Types/certificates.types'
-import { withLanguageRoot } from './Helpers/withTestLanguage'
+import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -69,6 +69,42 @@ mock.module('../features/Admin/CertificateManagement/server', () => ({
     renewCertificateHandler: renewCertificateHandlerMock,
     deleteCertificateHandler: deleteCertificateHandlerMock,
 }))
+const trustedCa = {
+    id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54052',
+    name: 'HomeLab Root CA',
+    subject: 'CN=HomeLab Root CA',
+    issuer: 'CN=HomeLab Root CA',
+    fingerprintSha256: 'sha256:' + 'b'.repeat(64),
+    notBefore: new Date('2026-01-01T00:00:00Z'),
+    notAfter: new Date('2036-01-01T00:00:00Z'),
+    assignedHostCount: 0,
+    createdAt: new Date('2026-01-01T00:00:00Z'),
+    updatedAt: new Date('2026-01-01T00:00:00Z'),
+}
+const getTrustedCasHandlerMock = mock(async () => [trustedCa])
+const createTrustedCaHandlerMock = mock(async (_input: unknown) => ({
+    success: true as const,
+    message: 'admin.trustedCas.messages.created',
+    runtimeStatus: 'applied' as const,
+}))
+const replaceTrustedCaHandlerMock = mock(async (_input: unknown) => ({
+    success: true as const,
+    message: 'admin.trustedCas.messages.replaced',
+    runtimeStatus: 'applied' as const,
+}))
+const deleteTrustedCaHandlerMock = mock(async (_input: unknown) => ({
+    success: true as const,
+    message: 'admin.trustedCas.messages.deleted',
+    runtimeStatus: 'applied' as const,
+}))
+mock.module('../features/Admin/TrustedCaManagement/server', () => ({
+    getTrustedCasHandler: getTrustedCasHandlerMock,
+    getAssignableTrustedCasHandler: mock(async () => [trustedCa]),
+    createTrustedCaHandler: createTrustedCaHandlerMock,
+    replaceTrustedCaHandler: replaceTrustedCaHandlerMock,
+    deleteTrustedCaHandler: deleteTrustedCaHandlerMock,
+}))
+
 const { default: CertificateManagementPage } =
     await import('../features/Admin/CertificateManagement')
 
@@ -77,6 +113,7 @@ let activeQueryClient: QueryClientInstance | null = null
 
 async function renderPage(
     permissions: readonly (typeof PERMISSIONS)[keyof typeof PERMISSIONS][],
+    language: 'en' | 'de' | 'es' | 'fr' = 'en',
 ): Promise<HTMLElement> {
     const container = document.createElement('div')
     document.body.append(container)
@@ -89,7 +126,10 @@ async function renderPage(
             <TooltipProvider>
                 <ToastProvider>
                     <QueryClientProvider client={activeQueryClient!}>
-                        <CertificateManagementPage permissions={permissions} />
+                        {withTestLanguage(
+                            <CertificateManagementPage permissions={permissions} />,
+                            language,
+                        )}
                     </QueryClientProvider>
                 </ToastProvider>
             </TooltipProvider>,
@@ -175,6 +215,22 @@ function lastButton(label: string): HTMLButtonElement {
 }
 
 beforeEach(() => {
+    getTrustedCasHandlerMock.mockReset().mockResolvedValue([trustedCa])
+    createTrustedCaHandlerMock.mockReset().mockResolvedValue({
+        success: true,
+        message: 'admin.trustedCas.messages.created',
+        runtimeStatus: 'applied',
+    })
+    replaceTrustedCaHandlerMock.mockReset().mockResolvedValue({
+        success: true,
+        message: 'admin.trustedCas.messages.replaced',
+        runtimeStatus: 'applied',
+    })
+    deleteTrustedCaHandlerMock.mockReset().mockResolvedValue({
+        success: true,
+        message: 'admin.trustedCas.messages.deleted',
+        runtimeStatus: 'applied',
+    })
     getCertificatesHandlerMock.mockReset().mockResolvedValue([certificate])
     getAssignableCertificatesHandlerMock.mockReset().mockResolvedValue([certificate])
     getCertificateDetailsHandlerMock.mockReset().mockResolvedValue(certificate)
@@ -278,4 +334,141 @@ describe('certificate management UI', () => {
         })
         await waitForToast('success')
     })
+})
+
+describe('trusted CA management UI', () => {
+    const managePermissions = [
+        PERMISSIONS.TRUSTED_CAS_VIEW,
+        PERMISSIONS.TRUSTED_CAS_CREATE,
+        PERMISSIONS.TRUSTED_CAS_UPDATE,
+        PERMISSIONS.TRUSTED_CAS_DELETE,
+    ]
+    const bundle = '-----BEGIN CERTIFICATE-----\nY2VydGlmaWNhdGU=\n-----END CERTIFICATE-----'
+
+    async function openTrustedPage(
+        permissions = managePermissions,
+        language: 'en' | 'de' | 'es' | 'fr' = 'en',
+    ) {
+        await renderPage(permissions, language)
+        await waitFor(() => document.body.textContent?.includes('HomeLab Root CA') === true)
+    }
+
+    test('trusted-only viewers see public metadata without fetching server certificates or mutation actions', async () => {
+        await openTrustedPage([PERMISSIONS.TRUSTED_CAS_VIEW])
+        expect(document.body.textContent).toContain(trustedCa.subject)
+        expect(document.body.textContent).toContain(trustedCa.issuer)
+        expect(document.body.textContent).toContain(trustedCa.fingerprintSha256)
+        expect(document.body.textContent).toContain('2036')
+        expect(document.body.textContent).not.toContain('Import trusted CA')
+        expect(
+            document.querySelector('button[aria-label="Actions for HomeLab Root CA"]'),
+        ).toBeNull()
+        expect(getCertificatesHandlerMock).not.toHaveBeenCalled()
+        expect(document.querySelector('textarea[name="privateKeyPem"]')).toBeNull()
+    })
+
+    test('certificate tabs keep server certificates and trusted CAs separate', async () => {
+        await renderPage([...managePermissions, PERMISSIONS.CERTIFICATES_VIEW])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        expect(getTrustedCasHandlerMock).not.toHaveBeenCalled()
+        await click(button('Trusted CAs'))
+        await waitFor(() => document.body.textContent?.includes('HomeLab Root CA') === true)
+        expect(document.body.textContent).not.toContain('Public edge')
+        await click(button('Server certificates'))
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+    })
+
+    test('imports a named public CA bundle without any private-key field', async () => {
+        await openTrustedPage()
+        await click(button('Import trusted CA'))
+        await waitFor(() => document.querySelector('textarea[name="pem"]') !== null)
+        expect(document.querySelector('textarea[name="privateKeyPem"]')).toBeNull()
+        expect(document.querySelector<HTMLTextAreaElement>('textarea[name="pem"]')!.maxLength).toBe(
+            256 * 1024,
+        )
+        await setValue(document.querySelector('[role=dialog] input[name="name"]')!, 'Private PKI')
+        await setValue(document.querySelector('textarea[name="pem"]')!, bundle)
+        await click(lastButton('Import trusted CA'))
+        await waitFor(() => createTrustedCaHandlerMock.mock.calls.length === 1)
+        expect(createTrustedCaHandlerMock).toHaveBeenCalledWith({
+            data: { name: 'Private PKI', pem: bundle },
+        })
+        await waitFor(() => document.querySelector('[role=dialog]') === null)
+    })
+
+    test('replace requires a new bundle and is independently permission gated', async () => {
+        await openTrustedPage([PERMISSIONS.TRUSTED_CAS_VIEW, PERMISSIONS.TRUSTED_CAS_UPDATE])
+        expect(document.body.textContent).not.toContain('Import trusted CA')
+        await openMenu(button('Actions for HomeLab Root CA'))
+        const replace = [...document.querySelectorAll('[role=menuitem]')].find((item) =>
+            item.textContent?.includes('Replace CA bundle'),
+        )!
+        expect(replace).toBeDefined()
+        expect(document.body.textContent).not.toContain('Delete trusted CA')
+        await click(replace)
+        await waitFor(() => document.querySelector('textarea[name="pem"]') !== null)
+        expect(document.querySelector<HTMLTextAreaElement>('textarea[name="pem"]')!.value).toBe('')
+        await setValue(document.querySelector('textarea[name="pem"]')!, bundle)
+        await click(lastButton('Replace CA bundle'))
+        await waitFor(() => replaceTrustedCaHandlerMock.mock.calls.length === 1)
+        expect(replaceTrustedCaHandlerMock).toHaveBeenCalledWith({
+            data: { name: trustedCa.name, pem: bundle, trustedCaId: trustedCa.id },
+        })
+    })
+
+    test('unused CA deletion requires confirmation and passes only its ID', async () => {
+        await openTrustedPage()
+        await openMenu(button('Actions for HomeLab Root CA'))
+        await click(
+            [...document.querySelectorAll('[role=menuitem]')].find((item) =>
+                item.textContent?.includes('Delete trusted CA'),
+            )!,
+        )
+        await waitFor(() => document.querySelector('[role=dialog]') !== null)
+        expect(deleteTrustedCaHandlerMock).not.toHaveBeenCalled()
+        await click(lastButton('Delete trusted CA'))
+        await waitFor(() => deleteTrustedCaHandlerMock.mock.calls.length === 1)
+        expect(deleteTrustedCaHandlerMock).toHaveBeenCalledWith({
+            data: { trustedCaId: trustedCa.id },
+        })
+    })
+
+    test('assigned CAs cannot be deleted in the UI', async () => {
+        getTrustedCasHandlerMock.mockResolvedValue([{ ...trustedCa, assignedHostCount: 1 }])
+        await openTrustedPage()
+        await openMenu(button('Actions for HomeLab Root CA'))
+        const blocked = [...document.querySelectorAll('[role=menuitem]')].find((item) =>
+            item.textContent?.includes('cannot delete'),
+        )!
+        expect(blocked).toBeDefined()
+        expect(blocked.getAttribute('aria-disabled')).toBe('true')
+        expect(deleteTrustedCaHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('invalid PEM with a private key is rejected before submission', async () => {
+        await openTrustedPage()
+        await click(button('Import trusted CA'))
+        await waitFor(() => document.querySelector('textarea[name="pem"]') !== null)
+        await setValue(document.querySelector('[role=dialog] input[name="name"]')!, 'Unsafe bundle')
+        await setValue(
+            document.querySelector('textarea[name="pem"]')!,
+            bundle + '\n-----BEGIN PRIVATE KEY-----\nS0VZ\n-----END PRIVATE KEY-----',
+        )
+        await click(lastButton('Import trusted CA'))
+        expect(createTrustedCaHandlerMock).not.toHaveBeenCalled()
+        expect(document.querySelector('textarea[aria-invalid="true"]')).not.toBeNull()
+    })
+
+    for (const [language, title] of [
+        ['en', 'Trusted CAs'],
+        ['de', 'Vertrauenswürdige CAs'],
+        ['es', 'CA de confianza'],
+        ['fr', 'AC de confiance'],
+    ] as const) {
+        test('trusted CA page is localized in ' + language, async () => {
+            await openTrustedPage([PERMISSIONS.TRUSTED_CAS_VIEW], language)
+            expect(document.body.textContent).toContain(title)
+            expect(document.body.textContent).not.toContain('admin.trustedCas.')
+        })
+    }
 })

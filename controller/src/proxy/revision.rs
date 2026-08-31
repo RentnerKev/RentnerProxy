@@ -1,4 +1,4 @@
-use crate::models::{ProxyHost, ProxyHttpSettings};
+use crate::models::{ProxyHost, ProxyHttpSettings, TrustedCa};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
@@ -9,11 +9,29 @@ pub(crate) fn revision_for_hosts(hosts: &[ProxyHost]) -> String {
     })
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn revision_for_configuration(
     hosts: &[ProxyHost],
     http_settings: &ProxyHttpSettings,
 ) -> String {
+    revision_for_configuration_with_trusted_cas(hosts, http_settings, &[])
+}
+
+pub(crate) fn revision_for_configuration_with_trusted_cas(
+    hosts: &[ProxyHost],
+    http_settings: &ProxyHttpSettings,
+    trusted_cas: &[TrustedCa],
+) -> String {
     let hosts = canonical_hosts(hosts);
+    let trusted_cas = canonical_trusted_cas(trusted_cas);
+    if hosts.iter().any(|host| host.upstream_tls.is_some()) || !trusted_cas.is_empty() {
+        return hash_snapshot(&CanonicalUpstreamTlsConfigurationSnapshot {
+            version: 5,
+            proxy_hosts: hosts,
+            http_settings,
+            trusted_cas: &trusted_cas,
+        });
+    }
     if hosts.iter().any(|host| host.certificate_id.is_some()) {
         return hash_snapshot(&CanonicalTlsConfigurationSnapshot {
             version: 4,
@@ -65,6 +83,12 @@ pub(super) fn canonical_hosts(hosts: &[ProxyHost]) -> Vec<ProxyHost> {
     hosts
 }
 
+pub(super) fn canonical_trusted_cas(trusted_cas: &[TrustedCa]) -> Vec<TrustedCa> {
+    let mut trusted_cas = trusted_cas.to_vec();
+    trusted_cas.sort_unstable_by(|left, right| left.id.cmp(&right.id));
+    trusted_cas
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CanonicalSnapshot {
@@ -91,6 +115,14 @@ struct CanonicalTlsConfigurationSnapshot<'a> {
     version: u8,
     proxy_hosts: Vec<ProxyHost>,
     http_settings: &'a ProxyHttpSettings,
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CanonicalUpstreamTlsConfigurationSnapshot<'a> {
+    version: u8,
+    proxy_hosts: Vec<ProxyHost>,
+    http_settings: &'a ProxyHttpSettings,
+    trusted_cas: &'a [TrustedCa],
 }
 
 pub(super) fn is_revision(value: &str) -> bool {

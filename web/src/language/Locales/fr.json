@@ -777,6 +777,11 @@
                 "publicDomain": "Utilisez un domaine DNS public.",
                 "email": "Saisissez une adresse e-mail valide.",
                 "terms": "Acceptez les conditions d’ACME."
+            },
+            "tabs": {
+                "label": "Type de certificat",
+                "server": "Certificats serveur",
+                "trusted": "AC de confiance"
             }
         },
         "proxyHosts": {
@@ -917,7 +922,10 @@
                 "domainsLimit": "Un hôte proxy ne peut pas avoir plus de 50 domaines.",
                 "duplicateDomain": "Ce domaine figure plusieurs fois dans la liste.",
                 "forwardHost": "Saisissez un nom d’hôte ou une adresse IPv4 ou IPv6 valides sans protocole, chemin ni port.",
-                "port": "Saisissez un numéro de port entier entre 1 et 65535."
+                "port": "Saisissez un numéro de port entier entre 1 et 65535.",
+                "upstreamTlsServerName": "Saisissez un nom DNS sans URL, port, adresse IP ni caractère générique.",
+                "trustedCaRequiresVerification": "Les AC personnalisées nécessitent la vérification du certificat du serveur en amont.",
+                "upstreamTlsIpNameRequired": "Pour une connexion à une adresse IP, saisissez le nom DNS figurant sur le certificat du serveur en amont."
             },
             "config": {
                 "open": "Config. Nginx",
@@ -997,6 +1005,103 @@
                     "resetDescription": "Rétablir les six paramètres HTTP et effacer la configuration experte de « {{name}} » ? Les autres hôtes, les valeurs partagées et les destinations restent inchangés.",
                     "savedPending": "Hôte proxy enregistré, mais la configuration n’a pas pu être appliquée. La configuration précédente qui fonctionnait reste active."
                 }
+            },
+            "upstreamTls": {
+                "title": "TLS du serveur en amont",
+                "verify": "Vérifier le certificat du serveur en amont",
+                "verifyHint": "Vérifie la chaîne de certificats et l’identité attendue du serveur en amont.",
+                "serverName": "Nom du serveur TLS",
+                "serverNamePlaceholder": "backend.internal.example",
+                "automatic": "Automatique : {{name}}",
+                "serverNameHint": "Nom attendu du certificat et SNI. Laisser vide pour utiliser l’hôte de destination. L’en-tête HTTP Host reste inchangé.",
+                "ipHint": "Pour une adresse IP, ce moteur exige un nom DNS du certificat, même avec un SAN de type IP. La connexion TCP utilise toujours l’IP configurée.",
+                "ipNameRequired": "Saisissez le nom DNS du certificat du serveur pour vérifier cette destination IP.",
+                "trustedCa": "AC de confiance",
+                "systemTrust": "Magasin de confiance du système",
+                "trustHint": "La confiance système utilise le bundle d’AC du moteur. Une AC personnalisée remplace cette confiance pour cet hôte.",
+                "insecureWarning": "La vérification du certificat du serveur en amont est désactivée. La connexion est chiffrée, mais RentnerProxy ne peut pas vérifier l’identité du serveur en amont.",
+                "verificationDisabled": "Vérification du certificat désactivée",
+                "caUnavailable": "AC sélectionnée indisponible",
+                "caLoadFailed": "Impossible de charger les AC de confiance. La sélection actuelle est conservée."
+            }
+        },
+        "trustedCas": {
+            "page": {
+                "eyebrow": "Certificats",
+                "title": "AC de confiance",
+                "description": "Certificats publics d’AC pour vérifier les serveurs HTTPS en amont. Ils ne contiennent aucune clé privée et sont distincts des certificats serveur."
+            },
+            "table": {
+                "eyebrow": "Confiance en amont",
+                "count_one": "{{count}} AC de confiance",
+                "count_other": "{{count}} AC de confiance",
+                "description": "Gérez les autorités de certification approuvées pour vos serveurs HTTPS en amont.",
+                "searchLabel": "Rechercher des AC de confiance",
+                "searchPlaceholder": "Nom, sujet, émetteur ou empreinte",
+                "loading": "Chargement des AC de confiance…",
+                "emptyTitle": "Aucune AC de confiance personnalisée",
+                "emptyDescription": "Les serveurs HTTPS en amont utilisent la confiance système sauf si vous sélectionnez une AC personnalisée.",
+                "filteredEmptyTitle": "Aucune AC de confiance correspondante",
+                "filteredEmptyDescription": "Essayez une autre recherche ou effacez les filtres.",
+                "itemLabel": "AC de confiance"
+            },
+            "columns": {
+                "name": "Nom",
+                "subject": "Sujet",
+                "issuer": "Émetteur",
+                "fingerprint": "Empreinte SHA-256",
+                "expires": "Expiration",
+                "actions": "Actions"
+            },
+            "actions": {
+                "import": "Importer une AC de confiance",
+                "replace": "Remplacer le bundle d’AC",
+                "delete": "Supprimer l’AC de confiance",
+                "deleteInUse": "Attribuée à des hôtes proxy : suppression impossible",
+                "deleting": "Suppression de l’AC de confiance…",
+                "open": "Actions pour {{name}}"
+            },
+            "import": {
+                "title": "Importer une AC de confiance",
+                "description": "Importez un certificat public d’AC ou un bundle PEM contenant uniquement des certificats d’AC."
+            },
+            "replace": {
+                "title": "Remplacer l’AC de confiance",
+                "description": "Tous les hôtes proxy utilisant cette AC recevront le nouveau bundle lors de l’application habituelle de la configuration."
+            },
+            "form": {
+                "name": "Nom",
+                "pem": "Certificat / bundle d’AC",
+                "pemHint": "Certificats PEM uniquement, jusqu’à 256 Kio. Chaque certificat doit être une AC. Les clés privées sont refusées."
+            },
+            "confirm": {
+                "deleteTitle": "Supprimer « {{name}} » ?",
+                "deleteDescription": "Seules les AC inutilisées peuvent être supprimées. Retirez d’abord leurs attributions aux hôtes proxy."
+            },
+            "states": {
+                "unavailableTitle": "AC de confiance indisponibles",
+                "unavailableDescription": "La liste des AC de confiance n’a pas pu être chargée. Réessayez dans un instant."
+            },
+            "validation": {
+                "name": "Saisissez un nom de 1 à 120 caractères.",
+                "pem": "Fournissez un bundle PEM valide contenant uniquement des certificats, de 256 Kio maximum.",
+                "pemLimit": "Le bundle d’AC ne doit pas dépasser 256 Kio."
+            },
+            "errors": {
+                "invalidInput": "Le bundle d’AC est invalide. Vérifiez le format PEM, la validité et les contraintes d’AC.",
+                "notFound": "Cette AC de confiance n’existe plus.",
+                "duplicate": "Ce bundle d’AC a déjà été importé.",
+                "inUse": "Cette AC est attribuée à un hôte proxy et ne peut pas être supprimée.",
+                "controllerUnavailable": "La validation des AC est temporairement indisponible. Aucun contenu non validé n’a été enregistré.",
+                "saveFailed": "L’AC de confiance n’a pas pu être enregistrée.",
+                "deleteFailed": "L’AC de confiance n’a pas pu être supprimée.",
+                "loadFailed": "La liste des AC de confiance n’a pas pu être chargée. Réessayez dans un instant."
+            },
+            "messages": {
+                "created": "AC de confiance importée.",
+                "replaced": "AC de confiance remplacée.",
+                "deleted": "AC de confiance supprimée.",
+                "savedPending": "AC enregistrée. La configuration est en attente ; la configuration précédente reste active."
             }
         }
     },
@@ -1006,7 +1111,8 @@
             "users": "Utilisateurs",
             "roles": "Rôles",
             "account": "Compte",
-            "proxy_hosts": "Hôtes proxy"
+            "proxy_hosts": "Hôtes proxy",
+            "trusted_cas": "AC de confiance"
         },
         "app": {
             "access": "Accès à l’application"
@@ -1038,6 +1144,12 @@
             "enable": "Activer les hôtes proxy",
             "disable": "Désactiver les hôtes proxy",
             "advanced_config": "Gérer la configuration experte des hôtes proxy"
+        },
+        "trusted_cas": {
+            "view": "Afficher les AC de confiance",
+            "create": "Importer des AC de confiance",
+            "update": "Remplacer les bundles d’AC de confiance",
+            "delete": "Supprimer les AC de confiance inutilisées"
         }
     },
     "systemRoles": {

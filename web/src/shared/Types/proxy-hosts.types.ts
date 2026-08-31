@@ -9,6 +9,9 @@ export interface ProxyHostSummary {
     readonly enabled: boolean
     readonly certificateId: string | null
     readonly forceHttps: boolean
+    readonly verifyUpstreamTls: boolean
+    readonly upstreamTlsServerName: string | null
+    readonly trustedCaId: string | null
     readonly createdAt: Date
     readonly updatedAt: Date
 }

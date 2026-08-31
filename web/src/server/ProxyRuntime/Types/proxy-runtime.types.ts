@@ -11,13 +11,26 @@ export interface ProxyRuntimeHost {
     readonly advancedConfig?: string
     readonly certificateId?: string | null
     readonly forceHttps?: boolean
+    readonly upstreamTls?: ProxyRuntimeUpstreamTls
 }
 
+export interface ProxyRuntimeUpstreamTls {
+    readonly verify: boolean
+    readonly serverName: string | null
+    readonly trustedCaId: string | null
+}
+
+export interface ProxyRuntimeTrustedCa {
+    readonly id: string
+    readonly pem: string
+    readonly fingerprintSha256: string
+}
 export interface ProxyRuntimeSnapshot {
-    readonly version: 1 | 2 | 3 | 4
+    readonly version: 1 | 2 | 3 | 4 | 5
     readonly revision: string
     readonly proxyHosts: ReadonlyArray<ProxyRuntimeHost>
     readonly httpSettings?: ProxyHttpSettings
+    readonly trustedCas?: ReadonlyArray<ProxyRuntimeTrustedCa>
 }
 
 export interface ProxyRuntimeApplyResponse {

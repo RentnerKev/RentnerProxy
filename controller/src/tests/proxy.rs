@@ -1,8 +1,9 @@
 use crate::{
-    models::{ProxyConfigRequest, ProxyHttpSettings},
+    models::{ProxyConfigRequest, ProxyHttpSettings, TrustedCa, UpstreamTls},
     proxy::{
         MAX_ADVANCED_CONFIG_BYTES, MAX_PROXY_HOSTS, ProxyValidationError,
-        revision_for_configuration, revision_for_hosts, validate_proxy_config,
+        revision_for_configuration, revision_for_configuration_with_trusted_cas,
+        revision_for_hosts, validate_proxy_config, validate_trusted_ca_pem,
     },
     tests::fixtures::{host, request, request_with_settings},
 };
@@ -357,4 +358,196 @@ fn advanced_config_normalizes_only_crlf_and_enforces_its_bound() {
         validate_proxy_config(host_configuration_in_v2),
         Err(ProxyValidationError::InvalidConfiguration)
     );
+}
+
+fn test_ca_pem() -> String {
+    let mut parameters = rcgen::CertificateParams::new(vec!["test-ca.internal".to_owned()])
+        .expect("test CA names should be valid");
+    parameters.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+    parameters.key_usages = vec![rcgen::KeyUsagePurpose::KeyCertSign];
+    let key_pair = rcgen::KeyPair::generate().expect("test CA key should generate");
+    parameters
+        .self_signed(&key_pair)
+        .expect("test CA certificate should generate")
+        .pem()
+}
+
+fn trusted_ca(id: &str) -> TrustedCa {
+    let parsed = validate_trusted_ca_pem(&test_ca_pem()).expect("test CA should validate");
+    TrustedCa {
+        id: id.to_owned(),
+        pem: parsed.pem,
+        fingerprint_sha256: parsed.fingerprint_sha256,
+    }
+}
+
+fn v5_request(host: crate::models::ProxyHost, trusted_cas: Vec<TrustedCa>) -> ProxyConfigRequest {
+    let hosts = vec![host];
+    let http_settings = ProxyHttpSettings::default();
+    ProxyConfigRequest {
+        version: 5,
+        revision: revision_for_configuration_with_trusted_cas(&hosts, &http_settings, &trusted_cas),
+        proxy_hosts: hosts,
+        http_settings,
+        trusted_cas,
+    }
+}
+
+#[test]
+fn v5_upstream_tls_snapshot_requires_explicit_valid_settings_and_changes_revision() {
+    let mut host = host(
+        "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
+        &["demo.test"],
+        "https",
+        "backend.internal",
+        4_443,
+    );
+    host.upstream_tls = Some(UpstreamTls {
+        verify: true,
+        server_name: None,
+        trusted_ca_id: None,
+    });
+    let system_trust = v5_request(host.clone(), Vec::new());
+    assert!(validate_proxy_config(system_trust.clone()).is_ok());
+    assert!(
+        serde_json::to_string(&system_trust)
+            .expect("snapshot should serialize")
+            .contains("\"upstreamTls\":{\"verify\":true,\"serverName\":null,\"trustedCaId\":null}")
+    );
+
+    let mut disabled = host.clone();
+    disabled
+        .upstream_tls
+        .as_mut()
+        .expect("settings exist")
+        .verify = false;
+    assert_ne!(
+        system_trust.revision,
+        v5_request(disabled, Vec::new()).revision,
+        "verification changes must cause a reload"
+    );
+
+    let mut named = host.clone();
+    named
+        .upstream_tls
+        .as_mut()
+        .expect("settings exist")
+        .server_name = Some("tls.backend.internal".to_owned());
+    assert_ne!(
+        system_trust.revision,
+        v5_request(named, Vec::new()).revision,
+        "TLS identity changes must cause a reload"
+    );
+
+    let ca = trusted_ca("0198d98a-0000-7000-8000-000000000001");
+    let mut custom_trust = host;
+    custom_trust
+        .upstream_tls
+        .as_mut()
+        .expect("settings exist")
+        .trusted_ca_id = Some(ca.id.clone());
+    let custom_trust = v5_request(custom_trust, vec![ca]);
+    assert!(validate_proxy_config(custom_trust.clone()).is_ok());
+    assert_ne!(
+        system_trust.revision, custom_trust.revision,
+        "selected trust material must affect the revision"
+    );
+}
+
+#[test]
+fn v5_upstream_tls_handles_ip_targets_and_custom_ca_references_safely() {
+    let mut ip_host = host(
+        "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
+        &["demo.test"],
+        "https",
+        "10.10.0.25",
+        4_443,
+    );
+    ip_host.upstream_tls = Some(UpstreamTls {
+        verify: true,
+        server_name: None,
+        trusted_ca_id: None,
+    });
+    assert_eq!(
+        validate_proxy_config(v5_request(ip_host.clone(), Vec::new())),
+        Err(ProxyValidationError::ValidationFailed)
+    );
+
+    ip_host
+        .upstream_tls
+        .as_mut()
+        .expect("settings exist")
+        .server_name = Some("nas.internal.example".to_owned());
+    assert!(validate_proxy_config(v5_request(ip_host.clone(), Vec::new())).is_ok());
+
+    ip_host
+        .upstream_tls
+        .as_mut()
+        .expect("settings exist")
+        .verify = false;
+    ip_host
+        .upstream_tls
+        .as_mut()
+        .expect("settings exist")
+        .server_name = None;
+    assert!(validate_proxy_config(v5_request(ip_host.clone(), Vec::new())).is_ok());
+
+    let unknown_ca = "0198d98a-0000-7000-8000-000000000001";
+    ip_host
+        .upstream_tls
+        .as_mut()
+        .expect("settings exist")
+        .trusted_ca_id = Some(unknown_ca.to_owned());
+    assert_eq!(
+        validate_proxy_config(v5_request(ip_host, Vec::new())),
+        Err(ProxyValidationError::ValidationFailed),
+        "custom trust cannot silently coexist with disabled verification"
+    );
+}
+
+#[test]
+fn trusted_ca_validation_rejects_private_key_and_trailing_der_data() {
+    let key_pair = rcgen::KeyPair::generate().expect("test key should generate");
+    assert!(validate_trusted_ca_pem(&key_pair.serialize_pem()).is_err());
+
+    let mut parameters = rcgen::CertificateParams::new(vec!["test-ca.internal".to_owned()])
+        .expect("test CA names should be valid");
+    parameters.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+    parameters.key_usages = vec![rcgen::KeyUsagePurpose::KeyCertSign];
+    let key_pair = rcgen::KeyPair::generate().expect("test CA key should generate");
+    let certificate = parameters
+        .self_signed(&key_pair)
+        .expect("test CA certificate should generate");
+    let mut malformed_der = certificate.der().as_ref().to_vec();
+    malformed_der.extend_from_slice(&[0, 1, 2]);
+    let malformed_pem = format!(
+        "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----\n",
+        base64_encode(&malformed_der)
+    );
+    assert!(validate_trusted_ca_pem(&malformed_pem).is_err());
+}
+
+fn base64_encode(bytes: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut output = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let first = chunk[0];
+        let second = *chunk.get(1).unwrap_or(&0);
+        let third = *chunk.get(2).unwrap_or(&0);
+        output.push(char::from(TABLE[usize::from(first >> 2)]));
+        output.push(char::from(
+            TABLE[usize::from(((first & 0b0000_0011) << 4) | (second >> 4))],
+        ));
+        output.push(if chunk.len() > 1 {
+            char::from(TABLE[usize::from(((second & 0b0000_1111) << 2) | (third >> 6))])
+        } else {
+            '='
+        });
+        output.push(if chunk.len() > 2 {
+            char::from(TABLE[usize::from(third & 0b0011_1111)])
+        } else {
+            '='
+        });
+    }
+    output
 }
