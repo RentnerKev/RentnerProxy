@@ -21,7 +21,21 @@ import {
     userRoles,
     users,
 } from '../db/schema'
-import { applyProxyConfigurationService } from '../server/ProxyRuntime/proxy-runtime.service'
+import {
+    applyProxyConfigurationService,
+    getProxyRuntimeSnapshotService,
+} from '../server/ProxyRuntime/proxy-runtime.service'
+import {
+    getProxyHostConfigEditorService,
+    previewProxyHostConfigEditorService,
+    resetProxyHostConfigEditorService,
+    saveProxyHostConfigEditorService,
+} from '../server/ProxyRuntime/proxy-host-config-editor.service'
+import {
+    getProxyConfigEditorService,
+    previewProxyConfigEditorService,
+    ProxyConfigEditorError,
+} from '../server/ProxyRuntime/proxy-config-editor.service'
 import { getAuthDatabase } from '../server/Auth/Core/database.server'
 import { AuthDomainError } from '../server/Auth/Core/errors.server'
 import { ensureAuthorizationRegistryInTransaction } from '../server/Auth/Access/registry.service'
@@ -226,16 +240,34 @@ async function cleanTestRows(): Promise<void> {
 
 interface FakeController {
     readonly applyRevisions: string[]
+    readonly requests: Array<{
+        readonly method: string
+        readonly path: string
+        readonly body: string | null
+    }>
     readonly server: ReturnType<typeof Bun.serve>
 }
 
-function startFakeController(failApply: boolean): FakeController {
+const FAKE_ACTIVE_REVISION = 'sha256:' + 'a'.repeat(64)
+
+function startFakeController(
+    failApply: boolean,
+    options: { readonly activeConfig?: string } = {},
+): FakeController {
     const applyRevisions: string[] = []
+    const requests: Array<{
+        readonly method: string
+        readonly path: string
+        readonly body: string | null
+    }> = []
+    const activeConfig = options.activeConfig ?? '# fake active configuration'
     const server = Bun.serve({
         hostname: '127.0.0.1',
         port: 0,
         async fetch(request) {
             const url = new URL(request.url)
+            const body = request.method === 'GET' ? null : await request.text()
+            requests.push({ method: request.method, path: url.pathname, body })
 
             if (request.method === 'PUT' && url.pathname === '/internal/v1/proxy/config') {
                 if (failApply) {
@@ -243,8 +275,8 @@ function startFakeController(failApply: boolean): FakeController {
                     return new Response('unavailable', { status: 503 })
                 }
 
-                const payload = (await request.json()) as { revision?: unknown }
-                if (typeof payload.revision !== 'string') {
+                const payload = (body ? JSON.parse(body) : null) as { revision?: unknown } | null
+                if (typeof payload?.revision !== 'string') {
                     return new Response('invalid', { status: 400 })
                 }
 
@@ -256,15 +288,43 @@ function startFakeController(failApply: boolean): FakeController {
                 })
             }
 
+            if (
+                request.method === 'GET' &&
+                (url.pathname === '/internal/v1/proxy/config' ||
+                    /^\/internal\/v1\/proxy\/hosts\/[0-9a-f-]+\/config$/u.test(url.pathname))
+            ) {
+                return Response.json({ config: activeConfig, activeRevision: FAKE_ACTIVE_REVISION })
+            }
+
+            if (
+                request.method === 'POST' &&
+                (url.pathname === '/internal/v1/proxy/config/preview' ||
+                    /^\/internal\/v1\/proxy\/hosts\/[0-9a-f-]+\/config\/preview$/u.test(
+                        url.pathname,
+                    ))
+            ) {
+                const payload = (body ? JSON.parse(body) : null) as { revision?: unknown } | null
+                if (typeof payload?.revision !== 'string') {
+                    return new Response('invalid', { status: 400 })
+                }
+                return Response.json({
+                    config: '# fake preview configuration',
+                    revision: payload.revision,
+                })
+            }
+
             return new Response('not found', { status: 404 })
         },
     })
     process.env.RENTNERPROXY_CONTROLLER_URL = server.url.origin
     process.env.RENTNERPROXY_CONTROLLER_TOKEN = 'C'.repeat(32)
-    return { applyRevisions, server }
+    return { applyRevisions, requests, server }
 }
 
-async function insertRawProxyHost(input: CreateProxyHostInput): Promise<string> {
+async function insertRawProxyHost(
+    input: CreateProxyHostInput,
+    advancedConfig = '',
+): Promise<string> {
     const rows = await getAuthDatabase()
         .insert(proxyHosts)
         .values({
@@ -272,6 +332,7 @@ async function insertRawProxyHost(input: CreateProxyHostInput): Promise<string> 
             forwardHost: input.forwardHost,
             forwardPort: input.forwardPort,
             forwardScheme: input.forwardScheme,
+            advancedConfig,
         })
         .returning({ id: proxyHosts.id })
     const id = requireFirstRow(rows, 'Raw runtime test host was not inserted.').id
@@ -324,6 +385,10 @@ beforeAll(async () => {
 
 beforeEach(async () => {
     if (dedicatedDatabaseVerified) {
+        // Only explicitly started test controllers may receive test snapshots.
+        // An empty URL disables the client; deleting it would select localhost.
+        process.env.RENTNERPROXY_CONTROLLER_URL = ''
+        process.env.RENTNERPROXY_CONTROLLER_TOKEN = ''
         await cleanTestRows()
     }
 })
@@ -1000,4 +1065,495 @@ describe('runtime reconcile after PostgreSQL mutations', () => {
             }
         },
     )
+})
+
+describe('advanced proxy host configuration with PostgreSQL', () => {
+    integrationTest(
+        'defaults raw configuration and ignores a crafted normal host field',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const craftedInput = {
+                ...proxyHostInput('crafted-raw'),
+                advancedConfig: 'add_header X-Should-Be-Ignored yes;',
+            }
+            const created = await runAsUser(owner.id, () => createProxyHostService(craftedInput))
+
+            const row = requireFirstRow(
+                await getAuthDatabase()
+                    .select({ advancedConfig: proxyHosts.advancedConfig })
+                    .from(proxyHosts)
+                    .where(eq(proxyHosts.id, created.id)),
+                'Crafted raw host was not persisted.',
+            )
+            expect(row.advancedConfig).toBe('')
+            expect(await runAsUser(owner.id, getProxyHostsService)).not.toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ advancedConfig: expect.anything() }),
+                ]),
+            )
+        },
+    )
+
+    integrationTest('owner and admin persist normalized raw configuration', async () => {
+        const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+        const admin = await createTestUser([SYSTEM_ROLES.ADMIN])
+        const created = await runAsUser(owner.id, () =>
+            createProxyHostService(proxyHostInput('owner-admin-raw')),
+        )
+        const controller = startFakeController(false)
+        try {
+            const ownerState = await runAsUser(owner.id, () =>
+                getProxyHostConfigEditorService(created.id),
+            )
+            expect(ownerState.advancedConfig).toBe('')
+            await runAsUser(owner.id, () =>
+                saveProxyHostConfigEditorService({
+                    advancedConfig: 'add_header X-Owner works;\r\n# owner',
+                    baseRevision: ownerState.baseRevision,
+                    proxyHostId: created.id,
+                    settingsSource: '',
+                }),
+            )
+
+            const ownerRow = requireFirstRow(
+                await getAuthDatabase()
+                    .select({ advancedConfig: proxyHosts.advancedConfig })
+                    .from(proxyHosts)
+                    .where(eq(proxyHosts.id, created.id)),
+                'Owner raw configuration was not persisted.',
+            )
+            expect(ownerRow.advancedConfig).toBe('add_header X-Owner works;\n# owner')
+
+            const adminState = await runAsUser(admin.id, () =>
+                getProxyHostConfigEditorService(created.id),
+            )
+            await runAsUser(admin.id, () =>
+                saveProxyHostConfigEditorService({
+                    advancedConfig: 'add_header X-Admin works;\r\n',
+                    baseRevision: adminState.baseRevision,
+                    proxyHostId: created.id,
+                    settingsSource: '',
+                }),
+            )
+            const adminRow = requireFirstRow(
+                await getAuthDatabase()
+                    .select({ advancedConfig: proxyHosts.advancedConfig })
+                    .from(proxyHosts)
+                    .where(eq(proxyHosts.id, created.id)),
+                'Admin raw configuration was not persisted.',
+            )
+            expect(adminRow.advancedConfig).toBe('add_header X-Admin works;\n')
+        } finally {
+            await controller.server.stop(true)
+        }
+    })
+
+    integrationTest(
+        'custom roles require the raw permission and preserve hidden raw text',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const created = await runAsUser(owner.id, () =>
+                createProxyHostService(proxyHostInput('custom-raw')),
+            )
+            const raw = 'add_header X-Private secret;'
+            await getAuthDatabase()
+                .update(proxyHosts)
+                .set({ advancedConfig: raw })
+                .where(eq(proxyHosts.id, created.id))
+
+            const limitedRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.PROXY_HOSTS_VIEW,
+                PERMISSIONS.PROXY_HOSTS_UPDATE,
+                PERMISSIONS.PROXY_HOSTS_APPLY,
+            ])
+            const limited = await createTestUser([limitedRole.key])
+            const grantedRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.PROXY_HOSTS_VIEW,
+                PERMISSIONS.PROXY_HOSTS_UPDATE,
+                PERMISSIONS.PROXY_HOSTS_APPLY,
+                PERMISSIONS.PROXY_HOSTS_ADVANCED_CONFIG,
+            ])
+            const granted = await createTestUser([grantedRole.key])
+            const controller = startFakeController(false, { activeConfig: 'controller-secret' })
+            try {
+                const hidden = await runAsUser(limited.id, () =>
+                    getProxyHostConfigEditorService(created.id),
+                )
+                expect(hidden).not.toHaveProperty('advancedConfig')
+                expect(hidden.active).toBeNull()
+                expect(hidden.defaults).not.toBeNull()
+                expect(hidden.generated).not.toBeNull()
+                expect(hidden.defaults?.config).not.toContain('controller-secret')
+                expect(hidden.generated?.config).not.toContain('controller-secret')
+                expect(
+                    controller.requests.some(
+                        (request) =>
+                            request.method === 'GET' &&
+                            request.path.endsWith('/config') &&
+                            request.path.includes('/hosts/'),
+                    ),
+                ).toBeFalse()
+                expect(
+                    controller.requests
+                        .filter(
+                            (request) =>
+                                request.method === 'POST' &&
+                                request.path.includes('/hosts/') &&
+                                request.path.endsWith('/preview'),
+                        )
+                        .every((request) => !request.body?.includes('controller-secret')),
+                ).toBeTrue()
+
+                const deniedSave = await captureError(
+                    runAsUser(limited.id, () =>
+                        saveProxyHostConfigEditorService({
+                            advancedConfig: 'controller-secret',
+                            baseRevision: hidden.baseRevision,
+                            proxyHostId: created.id,
+                            settingsSource: '',
+                        }),
+                    ),
+                )
+                const deniedPreview = await captureError(
+                    runAsUser(limited.id, () =>
+                        previewProxyHostConfigEditorService({
+                            advancedConfig: 'controller-secret',
+                            proxyHostId: created.id,
+                            settingsSource: '',
+                        }),
+                    ),
+                )
+                const deniedReset = await captureError(
+                    runAsUser(limited.id, () =>
+                        resetProxyHostConfigEditorService({
+                            baseRevision: hidden.baseRevision,
+                            proxyHostId: created.id,
+                            resetAdvancedConfig: true,
+                        }),
+                    ),
+                )
+                expect(deniedSave).toBeInstanceOf(AuthDomainError)
+                expect(deniedPreview).toBeInstanceOf(AuthDomainError)
+                expect(deniedReset).toBeInstanceOf(AuthDomainError)
+
+                await runAsUser(limited.id, () =>
+                    saveProxyHostConfigEditorService({
+                        baseRevision: hidden.baseRevision,
+                        proxyHostId: created.id,
+                        settingsSource: '',
+                    }),
+                )
+                const craftedUpdate = {
+                    ...proxyHostInput('custom-normal-update'),
+                    advancedConfig: 'controller-secret',
+                    forwardPort: 8_081,
+                    proxyHostId: created.id,
+                }
+                await runAsUser(limited.id, () => updateProxyHostService(craftedUpdate))
+                const preserved = requireFirstRow(
+                    await getAuthDatabase()
+                        .select({
+                            advancedConfig: proxyHosts.advancedConfig,
+                            forwardPort: proxyHosts.forwardPort,
+                        })
+                        .from(proxyHosts)
+                        .where(eq(proxyHosts.id, created.id)),
+                    'Hidden raw configuration was not preserved.',
+                )
+                expect(preserved.advancedConfig).toBe(raw)
+                expect(preserved.forwardPort).toBe(8_081)
+
+                const grantedState = await runAsUser(granted.id, () =>
+                    getProxyHostConfigEditorService(created.id),
+                )
+                expect(grantedState.advancedConfig).toBe(raw)
+                await runAsUser(granted.id, () =>
+                    saveProxyHostConfigEditorService({
+                        advancedConfig: 'add_header X-Granted yes;',
+                        baseRevision: grantedState.baseRevision,
+                        proxyHostId: created.id,
+                        settingsSource: '',
+                    }),
+                )
+                const grantedRow = requireFirstRow(
+                    await getAuthDatabase()
+                        .select({ advancedConfig: proxyHosts.advancedConfig })
+                        .from(proxyHosts)
+                        .where(eq(proxyHosts.id, created.id)),
+                    'Granted custom raw configuration was not persisted.',
+                )
+                expect(grantedRow.advancedConfig).toBe('add_header X-Granted yes;')
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+
+    integrationTest('viewer omits raw configuration and cannot write it', async () => {
+        const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+        const viewer = await createTestUser([SYSTEM_ROLES.VIEWER])
+        const created = await runAsUser(owner.id, () =>
+            createProxyHostService(proxyHostInput('viewer-raw')),
+        )
+        await getAuthDatabase()
+            .update(proxyHosts)
+            .set({ advancedConfig: 'controller-secret' })
+            .where(eq(proxyHosts.id, created.id))
+        const controller = startFakeController(false, { activeConfig: 'controller-secret' })
+        try {
+            const state = await runAsUser(viewer.id, () =>
+                getProxyHostConfigEditorService(created.id),
+            )
+            expect(state).not.toHaveProperty('advancedConfig')
+            expect(state.active).toBeNull()
+            expect(state.defaults).not.toBeNull()
+            expect(state.generated).not.toBeNull()
+            expect(state.defaults?.config).not.toContain('controller-secret')
+            expect(state.generated?.config).not.toContain('controller-secret')
+            const preview = await runAsUser(viewer.id, () =>
+                previewProxyHostConfigEditorService({
+                    proxyHostId: created.id,
+                    settingsSource: '',
+                }),
+            )
+            expect(preview).not.toBeNull()
+            expect(preview.config).not.toContain('controller-secret')
+            const denied = await captureError(
+                runAsUser(viewer.id, () =>
+                    saveProxyHostConfigEditorService({
+                        advancedConfig: 'controller-secret',
+                        baseRevision: state.baseRevision,
+                        proxyHostId: created.id,
+                        settingsSource: '',
+                    }),
+                ),
+            )
+            expect(denied).toBeInstanceOf(AuthDomainError)
+        } finally {
+            await controller.server.stop(true)
+        }
+    })
+
+    integrationTest('global full-source query and preview require the raw permission', async () => {
+        const viewer = await createTestUser([SYSTEM_ROLES.VIEWER])
+        expect(
+            await captureError(runAsUser(viewer.id, getProxyConfigEditorService)),
+        ).toBeInstanceOf(AuthDomainError)
+        expect(
+            await captureError(runAsUser(viewer.id, () => previewProxyConfigEditorService(''))),
+        ).toBeInstanceOf(AuthDomainError)
+    })
+
+    integrationTest(
+        'structured save and reset preserve raw configuration unless requested',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const created = await runAsUser(owner.id, () =>
+                createProxyHostService(proxyHostInput('structured-preserve')),
+            )
+            await getAuthDatabase()
+                .update(proxyHosts)
+                .set({ advancedConfig: 'add_header X-Keep yes;' })
+                .where(eq(proxyHosts.id, created.id))
+            const controller = startFakeController(false)
+            try {
+                const state = await runAsUser(owner.id, () =>
+                    getProxyHostConfigEditorService(created.id),
+                )
+                await runAsUser(owner.id, () =>
+                    saveProxyHostConfigEditorService({
+                        baseRevision: state.baseRevision,
+                        proxyHostId: created.id,
+                        settingsSource: 'proxy_read_timeout 30s;',
+                    }),
+                )
+                const afterSettings = requireFirstRow(
+                    await getAuthDatabase()
+                        .select({ advancedConfig: proxyHosts.advancedConfig })
+                        .from(proxyHosts)
+                        .where(eq(proxyHosts.id, created.id)),
+                    'Raw configuration disappeared during structured save.',
+                )
+                expect(afterSettings.advancedConfig).toBe('add_header X-Keep yes;')
+
+                const next = await runAsUser(owner.id, () =>
+                    getProxyHostConfigEditorService(created.id),
+                )
+                await runAsUser(owner.id, () =>
+                    resetProxyHostConfigEditorService({
+                        baseRevision: next.baseRevision,
+                        proxyHostId: created.id,
+                    }),
+                )
+                const afterReset = requireFirstRow(
+                    await getAuthDatabase()
+                        .select({ advancedConfig: proxyHosts.advancedConfig })
+                        .from(proxyHosts)
+                        .where(eq(proxyHosts.id, created.id)),
+                    'Raw configuration disappeared during reset.',
+                )
+                expect(afterReset.advancedConfig).toBe('add_header X-Keep yes;')
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+
+    integrationTest('advanced reset isolates hosts and delete cascades the raw field', async () => {
+        const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+        const first = await insertRawProxyHost(
+            proxyHostInput('reset-first'),
+            'add_header X-First yes;',
+        )
+        const second = await insertRawProxyHost(
+            proxyHostInput('reset-second'),
+            'add_header X-Second yes;',
+        )
+        const controller = startFakeController(false)
+        try {
+            const state = await runAsUser(owner.id, () => getProxyHostConfigEditorService(first))
+            await runAsUser(owner.id, () =>
+                resetProxyHostConfigEditorService({
+                    baseRevision: state.baseRevision,
+                    proxyHostId: first,
+                    resetAdvancedConfig: true,
+                }),
+            )
+            const rows = await getAuthDatabase()
+                .select({ id: proxyHosts.id, advancedConfig: proxyHosts.advancedConfig })
+                .from(proxyHosts)
+                .where(inArray(proxyHosts.id, [first, second]))
+            expect(rows).toEqual(
+                expect.arrayContaining([
+                    { id: first, advancedConfig: '' },
+                    { id: second, advancedConfig: 'add_header X-Second yes;' },
+                ]),
+            )
+
+            await runAsUser(owner.id, () => deleteProxyHostService(first))
+            expect(
+                await getAuthDatabase()
+                    .select({ id: proxyHosts.id })
+                    .from(proxyHosts)
+                    .where(eq(proxyHosts.id, first)),
+            ).toEqual([])
+            expect(
+                await getAuthDatabase()
+                    .select({ proxyHostId: proxyHostDomains.proxyHostId })
+                    .from(proxyHostDomains)
+                    .where(eq(proxyHostDomains.proxyHostId, first)),
+            ).toEqual([])
+        } finally {
+            await controller.server.stop(true)
+        }
+    })
+
+    integrationTest('disabled snapshots omit raw configuration until enable', async () => {
+        const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+        const created = await insertRawProxyHost(
+            { ...proxyHostInput('disabled-raw'), enabled: false },
+            'add_header X-Disabled yes;',
+        )
+        const hidden = await runAsUser(owner.id, getProxyRuntimeSnapshotService)
+        expect(hidden.proxyHosts).toEqual([])
+
+        const controller = startFakeController(false)
+        try {
+            await runAsUser(owner.id, () => enableProxyHostService(created))
+            const enabled = await runAsUser(owner.id, getProxyRuntimeSnapshotService)
+            expect(enabled.proxyHosts).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        advancedConfig: 'add_header X-Disabled yes;',
+                    }),
+                ]),
+            )
+        } finally {
+            await controller.server.stop(true)
+        }
+    })
+
+    integrationTest(
+        'pending apply persists structurally valid invalid runtime text and changes revision',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const created = await runAsUser(owner.id, () =>
+                createProxyHostService(proxyHostInput('pending-invalid-raw')),
+            )
+            const controller = startFakeController(true)
+            try {
+                const before = await runAsUser(owner.id, getProxyRuntimeSnapshotService)
+                const state = await runAsUser(owner.id, () =>
+                    getProxyHostConfigEditorService(created.id),
+                )
+                const result = await runAsUser(owner.id, () =>
+                    saveProxyHostConfigEditorService({
+                        advancedConfig: 'add_header ;',
+                        baseRevision: state.baseRevision,
+                        proxyHostId: created.id,
+                        settingsSource: '',
+                    }),
+                )
+                const after = await runAsUser(owner.id, getProxyRuntimeSnapshotService)
+                expect(result.runtimeStatus).toBe('pending')
+                expect(after.revision).not.toBe(before.revision)
+                expect(after.proxyHosts).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({ advancedConfig: 'add_header ;' }),
+                    ]),
+                )
+                expect(controller.applyRevisions).toHaveLength(1)
+            } finally {
+                await controller.server.stop(true)
+            }
+        },
+    )
+
+    integrationTest('CAS rejects a stale raw-only draft', async () => {
+        const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+        const created = await runAsUser(owner.id, () =>
+            createProxyHostService(proxyHostInput('raw-cas')),
+        )
+        const controller = startFakeController(false)
+        try {
+            const first = await runAsUser(owner.id, () =>
+                getProxyHostConfigEditorService(created.id),
+            )
+            const stale = await runAsUser(owner.id, () =>
+                getProxyHostConfigEditorService(created.id),
+            )
+            await runAsUser(owner.id, () =>
+                saveProxyHostConfigEditorService({
+                    advancedConfig: 'add_header X-First yes;',
+                    baseRevision: first.baseRevision,
+                    proxyHostId: created.id,
+                    settingsSource: '',
+                }),
+            )
+            const error = await captureError(
+                runAsUser(owner.id, () =>
+                    saveProxyHostConfigEditorService({
+                        advancedConfig: 'add_header X-Stale yes;',
+                        baseRevision: stale.baseRevision,
+                        proxyHostId: created.id,
+                        settingsSource: '',
+                    }),
+                ),
+            )
+            expect(error).toBeInstanceOf(ProxyConfigEditorError)
+            expect((error as ProxyConfigEditorError).code).toBe('configuration_conflict')
+            const row = requireFirstRow(
+                await getAuthDatabase()
+                    .select({ advancedConfig: proxyHosts.advancedConfig })
+                    .from(proxyHosts)
+                    .where(eq(proxyHosts.id, created.id)),
+                'CAS test host was not persisted.',
+            )
+            expect(row.advancedConfig).toBe('add_header X-First yes;')
+        } finally {
+            await controller.server.stop(true)
+        }
+    })
 })

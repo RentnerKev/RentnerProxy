@@ -7,6 +7,10 @@ import { proxyHostDomains, proxyHosts } from '../../../db/schema'
 import type { ProxyHostSummary } from '../../../shared/Types/proxy-hosts.types'
 import type { ProxyRuntimeMutationStatus } from '../../../shared/Types/proxy-runtime.types'
 import { reconcileProxyConfigurationService } from '../../ProxyRuntime/proxy-runtime.service'
+import {
+    lockProxyRuntimeSettings,
+    writeProxyHostHttpSettings,
+} from '../../ProxyRuntime/proxy-runtime-settings'
 import { requirePermissionService } from '../../Auth/Access/authorization.service'
 import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
 import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
@@ -214,6 +218,7 @@ export async function createProxyHostService(
 
     try {
         const saved = await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
             await requirePermissionInTransaction(
                 transaction,
                 actor.id,
@@ -271,6 +276,7 @@ export async function updateProxyHostService(
 
     try {
         const saved = await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
             await requirePermissionInTransaction(
                 transaction,
                 actor.id,
@@ -342,6 +348,7 @@ export async function deleteProxyHostService(
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_DELETE)
 
     await getAuthDatabase().transaction(async (transaction) => {
+        await lockProxyRuntimeSettings(transaction)
         await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.PROXY_HOSTS_DELETE)
         const proxyHost = await loadProxyHostForUpdate(transaction, id)
 
@@ -349,6 +356,7 @@ export async function deleteProxyHostService(
             throw new ProxyHostDomainError('proxy_host_not_found', 'Proxy host was not found.')
         }
 
+        await writeProxyHostHttpSettings(transaction, proxyHost.id, {})
         await transaction.delete(proxyHosts).where(eq(proxyHosts.id, proxyHost.id))
     })
 
@@ -364,6 +372,7 @@ async function setProxyHostEnabledService(
     const actor = await requirePermissionService(permission)
 
     const saved = await getAuthDatabase().transaction(async (transaction) => {
+        await lockProxyRuntimeSettings(transaction)
         await requirePermissionInTransaction(transaction, actor.id, permission)
         const proxyHost = await loadProxyHostForUpdate(transaction, id)
 
