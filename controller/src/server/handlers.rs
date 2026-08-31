@@ -1,7 +1,7 @@
 use axum::{
     Json,
     body::Bytes,
-    extract::{Path, State, rejection::BytesRejection},
+    extract::{Path, rejection::BytesRejection},
     http::{
         HeaderMap, HeaderValue, StatusCode,
         header::{CACHE_CONTROL, CONTENT_TYPE, HOST},
@@ -41,7 +41,7 @@ pub(super) async fn health() -> Json<HealthResponse> {
 
 pub(super) async fn challenge_response(
     Path(token): Path<String>,
-    State(state): State<AppState>,
+    state: AppState,
     headers: HeaderMap,
 ) -> Response {
     let Some(domain) = challenge_domain(&headers) else {
@@ -82,13 +82,11 @@ fn is_challenge_token(value: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
 }
 
-pub(super) async fn proxy_status(
-    State(state): State<AppState>,
-) -> Result<Json<ProxyRuntimeStatus>, ApiError> {
+pub(super) async fn proxy_status(state: AppState) -> Result<Json<ProxyRuntimeStatus>, ApiError> {
     Ok(Json(state.runtime.status().await))
 }
 
-pub(super) async fn list_certificates(State(state): State<AppState>) -> Result<Response, ApiError> {
+pub(super) async fn list_certificates(state: AppState) -> Result<Response, ApiError> {
     Ok(no_store_json(CertificateListResponse {
         certificates: state
             .runtime
@@ -100,7 +98,7 @@ pub(super) async fn list_certificates(State(state): State<AppState>) -> Result<R
 
 pub(super) async fn get_certificate(
     Path(id): Path<String>,
-    State(state): State<AppState>,
+    state: AppState,
 ) -> Result<Response, ApiError> {
     certificate_id(&id)?;
     Ok(no_store_json(
@@ -124,7 +122,7 @@ pub(super) async fn validate_trusted_ca(
 }
 pub(super) async fn import_certificate(
     Path(id): Path<String>,
-    State(state): State<AppState>,
+    state: AppState,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
     certificate_id(&id)?;
@@ -142,7 +140,7 @@ pub(super) async fn import_certificate(
 
 pub(super) async fn issue_certificate(
     Path(id): Path<String>,
-    State(state): State<AppState>,
+    state: AppState,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
     certificate_id(&id)?;
@@ -159,7 +157,7 @@ pub(super) async fn issue_certificate(
 
 pub(super) async fn renew_certificate(
     Path(id): Path<String>,
-    State(state): State<AppState>,
+    state: AppState,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
     certificate_id(&id)?;
@@ -177,7 +175,7 @@ pub(super) async fn renew_certificate(
 
 pub(super) async fn delete_certificate(
     Path(id): Path<String>,
-    State(state): State<AppState>,
+    state: AppState,
 ) -> Result<Response, ApiError> {
     certificate_id(&id)?;
     state
@@ -201,7 +199,7 @@ fn certificate_error(error: CertificateError) -> ApiError {
 }
 
 pub(super) async fn apply_proxy_config(
-    State(state): State<AppState>,
+    state: AppState,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<ApplyResponse>, ApiError> {
     let configuration = validated_proxy_config(body)?;
@@ -223,7 +221,7 @@ pub(super) async fn apply_proxy_config(
     }))
 }
 
-pub(super) async fn read_proxy_config(State(state): State<AppState>) -> Result<Response, ApiError> {
+pub(super) async fn read_proxy_config(state: AppState) -> Result<Response, ApiError> {
     let (config, active_revision) = state.runtime.active_config().await.map_err(runtime_error)?;
     Ok(no_store_json(ProxyConfigSourceResponse {
         config,
@@ -233,7 +231,7 @@ pub(super) async fn read_proxy_config(State(state): State<AppState>) -> Result<R
 
 pub(super) async fn read_proxy_host_config(
     Path(host_id): Path<String>,
-    State(state): State<AppState>,
+    state: AppState,
 ) -> Result<Response, ApiError> {
     if !is_canonical_uuid(&host_id) {
         return Err(ApiError::not_found());
@@ -251,7 +249,7 @@ pub(super) async fn read_proxy_host_config(
 
 pub(super) async fn preview_proxy_host_config(
     Path(host_id): Path<String>,
-    State(state): State<AppState>,
+    state: AppState,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
     if !is_canonical_uuid(&host_id) {
@@ -273,7 +271,7 @@ pub(super) async fn preview_proxy_host_config(
 }
 
 pub(super) async fn preview_proxy_config(
-    State(state): State<AppState>,
+    state: AppState,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
     let configuration = validated_proxy_config(body)?;

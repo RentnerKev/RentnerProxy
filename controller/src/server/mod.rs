@@ -45,23 +45,47 @@ impl AppState {
 }
 
 pub(crate) fn app_with_state(state: AppState) -> Router {
+    // Capture application-owned state when registering routes. Only request extractors
+    // belong in handler parameters; runtime paths and credentials are never request data.
     let certificates = Router::new()
-        .route("/internal/v1/certificates", get(list_certificates))
+        .route(
+            "/internal/v1/certificates",
+            get({
+                let state = state.clone();
+                move || list_certificates(state.clone())
+            }),
+        )
         .route(
             "/internal/v1/certificates/{id}",
-            get(get_certificate).delete(delete_certificate),
+            get({
+                let state = state.clone();
+                move |id| get_certificate(id, state.clone())
+            })
+            .delete({
+                let state = state.clone();
+                move |id| delete_certificate(id, state.clone())
+            }),
         )
         .route(
             "/internal/v1/certificates/{id}/import",
-            post(import_certificate),
+            post({
+                let state = state.clone();
+                move |id, body| import_certificate(id, state.clone(), body)
+            }),
         )
         .route(
             "/internal/v1/certificates/{id}/issue",
-            post(issue_certificate),
+            post({
+                let state = state.clone();
+                move |id, body| issue_certificate(id, state.clone(), body)
+            }),
         )
         .route(
             "/internal/v1/certificates/{id}/renew",
-            post(renew_certificate),
+            post({
+                let state = state.clone();
+                move |id, body| renew_certificate(id, state.clone(), body)
+            }),
         )
         .route(
             "/internal/v1/trusted-cas/validate",
@@ -72,22 +96,44 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             authorize_certificate_request,
         ));
     let internal = Router::new()
-        .route("/internal/v1/proxy/status", get(proxy_status))
+        .route(
+            "/internal/v1/proxy/status",
+            get({
+                let state = state.clone();
+                move || proxy_status(state.clone())
+            }),
+        )
         .route(
             "/internal/v1/proxy/config",
-            get(read_proxy_config).put(apply_proxy_config),
+            get({
+                let state = state.clone();
+                move || read_proxy_config(state.clone())
+            })
+            .put({
+                let state = state.clone();
+                move |body| apply_proxy_config(state.clone(), body)
+            }),
         )
         .route(
             "/internal/v1/proxy/config/preview",
-            post(preview_proxy_config),
+            post({
+                let state = state.clone();
+                move |body| preview_proxy_config(state.clone(), body)
+            }),
         )
         .route(
             "/internal/v1/proxy/hosts/{id}/config",
-            get(read_proxy_host_config),
+            get({
+                let state = state.clone();
+                move |id| read_proxy_host_config(id, state.clone())
+            }),
         )
         .route(
             "/internal/v1/proxy/hosts/{id}/config/preview",
-            post(preview_proxy_host_config),
+            post({
+                let state = state.clone();
+                move |id, body| preview_proxy_host_config(id, state.clone(), body)
+            }),
         )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
@@ -97,12 +143,14 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
         .route("/health", get(health))
         .route(
             "/.well-known/acme-challenge/{token}",
-            get(challenge_response),
+            get({
+                let state = state.clone();
+                move |token, headers| challenge_response(token, state.clone(), headers)
+            }),
         )
         .merge(certificates)
         .merge(internal)
         .layer(axum::extract::DefaultBodyLimit::max(
             MAX_PROXY_CONFIG_BODY_BYTES,
         ))
-        .with_state(state)
 }

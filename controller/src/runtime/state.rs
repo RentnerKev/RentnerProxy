@@ -12,8 +12,8 @@ pub(super) const LAST_APPLY_FILE: &str = "last-apply-at";
 
 /// A canonical directory whose children are addressed by one checked component.
 ///
-/// The `..` check is deliberately adjacent to every state-path construction: it is the
-/// path-injection boundary understood by CodeQL as well as a runtime safety check.
+/// The directory and its ancestors must be controlled by trusted local accounts.
+/// Component and canonical-path checks keep request data within that directory.
 #[derive(Clone, Debug)]
 pub(super) struct SafeDir {
     path: PathBuf,
@@ -21,15 +21,7 @@ pub(super) struct SafeDir {
 
 impl SafeDir {
     pub(super) fn open(path: &Path) -> std::io::Result<Self> {
-        if path.to_string_lossy().is_empty()
-            || path.to_string_lossy().contains("..")
-            || path.to_string_lossy().contains('\0')
-            || !path.is_absolute()
-        {
-            return Err(invalid_state_path());
-        }
         let path = resolve_existing_path(path)?;
-        // codeql[rust/path-injection] The root path was canonicalized and validated above.
         let metadata = fs::symlink_metadata(&path)?;
         if is_link(&metadata) || !metadata.file_type().is_dir() {
             return Err(invalid_state_path());
@@ -37,7 +29,6 @@ impl SafeDir {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            // codeql[rust/path-injection] The root path was canonicalized and validated above.
             fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
         }
         Ok(Self { path })
@@ -109,24 +100,13 @@ impl SafeDir {
     }
 
     pub(super) fn open_file(&self, component: &str) -> std::io::Result<File> {
-        if component.is_empty()
-            || component.contains("..")
-            || component.contains('/')
-            || component.contains('\\')
-        {
-            return Err(invalid_state_path());
-        }
-        let candidate = self.path.join(component);
-        if candidate.parent() != Some(self.path.as_path()) {
-            return Err(invalid_state_path());
-        }
+        let candidate = self.child(component)?;
         let path = candidate.canonicalize()?;
         ensure_direct_child(&self.path, &path)?;
         #[cfg(unix)]
         if path != candidate {
             return Err(invalid_state_path());
         }
-        // codeql[rust/path-injection] The child was validated and constrained to this SafeDir.
         let metadata = fs::symlink_metadata(&path)?;
         ensure_regular_file_metadata(&metadata)?;
         let mut options = OpenOptions::new();
@@ -141,7 +121,6 @@ impl SafeDir {
             use std::os::windows::fs::OpenOptionsExt;
             options.custom_flags(0x0020_0000);
         }
-        // codeql[rust/path-injection] The child was validated and constrained to this SafeDir.
         let file = options.open(&path)?;
         ensure_regular_file_metadata(&file.metadata()?)?;
         Ok(file)
@@ -272,7 +251,6 @@ impl SafeDir {
 
 pub(super) fn open_absolute_regular_file(path: &Path) -> std::io::Result<File> {
     let path = canonical_absolute_entry(path)?;
-    // codeql[rust/path-injection] The configured absolute path was canonicalized and validated above.
     let metadata = fs::symlink_metadata(&path)?;
     ensure_regular_file_metadata(&metadata)?;
     let mut options = OpenOptions::new();
@@ -287,7 +265,6 @@ pub(super) fn open_absolute_regular_file(path: &Path) -> std::io::Result<File> {
         use std::os::windows::fs::OpenOptionsExt;
         options.custom_flags(0x0020_0000);
     }
-    // codeql[rust/path-injection] The configured absolute path was canonicalized and validated above.
     let file = options.open(&path)?;
     ensure_regular_file_metadata(&file.metadata()?)?;
     Ok(file)

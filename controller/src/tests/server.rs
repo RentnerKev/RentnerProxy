@@ -488,6 +488,87 @@ async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
     assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
 }
 
+#[tokio::test]
+async fn encoded_path_traversal_is_rejected_by_resource_routes() {
+    let token_text = "b".repeat(32);
+    let token = Config::from_values(None, Some(&token_text), None, None, None, false)
+        .expect("test token should parse")
+        .controller_token
+        .expect("test token should exist");
+    let router = test_app(Some(token)).await;
+    let attempts = [
+        "..",
+        "%2e%2e%2factive.conf",
+        "%2e%2e%5ccandidate.conf",
+        "%2fetc%2fpasswd",
+        "C%3a%5cWindows%5cwin.ini",
+        "%00",
+    ];
+    let routes = [
+        ("GET", "/internal/v1/proxy/hosts/", "/config"),
+        ("POST", "/internal/v1/proxy/hosts/", "/config/preview"),
+        ("GET", "/internal/v1/certificates/", ""),
+        ("DELETE", "/internal/v1/certificates/", ""),
+        ("POST", "/internal/v1/certificates/", "/import"),
+        ("POST", "/internal/v1/certificates/", "/issue"),
+        ("POST", "/internal/v1/certificates/", "/renew"),
+    ];
+
+    for attempt in attempts {
+        for (method, prefix, suffix) in routes {
+            let response = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(method)
+                        .uri(format!("{prefix}{attempt}{suffix}"))
+                        .header("authorization", format!("Bearer {token_text}"))
+                        .body(Body::from(valid_payload()))
+                        .expect("security test request should build"),
+                )
+                .await
+                .expect("security test route should respond");
+            assert_eq!(
+                response.status(),
+                StatusCode::NOT_FOUND,
+                "{method} {prefix}{attempt}{suffix}"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn routers_keep_their_captured_runtime_state_isolated() {
+    let first = test_app(None).await;
+    let second = test_app(None).await;
+
+    let applied = first
+        .clone()
+        .oneshot(request("/internal/v1/proxy/config", valid_payload()))
+        .await
+        .expect("first router should respond");
+    assert_eq!(applied.status(), StatusCode::OK);
+
+    for (router, has_active_revision) in [(first, true), (second, false)] {
+        let response = router
+            .oneshot(request_with_method(
+                "GET",
+                "/internal/v1/proxy/config",
+                Body::empty(),
+            ))
+            .await
+            .expect("router should return its own state");
+        assert_eq!(response.status(), StatusCode::OK);
+        let response: serde_json::Value = serde_json::from_slice(
+            &axum::body::to_bytes(response.into_body(), 512 * 1024)
+                .await
+                .expect("response body should read"),
+        )
+        .expect("response should be JSON");
+        assert_eq!(response["activeRevision"].is_string(), has_active_revision);
+    }
+}
+
 const CERTIFICATE_ENDPOINTS: [(&str, &str); 7] = [
     ("GET", "/internal/v1/certificates"),
     (
