@@ -1,0 +1,1 @@
+ALTER TABLE "rentnerproxy"."proxy_hosts" ADD COLUMN "advanced_config" text DEFAULT '' NOT NULL;

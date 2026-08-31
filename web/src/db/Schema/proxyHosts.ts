@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { boolean, check, index, integer, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
+import { boolean, check, index, integer, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 
 import type { ProxyHostForwardScheme } from '../../config/proxy-hosts.config'
 import { rentnerProxySchema } from './base'
@@ -16,6 +16,7 @@ export const proxyHosts = rentnerProxySchema.table(
         forwardHost: varchar('forward_host', { length: 253 }).notNull(),
         forwardPort: integer('forward_port').notNull(),
         enabled: boolean('enabled').notNull().default(true),
+        advancedConfig: text('advanced_config').notNull().default(''),
         createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
             .notNull()
             .defaultNow(),

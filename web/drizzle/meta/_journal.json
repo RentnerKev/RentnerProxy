@@ -50,6 +50,13 @@
             "when": 1788111526710,
             "tag": "0006_misty_viper",
             "breakpoints": true
+        },
+        {
+            "idx": 7,
+            "version": "7",
+            "when": 1788176046765,
+            "tag": "0007_panoramic_khan",
+            "breakpoints": true
         }
     ]
 }

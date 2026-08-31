@@ -797,7 +797,8 @@
             "update": "Update proxy hosts",
             "delete": "Delete proxy hosts",
             "enable": "Enable proxy hosts",
-            "disable": "Disable proxy hosts"
+            "disable": "Disable proxy hosts",
+            "advanced_config": "Manage expert proxy configuration"
         }
     },
     "systemRoles": {

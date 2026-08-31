@@ -797,7 +797,8 @@
             "update": "Modifier les hôtes proxy",
             "delete": "Supprimer les hôtes proxy",
             "enable": "Activer les hôtes proxy",
-            "disable": "Désactiver les hôtes proxy"
+            "disable": "Désactiver les hôtes proxy",
+            "advanced_config": "Gérer la configuration experte des hôtes proxy"
         }
     },
     "systemRoles": {
