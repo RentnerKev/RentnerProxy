@@ -9,7 +9,11 @@ export default function ProxyHostTableActions(props: ProxyHostTableActionsProps)
     const name = props.host.domains[0] ?? props.host.forwardHost
 
     return items.length > 0 ? (
-        <ActionMenu items={items} ariaLabel={t('admin.proxyHosts.actions.open', { name })} />
+        <ActionMenu
+            items={items}
+            ariaLabel={t('admin.proxyHosts.actions.open', { name })}
+            openOnHover
+        />
     ) : (
         <span className="text-xs text-muted" aria-label={t('admin.proxyHosts.actions.none')}>
             —

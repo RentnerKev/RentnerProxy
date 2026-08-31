@@ -11,6 +11,7 @@ export interface ActionMenuItem {
 export interface ActionMenuProps {
     readonly ariaLabel?: string
     readonly items: readonly ActionMenuItem[]
+    readonly openOnHover?: boolean
 }
 
 export interface ActionMenuItemViewProps {
