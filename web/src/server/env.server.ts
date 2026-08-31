@@ -56,6 +56,20 @@ export function getControllerBaseUrl(): string | null {
     return normalizeHttpOrigin(configured.trim())
 }
 
+export function getControllerToken(): string | null {
+    const token = process.env.RENTNERPROXY_CONTROLLER_TOKEN?.trim() ?? ''
+    return token === '' || /^[A-Za-z0-9_-]{32,256}$/u.test(token) ? token : null
+}
+
+export function isLoopbackControllerUrl(baseUrl: string): boolean {
+    const hostname = new URL(baseUrl).hostname
+    return (
+        hostname === 'localhost' ||
+        hostname === '[::1]' ||
+        (isIP(hostname) === 4 && hostname.startsWith('127.'))
+    )
+}
+
 function normalizeDatabaseUrl(value: string): string | null {
     try {
         const url = new URL(value)
