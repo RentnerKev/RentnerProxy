@@ -45,7 +45,7 @@ use renderer::{
 };
 use state::{
     ACTIVE_CONFIG_FILE, CANDIDATE_CONFIG_FILE, LAST_APPLY_FILE, LAST_GOOD_CONFIG_FILE,
-    atomic_write, open_state_file, prepare_state_dir, read_trimmed,
+    atomic_write, open_absolute_regular_file, prepare_state_dir, read_trimmed, state_dir,
 };
 use trusted_cas::TrustedCaStore;
 
@@ -175,61 +175,64 @@ impl ProxyRuntime {
         }
 
         let active_path = self.active_path();
-        let mut last_good = std::fs::read_to_string(self.last_good_path()).ok();
+        let mut last_good = self
+            .read_state_text(LAST_GOOD_CONFIG_FILE, MAX_RENDERED_PROXY_CONFIG_BYTES)
+            .ok();
         let mut persist_active_as_last_good = last_good.is_none();
-        let mut active_contents = match std::fs::read_to_string(&active_path) {
-            Ok(contents) => contents,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                if let Some(last_good) = last_good.as_ref() {
+        let mut active_contents =
+            match self.read_state_text(ACTIVE_CONFIG_FILE, MAX_RENDERED_PROXY_CONFIG_BYTES) {
+                Ok(contents) => contents,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    if let Some(last_good) = last_good.as_ref() {
+                        if atomic_write(&active_path, last_good.as_bytes()).is_err() {
+                            self.mark_unavailable().await;
+                            warn!(
+                                stage = "restore_missing_active",
+                                "proxy runtime is unavailable"
+                            );
+                            return;
+                        }
+                        persist_active_as_last_good = false;
+                        last_good.clone()
+                    } else {
+                        let baseline = match render_config(None, &self.settings.render_settings()) {
+                            Ok(config) => config,
+                            Err(_) => {
+                                self.mark_unavailable().await;
+                                warn!(stage = "render_baseline", "proxy runtime is unavailable");
+                                return;
+                            }
+                        };
+                        if atomic_write(&active_path, baseline.as_bytes()).is_err()
+                            || atomic_write(&self.last_good_path(), baseline.as_bytes()).is_err()
+                        {
+                            self.mark_unavailable().await;
+                            warn!(stage = "write_baseline", "proxy runtime is unavailable");
+                            return;
+                        }
+                        last_good = Some(baseline.clone());
+                        persist_active_as_last_good = false;
+                        baseline
+                    }
+                }
+                Err(_) => {
+                    let Some(last_good) = last_good.as_ref() else {
+                        self.mark_unavailable().await;
+                        warn!(stage = "read_active", "proxy runtime is unavailable");
+                        return;
+                    };
                     if atomic_write(&active_path, last_good.as_bytes()).is_err() {
                         self.mark_unavailable().await;
                         warn!(
-                            stage = "restore_missing_active",
+                            stage = "restore_unreadable_active",
                             "proxy runtime is unavailable"
                         );
                         return;
                     }
                     persist_active_as_last_good = false;
                     last_good.clone()
-                } else {
-                    let baseline = match render_config(None, &self.settings.render_settings()) {
-                        Ok(config) => config,
-                        Err(_) => {
-                            self.mark_unavailable().await;
-                            warn!(stage = "render_baseline", "proxy runtime is unavailable");
-                            return;
-                        }
-                    };
-                    if atomic_write(&active_path, baseline.as_bytes()).is_err()
-                        || atomic_write(&self.last_good_path(), baseline.as_bytes()).is_err()
-                    {
-                        self.mark_unavailable().await;
-                        warn!(stage = "write_baseline", "proxy runtime is unavailable");
-                        return;
-                    }
-                    last_good = Some(baseline.clone());
-                    persist_active_as_last_good = false;
-                    baseline
                 }
-            }
-            Err(_) => {
-                let Some(last_good) = last_good.as_ref() else {
-                    self.mark_unavailable().await;
-                    warn!(stage = "read_active", "proxy runtime is unavailable");
-                    return;
-                };
-                if atomic_write(&active_path, last_good.as_bytes()).is_err() {
-                    self.mark_unavailable().await;
-                    warn!(
-                        stage = "restore_unreadable_active",
-                        "proxy runtime is unavailable"
-                    );
-                    return;
-                }
-                persist_active_as_last_good = false;
-                last_good.clone()
-            }
-        };
+            };
         let mut engine_available = false;
         if let Some(engine) = &self.engine {
             if self
@@ -287,10 +290,11 @@ impl ProxyRuntime {
         &self,
         active_contents: &str,
     ) -> Option<ValidatedProxyConfig> {
-        let mut reader =
-            open_state_file(&self.settings.state_dir, &self.active_configuration_path())
-                .ok()?
-                .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
+        let mut reader = state_dir(&self.settings.state_dir)
+            .ok()?
+            .open_file(ACTIVE_CONFIGURATION_FILE)
+            .ok()?
+            .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).ok()?;
         if bytes.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
@@ -435,18 +439,19 @@ impl ProxyRuntime {
             .await
             .map_err(|_| CertificateError::InUse)?;
         let marker = format!("/certificates/{id}/versions/");
-        let active_or_last_good = [self.active_path(), self.last_good_path()];
-        let in_use = active_or_last_good
-            .iter()
-            .any(|path| match std::fs::read_to_string(path) {
+        let active_or_last_good = [ACTIVE_CONFIG_FILE, LAST_GOOD_CONFIG_FILE];
+        let in_use = active_or_last_good.iter().any(|component| {
+            match self.read_state_text(component, MAX_RENDERED_PROXY_CONFIG_BYTES) {
                 Ok(contents) => contents.contains(&marker),
                 Err(_) => true,
-            })
-            || match std::fs::read_to_string(self.candidate_path()) {
-                Ok(contents) => contents.contains(&marker),
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
-                Err(_) => true,
-            };
+            }
+        }) || match self
+            .read_state_text(CANDIDATE_CONFIG_FILE, MAX_RENDERED_PROXY_CONFIG_BYTES)
+        {
+            Ok(contents) => contents.contains(&marker),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+            Err(_) => true,
+        };
         self.certificate_store.delete_if_unused(id, in_use).await
     }
 
@@ -483,7 +488,8 @@ impl ProxyRuntime {
         let _apply_guard = timeout(self.settings.lock_wait, self.apply_lock.lock())
             .await
             .map_err(|_| RuntimeError::Busy)?;
-        let mut reader = open_state_file(&self.settings.state_dir, &self.active_path())
+        let mut reader = state_dir(&self.settings.state_dir)
+            .and_then(|directory| directory.open_file(ACTIVE_CONFIG_FILE))
             .map_err(|_| RuntimeError::Unavailable)?
             .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
         let mut bytes = Vec::new();
@@ -537,7 +543,8 @@ impl ProxyRuntime {
             .await
             .map_err(|_| RuntimeError::Busy)?;
 
-        let mut active_reader = open_state_file(&self.settings.state_dir, &self.active_path())
+        let mut active_reader = state_dir(&self.settings.state_dir)
+            .and_then(|directory| directory.open_file(ACTIVE_CONFIG_FILE))
             .map_err(|_| RuntimeError::Unavailable)?
             .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
         let mut active_bytes = Vec::new();
@@ -552,10 +559,10 @@ impl ProxyRuntime {
         let active_revision =
             revision_from_config(&active_contents).ok_or(RuntimeError::HostConfigNotFound)?;
 
-        let mut source_reader =
-            open_state_file(&self.settings.state_dir, &self.active_host_sources_path())
-                .map_err(|_| RuntimeError::HostConfigNotFound)?
-                .take((MAX_ACTIVE_HOST_SOURCES_BYTES as u64) + 1);
+        let mut source_reader = state_dir(&self.settings.state_dir)
+            .and_then(|directory| directory.open_file(ACTIVE_HOST_SOURCES_FILE))
+            .map_err(|_| RuntimeError::HostConfigNotFound)?
+            .take((MAX_ACTIVE_HOST_SOURCES_BYTES as u64) + 1);
         let mut source_bytes = Vec::new();
         source_reader
             .read_to_end(&mut source_bytes)
@@ -761,6 +768,15 @@ impl ProxyRuntime {
         expires_at - now <= time::Duration::seconds(minimum_window.max(one_third))
     }
 
+    fn read_state_text(&self, component: &str, maximum_bytes: usize) -> std::io::Result<String> {
+        let bytes = state_dir(&self.settings.state_dir)?.read_file(component, maximum_bytes)?;
+        String::from_utf8(bytes).map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "runtime state file is not UTF-8",
+            )
+        })
+    }
     fn active_path(&self) -> PathBuf {
         self.settings.state_dir.join(ACTIVE_CONFIG_FILE)
     }
@@ -786,14 +802,7 @@ impl ProxyRuntime {
 }
 
 fn is_readable_system_ca_bundle(path: &Path) -> bool {
-    if !path.is_absolute()
-        || std::fs::symlink_metadata(path)
-            .map(|metadata| !metadata.file_type().is_file() || metadata.file_type().is_symlink())
-            .unwrap_or(true)
-    {
-        return false;
-    }
-    let mut file = match std::fs::File::open(path) {
+    let mut file = match open_absolute_regular_file(path) {
         Ok(file) => file,
         Err(_) => return false,
     };

@@ -1,8 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fs::{self, OpenOptions},
-    io::{Read, Write},
-    path::{Path, PathBuf},
+    io::ErrorKind,
+    path::PathBuf,
 };
 
 use rustls::{
@@ -11,13 +10,14 @@ use rustls::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-#[cfg(unix)]
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
+
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use x509_parser::{extensions::GeneralName, parse_x509_certificate};
 
 use crate::proxy::{is_canonical_domain, is_canonical_uuid_v7};
+
+use super::state::{SafeDir, state_dir};
 
 pub(crate) const MAX_CERTIFICATE_PEM_BYTES: usize = 256 * 1024;
 pub(crate) const MAX_PRIVATE_KEY_PEM_BYTES: usize = 64 * 1024;
@@ -195,9 +195,9 @@ impl StagedCertificate {
                 .all(|domain| certificate_covers(&self.stored.metadata.domains, domain))
     }
 
-    pub(crate) fn material(
+    fn material(
         &self,
-        certificates_dir: &Path,
+        certificates_dir: &SafeDir,
     ) -> Result<CertificateMaterial, CertificateError> {
         let material_id = self
             .stored
@@ -223,14 +223,17 @@ impl CertificateStore {
     }
 
     pub(crate) async fn initialize(&self) -> Result<(), CertificateError> {
-        ensure_existing_secure_directory(&self.state_dir)?;
-        ensure_secure_directory(&self.certificates_dir())?;
-        let mut index =
-            match read_regular_private_file(&self.index_path(), MAX_CERTIFICATE_INDEX_BYTES)? {
-                Some(bytes) => serde_json::from_slice(&bytes)
-                    .map_err(|_| CertificateError::StoreUnavailable)?,
-                None => CertificateIndex::default(),
-            };
+        let certificates_dir = self.ensure_certificates_dir()?;
+        let mut index = match read_regular_private_file(
+            &certificates_dir,
+            CERTIFICATE_INDEX_FILE,
+            MAX_CERTIFICATE_INDEX_BYTES,
+        )? {
+            Some(bytes) => {
+                serde_json::from_slice(&bytes).map_err(|_| CertificateError::StoreUnavailable)?
+            }
+            None => CertificateIndex::default(),
+        };
         if !index_is_valid(&index) {
             return Err(CertificateError::StoreUnavailable);
         }
@@ -252,7 +255,7 @@ impl CertificateStore {
             }
         }
         if recovered_interrupted_operation {
-            persist_index(&self.index_path(), &index)?;
+            persist_index(&certificates_dir, &index)?;
         }
         *self.index.lock().await = index;
         Ok(())
@@ -350,13 +353,13 @@ impl CertificateStore {
         }
 
         let material_id = material_id(request);
-        ensure_existing_secure_directory(&self.state_dir)?;
-        let certificates_dir = self.certificates_dir();
-        ensure_secure_directory(&certificates_dir)?;
-        let certificate_dir = certificates_dir.join(id);
-        let versions_dir = certificate_dir.join("versions");
-        ensure_secure_directory(&certificate_dir)?;
-        ensure_secure_directory(&versions_dir)?;
+        let certificates_dir = self.ensure_certificates_dir()?;
+        let certificate_dir = certificates_dir
+            .ensure_dir(id)
+            .map_err(|_| CertificateError::StoreUnavailable)?;
+        let versions_dir = certificate_dir
+            .ensure_dir("versions")
+            .map_err(|_| CertificateError::StoreUnavailable)?;
         ensure_material_version(
             &versions_dir,
             id,
@@ -398,7 +401,7 @@ impl CertificateStore {
         let previous = index
             .certificates
             .insert(staged.id.clone(), staged.stored.clone());
-        if let Err(error) = persist_index(&self.index_path(), &index) {
+        if let Err(error) = persist_index(&self.certificates_dir()?, &index) {
             match previous {
                 Some(previous) => {
                     index.certificates.insert(staged.id.clone(), previous);
@@ -492,7 +495,7 @@ impl CertificateStore {
             }
         };
         let previous = index.certificates.insert(id.to_owned(), stored.clone());
-        if let Err(error) = persist_index(&self.index_path(), &index) {
+        if let Err(error) = persist_index(&self.certificates_dir()?, &index) {
             match previous {
                 Some(previous) => {
                     index.certificates.insert(id.to_owned(), previous);
@@ -556,7 +559,7 @@ impl CertificateStore {
                 .and_then(|acme| acme.contact_email.clone()),
             accept_terms: true,
         };
-        if let Err(error) = persist_index(&self.index_path(), &index) {
+        if let Err(error) = persist_index(&self.certificates_dir()?, &index) {
             index.certificates.insert(id.to_owned(), previous);
             drop(index);
             self.release_lease(id).await;
@@ -586,7 +589,9 @@ impl CertificateStore {
             if let Ok(now) = utc_now() {
                 entry.metadata.updated_at = now;
             }
-            let _ = persist_index(&self.index_path(), &index);
+            let _ = self
+                .certificates_dir()
+                .and_then(|directory| persist_index(&directory, &index));
         }
         drop(index);
         self.release_lease(id).await;
@@ -596,16 +601,15 @@ impl CertificateStore {
         &self,
         environment: CertificateEnvironment,
     ) -> Result<Option<Vec<u8>>, CertificateError> {
-        ensure_existing_secure_directory(&self.state_dir)?;
-        let certificates_dir = self.certificates_dir();
-        ensure_secure_directory(&certificates_dir)?;
-        let directory = certificates_dir.join("acme-accounts");
-        ensure_secure_directory(&directory)?;
-        let path = directory.join(format!("{}.json", environment_name(environment)));
-        match read_regular_private_file(&path, MAX_PRIVATE_KEY_PEM_BYTES)? {
-            Some(bytes) => Ok(Some(bytes)),
-            None => Ok(None),
-        }
+        let directory = self
+            .ensure_certificates_dir()?
+            .ensure_dir("acme-accounts")
+            .map_err(|_| CertificateError::StoreUnavailable)?;
+        read_regular_private_file(
+            &directory,
+            &format!("{}.json", environment_name(environment)),
+            MAX_PRIVATE_KEY_PEM_BYTES,
+        )
     }
 
     pub(crate) async fn store_acme_account(
@@ -616,13 +620,13 @@ impl CertificateStore {
         if credentials.len() > MAX_PRIVATE_KEY_PEM_BYTES {
             return Err(CertificateError::StoreUnavailable);
         }
-        ensure_existing_secure_directory(&self.state_dir)?;
-        let certificates_dir = self.certificates_dir();
-        ensure_secure_directory(&certificates_dir)?;
-        let directory = certificates_dir.join("acme-accounts");
-        ensure_secure_directory(&directory)?;
+        let directory = self
+            .ensure_certificates_dir()?
+            .ensure_dir("acme-accounts")
+            .map_err(|_| CertificateError::StoreUnavailable)?;
         write_private_file(
-            &directory.join(format!("{}.json", environment_name(environment))),
+            &directory,
+            &format!("{}.json", environment_name(environment)),
             credentials,
         )
     }
@@ -655,8 +659,9 @@ impl CertificateStore {
         &self,
         staged: &StagedCertificate,
     ) -> Result<CertificateMaterial, CertificateError> {
-        staged.material(&self.certificates_dir())
+        staged.material(&self.certificates_dir()?)
     }
+
     pub(crate) async fn material(&self, id: &str) -> Result<CertificateMaterial, CertificateError> {
         let index = self.index.lock().await;
         let entry = index
@@ -670,7 +675,7 @@ impl CertificateStore {
             .material_id
             .clone()
             .ok_or(CertificateError::NotFound)?;
-        material_at(&self.certificates_dir(), id, &material_id)
+        material_at(&self.certificates_dir()?, id, &material_id)
     }
 
     pub(crate) async fn delete_if_unused(
@@ -681,8 +686,7 @@ impl CertificateStore {
         if in_use {
             return Err(CertificateError::InUse);
         }
-        ensure_existing_secure_directory(&self.state_dir)?;
-        ensure_existing_secure_directory(&self.certificates_dir())?;
+        let certificates_dir = self.certificates_dir()?;
         self.acquire_lease(id).await?;
         let mut index = self.index.lock().await;
         let Some(entry) = index.certificates.get(id) else {
@@ -696,20 +700,17 @@ impl CertificateStore {
             return Err(CertificateError::OperationInProgress);
         }
 
-        let certificate_dir = self.certificates_dir().join(id);
-        let tombstone = self.certificates_dir().join(format!(
+        let tombstone = format!(
             ".deleted-{id}-{}-{}",
             std::process::id(),
             OffsetDateTime::now_utc().unix_timestamp_nanos(),
-        ));
-        let moved_directory = match fs::symlink_metadata(&certificate_dir) {
-            Ok(metadata) if metadata.file_type().is_dir() && !metadata.file_type().is_symlink() => {
-                fs::rename(&certificate_dir, &tombstone)
-                    .map(|_| Some(tombstone))
-                    .map_err(|_| CertificateError::StoreUnavailable)
-            }
-            Ok(_) => Err(CertificateError::StoreUnavailable),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+        );
+        let moved_directory = match certificates_dir.open_dir(id) {
+            Ok(_) => certificates_dir
+                .rename_dir(id, &tombstone)
+                .map(|_| Some(tombstone.clone()))
+                .map_err(|_| CertificateError::StoreUnavailable),
+            Err(error) if error.kind() == ErrorKind::NotFound => {
                 if entry.material_id.is_some() {
                     Err(CertificateError::StoreUnavailable)
                 } else {
@@ -727,11 +728,11 @@ impl CertificateStore {
             }
         };
         let removed = index.certificates.remove(id).expect("entry checked");
-        if let Err(error) = persist_index(&self.index_path(), &index) {
+        if let Err(error) = persist_index(&certificates_dir, &index) {
             index.certificates.insert(id.to_owned(), removed);
             let restore = moved_directory
                 .as_ref()
-                .is_none_or(|tombstone| fs::rename(tombstone, &certificate_dir).is_ok());
+                .is_none_or(|tombstone| certificates_dir.rename_dir(tombstone, id).is_ok());
             drop(index);
             self.release_lease(id).await;
             return if restore {
@@ -742,7 +743,7 @@ impl CertificateStore {
         }
         drop(index);
         if let Some(tombstone) = moved_directory
-            && remove_tree_without_links(&tombstone).is_err()
+            && certificates_dir.remove_dir_tree(&tombstone).is_err()
         {
             self.release_lease(id).await;
             return Err(CertificateError::StoreUnavailable);
@@ -750,6 +751,7 @@ impl CertificateStore {
         self.release_lease(id).await;
         Ok(())
     }
+
     async fn acquire_lease(&self, id: &str) -> Result<(), CertificateError> {
         let mut leases = self.leases.lock().await;
         if !leases.insert(id.to_owned()) {
@@ -761,16 +763,26 @@ impl CertificateStore {
     async fn release_lease(&self, id: &str) {
         self.leases.lock().await.remove(id);
     }
-    fn certificates_dir(&self) -> PathBuf {
-        self.state_dir.join(CERTIFICATES_DIRECTORY)
+
+    fn state_dir(&self) -> Result<SafeDir, CertificateError> {
+        state_dir(&self.state_dir).map_err(|_| CertificateError::StoreUnavailable)
     }
-    fn index_path(&self) -> PathBuf {
-        self.certificates_dir().join(CERTIFICATE_INDEX_FILE)
+
+    fn certificates_dir(&self) -> Result<SafeDir, CertificateError> {
+        self.state_dir()?
+            .open_dir(CERTIFICATES_DIRECTORY)
+            .map_err(|_| CertificateError::StoreUnavailable)
+    }
+
+    fn ensure_certificates_dir(&self) -> Result<SafeDir, CertificateError> {
+        self.state_dir()?
+            .ensure_dir(CERTIFICATES_DIRECTORY)
+            .map_err(|_| CertificateError::StoreUnavailable)
     }
 }
 
 fn ensure_material_version(
-    versions_dir: &Path,
+    versions_dir: &SafeDir,
     id: &str,
     material_id: &str,
     fullchain: &[u8],
@@ -782,58 +794,53 @@ fn ensure_material_version(
     {
         return Err(CertificateError::StoreUnavailable);
     }
-    ensure_existing_secure_directory(versions_dir)?;
-    let version_dir = versions_dir.join(material_id);
-    match fs::symlink_metadata(&version_dir) {
-        Ok(_) => return ensure_complete_material_version(&version_dir),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+    match versions_dir.open_dir(material_id) {
+        Ok(version_dir) => return ensure_complete_material_version(&version_dir).map(|_| ()),
+        Err(error) if error.kind() == ErrorKind::NotFound => {}
         Err(_) => return Err(CertificateError::StoreUnavailable),
     }
 
-    let staging_dir = create_staging_version_directory(versions_dir, id, material_id)?;
+    let staging = format!(
+        ".staging-{id}-{material_id}-{}-{}",
+        std::process::id(),
+        OffsetDateTime::now_utc().unix_timestamp_nanos(),
+    );
+    let staging_dir = versions_dir
+        .ensure_dir(&staging)
+        .map_err(|_| CertificateError::StoreUnavailable)?;
     let result = (|| {
-        write_private_file(&staging_dir.join("fullchain.pem"), fullchain)?;
-        write_private_file(&staging_dir.join("private-key.pem"), private_key)?;
+        write_private_file(&staging_dir, "fullchain.pem", fullchain)?;
+        write_private_file(&staging_dir, "private-key.pem", private_key)?;
         ensure_complete_material_version(&staging_dir)?;
         #[cfg(unix)]
-        sync_secure_directory(&staging_dir)?;
-        fs::rename(&staging_dir, &version_dir).map_err(|_| CertificateError::StoreUnavailable)?;
-        #[cfg(unix)]
-        sync_secure_directory(versions_dir)?;
+        staging_dir
+            .sync()
+            .map_err(|_| CertificateError::StoreUnavailable)?;
+        versions_dir
+            .rename_dir(&staging, material_id)
+            .map_err(|_| CertificateError::StoreUnavailable)?;
         Ok(())
     })();
-    if result.is_err() && staging_dir.exists() {
-        let _ = remove_tree_without_links(&staging_dir);
+    if result.is_err() {
+        let _ = versions_dir.remove_dir_tree(&staging);
     }
     result
 }
 
-fn create_staging_version_directory(
-    versions_dir: &Path,
-    id: &str,
-    material_id: &str,
-) -> Result<PathBuf, CertificateError> {
-    let staging_dir = versions_dir.join(format!(
-        ".staging-{id}-{material_id}-{}-{}",
-        std::process::id(),
-        OffsetDateTime::now_utc().unix_timestamp_nanos(),
-    ));
-    create_private_directory(&staging_dir)?;
-    Ok(staging_dir)
-}
-
-fn ensure_complete_material_version(version_dir: &Path) -> Result<(), CertificateError> {
-    ensure_existing_secure_directory(version_dir)?;
-    let fullchain_path = version_dir.join("fullchain.pem");
-    let private_key_path = version_dir.join("private-key.pem");
-    if !is_regular_file(&fullchain_path) || !is_regular_file(&private_key_path) {
-        return Err(CertificateError::StoreUnavailable);
-    }
-    Ok(())
+fn ensure_complete_material_version(
+    version_dir: &SafeDir,
+) -> Result<(PathBuf, PathBuf), CertificateError> {
+    let fullchain_path = version_dir
+        .file_path("fullchain.pem")
+        .map_err(|_| CertificateError::StoreUnavailable)?;
+    let private_key_path = version_dir
+        .file_path("private-key.pem")
+        .map_err(|_| CertificateError::StoreUnavailable)?;
+    Ok((fullchain_path, private_key_path))
 }
 
 fn material_at(
-    certificates_dir: &Path,
+    certificates_dir: &SafeDir,
     id: &str,
     material_id: &str,
 ) -> Result<CertificateMaterial, CertificateError> {
@@ -843,16 +850,19 @@ fn material_at(
     {
         return Err(CertificateError::StoreUnavailable);
     }
-    ensure_existing_secure_directory(certificates_dir)?;
-    let certificate_dir = certificates_dir.join(id);
-    let versions_dir = certificate_dir.join("versions");
-    let version_dir = versions_dir.join(material_id);
-    ensure_existing_secure_directory(&certificate_dir)?;
-    ensure_existing_secure_directory(&versions_dir)?;
-    ensure_complete_material_version(&version_dir)?;
+    let certificate_dir = certificates_dir
+        .open_dir(id)
+        .map_err(|_| CertificateError::StoreUnavailable)?;
+    let versions_dir = certificate_dir
+        .open_dir("versions")
+        .map_err(|_| CertificateError::StoreUnavailable)?;
+    let version_dir = versions_dir
+        .open_dir(material_id)
+        .map_err(|_| CertificateError::StoreUnavailable)?;
+    let (fullchain_path, private_key_path) = ensure_complete_material_version(&version_dir)?;
     Ok(CertificateMaterial {
-        fullchain_path: version_dir.join("fullchain.pem"),
-        private_key_path: version_dir.join("private-key.pem"),
+        fullchain_path,
+        private_key_path,
     })
 }
 fn public_metadata(stored: &StoredCertificate) -> CertificateMetadata {
@@ -1098,141 +1108,35 @@ fn has_only_pem_blocks(value: &str, labels: &[&str], exactly_one: bool) -> bool 
     count > 0 && (!exactly_one || count == 1)
 }
 
-fn ensure_secure_directory(path: &Path) -> Result<(), CertificateError> {
-    match fs::symlink_metadata(path) {
-        Ok(_) => ensure_existing_secure_directory(path),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            create_private_directory(path)
-        }
-        Err(_) => Err(CertificateError::StoreUnavailable),
-    }
-}
-
-fn create_private_directory(path: &Path) -> Result<(), CertificateError> {
-    match fs::symlink_metadata(path) {
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            #[cfg(unix)]
-            {
-                fs::DirBuilder::new()
-                    .mode(0o700)
-                    .create(path)
-                    .map_err(|_| CertificateError::StoreUnavailable)?;
-            }
-            #[cfg(not(unix))]
-            {
-                fs::create_dir(path).map_err(|_| CertificateError::StoreUnavailable)?;
-            }
-        }
-        _ => return Err(CertificateError::StoreUnavailable),
-    }
-    ensure_existing_secure_directory(path)
-}
-
-fn ensure_existing_secure_directory(path: &Path) -> Result<(), CertificateError> {
-    let metadata = fs::symlink_metadata(path).map_err(|_| CertificateError::StoreUnavailable)?;
-    if metadata.file_type().is_symlink() || !metadata.file_type().is_dir() {
+fn write_private_file(
+    directory: &SafeDir,
+    component: &str,
+    bytes: &[u8],
+) -> Result<(), CertificateError> {
+    #[cfg(test)]
+    if crate::tests::fixtures::should_fail_private_key_write(
+        &directory
+            .child_path(component)
+            .map_err(|_| CertificateError::StoreUnavailable)?,
+    ) {
         return Err(CertificateError::StoreUnavailable);
     }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o700))
-            .map_err(|_| CertificateError::StoreUnavailable)?;
-    }
-    Ok(())
-}
-
-#[cfg(unix)]
-fn sync_secure_directory(path: &Path) -> Result<(), CertificateError> {
-    ensure_existing_secure_directory(path)?;
-    fs::File::open(path)
-        .and_then(|directory| directory.sync_all())
+    directory
+        .atomic_write(component, bytes)
         .map_err(|_| CertificateError::StoreUnavailable)
 }
 
-fn write_private_file(path: &Path, bytes: &[u8]) -> Result<(), CertificateError> {
-    let parent = path.parent().ok_or(CertificateError::StoreUnavailable)?;
-    ensure_existing_secure_directory(parent)?;
-    #[cfg(test)]
-    if crate::tests::fixtures::should_fail_private_key_write(path) {
-        return Err(CertificateError::StoreUnavailable);
-    }
-    match fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.file_type().is_file() && !metadata.file_type().is_symlink() => {}
-        Ok(_) => return Err(CertificateError::StoreUnavailable),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(_) => return Err(CertificateError::StoreUnavailable),
-    }
-    let temporary = path.with_extension(format!(
-        "{}.{}.tmp",
-        std::process::id(),
-        OffsetDateTime::now_utc().unix_timestamp_nanos(),
-    ));
-    let mut options = OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    options.mode(0o600);
-    let mut file = options
-        .open(&temporary)
-        .map_err(|_| CertificateError::StoreUnavailable)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        file.set_permissions(fs::Permissions::from_mode(0o600))
-            .map_err(|_| CertificateError::StoreUnavailable)?;
-    }
-    file.write_all(bytes)
-        .and_then(|_| file.sync_all())
-        .map_err(|_| CertificateError::StoreUnavailable)?;
-    fs::rename(&temporary, path).map_err(|_| CertificateError::StoreUnavailable)?;
-    #[cfg(unix)]
-    {
-        let _ = sync_secure_directory(parent);
-    }
-    Ok(())
-}
-fn remove_tree_without_links(path: &Path) -> Result<(), CertificateError> {
-    let metadata = fs::symlink_metadata(path).map_err(|_| CertificateError::StoreUnavailable)?;
-    if metadata.file_type().is_symlink() {
-        return Err(CertificateError::StoreUnavailable);
-    }
-    if metadata.file_type().is_file() {
-        fs::remove_file(path).map_err(|_| CertificateError::StoreUnavailable)?;
-        return Ok(());
-    }
-    if !metadata.file_type().is_dir() {
-        return Err(CertificateError::StoreUnavailable);
-    }
-    for entry in fs::read_dir(path).map_err(|_| CertificateError::StoreUnavailable)? {
-        let entry = entry.map_err(|_| CertificateError::StoreUnavailable)?;
-        remove_tree_without_links(&entry.path())?;
-    }
-    fs::remove_dir(path).map_err(|_| CertificateError::StoreUnavailable)
-}
 fn read_regular_private_file(
-    path: &Path,
+    directory: &SafeDir,
+    component: &str,
     maximum_bytes: usize,
 ) -> Result<Option<Vec<u8>>, CertificateError> {
-    let parent = path.parent().ok_or(CertificateError::StoreUnavailable)?;
-    ensure_existing_secure_directory(parent)?;
-    match fs::symlink_metadata(path) {
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Ok(metadata) if metadata.file_type().is_file() && !metadata.file_type().is_symlink() => {}
-        _ => return Err(CertificateError::StoreUnavailable),
+    match directory.read_file(component, maximum_bytes) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
+        Err(_) => Err(CertificateError::StoreUnavailable),
     }
-    let mut reader = fs::File::open(path)
-        .map_err(|_| CertificateError::StoreUnavailable)?
-        .take((maximum_bytes as u64) + 1);
-    let mut bytes = Vec::new();
-    reader
-        .read_to_end(&mut bytes)
-        .map_err(|_| CertificateError::StoreUnavailable)?;
-    if bytes.len() > maximum_bytes {
-        return Err(CertificateError::StoreUnavailable);
-    }
-    Ok(Some(bytes))
 }
-
 fn index_is_valid(index: &CertificateIndex) -> bool {
     index.certificates.len() <= 10_000
         && index.certificates.iter().all(|(id, entry)| {
@@ -1294,12 +1198,7 @@ fn retry_after(delay_seconds: u32) -> Option<String> {
 fn valid_timestamp(value: &str) -> bool {
     value.len() <= 40 && OffsetDateTime::parse(value, &Rfc3339).is_ok()
 }
-fn persist_index(path: &Path, index: &CertificateIndex) -> Result<(), CertificateError> {
+fn persist_index(directory: &SafeDir, index: &CertificateIndex) -> Result<(), CertificateError> {
     let bytes = serde_json::to_vec(index).map_err(|_| CertificateError::StoreUnavailable)?;
-    write_private_file(path, &bytes)
-}
-
-fn is_regular_file(path: &Path) -> bool {
-    fs::symlink_metadata(path)
-        .is_ok_and(|metadata| metadata.file_type().is_file() && !metadata.file_type().is_symlink())
+    write_private_file(directory, CERTIFICATE_INDEX_FILE, &bytes)
 }

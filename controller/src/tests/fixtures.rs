@@ -61,6 +61,7 @@ static PRIVATE_WRITE_FAILURE_PREFIX: std::sync::OnceLock<
 
 pub(super) fn fail_next_private_key_write_below(path: std::path::PathBuf) {
     let lock = PRIVATE_WRITE_FAILURE_PREFIX.get_or_init(|| std::sync::Mutex::new(None));
+    let path = path.canonicalize().unwrap_or(path);
     *lock.lock().expect("test failure lock must not poison") = Some(path);
 }
 
