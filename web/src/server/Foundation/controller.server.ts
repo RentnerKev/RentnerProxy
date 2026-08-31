@@ -4,7 +4,7 @@ import '@tanstack/react-start/server-only'
 import { z } from 'zod'
 
 import type { ServiceHealth } from '../../shared/Types/health.types'
-import type { ProxyRuntimeStatus } from '../../shared/Types/proxy-runtime.types'
+import type { ProxyConfigSource, ProxyRuntimeStatus } from '../../shared/Types/proxy-runtime.types'
 import { getControllerBaseUrl, getControllerToken, isLoopbackControllerUrl } from '../env.server'
 import {
     MAX_RUNTIME_PAYLOAD_BYTES,
@@ -20,6 +20,7 @@ const HEALTH_TIMEOUT_MS = 1_200
 const STATUS_TIMEOUT_MS = 2_000
 export const CONTROLLER_APPLY_TIMEOUT_MS = 20_000
 const MAX_RESPONSE_BYTES = 4_096
+const MAX_CONFIG_RESPONSE_BYTES = 32 * 1_024 * 1_024
 
 const revisionSchema = z.string().regex(PROXY_RUNTIME_REVISION_PATTERN)
 const timestampSchema = z
@@ -43,9 +44,15 @@ interface ControllerRequestOptions {
     readonly timeoutMs: number
     readonly privileged?: boolean
     readonly body?: string
+    readonly method?: 'GET' | 'PUT' | 'POST'
+    readonly responseLimit?: number
+    readonly allowNotFound?: boolean
 }
 
-async function readBoundedJson(response: Response): Promise<unknown> {
+async function readBoundedJson(
+    response: Response,
+    responseLimit = MAX_RESPONSE_BYTES,
+): Promise<unknown> {
     const reader = response.body?.getReader()
     if (!reader) return null
     const chunks: Uint8Array[] = []
@@ -57,7 +64,7 @@ async function readBoundedJson(response: Response): Promise<unknown> {
             if (chunk.done) break
             length += chunk.value.byteLength
 
-            if (length > MAX_RESPONSE_BYTES) {
+            if (length > responseLimit) {
                 await reader.cancel()
                 return null
             }
@@ -72,7 +79,13 @@ async function readBoundedJson(response: Response): Promise<unknown> {
 }
 
 async function controllerRequest(
-    path: '/health' | '/internal/v1/proxy/status' | '/internal/v1/proxy/config',
+    path:
+        | '/health'
+        | '/internal/v1/proxy/status'
+        | '/internal/v1/proxy/config'
+        | '/internal/v1/proxy/config/preview'
+        | `/internal/v1/proxy/hosts/${string}/config`
+        | `/internal/v1/proxy/hosts/${string}/config/preview`,
     options: ControllerRequestOptions,
 ): Promise<unknown> {
     const baseUrl = getControllerBaseUrl()
@@ -91,7 +104,7 @@ async function controllerRequest(
 
     try {
         const response = await fetch(baseUrl + path, {
-            method: options.body === undefined ? 'GET' : 'PUT',
+            method: options.method ?? (options.body === undefined ? 'GET' : 'PUT'),
             headers,
             ...(options.body === undefined ? {} : { body: options.body }),
             signal: requestAbort.signal,
@@ -100,11 +113,12 @@ async function controllerRequest(
 
         if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) {
             await response.body?.cancel()
+            if (response.status === 404 && options.allowNotFound) return null
             console.warn('[controller] request unavailable', { path, status: response.status })
             return null
         }
 
-        return await readBoundedJson(response)
+        return await readBoundedJson(response, options.responseLimit)
     } catch {
         // Never log the URL, token, response body, or a raw network/engine error.
         console.warn('[controller] request unavailable', { path })
@@ -142,4 +156,97 @@ export async function applyProxyRuntimeConfiguration(
     })
     const result = applySchema.safeParse(payload)
     return result.success && result.data.activeRevision === snapshot.revision ? result.data : null
+}
+
+export async function getActiveProxyConfiguration(): Promise<ProxyConfigSource | null> {
+    const payload = await controllerRequest('/internal/v1/proxy/config', {
+        timeoutMs: CONTROLLER_APPLY_TIMEOUT_MS,
+        privileged: true,
+        responseLimit: MAX_CONFIG_RESPONSE_BYTES,
+    })
+    const result = z
+        .object({
+            config: z.string().max(MAX_CONFIG_RESPONSE_BYTES),
+            activeRevision: revisionSchema.nullable(),
+        })
+        .safeParse(payload)
+    return result.success
+        ? { config: result.data.config, revision: result.data.activeRevision }
+        : null
+}
+
+export async function previewProxyConfiguration(
+    snapshot: ProxyRuntimeSnapshot,
+): Promise<ProxyConfigSource | null> {
+    const body = JSON.stringify(snapshot)
+    if (Buffer.byteLength(body) > MAX_RUNTIME_PAYLOAD_BYTES) return null
+    const payload = await controllerRequest('/internal/v1/proxy/config/preview', {
+        timeoutMs: CONTROLLER_APPLY_TIMEOUT_MS,
+        method: 'POST',
+        privileged: true,
+        body,
+        responseLimit: MAX_CONFIG_RESPONSE_BYTES,
+    })
+    const result = z
+        .object({
+            config: z.string().max(MAX_CONFIG_RESPONSE_BYTES),
+            revision: revisionSchema,
+        })
+        .safeParse(payload)
+    return result.success && result.data.revision === snapshot.revision ? result.data : null
+}
+
+// JSON escaping can expand a 64 KiB raw source by up to six times.
+const MAX_HOST_CONFIG_RESPONSE_BYTES = 512 * 1_024
+
+export async function getActiveProxyHostConfiguration(
+    proxyHostId: string,
+): Promise<ProxyConfigSource | null> {
+    const id = z.uuid().safeParse(proxyHostId)
+    if (!id.success) return null
+    const payload = await controllerRequest(
+        `/internal/v1/proxy/hosts/${id.data.toLowerCase()}/config`,
+        {
+            timeoutMs: CONTROLLER_APPLY_TIMEOUT_MS,
+            privileged: true,
+            responseLimit: MAX_HOST_CONFIG_RESPONSE_BYTES,
+            allowNotFound: true,
+        },
+    )
+    const result = z
+        .object({
+            config: z.string().max(MAX_HOST_CONFIG_RESPONSE_BYTES),
+            activeRevision: revisionSchema.nullable(),
+        })
+        .safeParse(payload)
+    return result.success
+        ? { config: result.data.config, revision: result.data.activeRevision }
+        : null
+}
+
+export async function previewProxyHostConfiguration(
+    proxyHostId: string,
+    snapshot: ProxyRuntimeSnapshot,
+): Promise<ProxyConfigSource | null> {
+    const id = z.uuid().safeParse(proxyHostId)
+    if (!id.success) return null
+    const body = JSON.stringify(snapshot)
+    if (Buffer.byteLength(body) > MAX_RUNTIME_PAYLOAD_BYTES) return null
+    const payload = await controllerRequest(
+        `/internal/v1/proxy/hosts/${id.data.toLowerCase()}/config/preview`,
+        {
+            timeoutMs: CONTROLLER_APPLY_TIMEOUT_MS,
+            privileged: true,
+            method: 'POST',
+            body,
+            responseLimit: MAX_HOST_CONFIG_RESPONSE_BYTES,
+        },
+    )
+    const result = z
+        .object({
+            config: z.string().max(MAX_HOST_CONFIG_RESPONSE_BYTES),
+            revision: revisionSchema,
+        })
+        .safeParse(payload)
+    return result.success && result.data.revision === snapshot.revision ? result.data : null
 }

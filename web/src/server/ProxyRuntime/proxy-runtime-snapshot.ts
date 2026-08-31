@@ -4,11 +4,18 @@ import '@tanstack/react-start/server-only'
 import { z } from 'zod'
 
 import {
+    normalizeProxyHttpSettings,
+    proxyAdvancedConfigSchema,
+    proxyHttpSettingsSchema,
+} from '../../features/Admin/ProxyHostManagement/config-validation'
+
+import {
     proxyForwardHostSchema,
     proxyForwardPortSchema,
     proxyHostDomainsSchema,
 } from '../../features/Admin/ProxyHostManagement/validation'
 import type {
+    ProxyHttpSettings,
     ProxyRuntimeStatus,
     ProxyRuntimeSyncStatus,
 } from '../../shared/Types/proxy-runtime.types'
@@ -24,15 +31,18 @@ const runtimeHostSchema = z.object({
     forwardScheme: z.enum(['http', 'https']),
     forwardHost: proxyForwardHostSchema,
     forwardPort: proxyForwardPortSchema,
+    httpSettings: proxyHttpSettingsSchema.optional(),
+    advancedConfig: proxyAdvancedConfigSchema.default(''),
 })
 
 function compareAscii(left: string, right: string): number {
     return left < right ? -1 : left > right ? 1 : 0
 }
 
-// The property order here is part of the version 1 cross-language hash contract.
+// Property order and omission of empty host settings preserve the Rust hash contract.
 export function createProxyRuntimeSnapshot(
     hosts: ReadonlyArray<ProxyRuntimeHost & { readonly enabled: boolean }>,
+    httpSettings: ProxyHttpSettings = {},
 ): ProxyRuntimeSnapshot {
     const enabledHosts = hosts.filter((host) => host.enabled)
 
@@ -54,23 +64,37 @@ export function createProxyRuntimeSnapshot(
             ids.add(id)
             for (const domain of host.domains) domains.add(domain)
 
-            return {
-                id,
-                domains: host.domains.toSorted(compareAscii),
-                forwardScheme: host.forwardScheme,
-                forwardHost: host.forwardHost,
-                forwardPort: host.forwardPort,
-            }
+            const hostSettings = normalizeProxyHttpSettings(host.httpSettings ?? {})
+            return Object.assign(
+                {
+                    id,
+                    domains: host.domains.toSorted(compareAscii),
+                    forwardScheme: host.forwardScheme,
+                    forwardHost: host.forwardHost,
+                    forwardPort: host.forwardPort,
+                },
+                Object.keys(hostSettings).length === 0 ? {} : { httpSettings: hostSettings },
+                host.advancedConfig === '' ? {} : { advancedConfig: host.advancedConfig },
+            )
         })
         .toSorted((left, right) => compareAscii(left.id, right.id))
-    const canonical = JSON.stringify({ version: 1, proxyHosts })
+    const normalizedSettings = normalizeProxyHttpSettings(httpSettings)
+    const hasHostSettings = proxyHosts.some(
+        (host) => host.httpSettings !== undefined || host.advancedConfig !== undefined,
+    )
+    const snapshot = hasHostSettings
+        ? ({ version: 3, proxyHosts, httpSettings: normalizedSettings } as const)
+        : Object.keys(normalizedSettings).length === 0
+          ? ({ version: 1, proxyHosts } as const)
+          : ({ version: 2, proxyHosts, httpSettings: normalizedSettings } as const)
+    const canonical = JSON.stringify(snapshot)
 
     if (Buffer.byteLength(canonical) + 100 > MAX_RUNTIME_PAYLOAD_BYTES) {
         throw new Error('Proxy runtime snapshot is too large.')
     }
 
     const revision = 'sha256:' + new Bun.CryptoHasher('sha256').update(canonical).digest('hex')
-    return { version: 1, revision, proxyHosts }
+    return { ...snapshot, revision }
 }
 
 export function compareProxyRuntimeStatus(

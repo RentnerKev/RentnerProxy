@@ -337,13 +337,19 @@ describe('controller runtime client', () => {
 
     test('refuses privileged requests without a valid token on non-loopback controllers', async () => {
         process.env.RENTNERPROXY_CONTROLLER_URL = 'http://controller.example:8081'
-        const fetchMock = spyOn(globalThis, 'fetch')
-        expect(await getProxyRuntimeStatus()).toBeNull()
-        expect(await applyProxyRuntimeConfiguration(snapshot())).toBeNull()
-        process.env.RENTNERPROXY_CONTROLLER_TOKEN = 'too-short'
-        expect(await getProxyRuntimeStatus()).toBeNull()
-        expect(fetchMock).not.toHaveBeenCalled()
-        fetchMock.mockRestore()
+        delete process.env.RENTNERPROXY_CONTROLLER_TOKEN
+        const fetchMock = spyOn(globalThis, 'fetch').mockRejectedValue(
+            new Error('Unexpected network call in controller token validation test.'),
+        )
+        try {
+            expect(await getProxyRuntimeStatus()).toBeNull()
+            expect(await applyProxyRuntimeConfiguration(snapshot())).toBeNull()
+            process.env.RENTNERPROXY_CONTROLLER_TOKEN = 'too-short'
+            expect(await getProxyRuntimeStatus()).toBeNull()
+            expect(fetchMock).not.toHaveBeenCalled()
+        } finally {
+            fetchMock.mockRestore()
+        }
     })
 
     test('rejects invalid, oversized, redirected, and revision-mismatched responses without leaking errors', async () => {
