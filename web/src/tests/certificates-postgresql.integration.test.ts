@@ -192,7 +192,6 @@ async function createUser(roleKeys: readonly string[]) {
                 email: randomUUID() + EMAIL,
                 status: 'active',
                 emailVerifiedAt: new Date(),
-                mustChangePassword: false,
             })
             .returning({ id: users.id })
         if (!user) throw new Error('Test user unavailable.')

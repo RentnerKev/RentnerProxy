@@ -34,6 +34,9 @@ const statusSchema = z.object({
     activeRevision: revisionSchema.nullable(),
     lastApplyAt: timestampSchema,
 })
+const readinessSchema = z.object({
+    status: z.enum(['ready', 'not_ready']),
+})
 const applySchema = z.object({
     status: z.enum(['applied', 'unchanged']),
     activeRevision: revisionSchema,
@@ -48,6 +51,7 @@ interface ControllerRequestOptions {
     readonly responseLimit?: number
     readonly allowNotFound?: boolean
     readonly acceptErrorResponse?: boolean
+    readonly acceptNonOkJson?: boolean
 }
 
 async function readBoundedJson(
@@ -82,6 +86,7 @@ async function readBoundedJson(
 export async function controllerRequest(
     path:
         | '/health'
+        | '/ready'
         | '/internal/v1/proxy/status'
         | '/internal/v1/proxy/config'
         | '/internal/v1/proxy/config/preview'
@@ -122,7 +127,7 @@ export async function controllerRequest(
         })
 
         if (
-            (!response.ok && !options.acceptErrorResponse) ||
+            (!response.ok && !options.acceptErrorResponse && !options.acceptNonOkJson) ||
             !response.headers.get('content-type')?.includes('application/json')
         ) {
             await response.body?.cancel()
@@ -133,6 +138,7 @@ export async function controllerRequest(
 
         const payload = await readBoundedJson(response, options.responseLimit)
         if (response.ok) return payload
+        if (options.acceptNonOkJson) return payload
         // Error responses can only carry a bounded code, never a successful DTO.
         const error = z.object({ error: z.string().max(64) }).safeParse(payload)
         return error.success ? error.data : null
@@ -148,6 +154,17 @@ export async function controllerRequest(
 export async function checkControllerHealth(): Promise<ServiceHealth> {
     const payload = await controllerRequest('/health', { timeoutMs: HEALTH_TIMEOUT_MS })
     return parseControllerHealth(payload) ? { state: 'connected' } : { state: 'unavailable' }
+}
+
+export async function checkControllerReadiness(): Promise<ServiceHealth> {
+    const payload = await controllerRequest('/ready', {
+        timeoutMs: HEALTH_TIMEOUT_MS,
+        acceptNonOkJson: true,
+    })
+    const result = readinessSchema.safeParse(payload)
+    return result.success && result.data.status === 'ready'
+        ? { state: 'connected' }
+        : { state: 'unavailable' }
 }
 
 export async function getProxyRuntimeStatus(): Promise<ProxyRuntimeStatus | null> {

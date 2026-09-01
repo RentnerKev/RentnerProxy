@@ -476,6 +476,18 @@ impl ProxyRuntime {
         }
     }
 
+    pub(crate) async fn is_ready(&self) -> bool {
+        let status = self.status().await;
+        if !status.available || !status.running {
+            return false;
+        }
+
+        matches!(
+            self.active_config().await,
+            Ok((configuration, _)) if !configuration.trim().is_empty()
+        )
+    }
+
     pub(crate) async fn preview_config(
         &self,
         configuration: &ValidatedProxyConfig,

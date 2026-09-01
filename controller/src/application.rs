@@ -10,6 +10,59 @@ use tokio::net::TcpListener;
 use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, filter::LevelFilter};
 
+const CONTROLLER_LISTEN_ADDR_ENV: &str = "RENTNERPROXY_CONTROLLER_LISTEN_ADDR";
+
+/// Performs a bounded in-container HTTP probe without adding a runtime HTTP client dependency.
+pub async fn healthcheck(endpoint: &str) -> ExitCode {
+    let path = match endpoint {
+        "health" => "/health",
+        "ready" => "/ready",
+        _ => return ExitCode::FAILURE,
+    };
+    let configured_addr =
+        std::env::var(CONTROLLER_LISTEN_ADDR_ENV).unwrap_or_else(|_| "127.0.0.1:8081".to_owned());
+    let Ok(listen_addr) = configured_addr.parse::<std::net::SocketAddr>() else {
+        return ExitCode::FAILURE;
+    };
+    let target_addr = if listen_addr.ip().is_unspecified() {
+        match listen_addr {
+            std::net::SocketAddr::V4(address) => {
+                std::net::SocketAddr::from((std::net::Ipv4Addr::LOCALHOST, address.port()))
+            }
+            std::net::SocketAddr::V6(address) => {
+                std::net::SocketAddr::from((std::net::Ipv6Addr::LOCALHOST, address.port()))
+            }
+        }
+    } else {
+        listen_addr
+    };
+
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::TcpStream,
+        time::{Duration, timeout},
+    };
+
+    let probe = async {
+        let mut stream = TcpStream::connect(target_addr).await?;
+        let request =
+            format!("GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
+        stream.write_all(request.as_bytes()).await?;
+        let mut response = Vec::with_capacity(512);
+        stream.take(4_096).read_to_end(&mut response).await?;
+        Ok::<_, std::io::Error>(response)
+    };
+
+    match timeout(Duration::from_secs(3), probe).await {
+        Ok(Ok(response))
+            if response.starts_with(b"HTTP/1.1 200 ") || response.starts_with(b"HTTP/1.0 200 ") =>
+        {
+            ExitCode::SUCCESS
+        }
+        Ok(Ok(_)) | Ok(Err(_)) | Err(_) => ExitCode::FAILURE,
+    }
+}
+
 /// Initializes logging, runs the controller, and returns its process exit code.
 pub async fn run() -> ExitCode {
     if let Err(error) = init_tracing() {

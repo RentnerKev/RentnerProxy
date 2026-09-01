@@ -1,0 +1,1 @@
+ALTER TABLE "rentnerproxy"."users" DROP COLUMN "must_change_password";

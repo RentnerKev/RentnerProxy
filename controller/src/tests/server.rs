@@ -158,6 +158,44 @@ async fn health_payload_is_stable_and_public() {
 }
 
 #[tokio::test]
+async fn readiness_requires_a_running_runtime_but_is_public() {
+    let unavailable = app()
+        .oneshot(
+            Request::builder()
+                .uri("/ready")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(unavailable.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(
+        unavailable.headers().get("cache-control").unwrap(),
+        "no-store"
+    );
+    let unavailable_body = axum::body::to_bytes(unavailable.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert_eq!(unavailable_body.as_ref(), br#"{"status":"not_ready"}"#);
+
+    let ready = test_app(None)
+        .await
+        .oneshot(
+            Request::builder()
+                .uri("/ready")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(ready.status(), StatusCode::OK);
+    let ready_body = axum::body::to_bytes(ready.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert_eq!(ready_body.as_ref(), br#"{"status":"ready"}"#);
+}
+
+#[tokio::test]
 async fn proxy_endpoints_require_configured_authentication() {
     let token = Config::from_values(
         None,

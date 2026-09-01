@@ -83,7 +83,7 @@ export async function changeCurrentPasswordService(input: {
 
         await transaction
             .update(users)
-            .set({ mustChangePassword: false, passwordHash, updatedAt: now })
+            .set({ passwordHash, updatedAt: now })
             .where(eq(users.id, currentSession.user.id))
         await transaction
             .delete(passwordResetTokens)

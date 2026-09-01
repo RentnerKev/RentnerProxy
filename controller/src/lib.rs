@@ -6,7 +6,7 @@ mod runtime;
 mod server;
 mod shutdown;
 
-pub use application::run;
+pub use application::{healthcheck, run};
 
 #[cfg(test)]
 mod tests;

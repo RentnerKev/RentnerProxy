@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm'
 import {
-    boolean,
     check,
     index,
     integer,
@@ -30,7 +29,6 @@ export const users = rentnerProxySchema.table(
             withTimezone: true,
             mode: 'date',
         }),
-        mustChangePassword: boolean('must_change_password').notNull().default(true),
         passwordHash: text('password_hash'),
         profileImageVersion: integer('profile_image_version').notNull().default(0),
         profileImageWebp: bytea('profile_image_webp'),

@@ -65,8 +65,11 @@ export function getRedisClient(): RedisClient | null {
     const client = new RedisClient(redisUrl, {
         autoReconnect: true,
         connectionTimeout: CONNECTION_TIMEOUT_MS,
-        maxRetries: 1,
     })
+    // oxlint-disable-next-line unicorn/prefer-add-event-listener -- Bun RedisClient exposes onclose, not EventTarget.
+    client.onclose = () => {
+        if (getCachedClient()?.client === client) clearCachedClient()
+    }
 
     cacheClient({ client, url: redisUrl })
     return client

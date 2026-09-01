@@ -261,7 +261,6 @@ async function runSmoke(): Promise<void> {
                 displayName: 'Proxy smoke test owner',
                 email: runId + '@proxy-smoke.invalid',
                 emailVerifiedAt: new Date(),
-                mustChangePassword: false,
                 status: 'active',
             })
             .returning({ id: users.id })
@@ -279,7 +278,6 @@ async function runSmoke(): Promise<void> {
                 displayName: 'Proxy smoke test viewer',
                 email: runId + '-viewer@proxy-smoke.invalid',
                 emailVerifiedAt: new Date(),
-                mustChangePassword: false,
                 status: 'active',
             })
             .returning({ id: users.id })

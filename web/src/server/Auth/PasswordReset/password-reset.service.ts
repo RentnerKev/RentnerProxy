@@ -165,7 +165,7 @@ export async function consumePasswordResetService(input: {
 
         await transaction
             .update(users)
-            .set({ mustChangePassword: false, passwordHash, updatedAt: now })
+            .set({ passwordHash, updatedAt: now })
             .where(eq(users.id, user.id))
         await revokeAllUserSessionsInTransaction(transaction, user.id)
 

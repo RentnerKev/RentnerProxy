@@ -39,6 +39,25 @@ pub(super) async fn health() -> Json<HealthResponse> {
     })
 }
 
+#[derive(Debug, Serialize, PartialEq, Eq)]
+struct ReadinessResponse {
+    status: &'static str,
+}
+
+pub(super) async fn readiness(state: AppState) -> Response {
+    let ready = state.runtime.is_ready().await;
+    no_store_status_json(
+        if ready {
+            StatusCode::OK
+        } else {
+            StatusCode::SERVICE_UNAVAILABLE
+        },
+        ReadinessResponse {
+            status: if ready { "ready" } else { "not_ready" },
+        },
+    )
+}
+
 pub(super) async fn challenge_response(
     Path(token): Path<String>,
     state: AppState,

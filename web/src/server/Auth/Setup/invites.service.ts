@@ -110,7 +110,6 @@ export async function issueInviteService(input: {
                     .values({
                         displayName: pendingDisplayName,
                         email,
-                        mustChangePassword: true,
                         passwordHash: null,
                         status: 'pending',
                     })
@@ -241,7 +240,6 @@ export async function acceptInviteService(input: {
             .set({
                 displayName,
                 emailVerifiedAt: now,
-                mustChangePassword: false,
                 passwordHash,
                 status: 'active',
                 updatedAt: now,

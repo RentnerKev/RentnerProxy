@@ -117,7 +117,6 @@ async function createTestUser(roleKeys: ReadonlyArray<string>) {
                     displayName: `Test ${email.slice(0, 20)}`,
                     email,
                     emailVerifiedAt: new Date(),
-                    mustChangePassword: false,
                     status: 'active',
                 })
                 .returning({ id: users.id }),

@@ -55,7 +55,6 @@ export async function setupFirstOwnerService(input: {
                 displayName,
                 email,
                 emailVerifiedAt: new Date(),
-                mustChangePassword: false,
                 passwordHash,
                 status: 'active',
             })

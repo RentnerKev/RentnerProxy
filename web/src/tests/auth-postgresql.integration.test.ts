@@ -203,7 +203,6 @@ async function createTestUser(
                 displayName: `Test ${email.slice(0, 20)}`,
                 email,
                 emailVerifiedAt: status === 'pending' ? null : new Date(),
-                mustChangePassword: status === 'pending',
                 passwordHash: withPassword ? preparedPasswordHash : null,
                 status,
             })

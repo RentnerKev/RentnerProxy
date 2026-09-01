@@ -226,6 +226,41 @@ export function getWebAuthnConfiguration(): WebAuthnConfiguration | null {
     return origin && rpId ? { origin, rpId, rpName: WEBAUTHN_RP_NAME } : null
 }
 
+export function getTrustProxyHeaders(): boolean {
+    const configured = process.env.RENTNERPROXY_TRUST_PROXY_HEADERS
+    return configured === undefined ? false : parseStrictBoolean(configured.trim()) === true
+}
+
+export function validateProductionEnvironment(): void {
+    const invalidVariables: string[] = []
+    const databaseUrl = getDatabaseUrl()
+    const redisUrl = getRedisUrl()
+    const appUrl = getAppUrl()
+    const appEncryptionKey = getAppEncryptionKey()
+    const webAuthn = getWebAuthnConfiguration()
+    const controllerUrl = getControllerBaseUrl()
+    const controllerToken = getControllerToken()
+    const trustProxyHeaders = process.env.RENTNERPROXY_TRUST_PROXY_HEADERS
+
+    if (!databaseUrl) invalidVariables.push('DATABASE_URL')
+    if (!redisUrl) invalidVariables.push('REDIS_URL')
+    if (!appUrl || !appUrl.startsWith('https://')) invalidVariables.push('APP_URL')
+    if (!appEncryptionKey) invalidVariables.push('APP_ENCRYPTION_KEY')
+    if (!webAuthn) invalidVariables.push('WEBAUTHN_RP_ID')
+    if (!process.env.RENTNERPROXY_CONTROLLER_URL?.trim() || !controllerUrl)
+        invalidVariables.push('RENTNERPROXY_CONTROLLER_URL')
+    if (!controllerToken) invalidVariables.push('RENTNERPROXY_CONTROLLER_TOKEN')
+    if (trustProxyHeaders !== undefined && parseStrictBoolean(trustProxyHeaders.trim()) === null) {
+        invalidVariables.push('RENTNERPROXY_TRUST_PROXY_HEADERS')
+    }
+
+    if (invalidVariables.length > 0) {
+        throw new Error(
+            'Invalid production environment. Check: ' + invalidVariables.join(', ') + '.',
+        )
+    }
+}
+
 function parseSmtpHost(value: string): string | null {
     try {
         const url = new URL(`smtp://${value}`)

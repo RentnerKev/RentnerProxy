@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 
-import { checkFoundationHealth } from '../server/Foundation/health.service'
+import {
+    checkFoundationHealth,
+    checkFoundationReadiness,
+} from '../server/Foundation/health.service'
 
 describe('checkFoundationHealth', () => {
     test('keeps the web health response available when the database check throws', async () => {
@@ -52,5 +55,27 @@ describe('checkFoundationHealth', () => {
             redis: { state: 'unavailable' },
         })
         expect(warnings).toEqual(['redis'])
+    })
+})
+
+describe('checkFoundationReadiness', () => {
+    test('is ready only when database, Redis, and controller readiness are connected', async () => {
+        expect(
+            await checkFoundationReadiness({
+                checkController: async () => ({ state: 'connected' }),
+                checkDatabase: async () => ({ state: 'connected' }),
+                checkRedis: async () => ({ state: 'connected' }),
+                warn: () => undefined,
+            }),
+        ).toBe(true)
+
+        expect(
+            await checkFoundationReadiness({
+                checkController: async () => ({ state: 'unavailable' }),
+                checkDatabase: async () => ({ state: 'connected' }),
+                checkRedis: async () => ({ state: 'connected' }),
+                warn: () => undefined,
+            }),
+        ).toBe(false)
     })
 })

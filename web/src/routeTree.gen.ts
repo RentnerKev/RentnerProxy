@@ -22,6 +22,8 @@ import { Route as PublicForgotPasswordRouteImport } from './routes/_public/forgo
 import { Route as PublicLoginRouteImport } from './routes/_public/login'
 import { Route as PublicResetPasswordRouteImport } from './routes/_public/reset-password'
 import { Route as PublicSetupRouteImport } from './routes/_public/setup'
+import { Route as HealthLiveRouteImport } from './routes/health/live'
+import { Route as HealthReadyRouteImport } from './routes/health/ready'
 import { Route as PublicLoginTwoFactorRouteImport } from './routes/_public/login.two-factor'
 import { Route as MediaAvatarsUserIdRouteImport } from './routes/media/avatars/$userId'
 
@@ -89,6 +91,16 @@ const PublicSetupRoute = PublicSetupRouteImport.update({
   path: '/setup',
   getParentRoute: () => PublicRouteRoute,
 } as any)
+const HealthLiveRoute = HealthLiveRouteImport.update({
+  id: '/health/live',
+  path: '/health/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthReadyRoute = HealthReadyRouteImport.update({
+  id: '/health/ready',
+  path: '/health/ready',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PublicLoginTwoFactorRoute = PublicLoginTwoFactorRouteImport.update({
   id: '/two-factor',
   path: '/two-factor',
@@ -112,6 +124,8 @@ export interface FileRoutesByFullPath {
   '/login': typeof PublicLoginRouteWithChildren
   '/reset-password': typeof PublicResetPasswordRoute
   '/setup': typeof PublicSetupRoute
+  '/health/live': typeof HealthLiveRoute
+  '/health/ready': typeof HealthReadyRoute
   '/login/two-factor': typeof PublicLoginTwoFactorRoute
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
 }
@@ -127,6 +141,8 @@ export interface FileRoutesByTo {
   '/login': typeof PublicLoginRouteWithChildren
   '/reset-password': typeof PublicResetPasswordRoute
   '/setup': typeof PublicSetupRoute
+  '/health/live': typeof HealthLiveRoute
+  '/health/ready': typeof HealthReadyRoute
   '/login/two-factor': typeof PublicLoginTwoFactorRoute
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
 }
@@ -144,6 +160,8 @@ export interface FileRoutesById {
   '/_public/login': typeof PublicLoginRouteWithChildren
   '/_public/reset-password': typeof PublicResetPasswordRoute
   '/_public/setup': typeof PublicSetupRoute
+  '/health/live': typeof HealthLiveRoute
+  '/health/ready': typeof HealthReadyRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_public/login/two-factor': typeof PublicLoginTwoFactorRoute
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
@@ -162,6 +180,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/setup'
+    | '/health/live'
+    | '/health/ready'
     | '/login/two-factor'
     | '/media/avatars/$userId'
   fileRoutesByTo: FileRoutesByTo
@@ -177,6 +197,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/setup'
+    | '/health/live'
+    | '/health/ready'
     | '/login/two-factor'
     | '/media/avatars/$userId'
   id:
@@ -193,6 +215,8 @@ export interface FileRouteTypes {
     | '/_public/login'
     | '/_public/reset-password'
     | '/_public/setup'
+    | '/health/live'
+    | '/health/ready'
     | '/_authenticated/'
     | '/_public/login/two-factor'
     | '/media/avatars/$userId'
@@ -201,6 +225,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   PublicRouteRoute: typeof PublicRouteRouteWithChildren
+  HealthLiveRoute: typeof HealthLiveRoute
+  HealthReadyRoute: typeof HealthReadyRoute
   MediaAvatarsUserIdRoute: typeof MediaAvatarsUserIdRoute
 }
 
@@ -297,6 +323,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicSetupRouteImport
       parentRoute: typeof PublicRouteRoute
     }
+    '/health/live': {
+      id: '/health/live'
+      path: '/health/live'
+      fullPath: '/health/live'
+      preLoaderRoute: typeof HealthLiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/health/ready': {
+      id: '/health/ready'
+      path: '/health/ready'
+      fullPath: '/health/ready'
+      preLoaderRoute: typeof HealthReadyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_public/login/two-factor': {
       id: '/_public/login/two-factor'
       path: '/two-factor'
@@ -370,6 +410,8 @@ const PublicRouteRouteWithChildren = PublicRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   PublicRouteRoute: PublicRouteRouteWithChildren,
+  HealthLiveRoute: HealthLiveRoute,
+  HealthReadyRoute: HealthReadyRoute,
   MediaAvatarsUserIdRoute: MediaAvatarsUserIdRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,0 +1,153 @@
+name: rentnerproxy-production
+
+services:
+    postgres:
+        image: postgres:18.4-bookworm@sha256:882236b897e39051d2368c5ccc6cda944904723506b2dfc97f2a8f5bc9afa382
+        environment:
+            POSTGRES_DB: ${POSTGRES_DB:-rentnerproxy}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a strong PostgreSQL password}
+            POSTGRES_USER: ${POSTGRES_USER:-rentnerproxy}
+        networks:
+            - data
+        volumes:
+            - postgres-data:/var/lib/postgresql
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+            interval: 5s
+            timeout: 5s
+            retries: 12
+            start_period: 10s
+        restart: unless-stopped
+        stop_grace_period: 60s
+
+    redis:
+        image: redis:8.10.1-alpine
+        networks:
+            - data
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 5s
+            timeout: 3s
+            retries: 12
+            start_period: 5s
+        restart: unless-stopped
+        stop_grace_period: 10s
+
+    migrate:
+        build:
+            context: .
+            dockerfile: docker/web/Dockerfile
+        entrypoint: ['bun']
+        command: ['migrate.js']
+        environment:
+            DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL with the production PostgreSQL service hostname}
+            NODE_ENV: production
+        depends_on:
+            postgres:
+                condition: service_healthy
+        networks:
+            - data
+        read_only: true
+        tmpfs:
+            - /tmp
+        restart: 'no'
+        stop_grace_period: 30s
+
+    proxy-runtime:
+        build:
+            context: .
+            dockerfile: docker/proxy-runtime/Dockerfile
+        environment:
+            RENTNERPROXY_CONTROLLER_LISTEN_ADDR: 0.0.0.0:8081
+            RENTNERPROXY_CONTROLLER_TOKEN: ${RENTNERPROXY_CONTROLLER_TOKEN:?Set a random 32-256 character controller token}
+            RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT: ${RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT:-443}
+            RUST_LOG: ${RUST_LOG:-info}
+        networks:
+            - edge
+            - control
+        ports:
+            - '${RENTNERPROXY_PROXY_HTTP_BIND_ADDRESS:-0.0.0.0}:${RENTNERPROXY_PROXY_HTTP_HOST_PORT:-80}:8080'
+            - '${RENTNERPROXY_PROXY_HTTPS_BIND_ADDRESS:-0.0.0.0}:${RENTNERPROXY_PROXY_HTTPS_HOST_PORT:-443}:8443'
+        expose:
+            - '8081'
+        volumes:
+            - proxy-state:/var/lib/rentnerproxy/proxy
+        security_opt:
+            - no-new-privileges:true
+        cap_drop:
+            - ALL
+        healthcheck:
+            test: ['CMD', 'rentnerproxy-controller', '--healthcheck', 'ready']
+            interval: 10s
+            timeout: 5s
+            retries: 12
+            start_period: 15s
+        restart: unless-stopped
+        stop_grace_period: 15s
+
+    web:
+        build:
+            context: .
+            dockerfile: docker/web/Dockerfile
+        environment:
+            APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?Set a base64-encoded 32-byte application encryption key}
+            APP_URL: ${APP_URL:?Set the HTTPS admin UI URL}
+            DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL with the production PostgreSQL service hostname}
+            HOST: 0.0.0.0
+            NODE_ENV: production
+            PORT: 3000
+            RENTNERPROXY_CONTROLLER_TOKEN: ${RENTNERPROXY_CONTROLLER_TOKEN:?Set a random 32-256 character controller token}
+            RENTNERPROXY_CONTROLLER_URL: http://proxy-runtime:8081
+            REDIS_URL: redis://redis:6379
+            RENTNERPROXY_TRUST_PROXY_HEADERS: ${RENTNERPROXY_TRUST_PROXY_HEADERS:-false}
+            SMTP_FROM: ${SMTP_FROM:-}
+            SMTP_HOST: ${SMTP_HOST:-}
+            SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+            SMTP_PORT: ${SMTP_PORT:-}
+            SMTP_SECURE: ${SMTP_SECURE:-}
+            SMTP_USER: ${SMTP_USER:-}
+            WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:?Set the WebAuthn relying-party ID matching APP_URL}
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            migrate:
+                condition: service_completed_successfully
+            proxy-runtime:
+                condition: service_healthy
+        networks:
+            - management
+            - control
+            - data
+        ports:
+            - '${RENTNERPROXY_MANAGEMENT_BIND_ADDRESS:-127.0.0.1}:${RENTNERPROXY_MANAGEMENT_PORT:-3000}:3000'
+        expose:
+            - '3000'
+        read_only: true
+        tmpfs:
+            - /tmp
+        security_opt:
+            - no-new-privileges:true
+        cap_drop:
+            - ALL
+        healthcheck:
+            test: ['CMD', 'bun', '/app/docker/web/healthcheck.mjs']
+            interval: 10s
+            timeout: 5s
+            retries: 12
+            start_period: 20s
+        restart: unless-stopped
+        stop_grace_period: 20s
+
+networks:
+    edge:
+    management:
+    control:
+        internal: true
+    data:
+        internal: true
+
+volumes:
+    postgres-data:
+    proxy-state:

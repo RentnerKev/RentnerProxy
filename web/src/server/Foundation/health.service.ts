@@ -1,7 +1,7 @@
 import '@tanstack/react-start/server-only'
 
 import type { FoundationHealth, ServiceHealth } from '../../shared/Types/health.types'
-import { checkControllerHealth } from './controller.server'
+import { checkControllerHealth, checkControllerReadiness } from './controller.server'
 import { checkDatabaseHealth } from './database-health.server'
 import { checkRedisHealth } from '../redis/health.server'
 import type { FoundationHealthDependencies, FoundationService } from './Types/health.types'
@@ -37,4 +37,14 @@ export async function checkFoundationHealth(
     ])
 
     return { controller, database, redis }
+}
+
+export async function checkFoundationReadiness(
+    overrides: Partial<FoundationHealthDependencies> = {},
+): Promise<boolean> {
+    const health = await checkFoundationHealth({
+        checkController: checkControllerReadiness,
+        ...overrides,
+    })
+    return Object.values(health).every((service) => service.state === 'connected')
 }
