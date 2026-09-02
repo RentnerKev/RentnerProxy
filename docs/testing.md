@@ -5,13 +5,13 @@ to main and pull requests targeting main.
 
 ## Standard commands
 
-~~~bash
+```bash
 bun run test
 bun run test:ts
 bun run test:fuzz
 bun run rust:test
 bun run check
-~~~
+```
 
 The test suite is invocable using Bun's standard test runner and Cargo's standard Rust test
 command. The complete check also runs formatting, Oxlint, TypeScript checks, Drizzle migration

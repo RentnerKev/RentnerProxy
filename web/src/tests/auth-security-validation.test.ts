@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import { createOpaqueToken } from '../server/Auth/Core/tokens.server'
+import { completeTwoFactorLoginInputSchema } from '../features/Auth/Login/validation'
 import {
     confirmTotpSetupInputSchema,
     finishPasskeyRegistrationInputSchema,
@@ -42,18 +43,13 @@ describe('account security validation', () => {
                 code: '123456',
             }).success,
         ).toBeTrue()
-        expect(
-            confirmTotpSetupInputSchema.safeParse({
-                challengeId: opaqueChallenge,
-                code: '12345',
-            }).success,
-        ).toBeFalse()
-        expect(
-            confirmTotpSetupInputSchema.safeParse({
-                challengeId: opaqueChallenge,
-                code: '12345a',
-            }).success,
-        ).toBeFalse()
+        for (const code of ['', '12345', '1234567', '12345a', '12 345', '１２３４５６']) {
+            expect(
+                confirmTotpSetupInputSchema.safeParse({ challengeId: opaqueChallenge, code })
+                    .success,
+            ).toBeFalse()
+            expect(completeTwoFactorLoginInputSchema.safeParse({ code }).success).toBeFalse()
+        }
     })
 
     test('accepts password reauthentication as a separate action input', () => {

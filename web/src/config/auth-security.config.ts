@@ -2,11 +2,11 @@ export const APP_ENCRYPTION_KEY_BYTES = 32
 export const AES_GCM_IV_BYTES = 12
 
 export const TOTP_ISSUER = 'RentnerProxy'
-export const TOTP_ALGORITHM = 'SHA1'
+export const TOTP_ALGORITHM = 'SHA256'
 export const TOTP_DIGITS = 6
 export const TOTP_PERIOD_SECONDS = 30
 export const TOTP_VALIDATION_WINDOW = 1
-export const TOTP_SECRET_BYTES = 20
+export const TOTP_SECRET_BYTES = 32
 
 export const RECOVERY_CODE_COUNT = 10
 export const RECOVERY_CODE_BYTES = 16

@@ -7,6 +7,7 @@ import {
     TOTP_DIGITS,
     TOTP_ISSUER,
     TOTP_PERIOD_SECONDS,
+    TOTP_SECRET_BYTES,
 } from '../config/auth-security.config'
 import {
     createRecoveryCodeBatch,
@@ -29,29 +30,88 @@ function createTotp(secret: string): OTPAuth.TOTP {
 }
 
 describe('TOTP credentials', () => {
-    test('creates independent 160-bit secrets and a standards-based otpauth URI', () => {
+    test('creates independent 256-bit secrets and an explicit SHA256 otpauth URI', () => {
         const first = createTotpSecret()
         const second = createTotpSecret()
-        const uri = createTotpUri(first, 'security-test@example.invalid')
+        const uri = new URL(createTotpUri(first, 'security-test@example.invalid'))
 
-        expect(first).toMatch(/^[A-Z2-7]{32}$/)
-        expect(second).toMatch(/^[A-Z2-7]{32}$/)
+        expect(TOTP_ALGORITHM).toBe('SHA256')
+        expect(TOTP_SECRET_BYTES).toBe(32)
+        expect(first).toMatch(/^[A-Z2-7]{52}$/)
+        expect(second).toMatch(/^[A-Z2-7]{52}$/)
         expect(second).not.toBe(first)
-        expect(uri).toStartWith('otpauth://totp/')
-        expect(uri).toContain('issuer=RentnerProxy')
-        expect(uri).toContain('digits=6')
-        expect(uri).toContain('period=30')
-        expect(uri).toContain(`secret=${first}`)
+        expect(OTPAuth.Secret.fromBase32(first).bytes).toHaveLength(TOTP_SECRET_BYTES)
+        expect(OTPAuth.Secret.fromBase32(second).bytes).toHaveLength(TOTP_SECRET_BYTES)
+        expect(uri.protocol).toBe('otpauth:')
+        expect(uri.hostname).toBe('totp')
+        expect(decodeURIComponent(uri.pathname)).toBe('/RentnerProxy:security-test@example.invalid')
+        expect(uri.searchParams.get('issuer')).toBe(TOTP_ISSUER)
+        expect(uri.searchParams.get('algorithm')).toBe('SHA256')
+        expect(uri.searchParams.get('digits')).toBe(String(TOTP_DIGITS))
+        expect(uri.searchParams.get('period')).toBe(String(TOTP_PERIOD_SECONDS))
+        expect(uri.searchParams.get('secret')).toBe(first)
     })
 
-    test('accepts the configured clock window and rejects invalid or distant codes', () => {
-        const secret = createTotpSecret()
+    test('matches the RFC 6238 SHA256 vectors', () => {
+        const secret = OTPAuth.Secret.fromUTF8('12345678901234567890123456789012')
+        const rfcTotp = new OTPAuth.TOTP({
+            algorithm: 'SHA256',
+            digits: 8,
+            period: TOTP_PERIOD_SECONDS,
+            secret,
+        })
+        const vectors = [
+            [59, '46119246'],
+            [1_111_111_109, '68084774'],
+            [1_111_111_111, '67062674'],
+            [1_234_567_890, '91819424'],
+            [2_000_000_000, '90698825'],
+            [20_000_000_000, '77737706'],
+        ] as const
+
+        for (const [timestampSeconds, token] of vectors) {
+            expect(rfcTotp.generate({ timestamp: timestampSeconds * 1_000 })).toBe(token)
+        }
+        expect(
+            getMatchedTotpCounter(secret.base32, 'security-test@example.invalid', '119246', 59_000),
+        ).toBe(1)
+    })
+
+    test('rejects a precomputed HMAC-SHA-1 code and undersized secrets', () => {
+        const secret = OTPAuth.Secret.fromUTF8('12345678901234567890123456789012')
+        const legacyTokenForTimestamp = '599872'
+        const shortSecret = OTPAuth.Secret.fromUTF8('too-short').base32
+
+        expect(
+            getMatchedTotpCounter(
+                secret.base32,
+                'security-test@example.invalid',
+                legacyTokenForTimestamp,
+                59_000,
+            ),
+        ).toBeNull()
+
+        let errorMessage = ''
+        try {
+            createTotpUri(shortSecret, 'security-test@example.invalid')
+        } catch (error) {
+            errorMessage = error instanceof Error ? error.message : String(error)
+        }
+        expect(errorMessage).toBe('Invalid TOTP secret.')
+        expect(errorMessage).not.toContain(shortSecret)
+    })
+
+    test('accepts the configured clock window and rejects expired or malformed codes', () => {
+        const secret = OTPAuth.Secret.fromUTF8('12345678901234567890123456789012').base32
         const totp = createTotp(secret)
         const timestamp = Date.UTC(2026, 7, 29, 12, 0, 15)
         const currentToken = totp.generate({ timestamp })
         const previousToken = totp.generate({ timestamp: timestamp - TOTP_PERIOD_SECONDS * 1_000 })
         const nextToken = totp.generate({ timestamp: timestamp + TOTP_PERIOD_SECONDS * 1_000 })
-        const distantToken = totp.generate({
+        const expiredToken = totp.generate({
+            timestamp: timestamp - TOTP_PERIOD_SECONDS * 2_000,
+        })
+        const futureToken = totp.generate({
             timestamp: timestamp + TOTP_PERIOD_SECONDS * 2_000,
         })
         const expectedCounter = totp.counter({ timestamp })
@@ -71,11 +131,21 @@ describe('TOTP credentials', () => {
             getMatchedTotpCounter(secret, 'security-test@example.invalid', nextToken, timestamp),
         ).toBe(expectedCounter + 1)
         expect(
-            getMatchedTotpCounter(secret, 'security-test@example.invalid', distantToken, timestamp),
+            getMatchedTotpCounter(secret, 'security-test@example.invalid', expiredToken, timestamp),
         ).toBeNull()
         expect(
-            getMatchedTotpCounter(secret, 'security-test@example.invalid', 'not-a-code', timestamp),
+            getMatchedTotpCounter(secret, 'security-test@example.invalid', futureToken, timestamp),
         ).toBeNull()
+        for (const malformedToken of ['', '12345', '1234567', '12 345', 'ABCDEF', '１２３４５６']) {
+            expect(
+                getMatchedTotpCounter(
+                    secret,
+                    'security-test@example.invalid',
+                    malformedToken,
+                    timestamp,
+                ),
+            ).toBeNull()
+        }
     })
 })
 

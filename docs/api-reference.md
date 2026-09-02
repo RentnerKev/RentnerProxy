@@ -16,9 +16,9 @@ Liveness does not require authentication.
 
 Success response:
 
-~~~json
-{"status":"ok"}
-~~~
+```json
+{ "status": "ok" }
+```
 
 The response status is 200.
 
@@ -28,15 +28,15 @@ Readiness does not require authentication.
 
 A ready instance returns status 200:
 
-~~~json
-{"status":"ready"}
-~~~
+```json
+{ "status": "ready" }
+```
 
 An instance whose foundation dependencies are not ready returns status 503:
 
-~~~json
-{"status":"not_ready"}
-~~~
+```json
+{ "status": "not_ready" }
+```
 
 ### GET /media/avatars/{userId}
 
@@ -53,9 +53,9 @@ only when the surrounding deployment intentionally exposes them.
 
 Returns status 200:
 
-~~~json
-{"status":"ok","service":"rentnerproxy-controller","version":"<controller-version>"}
-~~~
+```json
+{ "status": "ok", "service": "rentnerproxy-controller", "version": "<controller-version>" }
+```
 
 ### GET /ready
 
@@ -71,9 +71,9 @@ canonical Host header. Missing, invalid, or expired challenges return 404.
 
 All internal API routes require an Authorization header when a controller token is configured:
 
-~~~text
+```text
 Authorization: Bearer <controller-token>
-~~~
+```
 
 The production appliance always configures the controller token. The controller compares the
 token in constant time and returns 401 for missing or invalid credentials.

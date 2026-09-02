@@ -66,18 +66,16 @@ primitives itself:
 - AES-256-GCM with a fresh cryptographically random IV protects authentication secrets at rest.
 - Argon2id is used for password hashing; the encoded hash contains the per-user salt and parameters.
 - SHA-256 is used for opaque-token and recovery-code verification digests.
-- TOTP follows RFC 6238 through OTPAuth. HMAC-SHA1 is used only as the standards-compatible TOTP
-  construction, not as a general-purpose password or data hash.
+- TOTP follows RFC 6238 through OTPAuth with HMAC-SHA256, six-digit codes, and a 30-second period.
 - WebAuthn verification uses the SimpleWebAuthn server library with required user verification.
 - TLS is provided by OpenResty/rustls with TLS 1.2 and TLS 1.3 configuration and modern cipher
   suites.
 
 AES encryption uses a fixed 256-bit key, opaque tokens use 256 bits, recovery codes use
 128 bits of random material, and the application does not provide a downgrade option for its AES
-encryption key. TOTP currently uses HMAC-SHA1 solely for RFC 6238 interoperability; this is the
-documented compatibility exception and is tracked for a future SHA-256 migration before a stable
-release. Nonces and token material come from Bun/Node cryptographically secure random APIs or the
-Web Crypto API.
+encryption key. New TOTP factors use 256-bit secrets and a fixed HMAC-SHA256 configuration without
+a runtime algorithm override. Nonces and token material come from Bun/Node cryptographically secure
+random APIs or the Web Crypto API.
 
 ## Analysis and response
 

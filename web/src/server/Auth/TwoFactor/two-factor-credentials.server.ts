@@ -18,6 +18,22 @@ export interface RecoveryCodeCredential {
     readonly plaintext: string
 }
 
+function parseTotpSecret(value: string): OTPAuth.Secret {
+    let secret: OTPAuth.Secret
+
+    try {
+        secret = OTPAuth.Secret.fromBase32(value)
+    } catch {
+        throw new Error('Invalid TOTP secret.')
+    }
+
+    if (secret.bytes.byteLength < TOTP_SECRET_BYTES) {
+        throw new Error('Invalid TOTP secret.')
+    }
+
+    return secret
+}
+
 function createTotp(secret: string, label: string): OTPAuth.TOTP {
     return new OTPAuth.TOTP({
         algorithm: TOTP_ALGORITHM,
@@ -25,12 +41,13 @@ function createTotp(secret: string, label: string): OTPAuth.TOTP {
         issuer: TOTP_ISSUER,
         label,
         period: TOTP_PERIOD_SECONDS,
-        secret,
+        secret: parseTotpSecret(secret),
     })
 }
 
 export function createTotpSecret(): string {
-    return new OTPAuth.Secret({ size: TOTP_SECRET_BYTES }).base32
+    const bytes = crypto.getRandomValues(new Uint8Array(TOTP_SECRET_BYTES))
+    return new OTPAuth.Secret({ buffer: bytes.buffer }).base32
 }
 
 export function createTotpUri(secret: string, label: string): string {
@@ -43,6 +60,10 @@ export function getMatchedTotpCounter(
     token: string,
     timestamp = Date.now(),
 ): number | null {
+    if (!new RegExp(`^\\d{${TOTP_DIGITS}}$`).test(token)) {
+        return null
+    }
+
     const totp = createTotp(secret, label)
     const delta = totp.validate({ timestamp, token, window: TOTP_VALIDATION_WINDOW })
 

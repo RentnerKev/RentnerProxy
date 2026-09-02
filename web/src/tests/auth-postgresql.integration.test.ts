@@ -12,6 +12,7 @@ import {
     TOTP_DIGITS,
     TOTP_ISSUER,
     TOTP_PERIOD_SECONDS,
+    TOTP_SECRET_BYTES,
 } from '../config/auth-security.config'
 
 import {
@@ -73,6 +74,7 @@ import {
     confirmTotpSetupService,
     createLoginMfaChallengeService,
     disableTotpService,
+    getTwoFactorStatusService,
     regenerateRecoveryCodesService,
 } from '../server/Auth/TwoFactor/two-factor.service'
 import {
@@ -1301,7 +1303,7 @@ describe('sensitive action rate limits with PostgreSQL and Redis', () => {
 
 describe('account security with PostgreSQL and Redis', () => {
     securityIntegrationTest(
-        'enables TOTP, enforces MFA/replay rules, rotates recovery codes, and manages passkeys',
+        'enables SHA256 TOTP, enforces MFA/replay rules, rotates recovery codes, and manages passkeys',
         async () => {
             const originalEncryptionKey = process.env.APP_ENCRYPTION_KEY
             const originalAppUrl = process.env.APP_URL
@@ -1331,6 +1333,10 @@ describe('account security with PostgreSQL and Redis', () => {
                 })
 
                 expect(setup.otpAuthUri).toStartWith('otpauth://totp/')
+                expect(new URL(setup.otpAuthUri).searchParams.get('algorithm')).toBe('SHA256')
+                expect(OTPAuth.Secret.fromBase32(setup.secret).bytes).toHaveLength(
+                    TOTP_SECRET_BYTES,
+                )
                 expect(activation.success).toBeTrue()
                 if (!activation.success) {
                     throw new Error('TOTP activation unexpectedly failed.')
@@ -1376,6 +1382,12 @@ describe('account security with PostgreSQL and Redis', () => {
                     storedRecoveryCodes.every((code) => /^[a-f\d]{64}$/.test(code.codeHash)),
                 ).toBeTrue()
                 expect(storedRecoveryCodes.every((code) => code.usedAt === null)).toBeTrue()
+                const enabledStatus = await getTwoFactorStatusService(user.id)
+                expect(enabledStatus).toEqual({
+                    recoveryCodesRemaining: 10,
+                    totpEnabled: true,
+                })
+                expect(JSON.stringify(enabledStatus)).not.toContain(setup.secret)
                 const expectedRecoveryCodeHashes = await Promise.all(
                     activation.recoveryCodes.map(async (plaintext) => {
                         const normalized = normalizeRecoveryCode(plaintext)

@@ -20,17 +20,17 @@ For local development, use Bun 1.4 or newer, Rust 1.97.1, PostgreSQL 18 or newer
 1. Clone the repository or download a source snapshot over HTTPS.
 2. Copy the SMTP configuration template:
 
-~~~bash
+```bash
 cp .env.production.example .env
-~~~
+```
 
 3. Replace every example SMTP value in .env with the credentials for the mail service that should
    send invitations and password-reset messages. Never commit this file.
 4. Start the appliance:
 
-~~~bash
+```bash
 docker compose up -d
-~~~
+```
 
 5. Open the management UI at http://localhost:81 for the initial owner setup. When prompted, enter
    the public management address that users will open in their browsers.
@@ -45,22 +45,22 @@ test that image, and update deliberately.
 
 Install the locked dependencies and start the web application plus controller:
 
-~~~bash
+```bash
 bun install --frozen-lockfile
 bun run dev
-~~~
+```
 
 The web application is available at http://localhost:5173 and the controller health endpoint at
 http://127.0.0.1:8081/health. For database-backed development, copy .env.example to .env, configure
 PostgreSQL and Redis, then apply the migrations:
 
-~~~bash
+```bash
 bun run db:migrate
-~~~
+```
 
 Useful commands:
 
-~~~bash
+```bash
 bun run format
 bun run lint
 bun run typecheck
@@ -68,7 +68,7 @@ bun run test
 bun run test:fuzz
 bun run build
 bun run check
-~~~
+```
 
 ## Secure operation
 
