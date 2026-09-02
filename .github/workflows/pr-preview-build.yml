@@ -1,0 +1,212 @@
+name: PR Preview Build
+
+on:
+    workflow_run:
+        workflows:
+            - PR Title
+        types:
+            - completed
+
+permissions: {}
+
+concurrency:
+    group: pr-preview-build-${{ github.event.workflow_run.head_sha }}
+    cancel-in-progress: true
+
+env:
+    BUN_VERSION: 1.4.0
+    GATE_TIMEOUT_SECONDS: 1500
+    POLL_INTERVAL_SECONDS: 20
+    PREVIEW_PLATFORM: linux/amd64
+
+jobs:
+    verify:
+        name: PR Preview / Verify checks
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            actions: read
+            checks: read
+            contents: read
+            pull-requests: read
+        outputs:
+            base_ref: ${{ steps.gate.outputs.base_ref }}
+            base_sha: ${{ steps.gate.outputs.base_sha }}
+            head_repository: ${{ steps.gate.outputs.head_repository }}
+            head_sha: ${{ steps.gate.outputs.head_sha }}
+            immutable_tag: ${{ steps.gate.outputs.immutable_tag }}
+            pr_number: ${{ steps.gate.outputs.pr_number }}
+            repository: ${{ steps.gate.outputs.repository }}
+            tested_sha: ${{ steps.gate.outputs.tested_sha }}
+            trigger_run_id: ${{ steps.gate.outputs.trigger_run_id }}
+        steps:
+            - name: Check out trusted preview automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  path: trusted
+                  persist-credentials: false
+                  ref: ${{ github.workflow_sha }}
+
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Verify PR trigger and SHA-proof artifact envelope
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+                  REPOSITORY: ${{ github.repository }}
+                  SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+              run: bun trusted/scripts/pr-preview.ts trigger-preflight
+
+            - name: Download exact tested merge SHA
+              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+              with:
+                  github-token: ${{ github.token }}
+                  name: pr-preview-source
+                  path: ${{ runner.temp }}/pr-preview-source
+                  repository: ${{ github.repository }}
+                  run-id: ${{ github.event.workflow_run.id }}
+
+            - name: Resolve PR and wait for trusted required checks
+              id: gate
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+                  REPOSITORY: ${{ github.repository }}
+                  SOURCE_PROOF_DIRECTORY: ${{ runner.temp }}/pr-preview-source
+                  SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+              run: bun trusted/scripts/pr-preview.ts gate
+
+    build:
+        name: PR Preview / Build image
+        needs:
+            - verify
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        permissions:
+            contents: read
+        steps:
+            - name: Check out exact tested pull request source
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: source
+                  ref: ${{ needs.verify.outputs.tested_sha }}
+
+            - name: Verify exact build source
+              env:
+                  EXPECTED_TESTED_SHA: ${{ needs.verify.outputs.tested_sha }}
+              shell: bash
+              run: |
+                  set -Eeuo pipefail
+                  actual_sha="$(git -C source rev-parse HEAD)"
+                  if [[ "$actual_sha" != "$EXPECTED_TESTED_SHA" ]]; then
+                      echo '::error::Preview build checkout does not match the tested merge commit.'
+                      exit 1
+                  fi
+                  test -s source/docker/production/Dockerfile || {
+                      echo '::error::Preview build Dockerfile is missing or empty.'
+                      exit 1
+                  }
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+            - name: Build untrusted preview image as OCI data
+              env:
+                  IMMUTABLE_TAG: ${{ needs.verify.outputs.immutable_tag }}
+                  PR_NUMBER: ${{ needs.verify.outputs.pr_number }}
+                  REPOSITORY: ${{ needs.verify.outputs.repository }}
+                  TESTED_SHA: ${{ needs.verify.outputs.tested_sha }}
+              shell: bash
+              run: |
+                  set -Eeuo pipefail
+                  artifact_directory="$RUNNER_TEMP/pr-preview-artifact"
+                  oci_archive="$artifact_directory/preview-image.tar"
+                  mkdir -p "$artifact_directory"
+
+                  docker buildx build \
+                      --file source/docker/production/Dockerfile \
+                      --label 'org.opencontainers.image.title=RentnerProxy PR Preview' \
+                      --label 'org.opencontainers.image.description=Unreviewed pull request preview for testing only.' \
+                      --label "org.opencontainers.image.source=https://github.com/$REPOSITORY" \
+                      --label "org.opencontainers.image.url=https://github.com/$REPOSITORY/pull/$PR_NUMBER" \
+                      --label "org.opencontainers.image.revision=$TESTED_SHA" \
+                      --label "org.opencontainers.image.version=$IMMUTABLE_TAG" \
+                      --label 'org.opencontainers.image.licenses=MIT' \
+                      --output "type=oci,dest=$oci_archive" \
+                      --platform "$PREVIEW_PLATFORM" \
+                      --provenance=false \
+                      --sbom=false \
+                      --tag "local/rentnerproxy-pr-preview:$IMMUTABLE_TAG" \
+                      source
+
+                  test -s "$oci_archive" || {
+                      echo '::error::Preview build produced no OCI archive.'
+                      exit 1
+                  }
+                  archive_size="$(stat --format='%s' "$oci_archive")"
+                  if (( archive_size > 4294967296 )); then
+                      echo '::error::Preview OCI archive exceeds the 4 GiB safety limit.'
+                      exit 1
+                  fi
+
+            - name: Create minimal build metadata
+              env:
+                  BASE_SHA: ${{ needs.verify.outputs.base_sha }}
+                  HEAD_REPOSITORY: ${{ needs.verify.outputs.head_repository }}
+                  HEAD_SHA: ${{ needs.verify.outputs.head_sha }}
+                  PR_NUMBER: ${{ needs.verify.outputs.pr_number }}
+                  REPOSITORY: ${{ needs.verify.outputs.repository }}
+                  TESTED_SHA: ${{ needs.verify.outputs.tested_sha }}
+                  TRIGGER_RUN_ID: ${{ needs.verify.outputs.trigger_run_id }}
+              shell: bash
+              run: |
+                  set -Eeuo pipefail
+                  artifact_directory="$RUNNER_TEMP/pr-preview-artifact"
+                  oci_archive="$artifact_directory/preview-image.tar"
+                  oci_sha256="$(sha256sum "$oci_archive" | cut -d ' ' -f 1)"
+                  created_at="$(date --utc '+%Y-%m-%dT%H:%M:%S.000Z')"
+
+                  jq --null-input \
+                      --arg artifactName 'pr-preview-image' \
+                      --arg baseSha "$BASE_SHA" \
+                      --arg createdAt "$created_at" \
+                      --arg headRepository "$HEAD_REPOSITORY" \
+                      --arg headSha "$HEAD_SHA" \
+                      --arg ociSha256 "$oci_sha256" \
+                      --arg platform "$PREVIEW_PLATFORM" \
+                      --arg repository "$REPOSITORY" \
+                      --arg testedSha "$TESTED_SHA" \
+                      --argjson pullRequestNumber "$PR_NUMBER" \
+                      --argjson runAttempt "$GITHUB_RUN_ATTEMPT" \
+                      --argjson runId "$GITHUB_RUN_ID" \
+                      --argjson triggerRunId "$TRIGGER_RUN_ID" \
+                      '{
+                          schemaVersion: 1,
+                          artifactName: $artifactName,
+                          repository: $repository,
+                          pullRequestNumber: $pullRequestNumber,
+                          headRepository: $headRepository,
+                          headSha: $headSha,
+                          baseSha: $baseSha,
+                          testedSha: $testedSha,
+                          runId: $runId,
+                          runAttempt: $runAttempt,
+                          triggerRunId: $triggerRunId,
+                          platform: $platform,
+                          createdAt: $createdAt,
+                          ociSha256: $ociSha256
+                      }' > "$artifact_directory/metadata.json"
+
+            - name: Upload OCI preview artifact
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  compression-level: 0
+                  if-no-files-found: error
+                  name: pr-preview-image
+                  overwrite: true
+                  path: |
+                      ${{ runner.temp }}/pr-preview-artifact/preview-image.tar
+                      ${{ runner.temp }}/pr-preview-artifact/metadata.json
+                  retention-days: 2
