@@ -1,0 +1,63 @@
+name: Duplicate Triage
+
+on:
+    issues:
+        types:
+            - opened
+            - edited
+            - labeled
+    pull_request_target:
+        types:
+            - opened
+            - edited
+            - synchronize
+            - ready_for_review
+            - labeled
+
+permissions:
+    contents: read
+    issues: write
+    pull-requests: write
+
+concurrency:
+    group: >-
+        duplicate-triage-${{ github.event_name == 'issues' && 'issue' || 'pr' }}-${{ github.event.issue.number || github.event.pull_request.number }}
+    cancel-in-progress: true
+
+env:
+    BUN_VERSION: 1.4.0
+
+jobs:
+    duplicate-triage:
+        name: Duplicate Triage
+        if: >-
+            (
+              github.event_name != 'pull_request_target' ||
+              github.event.pull_request.user.login != 'dependabot[bot]'
+            ) &&
+            (
+              github.event.action != 'labeled' ||
+              github.event.label.name == 'duplicate' ||
+              github.event.label.name == 'no-triage' ||
+              github.event.label.name == 'skip-automation' ||
+              github.event.label.name == 'no-duplicate-check'
+            )
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - name: Check out trusted duplicate-triage automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  repository: ${{ github.repository }}
+                  ref: ${{ github.event.pull_request.base.sha || github.sha }}
+
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Analyze issue or pull request metadata
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: bun .github/scripts/duplicate-triage.ts
