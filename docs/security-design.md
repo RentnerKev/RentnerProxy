@@ -72,9 +72,12 @@ primitives itself:
 - TLS is provided by OpenResty/rustls with TLS 1.2 and TLS 1.3 configuration and modern cipher
   suites.
 
-Key sizes are fixed or selected above the relevant security minimums; the application does not
-provide a downgrade option for its AES encryption key. Nonces and token material come from
-Bun/Node cryptographically secure random APIs or the Web Crypto API.
+AES encryption uses a fixed 256-bit key, opaque tokens use 256 bits, recovery codes use
+128 bits of random material, and the application does not provide a downgrade option for its AES
+encryption key. TOTP currently uses HMAC-SHA1 solely for RFC 6238 interoperability; this is the
+documented compatibility exception and is tracked for a future SHA-256 migration before a stable
+release. Nonces and token material come from Bun/Node cryptographically secure random APIs or the
+Web Crypto API.
 
 ## Analysis and response
 
