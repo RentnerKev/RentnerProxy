@@ -49,9 +49,9 @@ input-heavy code should also extend the fuzz or property-based test suite where 
 
 Run the complete check before opening a pull request:
 
-~~~bash
+```bash
 bun run check
-~~~
+```
 
 If a change cannot reasonably include a test, explain the reason in the pull request and identify
 the manual or integration verification that replaces it.
