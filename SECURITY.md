@@ -19,4 +19,4 @@ If the form is temporarily unavailable, do not disclose the vulnerability in a p
 
 Include a clear description, affected component, reproduction steps or proof of concept, impact, and any suggested mitigation. Remove live credentials and other unrelated sensitive data. If a real credential was exposed, revoke or rotate it immediately.
 
-The maintainer will coordinate validation, remediation, and responsible disclosure through the private advisory. No fixed response or resolution deadline is promised while the project is in this early stage.
+The maintainer will coordinate validation, remediation, and responsible disclosure through the private advisory. The initial acknowledgement target is within 14 calendar days. Confirmed medium-or-higher severity issues are prioritized for a timely fix and are identified in the release notes when a release is available.

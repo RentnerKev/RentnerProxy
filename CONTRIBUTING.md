@@ -40,6 +40,22 @@ chore(deps): update dependencies
 
 Keep commits small and understandable. Do not mix unrelated changes in one commit. Pull request titles must follow the same convention; the scope is optional.
 
+## Testing policy
+
+Every major feature, security-sensitive change, or externally visible behavior change must add
+or update automated tests. Tests should cover successful behavior, invalid input, authorization,
+and relevant failure paths. Changes that affect parsers, token handling, configuration, or other
+input-heavy code should also extend the fuzz or property-based test suite where practical.
+
+Run the complete check before opening a pull request:
+
+~~~bash
+bun run check
+~~~
+
+If a change cannot reasonably include a test, explain the reason in the pull request and identify
+the manual or integration verification that replaces it.
+
 ## Pull requests
 
 Keep pull requests focused and complete the pull request template. Confirm that tests and documentation cover the change, that `bun run check` passes, and that no secrets or sensitive data are included. Address review feedback with follow-up commits so reviewers can verify the final result.

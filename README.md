@@ -146,6 +146,21 @@ bun run check
 checks, and both production builds. `bun run db:migrate` also synchronizes the permission registry
 and built-in role defaults for existing installations; custom role permissions stay unchanged.
 
+## Documentation
+
+- [Getting started](docs/getting-started.md) — installation, startup, first use, and secure operation.
+- [API and service interface](docs/api-reference.md) — documented HTTP endpoints and controller contracts.
+- [Security design](docs/security-design.md) — threat model, secure defaults, cryptography, and security response.
+- [Testing](docs/testing.md) — automated tests, fuzzing, integration checks, and CI commands.
+- [Release process](docs/releasing.md) — versioning, release notes, and release checklist.
+- [Changelog](CHANGELOG.md) — human-readable changes and security notes.
+
+## Feedback and contributions
+
+- [Report a bug or request an enhancement](https://github.com/RentnerKev/RentnerProxy/issues) using the available issue template.
+- [Contribute code or documentation](CONTRIBUTING.md) through a focused pull request.
+- [Report a security vulnerability privately](SECURITY.md) through GitHub's private vulnerability reporting flow.
+
 ## Languages
 
 Authenticated pages support English, German, Spanish, and French. Users select their language
