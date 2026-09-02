@@ -1,51 +1,91 @@
 version: 2
 
-# Bun updates are intentionally omitted while Dependabot cannot parse the
-# Bun 1.4 text lockfile format used by this repository. Re-enable the bun
-# ecosystem once GitHub's updater supports this lockfile format.
 updates:
-    - package-ecosystem: cargo
-      directory: /controller
+    - package-ecosystem: 'bun'
+      directory: '/'
       schedule:
-          interval: weekly
-          day: monday
-      labels:
-          - dependencies
-          - cargo
-      assignees:
-          - RentnerKev
+          interval: 'cron'
+          cronjob: '0 3 * * *'
+          timezone: 'Europe/Berlin'
       commit-message:
-          prefix: chore
-          include: scope
-      open-pull-requests-limit: 5
+          prefix: 'chore'
+          include: 'scope'
+      open-pull-requests-limit: 10
       groups:
-          minor-and-patch:
-              applies-to: version-updates
+          bun-minor-and-patch:
+              applies-to: 'version-updates'
               patterns:
                   - '*'
               update-types:
-                  - minor
-                  - patch
+                  - 'minor'
+                  - 'patch'
 
-    - package-ecosystem: github-actions
-      directory: /
+    - package-ecosystem: 'cargo'
+      directory: '/controller'
       schedule:
-          interval: weekly
-          day: monday
-      labels:
-          - dependencies
-          - github-actions
-      assignees:
-          - RentnerKev
+          interval: 'cron'
+          cronjob: '0 3 * * *'
+          timezone: 'Europe/Berlin'
       commit-message:
-          prefix: ci
-          include: scope
-      open-pull-requests-limit: 5
+          prefix: 'chore'
+          include: 'scope'
+      open-pull-requests-limit: 10
       groups:
-          minor-and-patch:
-              applies-to: version-updates
+          cargo-minor-and-patch:
+              applies-to: 'version-updates'
               patterns:
                   - '*'
               update-types:
-                  - minor
-                  - patch
+                  - 'minor'
+                  - 'patch'
+
+    - package-ecosystem: 'docker'
+      directories:
+          - '/docker/production'
+          - '/docker/proxy-runtime'
+          - '/docker/web'
+      schedule:
+          interval: 'cron'
+          cronjob: '0 3 * * *'
+          timezone: 'Europe/Berlin'
+      commit-message:
+          prefix: 'chore'
+          include: 'scope'
+      open-pull-requests-limit: 10
+      groups:
+          docker-by-dependency:
+              applies-to: 'version-updates'
+              group-by: 'dependency-name'
+
+    - package-ecosystem: 'docker-compose'
+      directory: '/'
+      schedule:
+          interval: 'cron'
+          cronjob: '0 3 * * *'
+          timezone: 'Europe/Berlin'
+      commit-message:
+          prefix: 'chore'
+          include: 'scope'
+      open-pull-requests-limit: 10
+      ignore:
+          # Do not recursively update RentnerProxy's own release channel.
+          - dependency-name: 'rentnerkev/rentnerproxy'
+
+    - package-ecosystem: 'github-actions'
+      directory: '/'
+      schedule:
+          interval: 'cron'
+          cronjob: '0 3 * * *'
+          timezone: 'Europe/Berlin'
+      commit-message:
+          prefix: 'chore'
+          include: 'scope'
+      open-pull-requests-limit: 10
+      groups:
+          github-actions-minor-and-patch:
+              applies-to: 'version-updates'
+              patterns:
+                  - '*'
+              update-types:
+                  - 'minor'
+                  - 'patch'
