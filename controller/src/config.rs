@@ -1,7 +1,8 @@
-use std::{env, net::SocketAddr, path::PathBuf};
+use std::{env, fs, io::Read, net::SocketAddr, path::PathBuf};
 
 const LISTEN_ADDR_ENV: &str = "RENTNERPROXY_CONTROLLER_LISTEN_ADDR";
 pub(crate) const CONTROLLER_TOKEN_ENV: &str = "RENTNERPROXY_CONTROLLER_TOKEN";
+pub(crate) const CONTROLLER_TOKEN_FILE_ENV: &str = "RENTNERPROXY_CONTROLLER_TOKEN_FILE";
 const PROXY_ENGINE_BIN_ENV: &str = "RENTNERPROXY_PROXY_ENGINE_BIN";
 const PROXY_STATE_DIR_ENV: &str = "RENTNERPROXY_PROXY_STATE_DIR";
 const PROXY_HTTP_PORT_ENV: &str = "RENTNERPROXY_PROXY_HTTP_PORT";
@@ -13,6 +14,7 @@ const DEFAULT_PROXY_HTTP_PORT: u16 = 8_080;
 const DEFAULT_PROXY_HTTPS_PORT: u16 = 8_443;
 const DEFAULT_PROXY_PUBLIC_HTTPS_PORT: u16 = 443;
 const DEFAULT_SYSTEM_CA_BUNDLE: &str = "/etc/ssl/certs/ca-certificates.crt";
+const MAXIMUM_SECRET_FILE_BYTES: u64 = 4_096;
 
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct ControllerToken(String);
@@ -54,6 +56,13 @@ pub(crate) enum ConfigError {
     InvalidControllerToken {
         variable: &'static str,
     },
+    ConflictingControllerTokenSources {
+        variable: &'static str,
+        file_variable: &'static str,
+    },
+    InvalidControllerTokenFile {
+        variable: &'static str,
+    },
     MissingControllerToken {
         variable: &'static str,
     },
@@ -85,6 +94,17 @@ impl std::fmt::Display for ConfigError {
             Self::InvalidControllerToken { variable } => write!(
                 formatter,
                 "invalid {variable}: expected a trimmed 32 to 256 character base64url or hexadecimal token",
+            ),
+            Self::ConflictingControllerTokenSources {
+                variable,
+                file_variable,
+            } => write!(
+                formatter,
+                "configure exactly one of {variable} or {file_variable}",
+            ),
+            Self::InvalidControllerTokenFile { variable } => write!(
+                formatter,
+                "invalid {variable}: expected an absolute readable regular file no larger than 4096 bytes",
             ),
             Self::MissingControllerToken { variable } => {
                 write!(
@@ -124,6 +144,8 @@ impl std::error::Error for ConfigError {
             Self::InvalidListenAddr { source, .. } => Some(source),
             Self::InvalidListenAddrEncoding { .. }
             | Self::InvalidControllerToken { .. }
+            | Self::ConflictingControllerTokenSources { .. }
+            | Self::InvalidControllerTokenFile { .. }
             | Self::MissingControllerToken { .. }
             | Self::InvalidSystemCaBundle { .. }
             | Self::InvalidProxyHttpPort { .. }
@@ -137,8 +159,10 @@ impl Config {
     pub(crate) fn from_env() -> Result<Self, ConfigError> {
         let listen_addr =
             read_env(LISTEN_ADDR_ENV)?.unwrap_or_else(|| DEFAULT_LISTEN_ADDR.to_owned());
-        let controller_token =
-            read_env(CONTROLLER_TOKEN_ENV)?.filter(|value| !value.trim().is_empty());
+        let controller_token = read_controller_token_sources(
+            read_env(CONTROLLER_TOKEN_ENV)?,
+            read_env(CONTROLLER_TOKEN_FILE_ENV)?,
+        )?;
         let proxy_engine_bin = read_env(PROXY_ENGINE_BIN_ENV)?
             .filter(|value| !value.trim().is_empty())
             .map(PathBuf::from);
@@ -273,8 +297,53 @@ fn read_env(variable: &'static str) -> Result<Option<String>, ConfigError> {
         Err(env::VarError::NotUnicode(_)) if variable == LISTEN_ADDR_ENV => {
             Err(ConfigError::InvalidListenAddrEncoding { variable })
         }
+        Err(env::VarError::NotUnicode(_)) if variable == CONTROLLER_TOKEN_FILE_ENV => {
+            Err(ConfigError::InvalidControllerTokenFile { variable })
+        }
         Err(env::VarError::NotUnicode(_)) => Err(ConfigError::InvalidControllerToken { variable }),
     }
+}
+
+pub(crate) fn read_controller_token_sources(
+    direct_value: Option<String>,
+    file_value: Option<String>,
+) -> Result<Option<String>, ConfigError> {
+    if direct_value.is_some() && file_value.is_some() {
+        return Err(ConfigError::ConflictingControllerTokenSources {
+            variable: CONTROLLER_TOKEN_ENV,
+            file_variable: CONTROLLER_TOKEN_FILE_ENV,
+        });
+    }
+
+    let Some(file_value) = file_value else {
+        return Ok(direct_value.filter(|value| !value.trim().is_empty()));
+    };
+    let path = PathBuf::from(file_value.trim());
+    let invalid_file = || ConfigError::InvalidControllerTokenFile {
+        variable: CONTROLLER_TOKEN_FILE_ENV,
+    };
+    if !path.is_absolute() {
+        return Err(invalid_file());
+    }
+    let metadata = fs::symlink_metadata(&path).map_err(|_| invalid_file())?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(invalid_file());
+    }
+
+    let file = fs::File::open(path).map_err(|_| invalid_file())?;
+    let mut bytes = Vec::with_capacity((MAXIMUM_SECRET_FILE_BYTES + 1) as usize);
+    file.take(MAXIMUM_SECRET_FILE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| invalid_file())?;
+    if bytes.len() as u64 > MAXIMUM_SECRET_FILE_BYTES || bytes.contains(&0) {
+        return Err(invalid_file());
+    }
+    let value = String::from_utf8(bytes).map_err(|_| invalid_file())?;
+    let value = value.trim();
+    if value.is_empty() {
+        return Err(invalid_file());
+    }
+    Ok(Some(value.to_owned()))
 }
 
 fn parse_controller_token(value: &str) -> Result<ControllerToken, ConfigError> {

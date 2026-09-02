@@ -1,13 +1,21 @@
-// oxlint-disable no-await-in-loop -- State validation and bounded readiness polling are intentionally ordered.
+// oxlint-disable no-await-in-loop -- Restore validation and bounded readiness polling are intentionally ordered.
 
 import { createHash } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { chmod, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
-const defaultComposeFile = join(repositoryRoot, 'compose.production.yml')
+const defaultComposeFile = join(repositoryRoot, 'docker-compose.yml')
+const applianceService = 'rentnerproxy'
+const database = 'rentnerproxy'
+const databaseHost = '127.0.0.1'
+const databaseUser = 'rentnerproxy'
 const stateArchiveName = 'controller-state.tar'
+const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.mjs'
+const healthcheckScript = '/opt/rentnerproxy/web/docker/web/healthcheck.mjs'
+
 function optionValue(argumentsList: string[], name: string): string | undefined {
     const index = argumentsList.indexOf(name)
     if (index === -1) return undefined
@@ -16,20 +24,19 @@ function optionValue(argumentsList: string[], name: string): string | undefined 
     return value
 }
 
-function databaseName(): string {
-    const value = process.env.POSTGRES_DB?.trim() || 'rentnerproxy'
-    if (!/^[A-Za-z0-9_-]{1,63}$/u.test(value)) throw new Error('invalid PostgreSQL database name')
+function composeProject(argumentsList: string[]): string | undefined {
+    const value =
+        optionValue(argumentsList, '--project') ?? process.env.COMPOSE_PROJECT_NAME?.trim()
+    if (value === undefined || value === '') return undefined
+    if (!/^[a-z0-9][a-z0-9_-]*$/u.test(value)) throw new Error('invalid Compose project name')
     return value
 }
 
-function databaseUser(): string {
-    const value = process.env.POSTGRES_USER?.trim() || 'rentnerproxy'
-    if (!/^[A-Za-z0-9_-]{1,63}$/u.test(value)) throw new Error('invalid PostgreSQL user name')
-    return value
-}
-
-function composeCommand(project: string, composeFile: string): string[] {
-    return ['docker', 'compose', '--project-name', project, '--file', composeFile]
+function composeCommand(project: string | undefined, composeFile: string): string[] {
+    const command = ['docker', 'compose']
+    if (project) command.push('--project-name', project)
+    command.push('--file', composeFile)
+    return command
 }
 
 function validateStateArchiveListing(entriesOutput: string, verboseOutput: string): void {
@@ -93,7 +100,7 @@ async function runCommandWithInput(
     argumentsList: string[],
     input: Uint8Array,
     operation: string,
-    timeoutMs = 300_000,
+    timeoutMs = 360_000,
 ): Promise<void> {
     const child = Bun.spawn({
         cmd: argumentsList,
@@ -125,21 +132,13 @@ async function runCommandWithInput(
     }
 }
 
-async function waitForPostgres(compose: string[], database: string, user: string): Promise<void> {
-    const deadline = Date.now() + 60_000
+async function waitForAppliance(compose: string[]): Promise<void> {
+    const deadline = Date.now() + 180_000
     while (Date.now() < deadline) {
         try {
             await runCommand(
-                [
-                    ...compose,
-                    'exec',
-                    '--no-TTY',
-                    'postgres',
-                    'pg_isready',
-                    '--username=' + user,
-                    '--dbname=' + database,
-                ],
-                'wait for PostgreSQL',
+                [...compose, 'exec', '--no-TTY', applianceService, 'bun', healthcheckScript],
+                'wait for appliance',
                 5_000,
             )
             return
@@ -147,27 +146,94 @@ async function waitForPostgres(compose: string[], database: string, user: string
             await Bun.sleep(500)
         }
     }
-    throw new Error('PostgreSQL did not become ready')
+    throw new Error('RentnerProxy appliance did not become ready')
+}
+
+type ApplicationEncryptionKeyMetadata = Readonly<{
+    bytes?: number
+    file?: string
+    sha256?: string
+}>
+
+function parseApplicationEncryptionKey(bytes: Uint8Array): string | null {
+    if (bytes.byteLength === 0 || bytes.byteLength > 4_096 || bytes.includes(0)) return null
+    const value = Buffer.from(bytes).toString('utf8').trim()
+    return /^[A-Za-z0-9+/]{43}=$/u.test(value) &&
+        Buffer.from(value, 'base64').byteLength === 32 &&
+        Buffer.from(value, 'base64').toString('base64') === value
+        ? value
+        : null
+}
+
+async function prepareRestoreApplicationKey(
+    argumentsList: string[],
+    inputPath: string,
+    backupVersion: number,
+    metadata: ApplicationEncryptionKeyMetadata | undefined,
+): Promise<{ readonly directory: string; readonly temporaryDirectory?: string }> {
+    if (backupVersion === 2) {
+        const keyPath = join(inputPath, 'app-encryption-key')
+        const bytes = await readFile(keyPath)
+        if (
+            metadata?.file !== 'app-encryption-key' ||
+            typeof metadata.bytes !== 'number' ||
+            !Number.isSafeInteger(metadata.bytes) ||
+            metadata.bytes <= 0 ||
+            typeof metadata.sha256 !== 'string' ||
+            !/^[a-f0-9]{64}$/u.test(metadata.sha256) ||
+            bytes.byteLength !== metadata.bytes ||
+            createHash('sha256').update(bytes).digest('hex') !== metadata.sha256 ||
+            parseApplicationEncryptionKey(bytes) === null
+        ) {
+            throw new Error('application encryption key checksum mismatch')
+        }
+        return { directory: inputPath }
+    }
+
+    if (backupVersion !== 1) throw new Error('unsupported backup metadata')
+    const keyFile =
+        optionValue(argumentsList, '--app-key-file') ??
+        optionValue(argumentsList, '--legacy-app-key-file') ??
+        process.env.RENTNERPROXY_APP_KEY_FILE?.trim()
+    const bytes =
+        keyFile === undefined || keyFile === ''
+            ? Buffer.from(process.env.APP_ENCRYPTION_KEY ?? '', 'utf8')
+            : await readFile(resolve(keyFile))
+    const applicationEncryptionKey = parseApplicationEncryptionKey(bytes)
+    if (!applicationEncryptionKey) {
+        throw new Error(
+            'version 1 backup restore requires the original key via --app-key-file or RENTNERPROXY_APP_KEY_FILE',
+        )
+    }
+
+    const temporaryDirectory = await mkdtemp(join(tmpdir(), 'rentnerproxy-legacy-restore-key-'))
+    try {
+        const temporaryKeyPath = join(temporaryDirectory, 'app-encryption-key')
+        await writeFile(temporaryKeyPath, applicationEncryptionKey, {
+            encoding: 'utf8',
+            mode: 0o600,
+        })
+        await chmod(temporaryKeyPath, 0o600)
+        return { directory: temporaryDirectory, temporaryDirectory }
+    } catch (error) {
+        await rm(temporaryDirectory, { force: true, recursive: true })
+        throw error
+    }
 }
 
 async function restore(): Promise<void> {
     const argumentsList = process.argv.slice(2)
     const inputOption = optionValue(argumentsList, '--input')
-    const project =
-        optionValue(argumentsList, '--project') ??
-        process.env.COMPOSE_PROJECT_NAME ??
-        'rentnerproxy-production'
     if (!inputOption || !argumentsList.includes('--confirm-replace')) {
         throw new Error('restore requires --input and --confirm-replace')
     }
 
     const inputPath = resolve(inputOption)
-    const database = databaseName()
-    const user = databaseUser()
     const metadataPath = join(inputPath, 'metadata.json')
     const dumpPath = join(inputPath, 'postgres.dump')
     const stateArchivePath = join(inputPath, stateArchiveName)
     const metadata = JSON.parse(await readFile(metadataPath, 'utf8')) as {
+        applicationEncryptionKey?: ApplicationEncryptionKeyMetadata
         controllerState?: { archive?: string; bytes?: number; sha256?: string }
         format?: string
         postgres?: {
@@ -181,12 +247,13 @@ async function restore(): Promise<void> {
     }
     if (
         metadata.format !== 'rentnerproxy-production-backup' ||
-        metadata.version !== 1 ||
+        (metadata.version !== 1 && metadata.version !== 2) ||
         metadata.postgres?.dump !== 'postgres.dump' ||
         metadata.controllerState?.archive !== stateArchiveName
     ) {
         throw new Error('unsupported backup metadata')
     }
+
     const dumpMetadata = metadata.postgres
     if (
         !dumpMetadata ||
@@ -196,19 +263,18 @@ async function restore(): Promise<void> {
         typeof dumpMetadata.sha256 !== 'string' ||
         !/^[a-f0-9]{64}$/u.test(dumpMetadata.sha256) ||
         dumpMetadata.database !== database ||
-        dumpMetadata.user !== user
+        dumpMetadata.user !== databaseUser
     ) {
-        throw new Error('backup metadata does not match the target database')
+        throw new Error('backup metadata does not match the appliance database')
     }
-    const expectedDumpBytes = dumpMetadata.bytes
-    const expectedDumpSha256 = dumpMetadata.sha256
     const dumpBytes = await readFile(dumpPath)
     if (
-        dumpBytes.byteLength !== expectedDumpBytes ||
-        createHash('sha256').update(dumpBytes).digest('hex') !== expectedDumpSha256
+        dumpBytes.byteLength !== dumpMetadata.bytes ||
+        createHash('sha256').update(dumpBytes).digest('hex') !== dumpMetadata.sha256
     ) {
         throw new Error('PostgreSQL dump checksum mismatch')
     }
+
     const stateMetadata = metadata.controllerState
     const stateArchiveBytes = await readFile(stateArchivePath)
     if (
@@ -224,132 +290,220 @@ async function restore(): Promise<void> {
         throw new Error('controller state archive checksum mismatch')
     }
 
-    const composeFile = resolve(process.env.RENTNERPROXY_COMPOSE_FILE ?? defaultComposeFile)
-    const compose = composeCommand(project, composeFile)
-    const archiveVolume = inputPath + ':/backup:ro'
-    await runCommand(
-        [...compose, 'build', 'proxy-runtime'],
-        'prepare controller state restore image',
-        600_000,
+    const preparedRestoreKey = await prepareRestoreApplicationKey(
+        argumentsList,
+        inputPath,
+        metadata.version,
+        metadata.applicationEncryptionKey,
     )
-    const archiveEntries = await runCommand(
-        [
-            ...compose,
-            'run',
-            '--no-TTY',
-            '--rm',
-            '--no-deps',
-            '--entrypoint',
-            'tar',
-            '--volume',
-            archiveVolume,
-            'proxy-runtime',
-            '--list',
-            '--file=/backup/' + stateArchiveName,
-        ],
-        'inspect controller state archive',
-        180_000,
-    )
-    const verboseArchiveEntries = await runCommand(
-        [
-            ...compose,
-            'run',
-            '--no-TTY',
-            '--rm',
-            '--no-deps',
-            '--entrypoint',
-            'tar',
-            '--volume',
-            archiveVolume,
-            'proxy-runtime',
-            '--list',
-            '--verbose',
-            '--file=/backup/' + stateArchiveName,
-        ],
-        'validate controller state archive types',
-        180_000,
-    )
-    validateStateArchiveListing(archiveEntries, verboseArchiveEntries)
-    await runCommand(
-        [...compose, 'stop', '--timeout', '20', 'web', 'proxy-runtime', 'redis'],
-        'stop application services',
-    )
-    await runCommand([...compose, 'up', '-d', 'postgres'], 'start PostgreSQL')
-    await waitForPostgres(compose, database, user)
+    try {
+        const project = composeProject(argumentsList)
+        const composeFile = resolve(process.env.RENTNERPROXY_COMPOSE_FILE ?? defaultComposeFile)
+        if (!isAbsolute(composeFile)) throw new Error('invalid Compose file')
+        await stat(composeFile)
+        const compose = composeCommand(project, composeFile)
+        const archiveVolume = inputPath + ':/backup:ro'
+        const restoreKeyVolume = preparedRestoreKey.directory + ':/restore-key:ro'
 
-    const dump = new Uint8Array(dumpBytes)
-    await runCommandWithInput(
-        [
-            ...compose,
-            'exec',
-            '--no-TTY',
-            'postgres',
-            'pg_restore',
-            '--exit-on-error',
-            '--no-owner',
-            '--no-acl',
-            '--clean',
-            '--if-exists',
-            '--username=' + user,
-            '--dbname=' + database,
-        ],
-        dump,
-        'restore PostgreSQL',
-    )
+        const archiveEntries = await runCommand(
+            [
+                ...compose,
+                'run',
+                '--no-TTY',
+                '--rm',
+                '--no-deps',
+                '--entrypoint',
+                'tar',
+                '--volume',
+                archiveVolume,
+                applianceService,
+                '--list',
+                '--file=/backup/' + stateArchiveName,
+            ],
+            'inspect controller state archive',
+            180_000,
+        )
+        const verboseArchiveEntries = await runCommand(
+            [
+                ...compose,
+                'run',
+                '--no-TTY',
+                '--rm',
+                '--no-deps',
+                '--entrypoint',
+                'tar',
+                '--volume',
+                archiveVolume,
+                applianceService,
+                '--list',
+                '--verbose',
+                '--file=/backup/' + stateArchiveName,
+            ],
+            'validate controller state archive types',
+            180_000,
+        )
+        validateStateArchiveListing(archiveEntries, verboseArchiveEntries)
 
-    const restoreStateCommand =
-        'set -eu; umask 077; for item in /var/lib/rentnerproxy/proxy/* /var/lib/rentnerproxy/proxy/.[!.]* /var/lib/rentnerproxy/proxy/..?*; do [ -e "$item" ] || continue; rm -rf -- "$item"; done; tar --extract --no-same-owner --file=/backup/controller-state.tar --directory=/var/lib/rentnerproxy/proxy; chmod 700 /var/lib/rentnerproxy/proxy'
-    await runCommand(
-        [
-            ...compose,
-            'run',
-            '--no-TTY',
-            '--rm',
-            '--no-deps',
-            '--user',
-            '10001:10001',
-            '--entrypoint',
-            'sh',
-            '--volume',
-            archiveVolume,
-            'proxy-runtime',
-            '-c',
-            restoreStateCommand,
-        ],
-        'restore controller state',
-        180_000,
-    )
+        const targetWasRunning =
+            (await runCommand(
+                [...compose, 'ps', '--status', 'running', '--quiet', applianceService],
+                'inspect appliance',
+            )) !== ''
+        if (!targetWasRunning) {
+            await runCommand(
+                [...compose, 'up', '--detach', applianceService],
+                'initialize restore target',
+                600_000,
+            )
+        }
+        await waitForAppliance(compose)
+        await runCommand(
+            [...compose, 'stop', '--timeout', '30', applianceService],
+            'quiesce restore target',
+            180_000,
+        )
 
-    await runCommand(
-        [...compose, 'up', '-d', '--force-recreate', 'redis', 'proxy-runtime'],
-        'start ephemeral Redis and proxy runtime',
-    )
-    const deadline = Date.now() + 60_000
-    let runtimeReady = false
-    while (Date.now() < deadline) {
+        let stagedApplicationKey = false
+        let databaseReplaced = false
         try {
             await runCommand(
                 [
                     ...compose,
-                    'exec',
+                    'run',
                     '--no-TTY',
-                    'proxy-runtime',
-                    'rentnerproxy-controller',
-                    '--healthcheck',
-                    'ready',
+                    '--rm',
+                    '--no-deps',
+                    '--entrypoint',
+                    'bun',
+                    '--env',
+                    'RENTNERPROXY_DATABASE_HOST=' + databaseHost,
+                    '--volume',
+                    restoreKeyVolume,
+                    applianceService,
+                    bootstrapScript,
+                    'begin-app-key-restore',
                 ],
-                'wait for proxy runtime',
-                5_000,
+                'stage application encryption key restore',
             )
-            runtimeReady = true
-            break
-        } catch {
-            await Bun.sleep(500)
+            stagedApplicationKey = true
+
+            const restoreDatabaseCommand =
+                'set -Eeuo pipefail; test -s /var/lib/rentnerproxy/postgres-data/PG_VERSION; install -d -m 2775 -o postgres -g postgres /var/run/postgresql; gosu postgres postgres -D /var/lib/rentnerproxy/postgres-data -c listen_addresses= -c unix_socket_directories=/var/run/postgresql >&2 & postgres_pid=$!; cleanup() { kill -TERM "$postgres_pid" 2>/dev/null || true; wait "$postgres_pid" 2>/dev/null || true; }; trap cleanup EXIT; ready=false; for attempt in $(seq 1 60); do if gosu postgres pg_isready --host=/var/run/postgresql --username=' +
+                databaseUser +
+                ' --dbname=' +
+                database +
+                ' >/dev/null 2>&1; then ready=true; break; fi; kill -0 "$postgres_pid" 2>/dev/null || exit 1; sleep 1; done; "$ready"; gosu postgres pg_restore --host=/var/run/postgresql --exit-on-error --single-transaction --no-owner --no-acl --clean --if-exists --username=' +
+                databaseUser +
+                ' --dbname=' +
+                database
+            await runCommandWithInput(
+                [
+                    ...compose,
+                    'run',
+                    '--no-TTY',
+                    '--rm',
+                    '--no-deps',
+                    '--entrypoint',
+                    'bash',
+                    applianceService,
+                    '-c',
+                    restoreDatabaseCommand,
+                ],
+                new Uint8Array(dumpBytes),
+                'restore PostgreSQL',
+            )
+            databaseReplaced = true
+
+            const restoreStateCommand =
+                'set -Eeuo pipefail; umask 077; for item in /var/lib/rentnerproxy/proxy/* /var/lib/rentnerproxy/proxy/.[!.]* /var/lib/rentnerproxy/proxy/..?*; do [ -e "$item" ] || continue; rm -rf -- "$item"; done; tar --extract --no-same-owner --file=/backup/controller-state.tar --directory=/var/lib/rentnerproxy/proxy; chmod 700 /var/lib/rentnerproxy/proxy'
+            await runCommand(
+                [
+                    ...compose,
+                    'run',
+                    '--no-TTY',
+                    '--rm',
+                    '--no-deps',
+                    '--user',
+                    '10001:10001',
+                    '--entrypoint',
+                    'bash',
+                    '--volume',
+                    archiveVolume,
+                    applianceService,
+                    '-c',
+                    restoreStateCommand,
+                ],
+                'restore controller state',
+                180_000,
+            )
+
+            await runCommand(
+                [
+                    ...compose,
+                    'run',
+                    '--no-TTY',
+                    '--rm',
+                    '--no-deps',
+                    '--entrypoint',
+                    'bun',
+                    '--env',
+                    'RENTNERPROXY_DATABASE_HOST=' + databaseHost,
+                    applianceService,
+                    bootstrapScript,
+                    'complete-app-key-restore',
+                ],
+                'complete application encryption key restore',
+            )
+            stagedApplicationKey = false
+        } catch (error) {
+            if (stagedApplicationKey && !databaseReplaced) {
+                try {
+                    await runCommand(
+                        [
+                            ...compose,
+                            'run',
+                            '--no-TTY',
+                            '--rm',
+                            '--no-deps',
+                            '--entrypoint',
+                            'bun',
+                            '--env',
+                            'RENTNERPROXY_DATABASE_HOST=' + databaseHost,
+                            applianceService,
+                            bootstrapScript,
+                            'rollback-app-key-restore',
+                        ],
+                        'roll back application encryption key restore',
+                    )
+                    stagedApplicationKey = false
+                    if (targetWasRunning) {
+                        await runCommand(
+                            [...compose, 'start', applianceService],
+                            'restart unchanged appliance',
+                            180_000,
+                        )
+                    }
+                } catch {
+                    throw new Error(
+                        'production restore failed before data replacement and key rollback failed',
+                    )
+                }
+            }
+            throw error
+        }
+
+        await runCommand(
+            [...compose, 'up', '--detach', '--force-recreate', applianceService],
+            'start restored appliance',
+            600_000,
+        )
+        await waitForAppliance(compose)
+        console.log('Production restore completed from: ' + inputPath)
+    } finally {
+        if (preparedRestoreKey.temporaryDirectory) {
+            await rm(preparedRestoreKey.temporaryDirectory, { force: true, recursive: true })
         }
     }
-    if (!runtimeReady) throw new Error('proxy runtime did not become ready')
-    await runCommand([...compose, 'up', '-d', '--force-recreate', 'web'], 'start Web')
-    console.log('Production restore completed from: ' + inputPath)
 }
 
 if (import.meta.main) {

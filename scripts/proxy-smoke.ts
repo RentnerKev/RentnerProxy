@@ -1,6 +1,9 @@
 // oxlint-disable no-await-in-loop -- Readiness probes must wait for the previous attempt and bounded backoff.
 import assert from 'node:assert/strict'
 import { randomBytes, randomUUID } from 'node:crypto'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { SQL } from 'bun'
@@ -15,6 +18,8 @@ const project = 'rentnerproxy-smoke-' + runId
 const databaseContainer = project + '-postgres'
 const token = randomBytes(32).toString('hex')
 const databasePassword = randomBytes(24).toString('hex')
+const temporaryComposeDirectory = await mkdtemp(join(tmpdir(), 'rentnerproxy-proxy-smoke-'))
+const temporaryComposeFile = join(temporaryComposeDirectory, 'docker-compose.yml')
 const environment: NodeJS.ProcessEnv = {
     ...process.env,
     RENTNERPROXY_CONTROLLER_TOKEN: token,
@@ -25,7 +30,43 @@ const environment: NodeJS.ProcessEnv = {
     RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT: '443',
     POSTGRES_PASSWORD: databasePassword,
 }
-const compose = ['docker', 'compose', '-p', project, '-f', 'compose.proxy-dev.yml']
+await writeFile(
+    temporaryComposeFile,
+    JSON.stringify(
+        {
+            services: {
+                'proxy-runtime': {
+                    build: {
+                        context: repositoryRoot,
+                        dockerfile: 'docker/proxy-runtime/Dockerfile',
+                    },
+                    environment: {
+                        RENTNERPROXY_CONTROLLER_TOKEN:
+                            '${RENTNERPROXY_CONTROLLER_TOKEN:?Set a random server-only controller token}',
+                        RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT:
+                            '${RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT:-443}',
+                        RUST_LOG: '${RUST_LOG:-info}',
+                    },
+                    ports: [
+                        '127.0.0.1:${RENTNERPROXY_PROXY_DEV_HTTP_PORT:-0}:8080',
+                        '127.0.0.1:${RENTNERPROXY_PROXY_DEV_HTTPS_PORT:-0}:8443',
+                        '127.0.0.1:${RENTNERPROXY_PROXY_DEV_CONTROLLER_PORT:-0}:8081',
+                    ],
+                    extra_hosts: ['host.docker.internal:host-gateway'],
+                    volumes: ['proxy-state:/var/lib/rentnerproxy/proxy'],
+                    security_opt: ['no-new-privileges:true'],
+                    cap_drop: ['ALL'],
+                    stop_grace_period: '15s',
+                },
+            },
+            volumes: { 'proxy-state': {} },
+        },
+        null,
+        2,
+    ) + '\n',
+    { encoding: 'utf8', mode: 0o600 },
+)
+const compose = ['docker', 'compose', '-p', project, '-f', temporaryComposeFile]
 let assertions = 0
 
 async function command(
@@ -974,6 +1015,7 @@ async function runSmoke(): Promise<void> {
         await command(['docker', 'rm', '--force', '--volumes', databaseContainer]).catch(
             () => undefined,
         )
+        await rm(temporaryComposeDirectory, { force: true, recursive: true })
     }
 }
 

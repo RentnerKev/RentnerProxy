@@ -18,7 +18,7 @@ import {
 } from '../../../config/auth-security.config'
 import { PERMISSIONS } from '../../../config/permissions.config'
 import { passkeys, users } from '../../../db/schema'
-import { getWebAuthnConfiguration } from '../../env.server'
+import { getRuntimeWebAuthnConfiguration } from '../../Configuration/management-origin.server'
 import {
     createAuthChallenge,
     consumeAuthChallenge,
@@ -110,8 +110,8 @@ function toStoredTransports(value: ReadonlyArray<string>): Array<AuthenticatorTr
     )
 }
 
-function requireWebAuthnConfiguration() {
-    const configuration = getWebAuthnConfiguration()
+async function requireWebAuthnConfiguration() {
+    const configuration = await getRuntimeWebAuthnConfiguration()
 
     if (!configuration) {
         throw unavailable()
@@ -137,7 +137,7 @@ export async function beginPasskeyRegistrationService(currentSession: CurrentSes
     await requireRecentAuthenticationForSession(currentSession)
     await requireSessionPermission(currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
-    const configuration = requireWebAuthnConfiguration()
+    const configuration = await requireWebAuthnConfiguration()
     const existingPasskeys = await getAuthDatabase()
         .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
         .from(passkeys)
@@ -185,7 +185,7 @@ export async function finishPasskeyRegistrationService(input: {
     await requireRecentAuthenticationForSession(input.currentSession)
     await requireSessionPermission(input.currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
-    const configuration = requireWebAuthnConfiguration()
+    const configuration = await requireWebAuthnConfiguration()
     const challenge = await consumeAuthChallenge('webauthn-registration', input.flowId)
 
     if (
@@ -253,7 +253,7 @@ export async function finishPasskeyRegistrationService(input: {
 }
 
 export async function beginDiscoverablePasskeyAuthenticationService() {
-    const configuration = requireWebAuthnConfiguration()
+    const configuration = await requireWebAuthnConfiguration()
     const options = await generateAuthenticationOptions({
         rpID: configuration.rpId,
         timeout: WEBAUTHN_TIMEOUT_MS,
@@ -275,7 +275,7 @@ export async function finishDiscoverablePasskeyAuthenticationService(input: {
     flowId: string
     response: AuthenticationResponseJSON
 }): Promise<PasskeyAuthenticationResult> {
-    const configuration = requireWebAuthnConfiguration()
+    const configuration = await requireWebAuthnConfiguration()
     const challenge = await consumeAuthChallenge('webauthn-authentication', input.flowId)
 
     if (!challenge) {
@@ -362,7 +362,7 @@ export async function finishDiscoverablePasskeyAuthenticationService(input: {
 }
 
 export async function beginPasskeyReauthenticationService(currentSession: CurrentSession) {
-    const configuration = requireWebAuthnConfiguration()
+    const configuration = await requireWebAuthnConfiguration()
     const knownPasskeys = await getAuthDatabase()
         .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
         .from(passkeys)
@@ -403,7 +403,7 @@ export async function finishPasskeyReauthenticationService(input: {
     readonly code?: 'authentication_failed' | 'challenge_expired'
     readonly success: boolean
 }> {
-    const configuration = requireWebAuthnConfiguration()
+    const configuration = await requireWebAuthnConfiguration()
     const challenge = await consumeAuthChallenge('webauthn-reauthentication', input.flowId)
 
     if (!isBoundReauthenticationChallenge(challenge, input.currentSession)) {

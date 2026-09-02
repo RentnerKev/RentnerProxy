@@ -34,6 +34,7 @@ RUN bun install --frozen-lockfile --production \
 COPY --from=build /app/web/dist ./web/dist
 COPY --from=build /app/web/drizzle ./web/drizzle
 COPY --from=build /build/migrate.js ./migrate.js
+COPY --from=build /app/docker/web/bootstrap-secrets.mjs ./docker/web/bootstrap-secrets.mjs
 COPY --from=build /app/docker/web/serve.mjs ./docker/web/serve.mjs
 COPY --from=build /app/docker/web/healthcheck.mjs ./docker/web/healthcheck.mjs
 

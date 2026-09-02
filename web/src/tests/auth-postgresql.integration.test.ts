@@ -387,11 +387,13 @@ describe('first-owner setup with PostgreSQL', () => {
         const first = await setupFirstOwnerService({
             displayName: 'First Owner',
             email: testEmail('first-owner'),
+            managementOrigin: 'https://admin.example.com',
             password: CURRENT_PASSWORD,
         })
         const second = await setupFirstOwnerService({
             displayName: 'Second Owner',
             email: testEmail('second-owner'),
+            managementOrigin: 'https://admin.example.com',
             password: CURRENT_PASSWORD,
         })
 
@@ -417,11 +419,13 @@ describe('first-owner setup with PostgreSQL', () => {
             {
                 displayName: 'Parallel Owner One',
                 email: testEmail('parallel-one'),
+                managementOrigin: 'https://admin.example.com',
                 password: CURRENT_PASSWORD,
             },
             {
                 displayName: 'Parallel Owner Two',
                 email: testEmail('parallel-two'),
+                managementOrigin: 'https://admin.example.com',
                 password: CURRENT_PASSWORD,
             },
         ]

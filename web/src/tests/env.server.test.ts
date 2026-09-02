@@ -1,9 +1,14 @@
 import { afterEach, describe, expect, test } from 'bun:test'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 import {
     getAppEncryptionKey,
     getAppUrl,
     getControllerBaseUrl,
+    getControllerToken,
+    getDatabaseUrl,
     getRedisUrl,
     getSmtpConfiguration,
     getWebAuthnConfiguration,
@@ -11,14 +16,20 @@ import {
     parseAppUrl,
     parseDatabaseUrl,
     parseRedisUrl,
+    parseTrustedManagementOrigin,
     parseWebAuthnRpId,
 } from '../server/env.server'
 
 const ENVIRONMENT_VARIABLES = [
     'APP_URL',
     'APP_ENCRYPTION_KEY',
+    'APP_ENCRYPTION_KEY_FILE',
+    'DATABASE_URL',
+    'DATABASE_URL_FILE',
     'NODE_ENV',
     'REDIS_URL',
+    'RENTNERPROXY_CONTROLLER_TOKEN',
+    'RENTNERPROXY_CONTROLLER_TOKEN_FILE',
     'RENTNERPROXY_CONTROLLER_URL',
     'SMTP_FROM',
     'SMTP_HOST',
@@ -31,6 +42,7 @@ const ENVIRONMENT_VARIABLES = [
 const originalValues = new Map(
     ENVIRONMENT_VARIABLES.map((variable) => [variable, process.env[variable]] as const),
 )
+const temporaryDirectories: string[] = []
 
 afterEach(() => {
     for (const variable of ENVIRONMENT_VARIABLES) {
@@ -42,7 +54,18 @@ afterEach(() => {
             process.env[variable] = originalValue
         }
     }
+    while (temporaryDirectories.length > 0) {
+        rmSync(temporaryDirectories.pop()!, { force: true, recursive: true })
+    }
 })
+
+function secretFile(value: string): string {
+    const directory = mkdtempSync(join(tmpdir(), 'rentnerproxy-secret-test-'))
+    const path = join(directory, 'secret')
+    temporaryDirectories.push(directory)
+    writeFileSync(path, value, { encoding: 'utf8', mode: 0o600 })
+    return path
+}
 
 function configureRequiredSmtp(): void {
     process.env.SMTP_HOST = 'smtp.example.com'
@@ -118,12 +141,13 @@ describe('getAppUrl', () => {
         expect(getAppUrl()).toBe('http://localhost:5173')
     })
 
-    test('requires APP_URL in production', () => {
+    test('requires a secure deployment origin in production with a localhost exception', () => {
         delete process.env.APP_URL
         process.env.NODE_ENV = 'production'
 
         expect(getAppUrl()).toBeNull()
         expect(parseAppUrl('http://app.example')).toBeNull()
+        expect(parseAppUrl('http://localhost:81')).toBe('http://localhost:81')
         expect(parseAppUrl('https://app.example')).toBe('https://app.example')
     })
 
@@ -133,6 +157,22 @@ describe('getAppUrl', () => {
         expect(parseAppUrl('https://app.example/path')).toBeNull()
         expect(parseAppUrl('https://user:secret@app.example')).toBeNull()
         expect(parseAppUrl(' https://app.example:8443/ ')).toBe('https://app.example:8443')
+    })
+})
+
+describe('parseTrustedManagementOrigin', () => {
+    test('accepts HTTPS origins and the localhost HTTP exception', () => {
+        expect(parseTrustedManagementOrigin('https://admin.example.com/')).toBe(
+            'https://admin.example.com',
+        )
+        expect(parseTrustedManagementOrigin('http://localhost:81')).toBe('http://localhost:81')
+    })
+
+    test('rejects insecure external origins and non-origin input', () => {
+        expect(parseTrustedManagementOrigin('http://admin.example.com')).toBeNull()
+        expect(parseTrustedManagementOrigin('https://admin.example.com/path')).toBeNull()
+        expect(parseTrustedManagementOrigin('https://admin.example.com?next=/')).toBeNull()
+        expect(parseTrustedManagementOrigin('https://user:secret@admin.example.com')).toBeNull()
     })
 })
 
@@ -154,6 +194,45 @@ describe('application encryption key', () => {
 
         delete process.env.APP_ENCRYPTION_KEY
         expect(getAppEncryptionKey()).toBeNull()
+    })
+})
+
+describe('server-only secret files', () => {
+    const validKey = Buffer.from('01234567890123456789012345678901').toString('base64')
+    const validToken = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+    const validDatabaseUrl = 'postgresql://rentnerproxy:secret@postgres:5432/rentnerproxy'
+
+    test('reads generated secrets from bounded files', () => {
+        delete process.env.APP_ENCRYPTION_KEY
+        delete process.env.DATABASE_URL
+        delete process.env.RENTNERPROXY_CONTROLLER_TOKEN
+        process.env.APP_ENCRYPTION_KEY_FILE = secretFile(`${validKey}\n`)
+        process.env.DATABASE_URL_FILE = secretFile(`${validDatabaseUrl}\n`)
+        process.env.RENTNERPROXY_CONTROLLER_TOKEN_FILE = secretFile(`${validToken}\n`)
+
+        expect(getAppEncryptionKey()).toHaveLength(32)
+        expect(getDatabaseUrl()).toBe(validDatabaseUrl)
+        expect(getControllerToken()).toBe(validToken)
+    })
+
+    test('rejects ambiguous direct and file-based secret sources', () => {
+        process.env.APP_ENCRYPTION_KEY = validKey
+        process.env.APP_ENCRYPTION_KEY_FILE = secretFile(validKey)
+
+        expect(getAppEncryptionKey()).toBeNull()
+    })
+
+    test('rejects relative, non-regular, and oversized secret file sources', () => {
+        process.env.DATABASE_URL_FILE = 'relative-secret'
+        expect(getDatabaseUrl()).toBeNull()
+
+        const directory = mkdtempSync(join(tmpdir(), 'rentnerproxy-secret-directory-test-'))
+        temporaryDirectories.push(directory)
+        process.env.DATABASE_URL_FILE = directory
+        expect(getDatabaseUrl()).toBeNull()
+
+        process.env.DATABASE_URL_FILE = secretFile('x'.repeat(4_097))
+        expect(getDatabaseUrl()).toBeNull()
     })
 })
 

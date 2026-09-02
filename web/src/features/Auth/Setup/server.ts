@@ -19,6 +19,7 @@ export const setupOwnerHandler = createServerFn({ method: 'POST' })
             const result = await setupFirstOwnerService({
                 displayName: data.displayName,
                 email: data.email,
+                managementOrigin: data.managementOrigin,
                 password: data.password,
             })
 

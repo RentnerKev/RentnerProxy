@@ -20,20 +20,19 @@
 </p>
 
 > [!IMPORTANT]
-> RentnerProxy is an early development project with a local HTTP proxy runtime. It is not
-> a packaged production installation and is not ready for production use.
+> RentnerProxy is still an early development project. Test upgrades and backups before using it
+> for critical production traffic.
 
 ## Current foundation
 
-The repository currently contains three runtime components, one persistence service, and one
-ephemeral service:
+The repository contains three application components plus its persistence services:
 
 - `web/`: a TanStack Start application with opaque sessions, RBAC, and server-only Drizzle ORM
   access to PostgreSQL.
 - `controller/`: an internal Rust health/configuration API managing the HTTP proxy runtime.
-- OpenResty: the actual HTTP reverse proxy, available through an isolated local dev container.
-- PostgreSQL 18: the external primary database; the explicit smoke test creates its own isolated test instance.
-- Redis: external ephemeral storage for authentication rate limiting.
+- OpenResty: the actual HTTP reverse proxy.
+- PostgreSQL 18: the primary database.
+- Redis: ephemeral storage for authentication rate limiting.
 
 ```text
 RentnerProxy/
@@ -47,6 +46,7 @@ RentnerProxy/
 │   ├── Cargo.lock
 │   └── Cargo.toml
 ├── .env.example
+├── docker-compose.yml
 ├── bun.lock
 └── package.json
 ```
@@ -77,6 +77,23 @@ Each public or authenticated layout owns its notification stack; changing users 
 Toasts follow the current language, keep at most three messages, pause while hovered or focused,
 and support dismissal, swipe, and copying error messages. Field validation, permission notices,
 and persistent page/loading errors remain next to the affected content.
+
+## Docker start
+
+Production installation uses one `docker-compose.yml`, one final image, and one data volume.
+Only the email settings live outside the application:
+
+```bash
+cp .env.production.example .env
+docker compose up -d
+```
+
+The image contains the web application, controller, OpenResty, PostgreSQL, and Redis. On first
+start it runs migrations and generates the database password, database URL, application
+encryption key, and controller token automatically. They remain in the `rentnerproxy` volume and
+are reused after updates or container recreation. The proxy listens on ports `80` and `443`; the
+management UI is available on `http://localhost:81`. During first-owner setup, enter the public
+management address that users will open in their browser.
 
 ## Development
 

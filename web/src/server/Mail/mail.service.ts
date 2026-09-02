@@ -2,7 +2,8 @@ import '@tanstack/react-start/server-only'
 
 import { createTransport } from 'nodemailer'
 
-import { getAppUrl, getSmtpConfiguration } from '../env.server'
+import { getSmtpConfiguration } from '../env.server'
+import { getRuntimeManagementOrigin } from '../Configuration/management-origin.server'
 import { createSmtpTransportOptions } from './smtp-options'
 import {
     createPasswordResetEmailTemplate,
@@ -49,8 +50,8 @@ function getMailClient(): MailClient {
     return mailClient
 }
 
-function getRequiredAppUrl(): string {
-    const appUrl = getAppUrl()
+async function getRequiredAppUrl(): Promise<string> {
+    const appUrl = await getRuntimeManagementOrigin()
 
     if (!appUrl) {
         throw new Error('APP_URL is not configured.')
@@ -79,7 +80,7 @@ export async function sendPasswordResetEmailService({
     token,
 }: SendActionEmailInput): Promise<void> {
     const template = createPasswordResetEmailTemplate({
-        appUrl: getRequiredAppUrl(),
+        appUrl: await getRequiredAppUrl(),
         displayName,
         token,
     })
@@ -93,7 +94,7 @@ export async function sendUserInviteEmailService({
     token,
 }: SendActionEmailInput): Promise<void> {
     const template = createUserInviteEmailTemplate({
-        appUrl: getRequiredAppUrl(),
+        appUrl: await getRequiredAppUrl(),
         displayName,
         token,
     })

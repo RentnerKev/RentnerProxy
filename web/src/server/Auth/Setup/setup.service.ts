@@ -10,6 +10,8 @@ import { AuthDomainError } from '../Core/errors.server'
 import { normalizeDisplayName, normalizeEmail } from '../Core/identity.server'
 import { hashPassword } from '../Core/password.server'
 import { ensureAuthorizationRegistryInTransaction } from '../Access/registry.service'
+import { parseTrustedManagementOrigin } from '../../../config/management-origin.config'
+import { writeManagementOriginInTransaction } from '../../Configuration/management-origin.server'
 
 export type FirstOwnerSetupResult =
     | { readonly success: true; readonly userId: string; readonly email: string }
@@ -18,11 +20,19 @@ export type FirstOwnerSetupResult =
 export async function setupFirstOwnerService(input: {
     displayName: string
     email: string
+    managementOrigin: string
     password: string
 }): Promise<FirstOwnerSetupResult> {
     const email = normalizeEmail(input.email)
     const displayName = normalizeDisplayName(input.displayName)
     const passwordHash = await hashPassword(input.password)
+    const managementOrigin = parseTrustedManagementOrigin(input.managementOrigin)
+    if (!managementOrigin) {
+        throw new AuthDomainError(
+            'invalid_input',
+            'Enter an HTTPS management address (HTTP is allowed only for localhost).',
+        )
+    }
     const db = getAuthDatabase()
 
     return db.transaction(async (transaction) => {
@@ -66,6 +76,8 @@ export async function setupFirstOwnerService(input: {
         }
 
         await transaction.insert(userRoles).values({ roleId: ownerRole.id, userId: user.id })
+
+        await writeManagementOriginInTransaction(transaction, managementOrigin)
 
         return { success: true as const, userId: user.id, email: user.email }
     })

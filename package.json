@@ -13,7 +13,7 @@
         "upstream-tls:smoke": "bun --no-orphans scripts/upstream-tls-smoke.ts",
         "backup:production": "bun scripts/production-backup.ts",
         "restore:production": "bun scripts/production-restore.ts",
-        "production:smoke": "bun --no-orphans scripts/production-compose-smoke.ts",
+        "production:smoke": "bun --no-orphans scripts/appliance-compose-smoke.ts",
         "build": "bun --no-orphans scripts/build.ts",
         "build:web": "bun --bun vite build --config web/vite.config.ts && tsc --noEmit -p web/tsconfig.json",
         "build:controller": "cargo build --release --manifest-path controller/Cargo.toml",

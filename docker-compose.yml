@@ -1,0 +1,20 @@
+services:
+    rentnerproxy:
+        image: ghcr.io/rentnerkev/rentnerproxy:latest
+        environment:
+            SMTP_FROM: ${SMTP_FROM:?Set SMTP_FROM}
+            SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST}
+            SMTP_PASSWORD: ${SMTP_PASSWORD:?Set SMTP_PASSWORD}
+            SMTP_PORT: ${SMTP_PORT:-587}
+            SMTP_SECURE: ${SMTP_SECURE:-false}
+            SMTP_USER: ${SMTP_USER:?Set SMTP_USER}
+        ports:
+            - '80:8080'
+            - '81:3000'
+            - '443:8443'
+        restart: unless-stopped
+        volumes:
+            - rentnerproxy:/var/lib/rentnerproxy
+
+volumes:
+    rentnerproxy:

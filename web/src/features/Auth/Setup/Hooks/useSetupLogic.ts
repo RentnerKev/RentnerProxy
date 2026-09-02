@@ -28,6 +28,7 @@ export default function useSetupLogic() {
         defaultValues: {
             displayName: '',
             email: '',
+            managementOrigin: '',
             password: '',
             confirmPassword: '',
         } satisfies SetupFormValues,
