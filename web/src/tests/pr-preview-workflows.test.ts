@@ -26,12 +26,14 @@ function runBlocks(source: string): readonly string[] {
     )
 }
 
-describe('trusted PR merge-SHA proof', () => {
-    test('captures github.sha without checking out or executing pull request code', async () => {
+describe('trusted PR trigger proof', () => {
+    test('captures the PR number and github.sha without executing pull request code', async () => {
         const trigger = await workflow('pr-title.yml')
 
+        expect(trigger).toContain('PR_NUMBER: ${{ github.event.pull_request.number }}')
         expect(trigger).toContain('TESTED_SHA: ${{ github.sha }}')
         expect(trigger).toContain('name: pr-preview-source')
+        expect(trigger).toContain('pr-number.txt')
         expect(trigger).toContain('tested-sha.txt')
         expect(trigger).toContain('retention-days: 2')
         expect(trigger).toContain('pull-requests: read')
@@ -68,6 +70,10 @@ describe('trusted-triggered, read-only PR preview build workflow', () => {
         expect(build).toContain('bun trusted/scripts/pr-preview.ts trigger-preflight')
         expect(build).toContain('bun trusted/scripts/pr-preview.ts gate')
         expect(build).toContain('name: pr-preview-source')
+        expect(build).toContain('group: pr-preview-build-${{ github.event.workflow_run.id }}')
+        expect(build).not.toContain(
+            'group: pr-preview-build-${{ github.event.workflow_run.head_sha }}',
+        )
     })
 
     test('builds the exact tested merge commit into one OCI artifact without publishing', async () => {
@@ -104,8 +110,18 @@ describe('trusted-triggered, read-only PR preview build workflow', () => {
         expect(helper).toContain('strict_required_status_checks_policy !== true')
         expect(helper).toContain('verifyRequiredCheckProvenance')
         expect(helper).toContain('verifyWorkflowFileUnchanged')
-        expect(helper).toContain('readTestedShaProof')
+        expect(helper).toContain('readTriggerProof')
         expect(helper).toContain('Tested SHA proof does not match the preview artifact')
+        expect(helper).toContain('Pull request proof does not match the preview artifact')
+        expect(helper).toContain(
+            'resolveWorkflowPullRequest(api, workflowRun, proof.pullRequestNumber)',
+        )
+        expect(helper).toContain(
+            'resolveWorkflowPullRequest(api, triggerRun, proof.pullRequestNumber)',
+        )
+        expect(helper).toContain('assertWorkflowRunPullRequest(workflowRun.pullRequests, expected)')
+        expect(helper).toContain('assertWorkflowRunPullRequest(triggerRun.pullRequests, expected)')
+        expect(helper).not.toContain('associatedPullRequestNumbers')
         expect(helper).toContain('/actions/runs/')
         expect(helper).toContain('Required workflow was changed by the pull request')
     })

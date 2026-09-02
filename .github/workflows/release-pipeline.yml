@@ -169,11 +169,11 @@ jobs:
                       echo "::error::Release Docker ignore file is missing or empty: $dockerignore_relative"
                       exit 1
                   }
-                  grep -Fq '**/.env' "source/$dockerignore_relative" &&
-                      grep -Fq '**/*.key' "source/$dockerignore_relative" || {
+                  if ! grep -Fq '**/.env' "source/$dockerignore_relative" ||
+                      ! grep -Fq '**/*.key' "source/$dockerignore_relative"; then
                       echo "::error::Release Docker context does not exclude environment and key files."
                       exit 1
-                  }
+                  fi
 
                   repository="${GITHUB_REPOSITORY,,}"
                   [[ "$repository" =~ ^[a-z0-9][a-z0-9_.-]*/[a-z0-9][a-z0-9_.-]*$ ]] || {
@@ -356,8 +356,7 @@ jobs:
                   verify_reference() {
                       local reference=$1
                       local actual_digest=''
-                      local attempt
-                      for attempt in {1..6}; do
+                      for _ in {1..6}; do
                           actual_digest="$(
                               docker buildx imagetools inspect "$reference" \
                                   --format '{{.Manifest.Digest}}' 2>/dev/null || true

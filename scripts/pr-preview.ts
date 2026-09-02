@@ -131,6 +131,11 @@ interface WorkflowRun {
     readonly workflowId: number
 }
 
+interface TriggerProof {
+    readonly pullRequestNumber: number
+    readonly testedSha: string
+}
+
 export interface WorkflowRunPullRequest {
     readonly baseRef: string
     readonly baseRepository: string
@@ -211,6 +216,13 @@ export function parseTestedShaProof(value: unknown): string {
         throw new Error('Tested SHA proof file is invalid.')
     }
     return validateFullSha(value.slice(0, 40), 'Proven tested SHA')
+}
+
+export function parsePullRequestNumberProof(value: unknown): number {
+    if (typeof value !== 'string' || !/^[1-9][0-9]*\n$/u.test(value)) {
+        throw new Error('Pull request number proof file is invalid.')
+    }
+    return parsePositiveInteger(value.slice(0, -1), 'Proven pull request number')
 }
 
 export function validateSha256Digest(value: unknown, label = 'SHA-256 digest'): string {
@@ -1055,8 +1067,8 @@ async function commandGate(): Promise<void> {
     const { workflowRun } = await eligiblePreviewTriggerRun(api, sourceRunId)
     if (workflowRun.headRepository === null)
         throw new Error('Could not resolve pull request trigger.')
-    const provenTestedSha = await readTestedShaProof(environment('SOURCE_PROOF_DIRECTORY'))
-    const pullRequest = await resolveWorkflowPullRequest(api, workflowRun)
+    const proof = await readTriggerProof(environment('SOURCE_PROOF_DIRECTORY'))
+    const pullRequest = await resolveWorkflowPullRequest(api, workflowRun, proof.pullRequestNumber)
     const expected: ExpectedPullRequest = {
         baseRef: pullRequest.baseRef,
         baseRepository: repository,
@@ -1064,8 +1076,9 @@ async function commandGate(): Promise<void> {
         headRepository: workflowRun.headRepository,
         headSha: workflowRun.headSha,
         number: pullRequest.number,
-        testedSha: provenTestedSha,
+        testedSha: proof.testedSha,
     }
+    assertWorkflowRunPullRequest(workflowRun.pullRequests, expected)
     await verifyWorkflowFileUnchanged(api, PREVIEW_TRIGGER_WORKFLOW_PATH, expected)
     await verifyGate(api, expected, true)
     const identity = createPreviewIdentity(
@@ -1079,46 +1092,24 @@ async function commandGate(): Promise<void> {
     })
 }
 
-async function associatedPullRequestNumbers(
-    api: GitHubApi,
-    workflowRun: WorkflowRun,
-): Promise<readonly number[]> {
-    const numbers = new Set(workflowRun.pullRequests.map((pullRequest) => pullRequest.number))
-    const associated = await api.arrayPages(
-        `/repos/${api.repository}/commits/${workflowRun.headSha}/pulls`,
-    )
-    for (const value of associated) {
-        const pullRequest = asRecord(value, 'Associated pull request')
-        numbers.add(parsePositiveInteger(pullRequest.number, 'Associated pull request number'))
-    }
-    return [...numbers]
-}
-
 async function resolveWorkflowPullRequest(
     api: GitHubApi,
     workflowRun: WorkflowRun,
+    pullRequestNumber: number,
 ): Promise<PullRequestSnapshot> {
-    const candidates = await associatedPullRequestNumbers(api, workflowRun)
-    if (candidates.length === 0) throw new Error('Could not resolve pull request.')
-
-    const snapshots = await Promise.all(candidates.map((number) => fetchPullRequest(api, number)))
-    const current = snapshots.filter(
-        (pullRequest) =>
-            pullRequest.state === 'open' &&
-            pullRequest.baseRepository === api.repository &&
-            pullRequest.headSha === workflowRun.headSha &&
-            pullRequest.headRepository === workflowRun.headRepository,
-    )
-    if (current.length !== 1) {
-        if (snapshots.some((pullRequest) => pullRequest.state !== 'open')) {
-            throw new Error('PR no longer open.')
-        }
-        if (snapshots.some((pullRequest) => pullRequest.headSha !== workflowRun.headSha)) {
-            throw new Error('Pull request is stale.')
-        }
+    const pullRequest = await fetchPullRequest(api, pullRequestNumber)
+    if (pullRequest.number !== pullRequestNumber) {
         throw new Error('Could not resolve pull request.')
     }
-    return current[0]!
+    if (pullRequest.state !== 'open') throw new Error('PR no longer open.')
+    if (pullRequest.headSha !== workflowRun.headSha) throw new Error('Pull request is stale.')
+    if (
+        pullRequest.baseRepository !== api.repository ||
+        pullRequest.headRepository !== workflowRun.headRepository
+    ) {
+        throw new Error('Could not resolve pull request.')
+    }
+    return pullRequest
 }
 
 async function fetchWorkflowArtifacts(
@@ -1189,22 +1180,38 @@ async function eligiblePreviewTriggerRun(
     }
 }
 
-async function readTestedShaProof(artifactDirectory: string): Promise<string> {
+async function readTriggerProof(artifactDirectory: string): Promise<TriggerProof> {
     const entries = await readdir(artifactDirectory, { withFileTypes: true })
-    if (
-        entries.length !== 1 ||
-        entries[0]?.name !== 'tested-sha.txt' ||
-        !entries[0].isFile() ||
-        entries[0].isSymbolicLink()
-    ) {
-        throw new Error('Tested SHA proof artifact is invalid.')
+    const proofNames = new Set(['pr-number.txt', 'tested-sha.txt'])
+    if (entries.length !== proofNames.size) {
+        throw new Error('Pull request trigger proof artifact is invalid.')
     }
-    const proofPath = `${artifactDirectory}/tested-sha.txt`
-    const proofStat = await lstat(proofPath)
-    if (!proofStat.isFile() || proofStat.size !== 41) {
+    for (const entry of entries) {
+        if (!proofNames.has(entry.name) || !entry.isFile() || entry.isSymbolicLink()) {
+            throw new Error('Pull request trigger proof artifact is invalid.')
+        }
+    }
+    const pullRequestNumberPath = `${artifactDirectory}/pr-number.txt`
+    const testedShaPath = `${artifactDirectory}/tested-sha.txt`
+    const [pullRequestNumberStat, testedShaStat] = await Promise.all([
+        lstat(pullRequestNumberPath),
+        lstat(testedShaPath),
+    ])
+    if (
+        !pullRequestNumberStat.isFile() ||
+        pullRequestNumberStat.size < 2 ||
+        pullRequestNumberStat.size > 17
+    ) {
+        throw new Error('Pull request number proof file is invalid.')
+    }
+    if (!testedShaStat.isFile() || testedShaStat.size !== 41) {
         throw new Error('Tested SHA proof file is invalid.')
     }
-    return parseTestedShaProof(await readFile(proofPath, 'utf8'))
+    const [pullRequestNumber, testedSha] = await Promise.all([
+        readFile(pullRequestNumberPath, 'utf8').then(parsePullRequestNumberProof),
+        readFile(testedShaPath, 'utf8').then(parseTestedShaProof),
+    ])
+    return { pullRequestNumber, testedSha }
 }
 
 async function commandTriggerPreflight(): Promise<void> {
@@ -1212,7 +1219,7 @@ async function commandTriggerPreflight(): Promise<void> {
     const runId = environmentPositiveInteger('SOURCE_RUN_ID')
     const api = new GitHubApi(repository, environment('GITHUB_TOKEN'))
     await eligiblePreviewTriggerRun(api, runId)
-    console.log('Pull request trigger and tested-SHA artifact envelope are eligible.')
+    console.log('Pull request trigger and source-proof artifact envelope are eligible.')
 }
 
 async function eligiblePreviewBuildRun(
@@ -1292,15 +1299,19 @@ async function commandResolve(): Promise<void> {
         testedSha: metadata.testedSha,
     }
     const { workflowRun: triggerRun } = await eligiblePreviewTriggerRun(api, metadata.triggerRunId)
-    const provenTestedSha = await readTestedShaProof(environment('SOURCE_PROOF_DIRECTORY'))
-    if (provenTestedSha !== metadata.testedSha) {
+    const proof = await readTriggerProof(environment('SOURCE_PROOF_DIRECTORY'))
+    if (proof.testedSha !== metadata.testedSha) {
         throw new Error('Tested SHA proof does not match the preview artifact.')
     }
-    const pullRequest = await resolveWorkflowPullRequest(api, triggerRun)
+    if (proof.pullRequestNumber !== metadata.pullRequestNumber) {
+        throw new Error('Pull request proof does not match the preview artifact.')
+    }
+    const pullRequest = await resolveWorkflowPullRequest(api, triggerRun, proof.pullRequestNumber)
     const pullRequestEvaluation = evaluatePullRequest(pullRequest, expected)
     if (pullRequestEvaluation.state !== 'success') {
         throw new Error(pullRequestEvaluation.reason)
     }
+    assertWorkflowRunPullRequest(triggerRun.pullRequests, expected)
     await verifyWorkflowFileUnchanged(api, PREVIEW_TRIGGER_WORKFLOW_PATH, expected)
     await verifyGate(api, expected, true)
     const identity = createPreviewIdentity(repository, expected.number, expected.testedSha)

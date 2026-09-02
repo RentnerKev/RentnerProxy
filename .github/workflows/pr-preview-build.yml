@@ -10,7 +10,7 @@ on:
 permissions: {}
 
 concurrency:
-    group: pr-preview-build-${{ github.event.workflow_run.head_sha }}
+    group: pr-preview-build-${{ github.event.workflow_run.id }}
     cancel-in-progress: true
 
 env:

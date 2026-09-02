@@ -59,25 +59,33 @@ jobs:
                     exit 1
                   fi
 
-            - name: Capture exact tested merge SHA
+            - name: Capture exact pull request and tested merge SHA
               env:
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
                   TESTED_SHA: ${{ github.sha }}
               shell: bash
               run: |
                   set -Eeuo pipefail
+                  [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]] || {
+                      echo '::error::GitHub did not provide a valid pull request number.'
+                      exit 1
+                  }
                   [[ "$TESTED_SHA" =~ ^[0-9a-f]{40}$ ]] || {
                       echo '::error::GitHub did not provide a valid tested merge SHA.'
                       exit 1
                   }
                   proof_directory="$RUNNER_TEMP/pr-preview-source"
                   mkdir -p "$proof_directory"
+                  printf '%s\n' "$PR_NUMBER" > "$proof_directory/pr-number.txt"
                   printf '%s\n' "$TESTED_SHA" > "$proof_directory/tested-sha.txt"
 
-            - name: Upload exact tested merge SHA
+            - name: Upload exact pull request and tested merge SHA
               uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
               with:
                   compression-level: 0
                   if-no-files-found: error
                   name: pr-preview-source
-                  path: ${{ runner.temp }}/pr-preview-source/tested-sha.txt
+                  path: |
+                      ${{ runner.temp }}/pr-preview-source/pr-number.txt
+                      ${{ runner.temp }}/pr-preview-source/tested-sha.txt
                   retention-days: 2

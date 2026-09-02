@@ -11,6 +11,7 @@ import {
     evaluateRequiredChecks,
     normalizeWorkflowPath,
     parsePositiveInteger,
+    parsePullRequestNumberProof,
     parsePreviewArtifactMetadata,
     parseTestedShaProof,
     renderPreviewComment,
@@ -63,6 +64,15 @@ describe('PR preview identity', () => {
             shortTestedSha: testedSha.slice(0, 12),
             testedSha,
         })
+    })
+
+    test('accepts only one canonical pull request number proof line', () => {
+        expect(parsePullRequestNumberProof('42\n')).toBe(42)
+
+        for (const value of ['0\n', '01\n', '42', '42\r\n', '42\n43\n', 'x\n']) {
+            expect(() => parsePullRequestNumberProof(value)).toThrow()
+        }
+        expect(() => parsePullRequestNumberProof(`${Number.MAX_SAFE_INTEGER + 1}\n`)).toThrow()
     })
 
     test('rejects invalid PR numbers and full Git SHAs', () => {
@@ -147,7 +157,6 @@ describe('PR preview identity', () => {
             { baseSha: '4'.repeat(40) },
             { headRepository: 'other/repository' },
             { headSha: '4'.repeat(40) },
-            { number: 43 },
         ]) {
             expect(() =>
                 assertWorkflowRunPullRequest(
@@ -156,6 +165,12 @@ describe('PR preview identity', () => {
                 ),
             ).toThrow('Required check workflow run is not bound')
         }
+        expect(() =>
+            assertWorkflowRunPullRequest(
+                [{ ...workflowPullRequest, number: 43 }],
+                expectedPullRequest,
+            ),
+        ).toThrow('Required check workflow run is not bound')
         expect(() => assertWorkflowRunPullRequest([], expectedPullRequest)).not.toThrow()
     })
 
