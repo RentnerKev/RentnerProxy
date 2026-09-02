@@ -199,7 +199,7 @@ describe('application encryption key', () => {
 
 describe('server-only secret files', () => {
     const validKey = Buffer.from('01234567890123456789012345678901').toString('base64')
-    const validToken = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+    const validToken = '00000000000000000000000000000000'
     const validDatabaseUrl = 'postgresql://rentnerproxy:secret@postgres:5432/rentnerproxy'
 
     test('reads generated secrets from bounded files', () => {
