@@ -3,7 +3,9 @@ import { describe, expect, test } from 'bun:test'
 import {
     PREVIEW_COMMENT_MARKER,
     actionsRunIdFromDetailsUrl,
+    assertMatchingPreviewDigests,
     assertPullRequestBranchUpToDate,
+    assertPreviewPublishPlan,
     assertWorkflowRunPullRequest,
     assertPreviewTag,
     createPreviewIdentity,
@@ -66,6 +68,12 @@ describe('PR preview identity', () => {
         })
     })
 
+    test('accepts only the two canonical PR preview tag shapes', () => {
+        expect(assertPreviewTag('pr-1')).toBe('pr-1')
+        expect(assertPreviewTag('pr-142')).toBe('pr-142')
+        expect(assertPreviewTag(`pr-142-${'a'.repeat(12)}`)).toBe(`pr-142-${'a'.repeat(12)}`)
+    })
+
     test('accepts only one canonical pull request number proof line', () => {
         expect(parsePullRequestNumberProof('42\n')).toBe(42)
 
@@ -113,9 +121,74 @@ describe('PR preview identity', () => {
             'pr-42-ABCDEF123456',
             'pr-42-12345678901',
             'pr-42-1234567890123',
+            'alpha',
+            'rc',
+            'pr-42\nlatest',
+            'pr-42;dev',
         ]) {
             expect(() => assertPreviewTag(tag)).toThrow()
         }
+    })
+
+    test('rejects registry, repository, destination, and third-tag overrides', () => {
+        const identity = createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha)
+        const plan = {
+            image: identity.image,
+            immutableReference: identity.immutableReference,
+            immutableTag: identity.immutableTag,
+            movingReference: identity.movingReference,
+            movingTag: identity.movingTag,
+        }
+
+        expect(assertPreviewPublishPlan(plan, 'RentnerKev/RentnerProxy', 42, testedSha)).toEqual(
+            identity,
+        )
+        for (const override of [
+            { image: 'ghcr.io/attacker/rentnerproxy' },
+            { image: 'registry.example/rentnerkev/rentnerproxy' },
+            { immutableReference: 'ghcr.io/rentnerkev/rentnerproxy:latest' },
+            { immutableTag: 'v1.2.3' },
+            { movingReference: 'ghcr.io/rentnerkev/rentnerproxy:dev' },
+            { movingTag: 'latest' },
+            { movingTag: 'pr-42\nlatest' },
+        ]) {
+            expect(() =>
+                assertPreviewPublishPlan(
+                    { ...plan, ...override },
+                    'RentnerKev/RentnerProxy',
+                    42,
+                    testedSha,
+                ),
+            ).toThrow()
+        }
+        expect(() =>
+            assertPreviewPublishPlan(
+                { ...plan, thirdTag: 'latest' },
+                'RentnerKev/RentnerProxy',
+                42,
+                testedSha,
+            ),
+        ).toThrow()
+
+        for (const repository of [
+            'ghcr.io/rentnerkev/rentnerproxy',
+            'rentnerkev/rentnerproxy:latest',
+            'rentnerkev/other/rentnerproxy',
+            'rentnerkev/rentnerproxy\nattacker/repository',
+        ]) {
+            expect(() => createPreviewIdentity(repository, 42, testedSha)).toThrow()
+        }
+    })
+
+    test('requires source, immutable, and moving tags to share one digest', () => {
+        const digest = `sha256:${'a'.repeat(64)}`
+        const otherDigest = `sha256:${'b'.repeat(64)}`
+
+        expect(assertMatchingPreviewDigests(digest, digest)).toBe(digest)
+        expect(assertMatchingPreviewDigests(digest, digest, digest)).toBe(digest)
+        expect(() => assertMatchingPreviewDigests(digest, otherDigest)).toThrow()
+        expect(() => assertMatchingPreviewDigests(digest, digest, otherDigest)).toThrow()
+        expect(() => assertMatchingPreviewDigests('bad', digest, digest)).toThrow()
     })
 
     test('accepts only exact base-repository GitHub Actions job provenance', () => {
@@ -360,6 +433,11 @@ describe('artifact metadata and marker comment', () => {
 
         expect(parsePreviewArtifactMetadata(metadata)).toEqual(metadata)
         expect(() => parsePreviewArtifactMetadata({ ...metadata, unexpected: true })).toThrow()
+        for (const field of ['registry', 'image', 'destination', 'tag']) {
+            expect(() =>
+                parsePreviewArtifactMetadata({ ...metadata, [field]: 'attacker' }),
+            ).toThrow()
+        }
         expect(() =>
             parsePreviewArtifactMetadata({ ...metadata, testedSha: headSha }),
         ).not.toThrow()

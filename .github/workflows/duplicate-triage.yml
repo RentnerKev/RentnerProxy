@@ -50,8 +50,8 @@ jobs:
               with:
                   persist-credentials: false
                   repository: ${{ github.repository }}
-                  # Always run trusted automation from the protected default branch.
-                  ref: main
+                  # Run the exact trusted revision that contains this workflow definition.
+                  ref: ${{ github.workflow_sha }}
 
             - name: Set up Bun
               uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0

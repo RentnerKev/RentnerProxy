@@ -73,3 +73,15 @@ describe('PR labeler governance', () => {
         }
     })
 })
+
+describe('privileged workflow source pinning', () => {
+    test('runs duplicate triage from the exact trusted workflow revision', async () => {
+        const workflow = await repositoryFile('.github/workflows/duplicate-triage.yml')
+
+        expect(workflow).toContain('ref: ${{ github.workflow_sha }}')
+        expect(workflow).toContain('persist-credentials: false')
+        expect(workflow).not.toContain('ref: main')
+        expect(workflow).not.toContain('github.event.pull_request.head.sha')
+        expect(workflow).not.toContain('refs/pull/')
+    })
+})

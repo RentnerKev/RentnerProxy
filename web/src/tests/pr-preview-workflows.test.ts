@@ -70,10 +70,12 @@ describe('trusted-triggered, read-only PR preview build workflow', () => {
         expect(build).toContain('bun trusted/scripts/pr-preview.ts trigger-preflight')
         expect(build).toContain('bun trusted/scripts/pr-preview.ts gate')
         expect(build).toContain('name: pr-preview-source')
-        expect(build).toContain('group: pr-preview-build-${{ github.event.workflow_run.id }}')
+        expect(build).toContain('group: pr-preview-build-${{ needs.verify.outputs.pr_number }}')
+        expect(build).not.toContain('group: pr-preview-build-${{ github.event.workflow_run.id }}')
         expect(build).not.toContain(
             'group: pr-preview-build-${{ github.event.workflow_run.head_sha }}',
         )
+        expect(build).toContain('cancel-in-progress: true')
     })
 
     test('builds the exact tested merge commit into one OCI artifact without publishing', async () => {
@@ -166,6 +168,8 @@ describe('trusted PR preview publisher workflow', () => {
         expect(publisher).not.toContain('issues: write')
         expect(publisher).not.toContain('id-token: write')
         expect(publisher).not.toContain('write-all')
+        expect(publisher).not.toContain('secrets.')
+        expect(publisher).toContain('GHCR_TOKEN: ${{ github.token }}')
     })
 
     test('downloads only the source run artifact and revalidates before moving the tag', async () => {
@@ -173,7 +177,13 @@ describe('trusted PR preview publisher workflow', () => {
         const preflight = publisher.indexOf('bun trusted/scripts/pr-preview.ts preflight')
         const download = publisher.indexOf('Download exact handoff artifact for resolution')
         const firstRevalidation = publisher.indexOf('bun trusted/scripts/pr-preview.ts revalidate')
+        const sourceDigestDerivation = publisher.indexOf('source_digest="$(')
+        const immutableCopy = publisher.indexOf('skopeo copy --preserve-digests')
         const movingCopy = publisher.indexOf('"docker://$MOVING_REFERENCE"')
+        const finalImmutableInspection = publisher.indexOf('final_immutable_digest="$(', movingCopy)
+        const finalDigestValidation = publisher.lastIndexOf(
+            'bun trusted/scripts/pr-preview.ts validate-digests',
+        )
 
         expect(publisher).toContain('name: pr-preview-image')
         expect(publisher).toContain('name: pr-preview-source')
@@ -188,9 +198,22 @@ describe('trusted PR preview publisher workflow', () => {
         expect(publisher.match(/bun trusted\/scripts\/pr-preview\.ts revalidate/gmu)).toHaveLength(
             3,
         )
+        expect(
+            publisher.match(/bun trusted\/scripts\/pr-preview\.ts validate-digests/gmu),
+        ).toHaveLength(2)
         expect(firstRevalidation).toBeGreaterThan(-1)
+        expect(sourceDigestDerivation).toBeGreaterThan(-1)
+        expect(immutableCopy).toBeGreaterThan(sourceDigestDerivation)
         expect(movingCopy).toBeGreaterThan(firstRevalidation)
-        expect(publisher).toContain('Moving and immutable preview tags have different digests')
+        expect(publisher).toContain('"docker://$IMAGE@$immutable_digest"')
+        expect(finalImmutableInspection).toBeGreaterThan(movingCopy)
+        expect(finalDigestValidation).toBeGreaterThan(finalImmutableInspection)
+        expect(publisher).toContain("skopeo inspect --format '{{.Digest}}'")
+        expect(publisher).toContain(
+            'SOURCE_IMAGE_DIGEST: ${{ steps.artifact.outputs.source_digest }}',
+        )
+        expect(publisher.match(/skopeo copy --preserve-digests/gmu)).toHaveLength(2)
+        expect(publisher).not.toContain('--additional-tag')
     })
 
     test('keeps release channels, Git tags, source pushes, and releases out of scope', async () => {
