@@ -35,6 +35,14 @@ export interface PreviewIdentity {
     readonly testedSha: string
 }
 
+export interface PreviewPublishPlan {
+    readonly image: string
+    readonly immutableReference: string
+    readonly immutableTag: string
+    readonly movingReference: string
+    readonly movingTag: string
+}
+
 export interface RequiredCheck {
     readonly context: string
     readonly integrationId: number | null
@@ -306,6 +314,61 @@ export function createPreviewIdentity(
         shortTestedSha,
         testedSha,
     }
+}
+
+const previewPublishPlanKeys = [
+    'image',
+    'immutableReference',
+    'immutableTag',
+    'movingReference',
+    'movingTag',
+] as const
+
+export function assertPreviewPublishPlan(
+    value: unknown,
+    repositoryValue: unknown,
+    pullRequestNumberValue: unknown,
+    testedShaValue: unknown,
+): PreviewIdentity {
+    const plan = asRecord(value, 'Preview publish plan')
+    const actualKeys = Object.keys(plan).toSorted()
+    if (actualKeys.join('\0') !== [...previewPublishPlanKeys].toSorted().join('\0')) {
+        throw new Error('Preview publish plan fields are invalid.')
+    }
+
+    const identity = createPreviewIdentity(repositoryValue, pullRequestNumberValue, testedShaValue)
+    const expected: Readonly<Record<(typeof previewPublishPlanKeys)[number], string>> = {
+        image: identity.image,
+        immutableReference: identity.immutableReference,
+        immutableTag: identity.immutableTag,
+        movingReference: identity.movingReference,
+        movingTag: identity.movingTag,
+    }
+    for (const key of previewPublishPlanKeys) {
+        if (stringValue(plan[key], `Preview publish plan ${key}`) !== expected[key]) {
+            throw new Error(`Preview publish plan mismatch: ${key}.`)
+        }
+    }
+    return identity
+}
+
+export function assertMatchingPreviewDigests(
+    sourceDigestValue: unknown,
+    immutableDigestValue: unknown,
+    movingDigestValue?: unknown,
+): string {
+    const sourceDigest = validateSha256Digest(sourceDigestValue, 'Source image digest')
+    const immutableDigest = validateSha256Digest(immutableDigestValue, 'Immutable preview digest')
+    if (immutableDigest !== sourceDigest) {
+        throw new Error('Immutable preview tag does not match the source OCI image digest.')
+    }
+    if (movingDigestValue !== undefined) {
+        const movingDigest = validateSha256Digest(movingDigestValue, 'Moving preview digest')
+        if (movingDigest !== sourceDigest) {
+            throw new Error('Moving preview tag does not match the source OCI image digest.')
+        }
+    }
+    return sourceDigest
 }
 
 function requiredCheckKey(check: RequiredCheck): string {
@@ -1456,8 +1519,28 @@ async function commandValidateArtifact(): Promise<void> {
 
 async function commandRevalidate(): Promise<void> {
     const expected = expectedPullRequestFromEnvironment()
+    assertPreviewPublishPlan(
+        {
+            image: environment('IMAGE'),
+            immutableReference: environment('IMMUTABLE_REFERENCE'),
+            immutableTag: environment('IMMUTABLE_TAG'),
+            movingReference: environment('MOVING_REFERENCE'),
+            movingTag: environment('MOVING_TAG'),
+        },
+        expected.baseRepository,
+        expected.number,
+        expected.testedSha,
+    )
     const api = new GitHubApi(expected.baseRepository, environment('GITHUB_TOKEN'))
     await verifyGate(api, expected, false)
+}
+
+async function commandValidateDigests(): Promise<void> {
+    assertMatchingPreviewDigests(
+        environment('SOURCE_IMAGE_DIGEST'),
+        environment('IMMUTABLE_IMAGE_DIGEST'),
+        process.env.MOVING_IMAGE_DIGEST,
+    )
 }
 
 function parsePreviewComment(value: unknown): PreviewComment {
@@ -1530,6 +1613,9 @@ async function runCommand(): Promise<void> {
             return
         case 'revalidate':
             await commandRevalidate()
+            return
+        case 'validate-digests':
+            await commandValidateDigests()
             return
         case 'comment':
             await commandComment()

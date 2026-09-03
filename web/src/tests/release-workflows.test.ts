@@ -34,11 +34,13 @@ describe('release workflow entry points', () => {
         expect(dev).toContain('group: release-dev')
         expect(dev).not.toContain('group: release-dev-${{ github.event.release.tag_name }}')
         expect(dev).toContain('channel: dev')
+        expect(dev).toContain('release_tag: ${{ github.event.release.tag_name }}')
         expect(dev).not.toContain('channel: stable')
         expect(stable).toContain('github.event.release.prerelease == false')
         expect(stable).toContain('group: release-stable')
         expect(stable).not.toContain('group: release-stable-${{ github.event.release.tag_name }}')
         expect(stable).toContain('channel: stable')
+        expect(stable).toContain('release_tag: ${{ github.event.release.tag_name }}')
         expect(stable).not.toContain('channel: dev')
     })
 
@@ -105,6 +107,9 @@ describe('shared release pipeline', () => {
         expect(pipeline).toContain('scope=release-${{ inputs.channel }}')
         expect(pipeline).toContain('org.opencontainers.image.revision=')
         expect(pipeline).toContain('git -C source rev-list -n 1')
+        expect(pipeline).toContain('"$actual_tag" != "$RELEASE_TAG"')
+        expect(pipeline).toContain('git -C source show-ref --verify --quiet "$tag_ref"')
+        expect(pipeline).toContain('[[ "$revision" == "$tag_revision" ]]')
     })
 
     test('publishes assets and the authoritative body only after image verification', async () => {

@@ -9,10 +9,6 @@ on:
 
 permissions: {}
 
-concurrency:
-    group: pr-preview-build-${{ github.event.workflow_run.id }}
-    cancel-in-progress: true
-
 env:
     BUN_VERSION: 1.4.0
     GATE_TIMEOUT_SECONDS: 1500
@@ -83,6 +79,9 @@ jobs:
             - verify
         runs-on: ubuntu-latest
         timeout-minutes: 45
+        concurrency:
+            group: pr-preview-build-${{ needs.verify.outputs.pr_number }}
+            cancel-in-progress: true
         permissions:
             contents: read
         steps:

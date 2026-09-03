@@ -155,6 +155,7 @@ jobs:
                   skopeo --version
 
             - name: Validate artifact and OCI metadata
+              id: artifact
               env:
                   ARTIFACT_DIRECTORY: ${{ runner.temp }}/pr-preview-artifact
                   IMMUTABLE_TAG: ${{ needs.resolve.outputs.immutable_tag }}
@@ -211,23 +212,34 @@ jobs:
                        .config.Labels["org.opencontainers.image.version"] == $version' \
                       <<< "$config" > /dev/null
 
+                  source_digest="$(
+                      skopeo inspect --format '{{.Digest}}' "oci-archive:$oci_archive"
+                  )"
+                  [[ "$source_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+                      echo '::error::OCI archive has no valid source image digest.'
+                      exit 1
+                  }
+                  printf 'source_digest=%s\n' "$source_digest" >> "$GITHUB_OUTPUT"
+
             - name: Publish immutable and moving preview tags
               id: publish
               env:
                   ARTIFACT_DIRECTORY: ${{ runner.temp }}/pr-preview-artifact
-                  GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GHCR_TOKEN: ${{ github.token }}
                   GHCR_USERNAME: ${{ github.actor }}
                   GITHUB_TOKEN: ${{ github.token }}
                   IMAGE: ${{ needs.resolve.outputs.image }}
                   IMMUTABLE_REFERENCE: ${{ needs.resolve.outputs.immutable_reference }}
                   IMMUTABLE_TAG: ${{ needs.resolve.outputs.immutable_tag }}
                   MOVING_REFERENCE: ${{ needs.resolve.outputs.moving_reference }}
+                  MOVING_TAG: ${{ needs.resolve.outputs.moving_tag }}
                   PR_BASE_REF: ${{ needs.resolve.outputs.base_ref }}
                   PR_BASE_SHA: ${{ needs.resolve.outputs.base_sha }}
                   PR_HEAD_REPOSITORY: ${{ needs.resolve.outputs.head_repository }}
                   PR_HEAD_SHA: ${{ needs.resolve.outputs.head_sha }}
                   PR_NUMBER: ${{ needs.resolve.outputs.pr_number }}
                   REPOSITORY: ${{ needs.resolve.outputs.repository }}
+                  SOURCE_IMAGE_DIGEST: ${{ steps.artifact.outputs.source_digest }}
                   TESTED_SHA: ${{ needs.resolve.outputs.tested_sha }}
               shell: bash
               run: |
@@ -298,22 +310,27 @@ jobs:
                       echo '::error::GHCR returned no valid immutable preview digest.'
                       exit 1
                   }
+                  IMMUTABLE_IMAGE_DIGEST="$immutable_digest" \
+                      bun trusted/scripts/pr-preview.ts validate-digests
 
                   bun trusted/scripts/pr-preview.ts revalidate
                   skopeo copy --preserve-digests \
                       --authfile "$auth_file" \
-                      "docker://$IMMUTABLE_REFERENCE" \
+                      "docker://$IMAGE@$immutable_digest" \
                       "docker://$MOVING_REFERENCE"
+                  final_immutable_digest="$(
+                      skopeo inspect --authfile "$auth_file" --format '{{.Digest}}' \
+                          "docker://$IMMUTABLE_REFERENCE"
+                  )"
                   moving_digest="$(
                       skopeo inspect --authfile "$auth_file" --format '{{.Digest}}' \
                           "docker://$MOVING_REFERENCE"
                   )"
-                  if [[ "$moving_digest" != "$immutable_digest" ]]; then
-                      echo '::error::Moving and immutable preview tags have different digests.'
-                      exit 1
-                  fi
+                  IMMUTABLE_IMAGE_DIGEST="$final_immutable_digest" \
+                      MOVING_IMAGE_DIGEST="$moving_digest" \
+                      bun trusted/scripts/pr-preview.ts validate-digests
                   bun trusted/scripts/pr-preview.ts revalidate
-                  printf 'digest=%s\n' "$immutable_digest" >> "$GITHUB_OUTPUT"
+                  printf 'digest=%s\n' "$final_immutable_digest" >> "$GITHUB_OUTPUT"
 
             - name: Remove registry credentials
               if: always()
