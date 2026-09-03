@@ -1,32 +1,67 @@
-name: Bug report
+name: 🐛 Bug Report
 description: Report a reproducible problem in RentnerProxy.
-title: '[Bug]: '
 labels:
     - bug
 body:
     - type: markdown
       attributes:
           value: |
-              Thanks for helping improve RentnerProxy. Please do not include secrets or sensitive data.
+              Thanks for helping improve RentnerProxy.
 
-    - type: textarea
-      id: description
+              Do not report security vulnerabilities in a public issue. Use [GitHub Private Vulnerability Reporting](https://github.com/RentnerKev/RentnerProxy/security/advisories/new) instead.
+
+              Never include passwords, API keys, controller tokens, private keys, certificate private material, database credentials, or other private data.
+
+    - type: input
+      id: summary
       attributes:
-          label: Description
-          description: What happened? Describe the problem clearly and concisely.
-          placeholder: Describe the problem and its impact.
+          label: Summary
+          description: Describe the problem and its impact in one or two sentences.
+          placeholder: A concise description of the problem.
       validations:
           required: true
 
-    - type: textarea
-      id: steps
+    - type: input
+      id: version
       attributes:
-          label: Steps to reproduce
-          description: Provide the smallest set of steps that reliably reproduces the problem.
-          placeholder: |
-              1. Start RentnerProxy with ...
-              2. Open ...
-              3. Observe ...
+          label: Version
+          description: Provide the release, preview, development version, or commit you tested.
+          placeholder: e.g. v0.3.0, dev, pr-142, or a commit SHA
+      validations:
+          required: true
+
+    - type: dropdown
+      id: deployment
+      attributes:
+          label: Deployment type
+          description: How is the affected RentnerProxy instance running?
+          options:
+              - Stable Docker image
+              - Dev/pre-release image
+              - PR preview image
+              - Local development
+              - Other
+      validations:
+          required: true
+
+    - type: dropdown
+      id: component
+      attributes:
+          label: Affected component
+          description: Select the area most directly affected by the problem.
+          options:
+              - Web / Admin UI
+              - Authentication / Accounts
+              - Proxy Hosts
+              - OpenResty Runtime
+              - Certificates
+              - ACME
+              - Upstream TLS
+              - Database
+              - Redis
+              - Docker / Deployment
+              - CI / GitHub Automation
+              - Other
       validations:
           required: true
 
@@ -46,34 +81,41 @@ body:
       validations:
           required: true
 
-    - type: input
-      id: version
-      attributes:
-          label: Version
-          description: Provide the RentnerProxy version or commit SHA.
-          placeholder: e.g. commit 9e41f2a
-      validations:
-          required: true
-
     - type: textarea
-      id: environment
+      id: reproduction
       attributes:
-          label: Environment
-          description: Include the operating system, architecture, installation method, and browser when relevant.
+          label: Reproduction steps
+          description: Provide the smallest set of steps that reliably reproduces the problem.
           placeholder: |
-              - OS: Ubuntu 24.04
-              - Architecture: amd64
-              - Installation method: source checkout
-              - Browser: Firefox 142
+              1. Start RentnerProxy with ...
+              2. Open ...
+              3. Observe ...
       validations:
           required: true
 
     - type: textarea
       id: logs
       attributes:
-          label: Logs
-          description: Remove secrets, API keys, tokens, passwords, and sensitive information before posting logs.
+          label: Relevant logs
+          description: Remove passwords, API keys, controller tokens, private keys, certificate private material, database credentials, and other private data before posting logs.
           render: shell
+
+    - type: input
+      id: browser
+      attributes:
+          label: Browser
+          description: If the problem affects the web interface, provide the browser and version.
+          placeholder: e.g. Firefox 142 or Chrome 140
+
+    - type: textarea
+      id: environment
+      attributes:
+          label: Operating system / environment
+          description: Include the operating system, architecture, and other relevant environment details.
+          placeholder: |
+              - OS: Ubuntu 24.04
+              - Architecture: amd64
+              - Relevant infrastructure: reverse proxy, firewall, or network details
 
     - type: textarea
       id: context
@@ -86,5 +128,9 @@ body:
       attributes:
           label: Confirmation
           options:
-              - label: I have searched existing issues and confirmed that this has not already been reported.
+              - label: I searched existing issues for the same problem.
+                required: true
+              - label: I am not reporting a security vulnerability publicly.
+                required: true
+              - label: I removed secrets, credentials, private keys, certificate private material, production data, and other private information.
                 required: true

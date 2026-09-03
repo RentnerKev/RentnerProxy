@@ -10,12 +10,21 @@ Never include credentials, tokens, private configuration, personal data, or unre
 
 ## Development workflow
 
-1. Fork the repository and create a focused feature branch from `main`.
-2. Install Bun 1.4 and Rust 1.97.1 to match CI (the controller requires Rust 1.88 or newer).
-3. Install dependencies with `bun install --frozen-lockfile`.
+1. Search the existing issues. Open the appropriate issue form for a meaningful bug or feature
+   before starting work; report vulnerabilities only through the [security policy](SECURITY.md).
+2. Fork the repository and create a focused feature branch from `main`.
+3. Install Bun 1.4 and Rust 1.97.1 to match CI (the controller requires Rust 1.88 or newer), then
+   install dependencies with `bun install --frozen-lockfile`.
 4. Make a small, self-contained change and add or update tests where appropriate.
 5. Run `bun run check` before opening a pull request.
-6. Open a pull request, explain the reason for the change, and respond to review feedback.
+6. Push the branch and open a pull request. Link meaningful feature and fix changes with
+   `Fixes #123` or `Closes #123`; documentation, CI, and tiny maintenance changes may explain why
+   no issue is needed.
+7. Let the required CI and security checks finish, then address maintainer review feedback.
+
+After the required checks succeed, automation may publish a PR preview Docker image. It contains
+unreviewed contributor code: back up any test instance, use isolated test data, and never run it
+with production data.
 
 Database schema changes require a generated Drizzle migration. Review and commit generated
 migration SQL and run `bun run db:check` before opening the pull request.

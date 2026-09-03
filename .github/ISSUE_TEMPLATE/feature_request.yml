@@ -1,6 +1,5 @@
-name: Feature request
+name: ✨ Feature Request
 description: Suggest an improvement or new capability for RentnerProxy.
-title: '[Feature]: '
 labels:
     - enhancement
 body:
@@ -30,6 +29,23 @@ body:
       attributes:
           label: Alternatives considered
           description: Which alternatives or workarounds have you considered?
+
+    - type: dropdown
+      id: area
+      attributes:
+          label: Affected area
+          description: Select the area most directly related to the request.
+          options:
+              - Web / Admin UI
+              - Authentication / Accounts
+              - Proxy Hosts
+              - OpenResty Runtime
+              - Certificates / ACME / TLS
+              - Database / Redis
+              - Docker / Deployment
+              - CI / GitHub Automation
+              - Documentation
+              - Other
       validations:
           required: true
 
@@ -42,11 +58,20 @@ body:
     - type: dropdown
       id: contribution
       attributes:
-          label: Contribution
-          description: Would you be interested in implementing this feature?
+          label: Willingness to contribute
+          description: How would you like to help with this request?
           options:
-              - 'Yes'
-              - Maybe
-              - 'No'
-      validations:
-          required: true
+              - I can implement this
+              - I can help test this
+              - I can provide feedback
+              - I am only suggesting the idea
+
+    - type: checkboxes
+      id: confirmation
+      attributes:
+          label: Confirmation
+          options:
+              - label: I searched existing issues for the same request.
+                required: true
+              - label: This request describes a concrete use case.
+                required: true

@@ -1,0 +1,122 @@
+'area: auth':
+    - changed-files:
+          - any-glob-to-any-file:
+                - 'web/src/features/Auth/**'
+                - 'web/src/server/Auth/**'
+                - 'web/src/server/redis/auth-challenges.service.ts'
+                - 'web/src/config/auth*.config.ts'
+                - 'web/src/shared/Types/auth.types.ts'
+                - 'web/src/db/Schema/auth.ts'
+                - 'web/src/tests/auth-*.test.ts'
+                - 'web/src/tests/auth-*.test.tsx'
+                - 'web/src/tests/session-*.test.ts'
+                - 'web/src/tests/password-reset-*.test.tsx'
+                - 'web/src/tests/account-security-*.test.tsx'
+
+'area: proxy':
+    - changed-files:
+          - any-glob-to-any-file:
+                - 'controller/src/proxy/**'
+                - 'web/src/features/Admin/ProxyHostManagement/**'
+                - 'web/src/server/Admin/ProxyHostManagement/**'
+                - 'web/src/server/ProxyRuntime/**'
+                - 'web/src/config/proxy-*.config.ts'
+                - 'web/src/shared/Types/proxy-*.types.ts'
+                - 'web/src/db/Schema/proxyHosts.ts'
+                - 'web/src/tests/proxy-*.test.ts'
+                - 'web/src/tests/proxy-*.test.tsx'
+                - 'web/src/tests/upstream-tls.test.ts'
+
+'area: runtime':
+    - changed-files:
+          - any-glob-to-any-file:
+                - 'controller/src/**'
+                - 'docker/proxy-runtime/**'
+                - 'web/src/server/ProxyRuntime/**'
+                - 'web/src/features/Admin/ProxyHostManagement/Components/ProxyRuntimeStatusPanel.tsx'
+                - 'web/src/shared/Types/proxy-runtime.types.ts'
+                - 'web/src/tests/proxy-runtime.test.ts'
+
+'area: certificates':
+    - changed-files:
+          - any-glob-to-any-file:
+                - 'controller/src/runtime/acme.rs'
+                - 'controller/src/runtime/certificates.rs'
+                - 'controller/src/runtime/trusted_cas.rs'
+                - 'controller/src/proxy/trusted_ca.rs'
+                - 'controller/src/server/challenges.rs'
+                - 'controller/src/tests/acme.rs'
+                - 'controller/src/tests/certificates.rs'
+                - 'web/src/features/Admin/CertificateManagement/**'
+                - 'web/src/features/Admin/TrustedCaManagement/**'
+                - 'web/src/server/Admin/CertificateManagement/**'
+                - 'web/src/server/Admin/TrustedCaManagement/**'
+                - 'web/src/server/Foundation/certificates.server.ts'
+                - 'web/src/server/Foundation/trusted-cas.server.ts'
+                - 'web/src/config/certificates.config.ts'
+                - 'web/src/config/trusted-cas.config.ts'
+                - 'web/src/shared/Types/certificates.types.ts'
+                - 'web/src/shared/Types/trusted-cas.types.ts'
+                - 'web/src/db/Schema/certificates.ts'
+                - 'web/src/db/Schema/trustedCas.ts'
+                - 'web/src/tests/certificates*.test.ts'
+                - 'web/src/tests/certificates*.test.tsx'
+                - 'web/src/tests/trusted-cas*.test.ts'
+
+'area: database':
+    - changed-files:
+          - any-glob-to-any-file:
+                - 'web/src/db/**'
+                - 'web/drizzle/**'
+                - 'web/drizzle.config.ts'
+                - 'web/src/server/Auth/Core/database.server.ts'
+                - 'web/src/tests/database*.test.ts'
+                - 'web/src/tests/*-postgresql.integration.test.ts'
+
+'area: ui':
+    - changed-files:
+          - any-glob-to-any-file:
+                - 'web/public/**'
+                - 'web/src/features/**/Components/**'
+                - 'web/src/features/**/Hooks/**'
+                - 'web/src/features/**/*.tsx'
+                - 'web/src/layout/**'
+                - 'web/src/language/**'
+                - 'web/src/routes/**/*.tsx'
+                - 'web/src/shared/**'
+                - 'web/src/styles.css'
+                - 'web/src/tests/*-ui.test.tsx'
+                - 'web/src/tests/application-shell.test.tsx'
+
+'area: docker':
+    - changed-files:
+          - any-glob-to-any-file:
+                - '.dockerignore'
+                - 'docker-compose.yml'
+                - 'docker/**'
+
+'area: ci':
+    - changed-files:
+          - any-glob-to-any-file:
+                - '.github/workflows/**'
+                - '.github/scripts/**'
+                - '.github/dependabot.yml'
+                - '.github/labeler.yml'
+                - '.github/release-notes.json'
+                - 'scripts/check.ts'
+                - 'scripts/generate-release-notes.ts'
+                - 'scripts/pr-preview.ts'
+                - 'scripts/release-notes.ts'
+                - 'web/src/tests/duplicate-triage.test.ts'
+                - 'web/src/tests/pr-preview-*.test.ts'
+                - 'web/src/tests/release-*.test.ts'
+                - 'web/src/tests/repository-governance.test.ts'
+
+documentation:
+    - changed-files:
+          - any-glob-to-any-file:
+                - 'README.md'
+                - 'CONTRIBUTING.md'
+                - 'SECURITY.md'
+                - 'CHANGELOG.md'
+                - 'docs/**'

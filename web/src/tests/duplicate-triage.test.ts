@@ -149,6 +149,16 @@ describe('duplicate triage text normalization and metrics', () => {
 ## Actual behavior
 ## What changed?
 ## Why?
+## Summary
+## Related issue
+## Affected component
+## Deployment type
+## Relevant logs
+## Operating system / environment
+## Affected area
+## Willingness to contribute
+## Breaking changes
+## Screenshots
 - [x] Existing tests pass.
 - [ ] I have not included unrelated changes.
 `
