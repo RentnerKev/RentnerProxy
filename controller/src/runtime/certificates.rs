@@ -990,7 +990,10 @@ impl ParsedCertificate {
                 let digest: &[u8] = digest.as_ref();
                 format!(
                     "sha256:{}",
-                    digest.iter().map(|byte| format!("{byte:02x}")).collect::<String>()
+                    digest
+                        .iter()
+                        .map(|byte| format!("{byte:02x}"))
+                        .collect::<String>()
                 )
             },
         })
@@ -1007,7 +1010,10 @@ fn material_id(request: &CertificateImportRequest) -> String {
     {
         let digest = hash.finalize();
         let digest: &[u8] = digest.as_ref();
-        digest.iter().map(|byte| format!("{byte:02x}")).collect::<String>()
+        digest
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
     }
 }
 
