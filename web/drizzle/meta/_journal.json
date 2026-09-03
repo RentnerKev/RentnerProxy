@@ -78,6 +78,13 @@
             "when": 1788290371132,
             "tag": "0010_bent_jubilee",
             "breakpoints": true
+        },
+        {
+            "idx": 11,
+            "version": "7",
+            "when": 1788471334862,
+            "tag": "0011_crazy_yellow_claw",
+            "breakpoints": true
         }
     ]
 }

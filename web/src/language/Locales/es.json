@@ -44,6 +44,7 @@
         "collapseNavigation": "Contraer navegación",
         "expandNavigation": "Expandir navegación",
         "proxyHosts": "Hosts proxy",
+        "redirectHosts": "Hosts de redirección",
         "certificates": "Certificados"
     },
     "language": {
@@ -1025,6 +1026,143 @@
                 "caLoadFailed": "No se pudieron cargar las CA de confianza. Se conserva la selección actual."
             }
         },
+        "redirectHosts": {
+            "page": {
+                "eyebrow": "Redirect management",
+                "title": "Redirect hosts",
+                "description": "Manage domains that redirect requests to another web address."
+            },
+            "runtime": {
+                "title": "Proxy runtime",
+                "synced": "Proxy runtime synchronized",
+                "syncedDescription": "The active redirect configuration matches the saved configuration.",
+                "pending": "Saved changes are waiting to be applied.",
+                "pendingDescription": "The active configuration remains in use until saved changes are applied.",
+                "unavailable": "Proxy runtime unavailable.",
+                "unavailableDescription": "Saved redirect changes remain queued for a later apply.",
+                "apply": "Apply changes",
+                "applying": "Applying…",
+                "applied": "Proxy runtime updated successfully.",
+                "applyFailed": "The proxy runtime could not be updated.",
+                "savedPending": "Saved changes are waiting to be applied."
+            },
+            "messages": {
+                "created": "Redirect host created successfully.",
+                "updated": "Redirect host updated successfully.",
+                "deleted": "Redirect host deleted successfully.",
+                "enabled": "Redirect host enabled successfully.",
+                "disabled": "Redirect host disabled successfully."
+            },
+            "states": {
+                "unavailableTitle": "Redirect hosts are unavailable",
+                "unavailableDescription": "The saved redirect hosts could not be loaded. Try again."
+            },
+            "actions": {
+                "add": "Add redirect host",
+                "create": "Create redirect host",
+                "edit": "Edit",
+                "enable": "Enable",
+                "disable": "Disable",
+                "delete": "Delete",
+                "deleting": "Deleting…",
+                "disabling": "Disabling…",
+                "open": "Open actions for {{name}}",
+                "none": "No actions available",
+                "disableDescription": "Save this redirect host as disabled.",
+                "enableDescription": "Save this redirect host as enabled.",
+                "deleteDescription": "Permanently remove “{{name}}”."
+            },
+            "confirm": {
+                "deleteTitle": "Delete redirect host?",
+                "deleteDescription": "The redirect host for “{{name}}” and all its domain assignments will be removed.",
+                "deleteWarning": "This action cannot be undone.",
+                "deleteLabel": "Delete redirect host",
+                "disableTitle": "Disable redirect host?",
+                "disableDescription": "This saves the redirect host as disabled and removes it from the next proxy runtime configuration.",
+                "disableLabel": "Disable redirect host",
+                "saveDisabled": "Save and disable"
+            },
+            "form": {
+                "description": "Save domains and a destination for the proxy runtime configuration.",
+                "editTitle": "Edit redirect host",
+                "creating": "Creating…",
+                "domains": "Domains",
+                "domainLabel": "Domain {{number}}",
+                "domainPlaceholder": "example.com",
+                "removeDomain": "Remove domain {{number}}",
+                "addDomain": "Add domain",
+                "domainsHint": "Add 1–50 DNS names. Wildcards and IP addresses are not supported here.",
+                "destination": "Destination URL",
+                "destinationPlaceholder": "https://example.com/new-path",
+                "destinationHint": "Use an absolute HTTP or HTTPS URL. Query strings are not allowed when preserving the request URI.",
+                "statusCode": "Redirect status",
+                "certificate": "TLS certificate",
+                "noCertificate": "No certificate",
+                "certificateHint": "Assign a usable certificate to serve HTTPS for this redirect host.",
+                "preserveRequestUri": "Preserve request URI",
+                "preserveRequestUriHint": "Append the incoming path and query string to the destination base.",
+                "replaceRequestUri": "Replace request URI",
+                "enabledHint": "Enabled hosts are included in the next proxy runtime configuration.",
+                "statusReadOnly": "You do not have permission to change this redirect host’s saved status."
+            },
+            "status": { "enabled": "Enabled", "disabled": "Disabled" },
+            "statusCodes": {
+                "301": "301 · Permanent",
+                "302": "302 · Found",
+                "307": "307 · Temporary",
+                "308": "308 · Permanent"
+            },
+            "columns": {
+                "domains": "Domains",
+                "destination": "Destination",
+                "statusCode": "Status code",
+                "certificate": "Certificate/HTTPS",
+                "status": "Status",
+                "created": "Created",
+                "actions": "Actions"
+            },
+            "filters": {
+                "domains": "Filter domains…",
+                "allStatusCodes": "All status codes",
+                "allStatuses": "All statuses",
+                "createdFrom": "Created from",
+                "createdTo": "Created to"
+            },
+            "cells": { "https": "HTTPS certificate", "http": "HTTP" },
+            "table": {
+                "eyebrow": "Saved configuration",
+                "count_one": "{{count}} redirect host",
+                "count_other": "{{count}} redirect hosts",
+                "description": "Inspect saved domains, destinations, and redirect behavior.",
+                "searchLabel": "Search redirect hosts",
+                "searchPlaceholder": "Search domains, destination, status code, or status…",
+                "loading": "Loading redirect hosts",
+                "emptyTitle": "No redirect hosts yet",
+                "emptyDescription": "Add a redirect host to save a destination.",
+                "filteredEmptyTitle": "No redirect hosts match your filters",
+                "filteredEmptyDescription": "Adjust the search or reset the active filters to see more redirect hosts.",
+                "itemLabel": "redirect hosts"
+            },
+            "errors": {
+                "loadFailed": "Redirect hosts could not be loaded.",
+                "saveFailed": "The redirect host could not be saved.",
+                "deleteFailed": "The redirect host could not be deleted.",
+                "enableFailed": "The redirect host could not be enabled.",
+                "disableFailed": "The redirect host could not be disabled.",
+                "certificatesLoadFailed": "Certificates could not be loaded.",
+                "host_not_found": "The redirect host no longer exists.",
+                "domain_conflict": "This domain is already assigned to another host.",
+                "invalid_status_transition": "The redirect host is already in that state. Refresh the list and try again.",
+                "invalid_input": "Review the redirect host values and try again."
+            },
+            "validation": {
+                "domain": "Enter a valid DNS name without a URL, IP address or wildcard.",
+                "domainsRequired": "Add at least one domain.",
+                "domainsLimit": "A redirect host can have no more than 50 domains.",
+                "duplicateDomain": "This domain is listed more than once.",
+                "destination": "Enter a valid absolute HTTP or HTTPS URL without credentials or an invalid escape."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Certificados",
@@ -1112,6 +1250,7 @@
             "roles": "Roles",
             "account": "Cuenta",
             "proxy_hosts": "Hosts proxy",
+            "redirect_hosts": "Hosts de redirección",
             "trusted_cas": "CA de confianza"
         },
         "app": {
@@ -1145,6 +1284,16 @@
             "disable": "Desactivar hosts proxy",
             "advanced_config": "Administrar la configuración experta de los hosts proxy"
         },
+        "redirect_hosts": {
+            "view": "View redirect hosts",
+            "create": "Create redirect hosts",
+            "update": "Update redirect hosts",
+            "delete": "Delete redirect hosts",
+            "enable": "Enable redirect hosts",
+            "disable": "Disable redirect hosts",
+            "apply": "Apply redirect configuration"
+        },
+
         "trusted_cas": {
             "view": "Ver CA de confianza",
             "create": "Importar CA de confianza",

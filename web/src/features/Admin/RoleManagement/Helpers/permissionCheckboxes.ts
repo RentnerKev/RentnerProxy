@@ -10,6 +10,7 @@ export interface PermissionGroup {
 const permissionGroupDefinitions = [
     { label: 'permissions.group.app', prefix: 'app.' },
     { label: 'permissions.group.proxy_hosts', prefix: 'proxy_hosts.' },
+    { label: 'permissions.group.redirect_hosts', prefix: 'redirect_hosts.' },
     { label: 'permissions.group.users', prefix: 'users.' },
     { label: 'permissions.group.roles', prefix: 'roles.' },
     { label: 'permissions.group.account', prefix: 'account.' },

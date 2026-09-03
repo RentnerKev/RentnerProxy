@@ -3,7 +3,7 @@ import '@tanstack/react-start/server-only'
 
 import { asc, eq, inArray } from 'drizzle-orm'
 
-import { proxyHostDomains, proxyHosts, trustedCas } from '../../db/schema'
+import { hostDomains, proxyHosts, redirectHosts, trustedCas } from '../../db/schema'
 import type { AuthTransaction } from '../Auth/Core/database.server'
 import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot'
 import { readProxyHttpSettings, readProxyHostHttpSettingsMap } from './proxy-runtime-settings'
@@ -12,6 +12,7 @@ import type {
     ProxyRuntimeSnapshot,
     ProxyRuntimeTrustedCa,
     ProxyRuntimeUpstreamTls,
+    RedirectRuntimeHost,
 } from './Types/proxy-runtime.types'
 
 export async function readProxyRuntimeTrustedCas(
@@ -45,7 +46,7 @@ export async function readProxyRuntimeSnapshot(
     const rows = await transaction
         .select({
             id: proxyHosts.id,
-            domain: proxyHostDomains.domain,
+            domain: hostDomains.domain,
             forwardScheme: proxyHosts.forwardScheme,
             forwardHost: proxyHosts.forwardHost,
             forwardPort: proxyHosts.forwardPort,
@@ -57,9 +58,9 @@ export async function readProxyRuntimeSnapshot(
             trustedCaId: proxyHosts.trustedCaId,
         })
         .from(proxyHosts)
-        .leftJoin(proxyHostDomains, eq(proxyHostDomains.proxyHostId, proxyHosts.id))
+        .leftJoin(hostDomains, eq(hostDomains.proxyHostId, proxyHosts.id))
         .where(eq(proxyHosts.enabled, true))
-        .orderBy(asc(proxyHosts.id), asc(proxyHostDomains.domain))
+        .orderBy(asc(proxyHosts.id), asc(hostDomains.domain))
     const hosts = new Map<
         string,
         {
@@ -112,7 +113,42 @@ export async function readProxyRuntimeSnapshot(
         }),
     )
     const referencedCas = await readProxyRuntimeTrustedCas(transaction, configuredHosts)
-    return createProxyRuntimeSnapshot(configuredHosts, httpSettings, referencedCas)
+    const redirectRows = await transaction
+        .select({
+            id: redirectHosts.id,
+            domain: hostDomains.domain,
+            destination: redirectHosts.destination,
+            statusCode: redirectHosts.statusCode,
+            preserveRequestUri: redirectHosts.preserveRequestUri,
+            certificateId: redirectHosts.certificateId,
+        })
+        .from(redirectHosts)
+        .leftJoin(hostDomains, eq(hostDomains.redirectHostId, redirectHosts.id))
+        .where(eq(redirectHosts.enabled, true))
+        .orderBy(asc(redirectHosts.id), asc(hostDomains.domain))
+    const redirects = new Map<
+        string,
+        RedirectRuntimeHost & { domains: string[]; readonly enabled: boolean }
+    >()
+    for (const row of redirectRows) {
+        let redirect = redirects.get(row.id)
+        if (!redirect) {
+            redirect = {
+                id: row.id,
+                domains: [],
+                destination: row.destination,
+                statusCode: row.statusCode,
+                preserveRequestUri: row.preserveRequestUri,
+                certificateId: row.certificateId,
+                enabled: true,
+            }
+            redirects.set(row.id, redirect)
+        }
+        if (row.domain !== null) redirect.domains.push(row.domain)
+    }
+    return createProxyRuntimeSnapshot(configuredHosts, httpSettings, referencedCas, [
+        ...redirects.values(),
+    ])
 }
 
 export async function readProxyRuntimeHost(
@@ -122,7 +158,7 @@ export async function readProxyRuntimeHost(
     const rows = await transaction
         .select({
             id: proxyHosts.id,
-            domain: proxyHostDomains.domain,
+            domain: hostDomains.domain,
             forwardScheme: proxyHosts.forwardScheme,
             forwardHost: proxyHosts.forwardHost,
             forwardPort: proxyHosts.forwardPort,
@@ -135,9 +171,9 @@ export async function readProxyRuntimeHost(
             enabled: proxyHosts.enabled,
         })
         .from(proxyHosts)
-        .leftJoin(proxyHostDomains, eq(proxyHostDomains.proxyHostId, proxyHosts.id))
+        .leftJoin(hostDomains, eq(hostDomains.proxyHostId, proxyHosts.id))
         .where(eq(proxyHosts.id, proxyHostId))
-        .orderBy(asc(proxyHostDomains.domain))
+        .orderBy(asc(hostDomains.domain))
     const first = rows.at(0)
     if (!first) return null
     return {

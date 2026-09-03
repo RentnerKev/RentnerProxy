@@ -321,6 +321,7 @@ impl ProxyRuntime {
             version: snapshot_version(configuration),
             revision: configuration.revision.clone(),
             proxy_hosts: configuration.proxy_hosts.clone(),
+            redirect_hosts: configuration.redirect_hosts.clone(),
             http_settings: configuration.http_settings.clone(),
             trusted_cas: configuration.trusted_cas.clone(),
         };
@@ -637,16 +638,26 @@ impl ProxyRuntime {
         materialize_upstream_tls: bool,
     ) -> Result<String, RuntimeError> {
         let mut materials = BTreeMap::new();
-        for host in &configuration.proxy_hosts {
-            let Some(certificate_id) = host.certificate_id.as_deref() else {
-                continue;
-            };
+        let certificate_hosts = configuration
+            .proxy_hosts
+            .iter()
+            .filter_map(|host| {
+                host.certificate_id
+                    .as_deref()
+                    .map(|certificate_id| (certificate_id, host.domains.as_slice()))
+            })
+            .chain(configuration.redirect_hosts.iter().filter_map(|host| {
+                host.certificate_id
+                    .as_deref()
+                    .map(|certificate_id| (certificate_id, host.domains.as_slice()))
+            }));
+        for (certificate_id, domains) in certificate_hosts {
             let staged_certificate = staged.filter(|staged| staged.id() == certificate_id);
             let covers_domains = match staged_certificate {
-                Some(staged) => staged.covers_domains(&host.domains),
+                Some(staged) => staged.covers_domains(domains),
                 None => self
                     .certificate_store
-                    .covers_domains(certificate_id, &host.domains)
+                    .covers_domains(certificate_id, domains)
                     .await
                     .map_err(|_| RuntimeError::ApplyFailed)?,
             };
@@ -822,7 +833,9 @@ fn is_readable_system_ca_bundle(path: &Path) -> bool {
     file.read(&mut byte).is_ok_and(|read| read > 0)
 }
 fn snapshot_version(configuration: &ValidatedProxyConfig) -> u8 {
-    if configuration
+    if !configuration.redirect_hosts.is_empty() {
+        6
+    } else if configuration
         .proxy_hosts
         .iter()
         .any(|host| host.upstream_tls.is_some())

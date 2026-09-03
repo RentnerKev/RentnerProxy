@@ -14,7 +14,10 @@ import {
 } from '../config/permissions.config'
 import {
     permissions,
-    proxyHostDomains,
+    redirectHosts,
+    hostDomains,
+    certificateDomains,
+    certificates,
     proxyHosts,
     rolePermissions,
     roles,
@@ -49,11 +52,25 @@ import {
     updateProxyHostService,
 } from '../server/Admin/ProxyHostManagement/proxy-hosts.service'
 import {
+    createRedirectHostService,
+    deleteRedirectHostService,
+    disableRedirectHostService,
+    enableRedirectHostService,
+    getRedirectHostsService,
+    updateRedirectHostService,
+} from '../server/Admin/RedirectHostManagement/redirect-hosts.service'
+import {
+    deleteCertificateService,
+    getCertificatesService,
+} from '../server/Admin/CertificateManagement/certificates.service'
+import {
     mapProxyHostDomainUniqueViolation,
     ProxyHostDomainError,
 } from '../server/Admin/ProxyHostManagement/proxy-hosts.errors'
+import { RedirectHostDomainError } from '../server/Admin/RedirectHostManagement/redirect-hosts.errors'
 import { getDatabaseUrl } from '../server/env.server'
 import type { CreateProxyHostInput } from '../features/Admin/ProxyHostManagement/validation'
+import type { CreateRedirectHostInput } from '../features/Admin/RedirectHostManagement/validation'
 
 const DATABASE_INTEGRATION_ENABLED =
     process.env.RENTNERPROXY_DATABASE_INTEGRATION === '1' && getDatabaseUrl() !== null
@@ -61,6 +78,7 @@ const integrationTest = DATABASE_INTEGRATION_ENABLED ? test : test.skip
 const TEST_DOMAIN_SUFFIX = '.proxy-host-test.invalid'
 const TEST_EMAIL_SUFFIX = '@proxy-host-test.invalid'
 const TEST_ROLE_PREFIX = 'proxy-host-test-'
+const TEST_CERTIFICATE_PREFIX = 'proxy-host-test-certificate-'
 
 let dedicatedDatabaseVerified = false
 const originalControllerEnvironment = new Map(
@@ -94,6 +112,16 @@ function proxyHostInput(label: string): CreateProxyHostInput {
         forwardHost: `backend-${randomUUID().replaceAll('-', '').slice(0, 16)}${TEST_DOMAIN_SUFFIX}`,
         forwardPort: 8_080,
         forwardScheme: 'http',
+    }
+}
+
+function redirectHostInput(label: string): CreateRedirectHostInput {
+    return {
+        domains: [testDomain(`redirect-${label}`)],
+        destination: `https://destination-${randomUUID().replaceAll('-', '').slice(0, 16)}${TEST_DOMAIN_SUFFIX}/target`,
+        statusCode: 302,
+        preserveRequestUri: true,
+        enabled: true,
     }
 }
 
@@ -221,6 +249,10 @@ async function cleanTestRows(): Promise<void> {
         .select({ id: proxyHosts.id })
         .from(proxyHosts)
         .where(like(proxyHosts.forwardHost, `%${TEST_DOMAIN_SUFFIX}`))
+    const redirectRows = await database
+        .select({ id: redirectHosts.id })
+        .from(redirectHosts)
+        .where(like(redirectHosts.destination, `%${TEST_DOMAIN_SUFFIX}%`))
 
     await database.transaction(async (transaction) => {
         if (hostRows.length > 0) {
@@ -231,10 +263,44 @@ async function cleanTestRows(): Promise<void> {
                 ),
             )
         }
+        if (redirectRows.length > 0) {
+            await transaction.delete(redirectHosts).where(
+                inArray(
+                    redirectHosts.id,
+                    redirectRows.map((host) => host.id),
+                ),
+            )
+        }
 
         await transaction.delete(users).where(like(users.email, `%${TEST_EMAIL_SUFFIX}`))
         await transaction.delete(roles).where(like(roles.key, `${TEST_ROLE_PREFIX}%`))
+        await transaction
+            .delete(certificates)
+            .where(like(certificates.name, TEST_CERTIFICATE_PREFIX + '%'))
     })
+}
+
+async function insertValidCertificate(domains: ReadonlyArray<string>): Promise<string> {
+    const certificate = requireFirstRow(
+        await getAuthDatabase()
+            .insert(certificates)
+            .values({
+                name: TEST_CERTIFICATE_PREFIX + randomUUID(),
+                source: 'manual',
+                status: 'valid',
+                operation: 'idle',
+                issuedAt: new Date(Date.now() - 60_000),
+                expiresAt: new Date(Date.now() + 86_400_000),
+                issuer: 'PostgreSQL integration fixture',
+                fingerprint: 'sha256:' + 'a'.repeat(64),
+            })
+            .returning({ id: certificates.id }),
+        'Certificate fixture was not inserted.',
+    )
+    await getAuthDatabase()
+        .insert(certificateDomains)
+        .values(domains.map((domain) => ({ certificateId: certificate.id, domain })))
+    return certificate.id
 }
 
 interface FakeController {
@@ -251,7 +317,10 @@ const FAKE_ACTIVE_REVISION = 'sha256:' + 'a'.repeat(64)
 
 function startFakeController(
     failApply: boolean,
-    options: { readonly activeConfig?: string } = {},
+    options: {
+        readonly activeConfig?: string
+        readonly certificate?: { readonly id: string; readonly domains: ReadonlyArray<string> }
+    } = {},
 ): FakeController {
     const applyRevisions: string[] = []
     const requests: Array<{
@@ -260,6 +329,22 @@ function startFakeController(
         readonly body: string | null
     }> = []
     const activeConfig = options.activeConfig ?? '# fake active configuration'
+    const certificateMetadata = options.certificate
+        ? {
+              id: options.certificate.id,
+              source: 'manual',
+              environment: null,
+              domains: options.certificate.domains,
+              status: 'valid',
+              operation: 'idle',
+              issuedAt: new Date(Date.now() - 60_000).toISOString(),
+              expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+              issuer: 'PostgreSQL integration fixture',
+              fingerprint: 'sha256:' + 'a'.repeat(64),
+              lastErrorCode: null,
+              updatedAt: new Date().toISOString(),
+          }
+        : null
     const server = Bun.serve({
         hostname: '127.0.0.1',
         port: 0,
@@ -312,6 +397,20 @@ function startFakeController(
                 })
             }
 
+            if (request.method === 'GET' && url.pathname === '/internal/v1/certificates') {
+                return Response.json({
+                    certificates: certificateMetadata ? [certificateMetadata] : [],
+                })
+            }
+
+            if (
+                request.method === 'GET' &&
+                certificateMetadata &&
+                url.pathname === '/internal/v1/certificates/' + certificateMetadata.id
+            ) {
+                return Response.json(certificateMetadata)
+            }
+
             return new Response('not found', { status: 404 })
         },
     })
@@ -336,12 +435,12 @@ async function insertRawProxyHost(
         .returning({ id: proxyHosts.id })
     const id = requireFirstRow(rows, 'Raw runtime test host was not inserted.').id
     await getAuthDatabase()
-        .insert(proxyHostDomains)
+        .insert(hostDomains)
         .values(input.domains.map((domain) => ({ domain, proxyHostId: id })))
     return id
 }
 async function assertDedicatedProxyHostDatabase(): Promise<void> {
-    const [otherUsers, otherProxyHosts] = await Promise.all([
+    const [otherUsers, otherProxyHosts, otherRedirectHosts] = await Promise.all([
         getAuthDatabase()
             .select({ id: users.id })
             .from(users)
@@ -352,11 +451,16 @@ async function assertDedicatedProxyHostDatabase(): Promise<void> {
             .from(proxyHosts)
             .where(notLike(proxyHosts.forwardHost, `%${TEST_DOMAIN_SUFFIX}`))
             .limit(1),
+        getAuthDatabase()
+            .select({ id: redirectHosts.id })
+            .from(redirectHosts)
+            .where(notLike(redirectHosts.destination, `%${TEST_DOMAIN_SUFFIX}%`))
+            .limit(1),
     ])
 
-    if (otherUsers.length > 0 || otherProxyHosts.length > 0) {
+    if (otherUsers.length > 0 || otherProxyHosts.length > 0 || otherRedirectHosts.length > 0) {
         throw new Error(
-            'ProxyHost integration tests require a dedicated database without non-test users or proxy hosts.',
+            'ProxyHost integration tests require a dedicated database without non-test users or hosts.',
         )
     }
 }
@@ -365,6 +469,17 @@ function expectProxyHostDomainError(error: unknown, code: ProxyHostDomainError['
     expect(error).toBeInstanceOf(ProxyHostDomainError)
 
     if (error instanceof ProxyHostDomainError) {
+        expect(error.code).toBe(code)
+    }
+}
+
+function expectRedirectHostDomainError(
+    error: unknown,
+    code: RedirectHostDomainError['code'],
+): void {
+    expect(error).toBeInstanceOf(RedirectHostDomainError)
+
+    if (error instanceof RedirectHostDomainError) {
         expect(error.code).toBe(code)
     }
 }
@@ -454,9 +569,9 @@ describe('ProxyHost management with PostgreSQL', () => {
             await runAsUser(owner.id, () => deleteProxyHostService(created.id))
             expect(
                 await getAuthDatabase()
-                    .select({ id: proxyHostDomains.id })
-                    .from(proxyHostDomains)
-                    .where(eq(proxyHostDomains.proxyHostId, created.id)),
+                    .select({ id: hostDomains.id })
+                    .from(hostDomains)
+                    .where(eq(hostDomains.proxyHostId, created.id)),
             ).toEqual([])
         },
     )
@@ -482,9 +597,9 @@ describe('ProxyHost management with PostgreSQL', () => {
             expectProxyHostDomainError(updateError, 'domain_conflict')
             expect(
                 await getAuthDatabase()
-                    .select({ domain: proxyHostDomains.domain })
-                    .from(proxyHostDomains)
-                    .where(eq(proxyHostDomains.proxyHostId, first.id)),
+                    .select({ domain: hostDomains.domain })
+                    .from(hostDomains)
+                    .where(eq(hostDomains.proxyHostId, first.id)),
             ).toEqual(first.domains.map((domain) => ({ domain })))
 
             const invalidScheme = await captureError(
@@ -523,12 +638,12 @@ describe('ProxyHost management with PostgreSQL', () => {
             )
             const invalidCanonicalDomain = await captureError(
                 getAuthDatabase()
-                    .insert(proxyHostDomains)
+                    .insert(hostDomains)
                     .values({
                         domain: `UPPER${TEST_DOMAIN_SUFFIX.toUpperCase()}`,
                         proxyHostId: rawHost.id,
                     })
-                    .returning({ id: proxyHostDomains.id }),
+                    .returning({ id: hostDomains.id }),
             )
 
             const excessivePort = await captureError(
@@ -544,12 +659,12 @@ describe('ProxyHost management with PostgreSQL', () => {
             )
             const trailingDotDomain = await captureError(
                 getAuthDatabase()
-                    .insert(proxyHostDomains)
+                    .insert(hostDomains)
                     .values({
                         domain: `${testDomain('raw-trailing')}.`,
                         proxyHostId: rawHost.id,
                     })
-                    .returning({ id: proxyHostDomains.id }),
+                    .returning({ id: hostDomains.id }),
             )
             const duplicateDomain = testDomain('raw-duplicate')
             const rawHostTwo = requireFirstRow(
@@ -564,15 +679,15 @@ describe('ProxyHost management with PostgreSQL', () => {
                     .returning({ id: proxyHosts.id }),
                 'Second raw constraint test host was not inserted.',
             )
-            await getAuthDatabase().insert(proxyHostDomains).values({
+            await getAuthDatabase().insert(hostDomains).values({
                 domain: duplicateDomain,
                 proxyHostId: rawHost.id,
             })
             const duplicateDomainError = await captureError(
                 getAuthDatabase()
-                    .insert(proxyHostDomains)
+                    .insert(hostDomains)
                     .values({ domain: duplicateDomain, proxyHostId: rawHostTwo.id })
-                    .returning({ id: proxyHostDomains.id }),
+                    .returning({ id: hostDomains.id }),
             )
             expect(invalidScheme).toBeInstanceOf(Error)
             expect(invalidPort).toBeInstanceOf(Error)
@@ -740,9 +855,9 @@ describe('ProxyHost management with PostgreSQL', () => {
         expectProxyHostDomainError(rejected[0]?.reason, 'domain_conflict')
         expect(
             await getAuthDatabase()
-                .select({ domain: proxyHostDomains.domain })
-                .from(proxyHostDomains)
-                .where(eq(proxyHostDomains.domain, sharedDomain)),
+                .select({ domain: hostDomains.domain })
+                .from(hostDomains)
+                .where(eq(hostDomains.domain, sharedDomain)),
         ).toEqual([{ domain: sharedDomain }])
     })
 
@@ -892,6 +1007,299 @@ describe('ProxyHost management with PostgreSQL', () => {
     )
 })
 
+describe('RedirectHost management with PostgreSQL', () => {
+    integrationTest(
+        'creates, updates, lists, and cascades canonical redirect host domains',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const primaryDomain = testDomain('redirect-primary')
+            const secondaryDomain = testDomain('redirect-secondary')
+            const created = await runAsUser(owner.id, () =>
+                createRedirectHostService({
+                    ...redirectHostInput('crud'),
+                    domains: [
+                        '  ' + secondaryDomain.toUpperCase() + '.',
+                        primaryDomain.toUpperCase(),
+                    ],
+                    destination: ' HTTPS://Destination.Example/target ',
+                }),
+            )
+
+            expect(created).toMatchObject({
+                domains: [primaryDomain, secondaryDomain].toSorted(),
+                destination: 'https://destination.example/target',
+                enabled: true,
+                preserveRequestUri: true,
+                statusCode: 302,
+            })
+            expect(created.id[14]).toBe('7')
+
+            const updatedInput = redirectHostInput('updated')
+            const updated = await runAsUser(owner.id, () =>
+                updateRedirectHostService({
+                    ...updatedInput,
+                    redirectHostId: created.id,
+                    enabled: false,
+                }),
+            )
+
+            expect(updated).toMatchObject({
+                ...updatedInput,
+                domains: updatedInput.domains.toSorted(),
+                enabled: false,
+                id: created.id,
+            })
+            const { runtimeStatus: _runtimeStatus, ...updatedWithoutRuntimeStatus } = updated
+            expect(await runAsUser(owner.id, getRedirectHostsService)).toEqual([
+                updatedWithoutRuntimeStatus,
+            ])
+
+            await runAsUser(owner.id, () => deleteRedirectHostService(created.id))
+            expect(
+                await getAuthDatabase()
+                    .select({ id: hostDomains.id })
+                    .from(hostDomains)
+                    .where(eq(hostDomains.redirectHostId, created.id)),
+            ).toEqual([])
+        },
+    )
+
+    integrationTest(
+        'rejects invalid destination and IDs without changing persisted state',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const created = await runAsUser(owner.id, () =>
+                createRedirectHostService(redirectHostInput('validation')),
+            )
+            const invalidUpdateError = await captureError(
+                runAsUser(owner.id, () =>
+                    updateRedirectHostService({
+                        ...redirectHostInput('invalid-destination'),
+                        destination: 'ftp://destination.example/path',
+                        redirectHostId: created.id,
+                    }),
+                ),
+            )
+            const invalidDeleteError = await captureError(
+                runAsUser(owner.id, () => deleteRedirectHostService('not-a-uuid')),
+            )
+            const notFoundError = await captureError(
+                runAsUser(owner.id, () => enableRedirectHostService(randomUUID())),
+            )
+            const persisted = requireFirstRow(
+                await getAuthDatabase()
+                    .select()
+                    .from(redirectHosts)
+                    .where(eq(redirectHosts.id, created.id)),
+                'Redirect host was not persisted.',
+            )
+
+            expectRedirectHostDomainError(invalidUpdateError, 'invalid_input')
+            expectRedirectHostDomainError(invalidDeleteError, 'invalid_input')
+            expectRedirectHostDomainError(notFoundError, 'host_not_found')
+            expect(persisted.destination).toBe(created.destination)
+        },
+    )
+
+    integrationTest(
+        'enforces redirect permissions and explicit enable and disable transitions',
+        async () => {
+            const admin = await createTestUser([SYSTEM_ROLES.ADMIN])
+            const viewer = await createTestUser([SYSTEM_ROLES.VIEWER])
+            const created = await runAsUser(admin.id, () =>
+                createRedirectHostService(redirectHostInput('permissions')),
+            )
+            const viewerResult = await runAsUser(viewer.id, getRedirectHostsService)
+            const viewerCreateError = await captureError(
+                runAsUser(viewer.id, () => createRedirectHostService(redirectHostInput('viewer'))),
+            )
+            const updateOnlyRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.REDIRECT_HOSTS_UPDATE,
+            ])
+            const updateOnlyActor = await createTestUser([updateOnlyRole.key])
+            const unchangedState = await runAsUser(updateOnlyActor.id, () =>
+                updateRedirectHostService({
+                    ...redirectHostInput('update-only'),
+                    enabled: true,
+                    redirectHostId: created.id,
+                }),
+            )
+            const stateBypassError = await captureError(
+                runAsUser(updateOnlyActor.id, () =>
+                    updateRedirectHostService({
+                        ...redirectHostInput('state-bypass'),
+                        enabled: false,
+                        redirectHostId: created.id,
+                    }),
+                ),
+            )
+            const disabled = await runAsUser(admin.id, () => disableRedirectHostService(created.id))
+            const noOpError = await captureError(
+                runAsUser(admin.id, () => disableRedirectHostService(created.id)),
+            )
+            const enabled = await runAsUser(admin.id, () => enableRedirectHostService(created.id))
+
+            expect(viewerResult).toHaveLength(1)
+            expect(viewerCreateError).toBeInstanceOf(AuthDomainError)
+            expect(unchangedState.enabled).toBeTrue()
+            expect(stateBypassError).toBeInstanceOf(AuthDomainError)
+            expect(disabled.enabled).toBeFalse()
+            expect(enabled.enabled).toBeTrue()
+            expectRedirectHostDomainError(noOpError, 'invalid_status_transition')
+        },
+    )
+
+    integrationTest(
+        'rejects proxy-to-redirect, redirect-to-proxy, and redirect-to-redirect domain conflicts',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const proxyOwnedDomain = testDomain('proxy-owned')
+            const redirectOwnedDomain = testDomain('redirect-owned')
+
+            await runAsUser(owner.id, () =>
+                createProxyHostService({
+                    ...proxyHostInput('domain-owner'),
+                    domains: [proxyOwnedDomain],
+                }),
+            )
+            const redirectAgainstProxy = await captureError(
+                runAsUser(owner.id, () =>
+                    createRedirectHostService({
+                        ...redirectHostInput('against-proxy'),
+                        domains: [proxyOwnedDomain.toUpperCase() + '.'],
+                    }),
+                ),
+            )
+
+            await runAsUser(owner.id, () =>
+                createRedirectHostService({
+                    ...redirectHostInput('domain-owner'),
+                    domains: [redirectOwnedDomain],
+                }),
+            )
+            const proxyAgainstRedirect = await captureError(
+                runAsUser(owner.id, () =>
+                    createProxyHostService({
+                        ...proxyHostInput('against-redirect'),
+                        domains: [' ' + redirectOwnedDomain.toUpperCase()],
+                    }),
+                ),
+            )
+            const redirectAgainstRedirect = await captureError(
+                runAsUser(owner.id, () =>
+                    createRedirectHostService({
+                        ...redirectHostInput('against-redirect'),
+                        domains: [redirectOwnedDomain],
+                    }),
+                ),
+            )
+
+            expectRedirectHostDomainError(redirectAgainstProxy, 'domain_conflict')
+            expectProxyHostDomainError(proxyAgainstRedirect, 'domain_conflict')
+            expectRedirectHostDomainError(redirectAgainstRedirect, 'domain_conflict')
+            expect(
+                await getAuthDatabase()
+                    .select({ domain: hostDomains.domain })
+                    .from(hostDomains)
+                    .where(inArray(hostDomains.domain, [proxyOwnedDomain, redirectOwnedDomain])),
+            ).toHaveLength(2)
+        },
+    )
+
+    integrationTest(
+        'lets exactly one concurrent proxy or redirect create claim a normalized domain',
+        async () => {
+            const firstOwner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const secondOwner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const sharedDomain = testDomain('cross-type-concurrent')
+            const proxyInput = { ...proxyHostInput('cross-type-proxy'), domains: [sharedDomain] }
+            const redirectInput = {
+                ...redirectHostInput('cross-type-redirect'),
+                domains: [' ' + sharedDomain.toUpperCase() + '.'],
+            }
+            const results = await Promise.allSettled([
+                runAsUser(firstOwner.id, () => createProxyHostService(proxyInput)),
+                runAsUser(secondOwner.id, () => createRedirectHostService(redirectInput)),
+            ])
+            const successful = results.filter((result) => result.status === 'fulfilled')
+            const rejected = results.filter(
+                (result): result is PromiseRejectedResult => result.status === 'rejected',
+            )
+            const domainRows = await getAuthDatabase()
+                .select({ id: hostDomains.id })
+                .from(hostDomains)
+                .where(eq(hostDomains.domain, sharedDomain))
+
+            expect(successful).toHaveLength(1)
+            expect(rejected).toHaveLength(1)
+            expect(rejected[0]?.reason).toMatchObject({ code: 'domain_conflict' })
+            expect(domainRows).toHaveLength(1)
+        },
+    )
+
+    for (const [expectedStatus, failApply] of [
+        ['applied', false],
+        ['pending', true],
+    ] as const) {
+        integrationTest(
+            'persists redirect desired state when controller reconciliation is ' + expectedStatus,
+            async () => {
+                const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+                const controller = startFakeController(failApply)
+                try {
+                    const result = await runAsUser(owner.id, () =>
+                        createRedirectHostService(redirectHostInput('reconcile-' + expectedStatus)),
+                    )
+                    expect(result.runtimeStatus).toBe(expectedStatus)
+                    expect(
+                        await getAuthDatabase()
+                            .select({ id: redirectHosts.id })
+                            .from(redirectHosts)
+                            .where(eq(redirectHosts.id, result.id)),
+                    ).toHaveLength(1)
+                    expect(controller.applyRevisions).toHaveLength(1)
+                } finally {
+                    controller.server.stop(true)
+                }
+            },
+        )
+    }
+
+    integrationTest(
+        'counts disabled redirect assignments and blocks certificate deletion',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const domain = testDomain('certificate')
+            const certificateId = await insertValidCertificate([domain])
+            const controller = startFakeController(false, {
+                certificate: { id: certificateId, domains: [domain] },
+            })
+            try {
+                const created = await runAsUser(owner.id, () =>
+                    createRedirectHostService({
+                        ...redirectHostInput('certificate'),
+                        certificateId,
+                        domains: [domain],
+                    }),
+                )
+                await runAsUser(owner.id, () => disableRedirectHostService(created.id))
+                const certificatesSummary = await runAsUser(owner.id, getCertificatesService)
+                const deleteError = await captureError(
+                    runAsUser(owner.id, () => deleteCertificateService(certificateId)),
+                )
+
+                expect(
+                    certificatesSummary.find((certificate) => certificate.id === certificateId),
+                ).toMatchObject({ assignedHostCount: 1 })
+                expect(deleteError).toMatchObject({ code: 'certificate_in_use' })
+            } finally {
+                controller.server.stop(true)
+            }
+        },
+    )
+})
+
 describe('manual runtime apply permissions', () => {
     integrationTest(
         'grants manual apply to owner/admin and only explicitly assigned custom roles',
@@ -939,8 +1347,8 @@ describe('runtime reconcile after PostgreSQL mutations', () => {
                 const persisted = await getAuthDatabase()
                     .select({ id: proxyHosts.id })
                     .from(proxyHosts)
-                    .innerJoin(proxyHostDomains, eq(proxyHostDomains.proxyHostId, proxyHosts.id))
-                    .where(eq(proxyHostDomains.domain, input.domains[0]!))
+                    .innerJoin(hostDomains, eq(hostDomains.proxyHostId, proxyHosts.id))
+                    .where(eq(hostDomains.domain, input.domains[0]!))
 
                 expect(result.runtimeStatus).toBe(expected)
                 expect(persisted).toHaveLength(1)
@@ -1440,9 +1848,9 @@ describe('advanced proxy host configuration with PostgreSQL', () => {
             ).toEqual([])
             expect(
                 await getAuthDatabase()
-                    .select({ proxyHostId: proxyHostDomains.proxyHostId })
-                    .from(proxyHostDomains)
-                    .where(eq(proxyHostDomains.proxyHostId, first)),
+                    .select({ proxyHostId: hostDomains.proxyHostId })
+                    .from(hostDomains)
+                    .where(eq(hostDomains.proxyHostId, first)),
             ).toEqual([])
         } finally {
             await controller.server.stop(true)

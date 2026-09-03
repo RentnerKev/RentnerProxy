@@ -144,6 +144,7 @@ fn configuration_with_settings(
         version,
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
+        redirect_hosts: Vec::new(),
         http_settings,
         trusted_cas: Vec::new(),
     })
@@ -167,6 +168,7 @@ fn configuration_with_advanced(port: u16, advanced_config: &str) -> ValidatedPro
         version: 3,
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
+        redirect_hosts: Vec::new(),
         http_settings,
         trusted_cas: Vec::new(),
     })
@@ -216,6 +218,7 @@ fn tls_configuration(certificate_id: &str) -> ValidatedProxyConfig {
         version: 4,
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
+        redirect_hosts: Vec::new(),
         http_settings,
         trusted_cas: Vec::new(),
     })
@@ -268,6 +271,7 @@ fn upstream_tls_configuration(trusted_ca: TrustedCa) -> ValidatedProxyConfig {
             std::slice::from_ref(&trusted_ca),
         ),
         proxy_hosts: hosts,
+        redirect_hosts: Vec::new(),
         http_settings,
         trusted_cas: vec![trusted_ca],
     })
@@ -624,6 +628,7 @@ async fn preview_rejects_rendered_sources_over_hard_limit() {
             force_https: false,
             upstream_tls: None,
         }],
+        redirect_hosts: Vec::new(),
         http_settings: ProxyHttpSettings::default(),
         trusted_cas: Vec::new(),
     };
@@ -874,6 +879,7 @@ async fn active_host_sources_keep_two_hosts_isolated() {
         version: 3,
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
+        redirect_hosts: Vec::new(),
         http_settings,
         trusted_cas: Vec::new(),
     })

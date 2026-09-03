@@ -1,4 +1,4 @@
-use crate::models::{ProxyHost, ProxyHttpSettings, TrustedCa};
+use crate::models::{ProxyHost, ProxyHttpSettings, RedirectHost, TrustedCa};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
@@ -22,8 +22,27 @@ pub(crate) fn revision_for_configuration_with_trusted_cas(
     http_settings: &ProxyHttpSettings,
     trusted_cas: &[TrustedCa],
 ) -> String {
+    revision_for_configuration_with_redirects(hosts, &[], http_settings, trusted_cas)
+}
+
+pub(crate) fn revision_for_configuration_with_redirects(
+    hosts: &[ProxyHost],
+    redirect_hosts: &[RedirectHost],
+    http_settings: &ProxyHttpSettings,
+    trusted_cas: &[TrustedCa],
+) -> String {
     let hosts = canonical_hosts(hosts);
+    let redirect_hosts = canonical_redirect_hosts(redirect_hosts);
     let trusted_cas = canonical_trusted_cas(trusted_cas);
+    if !redirect_hosts.is_empty() {
+        return hash_snapshot(&CanonicalRedirectConfigurationSnapshot {
+            version: 6,
+            proxy_hosts: hosts,
+            redirect_hosts,
+            http_settings,
+            trusted_cas: &trusted_cas,
+        });
+    }
     if hosts.iter().any(|host| host.upstream_tls.is_some()) || !trusted_cas.is_empty() {
         return hash_snapshot(&CanonicalUpstreamTlsConfigurationSnapshot {
             version: 5,
@@ -88,6 +107,15 @@ pub(super) fn canonical_hosts(hosts: &[ProxyHost]) -> Vec<ProxyHost> {
     hosts
 }
 
+pub(super) fn canonical_redirect_hosts(hosts: &[RedirectHost]) -> Vec<RedirectHost> {
+    let mut hosts = hosts.to_vec();
+    for host in &mut hosts {
+        host.domains.sort_unstable();
+    }
+    hosts.sort_unstable_by(|left, right| left.id.cmp(&right.id));
+    hosts
+}
+
 pub(super) fn canonical_trusted_cas(trusted_cas: &[TrustedCa]) -> Vec<TrustedCa> {
     let mut trusted_cas = trusted_cas.to_vec();
     trusted_cas.sort_unstable_by(|left, right| left.id.cmp(&right.id));
@@ -126,6 +154,16 @@ struct CanonicalTlsConfigurationSnapshot<'a> {
 struct CanonicalUpstreamTlsConfigurationSnapshot<'a> {
     version: u8,
     proxy_hosts: Vec<ProxyHost>,
+    http_settings: &'a ProxyHttpSettings,
+    trusted_cas: &'a [TrustedCa],
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CanonicalRedirectConfigurationSnapshot<'a> {
+    version: u8,
+    proxy_hosts: Vec<ProxyHost>,
+    redirect_hosts: Vec<RedirectHost>,
     http_settings: &'a ProxyHttpSettings,
     trusted_cas: &'a [TrustedCa],
 }

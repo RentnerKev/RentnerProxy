@@ -1,12 +1,45 @@
 use crate::{
-    models::{ProxyConfigRequest, ProxyHttpSettings, TrustedCa, UpstreamTls},
+    models::{ProxyConfigRequest, ProxyHttpSettings, RedirectHost, TrustedCa, UpstreamTls},
     proxy::{
         MAX_ADVANCED_CONFIG_BYTES, MAX_PROXY_HOSTS, ProxyValidationError,
-        revision_for_configuration, revision_for_configuration_with_trusted_cas,
-        revision_for_hosts, validate_proxy_config, validate_trusted_ca_pem,
+        revision_for_configuration, revision_for_configuration_with_redirects,
+        revision_for_configuration_with_trusted_cas, revision_for_hosts, validate_proxy_config,
+        validate_trusted_ca_pem,
     },
     tests::fixtures::{host, request, request_with_settings},
 };
+
+fn redirect_host(id: &str, domains: &[&str], destination: &str) -> RedirectHost {
+    RedirectHost {
+        id: id.to_owned(),
+        domains: domains.iter().map(|domain| (*domain).to_owned()).collect(),
+        destination: destination.to_owned(),
+        status_code: 308,
+        preserve_request_uri: false,
+        certificate_id: None,
+    }
+}
+
+fn v6_request(
+    proxy_hosts: Vec<crate::models::ProxyHost>,
+    redirect_hosts: Vec<RedirectHost>,
+) -> ProxyConfigRequest {
+    let http_settings = ProxyHttpSettings::default();
+    let trusted_cas = Vec::new();
+    ProxyConfigRequest {
+        version: 6,
+        revision: revision_for_configuration_with_redirects(
+            &proxy_hosts,
+            &redirect_hosts,
+            &http_settings,
+            &trusted_cas,
+        ),
+        proxy_hosts,
+        redirect_hosts,
+        http_settings,
+        trusted_cas,
+    }
+}
 
 #[test]
 fn validates_a_canonical_snapshot_and_sorts_it() {
@@ -388,6 +421,7 @@ fn v5_request(host: crate::models::ProxyHost, trusted_cas: Vec<TrustedCa>) -> Pr
         version: 5,
         revision: revision_for_configuration_with_trusted_cas(&hosts, &http_settings, &trusted_cas),
         proxy_hosts: hosts,
+        redirect_hosts: Vec::new(),
         http_settings,
         trusted_cas,
     }
@@ -550,4 +584,278 @@ fn base64_encode(bytes: &[u8]) -> String {
         });
     }
     output
+}
+#[test]
+fn v6_canonicalizes_redirect_hosts_and_keeps_legacy_revisions_compatible() {
+    let proxy = host(
+        "00000000-0000-0000-0000-000000000000",
+        &["proxy.test"],
+        "http",
+        "backend",
+        4_000,
+    );
+    let mut first = redirect_host(
+        "10000000-0000-0000-0000-000000000000",
+        &["z.redirect.test", "a.redirect.test"],
+        "https://first.target.test",
+    );
+    first.status_code = 301;
+    first.preserve_request_uri = true;
+    let mut second = redirect_host(
+        "00000000-0000-0000-0000-000000000001",
+        &["second.redirect.test"],
+        "https://second.target.test/landing?source=redirect",
+    );
+    second.status_code = 302;
+
+    let validated = validate_proxy_config(v6_request(
+        vec![proxy.clone()],
+        vec![first.clone(), second.clone()],
+    ))
+    .expect("v6 redirect snapshot should validate");
+    assert_eq!(validated.proxy_hosts, vec![proxy]);
+    assert_eq!(validated.redirect_hosts[0].id, second.id);
+    assert_eq!(
+        validated.redirect_hosts[1].domains,
+        ["a.redirect.test", "z.redirect.test"]
+    );
+
+    let revision = revision_for_configuration_with_redirects(
+        &validated.proxy_hosts,
+        &[first, second],
+        &validated.http_settings,
+        &validated.trusted_cas,
+    );
+    assert_eq!(revision, validated.revision);
+
+    let legacy = request(vec![host(
+        "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
+        &["legacy.test"],
+        "http",
+        "backend",
+        4_000,
+    )]);
+    assert_eq!(legacy.version, 1);
+    assert_eq!(legacy.revision, revision_for_hosts(&legacy.proxy_hosts));
+}
+
+#[test]
+fn v6_accepts_only_the_supported_redirect_status_codes() {
+    for status_code in [301, 302, 307, 308] {
+        let mut redirect = redirect_host(
+            "00000000-0000-0000-0000-000000000000",
+            &["status.test"],
+            "https://target.test",
+        );
+        redirect.status_code = status_code;
+        assert!(validate_proxy_config(v6_request(Vec::new(), vec![redirect])).is_ok());
+    }
+
+    for status_code in [0, 300, 303, 304, 305, 306, 309, 999] {
+        let mut redirect = redirect_host(
+            "00000000-0000-0000-0000-000000000000",
+            &["status.test"],
+            "https://target.test",
+        );
+        redirect.status_code = status_code;
+        assert_eq!(
+            validate_proxy_config(v6_request(Vec::new(), vec![redirect])),
+            Err(ProxyValidationError::ValidationFailed),
+            "unexpectedly accepted redirect status {status_code}"
+        );
+    }
+}
+
+#[test]
+fn v6_rejects_unsafe_destinations_and_accepts_valid_encoded_unicode() {
+    for (destination, preserve_request_uri) in [
+        ("ftp://target.test", false),
+        ("https:///missing-authority", false),
+        ("https://user@target.test", false),
+        ("https://target.test/has space", false),
+        ("https://target.test/$variable", false),
+        ("https://target.test/\"quote", false),
+        ("https://target.test/'quote", false),
+        ("https://target.test/\\slash", false),
+        ("https://target.test/{block}", false),
+        ("https://target.test/%", false),
+        ("https://target.test/%0", false),
+        ("https://target.test/%0g", false),
+        ("https://target.test/%0d%0aheader", false),
+        ("https://target.test/%00", false),
+        ("https://target.test/%C2%80", false),
+        ("https://target.test/%ff", false),
+        ("https://target.test:0", false),
+        ("https://target.test:65536", false),
+        ("https://[2001:db8::1", false),
+        ("https://target.test/", true),
+        ("https://target.test/path?query", true),
+        ("https://target.test/path#fragment", true),
+    ] {
+        let redirect = redirect_host(
+            "00000000-0000-0000-0000-000000000000",
+            &["unsafe.test"],
+            destination,
+        );
+        let mut request = v6_request(Vec::new(), vec![redirect]);
+        request.redirect_hosts[0].preserve_request_uri = preserve_request_uri;
+        request.revision = revision_for_configuration_with_redirects(
+            &request.proxy_hosts,
+            &request.redirect_hosts,
+            &request.http_settings,
+            &request.trusted_cas,
+        );
+        assert_eq!(
+            validate_proxy_config(request),
+            Err(ProxyValidationError::ValidationFailed),
+            "unexpectedly accepted destination {destination:?}"
+        );
+    }
+
+    for (destination, preserve_request_uri) in [
+        ("https://target.test", true),
+        ("https://target.test/landing?source=redirect#top", false),
+        ("http://[2001:db8::1]:8080", true),
+        ("https://target.test/%E2%82%AC", false),
+    ] {
+        let redirect = redirect_host(
+            "00000000-0000-0000-0000-000000000000",
+            &["safe.test"],
+            destination,
+        );
+        let mut request = v6_request(Vec::new(), vec![redirect]);
+        request.redirect_hosts[0].preserve_request_uri = preserve_request_uri;
+        request.revision = revision_for_configuration_with_redirects(
+            &request.proxy_hosts,
+            &request.redirect_hosts,
+            &request.http_settings,
+            &request.trusted_cas,
+        );
+        assert!(
+            validate_proxy_config(request).is_ok(),
+            "unexpectedly rejected destination {destination:?}"
+        );
+    }
+
+    let too_long = format!("https://target.test/{}", "a".repeat(2_048));
+    let redirect = redirect_host(
+        "00000000-0000-0000-0000-000000000000",
+        &["long.test"],
+        &too_long,
+    );
+    assert_eq!(
+        validate_proxy_config(v6_request(Vec::new(), vec![redirect])),
+        Err(ProxyValidationError::ValidationFailed)
+    );
+}
+
+#[test]
+fn v1_through_v5_reject_redirects_and_v6_requires_them() {
+    for version in 1..=5 {
+        let mut request = v6_request(
+            Vec::new(),
+            vec![redirect_host(
+                "00000000-0000-0000-0000-000000000000",
+                &["legacy-version.test"],
+                "https://target.test",
+            )],
+        );
+        request.version = version;
+        assert_eq!(
+            validate_proxy_config(request),
+            Err(ProxyValidationError::InvalidConfiguration),
+            "v{version} must not accept redirect hosts"
+        );
+    }
+
+    let mut missing_redirects = request(Vec::new());
+    missing_redirects.version = 6;
+    assert_eq!(
+        validate_proxy_config(missing_redirects),
+        Err(ProxyValidationError::InvalidConfiguration)
+    );
+}
+
+#[test]
+fn v6_enforces_cross_type_identity_domain_and_host_limits() {
+    let proxy = host(
+        "00000000-0000-0000-0000-000000000000",
+        &["shared.test"],
+        "http",
+        "backend",
+        4_000,
+    );
+    let duplicate_id = redirect_host(
+        "00000000-0000-0000-0000-000000000000",
+        &["redirect.test"],
+        "https://target.test",
+    );
+    assert_eq!(
+        validate_proxy_config(v6_request(vec![proxy.clone()], vec![duplicate_id])),
+        Err(ProxyValidationError::ValidationFailed)
+    );
+
+    let duplicate_domain = redirect_host(
+        "10000000-0000-0000-0000-000000000000",
+        &["shared.test"],
+        "https://target.test",
+    );
+    assert_eq!(
+        validate_proxy_config(v6_request(vec![proxy.clone()], vec![duplicate_domain])),
+        Err(ProxyValidationError::ValidationFailed)
+    );
+
+    let redirect_hosts = (0..MAX_PROXY_HOSTS)
+        .map(|index| {
+            redirect_host(
+                &format!("10000000-0000-0000-0000-{index:012x}"),
+                &[&format!("redirect-{index}.test")],
+                "https://target.test",
+            )
+        })
+        .collect();
+    let oversized = ProxyConfigRequest {
+        version: 6,
+        revision: format!("sha256:{}", "0".repeat(64)),
+        proxy_hosts: vec![proxy],
+        redirect_hosts,
+        http_settings: ProxyHttpSettings::default(),
+        trusted_cas: Vec::new(),
+    };
+    assert_eq!(
+        validate_proxy_config(oversized),
+        Err(ProxyValidationError::ValidationFailed)
+    );
+}
+#[test]
+fn v6_snapshot_matches_the_typescript_known_vector() {
+    let proxy = host(
+        "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
+        &["proxy.test"],
+        "http",
+        "backend.internal",
+        4_000,
+    );
+    let mut first = redirect_host(
+        "018f2f52-7c1b-7cc0-9f3c-6a9952c54020",
+        &["redirect.test"],
+        "https://destination.test/base",
+    );
+    first.preserve_request_uri = true;
+    let mut second = redirect_host(
+        "018f2f52-7c1b-7cc0-9f3c-6a9952c54021",
+        &["z.redirect.test", "a.redirect.test"],
+        "http://other.test/",
+    );
+    second.status_code = 301;
+
+    assert_eq!(
+        revision_for_configuration_with_redirects(
+            &[proxy],
+            &[second, first],
+            &ProxyHttpSettings::default(),
+            &[],
+        ),
+        "sha256:bc76b6a3a15ec41a362ad7c220fb11e168d21e0cb81dc1f23688ef2ee40083b7"
+    );
 }

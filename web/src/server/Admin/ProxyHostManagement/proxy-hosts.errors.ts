@@ -1,7 +1,11 @@
 // oxlint-disable-next-line import/no-unassigned-import -- Marks this domain error module as server-only.
 import '@tanstack/react-start/server-only'
 
-const proxyHostDomainUniqueConstraint = 'proxy_host_domains_domain_unique'
+const hostDomainUniqueConstraints = new Set([
+    'host_domains_domain_unique',
+    // Keep mapping old errors while an existing database is being migrated.
+    'proxy_host_domains_domain_unique',
+])
 
 export type ProxyHostDomainErrorCode =
     | 'domain_conflict'
@@ -32,6 +36,15 @@ function getErrorProperty(error: object, key: string): unknown {
 }
 
 export function mapProxyHostDomainUniqueViolation(error: unknown): ProxyHostDomainError | null {
+    const conflict = mapHostDomainUniqueViolation(error)
+    return conflict
+        ? new ProxyHostDomainError('domain_conflict', 'A proxy host domain is already in use.')
+        : null
+}
+
+export function mapHostDomainUniqueViolation(
+    error: unknown,
+): { readonly code: 'domain_conflict'; readonly message: string } | null {
     const visited = new Set<object>()
     let current = error
 
@@ -47,11 +60,12 @@ export function mapProxyHostDomainUniqueViolation(error: unknown): ProxyHostDoma
             getErrorProperty(current, 'constraint_name')
         const isUniqueViolation = code === '23505' || errno === '23505' || sqlState === '23505'
 
-        if (isUniqueViolation && constraint === proxyHostDomainUniqueConstraint) {
-            return new ProxyHostDomainError(
-                'domain_conflict',
-                'A proxy host domain is already in use.',
-            )
+        if (
+            isUniqueViolation &&
+            typeof constraint === 'string' &&
+            hostDomainUniqueConstraints.has(constraint)
+        ) {
+            return { code: 'domain_conflict', message: 'A host domain is already in use.' }
         }
 
         current = getErrorProperty(current, 'cause')

@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::models::{ProxyHttpSettings, ValidatedProxyConfig};
+use crate::models::{ProxyHttpSettings, RedirectHost, ValidatedProxyConfig};
 
 pub(crate) const MAX_RENDERED_PROXY_CONFIG_BYTES: usize = 16 * 1024 * 1024;
 pub(crate) const MAX_RENDERED_PROXY_HOST_SOURCE_BYTES: usize = 128 * 1024;
@@ -90,8 +90,15 @@ fn render_config_with_ports(
                 upstream_tls,
             )?);
         }
+        for host in &config.redirect_hosts {
+            output.push('\n');
+            output.push_str(&render_active_redirect_host_config(
+                host,
+                settings.http_port,
+                controller_port,
+            ));
+        }
     }
-
     output.push_str("}\n");
     if output.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
         return Err(RenderError::ConfigTooLarge);
@@ -131,6 +138,17 @@ pub(crate) fn render_config_with_tls(
         output.push('\n');
         output.push_str(&render_tls_server(host, tls, material, upstream_tls)?);
     }
+    for host in &config.redirect_hosts {
+        let Some(certificate_id) = host.certificate_id.as_ref() else {
+            continue;
+        };
+        let material = materials
+            .get(certificate_id)
+            .ok_or(RenderError::MissingCertificate)?;
+        output.push('\n');
+        output.push_str(&render_tls_redirect_server(host, tls, material)?);
+    }
+
     output.push_str("}\n");
     if output.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
         return Err(RenderError::ConfigTooLarge);
@@ -181,6 +199,43 @@ fn render_tls_server(
     }
     output.push_str("    }\n");
     Ok(output)
+}
+
+fn redirect_target(host: &RedirectHost) -> String {
+    if host.preserve_request_uri {
+        format!("{}$request_uri", host.destination)
+    } else {
+        host.destination.clone()
+    }
+}
+
+fn render_active_redirect_host_config(
+    host: &RedirectHost,
+    http_port: u16,
+    controller_port: u16,
+) -> String {
+    let target = redirect_target(host);
+    format!(
+        "    server {{\n        listen {http_port};\n        server_name {};\n\n        location ^~ /.well-known/acme-challenge/ {{\n            proxy_pass http://127.0.0.1:{controller_port};\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_pass_request_body off;\n            proxy_set_header Content-Length \"\";\n            proxy_set_header Connection \"\";\n        }}\n\n        location / {{\n            return {} \"{target}\";\n        }}\n    }}\n",
+        host.domains.join(" "),
+        host.status_code,
+    )
+}
+
+fn render_tls_redirect_server(
+    host: &RedirectHost,
+    tls: &TlsRenderSettings,
+    material: &TlsMaterial,
+) -> Result<String, RenderError> {
+    let certificate = certificate_path(&material.fullchain_path)?;
+    let private_key = certificate_path(&material.private_key_path)?;
+    let target = redirect_target(host);
+    Ok(format!(
+        "    server {{\n        listen {} ssl;\n        server_name {};\n        ssl_certificate {certificate};\n        ssl_certificate_key {private_key};\n        ssl_protocols TLSv1.2 TLSv1.3;\n        ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;\n        ssl_prefer_server_ciphers on;\n\n        location / {{\n            return {} \"{target}\";\n        }}\n    }}\n",
+        tls.https_port,
+        host.domains.join(" "),
+        host.status_code,
+    ))
 }
 
 fn append_upstream_tls(
@@ -394,6 +449,16 @@ pub(crate) fn render_host_sources_for_runtime(
         }
         sources.insert(host.id.clone(), source);
     }
+    for host in &configuration.redirect_hosts {
+        let source = render_active_redirect_host_config(host, http_port, controller_port);
+        if source.len() > MAX_RENDERED_PROXY_HOST_SOURCE_BYTES {
+            return Err(RenderError::ConfigTooLarge);
+        }
+        if sources.insert(host.id.clone(), source).is_some() {
+            return Err(RenderError::ConfigTooLarge);
+        }
+    }
+
     Ok(sources)
 }
 fn append_http_settings(output: &mut String, settings: &ProxyHttpSettings) {
