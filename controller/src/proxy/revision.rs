@@ -59,14 +59,18 @@ pub(crate) fn revision_for_configuration_with_trusted_cas(
     })
 }
 
-fn hex_digest(bytes: impl AsRef<[u8]>) -> String {
-    bytes.as_ref().iter().map(|byte| format!("{byte:02x}")).collect()
+fn hex_digest(bytes: &[u8]) -> String {
+    bytes
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 fn hash_snapshot(snapshot: &impl Serialize) -> String {
     let bytes = serde_json::to_vec(snapshot)
         .expect("canonical proxy snapshot only contains serializable strings and numbers");
-    format!("sha256:{}", hex_digest(Sha256::digest(bytes)))
+    let digest = Sha256::digest(bytes);
+    format!("sha256:{}", hex_digest(digest.as_ref()))
 }
 
 pub(crate) fn revision_from_config(contents: &str) -> Option<String> {
