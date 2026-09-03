@@ -117,7 +117,12 @@ fn bundle_fingerprint(certificates: &[CertificateDer<'_>]) -> String {
         digest.update((certificate.as_ref().len() as u64).to_be_bytes());
         digest.update(certificate.as_ref());
     }
-    format!("sha256:{}", digest.finalize().as_ref().iter().map(|byte| format!("{byte:02x}")).collect::<String>())
+    let digest = digest.finalize();
+    let digest: &[u8] = digest.as_ref();
+    format!(
+        "sha256:{}",
+        digest.iter().map(|byte| format!("{byte:02x}")).collect::<String>()
+    )
 }
 
 fn canonical_pem(certificates: &[CertificateDer<'_>]) -> String {
