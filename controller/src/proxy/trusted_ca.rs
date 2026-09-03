@@ -121,7 +121,10 @@ fn bundle_fingerprint(certificates: &[CertificateDer<'_>]) -> String {
     let digest: &[u8] = digest.as_ref();
     format!(
         "sha256:{}",
-        digest.iter().map(|byte| format!("{byte:02x}")).collect::<String>()
+        digest
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
     )
 }
 

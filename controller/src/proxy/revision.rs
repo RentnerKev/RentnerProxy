@@ -60,10 +60,7 @@ pub(crate) fn revision_for_configuration_with_trusted_cas(
 }
 
 fn hex_digest(bytes: &[u8]) -> String {
-    bytes
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 fn hash_snapshot(snapshot: &impl Serialize) -> String {
