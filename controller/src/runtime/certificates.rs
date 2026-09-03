@@ -985,7 +985,14 @@ impl ParsedCertificate {
             issued_at: format_timestamp(not_before)?,
             expires_at: format_timestamp(not_after)?,
             issuer: truncate(certificate.issuer().to_string(), 512),
-            fingerprint: format!("sha256:{}", Sha256::digest(leaf.as_ref()).as_ref().iter().map(|byte| format!("{byte:02x}")).collect::<String>()),
+            fingerprint: {
+                let digest = Sha256::digest(leaf.as_ref());
+                let digest: &[u8] = digest.as_ref();
+                format!(
+                    "sha256:{}",
+                    digest.iter().map(|byte| format!("{byte:02x}")).collect::<String>()
+                )
+            },
         })
     }
 }
@@ -997,7 +1004,11 @@ fn material_id(request: &CertificateImportRequest) -> String {
     hash.update(request.chain_pem.as_deref().unwrap_or("").as_bytes());
     hash.update([0]);
     hash.update(request.private_key_pem.as_bytes());
-    format!("{}", hash.finalize().as_ref().iter().map(|byte| format!("{byte:02x}")).collect::<String>())
+    {
+        let digest = hash.finalize();
+        let digest: &[u8] = digest.as_ref();
+        digest.iter().map(|byte| format!("{byte:02x}")).collect::<String>()
+    }
 }
 
 fn environment_name(environment: CertificateEnvironment) -> &'static str {
