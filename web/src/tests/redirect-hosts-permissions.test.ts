@@ -30,11 +30,11 @@ describe('Redirect Host permissions', () => {
         )
         expect(byRole.get(SYSTEM_ROLES.OWNER)).toEqual(expect.arrayContaining(redirectPermissions))
         expect(byRole.get(SYSTEM_ROLES.ADMIN)).toEqual(expect.arrayContaining(redirectPermissions))
-        expect(byRole.get(SYSTEM_ROLES.VIEWER)).toEqual(
-            expect.arrayContaining([PERMISSIONS.REDIRECT_HOSTS_VIEW]),
-        )
-        expect(byRole.get(SYSTEM_ROLES.VIEWER)).not.toEqual(
-            expect.arrayContaining(redirectPermissions.slice(1)),
-        )
+        const viewerPermissions = byRole.get(SYSTEM_ROLES.VIEWER)
+        expect(viewerPermissions).toBeDefined()
+        expect(viewerPermissions).toContain(PERMISSIONS.REDIRECT_HOSTS_VIEW)
+        for (const permissionKey of redirectPermissions.slice(1)) {
+            expect(viewerPermissions).not.toContain(permissionKey)
+        }
     })
 })

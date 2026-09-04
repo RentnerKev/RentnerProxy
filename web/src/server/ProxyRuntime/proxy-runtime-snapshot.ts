@@ -98,7 +98,7 @@ const runtimeRedirectHostSchema = z.object({
     destination: z.string(),
     statusCode: redirectStatusCodeSchema,
     preserveRequestUri: z.boolean(),
-    certificateId: z.uuidv7().nullish(),
+    certificateId: z.uuid().nullish(),
 })
 
 function compareAscii(left: string, right: string): number {

@@ -1021,13 +1021,13 @@ describe('RedirectHost management with PostgreSQL', () => {
                         '  ' + secondaryDomain.toUpperCase() + '.',
                         primaryDomain.toUpperCase(),
                     ],
-                    destination: ' HTTPS://Destination.Example/target ',
+                    destination: ` HTTPS://Destination${TEST_DOMAIN_SUFFIX.toUpperCase()}/target `,
                 }),
             )
 
             expect(created).toMatchObject({
                 domains: [primaryDomain, secondaryDomain].toSorted(),
-                destination: 'https://destination.example/target',
+                destination: `https://destination${TEST_DOMAIN_SUFFIX}/target`,
                 enabled: true,
                 preserveRequestUri: true,
                 statusCode: 302,

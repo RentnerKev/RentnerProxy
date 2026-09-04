@@ -88,7 +88,7 @@ describe('redirect host runtime snapshots', () => {
             redirect({ destination: 'https://destination.test/other' }),
             redirect({ statusCode: 307 }),
             redirect({ preserveRequestUri: false }),
-            redirect({ certificateId: '018f2f52-7c1b-7cc0-9f3c-6a9952c54022' }),
+            redirect({ certificateId: '550e8400-e29b-41d4-a716-446655440000' }),
         ]
 
         for (const variant of variants) {

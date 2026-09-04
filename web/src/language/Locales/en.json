@@ -691,7 +691,7 @@
                 "issuer": "Issuer",
                 "issuedAt": "Issued",
                 "fingerprint": "Fingerprint",
-                "assignedHosts": "Assigned proxy hosts"
+                "assignedHosts": "Assigned hosts"
             },
             "import": {
                 "title": "Import certificate",
