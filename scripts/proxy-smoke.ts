@@ -217,6 +217,7 @@ async function runSmoke(): Promise<void> {
             { getAuthDatabase },
             { createSessionService },
             services,
+            redirectServices,
             runtime,
             editor,
             hostEditor,
@@ -230,6 +231,7 @@ async function runSmoke(): Promise<void> {
             import('../web/src/server/Auth/Core/database.server'),
             import('../web/src/server/Auth/Access/sessions.service'),
             import('../web/src/server/Admin/ProxyHostManagement/proxy-hosts.service'),
+            import('../web/src/server/Admin/RedirectHostManagement/redirect-hosts.service'),
             import('../web/src/server/ProxyRuntime/proxy-runtime.service'),
             import('../web/src/server/ProxyRuntime/proxy-config-editor.service'),
             import('../web/src/server/ProxyRuntime/proxy-host-config-editor.service'),
@@ -284,6 +286,30 @@ async function runSmoke(): Promise<void> {
                     return (await response.json()).message === expected
                 },
                 'backend response for ' + host,
+                5_000,
+            )
+        }
+
+        async function expectRedirect(
+            host: string,
+            path: string,
+            expectedStatus: number,
+            expectedLocation: string,
+        ): Promise<void> {
+            await waitFor(
+                async () => {
+                    const response = await fetch(proxyUrl + path, {
+                        headers: { host, connection: 'close' },
+                        redirect: 'manual',
+                        signal: AbortSignal.timeout(5_000),
+                    })
+                    const matches =
+                        response.status === expectedStatus &&
+                        response.headers.get('location') === expectedLocation
+                    await response.body?.cancel()
+                    return matches
+                },
+                'HTTP ' + expectedStatus + ' redirect for ' + host,
                 5_000,
             )
         }
@@ -388,6 +414,86 @@ async function runSmoke(): Promise<void> {
         assert.ok(forwarded['x-forwarded-for'].includes(forwarded['x-real-ip']))
         assert.equal(forwarded['x-forwarded-proto'], 'http')
         passed('Host, X-Real-IP, X-Forwarded-For and X-Forwarded-Proto')
+
+        const redirectInput = {
+            domains: ['redirect.test'],
+            destination: 'https://new.example.test/base',
+            statusCode: 308 as const,
+            preserveRequestUri: true,
+            enabled: true,
+            certificateId: null,
+        }
+        const createdRedirect = await authorized(() =>
+            redirectServices.createRedirectHostService(redirectInput),
+        )
+        assert.equal(createdRedirect.runtimeStatus, 'applied')
+        await expectRedirect(
+            'redirect.test',
+            '/old/path?value=a%2Fb&space=hello%20world',
+            308,
+            'https://new.example.test/base/old/path?value=a%2Fb&space=hello%20world',
+        )
+        passed('Redirect Host preserves the original path, encoded values and query')
+
+        for (const statusCode of [301, 302, 307, 308] as const) {
+            const updatedRedirect = await authorized(() =>
+                redirectServices.updateRedirectHostService({
+                    ...redirectInput,
+                    redirectHostId: createdRedirect.id,
+                    statusCode,
+                }),
+            )
+            assert.equal(updatedRedirect.runtimeStatus, 'applied')
+            await expectRedirect(
+                'redirect.test',
+                '/status-' + statusCode + '?check=1',
+                statusCode,
+                'https://new.example.test/base/status-' + statusCode + '?check=1',
+            )
+        }
+        passed('real OpenResty returns only the supported 301, 302, 307 and 308 statuses')
+
+        const exactDestination = 'https://new.example.test/exact?fixed=a%2Fb#section'
+        assert.equal(
+            (
+                await authorized(() =>
+                    redirectServices.updateRedirectHostService({
+                        ...redirectInput,
+                        redirectHostId: createdRedirect.id,
+                        destination: exactDestination,
+                        statusCode: 302,
+                        preserveRequestUri: false,
+                    }),
+                )
+            ).runtimeStatus,
+            'applied',
+        )
+        await expectRedirect('redirect.test', '/ignored/path?ignored=true', 302, exactDestination)
+        passed('URI preservation off returns the configured destination exactly')
+
+        assert.equal(
+            (
+                await authorized(() =>
+                    redirectServices.disableRedirectHostService(createdRedirect.id),
+                )
+            ).runtimeStatus,
+            'applied',
+        )
+        await expectProxyStatus('redirect.test', 404)
+        assert.equal(
+            (await authorized(() => redirectServices.enableRedirectHostService(createdRedirect.id)))
+                .runtimeStatus,
+            'applied',
+        )
+        await expectRedirect('redirect.test', '/ignored-after-enable', 302, exactDestination)
+        assert.equal(
+            (await authorized(() => redirectServices.deleteRedirectHostService(createdRedirect.id)))
+                .runtimeStatus,
+            'applied',
+        )
+        await expectProxyStatus('redirect.test', 404)
+        await expectProxyMessage('demo.test', 'upstream-one')
+        passed('Redirect enable, disable and delete reconcile without affecting Proxy Hosts')
 
         const beforeReload = await command([
             ...compose,

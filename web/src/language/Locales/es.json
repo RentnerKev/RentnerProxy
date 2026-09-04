@@ -44,6 +44,7 @@
         "collapseNavigation": "Contraer navegación",
         "expandNavigation": "Expandir navegación",
         "proxyHosts": "Hosts proxy",
+        "redirectHosts": "Hosts de redirección",
         "certificates": "Certificados"
     },
     "language": {
@@ -690,7 +691,7 @@
                 "issuer": "Emisor",
                 "issuedAt": "Emitido",
                 "fingerprint": "Huella digital",
-                "assignedHosts": "Hosts proxy asignados"
+                "assignedHosts": "Hosts asignados"
             },
             "import": {
                 "title": "Importar certificado",
@@ -1025,6 +1026,143 @@
                 "caLoadFailed": "No se pudieron cargar las CA de confianza. Se conserva la selección actual."
             }
         },
+        "redirectHosts": {
+            "page": {
+                "eyebrow": "Gestión de redirecciones",
+                "title": "Hosts de redirección",
+                "description": "Gestiona los dominios que redirigen las solicitudes a otra dirección web."
+            },
+            "runtime": {
+                "title": "Runtime del proxy",
+                "synced": "Runtime del proxy sincronizado",
+                "syncedDescription": "La configuración activa de redirecciones coincide con la configuración guardada.",
+                "pending": "Los cambios guardados están pendientes de aplicación.",
+                "pendingDescription": "La configuración activa seguirá en uso hasta que se apliquen los cambios guardados.",
+                "unavailable": "El runtime del proxy no está disponible.",
+                "unavailableDescription": "Los cambios de redirección guardados quedan pendientes para una aplicación posterior.",
+                "apply": "Aplicar cambios",
+                "applying": "Aplicando…",
+                "applied": "El runtime del proxy se actualizó correctamente.",
+                "applyFailed": "No se pudo actualizar el runtime del proxy.",
+                "savedPending": "Los cambios guardados están pendientes de aplicación."
+            },
+            "messages": {
+                "created": "Host de redirección creado correctamente.",
+                "updated": "Host de redirección actualizado correctamente.",
+                "deleted": "Host de redirección eliminado correctamente.",
+                "enabled": "Host de redirección activado correctamente.",
+                "disabled": "Host de redirección desactivado correctamente."
+            },
+            "states": {
+                "unavailableTitle": "Los hosts de redirección no están disponibles",
+                "unavailableDescription": "No se pudieron cargar los hosts de redirección guardados. Inténtalo de nuevo."
+            },
+            "actions": {
+                "add": "Añadir host de redirección",
+                "create": "Crear host de redirección",
+                "edit": "Editar",
+                "enable": "Activar",
+                "disable": "Desactivar",
+                "delete": "Eliminar",
+                "deleting": "Eliminando…",
+                "disabling": "Desactivando…",
+                "open": "Abrir acciones para {{name}}",
+                "none": "No hay acciones disponibles",
+                "disableDescription": "Guardar este host de redirección como desactivado.",
+                "enableDescription": "Guardar este host de redirección como activado.",
+                "deleteDescription": "Eliminar “{{name}}” permanentemente."
+            },
+            "confirm": {
+                "deleteTitle": "¿Eliminar el host de redirección?",
+                "deleteDescription": "Se eliminarán el host de redirección de “{{name}}” y todas sus asignaciones de dominio.",
+                "deleteWarning": "Esta acción no se puede deshacer.",
+                "deleteLabel": "Eliminar host de redirección",
+                "disableTitle": "¿Desactivar el host de redirección?",
+                "disableDescription": "Esto guarda el host de redirección como desactivado y lo elimina de la próxima configuración del runtime del proxy.",
+                "disableLabel": "Desactivar host de redirección",
+                "saveDisabled": "Guardar y desactivar"
+            },
+            "form": {
+                "description": "Guarda los dominios y un destino para la configuración del runtime del proxy.",
+                "editTitle": "Editar host de redirección",
+                "creating": "Creando…",
+                "domains": "Dominios",
+                "domainLabel": "Dominio {{number}}",
+                "domainPlaceholder": "example.com",
+                "removeDomain": "Eliminar dominio {{number}}",
+                "addDomain": "Añadir dominio",
+                "domainsHint": "Añade entre 1 y 50 nombres DNS. Aquí no se admiten comodines ni direcciones IP.",
+                "destination": "URL de destino",
+                "destinationPlaceholder": "https://example.com/new-path",
+                "destinationHint": "Usa una URL HTTP o HTTPS absoluta. No se permiten cadenas de consulta al conservar la URI de la solicitud.",
+                "statusCode": "Estado de redirección",
+                "certificate": "Certificado TLS",
+                "noCertificate": "Sin certificado",
+                "certificateHint": "Asigna un certificado válido para servir HTTPS en este host de redirección.",
+                "preserveRequestUri": "Conservar la URI de la solicitud",
+                "preserveRequestUriHint": "Añade la ruta y la cadena de consulta entrantes a la base del destino.",
+                "replaceRequestUri": "Reemplazar la URI de la solicitud",
+                "enabledHint": "Los hosts activados se incluyen en la próxima configuración del runtime del proxy.",
+                "statusReadOnly": "No tienes permiso para cambiar el estado guardado de este host de redirección."
+            },
+            "status": { "enabled": "Activado", "disabled": "Desactivado" },
+            "statusCodes": {
+                "301": "301 · Permanente",
+                "302": "302 · Encontrado",
+                "307": "307 · Temporal",
+                "308": "308 · Permanente"
+            },
+            "columns": {
+                "domains": "Dominios",
+                "destination": "Destino",
+                "statusCode": "Código de estado",
+                "certificate": "Certificado/HTTPS",
+                "status": "Estado",
+                "created": "Creado",
+                "actions": "Acciones"
+            },
+            "filters": {
+                "domains": "Filtrar dominios…",
+                "allStatusCodes": "Todos los códigos de estado",
+                "allStatuses": "Todos los estados",
+                "createdFrom": "Creado desde",
+                "createdTo": "Creado hasta"
+            },
+            "cells": { "https": "Certificado HTTPS", "http": "HTTP" },
+            "table": {
+                "eyebrow": "Configuración guardada",
+                "count_one": "{{count}} host de redirección",
+                "count_other": "{{count}} hosts de redirección",
+                "description": "Consulta los dominios, destinos y comportamientos de redirección guardados.",
+                "searchLabel": "Buscar hosts de redirección",
+                "searchPlaceholder": "Buscar dominios, destino, código o estado…",
+                "loading": "Cargando hosts de redirección",
+                "emptyTitle": "Aún no hay hosts de redirección",
+                "emptyDescription": "Añade un host de redirección para guardar un destino.",
+                "filteredEmptyTitle": "Ningún host de redirección coincide con tus filtros",
+                "filteredEmptyDescription": "Ajusta la búsqueda o restablece los filtros activos para ver más hosts de redirección.",
+                "itemLabel": "hosts de redirección"
+            },
+            "errors": {
+                "loadFailed": "No se pudieron cargar los hosts de redirección.",
+                "saveFailed": "No se pudo guardar el host de redirección.",
+                "deleteFailed": "No se pudo eliminar el host de redirección.",
+                "enableFailed": "No se pudo activar el host de redirección.",
+                "disableFailed": "No se pudo desactivar el host de redirección.",
+                "certificatesLoadFailed": "No se pudieron cargar los certificados.",
+                "host_not_found": "El host de redirección ya no existe.",
+                "domain_conflict": "Este dominio ya está asignado a otro host.",
+                "invalid_status_transition": "El host de redirección ya está en ese estado. Actualiza la lista y vuelve a intentarlo.",
+                "invalid_input": "Revisa los valores del host de redirección y vuelve a intentarlo."
+            },
+            "validation": {
+                "domain": "Introduce un nombre DNS válido sin URL, dirección IP ni comodín.",
+                "domainsRequired": "Añade al menos un dominio.",
+                "domainsLimit": "Un host de redirección no puede tener más de 50 dominios.",
+                "duplicateDomain": "Este dominio aparece más de una vez.",
+                "destination": "Introduce una URL HTTP o HTTPS absoluta válida, sin credenciales ni escapes no válidos."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Certificados",
@@ -1112,6 +1250,7 @@
             "roles": "Roles",
             "account": "Cuenta",
             "proxy_hosts": "Hosts proxy",
+            "redirect_hosts": "Hosts de redirección",
             "trusted_cas": "CA de confianza"
         },
         "app": {
@@ -1145,6 +1284,16 @@
             "disable": "Desactivar hosts proxy",
             "advanced_config": "Administrar la configuración experta de los hosts proxy"
         },
+        "redirect_hosts": {
+            "view": "View redirect hosts",
+            "create": "Create redirect hosts",
+            "update": "Update redirect hosts",
+            "delete": "Delete redirect hosts",
+            "enable": "Enable redirect hosts",
+            "disable": "Disable redirect hosts",
+            "apply": "Apply redirect configuration"
+        },
+
         "trusted_cas": {
             "view": "Ver CA de confianza",
             "create": "Importar CA de confianza",

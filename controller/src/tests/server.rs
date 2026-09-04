@@ -85,6 +85,7 @@ fn valid_payload() -> Vec<u8> {
         version: 1,
         revision: revision_for_hosts(&hosts),
         proxy_hosts: hosts,
+        redirect_hosts: Vec::new(),
         http_settings: ProxyHttpSettings::default(),
         trusted_cas: Vec::new(),
     })
@@ -128,6 +129,7 @@ fn custom_payload() -> Vec<u8> {
         version: 2,
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
+        redirect_hosts: Vec::new(),
         http_settings,
         trusted_cas: Vec::new(),
     })

@@ -3,7 +3,13 @@ import '@tanstack/react-start/server-only'
 import { and, asc, count, eq, inArray, notInArray } from 'drizzle-orm'
 import type { z } from 'zod'
 import { PERMISSIONS, type PermissionKey } from '../../../config/permissions.config'
-import { certificates, certificateDomains, proxyHosts, proxyHostDomains } from '../../../db/schema'
+import {
+    certificates,
+    certificateDomains,
+    hostDomains,
+    proxyHosts,
+    redirectHosts,
+} from '../../../db/schema'
 import {
     certificateIdInputSchema,
     importCertificateInputSchema,
@@ -133,17 +139,27 @@ async function readCertificateSummaries(): Promise<CertificateSummary[]> {
                 .select()
                 .from(certificateDomains)
                 .orderBy(asc(certificateDomains.domain))
-            const assignments = await transaction
+            const proxyAssignments = await transaction
                 .select({ certificateId: proxyHosts.certificateId, count: count() })
                 .from(proxyHosts)
                 .groupBy(proxyHosts.certificateId)
+            const redirectAssignments = await transaction
+                .select({ certificateId: redirectHosts.certificateId, count: count() })
+                .from(redirectHosts)
+                .groupBy(redirectHosts.certificateId)
             const domainsByCertificate = new Map<string, string[]>()
             for (const { certificateId, domain } of domains) {
                 const entries = domainsByCertificate.get(certificateId) ?? []
                 entries.push(domain)
                 domainsByCertificate.set(certificateId, entries)
             }
-            const counts = new Map(assignments.map((entry) => [entry.certificateId, entry.count]))
+            const counts = new Map<string | null, number>()
+            for (const entry of [...proxyAssignments, ...redirectAssignments]) {
+                counts.set(
+                    entry.certificateId,
+                    (counts.get(entry.certificateId) ?? 0) + entry.count,
+                )
+            }
             return rows.map((row) => ({
                 id: row.id,
                 name: row.name,
@@ -230,7 +246,11 @@ export async function getAssignableCertificatesService(): Promise<CertificateSum
     const actor = await requireUserService()
     const permission = actor.permissions.includes(PERMISSIONS.PROXY_HOSTS_UPDATE)
         ? PERMISSIONS.PROXY_HOSTS_UPDATE
-        : PERMISSIONS.PROXY_HOSTS_CREATE
+        : actor.permissions.includes(PERMISSIONS.PROXY_HOSTS_CREATE)
+          ? PERMISSIONS.PROXY_HOSTS_CREATE
+          : actor.permissions.includes(PERMISSIONS.REDIRECT_HOSTS_UPDATE)
+            ? PERMISSIONS.REDIRECT_HOSTS_UPDATE
+            : PERMISSIONS.REDIRECT_HOSTS_CREATE
     if (!actor.permissions.includes(permission))
         throw new AuthDomainError('permission_denied', 'Permission is required.')
     await synchronizeCertificateMetadata(actor.id, permission)
@@ -303,12 +323,17 @@ async function requiredCertificateDomains(
     transaction: AuthTransaction,
     certificateId: string,
 ): Promise<string[]> {
-    const rows = await transaction
-        .select({ domain: proxyHostDomains.domain })
+    const proxyRows = await transaction
+        .select({ domain: hostDomains.domain })
         .from(proxyHosts)
-        .innerJoin(proxyHostDomains, eq(proxyHostDomains.proxyHostId, proxyHosts.id))
+        .innerJoin(hostDomains, eq(hostDomains.proxyHostId, proxyHosts.id))
         .where(eq(proxyHosts.certificateId, certificateId))
-    return [...new Set(rows.map((row) => row.domain))].toSorted()
+    const redirectRows = await transaction
+        .select({ domain: hostDomains.domain })
+        .from(redirectHosts)
+        .innerJoin(hostDomains, eq(hostDomains.redirectHostId, redirectHosts.id))
+        .where(eq(redirectHosts.certificateId, certificateId))
+    return [...new Set([...proxyRows, ...redirectRows].map((row) => row.domain))].toSorted()
 }
 
 async function importCertificateMaterial(
@@ -417,12 +442,18 @@ export async function deleteCertificateService(certificateId: string): Promise<v
         await lockProxyRuntimeSettings(transaction)
         await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.CERTIFICATES_DELETE)
         await getCertificateRow(transaction, id)
-        const assigned = await transaction
+        const proxyAssigned = await transaction
             .select({ id: proxyHosts.id })
             .from(proxyHosts)
             .where(eq(proxyHosts.certificateId, id))
             .limit(1)
-        if (assigned.length > 0) throw new CertificateDomainError('certificate_in_use')
+        const redirectAssigned = await transaction
+            .select({ id: redirectHosts.id })
+            .from(redirectHosts)
+            .where(eq(redirectHosts.certificateId, id))
+            .limit(1)
+        if (proxyAssigned.length > 0 || redirectAssigned.length > 0)
+            throw new CertificateDomainError('certificate_in_use')
         await deleteControllerCertificate(id)
         await transaction.delete(certificates).where(eq(certificates.id, id))
     })

@@ -15,6 +15,10 @@ import {
     proxyHostDomainsSchema,
     proxyUpstreamTlsServerNameSchema,
 } from '../../features/Admin/ProxyHostManagement/validation'
+import {
+    normalizeRedirectDestination,
+    redirectStatusCodeSchema,
+} from '../../features/Admin/RedirectHostManagement/validation'
 import type {
     ProxyHttpSettings,
     ProxyRuntimeStatus,
@@ -24,10 +28,12 @@ import type {
     ProxyRuntimeHost,
     ProxyRuntimeSnapshot,
     ProxyRuntimeTrustedCa,
+    RedirectRuntimeHost,
 } from './Types/proxy-runtime.types'
 import { createTrustedCaInputSchema } from '../../features/Admin/TrustedCaManagement/validation'
 
 export const MAX_RUNTIME_PROXY_HOSTS = 1_000
+export const MAX_RUNTIME_DOMAINS = 50_000
 export const MAX_RUNTIME_PAYLOAD_BYTES = 16 * 1_024 * 1_024
 export const PROXY_RUNTIME_REVISION_PATTERN = /^sha256:[a-f0-9]{64}$/u
 
@@ -86,6 +92,15 @@ const runtimeHostSchema = z
             })
     })
 
+const runtimeRedirectHostSchema = z.object({
+    id: z.uuid(),
+    domains: proxyHostDomainsSchema,
+    destination: z.string(),
+    statusCode: redirectStatusCodeSchema,
+    preserveRequestUri: z.boolean(),
+    certificateId: z.uuid().nullish(),
+})
+
 function compareAscii(left: string, right: string): number {
     return left < right ? -1 : left > right ? 1 : 0
 }
@@ -95,15 +110,18 @@ export function createProxyRuntimeSnapshot(
     hosts: ReadonlyArray<ProxyRuntimeHost & { readonly enabled: boolean }>,
     httpSettings: ProxyHttpSettings = {},
     trustedCas: ReadonlyArray<ProxyRuntimeTrustedCa> = [],
+    redirects: ReadonlyArray<RedirectRuntimeHost & { readonly enabled: boolean }> = [],
 ): ProxyRuntimeSnapshot {
     const enabledHosts = hosts.filter((host) => host.enabled)
+    const enabledRedirects = redirects.filter((host) => host.enabled)
 
-    if (enabledHosts.length > MAX_RUNTIME_PROXY_HOSTS) {
+    if (enabledHosts.length + enabledRedirects.length > MAX_RUNTIME_PROXY_HOSTS) {
         throw new Error('Proxy runtime host limit exceeded.')
     }
 
     const ids = new Set<string>()
     const domains = new Set<string>()
+    let totalDomains = 0
     const proxyHosts = enabledHosts
         .map((input): ProxyRuntimeHost => {
             const host = runtimeHostSchema.parse(input)
@@ -115,6 +133,10 @@ export function createProxyRuntimeSnapshot(
 
             ids.add(id)
             for (const domain of host.domains) domains.add(domain)
+            totalDomains += host.domains.length
+            if (totalDomains > MAX_RUNTIME_DOMAINS) {
+                throw new Error('Proxy runtime domain limit exceeded.')
+            }
 
             const hostSettings = normalizeProxyHttpSettings(host.httpSettings ?? {})
             return Object.assign(
@@ -138,6 +160,41 @@ export function createProxyRuntimeSnapshot(
                           },
                       }
                     : {},
+            )
+        })
+        .toSorted((left, right) => compareAscii(left.id, right.id))
+    const redirectHosts = enabledRedirects
+        .map((input): RedirectRuntimeHost => {
+            const host = runtimeRedirectHostSchema.parse(input)
+            const id = host.id.toLowerCase()
+            const destination = normalizeRedirectDestination(
+                host.destination,
+                host.preserveRequestUri,
+            )
+
+            if (destination === null || destination !== host.destination) {
+                throw new Error('Proxy runtime snapshot contains an invalid redirect destination.')
+            }
+            if (ids.has(id) || host.domains.some((domain) => domains.has(domain))) {
+                throw new Error('Proxy runtime snapshot contains duplicate hosts or domains.')
+            }
+
+            ids.add(id)
+            for (const domain of host.domains) domains.add(domain)
+            totalDomains += host.domains.length
+            if (totalDomains > MAX_RUNTIME_DOMAINS) {
+                throw new Error('Proxy runtime domain limit exceeded.')
+            }
+
+            return Object.assign(
+                {
+                    id,
+                    domains: host.domains.toSorted(compareAscii),
+                    destination,
+                    statusCode: host.statusCode,
+                    preserveRequestUri: host.preserveRequestUri,
+                },
+                host.certificateId ? { certificateId: host.certificateId.toLowerCase() } : {},
             )
         })
         .toSorted((left, right) => compareAscii(left.id, right.id))
@@ -165,20 +222,29 @@ export function createProxyRuntimeSnapshot(
         // PEM and fingerprint were canonicalized together by the Controller before persistence.
         return { id, pem: parsed.pem, fingerprintSha256: parsed.fingerprintSha256 }
     })
-    const snapshot = hasUpstreamTls
-        ? ({
-              version: 5,
-              proxyHosts,
-              httpSettings: normalizedSettings,
-              trustedCas: referencedCas,
-          } as const)
-        : hasCertificates
-          ? ({ version: 4, proxyHosts, httpSettings: normalizedSettings } as const)
-          : hasHostSettings
-            ? ({ version: 3, proxyHosts, httpSettings: normalizedSettings } as const)
-            : Object.keys(normalizedSettings).length === 0
-              ? ({ version: 1, proxyHosts } as const)
-              : ({ version: 2, proxyHosts, httpSettings: normalizedSettings } as const)
+    const snapshot =
+        redirectHosts.length > 0
+            ? ({
+                  version: 6,
+                  proxyHosts,
+                  redirectHosts,
+                  httpSettings: normalizedSettings,
+                  trustedCas: referencedCas,
+              } as const)
+            : hasUpstreamTls
+              ? ({
+                    version: 5,
+                    proxyHosts,
+                    httpSettings: normalizedSettings,
+                    trustedCas: referencedCas,
+                } as const)
+              : hasCertificates
+                ? ({ version: 4, proxyHosts, httpSettings: normalizedSettings } as const)
+                : hasHostSettings
+                  ? ({ version: 3, proxyHosts, httpSettings: normalizedSettings } as const)
+                  : Object.keys(normalizedSettings).length === 0
+                    ? ({ version: 1, proxyHosts } as const)
+                    : ({ version: 2, proxyHosts, httpSettings: normalizedSettings } as const)
     const canonical = JSON.stringify(snapshot)
 
     if (Buffer.byteLength(canonical) + 100 > MAX_RUNTIME_PAYLOAD_BYTES) {

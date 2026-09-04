@@ -11,9 +11,11 @@ use crate::models::{ProxyConfigRequest, ProxyHttpSettings, TrustedCa, ValidatedP
 #[cfg(test)]
 pub(crate) use revision::revision_for_configuration;
 #[cfg(test)]
+pub(crate) use revision::revision_for_configuration_with_trusted_cas;
+#[cfg(test)]
 pub(crate) use revision::revision_for_hosts;
-use revision::{canonical_hosts, canonical_trusted_cas, is_revision};
-pub(crate) use revision::{revision_for_configuration_with_trusted_cas, revision_from_config};
+use revision::{canonical_hosts, canonical_redirect_hosts, canonical_trusted_cas, is_revision};
+pub(crate) use revision::{revision_for_configuration_with_redirects, revision_from_config};
 pub(crate) use trusted_ca::{
     MAX_TRUSTED_CA_PEM_BYTES, TrustedCaValidationRequest, validate_trusted_ca,
     validate_trusted_ca_pem,
@@ -33,7 +35,7 @@ pub(crate) enum ProxyValidationError {
 pub(crate) fn validate_proxy_config(
     mut request: ProxyConfigRequest,
 ) -> Result<ValidatedProxyConfig, ProxyValidationError> {
-    if !matches!(request.version, 1..=5) || !is_revision(&request.revision) {
+    if !matches!(request.version, 1..=6) || !is_revision(&request.revision) {
         return Err(ProxyValidationError::InvalidConfiguration);
     }
 
@@ -56,7 +58,11 @@ pub(crate) fn validate_proxy_config(
         .proxy_hosts
         .iter()
         .any(|host| host.upstream_tls.is_some());
-    if (request.version <= 4 && (has_upstream_tls_configuration || !request.trusted_cas.is_empty()))
+    let has_redirect_hosts = !request.redirect_hosts.is_empty();
+    if (request.version <= 5 && has_redirect_hosts)
+        || (request.version == 6 && !has_redirect_hosts)
+        || (request.version <= 4
+            && (has_upstream_tls_configuration || !request.trusted_cas.is_empty()))
         || (request.version == 1
             && (!request.http_settings.is_empty()
                 || has_host_configuration
@@ -76,11 +82,16 @@ pub(crate) fn validate_proxy_config(
         return Err(ProxyValidationError::ValidationFailed);
     }
 
-    if request.proxy_hosts.len() > MAX_PROXY_HOSTS {
+    if request
+        .proxy_hosts
+        .len()
+        .saturating_add(request.redirect_hosts.len())
+        > MAX_PROXY_HOSTS
+    {
         return Err(ProxyValidationError::ValidationFailed);
     }
 
-    let mut ids = HashSet::with_capacity(request.proxy_hosts.len());
+    let mut ids = HashSet::with_capacity(request.proxy_hosts.len() + request.redirect_hosts.len());
     let mut domains = HashSet::new();
     let mut total_domains = 0usize;
 
@@ -116,7 +127,34 @@ pub(crate) fn validate_proxy_config(
         }
     }
 
-    if request.version == 5 {
+    for host in &request.redirect_hosts {
+        if !is_canonical_uuid(&host.id)
+            || !ids.insert(host.id.as_str())
+            || host.domains.is_empty()
+            || host.domains.len() > MAX_DOMAINS_PER_HOST
+            || !has_valid_redirect_destination(&host.destination, host.preserve_request_uri)
+            || !matches!(host.status_code, 301 | 302 | 307 | 308)
+            || host
+                .certificate_id
+                .as_deref()
+                .is_some_and(|id| !is_canonical_uuid_v7(id))
+        {
+            return Err(ProxyValidationError::ValidationFailed);
+        }
+
+        total_domains = total_domains.saturating_add(host.domains.len());
+        if total_domains > MAX_TOTAL_DOMAINS {
+            return Err(ProxyValidationError::ValidationFailed);
+        }
+
+        for domain in &host.domains {
+            if !is_canonical_domain(domain) || !domains.insert(domain.as_str()) {
+                return Err(ProxyValidationError::ValidationFailed);
+            }
+        }
+    }
+
+    if matches!(request.version, 5 | 6) {
         if request
             .proxy_hosts
             .iter()
@@ -147,9 +185,11 @@ pub(crate) fn validate_proxy_config(
     }
 
     let canonical_hosts = canonical_hosts(&request.proxy_hosts);
+    let canonical_redirect_hosts = canonical_redirect_hosts(&request.redirect_hosts);
     let canonical_trusted_cas = canonical_trusted_cas(&request.trusted_cas);
-    let actual_revision = revision_for_configuration_with_trusted_cas(
+    let actual_revision = revision_for_configuration_with_redirects(
         &canonical_hosts,
+        &canonical_redirect_hosts,
         &request.http_settings,
         &canonical_trusted_cas,
     );
@@ -160,6 +200,7 @@ pub(crate) fn validate_proxy_config(
     Ok(ValidatedProxyConfig {
         revision: request.revision,
         proxy_hosts: canonical_hosts,
+        redirect_hosts: canonical_redirect_hosts,
         http_settings: request.http_settings,
         trusted_cas: canonical_trusted_cas,
     })
@@ -189,6 +230,105 @@ fn has_valid_upstream_tls(host: &crate::models::ProxyHost) -> bool {
         return false;
     }
     true
+}
+
+fn has_valid_redirect_destination(value: &str, preserve_request_uri: bool) -> bool {
+    if value.len() > 2_048 {
+        return false;
+    }
+    let authority_and_suffix = value
+        .strip_prefix("http://")
+        .or_else(|| value.strip_prefix("https://"));
+    let Some(authority_and_suffix) = authority_and_suffix else {
+        return false;
+    };
+
+    if value.bytes().any(|byte| {
+        byte.is_ascii_whitespace()
+            || byte.is_ascii_control()
+            || matches!(byte, b'$' | b'"' | b'\'' | b'\\' | b'{' | b'}')
+    }) {
+        return false;
+    }
+
+    let authority_end = authority_and_suffix
+        .bytes()
+        .position(|byte| matches!(byte, b'/' | b'?' | b'#'))
+        .unwrap_or(authority_and_suffix.len());
+    let authority = &authority_and_suffix[..authority_end];
+    if !has_valid_redirect_authority(authority) {
+        return false;
+    }
+
+    let bytes = value.as_bytes();
+    let mut index = 0;
+    let mut decoded = Vec::with_capacity(bytes.len());
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            if index + 2 >= bytes.len()
+                || !bytes[index + 1].is_ascii_hexdigit()
+                || !bytes[index + 2].is_ascii_hexdigit()
+            {
+                return false;
+            }
+            decoded.push(hex_value(bytes[index + 1]) * 16 + hex_value(bytes[index + 2]));
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+    let Ok(decoded) = std::str::from_utf8(&decoded) else {
+        return false;
+    };
+    if decoded.chars().any(|character| character.is_control()) {
+        return false;
+    }
+
+    !preserve_request_uri
+        || (!authority_and_suffix.contains('?')
+            && !authority_and_suffix.contains('#')
+            && !value.ends_with('/'))
+}
+
+fn has_valid_redirect_authority(authority: &str) -> bool {
+    if authority.is_empty() || authority.contains('@') {
+        return false;
+    }
+    if let Some(bracketed) = authority.strip_prefix('[') {
+        let Some(end) = bracketed.find(']') else {
+            return false;
+        };
+        if bracketed[..end].parse::<Ipv6Addr>().is_err() {
+            return false;
+        }
+        return has_valid_redirect_port(&bracketed[end + 1..]);
+    }
+    if authority.matches(':').count() > 1 {
+        return false;
+    }
+    match authority.split_once(':') {
+        Some((host, port)) => {
+            is_valid_forward_host(host) && port.parse::<u16>().is_ok_and(|port| port != 0)
+        }
+        None => is_valid_forward_host(authority),
+    }
+}
+
+fn has_valid_redirect_port(value: &str) -> bool {
+    value.is_empty()
+        || value
+            .strip_prefix(':')
+            .is_some_and(|port| port.parse::<u16>().is_ok_and(|port| port != 0))
+}
+
+fn hex_value(byte: u8) -> u8 {
+    match byte {
+        b'0'..=b'9' => byte - b'0',
+        b'a'..=b'f' => byte - b'a' + 10,
+        b'A'..=b'F' => byte - b'A' + 10,
+        _ => 0,
+    }
 }
 
 fn validate_and_canonicalize_trusted_cas(

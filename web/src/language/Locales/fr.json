@@ -44,6 +44,7 @@
         "collapseNavigation": "Réduire la navigation",
         "expandNavigation": "Développer la navigation",
         "proxyHosts": "Hôtes proxy",
+        "redirectHosts": "Hôtes de redirection",
         "certificates": "Certificats"
     },
     "language": {
@@ -690,7 +691,7 @@
                 "issuer": "Émetteur",
                 "issuedAt": "Délivré",
                 "fingerprint": "Empreinte",
-                "assignedHosts": "Hôtes proxy attribués"
+                "assignedHosts": "Hôtes attribués"
             },
             "import": {
                 "title": "Importer un certificat",
@@ -1025,6 +1026,143 @@
                 "caLoadFailed": "Impossible de charger les AC de confiance. La sélection actuelle est conservée."
             }
         },
+        "redirectHosts": {
+            "page": {
+                "eyebrow": "Gestion des redirections",
+                "title": "Hôtes de redirection",
+                "description": "Gérez les domaines qui redirigent les requêtes vers une autre adresse web."
+            },
+            "runtime": {
+                "title": "Moteur proxy",
+                "synced": "Moteur proxy synchronisé",
+                "syncedDescription": "La configuration active des redirections correspond à la configuration enregistrée.",
+                "pending": "Les modifications enregistrées sont en attente d’application.",
+                "pendingDescription": "La configuration active reste utilisée jusqu’à l’application des modifications enregistrées.",
+                "unavailable": "Le moteur proxy est indisponible.",
+                "unavailableDescription": "Les modifications de redirection restent en attente d’une application ultérieure.",
+                "apply": "Appliquer les modifications",
+                "applying": "Application…",
+                "applied": "Le moteur proxy a été mis à jour.",
+                "applyFailed": "Impossible de mettre à jour le moteur proxy.",
+                "savedPending": "Les modifications enregistrées sont en attente d’application."
+            },
+            "messages": {
+                "created": "Hôte de redirection créé.",
+                "updated": "Hôte de redirection mis à jour.",
+                "deleted": "Hôte de redirection supprimé.",
+                "enabled": "Hôte de redirection activé.",
+                "disabled": "Hôte de redirection désactivé."
+            },
+            "states": {
+                "unavailableTitle": "Les hôtes de redirection sont indisponibles",
+                "unavailableDescription": "Impossible de charger les hôtes de redirection enregistrés. Réessayez."
+            },
+            "actions": {
+                "add": "Ajouter un hôte de redirection",
+                "create": "Créer un hôte de redirection",
+                "edit": "Modifier",
+                "enable": "Activer",
+                "disable": "Désactiver",
+                "delete": "Supprimer",
+                "deleting": "Suppression…",
+                "disabling": "Désactivation…",
+                "open": "Ouvrir les actions pour {{name}}",
+                "none": "Aucune action disponible",
+                "disableDescription": "Enregistrer cet hôte de redirection comme désactivé.",
+                "enableDescription": "Enregistrer cet hôte de redirection comme activé.",
+                "deleteDescription": "Supprimer définitivement « {{name}} »."
+            },
+            "confirm": {
+                "deleteTitle": "Supprimer l’hôte de redirection ?",
+                "deleteDescription": "L’hôte de redirection de « {{name}} » et toutes ses associations de domaines seront supprimés.",
+                "deleteWarning": "Cette action est irréversible.",
+                "deleteLabel": "Supprimer l’hôte de redirection",
+                "disableTitle": "Désactiver l’hôte de redirection ?",
+                "disableDescription": "L’hôte de redirection sera enregistré comme désactivé et retiré de la prochaine configuration du moteur proxy.",
+                "disableLabel": "Désactiver l’hôte de redirection",
+                "saveDisabled": "Enregistrer et désactiver"
+            },
+            "form": {
+                "description": "Enregistrez les domaines et une destination pour la configuration du moteur proxy.",
+                "editTitle": "Modifier l’hôte de redirection",
+                "creating": "Création…",
+                "domains": "Domaines",
+                "domainLabel": "Domaine {{number}}",
+                "domainPlaceholder": "example.com",
+                "removeDomain": "Supprimer le domaine {{number}}",
+                "addDomain": "Ajouter un domaine",
+                "domainsHint": "Ajoutez 1 à 50 noms DNS. Les jokers et les adresses IP ne sont pas pris en charge ici.",
+                "destination": "URL de destination",
+                "destinationPlaceholder": "https://example.com/new-path",
+                "destinationHint": "Utilisez une URL HTTP ou HTTPS absolue. Les chaînes de requête sont interdites lorsque l’URI de la requête est conservée.",
+                "statusCode": "Statut de redirection",
+                "certificate": "Certificat TLS",
+                "noCertificate": "Aucun certificat",
+                "certificateHint": "Attribuez un certificat valide pour servir HTTPS sur cet hôte de redirection.",
+                "preserveRequestUri": "Conserver l’URI de la requête",
+                "preserveRequestUriHint": "Ajoutez le chemin et la chaîne de requête entrants à la base de destination.",
+                "replaceRequestUri": "Remplacer l’URI de la requête",
+                "enabledHint": "Les hôtes activés sont inclus dans la prochaine configuration du moteur proxy.",
+                "statusReadOnly": "Vous n’avez pas l’autorisation de modifier le statut enregistré de cet hôte de redirection."
+            },
+            "status": { "enabled": "Activé", "disabled": "Désactivé" },
+            "statusCodes": {
+                "301": "301 · Permanent",
+                "302": "302 · Trouvé",
+                "307": "307 · Temporaire",
+                "308": "308 · Permanent"
+            },
+            "columns": {
+                "domains": "Domaines",
+                "destination": "Destination",
+                "statusCode": "Code de statut",
+                "certificate": "Certificat/HTTPS",
+                "status": "Statut",
+                "created": "Créé",
+                "actions": "Actions"
+            },
+            "filters": {
+                "domains": "Filtrer les domaines…",
+                "allStatusCodes": "Tous les codes de statut",
+                "allStatuses": "Tous les statuts",
+                "createdFrom": "Créé à partir du",
+                "createdTo": "Créé jusqu’au"
+            },
+            "cells": { "https": "Certificat HTTPS", "http": "HTTP" },
+            "table": {
+                "eyebrow": "Configuration enregistrée",
+                "count_one": "{{count}} hôte de redirection",
+                "count_other": "{{count}} hôtes de redirection",
+                "description": "Consultez les domaines, destinations et comportements de redirection enregistrés.",
+                "searchLabel": "Rechercher des hôtes de redirection",
+                "searchPlaceholder": "Rechercher un domaine, une destination, un code ou un statut…",
+                "loading": "Chargement des hôtes de redirection",
+                "emptyTitle": "Aucun hôte de redirection",
+                "emptyDescription": "Ajoutez un hôte de redirection pour enregistrer une destination.",
+                "filteredEmptyTitle": "Aucun hôte de redirection ne correspond à vos filtres",
+                "filteredEmptyDescription": "Modifiez la recherche ou réinitialisez les filtres actifs pour afficher davantage d’hôtes de redirection.",
+                "itemLabel": "hôtes de redirection"
+            },
+            "errors": {
+                "loadFailed": "Impossible de charger les hôtes de redirection.",
+                "saveFailed": "Impossible d’enregistrer l’hôte de redirection.",
+                "deleteFailed": "Impossible de supprimer l’hôte de redirection.",
+                "enableFailed": "Impossible d’activer l’hôte de redirection.",
+                "disableFailed": "Impossible de désactiver l’hôte de redirection.",
+                "certificatesLoadFailed": "Impossible de charger les certificats.",
+                "host_not_found": "L’hôte de redirection n’existe plus.",
+                "domain_conflict": "Ce domaine est déjà attribué à un autre hôte.",
+                "invalid_status_transition": "L’hôte de redirection possède déjà ce statut. Actualisez la liste et réessayez.",
+                "invalid_input": "Vérifiez les valeurs de l’hôte de redirection et réessayez."
+            },
+            "validation": {
+                "domain": "Saisissez un nom DNS valide sans URL, adresse IP ni joker.",
+                "domainsRequired": "Ajoutez au moins un domaine.",
+                "domainsLimit": "Un hôte de redirection ne peut pas contenir plus de 50 domaines.",
+                "duplicateDomain": "Ce domaine est indiqué plusieurs fois.",
+                "destination": "Saisissez une URL HTTP ou HTTPS absolue valide, sans identifiants ni échappement invalide."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Certificats",
@@ -1112,6 +1250,7 @@
             "roles": "Rôles",
             "account": "Compte",
             "proxy_hosts": "Hôtes proxy",
+            "redirect_hosts": "Hôtes de redirection",
             "trusted_cas": "AC de confiance"
         },
         "app": {
@@ -1145,6 +1284,16 @@
             "disable": "Désactiver les hôtes proxy",
             "advanced_config": "Gérer la configuration experte des hôtes proxy"
         },
+        "redirect_hosts": {
+            "view": "View redirect hosts",
+            "create": "Create redirect hosts",
+            "update": "Update redirect hosts",
+            "delete": "Delete redirect hosts",
+            "enable": "Enable redirect hosts",
+            "disable": "Disable redirect hosts",
+            "apply": "Apply redirect configuration"
+        },
+
         "trusted_cas": {
             "view": "Afficher les AC de confiance",
             "create": "Importer des AC de confiance",

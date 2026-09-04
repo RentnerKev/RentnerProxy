@@ -44,6 +44,7 @@
         "collapseNavigation": "Navigation einklappen",
         "expandNavigation": "Navigation ausklappen",
         "proxyHosts": "Proxy-Hosts",
+        "redirectHosts": "Weiterleitungs-Hosts",
         "certificates": "Zertifikate"
     },
     "language": {
@@ -690,7 +691,7 @@
                 "issuer": "Aussteller",
                 "issuedAt": "Ausgestellt",
                 "fingerprint": "Fingerabdruck",
-                "assignedHosts": "Zugewiesene Proxy-Hosts"
+                "assignedHosts": "Zugewiesene Hosts"
             },
             "import": {
                 "title": "Zertifikat importieren",
@@ -1025,6 +1026,143 @@
                 "caLoadFailed": "Vertrauenswürdige CAs konnten nicht geladen werden. Die aktuelle Auswahl bleibt erhalten."
             }
         },
+        "redirectHosts": {
+            "page": {
+                "eyebrow": "Redirect-Verwaltung",
+                "title": "Redirect-Hosts",
+                "description": "Verwalten Sie Domains, die Anfragen an eine andere Webadresse weiterleiten."
+            },
+            "runtime": {
+                "title": "Proxy-Runtime",
+                "synced": "Proxy-Runtime synchronisiert",
+                "syncedDescription": "Die aktive Redirect-Konfiguration entspricht der gespeicherten Konfiguration.",
+                "pending": "Gespeicherte Änderungen warten auf die Anwendung.",
+                "pendingDescription": "Die aktive Konfiguration bleibt in Gebrauch, bis die gespeicherten Änderungen angewendet werden.",
+                "unavailable": "Proxy-Runtime nicht verfügbar.",
+                "unavailableDescription": "Gespeicherte Redirect-Änderungen bleiben für eine spätere Anwendung vorgemerkt.",
+                "apply": "Änderungen anwenden",
+                "applying": "Wird angewendet…",
+                "applied": "Proxy-Runtime erfolgreich aktualisiert.",
+                "applyFailed": "Die Proxy-Runtime konnte nicht aktualisiert werden.",
+                "savedPending": "Gespeicherte Änderungen warten auf die Anwendung."
+            },
+            "messages": {
+                "created": "Redirect-Host erfolgreich erstellt.",
+                "updated": "Redirect-Host erfolgreich aktualisiert.",
+                "deleted": "Redirect-Host erfolgreich gelöscht.",
+                "enabled": "Redirect-Host erfolgreich aktiviert.",
+                "disabled": "Redirect-Host erfolgreich deaktiviert."
+            },
+            "states": {
+                "unavailableTitle": "Redirect-Hosts nicht verfügbar",
+                "unavailableDescription": "Die gespeicherten Redirect-Hosts konnten nicht geladen werden. Versuchen Sie es erneut."
+            },
+            "actions": {
+                "add": "Redirect-Host hinzufügen",
+                "create": "Redirect-Host erstellen",
+                "edit": "Bearbeiten",
+                "enable": "Aktivieren",
+                "disable": "Deaktivieren",
+                "delete": "Löschen",
+                "deleting": "Wird gelöscht…",
+                "disabling": "Wird deaktiviert…",
+                "open": "Aktionen für {{name}} öffnen",
+                "none": "Keine Aktionen verfügbar",
+                "disableDescription": "Diesen Redirect-Host deaktiviert speichern.",
+                "enableDescription": "Diesen Redirect-Host aktiviert speichern.",
+                "deleteDescription": "„{{name}}“ dauerhaft entfernen."
+            },
+            "confirm": {
+                "deleteTitle": "Redirect-Host löschen?",
+                "deleteDescription": "Der Redirect-Host für „{{name}}“ und alle zugehörigen Domain-Zuweisungen werden entfernt.",
+                "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+                "deleteLabel": "Redirect-Host löschen",
+                "disableTitle": "Redirect-Host deaktivieren?",
+                "disableDescription": "Dadurch wird der Redirect-Host deaktiviert gespeichert und aus der nächsten Proxy-Runtime-Konfiguration entfernt.",
+                "disableLabel": "Redirect-Host deaktivieren",
+                "saveDisabled": "Deaktiviert speichern"
+            },
+            "form": {
+                "description": "Speichern Sie Domains und ein Ziel für die Proxy-Runtime-Konfiguration.",
+                "editTitle": "Redirect-Host bearbeiten",
+                "creating": "Wird erstellt…",
+                "domains": "Domains",
+                "domainLabel": "Domain {{number}}",
+                "domainPlaceholder": "example.com",
+                "removeDomain": "Domain {{number}} entfernen",
+                "addDomain": "Domain hinzufügen",
+                "domainsHint": "Fügen Sie 1–50 DNS-Namen hinzu. Wildcards und IP-Adressen werden hier nicht unterstützt.",
+                "destination": "Ziel-URL",
+                "destinationPlaceholder": "https://example.com/new-path",
+                "destinationHint": "Verwenden Sie eine absolute HTTP- oder HTTPS-URL. Abfragezeichenfolgen sind bei Beibehaltung der Request-URI nicht erlaubt.",
+                "statusCode": "Weiterleitungsstatus",
+                "certificate": "TLS-Zertifikat",
+                "noCertificate": "Kein Zertifikat",
+                "certificateHint": "Weisen Sie ein gültiges Zertifikat zu, um HTTPS für diesen Redirect-Host bereitzustellen.",
+                "preserveRequestUri": "Request-URI beibehalten",
+                "preserveRequestUriHint": "Den eingehenden Pfad und die Abfragezeichenfolge an die Zielbasis anhängen.",
+                "replaceRequestUri": "Request-URI ersetzen",
+                "enabledHint": "Aktivierte Hosts werden in die nächste Proxy-Runtime-Konfiguration aufgenommen.",
+                "statusReadOnly": "Sie haben keine Berechtigung, den gespeicherten Status dieses Redirect-Hosts zu ändern."
+            },
+            "status": { "enabled": "Aktiviert", "disabled": "Deaktiviert" },
+            "statusCodes": {
+                "301": "301 · Dauerhaft",
+                "302": "302 · Gefunden",
+                "307": "307 · Temporär",
+                "308": "308 · Dauerhaft"
+            },
+            "columns": {
+                "domains": "Domains",
+                "destination": "Ziel",
+                "statusCode": "Statuscode",
+                "certificate": "Zertifikat/HTTPS",
+                "status": "Status",
+                "created": "Erstellt",
+                "actions": "Aktionen"
+            },
+            "filters": {
+                "domains": "Domains filtern…",
+                "allStatusCodes": "Alle Statuscodes",
+                "allStatuses": "Alle Statuswerte",
+                "createdFrom": "Erstellt ab",
+                "createdTo": "Erstellt bis"
+            },
+            "cells": { "https": "HTTPS-Zertifikat", "http": "HTTP" },
+            "table": {
+                "eyebrow": "Gespeicherte Konfiguration",
+                "count_one": "{{count}} Redirect-Host",
+                "count_other": "{{count}} Redirect-Hosts",
+                "description": "Prüfen Sie gespeicherte Domains, Ziele und das Weiterleitungsverhalten.",
+                "searchLabel": "Redirect-Hosts durchsuchen",
+                "searchPlaceholder": "Domains, Ziel, Statuscode oder Status durchsuchen…",
+                "loading": "Redirect-Hosts werden geladen",
+                "emptyTitle": "Noch keine Redirect-Hosts",
+                "emptyDescription": "Fügen Sie einen Redirect-Host hinzu, um ein Ziel zu speichern.",
+                "filteredEmptyTitle": "Keine Redirect-Hosts passen zu Ihren Filtern",
+                "filteredEmptyDescription": "Passen Sie die Suche an oder setzen Sie die aktiven Filter zurück, um weitere Redirect-Hosts zu sehen.",
+                "itemLabel": "Redirect-Hosts"
+            },
+            "errors": {
+                "loadFailed": "Redirect-Hosts konnten nicht geladen werden.",
+                "saveFailed": "Der Redirect-Host konnte nicht gespeichert werden.",
+                "deleteFailed": "Der Redirect-Host konnte nicht gelöscht werden.",
+                "enableFailed": "Der Redirect-Host konnte nicht aktiviert werden.",
+                "disableFailed": "Der Redirect-Host konnte nicht deaktiviert werden.",
+                "certificatesLoadFailed": "Zertifikate konnten nicht geladen werden.",
+                "host_not_found": "Der Redirect-Host existiert nicht mehr.",
+                "domain_conflict": "Diese Domain ist bereits einem anderen Host zugewiesen.",
+                "invalid_status_transition": "Der Redirect-Host befindet sich bereits in diesem Status. Aktualisieren Sie die Liste und versuchen Sie es erneut.",
+                "invalid_input": "Prüfen Sie die Werte des Redirect-Hosts und versuchen Sie es erneut."
+            },
+            "validation": {
+                "domain": "Geben Sie einen gültigen DNS-Namen ohne URL, IP-Adresse oder Wildcard ein.",
+                "domainsRequired": "Fügen Sie mindestens eine Domain hinzu.",
+                "domainsLimit": "Ein Redirect-Host darf höchstens 50 Domains enthalten.",
+                "duplicateDomain": "Diese Domain ist mehr als einmal aufgeführt.",
+                "destination": "Geben Sie eine gültige absolute HTTP- oder HTTPS-URL ohne Zugangsdaten oder ungültige Escape-Sequenzen ein."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Zertifikate",
@@ -1112,6 +1250,7 @@
             "roles": "Rollen",
             "account": "Konto",
             "proxy_hosts": "Proxy-Hosts",
+            "redirect_hosts": "Weiterleitungs-Hosts",
             "trusted_cas": "Vertrauenswürdige CAs"
         },
         "app": {
@@ -1145,6 +1284,16 @@
             "disable": "Proxy-Hosts deaktivieren",
             "advanced_config": "Expertenkonfiguration für Proxy-Hosts verwalten"
         },
+        "redirect_hosts": {
+            "view": "View redirect hosts",
+            "create": "Create redirect hosts",
+            "update": "Update redirect hosts",
+            "delete": "Delete redirect hosts",
+            "enable": "Enable redirect hosts",
+            "disable": "Disable redirect hosts",
+            "apply": "Apply redirect configuration"
+        },
+
         "trusted_cas": {
             "view": "Vertrauenswürdige CAs anzeigen",
             "create": "Vertrauenswürdige CAs importieren",

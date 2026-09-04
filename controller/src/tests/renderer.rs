@@ -1,14 +1,32 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 use crate::{
-    models::{ProxyHttpSettings, TrustedCa, UpstreamTls, ValidatedProxyConfig},
+    models::{ProxyHttpSettings, RedirectHost, TrustedCa, UpstreamTls, ValidatedProxyConfig},
     proxy::validate_proxy_config,
     runtime::renderer::{
         RenderError, RenderSettings, TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings,
-        render_config, render_config_with_tls, render_host_config,
+        render_config, render_config_with_tls, render_host_config, render_host_sources,
     },
     tests::fixtures::{host, request, request_with_settings},
 };
+
+fn redirect_host(
+    id: &str,
+    domain: &str,
+    destination: &str,
+    status_code: u16,
+    preserve_request_uri: bool,
+    certificate_id: Option<&str>,
+) -> RedirectHost {
+    RedirectHost {
+        id: id.to_owned(),
+        domains: vec![domain.to_owned()],
+        destination: destination.to_owned(),
+        status_code,
+        preserve_request_uri,
+        certificate_id: certificate_id.map(ToOwned::to_owned),
+    }
+}
 
 #[test]
 fn renderer_is_deterministic_and_covers_proxy_defaults() {
@@ -305,6 +323,7 @@ fn renderer_applies_verified_custom_and_explicit_insecure_upstream_tls_policy() 
     let config = ValidatedProxyConfig {
         revision: format!("sha256:{}", "1".repeat(64)),
         proxy_hosts: vec![secure_host],
+        redirect_hosts: Vec::new(),
         http_settings: ProxyHttpSettings::default(),
         trusted_cas: vec![TrustedCa {
             id: custom_ca_id.to_owned(),
@@ -363,6 +382,7 @@ fn renderer_applies_verified_custom_and_explicit_insecure_upstream_tls_policy() 
     let insecure_config = ValidatedProxyConfig {
         revision: format!("sha256:{}", "3".repeat(64)),
         proxy_hosts: vec![insecure_ip_host],
+        redirect_hosts: Vec::new(),
         http_settings: ProxyHttpSettings::default(),
         trusted_cas: Vec::new(),
     };
@@ -404,6 +424,7 @@ fn renderer_rejects_nginx_metacharacters_in_system_ca_paths() {
     let configuration = ValidatedProxyConfig {
         revision: format!("sha256:{}", "4".repeat(64)),
         proxy_hosts: vec![upstream],
+        redirect_hosts: Vec::new(),
         http_settings: ProxyHttpSettings::default(),
         trusted_cas: Vec::new(),
     };
@@ -425,4 +446,141 @@ fn renderer_rejects_nginx_metacharacters_in_system_ca_paths() {
         },
     );
     assert_eq!(result, Err(RenderError::InvalidCertificatePath));
+}
+#[test]
+fn redirect_hosts_render_acme_exceptions_exact_targets_and_sources() {
+    let preserve = redirect_host(
+        "00000000-0000-0000-0000-000000000000",
+        "preserve.redirect.test",
+        "https://preserve.target.test",
+        301,
+        true,
+        None,
+    );
+    let exact = redirect_host(
+        "10000000-0000-0000-0000-000000000000",
+        "exact.redirect.test",
+        "https://exact.target.test/landing?campaign=fall",
+        308,
+        false,
+        None,
+    );
+    let configuration = ValidatedProxyConfig {
+        revision: format!("sha256:{}", "5".repeat(64)),
+        proxy_hosts: Vec::new(),
+        redirect_hosts: vec![preserve.clone(), exact.clone()],
+        http_settings: ProxyHttpSettings::default(),
+        trusted_cas: Vec::new(),
+    };
+    let settings = RenderSettings {
+        http_port: 8_080,
+        probe_socket: None,
+    };
+    let rendered = render_config(Some(&configuration), &settings)
+        .expect("redirect HTTP configuration should render");
+
+    assert!(rendered.contains("server_name preserve.redirect.test;"));
+    assert!(rendered.contains(
+        "location ^~ /.well-known/acme-challenge/ {\n            proxy_pass http://127.0.0.1:8081;"
+    ));
+    assert!(rendered.contains("return 301 \"https://preserve.target.test$request_uri\";"));
+    assert!(rendered.contains("return 308 \"https://exact.target.test/landing?campaign=fall\";"));
+    assert!(!rendered.contains("https://exact.target.test/landing?campaign=fall$request_uri"));
+
+    let sources = render_host_sources(&configuration, 8_080)
+        .expect("redirect host sources should render without collisions");
+    assert_eq!(sources.len(), 2);
+    assert!(
+        sources
+            .get(&preserve.id)
+            .expect("preserve redirect source should be present")
+            .contains("return 301 \"https://preserve.target.test$request_uri\";")
+    );
+    assert!(
+        sources
+            .get(&exact.id)
+            .expect("exact redirect source should be present")
+            .contains("return 308 \"https://exact.target.test/landing?campaign=fall\";")
+    );
+}
+
+#[test]
+fn redirect_tls_servers_require_certificates_and_use_managed_tls_policy() {
+    let certificate_id = "0198d98a-0000-7000-8000-000000000001";
+    let tls_redirect = redirect_host(
+        "00000000-0000-0000-0000-000000000000",
+        "tls.redirect.test",
+        "https://tls.target.test",
+        307,
+        true,
+        Some(certificate_id),
+    );
+    let http_only_redirect = redirect_host(
+        "10000000-0000-0000-0000-000000000000",
+        "http-only.redirect.test",
+        "https://http.target.test",
+        302,
+        false,
+        None,
+    );
+    let configuration = ValidatedProxyConfig {
+        revision: format!("sha256:{}", "6".repeat(64)),
+        proxy_hosts: Vec::new(),
+        redirect_hosts: vec![tls_redirect, http_only_redirect],
+        http_settings: ProxyHttpSettings::default(),
+        trusted_cas: Vec::new(),
+    };
+    let root = std::env::temp_dir().join("rentnerproxy-redirect-tls-renderer");
+    let certificate_path = root.join("fullchain.pem");
+    let private_key_path = root.join("private-key.pem");
+    let materials = BTreeMap::from([(
+        certificate_id.to_owned(),
+        TlsMaterial {
+            fullchain_path: certificate_path.clone(),
+            private_key_path: private_key_path.clone(),
+        },
+    )]);
+    let rendered = render_config_with_tls(
+        &configuration,
+        &RenderSettings {
+            http_port: 8_080,
+            probe_socket: None,
+        },
+        &TlsRenderSettings {
+            https_port: 8_443,
+            public_https_port: 443,
+            controller_port: 8_081,
+        },
+        &materials,
+        &UpstreamTlsRenderSettings {
+            system_ca_bundle: root.join("system-ca.pem"),
+            trusted_ca_paths: BTreeMap::new(),
+        },
+    )
+    .expect("TLS redirect configuration should render");
+
+    assert!(rendered.contains("listen 8443 ssl;\n        server_name tls.redirect.test;"));
+    assert!(!rendered.contains("listen 8443 ssl;\n        server_name http-only.redirect.test;"));
+    assert!(
+        rendered.contains(
+            format!(
+                "ssl_certificate {};",
+                certificate_path.to_string_lossy().replace('\\', "/")
+            )
+            .as_str()
+        )
+    );
+    assert!(
+        rendered.contains(
+            format!(
+                "ssl_certificate_key {};",
+                private_key_path.to_string_lossy().replace('\\', "/")
+            )
+            .as_str()
+        )
+    );
+    assert!(rendered.contains("ssl_protocols TLSv1.2 TLSv1.3;"));
+    assert!(rendered.contains("ssl_prefer_server_ciphers on;"));
+    assert!(rendered.contains("return 307 \"https://tls.target.test$request_uri\";"));
+    assert!(rendered.ends_with("}\n"));
 }

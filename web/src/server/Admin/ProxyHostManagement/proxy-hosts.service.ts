@@ -1,9 +1,9 @@
 import '@tanstack/react-start/server-only'
 
-import { and, asc, eq, inArray, ne } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNotNull, ne, or } from 'drizzle-orm'
 
 import { PERMISSIONS } from '../../../config/permissions.config'
-import { proxyHostDomains, proxyHosts } from '../../../db/schema'
+import { hostDomains, proxyHosts } from '../../../db/schema'
 import type { ProxyHostSummary } from '../../../shared/Types/proxy-hosts.types'
 import type { ProxyRuntimeMutationStatus } from '../../../shared/Types/proxy-runtime.types'
 import { reconcileProxyConfigurationService } from '../../ProxyRuntime/proxy-runtime.service'
@@ -102,10 +102,10 @@ async function loadProxyHostDomainsInTransaction(
     proxyHostId: string,
 ): Promise<Array<string>> {
     const rows = await transaction
-        .select({ domain: proxyHostDomains.domain })
-        .from(proxyHostDomains)
-        .where(eq(proxyHostDomains.proxyHostId, proxyHostId))
-        .orderBy(asc(proxyHostDomains.domain))
+        .select({ domain: hostDomains.domain })
+        .from(hostDomains)
+        .where(eq(hostDomains.proxyHostId, proxyHostId))
+        .orderBy(asc(hostDomains.domain))
 
     return rows.map((row) => row.domain)
 }
@@ -117,13 +117,19 @@ async function assertDomainsAvailableInTransaction(
 ): Promise<void> {
     const condition = currentProxyHostId
         ? and(
-              inArray(proxyHostDomains.domain, domains),
-              ne(proxyHostDomains.proxyHostId, currentProxyHostId),
+              inArray(hostDomains.domain, domains),
+              or(
+                  isNotNull(hostDomains.redirectHostId),
+                  and(
+                      isNotNull(hostDomains.proxyHostId),
+                      ne(hostDomains.proxyHostId, currentProxyHostId),
+                  ),
+              ),
           )
-        : inArray(proxyHostDomains.domain, domains)
+        : inArray(hostDomains.domain, domains)
     const conflicts = await transaction
-        .select({ domain: proxyHostDomains.domain })
-        .from(proxyHostDomains)
+        .select({ domain: hostDomains.domain })
+        .from(hostDomains)
         .where(condition)
         .limit(1)
 
@@ -137,9 +143,9 @@ async function replaceDomainsInTransaction(
     proxyHostId: string,
     domains: ReadonlyArray<string>,
 ): Promise<void> {
-    await transaction.delete(proxyHostDomains).where(eq(proxyHostDomains.proxyHostId, proxyHostId))
+    await transaction.delete(hostDomains).where(eq(hostDomains.proxyHostId, proxyHostId))
     await transaction
-        .insert(proxyHostDomains)
+        .insert(hostDomains)
         .values(domains.toSorted().map((domain) => ({ domain, proxyHostId })))
 }
 
@@ -178,7 +184,7 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
     const rows = await getAuthDatabase()
         .select({
             createdAt: proxyHosts.createdAt,
-            domain: proxyHostDomains.domain,
+            domain: hostDomains.domain,
             enabled: proxyHosts.enabled,
             certificateId: proxyHosts.certificateId,
             forceHttps: proxyHosts.forceHttps,
@@ -192,8 +198,8 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
             updatedAt: proxyHosts.updatedAt,
         })
         .from(proxyHosts)
-        .leftJoin(proxyHostDomains, eq(proxyHostDomains.proxyHostId, proxyHosts.id))
-        .orderBy(asc(proxyHosts.id), asc(proxyHostDomains.domain))
+        .leftJoin(hostDomains, eq(hostDomains.proxyHostId, proxyHosts.id))
+        .orderBy(asc(proxyHosts.id), asc(hostDomains.domain))
     const summaries = new Map<string, ProxyHostSummary>()
 
     for (const row of rows) {
@@ -295,7 +301,7 @@ export async function createProxyHostService(
             }
 
             await transaction
-                .insert(proxyHostDomains)
+                .insert(hostDomains)
                 .values(domains.map((domain) => ({ domain, proxyHostId: proxyHost.id })))
 
             return toProxyHostSummary(proxyHost, domains)

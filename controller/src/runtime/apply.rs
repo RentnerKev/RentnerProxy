@@ -48,6 +48,10 @@ impl ProxyRuntime {
                 .proxy_hosts
                 .iter()
                 .any(|host| host.certificate_id.as_deref() == Some(staged.id()))
+                || configuration
+                    .redirect_hosts
+                    .iter()
+                    .any(|host| host.certificate_id.as_deref() == Some(staged.id()))
         }) {
             return self.apply_locked(configuration, Some(&staged)).await;
         }
@@ -113,13 +117,13 @@ impl ProxyRuntime {
                 warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "active_snapshot", "active proxy snapshot was not persisted");
             }
             *self.active_configuration.lock().await = Some(configuration.clone());
-            info!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, hosts = configuration.proxy_hosts.len(), duration_ms = elapsed_millis(started_at), "proxy configuration unchanged");
+            info!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, hosts = configuration.proxy_hosts.len() + configuration.redirect_hosts.len(), duration_ms = elapsed_millis(started_at), "proxy configuration unchanged");
             return Ok(ApplyOutcome::Unchanged);
         }
         if atomic_write(&candidate_path, candidate.as_bytes()).is_err() {
             return Err(RuntimeError::ApplyFailed);
         }
-        info!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, hosts = configuration.proxy_hosts.len(), "proxy configuration candidate written");
+        info!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, hosts = configuration.proxy_hosts.len() + configuration.redirect_hosts.len(), "proxy configuration candidate written");
 
         match self.run_stage(engine.test_config(&candidate_path)).await {
             Ok(()) => {}
@@ -210,7 +214,7 @@ impl ProxyRuntime {
             warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "active_snapshot", "active proxy snapshot was not persisted");
         }
         *self.active_configuration.lock().await = Some(configuration.clone());
-        info!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, hosts = configuration.proxy_hosts.len(), duration_ms = elapsed_millis(started_at), "proxy configuration applied");
+        info!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, hosts = configuration.proxy_hosts.len() + configuration.redirect_hosts.len(), duration_ms = elapsed_millis(started_at), "proxy configuration applied");
         Ok(ApplyOutcome::Applied)
     }
 }

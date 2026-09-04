@@ -6,6 +6,8 @@ pub(crate) struct ProxyConfigRequest {
     pub(crate) version: u8,
     pub(crate) revision: String,
     pub(crate) proxy_hosts: Vec<ProxyHost>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) redirect_hosts: Vec<RedirectHost>,
     #[serde(default, skip_serializing_if = "ProxyHttpSettings::is_empty")]
     pub(crate) http_settings: ProxyHttpSettings,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -57,6 +59,18 @@ pub(crate) struct ProxyHost {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct RedirectHost {
+    pub(crate) id: String,
+    pub(crate) domains: Vec<String>,
+    pub(crate) destination: String,
+    pub(crate) status_code: u16,
+    pub(crate) preserve_request_uri: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) certificate_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub(crate) struct UpstreamTls {
     pub(crate) verify: bool,
     pub(crate) server_name: Option<String>,
@@ -77,6 +91,7 @@ pub(crate) struct ValidatedProxyConfig {
     pub(crate) proxy_hosts: Vec<ProxyHost>,
     pub(crate) http_settings: ProxyHttpSettings,
     pub(crate) trusted_cas: Vec<TrustedCa>,
+    pub(crate) redirect_hosts: Vec<RedirectHost>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

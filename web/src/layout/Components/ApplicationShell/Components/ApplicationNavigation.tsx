@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Award, Network } from 'lucide-react'
+import { ArrowRight, Award, Network } from 'lucide-react'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
 
@@ -26,6 +26,12 @@ export default function ApplicationNavigation({ items }: ApplicationNavigationPr
                 >
                     {item.to === '/proxy-hosts' ? (
                         <Network aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.8} />
+                    ) : item.to === '/redirect-hosts' ? (
+                        <ArrowRight
+                            aria-hidden="true"
+                            className="size-4 shrink-0"
+                            strokeWidth={1.8}
+                        />
                     ) : item.to === '/certificates' ? (
                         <Award aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.8} />
                     ) : (

@@ -210,7 +210,10 @@ async function readFileText(path: string): Promise<string> {
     return await Bun.file(path).text()
 }
 
-function snapshot(hosts: Array<Record<string, unknown>>) {
+function snapshot(
+    hosts: Array<Record<string, unknown>>,
+    redirects: Array<Record<string, unknown>> = [],
+) {
     const proxyHosts = hosts
         .map((input) => ({
             id: input.id,
@@ -224,14 +227,31 @@ function snapshot(hosts: Array<Record<string, unknown>>) {
             ...(input.forceHttps ? { forceHttps: true } : {}),
         }))
         .toSorted((left, right) => (String(left.id) < String(right.id) ? -1 : 1))
-    const version = proxyHosts.some((entry) => entry.certificateId !== undefined)
-        ? 4
-        : proxyHosts.some(
-                (entry) => Object.keys(entry.httpSettings ?? {}).length > 0 || entry.advancedConfig,
-            )
-          ? 3
-          : 1
-    const payload = { version, proxyHosts, ...(version === 1 ? {} : { httpSettings: {} }) }
+    const redirectHosts = redirects
+        .map((input) => ({
+            id: input.id,
+            domains: (input.domains as string[]).toSorted(),
+            destination: input.destination,
+            statusCode: input.statusCode,
+            preserveRequestUri: input.preserveRequestUri,
+            ...(input.certificateId === undefined ? {} : { certificateId: input.certificateId }),
+        }))
+        .toSorted((left, right) => (String(left.id) < String(right.id) ? -1 : 1))
+    const version =
+        redirectHosts.length > 0
+            ? 6
+            : proxyHosts.some((entry) => entry.certificateId !== undefined)
+              ? 4
+              : proxyHosts.some(
+                      (entry) =>
+                          Object.keys(entry.httpSettings ?? {}).length > 0 || entry.advancedConfig,
+                  )
+                ? 3
+                : 1
+    const payload =
+        version === 6
+            ? { version, proxyHosts, redirectHosts, httpSettings: {}, trustedCas: [] }
+            : { version, proxyHosts, ...(version === 1 ? {} : { httpSettings: {} }) }
     const canonical = JSON.stringify(payload)
     return {
         ...payload,
@@ -262,6 +282,17 @@ function host(
         forwardPort: port,
         ...(certificateId === undefined ? {} : { certificateId }),
         ...(forceHttps ? { forceHttps: true } : {}),
+    }
+}
+
+function redirectHost(id: string, domain: string, destination: string, certificateId?: string) {
+    return {
+        id,
+        domains: [domain],
+        destination,
+        statusCode: 308,
+        preserveRequestUri: true,
+        ...(certificateId === undefined ? {} : { certificateId }),
     }
 }
 
@@ -317,6 +348,11 @@ async function runSmoke(): Promise<void> {
         ])
         const first = await generateCertificateMaterial(temp, 'one.test', 'one.test')
         const second = await generateCertificateMaterial(temp, 'two.test', 'two.test')
+        const redirectCertificate = await generateCertificateMaterial(
+            temp,
+            'redirect.test',
+            'redirect.test',
+        )
         const mismatch = await generateCertificateMaterial(temp, 'mismatch.test', 'mismatch.test')
         const replacement = await generateCertificateMaterial(
             temp,
@@ -570,12 +606,19 @@ async function runSmoke(): Promise<void> {
 
         const firstId = uuidV7()
         const secondId = uuidV7()
+        const redirectCertificateId = uuidV7()
         const acmeId = uuidV7()
         const firstMetadata = await importCertificate(firstId, first, ['one.test'])
         const secondMetadata = await importCertificate(secondId, second, ['two.test'])
+        const redirectMetadata = await importCertificate(
+            redirectCertificateId,
+            redirectCertificate,
+            ['redirect.test'],
+        )
         assert.equal(firstMetadata.source, 'manual')
         assert.equal(secondMetadata.source, 'manual')
-        const preImportMetadata = JSON.stringify([firstMetadata, secondMetadata])
+        assert.equal(redirectMetadata.source, 'manual')
+        const preImportMetadata = JSON.stringify([firstMetadata, secondMetadata, redirectMetadata])
         assert.equal(preImportMetadata.includes('BEGIN '), false)
         assert.equal(preImportMetadata.includes('PRIVATE KEY'), false)
         assert.equal(preImportMetadata.includes(temp), false)
@@ -604,7 +647,13 @@ async function runSmoke(): Promise<void> {
         const two = host(uuidV7(), 'two.test', backend.port!, secondId, true)
         const acmeHost = host(uuidV7(), 'acme.invalid', backend.port!)
         const plainHost = host(uuidV7(), 'plain.invalid', backend.port!)
-        const initialSnapshot = snapshot([one, two, plainHost])
+        const httpsRedirect = redirectHost(
+            uuidV7(),
+            'redirect.test',
+            'https://new.example.test/base',
+            redirectCertificateId,
+        )
+        const initialSnapshot = snapshot([one, two, plainHost], [httpsRedirect])
         const preview = await controllerRequest('/internal/v1/proxy/config/preview', {
             method: 'POST',
             body: JSON.stringify(initialSnapshot),
@@ -632,6 +681,33 @@ async function runSmoke(): Promise<void> {
         ])
         assert.match(httpsOne, /certificate-smoke-backend/u)
         assert.match(httpsTwo, /certificate-smoke-backend/u)
+        const upstreamCountBeforeRedirect = upstreamRequests.length
+        const redirectOverHttps = await curl([
+            '--include',
+            '--cacert',
+            temp + '/ca.pem',
+            '--resolve',
+            'redirect.test:' + httpsPort + ':127.0.0.1',
+            'https://redirect.test:' + httpsPort + '/real/path?query=a%2Fb',
+        ])
+        assert.match(redirectOverHttps, /HTTP\/1\.1 308/u)
+        assert.match(
+            redirectOverHttps,
+            /Location: https:\/\/new\.example\.test\/base\/real\/path\?query=a%2Fb/iu,
+        )
+        const redirectOverHttp = await curl([
+            '--include',
+            httpUrl + '/plain/path?query=1',
+            '--header',
+            'Host: redirect.test',
+        ])
+        assert.match(redirectOverHttp, /HTTP\/1\.1 308/u)
+        assert.match(
+            redirectOverHttp,
+            /Location: https:\/\/new\.example\.test\/base\/plain\/path\?query=1/iu,
+        )
+        assert.equal(upstreamRequests.length, upstreamCountBeforeRedirect)
+        passed('first-class redirect host serves matching HTTP and certificate-backed HTTPS SNI')
         const servedOne = await openssl(
             [
                 's_client',

@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import { boolean, check, index, integer, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 
 import type { ProxyHostForwardScheme } from '../../config/proxy-hosts.config'
+import type { RedirectHostStatusCode } from '../../config/redirect-hosts.config'
 import { rentnerProxySchema } from './base'
 import { certificates } from './certificates'
 import { trustedCas } from './trustedCas'
@@ -53,27 +54,60 @@ export const proxyHosts = rentnerProxySchema.table(
     ],
 )
 
-export const proxyHostDomains = rentnerProxySchema.table(
-    'proxy_host_domains',
+export const redirectHosts = rentnerProxySchema.table(
+    'redirect_hosts',
     {
         id: uuid('id')
             .primaryKey()
             .default(sql`uuidv7()`),
-        proxyHostId: uuid('proxy_host_id')
+        destination: varchar('destination', { length: 2_048 }).notNull(),
+        statusCode: integer('status_code').$type<RedirectHostStatusCode>().notNull().default(302),
+        preserveRequestUri: boolean('preserve_request_uri').notNull().default(true),
+        enabled: boolean('enabled').notNull().default(true),
+        certificateId: uuid('certificate_id').references(() => certificates.id, {
+            onDelete: 'restrict',
+        }),
+        createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
             .notNull()
-            .references(() => proxyHosts.id, { onDelete: 'cascade' }),
-        domain: varchar('domain', { length: 253 })
+            .defaultNow(),
+        updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
             .notNull()
-            .unique('proxy_host_domains_domain_unique'),
+            .defaultNow(),
+    },
+    (table) => [
+        check('redirect_hosts_status_code_check', sql`${table.statusCode} in (301, 302, 307, 308)`),
+        index('redirect_hosts_enabled_idx').on(table.enabled),
+        index('redirect_hosts_certificate_id_idx').on(table.certificateId),
+    ],
+)
+
+export const hostDomains = rentnerProxySchema.table(
+    'host_domains',
+    {
+        id: uuid('id')
+            .primaryKey()
+            .default(sql`uuidv7()`),
+        proxyHostId: uuid('proxy_host_id').references(() => proxyHosts.id, {
+            onDelete: 'cascade',
+        }),
+        redirectHostId: uuid('redirect_host_id').references(() => redirectHosts.id, {
+            onDelete: 'cascade',
+        }),
+        domain: varchar('domain', { length: 253 }).notNull().unique('host_domains_domain_unique'),
         createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
             .notNull()
             .defaultNow(),
     },
     (table) => [
         check(
-            'proxy_host_domains_domain_canonical_check',
+            'host_domains_domain_canonical_check',
             sql`${table.domain} ~ '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?([.][a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$' and ${table.domain} !~ '^[0-9.]+$'`,
         ),
-        index('proxy_host_domains_proxy_host_id_idx').on(table.proxyHostId),
+        check(
+            'host_domains_exactly_one_owner_check',
+            sql`num_nonnulls(${table.proxyHostId}, ${table.redirectHostId}) = 1`,
+        ),
+        index('host_domains_proxy_host_id_idx').on(table.proxyHostId),
+        index('host_domains_redirect_host_id_idx').on(table.redirectHostId),
     ],
 )

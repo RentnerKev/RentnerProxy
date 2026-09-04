@@ -15,6 +15,7 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedCertificatesRouteImport } from './routes/_authenticated/certificates'
 import { Route as AuthenticatedProxyHostsRouteImport } from './routes/_authenticated/proxy-hosts'
+import { Route as AuthenticatedRedirectHostsRouteImport } from './routes/_authenticated/redirect-hosts'
 import { Route as AuthenticatedRolesRouteImport } from './routes/_authenticated/roles'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as PublicAcceptInviteRouteImport } from './routes/_public/accept-invite'
@@ -56,6 +57,12 @@ const AuthenticatedProxyHostsRoute = AuthenticatedProxyHostsRouteImport.update({
   path: '/proxy-hosts',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRedirectHostsRoute =
+  AuthenticatedRedirectHostsRouteImport.update({
+    id: '/redirect-hosts',
+    path: '/redirect-hosts',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedRolesRoute = AuthenticatedRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
@@ -117,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AuthenticatedAccountRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
+  '/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
   '/roles': typeof AuthenticatedRolesRoute
   '/users': typeof AuthenticatedUsersRoute
   '/accept-invite': typeof PublicAcceptInviteRoute
@@ -134,6 +142,7 @@ export interface FileRoutesByTo {
   '/account': typeof AuthenticatedAccountRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
+  '/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
   '/roles': typeof AuthenticatedRolesRoute
   '/users': typeof AuthenticatedUsersRoute
   '/accept-invite': typeof PublicAcceptInviteRoute
@@ -153,6 +162,7 @@ export interface FileRoutesById {
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/certificates': typeof AuthenticatedCertificatesRoute
   '/_authenticated/proxy-hosts': typeof AuthenticatedProxyHostsRoute
+  '/_authenticated/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
   '/_authenticated/roles': typeof AuthenticatedRolesRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_public/accept-invite': typeof PublicAcceptInviteRoute
@@ -173,6 +183,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/certificates'
     | '/proxy-hosts'
+    | '/redirect-hosts'
     | '/roles'
     | '/users'
     | '/accept-invite'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/certificates'
     | '/proxy-hosts'
+    | '/redirect-hosts'
     | '/roles'
     | '/users'
     | '/accept-invite'
@@ -208,6 +220,7 @@ export interface FileRouteTypes {
     | '/_authenticated/account'
     | '/_authenticated/certificates'
     | '/_authenticated/proxy-hosts'
+    | '/_authenticated/redirect-hosts'
     | '/_authenticated/roles'
     | '/_authenticated/users'
     | '/_public/accept-invite'
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       path: '/proxy-hosts'
       fullPath: '/proxy-hosts'
       preLoaderRoute: typeof AuthenticatedProxyHostsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/redirect-hosts': {
+      id: '/_authenticated/redirect-hosts'
+      path: '/redirect-hosts'
+      fullPath: '/redirect-hosts'
+      preLoaderRoute: typeof AuthenticatedRedirectHostsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/roles': {
@@ -358,6 +378,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedCertificatesRoute: typeof AuthenticatedCertificatesRoute
   AuthenticatedProxyHostsRoute: typeof AuthenticatedProxyHostsRoute
+  AuthenticatedRedirectHostsRoute: typeof AuthenticatedRedirectHostsRoute
   AuthenticatedRolesRoute: typeof AuthenticatedRolesRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -367,6 +388,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedCertificatesRoute: AuthenticatedCertificatesRoute,
   AuthenticatedProxyHostsRoute: AuthenticatedProxyHostsRoute,
+  AuthenticatedRedirectHostsRoute: AuthenticatedRedirectHostsRoute,
   AuthenticatedRolesRoute: AuthenticatedRolesRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,

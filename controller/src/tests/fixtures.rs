@@ -50,6 +50,7 @@ pub(super) fn request_with_settings(
         version,
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
+        redirect_hosts: Vec::new(),
         http_settings,
         trusted_cas: Vec::new(),
     }
