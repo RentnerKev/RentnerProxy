@@ -33,6 +33,7 @@ COPY --from=web-build /app/web/dist ./web/dist
 COPY --from=web-build /app/web/drizzle ./web/drizzle
 COPY --from=web-build /build/migrate.js ./migrate.js
 COPY --from=web-build /app/docker/web/bootstrap-secrets.mjs ./docker/web/bootstrap-secrets.mjs
+COPY --from=web-build /app/docker/web/request-context.ts ./docker/web/request-context.ts
 COPY --from=web-build /app/docker/web/serve.mjs ./docker/web/serve.mjs
 COPY --from=web-build /app/docker/web/healthcheck.mjs ./docker/web/healthcheck.mjs
 
@@ -70,7 +71,8 @@ RUN apt-get update \
     && install -d -m 0700 -o postgres -g postgres /var/lib/rentnerproxy/postgres-data \
     && install -d -m 0700 -o rentnerproxy -g rentnerproxy /var/lib/rentnerproxy/proxy \
     && install -d -m 0700 -o root -g root /var/lib/rentnerproxy/bootstrap \
-    && install -d -m 2775 -o postgres -g postgres /var/run/postgresql \
+    && install -d -m 0700 -o postgres -g postgres /var/run/postgresql \
+    && chmod 00700 /var/run/postgresql \
     && install -d -m 0755 /opt/rentnerproxy/redis/bin
 
 COPY --from=web-runtime /usr/local/bin/bun /usr/local/bin/bun

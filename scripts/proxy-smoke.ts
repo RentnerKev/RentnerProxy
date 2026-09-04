@@ -11,7 +11,7 @@ import { SQL } from 'bun'
 import { startTestUpstream } from './proxy-test-upstream'
 
 const POSTGRES_IMAGE =
-    'postgres:18.4-bookworm@sha256:882236b897e39051d2368c5ccc6cda944904723506b2dfc97f2a8f5bc9afa382'
+    'postgres:18.6@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280'
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const project = 'rentnerproxy-smoke-' + runId
@@ -414,6 +414,32 @@ async function runSmoke(): Promise<void> {
         assert.ok(forwarded['x-forwarded-for'].includes(forwarded['x-real-ip']))
         assert.equal(forwarded['x-forwarded-proto'], 'http')
         passed('Host, X-Real-IP, X-Forwarded-For and X-Forwarded-Proto')
+        const spoofedResponse = await fetch(proxyUrl + path, {
+            headers: {
+                host: 'demo.test',
+                connection: 'close',
+                'x-real-ip': '203.0.113.99',
+                'x-forwarded-for': '203.0.113.99, 127.0.0.1',
+                'x-forwarded-host': 'attacker.test',
+                'x-forwarded-port': '1',
+                'x-forwarded-prefix': '/attacker',
+                'x-forwarded-proto': 'https',
+                forwarded: 'for=127.0.0.1;host=attacker.test;proto=https',
+                proxy: 'http://attacker.test:8080',
+            },
+        })
+        assert.equal(spoofedResponse.status, 200)
+        const sanitized = await spoofedResponse.json()
+        assert.notEqual(sanitized['x-real-ip'], '203.0.113.99')
+        assert.equal(sanitized['x-forwarded-for'], sanitized['x-real-ip'])
+        assert.equal(sanitized['x-forwarded-host'], 'demo.test')
+        assert.equal(sanitized['x-forwarded-proto'], 'http')
+        assert.equal(sanitized['x-forwarded-port'], null)
+        assert.equal(sanitized['x-forwarded-prefix'], null)
+        assert.equal(sanitized.forwarded, null)
+        assert.equal(sanitized.proxy, null)
+        assert.doesNotMatch(spoofedResponse.headers.get('server') ?? '', /[0-9]/u)
+        passed('public proxy replaces forged forwarding headers and hides its version')
 
         const redirectInput = {
             domains: ['redirect.test'],

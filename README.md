@@ -92,8 +92,10 @@ The image contains the web application, controller, OpenResty, PostgreSQL, and R
 start it runs migrations and generates the database password, database URL, application
 encryption key, and controller token automatically. They remain in the `rentnerproxy` volume and
 are reused after updates or container recreation. The proxy listens on ports `80` and `443`; the
-management UI is available on `http://localhost:81`. During first-owner setup, enter the public
-management address that users will open in their browser.
+management UI is available only on the Docker host at `http://localhost:81` by default. During first-owner setup, enter the public
+management address that users will open in their browser. For remote setup, use an SSH tunnel
+(`ssh -L 8181:127.0.0.1:81 user@server`, then open `http://localhost:8181`) or deliberately
+configure an HTTPS-protected management entry point before exposing it.
 
 ## Development
 

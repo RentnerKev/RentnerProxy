@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
+import { request as httpRequest } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -244,7 +245,7 @@ async function runSmoke(): Promise<void> {
     const temporaryCompose = rootCompose
         .replace('ghcr.io/rentnerkev/rentnerproxy:latest', imageTag)
         .replace("- '80:8080'", `- '127.0.0.1:${httpPort}:8080'`)
-        .replace("- '81:3000'", `- '127.0.0.1:${managementPort}:3000'`)
+        .replace("- '127.0.0.1:81:3000'", `- '127.0.0.1:${managementPort}:3000'`)
         .replace("- '443:8443'", `- '127.0.0.1:${httpsPort}:8443'`)
         .replace('- rentnerproxy:/var/lib/rentnerproxy', `- ${volumeName}:/var/lib/rentnerproxy`)
         .replace('\nvolumes:\n    rentnerproxy:\n', `\nvolumes:\n    ${volumeName}:\n`)
@@ -275,6 +276,9 @@ async function runSmoke(): Promise<void> {
                     environment?: Record<string, string>
                     ports?: Array<{ published: string; target: number }>
                     volumes?: Array<{ source?: string; target: string }>
+                    cap_drop?: string[]
+                    cap_add?: string[]
+                    security_opt?: string[]
                 }
             >
             volumes?: Record<string, unknown>
@@ -296,13 +300,64 @@ async function runSmoke(): Promise<void> {
             (service.volumes ?? []).map(({ source, target }) => ({ source, target })),
             [{ source: volumeName, target: '/var/lib/rentnerproxy' }],
         )
-        passed('appliance Compose renders as one service with only SMTP env, ports, and one volume')
+        assert.deepEqual(service.cap_drop, ['ALL'])
+        assert.deepEqual(service.cap_add?.toSorted(), [
+            'CHOWN',
+            'DAC_OVERRIDE',
+            'FOWNER',
+            'KILL',
+            'SETGID',
+            'SETUID',
+        ])
+        assert.ok(service.security_opt?.includes('no-new-privileges:true'))
+        passed('appliance Compose keeps private management and minimal bootstrap capabilities')
 
         await commandFails([...compose, 'down', '--volumes', '--remove-orphans'], 180_000)
         await command([...compose, 'up', '--detach'], 900_000)
         const id = await containerId(compose)
         await waitForHealthy(id)
         passed('empty appliance volume builds and starts healthy')
+        const roleState = await command([
+            'docker',
+            'exec',
+            id,
+            'gosu',
+            'postgres',
+            'psql',
+            '--no-psqlrc',
+            '--no-password',
+            '--host=/var/run/postgresql',
+            '--username=postgres',
+            '--dbname=postgres',
+            '--tuples-only',
+            '--no-align',
+            '--command',
+            "SELECT rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls FROM pg_roles WHERE rolname = 'rentnerproxy'; SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = 'rentnerproxy'; SELECT rolpassword IS NULL FROM pg_authid WHERE rolname = 'postgres';",
+        ])
+        assert.deepEqual(roleState.split(/\r?\n/u), ['f|f|f|f|f', 'rentnerproxy', 't'])
+        assert.equal(
+            await command(['docker', 'exec', id, 'stat', '-c', '%a:%U', '/var/run/postgresql']),
+            '700:postgres',
+        )
+        assert.ok(
+            await commandFails([
+                'docker',
+                'exec',
+                '--user',
+                '10001:10001',
+                id,
+                'psql',
+                '--no-psqlrc',
+                '--no-password',
+                '--host=/var/run/postgresql',
+                '--username=postgres',
+                '--dbname=postgres',
+                '--command=SELECT 1',
+            ]),
+        )
+        passed(
+            'application database role has no administrative privileges and cannot use bootstrap socket',
+        )
 
         const setup = await httpStatus('http://127.0.0.1:' + managementPort + '/setup')
         assert.equal(setup.status, 200)
@@ -316,6 +371,28 @@ async function runSmoke(): Promise<void> {
         const proxy = await httpStatus('http://127.0.0.1:' + httpPort + '/')
         assert.ok(proxy.status >= 200 && proxy.status < 500)
         passed('setup, liveness, readiness, and proxy HTTP endpoints respond')
+        // Send headers only: Bun rejects the declared size before receiving a large body.
+        // Fetch can surface a socket error if it is still uploading when that rejection closes it.
+        const oversizedStatus = await new Promise<number | undefined>((resolveStatus, reject) => {
+            const request = httpRequest(
+                'http://127.0.0.1:' + managementPort + '/health/live',
+                {
+                    method: 'POST',
+                    headers: { 'Content-Length': String(12 * 1024 * 1024 + 1) },
+                },
+                (response) => {
+                    response.resume()
+                    resolveStatus(response.statusCode)
+                },
+            )
+            request.on('error', reject)
+            request.setTimeout(5_000, () =>
+                request.destroy(new Error('body-limit probe timed out')),
+            )
+            request.end()
+        })
+        assert.equal(oversizedStatus, 413)
+        passed('web listener rejects oversized request bodies before application processing')
 
         const portBindings = JSON.parse(
             await inspect(id, '{{json .HostConfig.PortBindings}}'),

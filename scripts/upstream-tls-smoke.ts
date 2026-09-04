@@ -17,7 +17,7 @@ const stateVolume = network + '-state'
 const runtimeImage = network + ':runtime'
 const token = randomBytes(32).toString('hex')
 const openrestyImage =
-    'openresty/openresty:1.31.1.1-1-bookworm@sha256:4fdf7340201eed756bcce33b8642bf822f7b14dd6415f45e08ced5cc1924d617'
+    'openresty/openresty:1.31.1.1-2-bookworm@sha256:f03133864fb753a546a5393305a909296fae094725d0271fa07a4c6508ea4219'
 const tempDirectory = await mkdtemp(join(tmpdir(), 'rentnerproxy-upstream-tls-smoke-'))
 let assertions = 0
 let httpPort = 0

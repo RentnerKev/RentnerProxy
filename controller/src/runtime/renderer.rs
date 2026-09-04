@@ -40,6 +40,7 @@ pub(crate) enum RenderError {
     InvalidCertificatePath,
     MissingCertificate,
     MissingTrustedCa,
+    MissingUpstreamTlsPolicy,
     ConfigTooLarge,
 }
 
@@ -65,7 +66,7 @@ fn render_config_with_ports(
         .transpose()?;
 
     let mut output = format!(
-        "# rentnerproxy-revision: {revision}\nworker_processes 1;\npid engine.pid;\nerror_log stderr warn;\n\nevents {{\n    worker_connections 1024;\n}}\n\nhttp {{\n    server_names_hash_bucket_size 512;\n    server_names_hash_max_size 65536;\n    access_log off;\n\n    map $http_upgrade $connection_upgrade {{\n        default upgrade;\n        '' close;\n    }}\n\n    server {{\n        listen {} default_server;\n        server_name _;\n\n        location ^~ /.well-known/acme-challenge/ {{\n            proxy_pass http://127.0.0.1:{controller_port};\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_pass_request_body off;\n            proxy_set_header Content-Length \"\";\n            proxy_set_header Connection \"\";\n        }}\n\n        location / {{\n            return 404;\n        }}\n    }}\n",
+        "# rentnerproxy-revision: {revision}\nworker_processes auto;\npid engine.pid;\nerror_log stderr warn;\n\nevents {{\n    worker_connections 1024;\n}}\n\nhttp {{\n    server_names_hash_bucket_size 512;\n    server_names_hash_max_size 65536;\n    access_log off;\n    server_tokens off;\n    sendfile on;\n    tcp_nopush on;\n    client_header_timeout 15s;\n    reset_timedout_connection on;\n\n    # Shared TLS policy also applies to the default SNI server.\n    ssl_protocols TLSv1.2 TLSv1.3;\n    ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;\n    ssl_prefer_server_ciphers on;\n    ssl_session_cache shared:rentnerproxy_tls:10m;\n    ssl_session_timeout 10m;\n    ssl_session_tickets off;\n\n    map $http_upgrade $connection_upgrade {{\n        default upgrade;\n        '' close;\n    }}\n\n    server {{\n        listen {} default_server;\n        server_name _;\n\n        location ^~ /.well-known/acme-challenge/ {{\n            proxy_pass http://127.0.0.1:{controller_port};\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_pass_request_body off;\n            proxy_set_header Content-Length \"\";\n            proxy_set_header Connection \"\";\n        }}\n\n        location / {{\n            return 404;\n        }}\n    }}\n",
         settings.http_port
     );
 
@@ -174,7 +175,7 @@ fn render_tls_server(
         host.forward_scheme, host.forward_port
     );
     let mut output = format!(
-        "    server {{\n        listen {} ssl;\n        server_name {};\n        ssl_certificate {certificate};\n        ssl_certificate_key {private_key};\n        ssl_protocols TLSv1.2 TLSv1.3;\n        ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;\n        ssl_prefer_server_ciphers on;\n\n        location / {{\n            proxy_pass {upstream};\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_set_header X-Real-IP $remote_addr;\n            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n            proxy_set_header X-Forwarded-Proto $scheme;\n            proxy_set_header Upgrade $http_upgrade;\n            proxy_set_header Connection $connection_upgrade;\n",
+        "    server {{\n        listen {} ssl;\n        server_name {};\n        ssl_certificate {certificate};\n        ssl_certificate_key {private_key};\n\n        location / {{\n            proxy_pass {upstream};\n",
         tls.https_port,
         host.domains.join(" ")
     );
@@ -186,6 +187,7 @@ fn render_tls_server(
         append_host_http_settings(&mut settings, &host.http_settings, "        ");
         output.insert_str(location_offset, &settings);
     }
+    append_proxy_headers(&mut output, "            ");
     append_upstream_tls(&mut output, host, Some(upstream_tls), "            ")?;
     output.push_str("        }\n");
     if !host.advanced_config.is_empty() {
@@ -231,11 +233,33 @@ fn render_tls_redirect_server(
     let private_key = certificate_path(&material.private_key_path)?;
     let target = redirect_target(host);
     Ok(format!(
-        "    server {{\n        listen {} ssl;\n        server_name {};\n        ssl_certificate {certificate};\n        ssl_certificate_key {private_key};\n        ssl_protocols TLSv1.2 TLSv1.3;\n        ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;\n        ssl_prefer_server_ciphers on;\n\n        location / {{\n            return {} \"{target}\";\n        }}\n    }}\n",
+        "    server {{\n        listen {} ssl;\n        server_name {};\n        ssl_certificate {certificate};\n        ssl_certificate_key {private_key};\n\n        location / {{\n            return {} \"{target}\";\n        }}\n    }}\n",
         tls.https_port,
         host.domains.join(" "),
         host.status_code,
     ))
+}
+
+// This listener is the public trust boundary. Never append client-supplied identity headers.
+fn append_proxy_headers(output: &mut String, indent: &str) {
+    for directive in [
+        "proxy_http_version 1.1;",
+        "proxy_set_header Host $host;",
+        "proxy_set_header X-Real-IP $remote_addr;",
+        "proxy_set_header X-Forwarded-For $remote_addr;",
+        "proxy_set_header X-Forwarded-Host $host;",
+        "proxy_set_header X-Forwarded-Proto $scheme;",
+        "proxy_set_header X-Forwarded-Port \"\";",
+        "proxy_set_header X-Forwarded-Prefix \"\";",
+        "proxy_set_header Forwarded \"\";",
+        "proxy_set_header Proxy \"\";",
+        "proxy_set_header Upgrade $http_upgrade;",
+        "proxy_set_header Connection $connection_upgrade;",
+    ] {
+        output.push_str(indent);
+        output.push_str(directive);
+        output.push('\n');
+    }
 }
 
 fn append_upstream_tls(
@@ -247,13 +271,10 @@ fn append_upstream_tls(
     if host.forward_scheme != "https" {
         return Ok(());
     }
-    let Some(upstream_tls) = host.upstream_tls.as_ref() else {
-        output.push_str(&format!(
-            "{indent}proxy_ssl_server_name on;\n{indent}proxy_ssl_verify off;\n"
-        ));
-        return Ok(());
-    };
-    let settings = settings.ok_or(RenderError::MissingTrustedCa)?;
+    let upstream_tls = host
+        .upstream_tls
+        .as_ref()
+        .ok_or(RenderError::MissingUpstreamTlsPolicy)?;
     let server_name = upstream_tls.server_name.as_deref().or_else(|| {
         (host.forward_host.parse::<std::net::IpAddr>().is_err())
             .then_some(host.forward_host.as_str())
@@ -266,6 +287,7 @@ fn append_upstream_tls(
         output.push_str(&format!("{indent}proxy_ssl_server_name off;\n"));
     }
     if upstream_tls.verify {
+        let settings = settings.ok_or(RenderError::MissingTrustedCa)?;
         let trusted_certificate = match upstream_tls.trusted_ca_id.as_deref() {
             Some(id) => settings
                 .trusted_ca_paths
@@ -401,9 +423,8 @@ fn render_host_config_with_indentation(
             "{directive_indent}location / {{\n{nested_indent}proxy_pass "
         ));
         output.push_str(&upstream);
-        output.push_str(&format!(
-        ";\n{nested_indent}proxy_http_version 1.1;\n{nested_indent}proxy_set_header Host $host;\n{nested_indent}proxy_set_header X-Real-IP $remote_addr;\n{nested_indent}proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n{nested_indent}proxy_set_header X-Forwarded-Proto $scheme;\n{nested_indent}proxy_set_header Upgrade $http_upgrade;\n{nested_indent}proxy_set_header Connection $connection_upgrade;\n",
-    ));
+        output.push_str(";\n");
+        append_proxy_headers(&mut output, &nested_indent);
         append_upstream_tls(&mut output, host, upstream_tls, &nested_indent)?;
         output.push_str(&format!("{directive_indent}}}\n"));
     }
@@ -463,24 +484,7 @@ pub(crate) fn render_host_sources_for_runtime(
 }
 fn append_http_settings(output: &mut String, settings: &ProxyHttpSettings) {
     output.push_str("\n    # rentnerproxy: managed HTTP settings\n");
-    if let Some(value) = settings.client_max_body_size_bytes {
-        output.push_str(&format!("    client_max_body_size {value};\n"));
-    }
-    if let Some(value) = settings.proxy_connect_timeout_seconds {
-        output.push_str(&format!("    proxy_connect_timeout {value}s;\n"));
-    }
-    if let Some(value) = settings.proxy_read_timeout_seconds {
-        output.push_str(&format!("    proxy_read_timeout {value}s;\n"));
-    }
-    if let Some(value) = settings.proxy_send_timeout_seconds {
-        output.push_str(&format!("    proxy_send_timeout {value}s;\n"));
-    }
-    if let Some(value) = settings.send_timeout_seconds {
-        output.push_str(&format!("    send_timeout {value}s;\n"));
-    }
-    if let Some(value) = settings.keepalive_timeout_seconds {
-        output.push_str(&format!("    keepalive_timeout {value}s;\n"));
-    }
+    append_host_http_settings(output, settings, "    ");
 }
 
 fn append_host_http_settings(output: &mut String, settings: &ProxyHttpSettings, indent: &str) {

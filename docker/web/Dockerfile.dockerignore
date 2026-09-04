@@ -3,6 +3,11 @@
 !package.json
 !bun.lock
 
+# Imported by the TypeScript contract tests checked during the build.
+!.github/
+!.github/scripts/
+!.github/scripts/duplicate-triage.ts
+
 !docker/
 !docker/web/
 !docker/web/**

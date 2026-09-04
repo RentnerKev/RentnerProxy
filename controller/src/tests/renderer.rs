@@ -30,14 +30,20 @@ fn redirect_host(
 
 #[test]
 fn renderer_is_deterministic_and_covers_proxy_defaults() {
+    let mut ipv6_host = host(
+        "10000000-0000-0000-0000-000000000000",
+        &["z.test", "a.test"],
+        "https",
+        "2001:db8::1",
+        4_443,
+    );
+    ipv6_host.upstream_tls = Some(UpstreamTls {
+        verify: false,
+        server_name: Some("backend.test".to_owned()),
+        trusted_ca_id: None,
+    });
     let configuration = validate_proxy_config(request(vec![
-        host(
-            "10000000-0000-0000-0000-000000000000",
-            &["z.test", "a.test"],
-            "https",
-            "2001:db8::1",
-            4_443,
-        ),
+        ipv6_host,
         host(
             "00000000-0000-0000-0000-000000000000",
             &["ipv4.test"],
@@ -72,7 +78,7 @@ fn renderer_is_deterministic_and_covers_proxy_defaults() {
     assert!(rendered.contains("proxy_pass http://192.168.1.50:3000;"));
     assert!(rendered.contains("proxy_ssl_server_name on;"));
     assert!(rendered.contains("proxy_ssl_verify off;"));
-    assert!(rendered.contains("proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"));
+    assert!(rendered.contains("proxy_set_header X-Forwarded-For $remote_addr;"));
     assert!(rendered.contains("proxy_set_header Connection $connection_upgrade;"));
     assert_eq!(
         rendered,
@@ -181,7 +187,7 @@ fn host_preview_marks_structured_settings_and_preserves_advanced_text() {
 }
 
 #[test]
-fn legacy_hosts_keep_their_active_renderer_shape() {
+fn active_hosts_use_the_shared_proxy_header_policy() {
     let configuration = validate_proxy_config(request(vec![host(
         "00000000-0000-0000-0000-000000000000",
         &["demo.test"],
@@ -200,7 +206,7 @@ fn legacy_hosts_keep_their_active_renderer_shape() {
         &format!("# rentnerproxy-revision: {}", configuration.revision),
     );
     let (prefix, _) = baseline.rsplit_once("}\n").unwrap();
-    let expected_host = "    server {\n        listen 8080;\n        server_name demo.test;\n\n        location ^~ /.well-known/acme-challenge/ {\n            proxy_pass http://127.0.0.1:8081;\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_pass_request_body off;\n            proxy_set_header Content-Length \"\";\n            proxy_set_header Connection \"\";\n        }\n\n        location / {\n            proxy_pass http://backend:4000;\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_set_header X-Real-IP $remote_addr;\n            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n            proxy_set_header X-Forwarded-Proto $scheme;\n            proxy_set_header Upgrade $http_upgrade;\n            proxy_set_header Connection $connection_upgrade;\n        }\n    }\n";
+    let expected_host = "    server {\n        listen 8080;\n        server_name demo.test;\n\n        location ^~ /.well-known/acme-challenge/ {\n            proxy_pass http://127.0.0.1:8081;\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_pass_request_body off;\n            proxy_set_header Content-Length \"\";\n            proxy_set_header Connection \"\";\n        }\n\n        location / {\n            proxy_pass http://backend:4000;\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_set_header X-Real-IP $remote_addr;\n            proxy_set_header X-Forwarded-For $remote_addr;\n            proxy_set_header X-Forwarded-Host $host;\n            proxy_set_header X-Forwarded-Proto $scheme;\n            proxy_set_header X-Forwarded-Port \"\";\n            proxy_set_header X-Forwarded-Prefix \"\";\n            proxy_set_header Forwarded \"\";\n            proxy_set_header Proxy \"\";\n            proxy_set_header Upgrade $http_upgrade;\n            proxy_set_header Connection $connection_upgrade;\n        }\n    }\n";
     assert_eq!(rendered, format!("{prefix}\n{expected_host}}}\n"));
     assert!(!rendered.contains("host HTTP settings"));
     assert!(!rendered.contains("advanced proxy host configuration"));
@@ -296,6 +302,12 @@ fn tls_renderer_keeps_per_host_settings_and_advanced_text_byte_exact() {
     )
     .unwrap_or_else(|error| panic!("TLS renderer should succeed: {error:?}"));
 
+    assert!(rendered.contains("proxy_set_header X-Forwarded-For $remote_addr;"));
+    assert!(rendered.contains("proxy_set_header X-Forwarded-Host $host;"));
+    assert!(rendered.contains("proxy_set_header Forwarded \"\";"));
+    assert!(rendered.contains("proxy_set_header Proxy \"\";"));
+    assert!(!rendered.contains("$proxy_add_x_forwarded_for"));
+    assert_eq!(rendered.matches("ssl_protocols ").count(), 1);
     assert!(rendered.contains("proxy_pass http://127.0.0.1:9999;"));
     assert!(rendered.contains("return 308 https://$host:18443$request_uri;"));
     assert!(rendered.contains("        client_max_body_size 10485760;"));
@@ -583,4 +595,61 @@ fn redirect_tls_servers_require_certificates_and_use_managed_tls_policy() {
     assert!(rendered.contains("ssl_prefer_server_ciphers on;"));
     assert!(rendered.contains("return 307 \"https://tls.target.test$request_uri\";"));
     assert!(rendered.ends_with("}\n"));
+}
+
+#[test]
+fn baseline_shares_hardened_tls_and_resource_defaults_with_all_servers() {
+    let rendered = render_config(
+        None,
+        &RenderSettings {
+            http_port: 8_080,
+            probe_socket: None,
+        },
+    )
+    .unwrap();
+    let http_defaults = rendered.split("    server {").next().unwrap();
+    for directive in [
+        "worker_processes auto;",
+        "server_tokens off;",
+        "sendfile on;",
+        "client_header_timeout 15s;",
+        "reset_timedout_connection on;",
+        "ssl_protocols TLSv1.2 TLSv1.3;",
+        "ssl_session_cache shared:rentnerproxy_tls:10m;",
+        "ssl_session_tickets off;",
+    ] {
+        assert!(
+            http_defaults.contains(directive),
+            "missing default: {directive}"
+        );
+    }
+    assert_eq!(rendered.matches("ssl_protocols ").count(), 1);
+}
+
+#[test]
+fn renderer_cannot_silently_disable_verification_when_upstream_policy_is_missing() {
+    // Defense in depth even if a caller bypasses snapshot validation.
+    let configuration = ValidatedProxyConfig {
+        revision: format!("sha256:{}", "6".repeat(64)),
+        proxy_hosts: vec![host(
+            "00000000-0000-0000-0000-000000000000",
+            &["demo.test"],
+            "https",
+            "backend.internal",
+            443,
+        )],
+        redirect_hosts: Vec::new(),
+        http_settings: ProxyHttpSettings::default(),
+        trusted_cas: Vec::new(),
+    };
+    assert_eq!(
+        render_config(
+            Some(&configuration),
+            &RenderSettings {
+                http_port: 8_080,
+                probe_socket: None,
+            }
+        ),
+        Err(RenderError::MissingUpstreamTlsPolicy)
+    );
 }

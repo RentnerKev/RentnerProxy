@@ -11,7 +11,7 @@ appliance publishes:
 
 - port 80 for proxied HTTP traffic;
 - port 443 for proxied HTTPS traffic; and
-- port 81 for the management UI.
+- port 81 on host loopback (127.0.0.1) for the management UI.
 
 For local development, use Bun 1.4 or newer, Rust 1.97.1, PostgreSQL 18 or newer, and Redis.
 
@@ -34,6 +34,9 @@ docker compose up -d
 
 5. Open the management UI at http://localhost:81 for the initial owner setup. When prompted, enter
    the public management address that users will open in their browsers.
+   For a remote Docker host, tunnel it with `ssh -L 8181:127.0.0.1:81 user@server` and open
+   `http://localhost:8181`. For ongoing remote access, configure an HTTPS management endpoint
+   and network access controls before deliberately changing the port binding.
 6. After setup, sign in, create only the required administrator accounts, and enable two-factor
    authentication or a passkey for administrator accounts.
 

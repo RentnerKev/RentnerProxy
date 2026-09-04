@@ -18,6 +18,11 @@ export function startTestUpstream(options: TestUpstreamOptions = {}) {
                 'x-real-ip': request.headers.get('x-real-ip'),
                 'x-forwarded-for': request.headers.get('x-forwarded-for'),
                 'x-forwarded-proto': request.headers.get('x-forwarded-proto'),
+                'x-forwarded-host': request.headers.get('x-forwarded-host'),
+                'x-forwarded-port': request.headers.get('x-forwarded-port'),
+                'x-forwarded-prefix': request.headers.get('x-forwarded-prefix'),
+                forwarded: request.headers.get('forwarded'),
+                proxy: request.headers.get('proxy'),
                 upgrade: request.headers.get('upgrade'),
                 connection: request.headers.get('connection'),
             })

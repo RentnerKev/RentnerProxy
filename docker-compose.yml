@@ -10,8 +10,26 @@ services:
             SMTP_USER: ${SMTP_USER:?Set SMTP_USER}
         ports:
             - '80:8080'
-            - '81:3000'
+            - '127.0.0.1:81:3000'
             - '443:8443'
+        # Root only initializes state and supervises services; workers drop to service UIDs.
+        cap_drop:
+            - ALL
+        cap_add:
+            - CHOWN
+            - DAC_OVERRIDE
+            - FOWNER
+            - SETGID
+            - SETUID
+            - KILL
+        security_opt:
+            - no-new-privileges:true
+        logging:
+            driver: json-file
+            options:
+                max-size: '10m'
+                max-file: '3'
+        stop_grace_period: 30s
         restart: unless-stopped
         volumes:
             - rentnerproxy:/var/lib/rentnerproxy

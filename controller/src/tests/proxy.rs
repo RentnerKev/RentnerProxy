@@ -50,13 +50,18 @@ fn validates_a_canonical_snapshot_and_sorts_it() {
         "backend.internal",
         4_000,
     );
-    let second = host(
+    let mut second = host(
         "00000000-0000-0000-0000-000000000000",
         &["other.test"],
         "https",
         "2001:db8::1",
         4_443,
     );
+    second.upstream_tls = Some(UpstreamTls {
+        verify: true,
+        server_name: Some("backend.internal".to_owned()),
+        trusted_ca_id: None,
+    });
     let validated = validate_proxy_config(request(vec![first, second]));
     let validated = validated.unwrap_or_else(|error| panic!("snapshot should validate: {error:?}"));
 
@@ -857,5 +862,21 @@ fn v6_snapshot_matches_the_typescript_known_vector() {
             &[],
         ),
         "sha256:bc76b6a3a15ec41a362ad7c220fb11e168d21e0cb81dc1f23688ef2ee40083b7"
+    );
+}
+
+#[test]
+fn legacy_https_snapshot_without_explicit_tls_policy_is_rejected() {
+    let request = request(vec![host(
+        "00000000-0000-0000-0000-000000000000",
+        &["demo.test"],
+        "https",
+        "backend.internal",
+        443,
+    )]);
+    assert_eq!(request.version, 1);
+    assert_eq!(
+        validate_proxy_config(request),
+        Err(ProxyValidationError::ValidationFailed)
     );
 }

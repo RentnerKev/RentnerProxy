@@ -614,7 +614,8 @@ impl ProxyRuntime {
             RenderError::InvalidProbeSocket
             | RenderError::InvalidCertificatePath
             | RenderError::MissingCertificate
-            | RenderError::MissingTrustedCa => RuntimeError::ApplyFailed,
+            | RenderError::MissingTrustedCa
+            | RenderError::MissingUpstreamTlsPolicy => RuntimeError::ApplyFailed,
         })?;
         Ok(ActiveHostSources {
             revision: configuration.revision.clone(),
@@ -701,7 +702,8 @@ impl ProxyRuntime {
             RenderError::InvalidProbeSocket
             | RenderError::InvalidCertificatePath
             | RenderError::MissingCertificate
-            | RenderError::MissingTrustedCa => RuntimeError::ApplyFailed,
+            | RenderError::MissingTrustedCa
+            | RenderError::MissingUpstreamTlsPolicy => RuntimeError::ApplyFailed,
         })
     }
 

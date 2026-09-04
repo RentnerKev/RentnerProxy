@@ -12,8 +12,6 @@ readonly controller_token_file=/run/rentnerproxy/controller-token/value
 readonly database_url_file=/run/rentnerproxy/database-url/value
 readonly postgres_password_file=/run/rentnerproxy/postgres/value
 readonly redis_directory=/opt/rentnerproxy/redis
-readonly postgres_user=rentnerproxy
-readonly postgres_database=rentnerproxy
 
 declare -a child_pids=()
 declare -a child_names=()
@@ -103,7 +101,8 @@ initialize_layout() {
     install -d -m 0700 -o postgres -g postgres "$postgres_directory"
     install -d -m 0700 -o rentnerproxy -g rentnerproxy "$proxy_directory"
     install -d -m 0700 -o root -g root "$bootstrap_directory"
-    install -d -m 2775 -o postgres -g postgres /var/run/postgresql
+    install -d -m 0700 -o postgres -g postgres /var/run/postgresql
+    chmod 00700 /var/run/postgresql
 }
 
 initialize_secrets() {
@@ -142,29 +141,55 @@ initialize_postgres_data_directory() {
         --auth-local=trust \
         --encoding=UTF8 \
         --no-locale \
-        --pwfile="$postgres_password_file" \
-        --username="$postgres_user" \
+        --username=postgres \
         --pgdata="$postgres_directory"
 }
 
 ensure_application_database() {
-    local postgres_password
-    postgres_password=$(<"$postgres_password_file")
-    if env PGPASSWORD="$postgres_password" gosu postgres psql \
-        --host=127.0.0.1 \
-        --username="$postgres_user" \
+    # Older clusters used the application role as their only bootstrap superuser. Do not
+    # demote their only administrator or silently recreate persistent data.
+    if ! gosu postgres psql --no-psqlrc --no-password \
+        --host=/var/run/postgresql \
+        --username=postgres \
         --dbname=postgres \
-        --tuples-only \
-        --no-align \
-        --command="SELECT 1 FROM pg_database WHERE datname = '$postgres_database'" | grep -qx 1; then
-        unset postgres_password
-        return
+        --tuples-only --no-align \
+        --command='SELECT 1' >/dev/null 2>&1; then
+        fatal 'PostgreSQL needs an independent postgres bootstrap role; migrate the existing cluster before restarting'
     fi
-    env PGPASSWORD="$postgres_password" gosu postgres createdb \
-        --host=127.0.0.1 \
-        --username="$postgres_user" \
-        "$postgres_database"
-    unset postgres_password
+
+    # The password is inherited only by this child process, never passed as an argument.
+    # psql quotes it as an SQL literal; suppress statement logging around credential changes.
+    if ! RENTNERPROXY_DATABASE_PASSWORD=$(<"$postgres_password_file") \
+        gosu postgres psql --no-psqlrc --no-password --quiet \
+        --host=/var/run/postgresql \
+        --username=postgres \
+        --dbname=postgres \
+        --set=ON_ERROR_STOP=1 --set=VERBOSITY=terse >/dev/null 2>&1 <<'SQL'
+SET log_statement = 'none';
+SET log_min_duration_statement = -1;
+SET log_min_duration_sample = -1;
+SET log_transaction_sample_rate = 0;
+SET log_min_error_statement = 'panic';
+SET password_encryption = 'scram-sha-256';
+ALTER ROLE postgres PASSWORD NULL;
+DO $role$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'rentnerproxy') THEN
+        CREATE ROLE rentnerproxy;
+    END IF;
+END
+$role$;
+\getenv app_password RENTNERPROXY_DATABASE_PASSWORD
+ALTER ROLE rentnerproxy WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD :'app_password';
+\unset app_password
+SELECT 'CREATE DATABASE rentnerproxy OWNER rentnerproxy'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'rentnerproxy')
+\gexec
+ALTER DATABASE rentnerproxy OWNER TO rentnerproxy;
+SQL
+    then
+        fatal 'could not initialize the restricted application database role'
+    fi
 }
 
 start_postgres() {
@@ -174,8 +199,8 @@ start_postgres() {
         -c port=5432 \
         -c unix_socket_directories=/var/run/postgresql
     wait_for_command 'PostgreSQL' gosu postgres pg_isready \
-        --host=127.0.0.1 \
-        --username="$postgres_user" \
+        --host=/var/run/postgresql \
+        --username=postgres \
         --dbname=postgres
     ensure_application_database
 }

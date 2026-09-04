@@ -9,9 +9,10 @@ use crate::{
 };
 
 use super::{
-    BASELINE_PROBE_REVISION, EngineError, ProxyRuntime, RuntimeError, StagedCertificate,
+    BASELINE_PROBE_REVISION, EngineError, MAX_RENDERED_PROXY_CONFIG_BYTES, ProxyRuntime,
+    RuntimeError, StagedCertificate,
     clock::{elapsed_millis, utc_now},
-    state::{atomic_write, replace_file},
+    state::{ACTIVE_CONFIG_FILE, atomic_write, replace_file},
 };
 
 impl ProxyRuntime {
@@ -56,10 +57,11 @@ impl ProxyRuntime {
             return self.apply_locked(configuration, Some(&staged)).await;
         }
         let marker = format!("/certificates/{}/versions/", staged.id());
-        let active_references_staged = match std::fs::read_to_string(self.active_path()) {
-            Ok(contents) => contents.contains(&marker),
-            Err(_) => true,
-        };
+        let active_references_staged =
+            match self.read_state_text(ACTIVE_CONFIG_FILE, MAX_RENDERED_PROXY_CONFIG_BYTES) {
+                Ok(contents) => contents.contains(&marker),
+                Err(_) => true,
+            };
         if active_references_staged {
             return Err(RuntimeError::ApplyFailed);
         }
@@ -103,9 +105,13 @@ impl ProxyRuntime {
         let active_host_sources = self.render_active_host_sources(&configuration)?;
         let candidate_path = self.candidate_path();
         let active_path = self.active_path();
+        let previous = self
+            .read_state_text(ACTIVE_CONFIG_FILE, MAX_RENDERED_PROXY_CONFIG_BYTES)
+            .map_err(|_| RuntimeError::ApplyFailed)?
+            .into_bytes();
         if self.state.lock().await.active_revision.as_deref()
             == Some(configuration.revision.as_str())
-            && std::fs::read(&active_path).is_ok_and(|active| active == candidate.as_bytes())
+            && previous == candidate.as_bytes()
         {
             if let Some(staged) = staged.as_ref() {
                 self.certificate_store
@@ -134,7 +140,6 @@ impl ProxyRuntime {
             }
         }
 
-        let previous = std::fs::read(&active_path).map_err(|_| RuntimeError::ApplyFailed)?;
         let previous_revision = revision_from_config(&String::from_utf8_lossy(&previous));
         if atomic_write(&self.last_good_path(), &previous).is_err() {
             return Err(RuntimeError::ApplyFailed);

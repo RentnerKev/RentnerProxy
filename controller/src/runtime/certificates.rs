@@ -24,6 +24,9 @@ pub(crate) const MAX_PRIVATE_KEY_PEM_BYTES: usize = 64 * 1024;
 const CERTIFICATE_INDEX_FILE: &str = "certificate-metadata.json";
 const CERTIFICATES_DIRECTORY: &str = "certificates";
 const MAX_CERTIFICATE_INDEX_BYTES: usize = 8 * 1024 * 1024;
+const MAX_CERTIFICATES: usize = 10_000;
+// Leave room for error codes, retry timestamps and delays after interrupted ACME jobs.
+const INTERRUPTED_OPERATION_HEADROOM_BYTES: usize = 128;
 
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -1155,7 +1158,7 @@ fn read_regular_private_file(
     }
 }
 fn index_is_valid(index: &CertificateIndex) -> bool {
-    index.certificates.len() <= 10_000
+    index.certificates.len() <= MAX_CERTIFICATES
         && index.certificates.iter().all(|(id, entry)| {
             is_canonical_uuid_v7(id)
                 && entry.metadata.id == *id
@@ -1216,6 +1219,18 @@ fn valid_timestamp(value: &str) -> bool {
     value.len() <= 40 && OffsetDateTime::parse(value, &Rfc3339).is_ok()
 }
 fn persist_index(directory: &SafeDir, index: &CertificateIndex) -> Result<(), CertificateError> {
+    if !index_is_valid(index) {
+        return Err(CertificateError::StoreUnavailable);
+    }
     let bytes = serde_json::to_vec(index).map_err(|_| CertificateError::StoreUnavailable)?;
+    let recovery_headroom = index
+        .certificates
+        .values()
+        .filter(|entry| entry.metadata.operation != CertificateOperation::Idle)
+        .count()
+        * INTERRUPTED_OPERATION_HEADROOM_BYTES;
+    if bytes.len().saturating_add(recovery_headroom) > MAX_CERTIFICATE_INDEX_BYTES {
+        return Err(CertificateError::StoreUnavailable);
+    }
     write_private_file(directory, CERTIFICATE_INDEX_FILE, &bytes)
 }

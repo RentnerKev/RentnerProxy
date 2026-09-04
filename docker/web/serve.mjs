@@ -1,3 +1,5 @@
+import { createRuntimeFetch } from './request-context.ts'
+
 const { default: application } = await import('../../web/dist/server/server.js')
 
 const port = Number.parseInt(process.env.PORT ?? '3000', 10)
@@ -10,7 +12,9 @@ if (!Number.isInteger(port) || port < 1 || port > 65_535 || !application?.fetch)
 const server = Bun.serve({
     hostname,
     port,
-    fetch: (request) => application.fetch(request),
+    // Fits the 8 MiB avatar limit after base64/JSON encoding.
+    maxRequestBodySize: 12 * 1024 * 1024,
+    fetch: createRuntimeFetch(application),
 })
 
 let shuttingDown = false

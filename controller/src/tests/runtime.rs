@@ -1159,3 +1159,80 @@ async fn active_host_source_rejects_path_like_host_ids_before_reading_files() {
     }
     assert!(!settings.state_dir.exists());
 }
+
+#[tokio::test]
+async fn applying_rejects_oversized_active_state_without_replacing_last_good() {
+    let engine = Arc::new(FakeEngine::succeeds());
+    let (runtime, settings) = test_runtime(Some(engine.clone()));
+    runtime.initialize().await;
+    runtime.apply(configuration(4_000)).await.unwrap();
+    let last_good_path = settings.state_dir.join("last-good.conf");
+    let last_good = std::fs::read(&last_good_path).unwrap();
+    let reloads = engine.reload_count.load(Ordering::SeqCst);
+    let active_path = settings.state_dir.join("active.conf");
+    std::fs::write(
+        &active_path,
+        vec![b' '; MAX_RENDERED_PROXY_CONFIG_BYTES + 1],
+    )
+    .unwrap();
+
+    for port in [4_000, 5_000] {
+        assert_eq!(
+            runtime.apply(configuration(port)).await,
+            Err(RuntimeError::ApplyFailed)
+        );
+    }
+    assert_eq!(std::fs::read(last_good_path).unwrap(), last_good);
+    assert_eq!(engine.reload_count.load(Ordering::SeqCst), reloads);
+    assert_eq!(
+        std::fs::metadata(active_path).unwrap().len(),
+        (MAX_RENDERED_PROXY_CONFIG_BYTES + 1) as u64
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn applying_and_importing_reject_symlinked_active_state() {
+    let engine = Arc::new(FakeEngine::succeeds());
+    let (runtime, settings) = test_runtime(Some(engine.clone()));
+    runtime.initialize().await;
+    runtime.apply(configuration(4_000)).await.unwrap();
+    let reloads = engine.reload_count.load(Ordering::SeqCst);
+    let last_good_path = settings.state_dir.join("last-good.conf");
+    let last_good = std::fs::read(&last_good_path).unwrap();
+    let active_path = settings.state_dir.join("active.conf");
+    let external_active = settings.state_dir.with_extension("external-apply-state");
+    std::fs::rename(&active_path, &external_active).unwrap();
+    std::os::unix::fs::symlink(&external_active, &active_path).unwrap();
+
+    for port in [4_000, 5_000] {
+        assert_eq!(
+            runtime.apply(configuration(port)).await,
+            Err(RuntimeError::ApplyFailed)
+        );
+    }
+    let certificate = rcgen::generate_simple_self_signed(vec!["demo.test".to_owned()]).unwrap();
+    assert_eq!(
+        runtime
+            .import_certificate(
+                "0198d98a-0000-7000-8000-000000000002",
+                CertificateImportRequest {
+                    certificate_pem: certificate.cert.pem(),
+                    private_key_pem: certificate.signing_key.serialize_pem(),
+                    chain_pem: None,
+                    required_domains: None,
+                },
+            )
+            .await,
+        Err(CertificateError::RuntimeApplyFailed)
+    );
+    assert_eq!(std::fs::read(last_good_path).unwrap(), last_good);
+    assert_eq!(std::fs::read(external_active).unwrap(), last_good);
+    assert_eq!(engine.reload_count.load(Ordering::SeqCst), reloads);
+    assert!(
+        std::fs::symlink_metadata(active_path)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+}

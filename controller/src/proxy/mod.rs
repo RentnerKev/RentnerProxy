@@ -208,7 +208,8 @@ pub(crate) fn validate_proxy_config(
 
 fn has_valid_upstream_tls(host: &crate::models::ProxyHost) -> bool {
     let Some(upstream_tls) = host.upstream_tls.as_ref() else {
-        return true;
+        // HTTPS always needs an explicit policy, including old snapshot versions.
+        return host.forward_scheme != "https";
     };
     if host.forward_scheme != "https"
         || upstream_tls

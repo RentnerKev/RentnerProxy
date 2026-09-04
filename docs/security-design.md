@@ -29,7 +29,9 @@ management UI and must not expose the controller's internal API directly.
   registration requires user verification; controller and certificate operations use a separate
   bearer token.
 - Least privilege: the application and proxy runtime use non-root user 10001 where possible;
-  containers drop capabilities and enable no-new-privileges.
+  containers drop capabilities and enable no-new-privileges. The appliance supervisor retains only
+  CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID, and KILL for bootstrap and shutdown; individual
+  services run under their service UIDs. The management port binds to host loopback by default.
 - Least common mechanism and limited attack surface: PostgreSQL, Redis, and controller listeners
   bind to loopback inside the appliance, the browser receives only intended DTOs, and internal
   endpoints are not public application routes.
@@ -57,6 +59,44 @@ management UI and must not expose the controller's internal API directly.
 - Supply-chain tampering: lockfiles are committed, GitHub Actions are pinned to commit SHAs,
   dependency changes receive review, and CI runs dependency review, Bun audit, Gitleaks, CodeQL,
   Scorecard, linting, and tests.
+
+The application PostgreSQL role owns only its application database and has no superuser,
+role-creation, database-creation, replication, or RLS-bypass privileges. Bootstrap administration
+uses the separate postgres role with no TCP password through a postgres-owned 0700 Unix socket
+directory. Offline backup and restore use that same private socket boundary. Older development
+volumes created with the application as their only superuser must be migrated explicitly before
+this bootstrap can start; initialization never discards their data.
+
+## Proxy and runtime defaults
+
+Generated Nginx configuration uses automatic worker selection and a shared 10 MiB TLS session
+cache. TLS 1.2/1.3 and the cipher policy are defined once at HTTP scope so the default SNI listener
+uses the same policy. Unknown TLS names are rejected. Version banners are hidden; idle request
+headers expire after 15 seconds. HTTP and TLS hosts use the same header-rendering helper.
+
+The proxy listener is a public trust boundary: X-Real-IP and X-Forwarded-For are rebuilt from the
+connection address, X-Forwarded-Host and X-Forwarded-Proto from the accepted host and transport.
+Client-supplied Forwarded, X-Forwarded-Port, X-Forwarded-Prefix, and Proxy headers are removed. Deployments behind another proxy require
+an explicit, restricted trusted-proxy design before using that proxy's client-IP claims.
+Every HTTPS upstream requires an explicit TLS policy; missing policy is rejected even for old
+snapshot versions. Certificate verification is the default in the web application. Disabling it
+remains an explicit administrator choice for test backends.
+
+Advanced Nginx configuration is privileged native configuration, including OpenResty code and
+filesystem access under the service UID. It is not a sandbox for untrusted tenants. Grant expert
+configuration permissions only to administrators trusted with the appliance itself.
+
+The Bun listener caps request bodies at 12 MiB, including JSON/base64 overhead for the existing
+8 MiB avatar limit, and passes only its actual socket peer address into request-local IP metadata.
+Login IP limits never trust client-provided forwarding headers. An extra proxy in front of the
+management application currently shares its peer-IP quota across its clients.
+
+Active Nginx state is read through bounded, regular-file-only state access. Certificate index
+writes enforce the same 10,000-entry and 8 MiB limits as startup, with room reserved for ACME
+failure recovery. Rejected updates retain the last usable state.
+
+See the [Nginx SSL module documentation](https://nginx.org/en/docs/http/ngx_http_ssl_module.html)
+for protocol selection and shared-session-cache behavior.
 
 ## Cryptography
 
