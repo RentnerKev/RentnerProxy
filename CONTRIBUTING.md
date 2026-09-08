@@ -13,9 +13,13 @@ Never include credentials, tokens, private configuration, personal data, or unre
 1. Search the existing issues. Open the appropriate issue form for a meaningful bug or feature
    before starting work; report vulnerabilities only through the [security policy](SECURITY.md).
 2. Fork the repository and create a focused feature branch from `main`.
-3. Install Bun 1.4 and Rust 1.97.1 to match CI (the controller requires Rust 1.88 or newer), then
+3. Install Bun 1.4 and Rust 1.98.0 to match the container toolchain (the controller requires Rust
+   1.88 or newer), then
    install dependencies with `bun install --frozen-lockfile`.
-4. Make a small, self-contained change and add or update tests where appropriate.
+4. Make a small, self-contained change and add or update tests where appropriate. Proxy runtime
+   changes must preserve the single Caddy 2.11.4 JSON/Admin API data plane, version 7 snapshots,
+   the controller-owned certificate and ACME boundary, and transactional load plus revision-probe
+   confirmation.
 5. Run `bun run check` before opening a pull request.
 6. Push the branch and open a pull request. Link meaningful feature and fix changes with
    `Fixes #123` or `Closes #123`; documentation, CI, and tiny maintenance changes may explain why
@@ -56,10 +60,14 @@ or update automated tests. Tests should cover successful behavior, invalid input
 and relevant failure paths. Changes that affect parsers, token handling, configuration, or other
 input-heavy code should also extend the fuzz or property-based test suite where practical.
 
-Run the complete check before opening a pull request:
+Run the complete check before opening a pull request. For proxy changes, also run the focused smoke
+commands when Docker is available:
 
 ```bash
 bun run check
+bun run proxy:smoke
+bun run certificates:smoke
+bun run upstream-tls:smoke
 ```
 
 If a change cannot reasonably include a test, explain the reason in the pull request and identify

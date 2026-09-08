@@ -13,9 +13,23 @@ const statePath = '/var/lib/rentnerproxy/proxy'
 const stateArchiveName = 'controller-state.tar'
 const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.mjs'
 const stateArchiveExclusions = [
+    './active.conf',
     './candidate.conf',
+    './last-known-good.conf',
+    './last-good.conf',
     './engine.pid',
+    './host-configs',
+    './host-configs/**',
+    './caddy-admin.sock',
     './runtime-probe.sock',
+    './caddy/**/*.sock',
+    './caddy/**/*.tmp',
+    './caddy/**/*.lock',
+    './cache',
+    './bootstrap',
+    './runtime',
+    './tmp',
+    './run',
     './log',
     './logs',
     '*.log',
@@ -48,7 +62,7 @@ type BackupMetadata = Readonly<{
         user: 'rentnerproxy'
     }>
     redis: 'excluded'
-    version: 2
+    version: 3
 }>
 
 function optionValue(argumentsList: string[], name: string): string | undefined {
@@ -285,7 +299,7 @@ async function backup(): Promise<void> {
                 user: databaseUser,
             },
             redis: 'excluded',
-            version: 2,
+            version: 3,
         }
         const metadataPath = join(stagingPath, 'metadata.json')
         await writeFile(metadataPath, JSON.stringify(metadata, null, 2) + '\n', {

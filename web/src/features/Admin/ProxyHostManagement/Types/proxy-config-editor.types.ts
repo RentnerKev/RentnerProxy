@@ -1,15 +1,15 @@
 import type {
     ProxyConfigSource,
     ProxyHostConfigEditorData,
+    ProxyConfigEditorData,
+    ProxyHttpSettings,
 } from '../../../../shared/Types/proxy-runtime.types'
-
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
 
 export type ProxyConfigEditorTab = 'edit' | 'active' | 'defaults' | 'preview'
 
 export interface ProxyConfigEditorModalProps {
     readonly proxyHost: ProxyHostSummary
-    readonly canAdvancedConfig?: boolean
     readonly canEdit: boolean
     readonly onOpenChange: (open: boolean) => void
     readonly open: boolean
@@ -18,20 +18,15 @@ export interface ProxyConfigEditorModalProps {
 export type ProxyConfigEditorLogicProps = ProxyConfigEditorModalProps
 
 export interface ProxyConfigEditorDraft {
-    readonly advancedConfig: string
-    readonly advancedBaseline: string
+    readonly settings: ProxyHttpSettings
+    readonly baselineSettings: ProxyHttpSettings
     readonly baseRevision: string
-    readonly baseline: string
-    readonly source: string
-    readonly template: string | null
 }
 
 export interface ProxyConfigEditorState {
     readonly actionError: string | null
-    readonly actionErrorLine: number | null
     readonly activeTab: ProxyConfigEditorTab
-    readonly advancedAvailable: boolean
-    readonly advancedConfig: string
+    readonly settings: ProxyHttpSettings
     readonly baseRevision: string | null
     readonly data: ProxyHostConfigEditorData | undefined
     readonly isError: boolean
@@ -44,9 +39,7 @@ export interface ProxyConfigEditorState {
     readonly isSaving: boolean
     readonly preview: ProxyConfigSource | null
     readonly previewError: string | null
-    readonly previewErrorLine: number | null
-    readonly templateAvailable: boolean
-    readonly draft: string
+    readonly isDirty: boolean
 }
 
 export interface ProxyConfigEditorHandlers {
@@ -57,8 +50,7 @@ export interface ProxyConfigEditorHandlers {
     readonly reset: () => void
     readonly save: () => void
     readonly setActiveTab: (tab: ProxyConfigEditorTab) => void
-    readonly setAdvancedConfig: (value: string) => void
-    readonly setDraft: (value: string) => void
+    readonly setSetting: (key: keyof ProxyHttpSettings, value: number | undefined) => void
     readonly setReloadConfirmationOpen: (open: boolean) => void
     readonly setResetConfirmationOpen: (open: boolean) => void
 }
@@ -66,4 +58,23 @@ export interface ProxyConfigEditorHandlers {
 export interface ProxyConfigEditorLogic {
     readonly handler: ProxyConfigEditorHandlers
     readonly state: ProxyConfigEditorState
+}
+
+export interface ProxyGlobalConfigEditorModalProps {
+    readonly canEdit: boolean
+    readonly onOpenChange: (open: boolean) => void
+    readonly open: boolean
+}
+
+export interface ProxyGlobalConfigEditorState {
+    readonly actionError: string | null
+    readonly activeTab: ProxyConfigEditorTab
+    readonly settings: ProxyHttpSettings
+    readonly baseRevision: string | null
+    readonly data: ProxyConfigEditorData | undefined
+    readonly isLoading: boolean
+    readonly isSaving: boolean
+    readonly isResetting: boolean
+    readonly isPreviewing: boolean
+    readonly preview: ProxyConfigSource | null
 }

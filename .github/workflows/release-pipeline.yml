@@ -312,7 +312,7 @@ jobs:
                   images: ${{ needs.prepare.outputs.image }}
                   labels: |
                       org.opencontainers.image.title=RentnerProxy
-                      org.opencontainers.image.description=Modern, open-source and self-hosted reverse proxy manager built with TypeScript, TanStack Start, Rust and NGINX.
+                      org.opencontainers.image.description=Modern, open-source and self-hosted reverse proxy manager built with TypeScript, TanStack Start, Rust and Caddy.
                       org.opencontainers.image.source=https://github.com/${{ github.repository }}
                       org.opencontainers.image.url=https://github.com/${{ github.repository }}
                       org.opencontainers.image.version=${{ inputs.release_tag }}

@@ -7,29 +7,10 @@ pub(crate) mod renderer;
 mod state;
 mod trusted_cas;
 
-use std::{
-    collections::BTreeMap,
-    io::Read,
-    path::{Path, PathBuf},
-    sync::Arc,
-    time::Duration,
-};
-
-use time::{OffsetDateTime, format_description::well_known::Rfc3339};
-
-use serde::{Deserialize, Serialize};
-use tokio::{
-    sync::Mutex,
-    task::JoinHandle,
-    time::{interval, timeout},
-};
-use tracing::{info, warn};
-
 use crate::{
     models::{ProxyConfigRequest, ProxyRuntimeStatus, ValidatedProxyConfig},
     proxy::{is_canonical_uuid, revision_from_config, validate_proxy_config},
 };
-
 use certificates::StagedCertificate;
 #[cfg(test)]
 pub(crate) use certificates::{CertificateEnvironment, CertificateSource, CertificateStatus};
@@ -37,24 +18,37 @@ pub(crate) use certificates::{
     CertificateError, CertificateImportRequest, CertificateIssueRequest, CertificateMetadata,
     CertificateStore,
 };
-pub(crate) use engine::{EngineError, EngineFuture, ProcessEngine, ProxyEngine};
+pub(crate) use engine::{CaddyProcess, EngineError, EngineFuture, ProxyEngine};
 use renderer::{
     MAX_RENDERED_PROXY_CONFIG_BYTES, MAX_RENDERED_PROXY_HOST_SOURCE_BYTES, RenderError,
     RenderSettings, TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings, render_config,
     render_config_with_tls, render_host_config_for_runtime, render_host_sources_for_runtime,
 };
 use state::{
-    ACTIVE_CONFIG_FILE, CANDIDATE_CONFIG_FILE, LAST_APPLY_FILE, LAST_GOOD_CONFIG_FILE,
-    atomic_write, open_absolute_regular_file, prepare_state_dir, read_trimmed, state_dir,
+    LAST_APPLY_FILE, atomic_write, open_absolute_regular_file, prepare_state_dir, read_trimmed,
+    state_dir,
 };
+use std::{
+    collections::BTreeMap,
+    io::Read,
+    path::{Path, PathBuf},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, AtomicU64, Ordering},
+    },
+    time::Duration,
+};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+use tokio::{
+    sync::Mutex,
+    task::JoinHandle,
+    time::{interval, sleep, timeout},
+};
+use tracing::{info, warn};
 use trusted_cas::TrustedCaStore;
 
-#[cfg(unix)]
-const PROBE_SOCKET_FILE: &str = "runtime-probe.sock";
 const BASELINE_PROBE_REVISION: &str = "none";
-const ACTIVE_HOST_SOURCES_FILE: &str = "active-host-sources.json";
 const ACTIVE_CONFIGURATION_FILE: &str = "active-proxy-snapshot.json";
-const MAX_ACTIVE_HOST_SOURCES_BYTES: usize = MAX_RENDERED_PROXY_CONFIG_BYTES * 6 + 1024 * 1024;
 
 #[derive(Clone, Debug)]
 pub(crate) struct RuntimeSettings {
@@ -65,9 +59,9 @@ pub(crate) struct RuntimeSettings {
     pub(crate) controller_port: u16,
     pub(crate) lock_wait: Duration,
     pub(crate) stage_timeout: Duration,
+    pub(crate) recovery_interval: Duration,
     pub(crate) system_ca_bundle: PathBuf,
 }
-
 impl RuntimeSettings {
     pub(crate) fn new(state_dir: PathBuf, http_port: u16) -> Self {
         Self {
@@ -77,26 +71,21 @@ impl RuntimeSettings {
             public_https_port: 443,
             controller_port: 8_081,
             lock_wait: Duration::from_secs(2),
-            stage_timeout: Duration::from_secs(4),
+            stage_timeout: Duration::from_secs(15),
+            recovery_interval: Duration::from_secs(5),
             system_ca_bundle: PathBuf::from("/etc/ssl/certs/ca-certificates.crt"),
         }
     }
-
     pub(crate) fn probe_socket(&self) -> Option<PathBuf> {
-        #[cfg(unix)]
-        {
-            Some(self.state_dir.join(PROBE_SOCKET_FILE))
-        }
-        #[cfg(not(unix))]
-        {
-            None
-        }
+        cfg!(unix).then(|| self.state_dir.join("runtime-probe.sock"))
     }
-
     fn render_settings(&self) -> RenderSettings {
         RenderSettings {
             http_port: self.http_port,
             probe_socket: self.probe_socket(),
+            admin_socket: cfg!(unix).then(|| self.state_dir.join("caddy-admin.sock")),
+            state_dir: self.state_dir.clone(),
+            controller_port: self.controller_port,
         }
     }
 }
@@ -110,17 +99,20 @@ pub(crate) enum RuntimeError {
     HostConfigNotFound,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-struct ActiveHostSources {
-    revision: String,
-    host_sources: BTreeMap<String, String>,
-}
-
 struct RuntimeState {
     active_revision: Option<String>,
     last_apply_at: Option<String>,
     engine_available: bool,
+    initialized: bool,
+    active_json: String,
+    host_sources: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RenderPurpose {
+    Activation,
+    Preview,
+    Recovery,
 }
 
 pub(crate) struct ProxyRuntime {
@@ -128,10 +120,13 @@ pub(crate) struct ProxyRuntime {
     engine: Option<Arc<dyn ProxyEngine>>,
     state: Mutex<RuntimeState>,
     apply_lock: Mutex<()>,
+    apply_sequence: AtomicU64,
+    stopping: AtomicBool,
     active_configuration: Mutex<Option<ValidatedProxyConfig>>,
     certificate_store: CertificateStore,
     trusted_ca_store: TrustedCaStore,
     renewal_task: Mutex<Option<JoinHandle<()>>>,
+    recovery_task: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl ProxyRuntime {
@@ -144,173 +139,135 @@ impl ProxyRuntime {
         Arc::new(Self {
             settings,
             engine,
+            certificate_store,
+            trusted_ca_store,
             state: Mutex::new(RuntimeState {
                 active_revision: None,
                 last_apply_at: None,
-                engine_available: true,
+                engine_available: false,
+                initialized: false,
+                active_json: String::new(),
+                host_sources: BTreeMap::new(),
             }),
             apply_lock: Mutex::new(()),
+            apply_sequence: AtomicU64::new(0),
+            stopping: AtomicBool::new(false),
             active_configuration: Mutex::new(None),
-            certificate_store,
-            trusted_ca_store,
             renewal_task: Mutex::new(None),
+            recovery_task: Mutex::new(None),
         })
     }
 
     pub(crate) async fn initialize(&self) {
-        if prepare_state_dir(&self.settings.state_dir).is_err() {
+        let _guard = self.apply_lock.lock().await;
+        if let Err(error) = self.initialize_locked().await {
             self.mark_unavailable().await;
-            warn!(stage = "state_directory", "proxy runtime is unavailable");
-            return;
-        }
-        if self.certificate_store.initialize().await.is_err() {
-            self.mark_unavailable().await;
-            warn!(stage = "certificate_store", "proxy runtime is unavailable");
-            return;
-        }
-        if self.trusted_ca_store.initialize().is_err() {
-            self.mark_unavailable().await;
-            warn!(stage = "trusted_ca_store", "proxy runtime is unavailable");
-            return;
-        }
-
-        let active_path = self.active_path();
-        let mut last_good = self
-            .read_state_text(LAST_GOOD_CONFIG_FILE, MAX_RENDERED_PROXY_CONFIG_BYTES)
-            .ok();
-        let mut persist_active_as_last_good = last_good.is_none();
-        let mut active_contents =
-            match self.read_state_text(ACTIVE_CONFIG_FILE, MAX_RENDERED_PROXY_CONFIG_BYTES) {
-                Ok(contents) => contents,
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                    if let Some(last_good) = last_good.as_ref() {
-                        if atomic_write(&active_path, last_good.as_bytes()).is_err() {
-                            self.mark_unavailable().await;
-                            warn!(
-                                stage = "restore_missing_active",
-                                "proxy runtime is unavailable"
-                            );
-                            return;
-                        }
-                        persist_active_as_last_good = false;
-                        last_good.clone()
-                    } else {
-                        let baseline = match render_config(None, &self.settings.render_settings()) {
-                            Ok(config) => config,
-                            Err(_) => {
-                                self.mark_unavailable().await;
-                                warn!(stage = "render_baseline", "proxy runtime is unavailable");
-                                return;
-                            }
-                        };
-                        if atomic_write(&active_path, baseline.as_bytes()).is_err()
-                            || atomic_write(&self.last_good_path(), baseline.as_bytes()).is_err()
-                        {
-                            self.mark_unavailable().await;
-                            warn!(stage = "write_baseline", "proxy runtime is unavailable");
-                            return;
-                        }
-                        last_good = Some(baseline.clone());
-                        persist_active_as_last_good = false;
-                        baseline
-                    }
-                }
-                Err(_) => {
-                    let Some(last_good) = last_good.as_ref() else {
-                        self.mark_unavailable().await;
-                        warn!(stage = "read_active", "proxy runtime is unavailable");
-                        return;
-                    };
-                    if atomic_write(&active_path, last_good.as_bytes()).is_err() {
-                        self.mark_unavailable().await;
-                        warn!(
-                            stage = "restore_unreadable_active",
-                            "proxy runtime is unavailable"
-                        );
-                        return;
-                    }
-                    persist_active_as_last_good = false;
-                    last_good.clone()
-                }
-            };
-        let mut engine_available = false;
-        if let Some(engine) = &self.engine {
-            if self
-                .start_configuration(engine, &active_path, &active_contents)
-                .await
-                .is_err()
-            {
-                let restored = last_good
-                    .as_ref()
-                    .filter(|last_good| *last_good != &active_contents);
-                if let Some(last_good) = restored
-                    && atomic_write(&active_path, last_good.as_bytes()).is_ok()
-                    && self
-                        .start_configuration(engine, &active_path, last_good)
-                        .await
-                        .is_ok()
-                {
-                    active_contents = last_good.clone();
-                    persist_active_as_last_good = false;
-                    engine_available = true;
-                    info!(
-                        stage = "startup_recovery",
-                        "proxy runtime restored last-good configuration"
-                    );
-                }
-            } else {
-                engine_available = true;
-            }
-            if !engine_available {
-                warn!(
-                    stage = "startup",
-                    "proxy runtime did not start; controller remains available"
-                );
-            }
-        }
-        if engine_available
-            && persist_active_as_last_good
-            && atomic_write(&self.last_good_path(), active_contents.as_bytes()).is_err()
-        {
             warn!(
-                stage = "write_last_good",
-                "proxy runtime could not persist its last-good configuration"
+                stage = "startup",
+                ?error,
+                "Caddy runtime unavailable; recovery will retry"
             );
         }
-        let restored_configuration = self.restore_active_configuration(&active_contents).await;
-        let mut state = self.state.lock().await;
-        state.active_revision = revision_from_config(&active_contents);
-        state.last_apply_at = read_trimmed(&self.last_apply_path());
-        state.engine_available = engine_available;
-        drop(state);
-        *self.active_configuration.lock().await = restored_configuration;
     }
 
-    async fn restore_active_configuration(
-        &self,
-        active_contents: &str,
-    ) -> Option<ValidatedProxyConfig> {
-        let mut reader = state_dir(&self.settings.state_dir)
-            .ok()?
-            .open_file(ACTIVE_CONFIGURATION_FILE)
-            .ok()?
-            .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
-        let mut bytes = Vec::new();
-        reader.read_to_end(&mut bytes).ok()?;
-        if bytes.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
-            return None;
+    async fn initialize_locked(&self) -> Result<(), RuntimeError> {
+        if self.stopping.load(Ordering::SeqCst) {
+            return Err(RuntimeError::Unavailable);
         }
-        let request = serde_json::from_slice::<ProxyConfigRequest>(&bytes).ok()?;
-        let configuration = validate_proxy_config(request).ok()?;
-        if revision_from_config(active_contents).as_deref() != Some(configuration.revision.as_str())
-        {
-            return None;
+        prepare_state_dir(&self.settings.state_dir).map_err(|_| RuntimeError::Unavailable)?;
+        let caddy = state_dir(&self.settings.state_dir)
+            .and_then(|dir| dir.ensure_dir("caddy"))
+            .map_err(|_| RuntimeError::Unavailable)?;
+        caddy
+            .ensure_dir("data")
+            .map_err(|_| RuntimeError::Unavailable)?;
+        let autosave_dir = caddy
+            .ensure_dir("config")
+            .and_then(|dir| dir.ensure_dir("caddy"))
+            .map_err(|_| RuntimeError::Unavailable)?;
+        // Caddy writes its own autosave directly. Reject planted links before that write.
+        let autosave_path = autosave_dir
+            .child_path("autosave.json")
+            .map_err(|_| RuntimeError::Unavailable)?;
+        match std::fs::symlink_metadata(autosave_path) {
+            Ok(_) => {
+                let file = autosave_dir
+                    .open_file("autosave.json")
+                    .map_err(|_| RuntimeError::Unavailable)?;
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    file.set_permissions(std::fs::Permissions::from_mode(0o600))
+                        .map_err(|_| RuntimeError::Unavailable)?;
+                }
+                #[cfg(not(unix))]
+                let _ = file;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => return Err(RuntimeError::Unavailable),
         }
-        self.render_proxy_config_for_apply(&configuration, None, true)
+        self.certificate_store
+            .initialize()
             .await
-            .ok()
-            .filter(|rendered| rendered == active_contents)
-            .map(|_| configuration)
+            .map_err(|_| RuntimeError::Unavailable)?;
+        self.trusted_ca_store
+            .initialize()
+            .map_err(|_| RuntimeError::Unavailable)?;
+        let baseline = render_config(None, &self.settings.render_settings())
+            .map_err(|_| RuntimeError::ApplyFailed)?;
+        // Only a verified v7 snapshot is a recovery cache. Database desired state wins on reconcile.
+        let restored = self.restore_active_configuration();
+        let restored = if let Some(configuration) = restored {
+            self.render_proxy_config_for_apply(&configuration, None, RenderPurpose::Recovery)
+                .await
+                .ok()
+                .map(|json| (configuration, json))
+        } else {
+            None
+        };
+        let (configuration, json) = restored.map_or((None, baseline.clone()), |(config, json)| {
+            (Some(config), json)
+        });
+        let expected = configuration
+            .as_ref()
+            .map_or(BASELINE_PROBE_REVISION, |config| config.revision.as_str());
+        let Some(engine) = &self.engine else {
+            return Err(RuntimeError::Unavailable);
+        };
+        let started = self.start_engine(engine, &json, expected).await;
+        let (configuration, json) = if started.is_ok() {
+            (configuration, json)
+        } else {
+            let _ = engine.shutdown().await;
+            self.start_engine(engine, &baseline, BASELINE_PROBE_REVISION)
+                .await
+                .map_err(|_| RuntimeError::Unavailable)?;
+            (None, baseline)
+        };
+        let host_sources = configuration
+            .as_ref()
+            .map(|config| self.render_active_host_sources(config))
+            .transpose()?
+            .unwrap_or_default();
+        let mut state = self.state.lock().await;
+        state.active_revision = configuration.as_ref().map(|config| config.revision.clone());
+        state.last_apply_at = read_trimmed(&self.settings.state_dir.join(LAST_APPLY_FILE));
+        state.active_json = json;
+        state.host_sources = host_sources;
+        state.initialized = true;
+        state.engine_available = true;
+        drop(state);
+        *self.active_configuration.lock().await = configuration;
+        Ok(())
+    }
+
+    fn restore_active_configuration(&self) -> Option<ValidatedProxyConfig> {
+        let bytes = state_dir(&self.settings.state_dir)
+            .ok()?
+            .read_file(ACTIVE_CONFIGURATION_FILE, MAX_RENDERED_PROXY_CONFIG_BYTES)
+            .ok()?;
+        let request = serde_json::from_slice::<ProxyConfigRequest>(&bytes).ok()?;
+        validate_proxy_config(request).ok()
     }
 
     fn persist_active_configuration(
@@ -318,7 +275,7 @@ impl ProxyRuntime {
         configuration: &ValidatedProxyConfig,
     ) -> Result<(), RuntimeError> {
         let request = ProxyConfigRequest {
-            version: snapshot_version(configuration),
+            version: 7,
             revision: configuration.revision.clone(),
             proxy_hosts: configuration.proxy_hosts.clone(),
             redirect_hosts: configuration.redirect_hosts.clone(),
@@ -329,9 +286,96 @@ impl ProxyRuntime {
         if bytes.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
             return Err(RuntimeError::ConfigTooLarge);
         }
-        atomic_write(&self.active_configuration_path(), &bytes)
-            .map_err(|_| RuntimeError::ApplyFailed)
+        atomic_write(
+            &self.settings.state_dir.join(ACTIVE_CONFIGURATION_FILE),
+            &bytes,
+        )
+        .map_err(|_| RuntimeError::ApplyFailed)
     }
+
+    pub(crate) async fn start_recovery_worker(self: &Arc<Self>) {
+        let mut slot = self.recovery_task.lock().await;
+        if slot.is_some() {
+            return;
+        }
+        let runtime = Arc::clone(self);
+        *slot = Some(tokio::spawn(async move {
+            let mut failures = 0u32;
+            loop {
+                let delay = if failures == 0 {
+                    runtime.settings.recovery_interval
+                } else {
+                    Duration::from_secs((1u64 << failures.min(6)).min(60))
+                };
+                sleep(delay).await;
+                if runtime.stopping.load(Ordering::SeqCst) {
+                    break;
+                }
+                if runtime.recover().await.is_ok() {
+                    failures = 0;
+                } else {
+                    failures = failures.saturating_add(1);
+                }
+            }
+        }));
+    }
+
+    pub(crate) async fn recover(&self) -> Result<(), RuntimeError> {
+        let Some(engine) = &self.engine else {
+            return Err(RuntimeError::Unavailable);
+        };
+        if self.stopping.load(Ordering::SeqCst) {
+            return Err(RuntimeError::Unavailable);
+        }
+        // Healthy idle operation checks only the child handle; it does not rerender or call Admin API.
+        if engine.is_running().await && self.state.lock().await.engine_available {
+            return Ok(());
+        }
+        let _guard = timeout(self.settings.lock_wait, self.apply_lock.lock())
+            .await
+            .map_err(|_| RuntimeError::Busy)?;
+        if !self.state.lock().await.initialized {
+            return self.initialize_locked().await;
+        }
+        self.ensure_running_locked().await
+    }
+
+    async fn ensure_running_locked(&self) -> Result<(), RuntimeError> {
+        if self.stopping.load(Ordering::SeqCst) {
+            return Err(RuntimeError::Unavailable);
+        }
+        let Some(engine) = &self.engine else {
+            return Err(RuntimeError::Unavailable);
+        };
+        let (initialized, available, json, revision) = {
+            let state = self.state.lock().await;
+            (
+                state.initialized,
+                state.engine_available,
+                state.active_json.clone(),
+                state
+                    .active_revision
+                    .clone()
+                    .unwrap_or_else(|| BASELINE_PROBE_REVISION.to_owned()),
+            )
+        };
+        if !initialized {
+            return Err(RuntimeError::Unavailable);
+        }
+        if engine.is_running().await && available {
+            return Ok(());
+        }
+        // A failed acknowledgement is ambiguous. Terminate that process before replaying verified state.
+        let _ = engine.shutdown().await;
+        if self.start_engine(engine, &json, &revision).await.is_err() {
+            self.mark_unavailable().await;
+            return Err(RuntimeError::Unavailable);
+        }
+        self.state.lock().await.engine_available = true;
+        info!("Caddy recovered verified runtime configuration");
+        Ok(())
+    }
+
     pub(crate) async fn start_renewal_scheduler(
         self: &Arc<Self>,
         challenges: crate::server::challenges::ChallengeStore,
@@ -435,39 +479,42 @@ impl ProxyRuntime {
         }
         self.certificate_store.get(&id).await
     }
+
     pub(crate) async fn delete_certificate(&self, id: &str) -> Result<(), CertificateError> {
-        let _apply_guard = timeout(self.settings.lock_wait, self.apply_lock.lock())
+        let _guard = timeout(self.settings.lock_wait, self.apply_lock.lock())
             .await
             .map_err(|_| CertificateError::InUse)?;
+        let state = self.state.lock().await;
         let marker = format!("/certificates/{id}/versions/");
-        let active_or_last_good = [ACTIVE_CONFIG_FILE, LAST_GOOD_CONFIG_FILE];
-        let in_use = active_or_last_good.iter().any(|component| {
-            match self.read_state_text(component, MAX_RENDERED_PROXY_CONFIG_BYTES) {
-                Ok(contents) => contents.contains(&marker),
-                Err(_) => true,
-            }
-        }) || match self
-            .read_state_text(CANDIDATE_CONFIG_FILE, MAX_RENDERED_PROXY_CONFIG_BYTES)
-        {
-            Ok(contents) => contents.contains(&marker),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
-            Err(_) => true,
-        };
-        self.certificate_store.delete_if_unused(id, in_use).await
+        let in_use =
+            !state.engine_available || state.active_json.replace('\\', "/").contains(&marker);
+        drop(state);
+        let cached_in_use = self.restore_active_configuration().is_some_and(|config| {
+            config
+                .proxy_hosts
+                .iter()
+                .any(|host| host.certificate_id.as_deref() == Some(id))
+                || config
+                    .redirect_hosts
+                    .iter()
+                    .any(|host| host.certificate_id.as_deref() == Some(id))
+        });
+        self.certificate_store
+            .delete_if_unused(id, in_use || cached_in_use)
+            .await
     }
 
     pub(crate) async fn status(&self) -> ProxyRuntimeStatus {
-        let (active_revision, last_apply_at, available) = {
-            let state = self.state.lock().await;
-            (
-                state.active_revision.clone(),
-                state.last_apply_at.clone(),
-                state.engine_available && self.engine.is_some(),
-            )
-        };
+        let state = self.state.lock().await;
+        let (active_revision, last_apply_at, available) = (
+            state.active_revision.clone(),
+            state.last_apply_at.clone(),
+            state.engine_available && self.engine.is_some(),
+        );
+        drop(state);
         let running = match &self.engine {
-            Some(engine) if available => engine.is_running().await,
-            Some(_) | None => false,
+            Some(engine) => engine.is_running().await,
+            None => false,
         };
         ProxyRuntimeStatus {
             available,
@@ -478,63 +525,67 @@ impl ProxyRuntime {
     }
 
     pub(crate) async fn is_ready(&self) -> bool {
+        // A concurrent apply can legitimately change the probe while state is being committed.
+        let Ok(_guard) = timeout(self.settings.lock_wait, self.apply_lock.lock()).await else {
+            return false;
+        };
         let status = self.status().await;
         if !status.available || !status.running {
             return false;
         }
-
-        matches!(
-            self.active_config().await,
-            Ok((configuration, _)) if !configuration.trim().is_empty()
-        )
+        let Some(engine) = &self.engine else {
+            return false;
+        };
+        let ready = self
+            .run_stage(
+                engine.probe(
+                    status
+                        .active_revision
+                        .as_deref()
+                        .unwrap_or(BASELINE_PROBE_REVISION),
+                ),
+            )
+            .await
+            .is_ok();
+        if !ready {
+            self.mark_unavailable().await;
+        }
+        ready
     }
 
     pub(crate) async fn preview_config(
         &self,
-        configuration: &ValidatedProxyConfig,
+        config: &ValidatedProxyConfig,
     ) -> Result<String, RuntimeError> {
-        self.render_proxy_config_for_apply(configuration, None, false)
+        self.render_proxy_config_for_apply(config, None, RenderPurpose::Preview)
             .await
     }
 
     pub(crate) async fn active_config(&self) -> Result<(String, Option<String>), RuntimeError> {
-        let _apply_guard = timeout(self.settings.lock_wait, self.apply_lock.lock())
-            .await
-            .map_err(|_| RuntimeError::Busy)?;
-        let mut reader = state_dir(&self.settings.state_dir)
-            .and_then(|directory| directory.open_file(ACTIVE_CONFIG_FILE))
-            .map_err(|_| RuntimeError::Unavailable)?
-            .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
-        let mut bytes = Vec::new();
-        reader
-            .read_to_end(&mut bytes)
-            .map_err(|_| RuntimeError::Unavailable)?;
-        if bytes.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
-            return Err(RuntimeError::ConfigTooLarge);
+        let state = self.state.lock().await;
+        if !state.initialized {
+            return Err(RuntimeError::Unavailable);
         }
-        let contents = String::from_utf8(bytes).map_err(|_| RuntimeError::Unavailable)?;
-        let revision = revision_from_config(&contents);
-        Ok((contents, revision))
+        Ok((state.active_json.clone(), state.active_revision.clone()))
     }
 
     pub(crate) fn preview_host_config(
         &self,
-        configuration: &ValidatedProxyConfig,
-        host_id: &str,
+        config: &ValidatedProxyConfig,
+        id: &str,
     ) -> Result<String, RuntimeError> {
-        if !is_canonical_uuid(host_id) {
+        if !is_canonical_uuid(id) {
             return Err(RuntimeError::HostConfigNotFound);
         }
-        let host = configuration
+        let host = config
             .proxy_hosts
             .iter()
-            .find(|host| host.id == host_id)
+            .find(|host| host.id == id)
             .ok_or(RuntimeError::HostConfigNotFound)?;
-        let upstream_tls = self.upstream_tls_render_settings(configuration, false)?;
+        let upstream_tls = self.upstream_tls_render_settings(config, false)?;
         let source = render_host_config_for_runtime(
             host,
-            self.settings.http_port,
-            self.settings.controller_port,
+            &config.http_settings,
             self.settings.public_https_port,
             Some(&upstream_tls),
         )
@@ -547,96 +598,42 @@ impl ProxyRuntime {
 
     pub(crate) async fn active_host_config(
         &self,
-        host_id: &str,
+        id: &str,
     ) -> Result<(String, String), RuntimeError> {
-        if !is_canonical_uuid(host_id) {
+        if !is_canonical_uuid(id) {
             return Err(RuntimeError::HostConfigNotFound);
         }
-        let _apply_guard = timeout(self.settings.lock_wait, self.apply_lock.lock())
-            .await
-            .map_err(|_| RuntimeError::Busy)?;
-
-        let mut active_reader = state_dir(&self.settings.state_dir)
-            .and_then(|directory| directory.open_file(ACTIVE_CONFIG_FILE))
-            .map_err(|_| RuntimeError::Unavailable)?
-            .take((MAX_RENDERED_PROXY_CONFIG_BYTES as u64) + 1);
-        let mut active_bytes = Vec::new();
-        active_reader
-            .read_to_end(&mut active_bytes)
-            .map_err(|_| RuntimeError::Unavailable)?;
-        if active_bytes.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
-            return Err(RuntimeError::ConfigTooLarge);
-        }
-        let active_contents =
-            String::from_utf8(active_bytes).map_err(|_| RuntimeError::Unavailable)?;
-        let active_revision =
-            revision_from_config(&active_contents).ok_or(RuntimeError::HostConfigNotFound)?;
-
-        let mut source_reader = state_dir(&self.settings.state_dir)
-            .and_then(|directory| directory.open_file(ACTIVE_HOST_SOURCES_FILE))
-            .map_err(|_| RuntimeError::HostConfigNotFound)?
-            .take((MAX_ACTIVE_HOST_SOURCES_BYTES as u64) + 1);
-        let mut source_bytes = Vec::new();
-        source_reader
-            .read_to_end(&mut source_bytes)
-            .map_err(|_| RuntimeError::HostConfigNotFound)?;
-        if source_bytes.len() > MAX_ACTIVE_HOST_SOURCES_BYTES {
-            return Err(RuntimeError::HostConfigNotFound);
-        }
-        let sources = serde_json::from_slice::<ActiveHostSources>(&source_bytes)
-            .map_err(|_| RuntimeError::HostConfigNotFound)?;
-        if sources.revision != active_revision {
-            return Err(RuntimeError::HostConfigNotFound);
-        }
-        let source = sources
+        let state = self.state.lock().await;
+        let revision = state
+            .active_revision
+            .clone()
+            .ok_or(RuntimeError::HostConfigNotFound)?;
+        let source = state
             .host_sources
-            .get(host_id)
-            .filter(|source| source.len() <= MAX_RENDERED_PROXY_HOST_SOURCE_BYTES)
+            .get(id)
             .cloned()
             .ok_or(RuntimeError::HostConfigNotFound)?;
-        Ok((source, active_revision))
+        Ok((source, revision))
     }
 
     fn render_active_host_sources(
         &self,
-        configuration: &ValidatedProxyConfig,
-    ) -> Result<ActiveHostSources, RuntimeError> {
-        let upstream_tls = self.upstream_tls_render_settings(configuration, false)?;
-        let host_sources = render_host_sources_for_runtime(
-            configuration,
-            self.settings.http_port,
-            self.settings.controller_port,
+        config: &ValidatedProxyConfig,
+    ) -> Result<BTreeMap<String, String>, RuntimeError> {
+        let upstream_tls = self.upstream_tls_render_settings(config, false)?;
+        render_host_sources_for_runtime(
+            config,
             self.settings.public_https_port,
             Some(&upstream_tls),
         )
-        .map_err(|error| match error {
-            RenderError::ConfigTooLarge => RuntimeError::ConfigTooLarge,
-            RenderError::InvalidProbeSocket
-            | RenderError::InvalidCertificatePath
-            | RenderError::MissingCertificate
-            | RenderError::MissingTrustedCa
-            | RenderError::MissingUpstreamTlsPolicy => RuntimeError::ApplyFailed,
-        })?;
-        Ok(ActiveHostSources {
-            revision: configuration.revision.clone(),
-            host_sources,
-        })
-    }
-
-    fn persist_active_host_sources(&self, sources: &ActiveHostSources) -> Result<(), RuntimeError> {
-        let bytes = serde_json::to_vec(sources).map_err(|_| RuntimeError::ApplyFailed)?;
-        if bytes.len() > MAX_ACTIVE_HOST_SOURCES_BYTES {
-            return Err(RuntimeError::ConfigTooLarge);
-        }
-        atomic_write(&self.active_host_sources_path(), &bytes)
-            .map_err(|_| RuntimeError::ApplyFailed)
+        .map_err(|_| RuntimeError::ApplyFailed)
     }
 
     async fn render_proxy_config_for_apply(
         &self,
         configuration: &ValidatedProxyConfig,
         staged: Option<&StagedCertificate>,
-        materialize_upstream_tls: bool,
+        purpose: RenderPurpose,
     ) -> Result<String, RuntimeError> {
         let mut materials = BTreeMap::new();
         let certificate_hosts = configuration
@@ -658,7 +655,7 @@ impl ProxyRuntime {
                 Some(staged) => staged.covers_domains(domains),
                 None => self
                     .certificate_store
-                    .covers_domains(certificate_id, domains)
+                    .covers_domains(certificate_id, domains, purpose != RenderPurpose::Recovery)
                     .await
                     .map_err(|_| RuntimeError::ApplyFailed)?,
             };
@@ -685,8 +682,8 @@ impl ProxyRuntime {
             );
         }
         let upstream_tls =
-            self.upstream_tls_render_settings(configuration, materialize_upstream_tls)?;
-        render_config_with_tls(
+            self.upstream_tls_render_settings(configuration, purpose != RenderPurpose::Preview)?;
+        let rendered = render_config_with_tls(
             configuration,
             &self.settings.render_settings(),
             &TlsRenderSettings {
@@ -704,7 +701,11 @@ impl ProxyRuntime {
             | RenderError::MissingCertificate
             | RenderError::MissingTrustedCa
             | RenderError::MissingUpstreamTlsPolicy => RuntimeError::ApplyFailed,
-        })
+        })?;
+        if revision_from_config(&rendered).as_deref() != Some(configuration.revision.as_str()) {
+            return Err(RuntimeError::ApplyFailed);
+        }
+        Ok(rendered)
     }
 
     fn upstream_tls_render_settings(
@@ -735,15 +736,36 @@ impl ProxyRuntime {
             trusted_ca_paths,
         })
     }
+
     pub(crate) async fn shutdown(&self) {
-        if let Some(task) = self.renewal_task.lock().await.take() {
-            task.abort();
+        self.stopping.store(true, Ordering::SeqCst);
+        for slot in [&self.renewal_task, &self.recovery_task] {
+            if let Some(task) = slot.lock().await.take() {
+                task.abort();
+                let _ = task.await;
+            }
         }
+        let _guard = self.apply_lock.lock().await;
         if let Some(engine) = &self.engine
             && engine.shutdown().await.is_err()
         {
-            warn!(stage = "shutdown", "proxy engine did not stop cleanly");
+            warn!(stage = "shutdown", "Caddy required forced termination");
         }
+        self.mark_unavailable().await;
+    }
+
+    async fn start_engine(
+        &self,
+        engine: &Arc<dyn ProxyEngine>,
+        json: &str,
+        revision: &str,
+    ) -> Result<(), EngineError> {
+        let result = self.run_stage(engine.start(json, revision)).await;
+        if result.is_err() {
+            // Also reap a child when the outer stage timeout cancels start's future.
+            let _ = engine.shutdown().await;
+        }
+        result
     }
 
     async fn run_stage<'a>(&self, future: EngineFuture<'a>) -> Result<(), EngineError> {
@@ -751,26 +773,6 @@ impl ProxyRuntime {
             .await
             .map_err(|_| EngineError::TimedOut)?
     }
-
-    async fn start_configuration(
-        &self,
-        engine: &Arc<dyn ProxyEngine>,
-        config_path: &Path,
-        contents: &str,
-    ) -> Result<(), EngineError> {
-        let expected_revision =
-            revision_from_config(contents).unwrap_or_else(|| BASELINE_PROBE_REVISION.to_owned());
-        self.run_stage(engine.test_config(config_path)).await?;
-        self.run_stage(engine.start(config_path, &expected_revision))
-            .await
-    }
-
-    async fn handle_engine_error(&self, error: EngineError) {
-        if matches!(error, EngineError::Unavailable | EngineError::Unsupported) {
-            self.mark_unavailable().await;
-        }
-    }
-
     async fn mark_unavailable(&self) {
         self.state.lock().await.engine_available = false;
     }
@@ -792,38 +794,6 @@ impl ProxyRuntime {
             .unwrap_or(minimum_window);
         expires_at - now <= time::Duration::seconds(minimum_window.max(one_third))
     }
-
-    fn read_state_text(&self, component: &str, maximum_bytes: usize) -> std::io::Result<String> {
-        let bytes = state_dir(&self.settings.state_dir)?.read_file(component, maximum_bytes)?;
-        String::from_utf8(bytes).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "runtime state file is not UTF-8",
-            )
-        })
-    }
-    fn active_path(&self) -> PathBuf {
-        self.settings.state_dir.join(ACTIVE_CONFIG_FILE)
-    }
-
-    fn candidate_path(&self) -> PathBuf {
-        self.settings.state_dir.join(CANDIDATE_CONFIG_FILE)
-    }
-
-    fn last_good_path(&self) -> PathBuf {
-        self.settings.state_dir.join(LAST_GOOD_CONFIG_FILE)
-    }
-
-    fn last_apply_path(&self) -> PathBuf {
-        self.settings.state_dir.join(LAST_APPLY_FILE)
-    }
-
-    fn active_configuration_path(&self) -> PathBuf {
-        self.settings.state_dir.join(ACTIVE_CONFIGURATION_FILE)
-    }
-    fn active_host_sources_path(&self) -> PathBuf {
-        self.settings.state_dir.join(ACTIVE_HOST_SOURCES_FILE)
-    }
 }
 
 fn is_readable_system_ca_bundle(path: &Path) -> bool {
@@ -833,31 +803,4 @@ fn is_readable_system_ca_bundle(path: &Path) -> bool {
     };
     let mut byte = [0u8; 1];
     file.read(&mut byte).is_ok_and(|read| read > 0)
-}
-fn snapshot_version(configuration: &ValidatedProxyConfig) -> u8 {
-    if !configuration.redirect_hosts.is_empty() {
-        6
-    } else if configuration
-        .proxy_hosts
-        .iter()
-        .any(|host| host.upstream_tls.is_some())
-    {
-        5
-    } else if configuration
-        .proxy_hosts
-        .iter()
-        .any(|host| host.certificate_id.is_some())
-    {
-        4
-    } else if configuration
-        .proxy_hosts
-        .iter()
-        .any(|host| !host.http_settings.is_empty() || !host.advanced_config.is_empty())
-    {
-        3
-    } else if !configuration.http_settings.is_empty() {
-        2
-    } else {
-        1
-    }
 }

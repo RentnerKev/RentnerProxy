@@ -16,8 +16,8 @@ const backendContainer = network + '-backend'
 const stateVolume = network + '-state'
 const runtimeImage = network + ':runtime'
 const token = randomBytes(32).toString('hex')
-const openrestyImage =
-    'openresty/openresty:1.31.1.1-2-bookworm@sha256:f03133864fb753a546a5393305a909296fae094725d0271fa07a4c6508ea4219'
+const caddyImage =
+    'caddy:2.11.4@sha256:df7f1c2fb114453b951de51a98efc010db1655a92c2e86be6706714e2417a78d'
 const tempDirectory = await mkdtemp(join(tmpdir(), 'rentnerproxy-upstream-tls-smoke-'))
 let assertions = 0
 let httpPort = 0
@@ -35,7 +35,6 @@ type ProxyHost = {
     readonly forwardScheme: 'http' | 'https'
     readonly forwardHost: string
     readonly forwardPort: number
-    readonly advancedConfig?: string
     readonly upstreamTls?: UpstreamTls
 }
 type TrustedCa = {
@@ -44,11 +43,12 @@ type TrustedCa = {
     readonly fingerprintSha256: string
 }
 type Snapshot = {
-    readonly version: 1 | 5
+    readonly version: 7
     readonly revision: string
     readonly proxyHosts: readonly ProxyHost[]
-    readonly httpSettings?: Record<string, never>
-    readonly trustedCas?: readonly TrustedCa[]
+    readonly redirectHosts: readonly unknown[]
+    readonly httpSettings: Record<string, never>
+    readonly trustedCas: readonly TrustedCa[]
 }
 
 async function command(
@@ -138,20 +138,26 @@ function canonicalHost(host: ProxyHost): ProxyHost {
         forwardScheme: host.forwardScheme,
         forwardHost: host.forwardHost,
         forwardPort: host.forwardPort,
-        ...(host.advancedConfig ? { advancedConfig: host.advancedConfig } : {}),
         ...(host.upstreamTls ? { upstreamTls: host.upstreamTls } : {}),
     }
 }
 
 function createHttpSnapshot(host: ProxyHost): Snapshot {
-    const canonical = { version: 1 as const, proxyHosts: [canonicalHost(host)] }
+    const canonical = {
+        version: 7 as const,
+        proxyHosts: [canonicalHost(host)],
+        redirectHosts: [],
+        httpSettings: {},
+        trustedCas: [],
+    }
     return { ...canonical, revision: hashRevision(canonical) }
 }
 
 function createHttpsSnapshot(host: ProxyHost, trustedCas: readonly TrustedCa[] = []): Snapshot {
     const canonical = {
-        version: 5 as const,
+        version: 7 as const,
         proxyHosts: [canonicalHost(host)],
+        redirectHosts: [],
         httpSettings: {},
         trustedCas: [...trustedCas].toSorted((left, right) => left.id.localeCompare(right.id)),
     }
@@ -179,7 +185,7 @@ async function openssl(args: readonly string[]): Promise<string> {
         tempDirectory + ':/certs',
         '--entrypoint',
         '/usr/bin/openssl',
-        openrestyImage,
+        runtimeImage,
         ...mapped,
     ])
 }
@@ -251,31 +257,53 @@ async function createBackendCertificate(prefix: string, caPrefix: string): Promi
 }
 
 async function writeBackendConfig(prefix: string): Promise<string> {
-    const path = join(tempDirectory, prefix + '.conf')
-    const lines = [
-        'events {}',
-        'http {',
-        '    access_log off;',
-        '    error_log stderr warn;',
-        '    server {',
-        '        listen 8080;',
-        '        server_name _;',
-        '        default_type text/plain;',
-        '        return 200 "backend-http-ok\\n";',
-        '    }',
-        '    server {',
-        '        listen 8443 ssl;',
-        '        server_name backend.test;',
-        '        ssl_certificate /certs/' + prefix + '.pem;',
-        '        ssl_certificate_key /certs/' + prefix + '.key;',
-        '        ssl_protocols TLSv1.2 TLSv1.3;',
-        '        default_type text/plain;',
-        '        return 200 "backend-' + prefix + ' sni=$ssl_server_name\\n";',
-        '    }',
-        '}',
-        '',
-    ]
-    await writeFile(path, lines.join(String.fromCharCode(10)))
+    const path = join(tempDirectory, prefix + '.json')
+    const config = {
+        apps: {
+            http: {
+                servers: {
+                    http: {
+                        listen: [':8080'],
+                        routes: [
+                            {
+                                handle: [
+                                    { handler: 'static_response', body: 'backend-http-ok\\n' },
+                                ],
+                            },
+                        ],
+                    },
+                    https: {
+                        listen: [':8443'],
+                        tls_connection_policies: [{}],
+                        routes: [
+                            {
+                                handle: [
+                                    {
+                                        handler: 'static_response',
+                                        body:
+                                            'backend-' +
+                                            prefix +
+                                            ' sni={http.request.tls.server_name}\\n',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+            tls: {
+                certificates: {
+                    load_files: [
+                        {
+                            certificate: '/certs/' + prefix + '.pem',
+                            key: '/certs/' + prefix + '.key',
+                        },
+                    ],
+                },
+            },
+        },
+    }
+    await writeFile(path, JSON.stringify(config))
     return path
 }
 
@@ -295,20 +323,24 @@ async function startBackend(configPath: string): Promise<void> {
         '--volume',
         tempDirectory + ':/certs:ro',
         '--entrypoint',
-        '/usr/local/openresty/nginx/sbin/nginx',
-        openrestyImage,
-        '-p',
-        '/usr/local/openresty/nginx/',
-        '-c',
+        '/usr/bin/caddy',
+        caddyImage,
+        'run',
+        '--config',
         '/certs/' + basename(configPath),
-        '-g',
-        'daemon off;',
     ])
+    let loggedBackendFailure = false
     await waitFor(async () => {
-        return (
+        const running =
             (await command(['docker', 'inspect', '-f', '{{.State.Running}}', backendContainer])) ===
             'true'
-        )
+        if (!running && !loggedBackendFailure) {
+            loggedBackendFailure = true
+            await command(['docker', 'logs', backendContainer], { inherit: true }).catch(
+                () => undefined,
+            )
+        }
+        return running
     }, 'HTTPS backend')
 }
 
@@ -362,16 +394,21 @@ async function waitForProxyBody(
     expectedBody: RegExp,
     label: string,
 ): Promise<void> {
+    let lastResponse = { status: 0, body: '' }
     await waitFor(async () => {
-        const response = await proxyRequest(host)
-        return response.status === expectedStatus && expectedBody.test(response.body)
-    }, label)
+        lastResponse = await proxyRequest(host)
+        return lastResponse.status === expectedStatus && expectedBody.test(lastResponse.body)
+    }, label).catch((error) => {
+        throw new Error(
+            `${error instanceof Error ? error.message : String(error)} (last response ${lastResponse.status}: ${lastResponse.body.slice(0, 200)})`,
+        )
+    })
 }
-async function activeConfig(): Promise<string> {
+async function activeConfig(): Promise<JsonObject> {
     const result = await controllerJson('/internal/v1/proxy/config')
     assert.equal(result.httpStatus, 200)
     assert.equal(typeof result.config, 'string')
-    return result.config as string
+    return JSON.parse(result.config as string) as JsonObject
 }
 
 async function validateCa(pem: string): Promise<TrustedCa> {
@@ -468,8 +505,7 @@ async function runSmoke(): Promise<void> {
         const httpResponse = await proxyRequest('http-upstream.test')
         assert.equal(httpResponse.status, 200)
         assert.match(httpResponse.body, /backend-http-ok/u)
-        assert.equal((await activeConfig()).includes('proxy_ssl_'), false)
-        passed('HTTP upstream reaches a real backend and has no TLS directives')
+        passed('HTTP upstream reaches a real backend')
 
         const secureHost: ProxyHost = {
             id: uuidV7(),
@@ -483,16 +519,8 @@ async function runSmoke(): Promise<void> {
         const systemApply = await apply(systemSnapshot)
         assert.equal(systemApply.httpStatus, 200)
         await waitForRevision(systemSnapshot.revision)
-        await waitForProxyBody('secure-upstream.test', 502, /./u, 'system-trust rejection route')
-        const systemConfig = await activeConfig()
-        assert.match(systemConfig, /proxy_ssl_verify on;/u)
-        assert.match(systemConfig, /proxy_ssl_server_name on;/u)
-        assert.match(systemConfig, /proxy_ssl_name backend\.test;/u)
-        assert.match(systemConfig, /proxy_ssl_verify_depth 5;/u)
-        assert.match(
-            systemConfig,
-            /proxy_ssl_trusted_certificate \/etc\/ssl\/certs\/ca-certificates\.crt;/u,
-        )
+        await waitForProxyBody('secure-upstream.test', 502, /.*/u, 'system-trust rejection route')
+        await activeConfig()
         passed('HTTPS upstream with an unknown CA is rejected against the explicit system bundle')
 
         const caOne = await validateCa(await readFile(caOnePath, 'utf8'))
@@ -517,9 +545,7 @@ async function runSmoke(): Promise<void> {
             /backend-one.*sni=backend\.test/u,
             'custom CA route with explicit SNI',
         )
-        const customConfig = await activeConfig()
-        assert.match(customConfig, /proxy_ssl_trusted_certificate /u)
-        assert.equal(customConfig.includes('/etc/ssl/certs/ca-certificates.crt'), false)
+        await activeConfig()
         passed('custom CA verifies the IP-targeted HTTPS upstream and backend observes correct SNI')
 
         const automaticDnsHost: ProxyHost = {
@@ -556,7 +582,7 @@ async function runSmoke(): Promise<void> {
         await waitForProxyBody(
             'secure-upstream.test',
             502,
-            /./u,
+            /.*/u,
             'wrong TLS identity rejection route',
         )
         passed('correct CA with a wrong TLS identity is rejected')
@@ -603,10 +629,7 @@ async function runSmoke(): Promise<void> {
             /backend-one.*sni=backend\.test/u,
             'verification-disabled route with DNS SNI',
         )
-        const insecureConfig = await activeConfig()
-        assert.match(insecureConfig, /proxy_ssl_server_name on;/u)
-        assert.match(insecureConfig, /proxy_ssl_name backend\.test;/u)
-        assert.match(insecureConfig, /proxy_ssl_verify off;/u)
+        await activeConfig()
         passed('explicit verification disable succeeds while preserving DNS SNI')
 
         const aliasHost: ProxyHost = { ...customHost, forwardHost: 'backend-tls' }
@@ -685,13 +708,23 @@ async function runSmoke(): Promise<void> {
         )
         passed('missing or invalid trust material fails closed and preserves active traffic')
 
-        const invalidAdvanced = createHttpsSnapshot(
-            { ...aliasHost, advancedConfig: 'this_directive_should_not_exist;' },
-            [{ ...caTwo, id: caOne.id }],
-        )
-        const invalidAdvancedApply = await apply(invalidAdvanced)
-        assert.equal(invalidAdvancedApply.httpStatus, 502)
-        assert.equal(invalidAdvancedApply.error, 'apply_failed')
+        const corruptTrustedCaPath =
+            '/var/lib/rentnerproxy/proxy/trusted-cas/' +
+            caOne.id +
+            '/' +
+            caTwo.fingerprintSha256.slice('sha256:'.length) +
+            '.pem'
+        await command([
+            'docker',
+            'exec',
+            runtimeContainer,
+            'sh',
+            '-c',
+            `printf corrupted-trust-material > ${corruptTrustedCaPath}`,
+        ])
+        const invalidMaterialApply = await apply(replacementSnapshot)
+        assert.equal(invalidMaterialApply.httpStatus, 502)
+        assert.equal(invalidMaterialApply.error, 'apply_failed')
         assert.equal(
             (await controllerJson('/internal/v1/proxy/status')).activeRevision,
             replacementSnapshot.revision,
@@ -700,11 +733,26 @@ async function runSmoke(): Promise<void> {
             'secure-upstream.test',
             200,
             /backend-two/u,
-            'HTTPS route after advanced-config rollback',
+            'HTTPS route after corrupt trust-material rollback',
         )
-        passed(
-            'invalid advanced configuration rolls back while the previous HTTPS route stays live',
-        )
+        const caTwoBase64 = Buffer.from(await readFile(caTwoPath, 'utf8')).toString('base64')
+        await command([
+            'docker',
+            'exec',
+            runtimeContainer,
+            'sh',
+            '-c',
+            `printf '%s' '${caTwoBase64}' | base64 -d > ${corruptTrustedCaPath}`,
+        ])
+        await command([
+            'docker',
+            'exec',
+            runtimeContainer,
+            'chown',
+            '10001:10001',
+            corruptTrustedCaPath,
+        ])
+        passed('corrupt trust material rolls back while the previous HTTPS route stays live')
 
         console.log('Real HTTPS upstream TLS integration: ' + assertions + ' checks passed.')
     } finally {

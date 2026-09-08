@@ -4,3 +4,7 @@
 !controller/Cargo.lock
 !controller/src/
 !controller/src/**
+
+!docker/
+!docker/licenses/
+!docker/licenses/Caddy-LICENSE

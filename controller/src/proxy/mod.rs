@@ -22,7 +22,6 @@ pub(crate) use trusted_ca::{
 };
 
 pub(crate) const MAX_PROXY_HOSTS: usize = 1_000;
-pub(crate) const MAX_ADVANCED_CONFIG_BYTES: usize = 64 * 1024;
 const MAX_DOMAINS_PER_HOST: usize = 50;
 const MAX_TOTAL_DOMAINS: usize = 50_000;
 
@@ -35,46 +34,7 @@ pub(crate) enum ProxyValidationError {
 pub(crate) fn validate_proxy_config(
     mut request: ProxyConfigRequest,
 ) -> Result<ValidatedProxyConfig, ProxyValidationError> {
-    if !matches!(request.version, 1..=6) || !is_revision(&request.revision) {
-        return Err(ProxyValidationError::InvalidConfiguration);
-    }
-
-    for host in &mut request.proxy_hosts {
-        host.advanced_config = normalize_advanced_config(&host.advanced_config);
-    }
-    let has_host_configuration = request
-        .proxy_hosts
-        .iter()
-        .any(|host| !host.http_settings.is_empty() || !host.advanced_config.is_empty());
-    let has_tls_configuration = request
-        .proxy_hosts
-        .iter()
-        .any(|host| host.certificate_id.is_some());
-    let has_https_upstream = request
-        .proxy_hosts
-        .iter()
-        .any(|host| host.forward_scheme == "https");
-    let has_upstream_tls_configuration = request
-        .proxy_hosts
-        .iter()
-        .any(|host| host.upstream_tls.is_some());
-    let has_redirect_hosts = !request.redirect_hosts.is_empty();
-    if (request.version <= 5 && has_redirect_hosts)
-        || (request.version == 6 && !has_redirect_hosts)
-        || (request.version <= 4
-            && (has_upstream_tls_configuration || !request.trusted_cas.is_empty()))
-        || (request.version == 1
-            && (!request.http_settings.is_empty()
-                || has_host_configuration
-                || has_tls_configuration))
-        || (request.version == 2
-            && (request.http_settings.is_empty()
-                || has_host_configuration
-                || has_tls_configuration))
-        || (request.version == 3 && (!has_host_configuration || has_tls_configuration))
-        || (request.version == 4 && !has_tls_configuration)
-        || (request.version == 5 && (!has_https_upstream || !has_upstream_tls_configuration))
-    {
+    if request.version != 7 || !is_revision(&request.revision) {
         return Err(ProxyValidationError::InvalidConfiguration);
     }
 
@@ -104,7 +64,8 @@ pub(crate) fn validate_proxy_config(
             || !is_valid_forward_host(&host.forward_host)
             || host.forward_port == 0
             || !has_valid_http_settings(&host.http_settings)
-            || !has_valid_advanced_config(&host.advanced_config)
+            || host.http_settings.send_timeout_seconds.is_some()
+            || host.http_settings.keepalive_timeout_seconds.is_some()
             || host
                 .certificate_id
                 .as_deref()
@@ -154,34 +115,32 @@ pub(crate) fn validate_proxy_config(
         }
     }
 
-    if matches!(request.version, 5 | 6) {
-        if request
-            .proxy_hosts
+    if request
+        .proxy_hosts
+        .iter()
+        .any(|host| (host.forward_scheme == "https") != host.upstream_tls.is_some())
+    {
+        return Err(ProxyValidationError::ValidationFailed);
+    }
+    validate_and_canonicalize_trusted_cas(&mut request.trusted_cas)?;
+    let trusted_ca_ids = request
+        .trusted_cas
+        .iter()
+        .map(|trusted_ca| trusted_ca.id.as_str())
+        .collect::<HashSet<_>>();
+    let referenced_ca_ids = request
+        .proxy_hosts
+        .iter()
+        .filter_map(|host| host.upstream_tls.as_ref()?.trusted_ca_id.as_deref())
+        .collect::<HashSet<_>>();
+    if referenced_ca_ids
+        .iter()
+        .any(|id| !trusted_ca_ids.contains(id))
+        || trusted_ca_ids
             .iter()
-            .any(|host| (host.forward_scheme == "https") != host.upstream_tls.is_some())
-        {
-            return Err(ProxyValidationError::ValidationFailed);
-        }
-        validate_and_canonicalize_trusted_cas(&mut request.trusted_cas)?;
-        let trusted_ca_ids = request
-            .trusted_cas
-            .iter()
-            .map(|trusted_ca| trusted_ca.id.as_str())
-            .collect::<HashSet<_>>();
-        let referenced_ca_ids = request
-            .proxy_hosts
-            .iter()
-            .filter_map(|host| host.upstream_tls.as_ref()?.trusted_ca_id.as_deref())
-            .collect::<HashSet<_>>();
-        if referenced_ca_ids
-            .iter()
-            .any(|id| !trusted_ca_ids.contains(id))
-            || trusted_ca_ids
-                .iter()
-                .any(|id| !referenced_ca_ids.contains(id))
-        {
-            return Err(ProxyValidationError::ValidationFailed);
-        }
+            .any(|id| !referenced_ca_ids.contains(id))
+    {
+        return Err(ProxyValidationError::ValidationFailed);
     }
 
     let canonical_hosts = canonical_hosts(&request.proxy_hosts);
@@ -363,14 +322,6 @@ fn has_valid_http_settings(settings: &ProxyHttpSettings) -> bool {
 
 fn option_in_range(value: Option<u32>, minimum: u32, maximum: u32) -> bool {
     value.is_none_or(|value| (minimum..=maximum).contains(&value))
-}
-
-fn has_valid_advanced_config(value: &str) -> bool {
-    value.len() <= MAX_ADVANCED_CONFIG_BYTES && !value.as_bytes().contains(&0)
-}
-
-pub(crate) fn normalize_advanced_config(value: &str) -> String {
-    value.replace("\r\n", "\n")
 }
 
 pub(crate) fn is_canonical_uuid(value: &str) -> bool {

@@ -15,6 +15,24 @@ const validateProductionEnvironmentAtStartup = createServerOnlyFn(() => {
 
 if (typeof window === 'undefined') validateProductionEnvironmentAtStartup()
 
+const startProxyRuntimeLifecycle = createServerOnlyFn(async () => {
+    let stop: (() => Promise<void>) | null = null
+    const initializing = import('./server/ProxyRuntime/proxy-runtime.service').then(
+        ({ startProxyRuntimeReconciliation, stopProxyRuntimeReconciliation }) => {
+            stop = stopProxyRuntimeReconciliation
+            startProxyRuntimeReconciliation()
+        },
+    )
+    // serve.mjs emits this before exit and awaits every promise pushed into the array.
+    // Register synchronously so shutdown during module initialization still drains safely.
+    process.once('rentnerproxy:shutdown', (pending: Array<Promise<void>>) => {
+        pending.push(initializing.then(() => stop?.()).then(() => undefined))
+    })
+    await initializing
+})
+
+if (typeof window === 'undefined') void startProxyRuntimeLifecycle()
+
 const securityHeadersMiddleware = createMiddleware().server(({ next }) => {
     setResponseHeaders(
         getAdminUiSecurityHeaders(

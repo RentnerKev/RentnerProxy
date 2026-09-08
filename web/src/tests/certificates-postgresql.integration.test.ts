@@ -410,7 +410,7 @@ describe('certificate management with PostgreSQL', () => {
             )
             expect(updated).toMatchObject({ certificateId: id, forceHttps: true })
             const snapshot = await getProxyRuntimeSnapshotService()
-            expect(snapshot.version).toBe(4)
+            expect(snapshot.version).toBe(7)
             expect(snapshot.proxyHosts[0]).toMatchObject({ certificateId: id, forceHttps: true })
             const editor = await asUser(owner, () => getProxyHostConfigEditorService(host.id))
             await asUser(owner, () =>

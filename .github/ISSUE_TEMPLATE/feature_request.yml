@@ -39,7 +39,7 @@ body:
               - Web / Admin UI
               - Authentication / Accounts
               - Proxy Hosts
-              - OpenResty Runtime
+              - Caddy Runtime
               - Certificates / ACME / TLS
               - Database / Redis
               - Docker / Deployment

@@ -1,3 +1,6 @@
+use axum::{body::Bytes, http::Request};
+use http_body_util::{BodyExt, Full, Limited};
+use hyper_util::rt::TokioIo;
 use std::{
     future::Future,
     path::{Path, PathBuf},
@@ -5,33 +8,27 @@ use std::{
     process::Stdio,
     time::Duration,
 };
-
-#[cfg(unix)]
-use tokio::time::sleep;
 use tokio::{
+    io::{AsyncRead, AsyncWrite, AsyncWriteExt},
     process::{Child, Command},
     sync::Mutex,
-    time::timeout,
+    task::JoinHandle,
+    time::{sleep, timeout},
 };
 
-#[cfg(unix)]
-use super::state::ACTIVE_CONFIG_FILE;
-
-#[cfg(unix)]
-const PROCESS_SETTLE: Duration = Duration::from_millis(150);
-const PROCESS_COMMAND_TIMEOUT: Duration = Duration::from_secs(4);
-#[cfg(unix)]
+const API_TIMEOUT: Duration = Duration::from_secs(10);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
-#[cfg(unix)]
-const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
+const MAX_CONTROL_RESPONSE_BYTES: usize = 4_096;
 
 pub(crate) type EngineFuture<'a> =
     Pin<Box<dyn Future<Output = Result<(), EngineError>> + Send + 'a>>;
 
+/// Control surface of the one supported runtime; the trait permits isolated failure tests.
 pub(crate) trait ProxyEngine: Send + Sync {
-    fn test_config<'a>(&'a self, config_path: &'a Path) -> EngineFuture<'a>;
-    fn start<'a>(&'a self, config_path: &'a Path, expected_revision: &'a str) -> EngineFuture<'a>;
-    fn reload<'a>(&'a self, config_path: &'a Path, expected_revision: &'a str) -> EngineFuture<'a>;
+    fn start<'a>(&'a self, configuration: &'a str, expected_revision: &'a str) -> EngineFuture<'a>;
+    fn load<'a>(&'a self, configuration: &'a str) -> EngineFuture<'a>;
+    fn probe<'a>(&'a self, expected_revision: &'a str) -> EngineFuture<'a>;
     fn shutdown<'a>(&'a self) -> EngineFuture<'a>;
     fn is_running<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>>;
 }
@@ -40,43 +37,134 @@ pub(crate) trait ProxyEngine: Send + Sync {
 pub(crate) enum EngineError {
     Unavailable,
     CommandFailed,
+    Rejected,
+    InvalidResponse,
     TimedOut,
-    Unsupported,
 }
 
-pub(crate) struct ProcessEngine {
+pub(crate) struct CaddyProcess {
     binary: PathBuf,
     state_dir: PathBuf,
-    #[cfg(unix)]
-    probe_socket: Option<PathBuf>,
+    admin_socket: PathBuf,
+    probe_socket: PathBuf,
     child: Mutex<Option<Child>>,
 }
 
-impl ProcessEngine {
-    pub(crate) fn new(binary: PathBuf, state_dir: PathBuf, probe_socket: Option<PathBuf>) -> Self {
-        #[cfg(not(unix))]
-        let _ = probe_socket;
+impl CaddyProcess {
+    pub(crate) fn new(binary: PathBuf, state_dir: PathBuf) -> Self {
         Self {
             binary,
+            admin_socket: state_dir.join("caddy-admin.sock"),
+            probe_socket: state_dir.join("runtime-probe.sock"),
             state_dir,
-            #[cfg(unix)]
-            probe_socket,
             child: Mutex::new(None),
         }
     }
 
-    async fn command(&self, args: &[&str], config_path: &Path) -> Result<(), EngineError> {
+    async fn child_running(&self) -> bool {
+        let mut slot = self.child.lock().await;
+        match slot.as_mut().map(Child::try_wait) {
+            Some(Ok(None)) => true,
+            _ => {
+                *slot = None;
+                false
+            }
+        }
+    }
+
+    async fn request(
+        &self,
+        socket: &Path,
+        fallback_port: u16,
+        method: &'static str,
+        path: &'static str,
+        body: &str,
+    ) -> Result<ControlResponse, EngineError> {
+        let operation = async {
+            #[cfg(unix)]
+            {
+                let _ = fallback_port;
+                let stream = tokio::net::UnixStream::connect(socket)
+                    .await
+                    .map_err(|_| EngineError::Unavailable)?;
+                exchange(stream, "localhost", method, path, body).await
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = socket;
+                let stream =
+                    tokio::net::TcpStream::connect((std::net::Ipv4Addr::LOCALHOST, fallback_port))
+                        .await
+                        .map_err(|_| EngineError::Unavailable)?;
+                exchange(
+                    stream,
+                    &format!("127.0.0.1:{fallback_port}"),
+                    method,
+                    path,
+                    body,
+                )
+                .await
+            }
+        };
+        timeout(API_TIMEOUT, operation)
+            .await
+            .map_err(|_| EngineError::TimedOut)?
+    }
+
+    async fn verify_revision(&self, revision: &str) -> Result<(), EngineError> {
+        let expected = format!("{revision}\n");
+        let operation = async {
+            loop {
+                if !self.child_running().await {
+                    return Err(EngineError::Unavailable);
+                }
+                if let Ok(response) = self
+                    .request(
+                        &self.probe_socket,
+                        2_020,
+                        "GET",
+                        "/__rentnerproxy_runtime_probe",
+                        "",
+                    )
+                    .await
+                    && response.status == 200
+                    && response.body == expected.as_bytes()
+                {
+                    return Ok(());
+                }
+                sleep(Duration::from_millis(50)).await;
+            }
+        };
+        timeout(PROBE_TIMEOUT, operation)
+            .await
+            .map_err(|_| EngineError::TimedOut)?
+    }
+
+    async fn start_owned(&self, configuration: &str, revision: &str) -> Result<(), EngineError> {
+        // Runtime's apply lock is the sole lifecycle serialization boundary.
+        if self.child_running().await {
+            return self.verify_revision(revision).await;
+        }
         let mut command = Command::new(&self.binary);
         command
-            .args(args)
-            .arg("-p")
-            .arg(&self.state_dir)
-            .arg("-c")
-            .arg(config_path)
-            .stdin(Stdio::null())
+            .args(["run", "--config", "-"])
+            .current_dir(&self.state_dir)
+            .env_clear()
+            .env("XDG_CONFIG_HOME", self.state_dir.join("caddy/config"))
+            .env("XDG_DATA_HOME", self.state_dir.join("caddy/data"))
+            .stdin(Stdio::piped())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::inherit())
             .kill_on_drop(true);
+        #[cfg(unix)]
+        command.process_group(0);
+        #[cfg(windows)]
+        {
+            command.creation_flags(0x0800_0000);
+            if let Some(system_root) = std::env::var_os("SystemRoot") {
+                command.env("SystemRoot", system_root);
+            }
+        }
         let mut child = command.spawn().map_err(|error| {
             if error.kind() == std::io::ErrorKind::NotFound {
                 EngineError::Unavailable
@@ -84,233 +172,137 @@ impl ProcessEngine {
                 EngineError::CommandFailed
             }
         })?;
-        match timeout(PROCESS_COMMAND_TIMEOUT, child.wait()).await {
-            Ok(Ok(status)) if status.success() => Ok(()),
-            Ok(Ok(_)) | Ok(Err(_)) => Err(EngineError::CommandFailed),
-            Err(_) => {
-                let _ = child.kill().await;
-                let _ = child.wait().await;
-                Err(EngineError::TimedOut)
-            }
-        }
-    }
-
-    async fn child_running(&self) -> bool {
-        let mut child = self.child.lock().await;
-        let exited = match child.as_mut() {
-            Some(child) => match child.try_wait() {
-                Ok(None) => false,
-                Ok(Some(_)) | Err(_) => true,
-            },
-            None => return false,
-        };
-        if exited {
-            *child = None;
-            false
-        } else {
-            true
-        }
-    }
-
-    #[cfg(unix)]
-    async fn probe_revision(&self, expected_revision: &str) -> Result<(), EngineError> {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-        use tokio::net::UnixStream;
-
-        let Some(path) = &self.probe_socket else {
-            return Err(EngineError::Unsupported);
-        };
-        let expected_body = format!("{expected_revision}\n");
-        let probe = async {
-            loop {
-                if let Ok(mut stream) = UnixStream::connect(path).await {
-                    let request = b"GET /__rentnerproxy_runtime_probe HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
-                    if stream.write_all(request).await.is_ok() {
-                        let mut response = Vec::with_capacity(512);
-                        let mut limited_response = stream.take(4_096);
-                        if limited_response.read_to_end(&mut response).await.is_ok()
-                            && response.starts_with(b"HTTP/1.1 200")
-                            && response.ends_with(expected_body.as_bytes())
-                        {
-                            return Ok(());
-                        }
-                    }
-                }
-                sleep(Duration::from_millis(50)).await;
-            }
-        };
-        timeout(PROBE_TIMEOUT, probe)
-            .await
-            .map_err(|_| EngineError::TimedOut)?
-    }
-
-    #[cfg(unix)]
-    async fn start_unix(
-        &self,
-        config_path: &Path,
-        expected_revision: &str,
-    ) -> Result<(), EngineError> {
-        if self.child_running().await {
-            return self.probe_revision(expected_revision).await;
-        }
-        let mut command = Command::new(&self.binary);
-        command
-            .arg("-p")
-            .arg(&self.state_dir)
-            .arg("-c")
-            .arg(config_path)
-            .arg("-g")
-            .arg("daemon off;")
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .kill_on_drop(true);
-        command.process_group(0);
-        let child = command.spawn().map_err(|error| {
-            if error.kind() == std::io::ErrorKind::NotFound {
-                EngineError::Unavailable
-            } else {
-                EngineError::CommandFailed
-            }
-        })?;
+        let mut stdin = child.stdin.take().ok_or(EngineError::CommandFailed)?;
         *self.child.lock().await = Some(child);
-        let acknowledgement = async {
-            sleep(PROCESS_SETTLE).await;
-            if !self.child_running().await {
-                return Err(EngineError::CommandFailed);
-            }
-            self.probe_revision(expected_revision).await
+        let result = async {
+            stdin
+                .write_all(configuration.as_bytes())
+                .await
+                .map_err(|_| EngineError::CommandFailed)?;
+            stdin
+                .shutdown()
+                .await
+                .map_err(|_| EngineError::CommandFailed)?;
+            drop(stdin);
+            self.verify_revision(revision).await
         }
         .await;
-        if acknowledgement.is_err() {
+        if result.is_err() {
             self.terminate_child().await;
         }
-        acknowledgement
+        result
     }
 
-    #[cfg(unix)]
-    async fn reload_unix(
-        &self,
-        config_path: &Path,
-        expected_revision: &str,
-    ) -> Result<(), EngineError> {
-        if !self.child_running().await {
-            return self.start_unix(config_path, expected_revision).await;
-        }
-        self.command(&["-s", "reload"], config_path).await?;
-        if !self.child_running().await {
-            return Err(EngineError::CommandFailed);
-        }
-        self.probe_revision(expected_revision).await
-    }
-
-    #[cfg(unix)]
-    async fn shutdown_unix(&self) -> Result<(), EngineError> {
-        let active = self.state_dir.join(ACTIVE_CONFIG_FILE);
-        if !self.child_running().await {
-            return Ok(());
-        }
-        let signal = self.command(&["-s", "quit"], &active).await;
-        if let Err(error) = signal {
-            self.terminate_child().await;
-            return Err(error);
-        }
-        self.wait_for_child_exit().await
-    }
-
-    #[cfg(unix)]
     async fn terminate_child(&self) {
-        let Some(mut child) = self.child.lock().await.take() else {
-            return;
-        };
-        if let Some(process_id) = child.id() {
-            self.kill_process_group(process_id);
-        }
-        let _ = child.start_kill();
-        let _ = timeout(SHUTDOWN_TIMEOUT, child.wait()).await;
-    }
-
-    #[cfg(unix)]
-    async fn wait_for_child_exit(&self) -> Result<(), EngineError> {
-        let Some(mut child) = self.child.lock().await.take() else {
-            return Ok(());
-        };
-        match timeout(SHUTDOWN_TIMEOUT, child.wait()).await {
-            Ok(Ok(_)) => Ok(()),
-            Ok(Err(_)) => Err(EngineError::CommandFailed),
-            Err(_) => {
-                if let Some(process_id) = child.id() {
-                    self.kill_process_group(process_id);
-                }
-                let _ = child.start_kill();
-                match timeout(SHUTDOWN_TIMEOUT, child.wait()).await {
-                    Ok(Ok(_)) => Err(EngineError::TimedOut),
-                    Ok(Err(_)) | Err(_) => Err(EngineError::CommandFailed),
-                }
-            }
-        }
-    }
-
-    #[cfg(unix)]
-    fn kill_process_group(&self, process_id: u32) {
-        let Ok(process_id) = i32::try_from(process_id) else {
-            return;
-        };
-        // SAFETY: start_unix assigns the master to a process group with this positive ID.
-        // Negating that ID sends SIGKILL only to the controller-owned process group.
-        unsafe {
-            libc::kill(-process_id, libc::SIGKILL);
+        if let Some(mut child) = self.child.lock().await.take() {
+            let _ = child.start_kill();
+            let _ = timeout(SHUTDOWN_TIMEOUT, child.wait()).await;
         }
     }
 }
 
-impl ProxyEngine for ProcessEngine {
-    fn test_config<'a>(&'a self, config_path: &'a Path) -> EngineFuture<'a> {
-        Box::pin(async move { self.command(&["-t"], config_path).await })
+impl ProxyEngine for CaddyProcess {
+    fn start<'a>(&'a self, configuration: &'a str, revision: &'a str) -> EngineFuture<'a> {
+        Box::pin(self.start_owned(configuration, revision))
     }
-
-    fn start<'a>(&'a self, config_path: &'a Path, expected_revision: &'a str) -> EngineFuture<'a> {
+    fn load<'a>(&'a self, configuration: &'a str) -> EngineFuture<'a> {
         Box::pin(async move {
-            #[cfg(unix)]
-            {
-                self.start_unix(config_path, expected_revision).await
+            if !self.child_running().await {
+                return Err(EngineError::Unavailable);
             }
-            #[cfg(not(unix))]
-            {
-                let _ = (config_path, expected_revision);
-                Err(EngineError::Unsupported)
+            let response = self
+                .request(&self.admin_socket, 2_019, "POST", "/load", configuration)
+                .await?;
+            match response.status {
+                200 if response.body.is_empty() => Ok(()),
+                400..=499 => Err(EngineError::Rejected),
+                _ => Err(EngineError::InvalidResponse),
             }
         })
     }
-
-    fn reload<'a>(&'a self, config_path: &'a Path, expected_revision: &'a str) -> EngineFuture<'a> {
-        Box::pin(async move {
-            #[cfg(unix)]
-            {
-                self.reload_unix(config_path, expected_revision).await
-            }
-            #[cfg(not(unix))]
-            {
-                let _ = (config_path, expected_revision);
-                Err(EngineError::Unsupported)
-            }
-        })
+    fn probe<'a>(&'a self, revision: &'a str) -> EngineFuture<'a> {
+        Box::pin(self.verify_revision(revision))
     }
-
     fn shutdown<'a>(&'a self) -> EngineFuture<'a> {
         Box::pin(async move {
-            #[cfg(unix)]
-            {
-                self.shutdown_unix().await
+            if !self.child_running().await {
+                return Ok(());
             }
-            #[cfg(not(unix))]
-            {
-                Ok(())
+            let result = self
+                .request(&self.admin_socket, 2_019, "POST", "/stop", "")
+                .await;
+            if !matches!(result, Ok(ControlResponse { status: 200, .. })) {
+                self.terminate_child().await;
+                return Err(EngineError::CommandFailed);
             }
+            let mut slot = self.child.lock().await;
+            let Some(child) = slot.as_mut() else {
+                return Ok(());
+            };
+            if !matches!(timeout(SHUTDOWN_TIMEOUT, child.wait()).await, Ok(Ok(_))) {
+                drop(slot);
+                self.terminate_child().await;
+                return Err(EngineError::TimedOut);
+            }
+            *slot = None;
+            Ok(())
         })
     }
-
     fn is_running<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
-        Box::pin(async move { self.child_running().await })
+        Box::pin(self.child_running())
     }
+}
+
+struct ControlResponse {
+    status: u16,
+    body: Bytes,
+}
+
+#[cfg(test)]
+#[path = "../tests/caddy_transport.rs"]
+mod tests;
+
+// Cancellation also closes the independent Hyper transport task.
+struct ConnectionTask(JoinHandle<()>);
+impl Drop for ConnectionTask {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
+async fn exchange<S>(
+    stream: S,
+    host: &str,
+    method: &'static str,
+    path: &'static str,
+    body: &str,
+) -> Result<ControlResponse, EngineError>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let (mut sender, connection) = hyper::client::conn::http1::handshake(TokioIo::new(stream))
+        .await
+        .map_err(|_| EngineError::InvalidResponse)?;
+    let _connection = ConnectionTask(tokio::spawn(async move {
+        let _ = connection.await;
+    }));
+    let request = Request::builder()
+        .method(method)
+        .uri(path)
+        .header("Host", host)
+        .header("Content-Type", "application/json")
+        .header("Connection", "close")
+        .body(Full::new(Bytes::copy_from_slice(body.as_bytes())))
+        .map_err(|_| EngineError::InvalidResponse)?;
+    let response = sender
+        .send_request(request)
+        .await
+        .map_err(|_| EngineError::InvalidResponse)?;
+    let status = response.status().as_u16();
+    let body = Limited::new(response.into_body(), MAX_CONTROL_RESPONSE_BYTES)
+        .collect()
+        .await
+        .map_err(|_| EngineError::InvalidResponse)?
+        .to_bytes();
+    Ok(ControlResponse { status, body })
 }

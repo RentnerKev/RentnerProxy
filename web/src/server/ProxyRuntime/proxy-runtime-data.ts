@@ -50,7 +50,6 @@ export async function readProxyRuntimeSnapshot(
             forwardScheme: proxyHosts.forwardScheme,
             forwardHost: proxyHosts.forwardHost,
             forwardPort: proxyHosts.forwardPort,
-            advancedConfig: proxyHosts.advancedConfig,
             certificateId: proxyHosts.certificateId,
             forceHttps: proxyHosts.forceHttps,
             verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
@@ -69,7 +68,6 @@ export async function readProxyRuntimeSnapshot(
             forwardScheme: 'http' | 'https'
             forwardHost: string
             forwardPort: number
-            advancedConfig: string
             certificateId: string | null
             forceHttps: boolean
             upstreamTls?: ProxyRuntimeUpstreamTls
@@ -86,7 +84,6 @@ export async function readProxyRuntimeSnapshot(
                 forwardScheme: row.forwardScheme,
                 forwardHost: row.forwardHost,
                 forwardPort: row.forwardPort,
-                advancedConfig: row.advancedConfig,
                 certificateId: row.certificateId,
                 forceHttps: row.forceHttps,
                 ...(row.forwardScheme === 'https'
@@ -162,7 +159,6 @@ export async function readProxyRuntimeHost(
             forwardScheme: proxyHosts.forwardScheme,
             forwardHost: proxyHosts.forwardHost,
             forwardPort: proxyHosts.forwardPort,
-            advancedConfig: proxyHosts.advancedConfig,
             certificateId: proxyHosts.certificateId,
             forceHttps: proxyHosts.forceHttps,
             verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
@@ -182,7 +178,6 @@ export async function readProxyRuntimeHost(
         forwardScheme: first.forwardScheme,
         forwardHost: first.forwardHost,
         forwardPort: first.forwardPort,
-        advancedConfig: first.advancedConfig,
         certificateId: first.certificateId,
         forceHttps: first.forceHttps,
         ...(first.forwardScheme === 'https'

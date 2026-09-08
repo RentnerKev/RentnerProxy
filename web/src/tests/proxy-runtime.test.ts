@@ -61,8 +61,8 @@ describe('proxy runtime snapshots', () => {
         ])
 
         expect(result).toEqual({
-            version: 1,
-            revision: 'sha256:94a8eb29658512ed7439838b334ef5ce7e5e2e43f50b46d3e85579e49bd554b4',
+            version: 7,
+            revision: 'sha256:7b3e586f596ea7a1ffacad33824b96234e23802d12f3741e73025bf8a23a4a06',
             proxyHosts: [
                 {
                     id: BASE_ID,
@@ -72,6 +72,9 @@ describe('proxy runtime snapshots', () => {
                     forwardPort: 4_000,
                 },
             ],
+            redirectHosts: [],
+            httpSettings: {},
+            trustedCas: [],
         })
     })
 
@@ -218,7 +221,7 @@ describe('proxy runtime reconciliation', () => {
         expect(applied).toEqual([first.revision, latest.revision])
     })
 
-    test('returns pending for a stalled read and never applies its late result', async () => {
+    test('returns pending for a stalled read and applies only after it is released', async () => {
         const current = snapshot()
         let releaseRead!: (value: ProxyRuntimeSnapshot) => void
         const stalled = new Promise<ProxyRuntimeSnapshot>((resolve) => {
@@ -244,9 +247,9 @@ describe('proxy runtime reconciliation', () => {
         expect(applies).toBe(0)
         releaseRead(current)
         await Bun.sleep(0)
-        expect(applies).toBe(0)
+        expect(applies).toBeGreaterThanOrEqual(1)
         expect(await reconcile()).toBe('applied')
-        expect(applies).toBe(1)
+        expect(applies).toBe(2)
     })
 
     test('keeps a stalled post-apply confirmation within the same deadline', async () => {
@@ -272,26 +275,134 @@ describe('proxy runtime reconciliation', () => {
         expect(await reconcile()).toBe('pending')
         expect(reads).toBe(2)
     })
-    test('bounds retries and reports pending when apply or loading fails', async () => {
+    test('reports a failed attempt as pending and keeps retrying until stopped', async () => {
         let attempts = 0
-        const retrying = createProxyReconciler({
+        const retrying = createProxyReconciler(
+            {
+                loadSnapshot: async () => snapshot(),
+                applySnapshot: async () => {
+                    attempts += 1
+                    return null
+                },
+            },
+            25,
+        )
+        expect(await retrying()).toBe('pending')
+        expect(attempts).toBeGreaterThan(0)
+        await retrying.stop()
+
+        const failingLoad = createProxyReconciler(
+            {
+                loadSnapshot: async () => Promise.reject(new Error('database unavailable')),
+                applySnapshot: async () => {
+                    throw new Error('must not apply')
+                },
+            },
+            25,
+        )
+        expect(await failingLoad()).toBe('pending')
+        await failingLoad.stop()
+    })
+
+    test('recovers after a transient controller failure without a new request', async () => {
+        let failures = 1
+        let acknowledgeRecovery!: () => void
+        const recovered = new Promise<void>((resolve) => {
+            acknowledgeRecovery = resolve
+        })
+        const appliedRevisions: string[] = []
+        const reconciler = createProxyReconciler(
+            {
+                loadSnapshot: async () => snapshot(),
+                applySnapshot: async (value) => {
+                    if (failures > 0) {
+                        failures -= 1
+                        return null
+                    }
+                    appliedRevisions.push(value.revision)
+                    acknowledgeRecovery()
+                    return { status: 'applied', activeRevision: value.revision, lastApplyAt: null }
+                },
+            },
+            3_000,
+        )
+        expect(await reconciler()).toBe('pending')
+        await recovered
+        expect(appliedRevisions).toEqual([snapshot().revision])
+        await reconciler.stop()
+    })
+
+    test('does not reapply a healthy runtime during drift checks', async () => {
+        let applies = 0
+        let releaseApply!: () => void
+        const applyFinished = new Promise<void>((resolve) => {
+            releaseApply = resolve
+        })
+        const reconciler = createProxyReconciler({
             loadSnapshot: async () => snapshot(),
+            checkDrift: async () => false,
+            applySnapshot: async (value) => {
+                applies += 1
+                releaseApply()
+                return { status: 'applied', activeRevision: value.revision, lastApplyAt: null }
+            },
+        })
+        reconciler.start()
+        await applyFinished
+        await reconciler.checkDrift()
+        expect(applies).toBe(1)
+        await reconciler.stop()
+    })
+
+    test('stops during a database read without starting a new apply', async () => {
+        const current = snapshot()
+        let releaseRead!: () => void
+        let readStarted!: () => void
+        const readGate = new Promise<void>((resolve) => (releaseRead = resolve))
+        const readObserved = new Promise<void>((resolve) => (readStarted = resolve))
+        let applies = 0
+        const reconciler = createProxyReconciler({
+            loadSnapshot: async () => {
+                readStarted()
+                await readGate
+                return current
+            },
             applySnapshot: async () => {
-                attempts += 1
+                applies += 1
                 return null
             },
         })
-        expect(await retrying()).toBe('pending')
-        expect(attempts).toBeGreaterThan(0)
-        expect(attempts).toBeLessThanOrEqual(3)
+        reconciler.start()
+        await readObserved
+        const stopping = reconciler.stop()
+        releaseRead()
+        await stopping
+        expect(applies).toBe(0)
+    })
 
-        const failingLoad = createProxyReconciler({
-            loadSnapshot: async () => Promise.reject(new Error('database unavailable')),
-            applySnapshot: async () => {
-                throw new Error('must not apply')
+    test('waits for an in-flight controller apply during shutdown', async () => {
+        const current = snapshot()
+        let releaseApply!: () => void
+        let applyStarted!: () => void
+        const applyGate = new Promise<void>((resolve) => (releaseApply = resolve))
+        const applyObserved = new Promise<void>((resolve) => (applyStarted = resolve))
+        const reconciler = createProxyReconciler({
+            loadSnapshot: async () => current,
+            applySnapshot: async (value) => {
+                applyStarted()
+                await applyGate
+                return { status: 'applied', activeRevision: value.revision, lastApplyAt: null }
             },
         })
-        expect(await failingLoad()).toBe('pending')
+        reconciler.start()
+        await applyObserved
+        let stopped = false
+        const stopping = reconciler.stop().then(() => (stopped = true))
+        await Bun.sleep(0)
+        expect(stopped).toBeFalse()
+        releaseApply()
+        await stopping
+        expect(stopped).toBeTrue()
     })
 })
 

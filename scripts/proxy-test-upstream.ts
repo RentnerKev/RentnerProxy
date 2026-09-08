@@ -8,7 +8,11 @@ export function startTestUpstream(options: TestUpstreamOptions = {}) {
     return Bun.serve({
         hostname: options.hostname ?? '127.0.0.1',
         port: options.port ?? 4_000,
-        fetch(request) {
+        fetch(request, server) {
+            if (request.headers.get('upgrade')?.toLowerCase() === 'websocket') {
+                if (server.upgrade(request)) return
+                return new Response('WebSocket upgrade failed', { status: 400 })
+            }
             const url = new URL(request.url)
             return Response.json({
                 message: options.message ?? 'RentnerProxy test upstream',
@@ -26,6 +30,11 @@ export function startTestUpstream(options: TestUpstreamOptions = {}) {
                 upgrade: request.headers.get('upgrade'),
                 connection: request.headers.get('connection'),
             })
+        },
+        websocket: {
+            message(socket, message) {
+                socket.send(message)
+            },
         },
     })
 }

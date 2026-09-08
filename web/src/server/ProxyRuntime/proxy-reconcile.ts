@@ -1,87 +1,213 @@
-// oxlint-disable no-await-in-loop -- Each apply depends on the preceding snapshot and controller acknowledgement.
 // oxlint-disable-next-line import/no-unassigned-import -- Reconcile must never execute in the browser.
 import '@tanstack/react-start/server-only'
+// oxlint-disable no-await-in-loop -- Reconcile attempts are deliberately serialized.
 
 import type { ProxyRuntimeMutationStatus } from '../../shared/Types/proxy-runtime.types'
 import type { ProxyRuntimeApplyResponse, ProxyRuntimeSnapshot } from './Types/proxy-runtime.types'
 
 export const PROXY_RECONCILE_TIMEOUT_MS = 25_000
-const MAX_RECONCILE_ATTEMPTS = 3
+const CONTROLLER_APPLY_TIMEOUT_MS = 20_000
+const DRIFT_CHECK_INTERVAL_MS = 60_000
+const INITIAL_RETRY_DELAY_MS = 1_000
+const MAX_RETRY_DELAY_MS = 60_000
 
 interface ReconcileDependencies {
     readonly loadSnapshot: () => Promise<ProxyRuntimeSnapshot>
+    readonly checkDrift?: () => Promise<boolean>
     readonly applySnapshot: (
         snapshot: ProxyRuntimeSnapshot,
         timeoutMs: number,
     ) => Promise<ProxyRuntimeApplyResponse | null>
 }
 
-async function withinDeadline<T>(operation: () => Promise<T>, deadline: number): Promise<T> {
-    const remaining = Math.floor(deadline - performance.now())
-    if (remaining <= 0) throw new Error('Proxy reconcile timed out.')
-    let timeout: ReturnType<typeof setTimeout> | undefined
-
-    try {
-        return await Promise.race([
-            operation(),
-            new Promise<T>((_resolve, reject) => {
-                timeout = setTimeout(
-                    () => reject(new Error('Proxy reconcile timed out.')),
-                    remaining,
-                )
-            }),
-        ])
-    } finally {
-        if (timeout !== undefined) clearTimeout(timeout)
-    }
+interface ReconcileWaiter {
+    readonly target: number
+    readonly resolve: (status: ProxyRuntimeMutationStatus) => void
+    readonly timer: ReturnType<typeof setTimeout>
 }
-// Coalesce concurrent requests and always read inside the serialized operation.
-// A mutation arriving during a read/apply forces another read before reporting success.
-// No external operation runs inside the caller's database transaction.
+
+export interface ProxyReconciler {
+    (): Promise<ProxyRuntimeMutationStatus>
+    readonly start: () => void
+    readonly stop: () => Promise<void>
+    readonly checkDrift: () => Promise<void>
+}
+
+// The caller deadline applies to the acknowledgement promise only. The worker owns the
+// underlying request, so an expired admin request cannot abandon an in-flight controller apply.
 export function createProxyReconciler(
     dependencies: ReconcileDependencies,
     timeoutMs = PROXY_RECONCILE_TIMEOUT_MS,
-) {
-    let inFlight: Promise<ProxyRuntimeMutationStatus> | null = null
+): ProxyReconciler {
     let requested = 0
+    let completed = 0
+    let worker: Promise<void> | null = null
+    let stopped = false
+    let driftTimer: ReturnType<typeof setInterval> | null = null
+    let wakeResolver: (() => void) | null = null
+    let publicFlight: Promise<ProxyRuntimeMutationStatus> | null = null
+    const waiters = new Set<ReconcileWaiter>()
 
-    async function reconcile(): Promise<ProxyRuntimeMutationStatus> {
-        const deadline = performance.now() + timeoutMs
-
-        try {
-            for (let attempt = 0; attempt < MAX_RECONCILE_ATTEMPTS; attempt += 1) {
-                const requestCount = requested
-                const snapshot = await withinDeadline(dependencies.loadSnapshot, deadline)
-                const remaining = Math.floor(deadline - performance.now())
-                if (remaining <= 0) return 'pending'
-
-                const applied = await withinDeadline(
-                    () => dependencies.applySnapshot(snapshot, remaining),
-                    deadline,
-                )
-                if (!applied || applied.activeRevision !== snapshot.revision) return 'pending'
-
-                const latest = await withinDeadline(dependencies.loadSnapshot, deadline)
-                if (requestCount === requested && latest.revision === snapshot.revision) {
-                    return 'applied'
-                }
-            }
-        } catch {
-            // A database write has already committed. Never turn a reconcile failure into
-            // an apparent failed save, or log driver URLs, SQL, or engine output.
-            console.warn('[proxy-runtime] reconcile unavailable')
-        }
-
-        return 'pending'
+    function wake(): void {
+        const resolve = wakeResolver
+        wakeResolver = null
+        resolve?.()
     }
 
-    return function reconcileProxyConfiguration(): Promise<ProxyRuntimeMutationStatus> {
-        requested += 1
-        if (inFlight) return inFlight
-
-        inFlight = reconcile().finally(() => {
-            inFlight = null
+    async function waitForWakeOrDelay(ms: number): Promise<void> {
+        let timer: ReturnType<typeof setTimeout> | undefined
+        let wakeResolve: (() => void) | null = null
+        const wakePromise = new Promise<void>((resolve) => {
+            wakeResolve = resolve
+            wakeResolver = resolve
         })
-        return inFlight
+        const timerPromise = new Promise<void>((resolve) => {
+            timer = setTimeout(resolve, ms)
+            timer.unref?.()
+        })
+        await Promise.race([timerPromise, wakePromise])
+        if (timer !== undefined) clearTimeout(timer)
+        if (wakeResolver === wakeResolve) wakeResolver = null
     }
+
+    function resolveCompleted(): void {
+        for (const waiter of waiters) {
+            if (waiter.target > completed) continue
+            clearTimeout(waiter.timer)
+            waiters.delete(waiter)
+            waiter.resolve('applied')
+        }
+    }
+
+    function resolvePending(): void {
+        for (const waiter of waiters) {
+            clearTimeout(waiter.timer)
+            waiters.delete(waiter)
+            waiter.resolve('pending')
+        }
+    }
+
+    async function runWorker(): Promise<void> {
+        let retryDelay = INITIAL_RETRY_DELAY_MS
+        // oxlint-disable-next-line no-unmodified-loop-condition -- stop() changes this lifecycle flag.
+        while (!stopped) {
+            if (completed >= requested) {
+                await new Promise<void>((resolve) => {
+                    wakeResolver = resolve
+                })
+                continue
+            }
+
+            const target = requested
+            try {
+                // PostgreSQL is authoritative: read immediately before every apply and again
+                // after it, so concurrent mutations coalesce into the newest committed state.
+                const snapshot = await dependencies.loadSnapshot()
+                if (stopped) break
+                const applied = await dependencies.applySnapshot(
+                    snapshot,
+                    CONTROLLER_APPLY_TIMEOUT_MS,
+                )
+                if (stopped) break
+                if (!applied || applied.activeRevision !== snapshot.revision) {
+                    throw new Error('Controller did not acknowledge the desired revision.')
+                }
+                const latest = await dependencies.loadSnapshot()
+                if (stopped) break
+                if (target !== requested || latest.revision !== snapshot.revision) continue
+                completed = target
+                retryDelay = INITIAL_RETRY_DELAY_MS
+                resolveCompleted()
+            } catch {
+                if (stopped) break
+                // The committed change is already durable; report pending promptly while the
+                // owned worker continues retrying independently of the admin request.
+                resolvePending()
+                // Keep retrying with bounded backoff until the durable desired snapshot applies.
+                // Logs contain no database URLs, tokens, response bodies, or engine output.
+                console.warn('[proxy-runtime] reconcile unavailable')
+                await waitForWakeOrDelay(retryDelay)
+                if (stopped) break
+                retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY_MS)
+            }
+        }
+    }
+
+    function ensureWorker(): void {
+        if (worker || stopped) return
+        worker = runWorker().finally(() => {
+            worker = null
+        })
+    }
+
+    function enqueue(): void {
+        requested += 1
+        ensureWorker()
+        wake()
+    }
+
+    function reconcile(): Promise<ProxyRuntimeMutationStatus> {
+        if (stopped) return Promise.resolve('pending')
+        enqueue()
+        if (publicFlight) return publicFlight
+        const target = requested
+        publicFlight = new Promise<ProxyRuntimeMutationStatus>((resolve) => {
+            const waiter: ReconcileWaiter = {
+                target,
+                resolve,
+                timer: setTimeout(() => {
+                    waiters.delete(waiter)
+                    resolve('pending')
+                }, timeoutMs),
+            }
+            waiters.add(waiter)
+            resolveCompleted()
+        }).finally(() => {
+            publicFlight = null
+        })
+        return publicFlight
+    }
+
+    function start(): void {
+        if (stopped) return
+        enqueue()
+        if (driftTimer === null) {
+            driftTimer = setInterval(() => void checkDrift(), DRIFT_CHECK_INTERVAL_MS)
+            driftTimer.unref?.()
+        }
+    }
+
+    async function checkDrift(): Promise<void> {
+        if (!dependencies.checkDrift || stopped) return
+        try {
+            if ((await dependencies.checkDrift()) && !stopped) enqueue()
+        } catch {
+            console.warn('[proxy-runtime] drift check unavailable')
+        }
+    }
+
+    async function stop(): Promise<void> {
+        stopped = true
+        if (driftTimer !== null) clearInterval(driftTimer)
+        driftTimer = null
+        for (const waiter of waiters) {
+            clearTimeout(waiter.timer)
+            waiter.resolve('pending')
+        }
+        waiters.clear()
+        wake()
+        if (worker) {
+            let timer: ReturnType<typeof setTimeout> | undefined
+            await Promise.race([
+                worker,
+                new Promise<void>((resolve) => {
+                    timer = setTimeout(resolve, CONTROLLER_APPLY_TIMEOUT_MS + 5_000)
+                    timer.unref?.()
+                }),
+            ])
+            if (timer !== undefined) clearTimeout(timer)
+        }
+    }
+
+    return Object.assign(reconcile, { checkDrift, start, stop })
 }

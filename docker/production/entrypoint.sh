@@ -111,14 +111,16 @@ initialize_secrets() {
     # Bootstrap creates the common directory as root:0700.  Each service needs
     # traversal only to its own 0700 directory, never directory listing access.
     chmod 0711 /run/rentnerproxy
-    chown rentnerproxy:rentnerproxy "$(dirname "$app_key_file")" \
-        "$(dirname "$controller_token_file")" \
+    chown rentnerproxy-web:rentnerproxy-web "$(dirname "$app_key_file")" \
         "$(dirname "$database_url_file")"
     chmod 0700 "$(dirname "$app_key_file")" \
-        "$(dirname "$controller_token_file")" \
         "$(dirname "$database_url_file")"
-    chown rentnerproxy:rentnerproxy "$app_key_file" "$controller_token_file" "$database_url_file"
-    chmod 0400 "$app_key_file" "$controller_token_file" "$database_url_file"
+    chown rentnerproxy-web:rentnerproxy-web "$app_key_file" "$database_url_file"
+    chmod 0400 "$app_key_file" "$database_url_file"
+    chown rentnerproxy:rentnerproxy-web "$(dirname "$controller_token_file")"
+    chmod 0710 "$(dirname "$controller_token_file")"
+    chown rentnerproxy:rentnerproxy-web "$controller_token_file"
+    chmod 0440 "$controller_token_file"
     chown postgres:postgres "$(dirname "$postgres_password_file")"
     chmod 0700 "$(dirname "$postgres_password_file")"
     chown postgres:postgres "$postgres_password_file"
@@ -222,7 +224,7 @@ start_controller() {
     start_child controller env \
         RENTNERPROXY_CONTROLLER_LISTEN_ADDR=127.0.0.1:8081 \
         RENTNERPROXY_CONTROLLER_TOKEN_FILE="$controller_token_file" \
-        RENTNERPROXY_PROXY_ENGINE_BIN=/usr/local/openresty/nginx/sbin/nginx \
+        RENTNERPROXY_CADDY_BIN=/usr/bin/caddy \
         RENTNERPROXY_PROXY_HTTP_PORT=8080 \
         RENTNERPROXY_PROXY_HTTPS_PORT=8443 \
         RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT="${RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT:-443}" \
@@ -239,7 +241,7 @@ run_migrations() {
     (
         cd "$app_directory"
         exec env DATABASE_URL_FILE="$database_url_file" NODE_ENV=production \
-            gosu rentnerproxy bun migrate.js
+            gosu rentnerproxy-web bun migrate.js
     )
 }
 
@@ -254,7 +256,7 @@ start_web() {
         RENTNERPROXY_CONTROLLER_TOKEN_FILE="$controller_token_file" \
         RENTNERPROXY_CONTROLLER_URL=http://127.0.0.1:8081 \
         RENTNERPROXY_TRUST_PROXY_HEADERS="${RENTNERPROXY_TRUST_PROXY_HEADERS:-false}" \
-        gosu rentnerproxy bun "$app_directory/docker/web/serve.mjs"
+        gosu rentnerproxy-web bun "$app_directory/docker/web/serve.mjs"
 }
 
 monitor_children() {

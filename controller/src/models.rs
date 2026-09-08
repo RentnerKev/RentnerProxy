@@ -5,12 +5,13 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct ProxyConfigRequest {
     pub(crate) version: u8,
     pub(crate) revision: String,
+    #[serde(default)]
     pub(crate) proxy_hosts: Vec<ProxyHost>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub(crate) redirect_hosts: Vec<RedirectHost>,
-    #[serde(default, skip_serializing_if = "ProxyHttpSettings::is_empty")]
+    #[serde(default)]
     pub(crate) http_settings: ProxyHttpSettings,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub(crate) trusted_cas: Vec<TrustedCa>,
 }
 
@@ -47,8 +48,6 @@ pub(crate) struct ProxyHost {
     pub(crate) forward_port: u16,
     #[serde(default, skip_serializing_if = "ProxyHttpSettings::is_empty")]
     pub(crate) http_settings: ProxyHttpSettings,
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub(crate) advanced_config: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) certificate_id: Option<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]

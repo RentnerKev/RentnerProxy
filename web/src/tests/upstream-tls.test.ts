@@ -211,7 +211,7 @@ describe('upstream TLS form normalization', () => {
 })
 
 describe('upstream TLS runtime snapshots', () => {
-    test('emits one canonical v5 CA bundle for multiple host references', () => {
+    test('emits one canonical v7 CA bundle for multiple host references', () => {
         const result = snapshot(
             [
                 host({
@@ -235,7 +235,7 @@ describe('upstream TLS runtime snapshots', () => {
             ],
             [CA_ONE],
         )
-        expect(result.version).toBe(5)
+        expect(result.version).toBe(7)
         expect(result.trustedCas).toEqual([CA_ONE])
         expect(
             (result.proxyHosts as ReadonlyArray<SnapshotInputHost>).every(
@@ -350,12 +350,11 @@ describe('upstream TLS runtime snapshots', () => {
         ).toThrow()
     })
 
-    test('keeps HTTP snapshots on legacy v1 through v4 contracts', () => {
+    test('keeps HTTP snapshots on the v7 contract', () => {
         const { upstreamTls: _upstreamTls, ...httpsFields } = host()
         const http = { ...httpsFields, forwardScheme: 'http' as const }
-        expect(snapshot([http]).version).toBe(1)
-        expect(buildSnapshot([http], { proxyConnectTimeoutSeconds: 10 }).version).toBe(2)
-        expect(buildSnapshot([{ ...http, advancedConfig: 'return 200;' }]).version).toBe(3)
+        expect(snapshot([http]).version).toBe(7)
+        expect(buildSnapshot([http], { proxyConnectTimeoutSeconds: 10 }).version).toBe(7)
         expect(
             buildSnapshot([
                 {
@@ -363,7 +362,7 @@ describe('upstream TLS runtime snapshots', () => {
                     certificateId: '018f2f52-7c1b-7cc0-9f3c-6a9952c54023',
                 },
             ]).version,
-        ).toBe(4)
+        ).toBe(7)
     })
 })
 

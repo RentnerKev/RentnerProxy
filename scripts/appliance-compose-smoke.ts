@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { request as httpRequest } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url'
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const rootComposeFile = join(repositoryRoot, 'docker-compose.yml')
 const productionDockerfile = join(repositoryRoot, 'docker', 'production', 'Dockerfile')
+const caddyLicenseSha256 = '3ddf9be5c28fe27dad143a5dc76eea25222ad1dd68934a047064e56ed2fa40c5'
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const project = 'rentnerproxy-appliance-smoke-' + runId
 const smtpEnvironment = {
@@ -199,7 +200,20 @@ async function httpStatus(url: string): Promise<{ status: number; body: string }
     return { status: response.status, body }
 }
 
-function digest(value: string): string {
+async function controllerCall(
+    id: string,
+    path: string,
+    method: string,
+    body?: unknown,
+): Promise<{ status: number; body: string }> {
+    const encodedBody = body === undefined ? '' : JSON.stringify(body)
+    const source = `const token=await Bun.file('/run/rentnerproxy/controller-token/value').text();const response=await fetch('http://127.0.0.1:8081${path}',{method:${JSON.stringify(method)},headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:${JSON.stringify(encodedBody)} });process.stdout.write(JSON.stringify({status:response.status,body:await response.text()}));`
+    return JSON.parse(
+        await command(['docker', 'exec', '--user', '10001:10001', id, 'bun', '-e', source]),
+    ) as { status: number; body: string }
+}
+
+function digest(value: string | Uint8Array): string {
     return createHash('sha256').update(value).digest('hex')
 }
 
@@ -258,6 +272,11 @@ async function runSmoke(): Promise<void> {
     const compose = composeCommand(envFile, temporaryComposeFile)
     const restoreProject = project + '-restore'
     const restoreCompose = composeCommand(envFile, temporaryComposeFile, restoreProject)
+    const legacyProjects = [project + '-legacy-v2', project + '-legacy-v1']
+    const legacyComposes = legacyProjects.map((name) =>
+        composeCommand(envFile, temporaryComposeFile, name),
+    )
+    let backend: ReturnType<typeof Bun.serve> | undefined
     const scriptEnvironment: NodeJS.ProcessEnv = {
         ...commandEnvironment,
         ...smtpEnvironment,
@@ -317,6 +336,11 @@ async function runSmoke(): Promise<void> {
         const id = await containerId(compose)
         await waitForHealthy(id)
         passed('empty appliance volume builds and starts healthy')
+        assert.equal(
+            await command(['docker', 'exec', id, 'sha256sum', '/usr/share/licenses/caddy/LICENSE']),
+            caddyLicenseSha256 + '  /usr/share/licenses/caddy/LICENSE',
+        )
+        passed('redistributed Caddy binary includes the exact Apache-2.0 license')
         const roleState = await command([
             'docker',
             'exec',
@@ -358,10 +382,93 @@ async function runSmoke(): Promise<void> {
         passed(
             'application database role has no administrative privileges and cannot use bootstrap socket',
         )
+        assert.equal(
+            await command([
+                'docker',
+                'exec',
+                id,
+                'stat',
+                '-c',
+                '%a:%U:%G',
+                '/run/rentnerproxy/app-key/value',
+            ]),
+            '400:rentnerproxy-web:rentnerproxy-web',
+        )
+        assert.equal(
+            await command([
+                'docker',
+                'exec',
+                id,
+                'stat',
+                '-c',
+                '%a:%U:%G',
+                '/run/rentnerproxy/database-url/value',
+            ]),
+            '400:rentnerproxy-web:rentnerproxy-web',
+        )
+        assert.equal(
+            await command([
+                'docker',
+                'exec',
+                id,
+                'stat',
+                '-c',
+                '%a:%U:%G',
+                '/run/rentnerproxy/controller-token/value',
+            ]),
+            '440:rentnerproxy:rentnerproxy-web',
+        )
+        const boundarySecret = '/var/lib/rentnerproxy/proxy/appliance-boundary-secret'
+        await command([
+            'docker',
+            'exec',
+            '--user',
+            '10001:10001',
+            id,
+            'sh',
+            '-c',
+            `umask 077; printf boundary-secret > ${boundarySecret}`,
+        ])
+        assert.ok(
+            await commandFails([
+                'docker',
+                'exec',
+                id,
+                'gosu',
+                'rentnerproxy-web',
+                'cat',
+                boundarySecret,
+            ]),
+        )
+        assert.ok(
+            await commandFails([
+                'docker',
+                'exec',
+                id,
+                'gosu',
+                'rentnerproxy-web',
+                'curl',
+                '--silent',
+                '--fail',
+                '--unix-socket',
+                '/var/lib/rentnerproxy/proxy/caddy-admin.sock',
+                'http://localhost/config/',
+            ]),
+        )
+        passed(
+            'web can read only its input secrets and cannot read proxy state or open Caddy admin',
+        )
 
         const setup = await httpStatus('http://127.0.0.1:' + managementPort + '/setup')
         assert.equal(setup.status, 200)
         assert.match(setup.body, /setup|RentnerProxy/iu)
+        const entryAsset = setup.body.match(/<script[^>]+src="([^"]+\.js)"/iu)?.[1]
+        assert.ok(entryAsset)
+        const entryAssetResponse = await httpStatus(
+            'http://127.0.0.1:' + managementPort + entryAsset,
+        )
+        assert.equal(entryAssetResponse.status, 200)
+        passed('SSR setup entry module is served for client hydration')
         const live = await httpStatus('http://127.0.0.1:' + managementPort + '/health/live')
         assert.equal(live.status, 200)
         assert.deepEqual(JSON.parse(live.body), { status: 'ok' })
@@ -524,6 +631,135 @@ async function runSmoke(): Promise<void> {
         assert.equal(restoredMarker, marker)
         passed('container recreation preserves generated secrets, volume state, and database state')
 
+        // Exercise the appliance path with a real managed certificate and a real host backend.
+        // The backend is deliberately outside the appliance, while host.docker.internal keeps
+        // this smoke isolated from any developer service running on the machine.
+        const backendPort = await availableLoopbackPort()
+        const trafficMarker = 'appliance-real-traffic-' + runId
+        backend = Bun.serve({
+            hostname: '0.0.0.0',
+            port: backendPort,
+            fetch: () => new Response(trafficMarker),
+        })
+        assert.ok(backend.port)
+        const hostDomain = 'appliance-' + runId + '.test'
+        const certificateId = '0198d98a-0000-7000-8000-' + runId
+        const hostId = '0198d98a-0000-7000-8000-' + runId.slice(0, 11) + 'a'
+        const certificateDirectory = '/tmp/rentnerproxy-appliance-certificate'
+        await command([
+            'docker',
+            'exec',
+            recreatedId,
+            'sh',
+            '-c',
+            `set -Eeuo pipefail; rm -rf ${certificateDirectory}; mkdir -p ${certificateDirectory}; openssl req -x509 -newkey rsa:2048 -nodes -keyout ${certificateDirectory}/ca.key -out ${certificateDirectory}/ca.pem -days 1 -subj /CN=RentnerProxy-Appliance-CA; openssl req -new -newkey rsa:2048 -nodes -keyout ${certificateDirectory}/leaf.key -out ${certificateDirectory}/leaf.csr -subj /CN=${hostDomain}; printf 'subjectAltName=DNS:${hostDomain}\\nextendedKeyUsage=serverAuth\\nbasicConstraints=critical,CA:FALSE\\nkeyUsage=critical,digitalSignature,keyEncipherment\\n' > ${certificateDirectory}/leaf.ext; openssl x509 -req -in ${certificateDirectory}/leaf.csr -CA ${certificateDirectory}/ca.pem -CAkey ${certificateDirectory}/ca.key -CAcreateserial -out ${certificateDirectory}/leaf.pem -days 1 -sha256 -extfile ${certificateDirectory}/leaf.ext; chown -R 10001:10001 ${certificateDirectory}`,
+        ])
+        await command([
+            'docker',
+            'exec',
+            recreatedId,
+            'sh',
+            '-c',
+            `PGPASSWORD="$(cat /run/rentnerproxy/postgres/value)" gosu postgres psql --host=127.0.0.1 --username=rentnerproxy --dbname=rentnerproxy --command="INSERT INTO rentnerproxy.certificates (id, name, source, status, operation) VALUES ('${certificateId}', 'Appliance smoke certificate', 'manual', 'pending', 'idle');" >/dev/null`,
+        ])
+        const importSource = `const token=await Bun.file('/run/rentnerproxy/controller-token/value').text();const certificatePem=await Bun.file('${certificateDirectory}/leaf.pem').text();const privateKeyPem=await Bun.file('${certificateDirectory}/leaf.key').text();const chainPem=await Bun.file('${certificateDirectory}/ca.pem').text();const response=await fetch('http://127.0.0.1:8081/internal/v1/certificates/${certificateId}/import',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({certificatePem,privateKeyPem,chainPem,requiredDomains:['${hostDomain}']})});process.stdout.write(String(response.status));if(response.status!==200)process.exit(1);`
+        assert.equal(
+            await command([
+                'docker',
+                'exec',
+                '--user',
+                '10001:10001',
+                recreatedId,
+                'bun',
+                '-e',
+                importSource,
+            ]),
+            '200',
+        )
+        const insertHostSql = `INSERT INTO rentnerproxy.proxy_hosts (id, forward_scheme, forward_host, forward_port, enabled, certificate_id, force_https, verify_upstream_tls) VALUES ('${hostId}', 'http', 'host.docker.internal', ${backendPort}, true, '${certificateId}', false, true); INSERT INTO rentnerproxy.host_domains (id, proxy_host_id, domain) VALUES ('0198d98a-0000-7000-8000-${runId.slice(0, 11)}b', '${hostId}', '${hostDomain}');`
+        await command([
+            'docker',
+            'exec',
+            recreatedId,
+            'sh',
+            '-c',
+            `PGPASSWORD="$(cat /run/rentnerproxy/postgres/value)" gosu postgres psql --host=127.0.0.1 --username=rentnerproxy --dbname=rentnerproxy --command="${insertHostSql}" >/dev/null`,
+        ])
+        const realConfig = {
+            version: 7,
+            proxyHosts: [
+                {
+                    id: hostId,
+                    domains: [hostDomain],
+                    forwardScheme: 'http',
+                    forwardHost: 'host.docker.internal',
+                    forwardPort: backendPort,
+                    certificateId,
+                },
+            ],
+            redirectHosts: [],
+            httpSettings: {},
+            trustedCas: [],
+        }
+        const realConfigCanonical = JSON.stringify(realConfig)
+        const realConfigWithRevision = {
+            ...realConfig,
+            revision: 'sha256:' + digest(realConfigCanonical),
+        }
+        const realApply = await controllerCall(
+            recreatedId,
+            '/internal/v1/proxy/config',
+            'PUT',
+            realConfigWithRevision,
+        )
+        assert.equal(realApply.status, 200)
+        await waitFor(async () => {
+            const status = await controllerCall(recreatedId, '/internal/v1/proxy/status', 'GET')
+            return status.status === 200 && status.body.includes(realConfigWithRevision.revision)
+        }, 'managed certificate configuration apply')
+        const assertRealTraffic = async (container: string, label: string): Promise<void> => {
+            const httpBody = await command([
+                'docker',
+                'exec',
+                container,
+                'curl',
+                '--silent',
+                '--show-error',
+                '--noproxy',
+                '*',
+                '--header',
+                'Host: ' + hostDomain,
+                'http://127.0.0.1:8080/appliance-real-path',
+            ])
+            assert.equal(httpBody, trafficMarker)
+            const httpsBody = await command([
+                'docker',
+                'exec',
+                container,
+                'curl',
+                '--silent',
+                '--show-error',
+                '--noproxy',
+                '*',
+                '--insecure',
+                '--resolve',
+                hostDomain + ':8443:127.0.0.1',
+                'https://' + hostDomain + ':8443/appliance-real-path',
+            ])
+            assert.equal(httpsBody, trafficMarker)
+            passed(label)
+        }
+        await assertRealTraffic(
+            recreatedId,
+            'real HTTP and HTTPS managed-certificate traffic works',
+        )
+        await command([...compose, 'restart', 'rentnerproxy'])
+        await waitForHealthy(recreatedId)
+        await assertRealTraffic(
+            recreatedId,
+            'real HTTP and HTTPS traffic survives appliance restart',
+        )
+
         const proxyBackupMarker = '/var/lib/rentnerproxy/proxy/appliance-backup-marker'
         await command([
             'docker',
@@ -567,7 +803,7 @@ async function runSmoke(): Promise<void> {
             redis?: string
             version?: number
         }
-        assert.equal(backupMetadata.version, 2)
+        assert.equal(backupMetadata.version, 3)
         assert.equal(backupMetadata.redis, 'excluded')
         assert.equal(backupMetadata.applicationEncryptionKey?.file, 'app-encryption-key')
         assert.equal(backupMetadata.controllerState?.archive, 'controller-state.tar')
@@ -629,7 +865,10 @@ async function runSmoke(): Promise<void> {
         passed(
             'backup restores PostgreSQL, controller state, and application identity to a fresh appliance',
         )
-
+        await assertRealTraffic(
+            restoredId,
+            'v3 restore heals Caddy from desired DB and preserves HTTP/HTTPS traffic',
+        )
         await command([
             'docker',
             'exec',
@@ -645,9 +884,126 @@ async function runSmoke(): Promise<void> {
             150_000,
         )
         passed('removing bootstrap state while PostgreSQL data remains fails closed')
+        await commandFails([...restoreCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
+
+        async function makeLegacyFixture(version: 1 | 2): Promise<string> {
+            const fixture = join(temporaryRoot, 'backup-v' + version)
+            await cp(backupPath, fixture, { recursive: true })
+            const legacyDirectory = join(temporaryRoot, 'legacy-files-v' + version)
+            await mkdir(join(legacyDirectory, 'host-configs'), { recursive: true })
+            await writeFile(join(legacyDirectory, 'active.conf'), 'legacy active runtime\n')
+            await writeFile(join(legacyDirectory, 'candidate.conf'), 'legacy candidate runtime\n')
+            await writeFile(join(legacyDirectory, 'last-known-good.conf'), 'legacy last good\n')
+            await writeFile(join(legacyDirectory, 'last-good.conf'), 'legacy last good alias\n')
+            await writeFile(join(legacyDirectory, 'engine.pid'), '12345\n')
+            await writeFile(
+                join(legacyDirectory, 'host-configs', 'sidecar.conf'),
+                'legacy sidecar\n',
+            )
+            await writeFile(
+                join(legacyDirectory, 'active-proxy-snapshot.json'),
+                JSON.stringify({ version: 6, legacy: true }) + '\n',
+            )
+            await command([
+                'docker',
+                'run',
+                '--rm',
+                '--entrypoint',
+                'tar',
+                '--volume',
+                fixture + ':/backup',
+                '--volume',
+                legacyDirectory + ':/legacy:ro',
+                imageTag,
+                '--append',
+                '--file=/backup/controller-state.tar',
+                '--directory=/legacy',
+                'active.conf',
+                'candidate.conf',
+                'last-known-good.conf',
+                'last-good.conf',
+                'engine.pid',
+                'host-configs',
+                'active-proxy-snapshot.json',
+            ])
+            const archivePath = join(fixture, 'controller-state.tar')
+            const archiveBytes = await stat(archivePath)
+            const metadataPath = join(fixture, 'metadata.json')
+            const metadata = JSON.parse(await readFile(metadataPath, 'utf8')) as {
+                controllerState: { bytes: number; sha256: string }
+                version: number
+            }
+            metadata.version = version
+            metadata.controllerState.bytes = archiveBytes.size
+            metadata.controllerState.sha256 = digest(await readFile(archivePath))
+            await writeFile(metadataPath, JSON.stringify(metadata, null, 2) + '\n', 'utf8')
+            return fixture
+        }
+
+        async function restoreLegacyFixture(
+            fixture: string,
+            legacyCompose: string[],
+            legacyProject: string,
+            version: 1 | 2,
+        ): Promise<void> {
+            await commandFails([...legacyCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
+            const restoreArguments = [
+                process.execPath,
+                'scripts/production-restore.ts',
+                '--project',
+                legacyProject,
+                '--input',
+                fixture,
+                '--confirm-replace',
+            ]
+            if (version === 1)
+                restoreArguments.push('--app-key-file', join(fixture, 'app-encryption-key'))
+            await commandWithEnvironment(restoreArguments, scriptEnvironment, 900_000)
+            const legacyId = await containerId(legacyCompose)
+            await waitForHealthy(legacyId)
+            await assertRealTraffic(
+                legacyId,
+                'v' + version + ' legacy restore preserves HTTP/HTTPS traffic',
+            )
+            for (const entry of [
+                'active.conf',
+                'candidate.conf',
+                'last-known-good.conf',
+                'last-good.conf',
+                'engine.pid',
+                'host-configs',
+                'active-proxy-snapshot.json',
+            ]) {
+                assert.ok(
+                    await commandFails([
+                        'docker',
+                        'exec',
+                        legacyId,
+                        'test',
+                        '!',
+                        '-e',
+                        '/var/lib/rentnerproxy/proxy/' + entry,
+                    ]),
+                    'legacy runtime state restored: ' + entry,
+                )
+            }
+            passed(
+                'v' +
+                    version +
+                    ' restore excludes legacy runtime files and regenerates Caddy state from DB',
+            )
+        }
+        const legacyV2 = await makeLegacyFixture(2)
+        await restoreLegacyFixture(legacyV2, legacyComposes[0]!, legacyProjects[0]!, 2)
+        await command([...legacyComposes[0]!, 'down', '--volumes', '--remove-orphans'], 180_000)
+        const legacyV1 = await makeLegacyFixture(1)
+        await restoreLegacyFixture(legacyV1, legacyComposes[1]!, legacyProjects[1]!, 1)
     } finally {
+        backend?.stop(true)
         await commandFails([...compose, 'down', '--volumes', '--remove-orphans'], 180_000)
         await commandFails([...restoreCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
+        for (const legacyCompose of legacyComposes)
+            await commandFails([...legacyCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
         await commandFails(['docker', 'image', 'rm', '--force', imageTag], 180_000)
         await rm(temporaryRoot, { force: true, recursive: true })
     }

@@ -16,7 +16,7 @@ export interface ProxyConfigSource {
 
 export interface ProxyConfigEditorData {
     readonly baseRevision: string
-    readonly settingsSource: string
+    readonly settings: ProxyHttpSettings
     readonly active: ProxyConfigSource | null
     readonly defaults: ProxyConfigSource | null
 }
@@ -42,10 +42,8 @@ export type ProxyHostActionResult =
       }
 
 export interface ProxyHostConfigEditorData extends ProxyConfigEditorData {
-    readonly advancedConfig?: string
     readonly proxyHostId: string
     readonly hostLabel: string
     readonly enabled: boolean
     readonly generated: ProxyConfigSource | null
-    readonly commonSettingsSource: string
 }

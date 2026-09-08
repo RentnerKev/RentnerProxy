@@ -6,19 +6,26 @@ COPY controller/Cargo.toml controller/Cargo.lock ./
 COPY controller/src ./src
 RUN cargo build --locked --release
 
-FROM openresty/openresty:1.31.1.1-2-bookworm@sha256:f03133864fb753a546a5393305a909296fae094725d0271fa07a4c6508ea4219
+FROM caddy:2.11.4@sha256:df7f1c2fb114453b951de51a98efc010db1655a92c2e86be6706714e2417a78d AS caddy-runtime
+
+FROM debian:bookworm-slim@sha256:5ae3c39ebd15e229dcedd5cee596b2497182493d41ff162e824ba13fc1b2b867
+
+COPY --from=caddy-runtime /usr/bin/caddy /usr/bin/caddy
+COPY docker/licenses/Caddy-LICENSE /usr/share/licenses/caddy/LICENSE
 
 COPY --from=builder /build/target/release/rentnerproxy-controller /usr/local/bin/rentnerproxy-controller
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
+    && apt-get install -y --no-install-recommends ca-certificates curl openssl procps libcap2-bin \
     && update-ca-certificates \
+    && setcap -r /usr/bin/caddy \
+    && apt-get purge -y --auto-remove libcap2-bin \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /var/lib/rentnerproxy/proxy \
     && chown 10001:10001 /var/lib/rentnerproxy/proxy
 USER 10001:10001
 
 ENV RENTNERPROXY_CONTROLLER_LISTEN_ADDR=0.0.0.0:8081 \
-    RENTNERPROXY_PROXY_ENGINE_BIN=/usr/local/openresty/nginx/sbin/nginx \
+    RENTNERPROXY_CADDY_BIN=/usr/bin/caddy \
     RENTNERPROXY_PROXY_STATE_DIR=/var/lib/rentnerproxy/proxy \
     RENTNERPROXY_PROXY_HTTP_PORT=8080 \
     RENTNERPROXY_PROXY_HTTPS_PORT=8443 \

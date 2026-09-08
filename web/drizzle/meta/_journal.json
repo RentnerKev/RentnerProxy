@@ -85,6 +85,13 @@
             "when": 1788471334862,
             "tag": "0011_crazy_yellow_claw",
             "breakpoints": true
+        },
+        {
+            "idx": 12,
+            "version": "7",
+            "when": 1788888546075,
+            "tag": "0012_lying_supreme_intelligence",
+            "breakpoints": true
         }
     ]
 }

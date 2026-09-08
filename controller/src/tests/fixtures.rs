@@ -17,7 +17,6 @@ pub(super) fn host(
         forward_host: forward_host.to_owned(),
         forward_port: port,
         http_settings: ProxyHttpSettings::default(),
-        advanced_config: String::new(),
         certificate_id: None,
         force_https: false,
         upstream_tls: None,
@@ -32,22 +31,8 @@ pub(super) fn request_with_settings(
     hosts: Vec<ProxyHost>,
     http_settings: ProxyHttpSettings,
 ) -> ProxyConfigRequest {
-    let version = if hosts.iter().any(|host| host.upstream_tls.is_some()) {
-        5
-    } else if hosts.iter().any(|host| host.certificate_id.is_some()) {
-        4
-    } else if hosts
-        .iter()
-        .any(|host| !host.http_settings.is_empty() || !host.advanced_config.is_empty())
-    {
-        3
-    } else if http_settings.is_empty() {
-        1
-    } else {
-        2
-    };
     ProxyConfigRequest {
-        version,
+        version: 7,
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
         redirect_hosts: Vec::new(),

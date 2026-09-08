@@ -1,13 +1,10 @@
 import '@tanstack/react-start/server-only'
 
-import { eq } from 'drizzle-orm'
 import type { z } from 'zod'
 
 import { PERMISSIONS } from '../../config/permissions.config'
-import { proxyHosts } from '../../db/schema'
 import {
-    formatProxyHttpSettings,
-    parseProxyHttpSettings,
+    normalizeProxyHostHttpSettings,
     proxyHostConfigEditorIdSchema,
     proxyHostConfigEditorSaveSchema,
     proxyHostConfigEditorResetSchema,
@@ -53,36 +50,18 @@ async function readHostEditorState(transaction: AuthTransaction, proxyHostId: st
         'sha256:' +
         new Bun.CryptoHasher('sha256')
             .update(
-                JSON.stringify({ version: 1, enabled: host.enabled, revision: snapshot.revision }),
+                JSON.stringify({ version: 7, enabled: host.enabled, revision: snapshot.revision }),
             )
             .digest('hex')
     return { host, httpSettings, hostSettings, trustedCas, snapshot, baseRevision }
 }
 
-async function loadHostEditorState(
-    proxyHostId: string,
-    actorId: string,
-    requiresAdvancedConfig = false,
-) {
+async function loadHostEditorState(proxyHostId: string, actorId: string) {
     return getAuthDatabase().transaction(
         async (transaction) => {
-            const actor = await requirePermissionInTransaction(
-                transaction,
-                actorId,
-                PERMISSIONS.PROXY_HOSTS_VIEW,
-            )
-            if (requiresAdvancedConfig) {
-                await requirePermissionInTransaction(
-                    transaction,
-                    actorId,
-                    PERMISSIONS.PROXY_HOSTS_ADVANCED_CONFIG,
-                )
-            }
+            await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_VIEW)
             return {
                 ...(await readHostEditorState(transaction, proxyHostId)),
-                canReadAdvancedConfig: actor.permissions.includes(
-                    PERMISSIONS.PROXY_HOSTS_ADVANCED_CONFIG,
-                ),
             }
         },
         { isolationLevel: 'repeatable read', accessMode: 'read only' },
@@ -96,37 +75,17 @@ export async function getProxyHostConfigEditorService(
     const id = proxyHostConfigEditorIdSchema.parse({ proxyHostId }).proxyHostId
     const state = await loadHostEditorState(id, actor.id)
     // Ordinary DTOs do not need Controller-owned certificate filesystem paths.
-    const visibleHost = state.canReadAdvancedConfig
-        ? state.host
-        : {
-              ...state.host,
-              certificateId: null,
-              forceHttps: false,
-          }
+    const visibleHost = state.host
     // The structured editor's template is always generated without expert text.
     const defaultsSnapshot = createProxyRuntimeSnapshot(
-        [{ ...visibleHost, enabled: true, advancedConfig: '' }],
+        [{ ...visibleHost, enabled: true }],
         state.httpSettings,
         state.trustedCas,
     )
-    const generatedSnapshot = state.canReadAdvancedConfig
-        ? state.snapshot
-        : createProxyRuntimeSnapshot(
-              [
-                  {
-                      ...visibleHost,
-                      enabled: true,
-                      httpSettings: state.hostSettings,
-                      advancedConfig: '',
-                  },
-              ],
-              state.httpSettings,
-              state.trustedCas,
-          )
+    const generatedSnapshot = state.snapshot
     const defaultsRequest = previewProxyHostConfiguration(id, defaultsSnapshot)
     const [active, defaults, generated] = await Promise.all([
-        // Never try to redact arbitrary expert syntax from the active file.
-        state.canReadAdvancedConfig ? getActiveProxyHostConfiguration(id) : null,
+        getActiveProxyHostConfiguration(id),
         defaultsRequest,
         generatedSnapshot.revision === defaultsSnapshot.revision
             ? defaultsRequest
@@ -137,12 +96,10 @@ export async function getProxyHostConfigEditorService(
         hostLabel: state.host.domains[0] ?? state.host.forwardHost,
         enabled: state.host.enabled,
         baseRevision: state.baseRevision,
-        settingsSource: formatProxyHttpSettings(state.hostSettings),
-        commonSettingsSource: formatProxyHttpSettings(state.httpSettings),
+        settings: state.hostSettings,
         active,
         defaults,
         generated,
-        ...(state.canReadAdvancedConfig ? { advancedConfig: state.host.advancedConfig ?? '' } : {}),
     }
 }
 
@@ -151,23 +108,14 @@ export async function previewProxyHostConfigEditorService(
 ): Promise<ProxyConfigSource> {
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
     const parsed = proxyHostConfigEditorPreviewSchema.parse(input)
-    const settings = parseProxyHttpSettings(parsed.settingsSource)
-    const state = await loadHostEditorState(
-        parsed.proxyHostId,
-        actor.id,
-        parsed.advancedConfig !== undefined,
-    )
-    const advancedConfig = state.canReadAdvancedConfig
-        ? (parsed.advancedConfig ?? state.host.advancedConfig ?? '')
-        : ''
+    const settings = normalizeProxyHostHttpSettings(parsed.settings)
+    const state = await loadHostEditorState(parsed.proxyHostId, actor.id)
     const snapshot = createProxyRuntimeSnapshot(
         [
             {
                 ...state.host,
                 enabled: true,
                 httpSettings: settings,
-                advancedConfig,
-                ...(state.canReadAdvancedConfig ? {} : { certificateId: null, forceHttps: false }),
             },
         ],
         state.httpSettings,
@@ -182,35 +130,17 @@ async function saveHostSettings(
     proxyHostId: string,
     baseRevision: string,
     settings: ProxyHttpSettings,
-    advancedConfig?: string,
 ): Promise<{ readonly enabled: boolean; readonly runtimeStatus: ProxyRuntimeMutationStatus }> {
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_UPDATE)
     await requirePermissionService(PERMISSIONS.PROXY_HOSTS_APPLY)
-    if (advancedConfig !== undefined) {
-        await requirePermissionService(PERMISSIONS.PROXY_HOSTS_ADVANCED_CONFIG)
-    }
     const enabled = await getAuthDatabase().transaction(async (transaction) => {
         await lockProxyRuntimeSettings(transaction)
         await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.PROXY_HOSTS_UPDATE)
         await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.PROXY_HOSTS_APPLY)
-        if (advancedConfig !== undefined) {
-            await requirePermissionInTransaction(
-                transaction,
-                actor.id,
-                PERMISSIONS.PROXY_HOSTS_ADVANCED_CONFIG,
-            )
-        }
         const latest = await readHostEditorState(transaction, proxyHostId)
         if (latest.baseRevision !== baseRevision)
             throw new ProxyConfigEditorError('configuration_conflict')
         await writeProxyHostHttpSettings(transaction, proxyHostId, settings)
-        // Ordinary/structured edits never write the protected field.
-        if (advancedConfig !== undefined) {
-            await transaction
-                .update(proxyHosts)
-                .set({ advancedConfig, updatedAt: new Date() })
-                .where(eq(proxyHosts.id, proxyHostId))
-        }
         return latest.host.enabled
     })
     return { enabled, runtimeStatus: await reconcileProxyConfigurationService() }
@@ -225,8 +155,7 @@ export async function saveProxyHostConfigEditorService(
     return saveHostSettings(
         parsed.proxyHostId,
         parsed.baseRevision,
-        parseProxyHttpSettings(parsed.settingsSource),
-        parsed.advancedConfig,
+        normalizeProxyHostHttpSettings(parsed.settings),
     )
 }
 
@@ -236,10 +165,5 @@ export async function resetProxyHostConfigEditorService(
     await requirePermissionService(PERMISSIONS.PROXY_HOSTS_UPDATE)
     await requirePermissionService(PERMISSIONS.PROXY_HOSTS_APPLY)
     const parsed = proxyHostConfigEditorResetSchema.parse(input)
-    return saveHostSettings(
-        parsed.proxyHostId,
-        parsed.baseRevision,
-        {},
-        parsed.resetAdvancedConfig ? '' : undefined,
-    )
+    return saveHostSettings(parsed.proxyHostId, parsed.baseRevision, {})
 }

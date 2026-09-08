@@ -2,7 +2,7 @@ use std::{error::Error, process::ExitCode, sync::Arc};
 
 use crate::{
     config::Config,
-    runtime::{ProcessEngine, ProxyEngine, ProxyRuntime, RuntimeSettings},
+    runtime::{CaddyProcess, ProxyEngine, ProxyRuntime, RuntimeSettings},
     server::{AppState, app_with_state},
     shutdown::wait_for_shutdown,
 };
@@ -92,16 +92,13 @@ async fn serve() -> Result<(), Box<dyn Error + Send + Sync>> {
     settings.public_https_port = config.proxy_public_https_port;
     settings.system_ca_bundle = config.system_ca_bundle;
     settings.controller_port = local_addr.port();
-    let engine = config.proxy_engine_bin.map(|binary| {
-        Arc::new(ProcessEngine::new(
-            binary,
-            config.proxy_state_dir.clone(),
-            settings.probe_socket(),
-        )) as Arc<dyn ProxyEngine>
+    let engine = config.caddy_bin.map(|binary| {
+        Arc::new(CaddyProcess::new(binary, config.proxy_state_dir.clone())) as Arc<dyn ProxyEngine>
     });
     let runtime = ProxyRuntime::new(settings, engine);
     info!(target: "rentnerproxy_controller", %local_addr, "controller listening");
     runtime.initialize().await;
+    runtime.start_recovery_worker().await;
     let state = AppState::new(runtime.clone(), config.controller_token);
     runtime
         .start_renewal_scheduler(state.challenges.clone())

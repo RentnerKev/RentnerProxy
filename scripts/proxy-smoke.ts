@@ -2,9 +2,10 @@
 import assert from 'node:assert/strict'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createConnection } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { SQL } from 'bun'
 
@@ -135,8 +136,9 @@ function publishedPort(output: string): number {
 }
 
 async function runSmoke(): Promise<void> {
-    console.log('Starting isolated PostgreSQL and the real OpenResty runtime.')
+    console.log('Starting isolated PostgreSQL and the real Caddy runtime.')
     let closeDatabase: (() => Promise<void>) | undefined
+    let stopReconciliation: (() => Promise<void>) | undefined
     const upstreamHost =
         process.env.RENTNERPROXY_TEST_UPSTREAM_HOST ??
         (process.platform === 'linux' ? '0.0.0.0' : '127.0.0.1')
@@ -204,6 +206,7 @@ async function runSmoke(): Promise<void> {
             proxyUrl = 'http://127.0.0.1:' + publishedPort(httpAddress)
             controllerUrl = 'http://127.0.0.1:' + publishedPort(controllerAddress)
             process.env.RENTNERPROXY_CONTROLLER_URL = controllerUrl
+            environment.RENTNERPROXY_CONTROLLER_URL = controllerUrl
         }
         // Docker may allocate different ephemeral host ports after restart/start.
         await refreshRuntimeAddresses()
@@ -213,14 +216,12 @@ async function runSmoke(): Promise<void> {
             { requestHandler },
             { SESSION_COOKIE_NAME },
             { SYSTEM_ROLES },
-            { proxyHosts, roles, userRoles, users },
+            { roles, userRoles, users },
             { getAuthDatabase },
             { createSessionService },
             services,
             redirectServices,
             runtime,
-            editor,
-            hostEditor,
             controller,
         ] = await Promise.all([
             import('drizzle-orm'),
@@ -233,28 +234,27 @@ async function runSmoke(): Promise<void> {
             import('../web/src/server/Admin/ProxyHostManagement/proxy-hosts.service'),
             import('../web/src/server/Admin/RedirectHostManagement/redirect-hosts.service'),
             import('../web/src/server/ProxyRuntime/proxy-runtime.service'),
-            import('../web/src/server/ProxyRuntime/proxy-config-editor.service'),
-            import('../web/src/server/ProxyRuntime/proxy-host-config-editor.service'),
             import('../web/src/server/Foundation/controller.server'),
         ])
         const database = getAuthDatabase()
         closeDatabase = () => database.$client.close()
+        stopReconciliation = runtime.stopProxyRuntimeReconciliation
 
         await waitFor(
             async () => (await controller.getProxyRuntimeStatus())?.running === true,
-            'OpenResty startup',
+            'Caddy startup',
         )
         const version = await command([
             ...compose,
             'exec',
             '-T',
             'proxy-runtime',
-            '/usr/local/openresty/nginx/sbin/nginx',
-            '-v',
+            '/usr/bin/caddy',
+            'version',
         ])
-        assert.match(version, /openresty\/1\.31\.1\.1/u)
+        assert.match(version, /v2\.11\.4/u)
         console.log(version)
-        passed('OpenResty runtime and two real Bun backends started')
+        passed('Caddy runtime and two real Bun backends started')
 
         async function proxyRequest(host: string, path = '/') {
             return fetch(proxyUrl + path, {
@@ -288,6 +288,51 @@ async function runSmoke(): Promise<void> {
                 'backend response for ' + host,
                 5_000,
             )
+        }
+
+        async function expectWebSocketUpgrade(host: string): Promise<void> {
+            const proxyPort = Number(new URL(proxyUrl).port)
+            await new Promise<void>((resolve, reject) => {
+                const socket = createConnection({ host: '127.0.0.1', port: proxyPort })
+                let response = ''
+                let settled = false
+                const finish = (error?: Error) => {
+                    if (settled) return
+                    settled = true
+                    socket.destroy()
+                    if (error) reject(error)
+                    else resolve()
+                }
+                socket.setTimeout(5_000, () => finish(new Error('WebSocket upgrade timed out')))
+                socket.once('error', (error) => finish(error))
+                socket.on('data', (chunk) => {
+                    response += chunk.toString('latin1')
+                    if (!response.includes('\r\n\r\n')) return
+                    try {
+                        assert.match(response, /^HTTP\/1\.1 101 Switching Protocols\r\n/iu)
+                        assert.match(response, /^upgrade: websocket\r\n/imu)
+                        assert.match(response, /^connection: Upgrade\r\n/imu)
+                        finish()
+                    } catch (error) {
+                        finish(error instanceof Error ? error : new Error(String(error)))
+                    }
+                })
+                socket.once('connect', () => {
+                    socket.write(
+                        'GET /websocket-smoke HTTP/1.1\r\n' +
+                            'Host: ' +
+                            host +
+                            '\r\n' +
+                            'Connection: Upgrade\r\n' +
+                            'Upgrade: websocket\r\n' +
+                            'Sec-WebSocket-Version: 13\r\n' +
+                            'Sec-WebSocket-Key: ' +
+                            randomBytes(16).toString('base64') +
+                            '\r\n' +
+                            '\r\n',
+                    )
+                })
+            })
         }
 
         async function expectRedirect(
@@ -334,24 +379,6 @@ async function runSmoke(): Promise<void> {
         assert.ok(actor)
         await database.insert(userRoles).values({ userId: actor.id, roleId: ownerRole.id })
         const session = await createSessionService(actor.id)
-        const [viewerRole] = await database
-            .select({ id: roles.id })
-            .from(roles)
-            .where(eq(roles.key, SYSTEM_ROLES.VIEWER))
-        assert.ok(viewerRole)
-        const [viewer] = await database
-            .insert(users)
-            .values({
-                displayName: 'Proxy smoke test viewer',
-                email: runId + '-viewer@proxy-smoke.invalid',
-                emailVerifiedAt: new Date(),
-                status: 'active',
-            })
-            .returning({ id: users.id })
-        assert.ok(viewer)
-        await database.insert(userRoles).values({ userId: viewer.id, roleId: viewerRole.id })
-        const viewerSession = await createSessionService(viewer.id)
-
         async function authorizedAs<T>(
             sessionToken: string,
             operation: () => Promise<T>,
@@ -398,11 +425,13 @@ async function runSmoke(): Promise<void> {
         const created = await authorized(() => services.createProxyHostService(hostInput))
         assert.equal(created.runtimeStatus, 'applied')
         // A graceful reload briefly overlaps retiring and new workers. Poll new HTTP
-        // connections for the expected routing; never restart the engine to apply it.
+        // connections for the expected routing; never restart Caddy to apply it.
         await expectProxyMessage('demo.test', 'upstream-one')
-        passed('authorized create -> PostgreSQL -> full snapshot -> OpenResty -> backend response')
+        passed('authorized create -> PostgreSQL -> full snapshot -> Caddy -> backend response')
+        await expectWebSocketUpgrade('demo.test')
+        passed('WebSocket upgrade traverses Caddy and reaches the real Bun backend')
         await expectProxyMessage(longDomain, 'upstream-one')
-        passed('maximum-length 253-character domain routes through the real engine')
+        passed('maximum-length 253-character domain routes through real Caddy')
 
         const path = '/api/test?hello=world&second=a%2Fb'
         const forwarded = await (await proxyRequest('demo.test', path)).json()
@@ -477,7 +506,7 @@ async function runSmoke(): Promise<void> {
                 'https://new.example.test/base/status-' + statusCode + '?check=1',
             )
         }
-        passed('real OpenResty returns only the supported 301, 302, 307 and 308 statuses')
+        passed('real Caddy returns only the supported 301, 302, 307 and 308 statuses')
 
         const exactDestination = 'https://new.example.test/exact?fixed=a%2Fb#section'
         assert.equal(
@@ -521,14 +550,6 @@ async function runSmoke(): Promise<void> {
         await expectProxyMessage('demo.test', 'upstream-one')
         passed('Redirect enable, disable and delete reconcile without affecting Proxy Hosts')
 
-        const beforeReload = await command([
-            ...compose,
-            'exec',
-            '-T',
-            'proxy-runtime',
-            'cat',
-            '/var/lib/rentnerproxy/proxy/engine.pid',
-        ])
         const updated = await authorized(() =>
             services.updateProxyHostService({
                 ...hostInput,
@@ -538,438 +559,15 @@ async function runSmoke(): Promise<void> {
         )
         assert.equal(updated.runtimeStatus, 'applied')
         await expectProxyMessage('demo.test', 'upstream-two')
-        assert.equal(
-            await command([
-                ...compose,
-                'exec',
-                '-T',
-                'proxy-runtime',
-                'cat',
-                '/var/lib/rentnerproxy/proxy/engine.pid',
-            ]),
-            beforeReload,
-        )
-        passed('backend update with graceful reload and unchanged master PID')
+        passed('backend update with graceful Caddy reload')
 
         const initialSnapshot = await runtime.getProxyRuntimeSnapshotService()
-        await assert.rejects(
-            () => authorizedAs(viewerSession.token, () => editor.getProxyConfigEditorService()),
-            (error: unknown) => (error as { code?: unknown }).code === 'permission_denied',
-        )
-        const viewerEditor = await authorized(() => editor.getProxyConfigEditorService())
-        assert.equal(viewerEditor.baseRevision, initialSnapshot.revision)
-        assert.equal(viewerEditor.settingsSource, '')
-        assert.equal(viewerEditor.active?.revision, initialSnapshot.revision)
-        assert.match(viewerEditor.active?.config ?? '', /# rentnerproxy-revision: /u)
-        assert.ok(viewerEditor.defaults?.revision)
-        assert.match(viewerEditor.defaults?.config ?? '', /# rentnerproxy-revision: /u)
-
-        const editorSaveInput = {
-            baseRevision: initialSnapshot.revision,
-            settingsSource: [
-                'keepalive_timeout 75s;',
-                'send_timeout 30s;',
-                'proxy_send_timeout 300s;',
-                'proxy_read_timeout 300s;',
-                'proxy_connect_timeout 15s;',
-                'client_max_body_size 10m;',
-            ].join('\n'),
-        }
-        await assert.rejects(
-            () =>
-                authorizedAs(viewerSession.token, () =>
-                    editor.saveProxyConfigEditorService(editorSaveInput),
-                ),
-            (error: unknown) => {
-                assert.equal((error as { code?: unknown }).code, 'permission_denied')
-                return true
-            },
-        )
-        await assert.rejects(
-            () =>
-                authorizedAs(viewerSession.token, () =>
-                    editor.resetProxyConfigEditorService({
-                        baseRevision: initialSnapshot.revision,
-                    }),
-                ),
-            (error: unknown) => {
-                assert.equal((error as { code?: unknown }).code, 'permission_denied')
-                return true
-            },
-        )
-        passed('full config source requires expert permission; viewer cannot save or reset')
-
-        const beforePreview = await authorized(() => editor.getProxyConfigEditorService())
-        const activeBeforePreview = (await controller.getProxyRuntimeStatus())?.activeRevision
-        const preview = await authorized(() =>
-            editor.previewProxyConfigEditorService('client_max_body_size 10m;'),
-        )
-        assert.notEqual(preview.revision, activeBeforePreview)
-        assert.equal(
-            (await controller.getProxyRuntimeStatus())?.activeRevision,
-            activeBeforePreview,
-        )
-        assert.deepEqual(
-            await authorized(() => editor.getProxyConfigEditorService()),
-            beforePreview,
-        )
-        passed('safe editor preview renders a candidate without changing active or stored state')
-
-        const saved = await authorized(() => editor.saveProxyConfigEditorService(editorSaveInput))
-        assert.equal(saved, 'applied')
-        const configuredSnapshot = await runtime.getProxyRuntimeSnapshotService()
-        assert.equal(configuredSnapshot.version, 2)
-        assert.deepEqual(configuredSnapshot.httpSettings, {
-            clientMaxBodySizeBytes: 10 * 1_024 * 1_024,
-            proxyConnectTimeoutSeconds: 15,
-            proxyReadTimeoutSeconds: 300,
-            proxySendTimeoutSeconds: 300,
-            sendTimeoutSeconds: 30,
-            keepaliveTimeoutSeconds: 75,
-        })
-        assert.notEqual(configuredSnapshot.revision, initialSnapshot.revision)
-        await expectProxyMessage('demo.test', 'upstream-two')
-        passed('owner save applies v2 HTTP settings and preserves real forwarding')
-
-        const staleEditor = await authorized(() => editor.getProxyConfigEditorService())
-        const changed = await authorized(() =>
-            editor.saveProxyConfigEditorService({
-                baseRevision: staleEditor.baseRevision,
-                settingsSource: 'client_max_body_size 8m;',
-            }),
-        )
-        assert.equal(changed, 'applied')
-        const changedEditor = await authorized(() => editor.getProxyConfigEditorService())
-        await assert.rejects(
-            () =>
-                authorized(() =>
-                    editor.saveProxyConfigEditorService({
-                        baseRevision: staleEditor.baseRevision,
-                        settingsSource: 'send_timeout 30s;',
-                    }),
-                ),
-            (error: unknown) => {
-                assert.equal((error as { code?: unknown }).code, 'configuration_conflict')
-                return true
-            },
-        )
-        assert.deepEqual(
-            await authorized(() => editor.getProxyConfigEditorService()),
-            changedEditor,
-        )
-        passed('stale editor save is rejected by the full snapshot revision CAS')
-
-        const beforeInvalid = await authorized(() => editor.getProxyConfigEditorService())
-        const activeBeforeInvalid = (await controller.getProxyRuntimeStatus())?.activeRevision
-        for (const source of ['include /etc/nginx/nginx.conf;', 'lua_code_cache on;']) {
-            await assert.rejects(() =>
-                authorized(() =>
-                    editor.saveProxyConfigEditorService({
-                        baseRevision: beforeInvalid.baseRevision,
-                        settingsSource: source,
-                    }),
-                ),
-            )
-        }
-        assert.deepEqual(
-            await authorized(() => editor.getProxyConfigEditorService()),
-            beforeInvalid,
-        )
-        assert.equal(
-            (await controller.getProxyRuntimeStatus())?.activeRevision,
-            activeBeforeInvalid,
-        )
-        await expectProxyMessage('demo.test', 'upstream-two')
-        passed(
-            'structured settings still reject raw directives; free expert text uses its separate field',
-        )
-
-        const resetState = await authorized(() => editor.getProxyConfigEditorService())
-        assert.equal(
-            await authorized(() =>
-                editor.resetProxyConfigEditorService({ baseRevision: resetState.baseRevision }),
-            ),
-            'applied',
-        )
-        const resetSnapshot = await runtime.getProxyRuntimeSnapshotService()
-        const resetEditor = await authorized(() => editor.getProxyConfigEditorService())
-        assert.equal(resetSnapshot.version, 1)
-        assert.equal(resetSnapshot.revision, initialSnapshot.revision)
-        assert.deepEqual(resetSnapshot.proxyHosts, initialSnapshot.proxyHosts)
-        assert.equal(resetEditor.settingsSource, '')
-        await expectProxyMessage('demo.test', 'upstream-two')
-        passed('editor reset restores v1 defaults while retaining current hosts and routing')
-
-        const hostState = await authorized(() =>
-            hostEditor.getProxyHostConfigEditorService(created.id),
-        )
-        assert.equal(hostState.advancedConfig, '')
-        assert.ok(hostState.defaults?.config.includes('# rentnerproxy: host HTTP settings begin'))
-        const hostSettingsSource = [
-            'client_max_body_size 16m;',
-            'proxy_connect_timeout 12s;',
-            'proxy_read_timeout 180s;',
-            'proxy_send_timeout 180s;',
-            'send_timeout 45s;',
-            'keepalive_timeout 70s;',
-        ].join('\n')
-        const advancedConfig = [
-            '# Free server-context configuration',
-            'add_header X-RentnerProxy-Advanced "works" always;',
-            'location = /rentnerproxy-advanced-test {',
-            '    return 200 "advanced-ok";',
-            '}',
-            '',
-        ].join('\n')
-        const advancedPreview = await authorized(() =>
-            hostEditor.previewProxyHostConfigEditorService({
-                proxyHostId: created.id,
-                settingsSource: hostSettingsSource,
-                advancedConfig,
-            }),
-        )
-        assert.ok(advancedPreview.config.includes(advancedConfig))
-        assert.ok(
-            advancedPreview.config.indexOf(advancedConfig) >
-                advancedPreview.config.indexOf('location / {'),
-        )
+        assert.equal(initialSnapshot.version, 7)
         assert.equal(
             (await controller.getProxyRuntimeStatus())?.activeRevision,
             initialSnapshot.revision,
         )
-        passed('free host preview preserves raw text at server context without applying')
-
-        const advancedSave = await authorized(() =>
-            hostEditor.saveProxyHostConfigEditorService({
-                proxyHostId: created.id,
-                baseRevision: hostState.baseRevision,
-                settingsSource: hostSettingsSource,
-                advancedConfig: advancedConfig.replaceAll('\n', '\r\n'),
-            }),
-        )
-        assert.equal(advancedSave.runtimeStatus, 'applied')
-        const advancedSnapshot = await runtime.getProxyRuntimeSnapshotService()
-        assert.equal(advancedSnapshot.version, 3)
-        assert.equal(advancedSnapshot.proxyHosts[0]?.advancedConfig, advancedConfig)
-        assert.equal(Object.keys(advancedSnapshot.proxyHosts[0]?.httpSettings ?? {}).length, 6)
-        const activeHost = await authorized(() =>
-            hostEditor.getProxyHostConfigEditorService(created.id),
-        )
-        assert.equal(activeHost.advancedConfig, advancedConfig)
-        assert.ok(activeHost.active?.config.includes(advancedConfig))
-        assert.ok(activeHost.active?.config.includes('client_max_body_size 16777216;'))
-        assert.ok(activeHost.active?.config.includes('proxy_connect_timeout 12s;'))
-        assert.ok(activeHost.active?.config.includes('proxy_read_timeout 180s;'))
-        assert.ok(activeHost.active?.config.includes('proxy_send_timeout 180s;'))
-        assert.ok(activeHost.active?.config.includes('send_timeout 45s;'))
-        assert.ok(activeHost.active?.config.includes('keepalive_timeout 70s;'))
-        passed(
-            'all six structured host settings coexist with persisted normalized raw configuration',
-        )
-
-        async function expectAdvancedHeader(value: string): Promise<void> {
-            await waitFor(
-                async () => {
-                    const response = await proxyRequest('demo.test')
-                    if (
-                        response.status !== 200 ||
-                        response.headers.get('x-rentnerproxy-advanced') !== value
-                    ) {
-                        await response.body?.cancel()
-                        return false
-                    }
-                    return (await response.json()).message === 'upstream-two'
-                },
-                'advanced response header and backend response',
-                5000,
-            )
-        }
-        async function expectAdvancedLocation(value: string): Promise<void> {
-            await waitFor(
-                async () => {
-                    const response = await proxyRequest('demo.test', '/rentnerproxy-advanced-test')
-                    const text = await response.text()
-                    return response.status === 200 && text === value
-                },
-                'custom server-context location response',
-                5000,
-            )
-        }
-        await expectAdvancedHeader('works')
-        passed('real OpenResty add_header reaches the browser with the backend response')
-        await expectAdvancedLocation('advanced-ok')
-        passed('real free custom location returns advanced-ok')
-
-        const withoutExpert = await authorizedAs(viewerSession.token, () =>
-            hostEditor.getProxyHostConfigEditorService(created.id),
-        )
-        assert.equal(Object.hasOwn(withoutExpert, 'advancedConfig'), false)
-        assert.equal(withoutExpert.active, null)
-        assert.equal(JSON.stringify(withoutExpert).includes('X-RentnerProxy-Advanced'), false)
-        const viewerPreview = await authorizedAs(viewerSession.token, () =>
-            hostEditor.previewProxyHostConfigEditorService({
-                proxyHostId: created.id,
-                settingsSource: '',
-            }),
-        )
-        assert.equal(viewerPreview.config.includes('X-RentnerProxy-Advanced'), false)
-        const normalList = await authorizedAs(viewerSession.token, () =>
-            services.getProxyHostsService(),
-        )
-        assert.equal(JSON.stringify(normalList).includes('advancedConfig'), false)
-        passed('normal list and viewer editor sources do not expose expert configuration')
-
-        const neighbor = await authorized(() =>
-            services.createProxyHostService({
-                ...hostInput,
-                domains: ['neighbor.test'],
-            }),
-        )
-        assert.equal(neighbor.runtimeStatus, 'applied')
-        await expectProxyMessage('neighbor.test', 'upstream-one')
-        const neighborResponse = await proxyRequest('neighbor.test')
-        assert.equal(neighborResponse.headers.get('x-rentnerproxy-advanced'), null)
-        await neighborResponse.body?.cancel()
-        const neighborState = await authorized(() =>
-            hostEditor.getProxyHostConfigEditorService(neighbor.id),
-        )
-        assert.equal(neighborState.advancedConfig, '')
-        assert.equal(neighborState.active?.config.includes(advancedConfig), false)
-        passed('host editor source and raw directives stay separate from another proxy host')
-
-        const beforeInvalidRaw = await authorized(() =>
-            hostEditor.getProxyHostConfigEditorService(created.id),
-        )
-        const workingRevision = (await controller.getProxyRuntimeStatus())?.activeRevision
-        const invalidRaw = 'this_directive_should_not_exist;'
-        const rejectedRaw = await authorized(() =>
-            hostEditor.saveProxyHostConfigEditorService({
-                proxyHostId: created.id,
-                baseRevision: beforeInvalidRaw.baseRevision,
-                settingsSource: hostSettingsSource,
-                advancedConfig: invalidRaw,
-            }),
-        )
-        assert.equal(rejectedRaw.runtimeStatus, 'pending')
-        const [persistedRaw] = await database
-            .select({ advancedConfig: proxyHosts.advancedConfig })
-            .from(proxyHosts)
-            .where(eq(proxyHosts.id, created.id))
-        assert.equal(persistedRaw?.advancedConfig, invalidRaw)
-        const invalidDesired = await runtime.getProxyRuntimeSnapshotService()
-        assert.notEqual(invalidDesired.revision, workingRevision)
-        assert.equal((await controller.getProxyRuntimeStatus())?.activeRevision, workingRevision)
-        assert.equal(
-            (await authorized(() => runtime.getProxyRuntimeStatusService())).state,
-            'pending',
-        )
-        const rawApplyFailure = await fetch(controllerUrl + '/internal/v1/proxy/config', {
-            method: 'PUT',
-            headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
-            body: JSON.stringify(invalidDesired),
-            signal: AbortSignal.timeout(20_000),
-        })
-        assert.equal(rawApplyFailure.status, 502)
-        assert.deepEqual(await rawApplyFailure.json(), { error: 'apply_failed' })
-        passed('invalid raw directive stays in desired DB state while nginx -t rejects it safely')
-
-        await expectAdvancedHeader('works')
-        await expectAdvancedLocation('advanced-ok')
-        const afterInvalidRaw = await authorized(() =>
-            hostEditor.getProxyHostConfigEditorService(created.id),
-        )
-        assert.deepEqual(afterInvalidRaw.active, beforeInvalidRaw.active)
-        passed(
-            'failed raw candidate preserves active revision, previous header, location and HTTP 200 traffic',
-        )
-
-        const recoveredRaw = advancedConfig
-            .replace('"works"', '"recovered"')
-            .replace('"advanced-ok"', '"advanced-restored"')
-        const recovered = await authorized(() =>
-            hostEditor.saveProxyHostConfigEditorService({
-                proxyHostId: created.id,
-                baseRevision: afterInvalidRaw.baseRevision,
-                settingsSource: hostSettingsSource,
-                advancedConfig: recoveredRaw,
-            }),
-        )
-        assert.equal(recovered.runtimeStatus, 'applied')
-        await expectAdvancedHeader('recovered')
-        await expectAdvancedLocation('advanced-restored')
-        const recoveredStatus = await authorized(() => runtime.getProxyRuntimeStatusService())
-        assert.equal(recoveredStatus.state, 'synced')
-        assert.equal(recoveredStatus.activeRevision, recoveredStatus.desiredRevision)
-        passed('corrected raw configuration applies and reaches synchronized state')
-
-        const rawBeforeRestart = await authorized(() =>
-            hostEditor.getProxyHostConfigEditorService(created.id),
-        )
-        const beforeEquivalent = await controller.getProxyRuntimeStatus()
-        assert.equal(
-            (
-                await authorized(() =>
-                    hostEditor.saveProxyHostConfigEditorService({
-                        proxyHostId: created.id,
-                        baseRevision: rawBeforeRestart.baseRevision,
-                        settingsSource: hostSettingsSource,
-                        advancedConfig: recoveredRaw.replaceAll('\n', '\r\n'),
-                    }),
-                )
-            ).runtimeStatus,
-            'applied',
-        )
-        assert.equal(
-            (await controller.getProxyRuntimeStatus())?.lastApplyAt,
-            beforeEquivalent?.lastApplyAt,
-        )
-        passed('equivalent CRLF raw configuration keeps its revision and avoids a reload')
-
-        await command([...compose, 'restart', 'proxy-runtime'])
-        await refreshRuntimeAddresses()
-        await waitFor(async () => {
-            const status = await controller.getProxyRuntimeStatus()
-            return (
-                status?.running === true && status.activeRevision === recoveredStatus.activeRevision
-            )
-        }, 'persisted expert configuration after restart')
-        await expectAdvancedHeader('recovered')
-        await expectAdvancedLocation('advanced-restored')
-        assert.deepEqual(
-            (await authorized(() => hostEditor.getProxyHostConfigEditorService(created.id))).active,
-            rawBeforeRestart.active,
-        )
-        passed('expert config and the exact active host source survive controller restart')
-
-        const rawResetState = await authorized(() =>
-            hostEditor.getProxyHostConfigEditorService(created.id),
-        )
-        assert.equal(
-            (
-                await authorized(() =>
-                    hostEditor.resetProxyHostConfigEditorService({
-                        proxyHostId: created.id,
-                        baseRevision: rawResetState.baseRevision,
-                        resetAdvancedConfig: true,
-                    }),
-                )
-            ).runtimeStatus,
-            'applied',
-        )
-        const clearedHost = await authorized(() =>
-            hostEditor.getProxyHostConfigEditorService(created.id),
-        )
-        assert.equal(clearedHost.settingsSource, '')
-        assert.equal(clearedHost.advancedConfig, '')
-        await expectProxyMessage('demo.test', 'upstream-two')
-        await expectProxyMessage('neighbor.test', 'upstream-one')
-        const clearedResponse = await proxyRequest('demo.test')
-        assert.equal(clearedResponse.headers.get('x-rentnerproxy-advanced'), null)
-        await clearedResponse.body?.cancel()
-        await authorized(() => services.deleteProxyHostService(neighbor.id))
-        assert.deepEqual(await runtime.getProxyRuntimeSnapshotService(), initialSnapshot)
-        passed('host reset clears expert and structured overrides without deleting other hosts')
-
+        passed('v7 snapshot is canonical and active without expert runtime directives')
         const snapshot = await runtime.getProxyRuntimeSnapshotService()
         const beforeUnchanged = await controller.getProxyRuntimeStatus()
         const repeated = await controller.applyProxyRuntimeConfiguration(snapshot)
@@ -995,24 +593,85 @@ async function runSmoke(): Promise<void> {
             ...host,
             forwardHost: runId + '.upstream.invalid',
         }))
-        const unresolvableCanonical = JSON.stringify({ version: 1, proxyHosts: unresolvableHosts })
-        const rejectedCandidate = await fetch(controllerUrl + '/internal/v1/proxy/config', {
-            method: 'PUT',
-            headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
-            body: JSON.stringify({
-                version: 1,
-                revision:
-                    'sha256:' +
-                    new Bun.CryptoHasher('sha256').update(unresolvableCanonical).digest('hex'),
-                proxyHosts: unresolvableHosts,
-            }),
-            signal: AbortSignal.timeout(20_000),
+        const unresolvableCanonical = JSON.stringify({
+            version: 7,
+            proxyHosts: unresolvableHosts,
+            redirectHosts: snapshot.redirectHosts,
+            httpSettings: snapshot.httpSettings,
+            trustedCas: snapshot.trustedCas,
         })
+        // Caddy deliberately does not resolve upstream DNS while loading JSON. Block its
+        // internal Unix listener instead, which is a real, controlled bind failure.
+        const probeSocket = '/var/lib/rentnerproxy/proxy/runtime-probe.sock'
+        await command([
+            ...compose,
+            'exec',
+            '-T',
+            'proxy-runtime',
+            'sh',
+            '-c',
+            `rm -f ${probeSocket} && printf probe-blocker > ${probeSocket}`,
+        ])
+        let rejectedCandidate: Response
+        try {
+            rejectedCandidate = await fetch(controllerUrl + '/internal/v1/proxy/config', {
+                method: 'PUT',
+                headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    version: 7,
+                    revision:
+                        'sha256:' +
+                        new Bun.CryptoHasher('sha256').update(unresolvableCanonical).digest('hex'),
+                    proxyHosts: unresolvableHosts,
+                    redirectHosts: snapshot.redirectHosts,
+                    httpSettings: snapshot.httpSettings,
+                    trustedCas: snapshot.trustedCas,
+                }),
+                signal: AbortSignal.timeout(20_000),
+            })
+        } finally {
+            await command([...compose, 'exec', '-T', 'proxy-runtime', 'rm', '-f', probeSocket])
+        }
         assert.equal(rejectedCandidate.status, 502)
         assert.equal((await rejectedCandidate.json()).error, 'apply_failed')
         assert.equal((await controller.getProxyRuntimeStatus())?.activeRevision, snapshot.revision)
         await expectProxyMessage('demo.test', 'upstream-two')
-        passed('real nginx -t failure preserves the active revision and working backend')
+        passed(
+            'controlled Caddy probe bind failure preserves the active revision and working backend',
+        )
+
+        const activeConfigResponse = await fetch(controllerUrl + '/internal/v1/proxy/config', {
+            headers: { authorization: 'Bearer ' + token },
+        })
+        assert.equal(activeConfigResponse.status, 200)
+        const activeConfigPayload = (await activeConfigResponse.json()) as {
+            readonly config?: unknown
+        }
+        assert.equal(typeof activeConfigPayload.config, 'string')
+        const adminConfig = JSON.parse(activeConfigPayload.config as string) as Record<string, any>
+        const httpServers = adminConfig.apps?.http?.servers
+        const httpServer = httpServers?.['rentnerproxy-http']
+        assert.ok(Array.isArray(httpServer?.routes))
+        assert.ok(httpServer.routes.length > 0)
+        assert.ok(Array.isArray(httpServer.routes[0].handle))
+        httpServer.routes[0].handle[0] = { handler: 'rentnerproxy_unknown_smoke_handler' }
+        const adminConfigBase64 = Buffer.from(JSON.stringify(adminConfig)).toString('base64')
+        const adminLoadResult = await command([
+            ...compose,
+            'exec',
+            '-T',
+            '--user',
+            '10001:10001',
+            'proxy-runtime',
+            'sh',
+            '-c',
+            `printf '%s' '${adminConfigBase64}' | base64 -d > /tmp/rentnerproxy-admin-reject.json && curl --silent --output /dev/null --write-out 'HTTP_STATUS:%{http_code}' --request POST --header 'content-type: application/json' --data-binary @/tmp/rentnerproxy-admin-reject.json --unix-socket /var/lib/rentnerproxy/proxy/caddy-admin.sock http://localhost/load; rm -f /tmp/rentnerproxy-admin-reject.json`,
+        ])
+        assert.match(adminLoadResult, /HTTP_STATUS:400/u)
+        assert.equal((await controller.getProxyRuntimeStatus())?.running, true)
+        assert.equal((await controller.getProxyRuntimeStatus())?.activeRevision, snapshot.revision)
+        await expectProxyMessage('demo.test', 'upstream-two')
+        passed('native Caddy admin rejection preserves the active revision and working backend')
 
         assert.equal((await fetch(controllerUrl + '/internal/v1/proxy/status')).status, 401)
         passed('controller requires authentication')
@@ -1026,24 +685,11 @@ async function runSmoke(): Promise<void> {
         await expectProxyMessage('demo.test', 'upstream-two')
         passed('controller restart restores last successfully applied state')
 
-        await command([
-            ...compose,
-            'exec',
-            '-T',
-            'proxy-runtime',
-            '/usr/local/openresty/nginx/sbin/nginx',
-            '-p',
-            '/var/lib/rentnerproxy/proxy/',
-            '-c',
-            'active.conf',
-            '-s',
-            'quit',
-        ])
+        await command([...compose, 'exec', '-T', 'proxy-runtime', 'pkill', '-TERM', 'caddy'])
         await waitFor(
             async () => (await controller.getProxyRuntimeStatus())?.running === false,
-            'engine-only shutdown',
+            'Caddy shutdown',
         )
-        assert.equal(await authorized(() => runtime.applyProxyConfigurationService()), 'pending')
         assert.equal((await controller.getProxyRuntimeStatus())?.activeRevision, snapshot.revision)
         assert.equal(
             (await authorized(() => runtime.getProxyRuntimeStatusService())).state,
@@ -1054,16 +700,14 @@ async function runSmoke(): Promise<void> {
                 (host) => host.id === created.id,
             ),
         )
-        passed('engine down: controller and desired-state reads remain available; apply is pending')
+        passed('Caddy readiness dip: controller and desired-state reads remain available')
 
-        await command([...compose, 'restart', 'proxy-runtime'])
-        await refreshRuntimeAddresses()
         await waitFor(async () => {
             const status = await controller.getProxyRuntimeStatus()
             return status?.running === true && status.activeRevision === snapshot.revision
-        }, 'recovery after engine-only shutdown')
+        }, 'automatic recovery after Caddy shutdown')
         await expectProxyMessage('demo.test', 'upstream-two')
-        passed('engine recovery retains the last working configuration')
+        passed('controller automatically recovers Caddy and retains the last working configuration')
 
         assert.equal(
             (await authorized(() => services.disableProxyHostService(created.id))).runtimeStatus,
@@ -1100,17 +744,18 @@ async function runSmoke(): Promise<void> {
             async () => (await controller.getProxyRuntimeStatus())?.running === true,
             'controller recovery',
         )
-        assert.equal(
-            (await authorized(() => runtime.getProxyRuntimeStatusService())).state,
-            'pending',
+        await waitFor(
+            async () =>
+                (await authorized(() => runtime.getProxyRuntimeStatusService())).state === 'synced',
+            'automatic reconciliation after controller recovery',
+            75_000,
         )
-        assert.equal(await authorized(() => runtime.applyProxyConfigurationService()), 'applied')
         await expectProxyStatus('offline.test', 200)
         assert.equal(
             (await authorized(() => runtime.getProxyRuntimeStatusService())).state,
             'synced',
         )
-        passed('manual apply reconciles saved changes after controller recovery')
+        passed('owned retry reconciles saved changes after controller recovery without user action')
 
         await authorized(() => services.deleteProxyHostService(offline.id))
         assert.equal(
@@ -1123,7 +768,54 @@ async function runSmoke(): Promise<void> {
         await expectProxyStatus(longDomain, 404)
         passed('delete removes routing; unknown hosts remain closed')
 
-        console.log('Real proxy runtime integration: ' + assertions + ' checks passed.')
+        await command([...compose, 'stop', 'proxy-runtime'])
+        const startupPending = await authorized(() =>
+            services.createProxyHostService({ ...hostInput, domains: ['startup.test'] }),
+        )
+        assert.equal(startupPending.runtimeStatus, 'pending')
+        await runtime.stopProxyRuntimeReconciliation()
+        await command([...compose, 'start', 'proxy-runtime'])
+        await refreshRuntimeAddresses()
+
+        const restartWorker = join(temporaryComposeDirectory, 'restart-worker.ts')
+        const serviceUrl = pathToFileURL(
+            join(repositoryRoot, 'web/src/server/ProxyRuntime/proxy-runtime.service.ts'),
+        ).href
+        const controllerClientUrl = pathToFileURL(
+            join(repositoryRoot, 'web/src/server/Foundation/controller.server.ts'),
+        ).href
+        const databaseModuleUrl = pathToFileURL(
+            join(repositoryRoot, 'web/src/server/Auth/Core/database.server.ts'),
+        ).href
+        await writeFile(
+            restartWorker,
+            `const runtime = await import(${JSON.stringify(serviceUrl)});
+const controller = await import(${JSON.stringify(controllerClientUrl)});
+const { getAuthDatabase } = await import(${JSON.stringify(databaseModuleUrl)});
+runtime.startProxyRuntimeReconciliation();
+try {
+    const deadline = Date.now() + 75000;
+    let synced = false;
+    while (Date.now() < deadline) {
+        const desired = await runtime.getProxyRuntimeSnapshotService();
+        const active = await controller.getProxyRuntimeStatus();
+        if (active?.running && active.activeRevision === desired.revision) { synced = true; break; }
+        await Bun.sleep(150);
+    }
+    if (!synced) throw new Error('Startup reconciliation did not converge.');
+} finally {
+    await runtime.stopProxyRuntimeReconciliation();
+    await getAuthDatabase().$client.close();
+}
+`,
+        )
+        await command([process.execPath, restartWorker], { timeoutMs: 90_000 })
+        await expectProxyStatus('startup.test', 200)
+        passed(
+            'a new Web worker process heals persisted pending state at startup without an apply request',
+        )
+
+        console.log('Real Caddy proxy integration: ' + assertions + ' checks passed.')
     } catch (error) {
         const logs = await command([
             ...compose,
@@ -1139,6 +831,7 @@ async function runSmoke(): Promise<void> {
             )
         throw error
     } finally {
+        if (stopReconciliation) await stopReconciliation().catch(() => undefined)
         await first.stop(true)
         await second.stop(true)
         if (closeDatabase) await closeDatabase().catch(() => undefined)

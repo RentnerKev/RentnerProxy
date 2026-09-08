@@ -34,6 +34,7 @@ COPY --from=web-build /app/web/drizzle ./web/drizzle
 COPY --from=web-build /build/migrate.js ./migrate.js
 COPY --from=web-build /app/docker/web/bootstrap-secrets.mjs ./docker/web/bootstrap-secrets.mjs
 COPY --from=web-build /app/docker/web/request-context.ts ./docker/web/request-context.ts
+COPY --from=web-build /app/docker/web/static-assets.ts ./docker/web/static-assets.ts
 COPY --from=web-build /app/docker/web/serve.mjs ./docker/web/serve.mjs
 COPY --from=web-build /app/docker/web/healthcheck.mjs ./docker/web/healthcheck.mjs
 
@@ -44,7 +45,7 @@ COPY controller/Cargo.toml controller/Cargo.lock ./
 COPY controller/src ./src
 RUN cargo build --locked --release
 
-FROM openresty/openresty:1.31.1.1-2-bookworm@sha256:f03133864fb753a546a5393305a909296fae094725d0271fa07a4c6508ea4219 AS openresty-runtime
+FROM caddy:2.11.4@sha256:df7f1c2fb114453b951de51a98efc010db1655a92c2e86be6706714e2417a78d AS caddy-runtime
 
 FROM redis:8.10.1-trixie@sha256:298e5b3bc566bade82f46ad5511777a4a07a294097ce16ada2f6a42be5239df5 AS redis-runtime
 
@@ -56,17 +57,19 @@ LABEL org.opencontainers.image.source="https://github.com/RentnerKev/RentnerProx
 ENV APP_DIR=/opt/rentnerproxy/web \
     NODE_ENV=production \
     PGDATA=/var/lib/rentnerproxy/postgres-data \
-    RENTNERPROXY_PROXY_ENGINE_BIN=/usr/local/openresty/nginx/sbin/nginx \
+    RENTNERPROXY_CADDY_BIN=/usr/bin/caddy \
     RENTNERPROXY_PROXY_HTTP_PORT=8080 \
     RENTNERPROXY_PROXY_HTTPS_PORT=8443 \
     RENTNERPROXY_PROXY_STATE_DIR=/var/lib/rentnerproxy/proxy \
     RENTNERPROXY_SYSTEM_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates tini \
+    && apt-get install -y --no-install-recommends ca-certificates curl openssl tini libcap2-bin \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 rentnerproxy \
     && useradd --uid 10001 --gid rentnerproxy --no-create-home --shell /usr/sbin/nologin rentnerproxy \
+    && groupadd --gid 10002 rentnerproxy-web \
+    && useradd --uid 10002 --gid rentnerproxy-web --no-create-home --shell /usr/sbin/nologin rentnerproxy-web \
     && install -d -m 0711 -o root -g root /var/lib/rentnerproxy \
     && install -d -m 0700 -o postgres -g postgres /var/lib/rentnerproxy/postgres-data \
     && install -d -m 0700 -o rentnerproxy -g rentnerproxy /var/lib/rentnerproxy/proxy \
@@ -78,14 +81,18 @@ RUN apt-get update \
 COPY --from=web-runtime /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=web-runtime /app /opt/rentnerproxy/web
 COPY --from=controller-build /build/target/release/rentnerproxy-controller /usr/local/bin/rentnerproxy-controller
-COPY --from=openresty-runtime /usr/local/openresty /usr/local/openresty
+COPY --from=caddy-runtime /usr/bin/caddy /usr/bin/caddy
+COPY docker/licenses/Caddy-LICENSE /usr/share/licenses/caddy/LICENSE
 COPY --from=redis-runtime /usr/local/bin/redis-server /usr/local/bin/redis-cli /opt/rentnerproxy/redis/bin/
 COPY docker/production/entrypoint.sh /usr/local/bin/rentnerproxy-production
 
 RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
     && chmod 0555 /usr/local/bin/rentnerproxy-controller \
     && chmod 0555 /usr/local/bin/bun \
-    && chmod 0555 /opt/rentnerproxy/redis/bin/redis-server /opt/rentnerproxy/redis/bin/redis-cli
+    && chmod 0555 /opt/rentnerproxy/redis/bin/redis-server /opt/rentnerproxy/redis/bin/redis-cli \
+    && setcap -r /usr/bin/caddy \
+    && apt-get purge -y --auto-remove libcap2-bin \
+    && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 3000 8080 8443
 VOLUME ["/var/lib/rentnerproxy"]

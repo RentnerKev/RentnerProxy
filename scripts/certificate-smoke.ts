@@ -25,8 +25,7 @@ let assertions = 0
 let opensslMode: 'host' | 'docker' = 'host'
 let curlTestCaArgs: string[] = []
 let opensslTempDirectory = ''
-const opensslImage =
-    'openresty/openresty:1.31.1.1-2-bookworm@sha256:f03133864fb753a546a5393305a909296fae094725d0271fa07a4c6508ea4219'
+const opensslImage = runtimeImage
 
 function uuidV7(): string {
     const bytes = randomBytes(16)
@@ -222,7 +221,6 @@ function snapshot(
             forwardHost: input.forwardHost,
             forwardPort: input.forwardPort,
             ...(input.httpSettings === undefined ? {} : { httpSettings: input.httpSettings }),
-            ...(input.advancedConfig === undefined ? {} : { advancedConfig: input.advancedConfig }),
             ...(input.certificateId === undefined ? {} : { certificateId: input.certificateId }),
             ...(input.forceHttps ? { forceHttps: true } : {}),
         }))
@@ -237,21 +235,7 @@ function snapshot(
             ...(input.certificateId === undefined ? {} : { certificateId: input.certificateId }),
         }))
         .toSorted((left, right) => (String(left.id) < String(right.id) ? -1 : 1))
-    const version =
-        redirectHosts.length > 0
-            ? 6
-            : proxyHosts.some((entry) => entry.certificateId !== undefined)
-              ? 4
-              : proxyHosts.some(
-                      (entry) =>
-                          Object.keys(entry.httpSettings ?? {}).length > 0 || entry.advancedConfig,
-                  )
-                ? 3
-                : 1
-    const payload =
-        version === 6
-            ? { version, proxyHosts, redirectHosts, httpSettings: {}, trustedCas: [] }
-            : { version, proxyHosts, ...(version === 1 ? {} : { httpSettings: {} }) }
+    const payload = { version: 7, proxyHosts, redirectHosts, httpSettings: {}, trustedCas: [] }
     const canonical = JSON.stringify(payload)
     return {
         ...payload,
@@ -319,6 +303,18 @@ async function runSmoke(): Promise<void> {
         }
         opensslTempDirectory = temp
         await command(['docker', 'pull', pebbleImage], { inherit: true, timeoutMs: 300_000 })
+        await command(
+            [
+                'docker',
+                'build',
+                '--tag',
+                runtimeImage,
+                '--file',
+                'docker/proxy-runtime/Dockerfile',
+                '.',
+            ],
+            { inherit: true, timeoutMs: 900_000 },
+        )
         await command(['docker', 'network', 'create', network])
 
         // Extract Pebble's official endpoint CA from the pinned image; it is never committed.
@@ -469,18 +465,6 @@ async function runSmoke(): Promise<void> {
         await command(
             [
                 'docker',
-                'build',
-                '--tag',
-                runtimeImage,
-                '--file',
-                'docker/proxy-runtime/Dockerfile',
-                '.',
-            ],
-            { inherit: true, timeoutMs: 900_000 },
-        )
-        await command(
-            [
-                'docker',
                 'run',
                 '--detach',
                 '--name',
@@ -538,8 +522,16 @@ async function runSmoke(): Promise<void> {
                 headers: { authorization: 'Bearer ' + token },
             }).catch(() => null)
             return response?.status === 200 && (await response.json()).running === true
-        }, 'OpenResty startup')
-        passed('isolated controller and OpenResty runtime are ready')
+        }, 'Caddy startup')
+        const portBindings = await command([
+            'docker',
+            'inspect',
+            '--format',
+            '{{json .HostConfig.PortBindings}}',
+            runtimeContainer,
+        ])
+        assert.doesNotMatch(portBindings, /\/udp/iu)
+        passed('isolated controller and Caddy runtime are ready')
 
         async function controllerRequest(
             path: string,
@@ -659,9 +651,12 @@ async function runSmoke(): Promise<void> {
             body: JSON.stringify(initialSnapshot),
         })
         assert.equal(preview.status, 200)
-        const previewSource = jsonObject(await preview.json()).config
-        assert.match(previewSource, /ssl_certificate /u)
-        assert.equal(previewSource.includes('BEGIN '), false)
+        const previewPayload = jsonObject(await preview.json())
+        const previewSource = jsonObject(JSON.parse(previewPayload.config as string))
+        assert.equal(typeof previewSource, 'object')
+        assert.notEqual(previewSource, null)
+        assert.equal(typeof jsonObject(previewSource).apps, 'object')
+        assert.equal(JSON.stringify(previewSource).includes('BEGIN '), false)
         await apply(initialSnapshot)
         passed('TLS preview and apply resolve controller-owned material without returning PEM')
 
@@ -750,14 +745,23 @@ async function runSmoke(): Promise<void> {
         assert.equal(await fingerprint(temp + '/served-one.pem'), firstFingerprint)
         assert.equal(await fingerprint(temp + '/served-two.pem'), secondFingerprint)
         passed('HTTPS SNI serves two distinct imported certificates and real backend traffic')
+        const http2Handshake = await openssl(
+            [
+                's_client',
+                '-connect',
+                '127.0.0.1:' + httpsPort,
+                '-servername',
+                'one.test',
+                '-alpn',
+                'h2',
+                '-CAfile',
+                temp + '/ca.pem',
+            ],
+            15_000,
+        )
+        assert.match(http2Handshake, /ALPN protocol: h2/iu)
+        passed('real TLS handshake negotiates HTTP/2 through Caddy')
 
-        const masterPidBeforeReplacement = await command([
-            'docker',
-            'exec',
-            runtimeContainer,
-            'cat',
-            '/var/lib/rentnerproxy/proxy/engine.pid',
-        ])
         const activeRevisionBeforeReplacement = jsonObject(
             await (await controllerRequest('/internal/v1/proxy/status')).json(),
         ).activeRevision
@@ -788,18 +792,8 @@ async function runSmoke(): Promise<void> {
                 .activeRevision,
             activeRevisionBeforeReplacement,
         )
-        assert.equal(
-            await command([
-                'docker',
-                'exec',
-                runtimeContainer,
-                'cat',
-                '/var/lib/rentnerproxy/proxy/engine.pid',
-            ]),
-            masterPidBeforeReplacement,
-        )
         passed(
-            'certificate replacement changes the SNI fingerprint without changing the active revision or OpenResty master PID',
+            'certificate replacement changes the SNI fingerprint without changing the active revision',
         )
 
         const redirect = await curl([
@@ -852,24 +846,14 @@ async function runSmoke(): Promise<void> {
         passed('HTTP non-forceHttps host reaches the real backend; 308 follow preserves POST')
         passed('forceHttps returns a public-port 308 preserving path/query')
 
-        const withAdvanced = snapshot([
+        const withSettings = snapshot([
             {
                 ...one,
                 httpSettings: { clientMaxBodySizeBytes: 4096 },
-                advancedConfig: 'add_header X-RentnerProxy-Advanced works always;',
             },
         ])
-        await apply(withAdvanced)
-        const advanced = await curl([
-            '--include',
-            '--cacert',
-            temp + '/ca.pem',
-            '--resolve',
-            'one.test:' + httpsPort + ':127.0.0.1',
-            'https://one.test:' + httpsPort + '/',
-        ])
-        assert.match(advanced, /x-rentnerproxy-advanced: works/iu)
-        passed('advanced server-context header survives HTTPS rendering')
+        await apply(withSettings)
+        passed('structured body limits survive HTTPS rendering')
         const tooLarge = await curl([
             '--include',
             '--data-binary',
@@ -948,6 +932,7 @@ async function runSmoke(): Promise<void> {
             '/var/lib/rentnerproxy/proxy/certificates/' + secondId,
         ])
         const deletedHttp = await curl([
+            '--include',
             '--resolve',
             'two.test:' + httpPort + ':127.0.0.1',
             httpUrl + '/',
@@ -988,14 +973,42 @@ async function runSmoke(): Promise<void> {
         )
         passed('key mismatch is rejected without replacing the served certificate')
 
-        const invalidSnapshot = await snapshot([
-            { ...one, advancedConfig: 'invalid_nginx_directive;' },
+        const invalidSnapshot = await snapshot([one])
+        const activeBeforeInvalidApply = jsonObject(
+            await (await controllerRequest('/internal/v1/proxy/status')).json(),
+        ).activeRevision
+        const corruptCertificatePath =
+            '/var/lib/rentnerproxy/proxy/certificates/' +
+            firstId +
+            '/versions/' +
+            new Bun.CryptoHasher('sha256')
+                .update(await readFileText(replacement.certificatePem))
+                .update('\0')
+                .update(await readFileText(temp + '/ca.pem'))
+                .update('\0')
+                .update(await readFileText(replacement.privateKeyPem))
+                .digest('hex') +
+            '/fullchain.pem'
+        const savedCertificatePath = '/tmp/' + project + '-fullchain.pem'
+        await command([
+            'docker',
+            'exec',
+            runtimeContainer,
+            'cp',
+            corruptCertificatePath,
+            savedCertificatePath,
         ])
+        await command(['docker', 'exec', runtimeContainer, 'rm', corruptCertificatePath])
         const invalidApply = await controllerRequest('/internal/v1/proxy/config', {
             method: 'PUT',
             body: JSON.stringify(invalidSnapshot),
         })
         assert.equal(invalidApply.status, 502)
+        assert.equal(
+            jsonObject(await (await controllerRequest('/internal/v1/proxy/status')).json())
+                .activeRevision,
+            activeBeforeInvalidApply,
+        )
         await waitFor(
             async () => (await controllerRequest('/internal/v1/proxy/status')).status === 200,
             'controller status after rollback',
@@ -1008,8 +1021,16 @@ async function runSmoke(): Promise<void> {
             'https://one.test:' + httpsPort + '/',
         ])
         assert.match(afterRollback, /certificate-smoke-backend/u)
+        await command([
+            'docker',
+            'exec',
+            runtimeContainer,
+            'mv',
+            savedCertificatePath,
+            corruptCertificatePath,
+        ])
         passed(
-            'invalid TLS/runtime configuration rolls back while the previous HTTPS route remains live',
+            'missing certificate material rolls back while the previous HTTPS route remains live',
         )
 
         const accountFile = '/var/lib/rentnerproxy/proxy/certificates/acme-accounts/staging.json'

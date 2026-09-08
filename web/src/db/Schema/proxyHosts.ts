@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { boolean, check, index, integer, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
+import { boolean, check, index, integer, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 
 import type { ProxyHostForwardScheme } from '../../config/proxy-hosts.config'
 import type { RedirectHostStatusCode } from '../../config/redirect-hosts.config'
@@ -28,7 +28,6 @@ export const proxyHosts = rentnerProxySchema.table(
         trustedCaId: uuid('trusted_ca_id').references(() => trustedCas.id, {
             onDelete: 'restrict',
         }),
-        advancedConfig: text('advanced_config').notNull().default(''),
         createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
             .notNull()
             .defaultNow(),

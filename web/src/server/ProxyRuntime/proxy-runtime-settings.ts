@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { systemSettings } from '../../db/schema'
 import {
     normalizeProxyHttpSettings,
+    normalizeProxyHostHttpSettings,
     proxyHttpSettingsSchema,
 } from '../../features/Admin/ProxyHostManagement/config-validation'
 import type { ProxyHttpSettings } from '../../shared/Types/proxy-runtime.types'
@@ -65,6 +66,16 @@ function hostSettingsKey(proxyHostId: string): string {
     return HOST_SETTINGS_PREFIX + z.uuid().parse(proxyHostId).toLowerCase()
 }
 
+function normalizeStoredHostSettings(input: unknown): ProxyHttpSettings {
+    const parsed = proxyHttpSettingsSchema.parse(input)
+    return normalizeProxyHostHttpSettings({
+        clientMaxBodySizeBytes: parsed.clientMaxBodySizeBytes,
+        proxyConnectTimeoutSeconds: parsed.proxyConnectTimeoutSeconds,
+        proxyReadTimeoutSeconds: parsed.proxyReadTimeoutSeconds,
+        proxySendTimeoutSeconds: parsed.proxySendTimeoutSeconds,
+    })
+}
+
 export async function readProxyHostHttpSettings(
     transaction: AuthTransaction,
     proxyHostId: string,
@@ -78,7 +89,7 @@ export async function readProxyHostHttpSettings(
     if (!row) return {}
     const stored = storedSettingsSchema.safeParse(row.value)
     if (!stored.success) throw new Error('Stored proxy host HTTP settings are invalid.')
-    return normalizeProxyHttpSettings(stored.data.httpSettings)
+    return normalizeStoredHostSettings(stored.data.httpSettings)
 }
 
 export async function readProxyHostHttpSettingsMap(
@@ -96,7 +107,7 @@ export async function readProxyHostHttpSettingsMap(
         if (!stored.success) throw new Error('Stored proxy host HTTP settings are invalid.')
         result.set(
             row.key.slice(HOST_SETTINGS_PREFIX.length),
-            normalizeProxyHttpSettings(stored.data.httpSettings),
+            normalizeStoredHostSettings(stored.data.httpSettings),
         )
     }
     return result
@@ -109,7 +120,7 @@ export async function writeProxyHostHttpSettings(
     settings: ProxyHttpSettings,
 ): Promise<void> {
     const key = hostSettingsKey(proxyHostId)
-    const httpSettings = normalizeProxyHttpSettings(settings)
+    const httpSettings = normalizeProxyHostHttpSettings(settings)
     if (Object.keys(httpSettings).length === 0) {
         await transaction.delete(systemSettings).where(eq(systemSettings.key, key))
         return

@@ -1,655 +1,291 @@
-use std::{collections::BTreeMap, path::PathBuf};
+use std::collections::BTreeMap;
 
+use serde_json::Value;
+
+use super::fixtures::{host, request};
 use crate::{
-    models::{ProxyHttpSettings, RedirectHost, TrustedCa, UpstreamTls, ValidatedProxyConfig},
-    proxy::validate_proxy_config,
+    models::{ProxyHttpSettings, ValidatedProxyConfig},
+    proxy::revision_from_config,
     runtime::renderer::{
-        RenderError, RenderSettings, TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings,
-        render_config, render_config_with_tls, render_host_config, render_host_sources,
+        RenderSettings, TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings, render_config,
+        render_config_with_tls,
     },
-    tests::fixtures::{host, request, request_with_settings},
 };
 
-fn redirect_host(
-    id: &str,
-    domain: &str,
-    destination: &str,
-    status_code: u16,
-    preserve_request_uri: bool,
-    certificate_id: Option<&str>,
-) -> RedirectHost {
-    RedirectHost {
-        id: id.to_owned(),
-        domains: vec![domain.to_owned()],
-        destination: destination.to_owned(),
-        status_code,
-        preserve_request_uri,
-        certificate_id: certificate_id.map(ToOwned::to_owned),
+fn settings() -> RenderSettings {
+    let base = std::env::temp_dir().join("rentnerproxy-renderer-test");
+    RenderSettings {
+        http_port: 8080,
+        probe_socket: cfg!(unix).then(|| base.join("runtime-probe.sock")),
+        admin_socket: cfg!(unix).then(|| base.join("caddy-admin.sock")),
+        state_dir: base,
+        controller_port: 8081,
     }
 }
 
-#[test]
-fn renderer_is_deterministic_and_covers_proxy_defaults() {
-    let mut ipv6_host = host(
-        "10000000-0000-0000-0000-000000000000",
-        &["z.test", "a.test"],
-        "https",
-        "2001:db8::1",
-        4_443,
-    );
-    ipv6_host.upstream_tls = Some(UpstreamTls {
-        verify: false,
-        server_name: Some("backend.test".to_owned()),
-        trusted_ca_id: None,
-    });
-    let configuration = validate_proxy_config(request(vec![
-        ipv6_host,
-        host(
-            "00000000-0000-0000-0000-000000000000",
-            &["ipv4.test"],
-            "http",
-            "192.168.1.50",
-            3_000,
-        ),
-    ]))
-    .unwrap_or_else(|error| panic!("configuration should validate: {error:?}"));
-    let settings = RenderSettings {
-        http_port: 8_080,
-        probe_socket: if cfg!(windows) {
-            None
-        } else {
-            Some(PathBuf::from("/tmp/rentnerproxy-probe.sock"))
-        },
-    };
-    let rendered = render_config(Some(&configuration), &settings)
-        .unwrap_or_else(|error| panic!("renderer should succeed: {error:?}"));
-
-    assert!(rendered.contains("listen 8080 default_server;"));
-    assert!(
-        rendered.contains("server_name _;\n\n        location ^~ /.well-known/acme-challenge/")
-    );
-    if cfg!(windows) {
-        assert!(!rendered.contains("listen unix:"));
-    } else {
-        assert!(rendered.contains("listen unix:/tmp/rentnerproxy-probe.sock;"));
-    }
-    assert!(rendered.contains("server_name a.test z.test;"));
-    assert!(rendered.contains("proxy_pass https://[2001:db8::1]:4443;"));
-    assert!(rendered.contains("proxy_pass http://192.168.1.50:3000;"));
-    assert!(rendered.contains("proxy_ssl_server_name on;"));
-    assert!(rendered.contains("proxy_ssl_verify off;"));
-    assert!(rendered.contains("proxy_set_header X-Forwarded-For $remote_addr;"));
-    assert!(rendered.contains("proxy_set_header Connection $connection_upgrade;"));
-    assert_eq!(
-        rendered,
-        render_config(Some(&configuration), &settings).unwrap()
-    );
-}
-
-#[test]
-fn renderer_emits_only_the_allowlisted_typed_http_settings() {
-    let configuration = validate_proxy_config(request_with_settings(
-        vec![host(
-            "00000000-0000-0000-0000-000000000000",
-            &["demo.test"],
-            "http",
-            "backend",
-            4_000,
-        )],
-        ProxyHttpSettings {
-            client_max_body_size_bytes: Some(10_485_760),
-            proxy_connect_timeout_seconds: Some(15),
-            proxy_read_timeout_seconds: Some(300),
-            proxy_send_timeout_seconds: Some(300),
-            send_timeout_seconds: Some(30),
-            keepalive_timeout_seconds: Some(75),
-        },
-    ))
-    .unwrap_or_else(|error| panic!("configuration should validate: {error:?}"));
-    let rendered = render_config(
-        Some(&configuration),
-        &RenderSettings {
-            http_port: 8_080,
-            probe_socket: None,
-        },
-    )
-    .unwrap_or_else(|error| panic!("renderer should succeed: {error:?}"));
-
-    assert!(rendered.contains("# rentnerproxy: managed HTTP settings"));
-    assert!(rendered.contains("client_max_body_size 10485760;"));
-    assert!(rendered.contains("proxy_connect_timeout 15s;"));
-    assert!(rendered.contains("proxy_read_timeout 300s;"));
-    assert!(rendered.contains("proxy_send_timeout 300s;"));
-    assert!(rendered.contains("send_timeout 30s;"));
-    assert!(rendered.contains("keepalive_timeout 75s;"));
-    assert!(!rendered.contains("load_module"));
-    assert!(!rendered.contains("include "));
-}
-
-#[test]
-fn renderer_supports_a_zero_host_baseline_without_a_probe() {
-    let rendered = render_config(
-        None,
-        &RenderSettings {
-            http_port: 8_080,
-            probe_socket: None,
-        },
-    )
-    .unwrap_or_else(|error| panic!("renderer should succeed: {error:?}"));
-
-    assert!(rendered.contains("# rentnerproxy-revision: none"));
-    assert!(rendered.contains("return 404;"));
-    assert!(rendered.contains("proxy_pass http://127.0.0.1:8081;"));
-    assert!(!rendered.contains("proxy_pass http://backend"));
-    assert!(!rendered.contains("rentnerproxy: managed HTTP settings"));
-}
-
-#[test]
-fn host_preview_marks_structured_settings_and_preserves_advanced_text() {
-    let mut configured_host = host(
-        "00000000-0000-0000-0000-000000000000",
-        &["demo.test"],
+fn config() -> ValidatedProxyConfig {
+    let request = request(vec![host(
+        "018f4b4a-7d1f-7abc-8def-0123456789ab",
+        &["a.example"],
         "http",
-        "backend",
-        4_000,
-    );
-    configured_host.http_settings = ProxyHttpSettings {
-        proxy_read_timeout_seconds: Some(300),
-        send_timeout_seconds: Some(30),
-        ..ProxyHttpSettings::default()
-    };
-    configured_host.advanced_config = "# expert config\nadd_header X-Test \"hello\" always;\nlocation = /advanced-test {\n    return 200 \"advanced-ok\";\n}\n".to_owned();
-
-    let preview = render_host_config(&configured_host, 8_080);
-    assert!(preview.starts_with("server {\n    listen 8080;\n"));
-    assert!(preview.contains(
-        "    # rentnerproxy: host HTTP settings begin\n    proxy_read_timeout 300s;\n    send_timeout 30s;\n    # rentnerproxy: host HTTP settings end\n"
-    ));
-    let location_end = preview.find("    }\n\n").unwrap();
-    let raw_start = preview.find("# expert config\n").unwrap();
-    assert!(raw_start > location_end);
-    assert!(preview.contains(configured_host.advanced_config.as_str()));
-    assert!(preview.ends_with("}\n"));
-
-    let empty_preview = render_host_config(
-        &host(
-            "10000000-0000-0000-0000-000000000000",
-            &["empty.test"],
-            "http",
-            "backend",
-            4_000,
-        ),
-        8_080,
-    );
-    assert!(empty_preview.contains(
-        "    # rentnerproxy: host HTTP settings begin\n    # rentnerproxy: host HTTP settings end\n"
-    ));
-}
-
-#[test]
-fn active_hosts_use_the_shared_proxy_header_policy() {
-    let configuration = validate_proxy_config(request(vec![host(
-        "00000000-0000-0000-0000-000000000000",
-        &["demo.test"],
-        "http",
-        "backend",
-        4_000,
-    )]))
-    .unwrap();
-    let settings = RenderSettings {
-        http_port: 8_080,
-        probe_socket: None,
-    };
-    let rendered = render_config(Some(&configuration), &settings).unwrap();
-    let baseline = render_config(None, &settings).unwrap().replace(
-        "# rentnerproxy-revision: none",
-        &format!("# rentnerproxy-revision: {}", configuration.revision),
-    );
-    let (prefix, _) = baseline.rsplit_once("}\n").unwrap();
-    let expected_host = "    server {\n        listen 8080;\n        server_name demo.test;\n\n        location ^~ /.well-known/acme-challenge/ {\n            proxy_pass http://127.0.0.1:8081;\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_pass_request_body off;\n            proxy_set_header Content-Length \"\";\n            proxy_set_header Connection \"\";\n        }\n\n        location / {\n            proxy_pass http://backend:4000;\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_set_header X-Real-IP $remote_addr;\n            proxy_set_header X-Forwarded-For $remote_addr;\n            proxy_set_header X-Forwarded-Host $host;\n            proxy_set_header X-Forwarded-Proto $scheme;\n            proxy_set_header X-Forwarded-Port \"\";\n            proxy_set_header X-Forwarded-Prefix \"\";\n            proxy_set_header Forwarded \"\";\n            proxy_set_header Proxy \"\";\n            proxy_set_header Upgrade $http_upgrade;\n            proxy_set_header Connection $connection_upgrade;\n        }\n    }\n";
-    assert_eq!(rendered, format!("{prefix}\n{expected_host}}}\n"));
-    assert!(!rendered.contains("host HTTP settings"));
-    assert!(!rendered.contains("advanced proxy host configuration"));
-}
-
-#[test]
-fn host_http_settings_override_the_global_http_default_at_server_scope() {
-    let mut configured_host = host(
-        "00000000-0000-0000-0000-000000000000",
-        &["demo.test"],
-        "http",
-        "backend",
-        4_000,
-    );
-    configured_host.http_settings = ProxyHttpSettings {
-        proxy_read_timeout_seconds: Some(300),
-        ..ProxyHttpSettings::default()
-    };
-    let configuration = validate_proxy_config(request_with_settings(
-        vec![configured_host],
-        ProxyHttpSettings {
-            proxy_read_timeout_seconds: Some(120),
-            ..ProxyHttpSettings::default()
-        },
-    ))
-    .unwrap();
-    let rendered = render_config(
-        Some(&configuration),
-        &RenderSettings {
-            http_port: 8_080,
-            probe_socket: None,
-        },
-    )
-    .unwrap();
-
-    let global = rendered.find("    proxy_read_timeout 120s;").unwrap();
-    let host_override = rendered.find("        proxy_read_timeout 300s;").unwrap();
-    assert!(global < host_override);
-    assert!(!rendered.contains("host HTTP settings begin"));
-}
-
-#[test]
-fn tls_renderer_keeps_per_host_settings_and_advanced_text_byte_exact() {
-    let certificate_id = "0198d98a-0000-7000-8000-000000000001";
-    let mut configured_host = host(
-        "00000000-0000-0000-0000-000000000000",
-        &["demo.test"],
-        "http",
-        "backend",
-        4_000,
-    );
-    configured_host.certificate_id = Some(certificate_id.to_owned());
-    configured_host.force_https = true;
-    configured_host.http_settings = ProxyHttpSettings {
-        client_max_body_size_bytes: Some(10_485_760),
-        proxy_read_timeout_seconds: Some(300),
-        ..ProxyHttpSettings::default()
-    };
-    configured_host.advanced_config = concat!(
-        "# Preserve literal generated-looking text\n",
-        "set $expert_upstream http://127.0.0.1:8081;\n",
-        "return 308 https://$host$request_uri;\n"
-    )
-    .to_owned();
-    let configuration = validate_proxy_config(request(vec![configured_host.clone()]))
-        .unwrap_or_else(|error| panic!("configuration should validate: {error:?}"));
-    let root = std::env::temp_dir().join("rentnerproxy-renderer-tls-material");
-    let materials = BTreeMap::from([(
-        certificate_id.to_owned(),
-        TlsMaterial {
-            fullchain_path: root.join("fullchain.pem"),
-            private_key_path: root.join("privatekey.pem"),
-        },
+        "127.0.0.1",
+        9000,
     )]);
+    crate::proxy::validate_proxy_config(request).expect("fixture validates")
+}
 
-    let upstream_tls = UpstreamTlsRenderSettings {
-        system_ca_bundle: root.join("system-ca.pem"),
+#[test]
+fn renders_typed_caddy_servers_and_probe() {
+    let configuration = config();
+    let rendered = render_config(Some(&configuration), &settings()).unwrap();
+    let json: Value = serde_json::from_str(&rendered).unwrap();
+    assert_eq!(json["admin"]["config"]["persist"], true);
+    assert_eq!(json["storage"]["module"], "file_system");
+    assert_eq!(
+        json["apps"]["http"]["servers"]["rentnerproxy-http"]["protocols"],
+        serde_json::json!(["h1", "h2"])
+    );
+    assert_eq!(
+        json["apps"]["http"]["servers"]["rentnerproxy-probe"]["protocols"],
+        serde_json::json!(["h1"])
+    );
+    assert!(rendered.contains("/__rentnerproxy_runtime_probe"));
+    assert_eq!(
+        revision_from_config(&rendered),
+        Some(configuration.revision)
+    );
+}
+
+#[test]
+fn challenge_route_precedes_host_routes_and_public_unknowns_are_404() {
+    let json: Value =
+        serde_json::from_str(&render_config(Some(&config()), &settings()).unwrap()).unwrap();
+    let routes = json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"]
+        .as_array()
+        .unwrap();
+    assert!(
+        routes[0]["match"][0]["path"][0]
+            .as_str()
+            .unwrap()
+            .starts_with("/.well-known")
+    );
+    assert_eq!(
+        routes.last().unwrap()["handle"][0]["handler"],
+        "static_response"
+    );
+    assert_eq!(routes.last().unwrap()["handle"][0]["status_code"], 404);
+}
+
+#[test]
+fn tls_rendering_uses_file_loaders_and_explicit_sni_selection() {
+    let mut configuration = config();
+    configuration.proxy_hosts[0].certificate_id =
+        Some("018f4b4a-7d1f-7abc-8def-2123456789ab".into());
+    let mut materials = BTreeMap::new();
+    materials.insert(
+        configuration.proxy_hosts[0].certificate_id.clone().unwrap(),
+        TlsMaterial {
+            fullchain_path: std::env::temp_dir().join("fullchain.pem"),
+            private_key_path: std::env::temp_dir().join("private-key.pem"),
+        },
+    );
+    let upstream = UpstreamTlsRenderSettings {
+        system_ca_bundle: std::env::temp_dir().join("ca-certificates.crt"),
         trusted_ca_paths: BTreeMap::new(),
     };
     let rendered = render_config_with_tls(
         &configuration,
-        &RenderSettings {
-            http_port: 8_080,
-            probe_socket: None,
-        },
+        &settings(),
         &TlsRenderSettings {
-            https_port: 8_443,
-            public_https_port: 18_443,
-            controller_port: 9_999,
+            https_port: 8443,
+            public_https_port: 8443,
+            controller_port: 8081,
         },
         &materials,
-        &upstream_tls,
+        &upstream,
     )
-    .unwrap_or_else(|error| panic!("TLS renderer should succeed: {error:?}"));
-
-    assert!(rendered.contains("proxy_set_header X-Forwarded-For $remote_addr;"));
-    assert!(rendered.contains("proxy_set_header X-Forwarded-Host $host;"));
-    assert!(rendered.contains("proxy_set_header Forwarded \"\";"));
-    assert!(rendered.contains("proxy_set_header Proxy \"\";"));
-    assert!(!rendered.contains("$proxy_add_x_forwarded_for"));
-    assert_eq!(rendered.matches("ssl_protocols ").count(), 1);
-    assert!(rendered.contains("proxy_pass http://127.0.0.1:9999;"));
-    assert!(rendered.contains("return 308 https://$host:18443$request_uri;"));
-    assert!(rendered.contains("        client_max_body_size 10485760;"));
-    assert!(rendered.contains("        proxy_read_timeout 300s;"));
-    assert!(rendered.contains(configured_host.advanced_config.as_str()));
-    assert!(rendered.contains("set $expert_upstream http://127.0.0.1:8081;"));
-    assert!(rendered.contains("return 308 https://$host$request_uri;"));
+    .unwrap();
+    let json: Value = serde_json::from_str(&rendered).unwrap();
+    let https = &json["apps"]["http"]["servers"]["rentnerproxy-https"];
+    assert_eq!(https["automatic_https"]["disable"], true);
+    assert_eq!(https["strict_sni_host"], true);
+    assert_eq!(
+        https["tls_connection_policies"][0]["certificate_selection"]["any_tag"][0].as_str(),
+        configuration.proxy_hosts[0].certificate_id.as_deref()
+    );
+    assert_eq!(
+        json["apps"]["tls"]["certificates"]["load_files"][0]["certificate"],
+        std::env::temp_dir()
+            .join("fullchain.pem")
+            .to_str()
+            .unwrap()
+            .replace('\\', "/")
+    );
 }
 
 #[test]
-fn renderer_applies_verified_custom_and_explicit_insecure_upstream_tls_policy() {
-    let mut secure_host = host(
-        "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
-        &["secure.test"],
-        "https",
-        "backend.internal",
-        4_443,
-    );
-    let custom_ca_id = "0198d98a-0000-7000-8000-000000000001";
-    secure_host.upstream_tls = Some(UpstreamTls {
-        verify: true,
-        server_name: None,
-        trusted_ca_id: Some(custom_ca_id.to_owned()),
-    });
-    let config = ValidatedProxyConfig {
-        revision: format!("sha256:{}", "1".repeat(64)),
-        proxy_hosts: vec![secure_host],
-        redirect_hosts: Vec::new(),
-        http_settings: ProxyHttpSettings::default(),
-        trusted_cas: vec![TrustedCa {
-            id: custom_ca_id.to_owned(),
-            pem: "unused by renderer".to_owned(),
-            fingerprint_sha256: format!("sha256:{}", "2".repeat(64)),
-        }],
+fn global_timeouts_are_server_timeouts_and_host_body_limit_is_typed() {
+    let mut configuration = config();
+    configuration.http_settings = ProxyHttpSettings {
+        send_timeout_seconds: Some(12),
+        keepalive_timeout_seconds: Some(20),
+        ..Default::default()
     };
-    let root = std::env::temp_dir().join("rentnerproxy-upstream-tls-renderer");
-    let custom_ca_path = root.join("trusted-cas").join(custom_ca_id).join("2.pem");
-    let upstream_tls = UpstreamTlsRenderSettings {
-        system_ca_bundle: root.join("system-ca.pem"),
-        trusted_ca_paths: BTreeMap::from([(custom_ca_id.to_owned(), custom_ca_path.clone())]),
-    };
-    let rendered = render_config_with_tls(
-        &config,
-        &RenderSettings {
-            http_port: 8_080,
-            probe_socket: None,
-        },
-        &TlsRenderSettings {
-            https_port: 8_443,
-            public_https_port: 443,
-            controller_port: 8_081,
-        },
-        &BTreeMap::new(),
-        &upstream_tls,
-    )
-    .expect("verified custom CA renderer should succeed");
-    assert!(rendered.contains("proxy_ssl_server_name on;"));
-    assert!(rendered.contains("proxy_ssl_name backend.internal;"));
-    assert!(rendered.contains("proxy_ssl_verify on;"));
-    assert!(rendered.contains("proxy_ssl_verify_depth 5;"));
-    assert!(
-        rendered.contains(
-            format!(
-                "proxy_ssl_trusted_certificate {};",
-                custom_ca_path.to_string_lossy().replace('\\', "/")
-            )
-            .as_str()
-        )
-    );
-    assert!(!rendered.contains("proxy_ssl_verify off;"));
+    configuration.proxy_hosts[0]
+        .http_settings
+        .client_max_body_size_bytes = Some(4096);
+    let json: Value =
+        serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
+    let server = &json["apps"]["http"]["servers"]["rentnerproxy-http"];
+    assert_eq!(server["write_timeout"], "12s");
+    assert_eq!(server["idle_timeout"], "20s");
+    assert_eq!(server["routes"][1]["handle"][0]["handler"], "request_body");
+    assert_eq!(server["routes"][1]["handle"][0]["max_size"], 4096);
+}
 
-    let mut insecure_ip_host = host(
-        "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
-        &["insecure.test"],
-        "https",
-        "10.10.0.25",
-        4_443,
+#[test]
+fn upstream_tls_uses_explicit_trust_sni_and_native_forwarding_defaults() {
+    use crate::models::UpstreamTls;
+    use crate::runtime::renderer::RenderError;
+    let mut configuration = config();
+    let host = &mut configuration.proxy_hosts[0];
+    host.forward_scheme = "https".into();
+    host.forward_host = "2001:db8::2".into();
+    host.forward_port = 9443;
+    host.upstream_tls = Some(UpstreamTls {
+        verify: true,
+        server_name: Some("upstream.example".into()),
+        trusted_ca_id: Some("ca-id".into()),
+    });
+    let ca_path = std::env::temp_dir().join("caddy custom ca.pem");
+    let mut trust = UpstreamTlsRenderSettings {
+        system_ca_bundle: std::env::temp_dir().join("system-ca.pem"),
+        trusted_ca_paths: BTreeMap::from([("ca-id".into(), ca_path.clone())]),
+    };
+    let tls = TlsRenderSettings {
+        https_port: 8443,
+        public_https_port: 443,
+        controller_port: 8081,
+    };
+    let render = |config: &ValidatedProxyConfig, trust: &UpstreamTlsRenderSettings| {
+        render_config_with_tls(config, &settings(), &tls, &BTreeMap::new(), trust)
+    };
+    let json: Value = serde_json::from_str(&render(&configuration, &trust).unwrap()).unwrap();
+    let proxy = &json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"][1]["handle"][0];
+    assert_eq!(proxy["upstreams"][0]["dial"], "[2001:db8::2]:9443");
+    assert_eq!(proxy["transport"]["tls"]["server_name"], "upstream.example");
+    assert_eq!(proxy["transport"]["tls"]["ca"]["provider"], "file");
+    assert_eq!(
+        proxy["transport"]["tls"]["ca"]["pem_files"][0],
+        ca_path.to_str().unwrap().replace('\\', "/")
     );
-    insecure_ip_host.upstream_tls = Some(UpstreamTls {
+    assert!(proxy["transport"]["tls"]["insecure_skip_verify"].is_null());
+    assert_eq!(
+        proxy["headers"]["request"]["set"]["Host"][0],
+        "{http.request.host}"
+    );
+    assert_eq!(
+        proxy["headers"]["request"]["set"]["X-Real-IP"][0],
+        "{http.request.remote.host}"
+    );
+    assert_eq!(
+        proxy["headers"]["request"]["delete"],
+        serde_json::json!([
+            "Forwarded",
+            "X-Forwarded-Port",
+            "X-Forwarded-Prefix",
+            "Proxy"
+        ])
+    );
+    assert!(proxy["headers"]["request"]["set"]["Connection"].is_null());
+    trust.trusted_ca_paths.clear();
+    assert_eq!(
+        render(&configuration, &trust),
+        Err(RenderError::MissingTrustedCa)
+    );
+    configuration.proxy_hosts[0].upstream_tls = None;
+    assert_eq!(
+        render(&configuration, &trust),
+        Err(RenderError::MissingUpstreamTlsPolicy)
+    );
+    configuration.proxy_hosts[0].upstream_tls = Some(UpstreamTls {
         verify: false,
         server_name: None,
         trusted_ca_id: None,
     });
-    let insecure_config = ValidatedProxyConfig {
-        revision: format!("sha256:{}", "3".repeat(64)),
-        proxy_hosts: vec![insecure_ip_host],
-        redirect_hosts: Vec::new(),
-        http_settings: ProxyHttpSettings::default(),
-        trusted_cas: Vec::new(),
-    };
-    let insecure = render_config_with_tls(
-        &insecure_config,
-        &RenderSettings {
-            http_port: 8_080,
-            probe_socket: None,
-        },
-        &TlsRenderSettings {
-            https_port: 8_443,
-            public_https_port: 443,
-            controller_port: 8_081,
-        },
-        &BTreeMap::new(),
-        &upstream_tls,
-    )
-    .expect("explicit insecure override should render");
-    assert!(insecure.contains("proxy_ssl_server_name off;"));
-    assert!(insecure.contains("proxy_ssl_verify off;"));
-    assert!(!insecure.contains("proxy_ssl_name 10.10.0.25;"));
-    assert!(!insecure.contains("proxy_ssl_trusted_certificate"));
+    let json: Value = serde_json::from_str(&render(&configuration, &trust).unwrap()).unwrap();
+    let tls = &json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"][1]["handle"][0]["transport"]
+        ["tls"];
+    assert_eq!(tls["insecure_skip_verify"], true);
+    assert!(tls["ca"].is_null());
 }
 
 #[test]
-fn renderer_rejects_nginx_metacharacters_in_system_ca_paths() {
-    let mut upstream = host(
-        "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
-        &["system-ca.test"],
-        "https",
-        "backend.internal",
-        4_443,
-    );
-    upstream.upstream_tls = Some(UpstreamTls {
-        verify: true,
-        server_name: None,
-        trusted_ca_id: None,
-    });
-    let configuration = ValidatedProxyConfig {
-        revision: format!("sha256:{}", "4".repeat(64)),
-        proxy_hosts: vec![upstream],
-        redirect_hosts: Vec::new(),
-        http_settings: ProxyHttpSettings::default(),
-        trusted_cas: Vec::new(),
+fn host_sources_include_effective_http_and_https_routes() {
+    use crate::runtime::renderer::render_host_config_for_runtime;
+    let mut host = config().proxy_hosts.remove(0);
+    host.force_https = true;
+    host.certificate_id = Some("certificate".into());
+    host.http_settings.proxy_read_timeout_seconds = Some(17);
+    let defaults = ProxyHttpSettings {
+        client_max_body_size_bytes: Some(1024),
+        proxy_connect_timeout_seconds: Some(4),
+        proxy_read_timeout_seconds: Some(11),
+        proxy_send_timeout_seconds: Some(12),
+        ..Default::default()
     };
-    let result = render_config_with_tls(
-        &configuration,
-        &RenderSettings {
-            http_port: 8_080,
-            probe_socket: None,
-        },
-        &TlsRenderSettings {
-            https_port: 8_443,
-            public_https_port: 443,
-            controller_port: 8_081,
-        },
-        &BTreeMap::new(),
-        &UpstreamTlsRenderSettings {
-            system_ca_bundle: std::env::temp_dir().join("rentnerproxy-$host-ca.pem"),
-            trusted_ca_paths: BTreeMap::new(),
-        },
-    );
-    assert_eq!(result, Err(RenderError::InvalidCertificatePath));
-}
-#[test]
-fn redirect_hosts_render_acme_exceptions_exact_targets_and_sources() {
-    let preserve = redirect_host(
-        "00000000-0000-0000-0000-000000000000",
-        "preserve.redirect.test",
-        "https://preserve.target.test",
-        301,
-        true,
-        None,
-    );
-    let exact = redirect_host(
-        "10000000-0000-0000-0000-000000000000",
-        "exact.redirect.test",
-        "https://exact.target.test/landing?campaign=fall",
-        308,
-        false,
-        None,
-    );
-    let configuration = ValidatedProxyConfig {
-        revision: format!("sha256:{}", "5".repeat(64)),
-        proxy_hosts: Vec::new(),
-        redirect_hosts: vec![preserve.clone(), exact.clone()],
-        http_settings: ProxyHttpSettings::default(),
-        trusted_cas: Vec::new(),
-    };
-    let settings = RenderSettings {
-        http_port: 8_080,
-        probe_socket: None,
-    };
-    let rendered = render_config(Some(&configuration), &settings)
-        .expect("redirect HTTP configuration should render");
-
-    assert!(rendered.contains("server_name preserve.redirect.test;"));
-    assert!(rendered.contains(
-        "location ^~ /.well-known/acme-challenge/ {\n            proxy_pass http://127.0.0.1:8081;"
-    ));
-    assert!(rendered.contains("return 301 \"https://preserve.target.test$request_uri\";"));
-    assert!(rendered.contains("return 308 \"https://exact.target.test/landing?campaign=fall\";"));
-    assert!(!rendered.contains("https://exact.target.test/landing?campaign=fall$request_uri"));
-
-    let sources = render_host_sources(&configuration, 8_080)
-        .expect("redirect host sources should render without collisions");
-    assert_eq!(sources.len(), 2);
-    assert!(
-        sources
-            .get(&preserve.id)
-            .expect("preserve redirect source should be present")
-            .contains("return 301 \"https://preserve.target.test$request_uri\";")
-    );
-    assert!(
-        sources
-            .get(&exact.id)
-            .expect("exact redirect source should be present")
-            .contains("return 308 \"https://exact.target.test/landing?campaign=fall\";")
-    );
-}
-
-#[test]
-fn redirect_tls_servers_require_certificates_and_use_managed_tls_policy() {
-    let certificate_id = "0198d98a-0000-7000-8000-000000000001";
-    let tls_redirect = redirect_host(
-        "00000000-0000-0000-0000-000000000000",
-        "tls.redirect.test",
-        "https://tls.target.test",
-        307,
-        true,
-        Some(certificate_id),
-    );
-    let http_only_redirect = redirect_host(
-        "10000000-0000-0000-0000-000000000000",
-        "http-only.redirect.test",
-        "https://http.target.test",
-        302,
-        false,
-        None,
-    );
-    let configuration = ValidatedProxyConfig {
-        revision: format!("sha256:{}", "6".repeat(64)),
-        proxy_hosts: Vec::new(),
-        redirect_hosts: vec![tls_redirect, http_only_redirect],
-        http_settings: ProxyHttpSettings::default(),
-        trusted_cas: Vec::new(),
-    };
-    let root = std::env::temp_dir().join("rentnerproxy-redirect-tls-renderer");
-    let certificate_path = root.join("fullchain.pem");
-    let private_key_path = root.join("private-key.pem");
-    let materials = BTreeMap::from([(
-        certificate_id.to_owned(),
-        TlsMaterial {
-            fullchain_path: certificate_path.clone(),
-            private_key_path: private_key_path.clone(),
-        },
-    )]);
-    let rendered = render_config_with_tls(
-        &configuration,
-        &RenderSettings {
-            http_port: 8_080,
-            probe_socket: None,
-        },
-        &TlsRenderSettings {
-            https_port: 8_443,
-            public_https_port: 443,
-            controller_port: 8_081,
-        },
-        &materials,
-        &UpstreamTlsRenderSettings {
-            system_ca_bundle: root.join("system-ca.pem"),
-            trusted_ca_paths: BTreeMap::new(),
-        },
-    )
-    .expect("TLS redirect configuration should render");
-
-    assert!(rendered.contains("listen 8443 ssl;\n        server_name tls.redirect.test;"));
-    assert!(!rendered.contains("listen 8443 ssl;\n        server_name http-only.redirect.test;"));
-    assert!(
-        rendered.contains(
-            format!(
-                "ssl_certificate {};",
-                certificate_path.to_string_lossy().replace('\\', "/")
-            )
-            .as_str()
-        )
-    );
-    assert!(
-        rendered.contains(
-            format!(
-                "ssl_certificate_key {};",
-                private_key_path.to_string_lossy().replace('\\', "/")
-            )
-            .as_str()
-        )
-    );
-    assert!(rendered.contains("ssl_protocols TLSv1.2 TLSv1.3;"));
-    assert!(rendered.contains("ssl_prefer_server_ciphers on;"));
-    assert!(rendered.contains("return 307 \"https://tls.target.test$request_uri\";"));
-    assert!(rendered.ends_with("}\n"));
-}
-
-#[test]
-fn baseline_shares_hardened_tls_and_resource_defaults_with_all_servers() {
-    let rendered = render_config(
-        None,
-        &RenderSettings {
-            http_port: 8_080,
-            probe_socket: None,
-        },
+    let json: Value = serde_json::from_str(
+        &render_host_config_for_runtime(&host, &defaults, 9443, None).unwrap(),
     )
     .unwrap();
-    let http_defaults = rendered.split("    server {").next().unwrap();
-    for directive in [
-        "worker_processes auto;",
-        "server_tokens off;",
-        "sendfile on;",
-        "client_header_timeout 15s;",
-        "reset_timedout_connection on;",
-        "ssl_protocols TLSv1.2 TLSv1.3;",
-        "ssl_session_cache shared:rentnerproxy_tls:10m;",
-        "ssl_session_tickets off;",
-    ] {
-        assert!(
-            http_defaults.contains(directive),
-            "missing default: {directive}"
-        );
-    }
-    assert_eq!(rendered.matches("ssl_protocols ").count(), 1);
+    assert_eq!(json["http"]["handle"].as_array().unwrap().len(), 1);
+    assert_eq!(json["http"]["handle"][0]["status_code"], 308);
+    assert_eq!(
+        json["http"]["handle"][0]["headers"]["Location"][0],
+        "https://{http.request.host}:9443{http.request.uri}"
+    );
+    assert_eq!(json["https"]["handle"][0]["max_size"], 1024);
+    let transport = &json["https"]["handle"][1]["transport"];
+    assert_eq!(transport["dial_timeout"], "4s");
+    assert_eq!(transport["read_timeout"], "17s");
+    assert_eq!(transport["response_header_timeout"], "17s");
+    assert_eq!(transport["write_timeout"], "12s");
 }
 
 #[test]
-fn renderer_cannot_silently_disable_verification_when_upstream_policy_is_missing() {
-    // Defense in depth even if a caller bypasses snapshot validation.
-    let configuration = ValidatedProxyConfig {
-        revision: format!("sha256:{}", "6".repeat(64)),
-        proxy_hosts: vec![host(
-            "00000000-0000-0000-0000-000000000000",
-            &["demo.test"],
-            "https",
-            "backend.internal",
-            443,
-        )],
-        redirect_hosts: Vec::new(),
-        http_settings: ProxyHttpSettings::default(),
-        trusted_cas: Vec::new(),
-    };
-    assert_eq!(
-        render_config(
-            Some(&configuration),
-            &RenderSettings {
-                http_port: 8_080,
-                probe_socket: None,
-            }
-        ),
-        Err(RenderError::MissingUpstreamTlsPolicy)
-    );
+fn redirect_handlers_keep_exact_destination_and_encoded_request_uri_semantics() {
+    let mut configuration = config();
+    configuration.proxy_hosts.clear();
+    for status in [301, 302, 307, 308] {
+        for preserve in [false, true] {
+            configuration.redirect_hosts = vec![crate::models::RedirectHost {
+                id: "018f4b4a-7d1f-7abc-8def-0123456789ab".into(),
+                domains: vec!["redirect.example".into()],
+                destination: if preserve {
+                    "https://target.example/prefix"
+                } else {
+                    "https://target.example/%E2%82%AC?x=%2F#part"
+                }
+                .into(),
+                status_code: status,
+                preserve_request_uri: preserve,
+                certificate_id: None,
+            }];
+            let json: Value =
+                serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap())
+                    .unwrap();
+            let routes = &json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"];
+            assert_eq!(
+                routes[0]["match"][0]["path"][0],
+                "/.well-known/acme-challenge/*"
+            );
+            assert_eq!(routes[1]["handle"][0]["status_code"], status);
+            let expected = if preserve {
+                "https://target.example/prefix{http.request.uri}"
+            } else {
+                "https://target.example/%E2%82%AC?x=%2F#part"
+            };
+            assert_eq!(routes[1]["handle"][0]["headers"]["Location"][0], expected);
+        }
+    }
 }

@@ -638,21 +638,26 @@ impl CertificateStore {
         &self,
         id: &str,
         domains: &[String],
+        require_unexpired: bool,
     ) -> Result<bool, CertificateError> {
         let index = self.index.lock().await;
         let entry = index
             .certificates
             .get(id)
             .ok_or(CertificateError::NotFound)?;
+        // Previously verified routes survive a restart after certificate expiry, just as they
+        // survive expiry in the running process. New activations still require a current cert.
+        // Recovery continues to require valid stored material and matching domain ownership.
         Ok(entry.metadata.status == CertificateStatus::Valid
-            && entry
-                .metadata
-                .expires_at
-                .as_deref()
-                .is_some_and(|expires_at| {
-                    OffsetDateTime::parse(expires_at, &Rfc3339)
-                        .is_ok_and(|expires_at| expires_at > OffsetDateTime::now_utc())
-                })
+            && (!require_unexpired
+                || entry
+                    .metadata
+                    .expires_at
+                    .as_deref()
+                    .is_some_and(|expires_at| {
+                        OffsetDateTime::parse(expires_at, &Rfc3339)
+                            .is_ok_and(|expires_at| expires_at > OffsetDateTime::now_utc())
+                    }))
             && domains
                 .iter()
                 .all(|domain| certificate_covers(&entry.metadata.domains, domain)))

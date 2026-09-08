@@ -5,8 +5,7 @@ import { z } from 'zod'
 
 import {
     normalizeProxyHttpSettings,
-    proxyAdvancedConfigSchema,
-    proxyHttpSettingsSchema,
+    proxyHostHttpSettingsSchema,
 } from '../../features/Admin/ProxyHostManagement/config-validation'
 
 import {
@@ -49,15 +48,15 @@ const runtimeTrustedCaSchema = z.strictObject({
 })
 
 const runtimeHostSchema = z
-    .object({
+    .strictObject({
         id: z.uuid(),
         domains: proxyHostDomainsSchema,
+        enabled: z.boolean().default(true),
         forwardScheme: z.enum(['http', 'https']),
         forwardHost: proxyForwardHostSchema,
         forwardPort: proxyForwardPortSchema,
-        httpSettings: proxyHttpSettingsSchema.optional(),
-        advancedConfig: proxyAdvancedConfigSchema.default(''),
-        certificateId: z.uuid().nullish(),
+        httpSettings: proxyHostHttpSettingsSchema.optional(),
+        certificateId: z.uuidv7().nullish(),
         forceHttps: z.boolean().default(false),
         upstreamTls: runtimeUpstreamTlsSchema.optional(),
     })
@@ -98,7 +97,7 @@ const runtimeRedirectHostSchema = z.object({
     destination: z.string(),
     statusCode: redirectStatusCodeSchema,
     preserveRequestUri: z.boolean(),
-    certificateId: z.uuid().nullish(),
+    certificateId: z.uuidv7().nullish(),
 })
 
 function compareAscii(left: string, right: string): number {
@@ -148,7 +147,6 @@ export function createProxyRuntimeSnapshot(
                     forwardPort: host.forwardPort,
                 },
                 Object.keys(hostSettings).length === 0 ? {} : { httpSettings: hostSettings },
-                host.advancedConfig === '' ? {} : { advancedConfig: host.advancedConfig },
                 host.certificateId ? { certificateId: host.certificateId.toLowerCase() } : {},
                 host.forceHttps ? { forceHttps: true } : {},
                 host.forwardScheme === 'https'
@@ -199,11 +197,6 @@ export function createProxyRuntimeSnapshot(
         })
         .toSorted((left, right) => compareAscii(left.id, right.id))
     const normalizedSettings = normalizeProxyHttpSettings(httpSettings)
-    const hasHostSettings = proxyHosts.some(
-        (host) => host.httpSettings !== undefined || host.advancedConfig !== undefined,
-    )
-    const hasCertificates = proxyHosts.some((host) => host.certificateId !== undefined)
-    const hasUpstreamTls = proxyHosts.some((host) => host.upstreamTls !== undefined)
     const referencedCaIds = new Set(
         proxyHosts.flatMap((host) =>
             host.upstreamTls?.trustedCaId ? [host.upstreamTls.trustedCaId] : [],
@@ -222,29 +215,13 @@ export function createProxyRuntimeSnapshot(
         // PEM and fingerprint were canonicalized together by the Controller before persistence.
         return { id, pem: parsed.pem, fingerprintSha256: parsed.fingerprintSha256 }
     })
-    const snapshot =
-        redirectHosts.length > 0
-            ? ({
-                  version: 6,
-                  proxyHosts,
-                  redirectHosts,
-                  httpSettings: normalizedSettings,
-                  trustedCas: referencedCas,
-              } as const)
-            : hasUpstreamTls
-              ? ({
-                    version: 5,
-                    proxyHosts,
-                    httpSettings: normalizedSettings,
-                    trustedCas: referencedCas,
-                } as const)
-              : hasCertificates
-                ? ({ version: 4, proxyHosts, httpSettings: normalizedSettings } as const)
-                : hasHostSettings
-                  ? ({ version: 3, proxyHosts, httpSettings: normalizedSettings } as const)
-                  : Object.keys(normalizedSettings).length === 0
-                    ? ({ version: 1, proxyHosts } as const)
-                    : ({ version: 2, proxyHosts, httpSettings: normalizedSettings } as const)
+    const snapshot = {
+        version: 7,
+        proxyHosts,
+        redirectHosts,
+        httpSettings: normalizedSettings,
+        trustedCas: referencedCas,
+    } as const
     const canonical = JSON.stringify(snapshot)
 
     if (Buffer.byteLength(canonical) + 100 > MAX_RUNTIME_PAYLOAD_BYTES) {

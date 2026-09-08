@@ -24,7 +24,22 @@ export async function getProxyRuntimeSnapshotService(): Promise<ProxyRuntimeSnap
 export const reconcileProxyConfigurationService = createProxyReconciler({
     loadSnapshot: getProxyRuntimeSnapshotService,
     applySnapshot: applyProxyRuntimeConfiguration,
+    checkDrift: async () => {
+        const [snapshot, runtime] = await Promise.all([
+            getProxyRuntimeSnapshotService(),
+            getProxyRuntimeStatus(),
+        ])
+        return compareProxyRuntimeStatus(snapshot.revision, runtime).state !== 'synced'
+    },
 })
+
+export function startProxyRuntimeReconciliation(): void {
+    reconcileProxyConfigurationService.start()
+}
+
+export function stopProxyRuntimeReconciliation(): Promise<void> {
+    return reconcileProxyConfigurationService.stop()
+}
 
 export async function getProxyRuntimeStatusService(): Promise<ProxyRuntimeSyncStatus> {
     await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)

@@ -4,8 +4,7 @@ import type { z } from 'zod'
 
 import { PERMISSIONS } from '../../config/permissions.config'
 import {
-    formatProxyHttpSettings,
-    parseProxyHttpSettings,
+    normalizeProxyHttpSettings,
     proxyConfigEditorSaveSchema,
     proxyConfigEditorResetSchema,
 } from '../../features/Admin/ProxyHostManagement/config-validation'
@@ -40,11 +39,12 @@ export class ProxyConfigEditorError extends Error {
 
 export async function getProxyConfigEditorService(): Promise<ProxyConfigEditorData> {
     await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
-    // Full config sources may include expert text from any host.
-    await requirePermissionService(PERMISSIONS.PROXY_HOSTS_ADVANCED_CONFIG)
     const snapshot = await getProxyRuntimeSnapshotService()
     const defaultsSnapshot = createProxyRuntimeSnapshot(
         snapshot.proxyHosts.map((host) => Object.assign({ enabled: true }, host)),
+        {},
+        snapshot.trustedCas,
+        snapshot.redirectHosts.map((host) => Object.assign({ enabled: true }, host)),
     )
     const [active, defaults] = await Promise.all([
         getActiveProxyConfiguration(),
@@ -52,21 +52,22 @@ export async function getProxyConfigEditorService(): Promise<ProxyConfigEditorDa
     ])
     return {
         baseRevision: snapshot.revision,
-        settingsSource: formatProxyHttpSettings(snapshot.httpSettings ?? {}),
+        settings: snapshot.httpSettings ?? {},
         active,
         defaults,
     }
 }
 
-export async function previewProxyConfigEditorService(source: string): Promise<ProxyConfigSource> {
+export async function previewProxyConfigEditorService(
+    settings: ProxyHttpSettings,
+): Promise<ProxyConfigSource> {
     await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
-    // Full config sources may include expert text from any host.
-    await requirePermissionService(PERMISSIONS.PROXY_HOSTS_ADVANCED_CONFIG)
-    const settings = parseProxyHttpSettings(source)
     const snapshot = await getProxyRuntimeSnapshotService()
     const candidate = createProxyRuntimeSnapshot(
         snapshot.proxyHosts.map((host) => Object.assign({ enabled: true }, host)),
         settings,
+        snapshot.trustedCas,
+        snapshot.redirectHosts.map((host) => Object.assign({ enabled: true }, host)),
     )
     const preview = await previewProxyConfiguration(candidate)
     if (!preview) throw new ProxyConfigEditorError('runtime_unavailable')
@@ -99,7 +100,7 @@ export async function saveProxyConfigEditorService(
     await requirePermissionService(PERMISSIONS.PROXY_HOSTS_UPDATE)
     await requirePermissionService(PERMISSIONS.PROXY_HOSTS_APPLY)
     const parsed = proxyConfigEditorSaveSchema.parse(input)
-    return saveSettings(parsed.baseRevision, parseProxyHttpSettings(parsed.settingsSource))
+    return saveSettings(parsed.baseRevision, normalizeProxyHttpSettings(parsed.settings))
 }
 
 export async function resetProxyConfigEditorService(

@@ -5,9 +5,6 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-pub(super) const ACTIVE_CONFIG_FILE: &str = "active.conf";
-pub(super) const CANDIDATE_CONFIG_FILE: &str = "candidate.conf";
-pub(super) const LAST_GOOD_CONFIG_FILE: &str = "last-good.conf";
 pub(super) const LAST_APPLY_FILE: &str = "last-apply-at";
 
 /// A canonical directory whose children are addressed by one checked component.
@@ -181,12 +178,6 @@ impl SafeDir {
         result
     }
 
-    pub(super) fn replace_file(&self, source: &str, destination: &str) -> std::io::Result<()> {
-        let source = self.existing_regular_file(source)?;
-        let destination = self.child(destination)?;
-        self.replace_paths(&source, &destination)
-    }
-
     pub(super) fn rename_dir(&self, source: &str, destination: &str) -> std::io::Result<Self> {
         let source = self.open_dir(source)?.path;
         let destination = self.child(destination)?;
@@ -233,8 +224,17 @@ impl SafeDir {
     }
 
     fn child(&self, component: &str) -> std::io::Result<PathBuf> {
+        // Revalidate the retained directory before each sink in case it was replaced.
+        if resolve_existing_path(&self.path)? != self.path {
+            return Err(invalid_state_path());
+        }
         validate_component(component)?;
         let path = self.path.join(component);
+        if let Ok(metadata) = fs::symlink_metadata(&path)
+            && is_link(&metadata)
+        {
+            return Err(invalid_state_path());
+        }
         if path.parent() != Some(self.path.as_path()) {
             return Err(invalid_state_path());
         }
@@ -301,23 +301,6 @@ pub(super) fn atomic_write(path: &Path, contents: &[u8]) -> std::io::Result<()> 
         .and_then(|value| value.to_str())
         .ok_or_else(invalid_state_path)?;
     directory.atomic_write(component, contents)
-}
-
-pub(super) fn replace_file(source: &Path, destination: &Path) -> std::io::Result<()> {
-    let parent = source.parent().ok_or_else(invalid_state_path)?;
-    if destination.parent() != Some(parent) {
-        return Err(invalid_state_path());
-    }
-    let directory = SafeDir::open(parent)?;
-    let source = source
-        .file_name()
-        .and_then(|value| value.to_str())
-        .ok_or_else(invalid_state_path)?;
-    let destination = destination
-        .file_name()
-        .and_then(|value| value.to_str())
-        .ok_or_else(invalid_state_path)?;
-    directory.replace_file(source, destination)
 }
 
 pub(super) fn read_trimmed(path: &Path) -> Option<String> {
@@ -387,6 +370,16 @@ fn validate_path(path: &Path) -> std::io::Result<()> {
     let value = path.to_string_lossy();
     if value.is_empty() || value.contains("..") || value.contains('\0') {
         return Err(invalid_state_path());
+    }
+    // Windows canonicalization resolves junctions; inspect the requested components first.
+    #[cfg(windows)]
+    for ancestor in path.ancestors() {
+        match fs::symlink_metadata(ancestor) {
+            Ok(metadata) if is_link(&metadata) => return Err(invalid_state_path()),
+            Ok(_) => {}
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
     }
     Ok(())
 }

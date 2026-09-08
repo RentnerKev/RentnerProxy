@@ -15,6 +15,31 @@ const databaseUser = 'rentnerproxy'
 const stateArchiveName = 'controller-state.tar'
 const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.mjs'
 const healthcheckScript = '/opt/rentnerproxy/web/docker/web/healthcheck.mjs'
+const legacyRuntimeStateExclusions = [
+    './active.conf',
+    './candidate.conf',
+    './last-known-good.conf',
+    './last-good.conf',
+    './engine.pid',
+    './host-configs',
+    './host-configs/**',
+    './*.pid',
+    './runtime-probe.sock',
+    './caddy-admin.sock',
+    './caddy/**/*.sock',
+    './caddy/**/*.tmp',
+    './caddy/**/*.lock',
+    './cache',
+    './bootstrap',
+    './runtime',
+    './tmp',
+    './run',
+    './log',
+    './logs',
+    '*.log',
+    '*.log.*',
+    '.*.tmp',
+]
 
 function optionValue(argumentsList: string[], name: string): string | undefined {
     const index = argumentsList.indexOf(name)
@@ -171,7 +196,7 @@ async function prepareRestoreApplicationKey(
     backupVersion: number,
     metadata: ApplicationEncryptionKeyMetadata | undefined,
 ): Promise<{ readonly directory: string; readonly temporaryDirectory?: string }> {
-    if (backupVersion === 2) {
+    if (backupVersion === 2 || backupVersion === 3) {
         const keyPath = join(inputPath, 'app-encryption-key')
         const bytes = await readFile(keyPath)
         if (
@@ -247,7 +272,7 @@ async function restore(): Promise<void> {
     }
     if (
         metadata.format !== 'rentnerproxy-production-backup' ||
-        (metadata.version !== 1 && metadata.version !== 2) ||
+        (metadata.version !== 1 && metadata.version !== 2 && metadata.version !== 3) ||
         metadata.postgres?.dump !== 'postgres.dump' ||
         metadata.controllerState?.archive !== stateArchiveName
     ) {
@@ -414,8 +439,15 @@ async function restore(): Promise<void> {
             )
             databaseReplaced = true
 
+            const restoreExclusions = legacyRuntimeStateExclusions.map(
+                (entry) => '--exclude=' + entry,
+            )
+            if (metadata.version < 3)
+                restoreExclusions.push('--exclude=./active-proxy-snapshot.json')
             const restoreStateCommand =
-                'set -Eeuo pipefail; umask 077; for item in /var/lib/rentnerproxy/proxy/* /var/lib/rentnerproxy/proxy/.[!.]* /var/lib/rentnerproxy/proxy/..?*; do [ -e "$item" ] || continue; rm -rf -- "$item"; done; tar --extract --no-same-owner --file=/backup/controller-state.tar --directory=/var/lib/rentnerproxy/proxy; chmod 700 /var/lib/rentnerproxy/proxy'
+                'set -Eeuo pipefail; umask 077; for item in /var/lib/rentnerproxy/proxy/* /var/lib/rentnerproxy/proxy/.[!.]* /var/lib/rentnerproxy/proxy/..?*; do [ -e "$item" ] || continue; rm -rf -- "$item"; done; tar --extract --no-same-owner ' +
+                restoreExclusions.join(' ') +
+                ' --file=/backup/controller-state.tar --directory=/var/lib/rentnerproxy/proxy; chmod 700 /var/lib/rentnerproxy/proxy'
             await runCommand(
                 [
                     ...compose,

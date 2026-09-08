@@ -793,6 +793,9 @@ name = "rentnerproxy-controller"
 version = "0.0.0"
 dependencies = [
  "axum",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
  "instant-acme",
  "libc",
  "rcgen",

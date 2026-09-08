@@ -210,7 +210,7 @@ describe('certificate permissions and runtime contract', () => {
         }
     })
 
-    test('matches the shared Rust v4 vector and omits all material from snapshots', () => {
+    test('matches the shared Rust v7 vector and omits all material from snapshots', () => {
         const host = {
             id: HOST_ID,
             domains: ['www.demo.test', 'demo.test'],
@@ -220,12 +220,16 @@ describe('certificate permissions and runtime contract', () => {
             forwardPort: 4000,
             certificateId: CERTIFICATE_ID,
             forceHttps: true,
-            privateKeyPem: 'not-a-real-private-key',
         }
         const snapshot = createProxyRuntimeSnapshot([host])
-        expect(snapshot.version).toBe(4)
+        expect(() =>
+            createProxyRuntimeSnapshot([
+                { ...host, privateKeyPem: 'not-a-real-private-key' } as never,
+            ]),
+        ).toThrow()
+        expect(snapshot.version).toBe(7)
         expect(snapshot.revision).toBe(
-            'sha256:60ef13937bd04f3c5636c01b13c37431192b04fa7c9ba277e2dd4d89afe9c279',
+            'sha256:a7a89ddc623c0d8a3483ee08bd2f0cce5c9f5957b0a966c4abdbc496d0f626a4',
         )
         expect(JSON.stringify(snapshot)).not.toContain('privateKey')
         expect(JSON.stringify(snapshot)).not.toContain('not-a-real-private-key')
@@ -236,7 +240,7 @@ describe('certificate permissions and runtime contract', () => {
         expect(
             createProxyRuntimeSnapshot([{ ...host, certificateId: null, forceHttps: false }])
                 .version,
-        ).toBe(1)
+        ).toBe(7)
     })
 })
 

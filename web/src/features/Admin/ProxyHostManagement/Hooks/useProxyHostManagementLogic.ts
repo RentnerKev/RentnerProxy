@@ -22,6 +22,7 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const [showCreate, setShowCreate] = useState(false)
     const [configTarget, setConfigTarget] = useState<ProxyHostSummary | null>(null)
+    const [globalConfigOpen, setGlobalConfigOpen] = useState(false)
     const [certificateRequestTarget, setCertificateRequestTarget] =
         useState<ProxyHostSummary | null>(null)
     const [selectedProxyHost, setSelectedProxyHost] = useState<ProxyHostSummary | null>(null)
@@ -135,6 +136,8 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
     const setConfigEditorOpen = useCallback((open: boolean) => {
         if (!open) setConfigTarget(null)
     }, [])
+    const openGlobalConfig = useCallback(() => setGlobalConfigOpen(true), [])
+    const setGlobalConfigEditorOpen = useCallback((open: boolean) => setGlobalConfigOpen(open), [])
     const openCreate = useCallback(() => {
         setConfigTarget(null)
         setSelectedProxyHost(null)
@@ -211,7 +214,6 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
     return {
         state: {
             canApply: permissionSet.has(PERMISSIONS.PROXY_HOSTS_APPLY),
-            canAdvancedConfig: permissionSet.has(PERMISSIONS.PROXY_HOSTS_ADVANCED_CONFIG),
             canAssignCertificates:
                 permissionSet.has(PERMISSIONS.PROXY_HOSTS_CREATE) ||
                 permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE),
@@ -238,6 +240,7 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
             selectedProxyHost,
             showCreate,
             configTarget,
+            globalConfigOpen,
             certificateRequestTarget,
         },
         handler: {
@@ -252,6 +255,8 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
             openCertificateRequest,
             setCertificateRequestOpen,
             setConfigEditorOpen,
+            openGlobalConfig,
+            setGlobalConfigEditorOpen,
             openDelete,
             openDisable,
             openEditor,

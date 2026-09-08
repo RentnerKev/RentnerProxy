@@ -1,7 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
-import { z } from 'zod'
-
 import {
     getProxyHostConfigEditorService,
     previewProxyHostConfigEditorService,
@@ -16,7 +14,6 @@ import {
 } from './config-validation'
 
 import { PERMISSIONS } from '../../../config/permissions.config'
-import { MAX_PROXY_SETTINGS_SOURCE_LENGTH } from '../../../config/proxy-http.config'
 import {
     getProxyConfigEditorService,
     previewProxyConfigEditorService,
@@ -25,9 +22,9 @@ import {
     ProxyConfigEditorError,
 } from '../../../server/ProxyRuntime/proxy-config-editor.service'
 import {
-    ProxyHttpSettingsParseError,
     proxyConfigEditorSaveSchema,
     proxyConfigEditorResetSchema,
+    normalizeProxyHttpSettings,
 } from './config-validation'
 import type {
     ProxyHostActionResult,
@@ -199,10 +196,6 @@ function configActionFailure(error: unknown): AuthActionFailureResult {
         )
         return { success: false, message: `admin.proxyHosts.config.errors.${error.code}` }
     }
-    if (error instanceof ProxyHttpSettingsParseError) {
-        setResponseStatus(422)
-        return { success: false, message: 'admin.proxyHosts.config.errors.invalidSettings' }
-    }
     return localizedActionFailure(error, 'admin.proxyHosts.config.errors.saveFailed')
 }
 
@@ -216,11 +209,11 @@ export const getProxyConfigEditorHandler = createServerFn({ method: 'GET' }).han
 })
 
 export const previewProxyConfigEditorHandler = createServerFn({ method: 'POST' })
-    .validator(z.strictObject({ settingsSource: z.string().max(MAX_PROXY_SETTINGS_SOURCE_LENGTH) }))
+    .validator(proxyConfigEditorSaveSchema.pick({ settings: true }))
     .handler(async ({ data }) => {
         noStore()
         try {
-            return await previewProxyConfigEditorService(data.settingsSource)
+            return await previewProxyConfigEditorService(normalizeProxyHttpSettings(data.settings))
         } catch (error) {
             throwLocalizedQueryError(error, 'admin.proxyHosts.config.errors.previewFailed')
         }
@@ -289,16 +282,13 @@ export const previewProxyHostConfigEditorHandler = createServerFn({ method: 'POS
 function hostConfigSuccess(
     result: { readonly enabled: boolean; readonly runtimeStatus: ProxyRuntimeMutationStatus },
     message: string,
-    advancedChanged = false,
 ): ProxyHostActionResult {
     return {
         success: true,
         runtimeStatus: result.runtimeStatus,
         message:
             result.runtimeStatus === 'pending'
-                ? advancedChanged
-                    ? 'admin.proxyHosts.config.advanced.savedPending'
-                    : 'admin.proxyHosts.runtime.savedPending'
+                ? 'admin.proxyHosts.runtime.savedPending'
                 : result.enabled
                   ? message
                   : 'admin.proxyHosts.config.hostSavedDisabled',
@@ -313,7 +303,6 @@ export const saveProxyHostConfigEditorHandler = createServerFn({ method: 'POST' 
             return hostConfigSuccess(
                 await saveProxyHostConfigEditorService(data),
                 'admin.proxyHosts.config.hostSaved',
-                data.advancedConfig !== undefined,
             )
         } catch (error) {
             return configActionFailure(error)
@@ -328,7 +317,6 @@ export const resetProxyHostConfigEditorHandler = createServerFn({ method: 'POST'
             return hostConfigSuccess(
                 await resetProxyHostConfigEditorService(data),
                 'admin.proxyHosts.config.hostReset',
-                data.resetAdvancedConfig === true,
             )
         } catch (error) {
             return configActionFailure(error)

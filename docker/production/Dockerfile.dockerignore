@@ -19,6 +19,8 @@
 !docker/web/**
 !docker/production/
 !docker/production/entrypoint.sh
+!docker/licenses/
+!docker/licenses/Caddy-LICENSE
 
 !scripts/
 !scripts/**

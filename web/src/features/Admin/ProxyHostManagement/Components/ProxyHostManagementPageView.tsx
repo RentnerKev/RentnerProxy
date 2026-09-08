@@ -9,6 +9,7 @@ import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { ProxyHostManagementPageViewProps } from '../Types/proxy-host-management.types'
 import ProxyHostFormModal from './ProxyHostFormModal'
 import ProxyConfigEditorModal from './ProxyConfigEditorModal'
+import ProxyGlobalConfigEditorModal from './ProxyGlobalConfigEditorModal'
 import ProxyHostsTable from './ProxyHostsTable'
 import ProxyRuntimeStatusPanel from './ProxyRuntimeStatusPanel'
 
@@ -27,6 +28,18 @@ export default function ProxyHostManagementPageView({
             {t('admin.proxyHosts.actions.add')}
         </button>
     ) : undefined
+    const headerAction = (
+        <>
+            <button
+                type="button"
+                className={uiClassNames.button.secondary}
+                onClick={handler.openGlobalConfig}
+            >
+                {t('admin.proxyHosts.config.open')}
+            </button>
+            {createAction}
+        </>
+    )
 
     return (
         <>
@@ -59,7 +72,7 @@ export default function ProxyHostManagementPageView({
                 <ProxyHostsTable
                     proxyHosts={state.proxyHosts}
                     loading={state.isLoading}
-                    action={createAction}
+                    action={headerAction}
                     canUpdate={state.canUpdate}
                     canDelete={state.canDelete}
                     canEnable={state.canEnable}
@@ -76,12 +89,18 @@ export default function ProxyHostManagementPageView({
             )}
             {state.configTarget ? (
                 <ProxyConfigEditorModal
-                    key={state.configTarget.id + ':' + state.canAdvancedConfig}
+                    key={state.configTarget.id}
                     proxyHost={state.configTarget}
                     open
                     canEdit={state.canEditConfig}
-                    canAdvancedConfig={state.canAdvancedConfig}
                     onOpenChange={handler.setConfigEditorOpen}
+                />
+            ) : null}
+            {state.globalConfigOpen ? (
+                <ProxyGlobalConfigEditorModal
+                    open
+                    canEdit={state.canEditConfig}
+                    onOpenChange={handler.setGlobalConfigEditorOpen}
                 />
             ) : null}
             {state.certificateRequestTarget ? (

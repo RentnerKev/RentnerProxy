@@ -45,7 +45,7 @@ function snapshot(
 }
 
 describe('redirect host runtime snapshots', () => {
-    test('emits deterministic v6 state in the cross-language property order', () => {
+    test('emits deterministic v7 state in the cross-language property order', () => {
         const second = redirect({
             id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54021',
             domains: ['z.redirect.test', 'a.redirect.test'],
@@ -55,7 +55,7 @@ describe('redirect host runtime snapshots', () => {
         })
         const result = snapshot([second, redirect()])
 
-        expect(result.version).toBe(6)
+        expect(result.version).toBe(7)
         expect(Object.keys(result).slice(0, -1)).toEqual([
             'version',
             'proxyHosts',
@@ -66,7 +66,7 @@ describe('redirect host runtime snapshots', () => {
         expect(result.redirectHosts?.map((host) => host.id)).toEqual([REDIRECT_ID, second.id])
         expect(result.redirectHosts?.[1]?.domains).toEqual(['a.redirect.test', 'z.redirect.test'])
         expect(result.revision).toBe(
-            'sha256:bc76b6a3a15ec41a362ad7c220fb11e168d21e0cb81dc1f23688ef2ee40083b7',
+            'sha256:decf69ae5305d1e5f590d0b48510cc06154864d9f94c2549060e030add5dee93',
         )
         expect(snapshot([redirect(), second])).toEqual(result)
     })
@@ -78,8 +78,8 @@ describe('redirect host runtime snapshots', () => {
         ])
 
         expect(withDisabledRedirect).toEqual(legacy)
-        expect(withDisabledRedirect.version).toBe(1)
-        expect(withDisabledRedirect).not.toHaveProperty('redirectHosts')
+        expect(withDisabledRedirect.version).toBe(7)
+        expect(withDisabledRedirect.redirectHosts).toEqual([])
     })
 
     test('makes destination, status, URI preservation and certificates revision-sensitive', () => {
@@ -88,7 +88,7 @@ describe('redirect host runtime snapshots', () => {
             redirect({ destination: 'https://destination.test/other' }),
             redirect({ statusCode: 307 }),
             redirect({ preserveRequestUri: false }),
-            redirect({ certificateId: '550e8400-e29b-41d4-a716-446655440000' }),
+            redirect({ certificateId: '018f2f52-7c1b-7cc0-9f3c-6a9952c54023' }),
         ]
 
         for (const variant of variants) {

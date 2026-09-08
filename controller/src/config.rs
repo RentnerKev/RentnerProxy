@@ -3,7 +3,7 @@ use std::{env, fs, io::Read, net::SocketAddr, path::PathBuf};
 const LISTEN_ADDR_ENV: &str = "RENTNERPROXY_CONTROLLER_LISTEN_ADDR";
 pub(crate) const CONTROLLER_TOKEN_ENV: &str = "RENTNERPROXY_CONTROLLER_TOKEN";
 pub(crate) const CONTROLLER_TOKEN_FILE_ENV: &str = "RENTNERPROXY_CONTROLLER_TOKEN_FILE";
-const PROXY_ENGINE_BIN_ENV: &str = "RENTNERPROXY_PROXY_ENGINE_BIN";
+const CADDY_BIN_ENV: &str = "RENTNERPROXY_CADDY_BIN";
 const PROXY_STATE_DIR_ENV: &str = "RENTNERPROXY_PROXY_STATE_DIR";
 const PROXY_HTTP_PORT_ENV: &str = "RENTNERPROXY_PROXY_HTTP_PORT";
 const PROXY_HTTPS_PORT_ENV: &str = "RENTNERPROXY_PROXY_HTTPS_PORT";
@@ -35,7 +35,7 @@ impl std::fmt::Debug for ControllerToken {
 pub(crate) struct Config {
     pub(crate) listen_addr: SocketAddr,
     pub(crate) controller_token: Option<ControllerToken>,
-    pub(crate) proxy_engine_bin: Option<PathBuf>,
+    pub(crate) caddy_bin: Option<PathBuf>,
     pub(crate) proxy_state_dir: PathBuf,
     pub(crate) proxy_http_port: u16,
     pub(crate) proxy_https_port: u16,
@@ -163,7 +163,7 @@ impl Config {
             read_env(CONTROLLER_TOKEN_ENV)?,
             read_env(CONTROLLER_TOKEN_FILE_ENV)?,
         )?;
-        let proxy_engine_bin = read_env(PROXY_ENGINE_BIN_ENV)?
+        let caddy_bin = read_env(CADDY_BIN_ENV)?
             .filter(|value| !value.trim().is_empty())
             .map(PathBuf::from);
         let proxy_state_dir = read_env(PROXY_STATE_DIR_ENV)?.and_then(|value| {
@@ -174,12 +174,12 @@ impl Config {
         let proxy_https_port = read_env(PROXY_HTTPS_PORT_ENV)?;
         let proxy_public_https_port = read_env(PROXY_PUBLIC_HTTPS_PORT_ENV)?;
         let system_ca_bundle = read_env(SYSTEM_CA_BUNDLE_ENV)?;
-        let require_state_dir = cfg!(not(debug_assertions)) && proxy_engine_bin.is_some();
+        let require_state_dir = cfg!(not(debug_assertions)) && caddy_bin.is_some();
 
         let mut config = Self::from_values(
             Some(&listen_addr),
             controller_token.as_deref(),
-            proxy_engine_bin,
+            caddy_bin,
             proxy_state_dir,
             proxy_http_port.as_deref(),
             require_state_dir,
@@ -201,7 +201,7 @@ impl Config {
     pub(crate) fn from_values(
         listen_addr: Option<&str>,
         controller_token: Option<&str>,
-        proxy_engine_bin: Option<PathBuf>,
+        caddy_bin: Option<PathBuf>,
         proxy_state_dir: Option<PathBuf>,
         proxy_http_port: Option<&str>,
         require_state_dir: bool,
@@ -251,7 +251,7 @@ impl Config {
         Ok(Self {
             listen_addr,
             controller_token,
-            proxy_engine_bin,
+            caddy_bin,
             proxy_state_dir,
             proxy_http_port,
             proxy_https_port: DEFAULT_PROXY_HTTPS_PORT,

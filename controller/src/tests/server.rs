@@ -1,6 +1,5 @@
 use std::{
     future::Future,
-    path::Path,
     pin::Pin,
     sync::{
         Arc,
@@ -35,16 +34,16 @@ struct TestEngine(AtomicBool);
 static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 impl ProxyEngine for TestEngine {
-    fn test_config<'a>(&'a self, _: &'a Path) -> EngineFuture<'a> {
-        Box::pin(async { Ok(()) })
-    }
-    fn start<'a>(&'a self, _: &'a Path, _: &'a str) -> EngineFuture<'a> {
+    fn start<'a>(&'a self, _: &'a str, _: &'a str) -> EngineFuture<'a> {
         Box::pin(async move {
             self.0.store(true, Ordering::SeqCst);
             Ok(())
         })
     }
-    fn reload<'a>(&'a self, _: &'a Path, _: &'a str) -> EngineFuture<'a> {
+    fn load<'a>(&'a self, _: &'a str) -> EngineFuture<'a> {
+        Box::pin(async { Ok(()) })
+    }
+    fn probe<'a>(&'a self, _: &'a str) -> EngineFuture<'a> {
         Box::pin(async { Ok(()) })
     }
     fn shutdown<'a>(&'a self) -> EngineFuture<'a> {
@@ -70,19 +69,18 @@ async fn test_app(token: Option<ControllerToken>) -> Router {
 
 fn valid_payload() -> Vec<u8> {
     let hosts = vec![ProxyHost {
-        id: "00000000-0000-0000-0000-000000000000".to_owned(),
+        id: "018f4b4a-7d1f-7abc-8def-0123456789ab".to_owned(),
         domains: vec!["demo.test".to_owned()],
         forward_scheme: "http".to_owned(),
         forward_host: "backend".to_owned(),
         forward_port: 4_000,
         http_settings: ProxyHttpSettings::default(),
-        advanced_config: String::new(),
         certificate_id: None,
         force_https: false,
         upstream_tls: None,
     }];
     serde_json::to_vec(&ProxyConfigRequest {
-        version: 1,
+        version: 7,
         revision: revision_for_hosts(&hosts),
         proxy_hosts: hosts,
         redirect_hosts: Vec::new(),
@@ -106,13 +104,12 @@ fn request_with_method(method: &str, uri: &str, body: Body) -> Request<Body> {
 
 fn custom_payload() -> Vec<u8> {
     let hosts = vec![ProxyHost {
-        id: "00000000-0000-0000-0000-000000000000".to_owned(),
+        id: "018f4b4a-7d1f-7abc-8def-0123456789ab".to_owned(),
         domains: vec!["demo.test".to_owned()],
         forward_scheme: "http".to_owned(),
         forward_host: "backend".to_owned(),
         forward_port: 4_000,
         http_settings: ProxyHttpSettings::default(),
-        advanced_config: String::new(),
         certificate_id: None,
         force_https: false,
         upstream_tls: None,
@@ -126,7 +123,7 @@ fn custom_payload() -> Vec<u8> {
         keepalive_timeout_seconds: Some(75),
     };
     serde_json::to_vec(&ProxyConfigRequest {
-        version: 2,
+        version: 7,
         revision: revision_for_configuration(&hosts, &http_settings),
         proxy_hosts: hosts,
         redirect_hosts: Vec::new(),
@@ -266,7 +263,7 @@ async fn source_endpoints_are_authenticated_and_preview_is_pure() {
         preview["config"]
             .as_str()
             .unwrap()
-            .contains("managed HTTP settings")
+            .contains("write_timeout")
     );
     let revision = preview["revision"].as_str().unwrap().to_owned();
 
@@ -295,7 +292,7 @@ async fn source_endpoints_are_authenticated_and_preview_is_pure() {
         !before_apply["config"]
             .as_str()
             .unwrap()
-            .contains("managed HTTP settings")
+            .contains("a.example")
     );
 
     let applied = router
@@ -321,12 +318,7 @@ async fn source_endpoints_are_authenticated_and_preview_is_pure() {
     )
     .unwrap();
     assert_eq!(active["activeRevision"], revision);
-    assert!(
-        active["config"]
-            .as_str()
-            .unwrap()
-            .contains("keepalive_timeout 75s;")
-    );
+    assert!(active["config"].as_str().unwrap().contains("idle_timeout"));
 }
 
 #[tokio::test]
@@ -419,12 +411,12 @@ async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
     for request in [
         request_with_method(
             "GET",
-            "/internal/v1/proxy/hosts/00000000-0000-0000-0000-000000000000/config",
+            "/internal/v1/proxy/hosts/018f4b4a-7d1f-7abc-8def-0123456789ab/config",
             Body::empty(),
         ),
         request_with_method(
             "POST",
-            "/internal/v1/proxy/hosts/00000000-0000-0000-0000-000000000000/config/preview",
+            "/internal/v1/proxy/hosts/018f4b4a-7d1f-7abc-8def-0123456789ab/config/preview",
             Body::from(valid_payload()),
         ),
     ] {
@@ -433,7 +425,7 @@ async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
     }
 
     let router = test_app(None).await;
-    let host_path = "/internal/v1/proxy/hosts/00000000-0000-0000-0000-000000000000/config";
+    let host_path = "/internal/v1/proxy/hosts/018f4b4a-7d1f-7abc-8def-0123456789ab/config";
     let before_apply = router
         .clone()
         .oneshot(request_with_method("GET", host_path, Body::empty()))
@@ -445,7 +437,7 @@ async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
         .clone()
         .oneshot(request_with_method(
             "POST",
-            "/internal/v1/proxy/hosts/00000000-0000-0000-0000-000000000000/config/preview",
+            "/internal/v1/proxy/hosts/018f4b4a-7d1f-7abc-8def-0123456789ab/config/preview",
             Body::from(valid_payload()),
         ))
         .await
@@ -458,17 +450,12 @@ async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
             .unwrap(),
     )
     .unwrap();
+    assert!(preview["config"].as_str().unwrap().starts_with("{\"http\""));
     assert!(
         preview["config"]
             .as_str()
             .unwrap()
-            .starts_with("server {\n")
-    );
-    assert!(
-        preview["config"]
-            .as_str()
-            .unwrap()
-            .contains("host HTTP settings begin")
+            .contains("reverse_proxy")
     );
     assert!(!preview["config"].as_str().unwrap().contains("\nhttp {\n"));
     let revision = preview["revision"].as_str().unwrap().to_owned();
@@ -504,18 +491,10 @@ async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
     )
     .unwrap();
     assert_eq!(active["activeRevision"], revision);
-    assert!(
-        active["config"]
-            .as_str()
-            .unwrap()
-            .starts_with("    server {\n")
-    );
-    assert!(
-        !active["config"]
-            .as_str()
-            .unwrap()
-            .contains("host HTTP settings begin")
-    );
+    let source: serde_json::Value =
+        serde_json::from_str(active["config"].as_str().unwrap()).unwrap();
+    assert!(source["http"]["match"].is_array());
+    assert!(active["config"].as_str().unwrap().contains("reverse_proxy"));
 
     let unknown = router
         .oneshot(request_with_method(
@@ -526,6 +505,45 @@ async fn host_source_endpoints_are_authenticated_bounded_and_apply_scoped() {
         .await
         .unwrap();
     assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn proxy_host_source_endpoint_does_not_expose_redirect_host_fragments() {
+    let router = test_app(None).await;
+    let mut payload: ProxyConfigRequest = serde_json::from_slice(&valid_payload()).unwrap();
+    let redirect_id = "018f4b4a-7d1f-7abc-8def-0123456789ac";
+    payload.redirect_hosts.push(crate::models::RedirectHost {
+        id: redirect_id.to_owned(),
+        domains: vec!["redirect.test".to_owned()],
+        destination: "https://target.test".to_owned(),
+        status_code: 308,
+        preserve_request_uri: false,
+        certificate_id: None,
+    });
+    payload.revision = crate::proxy::revision_for_configuration_with_redirects(
+        &payload.proxy_hosts,
+        &payload.redirect_hosts,
+        &payload.http_settings,
+        &payload.trusted_cas,
+    );
+    let response = router
+        .clone()
+        .oneshot(request(
+            "/internal/v1/proxy/config",
+            serde_json::to_vec(&payload).unwrap(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = router
+        .oneshot(request_with_method(
+            "GET",
+            &format!("/internal/v1/proxy/hosts/{redirect_id}/config"),
+            Body::empty(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]

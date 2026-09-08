@@ -1,29 +1,38 @@
-use std::{sync::Arc, time::SystemTime};
-
+use super::{
+    BASELINE_PROBE_REVISION, EngineError, ProxyRuntime, RenderPurpose, RuntimeError,
+    StagedCertificate,
+    clock::{elapsed_millis, utc_now},
+    state::{LAST_APPLY_FILE, atomic_write},
+};
+use crate::models::{ApplyOutcome, ValidatedProxyConfig};
+use std::{
+    sync::{Arc, atomic::Ordering},
+    time::SystemTime,
+};
 use tokio::time::timeout;
 use tracing::{info, warn};
-
-use crate::{
-    models::{ApplyOutcome, ValidatedProxyConfig},
-    proxy::revision_from_config,
-};
-
-use super::{
-    BASELINE_PROBE_REVISION, EngineError, MAX_RENDERED_PROXY_CONFIG_BYTES, ProxyRuntime,
-    RuntimeError, StagedCertificate,
-    clock::{elapsed_millis, utc_now},
-    state::{ACTIVE_CONFIG_FILE, atomic_write, replace_file},
-};
 
 impl ProxyRuntime {
     pub(crate) async fn apply(
         self: &Arc<Self>,
         configuration: ValidatedProxyConfig,
     ) -> Result<ApplyOutcome, RuntimeError> {
+        let sequence = self.apply_sequence.fetch_add(1, Ordering::SeqCst) + 1;
         let runtime = Arc::clone(self);
-        tokio::spawn(async move { runtime.apply_inner(configuration, None).await })
-            .await
-            .unwrap_or(Err(RuntimeError::ApplyFailed))
+        // Client disconnects cannot cancel a partially accepted activation.
+        tokio::spawn(async move {
+            let _guard = timeout(runtime.settings.lock_wait, runtime.apply_lock.lock())
+                .await
+                .map_err(|_| RuntimeError::Busy)?;
+            if sequence != runtime.apply_sequence.load(Ordering::SeqCst) {
+                return Err(RuntimeError::Busy);
+            }
+            runtime
+                .apply_locked(configuration, None, Some(sequence))
+                .await
+        })
+        .await
+        .unwrap_or(Err(RuntimeError::ApplyFailed))
     }
 
     pub(crate) async fn apply_staged_for_active(
@@ -31,203 +40,171 @@ impl ProxyRuntime {
         staged: StagedCertificate,
     ) -> Result<ApplyOutcome, RuntimeError> {
         let runtime = Arc::clone(self);
-        tokio::spawn(async move { runtime.apply_staged_for_active_inner(staged).await })
-            .await
-            .unwrap_or(Err(RuntimeError::ApplyFailed))
-    }
-
-    async fn apply_staged_for_active_inner(
-        &self,
-        staged: StagedCertificate,
-    ) -> Result<ApplyOutcome, RuntimeError> {
-        let _apply_guard = timeout(self.settings.lock_wait, self.apply_lock.lock())
-            .await
-            .map_err(|_| RuntimeError::Busy)?;
-        let configuration = self.active_configuration.lock().await.clone();
-        if let Some(configuration) = configuration.filter(|configuration| {
-            configuration
-                .proxy_hosts
-                .iter()
-                .any(|host| host.certificate_id.as_deref() == Some(staged.id()))
-                || configuration
-                    .redirect_hosts
+        tokio::spawn(async move {
+            let _guard = timeout(runtime.settings.lock_wait, runtime.apply_lock.lock())
+                .await
+                .map_err(|_| RuntimeError::Busy)?;
+            if runtime.stopping.load(Ordering::SeqCst) {
+                return Err(RuntimeError::Unavailable);
+            }
+            let configuration = runtime.active_configuration.lock().await.clone();
+            if let Some(configuration) = configuration.filter(|config| {
+                config
+                    .proxy_hosts
                     .iter()
                     .any(|host| host.certificate_id.as_deref() == Some(staged.id()))
-        }) {
-            return self.apply_locked(configuration, Some(&staged)).await;
-        }
-        let marker = format!("/certificates/{}/versions/", staged.id());
-        let active_references_staged =
-            match self.read_state_text(ACTIVE_CONFIG_FILE, MAX_RENDERED_PROXY_CONFIG_BYTES) {
-                Ok(contents) => contents.contains(&marker),
-                Err(_) => true,
-            };
-        if active_references_staged {
-            return Err(RuntimeError::ApplyFailed);
-        }
-        self.certificate_store
-            .commit_staged(&staged)
-            .await
-            .map_err(|_| RuntimeError::ApplyFailed)?;
-        Ok(ApplyOutcome::Unchanged)
-    }
-    async fn apply_inner(
-        &self,
-        configuration: ValidatedProxyConfig,
-        staged: Option<StagedCertificate>,
-    ) -> Result<ApplyOutcome, RuntimeError> {
-        let _apply_guard = timeout(self.settings.lock_wait, self.apply_lock.lock())
-            .await
-            .map_err(|_| RuntimeError::Busy)?;
-        self.apply_locked(configuration, staged.as_ref()).await
+                    || config
+                        .redirect_hosts
+                        .iter()
+                        .any(|host| host.certificate_id.as_deref() == Some(staged.id()))
+            }) {
+                return runtime
+                    .apply_locked(configuration, Some(&staged), None)
+                    .await;
+            }
+            runtime
+                .certificate_store
+                .commit_staged(&staged)
+                .await
+                .map_err(|_| RuntimeError::ApplyFailed)?;
+            Ok(ApplyOutcome::Unchanged)
+        })
+        .await
+        .unwrap_or(Err(RuntimeError::ApplyFailed))
     }
 
     async fn apply_locked(
         &self,
         configuration: ValidatedProxyConfig,
         staged: Option<&StagedCertificate>,
+        sequence: Option<u64>,
     ) -> Result<ApplyOutcome, RuntimeError> {
         let started_at = SystemTime::now();
-
+        if self.stopping.load(Ordering::SeqCst) {
+            return Err(RuntimeError::Unavailable);
+        }
+        if !self.state.lock().await.initialized {
+            self.initialize_locked().await?;
+        }
+        self.ensure_running_locked().await?;
         let Some(engine) = &self.engine else {
             return Err(RuntimeError::Unavailable);
         };
-        if !self.state.lock().await.engine_available {
-            return Err(RuntimeError::Unavailable);
-        }
-        if !engine.is_running().await {
-            self.mark_unavailable().await;
-            return Err(RuntimeError::Unavailable);
-        }
-        let candidate = self
-            .render_proxy_config_for_apply(&configuration, staged, true)
+        let json = self
+            .render_proxy_config_for_apply(&configuration, staged, RenderPurpose::Activation)
             .await?;
-        let active_host_sources = self.render_active_host_sources(&configuration)?;
-        let candidate_path = self.candidate_path();
-        let active_path = self.active_path();
-        let previous = self
-            .read_state_text(ACTIVE_CONFIG_FILE, MAX_RENDERED_PROXY_CONFIG_BYTES)
-            .map_err(|_| RuntimeError::ApplyFailed)?
-            .into_bytes();
-        if self.state.lock().await.active_revision.as_deref()
-            == Some(configuration.revision.as_str())
-            && previous == candidate.as_bytes()
-        {
-            if let Some(staged) = staged.as_ref() {
-                self.certificate_store
-                    .commit_staged(staged)
-                    .await
-                    .map_err(|_| RuntimeError::ApplyFailed)?;
-            }
-            if self.persist_active_configuration(&configuration).is_err() {
-                warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "active_snapshot", "active proxy snapshot was not persisted");
-            }
-            *self.active_configuration.lock().await = Some(configuration.clone());
-            info!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, hosts = configuration.proxy_hosts.len() + configuration.redirect_hosts.len(), duration_ms = elapsed_millis(started_at), "proxy configuration unchanged");
-            return Ok(ApplyOutcome::Unchanged);
+        let host_sources = self.render_active_host_sources(&configuration)?;
+        if sequence.is_some_and(|value| value != self.apply_sequence.load(Ordering::SeqCst)) {
+            return Err(RuntimeError::Busy);
         }
-        if atomic_write(&candidate_path, candidate.as_bytes()).is_err() {
+        let (previous, previous_revision) = {
+            let state = self.state.lock().await;
+            (
+                state.active_json.clone(),
+                state
+                    .active_revision
+                    .clone()
+                    .unwrap_or_else(|| BASELINE_PROBE_REVISION.to_owned()),
+            )
+        };
+        let unchanged = previous == json && previous_revision == configuration.revision;
+        if !unchanged {
+            // Caddy validates/provisions the entire document transactionally. Rejection keeps old traffic.
+            if let Err(error) = self.run_stage(engine.load(&json)).await {
+                if error != EngineError::Rejected {
+                    // A timeout/invalid response cannot establish whether /load completed.
+                    // A new process eliminates any late completion from the uncertain request.
+                    self.restore_verified_locked(&previous, &previous_revision, true)
+                        .await;
+                }
+                warn!(revision = %configuration.revision, stage = "caddy_load", ?error, "Caddy apply failed");
+                return Err(if error == EngineError::Unavailable {
+                    RuntimeError::Unavailable
+                } else {
+                    RuntimeError::ApplyFailed
+                });
+            }
+        }
+        if let Err(error) = self.run_stage(engine.probe(&configuration.revision)).await {
+            self.restore_verified_locked(&previous, &previous_revision, false)
+                .await;
+            warn!(revision = %configuration.revision, stage = "runtime_probe", ?error, "Caddy did not confirm activation");
             return Err(RuntimeError::ApplyFailed);
         }
-        info!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, hosts = configuration.proxy_hosts.len() + configuration.redirect_hosts.len(), "proxy configuration candidate written");
-
-        match self.run_stage(engine.test_config(&candidate_path)).await {
-            Ok(()) => {}
-            Err(error) => {
-                self.handle_engine_error(error).await;
-                warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "config_test", "proxy candidate rejected");
-                return Err(runtime_error_for_engine(error));
-            }
-        }
-
-        let previous_revision = revision_from_config(&String::from_utf8_lossy(&previous));
-        if atomic_write(&self.last_good_path(), &previous).is_err() {
-            return Err(RuntimeError::ApplyFailed);
-        }
-        if replace_file(&candidate_path, &active_path).is_err() {
-            if atomic_write(&active_path, &previous).is_err() {
-                self.mark_unavailable().await;
-            }
-            return Err(RuntimeError::ApplyFailed);
-        }
-
-        if let Err(error) = self
-            .run_stage(engine.reload(&active_path, &configuration.revision))
-            .await
-        {
-            self.handle_engine_error(error).await;
-            let rollback_written = atomic_write(&active_path, &previous).is_ok();
-            let expected = previous_revision
-                .as_deref()
-                .unwrap_or(BASELINE_PROBE_REVISION);
-            let recovery = if rollback_written {
-                self.run_stage(engine.reload(&active_path, expected)).await
-            } else {
-                Err(EngineError::CommandFailed)
-            };
-            if let Err(_recovery_error) = recovery {
-                self.mark_unavailable().await;
-                warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "rollback", "proxy recovery reload failed");
-            } else {
-                self.state.lock().await.engine_available = true;
-                info!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "rollback", "proxy rollback recovered");
-            }
-            warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "reload", "proxy configuration apply failed");
-            return Err(RuntimeError::ApplyFailed);
-        }
-
-        if let Some(staged) = staged.as_ref()
+        // Certificate metadata remains unchanged until the new material is actually served.
+        if let Some(staged) = staged
             && self.certificate_store.commit_staged(staged).await.is_err()
         {
-            let rollback_written = atomic_write(&active_path, &previous).is_ok();
-            let expected = previous_revision
-                .as_deref()
-                .unwrap_or(BASELINE_PROBE_REVISION);
-            let recovery = if rollback_written {
-                self.run_stage(engine.reload(&active_path, expected)).await
-            } else {
-                Err(EngineError::CommandFailed)
-            };
-            if recovery.is_err() {
-                self.mark_unavailable().await;
-                warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "certificate_pointer_rollback", "proxy recovery reload failed");
-            } else {
-                self.state.lock().await.engine_available = true;
-            }
-            warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "certificate_pointer", "certificate metadata was not published after reload");
+            self.restore_verified_locked(&previous, &previous_revision, false)
+                .await;
             return Err(RuntimeError::ApplyFailed);
         }
-        if atomic_write(&self.last_good_path(), candidate.as_bytes()).is_err() {
-            warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "last_good", "active proxy backup refresh failed");
+        if self.persist_active_configuration(&configuration).is_err() {
+            // This is only a recovery cache. PostgreSQL remains authoritative and startup reconciliation
+            // repairs a stale cache; never claim failed proxy traffic after a verified successful load.
+            warn!(revision = %configuration.revision, stage = "snapshot_cache", "Caddy recovery snapshot was not persisted");
         }
-        if self
-            .persist_active_host_sources(&active_host_sources)
+        let applied_at = if unchanged {
+            self.state.lock().await.last_apply_at.clone()
+        } else {
+            Some(utc_now())
+        };
+        if let Some(applied_at) = &applied_at
+            && atomic_write(
+                &self.settings.state_dir.join(LAST_APPLY_FILE),
+                applied_at.as_bytes(),
+            )
             .is_err()
         {
-            warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "active_host_sources", "proxy host source metadata was not persisted");
-        }
-        let applied_at = utc_now();
-        if atomic_write(&self.last_apply_path(), applied_at.as_bytes()).is_err() {
-            warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "last_apply_at", "active proxy timestamp persistence failed");
+            warn!(
+                stage = "timestamp",
+                "Caddy apply timestamp was not persisted"
+            );
         }
         let mut state = self.state.lock().await;
         state.active_revision = Some(configuration.revision.clone());
-        state.last_apply_at = Some(applied_at);
+        state.last_apply_at = applied_at;
+        state.active_json = json;
+        state.host_sources = host_sources;
         state.engine_available = true;
         drop(state);
-        if self.persist_active_configuration(&configuration).is_err() {
-            warn!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, stage = "active_snapshot", "active proxy snapshot was not persisted");
-        }
         *self.active_configuration.lock().await = Some(configuration.clone());
-        info!(target: "rentnerproxy_controller::runtime", revision = %configuration.revision, hosts = configuration.proxy_hosts.len() + configuration.redirect_hosts.len(), duration_ms = elapsed_millis(started_at), "proxy configuration applied");
-        Ok(ApplyOutcome::Applied)
+        info!(revision = %configuration.revision, unchanged, duration_ms = elapsed_millis(started_at),
+              hosts = configuration.proxy_hosts.len() + configuration.redirect_hosts.len(), "Caddy configuration verified");
+        Ok(if unchanged {
+            ApplyOutcome::Unchanged
+        } else {
+            ApplyOutcome::Applied
+        })
     }
-}
 
-fn runtime_error_for_engine(error: EngineError) -> RuntimeError {
-    if matches!(error, EngineError::Unavailable | EngineError::Unsupported) {
-        RuntimeError::Unavailable
-    } else {
-        RuntimeError::ApplyFailed
+    async fn restore_verified_locked(&self, json: &str, revision: &str, force_restart: bool) {
+        let Some(engine) = &self.engine else {
+            return;
+        };
+        let recovered = if force_restart {
+            false
+        } else {
+            self.run_stage(engine.load(json)).await.is_ok()
+                && self.run_stage(engine.probe(revision)).await.is_ok()
+        };
+        if recovered {
+            return;
+        }
+        self.mark_unavailable().await;
+        let _ = engine.shutdown().await;
+        if self.start_engine(engine, json, revision).await.is_ok() {
+            self.state.lock().await.engine_available = true;
+            info!(
+                stage = "recovery",
+                "Caddy restored the verified configuration"
+            );
+        } else {
+            // The owned recovery worker will retry with bounded backoff.
+            warn!(
+                stage = "recovery",
+                "Caddy remains unavailable; automatic recovery pending"
+            );
+        }
     }
 }

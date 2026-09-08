@@ -1,22 +1,34 @@
 use crate::models::{ProxyHost, ProxyHttpSettings, RedirectHost, TrustedCa};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
 
-pub(crate) fn revision_for_hosts(hosts: &[ProxyHost]) -> String {
-    hash_snapshot(&CanonicalSnapshot {
-        version: 1,
-        proxy_hosts: canonical_hosts(hosts),
-    })
+/// Hashes the single, stable snapshot shape used by the controller protocol.
+/// Struct declaration order is intentional: it is the canonical JSON order.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CanonicalSnapshot<'a> {
+    version: u8,
+    proxy_hosts: Vec<ProxyHost>,
+    redirect_hosts: Vec<RedirectHost>,
+    http_settings: &'a ProxyHttpSettings,
+    trusted_cas: Vec<TrustedCa>,
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
+#[cfg(test)]
+pub(crate) fn revision_for_hosts(hosts: &[ProxyHost]) -> String {
+    revision_for_configuration_with_redirects(hosts, &[], &ProxyHttpSettings::default(), &[])
+}
+
+#[cfg(test)]
 pub(crate) fn revision_for_configuration(
     hosts: &[ProxyHost],
     http_settings: &ProxyHttpSettings,
 ) -> String {
-    revision_for_configuration_with_trusted_cas(hosts, http_settings, &[])
+    revision_for_configuration_with_redirects(hosts, &[], http_settings, &[])
 }
 
+#[cfg(test)]
 pub(crate) fn revision_for_configuration_with_trusted_cas(
     hosts: &[ProxyHost],
     http_settings: &ProxyHttpSettings,
@@ -31,50 +43,12 @@ pub(crate) fn revision_for_configuration_with_redirects(
     http_settings: &ProxyHttpSettings,
     trusted_cas: &[TrustedCa],
 ) -> String {
-    let hosts = canonical_hosts(hosts);
-    let redirect_hosts = canonical_redirect_hosts(redirect_hosts);
-    let trusted_cas = canonical_trusted_cas(trusted_cas);
-    if !redirect_hosts.is_empty() {
-        return hash_snapshot(&CanonicalRedirectConfigurationSnapshot {
-            version: 6,
-            proxy_hosts: hosts,
-            redirect_hosts,
-            http_settings,
-            trusted_cas: &trusted_cas,
-        });
-    }
-    if hosts.iter().any(|host| host.upstream_tls.is_some()) || !trusted_cas.is_empty() {
-        return hash_snapshot(&CanonicalUpstreamTlsConfigurationSnapshot {
-            version: 5,
-            proxy_hosts: hosts,
-            http_settings,
-            trusted_cas: &trusted_cas,
-        });
-    }
-    if hosts.iter().any(|host| host.certificate_id.is_some()) {
-        return hash_snapshot(&CanonicalTlsConfigurationSnapshot {
-            version: 4,
-            proxy_hosts: hosts,
-            http_settings,
-        });
-    }
-    if hosts
-        .iter()
-        .any(|host| !host.http_settings.is_empty() || !host.advanced_config.is_empty())
-    {
-        return hash_snapshot(&CanonicalHostConfigurationSnapshot {
-            version: 3,
-            proxy_hosts: hosts,
-            http_settings,
-        });
-    }
-    if http_settings.is_empty() {
-        return revision_for_hosts(&hosts);
-    }
-    hash_snapshot(&CanonicalConfigurationSnapshot {
-        version: 2,
-        proxy_hosts: hosts,
+    hash_snapshot(&CanonicalSnapshot {
+        version: 7,
+        proxy_hosts: canonical_hosts(hosts),
+        redirect_hosts: canonical_redirect_hosts(redirect_hosts),
         http_settings,
+        trusted_cas: canonical_trusted_cas(trusted_cas),
     })
 }
 
@@ -89,19 +63,47 @@ fn hash_snapshot(snapshot: &impl Serialize) -> String {
     format!("sha256:{}", hex_digest(digest.as_ref()))
 }
 
+/// Extracts the revision from the typed Caddy probe route emitted by the
+/// renderer. The probe is deliberately a static response, so this also works
+/// with a persisted Admin API config without relying on comments.
 pub(crate) fn revision_from_config(contents: &str) -> Option<String> {
-    contents.lines().find_map(|line| {
-        line.strip_prefix("# rentnerproxy-revision: ")
-            .filter(|revision| is_revision(revision))
-            .map(ToOwned::to_owned)
-    })
+    let config = serde_json::from_str::<ProbeConfig>(contents).ok()?;
+    config
+        .apps?
+        .http?
+        .servers
+        .values()
+        .find_map(|server| find_revision(&server.routes))
+}
+
+fn find_revision(routes: &[ProbeRoute]) -> Option<String> {
+    for route in routes {
+        for handler in &route.handle {
+            if handler.handler == "static_response"
+                && handler.status_code == Some(200)
+                && handler
+                    .body
+                    .as_deref()
+                    .is_some_and(|body| body.strip_suffix('\n').is_some_and(is_revision))
+            {
+                return handler
+                    .body
+                    .as_deref()
+                    .and_then(|body| body.strip_suffix('\n'))
+                    .map(ToOwned::to_owned);
+            }
+        }
+        if let Some(revision) = find_revision(&route.routes) {
+            return Some(revision);
+        }
+    }
+    None
 }
 
 pub(super) fn canonical_hosts(hosts: &[ProxyHost]) -> Vec<ProxyHost> {
     let mut hosts = hosts.to_vec();
     for host in &mut hosts {
         host.domains.sort_unstable();
-        host.advanced_config = super::normalize_advanced_config(&host.advanced_config);
     }
     hosts.sort_unstable_by(|left, right| left.id.cmp(&right.id));
     hosts
@@ -122,50 +124,42 @@ pub(super) fn canonical_trusted_cas(trusted_cas: &[TrustedCa]) -> Vec<TrustedCa>
     trusted_cas
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct CanonicalSnapshot {
-    version: u8,
-    proxy_hosts: Vec<ProxyHost>,
-}
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CanonicalConfigurationSnapshot<'a> {
-    version: u8,
-    proxy_hosts: Vec<ProxyHost>,
-    http_settings: &'a ProxyHttpSettings,
-}
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CanonicalHostConfigurationSnapshot<'a> {
-    version: u8,
-    proxy_hosts: Vec<ProxyHost>,
-    http_settings: &'a ProxyHttpSettings,
-}
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CanonicalTlsConfigurationSnapshot<'a> {
-    version: u8,
-    proxy_hosts: Vec<ProxyHost>,
-    http_settings: &'a ProxyHttpSettings,
-}
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CanonicalUpstreamTlsConfigurationSnapshot<'a> {
-    version: u8,
-    proxy_hosts: Vec<ProxyHost>,
-    http_settings: &'a ProxyHttpSettings,
-    trusted_cas: &'a [TrustedCa],
+struct ProbeConfig {
+    apps: Option<ProbeApps>,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CanonicalRedirectConfigurationSnapshot<'a> {
-    version: u8,
-    proxy_hosts: Vec<ProxyHost>,
-    redirect_hosts: Vec<RedirectHost>,
-    http_settings: &'a ProxyHttpSettings,
-    trusted_cas: &'a [TrustedCa],
+#[derive(Deserialize)]
+struct ProbeApps {
+    http: Option<ProbeHttp>,
+}
+
+#[derive(Deserialize)]
+struct ProbeHttp {
+    #[serde(default)]
+    servers: BTreeMap<String, ProbeServer>,
+}
+
+#[derive(Deserialize)]
+struct ProbeServer {
+    #[serde(default)]
+    routes: Vec<ProbeRoute>,
+}
+
+#[derive(Deserialize)]
+struct ProbeRoute {
+    #[serde(default)]
+    handle: Vec<ProbeHandler>,
+    #[serde(default)]
+    routes: Vec<ProbeRoute>,
+}
+
+#[derive(Deserialize)]
+struct ProbeHandler {
+    handler: String,
+    body: Option<String>,
+    status_code: Option<u16>,
 }
 
 pub(super) fn is_revision(value: &str) -> bool {

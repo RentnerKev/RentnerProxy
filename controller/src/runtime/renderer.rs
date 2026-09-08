@@ -1,10 +1,12 @@
 use std::{
-    collections::BTreeMap,
-    net::Ipv6Addr,
+    collections::{BTreeMap, BTreeSet},
+    net::IpAddr,
     path::{Path, PathBuf},
 };
 
-use crate::models::{ProxyHttpSettings, RedirectHost, ValidatedProxyConfig};
+use serde::Serialize;
+
+use crate::models::{ProxyHost, ProxyHttpSettings, RedirectHost, ValidatedProxyConfig};
 
 pub(crate) const MAX_RENDERED_PROXY_CONFIG_BYTES: usize = 16 * 1024 * 1024;
 pub(crate) const MAX_RENDERED_PROXY_HOST_SOURCE_BYTES: usize = 128 * 1024;
@@ -13,6 +15,9 @@ pub(crate) const MAX_RENDERED_PROXY_HOST_SOURCE_BYTES: usize = 128 * 1024;
 pub(crate) struct RenderSettings {
     pub(crate) http_port: u16,
     pub(crate) probe_socket: Option<PathBuf>,
+    pub(crate) admin_socket: Option<PathBuf>,
+    pub(crate) state_dir: PathBuf,
+    pub(crate) controller_port: u16,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -44,67 +49,201 @@ pub(crate) enum RenderError {
     ConfigTooLarge,
 }
 
+#[derive(Serialize)]
+struct CaddyConfig {
+    admin: Admin,
+    storage: Storage,
+    apps: Apps,
+}
+
+#[derive(Serialize)]
+struct Admin {
+    listen: String,
+    config: AdminConfig,
+}
+
+#[derive(Serialize)]
+struct AdminConfig {
+    persist: bool,
+}
+
+#[derive(Serialize)]
+struct Storage {
+    module: String,
+    root: String,
+}
+
+#[derive(Serialize)]
+struct Apps {
+    http: HttpApp,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tls: Option<TlsApp>,
+}
+
+#[derive(Serialize)]
+struct HttpApp {
+    servers: BTreeMap<String, HttpServer>,
+}
+
+#[derive(Serialize)]
+struct HttpServer {
+    listen: Vec<String>,
+    routes: Vec<Route>,
+    automatic_https: AutoHttps,
+    protocols: Vec<String>,
+    read_header_timeout: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    write_timeout: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    idle_timeout: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    strict_sni_host: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tls_connection_policies: Option<Vec<TlsConnectionPolicy>>,
+}
+
+#[derive(Serialize)]
+struct AutoHttps {
+    disable: bool,
+}
+
+#[derive(Serialize)]
+struct Route {
+    #[serde(rename = "match", skip_serializing_if = "Vec::is_empty")]
+    matchers: Vec<Matcher>,
+    handle: Vec<Handler>,
+    terminal: bool,
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum Matcher {
+    Host { host: Vec<String> },
+    Path { path: Vec<String> },
+}
+
+#[derive(Serialize)]
+#[serde(tag = "handler")]
+enum Handler {
+    #[serde(rename = "static_response")]
+    StaticResponse(StaticResponse),
+    #[serde(rename = "reverse_proxy")]
+    ReverseProxy(Box<ReverseProxy>),
+    #[serde(rename = "request_body")]
+    RequestBody(RequestBody),
+}
+
+#[derive(Serialize)]
+struct StaticResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    body: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    status_code: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    headers: Option<BTreeMap<String, Vec<String>>>,
+}
+
+#[derive(Serialize)]
+struct RequestBody {
+    max_size: u64,
+}
+
+#[derive(Serialize)]
+struct ReverseProxy {
+    upstreams: Vec<Upstream>,
+    headers: RequestHeaders,
+    transport: HttpTransport,
+    stream_close_delay: String,
+}
+
+#[derive(Serialize)]
+struct Upstream {
+    dial: String,
+}
+
+#[derive(Serialize)]
+struct RequestHeaders {
+    request: HeaderOps,
+}
+
+#[derive(Serialize)]
+struct HeaderOps {
+    set: BTreeMap<String, Vec<String>>,
+    delete: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct HttpTransport {
+    protocol: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dial_timeout: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    read_timeout: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    response_header_timeout: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    write_timeout: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tls: Option<UpstreamTls>,
+}
+
+#[derive(Serialize)]
+struct UpstreamTls {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ca: Option<CaSource>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    insecure_skip_verify: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    server_name: Option<String>,
+}
+
+#[derive(Serialize)]
+struct CaSource {
+    provider: String,
+    pem_files: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct TlsApp {
+    certificates: CertificateLoaders,
+}
+
+#[derive(Serialize)]
+struct CertificateLoaders {
+    load_files: Vec<CertificateFile>,
+}
+
+#[derive(Serialize)]
+struct CertificateFile {
+    certificate: String,
+    key: String,
+    tags: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct TlsConnectionPolicy {
+    #[serde(rename = "match")]
+    matcher: TlsMatcher,
+    certificate_selection: CertificateSelection,
+    protocol_min: String,
+    alpn: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct TlsMatcher {
+    sni: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct CertificateSelection {
+    any_tag: Vec<String>,
+}
+
 pub(crate) fn render_config(
     config: Option<&ValidatedProxyConfig>,
     settings: &RenderSettings,
 ) -> Result<String, RenderError> {
-    render_config_with_ports(config, settings, 8_081, 443, None)
-}
-
-fn render_config_with_ports(
-    config: Option<&ValidatedProxyConfig>,
-    settings: &RenderSettings,
-    controller_port: u16,
-    public_https_port: u16,
-    upstream_tls: Option<&UpstreamTlsRenderSettings>,
-) -> Result<String, RenderError> {
-    let revision = config.map_or("none", |config| config.revision.as_str());
-    let probe = settings
-        .probe_socket
-        .as_ref()
-        .map(|path| probe_socket_value(path))
-        .transpose()?;
-
-    let mut output = format!(
-        "# rentnerproxy-revision: {revision}\nworker_processes auto;\npid engine.pid;\nerror_log stderr warn;\n\nevents {{\n    worker_connections 1024;\n}}\n\nhttp {{\n    server_names_hash_bucket_size 512;\n    server_names_hash_max_size 65536;\n    access_log off;\n    server_tokens off;\n    sendfile on;\n    tcp_nopush on;\n    client_header_timeout 15s;\n    reset_timedout_connection on;\n\n    # Shared TLS policy also applies to the default SNI server.\n    ssl_protocols TLSv1.2 TLSv1.3;\n    ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;\n    ssl_prefer_server_ciphers on;\n    ssl_session_cache shared:rentnerproxy_tls:10m;\n    ssl_session_timeout 10m;\n    ssl_session_tickets off;\n\n    map $http_upgrade $connection_upgrade {{\n        default upgrade;\n        '' close;\n    }}\n\n    server {{\n        listen {} default_server;\n        server_name _;\n\n        location ^~ /.well-known/acme-challenge/ {{\n            proxy_pass http://127.0.0.1:{controller_port};\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_pass_request_body off;\n            proxy_set_header Content-Length \"\";\n            proxy_set_header Connection \"\";\n        }}\n\n        location / {{\n            return 404;\n        }}\n    }}\n",
-        settings.http_port
-    );
-
-    if let Some(config) = config.filter(|config| !config.http_settings.is_empty()) {
-        append_http_settings(&mut output, &config.http_settings);
-    }
-
-    if let Some(probe) = probe {
-        output.push_str(&format!(
-            "\n    server {{\n        listen unix:{probe};\n        server_name _;\n\n        location = /__rentnerproxy_runtime_probe {{\n            default_type text/plain;\n            return 200 \"{revision}\\n\";\n        }}\n\n        location / {{\n            return 404;\n        }}\n    }}\n"
-        ));
-    }
-
-    if let Some(config) = config {
-        for host in &config.proxy_hosts {
-            output.push('\n');
-            output.push_str(&render_active_host_config(
-                host,
-                settings.http_port,
-                controller_port,
-                public_https_port,
-                upstream_tls,
-            )?);
-        }
-        for host in &config.redirect_hosts {
-            output.push('\n');
-            output.push_str(&render_active_redirect_host_config(
-                host,
-                settings.http_port,
-                controller_port,
-            ));
-        }
-    }
-    output.push_str("}\n");
-    if output.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
-        return Err(RenderError::ConfigTooLarge);
-    }
-    Ok(output)
+    render_config_inner(config, settings, None, None, None)
 }
 
 pub(crate) fn render_config_with_tls(
@@ -114,354 +253,512 @@ pub(crate) fn render_config_with_tls(
     materials: &BTreeMap<String, TlsMaterial>,
     upstream_tls: &UpstreamTlsRenderSettings,
 ) -> Result<String, RenderError> {
-    let mut output = render_config_with_ports(
+    render_config_inner(
         Some(config),
         settings,
-        tls.controller_port,
-        tls.public_https_port,
+        Some(tls),
+        Some(materials),
         Some(upstream_tls),
-    )?;
-    if !output.ends_with("}\n") {
-        return Err(RenderError::ConfigTooLarge);
-    }
-    output.truncate(output.len() - 2);
-    output.push_str(&format!(
-        "\n    server {{\n        listen {} default_server ssl;\n        server_name _;\n        ssl_reject_handshake on;\n    }}\n",
-        tls.https_port
-    ));
-    for host in &config.proxy_hosts {
-        let Some(certificate_id) = host.certificate_id.as_ref() else {
-            continue;
-        };
-        let material = materials
-            .get(certificate_id)
-            .ok_or(RenderError::MissingCertificate)?;
-        output.push('\n');
-        output.push_str(&render_tls_server(host, tls, material, upstream_tls)?);
-    }
-    for host in &config.redirect_hosts {
-        let Some(certificate_id) = host.certificate_id.as_ref() else {
-            continue;
-        };
-        let material = materials
-            .get(certificate_id)
-            .ok_or(RenderError::MissingCertificate)?;
-        output.push('\n');
-        output.push_str(&render_tls_redirect_server(host, tls, material)?);
+    )
+}
+
+fn render_config_inner(
+    config: Option<&ValidatedProxyConfig>,
+    settings: &RenderSettings,
+    tls: Option<&TlsRenderSettings>,
+    materials: Option<&BTreeMap<String, TlsMaterial>>,
+    upstream_tls: Option<&UpstreamTlsRenderSettings>,
+) -> Result<String, RenderError> {
+    let config = config.cloned().unwrap_or_else(empty_config);
+    let revision = if config.revision.is_empty() {
+        "none"
+    } else {
+        &config.revision
+    };
+    let admin_listen = admin_listen(settings.admin_socket.as_deref())?;
+    let state_root = path_string(&settings.state_dir, RenderError::InvalidProbeSocket)?;
+    let mut servers = BTreeMap::new();
+    servers.insert(
+        "rentnerproxy-http".to_owned(),
+        HttpServer {
+            listen: vec![format!(":{}", settings.http_port)],
+            routes: http_routes(
+                &config,
+                settings,
+                tls.map_or(443, |v| v.public_https_port),
+                upstream_tls,
+            )?,
+            automatic_https: AutoHttps { disable: true },
+            protocols: vec!["h1".to_owned(), "h2".to_owned()],
+            read_header_timeout: "15s".to_owned(),
+            write_timeout: seconds(config.http_settings.send_timeout_seconds),
+            idle_timeout: seconds(config.http_settings.keepalive_timeout_seconds),
+            strict_sni_host: None,
+            tls_connection_policies: None,
+        },
+    );
+    {
+        let listen = settings
+            .probe_socket
+            .as_deref()
+            .map(probe_listen)
+            .transpose()?
+            .unwrap_or_else(|| "127.0.0.1:2020".to_owned());
+        servers.insert(
+            "rentnerproxy-probe".to_owned(),
+            HttpServer {
+                listen: vec![listen],
+                routes: vec![
+                    Route {
+                        matchers: vec![Matcher::Path {
+                            path: vec!["/__rentnerproxy_runtime_probe".to_owned()],
+                        }],
+                        handle: vec![Handler::StaticResponse(StaticResponse {
+                            body: Some(format!("{revision}\n")),
+                            status_code: Some(200),
+                            headers: None,
+                        })],
+                        terminal: true,
+                    },
+                    not_found_route(),
+                ],
+                automatic_https: AutoHttps { disable: true },
+                protocols: vec!["h1".to_owned()],
+                read_header_timeout: "15s".to_owned(),
+                write_timeout: None,
+                idle_timeout: None,
+                strict_sni_host: None,
+                tls_connection_policies: None,
+            },
+        );
     }
 
-    output.push_str("}\n");
+    let mut tls_app = None;
+    if let (Some(tls), Some(materials), Some(upstream_tls)) = (tls, materials, upstream_tls) {
+        let mut certs = Vec::new();
+        let mut loaded_certificate_ids = BTreeSet::new();
+        let mut policies = Vec::new();
+        let mut https_routes = vec![challenge_route(settings.controller_port)];
+        for host in &config.proxy_hosts {
+            let Some(certificate_id) = host.certificate_id.as_ref() else {
+                continue;
+            };
+            let material = materials
+                .get(certificate_id)
+                .ok_or(RenderError::MissingCertificate)?;
+            if loaded_certificate_ids.insert(certificate_id.clone()) {
+                certs.push(CertificateFile {
+                    certificate: certificate_path(&material.fullchain_path)?,
+                    key: certificate_path(&material.private_key_path)?,
+                    tags: vec![certificate_id.clone()],
+                });
+            }
+            policies.push(TlsConnectionPolicy {
+                matcher: TlsMatcher {
+                    sni: host.domains.clone(),
+                },
+                certificate_selection: CertificateSelection {
+                    any_tag: vec![certificate_id.clone()],
+                },
+                protocol_min: "tls1.2".to_owned(),
+                alpn: vec!["h2".to_owned(), "http/1.1".to_owned()],
+            });
+            https_routes.push(host_route(
+                host,
+                tls.public_https_port,
+                Some(upstream_tls),
+                true,
+                &config.http_settings,
+            )?);
+        }
+        for host in &config.redirect_hosts {
+            let Some(certificate_id) = host.certificate_id.as_ref() else {
+                continue;
+            };
+            let material = materials
+                .get(certificate_id)
+                .ok_or(RenderError::MissingCertificate)?;
+            if loaded_certificate_ids.insert(certificate_id.clone()) {
+                certs.push(CertificateFile {
+                    certificate: certificate_path(&material.fullchain_path)?,
+                    key: certificate_path(&material.private_key_path)?,
+                    tags: vec![certificate_id.clone()],
+                });
+            }
+            policies.push(TlsConnectionPolicy {
+                matcher: TlsMatcher {
+                    sni: host.domains.clone(),
+                },
+                certificate_selection: CertificateSelection {
+                    any_tag: vec![certificate_id.clone()],
+                },
+                protocol_min: "tls1.2".to_owned(),
+                alpn: vec!["h2".to_owned(), "http/1.1".to_owned()],
+            });
+            https_routes.push(redirect_route(host)?);
+        }
+        if !certs.is_empty() {
+            https_routes.push(not_found_route());
+            servers.insert(
+                "rentnerproxy-https".to_owned(),
+                HttpServer {
+                    listen: vec![format!(":{}", tls.https_port)],
+                    routes: https_routes,
+                    automatic_https: AutoHttps { disable: true },
+                    protocols: vec!["h1".to_owned(), "h2".to_owned()],
+                    read_header_timeout: "15s".to_owned(),
+                    write_timeout: seconds(config.http_settings.send_timeout_seconds),
+                    idle_timeout: seconds(config.http_settings.keepalive_timeout_seconds),
+                    strict_sni_host: Some(true),
+                    tls_connection_policies: Some(policies),
+                },
+            );
+            tls_app = Some(TlsApp {
+                certificates: CertificateLoaders { load_files: certs },
+            });
+        }
+    }
+
+    let output = serde_json::to_string(&CaddyConfig {
+        admin: Admin {
+            listen: admin_listen,
+            config: AdminConfig { persist: true },
+        },
+        storage: Storage {
+            module: "file_system".to_owned(),
+            root: format!("{state_root}/caddy/data"),
+        },
+        apps: Apps {
+            http: HttpApp { servers },
+            tls: tls_app,
+        },
+    })
+    .map_err(|_| RenderError::ConfigTooLarge)?;
     if output.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {
         return Err(RenderError::ConfigTooLarge);
     }
     Ok(output)
 }
 
-fn render_tls_server(
-    host: &crate::models::ProxyHost,
-    tls: &TlsRenderSettings,
-    material: &TlsMaterial,
-    upstream_tls: &UpstreamTlsRenderSettings,
-) -> Result<String, RenderError> {
-    let certificate = certificate_path(&material.fullchain_path)?;
-    let private_key = certificate_path(&material.private_key_path)?;
-    let upstream_host = if host.forward_host.parse::<Ipv6Addr>().is_ok() {
-        format!("[{}]", host.forward_host)
-    } else {
-        host.forward_host.clone()
-    };
-    let upstream = format!(
-        "{}://{upstream_host}:{}",
-        host.forward_scheme, host.forward_port
-    );
-    let mut output = format!(
-        "    server {{\n        listen {} ssl;\n        server_name {};\n        ssl_certificate {certificate};\n        ssl_certificate_key {private_key};\n\n        location / {{\n            proxy_pass {upstream};\n",
-        tls.https_port,
-        host.domains.join(" ")
-    );
-    if !host.http_settings.is_empty() {
-        let location_offset = output
-            .find("\n        location / {")
-            .ok_or(RenderError::ConfigTooLarge)?;
-        let mut settings = String::new();
-        append_host_http_settings(&mut settings, &host.http_settings, "        ");
-        output.insert_str(location_offset, &settings);
+fn empty_config() -> ValidatedProxyConfig {
+    ValidatedProxyConfig {
+        revision: String::new(),
+        proxy_hosts: Vec::new(),
+        redirect_hosts: Vec::new(),
+        http_settings: ProxyHttpSettings::default(),
+        trusted_cas: Vec::new(),
     }
-    append_proxy_headers(&mut output, "            ");
-    append_upstream_tls(&mut output, host, Some(upstream_tls), "            ")?;
-    output.push_str("        }\n");
-    if !host.advanced_config.is_empty() {
-        output.push_str(
-            "\n        # rentnerproxy: advanced proxy host configuration (server context)\n",
-        );
-        output.push_str(&host.advanced_config);
-        if !host.advanced_config.ends_with('\n') {
-            output.push('\n');
-        }
-    }
-    output.push_str("    }\n");
-    Ok(output)
 }
 
-fn redirect_target(host: &RedirectHost) -> String {
+fn http_routes(
+    config: &ValidatedProxyConfig,
+    settings: &RenderSettings,
+    public_https_port: u16,
+    upstream_tls: Option<&UpstreamTlsRenderSettings>,
+) -> Result<Vec<Route>, RenderError> {
+    let mut routes = vec![challenge_route(settings.controller_port)];
+    for host in &config.proxy_hosts {
+        routes.push(host_route(
+            host,
+            public_https_port,
+            upstream_tls,
+            false,
+            &config.http_settings,
+        )?);
+    }
+    for host in &config.redirect_hosts {
+        routes.push(redirect_route(host)?);
+    }
+    routes.push(not_found_route());
+    Ok(routes)
+}
+
+fn challenge_route(controller_port: u16) -> Route {
+    Route {
+        matchers: vec![Matcher::Path {
+            path: vec!["/.well-known/acme-challenge/*".to_owned()],
+        }],
+        handle: vec![Handler::ReverseProxy(Box::new(
+            reverse_proxy(&format!("127.0.0.1:{controller_port}"), None, None, None)
+                .expect("controller challenge proxy is always valid"),
+        ))],
+        terminal: true,
+    }
+}
+
+fn host_route(
+    host: &ProxyHost,
+    public_https_port: u16,
+    upstream_tls: Option<&UpstreamTlsRenderSettings>,
+    https_listener: bool,
+    defaults: &ProxyHttpSettings,
+) -> Result<Route, RenderError> {
+    let mut handle = Vec::new();
+    if let Some(max_size) = host
+        .http_settings
+        .client_max_body_size_bytes
+        .or(defaults.client_max_body_size_bytes)
+        && (!host.force_https || https_listener)
+    {
+        // Redirects do not consume the body; apply its limit only when forwarding.
+        handle.push(Handler::RequestBody(RequestBody {
+            max_size: u64::from(max_size),
+        }));
+    }
+    if host.force_https && !https_listener {
+        handle.push(Handler::StaticResponse(StaticResponse {
+            body: None,
+            status_code: Some(308),
+            headers: Some(location_headers(force_https_location(public_https_port))),
+        }));
+    } else {
+        let upstream = upstream_dial(&host.forward_host, host.forward_port);
+        handle.push(Handler::ReverseProxy(Box::new(reverse_proxy(
+            &upstream,
+            Some(host),
+            Some(defaults),
+            upstream_tls,
+        )?)));
+    }
+    Ok(Route {
+        matchers: vec![Matcher::Host {
+            host: host.domains.clone(),
+        }],
+        handle,
+        terminal: true,
+    })
+}
+
+fn redirect_route(host: &RedirectHost) -> Result<Route, RenderError> {
+    Ok(Route {
+        matchers: vec![Matcher::Host {
+            host: host.domains.clone(),
+        }],
+        handle: vec![Handler::StaticResponse(StaticResponse {
+            body: None,
+            status_code: Some(host.status_code),
+            headers: Some(location_headers(redirect_location(host))),
+        })],
+        terminal: true,
+    })
+}
+
+fn not_found_route() -> Route {
+    Route {
+        matchers: Vec::new(),
+        handle: vec![Handler::StaticResponse(StaticResponse {
+            body: None,
+            status_code: Some(404),
+            headers: None,
+        })],
+        terminal: true,
+    }
+}
+
+fn reverse_proxy(
+    upstream: &str,
+    host: Option<&ProxyHost>,
+    defaults: Option<&ProxyHttpSettings>,
+    ca_settings: Option<&UpstreamTlsRenderSettings>,
+) -> Result<ReverseProxy, RenderError> {
+    let mut set = BTreeMap::new();
+    set.insert("Host".to_owned(), vec!["{http.request.host}".to_owned()]);
+    set.insert(
+        "X-Real-IP".to_owned(),
+        vec!["{http.request.remote.host}".to_owned()],
+    );
+    let mut transport = HttpTransport {
+        protocol: "http".to_owned(),
+        dial_timeout: None,
+        read_timeout: None,
+        response_header_timeout: None,
+        write_timeout: None,
+        tls: None,
+    };
+    if let Some(host) = host {
+        let settings = &host.http_settings;
+        transport.dial_timeout = seconds(
+            settings
+                .proxy_connect_timeout_seconds
+                .or_else(|| defaults.and_then(|v| v.proxy_connect_timeout_seconds)),
+        );
+        transport.read_timeout = seconds(
+            settings
+                .proxy_read_timeout_seconds
+                .or_else(|| defaults.and_then(|v| v.proxy_read_timeout_seconds)),
+        );
+        transport.response_header_timeout = seconds(
+            settings
+                .proxy_read_timeout_seconds
+                .or_else(|| defaults.and_then(|v| v.proxy_read_timeout_seconds)),
+        );
+        transport.write_timeout = seconds(
+            settings
+                .proxy_send_timeout_seconds
+                .or_else(|| defaults.and_then(|v| v.proxy_send_timeout_seconds)),
+        );
+        if host.forward_scheme == "https" {
+            let policy = Some(
+                host.upstream_tls
+                    .as_ref()
+                    .ok_or(RenderError::MissingUpstreamTlsPolicy)?,
+            );
+            let server_name = policy.and_then(|p| p.server_name.clone()).or_else(|| {
+                host.forward_host
+                    .parse::<IpAddr>()
+                    .ok()
+                    .is_none()
+                    .then(|| host.forward_host.clone())
+            });
+            let (ca, insecure) = match (policy, ca_settings) {
+                (Some(policy), Some(settings)) if policy.verify => {
+                    let path = match policy.trusted_ca_id.as_ref() {
+                        Some(id) => settings
+                            .trusted_ca_paths
+                            .get(id)
+                            .ok_or(RenderError::MissingTrustedCa)?,
+                        None => &settings.system_ca_bundle,
+                    };
+                    (
+                        Some(CaSource {
+                            provider: "file".to_owned(),
+                            pem_files: vec![certificate_path(path)?],
+                        }),
+                        None,
+                    )
+                }
+                (Some(policy), None) if policy.verify => return Err(RenderError::MissingTrustedCa),
+                (Some(_), _) => (None, Some(true)),
+                _ => (None, None),
+            };
+            transport.tls = Some(UpstreamTls {
+                ca,
+                insecure_skip_verify: insecure,
+                server_name,
+            });
+        }
+    }
+    Ok(ReverseProxy {
+        upstreams: vec![Upstream {
+            dial: upstream.to_owned(),
+        }],
+        headers: RequestHeaders {
+            request: HeaderOps {
+                set,
+                // Caddy rebuilds X-Forwarded-{For,Host,Proto} from the actual peer by default.
+                // Remove additional client assertions it intentionally forwards unchanged.
+                delete: [
+                    "Forwarded",
+                    "X-Forwarded-Port",
+                    "X-Forwarded-Prefix",
+                    "Proxy",
+                ]
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+            },
+        },
+        transport,
+        stream_close_delay: "5m".to_owned(),
+    })
+}
+
+fn location_headers(value: String) -> BTreeMap<String, Vec<String>> {
+    BTreeMap::from([(String::from("Location"), vec![value])])
+}
+
+fn upstream_dial(host: &str, port: u16) -> String {
+    if host.parse::<std::net::Ipv6Addr>().is_ok() {
+        format!("[{host}]:{port}")
+    } else {
+        format!("{host}:{port}")
+    }
+}
+
+fn force_https_location(port: u16) -> String {
+    if port == 443 {
+        "https://{http.request.host}{http.request.uri}".to_owned()
+    } else {
+        format!("https://{{http.request.host}}:{port}{{http.request.uri}}")
+    }
+}
+
+fn redirect_location(host: &RedirectHost) -> String {
     if host.preserve_request_uri {
-        format!("{}$request_uri", host.destination)
+        format!("{}{{http.request.uri}}", host.destination)
     } else {
         host.destination.clone()
     }
 }
 
-fn render_active_redirect_host_config(
-    host: &RedirectHost,
-    http_port: u16,
-    controller_port: u16,
-) -> String {
-    let target = redirect_target(host);
-    format!(
-        "    server {{\n        listen {http_port};\n        server_name {};\n\n        location ^~ /.well-known/acme-challenge/ {{\n            proxy_pass http://127.0.0.1:{controller_port};\n            proxy_http_version 1.1;\n            proxy_set_header Host $host;\n            proxy_pass_request_body off;\n            proxy_set_header Content-Length \"\";\n            proxy_set_header Connection \"\";\n        }}\n\n        location / {{\n            return {} \"{target}\";\n        }}\n    }}\n",
-        host.domains.join(" "),
-        host.status_code,
-    )
+fn seconds(value: Option<u32>) -> Option<String> {
+    value.map(|value| format!("{value}s"))
 }
 
-fn render_tls_redirect_server(
-    host: &RedirectHost,
-    tls: &TlsRenderSettings,
-    material: &TlsMaterial,
-) -> Result<String, RenderError> {
-    let certificate = certificate_path(&material.fullchain_path)?;
-    let private_key = certificate_path(&material.private_key_path)?;
-    let target = redirect_target(host);
-    Ok(format!(
-        "    server {{\n        listen {} ssl;\n        server_name {};\n        ssl_certificate {certificate};\n        ssl_certificate_key {private_key};\n\n        location / {{\n            return {} \"{target}\";\n        }}\n    }}\n",
-        tls.https_port,
-        host.domains.join(" "),
-        host.status_code,
-    ))
-}
-
-// This listener is the public trust boundary. Never append client-supplied identity headers.
-fn append_proxy_headers(output: &mut String, indent: &str) {
-    for directive in [
-        "proxy_http_version 1.1;",
-        "proxy_set_header Host $host;",
-        "proxy_set_header X-Real-IP $remote_addr;",
-        "proxy_set_header X-Forwarded-For $remote_addr;",
-        "proxy_set_header X-Forwarded-Host $host;",
-        "proxy_set_header X-Forwarded-Proto $scheme;",
-        "proxy_set_header X-Forwarded-Port \"\";",
-        "proxy_set_header X-Forwarded-Prefix \"\";",
-        "proxy_set_header Forwarded \"\";",
-        "proxy_set_header Proxy \"\";",
-        "proxy_set_header Upgrade $http_upgrade;",
-        "proxy_set_header Connection $connection_upgrade;",
-    ] {
-        output.push_str(indent);
-        output.push_str(directive);
-        output.push('\n');
-    }
-}
-
-fn append_upstream_tls(
-    output: &mut String,
-    host: &crate::models::ProxyHost,
-    settings: Option<&UpstreamTlsRenderSettings>,
-    indent: &str,
-) -> Result<(), RenderError> {
-    if host.forward_scheme != "https" {
-        return Ok(());
-    }
-    let upstream_tls = host
-        .upstream_tls
-        .as_ref()
-        .ok_or(RenderError::MissingUpstreamTlsPolicy)?;
-    let server_name = upstream_tls.server_name.as_deref().or_else(|| {
-        (host.forward_host.parse::<std::net::IpAddr>().is_err())
-            .then_some(host.forward_host.as_str())
-    });
-    if let Some(server_name) = server_name {
-        output.push_str(&format!(
-            "{indent}proxy_ssl_server_name on;\n{indent}proxy_ssl_name {server_name};\n"
-        ));
-    } else {
-        output.push_str(&format!("{indent}proxy_ssl_server_name off;\n"));
-    }
-    if upstream_tls.verify {
-        let settings = settings.ok_or(RenderError::MissingTrustedCa)?;
-        let trusted_certificate = match upstream_tls.trusted_ca_id.as_deref() {
-            Some(id) => settings
-                .trusted_ca_paths
-                .get(id)
-                .ok_or(RenderError::MissingTrustedCa)?,
-            None => &settings.system_ca_bundle,
-        };
-        let trusted_certificate = certificate_path(trusted_certificate)?;
-        output.push_str(&format!(
-            "{indent}proxy_ssl_verify on;\n{indent}proxy_ssl_verify_depth 5;\n{indent}proxy_ssl_trusted_certificate {trusted_certificate};\n"
-        ));
-    } else {
-        output.push_str(&format!("{indent}proxy_ssl_verify off;\n"));
-    }
-    Ok(())
-}
-fn certificate_path(path: &Path) -> Result<String, RenderError> {
-    let value = path
-        .to_str()
-        .ok_or(RenderError::InvalidCertificatePath)?
-        .replace('\\', "/");
+fn path_string(path: &Path, error: RenderError) -> Result<String, RenderError> {
+    let value = path.to_str().ok_or(error)?.replace('\\', "/");
     if !path.is_absolute()
         || value.is_empty()
-        || value.bytes().any(|byte| {
-            byte.is_ascii_whitespace()
-                || matches!(byte, b';' | b'{' | b'}' | b'#' | b'$' | b'"' | b'\'')
-        })
+        || value
+            .bytes()
+            .any(|b| b.is_ascii_control() || matches!(b, b'|' | b'{' | b'}'))
     {
-        return Err(RenderError::InvalidCertificatePath);
+        return Err(error);
     }
     Ok(value)
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
-pub(crate) fn render_host_config(host: &crate::models::ProxyHost, http_port: u16) -> String {
-    render_host_config_for_runtime(host, http_port, 8_081, 443, None)
-        .expect("legacy host rendering requires no upstream TLS material")
+fn admin_listen(path: Option<&Path>) -> Result<String, RenderError> {
+    path.map(|path| {
+        path_string(path, RenderError::InvalidProbeSocket).map(|value| format!("unix/{value}|0600"))
+    })
+    .transpose()?
+    .map_or_else(|| Ok("127.0.0.1:2019".to_owned()), Ok)
+}
+
+fn probe_listen(path: &Path) -> Result<String, RenderError> {
+    path_string(path, RenderError::InvalidProbeSocket).map(|value| format!("unix/{value}|0600"))
+}
+
+fn certificate_path(path: &Path) -> Result<String, RenderError> {
+    path_string(path, RenderError::InvalidCertificatePath)
+}
+
+/// Read-only route fragments; server and certificate loading policy is in the full configuration.
+#[derive(Serialize)]
+struct HostSource {
+    http: Route,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    https: Option<Route>,
 }
 
 pub(crate) fn render_host_config_for_runtime(
-    host: &crate::models::ProxyHost,
-    http_port: u16,
-    controller_port: u16,
+    host: &ProxyHost,
+    defaults: &ProxyHttpSettings,
     public_https_port: u16,
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
 ) -> Result<String, RenderError> {
-    render_host_config_with_indentation(
-        host,
-        http_port,
-        controller_port,
-        public_https_port,
-        upstream_tls,
-        "",
-        "    ",
-        true,
-    )
-}
-
-fn render_active_host_config(
-    host: &crate::models::ProxyHost,
-    http_port: u16,
-    controller_port: u16,
-    public_https_port: u16,
-    upstream_tls: Option<&UpstreamTlsRenderSettings>,
-) -> Result<String, RenderError> {
-    render_host_config_with_indentation(
-        host,
-        http_port,
-        controller_port,
-        public_https_port,
-        upstream_tls,
-        "    ",
-        "        ",
-        false,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn render_host_config_with_indentation(
-    host: &crate::models::ProxyHost,
-    http_port: u16,
-    controller_port: u16,
-    public_https_port: u16,
-    upstream_tls: Option<&UpstreamTlsRenderSettings>,
-    server_indent: &str,
-    directive_indent: &str,
-    include_setting_markers: bool,
-) -> Result<String, RenderError> {
-    let nested_indent = format!("{directive_indent}    ");
-    let upstream_host = if host.forward_host.parse::<Ipv6Addr>().is_ok() {
-        format!("[{}]", host.forward_host)
-    } else {
-        host.forward_host.clone()
+    let source = HostSource {
+        http: host_route(host, public_https_port, upstream_tls, false, defaults)?,
+        https: host
+            .certificate_id
+            .as_ref()
+            .map(|_| host_route(host, public_https_port, upstream_tls, true, defaults))
+            .transpose()?,
     };
-    let upstream = format!(
-        "{}://{upstream_host}:{}",
-        host.forward_scheme, host.forward_port
-    );
-    let mut output = format!(
-        "{server_indent}server {{\n{directive_indent}listen {http_port};\n{directive_indent}server_name {};\n",
-        host.domains.join(" ")
-    );
-
-    output.push('\n');
-    if include_setting_markers {
-        output.push_str(&format!(
-            "{directive_indent}# rentnerproxy: host HTTP settings begin\n"
-        ));
-        append_host_http_settings(&mut output, &host.http_settings, directive_indent);
-        output.push_str(&format!(
-            "{directive_indent}# rentnerproxy: host HTTP settings end\n"
-        ));
-        output.push('\n');
-    } else if !host.http_settings.is_empty() {
-        append_host_http_settings(&mut output, &host.http_settings, directive_indent);
-        output.push('\n');
-    }
-
-    output.push_str(&format!(
-        "{directive_indent}location ^~ /.well-known/acme-challenge/ {{\n{nested_indent}proxy_pass http://127.0.0.1:{controller_port};\n{nested_indent}proxy_http_version 1.1;\n{nested_indent}proxy_set_header Host $host;\n{nested_indent}proxy_pass_request_body off;\n{nested_indent}proxy_set_header Content-Length \"\";\n{nested_indent}proxy_set_header Connection \"\";\n{directive_indent}}}\n\n"
-    ));
-    if host.force_https {
-        let redirect = if public_https_port == 443 {
-            "https://$host$request_uri".to_owned()
-        } else {
-            format!("https://$host:{public_https_port}$request_uri")
-        };
-        output.push_str(&format!(
-            "{directive_indent}location / {{\n{nested_indent}return 308 {redirect};\n{directive_indent}}}\n"
-        ));
-    } else {
-        output.push_str(&format!(
-            "{directive_indent}location / {{\n{nested_indent}proxy_pass "
-        ));
-        output.push_str(&upstream);
-        output.push_str(";\n");
-        append_proxy_headers(&mut output, &nested_indent);
-        append_upstream_tls(&mut output, host, upstream_tls, &nested_indent)?;
-        output.push_str(&format!("{directive_indent}}}\n"));
-    }
-    if !host.advanced_config.is_empty() {
-        output.push_str(&format!(
-            "\n{directive_indent}# rentnerproxy: advanced proxy host configuration (server context)\n"
-        ));
-        output.push_str(&host.advanced_config);
-        if !host.advanced_config.ends_with('\n') {
-            output.push('\n');
-        }
-    }
-    output.push_str(&format!("{server_indent}}}\n"));
-    Ok(output)
-}
-
-#[allow(dead_code)]
-pub(crate) fn render_host_sources(
-    configuration: &ValidatedProxyConfig,
-    http_port: u16,
-) -> Result<std::collections::BTreeMap<String, String>, RenderError> {
-    render_host_sources_for_runtime(configuration, http_port, 8_081, 443, None)
+    serde_json::to_string(&source).map_err(|_| RenderError::ConfigTooLarge)
 }
 
 pub(crate) fn render_host_sources_for_runtime(
     configuration: &ValidatedProxyConfig,
-    http_port: u16,
-    controller_port: u16,
     public_https_port: u16,
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
-) -> Result<std::collections::BTreeMap<String, String>, RenderError> {
-    let mut sources = std::collections::BTreeMap::new();
+) -> Result<BTreeMap<String, String>, RenderError> {
+    let mut sources = BTreeMap::new();
     for host in &configuration.proxy_hosts {
-        let source = render_active_host_config(
+        let source = render_host_config_for_runtime(
             host,
-            http_port,
-            controller_port,
+            &configuration.http_settings,
             public_https_port,
             upstream_tls,
         )?;
@@ -470,53 +767,5 @@ pub(crate) fn render_host_sources_for_runtime(
         }
         sources.insert(host.id.clone(), source);
     }
-    for host in &configuration.redirect_hosts {
-        let source = render_active_redirect_host_config(host, http_port, controller_port);
-        if source.len() > MAX_RENDERED_PROXY_HOST_SOURCE_BYTES {
-            return Err(RenderError::ConfigTooLarge);
-        }
-        if sources.insert(host.id.clone(), source).is_some() {
-            return Err(RenderError::ConfigTooLarge);
-        }
-    }
-
     Ok(sources)
-}
-fn append_http_settings(output: &mut String, settings: &ProxyHttpSettings) {
-    output.push_str("\n    # rentnerproxy: managed HTTP settings\n");
-    append_host_http_settings(output, settings, "    ");
-}
-
-fn append_host_http_settings(output: &mut String, settings: &ProxyHttpSettings, indent: &str) {
-    if let Some(value) = settings.client_max_body_size_bytes {
-        output.push_str(&format!("{indent}client_max_body_size {value};\n"));
-    }
-    if let Some(value) = settings.proxy_connect_timeout_seconds {
-        output.push_str(&format!("{indent}proxy_connect_timeout {value}s;\n"));
-    }
-    if let Some(value) = settings.proxy_read_timeout_seconds {
-        output.push_str(&format!("{indent}proxy_read_timeout {value}s;\n"));
-    }
-    if let Some(value) = settings.proxy_send_timeout_seconds {
-        output.push_str(&format!("{indent}proxy_send_timeout {value}s;\n"));
-    }
-    if let Some(value) = settings.send_timeout_seconds {
-        output.push_str(&format!("{indent}send_timeout {value}s;\n"));
-    }
-    if let Some(value) = settings.keepalive_timeout_seconds {
-        output.push_str(&format!("{indent}keepalive_timeout {value}s;\n"));
-    }
-}
-
-fn probe_socket_value(path: &Path) -> Result<&str, RenderError> {
-    let value = path.to_str().ok_or(RenderError::InvalidProbeSocket)?;
-    if !path.is_absolute()
-        || value.is_empty()
-        || value.bytes().any(|byte| {
-            byte.is_ascii_whitespace() || matches!(byte, b';' | b'{' | b'}' | b'#' | b'"' | b'\\')
-        })
-    {
-        return Err(RenderError::InvalidProbeSocket);
-    }
-    Ok(value)
 }
