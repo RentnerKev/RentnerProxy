@@ -223,7 +223,11 @@ fn upstream_tls_uses_explicit_trust_sni_and_native_forwarding_defaults() {
 #[test]
 fn host_sources_include_effective_http_and_https_routes() {
     use crate::runtime::renderer::render_host_config_for_runtime;
-    let mut host = config().proxy_hosts.remove(0);
+    let mut host = config()
+        .proxy_hosts
+        .into_iter()
+        .next()
+        .expect("fixture contains a proxy host");
     host.force_https = true;
     host.certificate_id = Some("certificate".into());
     host.http_settings.proxy_read_timeout_seconds = Some(17);
