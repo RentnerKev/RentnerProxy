@@ -47,6 +47,25 @@ management address users will use. Data is kept in the persistent `rentnerproxy`
 traffic uses ports `80` and `443`; for remote management, use an SSH tunnel such as
 `ssh -L 8181:127.0.0.1:81 user@server` and open `http://localhost:8181`.
 
+### Development installation
+
+Contributors need Bun 1.4.2, Rust 1.98.0, PostgreSQL 18+, and Redis.
+Clone the repository, start PostgreSQL and Redis separately, then run:
+
+```bash
+cp .env.example .env
+# Configure DATABASE_URL, REDIS_URL, SMTP_*, and the local APP_URL.
+# Generate APP_ENCRYPTION_KEY below, then copy the result into .env.
+bun -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+# Set RENTNERPROXY_CONTROLLER_TOKEN for certificate management or non-loopback controller access.
+bun install --frozen-lockfile
+bun run db:migrate
+bun run dev
+```
+
+The web app is available at `http://localhost:5173`. See [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+for the checks to run before opening a pull request.
+
 ## Features
 
 - Caddy 2.11.4 powers proxy hosts for HTTP, HTTPS, redirects, and WebSockets.
