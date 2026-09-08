@@ -16,7 +16,6 @@ import { smokeCompose, smokeDockerArguments } from './smoke-resources'
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const rootComposeFile = join(repositoryRoot, 'docker-compose.yml')
 const productionDockerfile = join(repositoryRoot, 'docker', 'production', 'Dockerfile')
-const caddyLicenseSha256 = '3ddf9be5c28fe27dad143a5dc76eea25222ad1dd68934a047064e56ed2fa40c5'
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const project = 'rentnerproxy-appliance-smoke-' + runId
 const smtpEnvironment = {
@@ -388,7 +387,9 @@ async function runSmoke(): Promise<void> {
         passed('empty appliance volume builds and starts healthy')
         assert.equal(
             await command(['docker', 'exec', id, 'sha256sum', '/usr/share/licenses/caddy/LICENSE']),
-            caddyLicenseSha256 + '  /usr/share/licenses/caddy/LICENSE',
+            // Git may check this file out with LF or CRLF. The image must contain those exact bytes.
+            digest(await readFile(join(repositoryRoot, 'docker', 'licenses', 'Caddy-LICENSE'))) +
+                '  /usr/share/licenses/caddy/LICENSE',
         )
         passed('redistributed Caddy binary includes the exact Apache-2.0 license')
         const roleState = await command([
@@ -1063,7 +1064,16 @@ try {
     await runSmoke()
     console.log('Appliance Compose smoke passed: ' + assertions + ' assertions')
 } catch (error) {
-    const message = error instanceof Error ? error.message : 'unknown smoke error'
-    console.error('Appliance Compose smoke failed: ' + message)
+    // Assertion messages can contain generated secret values. Keep the type and source location.
+    console.error(
+        'Appliance Compose smoke failed: ' +
+            (error instanceof Error ? error.name : 'unknown error'),
+    )
+    const location =
+        error instanceof Error
+            ? error.stack?.match(/appliance-compose-smoke\.ts:(\d+):(\d+)/u)
+            : undefined
+    if (location)
+        console.error('at scripts/appliance-compose-smoke.ts:' + location[1] + ':' + location[2])
     process.exitCode = 1
 }
