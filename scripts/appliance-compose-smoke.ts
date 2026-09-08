@@ -846,6 +846,19 @@ async function runSmoke(): Promise<void> {
         const backupEntries = await readdir(backupRoot)
         assert.equal(backupEntries.length, 1)
         const backupPath = join(backupRoot, backupEntries[0]!)
+        if (process.platform !== 'win32') {
+            assert.equal((await stat(backupPath)).mode & 0o777, 0o700)
+            for (const name of [
+                'app-encryption-key',
+                'controller-state.tar',
+                'metadata.json',
+                'postgres.dump',
+            ]) {
+                const file = await stat(join(backupPath, name))
+                assert.equal(file.uid, process.getuid?.())
+                assert.equal(file.mode & 0o777, 0o600)
+            }
+        }
         const backupMetadata = JSON.parse(
             await readFile(join(backupPath, 'metadata.json'), 'utf8'),
         ) as {
@@ -1069,11 +1082,16 @@ try {
         'Appliance Compose smoke failed: ' +
             (error instanceof Error ? error.name : 'unknown error'),
     )
-    const location =
+    const locations =
         error instanceof Error
-            ? error.stack?.match(/appliance-compose-smoke\.ts:(\d+):(\d+)/u)
+            ? error.stack?.matchAll(/appliance-compose-smoke\.ts:(\d+):(\d+)/gu)
             : undefined
-    if (location)
-        console.error('at scripts/appliance-compose-smoke.ts:' + location[1] + ':' + location[2])
+    if (locations) {
+        for (const location of [...locations].slice(0, 6)) {
+            console.error(
+                'at scripts/appliance-compose-smoke.ts:' + location[1] + ':' + location[2],
+            )
+        }
+    }
     process.exitCode = 1
 }

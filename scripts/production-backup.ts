@@ -202,7 +202,8 @@ async function backup(): Promise<void> {
             )
         }
 
-        await runCommand(
+        // Capture container output so private backup files belong to the invoking host user.
+        const appEncryptionKey = await runCommandBytes(
             [
                 ...compose,
                 'run',
@@ -210,17 +211,18 @@ async function backup(): Promise<void> {
                 '--rm',
                 '--no-deps',
                 '--entrypoint',
-                'bun',
+                'sh',
                 '--env',
                 'RENTNERPROXY_DATABASE_HOST=' + databaseHost,
-                '--volume',
-                stagingPath + ':/backup',
                 applianceService,
-                bootstrapScript,
-                'export-app-key',
+                '-c',
+                'set -eu; mkdir -m 0700 /backup; bun ' +
+                    bootstrapScript +
+                    ' export-app-key >&2; cat /backup/app-encryption-key',
             ],
             'export application encryption key',
         )
+        await writeFile(appEncryptionKeyPath, appEncryptionKey, { mode: 0o600 })
         await chmod(appEncryptionKeyPath, 0o600)
 
         const dumpCommand =
@@ -251,7 +253,7 @@ async function backup(): Promise<void> {
         await Bun.write(dumpPath, dump)
         await chmod(dumpPath, 0o600)
 
-        await runCommand(
+        const stateArchiveBytes = await runCommandBytes(
             [
                 ...compose,
                 'run',
@@ -262,11 +264,9 @@ async function backup(): Promise<void> {
                 '10001:10001',
                 '--entrypoint',
                 'tar',
-                '--volume',
-                stagingPath + ':/backup',
                 applianceService,
                 '--create',
-                '--file=/backup/' + stateArchiveName,
+                '--file=-',
                 '--directory=' + statePath,
                 ...stateArchiveExclusions.map((entry) => '--exclude=' + entry),
                 '.',
@@ -274,13 +274,14 @@ async function backup(): Promise<void> {
             'archive controller state',
             { timeoutMs: 180_000 },
         )
+        await writeFile(stateArchivePath, stateArchiveBytes, { mode: 0o600 })
         await chmod(stateArchivePath, 0o600)
 
         const stateArchive = await stat(stateArchivePath)
-        const appEncryptionKey = await stat(appEncryptionKeyPath)
+        const appEncryptionKeyFile = await stat(appEncryptionKeyPath)
         const metadata: BackupMetadata = {
             applicationEncryptionKey: {
-                bytes: appEncryptionKey.size,
+                bytes: appEncryptionKeyFile.size,
                 file: 'app-encryption-key',
                 sha256: await sha256(appEncryptionKeyPath),
             },

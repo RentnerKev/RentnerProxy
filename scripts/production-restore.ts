@@ -447,8 +447,9 @@ async function restore(): Promise<void> {
             const restoreStateCommand =
                 'set -Eeuo pipefail; umask 077; for item in /var/lib/rentnerproxy/proxy/* /var/lib/rentnerproxy/proxy/.[!.]* /var/lib/rentnerproxy/proxy/..?*; do [ -e "$item" ] || continue; rm -rf -- "$item"; done; tar --extract --no-same-owner ' +
                 restoreExclusions.join(' ') +
-                ' --file=/backup/controller-state.tar --directory=/var/lib/rentnerproxy/proxy; chmod 700 /var/lib/rentnerproxy/proxy'
-            await runCommand(
+                ' --file=- --directory=/var/lib/rentnerproxy/proxy; chmod 700 /var/lib/rentnerproxy/proxy'
+            // The controller UID cannot read the host user's private backup directory.
+            await runCommandWithInput(
                 [
                     ...compose,
                     'run',
@@ -459,12 +460,11 @@ async function restore(): Promise<void> {
                     '10001:10001',
                     '--entrypoint',
                     'bash',
-                    '--volume',
-                    archiveVolume,
                     applianceService,
                     '-c',
                     restoreStateCommand,
                 ],
+                new Uint8Array(stateArchiveBytes),
                 'restore controller state',
                 180_000,
             )
