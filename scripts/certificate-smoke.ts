@@ -690,7 +690,8 @@ async function runSmoke(): Promise<void> {
             'redirect.test:' + httpsPort + ':127.0.0.1',
             'https://redirect.test:' + httpsPort + '/real/path?query=a%2Fb',
         ])
-        assert.match(redirectOverHttps, /HTTP\/1\.1 308/u)
+        // Linux curl negotiates HTTP/2 for HTTPS; both protocols must preserve the status.
+        assert.match(redirectOverHttps, /^HTTP\/(?:1\.1|2) 308(?:\s|$)/u)
         assert.match(
             redirectOverHttps,
             /Location: https:\/\/new\.example\.test\/base\/real\/path\?query=a%2Fb/iu,
@@ -869,7 +870,7 @@ async function runSmoke(): Promise<void> {
             'one.test:' + httpsPort + ':127.0.0.1',
             'https://one.test:' + httpsPort + '/body-limit',
         ])
-        assert.match(tooLarge, /HTTP\/1\.1 413/u)
+        assert.match(tooLarge, /^HTTP\/(?:1\.1|2) 413(?:\s|$)/u)
         passed('per-host body size settings still apply to HTTPS traffic')
         const challengeBypass = await curl([
             '--include',
