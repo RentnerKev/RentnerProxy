@@ -12,6 +12,7 @@ import type { RoleManagementSummary, RoleSummary } from '../../../shared/Types/a
 import { requirePermissionService } from '../../Auth/Access/authorization.service'
 import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
 import { AuthDomainError } from '../../Auth/Core/errors.server'
+import { isUniqueConstraintViolation } from '../../Auth/Core/database-errors.server'
 import {
     hasOwnerRole,
     isRegisteredPermissionKey,
@@ -50,10 +51,6 @@ function normalizeRoleDescription(description: string): string {
     }
 
     return normalizedDescription
-}
-
-function isUniqueConstraintViolation(error: unknown): boolean {
-    return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505'
 }
 
 async function loadPermissionsByKeysInTransaction(

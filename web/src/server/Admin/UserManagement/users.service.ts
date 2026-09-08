@@ -10,6 +10,7 @@ import { sendUserInviteEmailService } from '../../Mail/mail.service'
 import { requirePermissionService } from '../../Auth/Access/authorization.service'
 import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
 import { AuthDomainError } from '../../Auth/Core/errors.server'
+import { isUniqueConstraintViolation } from '../../Auth/Core/database-errors.server'
 import { normalizeDisplayName, normalizeEmail } from '../../Auth/Core/identity.server'
 import { issueInviteService } from '../../Auth/Setup/invites.service'
 import {
@@ -22,10 +23,6 @@ import {
     requirePermissionInTransaction,
 } from '../../Auth/Access/rbac.service'
 import { revokeAllUserSessionsInTransaction } from '../../Auth/Access/sessions.service'
-
-function isUniqueConstraintViolation(error: unknown): boolean {
-    return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505'
-}
 
 async function lockOwnerPolicy(transaction: AuthTransaction): Promise<void> {
     await transaction.execute(sql`select pg_advisory_xact_lock(${ACTIVE_OWNER_ADVISORY_LOCK_ID})`)

@@ -25,6 +25,7 @@ import { Route as PublicResetPasswordRouteImport } from './routes/_public/reset-
 import { Route as PublicSetupRouteImport } from './routes/_public/setup'
 import { Route as HealthLiveRouteImport } from './routes/health/live'
 import { Route as HealthReadyRouteImport } from './routes/health/ready'
+import { Route as PublicLoginIndexRouteImport } from './routes/_public/login.index'
 import { Route as PublicLoginTwoFactorRouteImport } from './routes/_public/login.two-factor'
 import { Route as MediaAvatarsUserIdRouteImport } from './routes/media/avatars/$userId'
 
@@ -108,6 +109,11 @@ const HealthReadyRoute = HealthReadyRouteImport.update({
   path: '/health/ready',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PublicLoginIndexRoute = PublicLoginIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PublicLoginRoute,
+} as any)
 const PublicLoginTwoFactorRoute = PublicLoginTwoFactorRouteImport.update({
   id: '/two-factor',
   path: '/two-factor',
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/health/ready': typeof HealthReadyRoute
   '/login/two-factor': typeof PublicLoginTwoFactorRoute
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
+  '/login/': typeof PublicLoginIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
@@ -147,13 +154,13 @@ export interface FileRoutesByTo {
   '/users': typeof AuthenticatedUsersRoute
   '/accept-invite': typeof PublicAcceptInviteRoute
   '/forgot-password': typeof PublicForgotPasswordRoute
-  '/login': typeof PublicLoginRouteWithChildren
   '/reset-password': typeof PublicResetPasswordRoute
   '/setup': typeof PublicSetupRoute
   '/health/live': typeof HealthLiveRoute
   '/health/ready': typeof HealthReadyRoute
   '/login/two-factor': typeof PublicLoginTwoFactorRoute
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
+  '/login': typeof PublicLoginIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -175,6 +182,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_public/login/two-factor': typeof PublicLoginTwoFactorRoute
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
+  '/_public/login/': typeof PublicLoginIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -195,6 +203,7 @@ export interface FileRouteTypes {
     | '/health/ready'
     | '/login/two-factor'
     | '/media/avatars/$userId'
+    | '/login/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -206,13 +215,13 @@ export interface FileRouteTypes {
     | '/users'
     | '/accept-invite'
     | '/forgot-password'
-    | '/login'
     | '/reset-password'
     | '/setup'
     | '/health/live'
     | '/health/ready'
     | '/login/two-factor'
     | '/media/avatars/$userId'
+    | '/login'
   id:
     | '__root__'
     | '/_authenticated'
@@ -233,6 +242,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_public/login/two-factor'
     | '/media/avatars/$userId'
+    | '/_public/login/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -357,6 +367,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HealthReadyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_public/login/': {
+      id: '/_public/login/'
+      path: '/'
+      fullPath: '/login/'
+      preLoaderRoute: typeof PublicLoginIndexRouteImport
+      parentRoute: typeof PublicLoginRoute
+    }
     '/_public/login/two-factor': {
       id: '/_public/login/two-factor'
       path: '/two-factor'
@@ -399,10 +416,12 @@ const AuthenticatedRouteRouteWithChildren =
 
 interface PublicLoginRouteChildren {
   PublicLoginTwoFactorRoute: typeof PublicLoginTwoFactorRoute
+  PublicLoginIndexRoute: typeof PublicLoginIndexRoute
 }
 
 const PublicLoginRouteChildren: PublicLoginRouteChildren = {
   PublicLoginTwoFactorRoute: PublicLoginTwoFactorRoute,
+  PublicLoginIndexRoute: PublicLoginIndexRoute,
 }
 
 const PublicLoginRouteWithChildren = PublicLoginRoute._addFileChildren(

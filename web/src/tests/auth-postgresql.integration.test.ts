@@ -55,7 +55,8 @@ import {
     resolveActiveUserAccessInTransaction,
 } from '../server/Auth/Access/rbac.service'
 import { ensureAuthorizationRegistryInTransaction } from '../server/Auth/Access/registry.service'
-import { enableUserService } from '../server/Admin/UserManagement/users.service'
+import { createRoleService } from '../server/Admin/RoleManagement/roles.service'
+import { enableUserService, updateUserService } from '../server/Admin/UserManagement/users.service'
 import {
     createSessionService,
     getSessionByTokenService,
@@ -742,6 +743,55 @@ describe('RBAC with PostgreSQL', () => {
         expect(initialCount).toBe(1)
         expect(twoOwnerCount).toBe(2)
         expect(finalCount).toBe(1)
+    })
+})
+
+describe('admin identity conflict mapping with PostgreSQL', () => {
+    integrationTest('maps a duplicate role key to a domain error', async () => {
+        const owner = await createTestUser({ roleKeys: [SYSTEM_ROLES.OWNER] })
+        const key = `${TEST_ROLE_PREFIX}${randomUUID()}`
+        const input = {
+            description: 'Duplicate role key test',
+            key,
+            name: 'Duplicate role key test',
+            permissionKeys: [],
+        }
+
+        const created = await runAsUser(owner.id, () => createRoleService(input))
+        const duplicateError = await captureError(
+            runAsUser(owner.id, () => createRoleService(input)),
+        )
+
+        expect(created.key).toBe(key)
+        expect(duplicateError).toBeInstanceOf(AuthDomainError)
+        expect(duplicateError).toMatchObject({
+            code: 'invalid_input',
+            message: 'Role key is already in use.',
+        })
+    })
+
+    integrationTest('maps a duplicate user email update to a domain error', async () => {
+        const owner = await createTestUser({ roleKeys: [SYSTEM_ROLES.OWNER] })
+        const target = await createTestUser()
+        const conflict = await createTestUser()
+
+        const duplicateError = await captureError(
+            runAsUser(owner.id, () =>
+                updateUserService({ userId: target.id, email: conflict.email }),
+            ),
+        )
+
+        expect(duplicateError).toBeInstanceOf(AuthDomainError)
+        expect(duplicateError).toMatchObject({
+            code: 'email_conflict',
+            message: 'Email address is already in use.',
+        })
+
+        const persistedTarget = await getAuthDatabase()
+            .select({ email: users.email })
+            .from(users)
+            .where(eq(users.id, target.id))
+        expect(persistedTarget).toEqual([{ email: target.email }])
     })
 })
 

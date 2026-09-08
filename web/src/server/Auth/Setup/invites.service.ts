@@ -9,6 +9,7 @@ import type { TokenConsumptionResult, TokenDelivery } from '../Core/Types/auth-s
 import { requirePermissionService } from '../Access/authorization.service'
 import { getAuthDatabase } from '../Core/database.server'
 import { AuthDomainError } from '../Core/errors.server'
+import { isUniqueConstraintViolation } from '../Core/database-errors.server'
 import {
     normalizeDisplayName,
     normalizeEmail,
@@ -26,10 +27,6 @@ import {
     requirePermissionInTransaction,
 } from '../Access/rbac.service'
 import { createOpaqueToken, hashOpaqueToken, isValidOpaqueToken } from '../Core/tokens.server'
-
-function isUniqueConstraintViolation(error: unknown): boolean {
-    return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505'
-}
 
 export async function issueInviteService(input: {
     displayName?: string | undefined

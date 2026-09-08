@@ -1,6 +1,7 @@
 import { Check, ChevronDown, ChevronUp } from 'lucide-react'
 import * as Select from 'radix-ui/select'
 
+import { getClientCspNonce } from '../Helpers/cspNonce'
 import SelectOptionLabel from './Components/SelectOptionLabel'
 
 import { EMPTY_SELECT_VALUE, fromSelectValue, toSelectValue } from './Helpers/selectValue'
@@ -19,6 +20,7 @@ export default function SelectControl({
     value,
 }: SelectControlProps) {
     const selectedOption = options.find((option) => option.value === value)
+    const cspNonce = getClientCspNonce()
     return (
         <Select.Root
             disabled={disabled ?? false}
@@ -51,7 +53,7 @@ export default function SelectControl({
                     <Select.ScrollUpButton className="flex h-7 cursor-pointer items-center justify-center border-b border-border bg-surface-subtle text-muted">
                         <ChevronUp aria-hidden="true" className="size-4" strokeWidth={1.8} />
                     </Select.ScrollUpButton>
-                    <Select.Viewport className="p-1.5">
+                    <Select.Viewport className="p-1.5" {...(cspNonce ? { nonce: cspNonce } : {})}>
                         {placeholder ? (
                             <Select.Item value={EMPTY_SELECT_VALUE} className={itemClassName}>
                                 <Select.ItemText>{placeholder}</Select.ItemText>
