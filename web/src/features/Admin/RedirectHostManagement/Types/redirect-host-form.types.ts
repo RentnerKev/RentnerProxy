@@ -20,6 +20,8 @@ export interface RedirectHostFormModalProps {
 export interface RedirectHostFormModalState {
     readonly canAssignCertificates: boolean
     readonly assignableCertificates: readonly CertificateSummary[]
+    readonly assignableCertificatesLoadFailed: boolean
+    readonly assignableCertificatesLoading: boolean
     readonly canChangeEnabled: boolean
     readonly description: string
     readonly disableConfirmationOpen: boolean
@@ -34,6 +36,7 @@ export interface RedirectHostFormModalState {
 export interface RedirectHostFormModalHandler {
     readonly addDomain: () => void
     readonly removeDomain: (index: number) => void
+    readonly retryAssignableCertificates: () => void
     readonly handleSubmit: FormEventHandler<HTMLFormElement>
     readonly confirmDisable: () => Promise<void>
     readonly setDisableConfirmationOpen: (open: boolean) => void
@@ -43,12 +46,14 @@ export type RedirectHostFormFieldsProps = Pick<
     | 'canChangeEnabled'
     | 'canAssignCertificates'
     | 'assignableCertificates'
+    | 'assignableCertificatesLoadFailed'
+    | 'assignableCertificatesLoading'
     | 'domainKeys'
     | 'form'
     | 'formId'
     | 'isPending'
 > &
-    Pick<RedirectHostFormModalHandler, 'addDomain' | 'removeDomain'>
+    Pick<RedirectHostFormModalHandler, 'addDomain' | 'removeDomain' | 'retryAssignableCertificates'>
 export type RedirectHostFormModalFooterProps = Pick<
     RedirectHostFormModalState,
     'form' | 'formId' | 'isPending' | 'pendingSubmitLabel' | 'submitLabel'

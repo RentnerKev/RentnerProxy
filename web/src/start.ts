@@ -7,7 +7,11 @@ import {
 import { getRequestProtocol, setResponseHeaders } from '@tanstack/react-start/server'
 
 import { getTrustProxyHeaders, validateProductionEnvironment } from './server/env.server'
-import { getAdminUiSecurityHeaders } from './server/security-headers'
+import {
+    applyAdminUiSecurityHeaders,
+    createCspNonce,
+    getAdminUiSecurityHeaders,
+} from './server/security-headers'
 
 const validateProductionEnvironmentAtStartup = createServerOnlyFn(() => {
     if (process.env.NODE_ENV === 'production') validateProductionEnvironment()
@@ -33,13 +37,19 @@ const startProxyRuntimeLifecycle = createServerOnlyFn(async () => {
 
 if (typeof window === 'undefined') void startProxyRuntimeLifecycle()
 
-const securityHeadersMiddleware = createMiddleware().server(({ next }) => {
-    setResponseHeaders(
-        getAdminUiSecurityHeaders(
-            getRequestProtocol({ xForwardedProto: getTrustProxyHeaders() }),
-        ) as unknown as Parameters<typeof setResponseHeaders>[0],
+const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => {
+    const nonce = createCspNonce()
+    const securityHeaders = getAdminUiSecurityHeaders(
+        getRequestProtocol({ xForwardedProto: getTrustProxyHeaders() }),
+        nonce,
     )
-    return next()
+    setResponseHeaders(securityHeaders as unknown as Parameters<typeof setResponseHeaders>[0])
+
+    const result = await next({ context: { cspNonce: nonce } })
+    return {
+        ...result,
+        response: applyAdminUiSecurityHeaders(result.response, securityHeaders),
+    }
 })
 
 const csrfMiddleware = createCsrfMiddleware({

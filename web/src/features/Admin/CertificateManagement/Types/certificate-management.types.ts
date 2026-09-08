@@ -55,7 +55,7 @@ export interface CertificateImportModalProps {
 export interface CertificateRequestModalProps {
     readonly open: boolean
     readonly onOpenChange: (open: boolean) => void
-    readonly onSuccess: () => void
+    readonly onSuccess: () => void | Promise<void>
     readonly initialDomains?: ReadonlyArray<string>
     readonly initialName?: string
 }

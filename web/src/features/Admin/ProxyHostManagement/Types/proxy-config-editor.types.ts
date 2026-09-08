@@ -73,6 +73,7 @@ export interface ProxyGlobalConfigEditorState {
     readonly baseRevision: string | null
     readonly data: ProxyConfigEditorData | undefined
     readonly isLoading: boolean
+    readonly isRefreshing: boolean
     readonly isSaving: boolean
     readonly isResetting: boolean
     readonly isPreviewing: boolean

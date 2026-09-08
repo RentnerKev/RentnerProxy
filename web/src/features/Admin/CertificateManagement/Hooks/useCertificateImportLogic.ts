@@ -36,7 +36,7 @@ export default function useCertificateImportLogic({
                 }
                 form.reset({ name: '', certificatePem: '', privateKeyPem: '', chainPem: '' })
                 toast.success(result.message)
-                onSuccess()
+                await onSuccess()
             } catch {
                 toast.error('admin.certificates.errors.importFailed')
             } finally {

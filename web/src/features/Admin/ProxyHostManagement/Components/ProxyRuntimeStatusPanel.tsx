@@ -4,8 +4,11 @@ import type { ProxyRuntimeState, ProxyRuntimeStatus } from '../Types/proxy-host-
 
 interface ProxyRuntimeStatusPanelProps {
     readonly canApply: boolean
+    readonly isError?: boolean
     readonly isApplying: boolean
+    readonly isRetrying?: boolean
     readonly onApply: () => void
+    readonly onRetry?: () => void
     readonly status: ProxyRuntimeStatus | undefined
 }
 
@@ -17,16 +20,23 @@ const statusStyles: Record<ProxyRuntimeState, string> = {
 
 export default function ProxyRuntimeStatusPanel({
     canApply,
+    isError = false,
     isApplying,
+    isRetrying = false,
     onApply,
+    onRetry,
     status,
 }: ProxyRuntimeStatusPanelProps) {
     const { t } = useTranslationStore()
-    const state = status?.state ?? 'unavailable'
+    const displayStatus = isError ? undefined : status
+    const state = displayStatus?.state ?? 'unavailable'
     const showApply =
-        canApply && status !== undefined && status.desiredRevision !== status.activeRevision
+        canApply &&
+        !isError &&
+        displayStatus !== undefined &&
+        displayStatus.desiredRevision !== displayStatus.activeRevision
 
-    if (state === 'synced' && !showApply) return null
+    if (state === 'synced' && !showApply && !isError) return null
 
     return (
         <section
@@ -48,7 +58,16 @@ export default function ProxyRuntimeStatusPanel({
                     </p>
                 </div>
             </div>
-            {showApply ? (
+            {isError && onRetry ? (
+                <button
+                    type="button"
+                    className={uiClassNames.button.secondary}
+                    onClick={onRetry}
+                    disabled={isRetrying}
+                >
+                    {t('common.retry')}
+                </button>
+            ) : showApply ? (
                 <button
                     type="button"
                     className={uiClassNames.button.primary}

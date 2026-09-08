@@ -71,6 +71,9 @@ export default function useRedirectHostFormLogic({
         },
         onError: () => toast.error('admin.redirectHosts.errors.saveFailed'),
     })
+    const retryAssignableCertificates = useCallback(() => {
+        void certificatesQuery.refetch()
+    }, [certificatesQuery])
     const form = useForm({
         defaultValues: {
             domains: redirectHost ? [...redirectHost.domains] : [''],
@@ -109,6 +112,8 @@ export default function useRedirectHostFormLogic({
             canAssignCertificates,
             canChangeEnabled: mode === 'create' || (redirectHost?.enabled ? canDisable : canEnable),
             assignableCertificates: certificatesQuery.data ?? [],
+            assignableCertificatesLoadFailed: certificatesQuery.isError,
+            assignableCertificatesLoading: certificatesQuery.isPending,
             disableConfirmationOpen: pendingDisableValues !== null,
             domainKeys,
             form,
@@ -117,6 +122,7 @@ export default function useRedirectHostFormLogic({
         handler: {
             addDomain,
             removeDomain,
+            retryAssignableCertificates,
             confirmDisable: async () => {
                 if (pendingDisableValues)
                     await mutation.mutateAsync(pendingDisableValues).catch(() => undefined)

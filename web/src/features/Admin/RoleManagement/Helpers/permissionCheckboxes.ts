@@ -7,35 +7,33 @@ export interface PermissionGroup {
     readonly permissions: ReadonlyArray<(typeof PERMISSION_REGISTRY)[number]>
 }
 
-const permissionGroupDefinitions = [
-    { label: 'permissions.group.app', prefix: 'app.' },
-    { label: 'permissions.group.proxy_hosts', prefix: 'proxy_hosts.' },
-    { label: 'permissions.group.redirect_hosts', prefix: 'redirect_hosts.' },
-    { label: 'permissions.group.users', prefix: 'users.' },
-    { label: 'permissions.group.roles', prefix: 'roles.' },
-    { label: 'permissions.group.account', prefix: 'account.' },
-] as const
+function getPermissionNamespace(permissionKey: string): string {
+    const separatorIndex = permissionKey.indexOf('.')
+    return separatorIndex === -1 ? permissionKey : permissionKey.slice(0, separatorIndex)
+}
 
 export function getAvailablePermissionGroups(
     availablePermissionKeys: readonly PermissionKey[],
 ): Array<PermissionGroup> {
     const availablePermissionSet = new Set(availablePermissionKeys)
 
-    const groups: Array<PermissionGroup> = []
+    const groups = new Map<string, PermissionGroup>()
 
-    for (const group of permissionGroupDefinitions) {
-        const permissions = PERMISSION_REGISTRY.filter(
-            (permission) =>
-                permission.key.startsWith(group.prefix) &&
-                availablePermissionSet.has(permission.key),
-        )
-
-        if (permissions.length > 0) {
-            groups.push({ ...group, permissions })
+    for (const permission of PERMISSION_REGISTRY) {
+        if (!availablePermissionSet.has(permission.key)) {
+            continue
         }
+
+        const namespace = getPermissionNamespace(permission.key)
+        const existing = groups.get(namespace)
+        groups.set(namespace, {
+            label: `permissions.group.${namespace}`,
+            prefix: `${namespace}.`,
+            permissions: existing ? [...existing.permissions, permission] : [permission],
+        })
     }
 
-    return groups
+    return [...groups.values()]
 }
 
 export function getPermissionCheckboxInputId(fieldName: string, permissionKey: string): string {

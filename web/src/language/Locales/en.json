@@ -632,7 +632,7 @@
             "page": {
                 "eyebrow": "TLS management",
                 "title": "Certificates",
-                "description": "Manage imported certificates and ACME issuance for proxy hosts."
+                "description": "Manage imported certificates and ACME issuance for proxy and redirect hosts."
             },
             "table": {
                 "eyebrow": "Certificate store",
@@ -731,7 +731,7 @@
                 "renewTitle": "Renew {{name}}?",
                 "renewDescription": "Start a new ACME order for this certificate.",
                 "deleteTitle": "Delete {{name}}?",
-                "deleteDescription": "This removes the certificate and is blocked while a proxy host still uses it."
+                "deleteDescription": "This removes the certificate and is blocked while a proxy or redirect host still uses it."
             },
             "states": {
                 "unavailableTitle": "Certificates are unavailable",
@@ -761,7 +761,7 @@
                 "certificate_expired": "The certificate is expired.",
                 "domain_mismatch": "The certificate does not cover all host domains.",
                 "certificate_not_found": "The certificate no longer exists.",
-                "certificate_in_use": "The certificate is still assigned to a proxy host.",
+                "certificate_in_use": "The certificate is still assigned to a proxy or redirect host.",
                 "operation_in_progress": "Another certificate operation is already running.",
                 "acme_terms_required": "Accept the ACME terms before requesting a certificate.",
                 "acme_domain_invalid": "ACME requires public DNS domains.",
@@ -1248,6 +1248,7 @@
             "account": "Account",
             "proxy_hosts": "Proxy hosts",
             "redirect_hosts": "Redirect hosts",
+            "certificates": "Certificates",
             "trusted_cas": "Trusted CAs"
         },
         "app": {
@@ -1278,7 +1279,8 @@
             "update": "Update proxy hosts",
             "delete": "Delete proxy hosts",
             "enable": "Enable proxy hosts",
-            "disable": "Disable proxy hosts"
+            "disable": "Disable proxy hosts",
+            "apply": "Apply proxy configuration"
         },
         "redirect_hosts": {
             "view": "View redirect hosts",
@@ -1288,6 +1290,15 @@
             "enable": "Enable redirect hosts",
             "disable": "Disable redirect hosts",
             "apply": "Apply redirect configuration"
+        },
+
+        "certificates": {
+            "view": "View certificates",
+            "create": "Import certificates",
+            "update": "Replace manual certificates",
+            "delete": "Delete unused certificates",
+            "issue": "Request ACME certificates",
+            "renew": "Renew ACME certificates"
         },
 
         "trusted_cas": {

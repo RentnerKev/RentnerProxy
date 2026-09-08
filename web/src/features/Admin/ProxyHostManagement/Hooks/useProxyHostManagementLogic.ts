@@ -210,6 +210,9 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
     const retry = useCallback(() => {
         void proxyHostsQuery.refetch()
     }, [proxyHostsQuery])
+    const retryRuntime = useCallback(() => {
+        void runtimeStatusQuery.refetch()
+    }, [runtimeStatusQuery])
 
     return {
         state: {
@@ -237,6 +240,8 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
             isLoading: proxyHostsQuery.isPending,
             proxyHosts: proxyHostsQuery.data ?? EMPTY_PROXY_HOSTS,
             runtimeStatus: runtimeStatusQuery.data,
+            runtimeStatusError: runtimeStatusQuery.isError,
+            runtimeStatusRetrying: runtimeStatusQuery.isFetching,
             selectedProxyHost,
             showCreate,
             configTarget,
@@ -261,6 +266,7 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
             openDisable,
             openEditor,
             retry,
+            retryRuntime,
             setCreateOpen,
             setDeleteOpen,
             setDisableOpen,

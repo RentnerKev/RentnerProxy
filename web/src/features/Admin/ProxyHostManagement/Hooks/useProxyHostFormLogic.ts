@@ -79,6 +79,9 @@ export default function useProxyHostFormLogic({
         },
         onError: () => toast.error('admin.proxyHosts.errors.saveFailed'),
     })
+    const retryAssignableCertificates = useCallback(() => {
+        void certificatesQuery.refetch()
+    }, [certificatesQuery])
     const defaultValues: ProxyHostEditorFormValues = {
         domains: proxyHost ? [...proxyHost.domains] : [''],
         forwardScheme: proxyHost?.forwardScheme ?? 'http',
@@ -129,6 +132,8 @@ export default function useProxyHostFormLogic({
             canAssignCertificates,
             canChangeEnabled: mode === 'create' || (proxyHost?.enabled ? canDisable : canEnable),
             assignableCertificates: certificatesQuery.data ?? [],
+            assignableCertificatesLoadFailed: certificatesQuery.isError,
+            assignableCertificatesLoading: certificatesQuery.isPending,
             assignableTrustedCas: trustedCasQuery.data ?? [],
             trustedCasLoadFailed: trustedCasQuery.isError,
             trustedCasLoading: trustedCasQuery.isPending,
@@ -137,6 +142,12 @@ export default function useProxyHostFormLogic({
             form,
             isPending: mutation.isPending,
         },
-        handler: { addDomain, removeDomain, confirmDisable, setDisableConfirmationOpen },
+        handler: {
+            addDomain,
+            removeDomain,
+            retryAssignableCertificates,
+            confirmDisable,
+            setDisableConfirmationOpen,
+        },
     }
 }

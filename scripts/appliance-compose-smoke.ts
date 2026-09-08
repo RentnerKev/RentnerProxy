@@ -520,6 +520,21 @@ async function runSmoke(): Promise<void> {
         )
         assert.equal(entryAssetResponse.status, 200)
         passed('SSR setup entry module is served for client hydration')
+        const stylesheetAssets = Array.from(
+            setup.body.matchAll(/<link\b(?=[^>]*\brel="stylesheet")[^>]*\bhref="([^"]+)"/giu),
+            (match) => match[1]!,
+        )
+        assert.ok(stylesheetAssets.length > 0)
+        for (const stylesheetAsset of new Set(stylesheetAssets)) {
+            assert.ok(stylesheetAsset.startsWith('/assets/'))
+            const response = await fetch('http://127.0.0.1:' + managementPort + stylesheetAsset, {
+                signal: AbortSignal.timeout(5_000),
+            })
+            assert.equal(response.status, 200)
+            assert.match(response.headers.get('content-type') ?? '', /^text\/css\b/iu)
+            assert.ok((await response.text()).length > 0)
+        }
+        passed('every SSR stylesheet resolves to packaged production CSS')
         const live = await httpStatus('http://127.0.0.1:' + managementPort + '/health/live')
         assert.equal(live.status, 200)
         assert.deepEqual(JSON.parse(live.body), { status: 'ok' })

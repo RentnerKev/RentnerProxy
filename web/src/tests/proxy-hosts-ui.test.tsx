@@ -11,6 +11,7 @@ import type {
     ProxyHostActionResult,
     ProxyRuntimeSyncStatus,
     ProxyHostConfigEditorData,
+    ProxyConfigEditorData,
 } from '../shared/Types/proxy-runtime.types'
 import { proxyHostManagementQueryKeys } from '../features/Admin/ProxyHostManagement/queryKeys'
 import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
@@ -109,6 +110,12 @@ const editorFixture: ProxyHostConfigEditorData = {
     generated: { config: hostConfig(90), revision: editorBaseRevision },
     defaults: { config: hostConfig(undefined), revision: null },
 }
+const globalEditorFixture: ProxyConfigEditorData = {
+    baseRevision: editorBaseRevision,
+    settings: { proxyReadTimeoutSeconds: 90 },
+    active: { config: hostConfig(90), revision: editorBaseRevision },
+    defaults: { config: hostConfig(undefined), revision: null },
+}
 const getProxyHostConfigEditorHandlerMock = mock(
     async (_input: unknown): Promise<ProxyHostConfigEditorData> => editorFixture,
 )
@@ -130,8 +137,29 @@ const resetProxyHostConfigEditorHandlerMock = mock(
         runtimeStatus: 'applied',
     }),
 )
+const getProxyConfigEditorHandlerMock = mock(
+    async (): Promise<ProxyConfigEditorData> => globalEditorFixture,
+)
+const previewProxyConfigEditorHandlerMock = mock(async () => ({
+    config: hostConfig(120),
+    revision: editorBaseRevision,
+}))
+const saveProxyConfigEditorHandlerMock = mock(async (): Promise<ProxyHostActionResult> => ({
+    success: true,
+    message: 'admin.proxyHosts.config.saved',
+    runtimeStatus: 'applied',
+}))
+const resetProxyConfigEditorHandlerMock = mock(async (): Promise<ProxyHostActionResult> => ({
+    success: true,
+    message: 'admin.proxyHosts.config.reset',
+    runtimeStatus: 'applied',
+}))
 
 mock.module('../features/Admin/ProxyHostManagement/server', () => ({
+    getProxyConfigEditorHandler: getProxyConfigEditorHandlerMock,
+    previewProxyConfigEditorHandler: previewProxyConfigEditorHandlerMock,
+    saveProxyConfigEditorHandler: saveProxyConfigEditorHandlerMock,
+    resetProxyConfigEditorHandler: resetProxyConfigEditorHandlerMock,
     getProxyHostConfigEditorHandler: getProxyHostConfigEditorHandlerMock,
     previewProxyHostConfigEditorHandler: previewProxyHostConfigEditorHandlerMock,
     saveProxyHostConfigEditorHandler: saveProxyHostConfigEditorHandlerMock,
@@ -392,6 +420,21 @@ function getLastButton(label: string): HTMLButtonElement {
 }
 
 beforeEach(() => {
+    getProxyConfigEditorHandlerMock.mockReset().mockResolvedValue(globalEditorFixture)
+    previewProxyConfigEditorHandlerMock.mockReset().mockResolvedValue({
+        config: hostConfig(120),
+        revision: editorBaseRevision,
+    })
+    saveProxyConfigEditorHandlerMock.mockReset().mockResolvedValue({
+        success: true,
+        message: 'admin.proxyHosts.config.saved',
+        runtimeStatus: 'applied',
+    })
+    resetProxyConfigEditorHandlerMock.mockReset().mockResolvedValue({
+        success: true,
+        message: 'admin.proxyHosts.config.reset',
+        runtimeStatus: 'applied',
+    })
     getProxyHostConfigEditorHandlerMock.mockReset().mockResolvedValue(editorFixture)
     previewProxyHostConfigEditorHandlerMock.mockReset().mockResolvedValue({
         config: hostConfig(120),
@@ -633,6 +676,34 @@ describe('ProxyHost permissions and row actions', () => {
         await waitFor(() => getRows().length === 2)
         expect(document.body.textContent).not.toContain('Proxy runtime synchronized')
         expect(document.body.textContent).not.toContain('Apply changes')
+    })
+
+    test('shows a safe runtime failure and retries instead of displaying stale status', async () => {
+        const onRetry = mock(() => undefined)
+        await render(
+            withTestLanguage(
+                <ProxyRuntimeStatusPanel
+                    canApply
+                    isApplying={false}
+                    isError
+                    isRetrying={false}
+                    onApply={() => undefined}
+                    onRetry={onRetry}
+                    status={{
+                        available: true,
+                        running: true,
+                        activeRevision: 'sha256:same',
+                        desiredRevision: 'sha256:same',
+                        lastApplyAt: null,
+                        state: 'synced',
+                    }}
+                />,
+            ),
+        )
+        expect(document.body.textContent).toContain('Proxy runtime unavailable.')
+        expect(document.body.textContent).not.toContain('Proxy runtime synchronized')
+        await click(getButton('Try again'))
+        expect(onRetry).toHaveBeenCalledTimes(1)
     })
 
     test('apply permission sees the action when the runtime is pending', async () => {
@@ -1016,6 +1087,78 @@ test('assigns a usable certificate and enables HTTPS redirect', async () => {
         },
     })
     await waitForToast('success')
+})
+
+test('shows a safe assignable certificate load failure and offers retry', async () => {
+    getAssignableCertificatesHandlerMock.mockRejectedValueOnce(
+        new Error('private certificate query details'),
+    )
+    await render(withQueryClient(<FormHarness mode="create" canAssignCertificates />))
+    await waitFor(() => document.querySelector('[role="alert"]') !== null)
+    expect(document.body.textContent).toContain(
+        'The requested data is temporarily unavailable. Try again.',
+    )
+    expect(document.body.textContent).not.toContain('private certificate query details')
+    await click(getButton('Try again'))
+    await waitFor(() => getAssignableCertificatesHandlerMock.mock.calls.length === 2)
+})
+
+describe('Caddy global proxy configuration editor', () => {
+    const editablePermissions = [
+        PERMISSIONS.PROXY_HOSTS_VIEW,
+        PERMISSIONS.PROXY_HOSTS_UPDATE,
+        PERMISSIONS.PROXY_HOSTS_APPLY,
+    ] as const
+
+    async function openEditor(): Promise<void> {
+        await renderPage(editablePermissions)
+        await waitFor(() => getRows().length === 2)
+        await click(getButton('Caddy config'))
+        await waitFor(() => document.querySelectorAll('input[type="number"]').length === 6)
+    }
+
+    test('disables editing and guards duplicate reloads while refresh is pending', async () => {
+        await openEditor()
+        const input = document.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]!
+        await setControlValue(input, '77777')
+
+        let releaseReload!: (value: ProxyConfigEditorData) => void
+        getProxyConfigEditorHandlerMock.mockImplementationOnce(
+            () =>
+                new Promise<ProxyConfigEditorData>((resolve) => {
+                    releaseReload = resolve
+                }),
+        )
+        const reload = getButton('Reload')
+        await click(reload)
+        await waitFor(() => getProxyConfigEditorHandlerMock.mock.calls.length === 2)
+        await waitFor(() => reload.disabled && input.disabled)
+        expect(input.value).toBe('77777')
+
+        await click(reload)
+        expect(getProxyConfigEditorHandlerMock).toHaveBeenCalledTimes(2)
+
+        releaseReload(globalEditorFixture)
+        await waitFor(() => input.disabled === false)
+        expect(input.value).toBe('90')
+    })
+
+    test('preserves the draft and reports a safe error when refresh fails', async () => {
+        await openEditor()
+        const input = document.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]!
+        await setControlValue(input, '88888')
+        getProxyConfigEditorHandlerMock.mockRejectedValueOnce(new Error('private config details'))
+
+        await click(getButton('Reload'))
+        await waitFor(() => getProxyConfigEditorHandlerMock.mock.calls.length === 2)
+        await waitFor(
+            () =>
+                document.body.textContent?.includes('The configuration could not be loaded.') ===
+                true,
+        )
+        expect(input.value).toBe('88888')
+        expect(document.body.textContent).not.toContain('private config details')
+    })
 })
 
 describe('Caddy proxy host configuration editor', () => {

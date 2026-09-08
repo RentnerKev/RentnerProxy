@@ -31,6 +31,7 @@ export default function RedirectHostFormModal(props: RedirectHostFormModalProps)
                         {...state}
                         addDomain={handler.addDomain}
                         removeDomain={handler.removeDomain}
+                        retryAssignableCertificates={handler.retryAssignableCertificates}
                     />
                 </form>
             </Modal>

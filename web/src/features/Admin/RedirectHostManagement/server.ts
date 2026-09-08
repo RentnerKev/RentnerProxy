@@ -69,7 +69,7 @@ export const getRedirectRuntimeStatusHandler = createServerFn({ method: 'GET' })
     async () => {
         try {
             await requirePermissionService(PERMISSIONS.REDIRECT_HOSTS_VIEW)
-            return await getProxyRuntimeStatusService()
+            return await getProxyRuntimeStatusService(PERMISSIONS.REDIRECT_HOSTS_VIEW)
         } catch (error) {
             throwLocalizedQueryError(error, 'admin.redirectHosts.runtime.unavailable')
         }
@@ -80,7 +80,7 @@ export const applyRedirectConfigurationHandler = createServerFn({ method: 'POST'
     async (): Promise<RedirectHostActionResult> => {
         try {
             await requirePermissionService(PERMISSIONS.REDIRECT_HOSTS_APPLY)
-            const status = await applyProxyConfigurationService()
+            const status = await applyProxyConfigurationService(PERMISSIONS.REDIRECT_HOSTS_APPLY)
             return status === 'applied'
                 ? {
                       success: true,

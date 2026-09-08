@@ -632,7 +632,7 @@
             "page": {
                 "eyebrow": "Gestion TLS",
                 "title": "Certificats",
-                "description": "Gérez les certificats importés et l’émission ACME pour les hôtes proxy."
+                "description": "Gérez les certificats importés et l’émission ACME pour les hôtes proxy et de redirection."
             },
             "table": {
                 "eyebrow": "Magasin de certificats",
@@ -731,7 +731,7 @@
                 "renewTitle": "Renouveler {{name}} ?",
                 "renewDescription": "Démarrer une nouvelle commande ACME pour ce certificat.",
                 "deleteTitle": "Supprimer {{name}} ?",
-                "deleteDescription": "Le certificat sera supprimé ; l’opération est bloquée tant qu’un hôte proxy l’utilise encore."
+                "deleteDescription": "Le certificat sera supprimé ; l’opération est bloquée tant qu’un hôte proxy ou de redirection l’utilise encore."
             },
             "states": {
                 "unavailableTitle": "Les certificats sont indisponibles",
@@ -761,7 +761,7 @@
                 "certificate_expired": "Le certificat a expiré.",
                 "domain_mismatch": "Le certificat ne couvre pas tous les domaines de l’hôte.",
                 "certificate_not_found": "Le certificat n’existe plus.",
-                "certificate_in_use": "Le certificat est encore attribué à un hôte proxy.",
+                "certificate_in_use": "Le certificat est encore attribué à un hôte proxy ou de redirection.",
                 "operation_in_progress": "Une autre opération sur un certificat est déjà en cours.",
                 "acme_terms_required": "Acceptez les conditions d’ACME avant de demander un certificat.",
                 "acme_domain_invalid": "ACME exige des domaines DNS publics.",
@@ -1248,6 +1248,7 @@
             "account": "Compte",
             "proxy_hosts": "Hôtes proxy",
             "redirect_hosts": "Hôtes de redirection",
+            "certificates": "Certificats",
             "trusted_cas": "AC de confiance"
         },
         "app": {
@@ -1278,16 +1279,26 @@
             "update": "Modifier les hôtes proxy",
             "delete": "Supprimer les hôtes proxy",
             "enable": "Activer les hôtes proxy",
-            "disable": "Désactiver les hôtes proxy"
+            "disable": "Désactiver les hôtes proxy",
+            "apply": "Appliquer la configuration du proxy"
         },
         "redirect_hosts": {
-            "view": "View redirect hosts",
-            "create": "Create redirect hosts",
-            "update": "Update redirect hosts",
-            "delete": "Delete redirect hosts",
-            "enable": "Enable redirect hosts",
-            "disable": "Disable redirect hosts",
-            "apply": "Apply redirect configuration"
+            "view": "Afficher les hôtes de redirection",
+            "create": "Créer des hôtes de redirection",
+            "update": "Modifier les hôtes de redirection",
+            "delete": "Supprimer les hôtes de redirection",
+            "enable": "Activer les hôtes de redirection",
+            "disable": "Désactiver les hôtes de redirection",
+            "apply": "Appliquer la configuration de redirection"
+        },
+
+        "certificates": {
+            "view": "Afficher les certificats",
+            "create": "Importer des certificats",
+            "update": "Remplacer les certificats manuels",
+            "delete": "Supprimer les certificats inutilisés",
+            "issue": "Demander des certificats ACME",
+            "renew": "Renouveler les certificats ACME"
         },
 
         "trusted_cas": {

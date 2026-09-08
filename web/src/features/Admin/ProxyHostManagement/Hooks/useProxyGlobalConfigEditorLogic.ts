@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 import useToast from '../../../../shared/Toast/Hooks/useToast'
 import type {
@@ -35,6 +35,7 @@ export default function useProxyGlobalConfigEditorLogic({
     } | null>(null)
     const [preview, setPreview] = useState<ProxyConfigSource | null>(null)
     const [actionError, setActionError] = useState<string | null>(null)
+    const refreshingRef = useRef(false)
     const query = useQuery({
         queryKey: proxyHostManagementQueryKeys.configEditor,
         queryFn: () => getProxyConfigEditorHandler(),
@@ -47,7 +48,14 @@ export default function useProxyGlobalConfigEditorLogic({
     const baseRevision = draft?.baseRevision ?? data?.baseRevision ?? null
     const setSetting = useCallback(
         (key: keyof ProxyHttpSettings, value: number | undefined) => {
-            if (!canEdit || !data || baseRevision === null) return
+            if (
+                !canEdit ||
+                refreshingRef.current ||
+                query.isFetching ||
+                !data ||
+                baseRevision === null
+            )
+                return
             const next = { ...settings }
             if (value === undefined) delete next[key]
             else next[key] = value
@@ -55,7 +63,7 @@ export default function useProxyGlobalConfigEditorLogic({
             setPreview(null)
             setActionError(null)
         },
-        [baseRevision, canEdit, data, draft, settings],
+        [baseRevision, canEdit, data, draft, query.isFetching, settings],
     )
     const invalidate = useCallback(async () => {
         await Promise.all([
@@ -116,13 +124,28 @@ export default function useProxyGlobalConfigEditorLogic({
         },
     })
     const refresh = useCallback(() => {
-        void query.refetch().then((result) => {
-            if (result.data) {
+        if (refreshingRef.current || query.isFetching) return
+        refreshingRef.current = true
+        setActionError(null)
+        void query
+            .refetch()
+            .then((result) => {
+                if (result.isError || !result.data) {
+                    setActionError('admin.proxyHosts.config.errors.loadFailed')
+                    toast.error('admin.proxyHosts.config.errors.loadFailed')
+                    return
+                }
                 setDraft(null)
                 setPreview(null)
-            }
-        })
-    }, [query])
+            })
+            .catch(() => {
+                setActionError('admin.proxyHosts.config.errors.loadFailed')
+                toast.error('admin.proxyHosts.config.errors.loadFailed')
+            })
+            .finally(() => {
+                refreshingRef.current = false
+            })
+    }, [query, toast])
     const state: ProxyGlobalConfigEditorState = {
         actionError,
         activeTab,
@@ -130,6 +153,7 @@ export default function useProxyGlobalConfigEditorLogic({
         baseRevision,
         data,
         isLoading: query.isPending,
+        isRefreshing: query.isFetching,
         isSaving: saveMutation.isPending,
         isResetting: resetMutation.isPending,
         isPreviewing: previewMutation.isPending,
@@ -140,13 +164,34 @@ export default function useProxyGlobalConfigEditorLogic({
         handler: {
             refresh,
             save: () => {
-                if (canEdit && baseRevision && !saveMutation.isPending) saveMutation.mutate()
+                if (
+                    canEdit &&
+                    !refreshingRef.current &&
+                    !query.isFetching &&
+                    baseRevision &&
+                    !saveMutation.isPending
+                )
+                    saveMutation.mutate()
             },
             reset: () => {
-                if (canEdit && baseRevision && !resetMutation.isPending) resetMutation.mutate()
+                if (
+                    canEdit &&
+                    !refreshingRef.current &&
+                    !query.isFetching &&
+                    baseRevision &&
+                    !resetMutation.isPending
+                )
+                    resetMutation.mutate()
             },
             preview: () => {
-                if (canEdit && baseRevision && !previewMutation.isPending) previewMutation.mutate()
+                if (
+                    canEdit &&
+                    !refreshingRef.current &&
+                    !query.isFetching &&
+                    baseRevision &&
+                    !previewMutation.isPending
+                )
+                    previewMutation.mutate()
             },
             setActiveTab,
             setSetting,

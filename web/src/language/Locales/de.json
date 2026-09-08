@@ -632,7 +632,7 @@
             "page": {
                 "eyebrow": "TLS-Verwaltung",
                 "title": "Zertifikate",
-                "description": "Verwalte importierte Zertifikate und die ACME-Ausstellung für Proxy-Hosts."
+                "description": "Verwalte importierte Zertifikate und die ACME-Ausstellung für Proxy- und Redirect-Hosts."
             },
             "table": {
                 "eyebrow": "Zertifikatsspeicher",
@@ -731,7 +731,7 @@
                 "renewTitle": "{{name}} erneuern?",
                 "renewDescription": "Starte eine neue ACME-Bestellung für dieses Zertifikat.",
                 "deleteTitle": "{{name}} löschen?",
-                "deleteDescription": "Dadurch wird das Zertifikat entfernt; dies ist blockiert, solange es noch von einem Proxy-Host verwendet wird."
+                "deleteDescription": "Dadurch wird das Zertifikat entfernt; dies ist blockiert, solange es noch von einem Proxy- oder Redirect-Host verwendet wird."
             },
             "states": {
                 "unavailableTitle": "Zertifikate sind nicht verfügbar",
@@ -761,7 +761,7 @@
                 "certificate_expired": "Das Zertifikat ist abgelaufen.",
                 "domain_mismatch": "Das Zertifikat deckt nicht alle Host-Domains ab.",
                 "certificate_not_found": "Das Zertifikat existiert nicht mehr.",
-                "certificate_in_use": "Das Zertifikat ist noch einem Proxy-Host zugewiesen.",
+                "certificate_in_use": "Das Zertifikat ist noch einem Proxy- oder Redirect-Host zugewiesen.",
                 "operation_in_progress": "Ein anderer Zertifikatsvorgang läuft bereits.",
                 "acme_terms_required": "Akzeptiere die ACME-Bedingungen, bevor du ein Zertifikat anforderst.",
                 "acme_domain_invalid": "ACME erfordert öffentliche DNS-Domains.",
@@ -1248,6 +1248,7 @@
             "account": "Konto",
             "proxy_hosts": "Proxy-Hosts",
             "redirect_hosts": "Weiterleitungs-Hosts",
+            "certificates": "Zertifikate",
             "trusted_cas": "Vertrauenswürdige CAs"
         },
         "app": {
@@ -1278,16 +1279,26 @@
             "update": "Proxy-Hosts bearbeiten",
             "delete": "Proxy-Hosts löschen",
             "enable": "Proxy-Hosts aktivieren",
-            "disable": "Proxy-Hosts deaktivieren"
+            "disable": "Proxy-Hosts deaktivieren",
+            "apply": "Proxy-Konfiguration anwenden"
         },
         "redirect_hosts": {
-            "view": "View redirect hosts",
-            "create": "Create redirect hosts",
-            "update": "Update redirect hosts",
-            "delete": "Delete redirect hosts",
-            "enable": "Enable redirect hosts",
-            "disable": "Disable redirect hosts",
-            "apply": "Apply redirect configuration"
+            "view": "Weiterleitungs-Hosts ansehen",
+            "create": "Weiterleitungs-Hosts erstellen",
+            "update": "Weiterleitungs-Hosts bearbeiten",
+            "delete": "Weiterleitungs-Hosts löschen",
+            "enable": "Weiterleitungs-Hosts aktivieren",
+            "disable": "Weiterleitungs-Hosts deaktivieren",
+            "apply": "Weiterleitungskonfiguration anwenden"
+        },
+
+        "certificates": {
+            "view": "Zertifikate anzeigen",
+            "create": "Zertifikate importieren",
+            "update": "Manuelle Zertifikate ersetzen",
+            "delete": "Nicht verwendete Zertifikate löschen",
+            "issue": "ACME-Zertifikate anfordern",
+            "renew": "ACME-Zertifikate erneuern"
         },
 
         "trusted_cas": {

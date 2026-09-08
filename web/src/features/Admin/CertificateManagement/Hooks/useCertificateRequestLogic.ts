@@ -42,7 +42,7 @@ export default function useCertificateRequestLogic({
                     acceptTerms: false,
                 })
                 toast.success(result.message)
-                onSuccess()
+                await onSuccess()
             } catch {
                 toast.error('admin.certificates.errors.requestFailed')
             } finally {

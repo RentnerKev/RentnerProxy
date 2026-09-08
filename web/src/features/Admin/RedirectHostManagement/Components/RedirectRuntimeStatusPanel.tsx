@@ -3,21 +3,31 @@ import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { RedirectRuntimeStatus } from '../Types/redirect-host-management.types'
 interface Props {
     readonly canApply: boolean
+    readonly isError?: boolean
     readonly isApplying: boolean
+    readonly isRetrying?: boolean
     readonly onApply: () => void
+    readonly onRetry?: () => void
     readonly status: RedirectRuntimeStatus | undefined
 }
 export default function RedirectRuntimeStatusPanel({
     canApply,
+    isError = false,
     isApplying,
+    isRetrying = false,
     onApply,
+    onRetry,
     status,
 }: Props) {
     const { t } = useTranslationStore()
-    const state = status?.state ?? 'unavailable'
+    const displayStatus = isError ? undefined : status
+    const state = displayStatus?.state ?? 'unavailable'
     const showApply =
-        canApply && status !== undefined && status.desiredRevision !== status.activeRevision
-    if (state === 'synced' && !showApply) return null
+        canApply &&
+        !isError &&
+        displayStatus !== undefined &&
+        displayStatus.desiredRevision !== displayStatus.activeRevision
+    if (state === 'synced' && !showApply && !isError) return null
     return (
         <section
             className={`mb-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-[clamp(1rem,3vw,1.25rem)] ${state === 'synced' ? 'border-brand-600/25 bg-success-bg' : state === 'pending' ? 'border-amber-500/35 bg-amber-500/10' : 'border-red-500/30 bg-danger-bg'}`}
@@ -32,7 +42,16 @@ export default function RedirectRuntimeStatusPanel({
                     {t(`admin.redirectHosts.runtime.${state}Description`)}
                 </p>
             </div>
-            {showApply ? (
+            {isError && onRetry ? (
+                <button
+                    type="button"
+                    className={uiClassNames.button.secondary}
+                    onClick={onRetry}
+                    disabled={isRetrying}
+                >
+                    {t('common.retry')}
+                </button>
+            ) : showApply ? (
                 <button
                     type="button"
                     className={uiClassNames.button.primary}

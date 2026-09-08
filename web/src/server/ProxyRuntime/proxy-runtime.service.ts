@@ -41,8 +41,17 @@ export function stopProxyRuntimeReconciliation(): Promise<void> {
     return reconcileProxyConfigurationService.stop()
 }
 
-export async function getProxyRuntimeStatusService(): Promise<ProxyRuntimeSyncStatus> {
-    await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
+type RuntimeViewPermission =
+    | typeof PERMISSIONS.PROXY_HOSTS_VIEW
+    | typeof PERMISSIONS.REDIRECT_HOSTS_VIEW
+type RuntimeApplyPermission =
+    | typeof PERMISSIONS.PROXY_HOSTS_APPLY
+    | typeof PERMISSIONS.REDIRECT_HOSTS_APPLY
+
+export async function getProxyRuntimeStatusService(
+    permission: RuntimeViewPermission = PERMISSIONS.PROXY_HOSTS_VIEW,
+): Promise<ProxyRuntimeSyncStatus> {
+    await requirePermissionService(permission)
     const [snapshot, runtime] = await Promise.all([
         getProxyRuntimeSnapshotService(),
         getProxyRuntimeStatus(),
@@ -51,7 +60,9 @@ export async function getProxyRuntimeStatusService(): Promise<ProxyRuntimeSyncSt
     return compareProxyRuntimeStatus(snapshot.revision, runtime)
 }
 
-export async function applyProxyConfigurationService() {
-    await requirePermissionService(PERMISSIONS.PROXY_HOSTS_APPLY)
+export async function applyProxyConfigurationService(
+    permission: RuntimeApplyPermission = PERMISSIONS.PROXY_HOSTS_APPLY,
+) {
+    await requirePermissionService(permission)
     return reconcileProxyConfigurationService()
 }

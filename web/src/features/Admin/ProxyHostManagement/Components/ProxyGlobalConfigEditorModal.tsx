@@ -21,7 +21,7 @@ const FIELDS = [
 export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEditorModalProps) {
     const { t } = useTranslationStore()
     const { state, handler } = useProxyGlobalConfigEditorLogic(props)
-    const busy = state.isSaving || state.isResetting || state.isPreviewing
+    const busy = state.isRefreshing || state.isSaving || state.isResetting || state.isPreviewing
     const source =
         state.activeTab === 'active'
             ? state.data?.active?.config
@@ -107,6 +107,7 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                                 className={uiClassNames.button.quiet}
                                 onClick={() => handler.setActiveTab(tab)}
                                 aria-pressed={state.activeTab === tab}
+                                disabled={busy}
                             >
                                 {t(`admin.proxyHosts.config.${tab === 'edit' ? 'settings' : tab}`)}
                             </button>
@@ -131,7 +132,7 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                                     {t(`admin.proxyHosts.config.${labelKey}`)}
                                     <span className="flex items-center gap-2">
                                         <input
-                                            className="w-full rounded-lg border border-border bg-surface px-3 py-2"
+                                            className={uiClassNames.form.control}
                                             type="number"
                                             min={min}
                                             max={max}

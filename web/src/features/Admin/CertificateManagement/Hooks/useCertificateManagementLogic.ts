@@ -8,6 +8,7 @@ import type {
 } from '../../../../shared/Types/certificates.types'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
 import { proxyHostManagementQueryKeys } from '../../ProxyHostManagement/queryKeys'
+import { redirectHostManagementQueryKeys } from '../../RedirectHostManagement/queryKeys'
 import {
     deleteCertificateHandler,
     getCertificatesHandler,
@@ -27,6 +28,7 @@ export default function useCertificateManagementLogic({
     const certificatesQuery = useQuery({
         queryKey: certificateManagementQueryKeys.all,
         queryFn: () => getCertificatesHandler(),
+        refetchInterval: 15_000,
     })
     const [importOpen, setImportOpen] = useState(false)
     const [requestOpen, setRequestOpen] = useState(false)
@@ -42,7 +44,7 @@ export default function useCertificateManagementLogic({
         await Promise.all([
             queryClient.invalidateQueries({ queryKey: certificateManagementQueryKeys.all }),
             queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.all }),
-            queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.runtimeStatus }),
+            queryClient.invalidateQueries({ queryKey: redirectHostManagementQueryKeys.all }),
         ])
     }, [queryClient])
     const handleActionResult = useCallback(

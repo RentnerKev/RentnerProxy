@@ -14,6 +14,8 @@ export default function ProxyHostFormFields({
     canChangeEnabled,
     canAssignCertificates,
     assignableCertificates,
+    assignableCertificatesLoadFailed,
+    assignableCertificatesLoading,
     assignableTrustedCas,
     trustedCasLoadFailed,
     trustedCasLoading,
@@ -22,6 +24,7 @@ export default function ProxyHostFormFields({
     formId,
     isPending,
     removeDomain,
+    retryAssignableCertificates,
 }: ProxyHostFormFieldsProps) {
     const { t } = useTranslationStore()
 
@@ -167,7 +170,11 @@ export default function ProxyHostFormFields({
                             <SelectControl
                                 ariaLabel={t('admin.proxyHosts.form.certificate')}
                                 className={uiClassNames.form.select}
-                                disabled={isPending}
+                                disabled={
+                                    isPending ||
+                                    assignableCertificatesLoading ||
+                                    assignableCertificatesLoadFailed
+                                }
                                 value={field.state.value ?? ''}
                                 placeholder={t('admin.proxyHosts.form.noCertificate')}
                                 options={usableCertificates.map((certificate) => ({
@@ -183,6 +190,25 @@ export default function ProxyHostFormFields({
                             <p className={uiClassNames.form.hint}>
                                 {t('admin.proxyHosts.form.certificateHint')}
                             </p>
+                            {assignableCertificatesLoading ? (
+                                <output className={uiClassNames.form.hint}>
+                                    {t('common.loading')}
+                                </output>
+                            ) : assignableCertificatesLoadFailed ? (
+                                <div className="flex flex-wrap items-center gap-2" role="alert">
+                                    <p className="m-0 text-sm text-danger-text">
+                                        {t('common.requestFailed')}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        className={uiClassNames.button.quiet}
+                                        onClick={retryAssignableCertificates}
+                                        disabled={isPending}
+                                    >
+                                        {t('common.retry')}
+                                    </button>
+                                </div>
+                            ) : null}
                             <FieldError
                                 id={`${formId}-certificateId-error`}
                                 errors={field.state.meta.errors}

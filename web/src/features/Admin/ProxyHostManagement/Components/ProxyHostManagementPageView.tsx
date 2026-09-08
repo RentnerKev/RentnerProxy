@@ -52,7 +52,10 @@ export default function ProxyHostManagementPageView({
                 canApply={state.canApply}
                 isApplying={state.isApplying}
                 onApply={handler.apply}
+                onRetry={handler.retryRuntime}
                 status={state.runtimeStatus}
+                isError={state.runtimeStatusError}
+                isRetrying={state.runtimeStatusRetrying}
             />
             {state.isError ? (
                 <ContentState

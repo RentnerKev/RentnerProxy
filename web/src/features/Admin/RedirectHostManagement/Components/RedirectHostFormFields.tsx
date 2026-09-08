@@ -12,11 +12,14 @@ export default function RedirectHostFormFields({
     canChangeEnabled,
     canAssignCertificates,
     assignableCertificates,
+    assignableCertificatesLoadFailed,
+    assignableCertificatesLoading,
     domainKeys,
     form,
     formId,
     isPending,
     removeDomain,
+    retryAssignableCertificates,
 }: RedirectHostFormFieldsProps) {
     const { t } = useTranslationStore()
     return (
@@ -198,7 +201,11 @@ export default function RedirectHostFormFields({
                             <SelectControl
                                 ariaLabel={t('admin.redirectHosts.form.certificate')}
                                 className={uiClassNames.form.select}
-                                disabled={isPending}
+                                disabled={
+                                    isPending ||
+                                    assignableCertificatesLoading ||
+                                    assignableCertificatesLoadFailed
+                                }
                                 value={field.state.value ?? ''}
                                 placeholder={t('admin.redirectHosts.form.noCertificate')}
                                 options={assignableCertificates.map((certificate) => ({
@@ -211,6 +218,25 @@ export default function RedirectHostFormFields({
                             <p className={uiClassNames.form.hint}>
                                 {t('admin.redirectHosts.form.certificateHint')}
                             </p>
+                            {assignableCertificatesLoading ? (
+                                <output className={uiClassNames.form.hint}>
+                                    {t('common.loading')}
+                                </output>
+                            ) : assignableCertificatesLoadFailed ? (
+                                <div className="flex flex-wrap items-center gap-2" role="alert">
+                                    <p className="m-0 text-sm text-danger-text">
+                                        {t('common.requestFailed')}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        className={uiClassNames.button.quiet}
+                                        onClick={retryAssignableCertificates}
+                                        disabled={isPending}
+                                    >
+                                        {t('common.retry')}
+                                    </button>
+                                </div>
+                            ) : null}
                             <FieldError
                                 id={`${formId}-certificateId-error`}
                                 errors={field.state.meta.errors}

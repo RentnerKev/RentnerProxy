@@ -6,6 +6,7 @@ import type { Root } from 'react-dom/client'
 
 import { PERMISSIONS } from '../config/permissions.config'
 import type { CertificateSummary } from '../shared/Types/certificates.types'
+import { redirectHostManagementQueryKeys } from '../features/Admin/RedirectHostManagement/queryKeys'
 import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
@@ -285,6 +286,7 @@ describe('certificate management UI', () => {
     test('submits manual PEM values directly and clears them after success', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_CREATE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        activeQueryClient!.setQueryData(redirectHostManagementQueryKeys.all, [])
         await click(button('Import certificate'))
         await waitFor(() => document.querySelector('#certificate-import-privateKeyPem') !== null)
         const certificatePem = '-----BEGIN CERTIFICATE-----\nCERT\n-----END CERTIFICATE-----'
@@ -300,6 +302,13 @@ describe('certificate management UI', () => {
             certificatePem,
         )
         await setValue(document.querySelector('#certificate-import-privateKeyPem')!, privateKeyPem)
+        let finishRefresh: (() => void) | undefined
+        getCertificatesHandlerMock.mockImplementationOnce(
+            () =>
+                new Promise<CertificateSummary[]>((resolve) => {
+                    finishRefresh = () => resolve([certificate])
+                }),
+        )
         await click(lastButton('Import certificate'))
         await waitFor(() => importCertificateHandlerMock.mock.calls.length === 1)
         expect(importCertificateHandlerMock).toHaveBeenCalledWith({
@@ -310,7 +319,23 @@ describe('certificate management UI', () => {
                 chainPem: '',
             },
         })
+        try {
+            await waitFor(() => finishRefresh !== undefined)
+            const submit = document.querySelector<HTMLButtonElement>(
+                '[role=dialog] button[type=submit]',
+            )
+            expect(submit?.disabled).toBeTrue()
+            expect(
+                document.querySelector<HTMLTextAreaElement>('#certificate-import-privateKeyPem')
+                    ?.value,
+            ).toBe('')
+        } finally {
+            await act(async () => finishRefresh?.())
+        }
         await waitFor(() => document.querySelector('[role=dialog]') === null)
+        expect(
+            activeQueryClient!.getQueryState(redirectHostManagementQueryKeys.all)?.isInvalidated,
+        ).toBeTrue()
         expect(document.body.textContent).not.toContain(privateKeyPem)
         await waitForToast('success')
     })
@@ -327,6 +352,13 @@ describe('certificate management UI', () => {
         )
         await setValue(document.querySelector('#certificate-request-contact')!, 'ops@example.com')
         await click(document.querySelector('#certificate-request-terms')!)
+        let finishRefresh: (() => void) | undefined
+        getCertificatesHandlerMock.mockImplementationOnce(
+            () =>
+                new Promise<CertificateSummary[]>((resolve) => {
+                    finishRefresh = () => resolve([certificate])
+                }),
+        )
         await click(lastButton('Request with ACME'))
         await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
         expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
@@ -338,6 +370,16 @@ describe('certificate management UI', () => {
                 acceptTerms: true,
             },
         })
+        try {
+            await waitFor(() => finishRefresh !== undefined)
+            expect(
+                document.querySelector<HTMLButtonElement>('[role=dialog] button[type=submit]')
+                    ?.disabled,
+            ).toBeTrue()
+        } finally {
+            await act(async () => finishRefresh?.())
+        }
+        await waitFor(() => document.querySelector('[role=dialog]') === null)
         await waitForToast('success')
     })
 })

@@ -1,10 +1,21 @@
-import { HeadContent, Scripts } from '@tanstack/react-router'
+import { HeadContent, Scripts, useRouterState } from '@tanstack/react-router'
 
 import { useDocumentLanguage } from '../../language/useTranslationStore'
+import { getClientCspNonce, isCspNonce, setClientCspNonce } from '../../shared/Helpers/cspNonce'
 import type { RootDocumentProps } from '../Types/root-document.types'
 
 export default function RootDocument({ children }: RootDocumentProps) {
     const language = useDocumentLanguage()
+    const routeNonce = useRouterState({
+        select: (state) => {
+            const rootMatch = state.matches.find((match) => match.routeId === '__root__')
+            const nonce = (rootMatch?.context as { cspNonce?: unknown } | undefined)?.cspNonce
+            return isCspNonce(nonce) ? nonce : undefined
+        },
+    })
+    // Client navigation must retain the nonce from the current document's CSP.
+    const nonce = getClientCspNonce() ?? routeNonce
+    setClientCspNonce(nonce)
 
     return (
         <html
