@@ -170,7 +170,7 @@ export default function RedirectHostFormFields({
                         </span>
                         <SelectControl
                             ariaLabel={t('admin.redirectHosts.form.statusCode')}
-                            className="min-h-[2.85rem]"
+                            className={uiClassNames.form.select}
                             disabled={isPending}
                             value={field.state.value}
                             options={[301, 302, 307, 308].map((code) => ({
@@ -197,6 +197,7 @@ export default function RedirectHostFormFields({
                             </span>
                             <SelectControl
                                 ariaLabel={t('admin.redirectHosts.form.certificate')}
+                                className={uiClassNames.form.select}
                                 disabled={isPending}
                                 value={field.state.value ?? ''}
                                 placeholder={t('admin.redirectHosts.form.noCertificate')}

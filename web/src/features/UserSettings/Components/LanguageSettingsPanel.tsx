@@ -40,7 +40,7 @@ export default function LanguageSettingsPanel() {
                     <span className={uiClassNames.form.label}>{t('language.label')}</span>
                     <SelectControl
                         ariaLabel={t('language.label')}
-                        className="w-full sm:max-w-xs"
+                        className={`${uiClassNames.form.select} w-full sm:max-w-xs`}
                         disabled={state.isSaving}
                         onValueChange={handler.handleLanguageChange}
                         options={state.options}

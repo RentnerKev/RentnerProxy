@@ -170,6 +170,7 @@ export default function UpstreamTlsFields({
                                                 ariaLabel={t(
                                                     'admin.proxyHosts.upstreamTls.trustedCa',
                                                 )}
+                                                className={uiClassNames.form.select}
                                                 value={field.state.value ?? 'system'}
                                                 disabled={
                                                     isPending ||

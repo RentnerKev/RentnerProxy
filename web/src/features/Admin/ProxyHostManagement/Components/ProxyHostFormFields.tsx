@@ -43,7 +43,7 @@ export default function ProxyHostFormFields({
                         </span>
                         <SelectControl
                             ariaLabel={t('admin.proxyHosts.form.forwardScheme')}
-                            className="min-h-[2.85rem]"
+                            className={uiClassNames.form.select}
                             disabled={isPending}
                             options={[
                                 { label: t('admin.proxyHosts.scheme.http'), value: 'http' },
@@ -166,6 +166,7 @@ export default function ProxyHostFormFields({
                             </span>
                             <SelectControl
                                 ariaLabel={t('admin.proxyHosts.form.certificate')}
+                                className={uiClassNames.form.select}
                                 disabled={isPending}
                                 value={field.state.value ?? ''}
                                 placeholder={t('admin.proxyHosts.form.noCertificate')}

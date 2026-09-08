@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, Award, Network } from 'lucide-react'
+import { ArrowRight, Award, LayoutDashboard, Network, ShieldCheck, UsersRound } from 'lucide-react'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
 
@@ -24,7 +24,13 @@ export default function ApplicationNavigation({ items }: ApplicationNavigationPr
                         className: applicationShellClassNames.navigation.activeLink,
                     }}
                 >
-                    {item.to === '/proxy-hosts' ? (
+                    {item.to === '/' ? (
+                        <LayoutDashboard
+                            aria-hidden="true"
+                            className="size-4 shrink-0"
+                            strokeWidth={1.8}
+                        />
+                    ) : item.to === '/proxy-hosts' ? (
                         <Network aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.8} />
                     ) : item.to === '/redirect-hosts' ? (
                         <ArrowRight
@@ -34,9 +40,19 @@ export default function ApplicationNavigation({ items }: ApplicationNavigationPr
                         />
                     ) : item.to === '/certificates' ? (
                         <Award aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.8} />
-                    ) : (
-                        <span aria-hidden="true" />
-                    )}
+                    ) : item.to === '/users' ? (
+                        <UsersRound
+                            aria-hidden="true"
+                            className="size-4 shrink-0"
+                            strokeWidth={1.8}
+                        />
+                    ) : item.to === '/roles' ? (
+                        <ShieldCheck
+                            aria-hidden="true"
+                            className="size-4 shrink-0"
+                            strokeWidth={1.8}
+                        />
+                    ) : null}
                     {item.label}
                 </Link>
             ))}

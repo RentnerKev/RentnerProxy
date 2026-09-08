@@ -12,7 +12,7 @@ const desktopContentMaskClassName =
 const topbarBaseClassName =
     'relative flex min-h-14 items-center justify-between gap-4 overflow-hidden border-b border-border bg-topbar px-5 py-[0.8rem] transition-[margin,padding] duration-[180ms] shell:sticky shell:top-0 shell:z-20 shell:backdrop-blur-[16px] motion-reduce:transition-none'
 const navigationLinkClassName =
-    'group relative inline-flex w-full flex-none cursor-pointer items-center gap-[0.65rem] border-y border-transparent px-3.5 py-[0.72rem] text-[0.85rem] font-[750] text-mist-300 no-underline transition-[background-color,border-color,color] duration-[180ms] hover:border-white/10 hover:bg-white/[0.055] hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-300 shell:-ml-[1.35rem] shell:w-[calc(100%+4.125rem)] shell:pl-[2.2rem] motion-reduce:transition-none [&>span]:size-[0.42rem] [&>span]:shrink-0 [&>span]:rounded-full [&>span]:bg-mist-500 [&>span]:transition-colors [&>span]:duration-[180ms] hover:[&>span]:bg-brand-300'
+    'group relative inline-flex w-full flex-none cursor-pointer items-center gap-[0.65rem] border-y border-transparent px-3.5 py-[0.72rem] text-[0.85rem] font-[750] text-mist-300 no-underline transition-[background-color,border-color,color] duration-[180ms] hover:border-white/10 hover:bg-white/[0.055] hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-300 shell:-ml-[1.35rem] shell:w-[calc(100%+4.125rem)] shell:pl-[2.2rem] motion-reduce:transition-none'
 
 export function getApplicationTopbarClassName(isNavigationExpanded: boolean): string {
     return `${topbarBaseClassName} ${
@@ -40,7 +40,7 @@ export const applicationShellClassNames = {
         root: 'flex gap-[0.4rem] overflow-x-auto pb-1 shell:grid shell:overflow-visible',
         label: `${uiClassNames.technicalLabel} mb-[0.6rem] ml-3 hidden shell:block`,
         link: navigationLinkClassName,
-        activeLink: `${navigationLinkClassName} border-brand-500/20 bg-brand-500/12 text-white [&>span]:bg-brand-500`,
+        activeLink: `${navigationLinkClassName} border-brand-500/20 bg-brand-500/12 text-white`,
     },
     topbar: {
         toggle: 'group grid size-[2.25rem] cursor-pointer place-items-center rounded-full border border-border-strong bg-surface-raised text-muted transition-[border-color,background-color,color] duration-[180ms] hover:border-brand-500 hover:bg-surface-hover hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-brand-500 motion-reduce:transition-none',

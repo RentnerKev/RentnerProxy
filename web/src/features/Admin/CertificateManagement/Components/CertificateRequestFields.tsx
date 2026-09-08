@@ -89,6 +89,7 @@ export default function CertificateRequestFields({
                         </span>
                         <SelectControl
                             ariaLabel={t('admin.certificates.form.environment')}
+                            className={uiClassNames.form.select}
                             disabled={isPending}
                             value={field.state.value}
                             onValueChange={(value) => {

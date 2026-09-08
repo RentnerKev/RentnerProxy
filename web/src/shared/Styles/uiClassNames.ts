@@ -28,7 +28,8 @@ export const uiClassNames = {
         label: 'text-[0.82rem] font-[750] text-ink-soft',
         labelRow:
             'flex items-center justify-between gap-4 text-[0.82rem] font-[750] text-ink-soft [&_a]:text-[0.76rem]',
-        control: formControlClassName,
+        control: `${formControlClassName} h-12`,
+        select: 'h-12!',
         textarea: `${formControlClassName} min-h-26 resize-y`,
         hint: 'm-0 text-[0.76rem] leading-[1.45] text-muted',
         wide: 'shell:col-span-full',
