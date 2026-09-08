@@ -7,6 +7,8 @@ import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { basename, dirname, resolve } from 'node:path'
 
+import { smokeDockerArguments } from './smoke-resources'
+
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const project = 'rentnerproxy-certificate-smoke-' + runId
@@ -57,7 +59,9 @@ async function command(
     options: { readonly inherit?: boolean; readonly timeoutMs?: number } = {},
 ): Promise<string> {
     const child = Bun.spawn({
-        cmd: args[0] === 'curl' ? ['curl', ...curlTestCaArgs, ...args.slice(1)] : args,
+        cmd: smokeDockerArguments(
+            args[0] === 'curl' ? ['curl', ...curlTestCaArgs, ...args.slice(1)] : args,
+        ),
         cwd: repositoryRoot,
         env: environment,
         stdin: 'ignore',
@@ -316,6 +320,7 @@ async function runSmoke(): Promise<void> {
             { inherit: true, timeoutMs: 900_000 },
         )
         await command(['docker', 'network', 'create', network])
+        await command(['docker', 'volume', 'create', stateVolume])
 
         // Extract Pebble's official endpoint CA from the pinned image; it is never committed.
         certSource = project + '-cert-source'

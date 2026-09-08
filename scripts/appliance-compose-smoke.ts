@@ -9,6 +9,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { smokeCompose, smokeDockerArguments } from './smoke-resources'
+
 // This smoke deliberately uses a separate env file. Compose otherwise auto-loads the
 // repository .env, which may contain real SMTP credentials on a developer machine.
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
@@ -47,7 +49,7 @@ function passed(label: string): void {
 
 async function command(argumentsList: string[], timeoutMs = 120_000): Promise<string> {
     const child = Bun.spawn({
-        cmd: argumentsList,
+        cmd: smokeDockerArguments(argumentsList),
         cwd: repositoryRoot,
         env: commandEnvironment,
         stdin: 'ignore',
@@ -81,7 +83,7 @@ async function commandWithEnvironment(
     timeoutMs = 120_000,
 ): Promise<string> {
     const child = Bun.spawn({
-        cmd: argumentsList,
+        cmd: smokeDockerArguments(argumentsList),
         cwd: repositoryRoot,
         env: environment,
         stdin: 'ignore',
@@ -243,6 +245,9 @@ async function runSmoke(): Promise<void> {
     const temporaryComposeFile = join(temporaryRoot, 'docker-compose.yml')
     const imageTag = 'rentnerproxy-appliance-smoke:' + runId
     const volumeName = project + '-data'
+    // PostgreSQL's base image declares this unused volume in addition to our real PGDATA.
+    // Give it an owned name so Compose recreation/restore cannot orphan anonymous volumes.
+    const inheritedVolumeName = project + '-postgres-base'
     const [httpPort, managementPort, httpsPort] = await Promise.all([
         availableLoopbackPort(),
         availableLoopbackPort(),
@@ -256,13 +261,25 @@ async function runSmoke(): Promise<void> {
         'utf8',
     )
     const rootCompose = await readFile(rootComposeFile, 'utf8')
-    const temporaryCompose = rootCompose
-        .replace('ghcr.io/rentnerkev/rentnerproxy:latest', imageTag)
-        .replace("- '80:8080'", `- '127.0.0.1:${httpPort}:8080'`)
-        .replace("- '127.0.0.1:81:3000'", `- '127.0.0.1:${managementPort}:3000'`)
-        .replace("- '443:8443'", `- '127.0.0.1:${httpsPort}:8443'`)
-        .replace('- rentnerproxy:/var/lib/rentnerproxy', `- ${volumeName}:/var/lib/rentnerproxy`)
-        .replace('\nvolumes:\n    rentnerproxy:\n', `\nvolumes:\n    ${volumeName}:\n`)
+    const temporaryCompose = smokeCompose(
+        rootCompose
+            .replace(
+                'services:\n    rentnerproxy:\n',
+                'services:\n    rentnerproxy:\n        extra_hosts:\n            - host.docker.internal:host-gateway\n',
+            )
+            .replace('ghcr.io/rentnerkev/rentnerproxy:latest', imageTag)
+            .replace("- '80:8080'", `- '127.0.0.1:${httpPort}:8080'`)
+            .replace("- '127.0.0.1:81:3000'", `- '127.0.0.1:${managementPort}:3000'`)
+            .replace("- '443:8443'", `- '127.0.0.1:${httpsPort}:8443'`)
+            .replace(
+                '- rentnerproxy:/var/lib/rentnerproxy',
+                `- ${volumeName}:/var/lib/rentnerproxy\n            - ${inheritedVolumeName}:/var/lib/postgresql`,
+            )
+            .replace(
+                '\nvolumes:\n    rentnerproxy:\n',
+                `\nvolumes:\n    ${volumeName}:\n    ${inheritedVolumeName}:\n`,
+            ),
+    )
     assert.notEqual(
         temporaryCompose,
         rootCompose,
@@ -293,6 +310,7 @@ async function runSmoke(): Promise<void> {
                 string,
                 {
                     environment?: Record<string, string>
+                    image?: string
                     ports?: Array<{ published: string; target: number }>
                     volumes?: Array<{ source?: string; target: string }>
                     cap_drop?: string[]
@@ -305,6 +323,7 @@ async function runSmoke(): Promise<void> {
         assert.deepEqual(Object.keys(rendered.services), ['rentnerproxy'])
         const service = rendered.services.rentnerproxy
         assert.ok(service)
+        assert.equal(service.image, imageTag)
         assert.deepEqual(Object.keys(service.environment ?? {}).toSorted(), smtpNames)
         assert.deepEqual(
             (service.ports ?? []).map(({ published, target }) => ({ published, target })),
@@ -314,10 +333,18 @@ async function runSmoke(): Promise<void> {
                 { published: String(httpsPort), target: 8443 },
             ],
         )
-        assert.deepEqual(Object.keys(rendered.volumes ?? {}), [volumeName])
         assert.deepEqual(
-            (service.volumes ?? []).map(({ source, target }) => ({ source, target })),
-            [{ source: volumeName, target: '/var/lib/rentnerproxy' }],
+            Object.keys(rendered.volumes ?? {}).toSorted(),
+            [volumeName, inheritedVolumeName].toSorted(),
+        )
+        assert.deepEqual(
+            (service.volumes ?? [])
+                .map(({ source, target }) => ({ source, target }))
+                .toSorted((a, b) => a.target.localeCompare(b.target)),
+            [
+                { source: inheritedVolumeName, target: '/var/lib/postgresql' },
+                { source: volumeName, target: '/var/lib/rentnerproxy' },
+            ],
         )
         assert.deepEqual(service.cap_drop, ['ALL'])
         assert.deepEqual(service.cap_add?.toSorted(), [
@@ -335,6 +362,29 @@ async function runSmoke(): Promise<void> {
         await command([...compose, 'up', '--detach'], 900_000)
         const id = await containerId(compose)
         await waitForHealthy(id)
+        const mounts = JSON.parse(await inspect(id, '{{json .Mounts}}')) as Array<{
+            Type: string
+            Name: string
+            Destination: string
+        }>
+        assert.deepEqual(
+            mounts
+                .map(({ Type, Name, Destination }) => ({ Type, Name, Destination }))
+                .toSorted((a, b) => a.Destination.localeCompare(b.Destination)),
+            [
+                {
+                    Type: 'volume',
+                    Name: project + '_' + inheritedVolumeName,
+                    Destination: '/var/lib/postgresql',
+                },
+                {
+                    Type: 'volume',
+                    Name: project + '_' + volumeName,
+                    Destination: '/var/lib/rentnerproxy',
+                },
+            ],
+            'every appliance volume must belong to this smoke; anonymous volumes cannot be recovered by run label',
+        )
         passed('empty appliance volume builds and starts healthy')
         assert.equal(
             await command(['docker', 'exec', id, 'sha256sum', '/usr/share/licenses/caddy/LICENSE']),

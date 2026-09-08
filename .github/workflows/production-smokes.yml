@@ -1,0 +1,57 @@
+name: Production Smokes
+
+on:
+    pull_request:
+        branches:
+            - main
+    push:
+        branches:
+            - main
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: production-smokes-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+env:
+    BUN_VERSION: 1.4.2
+    RENTNERPROXY_SMOKE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
+
+jobs:
+    production-smokes:
+        name: Production Smokes
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Set up Bun
+              id: bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+
+            - name: Proxy runtime
+              run: bun --no-orphans scripts/production-smoke-ci.ts proxy
+
+            - name: Certificates and ACME
+              run: bun --no-orphans scripts/production-smoke-ci.ts certificates
+
+            - name: Upstream TLS
+              run: bun --no-orphans scripts/production-smoke-ci.ts upstream-tls
+
+            - name: Production appliance, backup and restore
+              run: bun --no-orphans scripts/production-smoke-ci.ts production
+
+            - name: Clean up this run and summarize
+              if: always() && steps.bun.outcome == 'success'
+              run: bun scripts/production-smoke-ci.ts cleanup

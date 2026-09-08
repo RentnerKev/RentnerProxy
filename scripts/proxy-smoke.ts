@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { SQL } from 'bun'
 
 import { startTestUpstream } from './proxy-test-upstream'
+import { smokeCompose, smokeDockerArguments } from './smoke-resources'
 
 const POSTGRES_IMAGE =
     'postgres:18.6@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280'
@@ -33,38 +34,40 @@ const environment: NodeJS.ProcessEnv = {
 }
 await writeFile(
     temporaryComposeFile,
-    JSON.stringify(
-        {
-            services: {
-                'proxy-runtime': {
-                    build: {
-                        context: repositoryRoot,
-                        dockerfile: 'docker/proxy-runtime/Dockerfile',
+    smokeCompose(
+        JSON.stringify(
+            {
+                services: {
+                    'proxy-runtime': {
+                        build: {
+                            context: repositoryRoot,
+                            dockerfile: 'docker/proxy-runtime/Dockerfile',
+                        },
+                        environment: {
+                            RENTNERPROXY_CONTROLLER_TOKEN:
+                                '${RENTNERPROXY_CONTROLLER_TOKEN:?Set a random server-only controller token}',
+                            RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT:
+                                '${RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT:-443}',
+                            RUST_LOG: '${RUST_LOG:-info}',
+                        },
+                        ports: [
+                            '127.0.0.1:${RENTNERPROXY_PROXY_DEV_HTTP_PORT:-0}:8080',
+                            '127.0.0.1:${RENTNERPROXY_PROXY_DEV_HTTPS_PORT:-0}:8443',
+                            '127.0.0.1:${RENTNERPROXY_PROXY_DEV_CONTROLLER_PORT:-0}:8081',
+                        ],
+                        extra_hosts: ['host.docker.internal:host-gateway'],
+                        volumes: ['proxy-state:/var/lib/rentnerproxy/proxy'],
+                        security_opt: ['no-new-privileges:true'],
+                        cap_drop: ['ALL'],
+                        stop_grace_period: '15s',
                     },
-                    environment: {
-                        RENTNERPROXY_CONTROLLER_TOKEN:
-                            '${RENTNERPROXY_CONTROLLER_TOKEN:?Set a random server-only controller token}',
-                        RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT:
-                            '${RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT:-443}',
-                        RUST_LOG: '${RUST_LOG:-info}',
-                    },
-                    ports: [
-                        '127.0.0.1:${RENTNERPROXY_PROXY_DEV_HTTP_PORT:-0}:8080',
-                        '127.0.0.1:${RENTNERPROXY_PROXY_DEV_HTTPS_PORT:-0}:8443',
-                        '127.0.0.1:${RENTNERPROXY_PROXY_DEV_CONTROLLER_PORT:-0}:8081',
-                    ],
-                    extra_hosts: ['host.docker.internal:host-gateway'],
-                    volumes: ['proxy-state:/var/lib/rentnerproxy/proxy'],
-                    security_opt: ['no-new-privileges:true'],
-                    cap_drop: ['ALL'],
-                    stop_grace_period: '15s',
                 },
+                volumes: { 'proxy-state': {} },
             },
-            volumes: { 'proxy-state': {} },
-        },
-        null,
-        2,
-    ) + '\n',
+            null,
+            2,
+        ) + '\n',
+    ),
     { encoding: 'utf8', mode: 0o600 },
 )
 const compose = ['docker', 'compose', '-p', project, '-f', temporaryComposeFile]
@@ -75,7 +78,7 @@ async function command(
     options: { readonly inherit?: boolean; readonly timeoutMs?: number } = {},
 ): Promise<string> {
     const child = Bun.spawn({
-        cmd: args,
+        cmd: smokeDockerArguments(args),
         cwd: repositoryRoot,
         env: environment,
         stdin: 'ignore',

@@ -7,6 +7,7 @@ import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { createProxyRuntimeSnapshot } from '../web/src/server/ProxyRuntime/proxy-runtime-snapshot'
+import { smokeDockerArguments } from './smoke-resources'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
@@ -56,7 +57,7 @@ async function command(
     options: { readonly inherit?: boolean; readonly timeoutMs?: number } = {},
 ): Promise<string> {
     const child = Bun.spawn({
-        cmd: [...args],
+        cmd: smokeDockerArguments(args),
         cwd: repositoryRoot,
         stdin: 'ignore',
         stdout: options.inherit ? 'inherit' : 'pipe',
@@ -177,10 +178,13 @@ async function openssl(args: readonly string[]): Promise<string> {
             ? '/certs/' + value.slice(tempDirectory.length).replaceAll('\\', '/')
             : value,
     )
+    const uid = process.getuid?.()
+    const gid = process.getgid?.()
     return command([
         'docker',
         'run',
         '--rm',
+        ...(uid === undefined || gid === undefined ? [] : ['--user', uid + ':' + gid]),
         '--volume',
         tempDirectory + ':/certs',
         '--entrypoint',
@@ -445,6 +449,7 @@ async function runSmoke(): Promise<void> {
             { inherit: true, timeoutMs: 600_000 },
         )
         await command(['docker', 'network', 'create', network])
+        await command(['docker', 'volume', 'create', stateVolume])
         caOnePath = await createCa('ca-one', 'RentnerProxy upstream smoke CA one')
         caTwoPath = await createCa('ca-two', 'RentnerProxy upstream smoke CA two')
         await createBackendCertificate('backend-one', 'ca-one')
