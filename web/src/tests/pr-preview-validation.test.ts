@@ -15,6 +15,7 @@ import {
     parsePositiveInteger,
     parsePullRequestNumberProof,
     parsePreviewArtifactMetadata,
+    parsePreviewComment,
     parseTestedShaProof,
     renderPreviewComment,
     selectPreviewComment,
@@ -474,6 +475,53 @@ describe('artifact metadata and marker comment', () => {
 
         expect(selectPreviewComment(comments)?.id).toBe(4)
         expect(selectPreviewComment(comments.slice(0, 2))).toBeNull()
+    })
+
+    test('parses multiline API comments and selects only the latest trusted preview', () => {
+        const identity = createPreviewIdentity('RentnerKev/RentnerProxy', 42, testedSha)
+        const body = renderPreviewComment(identity, headSha, `sha256:${'5'.repeat(64)}`)
+        const comments = [
+            {
+                body: 'Review summary\n\nNo changes requested.',
+                id: 1,
+                user: { login: 'coderabbitai[bot]', type: 'Bot' },
+            },
+            { body, id: 2, user: { login: 'github-actions[bot]', type: 'Bot' } },
+            {
+                body: body.replaceAll('\n', '\r\n'),
+                id: 3,
+                user: { login: 'github-actions[bot]', type: 'Bot' },
+            },
+            { body, id: 4, user: { login: 'contributor', type: 'User' } },
+            { body, id: 5, user: { login: 'other[bot]', type: 'Bot' } },
+            { body, id: 6, user: { login: 'github-actions[bot]', type: 'User' } },
+            { body: `prefix ${body}`, id: 7, user: { login: 'github-actions[bot]', type: 'Bot' } },
+        ].map(parsePreviewComment)
+
+        expect(selectPreviewComment(comments)?.id).toBe(3)
+        expect(comments[1]?.body).toBe(body)
+        expect(selectPreviewComment(comments.slice(0, 1))).toBeNull()
+    })
+
+    test('accepts empty or hidden comment bodies while rejecting malformed API metadata', () => {
+        const comment = { body: '', id: 1, user: { login: 'github-actions[bot]', type: 'Bot' } }
+        for (const body of ['', null]) {
+            expect(selectPreviewComment([parsePreviewComment({ ...comment, body })])).toBeNull()
+        }
+        for (const body of [undefined, 42, false, {}, [], 'invalid\0body']) {
+            expect(() => parsePreviewComment({ ...comment, body })).toThrow(
+                'Pull request comment body is invalid.',
+            )
+        }
+        for (const change of [
+            { id: 0 },
+            { user: { login: 'github-actions[bot]\ncontributor', type: 'Bot' } },
+            { user: { login: 'github-actions[bot]', type: 'Bot\nUser' } },
+        ]) {
+            expect(() =>
+                parsePreviewComment({ ...comment, body: 'Valid\nMarkdown', ...change }),
+            ).toThrow()
+        }
     })
 
     test('renders reproducible commands and mandatory safety warnings', () => {

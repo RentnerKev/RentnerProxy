@@ -1543,11 +1543,15 @@ async function commandValidateDigests(): Promise<void> {
     )
 }
 
-function parsePreviewComment(value: unknown): PreviewComment {
+export function parsePreviewComment(value: unknown): PreviewComment {
     const comment = asRecord(value, 'Pull request comment')
     const user = asRecord(comment.user, 'Pull request comment user')
+    const body = comment.body
+    if (body !== null && (typeof body !== 'string' || body.includes('\0'))) {
+        throw new Error('Pull request comment body is invalid.')
+    }
     return {
-        body: nullableString(comment.body, 'Pull request comment body'),
+        body,
         id: parsePositiveInteger(comment.id, 'Pull request comment ID'),
         userLogin: stringValue(user.login, 'Pull request comment login'),
         userType: stringValue(user.type, 'Pull request comment user type'),
