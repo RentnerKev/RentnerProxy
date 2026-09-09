@@ -404,7 +404,9 @@ export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedRe
             ? [
                   `> **${releaseType}** · Published **${date}**`,
                   '>',
-                  '> Early testing build. Not intended as the stable channel.',
+                  '> Early testing build. Breaking changes may occur. Not intended as the stable channel.',
+                  '>',
+                  '> Back up your RentnerProxy state before upgrading or testing.',
               ]
             : [
                   `> **${releaseType}** · Published **${date}**`,

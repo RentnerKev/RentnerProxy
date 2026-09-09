@@ -296,6 +296,8 @@ describe('release note rendering', () => {
         expect(dev).toContain('ghcr.io/rentnerkev/rentnerproxy:dev')
         expect(dev).not.toContain('ghcr.io/rentnerkev/rentnerproxy:latest')
         expect(dev).toContain('Not intended as the stable channel')
+        expect(dev).toContain('Breaking changes may occur')
+        expect(dev).toContain('Back up your RentnerProxy state before upgrading or testing.')
     })
 })
 
