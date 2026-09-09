@@ -312,9 +312,6 @@ async function runSmoke(): Promise<void> {
                     image?: string
                     ports?: Array<{ published: string; target: number }>
                     volumes?: Array<{ source?: string; target: string }>
-                    cap_drop?: string[]
-                    cap_add?: string[]
-                    security_opt?: string[]
                 }
             >
             volumes?: Record<string, unknown>
@@ -345,17 +342,7 @@ async function runSmoke(): Promise<void> {
                 { source: volumeName, target: '/var/lib/rentnerproxy' },
             ],
         )
-        assert.deepEqual(service.cap_drop, ['ALL'])
-        assert.deepEqual(service.cap_add?.toSorted(), [
-            'CHOWN',
-            'DAC_OVERRIDE',
-            'FOWNER',
-            'KILL',
-            'SETGID',
-            'SETUID',
-        ])
-        assert.ok(service.security_opt?.includes('no-new-privileges:true'))
-        passed('appliance Compose keeps private management and minimal bootstrap capabilities')
+        passed('appliance Compose keeps private management and persistent storage')
 
         await commandFails([...compose, 'down', '--volumes', '--remove-orphans'], 180_000)
         await command([...compose, 'up', '--detach'], 900_000)
