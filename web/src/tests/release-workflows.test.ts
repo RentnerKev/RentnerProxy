@@ -155,21 +155,28 @@ describe('shared release pipeline', () => {
         expect(pipeline).not.toContain('DOCKERHUB')
     })
 
-    test('uses the channel-specific banners and both files have PNG signatures', async () => {
+    test('uses release-specific banners and all files have PNG signatures', async () => {
         const pipeline = await workflow('release-pipeline.yml')
-        const [devBanner, stableBanner] = await Promise.all([
+        const [devBanner, stableBanner, alphaBanner] = await Promise.all([
             readFile(
                 resolve(repositoryRoot, '.github/assets/release-banners/dev-release-banner.png'),
             ),
             readFile(
                 resolve(repositoryRoot, '.github/assets/release-banners/new-release-banner.png'),
             ),
+            readFile(
+                resolve(repositoryRoot, '.github/assets/release-banners/alpha-release-banner.png'),
+            ),
         ])
         const pngSignature = '89504e470d0a1a0a'
 
         expect(pipeline).toContain('dev-release-banner.png')
         expect(pipeline).toContain('new-release-banner.png')
+        expect(pipeline).toContain('alpha-release-banner.png')
+        expect(pipeline).toContain('case "${RELEASE_TAG#*-}" in')
+        expect(pipeline).toContain('alpha|alpha.*)')
         expect(devBanner.subarray(0, 8).toString('hex')).toBe(pngSignature)
         expect(stableBanner.subarray(0, 8).toString('hex')).toBe(pngSignature)
+        expect(alphaBanner.subarray(0, 8).toString('hex')).toBe(pngSignature)
     })
 })

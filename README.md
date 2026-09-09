@@ -39,6 +39,7 @@ in an empty folder, then run:
 ```bash
 cp .env.production.example .env
 # Edit .env with your SMTP settings.
+# For Alpha 1, set image: ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.1 in docker-compose.yml.
 docker compose up -d
 ```
 

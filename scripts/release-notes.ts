@@ -393,9 +393,19 @@ export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedRe
     validateReleaseTag(input.tagName, input.channel === 'dev')
     validateRepository(input.repository)
     const date = formatReleaseDate(input.publishedAt)
-    const releaseType = input.channel === 'dev' ? 'Development Pre-Release' : 'Stable Release'
+    const isAlpha = /^v\d+\.\d+\.\d+-alpha(?:\.|$)/u.test(input.tagName)
+    const releaseType =
+        input.channel === 'dev'
+            ? isAlpha
+                ? 'Alpha Pre-Release'
+                : 'Development Pre-Release'
+            : 'Stable Release'
     const bannerAlt =
-        input.channel === 'dev' ? 'RentnerProxy Development Release' : 'RentnerProxy Release'
+        input.channel === 'dev'
+            ? isAlpha
+                ? 'RentnerProxy Alpha Release'
+                : 'RentnerProxy Development Release'
+            : 'RentnerProxy Release'
     const icon = input.channel === 'dev' ? '🧪' : '🚀'
     const channelLabel = input.channel === 'dev' ? 'Development' : 'Latest'
     const channelTag = input.channel === 'dev' ? 'dev' : 'latest'

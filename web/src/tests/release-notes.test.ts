@@ -280,7 +280,7 @@ describe('release note rendering', () => {
         expect(body).not.toContain('dependabot')
     })
 
-    test('puts the banner first and renders the correct stable and dev channels', () => {
+    test('puts the banner first and renders stable, development, and alpha releases', () => {
         const stable = renderReleaseNotes(documentInput()).body
         const dev = renderReleaseNotes(
             documentInput({
@@ -298,6 +298,19 @@ describe('release note rendering', () => {
         expect(dev).toContain('Not intended as the stable channel')
         expect(dev).toContain('Breaking changes may occur')
         expect(dev).toContain('Back up your RentnerProxy state before upgrading or testing.')
+        for (const tagName of ['v1.0.0-alpha', 'v1.0.0-alpha.1']) {
+            const alpha = renderReleaseNotes(documentInput({ tagName, channel: 'dev' })).body
+            expect(alpha.startsWith('![RentnerProxy Alpha Release](')).toBeTrue()
+            expect(alpha).toContain('Alpha Pre-Release')
+            expect(alpha).toContain('ghcr.io/rentnerkev/rentnerproxy:dev')
+            expect(alpha).not.toContain('ghcr.io/rentnerkev/rentnerproxy:latest')
+            expect(alpha).toContain('Back up your RentnerProxy state before upgrading or testing.')
+        }
+        for (const tagName of ['v1.0.0-alphabet.1', 'v1.0.0-beta-alpha.1']) {
+            expect(renderReleaseNotes(documentInput({ tagName, channel: 'dev' })).body).toContain(
+                'Development Pre-Release',
+            )
+        }
     })
 })
 

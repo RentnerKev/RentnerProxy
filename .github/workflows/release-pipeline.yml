@@ -184,7 +184,14 @@ jobs:
 
                   case "$RELEASE_CHANNEL" in
                       dev)
-                          banner_relative='.github/assets/release-banners/dev-release-banner.png'
+                          case "${RELEASE_TAG#*-}" in
+                              alpha|alpha.*)
+                                  banner_relative='.github/assets/release-banners/alpha-release-banner.png'
+                                  ;;
+                              *)
+                                  banner_relative='.github/assets/release-banners/dev-release-banner.png'
+                                  ;;
+                          esac
                           channel_tag=dev
                           ;;
                       stable)
