@@ -1,5 +1,6 @@
 import { access, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { spawnSync } from 'node:child_process'
 
 import { describe, expect, test } from 'bun:test'
 
@@ -17,33 +18,24 @@ async function workflow(name: string): Promise<string> {
 }
 
 describe('release workflow entry points', () => {
-    test('uses exactly two release.published entry workflows with opposite job guards', async () => {
-        const [dev, stable] = await Promise.all([
-            workflow('release-dev.yml'),
-            workflow('release-stable.yml'),
-        ])
-
-        for (const entry of [dev, stable]) {
-            expect(entry).toContain('release:')
-            expect(entry).toContain('- published')
-            expect(entry).not.toContain('pull_request:')
-            expect(entry).toContain('uses: ./.github/workflows/release-pipeline.yml')
-            expect(entry).toContain('cancel-in-progress: false')
-        }
-        expect(dev).toContain('github.event.release.prerelease == true')
-        expect(dev).toContain('group: release-dev')
-        expect(dev).not.toContain('group: release-dev-${{ github.event.release.tag_name }}')
-        expect(dev).toContain('channel: dev')
-        expect(dev).toContain('release_tag: ${{ github.event.release.tag_name }}')
-        expect(dev).not.toContain('channel: stable')
-        expect(stable).toContain('github.event.release.prerelease == false')
-        expect(stable).toContain('group: release-stable')
-        expect(stable).not.toContain('group: release-stable-${{ github.event.release.tag_name }}')
-        expect(stable).toContain('channel: stable')
-        expect(stable).toContain('release_tag: ${{ github.event.release.tag_name }}')
-        expect(stable).not.toContain('channel: dev')
+    test('routes published releases by their version tag through one serialized pipeline', async () => {
+        const entry = await workflow('release.yml')
+        expect(entry).toContain('- published')
+        expect(entry).toContain('uses: ./.github/workflows/release-pipeline.yml')
+        expect(entry).toContain('alpha|alpha.*) channel=alpha')
+        expect(entry).toContain('beta|beta.*) channel=beta')
+        expect(entry).toContain('group: release')
+        expect(entry).toContain('cancel-in-progress: false')
+        const oldEntries = await Promise.all(
+            ['release-dev.yml', 'release-stable.yml'].map((name) =>
+                access(workflowPath(name)).then(
+                    () => true,
+                    () => false,
+                ),
+            ),
+        )
+        expect(oldEntries).toEqual([false, false])
     })
-
     test('removes the old main-branch container publisher', async () => {
         const exists = await access(workflowPath('container-image.yml')).then(
             () => true,
@@ -54,6 +46,47 @@ describe('release workflow entry points', () => {
 })
 
 describe('shared release pipeline', () => {
+    test('executes release validation for valid channels and rejects invalid tags and metadata', async () => {
+        const pipeline = await workflow('release-pipeline.yml')
+        const validation = pipeline
+            .split('              run: |')[1]!
+            .split('            - name: Verify authoritative release identity')[0]!
+            .split('\n')
+            .map((line) => line.replace(/^ {18}/, ''))
+            .join('\n')
+        const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash'
+        const cases = [
+            ['v1.0.0', 'stable', 'false', true],
+            ['v1.0.0-alpha', 'alpha', 'true', true],
+            ['v1.0.0-alpha.1', 'alpha', 'true', true],
+            ['v1.0.0-beta.1', 'beta', 'true', true],
+            ['v1.0.0-beta.test-alpha', 'beta', 'true', true],
+            ['v1.0.0-beta.1', 'alpha', 'true', false],
+            ['v1.0.0-alpha.1', 'alpha', 'false', false],
+            ['v1.0.0', 'stable', 'true', false],
+            ['v1.0.0-rc.1', 'stable', 'true', false],
+            ['v1.0.0-alphabet.1', 'alpha', 'true', false],
+            ['v1.0.0-alpha.01', 'alpha', 'true', false],
+            ['v01.0.0', 'stable', 'false', false],
+            ['v1.0.0+build', 'stable', 'false', false],
+        ] as const
+        for (const [tag, channel, prerelease, accepted] of cases) {
+            const result = spawnSync(bash, ['-c', validation], {
+                encoding: 'utf8',
+                env: {
+                    ...process.env,
+                    RELEASE_TAG: tag,
+                    RELEASE_CHANNEL: channel,
+                    RELEASE_PRERELEASE: prerelease,
+                    RELEASE_ID: '123',
+                    RELEASE_PUBLISHED_AT: '2026-09-09T12:00:00Z',
+                },
+            })
+            expect(result.error).toBeUndefined()
+            expect({ tag, accepted: result.status === 0 }).toEqual({ tag, accepted })
+        }
+    })
+
     test('loads the repository label mapping with a deterministic fallback category', async () => {
         const rawConfig: unknown = JSON.parse(
             await readFile(resolve(repositoryRoot, '.github/release-notes.json'), 'utf8'),
@@ -82,7 +115,9 @@ describe('shared release pipeline', () => {
     test('keeps the Docker channel contract explicit and non-overlapping', async () => {
         const pipeline = await workflow('release-pipeline.yml')
 
-        expect(pipeline).toContain('channel_tag=dev')
+        expect(pipeline).toContain('channel_tag=alpha')
+        expect(pipeline).toContain('channel_tag=beta')
+        expect(pipeline).not.toContain('channel_tag=dev')
         expect(pipeline).toContain('channel_tag=latest')
         expect(pipeline).toContain('type=raw,value=${{ needs.prepare.outputs.channel_tag }}')
         expect(pipeline).toContain('type=raw,value=${{ inputs.release_tag }}')
@@ -157,9 +192,9 @@ describe('shared release pipeline', () => {
 
     test('uses release-specific banners and all files have PNG signatures', async () => {
         const pipeline = await workflow('release-pipeline.yml')
-        const [devBanner, stableBanner, alphaBanner] = await Promise.all([
+        const [betaBanner, stableBanner, alphaBanner] = await Promise.all([
             readFile(
-                resolve(repositoryRoot, '.github/assets/release-banners/dev-release-banner.png'),
+                resolve(repositoryRoot, '.github/assets/release-banners/beta-release-banner.png'),
             ),
             readFile(
                 resolve(repositoryRoot, '.github/assets/release-banners/new-release-banner.png'),
@@ -170,12 +205,12 @@ describe('shared release pipeline', () => {
         ])
         const pngSignature = '89504e470d0a1a0a'
 
-        expect(pipeline).toContain('dev-release-banner.png')
+        expect(pipeline).toContain('beta-release-banner.png')
         expect(pipeline).toContain('new-release-banner.png')
         expect(pipeline).toContain('alpha-release-banner.png')
-        expect(pipeline).toContain('case "${RELEASE_TAG#*-}" in')
+        expect(pipeline).toContain('case "$prerelease_part" in')
         expect(pipeline).toContain('alpha|alpha.*)')
-        expect(devBanner.subarray(0, 8).toString('hex')).toBe(pngSignature)
+        expect(betaBanner.subarray(0, 8).toString('hex')).toBe(pngSignature)
         expect(stableBanner.subarray(0, 8).toString('hex')).toBe(pngSignature)
         expect(alphaBanner.subarray(0, 8).toString('hex')).toBe(pngSignature)
     })

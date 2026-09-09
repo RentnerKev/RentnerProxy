@@ -4,7 +4,7 @@ on:
     workflow_call:
         inputs:
             channel:
-                description: Release channel (dev or stable)
+                description: Release channel derived from the tag (alpha, beta or stable)
                 required: true
                 type: string
             prerelease:
@@ -56,7 +56,7 @@ jobs:
 
                   semver_pattern='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
                   if (( ${#RELEASE_TAG} > 128 )) || [[ ! "$RELEASE_TAG" =~ $semver_pattern ]]; then
-                      echo "::error::Invalid release tag. Expected Docker-compatible SemVer such as v1.2.3 or v1.2.3-rc.1."
+                      echo "::error::Invalid release tag. Expected v1.2.3, v1.2.3-alpha.1 or v1.2.3-beta.1."
                       exit 1
                   fi
 
@@ -71,24 +71,21 @@ jobs:
                       done
                   fi
 
-                  case "$RELEASE_CHANNEL:$RELEASE_PRERELEASE" in
-                      dev:true)
-                          [[ -n "$prerelease_part" ]] || {
-                              echo "::error::A development pre-release requires a SemVer prerelease tag."
-                              exit 1
-                          }
-                          ;;
-                      stable:false)
-                          [[ -z "$prerelease_part" ]] || {
-                              echo "::error::A stable release cannot use a SemVer prerelease tag."
-                              exit 1
-                          }
-                          ;;
+                  case "$prerelease_part" in
+                      alpha|alpha.*) expected_channel=alpha ;;
+                      beta|beta.*) expected_channel=beta ;;
+                      '') expected_channel=stable ;;
                       *)
-                          echo "::error::Release channel does not match the GitHub prerelease state."
+                          echo "::error::Only alpha, beta and stable release tags are supported."
                           exit 1
                           ;;
                   esac
+                  expected_prerelease=true
+                  [[ "$expected_channel" != stable ]] || expected_prerelease=false
+                  if [[ "$RELEASE_CHANNEL" != "$expected_channel" || "$RELEASE_PRERELEASE" != "$expected_prerelease" ]]; then
+                      echo "::error::Release channel and GitHub prerelease state must match the version tag."
+                      exit 1
+                  fi
 
                   [[ "$RELEASE_ID" =~ ^[1-9][0-9]*$ ]] || {
                       echo "::error::No valid GitHub release metadata was provided."
@@ -183,16 +180,13 @@ jobs:
                   image="ghcr.io/$repository"
 
                   case "$RELEASE_CHANNEL" in
-                      dev)
-                          case "${RELEASE_TAG#*-}" in
-                              alpha|alpha.*)
-                                  banner_relative='.github/assets/release-banners/alpha-release-banner.png'
-                                  ;;
-                              *)
-                                  banner_relative='.github/assets/release-banners/dev-release-banner.png'
-                                  ;;
-                          esac
-                          channel_tag=dev
+                      alpha)
+                          banner_relative='.github/assets/release-banners/alpha-release-banner.png'
+                          channel_tag=alpha
+                          ;;
+                      beta)
+                          banner_relative='.github/assets/release-banners/beta-release-banner.png'
+                          channel_tag=beta
                           ;;
                       stable)
                           banner_relative='.github/assets/release-banners/new-release-banner.png'

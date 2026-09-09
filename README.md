@@ -48,6 +48,22 @@ management address users will use. Data is kept in the persistent `rentnerproxy`
 traffic uses ports `80` and `443`; for remote management, use an SSH tunnel such as
 `ssh -L 8181:127.0.0.1:81 user@server` and open `http://localhost:8181`.
 
+### Release image tags
+
+Published releases select their Docker channel from the version tag:
+
+| GitHub release tag | Moving Docker tag | Exact Docker tag  |
+| ------------------ | ----------------- | ----------------- |
+| `v1.0.0-alpha.1`   | `:alpha`          | `:v1.0.0-alpha.1` |
+| `v1.0.0-beta.1`    | `:beta`           | `:v1.0.0-beta.1`  |
+| `v1.0.0`           | `:latest`         | `:v1.0.0`         |
+
+Use `ghcr.io/rentnerkev/rentnerproxy` with the desired tag. Each moving tag follows
+the most recently published release in its channel. Exact version tags pin a release.
+Alpha and beta releases must be marked as GitHub pre-releases; stable releases must not.
+Other prerelease suffixes are rejected. The `:dev` channel is retired; PR preview tags
+remain unchanged. Alpha, beta and stable releases each use their own release banner.
+
 ### Development installation
 
 Contributors need Bun 1.4.2, Rust 1.98.0, PostgreSQL 18+, and Redis.

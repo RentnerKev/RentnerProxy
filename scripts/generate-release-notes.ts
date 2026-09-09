@@ -5,6 +5,7 @@ import {
     filterIssues,
     findMatchingMilestone,
     findPreviousRelease,
+    deriveReleaseChannel,
     renderReleaseNotes,
     validateReleaseTag,
     validateRepository,
@@ -162,7 +163,10 @@ export async function generateReleaseNotes(
 ): Promise<GeneratedReleaseNotes> {
     validateReleaseTag(input.release.tagName, input.release.prerelease)
     validateRepository(input.repository)
-    if ((input.channel === 'dev') !== input.release.prerelease) {
+    if (deriveReleaseChannel(input.release.tagName) !== input.channel) {
+        throw new Error('Release channel does not match the release tag')
+    }
+    if ((input.channel !== 'stable') !== input.release.prerelease) {
         throw new Error('Release channel and GitHub prerelease state do not match')
     }
 
@@ -273,8 +277,8 @@ function parseBooleanEnvironment(name: string): boolean {
 }
 
 function parseChannel(value: string): ReleaseChannel {
-    if (value !== 'dev' && value !== 'stable') {
-        throw new Error('RELEASE_CHANNEL must be dev or stable')
+    if (value !== 'alpha' && value !== 'beta' && value !== 'stable') {
+        throw new Error('RELEASE_CHANNEL must be alpha, beta, or stable')
     }
     return value
 }

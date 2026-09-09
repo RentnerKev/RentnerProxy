@@ -1,4 +1,4 @@
-export type ReleaseChannel = 'dev' | 'stable'
+export type ReleaseChannel = 'alpha' | 'beta' | 'stable'
 
 export interface ReleaseCategory {
     title: string
@@ -71,6 +71,11 @@ const VERSION_CORE = String.raw`(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*
 const PRERELEASE = String.raw`([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)`
 const RELEASE_TAG_REGEXP = new RegExp(`^v${VERSION_CORE}(?:-${PRERELEASE})?$`)
 
+interface ParsedReleaseTag {
+    channel: ReleaseChannel
+    prereleasePart?: string
+}
+
 function parseTimestamp(value: string, field: string): number {
     const timestamp = Date.parse(value)
     if (!Number.isFinite(timestamp)) {
@@ -79,7 +84,7 @@ function parseTimestamp(value: string, field: string): number {
     return timestamp
 }
 
-export function validateReleaseTag(tagName: string, prerelease: boolean): void {
+function parseReleaseTag(tagName: string): ParsedReleaseTag {
     if (tagName.length > 128) {
         throw new Error("Release tag exceeds Docker's 128-character tag limit")
     }
@@ -87,7 +92,7 @@ export function validateReleaseTag(tagName: string, prerelease: boolean): void {
     const match = RELEASE_TAG_REGEXP.exec(tagName)
     if (match === null) {
         throw new Error(
-            'Release tag must be Docker-compatible SemVer with a leading v (for example v1.2.3 or v1.2.3-rc.1)',
+            'Release tag must be Docker-compatible SemVer with a leading v (for example v1.2.3 or v1.2.3-alpha.1)',
         )
     }
 
@@ -105,6 +110,24 @@ export function validateReleaseTag(tagName: string, prerelease: boolean): void {
             }
         }
     }
+
+    const channel = prereleasePart?.split('.')[0]
+    if (channel !== undefined && channel !== 'alpha' && channel !== 'beta') {
+        throw new Error('Release tag prerelease channel must be alpha or beta')
+    }
+
+    return {
+        channel: channel === undefined ? 'stable' : channel,
+        ...(prereleasePart === undefined ? {} : { prereleasePart }),
+    }
+}
+
+export function deriveReleaseChannel(tagName: string): ReleaseChannel {
+    return parseReleaseTag(tagName).channel
+}
+
+export function validateReleaseTag(tagName: string, prerelease: boolean): void {
+    const { prereleasePart } = parseReleaseTag(tagName)
 
     if (prerelease && prereleasePart === undefined) {
         throw new Error('A GitHub pre-release must use a SemVer prerelease tag')
@@ -390,38 +413,39 @@ export function formatReleaseDate(value: string): string {
 }
 
 export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedReleaseNotes {
-    validateReleaseTag(input.tagName, input.channel === 'dev')
+    validateReleaseTag(input.tagName, input.channel !== 'stable')
+    if (deriveReleaseChannel(input.tagName) !== input.channel) {
+        throw new Error('Release channel does not match the release tag')
+    }
     validateRepository(input.repository)
     const date = formatReleaseDate(input.publishedAt)
-    const isAlpha = /^v\d+\.\d+\.\d+-alpha(?:\.|$)/u.test(input.tagName)
     const releaseType =
-        input.channel === 'dev'
-            ? isAlpha
-                ? 'Alpha Pre-Release'
-                : 'Development Pre-Release'
-            : 'Stable Release'
+        input.channel === 'stable'
+            ? 'Stable Release'
+            : `${input.channel.charAt(0).toUpperCase()}${input.channel.slice(1)} Pre-Release`
     const bannerAlt =
-        input.channel === 'dev'
-            ? isAlpha
-                ? 'RentnerProxy Alpha Release'
-                : 'RentnerProxy Development Release'
-            : 'RentnerProxy Release'
-    const icon = input.channel === 'dev' ? '🧪' : '🚀'
-    const channelLabel = input.channel === 'dev' ? 'Development' : 'Latest'
-    const channelTag = input.channel === 'dev' ? 'dev' : 'latest'
+        input.channel === 'stable'
+            ? 'RentnerProxy Release'
+            : `RentnerProxy ${input.channel.charAt(0).toUpperCase()}${input.channel.slice(1)} Release`
+    const icon = input.channel === 'stable' ? '🚀' : '🧪'
+    const channelLabel =
+        input.channel === 'stable'
+            ? 'Latest'
+            : input.channel.charAt(0).toUpperCase() + input.channel.slice(1)
+    const channelTag = input.channel === 'stable' ? 'latest' : input.channel
     const disclaimer =
-        input.channel === 'dev'
+        input.channel === 'stable'
             ? [
                   `> **${releaseType}** · Published **${date}**`,
                   '>',
-                  '> Early testing build. Breaking changes may occur. Not intended as the stable channel.',
-                  '>',
-                  '> Back up your RentnerProxy state before upgrading or testing.',
+                  '> Stable RentnerProxy release.',
               ]
             : [
                   `> **${releaseType}** · Published **${date}**`,
                   '>',
-                  '> Stable RentnerProxy release.',
+                  `> Early ${input.channel} testing build. Breaking changes may occur. Not intended as the stable channel.`,
+                  '>',
+                  '> Back up your RentnerProxy state before upgrading or testing.',
               ]
     const issueChangelog = renderIssueChangelog(input)
     const bannerUrl = `${repositoryWebUrl(input.repository)}/releases/download/${encodeURIComponent(

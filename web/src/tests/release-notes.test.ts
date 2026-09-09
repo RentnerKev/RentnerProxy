@@ -5,6 +5,7 @@ import {
     filterIssues,
     findMatchingMilestone,
     findPreviousRelease,
+    deriveReleaseChannel,
     renderReleaseNotes,
     validateReleaseTag,
 } from '../../../scripts/release-notes'
@@ -64,15 +65,21 @@ function documentInput(overrides: Partial<Parameters<typeof renderReleaseNotes>[
 describe('release tag validation', () => {
     test('accepts stable and prerelease SemVer tags with a leading v', () => {
         expect(() => validateReleaseTag('v1.2.3', false)).not.toThrow()
+        expect(() => validateReleaseTag('v1.2.3-alpha', true)).not.toThrow()
         expect(() => validateReleaseTag('v1.2.3-beta.1', true)).not.toThrow()
-        expect(() => validateReleaseTag('v0.0.0-rc.10', true)).not.toThrow()
+        expect(() => validateReleaseTag('v0.0.0-beta.10', true)).not.toThrow()
+        expect(deriveReleaseChannel('v1.2.3')).toBe('stable')
+        expect(deriveReleaseChannel('v1.2.3-alpha.1')).toBe('alpha')
+        expect(deriveReleaseChannel('v1.2.3-beta.1')).toBe('beta')
     })
 
     test('rejects channel contradictions and Docker-incompatible SemVer forms', () => {
         expect(() => validateReleaseTag('v1.2.3', true)).toThrow()
-        expect(() => validateReleaseTag('v1.2.3-rc.1', false)).toThrow()
+        expect(() => validateReleaseTag('v1.2.3-rc.1', true)).toThrow()
+        expect(() => validateReleaseTag('v1.2.3-alpha.1', false)).toThrow()
         expect(() => validateReleaseTag('v1.2.3+build.4', false)).toThrow()
         expect(() => validateReleaseTag('v1.2.3-rc.01', true)).toThrow()
+        expect(() => deriveReleaseChannel('v1.2.3-beta-alpha.1')).toThrow()
         expect(() => validateReleaseTag('../v1.2.3', false)).toThrow()
     })
 })
@@ -280,37 +287,44 @@ describe('release note rendering', () => {
         expect(body).not.toContain('dependabot')
     })
 
-    test('puts the banner first and renders stable, development, and alpha releases', () => {
+    test('puts the banner first and renders stable, beta, and alpha releases', () => {
         const stable = renderReleaseNotes(documentInput()).body
-        const dev = renderReleaseNotes(
+        const beta = renderReleaseNotes(
             documentInput({
                 tagName: 'v1.2.0-beta.1',
-                channel: 'dev',
+                channel: 'beta',
                 previousTag: 'v1.2.0-alpha.1',
             }),
         ).body
         expect(stable.startsWith('![RentnerProxy Release](')).toBeTrue()
         expect(stable).toContain('ghcr.io/rentnerkev/rentnerproxy:latest')
         expect(stable).not.toContain('ghcr.io/rentnerkev/rentnerproxy:dev')
-        expect(dev.startsWith('![RentnerProxy Development Release](')).toBeTrue()
-        expect(dev).toContain('ghcr.io/rentnerkev/rentnerproxy:dev')
-        expect(dev).not.toContain('ghcr.io/rentnerkev/rentnerproxy:latest')
-        expect(dev).toContain('Not intended as the stable channel')
-        expect(dev).toContain('Breaking changes may occur')
-        expect(dev).toContain('Back up your RentnerProxy state before upgrading or testing.')
+        expect(beta.startsWith('![RentnerProxy Beta Release](')).toBeTrue()
+        expect(beta).toContain('ghcr.io/rentnerkev/rentnerproxy:beta')
+        expect(beta).not.toContain('ghcr.io/rentnerkev/rentnerproxy:dev')
+        expect(beta).not.toContain('ghcr.io/rentnerkev/rentnerproxy:latest')
+        expect(beta).toContain('Beta Pre-Release')
+        expect(beta).toContain('Not intended as the stable channel')
+        expect(beta).toContain('Breaking changes may occur')
+        expect(beta).toContain('Back up your RentnerProxy state before upgrading or testing.')
         for (const tagName of ['v1.0.0-alpha', 'v1.0.0-alpha.1']) {
-            const alpha = renderReleaseNotes(documentInput({ tagName, channel: 'dev' })).body
+            const alpha = renderReleaseNotes(documentInput({ tagName, channel: 'alpha' })).body
             expect(alpha.startsWith('![RentnerProxy Alpha Release](')).toBeTrue()
             expect(alpha).toContain('Alpha Pre-Release')
-            expect(alpha).toContain('ghcr.io/rentnerkev/rentnerproxy:dev')
+            expect(alpha).toContain('ghcr.io/rentnerkev/rentnerproxy:alpha')
+            expect(alpha).not.toContain('ghcr.io/rentnerkev/rentnerproxy:dev')
             expect(alpha).not.toContain('ghcr.io/rentnerkev/rentnerproxy:latest')
             expect(alpha).toContain('Back up your RentnerProxy state before upgrading or testing.')
         }
         for (const tagName of ['v1.0.0-alphabet.1', 'v1.0.0-beta-alpha.1']) {
-            expect(renderReleaseNotes(documentInput({ tagName, channel: 'dev' })).body).toContain(
-                'Development Pre-Release',
-            )
+            expect(() => renderReleaseNotes(documentInput({ tagName, channel: 'beta' }))).toThrow()
         }
+    })
+
+    test('rejects a channel that does not match the release tag', () => {
+        expect(() =>
+            renderReleaseNotes(documentInput({ tagName: 'v1.2.0-beta.1', channel: 'alpha' })),
+        ).toThrow('Release channel does not match the release tag')
     })
 })
 
@@ -439,7 +453,7 @@ describe('GitHub API integration boundary', () => {
         expect(result.body).toContain('/compare/v1.0.0...v1.1.0')
     })
 
-    test('uses the immediately previous publication for a development fallback', async () => {
+    test('uses the immediately previous publication for a beta fallback', async () => {
         const issueQueries: URL[] = []
         const client = new GitHubReleaseClient(
             'RentnerKev/RentnerProxy',
@@ -480,7 +494,7 @@ describe('GitHub API integration boundary', () => {
                     prerelease: true,
                     publishedAt: '2026-02-10T00:00:00Z',
                 },
-                channel: 'dev',
+                channel: 'beta',
                 image: 'ghcr.io/rentnerkev/rentnerproxy',
                 bannerAssetName: 'release-banner.png',
                 config,
