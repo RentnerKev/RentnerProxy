@@ -1,1 +1,3 @@
 *.sh text eol=lf
+# Patch context markers intentionally precede upstream whitespace.
+*.patch text eol=lf -whitespace

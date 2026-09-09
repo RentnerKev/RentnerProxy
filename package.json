@@ -77,5 +77,8 @@
             "esbuild": "0.25.12"
         }
     },
-    "packageManager": "bun@1.4.2"
+    "packageManager": "bun@1.4.2",
+    "patchedDependencies": {
+        "@tanstack/start-server-core@1.169.32": "patches/@tanstack%2Fstart-server-core@1.169.32.patch"
+    }
 }

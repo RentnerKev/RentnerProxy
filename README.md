@@ -64,7 +64,12 @@ bun run db:migrate
 bun run dev
 ```
 
-The web app is available at `http://localhost:5173`. See [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+The web app is available at `http://localhost:5173`. The controller's `/health` endpoint can be
+healthy without Caddy, but proxy configuration and `/health/ready` require all configured
+dependencies. If Redis is not running on `127.0.0.1:6379`, the readiness endpoint returns `503`
+after its bounded probe timeout. The local controller also reports proxy configuration as
+unavailable until `RENTNERPROXY_CADDY_BIN` points to a usable Caddy binary; this is expected for
+UI-only development. See [`CONTRIBUTING.md`](./CONTRIBUTING.md)
 for the checks to run before opening a pull request.
 
 ## Features
