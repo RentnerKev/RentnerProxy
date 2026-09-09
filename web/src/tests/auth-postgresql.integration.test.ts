@@ -64,6 +64,7 @@ import {
 } from '../server/Auth/Access/sessions.service'
 import {
     beginDiscoverablePasskeyAuthenticationService,
+    beginPasskeyReauthenticationService,
     beginPasskeyRegistrationService,
     deletePasskeyService,
     renamePasskeyService,
@@ -1580,6 +1581,10 @@ describe('account security with PostgreSQL and Redis', () => {
 
                 const registration = await beginPasskeyRegistrationService(currentSession)
                 expect(registration.options.attestation).toBe('none')
+                expect(registration.options.rp).toEqual({ name: 'RentnerProxy', id: 'localhost' })
+                expect(registration.options.challenge).toMatch(/^[A-Za-z0-9_-]+$/u)
+                expect(registration.options.extensions).toEqual({ credProps: true })
+                expect(registration.options.extensions).not.toHaveProperty('prf')
                 expect(registration.options.authenticatorSelection).toMatchObject({
                     residentKey: 'required',
                     userVerification: 'required',
@@ -1593,6 +1598,9 @@ describe('account security with PostgreSQL and Redis', () => {
 
                 const authentication = await beginDiscoverablePasskeyAuthenticationService()
                 expect(authentication.options.userVerification).toBe('required')
+                expect(authentication.options.rpId).toBe('localhost')
+                expect(authentication.options.challenge).toMatch(/^[A-Za-z0-9_-]+$/u)
+                expect(authentication.options.extensions).toBeUndefined()
                 expect(authentication.options.allowCredentials).toBeUndefined()
                 expect(
                     await consumeAuthChallenge('webauthn-authentication', authentication.flowId),
@@ -1613,6 +1621,30 @@ describe('account security with PostgreSQL and Redis', () => {
                     })
                     .returning({ id: passkeys.id })
                 const passkeyId = requireFirstRow(insertedPasskeys, 'Passkey was not stored.').id
+                const reauthentication = await beginPasskeyReauthenticationService(currentSession)
+                expect(reauthentication.options.userVerification).toBe('required')
+                expect(reauthentication.options.rpId).toBe('localhost')
+                expect(reauthentication.options.challenge).toMatch(/^[A-Za-z0-9_-]+$/u)
+                expect(reauthentication.options.extensions).toBeUndefined()
+                expect(reauthentication.options.allowCredentials).toEqual([
+                    { id: credentialId, transports: ['internal'], type: 'public-key' },
+                ])
+                expect(
+                    await consumeAuthChallenge(
+                        'webauthn-reauthentication',
+                        reauthentication.flowId,
+                    ),
+                ).toMatchObject({
+                    challenge: reauthentication.options.challenge,
+                    sessionId: currentSession.id,
+                    userId: user.id,
+                })
+                expect(
+                    await consumeAuthChallenge(
+                        'webauthn-reauthentication',
+                        reauthentication.flowId,
+                    ),
+                ).toBeNull()
                 const duplicateCredentialError = await captureError(
                     Promise.resolve(
                         getAuthDatabase()

@@ -5,8 +5,10 @@ import {
     generateRegistrationOptions,
     verifyAuthenticationResponse,
     verifyRegistrationResponse,
+    type AuthenticationExtensionsClientInputs,
     type AuthenticationResponseJSON,
-    type AuthenticatorTransportFuture,
+    type PublicKeyCredentialCreationOptionsJSON,
+    type PublicKeyCredentialRequestOptionsJSON,
     type RegistrationResponseJSON,
 } from '@simplewebauthn/server'
 import { and, desc, eq } from 'drizzle-orm'
@@ -94,20 +96,76 @@ function toWebAuthnUserId(userId: string): Uint8Array<ArrayBuffer> {
     return copyBytes(Buffer.from(hex, 'hex'))
 }
 
-function toStoredTransports(value: ReadonlyArray<string>): Array<AuthenticatorTransportFuture> {
-    const valid = new Set<AuthenticatorTransportFuture>([
-        'ble',
-        'cable',
-        'hybrid',
-        'internal',
-        'nfc',
-        'smart-card',
-        'usb',
-    ])
+function toStoredTransports(value: ReadonlyArray<string>): Array<string> {
+    const valid = new Set(['ble', 'cable', 'hybrid', 'internal', 'nfc', 'smart-card', 'usb'])
 
-    return value.filter((transport): transport is AuthenticatorTransportFuture =>
-        valid.has(transport as AuthenticatorTransportFuture),
-    )
+    return value.filter((transport) => valid.has(transport))
+}
+
+/**
+ * SimpleWebAuthn v14 models PRF extension inputs as BufferSource values. Those values are valid
+ * WebAuthn inputs, but they are not serializable across a TanStack server function boundary. The
+ * passkey flows in this application do not use PRF, so preserve the other JSON-safe extensions and
+ * deliberately omit PRF from the options sent to the browser.
+ */
+interface SerializableWebAuthnExtensions {
+    readonly appid?: string
+    readonly credProps?: boolean
+    readonly hmacCreateSecret?: boolean
+    readonly minPinLength?: boolean
+}
+
+export type SerializablePasskeyRegistrationOptions = Omit<
+    PublicKeyCredentialCreationOptionsJSON,
+    'extensions'
+> & {
+    readonly extensions?: SerializableWebAuthnExtensions
+}
+
+export type SerializablePasskeyAuthenticationOptions = Omit<
+    PublicKeyCredentialRequestOptionsJSON,
+    'extensions'
+> & {
+    readonly extensions?: SerializableWebAuthnExtensions
+}
+
+function toSerializableExtensions(
+    extensions: AuthenticationExtensionsClientInputs | undefined,
+): SerializableWebAuthnExtensions | undefined {
+    if (!extensions) return undefined
+
+    return {
+        ...(extensions.appid === undefined ? {} : { appid: extensions.appid }),
+        ...(extensions.credProps === undefined ? {} : { credProps: extensions.credProps }),
+        ...(extensions.hmacCreateSecret === undefined
+            ? {}
+            : { hmacCreateSecret: extensions.hmacCreateSecret }),
+        ...(extensions.minPinLength === undefined ? {} : { minPinLength: extensions.minPinLength }),
+    }
+}
+
+function toSerializableRegistrationOptions(
+    options: PublicKeyCredentialCreationOptionsJSON,
+): SerializablePasskeyRegistrationOptions {
+    const { extensions, ...rest } = options
+    const serializableExtensions = toSerializableExtensions(extensions)
+
+    return {
+        ...rest,
+        ...(serializableExtensions === undefined ? {} : { extensions: serializableExtensions }),
+    }
+}
+
+function toSerializableAuthenticationOptions(
+    options: PublicKeyCredentialRequestOptionsJSON,
+): SerializablePasskeyAuthenticationOptions {
+    const { extensions, ...rest } = options
+    const serializableExtensions = toSerializableExtensions(extensions)
+
+    return {
+        ...rest,
+        ...(serializableExtensions === undefined ? {} : { extensions: serializableExtensions }),
+    }
 }
 
 async function requireWebAuthnConfiguration() {
@@ -142,23 +200,25 @@ export async function beginPasskeyRegistrationService(currentSession: CurrentSes
         .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
         .from(passkeys)
         .where(eq(passkeys.userId, currentSession.user.id))
-    const options = await generateRegistrationOptions({
-        rpName: configuration.rpName,
-        rpID: configuration.rpId,
-        userName: currentSession.user.email,
-        userID: toWebAuthnUserId(currentSession.user.id),
-        userDisplayName: currentSession.user.displayName,
-        timeout: WEBAUTHN_TIMEOUT_MS,
-        attestationType: 'none',
-        excludeCredentials: existingPasskeys.map((passkey) => ({
-            id: passkey.credentialId,
-            transports: toStoredTransports(passkey.transports),
-        })),
-        authenticatorSelection: {
-            residentKey: 'required',
-            userVerification: 'required',
-        },
-    })
+    const options = toSerializableRegistrationOptions(
+        await generateRegistrationOptions({
+            rpName: configuration.rpName,
+            rpID: configuration.rpId,
+            userName: currentSession.user.email,
+            userID: toWebAuthnUserId(currentSession.user.id),
+            userDisplayName: currentSession.user.displayName,
+            timeout: WEBAUTHN_TIMEOUT_MS,
+            attestationType: 'none',
+            excludeCredentials: existingPasskeys.map((passkey) => ({
+                id: passkey.credentialId,
+                transports: toStoredTransports(passkey.transports),
+            })),
+            authenticatorSelection: {
+                residentKey: 'required',
+                userVerification: 'required',
+            },
+        }),
+    )
     const issued = await createAuthChallenge(
         {
             challenge: options.challenge,
@@ -254,11 +314,13 @@ export async function finishPasskeyRegistrationService(input: {
 
 export async function beginDiscoverablePasskeyAuthenticationService() {
     const configuration = await requireWebAuthnConfiguration()
-    const options = await generateAuthenticationOptions({
-        rpID: configuration.rpId,
-        timeout: WEBAUTHN_TIMEOUT_MS,
-        userVerification: 'required',
-    })
+    const options = toSerializableAuthenticationOptions(
+        await generateAuthenticationOptions({
+            rpID: configuration.rpId,
+            timeout: WEBAUTHN_TIMEOUT_MS,
+            userVerification: 'required',
+        }),
+    )
     const issued = await createAuthChallenge(
         {
             challenge: options.challenge,
@@ -372,15 +434,17 @@ export async function beginPasskeyReauthenticationService(currentSession: Curren
         throw new AuthDomainError('invalid_input', 'No passkey is available.')
     }
 
-    const options = await generateAuthenticationOptions({
-        rpID: configuration.rpId,
-        timeout: WEBAUTHN_TIMEOUT_MS,
-        userVerification: 'required',
-        allowCredentials: knownPasskeys.map((passkey) => ({
-            id: passkey.credentialId,
-            transports: toStoredTransports(passkey.transports),
-        })),
-    })
+    const options = toSerializableAuthenticationOptions(
+        await generateAuthenticationOptions({
+            rpID: configuration.rpId,
+            timeout: WEBAUTHN_TIMEOUT_MS,
+            userVerification: 'required',
+            allowCredentials: knownPasskeys.map((passkey) => ({
+                id: passkey.credentialId,
+                transports: toStoredTransports(passkey.transports),
+            })),
+        }),
+    )
     const issued = await createAuthChallenge(
         {
             challenge: options.challenge,

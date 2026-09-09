@@ -78,6 +78,18 @@ describe('account security validation', () => {
                 response: passkeyRegistrationResponse,
             }).success,
         ).toBeTrue()
+        expect(
+            finishPasskeyRegistrationInputSchema.safeParse({
+                challengeId: opaqueChallenge,
+                response: {
+                    ...passkeyRegistrationResponse,
+                    response: {
+                        ...passkeyRegistrationResponse.response,
+                        transports: ['future-transport'],
+                    },
+                },
+            }).success,
+        ).toBeTrue()
         expect(finishPasskeyRegistrationInputSchema.safeParse({}).success).toBeFalse()
 
         expect(
