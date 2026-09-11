@@ -1420,7 +1420,7 @@ async function runSmoke(): Promise<void> {
                 'redirect.example.com:' + httpsPort + ':127.0.0.1',
                 'https://redirect.example.com:' + httpsPort + '/wildcard',
             ])
-            assert.match(redirectResponse, /HTTP\/1\.1 308/u)
+            assert.match(redirectResponse, /^HTTP\/(?:1\.1|2) 308(?:\s|$)/u)
             assert.match(redirectResponse, /Location: https:\/\/example\.org\/wildcard/iu)
         }
         await checkWildcardTraffic()
