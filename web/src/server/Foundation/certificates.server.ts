@@ -144,12 +144,15 @@ export async function issueControllerCertificate(
     const body = JSON.stringify({
         domains: input.domains,
         environment: input.environment ?? 'staging',
+        challengeType: input.challengeType ?? 'http-01',
+        ...(input.dnsProvider ? { dnsProvider: input.dnsProvider } : {}),
         ...(input.contactEmail ? { contactEmail: input.contactEmail } : {}),
         acceptTerms: input.acceptTerms,
     })
     return parseMetadata(
         await controllerRequest(`${certificatePath(certificateId)}/issue`, {
             privileged: true,
+            confidential: input.challengeType === 'dns-01' || input.dnsProvider !== undefined,
             timeoutMs: 5_000,
             method: 'POST',
             body,

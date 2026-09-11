@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { basename, dirname, resolve } from 'node:path'
 
 import { smokeDockerArguments } from './smoke-resources'
+import { startCertificateDnsFixture } from './certificate-dns-fixture'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
@@ -288,6 +289,8 @@ async function runSmoke(): Promise<void> {
     const temp = await mkdtemp(tmpdir() + '/rentnerproxy-certificate-smoke-')
     const stateVolume = project + '-state'
     let backend: ReturnType<typeof Bun.serve> | undefined
+    let dnsFixture: Awaited<ReturnType<typeof startCertificateDnsFixture>> | undefined
+    const dnsToken = randomBytes(32).toString('hex')
     let controllerUrl = ''
     let httpUrl = ''
     let pebbleManagementUrl = ''
@@ -321,6 +324,7 @@ async function runSmoke(): Promise<void> {
         )
         await command(['docker', 'network', 'create', network])
         await command(['docker', 'volume', 'create', stateVolume])
+        dnsFixture = await startCertificateDnsFixture(dnsToken)
 
         // Extract Pebble's official endpoint CA from the pinned image; it is never committed.
         certSource = project + '-cert-source'
@@ -398,6 +402,8 @@ async function runSmoke(): Promise<void> {
                 network,
                 '--network-alias',
                 'pebble',
+                '--add-host',
+                'host.docker.internal:host-gateway',
                 '--publish',
                 '127.0.0.1:' + pebbleManagementPort + ':15000',
                 '--env',
@@ -410,6 +416,8 @@ async function runSmoke(): Promise<void> {
                 '-config',
                 '/tmp/pebble-config.json',
                 '-strict',
+                '-dnsserver',
+                'host.docker.internal:' + dnsFixture.dnsPort,
             ],
             { timeoutMs: 60_000 },
         )
@@ -507,6 +515,12 @@ async function runSmoke(): Promise<void> {
                 '--env',
                 'RENTNERPROXY_ACME_TEST_ROOT_CERT=/test/pebble.minica.pem',
                 '--env',
+                'APP_ENCRYPTION_KEY=' + randomBytes(32).toString('base64'),
+                '--env',
+                'RENTNERPROXY_DNS_TEST_API_URL=http://host.docker.internal:' +
+                    dnsFixture.apiPort +
+                    '/client/v4',
+                '--env',
                 'RENTNERPROXY_PROXY_STATE_DIR=/var/lib/rentnerproxy/proxy',
                 '--volume',
                 stateVolume + ':/var/lib/rentnerproxy/proxy',
@@ -517,6 +531,14 @@ async function runSmoke(): Promise<void> {
             { timeoutMs: 60_000 },
         )
         controllerUrl = 'http://127.0.0.1:' + controllerPort
+        const runtimeAddress = await command([
+            'docker',
+            'inspect',
+            '--format',
+            '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',
+            runtimeContainer,
+        ])
+        dnsFixture.addresses.set('acme.invalid', runtimeAddress)
         httpUrl = 'http://127.0.0.1:' + httpPort
         await waitFor(async () => {
             const response = await fetch(controllerUrl + '/health').catch(() => null)
@@ -1303,6 +1325,207 @@ async function runSmoke(): Promise<void> {
         )
         passed('controller restart preserves account, metadata and live HTTPS configuration')
 
+        const wildcardId = uuidV7()
+        const dnsRequest = {
+            domains: ['*.example.com', 'example.com'],
+            environment: 'staging',
+            acceptTerms: true,
+            challengeType: 'dns-01',
+            dnsProvider: { type: 'cloudflare', zoneId: dnsFixture.zoneId, apiToken: dnsToken },
+        }
+        const forbiddenHttpWildcard = await controllerRequest(
+            '/internal/v1/certificates/' + uuidV7() + '/issue',
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    ...dnsRequest,
+                    challengeType: 'http-01',
+                    dnsProvider: undefined,
+                }),
+            },
+        )
+        assert.equal(forbiddenHttpWildcard.status, 422)
+        const wildcardIssue = await controllerRequest(
+            '/internal/v1/certificates/' + wildcardId + '/issue',
+            { method: 'POST', body: JSON.stringify(dnsRequest) },
+        )
+        assert.equal(wildcardIssue.status, 202)
+        async function waitForDnsCertificate() {
+            let metadata: Record<string, any> = {}
+            await waitFor(
+                async () => {
+                    metadata = jsonObject(
+                        await (
+                            await controllerRequest('/internal/v1/certificates/' + wildcardId)
+                        ).json(),
+                    )
+                    return metadata.operation === 'idle'
+                },
+                'Pebble DNS-01 operation',
+                180_000,
+            )
+            assert.equal(metadata.status, 'valid')
+            assert.equal(metadata.lastErrorCode, null)
+            return metadata
+        }
+        const wildcardIssued = await waitForDnsCertificate()
+        assert.deepEqual(wildcardIssued.domains, ['*.example.com', 'example.com'])
+        assert.ok(dnsFixture.maxSimultaneousTxt >= 2)
+        assert.equal(dnsFixture.records.length, 0)
+        passed('mixed apex/wildcard DNS-01 validates simultaneous TXT proofs and cleans up')
+        const wildcardProxy = host(uuidV7(), 'proxy.example.com', backend.port!, wildcardId)
+        const wildcardApex = host(uuidV7(), 'example.com', backend.port!, wildcardId)
+        const wildcardRedirect = redirectHost(
+            uuidV7(),
+            'redirect.example.com',
+            'https://example.org',
+            wildcardId,
+        )
+        const wildcardSnapshot = snapshot([wildcardProxy, wildcardApex], [wildcardRedirect])
+        await apply(wildcardSnapshot)
+        async function checkWildcardTraffic() {
+            for (const name of ['proxy.example.com', 'example.com']) {
+                const response = await curl([
+                    '--cacert',
+                    temp + '/issuance-root.pem',
+                    '--resolve',
+                    name + ':' + httpsPort + ':127.0.0.1',
+                    'https://' + name + ':' + httpsPort + '/wildcard',
+                ])
+                assert.match(response, /certificate-smoke-backend/u)
+            }
+            const redirectResponse = await curl([
+                '--include',
+                '--cacert',
+                temp + '/issuance-root.pem',
+                '--resolve',
+                'redirect.example.com:' + httpsPort + ':127.0.0.1',
+                'https://redirect.example.com:' + httpsPort + '/wildcard',
+            ])
+            assert.match(redirectResponse, /HTTP\/1\.1 308/u)
+            assert.match(redirectResponse, /Location: https:\/\/example\.org\/wildcard/iu)
+        }
+        await checkWildcardTraffic()
+        for (const unrelated of ['deep.proxy.example.com', 'unrelated.org']) {
+            const rejected = await controllerRequest('/internal/v1/proxy/config', {
+                method: 'PUT',
+                body: JSON.stringify(
+                    snapshot([host(uuidV7(), unrelated, backend.port!, wildcardId)]),
+                ),
+            })
+            assert.notEqual(rejected.status, 200)
+        }
+        passed(
+            'wildcard certificate serves Proxy/Redirect Hosts and rejects deeper/unrelated hosts',
+        )
+        const stateJson = await command([
+            'docker',
+            'exec',
+            runtimeContainer,
+            'cat',
+            '/var/lib/rentnerproxy/proxy/certificates/certificate-metadata.json',
+        ])
+        assert.equal(stateJson.includes(dnsToken), false)
+        await command(['docker', 'restart', runtimeContainer], { timeoutMs: 60_000 })
+        await waitFor(
+            async () => (await controllerRequest('/internal/v1/proxy/status')).status === 200,
+            'restart before DNS renewal',
+        )
+        assert.equal(
+            (
+                await controllerRequest('/internal/v1/certificates/' + wildcardId + '/renew', {
+                    method: 'POST',
+                    body: '{}',
+                })
+            ).status,
+            202,
+        )
+        const wildcardRenewed = await waitForDnsCertificate()
+        assert.notEqual(wildcardRenewed.fingerprint, wildcardIssued.fingerprint)
+        assert.equal(
+            jsonObject(await (await controllerRequest('/internal/v1/proxy/status')).json())
+                .activeRevision,
+            wildcardSnapshot.revision,
+        )
+        assert.equal(dnsFixture.records.length, 0)
+        await checkWildcardTraffic()
+        passed(
+            'DNS renewal decrypts persisted credentials after restart and retains host assignments',
+        )
+
+        dnsFixture.failCleanup = true
+        assert.equal(
+            (
+                await controllerRequest('/internal/v1/certificates/' + wildcardId + '/renew', {
+                    method: 'POST',
+                    body: '{}',
+                })
+            ).status,
+            202,
+        )
+        let cleanupFailure: Record<string, any> = {}
+        await waitFor(
+            async () => {
+                cleanupFailure = jsonObject(
+                    await (
+                        await controllerRequest('/internal/v1/certificates/' + wildcardId)
+                    ).json(),
+                )
+                return cleanupFailure.operation === 'idle'
+            },
+            'visible DNS cleanup failure',
+            180_000,
+        )
+        assert.equal(cleanupFailure.lastErrorCode, 'dns_cleanup_failed')
+        assert.equal(cleanupFailure.status, 'valid')
+        assert.equal(cleanupFailure.fingerprint, wildcardRenewed.fingerprint)
+        assert.ok(dnsFixture.records.length > 0)
+        await checkWildcardTraffic()
+        dnsFixture.failCleanup = false
+        await command(['docker', 'restart', runtimeContainer], { timeoutMs: 60_000 })
+        await waitFor(
+            async () => (await controllerRequest('/internal/v1/proxy/status')).status === 200,
+            'restart with pending DNS cleanup',
+        )
+        assert.equal(
+            (
+                await controllerRequest('/internal/v1/certificates/' + wildcardId + '/renew', {
+                    method: 'POST',
+                    body: '{}',
+                })
+            ).status,
+            202,
+        )
+        await waitForDnsCertificate()
+        assert.equal(dnsFixture.records.length, 0)
+        await checkWildcardTraffic()
+        passed(
+            'failed DNS cleanup preserves live TLS and pending proofs are cleaned on retry after restart',
+        )
+
+        const unrelatedDnsId = uuidV7()
+        assert.equal(
+            (
+                await controllerRequest('/internal/v1/certificates/' + unrelatedDnsId + '/issue', {
+                    method: 'POST',
+                    body: JSON.stringify({ ...dnsRequest, domains: ['unrelatedexample.com'] }),
+                })
+            ).status,
+            202,
+        )
+        let unrelatedMetadata: Record<string, any> = {}
+        await waitFor(async () => {
+            unrelatedMetadata = jsonObject(
+                await (
+                    await controllerRequest('/internal/v1/certificates/' + unrelatedDnsId)
+                ).json(),
+            )
+            return unrelatedMetadata.operation === 'idle'
+        }, 'DNS zone boundary validation')
+        assert.equal(unrelatedMetadata.status, 'failed')
+        assert.equal(dnsFixture.records.length, 0)
+        passed('DNS provider authorization cannot expand to an unrelated zone')
+
         const unauthorized = await fetch(controllerUrl + '/internal/v1/certificates').catch(
             () => null,
         )
@@ -1310,10 +1533,12 @@ async function runSmoke(): Promise<void> {
         const list = jsonObject(await (await controllerRequest('/internal/v1/certificates')).json())
         assert.ok(Array.isArray(list.certificates))
         assert.equal(JSON.stringify(list).includes('BEGIN '), false)
+        assert.equal(JSON.stringify(list).includes(dnsToken), false)
         passed('certificate endpoints require the controller token and never return keys or PEM')
         console.log('Certificate HTTPS/ACME integration: ' + assertions + ' checks passed.')
     } finally {
         backend?.stop(true)
+        dnsFixture?.stop()
         await command(['docker', 'rm', '--force', '--volumes', runtimeContainer]).catch(
             () => undefined,
         )

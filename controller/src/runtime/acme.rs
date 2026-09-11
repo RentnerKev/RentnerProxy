@@ -13,13 +13,19 @@ use instant_acme::{
 };
 
 use crate::{
-    runtime::certificates::{CertificateEnvironment, CertificateError, CertificateIssueRequest},
+    runtime::certificates::{
+        AcmeChallengeType, CertificateEnvironment, CertificateError, CertificateIssueRequest,
+    },
     server::challenges::ChallengeStore,
 };
 
 use super::ProxyRuntime;
+use super::dns::{DnsProvider, DnsRecordIntent};
 
 const ORDER_TIMEOUT: Duration = Duration::from_secs(120);
+const DNS_ORDER_TIMEOUT: Duration = Duration::from_secs(180);
+const DNS_PROPAGATION_WAIT: Duration = Duration::from_secs(30);
+const DNS_CLEANUP_TIMEOUT: Duration = Duration::from_secs(60);
 const ACCOUNT_TIMEOUT: Duration = Duration::from_secs(20);
 static ACCOUNT_REGISTRATION: Mutex<()> = Mutex::const_new(());
 static ACME_JOBS: Semaphore = Semaphore::const_new(4);
@@ -109,35 +115,133 @@ impl ProxyRuntime {
         request: CertificateIssueRequest,
         challenges: ChallengeStore,
     ) {
+        let dns_provider = match request.challenge_type {
+            AcmeChallengeType::Http01 => None,
+            AcmeChallengeType::Dns01 => {
+                let Some(config) = request.dns_provider.clone() else {
+                    self.certificate_store
+                        .finish_failed(&id, CertificateError::AcmeDnsRequired)
+                        .await;
+                    return;
+                };
+                match DnsProvider::from_config(config, request.environment) {
+                    Ok(provider) => Some(provider),
+                    Err(error) => {
+                        self.certificate_store.finish_failed(&id, error).await;
+                        return;
+                    }
+                }
+            }
+        };
+        // Recover an interrupted or failed cleanup before creating a new order.
+        // The encrypted provider configuration and these intents survive restart.
+        let previous_intents = match self.certificate_store.pending_dns_records(&id).await {
+            Ok(intents) => intents,
+            Err(error) => {
+                self.certificate_store.finish_failed(&id, error).await;
+                return;
+            }
+        };
+        if !previous_intents.is_empty() {
+            let cleanup = match dns_provider.as_ref() {
+                Some(provider) => {
+                    self.cleanup_dns_challenges(&id, provider, &previous_intents)
+                        .await
+                }
+                None => Err(CertificateError::DnsCleanupFailed),
+            };
+            if let Err(error) = cleanup {
+                self.certificate_store.finish_failed(&id, error).await;
+                return;
+            }
+        }
         let mut registered = Vec::new();
+        let mut dns_intents: Vec<DnsRecordIntent> = Vec::new();
         let result = timeout(
-            ORDER_TIMEOUT,
-            self.issue_acme(&request, &challenges, &mut registered),
+            if request.challenge_type == AcmeChallengeType::Dns01 {
+                DNS_ORDER_TIMEOUT
+            } else {
+                ORDER_TIMEOUT
+            },
+            self.issue_acme(
+                &id,
+                &request,
+                &challenges,
+                &mut registered,
+                dns_provider.as_ref(),
+                &mut dns_intents,
+            ),
         )
         .await
         .unwrap_or(Err(CertificateError::AcmeFailed));
+
         // Cleanup also runs after failed authorizations, network failures and order timeouts.
+        // The store persists intents before POST, including when the POST response is lost.
+        // Cleanup has its own deadline, independent of the cancelled order future.
+        let dns_cleanup = if let Some(provider) = dns_provider.as_ref() {
+            self.cleanup_dns_challenges(&id, provider, &dns_intents)
+                .await
+        } else {
+            Ok(())
+        };
         for (domain, token) in registered {
             challenges.remove(&domain, &token).await;
         }
-        let result = match result {
-            Ok((certificate_pem, private_key_pem)) => self
-                .activate_acme_certificate(&id, &request, certificate_pem, private_key_pem)
-                .await
-                .map(|_| ()),
+
+        let result = match dns_cleanup {
             Err(error) => Err(error),
+            Ok(()) => match result {
+                Ok((certificate_pem, private_key_pem)) => self
+                    .activate_acme_certificate(&id, &request, certificate_pem, private_key_pem)
+                    .await
+                    .map(|_| ()),
+                Err(error) => Err(error),
+            },
         };
         if let Err(error) = result {
             self.certificate_store.finish_failed(&id, error).await;
         }
     }
 
+    async fn cleanup_dns_challenges(
+        &self,
+        id: &str,
+        provider: &DnsProvider,
+        intents: &[DnsRecordIntent],
+    ) -> Result<(), CertificateError> {
+        if intents.is_empty() {
+            return Ok(());
+        }
+        timeout(DNS_CLEANUP_TIMEOUT, async {
+            for (index, intent) in intents.iter().enumerate() {
+                provider
+                    .cleanup_intents(std::slice::from_ref(intent))
+                    .await?;
+                // Persist progress: a slow provider must not force every retry
+                // to re-scan all already removed proofs before reaching the rest.
+                self.certificate_store
+                    .set_pending_dns_records(id, intents[index + 1..].to_vec())
+                    .await?;
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|_| CertificateError::DnsCleanupFailed)?
+    }
+
     async fn issue_acme(
         self: &Arc<Self>,
+        id: &str,
         request: &CertificateIssueRequest,
         challenges: &ChallengeStore,
         registered: &mut Vec<(String, String)>,
+        dns_provider: Option<&DnsProvider>,
+        dns_intents: &mut Vec<DnsRecordIntent>,
     ) -> Result<(String, String), CertificateError> {
+        if let Some(provider) = dns_provider {
+            // Reject names outside the configured zone before contacting ACME.
+            provider.validate_sans(&request.domains).await?;
+        }
         let account = timeout(ACCOUNT_TIMEOUT, self.acme_account(request))
             .await
             .map_err(|_| CertificateError::AcmeFailed)??;
@@ -152,31 +256,94 @@ impl ProxyRuntime {
             .await
             .map_err(|_| CertificateError::AcmeFailed)?;
 
-        let mut authorizations = order.authorizations();
-        while let Some(result) = authorizations.next().await {
-            let mut authorization = result.map_err(|_| CertificateError::AcmeFailed)?;
-            match authorization.status {
-                AuthorizationStatus::Pending => {}
-                AuthorizationStatus::Valid => continue,
-                _ => return Err(CertificateError::AcmeFailed),
+        match request.challenge_type {
+            AcmeChallengeType::Http01 => {
+                let mut authorizations = order.authorizations();
+                while let Some(result) = authorizations.next().await {
+                    let mut authorization = result.map_err(|_| CertificateError::AcmeFailed)?;
+                    requested_identifier(&authorization.identifier(), &request.domains)?;
+                    if authorization.wildcard {
+                        return Err(CertificateError::AcmeDnsRequired);
+                    }
+                    match authorization.status {
+                        AuthorizationStatus::Pending => {}
+                        AuthorizationStatus::Valid => continue,
+                        _ => return Err(CertificateError::AcmeFailed),
+                    }
+                    let mut challenge = authorization
+                        .challenge(ChallengeType::Http01)
+                        .ok_or(CertificateError::AcmeFailed)?;
+                    let (domain, _) =
+                        requested_identifier(challenge.identifier(), &request.domains)?;
+                    if challenge.identifier().wildcard {
+                        return Err(CertificateError::AcmeFailed);
+                    }
+                    let token = challenge.token.clone();
+                    let value = challenge.key_authorization().as_str().to_owned();
+                    challenges
+                        .insert(domain.clone(), token.clone(), value)
+                        .await?;
+                    registered.push((domain, token));
+                    challenge
+                        .set_ready()
+                        .await
+                        .map_err(|_| CertificateError::AcmeFailed)?;
+                }
             }
-            let mut challenge = authorization
-                .challenge(ChallengeType::Http01)
-                .ok_or(CertificateError::AcmeFailed)?;
-            let domain = challenge.identifier().to_string();
-            let token = challenge.token.clone();
-            if !request.domains.contains(&domain) {
-                return Err(CertificateError::AcmeFailed);
+            AcmeChallengeType::Dns01 => {
+                let provider = dns_provider.ok_or(CertificateError::AcmeDnsRequired)?;
+                let mut presented = false;
+                let mut authorizations = order.authorizations();
+                while let Some(result) = authorizations.next().await {
+                    let mut authorization = result.map_err(|_| CertificateError::AcmeFailed)?;
+                    requested_identifier(&authorization.identifier(), &request.domains)?;
+                    match authorization.status {
+                        AuthorizationStatus::Pending => {}
+                        AuthorizationStatus::Valid => continue,
+                        _ => return Err(CertificateError::AcmeFailed),
+                    }
+                    let challenge = authorization
+                        .challenge(ChallengeType::Dns01)
+                        .ok_or(CertificateError::AcmeFailed)?;
+                    let (_, bare_domain) =
+                        requested_identifier(challenge.identifier(), &request.domains)?;
+                    let value = challenge.key_authorization().dns_value();
+                    // Keep the exact bare authorization name and value so the provider can
+                    // recover an ambiguous POST without ever deleting an unrelated TXT record.
+                    let intent = DnsRecordIntent::new(id, &bare_domain, &value)?;
+                    dns_intents.push(intent.clone());
+                    self.certificate_store
+                        .set_pending_dns_records(id, dns_intents.clone())
+                        .await?;
+                    provider.present(&intent).await?;
+                    presented = true;
+                }
+                if presented {
+                    tokio::time::sleep(DNS_PROPAGATION_WAIT).await;
+                }
+
+                // All TXT values are present before any challenge is marked ready. This matters
+                // when the apex and wildcard authorizations share one DNS name.
+                let mut authorizations = order.authorizations();
+                while let Some(result) = authorizations.next().await {
+                    let mut authorization = result.map_err(|_| CertificateError::AcmeFailed)?;
+                    requested_identifier(&authorization.identifier(), &request.domains)?;
+                    if authorization.status == AuthorizationStatus::Valid {
+                        continue;
+                    }
+                    if authorization.status != AuthorizationStatus::Pending {
+                        return Err(CertificateError::AcmeFailed);
+                    }
+                    let mut challenge = authorization
+                        .challenge(ChallengeType::Dns01)
+                        .ok_or(CertificateError::AcmeFailed)?;
+                    requested_identifier(challenge.identifier(), &request.domains)?;
+                    challenge
+                        .set_ready()
+                        .await
+                        .map_err(|_| CertificateError::AcmeFailed)?;
+                }
             }
-            let value = challenge.key_authorization().as_str().to_owned();
-            challenges
-                .insert(domain.clone(), token.clone(), value)
-                .await?;
-            registered.push((domain, token));
-            challenge
-                .set_ready()
-                .await
-                .map_err(|_| CertificateError::AcmeFailed)?;
         }
 
         let status = order
@@ -268,6 +435,23 @@ impl ProxyRuntime {
     }
 }
 
+fn requested_identifier(
+    authorized: &instant_acme::AuthorizedIdentifier<'_>,
+    requested: &[String],
+) -> Result<(String, String), CertificateError> {
+    let Identifier::Dns(name) = authorized.identifier else {
+        return Err(CertificateError::AcmeFailed);
+    };
+    if !crate::proxy::is_canonical_domain(name) {
+        return Err(CertificateError::AcmeFailed);
+    }
+    let full_name = authorized.to_string();
+    if !requested.contains(&full_name) {
+        return Err(CertificateError::AcmeFailed);
+    }
+    Ok((full_name, name.clone()))
+}
+
 fn acme_directory(
     environment: CertificateEnvironment,
 ) -> Result<(String, Option<String>), CertificateError> {
@@ -301,5 +485,48 @@ fn acme_directory(
             None,
         )),
         _ => Err(CertificateError::AcmeFailed),
+    }
+}
+
+#[cfg(test)]
+mod dns_authorization_tests {
+    use super::*;
+
+    #[test]
+    fn wildcard_authorization_is_not_interchangeable_with_apex_or_child() {
+        let apex = Identifier::Dns("example.com".to_owned());
+        let child = Identifier::Dns("child.example.com".to_owned());
+        let requested = vec!["*.example.com".to_owned()];
+        assert_eq!(
+            requested_identifier(&apex.authorized(true), &requested).unwrap(),
+            ("*.example.com".to_owned(), "example.com".to_owned())
+        );
+        assert!(requested_identifier(&apex.authorized(false), &requested).is_err());
+        assert!(requested_identifier(&child.authorized(false), &requested).is_err());
+        assert!(requested_identifier(&child.authorized(true), &requested).is_err());
+    }
+
+    #[test]
+    fn mixed_sans_keep_distinct_authorizations_with_one_txt_owner() {
+        let identifier = Identifier::Dns("example.com".to_owned());
+        let requested = vec!["*.example.com".to_owned(), "example.com".to_owned()];
+        let apex = requested_identifier(&identifier.authorized(false), &requested).unwrap();
+        let wildcard = requested_identifier(&identifier.authorized(true), &requested).unwrap();
+        assert_ne!(apex.0, wildcard.0);
+        assert_eq!(apex.1, wildcard.1);
+        for name in [
+            "other.com",
+            "badexample.com",
+            "example.com.other.com",
+            "*.example.com",
+        ] {
+            assert!(
+                requested_identifier(
+                    &Identifier::Dns(name.to_owned()).authorized(false),
+                    &requested
+                )
+                .is_err()
+            );
+        }
     }
 }

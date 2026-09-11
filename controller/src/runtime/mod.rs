@@ -2,6 +2,7 @@ mod acme;
 mod apply;
 mod certificates;
 pub(crate) mod clock;
+mod dns;
 mod engine;
 pub(crate) mod renderer;
 mod state;

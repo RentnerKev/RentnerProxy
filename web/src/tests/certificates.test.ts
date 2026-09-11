@@ -26,6 +26,7 @@ import {
     getControllerCertificate,
     getControllerCertificates,
     importControllerCertificate,
+    issueControllerCertificate,
     deleteControllerCertificate,
 } from '../server/Foundation/certificates.server'
 import { CertificateDomainError } from '../server/Admin/CertificateManagement/certificates.errors'
@@ -137,6 +138,57 @@ describe('certificate validation and status', () => {
         ).toBeFalse()
     })
 
+    test('validates DNS-01 wildcard SANs and the Cloudflare provider contract', () => {
+        const provider = {
+            type: 'cloudflare' as const,
+            zoneId: 'a'.repeat(32),
+            apiToken: 'token-value',
+        }
+        const parsed = requestCertificateInputSchema.parse({
+            name: 'Wildcard',
+            domains: [' *.Example.com. ', 'example.com'],
+            challengeType: 'dns-01',
+            dnsProvider: provider,
+            acceptTerms: true,
+        })
+        expect(parsed.domains).toEqual(['*.example.com', 'example.com'])
+        expect(
+            requestCertificateInputSchema.safeParse({
+                name: 'Wildcard',
+                domains: ['*.example.com'],
+                challengeType: 'dns-01',
+                acceptTerms: true,
+            }).success,
+        ).toBeFalse()
+        expect(
+            requestCertificateInputSchema.safeParse({
+                name: 'Wildcard',
+                domains: ['*.example.com'],
+                challengeType: 'dns-01',
+                dnsProvider: { ...provider, apiToken: 'bad token' },
+                acceptTerms: true,
+            }).success,
+        ).toBeFalse()
+        expect(
+            requestCertificateInputSchema.safeParse({
+                name: 'Wildcard',
+                domains: ['*.example.com'],
+                challengeType: 'dns-01',
+                dnsProvider: { ...provider, apiToken: 'token-é' },
+                acceptTerms: true,
+            }).success,
+        ).toBeFalse()
+        expect(
+            requestCertificateInputSchema.safeParse({
+                name: 'Wildcard',
+                domains: ['*.example.com'],
+                challengeType: 'http-01',
+                dnsProvider: provider,
+                acceptTerms: true,
+            }).success,
+        ).toBeFalse()
+    })
+
     test('bounds sensitive import fields and rejects browser-controlled storage paths', () => {
         const input = { name: 'Local', certificatePem: 'certificate', privateKeyPem: 'private key' }
         expect(importCertificateInputSchema.safeParse(input).success).toBeTrue()
@@ -245,6 +297,31 @@ describe('certificate permissions and runtime contract', () => {
 })
 
 describe('sensitive controller certificate transport', () => {
+    test.each([
+        'acme_dns_required',
+        'dns_provider_invalid',
+        'dns_provider_unavailable',
+        'dns_provider_unauthorized',
+        'dns_cleanup_failed',
+        'dns_credentials_unavailable',
+    ])('preserves actionable DNS error %s through the controller boundary', async (code) => {
+        mockController(async () => Response.json({ error: code }, { status: 502 }))
+        await expect(getControllerCertificate(CERTIFICATE_ID)).rejects.toMatchObject({ code })
+        mockController(async () =>
+            Response.json({
+                certificates: [
+                    metadata({
+                        source: 'acme',
+                        environment: 'staging',
+                        status: 'failed',
+                        lastErrorCode: code,
+                    }),
+                ],
+            }),
+        )
+        expect((await getControllerCertificates())[0]?.lastErrorCode).toBe(code)
+    })
+
     test.each([undefined, '', 'too-short'])(
         'refuses loopback certificate reads and PEM upload before fetch with token %p',
         async (token) => {
@@ -301,6 +378,77 @@ describe('sensitive controller certificate transport', () => {
         })
         expect(result).not.toHaveProperty('privateKeyPem')
         expect(result).not.toHaveProperty('certificatePath')
+    })
+
+    test('enforces the DNS-01 TXT owner length at the DNS boundary', () => {
+        const base = `${'a'.repeat(63)}.${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(45)}`
+        expect(isPublicAcmeDomain(base, true)).toBe(true)
+        expect(isPublicAcmeDomain(`*.${base}`, true)).toBe(true)
+        expect(isPublicAcmeDomain(`${base}d`, true)).toBe(false)
+        expect(isPublicAcmeDomain(`*.${base}d`, true)).toBe(false)
+        expect(isPublicAcmeDomain(`${base}d`)).toBe(true)
+    })
+
+    test('blocks DNS secrets over remote HTTP and permits remote HTTPS', async () => {
+        const requests = mockController(async () => Response.json(metadata()))
+        const input = requestCertificateInputSchema.parse({
+            name: 'Wildcard',
+            domains: ['*.example.com'],
+            environment: 'staging',
+            acceptTerms: true,
+            challengeType: 'dns-01',
+            dnsProvider: { type: 'cloudflare', zoneId: 'a'.repeat(32), apiToken: 'test-token' },
+        })
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'http://controller.example.com'
+        await expect(issueControllerCertificate(CERTIFICATE_ID, input)).rejects.toMatchObject({
+            code: 'controller_unavailable',
+        })
+        expect(requests).not.toHaveBeenCalled()
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'https://controller.example.com'
+        await issueControllerCertificate(CERTIFICATE_ID, input)
+        expect(requests).toHaveBeenCalledTimes(1)
+    })
+
+    test('forwards DNS-01 credentials while returning metadata without secrets', async () => {
+        const requests: Array<{ input: string; init: RequestInit | undefined }> = []
+        mockController(async (url, init) => {
+            requests.push({ input: String(url), init })
+            return Response.json(
+                metadata({
+                    source: 'acme',
+                    environment: 'staging',
+                    domains: ['*.example.com', 'example.com'],
+                    privateKeyPem: 'injected-private-key',
+                    dnsProvider: { apiToken: 'injected-token' },
+                }),
+            )
+        })
+        const result = await issueControllerCertificate(CERTIFICATE_ID, {
+            name: 'Wildcard',
+            domains: ['*.example.com', 'example.com'],
+            challengeType: 'dns-01',
+            dnsProvider: {
+                type: 'cloudflare',
+                zoneId: 'a'.repeat(32),
+                apiToken: 'explicit-token',
+            },
+            environment: 'staging',
+            contactEmail: '',
+            acceptTerms: true,
+        })
+        expect(JSON.parse(String(requests[0]?.init?.body))).toEqual({
+            domains: ['*.example.com', 'example.com'],
+            environment: 'staging',
+            challengeType: 'dns-01',
+            dnsProvider: {
+                type: 'cloudflare',
+                zoneId: 'a'.repeat(32),
+                apiToken: 'explicit-token',
+            },
+            acceptTerms: true,
+        })
+        expect(result).not.toHaveProperty('privateKeyPem')
+        expect(result).not.toHaveProperty('dnsProvider')
     })
 
     test('rejects traversal and non-loopback access without a valid token before fetch', async () => {

@@ -3,7 +3,11 @@ import { useId, useState } from 'react'
 import useToast from '../../../../shared/Toast/Hooks/useToast'
 import type { CertificateActionResult } from '../../../../shared/Types/certificates.types'
 import { requestCertificateHandler } from '../server'
-import { requestCertificateInputSchema } from '../validation'
+import {
+    certificateRequestFormSchema,
+    certificateRequestInputFromForm,
+    requestCertificateInputSchema,
+} from '../validation'
 import type { CertificateRequestModalProps } from '../Types/certificate-management.types'
 
 export default function useCertificateRequestLogic({
@@ -19,6 +23,9 @@ export default function useCertificateRequestLogic({
             name: initialName ?? '',
             domains: initialDomains ? [...initialDomains] : [''],
             environment: 'staging',
+            challengeType: 'http-01',
+            dnsZoneId: '',
+            dnsApiToken: '',
             contactEmail: '',
             acceptTerms: false,
         },
@@ -26,7 +33,9 @@ export default function useCertificateRequestLogic({
             if (isPending) return
             setIsPending(true)
             try {
-                const parsed = requestCertificateInputSchema.parse(value)
+                const parsed = requestCertificateInputSchema.parse(
+                    certificateRequestInputFromForm(value),
+                )
                 const result: CertificateActionResult = await requestCertificateHandler({
                     data: parsed,
                 })
@@ -38,6 +47,9 @@ export default function useCertificateRequestLogic({
                     name: '',
                     domains: [''],
                     environment: 'staging',
+                    challengeType: 'http-01',
+                    dnsZoneId: '',
+                    dnsApiToken: '',
                     contactEmail: '',
                     acceptTerms: false,
                 })
@@ -49,6 +61,7 @@ export default function useCertificateRequestLogic({
                 setIsPending(false)
             }
         },
+        validators: { onSubmit: certificateRequestFormSchema },
     })
     return { form, formId, isPending }
 }

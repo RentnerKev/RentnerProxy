@@ -81,6 +81,118 @@ export default function CertificateRequestFields({
                     </div>
                 )}
             </form.Field>
+            <form.Field name="challengeType">
+                {(field) => (
+                    <div className={uiClassNames.form.field}>
+                        <span className={uiClassNames.form.label}>
+                            {t('admin.certificates.form.challengeType')}
+                        </span>
+                        <SelectControl
+                            ariaLabel={t('admin.certificates.form.challengeType')}
+                            className={uiClassNames.form.select}
+                            disabled={isPending}
+                            value={field.state.value}
+                            onValueChange={(value) => {
+                                if (value === 'http-01' || value === 'dns-01')
+                                    field.handleChange(value)
+                            }}
+                            options={[
+                                {
+                                    label: t('admin.certificates.challenge.http01'),
+                                    value: 'http-01',
+                                },
+                                {
+                                    label: t('admin.certificates.challenge.dns01'),
+                                    value: 'dns-01',
+                                },
+                            ]}
+                        />
+                        <p className={uiClassNames.form.hint}>
+                            {field.state.value === 'dns-01'
+                                ? t('admin.certificates.form.dnsWildcardHint')
+                                : t('admin.certificates.form.httpChallengeHint')}
+                        </p>
+                        <FieldError
+                            id="certificate-request-challengeType-error"
+                            errors={field.state.meta.errors}
+                        />
+                    </div>
+                )}
+            </form.Field>
+            <form.Subscribe selector={(state) => state.values.challengeType === 'dns-01'}>
+                {(isDnsChallenge) =>
+                    isDnsChallenge ? (
+                        <div className="grid gap-4 rounded-xl border border-info-text/20 bg-info-bg p-3">
+                            <p className="m-0 text-sm leading-relaxed text-info-text">
+                                {t('admin.certificates.form.dnsProviderHint')}
+                            </p>
+                            <form.Field name="dnsZoneId">
+                                {(field) => (
+                                    <div className={uiClassNames.form.field}>
+                                        <label
+                                            className={uiClassNames.form.label}
+                                            htmlFor="certificate-request-dns-zone-id"
+                                        >
+                                            {t('admin.certificates.form.dnsZoneId')}
+                                        </label>
+                                        <input
+                                            id="certificate-request-dns-zone-id"
+                                            name={field.name}
+                                            className={uiClassNames.form.control}
+                                            value={field.state.value}
+                                            maxLength={32}
+                                            disabled={isPending}
+                                            onBlur={field.handleBlur}
+                                            onChange={(event) =>
+                                                field.handleChange(event.target.value)
+                                            }
+                                            autoCapitalize="none"
+                                            autoComplete="off"
+                                            spellCheck={false}
+                                            aria-describedby="certificate-request-dns-zone-id-error"
+                                        />
+                                        <FieldError
+                                            id="certificate-request-dns-zone-id-error"
+                                            errors={field.state.meta.errors}
+                                        />
+                                    </div>
+                                )}
+                            </form.Field>
+                            <form.Field name="dnsApiToken">
+                                {(field) => (
+                                    <div className={uiClassNames.form.field}>
+                                        <label
+                                            className={uiClassNames.form.label}
+                                            htmlFor="certificate-request-dns-api-token"
+                                        >
+                                            {t('admin.certificates.form.dnsApiToken')}
+                                        </label>
+                                        <input
+                                            id="certificate-request-dns-api-token"
+                                            name={field.name}
+                                            type="password"
+                                            className={uiClassNames.form.control}
+                                            value={field.state.value}
+                                            maxLength={512}
+                                            disabled={isPending}
+                                            onBlur={field.handleBlur}
+                                            onChange={(event) =>
+                                                field.handleChange(event.target.value)
+                                            }
+                                            autoComplete="new-password"
+                                            aria-describedby="certificate-request-dns-api-token-error"
+                                        />
+                                        <FieldError
+                                            id="certificate-request-dns-api-token-error"
+                                            errors={field.state.meta.errors}
+                                        />
+                                    </div>
+                                )}
+                            </form.Field>
+                        </div>
+                    ) : null
+                }
+            </form.Subscribe>
             <form.Field name="environment">
                 {(field) => (
                     <div className={uiClassNames.form.field}>

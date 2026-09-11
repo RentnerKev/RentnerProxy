@@ -81,13 +81,19 @@ impl ApiError {
             | CertificateError::CertificateExpired
             | CertificateError::DomainMismatch
             | CertificateError::TermsRequired
-            | CertificateError::AcmeDomainInvalid => StatusCode::UNPROCESSABLE_ENTITY,
+            | CertificateError::AcmeDomainInvalid
+            | CertificateError::AcmeDnsRequired
+            | CertificateError::DnsProviderInvalid => StatusCode::UNPROCESSABLE_ENTITY,
             CertificateError::NotFound => StatusCode::NOT_FOUND,
             CertificateError::InUse | CertificateError::OperationInProgress => StatusCode::CONFLICT,
-            CertificateError::AcmeFailed | CertificateError::RuntimeApplyFailed => {
-                StatusCode::BAD_GATEWAY
+            CertificateError::AcmeFailed
+            | CertificateError::DnsProviderUnavailable
+            | CertificateError::DnsProviderUnauthorized
+            | CertificateError::DnsCleanupFailed
+            | CertificateError::RuntimeApplyFailed => StatusCode::BAD_GATEWAY,
+            CertificateError::DnsCredentialsUnavailable | CertificateError::StoreUnavailable => {
+                StatusCode::SERVICE_UNAVAILABLE
             }
-            CertificateError::StoreUnavailable => StatusCode::SERVICE_UNAVAILABLE,
         };
         Self {
             status,

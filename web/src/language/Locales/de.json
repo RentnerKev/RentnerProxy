@@ -711,6 +711,12 @@
                 "chainPemHint": "Füge die Ausstellerkette hinzu, wenn sie nicht im Zertifikat enthalten ist.",
                 "domains": "Domänen",
                 "domainsHint": "Gib pro Zeile einen öffentlichen DNS-Namen ein.",
+                "challengeType": "ACME-Challenge",
+                "httpChallengeHint": "HTTP-01 validiert jeden Namen über den erreichbaren Port 80. Wildcard-Namen benötigen DNS-01.",
+                "dnsWildcardHint": "DNS-01 unterstützt Wildcard- und normale Namen zusammen. Alle Namen müssen zur selben Cloudflare-Zone gehören.",
+                "dnsProviderHint": "Cloudflare-DNS-Zugangsdaten werden nur während der Validierung verwendet und nie mit Zertifikatsmetadaten zurückgegeben.",
+                "dnsZoneId": "Cloudflare-Zonen-ID",
+                "dnsApiToken": "Cloudflare-API-Token",
                 "environment": "ACME-Umgebung",
                 "stagingHint": "Staging ist standardmäßig ausgewählt und stellt kein produktionsvertrauenswürdiges Zertifikat aus.",
                 "contactEmail": "Kontakt-E-Mail (optional)",
@@ -722,10 +728,14 @@
                 "staging": "Staging",
                 "production": "Produktion"
             },
+            "challenge": {
+                "http01": "HTTP-01",
+                "dns01": "DNS-01 (Cloudflare)"
+            },
             "request": {
                 "title": "ACME-Zertifikat anfordern",
                 "description": "Fordere für öffentliche Domains über die ausgewählte ACME-Umgebung ein Zertifikat an.",
-                "networkHint": "Die ACME-Validierung benötigt öffentlichen DNS und erreichbaren Port 80 für jede Domain."
+                "networkHint": "Die ACME-Validierung benötigt öffentlichen DNS. HTTP-01 erfordert zusätzlich einen erreichbaren Port 80 für jede Domain."
             },
             "confirm": {
                 "renewTitle": "{{name}} erneuern?",
@@ -766,6 +776,12 @@
                 "acme_terms_required": "Akzeptiere die ACME-Bedingungen, bevor du ein Zertifikat anforderst.",
                 "acme_domain_invalid": "ACME erfordert öffentliche DNS-Domains.",
                 "acme_failed": "Die ACME-Bestellung ist fehlgeschlagen.",
+                "acme_dns_required": "DNS-01 erfordert einen DNS-Anbieter.",
+                "dns_provider_invalid": "Die DNS-Anbieterkonfiguration ist ungültig.",
+                "dns_provider_unavailable": "Der DNS-Anbieter ist nicht erreichbar.",
+                "dns_provider_unauthorized": "Der DNS-Anbieter hat die Zugangsdaten abgelehnt.",
+                "dns_cleanup_failed": "Die Bereinigung der DNS-Challenge ist fehlgeschlagen.",
+                "dns_credentials_unavailable": "DNS-Zugangsdaten sind nicht verfügbar.",
                 "runtime_apply_failed": "Das Zertifikat wurde gespeichert, konnte aber nicht auf die Proxy-Runtime angewendet werden.",
                 "certificate_store_unavailable": "Der Zertifikatsspeicher ist nicht verfügbar.",
                 "controller_unavailable": "Der Proxy-Controller ist nicht verfügbar."
@@ -776,6 +792,12 @@
                 "privateKeyPem": "Gib einen privaten Schlüssel als PEM ein.",
                 "pemLimit": "Dieser PEM-Wert ist zu groß.",
                 "publicDomain": "Verwende eine öffentliche DNS-Domain.",
+                "wildcardRequiresDns01": "Wildcard-Namen erfordern die DNS-01-Challenge.",
+                "duplicateDomain": "Jede Domain darf nur einmal vorkommen.",
+                "dnsProviderRequired": "Gib für DNS-01 einen Cloudflare-DNS-Anbieter an.",
+                "dnsProviderHttp": "HTTP-01 akzeptiert keine DNS-Anbieter-Zugangsdaten.",
+                "dnsZoneId": "Gib eine 32-stellige kleingeschriebene Cloudflare-Zonen-ID ein.",
+                "dnsApiToken": "Gib ein gültiges Cloudflare-API-Token ohne Leerzeichen ein.",
                 "email": "Gib eine gültige E-Mail-Adresse ein.",
                 "terms": "Akzeptiere die ACME-Bedingungen."
             },

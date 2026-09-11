@@ -8,6 +8,7 @@ readonly postgres_directory="$data_directory/postgres-data"
 readonly proxy_directory="$data_directory/proxy"
 readonly bootstrap_directory="$data_directory/bootstrap"
 readonly app_key_file=/run/rentnerproxy/app-key/value
+readonly controller_app_key_file=/run/rentnerproxy/controller-app-key/value
 readonly controller_token_file=/run/rentnerproxy/controller-token/value
 readonly database_url_file=/run/rentnerproxy/database-url/value
 readonly postgres_password_file=/run/rentnerproxy/postgres/value
@@ -117,6 +118,10 @@ initialize_secrets() {
         "$(dirname "$database_url_file")"
     chown rentnerproxy-web:rentnerproxy-web "$app_key_file" "$database_url_file"
     chmod 0400 "$app_key_file" "$database_url_file"
+    # DNS credentials use the application key, with a private runtime copy for
+    # the controller. The database URL remains accessible only to the web UID.
+    install -d -m 0700 -o rentnerproxy -g rentnerproxy "$(dirname "$controller_app_key_file")"
+    install -m 0400 -o rentnerproxy -g rentnerproxy "$app_key_file" "$controller_app_key_file"
     chown rentnerproxy:rentnerproxy-web "$(dirname "$controller_token_file")"
     chmod 0710 "$(dirname "$controller_token_file")"
     chown rentnerproxy:rentnerproxy-web "$controller_token_file"
@@ -222,6 +227,7 @@ start_redis() {
 
 start_controller() {
     start_child controller env \
+        APP_ENCRYPTION_KEY_FILE="$controller_app_key_file" \
         RENTNERPROXY_CONTROLLER_LISTEN_ADDR=127.0.0.1:8081 \
         RENTNERPROXY_CONTROLLER_TOKEN_FILE="$controller_token_file" \
         RENTNERPROXY_CADDY_BIN=/usr/bin/caddy \

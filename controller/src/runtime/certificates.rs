@@ -17,7 +17,12 @@ use x509_parser::{extensions::GeneralName, parse_x509_certificate};
 
 use crate::proxy::{is_canonical_domain, is_canonical_uuid_v7};
 
+use super::dns::{DnsProviderConfig, DnsRecordIntent, EncryptedDnsConfig, encrypt};
 use super::state::{SafeDir, state_dir};
+
+#[cfg(test)]
+#[path = "../tests/certificate_dns.rs"]
+mod dns_tests;
 
 pub(crate) const MAX_CERTIFICATE_PEM_BYTES: usize = 256 * 1024;
 pub(crate) const MAX_PRIVATE_KEY_PEM_BYTES: usize = 64 * 1024;
@@ -46,7 +51,20 @@ pub(crate) struct CertificateIssueRequest {
     pub(crate) environment: CertificateEnvironment,
     #[serde(default)]
     pub(crate) contact_email: Option<String>,
+    #[serde(default)]
+    pub(crate) challenge_type: AcmeChallengeType,
+    #[serde(default)]
+    pub(crate) dns_provider: Option<DnsProviderConfig>,
     pub(crate) accept_terms: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+pub(crate) enum AcmeChallengeType {
+    #[default]
+    #[serde(rename = "http-01")]
+    Http01,
+    #[serde(rename = "dns-01")]
+    Dns01,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -131,6 +149,12 @@ struct StoredMetadata {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct StoredAcmeConfiguration {
     contact_email: Option<String>,
+    #[serde(default)]
+    challenge_type: AcmeChallengeType,
+    #[serde(default)]
+    dns_provider: Option<EncryptedDnsConfig>,
+    #[serde(default)]
+    pending_dns_records: Vec<DnsRecordIntent>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -157,6 +181,12 @@ pub(crate) enum CertificateError {
     TermsRequired,
     AcmeDomainInvalid,
     AcmeFailed,
+    AcmeDnsRequired,
+    DnsProviderInvalid,
+    DnsProviderUnavailable,
+    DnsProviderUnauthorized,
+    DnsCleanupFailed,
+    DnsCredentialsUnavailable,
     RuntimeApplyFailed,
     StoreUnavailable,
 }
@@ -174,6 +204,12 @@ impl CertificateError {
             Self::TermsRequired => "acme_terms_required",
             Self::AcmeDomainInvalid => "acme_domain_invalid",
             Self::AcmeFailed => "acme_failed",
+            Self::AcmeDnsRequired => "acme_dns_required",
+            Self::DnsProviderInvalid => "dns_provider_invalid",
+            Self::DnsProviderUnavailable => "dns_provider_unavailable",
+            Self::DnsProviderUnauthorized => "dns_provider_unauthorized",
+            Self::DnsCleanupFailed => "dns_cleanup_failed",
+            Self::DnsCredentialsUnavailable => "dns_credentials_unavailable",
             Self::RuntimeApplyFailed => "runtime_apply_failed",
             Self::StoreUnavailable => "certificate_store_unavailable",
         }
@@ -295,6 +331,18 @@ impl CertificateStore {
         request: CertificateImportRequest,
     ) -> Result<StagedCertificate, CertificateError> {
         self.acquire_lease(id).await?;
+        let has_pending_dns = {
+            let index = self.index.lock().await;
+            index
+                .certificates
+                .get(id)
+                .and_then(|entry| entry.acme.as_ref())
+                .is_some_and(|acme| !acme.pending_dns_records.is_empty())
+        };
+        if has_pending_dns {
+            self.release_lease(id).await;
+            return Err(CertificateError::DnsCleanupFailed);
+        }
         match self.stage_import_with_lease(id, &request, CertificateSource::Manual, None, None) {
             Ok(staged) => Ok(staged),
             Err(error) => {
@@ -311,7 +359,14 @@ impl CertificateStore {
         certificate_pem: String,
         private_key_pem: String,
     ) -> Result<StagedCertificate, CertificateError> {
-        self.stage_import_with_lease(
+        let acme = match self.stored_acme_configuration(id, request) {
+            Ok(acme) => acme,
+            Err(error) => {
+                self.release_lease(id).await;
+                return Err(error);
+            }
+        };
+        let result = self.stage_import_with_lease(
             id,
             &CertificateImportRequest {
                 certificate_pem,
@@ -321,10 +376,30 @@ impl CertificateStore {
             },
             CertificateSource::Acme,
             Some(request.environment),
-            Some(StoredAcmeConfiguration {
-                contact_email: request.contact_email.clone(),
-            }),
-        )
+            Some(acme),
+        );
+        if result.is_err() {
+            self.release_lease(id).await;
+        }
+        result
+    }
+
+    fn stored_acme_configuration(
+        &self,
+        id: &str,
+        request: &CertificateIssueRequest,
+    ) -> Result<StoredAcmeConfiguration, CertificateError> {
+        let dns_provider = request
+            .dns_provider
+            .as_ref()
+            .map(|config| encrypt(config, id))
+            .transpose()?;
+        Ok(StoredAcmeConfiguration {
+            contact_email: request.contact_email.clone(),
+            challenge_type: request.challenge_type,
+            dns_provider,
+            pending_dns_records: Vec::new(),
+        })
     }
 
     fn stage_import_with_lease(
@@ -404,7 +479,10 @@ impl CertificateStore {
         let previous = index
             .certificates
             .insert(staged.id.clone(), staged.stored.clone());
-        if let Err(error) = persist_index(&self.certificates_dir()?, &index) {
+        let result = self
+            .certificates_dir()
+            .and_then(|directory| persist_index(&directory, &index));
+        if let Err(error) = result {
             match previous {
                 Some(previous) => {
                     index.certificates.insert(staged.id.clone(), previous);
@@ -413,6 +491,8 @@ impl CertificateStore {
                     index.certificates.remove(&staged.id);
                 }
             }
+            drop(index);
+            self.release_lease(&staged.id).await;
             return Err(error);
         }
         let metadata = public_metadata(&staged.stored);
@@ -433,7 +513,19 @@ impl CertificateStore {
         if !is_canonical_uuid_v7(id)
             || request.domains.is_empty()
             || request.domains.len() > 100
-            || request.domains.iter().any(|domain| !is_acme_domain(domain))
+            || request.domains.iter().any(|domain| {
+                !is_acme_request_domain(domain, request.challenge_type, request.environment)
+            })
+            || has_duplicate_domains(&request.domains)
+            || (request.challenge_type == AcmeChallengeType::Http01
+                && request
+                    .domains
+                    .iter()
+                    .any(|domain| domain.starts_with("*.")))
+            || (request.challenge_type == AcmeChallengeType::Http01
+                && request.dns_provider.is_some())
+            || (request.challenge_type == AcmeChallengeType::Dns01
+                && request.dns_provider.is_none())
             || (!renewal && !request.accept_terms)
             || request
                 .contact_email
@@ -442,11 +534,20 @@ impl CertificateStore {
         {
             return Err(if !request.accept_terms && !renewal {
                 CertificateError::TermsRequired
+            } else if request.challenge_type == AcmeChallengeType::Dns01
+                && request.dns_provider.is_none()
+            {
+                CertificateError::AcmeDnsRequired
             } else {
                 CertificateError::AcmeDomainInvalid
             });
         }
         let now = utc_now()?;
+        let acme = if renewal {
+            None
+        } else {
+            Some(self.stored_acme_configuration(id, &request)?)
+        };
         self.acquire_lease(id).await?;
         let mut index = self.index.lock().await;
         if index
@@ -458,6 +559,17 @@ impl CertificateStore {
             self.release_lease(id).await;
             return Err(CertificateError::OperationInProgress);
         }
+        if !renewal
+            && index
+                .certificates
+                .get(id)
+                .and_then(|entry| entry.acme.as_ref())
+                .is_some_and(|acme| !acme.pending_dns_records.is_empty())
+        {
+            drop(index);
+            self.release_lease(id).await;
+            return Err(CertificateError::DnsCleanupFailed);
+        }
         let stored = if let Some(current) = index.certificates.get(id) {
             let mut preserved = current.clone();
             preserved.metadata.operation = if renewal {
@@ -468,6 +580,13 @@ impl CertificateStore {
             preserved.metadata.last_error_code = None;
             preserved.metadata.updated_at = now;
             preserved.retry_after = None;
+            if !renewal {
+                // A replacement order must journal the credentials for its own
+                // DNS records before any provider request.  There are no
+                // pending records at this point, so replacing this config
+                // cannot strand the previous provider credentials.
+                preserved.acme = acme;
+            }
             preserved
         } else {
             StoredCertificate {
@@ -490,15 +609,16 @@ impl CertificateStore {
                     updated_at: now,
                 },
                 material_id: None,
-                acme: Some(StoredAcmeConfiguration {
-                    contact_email: request.contact_email,
-                }),
+                acme: Some(acme.expect("new ACME requests always have configuration")),
                 retry_after: None,
                 retry_delay_seconds: None,
             }
         };
         let previous = index.certificates.insert(id.to_owned(), stored.clone());
-        if let Err(error) = persist_index(&self.certificates_dir()?, &index) {
+        let persistence = self
+            .certificates_dir()
+            .and_then(|directory| persist_index(&directory, &index));
+        if let Err(error) = persistence {
             match previous {
                 Some(previous) => {
                     index.certificates.insert(id.to_owned(), previous);
@@ -527,7 +647,7 @@ impl CertificateStore {
             }
         };
         let mut index = self.index.lock().await;
-        let Some(entry) = index.certificates.get_mut(id) else {
+        let Some(entry) = index.certificates.get(id) else {
             drop(index);
             self.release_lease(id).await;
             return Err(CertificateError::NotFound);
@@ -547,12 +667,30 @@ impl CertificateStore {
             self.release_lease(id).await;
             return Err(CertificateError::AcmeFailed);
         };
-        let previous = entry.clone();
-        entry.metadata.operation = CertificateOperation::Renewing;
-        entry.metadata.last_error_code = None;
-        entry.retry_after = None;
-        entry.metadata.updated_at = now;
-        let metadata = public_metadata(entry);
+        let Some(acme) = entry.acme.as_ref() else {
+            drop(index);
+            self.release_lease(id).await;
+            return Err(CertificateError::InvalidCertificate);
+        };
+        let challenge_type = acme.challenge_type;
+        let dns_provider = match entry
+            .acme
+            .as_ref()
+            .and_then(|acme| acme.dns_provider.as_ref())
+            .map(|encrypted| super::dns::decrypt(encrypted, id))
+            .transpose()
+        {
+            Ok(dns_provider) => dns_provider,
+            Err(error) => {
+                drop(index);
+                // Record a durable, actionable failure while retaining the
+                // lease.  `finish_failed` releases it after the index update;
+                // releasing first would let a concurrent operation race in
+                // and overwrite the recovery state.
+                self.finish_failed(id, error).await;
+                return Err(error);
+            }
+        };
         let request = CertificateIssueRequest {
             domains: entry.metadata.domains.clone(),
             environment,
@@ -560,9 +698,24 @@ impl CertificateStore {
                 .acme
                 .as_ref()
                 .and_then(|acme| acme.contact_email.clone()),
+            challenge_type,
+            dns_provider,
             accept_terms: true,
         };
-        if let Err(error) = persist_index(&self.certificates_dir()?, &index) {
+        let previous = entry.clone();
+        let entry = index
+            .certificates
+            .get_mut(id)
+            .expect("certificate entry remains present while index is locked");
+        entry.metadata.operation = CertificateOperation::Renewing;
+        entry.metadata.last_error_code = None;
+        entry.retry_after = None;
+        entry.metadata.updated_at = now;
+        let metadata = public_metadata(entry);
+        let persistence = self
+            .certificates_dir()
+            .and_then(|directory| persist_index(&directory, &index));
+        if let Err(error) = persistence {
             index.certificates.insert(id.to_owned(), previous);
             drop(index);
             self.release_lease(id).await;
@@ -598,6 +751,70 @@ impl CertificateStore {
         }
         drop(index);
         self.release_lease(id).await;
+    }
+
+    /// Return DNS records left by an interrupted ACME operation.  The intent
+    /// values contain no provider credentials and are only used to identify
+    /// records owned by this certificate during restart/retry cleanup.
+    pub(crate) async fn pending_dns_records(
+        &self,
+        id: &str,
+    ) -> Result<Vec<DnsRecordIntent>, CertificateError> {
+        let index = self.index.lock().await;
+        index
+            .certificates
+            .get(id)
+            .ok_or(CertificateError::NotFound)
+            .map(|entry| {
+                entry
+                    .acme
+                    .as_ref()
+                    .map(|acme| acme.pending_dns_records.clone())
+                    .unwrap_or_default()
+            })
+    }
+
+    /// Update the durable DNS cleanup journal while the caller owns the
+    /// certificate operation lease.  The previous index entry is restored if
+    /// persistence fails, so an intent can never disappear silently.
+    pub(crate) async fn set_pending_dns_records(
+        &self,
+        id: &str,
+        records: Vec<DnsRecordIntent>,
+    ) -> Result<(), CertificateError> {
+        if !is_canonical_uuid_v7(id)
+            || records.len() > 256
+            || records
+                .iter()
+                .any(|record| !dns_intent_belongs_to(record, id))
+        {
+            return Err(CertificateError::DnsProviderInvalid);
+        }
+        let mut index = self.index.lock().await;
+        let Some(previous) = index.certificates.get(id).cloned() else {
+            return Err(CertificateError::NotFound);
+        };
+        if previous
+            .acme
+            .as_ref()
+            .is_none_or(|acme| acme.challenge_type != AcmeChallengeType::Dns01)
+        {
+            return Err(CertificateError::DnsProviderInvalid);
+        }
+        let mut updated = previous.clone();
+        let Some(acme) = updated.acme.as_mut() else {
+            return Err(CertificateError::DnsProviderInvalid);
+        };
+        acme.pending_dns_records = records;
+        index.certificates.insert(id.to_owned(), updated);
+        let result = self
+            .certificates_dir()
+            .and_then(|directory| persist_index(&directory, &index));
+        if let Err(error) = result {
+            index.certificates.insert(id.to_owned(), previous);
+            return Err(error);
+        }
+        Ok(())
     }
 
     pub(crate) async fn load_acme_account(
@@ -706,6 +923,15 @@ impl CertificateStore {
             drop(index);
             self.release_lease(id).await;
             return Err(CertificateError::OperationInProgress);
+        }
+        if entry
+            .acme
+            .as_ref()
+            .is_some_and(|acme| !acme.pending_dns_records.is_empty())
+        {
+            drop(index);
+            self.release_lease(id).await;
+            return Err(CertificateError::DnsCleanupFailed);
         }
 
         let tombstone = format!(
@@ -1039,6 +1265,15 @@ fn canonical_domains(domains: &[String]) -> Vec<String> {
     result
 }
 
+fn has_duplicate_domains(domains: &[String]) -> bool {
+    let mut seen = BTreeSet::new();
+    domains.iter().any(|domain| !seen.insert(domain.as_str()))
+}
+
+fn dns_intent_belongs_to(intent: &DnsRecordIntent, certificate_id: &str) -> bool {
+    intent.validate().is_ok() && intent.marker == format!("rentnerproxy-acme:{certificate_id}")
+}
+
 fn certificate_covers(names: &[String], domain: &str) -> bool {
     let domain = domain.to_ascii_lowercase();
     names
@@ -1060,14 +1295,55 @@ fn is_certificate_domain(value: &str) -> bool {
         return value.contains('.');
     }
     value.strip_prefix("*.").is_some_and(|suffix| {
-        suffix.contains('.')
+        value.len() <= 253
+            && suffix.contains('.')
             && suffix.parse::<std::net::Ipv4Addr>().is_err()
             && is_canonical_domain(suffix)
     })
 }
 
-fn is_acme_domain(value: &str) -> bool {
-    is_canonical_domain(value) && value.contains('.') && !value.ends_with(".test")
+fn is_acme_request_domain(
+    value: &str,
+    challenge_type: AcmeChallengeType,
+    environment: CertificateEnvironment,
+) -> bool {
+    let (name, wildcard) = match value.strip_prefix("*.") {
+        Some(suffix) => (suffix, true),
+        None => (value, false),
+    };
+    if challenge_type == AcmeChallengeType::Dns01 && "_acme-challenge.".len() + name.len() > 253 {
+        return false;
+    }
+    if wildcard
+        && (challenge_type != AcmeChallengeType::Dns01 || value.len() > 253 || name.contains('*'))
+    {
+        return false;
+    }
+    is_public_acme_domain(
+        name,
+        challenge_type == AcmeChallengeType::Http01
+            && environment == CertificateEnvironment::Staging
+            && test_acme_directory_configured(),
+    )
+}
+
+fn is_public_acme_domain(value: &str, allow_invalid: bool) -> bool {
+    if !is_canonical_domain(value) || !value.contains('.') {
+        return false;
+    }
+    match value.rsplit('.').next() {
+        Some("invalid") => allow_invalid,
+        Some(
+            "test" | "localhost" | "example" | "local" | "internal" | "onion" | "home" | "lan",
+        ) => false,
+        Some(_) => true,
+        None => false,
+    }
+}
+
+fn test_acme_directory_configured() -> bool {
+    std::env::var_os("RENTNERPROXY_ACME_TEST_DIRECTORY_URL").is_some()
+        && std::env::var_os("RENTNERPROXY_ACME_TEST_ROOT_CERT").is_some()
 }
 
 fn is_valid_email(value: &str) -> bool {
@@ -1167,6 +1443,7 @@ fn index_is_valid(index: &CertificateIndex) -> bool {
         && index.certificates.iter().all(|(id, entry)| {
             is_canonical_uuid_v7(id)
                 && entry.metadata.id == *id
+                && (entry.metadata.source != CertificateSource::Acme || entry.acme.is_some())
                 && (1..=100).contains(&entry.metadata.domains.len())
                 && entry
                     .metadata
@@ -1211,6 +1488,26 @@ fn index_is_valid(index: &CertificateIndex) -> bool {
                 && entry
                     .retry_delay_seconds
                     .is_none_or(|delay| (1_800..=21_600).contains(&delay))
+                && entry.acme.as_ref().is_none_or(|acme| {
+                    let provider_is_valid = match acme.challenge_type {
+                        AcmeChallengeType::Http01 => acme.dns_provider.is_none(),
+                        AcmeChallengeType::Dns01 => {
+                            acme.dns_provider.as_ref().is_some_and(|config| {
+                                config.version == 1
+                                    && config.nonce.len() == 12
+                                    && (16..=8 * 1024).contains(&config.ciphertext.len())
+                            })
+                        }
+                    };
+                    provider_is_valid
+                        && acme.pending_dns_records.len() <= 256
+                        && acme
+                            .pending_dns_records
+                            .iter()
+                            .all(|intent| dns_intent_belongs_to(intent, id))
+                        && (acme.challenge_type == AcmeChallengeType::Dns01
+                            || acme.pending_dns_records.is_empty())
+                })
         })
 }
 

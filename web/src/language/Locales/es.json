@@ -711,6 +711,12 @@
                 "chainPemHint": "Añade la cadena del emisor cuando no esté incluida en el certificado.",
                 "domains": "Dominios",
                 "domainsHint": "Introduce un nombre DNS público por línea.",
+                "challengeType": "Desafío de ACME",
+                "httpChallengeHint": "HTTP-01 valida cada nombre mediante el puerto 80 accesible. Los comodines requieren DNS-01.",
+                "dnsWildcardHint": "DNS-01 admite nombres comodín y normales juntos. Todos deben pertenecer a la misma zona de Cloudflare.",
+                "dnsProviderHint": "Las credenciales DNS de Cloudflare solo se usan durante la validación y nunca se devuelven con los metadatos del certificado.",
+                "dnsZoneId": "ID de zona de Cloudflare",
+                "dnsApiToken": "Token de API de Cloudflare",
                 "environment": "Entorno de ACME",
                 "stagingHint": "Staging está seleccionado por defecto y no emite un certificado de confianza para producción.",
                 "contactEmail": "Correo de contacto (opcional)",
@@ -722,10 +728,14 @@
                 "staging": "Staging",
                 "production": "Producción"
             },
+            "challenge": {
+                "http01": "HTTP-01",
+                "dns01": "DNS-01 (Cloudflare)"
+            },
             "request": {
                 "title": "Solicitar certificado ACME",
                 "description": "Solicita un certificado para dominios públicos mediante el entorno de ACME seleccionado.",
-                "networkHint": "La validación de ACME necesita DNS público y el puerto 80 accesible para cada dominio."
+                "networkHint": "La validación de ACME necesita DNS público. HTTP-01 también requiere el puerto 80 accesible para cada dominio."
             },
             "confirm": {
                 "renewTitle": "¿Renovar {{name}}?",
@@ -766,6 +776,12 @@
                 "acme_terms_required": "Acepta los términos de ACME antes de solicitar un certificado.",
                 "acme_domain_invalid": "ACME requiere dominios DNS públicos.",
                 "acme_failed": "El pedido ACME ha fallado.",
+                "acme_dns_required": "DNS-01 requiere un proveedor DNS.",
+                "dns_provider_invalid": "La configuración del proveedor DNS no es válida.",
+                "dns_provider_unavailable": "No se pudo contactar con el proveedor DNS.",
+                "dns_provider_unauthorized": "El proveedor DNS rechazó las credenciales.",
+                "dns_cleanup_failed": "No se pudo limpiar el desafío DNS.",
+                "dns_credentials_unavailable": "Las credenciales DNS no están disponibles.",
                 "runtime_apply_failed": "El certificado se guardó, pero no se pudo aplicar al motor proxy.",
                 "certificate_store_unavailable": "El almacén de certificados no está disponible.",
                 "controller_unavailable": "El controlador proxy no está disponible."
@@ -776,6 +792,12 @@
                 "privateKeyPem": "Introduce una clave privada PEM.",
                 "pemLimit": "Este valor PEM es demasiado grande.",
                 "publicDomain": "Usa un dominio DNS público.",
+                "wildcardRequiresDns01": "Los nombres comodín requieren el desafío DNS-01.",
+                "duplicateDomain": "Cada dominio solo puede aparecer una vez.",
+                "dnsProviderRequired": "Indica un proveedor DNS de Cloudflare para DNS-01.",
+                "dnsProviderHttp": "HTTP-01 no acepta credenciales de proveedor DNS.",
+                "dnsZoneId": "Introduce un ID de zona de Cloudflare de 32 caracteres en minúsculas.",
+                "dnsApiToken": "Introduce un token de API de Cloudflare válido sin espacios.",
                 "email": "Introduce una dirección de correo válida.",
                 "terms": "Acepta los términos de ACME."
             },

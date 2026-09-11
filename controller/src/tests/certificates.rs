@@ -335,6 +335,8 @@ async fn certificate_index_limits_preserve_persisted_and_in_memory_metadata() {
             domains: vec!["example.com".to_owned()],
             environment: CertificateEnvironment::Staging,
             contact_email: None,
+            challenge_type: Default::default(),
+            dns_provider: None,
             accept_terms: true,
         };
         for _ in 0..2 {

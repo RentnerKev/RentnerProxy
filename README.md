@@ -92,7 +92,42 @@ for the checks to run before opening a pull request.
 
 - Caddy 2.11.4 powers proxy hosts for HTTP, HTTPS, redirects, and WebSockets.
 - Certificate import and automatic HTTPS certificates with ACME renewal.
+- DNS-01 with Cloudflare, including wildcard certificates and mixed wildcard/ordinary names.
 - Upstream TLS verification with custom trusted CAs.
 - User and role management with two-factor authentication and passkeys.
 - Backup, restore, and automatic configuration recovery after restarts.
 - English, German, Spanish, and French with theme settings.
+
+### DNS-01 and wildcard certificates
+
+In **Certificates**, request a certificate and select **DNS-01**. Supply the Cloudflare
+zone ID and an API token restricted to that zone, with **Zone / Zone / Read** and
+**Zone / DNS / Edit** permissions. See Cloudflare's
+[API token permissions](https://developers.cloudflare.com/fundamentals/api/reference/permissions/).
+Every requested name must belong to that zone. DNS-01 proves control through temporary
+`_acme-challenge` TXT records and does not require inbound HTTP reachability.
+The controller allows 30 seconds for propagation before asking the CA to validate;
+if DNS is slower, the operation fails safely and can be retried. Delegated challenge
+zones and requests spanning several Cloudflare zones are not supported in this version.
+
+Use `*.example.com` for one subdomain level, such as `app.example.com`. It does not
+cover `example.com` or `a.b.example.com`. To cover the apex too, request both
+`*.example.com` and `example.com`; every name in that order uses DNS-01. Partial or
+nested wildcard labels are rejected. Assign the resulting certificate to matching
+Proxy Hosts or Redirect Hosts using their ordinary hostnames. HTTP-01 remains the
+default for ordinary certificates.
+
+Provider credentials are encrypted by the controller using `APP_ENCRYPTION_KEY`
+(or `APP_ENCRYPTION_KEY_FILE`) and are never returned by certificate APIs. Production
+containers provision this key automatically. DNS requests to a remote controller
+require HTTPS; HTTP is supported only on loopback. For development, supply the same
+32-byte base64 key to the web process and controller. Preserve it across restarts
+and restores: losing it prevents DNS-01 renewal. Production backup directories
+contain the application encryption key and private certificate material; keep their
+private permissions and protect any copies with encryption and restricted access.
+
+The controller retains certificate IDs and host assignments during renewal. Provider
+and cleanup failures appear as safe error codes in certificate details and can be
+retried through renewal. The deterministic `bun run certificates:smoke` uses a local
+DNS/provider fixture and Pebble, including apex/wildcard proofs, HTTPS host matching,
+and renewal after restart. It never requests certificates from Let's Encrypt production.

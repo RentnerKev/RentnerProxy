@@ -46,6 +46,7 @@ const applySchema = z.object({
 interface ControllerRequestOptions {
     readonly timeoutMs: number
     readonly privileged?: boolean
+    readonly confidential?: boolean
     readonly body?: string
     readonly method?: 'GET' | 'PUT' | 'POST' | 'DELETE'
     readonly responseLimit?: number
@@ -99,6 +100,12 @@ export async function controllerRequest(
 ): Promise<unknown> {
     const baseUrl = getControllerBaseUrl()
     if (!baseUrl) return null
+    if (
+        options.confidential &&
+        !isLoopbackControllerUrl(baseUrl) &&
+        !baseUrl.startsWith('https://')
+    )
+        return null
 
     const headers: Record<string, string> = { accept: 'application/json' }
     const isCertificateRequest =

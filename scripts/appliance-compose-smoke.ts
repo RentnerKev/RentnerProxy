@@ -456,6 +456,55 @@ async function runSmoke(): Promise<void> {
             ]),
             '440:rentnerproxy:rentnerproxy-web',
         )
+        const controllerAppKey = '/run/rentnerproxy/controller-app-key/value'
+        assert.equal(
+            await command(['docker', 'exec', id, 'stat', '-c', '%a:%U:%G', controllerAppKey]),
+            '400:rentnerproxy:rentnerproxy',
+        )
+        await command([
+            'docker',
+            'exec',
+            id,
+            'cmp',
+            '--silent',
+            '/run/rentnerproxy/app-key/value',
+            controllerAppKey,
+        ])
+        await command([
+            'docker',
+            'exec',
+            id,
+            'gosu',
+            'rentnerproxy',
+            'test',
+            '-r',
+            controllerAppKey,
+        ])
+        assert.ok(
+            await commandFails([
+                'docker',
+                'exec',
+                id,
+                'gosu',
+                'rentnerproxy-web',
+                'test',
+                '-r',
+                controllerAppKey,
+            ]),
+        )
+        assert.ok(
+            await commandFails([
+                'docker',
+                'exec',
+                id,
+                'gosu',
+                'rentnerproxy',
+                'test',
+                '-r',
+                '/run/rentnerproxy/database-url/value',
+            ]),
+        )
+        passed('DNS credential encryption key is provisioned privately to the controller')
         const boundarySecret = '/var/lib/rentnerproxy/proxy/appliance-boundary-secret'
         await command([
             'docker',

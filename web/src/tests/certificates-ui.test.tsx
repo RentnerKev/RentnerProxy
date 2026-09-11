@@ -216,6 +216,16 @@ function lastButton(label: string): HTMLButtonElement {
     return matches.at(-1)!
 }
 
+async function chooseDnsChallenge(): Promise<void> {
+    await click(document.querySelector('[aria-label="ACME challenge"]')!)
+    await waitFor(() => document.querySelector('[role=option]') !== null)
+    const dnsOption = [...document.querySelectorAll('[role=option]')].find((option) =>
+        option.textContent?.includes('DNS-01'),
+    )
+    expect(dnsOption).toBeDefined()
+    await click(dnsOption!)
+}
+
 beforeEach(() => {
     getTrustedCasHandlerMock.mockReset().mockResolvedValue([trustedCa])
     createTrustedCaHandlerMock.mockReset().mockResolvedValue({
@@ -366,6 +376,7 @@ describe('certificate management UI', () => {
                 name: 'Staging edge',
                 domains: ['edge.example.com', 'www.edge.example.com'],
                 environment: 'staging',
+                challengeType: 'http-01',
                 contactEmail: 'ops@example.com',
                 acceptTerms: true,
             },
@@ -381,6 +392,85 @@ describe('certificate management UI', () => {
         }
         await waitFor(() => document.querySelector('[role=dialog]') === null)
         await waitForToast('success')
+    })
+
+    test('forwards DNS-01 wildcard requests with Cloudflare credentials', async () => {
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        await click(button('Request with ACME'))
+        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+        await setValue(document.querySelector('#certificate-request-name')!, 'Wildcard edge')
+        await setValue(
+            document.querySelector('#certificate-request-domains')!,
+            '*.example.com\nexample.com',
+        )
+        await chooseDnsChallenge()
+        await setValue(document.querySelector('#certificate-request-dns-zone-id')!, 'a'.repeat(32))
+        await setValue(
+            document.querySelector('#certificate-request-dns-api-token')!,
+            'cloudflare-secret-token',
+        )
+        await click(document.querySelector('#certificate-request-terms')!)
+        await click(lastButton('Request with ACME'))
+        await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
+        expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
+            data: {
+                name: 'Wildcard edge',
+                domains: ['*.example.com', 'example.com'],
+                environment: 'staging',
+                challengeType: 'dns-01',
+                dnsProvider: {
+                    type: 'cloudflare',
+                    zoneId: 'a'.repeat(32),
+                    apiToken: 'cloudflare-secret-token',
+                },
+                contactEmail: '',
+                acceptTerms: true,
+            },
+        })
+    })
+
+    test('shows inline DNS provider validation errors before requesting', async () => {
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        await click(button('Request with ACME'))
+        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+        await setValue(document.querySelector('#certificate-request-domains')!, '*.example.com')
+        await chooseDnsChallenge()
+        await setValue(document.querySelector('#certificate-request-dns-zone-id')!, 'invalid-zone')
+        await setValue(
+            document.querySelector('#certificate-request-dns-api-token')!,
+            'token with spaces',
+        )
+        await click(document.querySelector('#certificate-request-terms')!)
+        await click(lastButton('Request with ACME'))
+        await waitFor(
+            () =>
+                document.body.textContent?.includes(
+                    'Enter a 32-character lowercase Cloudflare zone ID.',
+                ) === true,
+        )
+        expect(document.body.textContent).toContain(
+            'Enter a valid Cloudflare API token without whitespace.',
+        )
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('shows an inline DNS-01 requirement for HTTP wildcard requests', async () => {
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        await click(button('Request with ACME'))
+        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+        await setValue(document.querySelector('#certificate-request-domains')!, '*.example.com')
+        await click(document.querySelector('#certificate-request-terms')!)
+        await click(lastButton('Request with ACME'))
+        await waitFor(
+            () =>
+                document.body.textContent?.includes(
+                    'Wildcard names require the DNS-01 challenge.',
+                ) === true,
+        )
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
     })
 })
 

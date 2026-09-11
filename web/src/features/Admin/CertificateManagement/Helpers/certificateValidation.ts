@@ -32,9 +32,14 @@ export function certificateCoversDomains(
     )
 }
 
-export function isPublicAcmeDomain(domain: string): boolean {
-    const canonical = normalizeProxyDomain(domain)
-    if (!canonical || !canonical.includes('.') || domain.startsWith('*.')) return false
+export function isPublicAcmeDomain(domain: string, allowWildcard = false): boolean {
+    const normalized = normalizeCertificateDomain(domain)
+    if (!normalized) return false
+    const wildcard = normalized.startsWith('*.')
+    if (wildcard && !allowWildcard) return false
+    const canonical = wildcard ? normalized.slice(2) : normalized
+    if (allowWildcard && `_acme-challenge.${canonical}`.length > 253) return false
+    if (!canonical.includes('.')) return false
     const suffix = canonical.split('.').at(-1)
     return ![
         'test',
