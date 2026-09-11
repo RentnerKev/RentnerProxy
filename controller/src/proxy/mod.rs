@@ -2,7 +2,7 @@ mod revision;
 mod trusted_ca;
 
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     net::{Ipv4Addr, Ipv6Addr},
 };
 
@@ -53,6 +53,7 @@ pub(crate) fn validate_proxy_config(
 
     let mut ids = HashSet::with_capacity(request.proxy_hosts.len() + request.redirect_hosts.len());
     let mut domains = HashSet::new();
+    let mut access_policies: HashMap<&str, &crate::models::AccessPolicy> = HashMap::new();
     let mut total_domains = 0usize;
 
     for host in &request.proxy_hosts {
@@ -74,6 +75,18 @@ pub(crate) fn validate_proxy_config(
             || !has_valid_upstream_tls(host)
         {
             return Err(ProxyValidationError::ValidationFailed);
+        }
+
+        if let Some(policy) = &host.access_policy {
+            if !is_canonical_uuid_v7(&policy.id)
+                || !has_valid_access_policy_shape(policy)
+                || access_policies
+                    .get(policy.id.as_str())
+                    .is_some_and(|existing| *existing != policy)
+            {
+                return Err(ProxyValidationError::ValidationFailed);
+            }
+            access_policies.insert(policy.id.as_str(), policy);
         }
 
         total_domains = total_domains.saturating_add(host.domains.len());
@@ -190,6 +203,15 @@ fn has_valid_upstream_tls(host: &crate::models::ProxyHost) -> bool {
         return false;
     }
     true
+}
+
+fn has_valid_access_policy_shape(policy: &crate::models::AccessPolicy) -> bool {
+    match policy.mode {
+        crate::models::AccessPolicyMode::Combined => policy.combination.is_some(),
+        crate::models::AccessPolicyMode::Public
+        | crate::models::AccessPolicyMode::Authenticated
+        | crate::models::AccessPolicyMode::IpRestricted => policy.combination.is_none(),
+    }
 }
 
 fn has_valid_redirect_destination(value: &str, preserve_request_uri: bool) -> bool {

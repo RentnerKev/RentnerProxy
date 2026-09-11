@@ -6,6 +6,7 @@ import type { RedirectHostStatusCode } from '../../config/redirect-hosts.config'
 import { rentnerProxySchema } from './base'
 import { certificates } from './certificates'
 import { trustedCas } from './trustedCas'
+import { accessPolicies } from './accessPolicies'
 
 export const proxyHosts = rentnerProxySchema.table(
     'proxy_hosts',
@@ -28,6 +29,9 @@ export const proxyHosts = rentnerProxySchema.table(
         trustedCaId: uuid('trusted_ca_id').references(() => trustedCas.id, {
             onDelete: 'restrict',
         }),
+        accessPolicyId: uuid('access_policy_id').references(() => accessPolicies.id, {
+            onDelete: 'restrict',
+        }),
         createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
             .notNull()
             .defaultNow(),
@@ -42,6 +46,7 @@ export const proxyHosts = rentnerProxySchema.table(
         index('proxy_hosts_enabled_idx').on(table.enabled),
         index('proxy_hosts_certificate_id_idx').on(table.certificateId),
         index('proxy_hosts_trusted_ca_id_idx').on(table.trustedCaId),
+        index('proxy_hosts_access_policy_id_idx').on(table.accessPolicyId),
         check(
             'proxy_hosts_trusted_ca_verification_check',
             sql`${table.trustedCaId} is null or (${table.forwardScheme} = 'https' and ${table.verifyUpstreamTls} = true)`,

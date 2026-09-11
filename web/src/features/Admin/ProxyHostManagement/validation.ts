@@ -91,6 +91,7 @@ const proxyHostInputSchema = z.object({
     verifyUpstreamTls: z.boolean().optional(),
     upstreamTlsServerName: proxyUpstreamTlsServerNameSchema.nullable().optional(),
     trustedCaId: z.uuidv7().nullable().optional(),
+    accessPolicyId: z.uuidv7().nullable().optional(),
 })
 
 function validateUpstreamTlsInput(

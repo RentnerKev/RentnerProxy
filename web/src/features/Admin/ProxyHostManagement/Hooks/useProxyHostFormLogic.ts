@@ -1,6 +1,8 @@
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
+import { accessPolicyManagementQueryKeys } from '../../AccessPolicyManagement/queryKeys'
+import { getAssignableAccessPoliciesHandler } from '../../AccessPolicyManagement/server'
 import { trustedCaManagementQueryKeys } from '../../TrustedCaManagement/queryKeys'
 import { getAssignableTrustedCasHandler } from '../../TrustedCaManagement/server'
 import { certificateManagementQueryKeys } from '../../CertificateManagement/queryKeys'
@@ -17,13 +19,20 @@ import { proxyHostFormSchema } from '../validation'
 
 type UseProxyHostFormLogicParams = Pick<
     ProxyHostFormModalProps,
-    'canEnable' | 'canDisable' | 'canAssignCertificates' | 'mode' | 'onSuccess' | 'proxyHost'
+    | 'canEnable'
+    | 'canDisable'
+    | 'canAssignCertificates'
+    | 'canAssignPolicies'
+    | 'mode'
+    | 'onSuccess'
+    | 'proxyHost'
 >
 
 export default function useProxyHostFormLogic({
     canEnable,
     canDisable,
     canAssignCertificates = false,
+    canAssignPolicies = false,
     mode,
     onSuccess,
     proxyHost,
@@ -46,12 +55,27 @@ export default function useProxyHostFormLogic({
         enabled: canAssignCertificates,
         staleTime: 30_000,
     })
+    const accessPoliciesQuery = useQuery({
+        queryKey: accessPolicyManagementQueryKeys.assignable,
+        queryFn: () => getAssignableAccessPoliciesHandler(),
+        enabled: canAssignPolicies,
+        staleTime: 30_000,
+    })
     const mutation = useMutation({
         mutationFn: (values: ProxyHostEditorFormValues) => {
             const data = proxyHostFormSchema.parse(values)
-            if (mode === 'create') return createProxyHostHandler({ data })
+            const submittedData = canAssignPolicies
+                ? data
+                : (() => {
+                      const preserved = { ...data }
+                      delete preserved.accessPolicyId
+                      return preserved
+                  })()
+            if (mode === 'create') return createProxyHostHandler({ data: submittedData })
             if (!proxyHost) throw new Error('admin.proxyHosts.errors.proxy_host_not_found')
-            return updateProxyHostHandler({ data: { ...data, proxyHostId: proxyHost.id } })
+            return updateProxyHostHandler({
+                data: { ...submittedData, proxyHostId: proxyHost.id },
+            })
         },
         onSuccess: async (result) => {
             if (!result.success) {
@@ -70,6 +94,9 @@ export default function useProxyHostFormLogic({
                 queryClient.invalidateQueries({
                     queryKey: certificateManagementQueryKeys.assignable,
                 }),
+                queryClient.invalidateQueries({
+                    queryKey: accessPolicyManagementQueryKeys.all,
+                }),
             ])
             if (result.runtimeStatus === 'pending')
                 toast.warning('admin.proxyHosts.runtime.savedPending')
@@ -82,6 +109,9 @@ export default function useProxyHostFormLogic({
     const retryAssignableCertificates = useCallback(() => {
         void certificatesQuery.refetch()
     }, [certificatesQuery])
+    const retryAssignableAccessPolicies = useCallback(() => {
+        void accessPoliciesQuery.refetch()
+    }, [accessPoliciesQuery])
     const defaultValues: ProxyHostEditorFormValues = {
         domains: proxyHost ? [...proxyHost.domains] : [''],
         forwardScheme: proxyHost?.forwardScheme ?? 'http',
@@ -94,6 +124,7 @@ export default function useProxyHostFormLogic({
             proxyHost?.forwardScheme === 'https' ? (proxyHost.verifyUpstreamTls ?? true) : true,
         upstreamTlsServerName: proxyHost?.upstreamTlsServerName ?? null,
         trustedCaId: proxyHost?.trustedCaId ?? null,
+        accessPolicyId: proxyHost?.accessPolicyId ?? null,
     }
     const form = useForm({
         defaultValues,
@@ -130,6 +161,10 @@ export default function useProxyHostFormLogic({
     return {
         state: {
             canAssignCertificates,
+            canAssignPolicies,
+            assignableAccessPolicies: accessPoliciesQuery.data ?? [],
+            assignableAccessPoliciesLoadFailed: accessPoliciesQuery.isError,
+            assignableAccessPoliciesLoading: accessPoliciesQuery.isPending,
             canChangeEnabled: mode === 'create' || (proxyHost?.enabled ? canDisable : canEnable),
             assignableCertificates: certificatesQuery.data ?? [],
             assignableCertificatesLoadFailed: certificatesQuery.isError,
@@ -146,6 +181,7 @@ export default function useProxyHostFormLogic({
             addDomain,
             removeDomain,
             retryAssignableCertificates,
+            retryAssignableAccessPolicies,
             confirmDisable,
             setDisableConfirmationOpen,
         },

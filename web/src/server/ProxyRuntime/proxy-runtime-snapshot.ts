@@ -2,6 +2,10 @@
 import '@tanstack/react-start/server-only'
 
 import { z } from 'zod'
+import {
+    ACCESS_POLICY_COMBINATIONS,
+    ACCESS_POLICY_MODES,
+} from '../../config/access-policies.config'
 
 import {
     normalizeProxyHttpSettings,
@@ -46,6 +50,17 @@ const runtimeTrustedCaSchema = z.strictObject({
     pem: createTrustedCaInputSchema.shape.pem,
     fingerprintSha256: z.string().regex(PROXY_RUNTIME_REVISION_PATTERN),
 })
+const runtimeAccessPolicySchema = z
+    .strictObject({
+        id: z.uuidv7().transform((id) => id.toLowerCase()),
+        mode: z.enum(ACCESS_POLICY_MODES),
+        combination: z.enum(ACCESS_POLICY_COMBINATIONS).nullable(),
+    })
+    .superRefine((policy, context) => {
+        if ((policy.mode === 'combined') !== (policy.combination !== null)) {
+            context.addIssue({ code: 'custom', message: 'Invalid access policy combination.' })
+        }
+    })
 
 const runtimeHostSchema = z
     .strictObject({
@@ -59,6 +74,7 @@ const runtimeHostSchema = z
         certificateId: z.uuidv7().nullish(),
         forceHttps: z.boolean().default(false),
         upstreamTls: runtimeUpstreamTlsSchema.optional(),
+        accessPolicy: runtimeAccessPolicySchema.optional(),
     })
     .refine(
         (host) => !host.forceHttps || !!host.certificateId,
@@ -120,11 +136,22 @@ export function createProxyRuntimeSnapshot(
 
     const ids = new Set<string>()
     const domains = new Set<string>()
+    const accessPolicies = new Map<string, string>()
     let totalDomains = 0
     const proxyHosts = enabledHosts
         .map((input): ProxyRuntimeHost => {
             const host = runtimeHostSchema.parse(input)
             const id = host.id.toLowerCase()
+
+            if (host.accessPolicy) {
+                const policy = host.accessPolicy
+                const configuration = JSON.stringify([policy.mode, policy.combination])
+                const existing = accessPolicies.get(policy.id)
+                if (existing !== undefined && existing !== configuration) {
+                    throw new Error('Proxy runtime snapshot contains inconsistent access policies.')
+                }
+                accessPolicies.set(policy.id, configuration)
+            }
 
             if (ids.has(id) || host.domains.some((domain) => domains.has(domain))) {
                 throw new Error('Proxy runtime snapshot contains duplicate hosts or domains.')
@@ -157,6 +184,9 @@ export function createProxyRuntimeSnapshot(
                               trustedCaId: host.upstreamTls?.trustedCaId?.toLowerCase() ?? null,
                           },
                       }
+                    : {},
+                host.accessPolicy
+                    ? { accessPolicy: runtimeAccessPolicySchema.parse(host.accessPolicy) }
                     : {},
             )
         })

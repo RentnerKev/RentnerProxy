@@ -78,6 +78,7 @@ fn valid_payload() -> Vec<u8> {
         certificate_id: None,
         force_https: false,
         upstream_tls: None,
+        access_policy: None,
     }];
     serde_json::to_vec(&ProxyConfigRequest {
         version: 7,
@@ -113,6 +114,7 @@ fn custom_payload() -> Vec<u8> {
         certificate_id: None,
         force_https: false,
         upstream_tls: None,
+        access_policy: None,
     }];
     let http_settings = ProxyHttpSettings {
         client_max_body_size_bytes: Some(10_485_760),

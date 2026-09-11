@@ -1,6 +1,8 @@
 use super::fixtures::{host, request, request_with_settings};
 use crate::{
-    models::{ProxyHttpSettings, UpstreamTls},
+    models::{
+        AccessPolicy, AccessPolicyCombination, AccessPolicyMode, ProxyHttpSettings, UpstreamTls,
+    },
     proxy::{
         ProxyValidationError, revision_for_configuration,
         revision_for_configuration_with_redirects, validate_proxy_config,
@@ -138,6 +140,139 @@ fn revision_is_v7_and_changes_for_every_snapshot_field() {
         ..Default::default()
     };
     assert_ne!(base, revision_for_configuration(&hosts, &settings));
+}
+
+#[test]
+fn access_policy_changes_the_v7_revision_and_requires_explicit_combination_shape() {
+    let mut public = host(
+        "018f4b4a-7d1f-7abc-8def-0123456789ab",
+        &["a.example"],
+        "http",
+        "127.0.0.1",
+        8080,
+    );
+    let base =
+        revision_for_configuration(std::slice::from_ref(&public), &ProxyHttpSettings::default());
+    public.access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+    });
+    let protected_revision =
+        revision_for_configuration(std::slice::from_ref(&public), &ProxyHttpSettings::default());
+    assert_ne!(base, protected_revision);
+    assert_eq!(
+        protected_revision,
+        "sha256:a51e0707c8c480299216f23841376ce6506b9398fce80b8ac14c4288b82649e3"
+    );
+    assert!(
+        validate_proxy_config(crate::models::ProxyConfigRequest {
+            version: 7,
+            revision: protected_revision,
+            proxy_hosts: vec![public.clone()],
+            redirect_hosts: vec![],
+            http_settings: ProxyHttpSettings::default(),
+            trusted_cas: vec![],
+        })
+        .is_ok()
+    );
+
+    public.access_policy.as_mut().unwrap().mode = AccessPolicyMode::Combined;
+    assert!(
+        validate_proxy_config(crate::models::ProxyConfigRequest {
+            version: 7,
+            revision: revision_for_configuration(
+                std::slice::from_ref(&public),
+                &ProxyHttpSettings::default(),
+            ),
+            proxy_hosts: vec![public.clone()],
+            redirect_hosts: vec![],
+            http_settings: ProxyHttpSettings::default(),
+            trusted_cas: vec![],
+        })
+        .is_err()
+    );
+    public.access_policy.as_mut().unwrap().combination = Some(AccessPolicyCombination::Any);
+    assert!(
+        validate_proxy_config(crate::models::ProxyConfigRequest {
+            version: 7,
+            revision: revision_for_configuration(
+                std::slice::from_ref(&public),
+                &ProxyHttpSettings::default(),
+            ),
+            proxy_hosts: vec![public],
+            redirect_hosts: vec![],
+            http_settings: ProxyHttpSettings::default(),
+            trusted_cas: vec![],
+        })
+        .is_ok()
+    );
+}
+
+#[test]
+fn access_policy_identity_must_have_one_canonical_definition() {
+    let policy_id = "0198d98a-0000-7000-8000-000000000001";
+    let mut first = host(
+        "018f4b4a-7d1f-7abc-8def-0123456789ab",
+        &["a.example"],
+        "http",
+        "127.0.0.1",
+        8080,
+    );
+    first.access_policy = Some(AccessPolicy {
+        id: policy_id.into(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+    });
+    let mut second = host(
+        "018f4b4a-7d1f-7abc-8def-1123456789ab",
+        &["b.example"],
+        "http",
+        "127.0.0.1",
+        8081,
+    );
+    second.access_policy = Some(AccessPolicy {
+        id: policy_id.into(),
+        mode: AccessPolicyMode::IpRestricted,
+        combination: None,
+    });
+    assert!(
+        validate_proxy_config(crate::models::ProxyConfigRequest {
+            version: 7,
+            revision: revision_for_configuration(
+                &[first.clone(), second.clone()],
+                &ProxyHttpSettings::default()
+            ),
+            proxy_hosts: vec![first, second],
+            redirect_hosts: vec![],
+            http_settings: ProxyHttpSettings::default(),
+            trusted_cas: vec![],
+        })
+        .is_err()
+    );
+}
+
+#[test]
+fn access_policy_rejects_provider_fields_until_their_contract_exists() {
+    let value = serde_json::json!({
+        "version": 7,
+        "revision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "proxyHosts": [{
+            "id": "018f4b4a-7d1f-7abc-8def-0123456789ab",
+            "domains": ["a.example"],
+            "forwardScheme": "http",
+            "forwardHost": "127.0.0.1",
+            "forwardPort": 8080,
+            "accessPolicy": {
+                "id": "0198d98a-0000-7000-8000-000000000001",
+                "mode": "authenticated",
+                "combination": null,
+                "provider": "basic"
+            }
+        }],
+        "redirectHosts": [], "httpSettings": {}, "trustedCas": []
+    });
+    assert!(serde_json::from_value::<crate::models::ProxyConfigRequest>(value).is_err());
 }
 
 #[test]

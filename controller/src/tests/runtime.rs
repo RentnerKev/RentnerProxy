@@ -1,12 +1,12 @@
 use super::fixtures::{host, request};
 use crate::{
     models::{
-        ApplyOutcome, ProxyConfigRequest, ProxyHttpSettings, TrustedCa, UpstreamTls,
-        ValidatedProxyConfig,
+        AccessPolicy, AccessPolicyMode, ApplyOutcome, ProxyConfigRequest, ProxyHttpSettings,
+        TrustedCa, UpstreamTls, ValidatedProxyConfig,
     },
     proxy::{
-        revision_for_configuration_with_trusted_cas, revision_from_config, validate_proxy_config,
-        validate_trusted_ca_pem,
+        revision_for_configuration, revision_for_configuration_with_trusted_cas,
+        revision_from_config, validate_proxy_config, validate_trusted_ca_pem,
     },
     runtime::{
         CertificateError, CertificateImportRequest, EngineError, EngineFuture, ProxyEngine,
@@ -219,6 +219,48 @@ async fn rejected_load_keeps_verified_traffic_revision_and_snapshot() {
     );
     assert_eq!(engine.load_count.load(Ordering::SeqCst), 2);
     assert!(runtime.is_ready().await);
+}
+
+#[tokio::test]
+async fn rejected_apply_keeps_the_last_known_protected_configuration() {
+    let engine = FakeCaddy::new();
+    let (runtime, settings) = runtime(Some(engine.clone()));
+    runtime.initialize().await;
+
+    let mut protected = configuration(4_000);
+    protected.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+    });
+    protected.revision =
+        revision_for_configuration(&protected.proxy_hosts, &protected.http_settings);
+    runtime.apply(protected).await.unwrap();
+    let previous = runtime.active_config().await.unwrap();
+    assert!(previous.0.contains("\"status_code\":403"));
+    let snapshot = std::fs::read(settings.state_dir.join("active-proxy-snapshot.json")).unwrap();
+
+    engine
+        .loads
+        .lock()
+        .await
+        .push_back(Err(EngineError::Rejected));
+    assert_eq!(
+        runtime.apply(configuration(4_001)).await,
+        Err(RuntimeError::ApplyFailed)
+    );
+    assert_eq!(runtime.active_config().await.unwrap(), previous);
+    assert_eq!(
+        std::fs::read(settings.state_dir.join("active-proxy-snapshot.json")).unwrap(),
+        snapshot
+    );
+    assert!(
+        engine
+            .configuration
+            .lock()
+            .await
+            .contains("\"status_code\":403")
+    );
 }
 
 #[tokio::test]
