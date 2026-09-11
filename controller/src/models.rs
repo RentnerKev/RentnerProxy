@@ -64,6 +64,21 @@ pub(crate) struct AccessPolicy {
     pub(crate) id: String,
     pub(crate) mode: AccessPolicyMode,
     pub(crate) combination: Option<AccessPolicyCombination>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) basic_auth: Option<BasicAuth>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct BasicAuth {
+    pub(crate) accounts: Vec<BasicAuthAccount>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct BasicAuthAccount {
+    pub(crate) username: String,
+    pub(crate) password_hash: String,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]

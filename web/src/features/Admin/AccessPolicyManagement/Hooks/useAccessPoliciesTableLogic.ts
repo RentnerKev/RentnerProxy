@@ -7,6 +7,7 @@ import type { ClientTableFeatures } from '../../../../shared/Table/Hooks/useClie
 import type { TableColumnFilterConfigs } from '../../../../shared/Table/Types/table.types'
 import type { AccessPolicySummary } from '../../../../shared/Types/access-policies.types'
 import type { AccessPoliciesTableProps } from '../Types/access-policy-table.types'
+import { getBasicAuthAccountCount } from '../Helpers/basicAuthPolicyState'
 import useAccessPoliciesTableColumns from './useAccessPoliciesTableColumns'
 
 const EMPTY_ACCESS_POLICIES: AccessPolicySummary[] = []
@@ -25,6 +26,7 @@ const createAccessPolicyGlobalFilter =
             policy.combination ?? '',
             policy.combination ? t(`admin.accessPolicies.combination.${policy.combination}`) : '',
             String(policy.assignedHostCount),
+            String(getBasicAuthAccountCount(policy)),
         ].some((value) => value.toLocaleLowerCase(locale).includes(search))
     }
 

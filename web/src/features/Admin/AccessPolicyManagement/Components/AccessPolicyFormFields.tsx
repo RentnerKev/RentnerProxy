@@ -1,11 +1,13 @@
 import useTranslationStore from '../../../../language/useTranslationStore'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import SelectControl from '../../../../shared/Select'
+import { getBasicAuthStatus } from '../Helpers/basicAuthPolicyState'
 import type { AccessPolicyFormFieldsProps } from '../Types/access-policy-form.types'
 
 const modes = ['public', 'authenticated', 'ip-restricted', 'combined'] as const
 
 export default function AccessPolicyFormFields({
+    basicAuthAccountCount,
     errors,
     formId,
     isPending,
@@ -17,6 +19,11 @@ export default function AccessPolicyFormFields({
     const { t } = useTranslationStore()
     const nameErrorId = `${formId}-name-error`
     const combinationErrorId = `${formId}-combination-error`
+    const basicAuthStatus = getBasicAuthStatus(
+        values.mode,
+        values.combination,
+        basicAuthAccountCount,
+    )
 
     return (
         <>
@@ -104,17 +111,17 @@ export default function AccessPolicyFormFields({
                     ) : null}
                 </fieldset>
             ) : null}
-            {values.mode !== 'public' ? (
-                <aside
-                    className={`${uiClassNames.form.wide} rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-sm leading-relaxed text-ink-soft`}
-                    role="alert"
-                >
-                    <p className="m-0 font-extrabold">
-                        {t('admin.accessPolicies.form.warningTitle')}
-                    </p>
-                    <p className="mt-1 mb-0">{t('admin.accessPolicies.form.warningDescription')}</p>
-                </aside>
-            ) : null}
+            <aside
+                className={`${uiClassNames.form.wide} rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-sm leading-relaxed text-ink-soft`}
+                role={basicAuthStatus === 'publicIgnored' ? undefined : 'status'}
+            >
+                <p className="m-0 font-extrabold">
+                    {t('admin.accessPolicies.form.availabilityTitle')}
+                </p>
+                <p className="mt-1 mb-0">
+                    {t(`admin.accessPolicies.basicAuth.status.${basicAuthStatus}`)}
+                </p>
+            </aside>
         </>
     )
 }

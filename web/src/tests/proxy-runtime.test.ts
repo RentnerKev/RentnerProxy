@@ -4,6 +4,8 @@ import {
     getProxyRuntimeStatus,
     applyProxyRuntimeConfiguration,
     checkControllerHealth,
+    previewProxyConfiguration,
+    previewProxyHostConfiguration,
 } from '../server/Foundation/controller.server'
 import { createProxyReconciler } from '../server/ProxyRuntime/proxy-reconcile'
 import {
@@ -407,6 +409,53 @@ describe('proxy runtime reconciliation', () => {
 })
 
 describe('controller runtime client', () => {
+    test.each([
+        ['http://controller.example:8081', false],
+        ['https://controller.example:8443', true],
+        ['http://127.0.0.1:8081', true],
+    ])('protects Basic Auth snapshot transport to %s', async (url, allowed) => {
+        process.env.RENTNERPROXY_CONTROLLER_URL = url
+        process.env.RENTNERPROXY_CONTROLLER_TOKEN = 'A'.repeat(32)
+        const current = snapshot({
+            accessPolicy: {
+                id: '0198d98a-0000-7000-8000-000000000001',
+                mode: 'authenticated',
+                combination: null,
+                basicAuth: {
+                    accounts: [
+                        {
+                            username: 'alice',
+                            passwordHash:
+                                '$argon2id$v=19$m=47104,t=1,p=1$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y',
+                        },
+                    ],
+                },
+            },
+        })
+        const fetchMock = spyOn(globalThis, 'fetch').mockImplementation((async () =>
+            Response.json({
+                status: 'applied',
+                activeRevision: current.revision,
+                lastApplyAt: null,
+                config: '{}',
+                revision: current.revision,
+            })) as unknown as typeof fetch)
+        try {
+            const results = await Promise.all([
+                applyProxyRuntimeConfiguration(current),
+                previewProxyConfiguration(current),
+                previewProxyHostConfiguration(BASE_ID, current),
+            ])
+            expect(fetchMock).toHaveBeenCalledTimes(allowed ? 3 : 0)
+            for (const result of results) {
+                if (allowed) expect(result).not.toBeNull()
+                else expect(result).toBeNull()
+            }
+        } finally {
+            fetchMock.mockRestore()
+        }
+    })
+
     test('keeps health unauthenticated while sending Bearer only to privileged endpoints', async () => {
         process.env.RENTNERPROXY_CONTROLLER_URL = 'http://controller.example:8081'
         process.env.RENTNERPROXY_CONTROLLER_TOKEN = 'A'.repeat(32)

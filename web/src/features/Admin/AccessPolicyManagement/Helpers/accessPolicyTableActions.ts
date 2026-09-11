@@ -3,10 +3,27 @@ import type { Translate } from '../../../../language/useTranslationStore'
 import type { AccessPolicyTableActionsProps } from '../Types/access-policy-table.types'
 
 export function getAccessPolicyTableActionItems(
-    { canDelete, canUpdate, isPending, onDelete, onEdit, policy }: AccessPolicyTableActionsProps,
+    {
+        canDelete,
+        canUpdate,
+        canViewCredentials = false,
+        isPending,
+        onCredentials,
+        onDelete,
+        onEdit,
+        policy,
+    }: AccessPolicyTableActionsProps,
     t: Translate,
 ): Array<ActionMenuItem> {
     const items: Array<ActionMenuItem> = []
+
+    if (canViewCredentials && onCredentials) {
+        items.push({
+            label: t('admin.accessPolicies.basicAuth.actions.credentials'),
+            onSelect: () => onCredentials(policy),
+            disabled: isPending,
+        })
+    }
 
     if (canUpdate) {
         items.push({

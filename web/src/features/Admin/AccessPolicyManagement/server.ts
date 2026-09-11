@@ -14,6 +14,13 @@ import {
     updateAccessPolicyService,
 } from '../../../server/Admin/AccessPolicyManagement/access-policies.service'
 import { AccessPolicyDomainError } from '../../../server/Admin/AccessPolicyManagement/access-policies.errors'
+import { BasicAuthDomainError } from '../../../server/Admin/AccessPolicyManagement/basic-auth.errors'
+import {
+    createBasicAuthAccountService,
+    deleteBasicAuthAccountService,
+    getBasicAuthAccountsService,
+    updateBasicAuthAccountService,
+} from '../../../server/Admin/AccessPolicyManagement/basic-auth.service'
 import { requirePermissionService } from '../../../server/Auth/Access/authorization.service'
 import { localizedActionFailure, throwLocalizedQueryError } from '../../Auth/serverHelpers'
 import {
@@ -21,6 +28,12 @@ import {
     createAccessPolicyInputSchema,
     updateAccessPolicyInputSchema,
 } from './validation'
+import {
+    basicAuthAccountsPolicyInputSchema,
+    createBasicAuthAccountInputSchema,
+    deleteBasicAuthAccountInputSchema,
+    updateBasicAuthAccountInputSchema,
+} from './basic-auth.validation'
 
 function noStore(): void {
     setResponseHeader('Cache-Control', 'private, no-store')
@@ -144,3 +157,96 @@ export const applyAccessPolicyConfigurationHandler = createServerFn({ method: 'P
         }
     },
 )
+
+function basicAuthActionFailure(error: unknown, fallback: string) {
+    if (error instanceof BasicAuthDomainError) {
+        setResponseStatus(
+            error.code === 'basic_auth_account_not_found'
+                ? 404
+                : error.code === 'basic_auth_username_conflict' ||
+                    error.code === 'basic_auth_account_limit'
+                  ? 409
+                  : 422,
+        )
+        return {
+            success: false as const,
+            message: `admin.accessPolicies.basicAuth.errors.${error.code}`,
+        }
+    }
+    if (error instanceof AccessPolicyDomainError) {
+        setResponseStatus(error.code === 'access_policy_not_found' ? 404 : 422)
+        return { success: false as const, message: `admin.accessPolicies.errors.${error.code}` }
+    }
+    return localizedActionFailure(error, fallback)
+}
+
+export const getBasicAuthAccountsHandler = createServerFn({ method: 'GET' })
+    .validator(basicAuthAccountsPolicyInputSchema)
+    .handler(async ({ data }) => {
+        noStore()
+        try {
+            return await getBasicAuthAccountsService(data)
+        } catch (error) {
+            throwLocalizedQueryError(error, 'admin.accessPolicies.basicAuth.errors.loadFailed')
+        }
+    })
+
+export const createBasicAuthAccountHandler = createServerFn({ method: 'POST' })
+    .validator(createBasicAuthAccountInputSchema)
+    .handler(async ({ data }) => {
+        noStore()
+        try {
+            const result = await createBasicAuthAccountService(data)
+            return {
+                success: true as const,
+                message:
+                    result.runtimeStatus === 'pending'
+                        ? 'admin.accessPolicies.basicAuth.messages.savedPending'
+                        : 'admin.accessPolicies.basicAuth.messages.created',
+                ...result,
+            }
+        } catch (error) {
+            return basicAuthActionFailure(error, 'admin.accessPolicies.basicAuth.errors.saveFailed')
+        }
+    })
+
+export const updateBasicAuthAccountHandler = createServerFn({ method: 'POST' })
+    .validator(updateBasicAuthAccountInputSchema)
+    .handler(async ({ data }) => {
+        noStore()
+        try {
+            const result = await updateBasicAuthAccountService(data)
+            return {
+                success: true as const,
+                message:
+                    result.runtimeStatus === 'pending'
+                        ? 'admin.accessPolicies.basicAuth.messages.savedPending'
+                        : 'admin.accessPolicies.basicAuth.messages.updated',
+                ...result,
+            }
+        } catch (error) {
+            return basicAuthActionFailure(error, 'admin.accessPolicies.basicAuth.errors.saveFailed')
+        }
+    })
+
+export const deleteBasicAuthAccountHandler = createServerFn({ method: 'POST' })
+    .validator(deleteBasicAuthAccountInputSchema)
+    .handler(async ({ data }) => {
+        noStore()
+        try {
+            const result = await deleteBasicAuthAccountService(data)
+            return {
+                success: true as const,
+                message:
+                    result.runtimeStatus === 'pending'
+                        ? 'admin.accessPolicies.basicAuth.messages.savedPending'
+                        : 'admin.accessPolicies.basicAuth.messages.deleted',
+                ...result,
+            }
+        } catch (error) {
+            return basicAuthActionFailure(
+                error,
+                'admin.accessPolicies.basicAuth.errors.deleteFailed',
+            )
+        }
+    })

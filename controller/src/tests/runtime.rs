@@ -1,8 +1,8 @@
 use super::fixtures::{host, request};
 use crate::{
     models::{
-        AccessPolicy, AccessPolicyMode, ApplyOutcome, ProxyConfigRequest, ProxyHttpSettings,
-        TrustedCa, UpstreamTls, ValidatedProxyConfig,
+        AccessPolicy, AccessPolicyMode, ApplyOutcome, BasicAuth, BasicAuthAccount,
+        ProxyConfigRequest, ProxyHttpSettings, TrustedCa, UpstreamTls, ValidatedProxyConfig,
     },
     proxy::{
         revision_for_configuration, revision_for_configuration_with_trusted_cas,
@@ -133,6 +133,24 @@ fn configuration(port: u16) -> ValidatedProxyConfig {
     )]))
     .unwrap()
 }
+
+fn basic_auth_configuration(port: u16, password_hash: &str) -> ValidatedProxyConfig {
+    let mut configuration = configuration(port);
+    configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+        basic_auth: Some(BasicAuth {
+            accounts: vec![BasicAuthAccount {
+                username: "admin".to_owned(),
+                password_hash: password_hash.to_owned(),
+            }],
+        }),
+    });
+    configuration.revision =
+        revision_for_configuration(&configuration.proxy_hosts, &configuration.http_settings);
+    configuration
+}
 fn tls_configuration() -> ValidatedProxyConfig {
     let mut proxy = host(HOST_ID, &["demo.test"], "http", "backend", 4_000);
     proxy.certificate_id = Some(CERT_ID.to_owned());
@@ -232,6 +250,7 @@ async fn rejected_apply_keeps_the_last_known_protected_configuration() {
         id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
         mode: AccessPolicyMode::Authenticated,
         combination: None,
+        basic_auth: None,
     });
     protected.revision =
         revision_for_configuration(&protected.proxy_hosts, &protected.http_settings);
@@ -261,6 +280,79 @@ async fn rejected_apply_keeps_the_last_known_protected_configuration() {
             .await
             .contains("\"status_code\":403")
     );
+}
+
+#[tokio::test]
+async fn basic_auth_rotation_is_transactional_and_removal_closes_the_host() {
+    const OLD_HASH: &str = "$argon2id$v=19$m=47104,t=1,p=1$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y";
+    const NEW_HASH: &str = "$argon2id$v=19$m=47104,t=1,p=1$AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE$2Sv5yy5t9jVZXrcpynqzCfolhbNUZMTb2108vmc7xk4";
+    let engine = FakeCaddy::new();
+    let (runtime, settings) = runtime(Some(engine.clone()));
+    runtime.initialize().await;
+
+    let old = basic_auth_configuration(4_000, OLD_HASH);
+    runtime.apply(old).await.unwrap();
+    let old_active = runtime.active_config().await.unwrap();
+    let old_snapshot =
+        std::fs::read(settings.state_dir.join("active-proxy-snapshot.json")).unwrap();
+    assert!(old_active.0.contains(OLD_HASH));
+    assert!(old_active.0.contains("\"authentication\""));
+    assert!(
+        old_snapshot
+            .windows(OLD_HASH.len())
+            .any(|window| window == OLD_HASH.as_bytes())
+    );
+
+    engine
+        .loads
+        .lock()
+        .await
+        .push_back(Err(EngineError::Rejected));
+    assert_eq!(
+        runtime
+            .apply(basic_auth_configuration(4_001, NEW_HASH))
+            .await,
+        Err(RuntimeError::ApplyFailed)
+    );
+    assert_eq!(runtime.active_config().await.unwrap(), old_active);
+    assert_eq!(*engine.configuration.lock().await, old_active.0);
+    assert_eq!(
+        std::fs::read(settings.state_dir.join("active-proxy-snapshot.json")).unwrap(),
+        old_snapshot
+    );
+
+    runtime
+        .apply(basic_auth_configuration(4_001, NEW_HASH))
+        .await
+        .unwrap();
+    let new_active = runtime.active_config().await.unwrap();
+    let new_snapshot =
+        std::fs::read(settings.state_dir.join("active-proxy-snapshot.json")).unwrap();
+    assert!(new_active.0.contains(NEW_HASH));
+    assert!(!new_active.0.contains(OLD_HASH));
+    assert!(
+        new_snapshot
+            .windows(NEW_HASH.len())
+            .any(|window| window == NEW_HASH.as_bytes())
+    );
+    assert!(
+        !new_snapshot
+            .windows(OLD_HASH.len())
+            .any(|window| window == OLD_HASH.as_bytes())
+    );
+
+    let mut removed = configuration(4_002);
+    removed.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+        basic_auth: None,
+    });
+    removed.revision = revision_for_configuration(&removed.proxy_hosts, &removed.http_settings);
+    runtime.apply(removed).await.unwrap();
+    let closed = runtime.active_config().await.unwrap();
+    assert!(closed.0.contains("\"status_code\":403"));
+    assert!(!closed.0.contains(NEW_HASH));
 }
 
 #[tokio::test]

@@ -9,6 +9,7 @@ import type { AccessPolicyManagementPageViewProps } from '../Types/access-policy
 import AccessPolicyFormModal from './AccessPolicyFormModal'
 import AccessPoliciesTable from './AccessPoliciesTable'
 import AccessPolicyRuntimeStatusPanel from './AccessPolicyRuntimeStatusPanel'
+import AccessPolicyCredentialsModal from './AccessPolicyCredentialsModal'
 
 export default function AccessPolicyManagementPageView({
     logic: { handler, state },
@@ -60,11 +61,13 @@ export default function AccessPolicyManagementPageView({
                 <AccessPoliciesTable
                     action={createAction}
                     canDelete={state.canDelete}
+                    canViewCredentials={state.canViewCredentials}
                     canUpdate={state.canUpdate}
                     isLoading={state.isLoading}
                     isPending={state.isMutating}
                     onDelete={handler.openDelete}
                     onEdit={handler.openEditor}
+                    onCredentials={handler.openCredentials}
                     policies={state.policies}
                 />
             )}
@@ -99,6 +102,15 @@ export default function AccessPolicyManagementPageView({
                     destructive
                     isPending={state.isDeleting}
                     onConfirm={handler.confirmDelete}
+                />
+            ) : null}
+            {state.credentialsPolicy ? (
+                <AccessPolicyCredentialsModal
+                    open
+                    canUpdate={state.canUpdate}
+                    onAccountsChange={handler.handleAccountsChange}
+                    onOpenChange={handler.setCredentialsOpen}
+                    policy={state.credentialsPolicy}
                 />
             ) : null}
         </>

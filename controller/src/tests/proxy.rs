@@ -1,7 +1,8 @@
 use super::fixtures::{host, request, request_with_settings};
 use crate::{
     models::{
-        AccessPolicy, AccessPolicyCombination, AccessPolicyMode, ProxyHttpSettings, UpstreamTls,
+        AccessPolicy, AccessPolicyCombination, AccessPolicyMode, BasicAuth, BasicAuthAccount,
+        ProxyHttpSettings, UpstreamTls,
     },
     proxy::{
         ProxyValidationError, revision_for_configuration,
@@ -157,6 +158,7 @@ fn access_policy_changes_the_v7_revision_and_requires_explicit_combination_shape
         id: "0198d98a-0000-7000-8000-000000000001".into(),
         mode: AccessPolicyMode::Authenticated,
         combination: None,
+        basic_auth: None,
     });
     let protected_revision =
         revision_for_configuration(std::slice::from_ref(&public), &ProxyHttpSettings::default());
@@ -223,6 +225,7 @@ fn access_policy_identity_must_have_one_canonical_definition() {
         id: policy_id.into(),
         mode: AccessPolicyMode::Authenticated,
         combination: None,
+        basic_auth: None,
     });
     let mut second = host(
         "018f4b4a-7d1f-7abc-8def-1123456789ab",
@@ -235,6 +238,7 @@ fn access_policy_identity_must_have_one_canonical_definition() {
         id: policy_id.into(),
         mode: AccessPolicyMode::IpRestricted,
         combination: None,
+        basic_auth: None,
     });
     assert!(
         validate_proxy_config(crate::models::ProxyConfigRequest {
@@ -273,6 +277,111 @@ fn access_policy_rejects_provider_fields_until_their_contract_exists() {
         "redirectHosts": [], "httpSettings": {}, "trustedCas": []
     });
     assert!(serde_json::from_value::<crate::models::ProxyConfigRequest>(value).is_err());
+}
+
+#[test]
+fn basic_auth_accounts_require_bounded_sorted_exact_argon2id_phc() {
+    let mut protected = host(
+        "018f4b4a-7d1f-7abc-8def-0123456789ab",
+        &["a.example"],
+        "http",
+        "127.0.0.1",
+        8080,
+    );
+    let hash = "$argon2id$v=19$m=47104,t=1,p=1$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y";
+    protected.access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+        basic_auth: Some(BasicAuth {
+            accounts: vec![BasicAuthAccount {
+                username: "alice".into(),
+                password_hash: hash.into(),
+            }],
+        }),
+    });
+    let valid = crate::models::ProxyConfigRequest {
+        version: 7,
+        revision: revision_for_configuration(
+            std::slice::from_ref(&protected),
+            &ProxyHttpSettings::default(),
+        ),
+        proxy_hosts: vec![protected.clone()],
+        redirect_hosts: vec![],
+        http_settings: ProxyHttpSettings::default(),
+        trusted_cas: vec![],
+    };
+    assert!(validate_proxy_config(valid.clone()).is_ok());
+
+    // Shared with the TypeScript snapshot property suite.
+    assert_eq!(
+        valid.revision,
+        "sha256:6a76f1e090fa29f7223b382e03c073ee3f1b04fc016273c8de9acea17f71e78c"
+    );
+
+    for invalid_hash in [
+        hash.replace(
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        ),
+        hash.replace("m=47104,t=1,p=1", "m=1,t=1,p=1"),
+        hash.replace(
+            "MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y",
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        ),
+    ] {
+        let mut request = valid.clone();
+        request.proxy_hosts[0]
+            .access_policy
+            .as_mut()
+            .unwrap()
+            .basic_auth
+            .as_mut()
+            .unwrap()
+            .accounts[0]
+            .password_hash = invalid_hash;
+        request.revision =
+            revision_for_configuration(&request.proxy_hosts, &ProxyHttpSettings::default());
+        assert!(validate_proxy_config(request).is_err());
+    }
+
+    let mut unsorted = protected;
+    unsorted.access_policy.as_mut().unwrap().basic_auth = Some(BasicAuth {
+        accounts: vec![
+            BasicAuthAccount {
+                username: "z-user".into(),
+                password_hash: hash.into(),
+            },
+            BasicAuthAccount {
+                username: "a-user".into(),
+                password_hash: hash.into(),
+            },
+        ],
+    });
+    let mut request = crate::models::ProxyConfigRequest {
+        version: 7,
+        revision: revision_for_configuration(
+            std::slice::from_ref(&unsorted),
+            &ProxyHttpSettings::default(),
+        ),
+        proxy_hosts: vec![unsorted],
+        redirect_hosts: vec![],
+        http_settings: ProxyHttpSettings::default(),
+        trusted_cas: vec![],
+    };
+    assert!(validate_proxy_config(request.clone()).is_err());
+    request.proxy_hosts[0]
+        .access_policy
+        .as_mut()
+        .unwrap()
+        .basic_auth
+        .as_mut()
+        .unwrap()
+        .accounts[1]
+        .username = "z-user".into();
+    request.revision =
+        revision_for_configuration(&request.proxy_hosts, &ProxyHttpSettings::default());
+    assert!(validate_proxy_config(request).is_err());
 }
 
 #[test]

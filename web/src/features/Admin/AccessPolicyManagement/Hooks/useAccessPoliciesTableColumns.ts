@@ -11,12 +11,14 @@ import type { ClientTableFeatures } from '../../../../shared/Table/Hooks/useClie
 import type { AccessPolicySummary } from '../../../../shared/Types/access-policies.types'
 import AccessPolicyTableActions from '../Components/AccessPolicyTableActions'
 import {
+    AccessPolicyBasicAuthCell,
     AccessPolicyAssignedCountCell,
     AccessPolicyCombinationCell,
     AccessPolicyCreatedAtCell,
     AccessPolicyModeCell,
     AccessPolicyNameCell,
 } from '../Components/AccessPolicyTableCells'
+import { getBasicAuthAccountCount } from '../Helpers/basicAuthPolicyState'
 import type { AccessPolicyTableActionProps } from '../Types/access-policy-table.types'
 
 const textFilter = createTrimmedIncludesStringFilter<AccessPolicySummary>()
@@ -55,6 +57,20 @@ export default function useAccessPoliciesTableColumns(actions: AccessPolicyTable
                 cell: ({ row }) =>
                     createElement(AccessPolicyCombinationCell, {
                         combination: row.original.combination,
+                    }),
+            },
+            {
+                id: 'basicAuth',
+                accessorFn: (policy) => getBasicAuthAccountCount(policy),
+                header: t('admin.accessPolicies.columns.basicAuth'),
+                enableSorting: false,
+                enableColumnFilter: false,
+                enableGlobalFilter: false,
+                cell: ({ row }) =>
+                    createElement(AccessPolicyBasicAuthCell, {
+                        combination: row.original.combination,
+                        count: getBasicAuthAccountCount(row.original),
+                        mode: row.original.mode,
                     }),
             },
             {

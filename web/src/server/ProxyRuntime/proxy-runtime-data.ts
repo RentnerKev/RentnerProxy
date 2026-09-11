@@ -3,7 +3,14 @@ import '@tanstack/react-start/server-only'
 
 import { asc, eq, inArray } from 'drizzle-orm'
 
-import { accessPolicies, hostDomains, proxyHosts, redirectHosts, trustedCas } from '../../db/schema'
+import {
+    accessPolicyBasicAuthAccounts,
+    accessPolicies,
+    hostDomains,
+    proxyHosts,
+    redirectHosts,
+    trustedCas,
+} from '../../db/schema'
 import type { AuthTransaction } from '../Auth/Core/database.server'
 import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot'
 import { readProxyHttpSettings, readProxyHostHttpSettingsMap } from './proxy-runtime-settings'
@@ -13,6 +20,36 @@ import type {
     ProxyRuntimeTrustedCa,
     RedirectRuntimeHost,
 } from './Types/proxy-runtime.types'
+
+async function readBasicAuthAccounts(
+    transaction: AuthTransaction,
+    policyIds: ReadonlyArray<string>,
+): Promise<Map<string, Array<{ readonly username: string; readonly passwordHash: string }>>> {
+    if (policyIds.length === 0) return new Map()
+    const rows = await transaction
+        .select({
+            policyId: accessPolicyBasicAuthAccounts.policyId,
+            username: accessPolicyBasicAuthAccounts.username,
+            passwordHash: accessPolicyBasicAuthAccounts.passwordHash,
+        })
+        .from(accessPolicyBasicAuthAccounts)
+        .where(inArray(accessPolicyBasicAuthAccounts.policyId, policyIds))
+        .orderBy(
+            asc(accessPolicyBasicAuthAccounts.policyId),
+            asc(accessPolicyBasicAuthAccounts.username),
+        )
+    const accounts = new Map<
+        string,
+        Array<{ readonly username: string; readonly passwordHash: string }>
+    >()
+    for (const row of rows) {
+        const existing = accounts.get(row.policyId)
+        if (existing) existing.push({ username: row.username, passwordHash: row.passwordHash })
+        else
+            accounts.set(row.policyId, [{ username: row.username, passwordHash: row.passwordHash }])
+    }
+    return accounts
+}
 
 export async function readProxyRuntimeTrustedCas(
     transaction: AuthTransaction,
@@ -67,10 +104,18 @@ export async function readProxyRuntimeSnapshot(
         string,
         ProxyRuntimeHost & { domains: string[]; readonly enabled: boolean }
     >()
+    const policyIds = [
+        ...new Set(
+            rows.flatMap((row) => (row.accessPolicyId === null ? [] : [row.accessPolicyId])),
+        ),
+    ]
+    const basicAuthAccounts = await readBasicAuthAccounts(transaction, policyIds)
 
     for (const row of rows) {
         let host = hosts.get(row.id)
         if (!host) {
+            const accounts =
+                row.accessPolicyId === null ? [] : (basicAuthAccounts.get(row.accessPolicyId) ?? [])
             host = {
                 id: row.id,
                 domains: [],
@@ -100,6 +145,11 @@ export async function readProxyRuntimeSnapshot(
                                 id: row.accessPolicyId,
                                 mode: row.accessPolicyMode,
                                 combination: row.accessPolicyCombination,
+                                ...((row.accessPolicyMode === 'authenticated' ||
+                                    row.accessPolicyMode === 'combined') &&
+                                accounts.length > 0
+                                    ? { basicAuth: { accounts } }
+                                    : {}),
                             },
                         }),
             }
@@ -186,6 +236,12 @@ export async function readProxyRuntimeHost(
     if (first.accessPolicyId !== null && first.accessPolicyMode === null) {
         throw new Error('Referenced access policy is missing.')
     }
+    const basicAuthAccounts = await readBasicAuthAccounts(
+        transaction,
+        first.accessPolicyId === null ? [] : [first.accessPolicyId],
+    )
+    const accounts =
+        first.accessPolicyId === null ? [] : (basicAuthAccounts.get(first.accessPolicyId) ?? [])
     return {
         id: first.id,
         domains: rows.flatMap((row) => (row.domain === null ? [] : [row.domain])),
@@ -211,6 +267,11 @@ export async function readProxyRuntimeHost(
                       id: first.accessPolicyId,
                       mode: first.accessPolicyMode!,
                       combination: first.accessPolicyCombination,
+                      ...((first.accessPolicyMode === 'authenticated' ||
+                          first.accessPolicyMode === 'combined') &&
+                      accounts.length > 0
+                          ? { basicAuth: { accounts } }
+                          : {}),
                   },
               }),
     }

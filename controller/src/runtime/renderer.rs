@@ -7,7 +7,8 @@ use std::{
 use serde::Serialize;
 
 use crate::models::{
-    AccessPolicyMode, ProxyHost, ProxyHttpSettings, RedirectHost, ValidatedProxyConfig,
+    AccessPolicy, AccessPolicyCombination, AccessPolicyMode, BasicAuth, ProxyHost,
+    ProxyHttpSettings, RedirectHost, ValidatedProxyConfig,
 };
 
 pub(crate) const MAX_RENDERED_PROXY_CONFIG_BYTES: usize = 16 * 1024 * 1024;
@@ -133,7 +134,36 @@ enum Handler {
     ReverseProxy(Box<ReverseProxy>),
     #[serde(rename = "request_body")]
     RequestBody(RequestBody),
+    #[serde(rename = "authentication")]
+    Authentication(Authentication),
 }
+
+#[derive(Serialize)]
+struct Authentication {
+    providers: BTreeMap<String, HttpBasicAuth>,
+}
+
+#[derive(Serialize)]
+struct HttpBasicAuth {
+    hash: BasicAuthHash,
+    accounts: Vec<HttpBasicAuthAccount>,
+    realm: String,
+    hash_cache: HashCache,
+}
+
+#[derive(Serialize)]
+struct BasicAuthHash {
+    algorithm: String,
+}
+
+#[derive(Serialize)]
+struct HttpBasicAuthAccount {
+    username: String,
+    password: String,
+}
+
+#[derive(Serialize)]
+struct HashCache {}
 
 #[derive(Serialize)]
 struct StaticResponse {
@@ -495,13 +525,13 @@ fn host_route(
     https_listener: bool,
     defaults: &ProxyHttpSettings,
 ) -> Result<Route, RenderError> {
+    let basic_auth = host.access_policy.as_ref().and_then(basic_auth_for_policy);
     if host
         .access_policy
         .as_ref()
-        .is_some_and(|policy| policy.mode != AccessPolicyMode::Public)
+        .is_some_and(|policy| policy.mode != AccessPolicyMode::Public && basic_auth.is_none())
     {
-        // Providers are deliberately not part of the v7 policy foundation yet. Keep every
-        // protected mode closed until a later provider implementation can authorize it.
+        // A protected mode without an applicable provider is closed by default.
         return Ok(Route {
             matchers: vec![Matcher::Host {
                 host: host.domains.clone(),
@@ -516,17 +546,6 @@ fn host_route(
     }
 
     let mut handle = Vec::new();
-    if let Some(max_size) = host
-        .http_settings
-        .client_max_body_size_bytes
-        .or(defaults.client_max_body_size_bytes)
-        && (!host.force_https || https_listener)
-    {
-        // Redirects do not consume the body; apply its limit only when forwarding.
-        handle.push(Handler::RequestBody(RequestBody {
-            max_size: u64::from(max_size),
-        }));
-    }
     if host.force_https && !https_listener {
         handle.push(Handler::StaticResponse(StaticResponse {
             body: None,
@@ -534,13 +553,30 @@ fn host_route(
             headers: Some(location_headers(force_https_location(public_https_port))),
         }));
     } else {
+        if let Some(auth) = basic_auth {
+            handle.push(Handler::Authentication(authentication_handler(auth)));
+        }
+        if let Some(max_size) = host
+            .http_settings
+            .client_max_body_size_bytes
+            .or(defaults.client_max_body_size_bytes)
+        {
+            // Authentication and redirects do not consume the body; apply its limit only when forwarding.
+            handle.push(Handler::RequestBody(RequestBody {
+                max_size: u64::from(max_size),
+            }));
+        }
         let upstream = upstream_dial(&host.forward_host, host.forward_port);
-        handle.push(Handler::ReverseProxy(Box::new(reverse_proxy(
-            &upstream,
-            Some(host),
-            Some(defaults),
-            upstream_tls,
-        )?)));
+        let mut proxy = reverse_proxy(&upstream, Some(host), Some(defaults), upstream_tls)?;
+        if basic_auth.is_some() {
+            // Credentials consumed by this policy must not reach upstream applications.
+            proxy
+                .headers
+                .request
+                .delete
+                .push("Authorization".to_owned());
+        }
+        handle.push(Handler::ReverseProxy(Box::new(proxy)));
     }
     Ok(Route {
         matchers: vec![Matcher::Host {
@@ -549,6 +585,41 @@ fn host_route(
         handle,
         terminal: true,
     })
+}
+
+fn basic_auth_for_policy(policy: &AccessPolicy) -> Option<&BasicAuth> {
+    match policy.mode {
+        AccessPolicyMode::Authenticated => policy.basic_auth.as_ref(),
+        AccessPolicyMode::Combined if policy.combination == Some(AccessPolicyCombination::Any) => {
+            policy.basic_auth.as_ref()
+        }
+        AccessPolicyMode::Public | AccessPolicyMode::IpRestricted | AccessPolicyMode::Combined => {
+            None
+        }
+    }
+}
+
+fn authentication_handler(auth: &BasicAuth) -> Authentication {
+    Authentication {
+        providers: BTreeMap::from([(
+            "http_basic".to_owned(),
+            HttpBasicAuth {
+                hash: BasicAuthHash {
+                    algorithm: "argon2id".to_owned(),
+                },
+                accounts: auth
+                    .accounts
+                    .iter()
+                    .map(|account| HttpBasicAuthAccount {
+                        username: account.username.clone(),
+                        password: account.password_hash.clone(),
+                    })
+                    .collect(),
+                realm: "RentnerProxy".to_owned(),
+                hash_cache: HashCache {},
+            },
+        )]),
+    }
 }
 
 fn redirect_route(host: &RedirectHost) -> Result<Route, RenderError> {

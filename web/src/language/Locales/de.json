@@ -1238,8 +1238,9 @@
                 "creating": "Wird erstellt…",
                 "name": "Name der Richtlinie",
                 "mode": "Schutzmodus",
-                "modeHint": "Öffentlich erlaubt Anfragen ohne Prüfung. Andere Modi bleiben aktiv, bis ihre Anbieter eingerichtet sind.",
+                "modeHint": "Öffentlich erlaubt Anfragen ohne Prüfung. Authentifizierte Richtlinien verwenden Basic-Auth-Konten; IP-Prüfungen benötigen ihren Anbieter.",
                 "combination": "Regel für kombinierte Richtlinie",
+                "availabilityTitle": "Basic Auth und Anfrageverfügbarkeit",
                 "warningTitle": "Schutzmethoden sind nicht eingerichtet",
                 "warningDescription": "Bis die erforderlichen Anbieter verfügbar sind, wird jede Anfrage in diesem Modus abgewiesen. Prüfe die Laufzeit vor der Zuweisung."
             },
@@ -1262,6 +1263,7 @@
                 "name": "Name",
                 "mode": "Modus",
                 "combination": "Kombination",
+                "basicAuth": "Basic Auth",
                 "assigned": "Zugewiesene Hosts",
                 "created": "Erstellt",
                 "actions": "Aktionen"
@@ -1289,6 +1291,95 @@
                 "filteredEmptyTitle": "Keine passenden Zugriffsrichtlinien",
                 "filteredEmptyDescription": "Passe die Suche an oder setze aktive Filter zurück.",
                 "itemLabel": "Zugriffsrichtlinien"
+            },
+            "basicAuth": {
+                "title": "Basic-Auth-Zugangsdaten für {{name}}",
+                "description": "Verwalte Benutzernamen und Passwörter für diese Richtlinie. Passwörter werden nie angezeigt oder zurückgegeben.",
+                "status": {
+                    "available": "Basic Auth verfügbar",
+                    "combinedAnyAvailable": "Basic Auth kann Anfragen erlauben",
+                    "combinedAnyMissing": "Keine Basic-Auth-Konten — Anfragen werden abgelehnt",
+                    "ipProviderRequired": "Geschlossen, bis der IP-Zugriff konfiguriert ist",
+                    "publicIgnored": "Von der öffentlichen Richtlinie ignoriert"
+                },
+                "form": {
+                    "createTitle": "Basic-Auth-Konto hinzufügen",
+                    "editTitle": "Basic-Auth-Konto bearbeiten",
+                    "description": "Speichere einen Benutzernamen und ein Passwort für diese Zugriffsrichtlinie.",
+                    "username": "Benutzername",
+                    "usernameHint": "Bis zu 64 ASCII-Buchstaben, Ziffern, ., _, @ oder -; beginne mit einem Buchstaben oder einer Ziffer.",
+                    "password": "Passwort",
+                    "passwordCreateHint": "Verwende ein Passwort mit 1–256 Zeichen.",
+                    "passwordEditHint": "Leer lassen, um das bestehende Passwort beizubehalten. Gib ein neues Passwort ein, um es zu ersetzen.",
+                    "transportHint": "Verwende HTTPS für Hosts mit dieser Richtlinie. Der Transport bleibt durch die Force-HTTPS-Einstellung jedes Hosts gesteuert."
+                },
+                "actions": {
+                    "credentials": "Zugangsdaten",
+                    "addAccount": "Konto hinzufügen",
+                    "editAccount": "Bearbeiten",
+                    "deleteAccount": "Löschen",
+                    "deleting": "Wird gelöscht…",
+                    "saving": "Wird gespeichert…",
+                    "create": "Konto erstellen",
+                    "save": "Konto speichern",
+                    "open": "Basic-Auth-Zugangsdaten für {{name}} verwalten"
+                },
+                "columns": {
+                    "username": "Benutzername",
+                    "created": "Erstellt",
+                    "updated": "Aktualisiert",
+                    "actions": "Aktionen"
+                },
+                "cells": {
+                    "accountCount_one": "{{count}} Konto",
+                    "accountCount_other": "{{count}} Konten"
+                },
+                "table": {
+                    "eyebrow": "Basic-Auth-Konten",
+                    "count_one": "{{count}} Basic-Auth-Konto",
+                    "count_other": "{{count}} Basic-Auth-Konten",
+                    "description": "Zugangsdaten werden als Passwort-Hashes gespeichert und hier nie angezeigt.",
+                    "caption": "Basic-Auth-Konten",
+                    "loading": "Basic-Auth-Konten werden geladen",
+                    "emptyDescription": "Keine Basic-Auth-Konten konfiguriert. Anfragen mit dieser Richtlinie werden abgelehnt, bis ein Konto hinzugefügt wird.",
+                    "limit": "Diese Richtlinie hat das Limit von 32 Konten erreicht."
+                },
+                "confirm": {
+                    "deleteTitle": "Basic-Auth-Konto löschen?",
+                    "deleteDescription": "Das Basic-Auth-Konto „{{username}}“ wird entfernt.",
+                    "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
+                },
+                "validation": {
+                    "usernameRequired": "Gib einen Benutzernamen ein.",
+                    "usernameTooLong": "Benutzernamen dürfen höchstens 64 Zeichen enthalten.",
+                    "usernameInvalid": "Verwende 1–64 ASCII-Buchstaben, Ziffern, ., _, @ oder -; das erste Zeichen muss ein Buchstabe oder eine Ziffer sein.",
+                    "passwordRequired": "Gib ein Passwort ein.",
+                    "passwordTooLong": "Passwörter dürfen höchstens 256 Zeichen enthalten.",
+                    "username": "Gib einen gültigen Benutzernamen ein.",
+                    "password": "Gib ein gültiges Passwort ein.",
+                    "changes": "Gib einen Benutzernamen oder ein neues Passwort an."
+                },
+                "errors": {
+                    "loadFailed": "Basic-Auth-Konten konnten nicht geladen werden.",
+                    "saveFailed": "Das Basic-Auth-Konto konnte nicht gespeichert werden.",
+                    "deleteFailed": "Das Basic-Auth-Konto konnte nicht gelöscht werden.",
+                    "accountNotFound": "Das Basic-Auth-Konto existiert nicht mehr.",
+                    "basic_auth_account_not_found": "Das Basic-Auth-Konto existiert nicht mehr.",
+                    "basic_auth_username_conflict": "Dieser Benutzername wird bereits von dieser Richtlinie verwendet.",
+                    "basic_auth_account_limit": "Diese Richtlinie hat bereits die maximale Zahl an Basic-Auth-Konten.",
+                    "invalid_input": "Prüfe die Werte des Basic-Auth-Kontos und versuche es erneut.",
+                    "controller_unavailable": "Der Proxy-Controller ist nicht verfügbar. Versuche es später erneut."
+                },
+                "messages": {
+                    "created": "Basic-Auth-Konto erfolgreich erstellt.",
+                    "updated": "Basic-Auth-Konto erfolgreich aktualisiert.",
+                    "deleted": "Basic-Auth-Konto erfolgreich gelöscht.",
+                    "savedPending": "Basic-Auth-Konto gespeichert. Änderungen warten auf die Anwendung."
+                },
+                "states": {
+                    "unavailableTitle": "Basic-Auth-Konten nicht verfügbar",
+                    "unavailableDescription": "Die Basic-Auth-Kontoliste konnte nicht geladen werden. Versuche es erneut."
+                }
             },
             "validation": {
                 "nameRequired": "Gib einen Namen für die Zugriffsrichtlinie ein.",
