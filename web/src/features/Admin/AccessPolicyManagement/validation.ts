@@ -7,12 +7,15 @@ import {
     ACCESS_POLICY_NAME_MAX_LENGTH,
 } from '../../../config/access-policies.config'
 
+// oxlint-disable-next-line no-control-regex -- Policy names and descriptions must reject C0/C1 controls.
+const ACCESS_POLICY_CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F-\u009F]/u
+
 export const accessPolicyNameSchema = z
     .string()
     .trim()
     .min(1, 'admin.accessPolicies.validation.nameRequired')
     .max(ACCESS_POLICY_NAME_MAX_LENGTH, 'admin.accessPolicies.validation.nameMax')
-    .refine((value) => ![...value].some((character) => character < ' ' || character === '\u007f'), {
+    .refine((value) => !ACCESS_POLICY_CONTROL_CHARACTER_PATTERN.test(value), {
         message: 'admin.accessPolicies.validation.nameInvalid',
     })
 
@@ -20,7 +23,7 @@ export const accessPolicyDescriptionSchema = z
     .string()
     .trim()
     .max(ACCESS_POLICY_DESCRIPTION_MAX_LENGTH, 'admin.accessPolicies.validation.descriptionMax')
-    .refine((value) => ![...value].some((character) => character < ' ' || character === '\u007f'), {
+    .refine((value) => !ACCESS_POLICY_CONTROL_CHARACTER_PATTERN.test(value), {
         message: 'admin.accessPolicies.validation.descriptionInvalid',
     })
 
