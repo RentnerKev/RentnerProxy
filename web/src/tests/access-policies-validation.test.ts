@@ -53,10 +53,39 @@ describe('access policy validation', () => {
         expect(result.success).toBe(false)
     })
 
-    test('rejects control characters and empty names after trimming', () => {
+    test('rejects C0, DEL, and C1 control characters in names and descriptions', () => {
+        for (const control of ['\u0000', '\u007f', '\u0080', '\u009f']) {
+            for (const field of ['name', 'description']) {
+                expect(
+                    createAccessPolicyInputSchema.safeParse({
+                        name: 'Policy',
+                        description: 'Description',
+                        [field]: 'Before' + control + 'After',
+                        mode: 'public',
+                        combination: null,
+                    }).success,
+                ).toBe(false)
+            }
+        }
         expect(
             createAccessPolicyInputSchema.safeParse({
                 name: '  \u0000  ',
+                mode: 'public',
+                combination: null,
+            }).success,
+        ).toBe(false)
+        expect(
+            createAccessPolicyInputSchema.safeParse({
+                name: 'Policy\u007f',
+                description: 'Description\u0080',
+                mode: 'public',
+                combination: null,
+            }).success,
+        ).toBe(false)
+        expect(
+            createAccessPolicyInputSchema.safeParse({
+                name: 'Policy',
+                description: 'Description\u009f',
                 mode: 'public',
                 combination: null,
             }).success,
