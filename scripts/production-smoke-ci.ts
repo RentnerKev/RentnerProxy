@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { SMOKE_RUN_LABEL, smokeRunScope } from './smoke-resources'
+import { CERTIFICATE_ERROR_CODES } from '../web/src/config/certificates.config'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 export const smokeSuites = {
@@ -52,6 +53,12 @@ export function smokeProgress(suite: Suite) {
             }
             const completion = specification.completion.exec(line)
             if (completion) reportedChecks = Number(completion[1])
+            const certificateFailure = CERTIFICATE_ERROR_CODES.find((code) =>
+                line.endsWith('Certificate operation failed: ' + code),
+            )
+            if (suite === 'certificates' && certificateFailure) {
+                diagnostic = 'Certificate operation failed: ' + certificateFailure
+            }
             if (/\b[Ss]moke command failed: docker (build|compose|run|exec)\b/u.test(line)) {
                 const operation = /docker (build|compose|run|exec)\b/u.exec(line)?.[1]
                 diagnostic = 'Docker ' + operation + ' failed'
