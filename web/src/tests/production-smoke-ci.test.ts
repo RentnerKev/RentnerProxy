@@ -63,6 +63,18 @@ describe('production smoke CI output boundary', () => {
         progress.consume('error: Timed out waiting for private-value')
         expect(progress.result(1).diagnostic).toBe('Readiness polling timed out')
     })
+
+    test('retains allowlisted certificate errors without printing unknown diagnostics', () => {
+        const progress = smokeProgress('certificates')
+        progress.consume('error: Certificate operation failed: acme_failed')
+        expect(progress.result(1).diagnostic).toBe('Certificate operation failed: acme_failed')
+        progress.consume('error: Certificate operation failed: private-value')
+        expect(progress.result(1).diagnostic).toBe('Certificate operation failed: acme_failed')
+        progress.consume('error: Certificate operation failed: dns_cleanup_failed')
+        expect(progress.result(1).diagnostic).toBe(
+            'Certificate operation failed: dns_cleanup_failed',
+        )
+    })
 })
 
 function inScope<T>(scope: string | undefined, operation: () => T): T {

@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'bun:test'
-import { dnsFixtureResponse } from '../../../scripts/certificate-dns-fixture'
+import { createConnection } from 'node:net'
+import {
+    dnsFixtureResponse,
+    startCertificateDnsFixture,
+} from '../../../scripts/certificate-dns-fixture'
 
 function query(name: string, type: number): Buffer {
     const header = Buffer.alloc(12)
@@ -18,6 +22,66 @@ function query(name: string, type: number): Buffer {
 }
 
 describe('local certificate DNS fixture', () => {
+    test('serves Pebble DNS over TCP with fragmented and coalesced query frames', async () => {
+        const fixture = await startCertificateDnsFixture('fixture-token')
+        fixture.addresses.set('acme.invalid', '172.20.0.2')
+        for (const content of ['apex-proof', 'wildcard-proof']) {
+            fixture.records.push({
+                id: content,
+                type: 'TXT',
+                name: '_acme-challenge.example.com',
+                content,
+            })
+        }
+        try {
+            const requests = Buffer.concat(
+                [
+                    query('acme.invalid', 1),
+                    query('_acme-challenge.example.com', 16),
+                    query('acme.invalid', 28),
+                ].map((message) => {
+                    const length = Buffer.alloc(2)
+                    length.writeUInt16BE(message.length)
+                    return Buffer.concat([length, message])
+                }),
+            )
+            const responses = await new Promise<Buffer[]>((resolve, reject) => {
+                const socket = createConnection({ host: '127.0.0.1', port: fixture.dnsPort })
+                let pending = Buffer.alloc(0)
+                const messages: Buffer[] = []
+                let fragmentTimer: ReturnType<typeof setTimeout> | undefined
+                socket.on('error', reject)
+                socket.on('close', () => clearTimeout(fragmentTimer))
+                socket.setTimeout(2_000, () =>
+                    socket.destroy(new Error('DNS TCP fixture timed out')),
+                )
+                socket.on('connect', () => {
+                    socket.write(requests.subarray(0, 1))
+                    fragmentTimer = setTimeout(() => socket.write(requests.subarray(1)), 20)
+                })
+                socket.on('data', (chunk: Buffer) => {
+                    pending = Buffer.concat([pending, chunk])
+                    while (pending.length >= 2 && pending.length >= pending.readUInt16BE(0) + 2) {
+                        const length = pending.readUInt16BE(0)
+                        messages.push(Buffer.from(pending.subarray(2, length + 2)))
+                        pending = pending.subarray(length + 2)
+                    }
+                    if (messages.length === 3) {
+                        socket.destroy()
+                        resolve(messages)
+                    }
+                })
+            })
+            expect([...responses[0]!.subarray(-4)]).toEqual([172, 20, 0, 2])
+            expect(responses[1]!.readUInt16BE(6)).toBe(2)
+            expect(responses[1]!.includes(Buffer.from('apex-proof'))).toBe(true)
+            expect(responses[1]!.includes(Buffer.from('wildcard-proof'))).toBe(true)
+            expect(responses[2]!.readUInt16BE(6)).toBe(0)
+        } finally {
+            fixture.stop()
+        }
+    })
+
     test('serves both apex and wildcard proofs at the same TXT owner', () => {
         const name = '_acme-challenge.example.com'
         const records = ['apex-proof', 'wildcard-proof'].map((content, id) => ({

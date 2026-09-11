@@ -9,6 +9,7 @@ import { basename, dirname, resolve } from 'node:path'
 
 import { smokeDockerArguments } from './smoke-resources'
 import { startCertificateDnsFixture } from './certificate-dns-fixture'
+import { CERTIFICATE_ERROR_CODES } from '../web/src/config/certificates.config'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
@@ -113,6 +114,13 @@ function jsonObject(value: unknown): Record<string, any> {
     assert.equal(typeof value, 'object')
     assert.notEqual(value, null)
     return value as Record<string, any>
+}
+
+function assertCertificateIssued(metadata: Record<string, any>): void {
+    if (metadata.status === 'valid' && metadata.lastErrorCode === null) return
+    const code =
+        CERTIFICATE_ERROR_CODES.find((value) => value === metadata.lastErrorCode) ?? 'acme_failed'
+    throw new Error('Certificate operation failed: ' + code)
 }
 
 async function freePort(): Promise<number> {
@@ -531,14 +539,23 @@ async function runSmoke(): Promise<void> {
             { timeoutMs: 60_000 },
         )
         controllerUrl = 'http://127.0.0.1:' + controllerPort
-        const runtimeAddress = await command([
-            'docker',
-            'inspect',
-            '--format',
-            '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',
-            runtimeContainer,
-        ])
-        dnsFixture.addresses.set('acme.invalid', runtimeAddress)
+        const dnsAddresses = dnsFixture.addresses
+        async function refreshRuntimeDns(): Promise<void> {
+            const runtimeAddress = await command([
+                'docker',
+                'inspect',
+                '--format',
+                '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',
+                runtimeContainer,
+            ])
+            dnsAddresses.set('acme.invalid', runtimeAddress)
+        }
+        async function restartRuntime(): Promise<void> {
+            await command(['docker', 'restart', runtimeContainer], { timeoutMs: 60_000 })
+            // Docker may allocate a different address after the network fault/restart tests.
+            await refreshRuntimeDns()
+        }
+        await refreshRuntimeDns()
         httpUrl = 'http://127.0.0.1:' + httpPort
         await waitFor(async () => {
             const response = await fetch(controllerUrl + '/health').catch(() => null)
@@ -1099,7 +1116,7 @@ async function runSmoke(): Promise<void> {
             ])
             if (attempt === 0) {
                 pendingAccountDigest = digest
-                await command(['docker', 'restart', runtimeContainer], { timeoutMs: 60_000 })
+                await restartRuntime()
                 await waitFor(async () => {
                     const response = await controllerRequest('/internal/v1/proxy/status')
                     return (
@@ -1147,7 +1164,7 @@ async function runSmoke(): Promise<void> {
                 const metadata = jsonObject(
                     await (await controllerRequest('/internal/v1/certificates/' + acmeId)).json(),
                 )
-                return metadata.status === 'valid' && metadata.operation === 'idle'
+                return metadata.operation === 'idle'
             },
             'Pebble ACME HTTP-01 issuance',
             90_000,
@@ -1155,6 +1172,7 @@ async function runSmoke(): Promise<void> {
         const acmeMetadata = jsonObject(
             await (await controllerRequest('/internal/v1/certificates/' + acmeId)).json(),
         )
+        assertCertificateIssued(acmeMetadata)
         assert.equal(acmeMetadata.source, 'acme')
         assert.equal(acmeMetadata.environment, 'staging')
         assert.equal(typeof acmeMetadata.fingerprint, 'string')
@@ -1274,7 +1292,7 @@ async function runSmoke(): Promise<void> {
                 const metadata = jsonObject(
                     await (await controllerRequest('/internal/v1/certificates/' + acmeId)).json(),
                 )
-                return metadata.status === 'valid' && metadata.operation === 'idle'
+                return metadata.operation === 'idle'
             },
             'successful ACME renewal',
             90_000,
@@ -1282,6 +1300,7 @@ async function runSmoke(): Promise<void> {
         const afterRenew = jsonObject(
             await (await controllerRequest('/internal/v1/certificates/' + acmeId)).json(),
         )
+        assertCertificateIssued(afterRenew)
         assert.notEqual(afterRenew.fingerprint, issuedFingerprint)
         assert.equal(
             await command(['docker', 'exec', runtimeContainer, 'sha256sum', accountFile]),
@@ -1298,7 +1317,7 @@ async function runSmoke(): Promise<void> {
         passed(
             'ACME renewal reuses the persisted account and installs new certificate material after recovery',
         )
-        await command(['docker', 'restart', runtimeContainer], { timeoutMs: 60_000 })
+        await restartRuntime()
         await waitFor(async () => {
             const status = await controllerRequest('/internal/v1/proxy/status')
             return status.status === 200 && jsonObject(await status.json()).running === true
@@ -1364,8 +1383,7 @@ async function runSmoke(): Promise<void> {
                 'Pebble DNS-01 operation',
                 180_000,
             )
-            assert.equal(metadata.status, 'valid')
-            assert.equal(metadata.lastErrorCode, null)
+            assertCertificateIssued(metadata)
             return metadata
         }
         const wildcardIssued = await waitForDnsCertificate()
@@ -1402,7 +1420,7 @@ async function runSmoke(): Promise<void> {
                 'redirect.example.com:' + httpsPort + ':127.0.0.1',
                 'https://redirect.example.com:' + httpsPort + '/wildcard',
             ])
-            assert.match(redirectResponse, /HTTP\/1\.1 308/u)
+            assert.match(redirectResponse, /^HTTP\/(?:1\.1|2) 308(?:\s|$)/u)
             assert.match(redirectResponse, /Location: https:\/\/example\.org\/wildcard/iu)
         }
         await checkWildcardTraffic()
@@ -1426,7 +1444,7 @@ async function runSmoke(): Promise<void> {
             '/var/lib/rentnerproxy/proxy/certificates/certificate-metadata.json',
         ])
         assert.equal(stateJson.includes(dnsToken), false)
-        await command(['docker', 'restart', runtimeContainer], { timeoutMs: 60_000 })
+        await restartRuntime()
         await waitFor(
             async () => (await controllerRequest('/internal/v1/proxy/status')).status === 200,
             'restart before DNS renewal',
@@ -1482,7 +1500,7 @@ async function runSmoke(): Promise<void> {
         assert.ok(dnsFixture.records.length > 0)
         await checkWildcardTraffic()
         dnsFixture.failCleanup = false
-        await command(['docker', 'restart', runtimeContainer], { timeoutMs: 60_000 })
+        await restartRuntime()
         await waitFor(
             async () => (await controllerRequest('/internal/v1/proxy/status')).status === 200,
             'restart with pending DNS cleanup',

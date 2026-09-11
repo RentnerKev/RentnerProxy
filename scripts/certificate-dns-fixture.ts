@@ -1,4 +1,5 @@
 import { createSocket } from 'node:dgram'
+import { createServer, type Socket } from 'node:net'
 
 interface TxtRecord {
     readonly id: string
@@ -79,6 +80,52 @@ export async function startCertificateDnsFixture(apiToken: string) {
             resolve()
         })
     })
+    // Pebble uses DNS over TCP even for small ACME validation queries.
+    // TCP frames carry a two-byte length and may be split or coalesced by the transport.
+    const connections = new Set<Socket>()
+    const tcp = createServer((socket) => {
+        connections.add(socket)
+        socket.on('close', () => connections.delete(socket))
+        socket.on('error', () => socket.destroy())
+        socket.setTimeout(5_000, () => socket.destroy())
+        let pending = Buffer.alloc(0)
+        socket.on('data', (chunk: Buffer) => {
+            pending = Buffer.concat([pending, chunk])
+            while (pending.length >= 2) {
+                const length = pending.readUInt16BE(0)
+                if (length === 0) {
+                    socket.destroy()
+                    return
+                }
+                if (pending.length < length + 2) break
+                const response = dnsFixtureResponse(
+                    pending.subarray(2, length + 2),
+                    records,
+                    addresses,
+                )
+                pending = pending.subarray(length + 2)
+                if (!response) {
+                    socket.destroy()
+                    return
+                }
+                const header = Buffer.alloc(2)
+                header.writeUInt16BE(response.length)
+                socket.write(Buffer.concat([header, response]))
+            }
+        })
+    })
+    try {
+        await new Promise<void>((resolve, reject) => {
+            tcp.once('error', reject)
+            tcp.listen(dns.address().port, '0.0.0.0', () => {
+                tcp.removeListener('error', reject)
+                resolve()
+            })
+        })
+    } catch (error) {
+        dns.close()
+        throw error
+    }
     let nextId = 1
     let failCleanup = false
     let maxSimultaneousTxt = 0
@@ -145,6 +192,8 @@ export async function startCertificateDnsFixture(apiToken: string) {
         },
         stop() {
             api.stop(true)
+            for (const connection of connections) connection.destroy()
+            tcp.close()
             dns.close()
         },
     }
