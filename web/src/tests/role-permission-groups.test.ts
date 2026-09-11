@@ -27,6 +27,7 @@ describe('role permission groups', () => {
             'trusted_cas.',
             'users.',
             'roles.',
+            'access_policies.',
             'account.',
         ])
         expect(groups.flatMap(({ permissions }) => permissions.map(({ key }) => key))).toEqual(

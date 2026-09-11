@@ -236,6 +236,7 @@ function snapshot(
             ...(input.httpSettings === undefined ? {} : { httpSettings: input.httpSettings }),
             ...(input.certificateId === undefined ? {} : { certificateId: input.certificateId }),
             ...(input.forceHttps ? { forceHttps: true } : {}),
+            ...(input.accessPolicy === undefined ? {} : { accessPolicy: input.accessPolicy }),
         }))
         .toSorted((left, right) => (String(left.id) < String(right.id) ? -1 : 1))
     const redirectHosts = redirects
@@ -1553,6 +1554,63 @@ async function runSmoke(): Promise<void> {
         assert.equal(JSON.stringify(list).includes('BEGIN '), false)
         assert.equal(JSON.stringify(list).includes(dnsToken), false)
         passed('certificate endpoints require the controller token and never return keys or PEM')
+
+        const policyHost = host(uuidV7(), 'policy.example.com', backend.port!, wildcardId)
+        const policyId = uuidV7()
+        const upstreamBeforePolicies = upstreamRequests.length
+        for (const policy of [
+            { mode: 'authenticated', combination: null },
+            { mode: 'ip-restricted', combination: null },
+            { mode: 'combined', combination: 'all' },
+            { mode: 'combined', combination: 'any' },
+        ]) {
+            await apply(snapshot([{ ...policyHost, accessPolicy: { id: policyId, ...policy } }]))
+            const deniedHttp = await fetch(httpUrl + '/private', {
+                headers: { host: 'policy.example.com', 'x-forwarded-for': '127.0.0.1' },
+                signal: AbortSignal.timeout(5_000),
+            })
+            assert.equal(deniedHttp.status, 403)
+            await deniedHttp.body?.cancel()
+            const deniedHttps = await curl([
+                '--include',
+                '--cacert',
+                temp + '/issuance-root.pem',
+                '--resolve',
+                'policy.example.com:' + httpsPort + ':127.0.0.1',
+                'https://policy.example.com:' + httpsPort + '/private',
+            ])
+            assert.match(deniedHttps, /^HTTP\/(?:1\.1|2) 403(?:\s|$)/u)
+            assert.doesNotMatch(deniedHttps, /certificate-smoke-backend/u)
+        }
+        assert.equal(upstreamRequests.length, upstreamBeforePolicies)
+        const challenge = await fetch(
+            httpUrl + '/.well-known/acme-challenge/unknown-policy-token',
+            {
+                headers: { host: 'policy.example.com' },
+                signal: AbortSignal.timeout(5_000),
+            },
+        )
+        assert.equal(challenge.status, 404)
+        await challenge.body?.cancel()
+        await apply(
+            snapshot([
+                {
+                    ...policyHost,
+                    accessPolicy: { id: policyId, mode: 'public', combination: null },
+                },
+            ]),
+        )
+        const publicHttps = await curl([
+            '--cacert',
+            temp + '/issuance-root.pem',
+            '--resolve',
+            'policy.example.com:' + httpsPort + ':127.0.0.1',
+            'https://policy.example.com:' + httpsPort + '/public',
+        ])
+        assert.match(publicHttps, /certificate-smoke-backend/u)
+        passed(
+            'Access Policies deny HTTP and verified HTTPS in every protected mode while preserving ACME challenges',
+        )
         console.log('Certificate HTTPS/ACME integration: ' + assertions + ' checks passed.')
     } finally {
         backend?.stop(true)

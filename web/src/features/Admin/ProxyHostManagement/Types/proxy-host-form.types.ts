@@ -1,6 +1,7 @@
 import type { FormEventHandler } from 'react'
 import type { z } from 'zod'
 
+import type { AccessPolicySummary } from '../../../../shared/Types/access-policies.types'
 import type { CertificateSummary } from '../../../../shared/Types/certificates.types'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
 import type useProxyHostFormLogic from '../Hooks/useProxyHostFormLogic'
@@ -13,6 +14,7 @@ export interface ProxyHostFormModalProps {
     readonly canEnable: boolean
     readonly canDisable: boolean
     readonly canAssignCertificates?: boolean
+    readonly canAssignPolicies?: boolean
     readonly mode: 'create' | 'edit'
     readonly onOpenChange: (open: boolean) => void
     readonly onSuccess: () => void
@@ -22,6 +24,10 @@ export interface ProxyHostFormModalProps {
 
 export interface ProxyHostFormModalState {
     readonly canAssignCertificates: boolean
+    readonly canAssignPolicies: boolean
+    readonly assignableAccessPolicies: readonly AccessPolicySummary[]
+    readonly assignableAccessPoliciesLoadFailed: boolean
+    readonly assignableAccessPoliciesLoading: boolean
     readonly assignableCertificates: readonly CertificateSummary[]
     readonly assignableCertificatesLoadFailed: boolean
     readonly assignableCertificatesLoading: boolean
@@ -44,6 +50,7 @@ export interface ProxyHostFormModalHandler {
     readonly addDomain: () => void
     readonly removeDomain: (index: number) => void
     readonly retryAssignableCertificates: () => void
+    readonly retryAssignableAccessPolicies: () => void
     readonly handleSubmit: FormEventHandler<HTMLFormElement>
     readonly confirmDisable: () => Promise<void>
     readonly setDisableConfirmationOpen: (open: boolean) => void
@@ -53,6 +60,10 @@ export type ProxyHostFormFieldsProps = Pick<
     ProxyHostFormModalState,
     | 'canChangeEnabled'
     | 'canAssignCertificates'
+    | 'canAssignPolicies'
+    | 'assignableAccessPolicies'
+    | 'assignableAccessPoliciesLoadFailed'
+    | 'assignableAccessPoliciesLoading'
     | 'assignableCertificates'
     | 'assignableCertificatesLoadFailed'
     | 'assignableCertificatesLoading'
@@ -64,7 +75,13 @@ export type ProxyHostFormFieldsProps = Pick<
     | 'formId'
     | 'isPending'
 > &
-    Pick<ProxyHostFormModalHandler, 'addDomain' | 'removeDomain' | 'retryAssignableCertificates'>
+    Pick<
+        ProxyHostFormModalHandler,
+        | 'addDomain'
+        | 'removeDomain'
+        | 'retryAssignableCertificates'
+        | 'retryAssignableAccessPolicies'
+    >
 
 export type ProxyHostFormModalFooterProps = Pick<
     ProxyHostFormModalState,

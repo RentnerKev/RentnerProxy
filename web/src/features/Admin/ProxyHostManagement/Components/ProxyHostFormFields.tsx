@@ -13,6 +13,10 @@ export default function ProxyHostFormFields({
     addDomain,
     canChangeEnabled,
     canAssignCertificates,
+    canAssignPolicies,
+    assignableAccessPolicies,
+    assignableAccessPoliciesLoadFailed,
+    assignableAccessPoliciesLoading,
     assignableCertificates,
     assignableCertificatesLoadFailed,
     assignableCertificatesLoading,
@@ -24,6 +28,7 @@ export default function ProxyHostFormFields({
     formId,
     isPending,
     removeDomain,
+    retryAssignableAccessPolicies,
     retryAssignableCertificates,
 }: ProxyHostFormFieldsProps) {
     const { t } = useTranslationStore()
@@ -216,6 +221,55 @@ export default function ProxyHostFormFields({
                         </div>
                     ) : null
                 }}
+            </form.Field>
+            <form.Field name="accessPolicyId">
+                {(field) =>
+                    canAssignPolicies ? (
+                        <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
+                            <span className={uiClassNames.form.label}>
+                                {t('admin.proxyHosts.form.accessPolicy')}
+                            </span>
+                            <SelectControl
+                                ariaLabel={t('admin.proxyHosts.form.accessPolicy')}
+                                className={uiClassNames.form.select}
+                                disabled={
+                                    isPending ||
+                                    assignableAccessPoliciesLoading ||
+                                    assignableAccessPoliciesLoadFailed
+                                }
+                                value={field.state.value ?? ''}
+                                placeholder={t('admin.proxyHosts.form.noAccessPolicy')}
+                                options={assignableAccessPolicies.map((policy) => ({
+                                    value: policy.id,
+                                    label: `${policy.name} · ${t(`admin.accessPolicies.mode.${policy.mode}`)}`,
+                                }))}
+                                onValueChange={(value) => field.handleChange(value || null)}
+                            />
+                            <p className={uiClassNames.form.hint}>
+                                {t('admin.proxyHosts.form.accessPolicyHint')}
+                            </p>
+                            {assignableAccessPoliciesLoading ? (
+                                <output className={uiClassNames.form.hint}>
+                                    {t('common.loading')}
+                                </output>
+                            ) : assignableAccessPoliciesLoadFailed ? (
+                                <div className="flex flex-wrap items-center gap-2" role="alert">
+                                    <p className="m-0 text-sm text-danger-text">
+                                        {t('common.requestFailed')}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        className={uiClassNames.button.quiet}
+                                        onClick={retryAssignableAccessPolicies}
+                                        disabled={isPending}
+                                    >
+                                        {t('common.retry')}
+                                    </button>
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : null
+                }
             </form.Field>
             <form.Subscribe
                 selector={(state) => [state.values.certificateId, state.values.domains] as const}

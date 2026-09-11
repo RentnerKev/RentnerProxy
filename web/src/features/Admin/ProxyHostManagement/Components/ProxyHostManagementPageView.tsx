@@ -123,6 +123,7 @@ export default function ProxyHostManagementPageView({
                     canEnable={state.canEnable}
                     canDisable={state.canDisable}
                     canAssignCertificates={state.canAssignCertificates}
+                    canAssignPolicies={state.canAssignPolicies}
                     onOpenChange={handler.setCreateOpen}
                     onSuccess={handler.handleFormSuccess}
                 />
@@ -136,6 +137,7 @@ export default function ProxyHostManagementPageView({
                     canEnable={state.canEnable}
                     canDisable={state.canDisable}
                     canAssignCertificates={state.canAssignCertificates}
+                    canAssignPolicies={state.canAssignPolicies}
                     onOpenChange={handler.setEditorOpen}
                     onSuccess={handler.handleFormSuccess}
                 />

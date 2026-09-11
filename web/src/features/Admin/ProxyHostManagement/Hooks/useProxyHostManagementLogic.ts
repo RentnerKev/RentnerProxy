@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { PERMISSIONS } from '../../../../config/permissions.config'
 import useToast from '../../../../shared/Toast/Hooks/useToast'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
+import { accessPolicyManagementQueryKeys } from '../../AccessPolicyManagement/queryKeys'
 import { proxyHostManagementQueryKeys } from '../queryKeys'
 import {
     applyProxyConfigurationHandler,
@@ -46,6 +47,7 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
                 exact: true,
             }),
             queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.runtimeStatus }),
+            queryClient.invalidateQueries({ queryKey: accessPolicyManagementQueryKeys.all }),
         ])
     }, [queryClient])
     const applyMutation = useMutation({
@@ -220,6 +222,7 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
             canAssignCertificates:
                 permissionSet.has(PERMISSIONS.PROXY_HOSTS_CREATE) ||
                 permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE),
+            canAssignPolicies: permissionSet.has(PERMISSIONS.ACCESS_POLICIES_ASSIGN),
             canRequestCertificate: permissionSet.has(PERMISSIONS.CERTIFICATES_ISSUE),
             canEditConfig:
                 permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE) &&

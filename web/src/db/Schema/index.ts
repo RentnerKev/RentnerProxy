@@ -1,6 +1,7 @@
 export * from './base'
 export * from './users'
 export * from './permissions'
+export * from './accessPolicies'
 export * from './systemSettings'
 export * from './auth'
 export * from './proxyHosts'

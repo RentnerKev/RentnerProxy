@@ -45,7 +45,8 @@
         "expandNavigation": "Développer la navigation",
         "proxyHosts": "Hôtes proxy",
         "redirectHosts": "Hôtes de redirection",
-        "certificates": "Certificats"
+        "certificates": "Certificats",
+        "accessPolicies": "Politiques d’accès"
     },
     "language": {
         "title": "Langue",
@@ -884,6 +885,9 @@
                 "certificate": "Certificat TLS",
                 "noCertificate": "Aucun certificat",
                 "certificateHint": "Attribuez un certificat utilisable couvrant tous les domaines de l’hôte.",
+                "accessPolicy": "Règle d’accès",
+                "noAccessPolicy": "Aucune règle d’accès",
+                "accessPolicyHint": "Les hôtes publics ou non attribués autorisent les requêtes. Les modes restreints refusent actuellement toutes les requêtes jusqu’à la configuration de leurs fournisseurs.",
                 "forceHttps": "Forcer HTTPS",
                 "forceHttpsHint": "Redirigez les requêtes HTTP de cet hôte vers HTTPS.",
                 "forceHttpsRequiresCertificate": "Attribuez d’abord un certificat utilisable couvrant tous les domaines."
@@ -1182,6 +1186,134 @@
                 "destination": "Saisissez une URL HTTP ou HTTPS absolue valide, sans identifiants ni échappement invalide."
             }
         },
+        "accessPolicies": {
+            "page": {
+                "eyebrow": "Contrôle d’accès",
+                "title": "Politiques d’accès",
+                "description": "Définissez des politiques réutilisables et attribuez-les aux hôtes proxy."
+            },
+            "runtime": {
+                "title": "Exécution des politiques d’accès",
+                "synced": "Exécution synchronisée",
+                "syncedDescription": "La configuration active correspond à la configuration enregistrée.",
+                "pending": "Les changements enregistrés attendent leur application.",
+                "pendingDescription": "La configuration précédente reste active jusqu’à l’application des changements.",
+                "unavailable": "Exécution indisponible.",
+                "unavailableDescription": "L’exécution est momentanément inaccessible. Les changements restent en attente.",
+                "apply": "Appliquer les changements",
+                "applying": "Application…",
+                "applyFailed": "La configuration n’a pas pu être appliquée.",
+                "savedPending": "Les changements enregistrés attendent leur application."
+            },
+            "messages": {
+                "created": "Politique d’accès créée.",
+                "updated": "Politique d’accès mise à jour.",
+                "deleted": "Politique d’accès supprimée.",
+                "savedPending": "Politique d’accès enregistrée. Les changements sont en attente.",
+                "applied": "Configuration de la politique d’accès appliquée."
+            },
+            "states": {
+                "unavailableTitle": "Politiques d’accès indisponibles",
+                "unavailableDescription": "La liste n’a pas pu être chargée. Réessayez."
+            },
+            "actions": {
+                "add": "Ajouter une politique d’accès",
+                "create": "Créer la politique d’accès",
+                "edit": "Modifier",
+                "delete": "Supprimer",
+                "deleting": "Suppression…",
+                "open": "Ouvrir les actions pour {{name}}",
+                "none": "Aucune action disponible",
+                "deleteDescription": "Supprimer définitivement « {{name}} ».",
+                "deleteAssigned": "Attribuée à des hôtes proxy — retirez d’abord les attributions."
+            },
+            "confirm": {
+                "deleteTitle": "Supprimer la politique d’accès ?",
+                "deleteDescription": "La politique d’accès « {{name}} » sera supprimée.",
+                "deleteWarning": "Cette action est irréversible."
+            },
+            "form": {
+                "description": "Choisissez comment cette politique traite les requêtes une fois appliquée.",
+                "editTitle": "Modifier la politique d’accès",
+                "creating": "Création…",
+                "name": "Nom de la politique",
+                "mode": "Mode de protection",
+                "modeHint": "Public autorise les requêtes sans contrôle. Les autres modes attendent leurs fournisseurs.",
+                "combination": "Règle de politique combinée",
+                "warningTitle": "Les méthodes de protection ne sont pas configurées",
+                "warningDescription": "Tant que les fournisseurs requis ne sont pas disponibles, ce mode refuse toutes les requêtes. Vérifiez l’exécution avant de l’attribuer."
+            },
+            "mode": {
+                "public": "Public",
+                "authenticated": "Authentifié",
+                "ip-restricted": "IP restreinte",
+                "combined": "Combiné",
+                "unconfigured": "Non configuré — toutes les requêtes sont refusées"
+            },
+            "combination": {
+                "all": "Toutes les vérifications doivent réussir",
+                "any": "Une vérification peut réussir"
+            },
+            "combinationDescription": {
+                "all": "L’authentification et la vérification IP doivent réussir.",
+                "any": "Une authentification ou une vérification IP réussie suffit."
+            },
+            "columns": {
+                "name": "Nom",
+                "mode": "Mode",
+                "combination": "Combinaison",
+                "assigned": "Hôtes attribués",
+                "created": "Créée",
+                "actions": "Actions"
+            },
+            "cells": {
+                "assignedHosts_one": "{{count}} hôte",
+                "assignedHosts_other": "{{count}} hôtes"
+            },
+            "filters": {
+                "name": "Filtrer les noms…",
+                "allModes": "Tous les modes",
+                "createdFrom": "Créée à partir du",
+                "createdTo": "Créée jusqu’au"
+            },
+            "table": {
+                "eyebrow": "Politiques enregistrées",
+                "count_one": "{{count}} politique d’accès",
+                "count_other": "{{count}} politiques d’accès",
+                "description": "Recherchez les politiques, les modes et les attributions d’hôtes.",
+                "searchLabel": "Rechercher des politiques d’accès",
+                "searchPlaceholder": "Rechercher noms, modes ou attributions…",
+                "loading": "Chargement des politiques d’accès",
+                "emptyTitle": "Aucune politique d’accès",
+                "emptyDescription": "Ajoutez une politique pour définir un accès réutilisable.",
+                "filteredEmptyTitle": "Aucune politique d’accès correspondante",
+                "filteredEmptyDescription": "Modifiez la recherche ou réinitialisez les filtres actifs.",
+                "itemLabel": "politiques d’accès"
+            },
+            "validation": {
+                "nameRequired": "Saisissez un nom de politique d’accès.",
+                "nameTooLong": "Le nom ne peut pas dépasser 120 caractères.",
+                "nameMax": "Le nom ne peut pas dépasser 120 caractères.",
+                "nameInvalid": "Utilisez des caractères imprimables dans le nom.",
+                "descriptionMax": "La description ne peut pas dépasser 1 000 caractères.",
+                "descriptionInvalid": "Utilisez des caractères imprimables dans la description.",
+                "combinationRequired": "Choisissez l’évaluation des vérifications combinées.",
+                "combination": "Une politique combinée nécessite une règle de combinaison.",
+                "changes": "Indiquez au moins une modification."
+            },
+            "errors": {
+                "loadFailed": "Les données des politiques d’accès n’ont pas pu être chargées.",
+                "runtimeUnavailable": "L’état d’exécution des politiques est indisponible.",
+                "saveFailed": "La politique d’accès n’a pas pu être enregistrée.",
+                "deleteFailed": "La politique d’accès n’a pas pu être supprimée.",
+                "policyNotFound": "La politique d’accès n’existe plus.",
+                "access_policy_not_found": "La politique d’accès n’existe plus.",
+                "access_policy_in_use": "Cette politique est attribuée à un hôte proxy.",
+                "invalid_input": "Vérifiez les valeurs de la politique et réessayez.",
+                "controller_unavailable": "Le contrôleur proxy est indisponible.",
+                "applyFailed": "La configuration de la politique n’a pas pu être appliquée."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Certificats",
@@ -1271,7 +1403,8 @@
             "proxy_hosts": "Hôtes proxy",
             "redirect_hosts": "Hôtes de redirection",
             "certificates": "Certificats",
-            "trusted_cas": "AC de confiance"
+            "trusted_cas": "AC de confiance",
+            "access_policies": "Politiques d’accès"
         },
         "app": {
             "access": "Accès à l’application"
@@ -1321,6 +1454,15 @@
             "delete": "Supprimer les certificats inutilisés",
             "issue": "Demander des certificats ACME",
             "renew": "Renouveler les certificats ACME"
+        },
+
+        "access_policies": {
+            "view": "Afficher les règles d’accès",
+            "create": "Créer des règles d’accès",
+            "update": "Modifier les règles d’accès",
+            "delete": "Supprimer les règles d’accès",
+            "assign": "Attribuer des règles d’accès",
+            "apply": "Appliquer la configuration des règles d’accès"
         },
 
         "trusted_cas": {

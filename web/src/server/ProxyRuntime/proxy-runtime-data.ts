@@ -3,7 +3,7 @@ import '@tanstack/react-start/server-only'
 
 import { asc, eq, inArray } from 'drizzle-orm'
 
-import { hostDomains, proxyHosts, redirectHosts, trustedCas } from '../../db/schema'
+import { accessPolicies, hostDomains, proxyHosts, redirectHosts, trustedCas } from '../../db/schema'
 import type { AuthTransaction } from '../Auth/Core/database.server'
 import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot'
 import { readProxyHttpSettings, readProxyHostHttpSettingsMap } from './proxy-runtime-settings'
@@ -11,7 +11,6 @@ import type {
     ProxyRuntimeHost,
     ProxyRuntimeSnapshot,
     ProxyRuntimeTrustedCa,
-    ProxyRuntimeUpstreamTls,
     RedirectRuntimeHost,
 } from './Types/proxy-runtime.types'
 
@@ -55,24 +54,18 @@ export async function readProxyRuntimeSnapshot(
             verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
             upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
             trustedCaId: proxyHosts.trustedCaId,
+            accessPolicyId: proxyHosts.accessPolicyId,
+            accessPolicyMode: accessPolicies.mode,
+            accessPolicyCombination: accessPolicies.combination,
         })
         .from(proxyHosts)
         .leftJoin(hostDomains, eq(hostDomains.proxyHostId, proxyHosts.id))
+        .leftJoin(accessPolicies, eq(accessPolicies.id, proxyHosts.accessPolicyId))
         .where(eq(proxyHosts.enabled, true))
         .orderBy(asc(proxyHosts.id), asc(hostDomains.domain))
     const hosts = new Map<
         string,
-        {
-            id: string
-            domains: string[]
-            forwardScheme: 'http' | 'https'
-            forwardHost: string
-            forwardPort: number
-            certificateId: string | null
-            forceHttps: boolean
-            upstreamTls?: ProxyRuntimeUpstreamTls
-            enabled: boolean
-        }
+        ProxyRuntimeHost & { domains: string[]; readonly enabled: boolean }
     >()
 
     for (const row of rows) {
@@ -96,9 +89,23 @@ export async function readProxyRuntimeSnapshot(
                       }
                     : {}),
                 enabled: true,
+                ...(row.accessPolicyId === null
+                    ? {}
+                    : row.accessPolicyMode === null
+                      ? (() => {
+                            throw new Error('Referenced access policy is missing.')
+                        })()
+                      : {
+                            accessPolicy: {
+                                id: row.accessPolicyId,
+                                mode: row.accessPolicyMode,
+                                combination: row.accessPolicyCombination,
+                            },
+                        }),
             }
             hosts.set(row.id, host)
         }
+        if (!host) continue
         if (row.domain !== null) host.domains.push(row.domain)
     }
 
@@ -164,14 +171,21 @@ export async function readProxyRuntimeHost(
             verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
             upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
             trustedCaId: proxyHosts.trustedCaId,
+            accessPolicyId: proxyHosts.accessPolicyId,
+            accessPolicyMode: accessPolicies.mode,
+            accessPolicyCombination: accessPolicies.combination,
             enabled: proxyHosts.enabled,
         })
         .from(proxyHosts)
         .leftJoin(hostDomains, eq(hostDomains.proxyHostId, proxyHosts.id))
+        .leftJoin(accessPolicies, eq(accessPolicies.id, proxyHosts.accessPolicyId))
         .where(eq(proxyHosts.id, proxyHostId))
         .orderBy(asc(hostDomains.domain))
     const first = rows.at(0)
     if (!first) return null
+    if (first.accessPolicyId !== null && first.accessPolicyMode === null) {
+        throw new Error('Referenced access policy is missing.')
+    }
     return {
         id: first.id,
         domains: rows.flatMap((row) => (row.domain === null ? [] : [row.domain])),
@@ -190,5 +204,14 @@ export async function readProxyRuntimeHost(
               }
             : {}),
         enabled: first.enabled,
+        ...(first.accessPolicyId === null
+            ? {}
+            : {
+                  accessPolicy: {
+                      id: first.accessPolicyId,
+                      mode: first.accessPolicyMode!,
+                      combination: first.accessPolicyCombination,
+                  },
+              }),
     }
 }

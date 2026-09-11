@@ -6,7 +6,9 @@ use std::{
 
 use serde::Serialize;
 
-use crate::models::{ProxyHost, ProxyHttpSettings, RedirectHost, ValidatedProxyConfig};
+use crate::models::{
+    AccessPolicyMode, ProxyHost, ProxyHttpSettings, RedirectHost, ValidatedProxyConfig,
+};
 
 pub(crate) const MAX_RENDERED_PROXY_CONFIG_BYTES: usize = 16 * 1024 * 1024;
 pub(crate) const MAX_RENDERED_PROXY_HOST_SOURCE_BYTES: usize = 128 * 1024;
@@ -493,6 +495,26 @@ fn host_route(
     https_listener: bool,
     defaults: &ProxyHttpSettings,
 ) -> Result<Route, RenderError> {
+    if host
+        .access_policy
+        .as_ref()
+        .is_some_and(|policy| policy.mode != AccessPolicyMode::Public)
+    {
+        // Providers are deliberately not part of the v7 policy foundation yet. Keep every
+        // protected mode closed until a later provider implementation can authorize it.
+        return Ok(Route {
+            matchers: vec![Matcher::Host {
+                host: host.domains.clone(),
+            }],
+            handle: vec![Handler::StaticResponse(StaticResponse {
+                body: None,
+                status_code: Some(403),
+                headers: None,
+            })],
+            terminal: true,
+        });
+    }
+
     let mut handle = Vec::new();
     if let Some(max_size) = host
         .http_settings

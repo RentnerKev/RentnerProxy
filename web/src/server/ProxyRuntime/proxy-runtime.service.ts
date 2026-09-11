@@ -44,9 +44,11 @@ export function stopProxyRuntimeReconciliation(): Promise<void> {
 type RuntimeViewPermission =
     | typeof PERMISSIONS.PROXY_HOSTS_VIEW
     | typeof PERMISSIONS.REDIRECT_HOSTS_VIEW
+    | typeof PERMISSIONS.ACCESS_POLICIES_VIEW
 type RuntimeApplyPermission =
     | typeof PERMISSIONS.PROXY_HOSTS_APPLY
     | typeof PERMISSIONS.REDIRECT_HOSTS_APPLY
+    | typeof PERMISSIONS.ACCESS_POLICIES_APPLY
 
 export async function getProxyRuntimeStatusService(
     permission: RuntimeViewPermission = PERMISSIONS.PROXY_HOSTS_VIEW,

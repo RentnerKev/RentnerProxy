@@ -224,6 +224,7 @@ async function runSmoke(): Promise<void> {
             { createSessionService },
             services,
             redirectServices,
+            policyServices,
             runtime,
             controller,
         ] = await Promise.all([
@@ -236,6 +237,7 @@ async function runSmoke(): Promise<void> {
             import('../web/src/server/Auth/Access/sessions.service'),
             import('../web/src/server/Admin/ProxyHostManagement/proxy-hosts.service'),
             import('../web/src/server/Admin/RedirectHostManagement/redirect-hosts.service'),
+            import('../web/src/server/Admin/AccessPolicyManagement/access-policies.service'),
             import('../web/src/server/ProxyRuntime/proxy-runtime.service'),
             import('../web/src/server/Foundation/controller.server'),
         ])
@@ -564,6 +566,103 @@ async function runSmoke(): Promise<void> {
         await expectProxyMessage('demo.test', 'upstream-two')
         passed('backend update with graceful Caddy reload')
 
+        const policy = await authorized(() =>
+            policyServices.createAccessPolicyService({
+                name: 'Shared smoke access policy',
+                mode: 'public',
+                combination: null,
+            }),
+        )
+        const policyHostInput = {
+            ...hostInput,
+            domains: ['policy.test'],
+            accessPolicyId: policy.accessPolicyId,
+        }
+        const policyHost = await authorized(() => services.createProxyHostService(policyHostInput))
+        const secondPolicyHost = await authorized(() =>
+            services.createProxyHostService({
+                ...policyHostInput,
+                domains: ['policy-two.test'],
+            }),
+        )
+        await expectProxyMessage('policy.test', 'upstream-one')
+        await expectProxyMessage('policy-two.test', 'upstream-one')
+        assert.equal(
+            (await authorized(() => policyServices.getAccessPoliciesService())).find(
+                (entry) => entry.id === policy.accessPolicyId,
+            )?.assignedHostCount,
+            2,
+        )
+        await assert.rejects(
+            authorized(() => policyServices.deleteAccessPolicyService(policy.accessPolicyId)),
+            { code: 'access_policy_in_use' },
+        )
+        passed('reusable public Access Policy is stored, assigned and enforced for two real hosts')
+
+        for (const protectedMode of [
+            { mode: 'authenticated', combination: null },
+            { mode: 'ip-restricted', combination: null },
+            { mode: 'combined', combination: 'all' },
+            { mode: 'combined', combination: 'any' },
+        ] as const) {
+            const result = await authorized(() =>
+                policyServices.updateAccessPolicyService({
+                    accessPolicyId: policy.accessPolicyId,
+                    name: 'Shared smoke access policy',
+                    ...protectedMode,
+                }),
+            )
+            assert.equal(result.runtimeStatus, 'applied')
+            await expectProxyStatus('policy.test', 403)
+            await expectProxyStatus('policy-two.test', 403)
+            const forged = await fetch(proxyUrl + '/protected', {
+                headers: {
+                    host: 'policy.test',
+                    'x-forwarded-for': '127.0.0.1',
+                    'x-real-ip': '::1',
+                    authorization: 'Basic Zml4dHVyZTpmaXh0dXJl',
+                    connection: 'Upgrade',
+                    upgrade: 'websocket',
+                },
+                signal: AbortSignal.timeout(5_000),
+            })
+            assert.equal(forged.status, 403)
+            await forged.body?.cancel()
+        }
+        await expectProxyMessage('demo.test', 'upstream-two')
+        passed(
+            'all unconfigured protected modes and both combinations deny requests and spoofed headers',
+        )
+
+        await authorized(() => services.disableProxyHostService(secondPolicyHost.id))
+        await assert.rejects(
+            authorized(() => policyServices.deleteAccessPolicyService(policy.accessPolicyId)),
+            { code: 'access_policy_in_use' },
+        )
+        await authorized(() => services.enableProxyHostService(secondPolicyHost.id))
+        await authorized(() =>
+            policyServices.updateAccessPolicyService({
+                accessPolicyId: policy.accessPolicyId,
+                name: 'Shared smoke access policy',
+                mode: 'public',
+                combination: null,
+            }),
+        )
+        await expectProxyMessage('policy.test', 'upstream-one')
+        await expectProxyMessage('policy-two.test', 'upstream-one')
+        await authorized(() =>
+            policyServices.updateAccessPolicyService({
+                accessPolicyId: policy.accessPolicyId,
+                name: 'Shared smoke access policy',
+                mode: 'authenticated',
+                combination: null,
+            }),
+        )
+        await expectProxyStatus('policy.test', 403)
+        passed(
+            'policy changes reconcile every assigned host and disabled assignments still prevent deletion',
+        )
+
         const initialSnapshot = await runtime.getProxyRuntimeSnapshotService()
         assert.equal(initialSnapshot.version, 7)
         assert.equal(
@@ -595,6 +694,9 @@ async function runSmoke(): Promise<void> {
         const unresolvableHosts = snapshot.proxyHosts.map((host) => ({
             ...host,
             forwardHost: runId + '.upstream.invalid',
+            ...(host.accessPolicy
+                ? { accessPolicy: { ...host.accessPolicy, mode: 'public', combination: null } }
+                : {}),
         }))
         const unresolvableCanonical = JSON.stringify({
             version: 7,
@@ -639,6 +741,8 @@ async function runSmoke(): Promise<void> {
         assert.equal((await rejectedCandidate.json()).error, 'apply_failed')
         assert.equal((await controller.getProxyRuntimeStatus())?.activeRevision, snapshot.revision)
         await expectProxyMessage('demo.test', 'upstream-two')
+        await expectProxyStatus('policy.test', 403)
+        await expectProxyStatus('policy-two.test', 403)
         passed(
             'controlled Caddy probe bind failure preserves the active revision and working backend',
         )
@@ -687,6 +791,9 @@ async function runSmoke(): Promise<void> {
         }, 'persisted active revision after restart')
         await expectProxyMessage('demo.test', 'upstream-two')
         passed('controller restart restores last successfully applied state')
+        await expectProxyStatus('policy.test', 403)
+        await expectProxyStatus('policy-two.test', 403)
+        passed('protected Access Policies survive failed relaxation and controller restart')
 
         await command([...compose, 'exec', '-T', 'proxy-runtime', 'pkill', '-TERM', 'caddy'])
         await waitFor(
@@ -711,6 +818,19 @@ async function runSmoke(): Promise<void> {
         }, 'automatic recovery after Caddy shutdown')
         await expectProxyMessage('demo.test', 'upstream-two')
         passed('controller automatically recovers Caddy and retains the last working configuration')
+
+        await authorized(() => services.deleteProxyHostService(secondPolicyHost.id))
+        await authorized(() =>
+            services.updateProxyHostService({
+                ...policyHostInput,
+                proxyHostId: policyHost.id,
+                accessPolicyId: null,
+            }),
+        )
+        await expectProxyMessage('policy.test', 'upstream-one')
+        await authorized(() => policyServices.deleteAccessPolicyService(policy.accessPolicyId))
+        await authorized(() => services.deleteProxyHostService(policyHost.id))
+        passed('explicit policy removal reconciles public access before deleting the unused policy')
 
         assert.equal(
             (await authorized(() => services.disableProxyHostService(created.id))).runtimeStatus,
