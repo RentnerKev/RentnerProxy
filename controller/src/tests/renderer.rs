@@ -1,12 +1,13 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, net::IpAddr};
 
+use ipnet::IpNet;
 use serde_json::Value;
 
 use super::fixtures::{host, request};
 use crate::{
     models::{
-        AccessPolicy, AccessPolicyMode, BasicAuth, BasicAuthAccount, ProxyHttpSettings,
-        ValidatedProxyConfig,
+        AccessPolicy, AccessPolicyMode, BasicAuth, BasicAuthAccount, IpDefaultAction, IpRules,
+        ProxyHttpSettings, ValidatedProxyConfig,
     },
     proxy::revision_from_config,
     runtime::renderer::{
@@ -87,6 +88,7 @@ fn protected_host_routes_are_terminal_403s_on_http_and_https() {
         mode: AccessPolicyMode::Authenticated,
         combination: None,
         basic_auth: None,
+        ip_rules: None,
     });
     let http: Value =
         serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
@@ -143,6 +145,7 @@ fn basic_auth_is_before_body_and_proxy_and_uses_fixed_caddy_settings() {
                 password_hash: "$argon2id$v=19$m=47104,t=1,p=1$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y".into(),
             }],
         }),
+        ip_rules: None,
     });
     configuration.proxy_hosts[0]
         .http_settings
@@ -175,6 +178,159 @@ fn basic_auth_is_before_body_and_proxy_and_uses_fixed_caddy_settings() {
             .unwrap()
             .contains(&serde_json::json!("Authorization"))
     );
+}
+
+#[test]
+fn ip_restricted_routes_deny_before_allow_and_expand_ipv4_mapped_peers() {
+    let mut configuration = config();
+    configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::IpRestricted,
+        combination: None,
+        basic_auth: None,
+        ip_rules: Some(IpRules {
+            default_action: IpDefaultAction::Deny,
+            allow: vec!["192.0.2.0/24".into()],
+            deny: vec!["192.0.2.128/25".into()],
+        }),
+    });
+    configuration.revision = crate::proxy::revision_for_configuration(
+        &configuration.proxy_hosts,
+        &configuration.http_settings,
+    );
+    let json: Value =
+        serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
+    let routes = json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"]
+        .as_array()
+        .unwrap();
+    assert_eq!(routes[1]["handle"][0]["status_code"], 403);
+    assert_eq!(
+        routes[1]["match"][0]["remote_ip"]["ranges"],
+        serde_json::json!(["192.0.2.128/25", "::ffff:192.0.2.128/121"])
+    );
+    assert_eq!(routes[2]["handle"][0]["handler"], "reverse_proxy");
+    assert_eq!(
+        routes[2]["match"][0]["remote_ip"]["ranges"],
+        serde_json::json!(["192.0.2.0/24", "::ffff:192.0.2.0/120"])
+    );
+    assert_eq!(
+        routes[2]["match"][0]["not"][0]["remote_ip"]["ranges"],
+        serde_json::json!(["192.0.2.128/25", "::ffff:192.0.2.128/121"])
+    );
+    assert_eq!(routes[3]["handle"][0]["status_code"], 403);
+}
+
+fn matcher_matches_remote_ip(matcher: &Value, address: IpAddr) -> bool {
+    let remote_matches = matcher
+        .get("remote_ip")
+        .and_then(|remote| remote.get("ranges"))
+        .is_none_or(|ranges| {
+            ranges.as_array().unwrap().iter().any(|range| {
+                range
+                    .as_str()
+                    .unwrap()
+                    .parse::<IpNet>()
+                    .unwrap()
+                    .contains(&address)
+            })
+        });
+    let not_matches = matcher
+        .get("not")
+        .and_then(Value::as_array)
+        .is_none_or(|excluded| {
+            !excluded
+                .iter()
+                .any(|nested| matcher_matches_remote_ip(nested, address))
+        });
+    remote_matches && not_matches
+}
+
+#[test]
+fn ipv6_matchers_exclude_unlisted_mapped_peers_and_append_deny() {
+    let mut configuration = config();
+    configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::IpRestricted,
+        combination: None,
+        basic_auth: None,
+        ip_rules: Some(IpRules {
+            default_action: IpDefaultAction::Deny,
+            allow: vec!["192.0.2.0/24".into(), "2001:db8::/32".into()],
+            deny: vec!["2001:db8:bad::/48".into()],
+        }),
+    });
+    configuration.revision = crate::proxy::revision_for_configuration(
+        &configuration.proxy_hosts,
+        &configuration.http_settings,
+    );
+    let json: Value =
+        serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
+    let routes = json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"]
+        .as_array()
+        .unwrap();
+    let deny_matcher = &routes[1]["match"][0];
+    let allow_matcher = &routes[2]["match"][0];
+    let mapped_allowed: IpAddr = "::ffff:192.0.2.1".parse().unwrap();
+    let mapped_unlisted: IpAddr = "::ffff:198.51.100.1".parse().unwrap();
+    let allowed_ipv6: IpAddr = "2001:db8::1".parse().unwrap();
+    let denied_ipv6: IpAddr = "2001:db8:bad::1".parse().unwrap();
+
+    assert_eq!(allow_matcher["not"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        allow_matcher["not"][0]["remote_ip"]["ranges"],
+        serde_json::json!(["::ffff:0:0/96"])
+    );
+    assert_eq!(
+        allow_matcher["not"][0]["not"],
+        serde_json::json!([{
+            "remote_ip": { "ranges": ["::ffff:192.0.2.0/120"] }
+        }])
+    );
+    assert!(matcher_matches_remote_ip(allow_matcher, mapped_allowed));
+    assert!(!matcher_matches_remote_ip(allow_matcher, mapped_unlisted));
+    assert!(matcher_matches_remote_ip(allow_matcher, allowed_ipv6));
+    assert!(!matcher_matches_remote_ip(allow_matcher, denied_ipv6));
+    assert!(matcher_matches_remote_ip(deny_matcher, denied_ipv6));
+    assert!(!matcher_matches_remote_ip(deny_matcher, mapped_unlisted));
+}
+
+#[test]
+fn combined_any_uses_ip_without_auth_then_basic_auth_as_fallback() {
+    let mut configuration = config();
+    configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::Combined,
+        combination: Some(crate::models::AccessPolicyCombination::Any),
+        basic_auth: Some(BasicAuth {
+            accounts: vec![BasicAuthAccount {
+                username: "admin".into(),
+                password_hash: "$argon2id$v=19$m=47104,t=1,p=1$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y".into(),
+            }],
+        }),
+        ip_rules: Some(IpRules {
+            default_action: IpDefaultAction::Deny,
+            allow: vec!["192.0.2.0/24".into()],
+            deny: vec![],
+        }),
+    });
+    configuration.revision = crate::proxy::revision_for_configuration(
+        &configuration.proxy_hosts,
+        &configuration.http_settings,
+    );
+    let json: Value =
+        serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
+    let routes = json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"]
+        .as_array()
+        .unwrap();
+    assert_eq!(routes[1]["handle"][0]["handler"], "reverse_proxy");
+    assert_eq!(routes[2]["handle"][0]["handler"], "authentication");
+    assert!(
+        routes[1]["handle"][0]["headers"]["request"]["delete"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("Authorization"))
+    );
+    assert!(routes[2]["match"][0]["remote_ip"].is_null());
 }
 
 #[test]

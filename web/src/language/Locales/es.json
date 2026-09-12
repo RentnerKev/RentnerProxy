@@ -1242,7 +1242,38 @@
                 "combination": "Regla de política combinada",
                 "availabilityTitle": "Basic Auth y disponibilidad de solicitudes",
                 "warningTitle": "Los métodos de protección no están configurados",
-                "warningDescription": "Hasta que estén disponibles los proveedores necesarios, este modo rechaza todas las solicitudes. Revisa la ejecución antes de asignarlo."
+                "warningDescription": "Hasta que estén disponibles los proveedores necesarios, este modo rechaza todas las solicitudes. Revisa la ejecución antes de asignarlo.",
+                "ipRules": {
+                    "title": "Reglas de acceso IP",
+                    "description": "Usa solo la dirección del par del socket. X-Forwarded-For se ignora; detrás de un proxy se comprueba la dirección del proxy.",
+                    "configure": "Configurar acceso IP",
+                    "configureHint": "Déjalo desactivado para mantener el proveedor IP deshabilitado. Se recomienda denegar por defecto.",
+                    "defaultAction": "Acción predeterminada",
+                    "defaultActionHint": "Se recomienda denegar. Una entrada de denegación gana cuando una dirección coincide con ambas listas.",
+                    "allow": "Lista de permitidos",
+                    "allowHint": "Una dirección IP o red CIDR por línea.",
+                    "deny": "Lista de denegados",
+                    "denyHint": "Una dirección IP o red CIDR por línea. Denegar gana si coinciden ambas listas.",
+                    "denyRecommended": "Denegar (recomendado)"
+                }
+            },
+            "availability": {
+                "publicIgnored": "Política pública — la autenticación y las reglas IP se ignoran.",
+                "authenticatedAvailable": "Basic Auth está configurado y puede permitir solicitudes.",
+                "authenticatedMissing": "No hay cuentas Basic Auth — las solicitudes se deniegan.",
+                "ipRestrictedAvailable": "El acceso IP está configurado y puede permitir solicitudes coincidentes.",
+                "ipRestrictedMissing": "El acceso IP no está configurado — las solicitudes se deniegan.",
+                "ipRestrictedBlocksAll": "El acceso IP está configurado para denegar todas las solicitudes.",
+                "combinedAllAvailable": "Y: Basic Auth y el acceso IP están configurados.",
+                "combinedAllMissingAuth": "Y: faltan cuentas Basic Auth — las solicitudes se deniegan.",
+                "combinedAllMissingIp": "Y: el acceso IP no está configurado — las solicitudes se deniegan.",
+                "combinedAllMissingBoth": "Y: faltan las cuentas Basic Auth y el acceso IP — las solicitudes se deniegan.",
+                "combinedAllIpBlocksAll": "Y: el acceso IP está configurado para denegar todas las solicitudes.",
+                "combinedAnyAvailableAuth": "O: Basic Auth puede permitir solicitudes aunque la comprobación IP las deniegue.",
+                "combinedAnyAvailableIp": "O: el acceso IP puede permitir solicitudes coincidentes cuando está configurado.",
+                "combinedAnyAvailableBoth": "O: Basic Auth o el acceso IP pueden permitir solicitudes.",
+                "combinedAnyIpBlocksAll": "O: el acceso IP está configurado para denegar todas las solicitudes.",
+                "combinedAnyMissing": "O: no hay ningún método de acceso configurado — las solicitudes se deniegan."
             },
             "mode": {
                 "public": "Público",
@@ -1264,6 +1295,7 @@
                 "mode": "Modo",
                 "combination": "Combinación",
                 "basicAuth": "Basic Auth",
+                "ipRules": "Acceso IP",
                 "assigned": "Hosts asignados",
                 "created": "Creada",
                 "actions": "Acciones"
@@ -1271,6 +1303,16 @@
             "cells": {
                 "assignedHosts_one": "{{count}} host",
                 "assignedHosts_other": "{{count}} hosts"
+            },
+            "ipRules": {
+                "defaultAction": {
+                    "allow": "Permitir por defecto",
+                    "deny": "Denegar por defecto"
+                },
+                "cells": {
+                    "summary": "{{action}}; reglas: {{count}} (permitir: {{allow}}, denegar: {{deny}})",
+                    "notConfigured": "Sin configurar"
+                }
             },
             "filters": {
                 "name": "Filtrar nombres…",
@@ -1390,6 +1432,8 @@
                 "descriptionInvalid": "Usa caracteres imprimibles en la descripción.",
                 "combinationRequired": "Elige cómo evaluar las comprobaciones combinadas.",
                 "combination": "Las políticas combinadas requieren una regla de combinación.",
+                "ipRulesInvalid": "Introduce solo direcciones IP o redes CIDR válidas, una por línea.",
+                "ipRulesTooMany": "Cada lista IP puede contener como máximo 128 entradas.",
                 "changes": "Indica al menos un cambio."
             },
             "errors": {

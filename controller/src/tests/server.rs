@@ -109,6 +109,7 @@ fn basic_auth_payload() -> Vec<u8> {
                 password_hash: BASIC_AUTH_HASH.to_owned(),
             }],
         }),
+        ip_rules: None,
     });
     configuration.revision =
         revision_for_configuration(&configuration.proxy_hosts, &configuration.http_settings);

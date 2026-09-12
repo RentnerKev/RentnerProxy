@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
-import { check, index, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
+import { check, index, jsonb, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 
+import type { AccessPolicyIpRules } from '../../shared/Helpers/ipAccessRules'
 import { rentnerProxySchema } from './base'
 
 export const accessPolicyMode = rentnerProxySchema.enum('access_policy_mode', [
@@ -25,6 +26,9 @@ export const accessPolicies = rentnerProxySchema.table(
         description: text('description').notNull().default(''),
         mode: accessPolicyMode('mode').notNull(),
         combination: accessPolicyCombination('combination'),
+        ipRules: jsonb('ip_rules')
+            .$type<AccessPolicyIpRules | null>()
+            .default(sql`null`),
         createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
             .notNull()
             .defaultNow(),

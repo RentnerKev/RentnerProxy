@@ -6,6 +6,7 @@ import {
     ACCESS_POLICY_MODES,
     ACCESS_POLICY_NAME_MAX_LENGTH,
 } from '../../../config/access-policies.config'
+import { accessPolicyIpRulesInputSchema } from '../../../shared/Helpers/ipAccessRules'
 
 // oxlint-disable-next-line no-control-regex -- Policy names and descriptions must reject C0/C1 controls.
 const ACCESS_POLICY_CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F-\u009F]/u
@@ -35,6 +36,7 @@ const policyFieldsSchema = z.strictObject({
     description: accessPolicyDescriptionSchema.default(''),
     mode: accessPolicyModeSchema,
     combination: accessPolicyCombinationSchema.nullable().default(null),
+    ipRules: accessPolicyIpRulesInputSchema.nullable().default(null),
 })
 
 function validateCombination(
@@ -59,13 +61,15 @@ export const updateAccessPolicyInputSchema = z
         description: accessPolicyDescriptionSchema.optional(),
         mode: accessPolicyModeSchema.optional(),
         combination: accessPolicyCombinationSchema.nullable().optional(),
+        ipRules: accessPolicyIpRulesInputSchema.nullable().optional(),
     })
     .superRefine((input, context) => {
         if (
             input.name === undefined &&
             input.description === undefined &&
             input.mode === undefined &&
-            input.combination === undefined
+            input.combination === undefined &&
+            input.ipRules === undefined
         ) {
             context.addIssue({ code: 'custom', message: 'admin.accessPolicies.validation.changes' })
         }

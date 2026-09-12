@@ -919,6 +919,57 @@ async function runSmoke(): Promise<void> {
         await expectProxyStatus('policy.test', 403)
         await expectBasicAccess('policy.test', policyUsername, rotatedPassword, 403)
         passed('removing the last Basic Auth account closes the policy instead of opening the host')
+
+        const networkPolicy = await authorized(() =>
+            policyServices.updateAccessPolicyService({
+                accessPolicyId: policy.id,
+                mode: 'ip-restricted',
+                combination: null,
+                ipRules: { defaultAction: 'deny', allow: ['0.0.0.0/0', '::/0'], deny: [] },
+            }),
+        )
+        assert.equal(networkPolicy.runtimeStatus, 'applied')
+        await expectProxyMessage('policy.test', 'upstream-one')
+        await expectProxyMessage('policy-two.test', 'upstream-one')
+        const denyNetwork = await authorized(() =>
+            policyServices.updateAccessPolicyService({
+                accessPolicyId: policy.id,
+                ipRules: {
+                    defaultAction: 'deny',
+                    allow: ['0.0.0.0/0', '::/0'],
+                    deny: ['0.0.0.0/0', '::/0'],
+                },
+            }),
+        )
+        assert.equal(denyNetwork.runtimeStatus, 'applied')
+        await expectProxyStatus('policy.test', 403)
+        await expectProxyStatus('policy-two.test', 403)
+        const networkRevision = (await controller.getProxyRuntimeStatus())?.activeRevision
+        await assert.rejects(() =>
+            authorized(() =>
+                policyServices.updateAccessPolicyService({
+                    accessPolicyId: policy.id,
+                    ipRules: { defaultAction: 'allow', allow: ['127.0.0.1/999'], deny: [] },
+                }),
+            ),
+        )
+        assert.equal((await controller.getProxyRuntimeStatus())?.activeRevision, networkRevision)
+        await expectProxyStatus('policy.test', 403)
+        await authorized(() =>
+            policyServices.updateAccessPolicyService({ accessPolicyId: policy.id, mode: 'public' }),
+        )
+        await expectProxyMessage('policy.test', 'upstream-one')
+        await authorized(() =>
+            policyServices.updateAccessPolicyService({
+                accessPolicyId: policy.id,
+                mode: 'ip-restricted',
+                ipRules: null,
+            }),
+        )
+        await expectProxyStatus('policy.test', 403)
+        passed(
+            'IP policy CRUD reconciles shared hosts; deny wins, invalid networks preserve active state and removing rules closes access',
+        )
         await authorized(() => services.deleteProxyHostService(secondPolicyHost.id))
         await authorized(() =>
             services.updateProxyHostService({

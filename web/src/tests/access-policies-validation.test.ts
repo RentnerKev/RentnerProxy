@@ -5,10 +5,21 @@ import {
     createAccessPolicyInputSchema,
     updateAccessPolicyInputSchema,
 } from '../features/Admin/AccessPolicyManagement/validation'
+import { accessPolicyIpRulesInputSchema, canonicalIpNetwork } from '../shared/Helpers/ipAccessRules'
 
 const POLICY_ID = '0192b7d4-4e59-7c6d-8a1b-2c3d4e5f6071'
 
 describe('access policy validation', () => {
+    test('accepts updates that only configure or remove IP rules', () => {
+        for (const ipRules of [null, { defaultAction: 'deny', allow: ['192.0.2.1'], deny: [] }]) {
+            expect(
+                updateAccessPolicyInputSchema.safeParse({
+                    accessPolicyId: '0198d98a-0000-7000-8000-000000000001',
+                    ipRules,
+                }).success,
+            ).toBe(true)
+        }
+    })
     test('accepts exactly the supported mode and combination matrix', () => {
         for (const mode of ACCESS_POLICY_MODES) {
             const combinations = mode === 'combined' ? ACCESS_POLICY_COMBINATIONS : [null]
@@ -118,5 +129,47 @@ describe('access policy validation', () => {
                 combination: null,
             }).success,
         ).toBe(true)
+    })
+
+    test('canonicalizes IPv4 and IPv6 hosts and networks, masks host bits, sorts, and deduplicates', () => {
+        expect(canonicalIpNetwork('192.0.2.17')).toBe('192.0.2.17/32')
+        expect(canonicalIpNetwork('192.0.2.17/24')).toBe('192.0.2.0/24')
+        expect(canonicalIpNetwork('2001:0DB8::1')).toBe('2001:db8::1/128')
+        expect(canonicalIpNetwork('2001:0DB8::1/64')).toBe('2001:db8::/64')
+        expect(canonicalIpNetwork('::192.0.2.1')).toBe('::c000:201/128')
+        expect(canonicalIpNetwork('2001:db8::192.0.2.1/64')).toBe('2001:db8::/64')
+        expect(
+            accessPolicyIpRulesInputSchema.parse({
+                defaultAction: 'deny',
+                allow: ['2001:0DB8::1/64', '192.0.2.17/24', '192.0.2.0/24'],
+                deny: [],
+            }),
+        ).toEqual({
+            defaultAction: 'deny',
+            allow: ['192.0.2.0/24', '2001:db8::/64'],
+            deny: [],
+        })
+    })
+
+    test('rejects zones, mapped IPv6, malformed prefixes, and more than 128 rules per list', () => {
+        for (const value of [
+            'fe80::1%eth0',
+            '::ffff:c000:0201',
+            '::ffff:192.0.2.1',
+            '192.0.2.1/-1',
+            '192.0.2.1/33',
+            '2001:db8::/129',
+            '2001:::1',
+            `${'1'.repeat(65)}/128`,
+        ]) {
+            expect(canonicalIpNetwork(value)).toBeNull()
+        }
+        expect(
+            accessPolicyIpRulesInputSchema.safeParse({
+                defaultAction: 'allow',
+                allow: Array.from({ length: 129 }, (_, index) => `192.0.2.${index}/32`),
+                deny: [],
+            }).success,
+        ).toBe(false)
     })
 })

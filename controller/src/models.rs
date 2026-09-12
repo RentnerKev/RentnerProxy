@@ -66,6 +66,24 @@ pub(crate) struct AccessPolicy {
     pub(crate) combination: Option<AccessPolicyCombination>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) basic_auth: Option<BasicAuth>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) ip_rules: Option<IpRules>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct IpRules {
+    pub(crate) default_action: IpDefaultAction,
+    pub(crate) allow: Vec<String>,
+    pub(crate) deny: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub(crate) enum IpDefaultAction {
+    #[serde(rename = "allow")]
+    Allow,
+    #[serde(rename = "deny")]
+    Deny,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

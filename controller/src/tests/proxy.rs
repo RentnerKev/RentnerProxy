@@ -2,7 +2,7 @@ use super::fixtures::{host, request, request_with_settings};
 use crate::{
     models::{
         AccessPolicy, AccessPolicyCombination, AccessPolicyMode, BasicAuth, BasicAuthAccount,
-        ProxyHttpSettings, UpstreamTls,
+        IpDefaultAction, IpRules, ProxyHttpSettings, UpstreamTls,
     },
     proxy::{
         ProxyValidationError, revision_for_configuration,
@@ -46,6 +46,32 @@ fn v7_revision_matches_the_typescript_proxy_known_vector() {
     assert_eq!(
         revision_for_configuration(&hosts, &ProxyHttpSettings::default()),
         "sha256:7b3e586f596ea7a1ffacad33824b96234e23802d12f3741e73025bf8a23a4a06"
+    );
+}
+
+#[test]
+fn v7_revision_matches_the_typescript_ip_rules_known_vector() {
+    let mut proxy_host = host(
+        "018f4b4a-7d1f-7abc-8def-0123456789ab",
+        &["a.example"],
+        "http",
+        "127.0.0.1",
+        8080,
+    );
+    proxy_host.access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::IpRestricted,
+        combination: None,
+        basic_auth: None,
+        ip_rules: Some(IpRules {
+            default_action: IpDefaultAction::Deny,
+            allow: vec!["192.0.2.0/24".into(), "2001:db8::/32".into()],
+            deny: vec!["192.0.2.128/25".into()],
+        }),
+    });
+    assert_eq!(
+        revision_for_configuration(&[proxy_host], &ProxyHttpSettings::default()),
+        "sha256:8fa5877490619b64e54a3a549e1e6638ca0f7766ac05455262ff15721ea4db49"
     );
 }
 
@@ -159,6 +185,7 @@ fn access_policy_changes_the_v7_revision_and_requires_explicit_combination_shape
         mode: AccessPolicyMode::Authenticated,
         combination: None,
         basic_auth: None,
+        ip_rules: None,
     });
     let protected_revision =
         revision_for_configuration(std::slice::from_ref(&public), &ProxyHttpSettings::default());
@@ -226,6 +253,7 @@ fn access_policy_identity_must_have_one_canonical_definition() {
         mode: AccessPolicyMode::Authenticated,
         combination: None,
         basic_auth: None,
+        ip_rules: None,
     });
     let mut second = host(
         "018f4b4a-7d1f-7abc-8def-1123456789ab",
@@ -239,6 +267,7 @@ fn access_policy_identity_must_have_one_canonical_definition() {
         mode: AccessPolicyMode::IpRestricted,
         combination: None,
         basic_auth: None,
+        ip_rules: None,
     });
     assert!(
         validate_proxy_config(crate::models::ProxyConfigRequest {
@@ -299,6 +328,7 @@ fn basic_auth_accounts_require_bounded_sorted_exact_argon2id_phc() {
                 password_hash: hash.into(),
             }],
         }),
+        ip_rules: None,
     });
     let valid = crate::models::ProxyConfigRequest {
         version: 7,

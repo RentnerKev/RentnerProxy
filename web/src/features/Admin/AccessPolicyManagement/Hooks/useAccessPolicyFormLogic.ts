@@ -7,10 +7,16 @@ import {
     isAccessPolicyMode,
 } from '../../../../config/access-policies.config'
 import useToast from '../../../../shared/Toast/Hooks/useToast'
+import {
+    accessPolicyIpRulesToDraft,
+    parseAccessPolicyIpRulesDraft,
+    type AccessPolicyIpRulesDraft,
+} from '../Helpers/ipAccessPolicyState'
 import { accessPolicyManagementQueryKeys } from '../queryKeys'
 import { createAccessPolicyHandler, updateAccessPolicyHandler } from '../server'
 import type {
     AccessPolicyFormModalProps,
+    AccessPolicyFormSubmitValues,
     AccessPolicyFormValues,
 } from '../Types/access-policy-form.types'
 
@@ -20,7 +26,15 @@ type ActionResult = {
     readonly runtimeStatus?: 'applied' | 'pending'
 }
 
-type FormErrors = { name?: string | undefined; combination?: string | undefined }
+type FormErrors = {
+    name?: string | undefined
+    combination?: string | undefined
+    ipRules?: string | undefined
+}
+
+function isIpRulesMode(mode: AccessPolicyFormValues['mode']): boolean {
+    return mode === 'ip-restricted' || mode === 'combined'
+}
 
 export default function useAccessPolicyFormLogic({
     mode,
@@ -33,7 +47,9 @@ export default function useAccessPolicyFormLogic({
         name: policy?.name ?? '',
         mode: policy?.mode ?? 'public',
         combination: policy?.combination ?? null,
+        ipRules: accessPolicyIpRulesToDraft(policy?.ipRules),
     }))
+    const [lastValidIpRules, setLastValidIpRules] = useState(() => policy?.ipRules ?? null)
     const [errors, setErrors] = useState<FormErrors>({})
 
     const invalidate = useCallback(async () => {
@@ -52,13 +68,32 @@ export default function useAccessPolicyFormLogic({
     }, [queryClient])
 
     const mutation = useMutation({
-        mutationFn: async (nextValues: AccessPolicyFormValues): Promise<ActionResult> => {
+        mutationFn: async (nextValues: AccessPolicyFormSubmitValues): Promise<ActionResult> => {
+            const base = {
+                name: nextValues.name,
+                mode: nextValues.mode,
+                combination: nextValues.combination,
+            }
+            const data =
+                nextValues.ipRules === undefined
+                    ? base
+                    : {
+                          ...base,
+                          ipRules:
+                              nextValues.ipRules === null
+                                  ? null
+                                  : {
+                                        defaultAction: nextValues.ipRules.defaultAction,
+                                        allow: [...nextValues.ipRules.allow],
+                                        deny: [...nextValues.ipRules.deny],
+                                    },
+                      }
             if (mode === 'create') {
-                return (await createAccessPolicyHandler({ data: nextValues })) as ActionResult
+                return (await createAccessPolicyHandler({ data })) as ActionResult
             }
             if (!policy) throw new Error('admin.accessPolicies.errors.policyNotFound')
             return (await updateAccessPolicyHandler({
-                data: { ...nextValues, accessPolicyId: policy.id },
+                data: { ...data, accessPolicyId: policy.id },
             })) as ActionResult
         },
         onSuccess: async (result) => {
@@ -98,6 +133,45 @@ export default function useAccessPolicyFormLogic({
         setErrors((current) => ({ ...current, combination: undefined }))
     }, [])
 
+    const setIpRules = useCallback((ipRules: AccessPolicyIpRulesDraft | null) => {
+        setValues((current) => ({ ...current, ipRules }))
+        setErrors((current) => ({ ...current, ipRules: undefined }))
+        const parsed = parseAccessPolicyIpRulesDraft(ipRules)
+        if ('error' in parsed) return
+        setLastValidIpRules(parsed.rules)
+    }, [])
+
+    const updateIpRulesDraft = useCallback(
+        (update: (current: AccessPolicyIpRulesDraft) => AccessPolicyIpRulesDraft) => {
+            if (!values.ipRules) return
+            const nextIpRules = update(values.ipRules)
+            const parsed = parseAccessPolicyIpRulesDraft(nextIpRules)
+            setValues((current) => ({ ...current, ipRules: nextIpRules }))
+            setErrors((current) => ({ ...current, ipRules: undefined }))
+            if ('error' in parsed) return
+            setLastValidIpRules(parsed.rules)
+        },
+        [values.ipRules],
+    )
+
+    const setIpRuleDefaultAction = useCallback(
+        (value: string) => {
+            if (value !== 'allow' && value !== 'deny') return
+            updateIpRulesDraft((current) => ({ ...current, defaultAction: value }))
+        },
+        [updateIpRulesDraft],
+    )
+
+    const setIpRuleAllow = useCallback(
+        (allow: string) => updateIpRulesDraft((current) => ({ ...current, allow })),
+        [updateIpRulesDraft],
+    )
+
+    const setIpRuleDeny = useCallback(
+        (deny: string) => updateIpRulesDraft((current) => ({ ...current, deny })),
+        [updateIpRulesDraft],
+    )
+
     const validate = useCallback((nextValues: AccessPolicyFormValues): FormErrors => {
         const nextErrors: FormErrors = {}
         const name = nextValues.name.trim()
@@ -108,17 +182,37 @@ export default function useAccessPolicyFormLogic({
         if (nextValues.mode === 'combined' && nextValues.combination === null) {
             nextErrors.combination = 'admin.accessPolicies.validation.combinationRequired'
         }
+        if (isIpRulesMode(nextValues.mode) && nextValues.ipRules) {
+            const parsed = parseAccessPolicyIpRulesDraft(nextValues.ipRules)
+            if ('error' in parsed) nextErrors.ipRules = parsed.error
+        }
         return nextErrors
     }, [])
 
     const submit = useCallback(async () => {
         const nextValues = { ...values, name: values.name.trim() }
         const nextErrors = validate(nextValues)
+        const parsedIpRules = nextValues.ipRules
+            ? parseAccessPolicyIpRulesDraft(nextValues.ipRules)
+            : { rules: null }
+        if (isIpRulesMode(nextValues.mode) && 'error' in parsedIpRules) {
+            nextErrors.ipRules = parsedIpRules.error
+        }
         setErrors(nextErrors)
         if (Object.keys(nextErrors).length > 0) return
+        const submittedValues: AccessPolicyFormSubmitValues = {
+            name: nextValues.name,
+            mode: nextValues.mode,
+            combination: nextValues.combination,
+            ipRules: nextValues.ipRules
+                ? isIpRulesMode(nextValues.mode)
+                    ? parsedIpRules.rules
+                    : lastValidIpRules
+                : null,
+        }
         mutation.reset()
-        await mutation.mutateAsync(nextValues).catch(() => undefined)
-    }, [mutation, validate, values])
+        await mutation.mutateAsync(submittedValues).catch(() => undefined)
+    }, [lastValidIpRules, mutation, validate, values])
 
     return {
         state: {
@@ -126,6 +220,15 @@ export default function useAccessPolicyFormLogic({
             isPending: mutation.isPending,
             values,
         },
-        handler: { setCombination, setMode, setName, submit },
+        handler: {
+            setCombination,
+            setIpRules,
+            setIpRuleAllow,
+            setIpRuleDefaultAction,
+            setIpRuleDeny,
+            setMode,
+            setName,
+            submit,
+        },
     }
 }

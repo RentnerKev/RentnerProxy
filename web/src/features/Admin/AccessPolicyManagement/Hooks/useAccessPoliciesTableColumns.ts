@@ -15,6 +15,7 @@ import {
     AccessPolicyAssignedCountCell,
     AccessPolicyCombinationCell,
     AccessPolicyCreatedAtCell,
+    AccessPolicyIpRulesCell,
     AccessPolicyModeCell,
     AccessPolicyNameCell,
 } from '../Components/AccessPolicyTableCells'
@@ -70,6 +71,25 @@ export default function useAccessPoliciesTableColumns(actions: AccessPolicyTable
                     createElement(AccessPolicyBasicAuthCell, {
                         combination: row.original.combination,
                         count: getBasicAuthAccountCount(row.original),
+                        ipRules: row.original.ipRules,
+                        mode: row.original.mode,
+                    }),
+            },
+            {
+                id: 'ipRules',
+                accessorFn: (policy) =>
+                    policy.ipRules
+                        ? `${policy.ipRules.defaultAction} ${policy.ipRules.allow.join(' ')} ${policy.ipRules.deny.join(' ')}`
+                        : '',
+                header: t('admin.accessPolicies.columns.ipRules'),
+                enableSorting: false,
+                enableColumnFilter: false,
+                enableGlobalFilter: true,
+                cell: ({ row }) =>
+                    createElement(AccessPolicyIpRulesCell, {
+                        basicAuthAccountCount: getBasicAuthAccountCount(row.original),
+                        combination: row.original.combination,
+                        ipRules: row.original.ipRules,
                         mode: row.original.mode,
                     }),
             },

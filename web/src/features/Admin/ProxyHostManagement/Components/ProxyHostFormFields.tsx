@@ -4,6 +4,10 @@ import FieldError from '../../../../shared/Forms/FieldError'
 import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
 import SelectControl from '../../../../shared/Select'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import {
+    getAccessPolicyAvailability,
+    getBasicAuthAccountCount,
+} from '../../AccessPolicyManagement/Helpers/basicAuthPolicyState'
 import type { ProxyHostFormFieldsProps } from '../Types/proxy-host-form.types'
 import { proxyForwardHostSchema, proxyHostFormSchema } from '../validation'
 import DomainInputs from './DomainInputs'
@@ -223,8 +227,19 @@ export default function ProxyHostFormFields({
                 }}
             </form.Field>
             <form.Field name="accessPolicyId">
-                {(field) =>
-                    canAssignPolicies ? (
+                {(field) => {
+                    const selectedPolicy = assignableAccessPolicies.find(
+                        (policy) => policy.id === field.state.value,
+                    )
+                    const availability = selectedPolicy
+                        ? getAccessPolicyAvailability(
+                              selectedPolicy.mode,
+                              selectedPolicy.combination,
+                              getBasicAuthAccountCount(selectedPolicy),
+                              selectedPolicy.ipRules,
+                          )
+                        : null
+                    return canAssignPolicies ? (
                         <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
                             <span className={uiClassNames.form.label}>
                                 {t('admin.proxyHosts.form.accessPolicy')}
@@ -245,6 +260,11 @@ export default function ProxyHostFormFields({
                                 }))}
                                 onValueChange={(value) => field.handleChange(value || null)}
                             />
+                            {availability ? (
+                                <p className={uiClassNames.form.hint}>
+                                    {t(`admin.accessPolicies.availability.${availability}`)}
+                                </p>
+                            ) : null}
                             <p className={uiClassNames.form.hint}>
                                 {t('admin.proxyHosts.form.accessPolicyHint')}
                             </p>
@@ -269,7 +289,7 @@ export default function ProxyHostFormFields({
                             ) : null}
                         </div>
                     ) : null
-                }
+                }}
             </form.Field>
             <form.Subscribe
                 selector={(state) => [state.values.certificateId, state.values.domains] as const}

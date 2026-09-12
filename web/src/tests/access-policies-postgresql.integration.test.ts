@@ -16,6 +16,7 @@ import {
     users,
 } from '../db/schema'
 import type { CreateProxyHostInput } from '../features/Admin/ProxyHostManagement/validation'
+import type { AccessPolicyIpRules } from '../shared/Helpers/ipAccessRules'
 import {
     createAccessPolicyService,
     deleteAccessPolicyService,
@@ -305,6 +306,81 @@ describe('Access policy management with PostgreSQL', () => {
                 updateAccessPolicyService({ accessPolicyId: policy.id, mode: 'public' }),
             )
             expect(switched).toMatchObject({ mode: 'public', combination: null })
+        },
+    )
+
+    integrationTest(
+        'normalizes IP rules, preserves omitted updates, and removes them with explicit null',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const policy = await runAsUser(owner.id, () =>
+                createAccessPolicyService({
+                    name: `${TEST_POLICY_PREFIX}ip-rules-${randomUUID()}`,
+                    mode: 'ip-restricted',
+                    combination: null,
+                    ipRules: {
+                        defaultAction: 'deny',
+                        allow: ['2001:0DB8::1/64', '192.0.2.17/24', '192.0.2.0/24'],
+                        deny: ['10.0.0.1'],
+                    },
+                }),
+            )
+            const expectedIpRules: AccessPolicyIpRules = {
+                defaultAction: 'deny',
+                allow: ['192.0.2.0/24', '2001:db8::/64'],
+                deny: ['10.0.0.1/32'],
+            }
+            expect(policy.ipRules).toEqual(expectedIpRules)
+            const host = await runAsUser(owner.id, () =>
+                createProxyHostService({
+                    ...proxyHostInput(),
+                    accessPolicyId: policy.id,
+                }),
+            )
+            const persisted = requireFirstRow(
+                await getAuthDatabase()
+                    .select({ ipRules: accessPolicies.ipRules })
+                    .from(accessPolicies)
+                    .where(eq(accessPolicies.id, policy.id)),
+                'IP policy was not persisted.',
+            )
+            expect(persisted.ipRules).toEqual(expectedIpRules)
+            expect(
+                (await getProxyRuntimeSnapshotService()).proxyHosts.find(
+                    (entry) => entry.id === host.id,
+                )?.accessPolicy?.ipRules,
+            ).toEqual(expectedIpRules)
+
+            const preserved = await runAsUser(owner.id, () =>
+                updateAccessPolicyService({ accessPolicyId: policy.id, name: 'renamed IP policy' }),
+            )
+            expect(preserved.ipRules).toEqual(expectedIpRules)
+            const publicPolicy = await runAsUser(owner.id, () =>
+                updateAccessPolicyService({ accessPolicyId: policy.id, mode: 'public' }),
+            )
+            expect(publicPolicy.ipRules).toEqual(expectedIpRules)
+            expect(
+                (await getProxyRuntimeSnapshotService()).proxyHosts.find(
+                    (entry) => entry.id === host.id,
+                )?.accessPolicy,
+            ).toEqual({ id: policy.id, mode: 'public', combination: null })
+            await runAsUser(owner.id, () =>
+                updateAccessPolicyService({ accessPolicyId: policy.id, mode: 'ip-restricted' }),
+            )
+            expect(
+                (await getProxyRuntimeSnapshotService()).proxyHosts.find(
+                    (entry) => entry.id === host.id,
+                )?.accessPolicy?.ipRules,
+            ).toEqual(expectedIpRules)
+            const removed = await runAsUser(owner.id, () =>
+                updateAccessPolicyService({ accessPolicyId: policy.id, ipRules: null }),
+            )
+            expect(removed.ipRules).toBeNull()
+            expect(
+                (await getProxyRuntimeSnapshotService()).proxyHosts.find(
+                    (entry) => entry.id === host.id,
+                )?.accessPolicy,
+            ).toEqual({ id: policy.id, mode: 'ip-restricted', combination: null })
         },
     )
 
