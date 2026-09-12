@@ -897,6 +897,23 @@
                 "enabled": "Proxy-Host erfolgreich aktiviert.",
                 "disabled": "Proxy-Host erfolgreich deaktiviert."
             },
+            "certificateJob": {
+                "messages": {
+                    "queued": "Zertifikatanfrage wurde eingereiht.",
+                    "retried": "Zertifikat-Wiederholung wurde eingereiht."
+                },
+                "errors": {
+                    "host_changed": "Der Proxy-Host wurde geändert. Prüfe die Domains und versuche es erneut.",
+                    "host_deleted": "Der Proxy-Host existiert nicht mehr.",
+                    "permission_revoked": "Die Zertifikat-Berechtigung wurde entzogen.",
+                    "certificate_deleted": "Das Zertifikat des Vorgangs wurde gelöscht.",
+                    "certificate_used_elsewhere": "Das Zertifikat ist bereits anderweitig zugewiesen.",
+                    "idempotency_conflict": "Dieser Anfrage-Schlüssel wurde bereits anders verwendet.",
+                    "job_not_found": "Der Zertifikatvorgang wurde nicht gefunden.",
+                    "actionFailed": "Die Zertifikataktion ist fehlgeschlagen.",
+                    "loadFailed": "Der Status des Zertifikatvorgangs konnte nicht geladen werden."
+                }
+            },
             "states": {
                 "unavailableTitle": "Proxy-Hosts sind nicht verfügbar",
                 "unavailableDescription": "Die gespeicherten Proxy-Hosts konnten nicht geladen werden. Versuche es erneut."

@@ -5,6 +5,7 @@ import type { z } from 'zod'
 import { PERMISSIONS, type PermissionKey } from '../../../config/permissions.config'
 import {
     certificates,
+    certificateJobs,
     certificateDomains,
     hostDomains,
     proxyHosts,
@@ -652,6 +653,17 @@ export async function deleteCertificateService(certificateId: string): Promise<v
                 .limit(1)
             if (proxyAssigned.length > 0 || redirectAssigned.length > 0)
                 throw new CertificateDomainError('certificate_in_use')
+            const activeJob = await transaction
+                .select({ id: certificateJobs.id })
+                .from(certificateJobs)
+                .where(
+                    and(
+                        eq(certificateJobs.certificateId, id),
+                        inArray(certificateJobs.stage, ['preparing', 'issuing', 'applying']),
+                    ),
+                )
+                .limit(1)
+            if (activeJob.length > 0) throw new CertificateDomainError('certificate_in_use')
             await deleteControllerCertificate(id)
             await transaction.delete(certificates).where(eq(certificates.id, id))
             await appendAuditEventInTransaction(transaction, {

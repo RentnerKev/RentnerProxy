@@ -7,9 +7,11 @@ import type useCertificateRequestLogic from '../Hooks/useCertificateRequestLogic
 export default function CertificateRequestFields({
     form,
     isPending,
+    readOnlyDomains = false,
 }: {
     readonly form: ReturnType<typeof useCertificateRequestLogic>['form']
     readonly isPending: boolean
+    readonly readOnlyDomains?: boolean
 }) {
     const { t } = useTranslationStore()
     return (
@@ -56,6 +58,7 @@ export default function CertificateRequestFields({
                             className={uiClassNames.form.textarea}
                             value={field.state.value.join('\n')}
                             disabled={isPending}
+                            readOnly={readOnlyDomains}
                             maxLength={25_600}
                             onBlur={field.handleBlur}
                             onChange={(event) =>

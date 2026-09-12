@@ -1,6 +1,7 @@
 import type { ActionMenuItem } from '../../../../shared/ActionMenu'
 import type { Translate } from '../../../../language/useTranslationStore'
 import type { ProxyHostTableActionsProps } from '../Types/proxy-host-table.types'
+import { isCertificateJobActive } from '../../../../config/certificate-jobs.config'
 
 function getProxyHostName(host: ProxyHostTableActionsProps['host']): string {
     return host.domains[0] ?? host.forwardHost
@@ -35,11 +36,22 @@ export function getProxyHostTableActionItems(
         })
     }
 
-    if (canRequestCertificate && onRequestCertificate) {
+    if (canRequestCertificate && canUpdate && onRequestCertificate) {
+        const job = host.certificateJob
+        const retrying = Boolean(
+            job &&
+            (job.stage === 'failed' ||
+                job.stage === 'needs_attention' ||
+                (isCertificateJobActive(job.stage) && job.lastErrorCode !== null)),
+        )
         items.push({
-            label: t('admin.certificates.actions.requestForHost'),
+            label: t(
+                retrying
+                    ? 'admin.certificates.actions.retry'
+                    : 'admin.certificates.actions.requestForHost',
+            ),
             onSelect: () => onRequestCertificate(host),
-            disabled: isPending,
+            disabled: isPending || (job !== null && job !== undefined && !retrying),
         })
     }
 

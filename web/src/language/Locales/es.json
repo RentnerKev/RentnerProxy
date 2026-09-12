@@ -897,6 +897,23 @@
                 "enabled": "Host proxy activado correctamente.",
                 "disabled": "Host proxy desactivado correctamente."
             },
+            "certificateJob": {
+                "messages": {
+                    "queued": "Solicitud de certificado en cola.",
+                    "retried": "Reintento de certificado en cola."
+                },
+                "errors": {
+                    "host_changed": "El host proxy cambió. Revisa sus dominios e inténtalo de nuevo.",
+                    "host_deleted": "El host proxy ya no existe.",
+                    "permission_revoked": "Se revocó tu permiso de certificados.",
+                    "certificate_deleted": "Se eliminó el material del certificado.",
+                    "certificate_used_elsewhere": "El certificado ya está asignado en otro lugar.",
+                    "idempotency_conflict": "Esta clave de solicitud ya se usó para otra solicitud.",
+                    "job_not_found": "No se encontró el trabajo del certificado.",
+                    "actionFailed": "Falló la acción del trabajo de certificado.",
+                    "loadFailed": "No se pudo cargar el estado del trabajo de certificado."
+                }
+            },
             "states": {
                 "unavailableTitle": "Los hosts proxy no están disponibles",
                 "unavailableDescription": "No se pudieron cargar los hosts proxy guardados. Inténtalo de nuevo."

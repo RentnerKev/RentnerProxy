@@ -54,6 +54,23 @@ const startCertificateEventsLifecycle = createServerOnlyFn(async () => {
 
 if (typeof window === 'undefined') void startCertificateEventsLifecycle()
 
+const startCertificateJobsLifecycle = createServerOnlyFn(async () => {
+    let stop: (() => Promise<void>) | null = null
+    const initializing =
+        import('./server/Admin/ProxyHostManagement/certificate-jobs.worker.server').then(
+            ({ startCertificateJobWorker, stopCertificateJobWorker }) => {
+                stop = stopCertificateJobWorker
+                startCertificateJobWorker()
+            },
+        )
+    process.once('rentnerproxy:shutdown', (pending: Array<Promise<void>>) => {
+        pending.push(initializing.then(() => stop?.()).then(() => undefined))
+    })
+    await initializing
+})
+
+if (typeof window === 'undefined') void startCertificateJobsLifecycle()
+
 const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => {
     const nonce = createCspNonce()
     const securityHeaders = getAdminUiSecurityHeaders(

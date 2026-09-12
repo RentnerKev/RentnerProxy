@@ -112,6 +112,10 @@ export default function ProxyHostManagementPageView({
                     open
                     initialDomains={state.certificateRequestTarget.domains}
                     initialName={state.certificateRequestTarget.domains[0] ?? ''}
+                    proxyHostId={state.certificateRequestTarget.id}
+                    expectedUpdatedAt={state.certificateRequestTarget.updatedAt.toISOString()}
+                    readOnlyDomains
+                    certificateJob={state.certificateRequestTarget.certificateJob}
                     onOpenChange={handler.setCertificateRequestOpen}
                     onSuccess={handler.handleCertificateRequestSuccess}
                 />
@@ -123,6 +127,7 @@ export default function ProxyHostManagementPageView({
                     canEnable={state.canEnable}
                     canDisable={state.canDisable}
                     canAssignCertificates={state.canAssignCertificates}
+                    canRequestCertificate={state.canCreateCertificateJob}
                     canAssignPolicies={state.canAssignPolicies}
                     onOpenChange={handler.setCreateOpen}
                     onSuccess={handler.handleFormSuccess}
@@ -137,6 +142,7 @@ export default function ProxyHostManagementPageView({
                     canEnable={state.canEnable}
                     canDisable={state.canDisable}
                     canAssignCertificates={state.canAssignCertificates}
+                    canRequestCertificate={state.canCreateCertificateJob}
                     canAssignPolicies={state.canAssignPolicies}
                     onOpenChange={handler.setEditorOpen}
                     onSuccess={handler.handleFormSuccess}

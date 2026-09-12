@@ -3,6 +3,7 @@ import type { z } from 'zod'
 
 import type { AccessPolicySummary } from '../../../../shared/Types/access-policies.types'
 import type { CertificateSummary } from '../../../../shared/Types/certificates.types'
+import type useCertificateRequestLogic from '../../CertificateManagement/Hooks/useCertificateRequestLogic'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
 import type useProxyHostFormLogic from '../Hooks/useProxyHostFormLogic'
 import type { proxyHostFormSchema } from '../validation'
@@ -14,6 +15,7 @@ export interface ProxyHostFormModalProps {
     readonly canEnable: boolean
     readonly canDisable: boolean
     readonly canAssignCertificates?: boolean
+    readonly canRequestCertificate?: boolean
     readonly canAssignPolicies?: boolean
     readonly mode: 'create' | 'edit'
     readonly onOpenChange: (open: boolean) => void
@@ -24,6 +26,7 @@ export interface ProxyHostFormModalProps {
 
 export interface ProxyHostFormModalState {
     readonly canAssignCertificates: boolean
+    readonly canRequestCertificate: boolean
     readonly canAssignPolicies: boolean
     readonly assignableAccessPolicies: readonly AccessPolicySummary[]
     readonly assignableAccessPoliciesLoadFailed: boolean
@@ -39,6 +42,8 @@ export interface ProxyHostFormModalState {
     readonly disableConfirmationOpen: boolean
     readonly domainKeys: readonly string[]
     readonly form: ProxyHostFormInstance
+    readonly certificateRequestForm: ReturnType<typeof useCertificateRequestLogic>['form']
+    readonly requestNewCertificate: boolean
     readonly formId: string
     readonly isPending: boolean
     readonly pendingSubmitLabel: string
@@ -54,12 +59,14 @@ export interface ProxyHostFormModalHandler {
     readonly handleSubmit: FormEventHandler<HTMLFormElement>
     readonly confirmDisable: () => Promise<void>
     readonly setDisableConfirmationOpen: (open: boolean) => void
+    readonly setRequestNewCertificate: (request: boolean) => void
 }
 
 export type ProxyHostFormFieldsProps = Pick<
     ProxyHostFormModalState,
     | 'canChangeEnabled'
     | 'canAssignCertificates'
+    | 'canRequestCertificate'
     | 'canAssignPolicies'
     | 'assignableAccessPolicies'
     | 'assignableAccessPoliciesLoadFailed'
@@ -72,6 +79,8 @@ export type ProxyHostFormFieldsProps = Pick<
     | 'trustedCasLoading'
     | 'domainKeys'
     | 'form'
+    | 'certificateRequestForm'
+    | 'requestNewCertificate'
     | 'formId'
     | 'isPending'
 > &
@@ -81,6 +90,7 @@ export type ProxyHostFormFieldsProps = Pick<
         | 'removeDomain'
         | 'retryAssignableCertificates'
         | 'retryAssignableAccessPolicies'
+        | 'setRequestNewCertificate'
     >
 
 export type ProxyHostFormModalFooterProps = Pick<

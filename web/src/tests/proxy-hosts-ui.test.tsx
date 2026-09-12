@@ -13,6 +13,7 @@ import type {
     ProxyHostConfigEditorData,
     ProxyConfigEditorData,
 } from '../shared/Types/proxy-runtime.types'
+import type { CertificateJobActionResult } from '../shared/Types/certificate-jobs.types'
 import { proxyHostManagementQueryKeys } from '../features/Admin/ProxyHostManagement/queryKeys'
 import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
 
@@ -178,6 +179,38 @@ const getAssignableCertificatesHandlerMock = mock(async (): Promise<CertificateS
 const requestCertificateHandlerMock = mock(async () => ({
     success: true,
     message: 'admin.certificates.messages.requested',
+}))
+
+const createProxyHostWithCertificateHandlerMock = mock(
+    async (_input: unknown): Promise<CertificateJobActionResult> => ({
+        success: false,
+        message: 'admin.proxyHosts.certificateJob.errors.actionFailed',
+    }),
+)
+const updateProxyHostWithCertificateHandlerMock = mock(
+    async (_input: unknown): Promise<CertificateJobActionResult> => ({
+        success: false,
+        message: 'admin.proxyHosts.certificateJob.errors.actionFailed',
+    }),
+)
+const requestProxyHostCertificateHandlerMock = mock(
+    async (_input: unknown): Promise<CertificateJobActionResult> => ({
+        success: false,
+        message: 'admin.proxyHosts.certificateJob.errors.actionFailed',
+    }),
+)
+const retryCertificateJobHandlerMock = mock(
+    async (_input: unknown): Promise<CertificateJobActionResult> => ({
+        success: false,
+        message: 'admin.proxyHosts.certificateJob.errors.actionFailed',
+    }),
+)
+
+mock.module('../features/Admin/ProxyHostManagement/CertificateJobs/server', () => ({
+    createProxyHostWithCertificateHandler: createProxyHostWithCertificateHandlerMock,
+    updateProxyHostWithCertificateHandler: updateProxyHostWithCertificateHandlerMock,
+    requestProxyHostCertificateHandler: requestProxyHostCertificateHandlerMock,
+    retryCertificateJobHandler: retryCertificateJobHandlerMock,
 }))
 
 mock.module('../features/Admin/CertificateManagement/server', () => ({
@@ -738,12 +771,14 @@ function FormHarness({
     canDisable = true,
     canEnable = true,
     canAssignCertificates = false,
+    canRequestCertificate = false,
     mode,
     proxyHost,
 }: {
     canDisable?: boolean
     canEnable?: boolean
     canAssignCertificates?: boolean
+    canRequestCertificate?: boolean
     mode: 'create' | 'edit'
     proxyHost?: ProxyHostSummary
 }) {
@@ -756,6 +791,7 @@ function FormHarness({
             canEnable={canEnable}
             canDisable={canDisable}
             canAssignCertificates={canAssignCertificates}
+            canRequestCertificate={canRequestCertificate}
             onOpenChange={setOpen}
             onSuccess={() => setOpen(false)}
         />
@@ -1089,6 +1125,85 @@ test('assigns a usable certificate and enables HTTPS redirect', async () => {
         },
     })
     await waitForToast('success')
+})
+
+test('creates a proxy host and queues a certificate job with read-only host domains', async () => {
+    getAssignableCertificatesHandlerMock.mockResolvedValueOnce([])
+    const queuedJob = {
+        success: true as const,
+        message: 'admin.proxyHosts.certificateJob.messages.queued',
+        job: {
+            id: '0198f2f0-0000-7000-8000-000000000081',
+            proxyHostId: null,
+            certificateId: null,
+            domains: ['app.example.com'],
+            stage: 'preparing' as const,
+            controllerStage: null,
+            lastErrorCode: null,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+            updatedAt: new Date('2026-01-01T00:00:00Z'),
+        },
+    }
+    createProxyHostWithCertificateHandlerMock.mockRejectedValueOnce(new Error('lost response'))
+    createProxyHostWithCertificateHandlerMock.mockResolvedValueOnce(queuedJob)
+    await render(
+        withQueryClient(<FormHarness mode="create" canAssignCertificates canRequestCertificate />),
+    )
+    await setControlValue(
+        document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!,
+        'app.example.com',
+    )
+    await blurControl(document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!)
+    await chooseSelectOption('TLS certificate', 'Request with ACME')
+    await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+    expect(
+        document.querySelector<HTMLTextAreaElement>('#certificate-request-domains')?.readOnly,
+    ).toBe(true)
+    expect(document.querySelector<HTMLInputElement>('#certificate-request-name')?.value).toBe(
+        'app.example.com',
+    )
+    await setControlValue(
+        document.querySelector<HTMLInputElement>('#certificate-request-name')!,
+        'App TLS',
+    )
+    await click(document.querySelector('#certificate-request-terms')!)
+    await setControlValue(
+        document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!,
+        'backend.internal',
+    )
+    await blurControl(document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!)
+    const forceHttps = document.querySelector<HTMLInputElement>('input[id$="forceHttps"]')!
+    expect(forceHttps.disabled).toBe(false)
+    await click(forceHttps)
+    await click(document.querySelector('[role="dialog"] button[type="submit"]')!)
+    await waitFor(() => createProxyHostWithCertificateHandlerMock.mock.calls.length === 1)
+    await click(document.querySelector('[role="dialog"] button[type="submit"]')!)
+    await waitFor(() => createProxyHostWithCertificateHandlerMock.mock.calls.length === 2)
+    const firstCall = createProxyHostWithCertificateHandlerMock.mock.calls[0]![0] as unknown as {
+        data: {
+            idempotencyKey: string
+            host: { domains: string[]; forceHttps: boolean }
+            request: Record<string, unknown>
+        }
+    }
+    const secondCall = createProxyHostWithCertificateHandlerMock.mock.calls[1]![0] as unknown as {
+        data: {
+            idempotencyKey: string
+            host: { domains: string[]; forceHttps: boolean }
+            request: Record<string, unknown>
+        }
+    }
+    expect(firstCall.data.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/u)
+    expect(secondCall.data.idempotencyKey).toBe(firstCall.data.idempotencyKey)
+    expect(firstCall.data.host.domains).toEqual(['app.example.com'])
+    expect(firstCall.data.host.forceHttps).toBe(true)
+    expect(firstCall.data.request).toMatchObject({
+        name: 'App TLS',
+        environment: 'staging',
+        challengeType: 'http-01',
+        acceptTerms: true,
+    })
+    expect(firstCall.data.request).not.toHaveProperty('domains')
 })
 
 test('shows a safe assignable certificate load failure and offers retry', async () => {

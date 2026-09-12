@@ -54,6 +54,20 @@ const requestCertificateHandlerMock = mock(async () => ({
     success: true as const,
     message: 'admin.certificates.messages.requested',
 }))
+
+const requestProxyHostCertificateHandlerMock = mock(async () => ({
+    success: false as const,
+    message: 'admin.proxyHosts.certificateJob.errors.actionFailed',
+}))
+const retryCertificateJobHandlerMock = mock(async () => ({
+    success: false as const,
+    message: 'admin.proxyHosts.certificateJob.errors.actionFailed',
+}))
+
+mock.module('../features/Admin/ProxyHostManagement/CertificateJobs/server', () => ({
+    requestProxyHostCertificateHandler: requestProxyHostCertificateHandlerMock,
+    retryCertificateJobHandler: retryCertificateJobHandlerMock,
+}))
 const renewCertificateHandlerMock = mock(async () => ({
     success: true as const,
     message: 'admin.certificates.messages.renewing',
