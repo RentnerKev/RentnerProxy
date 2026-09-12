@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 
 import { restoreSmokeDiagnostic, smokeCompose, smokeDockerArguments } from './smoke-resources'
 import { verifyAlpha1Upgrade } from './alpha1-upgrade-smoke'
+import { buildHttp3Client, requestHttp3Client, assertHttp3Response } from './http3-client'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const rootComposeFile = join(repositoryRoot, 'docker-compose.yml')
@@ -247,6 +248,9 @@ async function runSmoke(): Promise<void> {
     const envFile = join(temporaryRoot, 'smtp.env')
     const temporaryComposeFile = join(temporaryRoot, 'docker-compose.yml')
     const imageTag = 'rentnerproxy-appliance-smoke:' + runId
+    const http3Image = 'rentnerproxy-appliance-http3:' + runId
+    const http3Command = (args: string[], options?: { readonly timeoutMs?: number }) =>
+        command(args, options?.timeoutMs)
     const volumeName = project + '-data'
 
     const inheritedVolumeName = project + '-postgres-base'
@@ -270,9 +274,16 @@ async function runSmoke(): Promise<void> {
                 'services:\n    rentnerproxy:\n        extra_hosts:\n            - host.docker.internal:host-gateway\n',
             )
             .replace('ghcr.io/rentnerkev/rentnerproxy:latest', imageTag)
+            .replace(
+                '        environment:\n',
+                '        environment:\n            RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT: "' +
+                    httpsPort +
+                    '"\n',
+            )
             .replace("- '80:8080'", `- '127.0.0.1:${httpPort}:8080'`)
             .replace("- '127.0.0.1:81:3000'", `- '127.0.0.1:${managementPort}:3000'`)
-            .replace("- '443:8443'", `- '127.0.0.1:${httpsPort}:8443'`)
+            .replace("- '443:8443/tcp'", `- '127.0.0.1:${httpsPort}:8443/tcp'`)
+            .replace("- '443:8443/udp'", `- '127.0.0.1:${httpsPort}:8443/udp'`)
             .replace(
                 '- rentnerproxy:/var/lib/rentnerproxy',
                 `- ${volumeName}:/var/lib/rentnerproxy\n            - ${inheritedVolumeName}:/var/lib/postgresql`,
@@ -303,6 +314,7 @@ async function runSmoke(): Promise<void> {
     }
 
     try {
+        await buildHttp3Client(http3Command, http3Image)
         await command(
             ['docker', 'build', '--tag', imageTag, '--file', productionDockerfile, '.'],
             900_000,
@@ -313,7 +325,7 @@ async function runSmoke(): Promise<void> {
                 {
                     environment?: Record<string, string>
                     image?: string
-                    ports?: Array<{ published: string; target: number }>
+                    ports?: Array<{ published: string; target: number; protocol: string }>
                     volumes?: Array<{ source?: string; target: string }>
                 }
             >
@@ -325,15 +337,24 @@ async function runSmoke(): Promise<void> {
         assert.equal(service.image, imageTag)
         assert.deepEqual(
             Object.keys(service.environment ?? {}).toSorted(),
-            [...smtpNames, 'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS'].toSorted(),
+            [
+                ...smtpNames,
+                'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS',
+                'RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT',
+            ].toSorted(),
         )
         assert.equal(service.environment?.RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS, '')
         assert.deepEqual(
-            (service.ports ?? []).map(({ published, target }) => ({ published, target })),
+            (service.ports ?? []).map(({ published, target, protocol }) => ({
+                published,
+                target,
+                protocol,
+            })),
             [
-                { published: String(httpPort), target: 8080 },
-                { published: String(managementPort), target: 3000 },
-                { published: String(httpsPort), target: 8443 },
+                { published: String(httpPort), target: 8080, protocol: 'tcp' },
+                { published: String(managementPort), target: 3000, protocol: 'tcp' },
+                { published: String(httpsPort), target: 8443, protocol: 'tcp' },
+                { published: String(httpsPort), target: 8443, protocol: 'udp' },
             ],
         )
         assert.deepEqual(
@@ -616,6 +637,7 @@ async function runSmoke(): Promise<void> {
             '3000/tcp',
             '8080/tcp',
             '8443/tcp',
+            '8443/udp',
         ])
         const procNet = await command([
             'docker',
@@ -858,12 +880,36 @@ async function runSmoke(): Promise<void> {
             recreatedId,
             'real HTTP and HTTPS managed-certificate traffic works',
         )
+        const http3CaFile = join(temporaryRoot, 'http3-ca.pem')
+        await command([
+            'docker',
+            'cp',
+            recreatedId + ':' + certificateDirectory + '/ca.pem',
+            http3CaFile,
+        ])
+        const assertPublishedQuic = async () => {
+            const response = await requestHttp3Client(http3Command, {
+                image: http3Image,
+                caFile: http3CaFile,
+                hostname: hostDomain,
+                port: httpsPort,
+                path: '/appliance-real-path',
+            })
+            assertHttp3Response(response, 200, httpsPort)
+            assert.ok(response.output.includes(trafficMarker))
+        }
+        await assertPublishedQuic()
+        passed(
+            'production appliance serves verified HTTP/3 through published UDP with the public Alt-Svc port',
+        )
         await command([...compose, 'restart', 'rentnerproxy'])
         await waitForHealthy(recreatedId)
         await assertRealTraffic(
             recreatedId,
             'real HTTP and HTTPS traffic survives appliance restart',
         )
+        await assertPublishedQuic()
+        passed('verified HTTP/3 survives production appliance restart')
 
         const proxyBackupMarker = '/var/lib/rentnerproxy/proxy/appliance-backup-marker'
         await command([
@@ -1158,6 +1204,7 @@ async function runSmoke(): Promise<void> {
         for (const legacyCompose of legacyComposes)
             await commandFails([...legacyCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
         await commandFails(['docker', 'image', 'rm', '--force', imageTag], 180_000)
+        await commandFails(['docker', 'image', 'rm', http3Image], 180_000)
         await rm(temporaryRoot, { force: true, recursive: true })
     }
 }

@@ -94,7 +94,7 @@ RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
     && apt-get purge -y --auto-remove libcap2-bin \
     && rm -rf /var/lib/apt/lists/*
 
-EXPOSE 3000 8080 8443
+EXPOSE 3000 8080 8443/tcp 8443/udp
 VOLUME ["/var/lib/rentnerproxy"]
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=12 CMD ["bun", "/opt/rentnerproxy/web/docker/web/healthcheck.mjs"]

@@ -46,6 +46,10 @@ pub(super) struct HttpServer {
     pub(super) routes: Vec<Route>,
     pub(super) automatic_https: AutoHttps,
     pub(super) protocols: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) allow_0rtt: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) errors: Option<ErrorConfig>,
     pub(super) read_header_timeout: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) write_timeout: Option<String>,
@@ -140,6 +144,37 @@ pub(super) enum Handler {
     Authentication(Authentication),
     #[serde(rename = "log_append")]
     LogAppend(LogAppend),
+    #[serde(rename = "headers")]
+    Headers(Headers),
+    #[serde(rename = "static_response")]
+    ErrorResponse(ErrorResponse),
+}
+
+#[derive(Serialize)]
+pub(super) struct Headers {
+    pub(super) response: ResponseHeaders,
+}
+
+#[derive(Serialize)]
+pub(super) struct ResponseHeaders {
+    pub(super) set: BTreeMap<String, Vec<String>>,
+    pub(super) deferred: bool,
+}
+
+#[derive(Serialize)]
+pub(super) struct ErrorConfig {
+    pub(super) routes: Vec<Route>,
+}
+
+#[derive(Serialize)]
+pub(super) struct ErrorResponse {
+    pub(super) status_code: ErrorStatus,
+}
+
+#[derive(Serialize)]
+pub(super) enum ErrorStatus {
+    #[serde(rename = "{http.error.status_code}")]
+    Original,
 }
 
 #[derive(Serialize)]

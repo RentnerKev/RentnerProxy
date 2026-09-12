@@ -9,8 +9,9 @@ use super::{
     UpstreamTlsRenderSettings,
     model::{
         Admin, AdminConfig, Apps, AutoHttps, CaddyConfig, CertificateFile, CertificateLoaders,
-        CertificateSelection, Handler, HttpApp, HttpServer, MatcherSet, Route, ServerLogs,
-        StaticResponse, Storage, TlsApp, TlsConnectionPolicy, TlsMatcher,
+        CertificateSelection, ErrorConfig, ErrorResponse, ErrorStatus, Handler, Headers, HttpApp,
+        HttpServer, MatcherSet, ResponseHeaders, Route, ServerLogs, StaticResponse, Storage,
+        TlsApp, TlsConnectionPolicy, TlsMatcher,
     },
     proxy::{admin_listen, certificate_path, path_string, probe_listen, seconds, trusted_proxies},
     routes::{challenge_route, host_routes, http_routes, not_found_route, redirect_route},
@@ -44,6 +45,8 @@ pub(super) fn render_config_inner(
             )?,
             automatic_https: AutoHttps { disable: true },
             protocols: vec!["h1".to_owned(), "h2".to_owned()],
+            allow_0rtt: None,
+            errors: None,
             read_header_timeout: "15s".to_owned(),
             write_timeout: seconds(config.http_settings.send_timeout_seconds),
             idle_timeout: seconds(config.http_settings.keepalive_timeout_seconds),
@@ -81,6 +84,8 @@ pub(super) fn render_config_inner(
                 ],
                 automatic_https: AutoHttps { disable: true },
                 protocols: vec!["h1".to_owned()],
+                allow_0rtt: None,
+                errors: None,
                 read_header_timeout: "15s".to_owned(),
                 write_timeout: None,
                 idle_timeout: None,
@@ -98,7 +103,10 @@ pub(super) fn render_config_inner(
         let mut certs = Vec::new();
         let mut loaded_certificate_ids = BTreeSet::new();
         let mut policies = Vec::new();
-        let mut https_routes = vec![challenge_route(settings.controller_port, "https")];
+        let mut https_routes = vec![
+            alt_svc_route(tls.public_https_port),
+            challenge_route(settings.controller_port, "https"),
+        ];
         for host in &config.proxy_hosts {
             let Some(certificate_id) = host.certificate_id.as_ref() else {
                 continue;
@@ -166,7 +174,9 @@ pub(super) fn render_config_inner(
                     listen: vec![format!(":{}", tls.https_port)],
                     routes: https_routes,
                     automatic_https: AutoHttps { disable: true },
-                    protocols: vec!["h1".to_owned(), "h2".to_owned()],
+                    protocols: vec!["h1".to_owned(), "h2".to_owned(), "h3".to_owned()],
+                    allow_0rtt: Some(false),
+                    errors: Some(error_config(tls.public_https_port)),
                     read_header_timeout: "15s".to_owned(),
                     write_timeout: seconds(config.http_settings.send_timeout_seconds),
                     idle_timeout: seconds(config.http_settings.keepalive_timeout_seconds),
@@ -250,4 +260,42 @@ fn logging_config(state_root: &str) -> Value {
             }
         }
     })
+}
+
+fn alt_svc_route(public_https_port: u16) -> Route {
+    Route {
+        matchers: Vec::new(),
+        handle: vec![
+            alt_svc_handler(public_https_port, true),
+            alt_svc_handler(public_https_port, false),
+        ],
+        terminal: false,
+    }
+}
+
+fn alt_svc_handler(public_https_port: u16, deferred: bool) -> Handler {
+    Handler::Headers(Headers {
+        response: ResponseHeaders {
+            set: BTreeMap::from([(
+                "Alt-Svc".to_owned(),
+                vec![format!("h3=\":{public_https_port}\"; ma=2592000")],
+            )]),
+            deferred,
+        },
+    })
+}
+
+fn error_config(public_https_port: u16) -> ErrorConfig {
+    ErrorConfig {
+        routes: vec![Route {
+            matchers: Vec::new(),
+            handle: vec![
+                alt_svc_handler(public_https_port, false),
+                Handler::ErrorResponse(ErrorResponse {
+                    status_code: ErrorStatus::Original,
+                }),
+            ],
+            terminal: true,
+        }],
+    }
 }

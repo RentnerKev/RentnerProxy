@@ -12,7 +12,8 @@ services:
         ports:
             - '80:8080'
             - '127.0.0.1:81:3000'
-            - '443:8443'
+            - '443:8443/tcp'
+            - '443:8443/udp'
         restart: unless-stopped
         volumes:
             - rentnerproxy:/var/lib/rentnerproxy
