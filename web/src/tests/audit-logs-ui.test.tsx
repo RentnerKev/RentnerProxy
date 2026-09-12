@@ -115,6 +115,44 @@ async function setInputValue(input: HTMLInputElement, value: string): Promise<vo
     })
 }
 
+async function chooseSelectOption(
+    container: HTMLElement,
+    ariaLabel: string,
+    optionLabel: string,
+): Promise<void> {
+    const trigger = container.querySelector<HTMLButtonElement>(`button[aria-label="${ariaLabel}"]`)
+    expect(trigger).not.toBeNull()
+    await act(async () => {
+        trigger?.dispatchEvent(
+            new PointerEvent('pointerdown', {
+                bubbles: true,
+                button: 0,
+                cancelable: true,
+                pointerType: 'mouse',
+            }),
+        )
+        await Promise.resolve()
+    })
+    await waitFor(() => document.querySelector('[role="listbox"]') !== null)
+    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+        (candidate) => candidate.textContent?.trim() === optionLabel,
+    )
+    expect(option).not.toBeUndefined()
+    await act(async () => {
+        option?.dispatchEvent(
+            new PointerEvent('pointerup', {
+                bubbles: true,
+                button: 0,
+                cancelable: true,
+                pointerType: 'mouse',
+            }),
+        )
+        option?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+        await Promise.resolve()
+    })
+    await waitFor(() => document.querySelector('[role="listbox"]') === null)
+}
+
 async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<void> {
     const deadline = Date.now() + timeoutMs
     const waitUntil = async (): Promise<void> => {
@@ -241,6 +279,22 @@ describe('audit log UI', () => {
         await click(getButton(container, 'Reset filters'))
         expect(actorInput?.value).toBe('')
         expect(getButton(container, 'Filters').textContent?.trim()).toBe('Filters')
+    })
+
+    test('applies selected action and resource values to the server query', async () => {
+        const container = await renderPage([PERMISSIONS.AUDIT_LOGS_VIEW])
+        await waitFor(() => getAuditEventsHandlerMock.mock.calls.length === 1)
+        await waitFor(() => container.textContent?.includes('Alice Admin') === true)
+
+        await click(getButton(container, 'Filters'))
+        await chooseSelectOption(container, 'Action', 'Update')
+        await chooseSelectOption(container, 'Resource', 'Proxy host')
+        await click(getButton(container, 'Apply filters'))
+        await waitFor(() => getAuditEventsHandlerMock.mock.calls.length === 2)
+
+        expect(getAuditEventsHandlerMock.mock.calls[1]?.[0]).toEqual({
+            data: { action: 'update', limit: 100, resource: 'proxy-host' },
+        })
     })
 
     test('shows safe event details and blocks requests without permission', async () => {

@@ -6,6 +6,7 @@ import TableBodyState from '../../../../shared/Table/Components/TableBodyState'
 import TableFilters from '../../../../shared/Table/Components/TableFilters'
 import TableLayout from '../../../../shared/Table/Components/TableLayout'
 import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBody'
+import SelectControl from '../../../../shared/Select'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { Tooltip } from '../../../../shared/Tooltip'
 import type { AuditEventDto } from '../../../../shared/Types/audit-events.types'
@@ -164,49 +165,41 @@ export default function AuditLogsTable({
                             <span className="text-xs font-extrabold text-muted">
                                 {t('admin.auditLogs.filters.action')}
                             </span>
-                            <select
+                            <SelectControl
+                                ariaLabel={t('admin.auditLogs.filters.action')}
+                                className={tableControlClassName}
                                 value={filters.action}
-                                onChange={(event) =>
+                                placeholder={t('admin.auditLogs.filters.allActions')}
+                                onValueChange={(value) =>
                                     onActionChange(
-                                        event.target
-                                            .value as AuditLogsTableProps['filters']['action'],
+                                        value as AuditLogsTableProps['filters']['action'],
                                     )
                                 }
-                                aria-label={t('admin.auditLogs.filters.action')}
-                                className={tableControlClassName}
-                            >
-                                <option value="">{t('admin.auditLogs.filters.allActions')}</option>
-                                {auditActionValues.map((action) => (
-                                    <option key={action} value={action}>
-                                        {t(`admin.auditLogs.values.actions.${action}`)}
-                                    </option>
-                                ))}
-                            </select>
+                                options={auditActionValues.map((action) => ({
+                                    label: t(`admin.auditLogs.values.actions.${action}`),
+                                    value: action,
+                                }))}
+                            />
                         </label>
                         <label className="grid min-w-0 gap-1.5">
                             <span className="text-xs font-extrabold text-muted">
                                 {t('admin.auditLogs.filters.resource')}
                             </span>
-                            <select
+                            <SelectControl
+                                ariaLabel={t('admin.auditLogs.filters.resource')}
+                                className={tableControlClassName}
                                 value={filters.resource}
-                                onChange={(event) =>
+                                placeholder={t('admin.auditLogs.filters.allResources')}
+                                onValueChange={(value) =>
                                     onResourceChange(
-                                        event.target
-                                            .value as AuditLogsTableProps['filters']['resource'],
+                                        value as AuditLogsTableProps['filters']['resource'],
                                     )
                                 }
-                                aria-label={t('admin.auditLogs.filters.resource')}
-                                className={tableControlClassName}
-                            >
-                                <option value="">
-                                    {t('admin.auditLogs.filters.allResources')}
-                                </option>
-                                {auditResourceValues.map((resource) => (
-                                    <option key={resource} value={resource}>
-                                        {t(`admin.auditLogs.values.resources.${resource}`)}
-                                    </option>
-                                ))}
-                            </select>
+                                options={auditResourceValues.map((resource) => ({
+                                    label: t(`admin.auditLogs.values.resources.${resource}`),
+                                    value: resource,
+                                }))}
+                            />
                         </label>
                         <label className="grid min-w-0 gap-1.5">
                             <span className="text-xs font-extrabold text-muted">

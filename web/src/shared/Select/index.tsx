@@ -4,13 +4,19 @@ import * as Select from 'radix-ui/select'
 import { getClientCspNonce } from '../Helpers/cspNonce'
 import SelectOptionLabel from './Components/SelectOptionLabel'
 
-import { EMPTY_SELECT_VALUE, fromSelectValue, toSelectValue } from './Helpers/selectValue'
+import { EMPTY_SELECT_VALUE, fromSelectValue } from './Helpers/selectValue'
 import type { SelectControlProps } from './Types/select-control.types'
 
 const itemClassName =
     'group relative flex min-h-9 cursor-pointer select-none items-center rounded-lg py-2 pr-8 pl-3 text-xs font-bold text-ink-soft outline-hidden transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-surface-hover data-[highlighted]:text-ink data-[state=checked]:bg-success-bg data-[state=checked]:text-success-text motion-reduce:transition-none'
 
 export default function SelectControl({
+    id,
+    name,
+    required,
+    invalid,
+    describedBy,
+    onBlur,
     ariaLabel,
     className,
     disabled,
@@ -23,15 +29,21 @@ export default function SelectControl({
     const cspNonce = getClientCspNonce()
     return (
         <Select.Root
+            {...(name ? { name } : {})}
+            required={required ?? false}
             disabled={disabled ?? false}
-            value={toSelectValue(value)}
+            value={value}
             onValueChange={(nextValue) => onValueChange(fromSelectValue(nextValue))}
         >
             <Select.Trigger
+                id={id}
                 aria-label={ariaLabel}
-                className={`group inline-flex h-9 min-w-0 items-center justify-between gap-2 rounded-lg border border-input-border bg-surface-raised px-2.5 text-left text-xs font-bold text-ink outline-hidden transition-[border-color,box-shadow,background-color] data-[placeholder]:text-muted-soft hover:border-border-strong focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/15 motion-reduce:transition-none ${className ?? ''}`}
+                aria-invalid={invalid || undefined}
+                aria-describedby={describedBy}
+                onBlur={onBlur}
+                className={`group box-border inline-flex h-12 min-w-0 items-center justify-between gap-2 rounded-xl border border-input-border bg-surface-raised px-3 text-left text-sm text-ink outline-hidden transition-[border-color,box-shadow,background-color] data-[placeholder]:text-muted-soft hover:border-border-strong focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/20 aria-invalid:border-red-500 disabled:cursor-not-allowed disabled:opacity-[0.55] motion-reduce:transition-none ${className ?? ''}`}
             >
-                <Select.Value>
+                <Select.Value className="min-w-0 flex-1">
                     {selectedOption ? <SelectOptionLabel option={selectedOption} /> : placeholder}
                 </Select.Value>
                 <Select.Icon className="shrink-0 text-muted transition-colors group-data-[state=open]:text-brand-text">
@@ -68,6 +80,7 @@ export default function SelectControl({
                         ) : null}
                         {options.map((option) => (
                             <Select.Item
+                                disabled={option.disabled ?? false}
                                 key={option.value}
                                 value={option.value}
                                 className={itemClassName}

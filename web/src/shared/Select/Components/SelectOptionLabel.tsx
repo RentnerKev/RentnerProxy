@@ -2,7 +2,7 @@ import type { SelectControlOption } from '../Types/select-control.types'
 
 export default function SelectOptionLabel({ option }: { readonly option: SelectControlOption }) {
     return (
-        <span className="inline-flex items-center gap-2">
+        <span className="inline-flex min-w-0 max-w-full items-center gap-2">
             {option.imageSrc ? (
                 <img
                     alt=""
@@ -13,7 +13,7 @@ export default function SelectOptionLabel({ option }: { readonly option: SelectC
                     width={24}
                 />
             ) : null}
-            {option.label}
+            <span className="truncate">{option.label}</span>
         </span>
     )
 }

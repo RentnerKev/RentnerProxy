@@ -84,13 +84,22 @@ export default function CertificateRequestFields({
             <form.Field name="challengeType">
                 {(field) => (
                     <div className={uiClassNames.form.field}>
-                        <span className={uiClassNames.form.label}>
+                        <label
+                            className={uiClassNames.form.label}
+                            htmlFor="certificate-request-challengeType"
+                        >
                             {t('admin.certificates.form.challengeType')}
-                        </span>
+                        </label>
                         <SelectControl
+                            id="certificate-request-challengeType"
+                            name={field.name}
+                            required
                             ariaLabel={t('admin.certificates.form.challengeType')}
                             className={uiClassNames.form.select}
                             disabled={isPending}
+                            invalid={field.state.meta.errors.length > 0}
+                            describedBy="certificate-request-challengeType-hint certificate-request-challengeType-error"
+                            onBlur={field.handleBlur}
                             value={field.state.value}
                             onValueChange={(value) => {
                                 if (value === 'http-01' || value === 'dns-01')
@@ -107,7 +116,10 @@ export default function CertificateRequestFields({
                                 },
                             ]}
                         />
-                        <p className={uiClassNames.form.hint}>
+                        <p
+                            id="certificate-request-challengeType-hint"
+                            className={uiClassNames.form.hint}
+                        >
                             {field.state.value === 'dns-01'
                                 ? t('admin.certificates.form.dnsWildcardHint')
                                 : t('admin.certificates.form.httpChallengeHint')}
@@ -196,13 +208,22 @@ export default function CertificateRequestFields({
             <form.Field name="environment">
                 {(field) => (
                     <div className={uiClassNames.form.field}>
-                        <span className={uiClassNames.form.label}>
+                        <label
+                            className={uiClassNames.form.label}
+                            htmlFor="certificate-request-environment"
+                        >
                             {t('admin.certificates.form.environment')}
-                        </span>
+                        </label>
                         <SelectControl
+                            id="certificate-request-environment"
+                            name={field.name}
+                            required
                             ariaLabel={t('admin.certificates.form.environment')}
                             className={uiClassNames.form.select}
                             disabled={isPending}
+                            invalid={field.state.meta.errors.length > 0}
+                            describedBy="certificate-request-environment-hint certificate-request-environment-error"
+                            onBlur={field.handleBlur}
                             value={field.state.value}
                             onValueChange={(value) => {
                                 if (value === 'staging' || value === 'production')
@@ -219,7 +240,10 @@ export default function CertificateRequestFields({
                                 },
                             ]}
                         />
-                        <p className={uiClassNames.form.hint}>
+                        <p
+                            id="certificate-request-environment-hint"
+                            className={uiClassNames.form.hint}
+                        >
                             {t('admin.certificates.form.stagingHint')}
                         </p>
                         <FieldError
