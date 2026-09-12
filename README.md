@@ -46,7 +46,7 @@ tunnel such as `ssh -L 8181:127.0.0.1:81 user@server` and open `http://localhost
 
 ### Upgrade
 
-Create a production backup before upgrading, then pull and recreate the service:
+Create a production backup, set the Compose image to the target release, then pull and recreate:
 
 ```bash
 docker compose pull
