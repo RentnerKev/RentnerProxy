@@ -11,7 +11,11 @@ export default function AccessPoliciesTable(props: AccessPoliciesTableProps) {
         <DataTable
             table={state.table}
             eyebrow={t('admin.accessPolicies.table.eyebrow')}
-            title={t('admin.accessPolicies.table.count', { count: props.policies.length })}
+            title={
+                props.isLoading
+                    ? t('admin.accessPolicies.table.loading')
+                    : t('admin.accessPolicies.table.count', { count: props.policies.length })
+            }
             description={t('admin.accessPolicies.table.description')}
             searchInput={state.searchInput}
             searchLabel={t('admin.accessPolicies.table.searchLabel')}

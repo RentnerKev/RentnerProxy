@@ -99,11 +99,13 @@ export default function DataTable<TData extends RowData>({
                 ) : null
             }
             pagination={
-                <TablePagination
-                    table={table}
-                    itemLabel={itemLabel}
-                    pageSizeOptions={pageSizeOptions}
-                />
+                isLoading ? null : (
+                    <TablePagination
+                        table={table}
+                        itemLabel={itemLabel}
+                        pageSizeOptions={pageSizeOptions}
+                    />
+                )
             }
         >
             <div className="overflow-x-auto">

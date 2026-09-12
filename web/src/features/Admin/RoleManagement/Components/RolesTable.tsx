@@ -18,7 +18,11 @@ export default function RolesTable(props: RolesTableProps) {
         <DataTable
             table={state.table}
             eyebrow={t('admin.roles.table.eyebrow')}
-            title={t('admin.roles.table.count', { count: roles.length })}
+            title={
+                isLoading
+                    ? t('admin.roles.table.loading')
+                    : t('admin.roles.table.count', { count: roles.length })
+            }
             description={t('admin.roles.table.description')}
             searchInput={state.searchInput}
             searchLabel={t('admin.roles.table.searchLabel')}

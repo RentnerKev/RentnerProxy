@@ -625,6 +625,10 @@ describe('ProxyHost management table', () => {
         )
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         expect(document.querySelector('tbody[aria-busy="true"]')).not.toBeNull()
+        expect(document.body.textContent).toContain('Loading proxy hosts')
+        expect(document.body.textContent).not.toContain('0 proxy hosts')
+        expect(document.body.textContent).not.toContain('of 0 proxy hosts')
+        expect(document.querySelector('[aria-label="Rows per page"]')).toBeNull()
         resolveHosts?.([])
         await waitFor(() => document.body.textContent?.includes('No proxy hosts yet') ?? false)
 
@@ -678,6 +682,46 @@ describe('ProxyHost permissions and row actions', () => {
         await waitFor(() => getRows().length === 2)
         expect(document.body.textContent).not.toContain('Proxy runtime synchronized')
         expect(document.body.textContent).not.toContain('Apply changes')
+    })
+
+    test('does not show an unavailable runtime while status is pending', async () => {
+        await render(
+            withTestLanguage(
+                <ProxyRuntimeStatusPanel
+                    canApply
+                    isApplying={false}
+                    isRetrying
+                    onApply={() => undefined}
+                    onRetry={() => undefined}
+                    status={undefined}
+                />,
+            ),
+        )
+        expect(document.body.textContent).not.toContain('Proxy runtime unavailable.')
+    })
+
+    test('keeps cached runtime status visible during a refresh', async () => {
+        await render(
+            withTestLanguage(
+                <ProxyRuntimeStatusPanel
+                    canApply
+                    isApplying={false}
+                    isRetrying
+                    onApply={() => undefined}
+                    onRetry={() => undefined}
+                    status={{
+                        available: true,
+                        running: true,
+                        activeRevision: 'sha256:old',
+                        desiredRevision: 'sha256:new',
+                        lastApplyAt: null,
+                        state: 'pending',
+                    }}
+                />,
+            ),
+        )
+        expect(document.body.textContent).toContain('Saved changes are waiting to be applied.')
+        expect(document.body.textContent).not.toContain('Proxy runtime unavailable.')
     })
 
     test('shows a safe runtime failure and retries instead of displaying stale status', async () => {

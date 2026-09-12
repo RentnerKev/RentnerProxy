@@ -218,31 +218,33 @@ export default function ProxyAccessLogsTable({
                 </TableFilters>
             }
             pagination={
-                <div>
-                    {snapshotReset ? (
-                        <output
-                            className="block border-t border-border bg-surface-subtle px-4 pt-3 text-xs text-muted"
-                            aria-live="polite"
-                        >
-                            {t('admin.proxyAccessLogs.pagination.snapshotReset')}
-                        </output>
-                    ) : null}
-                    {truncated ? (
-                        <p className="bg-surface-subtle px-4 pt-3 text-xs text-muted">
-                            {t('admin.proxyAccessLogs.pagination.truncated')}
-                        </p>
-                    ) : null}
-                    <RemoteTablePagination
-                        pageIndex={Math.max(currentPage - 1, 0)}
-                        pageSize={pageSize}
-                        total={total}
-                        pageSizeOptions={PROXY_ACCESS_LOGS_PAGE_SIZES}
-                        itemLabel={t('admin.proxyAccessLogs.pagination.itemLabel')}
-                        onPageChange={(nextPageIndex) => onPageChange(nextPageIndex + 1)}
-                        onPageSizeChange={onPageSizeChange}
-                        disabled={isLoading || isRefreshing}
-                    />
-                </div>
+                isLoading ? null : (
+                    <div>
+                        {snapshotReset ? (
+                            <output
+                                className="block border-t border-border bg-surface-subtle px-4 pt-3 text-xs text-muted"
+                                aria-live="polite"
+                            >
+                                {t('admin.proxyAccessLogs.pagination.snapshotReset')}
+                            </output>
+                        ) : null}
+                        {truncated ? (
+                            <p className="bg-surface-subtle px-4 pt-3 text-xs text-muted">
+                                {t('admin.proxyAccessLogs.pagination.truncated')}
+                            </p>
+                        ) : null}
+                        <RemoteTablePagination
+                            pageIndex={Math.max(currentPage - 1, 0)}
+                            pageSize={pageSize}
+                            total={total}
+                            pageSizeOptions={PROXY_ACCESS_LOGS_PAGE_SIZES}
+                            itemLabel={t('admin.proxyAccessLogs.pagination.itemLabel')}
+                            onPageChange={(nextPageIndex) => onPageChange(nextPageIndex + 1)}
+                            onPageSizeChange={onPageSizeChange}
+                            disabled={isLoading || isRefreshing}
+                        />
+                    </div>
+                )
             }
         >
             <div className="overflow-x-auto">

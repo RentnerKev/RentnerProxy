@@ -35,7 +35,11 @@ export default function UsersTable(props: UsersTableProps) {
         <DataTable
             table={state.table}
             eyebrow={t('admin.users.table.eyebrow')}
-            title={t('admin.users.table.count', { count: users.length })}
+            title={
+                isLoading
+                    ? t('admin.users.table.loading')
+                    : t('admin.users.table.count', { count: users.length })
+            }
             description={t('admin.users.table.description')}
             searchInput={state.searchInput}
             searchLabel={t('admin.users.table.searchLabel')}
