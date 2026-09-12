@@ -2,9 +2,8 @@ import { sortFn_datetime } from '@tanstack/react-table'
 import type { ColumnDef } from '@tanstack/react-table'
 import { createElement, useMemo, useState } from 'react'
 import useTranslationStore, { useDateFormatter } from '../../../../language/useTranslationStore'
-import useClientTableLogic, {
-    type ClientTableFeatures,
-} from '../../../../shared/Table/Hooks/useClientTableLogic'
+import useClientTableLogic from '../../../../shared/Table/Hooks/useClientTableLogic'
+import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { TrustedCaSummary } from '../../../../shared/Types/trusted-cas.types'
 import TrustedCaTableActions from '../Components/TrustedCaTableActions'
 import type { TrustedCaTableProps } from '../Types/trusted-ca-management.types'

@@ -15,7 +15,7 @@ import {
     createDateRangeFilter,
     createTrimmedIncludesStringFilter,
 } from '../../../../shared/Table/Helpers/tableFilters'
-import type { ClientTableFeatures } from '../../../../shared/Table/Hooks/useClientTableLogic'
+import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { RoleManagementSummary } from '../../../../shared/Types/auth.types'
 import type { RoleTableActionProps } from '../Types/role-management-component-props.types'
 import useTranslationStore from '../../../../language/useTranslationStore'

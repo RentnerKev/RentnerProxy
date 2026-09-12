@@ -12,7 +12,7 @@ import { userManagementQueryKeys } from '../features/Admin/UserManagement/queryK
 import { setClientCspNonce } from '../shared/Helpers/cspNonce'
 import type { DateRangeValue } from '../shared/Calendar/Types/date-range-calendar.types'
 import { createTrimmedIncludesStringFilter } from '../shared/Table/Helpers/tableFilters'
-import type { ClientTableFeatures } from '../shared/Table/Hooks/useClientTableLogic'
+import type { ClientTableFeatures } from '../shared/Table/clientTable'
 import type { RoleManagementSummary, UserSummary } from '../shared/Types/auth.types'
 import type { TableColumnFilterConfigs } from '../shared/Table/Types/table.types'
 import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'

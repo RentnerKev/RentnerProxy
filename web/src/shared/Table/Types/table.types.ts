@@ -1,7 +1,7 @@
 import type { Column, ColumnDef, FilterFn, RowData, SortingState } from '@tanstack/react-table'
 import type { ReactNode } from 'react'
 
-import type { ClientTable, ClientTableFeatures } from '../Hooks/useClientTableLogic'
+import type { ClientTable, ClientTableFeatures } from '../clientTable'
 
 export interface TableFilterOption {
     readonly label: string

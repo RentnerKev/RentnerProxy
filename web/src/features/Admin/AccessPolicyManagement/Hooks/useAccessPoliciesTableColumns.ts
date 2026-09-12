@@ -7,7 +7,7 @@ import {
     createDateRangeFilter,
     createTrimmedIncludesStringFilter,
 } from '../../../../shared/Table/Helpers/tableFilters'
-import type { ClientTableFeatures } from '../../../../shared/Table/Hooks/useClientTableLogic'
+import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { AccessPolicySummary } from '../../../../shared/Types/access-policies.types'
 import AccessPolicyTableActions from '../Components/AccessPolicyTableActions'
 import {

@@ -2,7 +2,7 @@ import type { FilterFn } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
 
 import useClientTableLogic from '../../../../shared/Table/Hooks/useClientTableLogic'
-import type { ClientTableFeatures } from '../../../../shared/Table/Hooks/useClientTableLogic'
+import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { UserSummary } from '../../../../shared/Types/auth.types'
 import type { TableColumnFilterConfigs } from '../../../../shared/Table/Types/table.types'
 import type { UsersTableProps } from '../Types/user-management-component-props.types'

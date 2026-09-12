@@ -1,9 +1,8 @@
 import type { FilterFn } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
 import useTranslationStore from '../../../../language/useTranslationStore'
-import useClientTableLogic, {
-    type ClientTableFeatures,
-} from '../../../../shared/Table/Hooks/useClientTableLogic'
+import useClientTableLogic from '../../../../shared/Table/Hooks/useClientTableLogic'
+import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { CertificateSummary } from '../../../../shared/Types/certificates.types'
 import type { CertificateTableProps } from '../Types/certificate-management.types'
 import useCertificatesTableColumns from './useCertificatesTableColumns'
