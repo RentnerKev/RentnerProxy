@@ -17,6 +17,7 @@ export interface ProxyAccessLogsQuery {
     readonly search?: string | undefined
     readonly limit?: number | undefined
     readonly offset?: number | undefined
+    readonly snapshot?: string | undefined
 }
 
 export interface ProxyAccessLogsResult {
@@ -26,4 +27,7 @@ export interface ProxyAccessLogsResult {
     readonly total: number
     readonly hasMore: boolean
     readonly truncated: boolean
+    readonly snapshot: string
+    readonly snapshotExpiresAt: string
+    readonly snapshotReset: boolean
 }

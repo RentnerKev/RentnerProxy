@@ -1,12 +1,18 @@
+use super::reader::CapturedLogs;
 use super::*;
 use std::{
-    fs,
+    fs::{self, File},
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
+    time::{Duration as StdDuration, Instant},
 };
 use time::{Duration, OffsetDateTime};
 
+static READ_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+mod snapshots;
 
 struct TempState(PathBuf);
 
@@ -41,6 +47,7 @@ impl Drop for TempState {
 
 fn query(limit: usize, offset: usize) -> ValidatedAccessLogQuery {
     ValidatedAccessLogQuery {
+        snapshot: None,
         host: None,
         status: None,
         search: None,
@@ -141,7 +148,7 @@ fn filters_and_pagination_report_filtered_indexes() {
     let response = read_blocking(state.path(), &page).unwrap();
     assert_eq!(response.total, 2);
     assert!(response.has_more);
-    assert_eq!(response.entries[0].path, "/two");
+    assert_eq!(response.entries[0].path, "/one");
 
     let mut filtered = query(1, 1);
     filtered.host = Some("a.example".into());
@@ -279,4 +286,166 @@ fn file_limit_is_reported() {
     let response = read_blocking(state.path(), &query(20, 0)).unwrap();
     assert!(response.truncated);
     assert!(response.total <= MAX_LOG_FILES);
+}
+
+#[tokio::test]
+async fn snapshot_pages_survive_appends_and_rotation() {
+    let _read_guard = READ_TEST_LOCK.lock().await;
+    let state = TempState::new(true);
+    let now = OffsetDateTime::now_utc().unix_timestamp() as f64;
+    state.write(
+        "access.log",
+        &format!(
+            "{}\n{}\n",
+            line(now, "a.example", "/oldest", 200, "oldest"),
+            line(now + 1.0, "a.example", "/middle", 200, "middle")
+        ),
+    );
+    let cache = SnapshotCache::new();
+    let first = read(state.path(), query(1, 0), &cache).await.unwrap();
+    assert_eq!(first.entries[0].path, "/middle");
+    assert!(!first.snapshot_reset);
+    assert_eq!(first.snapshot.len(), 43);
+
+    state.write(
+        "access.log",
+        &format!(
+            "{}\n{}\n",
+            line(now + 2.0, "a.example", "/new", 200, "new"),
+            line(now + 3.0, "a.example", "/newest", 200, "newest")
+        ),
+    );
+    let mut continuation = query(1, 1);
+    continuation.snapshot = Some(first.snapshot.clone());
+    let second = read(state.path(), continuation, &cache).await.unwrap();
+    assert_eq!(second.total, 2);
+    assert_eq!(second.entries[0].path, "/oldest");
+    assert_eq!(second.snapshot, first.snapshot);
+    assert_eq!(second.snapshot_expires_at, first.snapshot_expires_at);
+}
+
+#[test]
+fn snapshot_cache_expiry_is_fixed_and_evicts_lru_entries() {
+    let cache = SnapshotCache::new();
+    let query = query(15, 0);
+    let now = Instant::now();
+    let first = cache
+        .insert(
+            &query,
+            &query,
+            CapturedLogs {
+                entries: Vec::new(),
+                truncated: false,
+            },
+            false,
+            now,
+        )
+        .unwrap();
+    let mut continuation = query.clone();
+    continuation.snapshot = Some(first.snapshot.clone());
+    assert!(
+        cache
+            .lookup(
+                &first.snapshot,
+                &continuation,
+                now + StdDuration::from_secs(119)
+            )
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        cache
+            .lookup(
+                &first.snapshot,
+                &continuation,
+                now + StdDuration::from_secs(120)
+            )
+            .unwrap()
+            .is_none()
+    );
+
+    let mut ids = Vec::new();
+    for _ in 0..MAX_SNAPSHOTS {
+        ids.push(
+            cache
+                .insert(
+                    &query,
+                    &query,
+                    CapturedLogs {
+                        entries: Vec::new(),
+                        truncated: false,
+                    },
+                    false,
+                    now,
+                )
+                .unwrap()
+                .snapshot,
+        );
+    }
+    let mut touched = query.clone();
+    touched.snapshot = Some(ids[0].clone());
+    assert!(cache.lookup(&ids[0], &touched, now).unwrap().is_some());
+    let newest = cache
+        .insert(
+            &query,
+            &query,
+            CapturedLogs {
+                entries: Vec::new(),
+                truncated: false,
+            },
+            false,
+            now,
+        )
+        .unwrap();
+    assert_eq!(cache.len(), MAX_SNAPSHOTS);
+    assert!(cache.lookup(&ids[0], &touched, now).unwrap().is_some());
+    let mut evicted = query;
+    evicted.snapshot = Some(ids[1].clone());
+    assert!(cache.lookup(&ids[1], &evicted, now).unwrap().is_none());
+    assert!(!newest.snapshot.is_empty());
+}
+
+#[tokio::test]
+async fn unknown_or_mismatched_snapshot_resets_to_a_new_page() {
+    let _read_guard = READ_TEST_LOCK.lock().await;
+    let state = TempState::new(true);
+    let now = OffsetDateTime::now_utc().unix_timestamp() as f64;
+    state.write(
+        "access.log",
+        &format!(
+            "{}\n{}\n",
+            line(now, "a.example", "/one", 200, "one"),
+            line(now + 1.0, "b.example", "/two", 200, "two")
+        ),
+    );
+    let cache = SnapshotCache::new();
+    let first = read(state.path(), query(1, 0), &cache).await.unwrap();
+    let mut mismatched = query(1, 1);
+    mismatched.host = Some("a.example".to_owned());
+    mismatched.snapshot = Some(first.snapshot);
+    let reset = read(state.path(), mismatched, &cache).await.unwrap();
+    assert!(reset.snapshot_reset);
+    assert_eq!(reset.offset, 0);
+    assert_eq!(reset.entries[0].path, "/one");
+
+    let mut unknown = query(1, 9);
+    unknown.snapshot = Some("A".repeat(16));
+    let reset = read(state.path(), unknown, &cache).await.unwrap();
+    assert!(reset.snapshot_reset);
+    assert_eq!(reset.offset, 0);
+}
+
+#[test]
+fn access_log_query_keeps_default_limit_and_rejects_malformed_snapshot() {
+    let validated = AccessLogQuery::default().validate().unwrap();
+    assert_eq!(validated.limit, 15);
+    assert_eq!(validated.offset, 0);
+    let invalid = AccessLogQuery {
+        snapshot: Some("bad!".to_owned()),
+        ..AccessLogQuery::default()
+    };
+    assert_eq!(
+        invalid.validate(),
+        Err(AccessLogQueryError::MalformedSnapshot)
+    );
 }

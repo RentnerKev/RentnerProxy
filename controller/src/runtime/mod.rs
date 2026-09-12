@@ -128,6 +128,7 @@ pub(crate) struct ProxyRuntime {
     active_configuration: Mutex<Option<ValidatedProxyConfig>>,
     certificate_store: CertificateStore,
     trusted_ca_store: TrustedCaStore,
+    access_log_snapshots: access_logs::SnapshotCache,
     renewal_task: Mutex<Option<JoinHandle<()>>>,
     recovery_task: Mutex<Option<JoinHandle<()>>>,
     candidate_cursor: AtomicUsize,
@@ -139,7 +140,7 @@ impl ProxyRuntime {
         &self,
         query: access_logs::ValidatedAccessLogQuery,
     ) -> Result<access_logs::AccessLogResponse, access_logs::ReadError> {
-        access_logs::read(&self.settings.state_dir, query).await
+        access_logs::read(&self.settings.state_dir, query, &self.access_log_snapshots).await
     }
     pub(crate) fn new(
         settings: RuntimeSettings,
@@ -152,6 +153,7 @@ impl ProxyRuntime {
             engine,
             certificate_store,
             trusted_ca_store,
+            access_log_snapshots: access_logs::SnapshotCache::new(),
             state: Mutex::new(RuntimeState {
                 active_revision: None,
                 last_apply_at: None,

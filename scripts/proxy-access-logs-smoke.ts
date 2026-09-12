@@ -22,6 +22,9 @@ interface LogPage {
     readonly total: number
     readonly hasMore: boolean
     readonly truncated: boolean
+    readonly snapshot: string
+    readonly snapshotExpiresAt: string
+    readonly snapshotReset: boolean
 }
 
 interface SmokeOptions {
@@ -85,11 +88,17 @@ export async function verifyProxyAccessLogs(options: SmokeOptions): Promise<void
     assert.equal(firstPage.entries.length, 1)
     assert.equal(firstPage.hasMore, true)
     assert.equal(firstPage.entries[0]?.path, '/' + marker + '/second')
+    assert.equal(firstPage.snapshotReset, false)
+    assert.ok(Number.isFinite(Date.parse(firstPage.snapshotExpiresAt)))
+    await request('/' + marker + '/new-during-paging')
+    query.set('snapshot', firstPage.snapshot)
     query.set('offset', '1')
     const secondPage = await readPage(query.toString())
     assert.equal(secondPage.entries[0]?.path, '/' + marker + '/first')
     assert.equal(secondPage.entries[0]?.method, 'POST')
     assert.equal(secondPage.hasMore, false)
+    assert.equal(secondPage.total, 2)
+    assert.equal(secondPage.snapshot, firstPage.snapshot)
     const entry = secondPage.entries[0]!
     assert.equal(entry.host, host)
     assert.equal(entry.status, 200)
@@ -113,14 +122,25 @@ export async function verifyProxyAccessLogs(options: SmokeOptions): Promise<void
     assert.equal(rawLogs.includes('"headers"'), false)
     assert.equal(rawLogs.includes('"user_id"'), false)
     query.set('host', 'different.example.com')
-    assert.equal((await readPage(query.toString())).total, 0)
+    const changedFilter = await readPage(query.toString())
+    assert.equal(changedFilter.total, 0)
+    assert.equal(changedFilter.snapshotReset, true)
+    assert.equal(changedFilter.offset, 0)
+    query.delete('snapshot')
     query.set('host', host)
     query.set('status', '403')
     assert.equal((await readPage(query.toString())).total, 0)
     query.set('status', '200')
     query.set('offset', '0')
     await options.restart()
-    assert.equal((await readPage(query.toString())).total, 2)
+    query.set('snapshot', firstPage.snapshot)
+    query.set('offset', '1')
+    const restartedPage = await readPage(query.toString())
+    assert.equal(restartedPage.total, 3)
+    assert.equal(restartedPage.snapshotReset, true)
+    assert.equal(restartedPage.offset, 0)
+    query.set('snapshot', restartedPage.snapshot)
+    query.set('offset', '0')
 
     // Enough actual requests to rotate beyond the configured four archives.
     // Concurrent batches remain bounded and consume every response body.
@@ -154,6 +174,11 @@ export async function verifyProxyAccessLogs(options: SmokeOptions): Promise<void
     assert.equal(boundedPage.entries.length, 200)
     assert.equal(boundedPage.entries[0]?.path, '/' + marker + '/after-volume')
     assert.ok(boundedPage.total <= 10_000)
+    const retainedPage = await readPage(query.toString())
+    assert.equal(retainedPage.snapshot, restartedPage.snapshot)
+    assert.equal(retainedPage.snapshotReset, false)
+    assert.equal(retainedPage.total, 3)
+    assert.deepEqual(retainedPage.entries, restartedPage.entries)
     const lastPage = await readPage('offset=10000')
     assert.equal(lastPage.entries.length, 0)
     assert.equal(lastPage.hasMore, false)

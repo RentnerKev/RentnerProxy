@@ -1566,7 +1566,9 @@
             },
             "pagination": {
                 "range": "{{from}}–{{to}} von {{count}} Anfragen",
+                "itemLabel": "Anfragen",
                 "truncated": "Der aktuelle Zeitraum ist begrenzt.",
+                "snapshotReset": "Die vorherige Momentaufnahme ist abgelaufen oder nicht mehr verfügbar. Die erste Seite der aktuellen Logs wird angezeigt.",
                 "label": "Seitennavigation der Zugriffsprotokolle",
                 "page": "Seite {{page}} von {{count}}",
                 "previous": "Vorherige Seite",
@@ -1915,6 +1917,7 @@
             "rowsPerPage": "Zeilen pro Seite",
             "label": "Tabellennavigation",
             "page": "Seite {{page}} von {{count}}",
+            "goToPage": "Zu Seite {{page}}",
             "first": "Zur ersten Seite",
             "previous": "Zur vorherigen Seite",
             "next": "Zur nächsten Seite",

@@ -121,3 +121,9 @@ export default function DataTable<TData extends RowData>({
         </TableLayout>
     )
 }
+
+export { default as RemoteTablePagination } from './Components/RemoteTablePagination'
+export { default as TablePaginationControls } from './Components/TablePaginationControls'
+export { remoteTablePageSizeOptions } from './Components/RemoteTablePagination'
+export { getPaginationItems } from './Components/TablePaginationControls'
+export type { RemoteTablePaginationProps, TablePaginationControlsProps } from './Types/table.types'

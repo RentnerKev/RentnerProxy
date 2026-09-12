@@ -26,6 +26,13 @@ impl ApiError {
         }
     }
 
+    pub(super) fn invalid_snapshot() -> Self {
+        Self {
+            status: StatusCode::BAD_REQUEST,
+            error: "invalid_snapshot",
+        }
+    }
+
     pub(super) fn payload_too_large() -> Self {
         Self {
             status: StatusCode::PAYLOAD_TOO_LARGE,

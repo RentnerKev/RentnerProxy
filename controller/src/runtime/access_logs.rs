@@ -1,22 +1,22 @@
-use std::{
-    cmp::Reverse,
-    fs::{self, File},
-    io::{ErrorKind, Read, Seek, SeekFrom},
-    path::Path,
-    sync::{Arc, OnceLock},
-};
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use time::{Duration, OffsetDateTime, format_description::well_known::Rfc3339};
-use tokio::sync::Semaphore;
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
-use super::state::state_dir;
+mod cache;
+mod reader;
+
+pub(crate) use cache::SnapshotCache;
+#[cfg(test)]
+pub(super) use reader::read_blocking;
+pub(crate) use reader::{ReadError, read};
 
 pub(crate) const MAX_LOG_BYTES: usize = 4 * 1024 * 1024;
 pub(crate) const MAX_LOG_FILES: usize = 5;
 pub(crate) const MAX_RECORDS: usize = 10_000;
-static READ_SLOTS: OnceLock<Arc<Semaphore>> = OnceLock::new();
+pub(crate) const MAX_SNAPSHOTS: usize = 8;
+pub(crate) const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
+pub(crate) const MAX_SINGLE_SNAPSHOT_BYTES: usize = MAX_LOG_BYTES;
+const MAX_SNAPSHOT_ID: usize = 64;
 const MAX_PATH: usize = 2048;
 const MAX_HOST: usize = 253;
 const MAX_METHOD: usize = 32;
@@ -27,6 +27,7 @@ const MAX_CLIENT_IP: usize = 64;
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct AccessLogQuery {
+    pub snapshot: Option<String>,
     pub host: Option<String>,
     pub status: Option<String>,
     pub search: Option<String>,
@@ -34,8 +35,15 @@ pub(crate) struct AccessLogQuery {
     pub offset: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum AccessLogQueryError {
+    Invalid,
+    MalformedSnapshot,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ValidatedAccessLogQuery {
+    pub snapshot: Option<String>,
     pub host: Option<String>,
     pub status: Option<u16>,
     pub search: Option<String>,
@@ -44,12 +52,26 @@ pub(crate) struct ValidatedAccessLogQuery {
 }
 
 impl AccessLogQuery {
-    pub(crate) fn validate(self) -> Result<ValidatedAccessLogQuery, ()> {
+    pub(crate) fn validate(self) -> Result<ValidatedAccessLogQuery, AccessLogQueryError> {
+        let snapshot = self
+            .snapshot
+            .map(|snapshot| {
+                if !(16..=MAX_SNAPSHOT_ID).contains(&snapshot.len())
+                    || !snapshot
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+                {
+                    Err(AccessLogQueryError::MalformedSnapshot)
+                } else {
+                    Ok(snapshot)
+                }
+            })
+            .transpose()?;
         let host = self
             .host
             .map(|host| {
                 if host.len() > MAX_HOST || !crate::proxy::is_canonical_domain(&host) {
-                    Err(())
+                    Err(AccessLogQueryError::Invalid)
                 } else {
                     Ok(host)
                 }
@@ -57,38 +79,51 @@ impl AccessLogQuery {
             .transpose()?;
         let status = self
             .status
-            .map(|v| v.parse::<u16>().map_err(|_| ()))
+            .map(|value| {
+                value
+                    .parse::<u16>()
+                    .map_err(|_| AccessLogQueryError::Invalid)
+            })
             .transpose()?;
-        if status.is_some_and(|v| !(100..=599).contains(&v)) {
-            return Err(());
+        if status.is_some_and(|value| !(100..=599).contains(&value)) {
+            return Err(AccessLogQueryError::Invalid);
         }
         let search = self
             .search
-            .map(|v| {
-                if v.len() > 128 || v.chars().any(char::is_control) {
-                    Err(())
+            .map(|value| {
+                if value.len() > 128 || value.chars().any(char::is_control) {
+                    Err(AccessLogQueryError::Invalid)
                 } else {
-                    Ok(v)
+                    Ok(value)
                 }
             })
             .transpose()?;
         let limit = self
             .limit
-            .map(|v| v.parse::<usize>().map_err(|_| ()))
+            .map(|value| {
+                value
+                    .parse::<usize>()
+                    .map_err(|_| AccessLogQueryError::Invalid)
+            })
             .transpose()?
-            .unwrap_or(100);
+            .unwrap_or(15);
         if !(1..=200).contains(&limit) {
-            return Err(());
+            return Err(AccessLogQueryError::Invalid);
         }
         let offset = self
             .offset
-            .map(|v| v.parse::<usize>().map_err(|_| ()))
+            .map(|value| {
+                value
+                    .parse::<usize>()
+                    .map_err(|_| AccessLogQueryError::Invalid)
+            })
             .transpose()?
             .unwrap_or(0);
         if offset > 10_000 {
-            return Err(());
+            return Err(AccessLogQueryError::Invalid);
         }
         Ok(ValidatedAccessLogQuery {
+            snapshot,
             host,
             status,
             search,
@@ -98,7 +133,7 @@ impl AccessLogQuery {
     }
 }
 
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub(crate) struct AccessLogResponse {
     pub entries: Vec<AccessLogEntry>,
     pub limit: usize,
@@ -107,9 +142,14 @@ pub(crate) struct AccessLogResponse {
     #[serde(rename = "hasMore")]
     pub has_more: bool,
     pub truncated: bool,
+    pub snapshot: String,
+    #[serde(rename = "snapshotExpiresAt")]
+    pub snapshot_expires_at: String,
+    #[serde(rename = "snapshotReset")]
+    pub snapshot_reset: bool,
 }
 
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub(crate) struct AccessLogEntry {
     pub timestamp: String,
     pub host: String,
@@ -125,175 +165,30 @@ pub(crate) struct AccessLogEntry {
     pub protocol: String,
 }
 
-pub(crate) async fn read(
-    state_root: &Path,
-    query: ValidatedAccessLogQuery,
-) -> Result<AccessLogResponse, ReadError> {
-    let slots = READ_SLOTS
-        .get_or_init(|| Arc::new(Semaphore::new(4)))
-        .clone();
-    let permit = slots.try_acquire_owned().map_err(|_| ReadError::Busy)?;
-    let root = state_root.to_owned();
-    tokio::task::spawn_blocking(move || {
-        let _permit = permit;
-        read_blocking(&root, &query)
-    })
-    .await
-    .map_err(|_| ReadError::Failed)?
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct SnapshotQuery {
+    host: Option<String>,
+    status: Option<u16>,
+    search: Option<String>,
+    limit: usize,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ReadError {
-    Busy,
-    Failed,
-}
+impl SnapshotQuery {
+    fn from_query(query: &ValidatedAccessLogQuery) -> Self {
+        Self {
+            host: query.host.clone(),
+            status: query.status,
+            search: query.search.clone(),
+            limit: query.limit,
+        }
+    }
 
-fn empty_response(query: &ValidatedAccessLogQuery) -> AccessLogResponse {
-    AccessLogResponse {
-        entries: Vec::new(),
-        limit: query.limit,
-        offset: query.offset,
-        total: 0,
-        has_more: false,
-        truncated: false,
+    fn matches(&self, query: &ValidatedAccessLogQuery) -> bool {
+        self.host == query.host
+            && self.status == query.status
+            && self.search == query.search
+            && self.limit == query.limit
     }
-}
-
-fn read_blocking(
-    root: &Path,
-    query: &ValidatedAccessLogQuery,
-) -> Result<AccessLogResponse, ReadError> {
-    let root = match state_dir(root) {
-        Ok(root) => root,
-        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(empty_response(query)),
-        Err(_) => return Err(ReadError::Failed),
-    };
-    let logs = match root.open_dir("logs") {
-        Ok(logs) => logs,
-        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(empty_response(query)),
-        Err(_) => return Err(ReadError::Failed),
-    };
-    // Always consider the active file, even if a directory inventory is clipped.
-    let mut files = vec![(Reverse(None), "access.log".to_owned())];
-    let entries = fs::read_dir(logs.path()).map_err(|_| ReadError::Failed)?;
-    let mut inventory_truncated = false;
-    for (index, entry) in entries.enumerate() {
-        if index >= 128 {
-            inventory_truncated = true;
-            break;
-        }
-        let entry = entry.map_err(|_| ReadError::Failed)?;
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if !(name.starts_with("access-") && name.ends_with(".log")) {
-            continue;
-        }
-        let modified = match entry.metadata().and_then(|m| m.modified()) {
-            Ok(modified) => Some(modified),
-            Err(error) if error.kind() == ErrorKind::NotFound => continue,
-            Err(_) => return Err(ReadError::Failed),
-        };
-        files.push((Reverse(modified), name));
-    }
-    files.sort_by(|a, b| match (a.1 == "access.log", b.1 == "access.log") {
-        (true, false) => std::cmp::Ordering::Less,
-        (false, true) => std::cmp::Ordering::Greater,
-        _ => a.cmp(b),
-    });
-    let file_limit_truncated = files.len() > MAX_LOG_FILES;
-    files.truncate(MAX_LOG_FILES);
-
-    let cutoff = OffsetDateTime::now_utc() - Duration::days(7);
-    let mut remaining = MAX_LOG_BYTES;
-    let mut scanned = 0usize;
-    let mut truncated = inventory_truncated || file_limit_truncated;
-    let mut matches = Vec::new();
-    for (_, name) in files {
-        if remaining == 0 || scanned >= MAX_RECORDS {
-            truncated = true;
-            break;
-        }
-        let mut file = match logs.open_file(&name) {
-            Ok(file) => file,
-            Err(error) if error.kind() == ErrorKind::NotFound => {
-                match fs::symlink_metadata(logs.path().join(&name)) {
-                    Err(error) if error.kind() == ErrorKind::NotFound => continue,
-                    _ => return Err(ReadError::Failed),
-                }
-            }
-            Err(_) => return Err(ReadError::Failed),
-        };
-        let (bytes, data, partial_tail) =
-            read_tail(&mut file, remaining).map_err(|_| ReadError::Failed)?;
-        truncated |= partial_tail;
-        remaining = remaining.saturating_sub(bytes);
-        for line in data.rsplit(|b| *b == b'\n').filter(|line| !line.is_empty()) {
-            if scanned >= MAX_RECORDS {
-                truncated = true;
-                break;
-            }
-            scanned += 1;
-            let Ok(value) = serde_json::from_slice::<Value>(line) else {
-                continue;
-            };
-            let Some(entry) = parse_entry(&value, cutoff) else {
-                continue;
-            };
-            if matches_query(&entry, query) {
-                matches.push(entry);
-            }
-        }
-    }
-    matches.sort_by_cached_key(|entry| {
-        Reverse(
-            OffsetDateTime::parse(&entry.timestamp, &Rfc3339)
-                .expect("parsed log timestamps always have a valid RFC3339 representation")
-                .unix_timestamp_nanos(),
-        )
-    });
-    let total = matches.len();
-    let entries = matches
-        .into_iter()
-        .skip(query.offset)
-        .take(query.limit)
-        .collect::<Vec<_>>();
-    let has_more = query.offset.saturating_add(entries.len()) < total;
-    Ok(AccessLogResponse {
-        entries,
-        limit: query.limit,
-        offset: query.offset,
-        total,
-        has_more,
-        truncated,
-    })
-}
-
-fn read_tail(file: &mut File, maximum: usize) -> std::io::Result<(usize, Vec<u8>, bool)> {
-    let len = file.metadata()?.len();
-    let take = len.min(maximum as u64) as usize;
-    if take == 0 {
-        return Ok((0, Vec::new(), false));
-    }
-    let start = len - take as u64;
-    // Anchor to the captured length, so concurrent appends do not shift this window.
-    file.seek(SeekFrom::Start(start))?;
-    let mut buf = vec![0; take];
-    file.read_exact(&mut buf)?;
-    let partial = start > 0 || !buf.ends_with(b"\n");
-    if start > 0 {
-        if let Some(end) = buf.iter().position(|byte| *byte == b'\n') {
-            buf.drain(..=end);
-        } else {
-            buf.clear();
-        }
-    }
-    if !buf.ends_with(b"\n") {
-        let complete_end = buf
-            .iter()
-            .rposition(|byte| *byte == b'\n')
-            .map_or(0, |end| end + 1);
-        buf.truncate(complete_end);
-    }
-    Ok((take, buf, partial))
 }
 
 fn parse_entry(value: &Value, cutoff: OffsetDateTime) -> Option<AccessLogEntry> {
@@ -346,13 +241,13 @@ fn parse_entry(value: &Value, cutoff: OffsetDateTime) -> Option<AccessLogEntry> 
     let upstream = value
         .get("upstream")
         .and_then(Value::as_str)
-        .map(|s| {
+        .map(|value| {
             bounded(
-                s.split_once('?').map_or(s, |(address, _)| address),
+                value.split_once('?').map_or(value, |(address, _)| address),
                 MAX_UPSTREAM,
             )
         })
-        .filter(|s| !s.is_empty());
+        .filter(|value| !value.is_empty());
     Some(AccessLogEntry {
         timestamp: timestamp.format(&Rfc3339).ok()?,
         host,

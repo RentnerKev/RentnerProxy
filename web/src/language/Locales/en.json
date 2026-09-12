@@ -1566,7 +1566,9 @@
             },
             "pagination": {
                 "range": "{{from}}–{{to}} of {{count}} requests",
+                "itemLabel": "requests",
                 "truncated": "Recent window is bounded.",
+                "snapshotReset": "The previous snapshot expired or is no longer available. Showing the first page of the latest logs.",
                 "label": "Access log pagination",
                 "page": "Page {{page}} of {{count}}",
                 "previous": "Previous page",
@@ -1915,6 +1917,7 @@
             "rowsPerPage": "Rows per page",
             "label": "Table pagination",
             "page": "Page {{page}} of {{count}}",
+            "goToPage": "Go to page {{page}}",
             "first": "Go to first page",
             "previous": "Go to previous page",
             "next": "Go to next page",

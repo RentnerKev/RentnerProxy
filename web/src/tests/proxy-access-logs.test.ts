@@ -14,6 +14,12 @@ for (const variable of CONTROLLER_ENVIRONMENT) {
     originalEnvironment.set(variable, process.env[variable])
 }
 
+const snapshotMetadata = {
+    snapshot: 'a'.repeat(32),
+    snapshotExpiresAt: '2026-09-12T10:22:30Z',
+    snapshotReset: false,
+}
+
 const entry = {
     timestamp: '2026-09-12T10:20:30.123Z',
     host: 'example.com',
@@ -38,6 +44,33 @@ function restoreControllerEnvironment(): void {
 afterEach(restoreControllerEnvironment)
 
 describe('proxy access-log validation', () => {
+    test('requires valid snapshot metadata and resets only to the first page', () => {
+        const result = {
+            entries: [],
+            limit: 15,
+            offset: 0,
+            total: 0,
+            hasMore: false,
+            truncated: false,
+            ...snapshotMetadata,
+        }
+        expect(proxyAccessLogsResultSchema.safeParse(result).success).toBeTrue()
+        for (const override of [
+            { snapshot: undefined },
+            { snapshot: '../logs' },
+            { snapshotExpiresAt: 'yesterday' },
+            { snapshotReset: undefined },
+            { snapshotReset: true, offset: 15 },
+        ]) {
+            expect(
+                proxyAccessLogsResultSchema.safeParse({ ...result, ...override }).success,
+            ).toBeFalse()
+        }
+        expect(
+            proxyAccessLogsResultSchema.safeParse({ ...result, snapshotReset: true }).success,
+        ).toBeTrue()
+    })
+
     test('normalizes bounded query filters and applies defaults', () => {
         expect(
             proxyAccessLogsQuerySchema.parse({
@@ -47,7 +80,7 @@ describe('proxy access-log validation', () => {
         ).toEqual({
             host: 'example.com',
             search: ' status 200 ',
-            limit: 100,
+            limit: 15,
             offset: 0,
         })
     })
@@ -61,6 +94,9 @@ describe('proxy access-log validation', () => {
             { limit: 201 },
             { offset: -1 },
             { offset: 10_001 },
+            { snapshot: '../access.log' },
+            { snapshot: 'a'.repeat(65) },
+            { snapshot: '' },
             { host: '192.0.2.1' },
             { search: 'bad\u0000value' },
             { search: 'ä'.repeat(65) },
@@ -78,6 +114,7 @@ describe('proxy access-log validation', () => {
                 total: 1,
                 hasMore: false,
                 truncated: false,
+                ...snapshotMetadata,
             }).success,
         ).toBeTrue()
         expect(
@@ -88,6 +125,7 @@ describe('proxy access-log validation', () => {
                 total: 1,
                 hasMore: false,
                 truncated: false,
+                ...snapshotMetadata,
             }).success,
         ).toBeFalse()
         expect(
@@ -98,6 +136,7 @@ describe('proxy access-log validation', () => {
                 total: 1,
                 hasMore: false,
                 truncated: false,
+                ...snapshotMetadata,
             }).success,
         ).toBeFalse()
         expect(
@@ -108,6 +147,7 @@ describe('proxy access-log validation', () => {
                 total: 1,
                 hasMore: false,
                 truncated: false,
+                ...snapshotMetadata,
             }).success,
         ).toBeFalse()
         expect(
@@ -118,6 +158,7 @@ describe('proxy access-log validation', () => {
                 total: 1,
                 hasMore: true,
                 truncated: true,
+                ...snapshotMetadata,
             }).success,
         ).toBeFalse()
         expect(
@@ -128,6 +169,7 @@ describe('proxy access-log validation', () => {
                 total: 1,
                 hasMore: false,
                 truncated: false,
+                ...snapshotMetadata,
             }).success,
         ).toBeTrue()
     })
@@ -148,6 +190,7 @@ describe('proxy access-log controller transport', () => {
             expect(url.searchParams.get('search')).toBe('a&b?')
             expect(url.searchParams.get('limit')).toBe('20')
             expect(url.searchParams.get('offset')).toBe('40')
+            expect(url.searchParams.get('snapshot')).toBe(snapshotMetadata.snapshot)
             expect(init?.redirect).toBe('error')
             expect(new Headers(init?.headers).get('authorization')).toBe('Bearer ' + 'A'.repeat(32))
             return Response.json({
@@ -157,6 +200,7 @@ describe('proxy access-log controller transport', () => {
                 total: 41,
                 hasMore: false,
                 truncated: false,
+                ...snapshotMetadata,
             })
         }) as unknown as typeof fetch)
 
@@ -168,6 +212,7 @@ describe('proxy access-log controller transport', () => {
                     search: 'a&b?',
                     limit: 20,
                     offset: 40,
+                    snapshot: snapshotMetadata.snapshot,
                 }),
             ).resolves.toEqual({
                 entries: [entry],
@@ -176,6 +221,7 @@ describe('proxy access-log controller transport', () => {
                 total: 41,
                 hasMore: false,
                 truncated: false,
+                ...snapshotMetadata,
             })
         } finally {
             fetchMock.mockRestore()

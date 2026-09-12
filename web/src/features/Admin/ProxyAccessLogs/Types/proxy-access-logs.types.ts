@@ -25,10 +25,10 @@ export interface ProxyAccessLogsTableProps {
     readonly filters: ProxyAccessLogsFilters
     readonly filterErrors: ProxyAccessLogsFilterErrors
     readonly total: number
-    readonly offset: number
-    readonly limit: number
-    readonly hasMore: boolean
     readonly truncated: boolean
+    readonly snapshotReset: boolean
+    readonly pageSize: number
+    readonly currentPage: number
     readonly isLoading: boolean
     readonly isRefreshing: boolean
     readonly onHostChange: (value: string) => void
@@ -37,7 +37,7 @@ export interface ProxyAccessLogsTableProps {
     readonly onApplyFilters: () => void
     readonly onResetFilters: () => void
     readonly onRefresh: () => void
-    readonly onPreviousPage: () => void
-    readonly onNextPage: () => void
+    readonly onPageChange: (page: number) => void
+    readonly onPageSizeChange: (pageSize: number) => void
     readonly onToggleDetails: (key: string) => void
 }

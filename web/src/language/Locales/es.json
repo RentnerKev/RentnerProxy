@@ -1566,7 +1566,9 @@
             },
             "pagination": {
                 "range": "{{from}}–{{to}} de {{count}} solicitudes",
+                "itemLabel": "solicitudes",
                 "truncated": "El periodo reciente es limitado.",
+                "snapshotReset": "La instantánea anterior caducó o ya no está disponible. Se muestra la primera página de los registros actuales.",
                 "label": "Paginación de registros de acceso",
                 "page": "Página {{page}} de {{count}}",
                 "previous": "Página anterior",
@@ -1915,6 +1917,7 @@
             "rowsPerPage": "Filas por página",
             "label": "Paginación de tabla",
             "page": "Página {{page}} de {{count}}",
+            "goToPage": "Ir a la página {{page}}",
             "first": "Ir a la primera página",
             "previous": "Ir a la página anterior",
             "next": "Ir a la página siguiente",
