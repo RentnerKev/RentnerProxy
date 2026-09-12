@@ -1150,10 +1150,11 @@ async function runSmoke(): Promise<void> {
             'https://one.test:' + httpsPort + '/http1',
         ])
         assert.match(httpsOneHttp1, /certificate-smoke-backend/u)
-        // Debian's pinned runtime curl supports HTTP/2 even when the host's Windows curl does not.
         const httpsOneHttp2 = await command([
             'docker',
             'exec',
+            '--user',
+            '0',
             trustedProxyContainer,
             '/usr/bin/curl',
             '--silent',
