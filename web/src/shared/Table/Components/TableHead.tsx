@@ -4,13 +4,8 @@ import { Fragment } from 'react'
 
 import useTranslationStore from '../../../language/useTranslationStore'
 import type { TableHeadProps } from '../Types/table.types'
-import TableColumnFilters from './TableColumnFilters'
 
-export default function TableHead<TData extends RowData>({
-    table,
-    showColumnFilters,
-    columnFilterConfigs,
-}: TableHeadProps<TData>) {
+export default function TableHead<TData extends RowData>({ table }: TableHeadProps<TData>) {
     const { t } = useTranslationStore()
 
     return (
@@ -41,13 +36,13 @@ export default function TableHead<TData extends RowData>({
                                             key={header.id}
                                             scope="col"
                                             aria-sort={ariaSort}
-                                            className="border-b border-border px-4 py-[0.85rem] text-left align-middle font-bold"
+                                            className={`h-12 border-b border-border px-4 py-0 align-middle font-bold ${header.column.id === 'actions' ? 'sticky right-0 bg-surface-subtle text-right' : 'text-left'}`}
                                         >
                                             {header.isPlaceholder ? null : canSort ? (
                                                 <button
                                                     type="button"
                                                     onClick={header.column.getToggleSortingHandler()}
-                                                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-md text-left text-inherit outline-hidden transition-colors hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                                    className="inline-flex h-12 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left text-inherit outline-hidden transition-colors hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                                                     aria-label={t('table.sortBy', {
                                                         column: header.column.id,
                                                     })}
@@ -73,12 +68,6 @@ export default function TableHead<TData extends RowData>({
                                     )
                                 })}
                             </tr>
-                            {showColumnFilters ? (
-                                <TableColumnFilters
-                                    headerGroup={headerGroup}
-                                    filterConfigs={columnFilterConfigs}
-                                />
-                            ) : null}
                         </Fragment>
                     ))
                 }

@@ -24,7 +24,7 @@ user-visible changes, not a raw commit log.
 
 ### Upgrade notes and limitations
 
-- Back up before upgrading; follow the [upgrade and recovery guide](docs/upgrades.md).
+- Back up before upgrading; follow the [upgrade and recovery instructions](README.md#upgrade).
   Rollback requires restoring the pre-upgrade backup into fresh volumes with the previous image.
 - Existing hosts remain public until an access policy is assigned. A protected policy with no
   configured method denies access. Basic Auth and IP checks support All/Any combinations.

@@ -22,10 +22,15 @@ import type {
     DateRangeCalendarProps,
 } from '../Types/date-range-calendar.types'
 
-type DateRangeCalendarLogicParams = Pick<DateRangeCalendarProps, 'onValueChange' | 'value'>
+type DateRangeCalendarLogicParams = Pick<
+    DateRangeCalendarProps,
+    'closeOnSelect' | 'onValueChange' | 'selectionMode' | 'value'
+>
 
 export default function useDateRangeCalendarLogic({
+    closeOnSelect = true,
     onValueChange,
+    selectionMode = 'range',
     value,
 }: DateRangeCalendarLogicParams): DateRangeCalendarLogic {
     const { locale, t } = useTranslationStore()
@@ -74,11 +79,18 @@ export default function useDateRangeCalendarLogic({
             return
         }
 
+        if (selectionMode === 'single') {
+            onValueChange({ from: dateValue })
+            setFocusedDateValue(dateValue)
+            if (closeOnSelect) setOpen(false)
+            return
+        }
+
         const selection = createSelectedRange(selectedDate, from, to)
         onValueChange(selection.value)
         setFocusedDateValue(dateValue)
 
-        if (selection.completed) {
+        if (selection.completed && closeOnSelect) {
             setOpen(false)
         }
     }

@@ -95,7 +95,7 @@ export default function UserFormFields({
 
             <div className={uiClassNames.form.field}>
                 <span className={uiClassNames.form.label}>{t('admin.users.form.status')}</span>
-                <div className="flex min-h-[2.85rem] items-center rounded-xl border border-input-border bg-surface-raised px-[0.85rem]">
+                <div className="flex min-h-12 items-center rounded-xl border border-input-border bg-surface-raised px-[0.85rem]">
                     <span className={statusBadgeClassName} data-status={status}>
                         {t(`admin.users.status.${status}`)}
                     </span>

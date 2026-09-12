@@ -51,14 +51,14 @@ export default function GlobalErrorPage({ error, reset }: ErrorComponentProps) {
         >
             <button
                 type="button"
-                className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-brand-500 px-5 py-3 text-sm font-bold text-navy-950 transition-colors hover:bg-brand-400 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400 motion-reduce:transition-none"
+                className="inline-flex h-12 cursor-pointer items-center justify-center rounded-xl bg-brand-500 px-5 py-0 text-sm font-bold text-navy-950 transition-colors hover:bg-brand-400 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400 motion-reduce:transition-none"
                 onClick={retry}
             >
                 {t('common.retry')}
             </button>
             <Link
                 to="/"
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-bold text-white transition-colors hover:border-white/25 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400 motion-reduce:transition-none"
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-0 text-sm font-bold text-white transition-colors hover:border-white/25 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400 motion-reduce:transition-none"
             >
                 {t('common.backHome')}
             </Link>

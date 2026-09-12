@@ -12,7 +12,7 @@ import { userManagementQueryKeys } from '../features/Admin/UserManagement/queryK
 import { setClientCspNonce } from '../shared/Helpers/cspNonce'
 import type { DateRangeValue } from '../shared/Calendar/Types/date-range-calendar.types'
 import { createTrimmedIncludesStringFilter } from '../shared/Table/Helpers/tableFilters'
-import type { ClientTableFeatures } from '../shared/Table/Hooks/useClientTableLogic'
+import type { ClientTableFeatures } from '../shared/Table/clientTable'
 import type { RoleManagementSummary, UserSummary } from '../shared/Types/auth.types'
 import type { TableColumnFilterConfigs } from '../shared/Table/Types/table.types'
 import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
@@ -228,12 +228,30 @@ async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<voi
 function getButton(label: string): HTMLButtonElement {
     const button = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
         (candidate) =>
-            candidate.textContent?.trim().includes(label) ||
-            candidate.getAttribute('aria-label') === label,
+            candidate.getAttribute('aria-label') === label ||
+            candidate.textContent?.trim().includes(label),
     )
 
     expect(button).toBeDefined()
     return button!
+}
+
+function getFilterPanel(toggle: HTMLButtonElement): HTMLElement {
+    const contentId = toggle.getAttribute('aria-controls')
+    expect(contentId).not.toBeNull()
+    const panel = document.getElementById(contentId!)
+    expect(panel).not.toBeNull()
+    return panel!
+}
+
+function expectFilterTogglePlacement(toggle: HTMLButtonElement, panel: HTMLElement): void {
+    const section = toggle.closest('section')
+    expect(section).not.toBeNull()
+    expect(section?.firstElementChild?.contains(toggle)).toBeTrue()
+    expect(panel.closest('section')).toBe(section)
+    expect(panel).not.toBe(section?.firstElementChild)
+    expect(toggle.closest('table')).toBeNull()
+    expect(panel.closest('table')).toBeNull()
 }
 
 function getMenuItem(label: string): HTMLElement {
@@ -436,6 +454,33 @@ describe('shared table preset', () => {
         expect(document.body.textContent).toContain('of 12 records')
     })
 
+    test('keeps active filters mounted and applied across collapse, then resets while collapsed', async () => {
+        await render(<TableHarness />)
+        const trigger = getButton('Filters')
+        const content = getFilterPanel(trigger)
+        expectFilterTogglePlacement(trigger, content)
+        expect(trigger.getAttribute('aria-expanded')).toBe('false')
+        expect(content.hidden).toBeTrue()
+        expect(content.closest('table')).toBeNull()
+
+        await click(trigger)
+        await chooseSelectOption('All statuses', 'Disabled')
+        expect(trigger.getAttribute('aria-label')).toBe('Filters')
+        expect(getDataRows().every((row) => row.textContent?.includes('disabled'))).toBeTrue()
+        const select = getButton('All statuses')
+
+        await click(trigger)
+        expect(content.hidden).toBeTrue()
+        expect(select.isConnected).toBeTrue()
+        expect(getDataRows().every((row) => row.textContent?.includes('disabled'))).toBeTrue()
+        await click(trigger)
+        expect(content.hidden).toBeFalse()
+        expect(getButton('All statuses')).toBe(select)
+        await click(trigger)
+        await click(getButton('Reset filters'))
+        expect(trigger.getAttribute('aria-label')).toBe('Filters')
+        expect(document.body.textContent).toContain('of 12 records')
+    })
     test('paginates, changes rows per page, and distinguishes filtered empty state', async () => {
         await render(<TableHarness />)
         expect(getDataRows()).toHaveLength(5)
@@ -462,7 +507,13 @@ describe('shared table preset', () => {
         expect(getDataRows()).toHaveLength(10)
 
         await act(async () => {
-            activeRoot?.render(<TableHarness data={[]} />)
+            activeRoot?.render(
+                <TooltipProvider>
+                    <ToastProvider>
+                        <TableHarness data={[]} />
+                    </ToastProvider>
+                </TooltipProvider>,
+            )
         })
         expect(document.body.textContent).toContain('No records yet')
     })

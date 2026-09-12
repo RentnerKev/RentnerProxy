@@ -7,7 +7,7 @@ import getDateRangeFilterValue from '../Helpers/getDateRangeFilterValue'
 import type { TableColumnFilterInputProps } from '../Types/table.types'
 
 const controlClassName =
-    'h-9 min-w-0 w-full rounded-lg border border-input-border bg-surface-raised px-2.5 text-xs font-normal text-ink outline-hidden transition-[border-color,box-shadow] placeholder:text-muted-soft focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/15'
+    'box-border h-12 min-w-0 w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm font-normal text-ink outline-hidden transition-[border-color,box-shadow] placeholder:text-muted-soft focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/15'
 
 export default function TableColumnFilterInput<TData extends RowData>({
     column,

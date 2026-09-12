@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
 import useClientTableLogic from '../../../../shared/Table/Hooks/useClientTableLogic'
-import type { ClientTableFeatures } from '../../../../shared/Table/Hooks/useClientTableLogic'
+import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { TableColumnFilterConfigs } from '../../../../shared/Table/Types/table.types'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
 import type { ProxyHostsTableProps } from '../Types/proxy-host-table.types'

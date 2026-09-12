@@ -8,8 +8,10 @@ export interface DateRangeValue {
 export interface DateRangeCalendarProps {
     readonly ariaLabel: string
     readonly className?: string | undefined
+    readonly closeOnSelect?: boolean | undefined
     readonly fromLabel?: string | undefined
     readonly onValueChange: (value: DateRangeValue | undefined) => void
+    readonly selectionMode?: 'range' | 'single' | undefined
     readonly toLabel?: string | undefined
     readonly value: DateRangeValue
 }
@@ -82,4 +84,10 @@ export interface CalendarMonthGridProps {
     readonly onDayKeyDown: DateRangeCalendarHandler['handleDayKeyDown']
     readonly onSelectDate: (dateValue: string) => void
     readonly weeks: DateRangeCalendarState['weeks']
+}
+
+export interface CalendarMonthViewProps extends CalendarMonthGridProps {
+    readonly monthLabel: string
+    readonly onNextMonth: () => void
+    readonly onPreviousMonth: () => void
 }

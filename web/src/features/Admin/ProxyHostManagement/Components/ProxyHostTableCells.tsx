@@ -55,7 +55,7 @@ export function ProxyHostDomainsCell({ domains }: ProxyHostDomainsCellProps) {
                         aria-label={t('admin.proxyHosts.cells.moreDomains', {
                             count: extraDomains.length,
                         })}
-                        className="inline-flex cursor-help items-center rounded-full border-0 bg-neutral px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-muted outline-hidden focus-visible:outline-2 focus-visible:outline-brand-500"
+                        className="inline-flex h-12 cursor-help items-center justify-center rounded-xl border-0 bg-neutral px-3 py-0 font-mono text-sm font-bold text-muted outline-hidden focus-visible:outline-2 focus-visible:outline-brand-500"
                     >
                         +{extraDomains.length}
                     </button>
@@ -74,7 +74,7 @@ export function ProxyHostForwardCell({
     const { t } = useTranslationStore()
     return (
         <div className="grid justify-items-start gap-2">
-            <span className="whitespace-nowrap font-mono text-[0.72rem] text-muted">
+            <span className="block max-w-64 wrap-anywhere font-mono text-[0.72rem] text-muted">
                 {formatProxyHostForward(forwardScheme, forwardHost, forwardPort)}
             </span>
             {forwardScheme === 'https' && verifyUpstreamTls === false ? (

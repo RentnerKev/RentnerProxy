@@ -2,9 +2,8 @@ import { sortFn_datetime } from '@tanstack/react-table'
 import type { ColumnDef } from '@tanstack/react-table'
 import { createElement, useMemo, useState } from 'react'
 import useTranslationStore, { useDateFormatter } from '../../../../language/useTranslationStore'
-import useClientTableLogic, {
-    type ClientTableFeatures,
-} from '../../../../shared/Table/Hooks/useClientTableLogic'
+import useClientTableLogic from '../../../../shared/Table/Hooks/useClientTableLogic'
+import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { TrustedCaSummary } from '../../../../shared/Types/trusted-cas.types'
 import TrustedCaTableActions from '../Components/TrustedCaTableActions'
 import type { TrustedCaTableProps } from '../Types/trusted-ca-management.types'
@@ -24,6 +23,12 @@ export default function useTrustedCasTableLogic(props: TrustedCaTableProps) {
                 header: t('admin.trustedCas.columns.name'),
                 sortFn: 'text',
                 enableGlobalFilter: true,
+                cell: ({ row }: { row: { original: TrustedCaSummary } }) =>
+                    createElement(
+                        'span',
+                        { className: 'block max-w-60 wrap-anywhere text-ink-soft' },
+                        row.original.name,
+                    ),
             },
             ...(['subject', 'issuer'] as const).map((key) => ({
                 accessorKey: key,
@@ -34,7 +39,7 @@ export default function useTrustedCasTableLogic(props: TrustedCaTableProps) {
                     createElement(
                         'span',
                         {
-                            className: 'block max-w-60 break-words text-xs text-muted',
+                            className: 'block max-w-60 wrap-anywhere text-xs text-muted',
                             title: row.original[key],
                         },
                         row.original[key],

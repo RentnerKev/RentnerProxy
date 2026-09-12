@@ -65,3 +65,12 @@ export function formatDuration(durationMs: number): string {
 export function formatBytes(bytes: number, locale: string): string {
     return new Intl.NumberFormat(locale).format(Math.max(0, Math.round(bytes)))
 }
+
+export const statusClassName = (status: number) =>
+    status >= 500
+        ? 'border-red-500/25 bg-danger-bg text-danger-text'
+        : status >= 400
+          ? 'border-amber-500/25 bg-amber-500/10 text-amber-700'
+          : status >= 300
+            ? 'border-blue-500/20 bg-info-bg text-info-text'
+            : 'border-brand-600/20 bg-success-bg text-success-text'

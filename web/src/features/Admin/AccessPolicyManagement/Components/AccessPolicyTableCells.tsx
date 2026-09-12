@@ -17,7 +17,7 @@ const modeBadgeClassName =
     'inline-flex rounded-full px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold data-[mode=public]:bg-neutral data-[mode=public]:text-muted data-[mode=authenticated]:bg-amber-500/15 data-[mode=authenticated]:text-amber-700 data-[mode=ip-restricted]:bg-amber-500/15 data-[mode=ip-restricted]:text-amber-700 data-[mode=combined]:bg-amber-500/15 data-[mode=combined]:text-amber-700'
 
 export function AccessPolicyNameCell({ name }: AccessPolicyNameCellProps) {
-    return <span className="font-extrabold text-ink-soft">{name}</span>
+    return <span className="block max-w-64 wrap-anywhere font-extrabold text-ink-soft">{name}</span>
 }
 
 export function AccessPolicyModeCell({ mode }: AccessPolicyModeCellProps) {

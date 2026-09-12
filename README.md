@@ -53,7 +53,32 @@ docker compose pull
 docker compose up -d
 ```
 
-See the [upgrade and recovery guide](./docs/upgrades.md) and [release guide](./docs/releases.md).
+Backup and restore tools require Bun 1.4.2, Docker Compose, and a repository checkout.
+Run them from the checkout with your installation's Compose file and project name:
+
+```bash
+export RENTNERPROXY_COMPOSE_FILE=/srv/rentnerproxy/docker-compose.yml
+bun --env-file=/srv/rentnerproxy/.env scripts/production-backup.ts \
+  --project rentnerproxy --output /srv/rentnerproxy-backups
+```
+
+The backup briefly stops the appliance and restarts it afterward. Keep the complete backup
+directory, Compose file, and SMTP `.env` privately outside the appliance volume. Backups include
+the database, controller state, certificates, and encryption key; Redis and proxy request logs
+are excluded. Check container health and configured hosts after upgrading.
+
+For rollback, restore the pre-upgrade backup into fresh volumes using the previous exact image.
+Prepare a separate Compose file and project; never run an older image against the upgraded database:
+
+```bash
+export RENTNERPROXY_COMPOSE_FILE=/srv/rentnerproxy-recovery/docker-compose.yml
+bun --env-file=/srv/rentnerproxy/.env scripts/production-restore.ts \
+  --project rentnerproxy-recovery \
+  --input /srv/rentnerproxy-backups/BACKUP_DIRECTORY --confirm-replace
+```
+
+Restore replaces the target project's data. Stop the original appliance before recovery uses
+the same host ports, and preserve its volumes until recovery health and traffic are verified.
 
 ## Features
 
@@ -65,8 +90,5 @@ See the [upgrade and recovery guide](./docs/upgrades.md) and [release guide](./d
 - User and role management with two-factor authentication and passkeys.
 - Backup, restore, and automatic configuration recovery after restarts.
 - English, German, Spanish, and French language and theme settings.
-
-See the [Access Policies guide](./docs/access-policies.md) and [certificate guide](./docs/certificates.md)
-for feature-specific usage.
 
 Development setup and checks are in [`CONTRIBUTING.md`](./CONTRIBUTING.md).

@@ -1,44 +1,9 @@
-import {
-    columnFilteringFeature,
-    columnSizingFeature,
-    createFilteredRowModel,
-    createPaginatedRowModel,
-    createSortedRowModel,
-    filterFn_includesString,
-    globalFilteringFeature,
-    rowPaginationFeature,
-    rowSortingFeature,
-    sortFn_alphanumeric,
-    sortFn_text,
-    tableFeatures,
-    useTable,
-} from '@tanstack/react-table'
-import type { ReactTable, RowData } from '@tanstack/react-table'
+import { useTable } from '@tanstack/react-table'
+import type { RowData } from '@tanstack/react-table'
 import { useCallback, useEffect, useState } from 'react'
 
+import { clientTableFeatures } from '../clientTable'
 import type { UseClientTableLogicParams, UseClientTableLogicReturn } from '../Types/table.types'
-
-export const clientTableFeatures = tableFeatures({
-    columnSizingFeature,
-    columnFilteringFeature,
-    globalFilteringFeature,
-    filteredRowModel: createFilteredRowModel(),
-    filterFns: {
-        includesString: filterFn_includesString,
-    },
-    rowSortingFeature,
-    sortedRowModel: createSortedRowModel(),
-    sortFns: {
-        alphanumeric: sortFn_alphanumeric,
-        text: sortFn_text,
-    },
-    rowPaginationFeature,
-    paginatedRowModel: createPaginatedRowModel(),
-})
-
-export type ClientTableFeatures = typeof clientTableFeatures
-
-export type ClientTable<TData extends RowData> = ReactTable<ClientTableFeatures, TData, null>
 
 export default function useClientTableLogic<TData extends RowData>({
     data,

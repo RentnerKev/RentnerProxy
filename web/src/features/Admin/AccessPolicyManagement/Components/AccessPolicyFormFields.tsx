@@ -83,13 +83,17 @@ export default function AccessPolicyFormFields({
                 ) : null}
             </div>
             <div className={uiClassNames.form.field}>
-                <span className={uiClassNames.form.label}>
+                <label className={uiClassNames.form.label} htmlFor={`${formId}-mode`}>
                     {t('admin.accessPolicies.form.mode')}
-                </span>
+                </label>
                 <SelectControl
+                    id={`${formId}-mode`}
+                    name="mode"
+                    required
                     ariaLabel={t('admin.accessPolicies.form.mode')}
                     className={uiClassNames.form.select}
                     disabled={isPending}
+                    describedBy={`${formId}-mode-hint`}
                     options={modes.map((mode) => ({
                         label: t(`admin.accessPolicies.mode.${mode}`),
                         value: mode,
@@ -97,7 +101,9 @@ export default function AccessPolicyFormFields({
                     value={values.mode}
                     onValueChange={setMode}
                 />
-                <p className={uiClassNames.form.hint}>{t('admin.accessPolicies.form.modeHint')}</p>
+                <p id={`${formId}-mode-hint`} className={uiClassNames.form.hint}>
+                    {t('admin.accessPolicies.form.modeHint')}
+                </p>
             </div>
             {values.mode === 'combined' ? (
                 <fieldset
@@ -184,13 +190,20 @@ export default function AccessPolicyFormFields({
                     {values.ipRules ? (
                         <>
                             <div className={uiClassNames.form.field}>
-                                <span className={uiClassNames.form.label}>
+                                <label
+                                    className={uiClassNames.form.label}
+                                    htmlFor={`${formId}-ip-rules-default-action`}
+                                >
                                     {t('admin.accessPolicies.form.ipRules.defaultAction')}
-                                </span>
+                                </label>
                                 <SelectControl
+                                    id={`${formId}-ip-rules-default-action`}
+                                    name="ipRules.defaultAction"
+                                    required
                                     ariaLabel={t('admin.accessPolicies.form.ipRules.defaultAction')}
                                     className={uiClassNames.form.select}
                                     disabled={isPending}
+                                    describedBy={`${formId}-ip-rules-default-action-hint`}
                                     options={[
                                         {
                                             label: t('admin.accessPolicies.form.ipRules.allow'),
@@ -206,7 +219,10 @@ export default function AccessPolicyFormFields({
                                     value={values.ipRules.defaultAction}
                                     onValueChange={setIpRuleDefaultAction}
                                 />
-                                <p className={uiClassNames.form.hint}>
+                                <p
+                                    id={`${formId}-ip-rules-default-action-hint`}
+                                    className={uiClassNames.form.hint}
+                                >
                                     {t('admin.accessPolicies.form.ipRules.defaultActionHint')}
                                 </p>
                             </div>

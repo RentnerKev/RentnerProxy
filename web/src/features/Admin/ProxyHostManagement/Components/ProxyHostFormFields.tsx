@@ -50,13 +50,22 @@ export default function ProxyHostFormFields({
             <form.Field name="forwardScheme">
                 {(field) => (
                     <div className={uiClassNames.form.field}>
-                        <span className={uiClassNames.form.label}>
+                        <label
+                            className={uiClassNames.form.label}
+                            htmlFor={`${formId}-forwardScheme`}
+                        >
                             {t('admin.proxyHosts.form.forwardScheme')}
-                        </span>
+                        </label>
                         <SelectControl
+                            id={`${formId}-forwardScheme`}
+                            name={field.name}
+                            required
                             ariaLabel={t('admin.proxyHosts.form.forwardScheme')}
                             className={uiClassNames.form.select}
                             disabled={isPending}
+                            invalid={field.state.meta.errors.length > 0}
+                            describedBy={`${formId}-forwardScheme-error`}
+                            onBlur={field.handleBlur}
                             options={[
                                 { label: t('admin.proxyHosts.scheme.http'), value: 'http' },
                                 { label: t('admin.proxyHosts.scheme.https'), value: 'https' },
@@ -173,10 +182,15 @@ export default function ProxyHostFormFields({
                     )
                     return canAssignCertificates ? (
                         <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
-                            <span className={uiClassNames.form.label}>
+                            <label
+                                className={uiClassNames.form.label}
+                                htmlFor={`${formId}-certificateId`}
+                            >
                                 {t('admin.proxyHosts.form.certificate')}
-                            </span>
+                            </label>
                             <SelectControl
+                                id={`${formId}-certificateId`}
+                                name={field.name}
                                 ariaLabel={t('admin.proxyHosts.form.certificate')}
                                 className={uiClassNames.form.select}
                                 disabled={
@@ -184,6 +198,9 @@ export default function ProxyHostFormFields({
                                     assignableCertificatesLoading ||
                                     assignableCertificatesLoadFailed
                                 }
+                                invalid={field.state.meta.errors.length > 0}
+                                describedBy={`${formId}-certificateId-hint ${formId}-certificateId-error`}
+                                onBlur={field.handleBlur}
                                 value={field.state.value ?? ''}
                                 placeholder={t('admin.proxyHosts.form.noCertificate')}
                                 options={usableCertificates.map((certificate) => ({
@@ -196,7 +213,10 @@ export default function ProxyHostFormFields({
                                     if (!value) form.setFieldValue('forceHttps', false)
                                 }}
                             />
-                            <p className={uiClassNames.form.hint}>
+                            <p
+                                id={`${formId}-certificateId-hint`}
+                                className={uiClassNames.form.hint}
+                            >
                                 {t('admin.proxyHosts.form.certificateHint')}
                             </p>
                             {assignableCertificatesLoading ? (
@@ -241,10 +261,15 @@ export default function ProxyHostFormFields({
                         : null
                     return canAssignPolicies ? (
                         <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
-                            <span className={uiClassNames.form.label}>
+                            <label
+                                className={uiClassNames.form.label}
+                                htmlFor={`${formId}-accessPolicyId`}
+                            >
                                 {t('admin.proxyHosts.form.accessPolicy')}
-                            </span>
+                            </label>
                             <SelectControl
+                                id={`${formId}-accessPolicyId`}
+                                name={field.name}
                                 ariaLabel={t('admin.proxyHosts.form.accessPolicy')}
                                 className={uiClassNames.form.select}
                                 disabled={
@@ -252,6 +277,9 @@ export default function ProxyHostFormFields({
                                     assignableAccessPoliciesLoading ||
                                     assignableAccessPoliciesLoadFailed
                                 }
+                                invalid={field.state.meta.errors.length > 0}
+                                describedBy={`${formId}-accessPolicyId-hint`}
+                                onBlur={field.handleBlur}
                                 value={field.state.value ?? ''}
                                 placeholder={t('admin.proxyHosts.form.noAccessPolicy')}
                                 options={assignableAccessPolicies.map((policy) => ({
@@ -265,7 +293,10 @@ export default function ProxyHostFormFields({
                                     {t(`admin.accessPolicies.availability.${availability}`)}
                                 </p>
                             ) : null}
-                            <p className={uiClassNames.form.hint}>
+                            <p
+                                id={`${formId}-accessPolicyId-hint`}
+                                className={uiClassNames.form.hint}
+                            >
                                 {t('admin.proxyHosts.form.accessPolicyHint')}
                             </p>
                             {assignableAccessPoliciesLoading ? (

@@ -115,6 +115,66 @@ async function setInputValue(input: HTMLInputElement, value: string): Promise<vo
     })
 }
 
+async function chooseSelectOption(
+    container: HTMLElement,
+    ariaLabel: string,
+    optionLabel: string,
+): Promise<void> {
+    const trigger = container.querySelector<HTMLButtonElement>(`button[aria-label="${ariaLabel}"]`)
+    expect(trigger).not.toBeNull()
+    await act(async () => {
+        trigger?.dispatchEvent(
+            new PointerEvent('pointerdown', {
+                bubbles: true,
+                button: 0,
+                cancelable: true,
+                pointerType: 'mouse',
+            }),
+        )
+        await Promise.resolve()
+    })
+    await waitFor(() => document.querySelector('[role="listbox"]') !== null)
+    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+        (candidate) => candidate.textContent?.trim() === optionLabel,
+    )
+    expect(option).not.toBeUndefined()
+    await act(async () => {
+        option?.dispatchEvent(
+            new PointerEvent('pointerup', {
+                bubbles: true,
+                button: 0,
+                cancelable: true,
+                pointerType: 'mouse',
+            }),
+        )
+        option?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+        await Promise.resolve()
+    })
+    await waitFor(() => document.querySelector('[role="listbox"]') === null)
+}
+
+async function openActionMenu(container: HTMLElement): Promise<void> {
+    const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="Open actions"]')
+    if (!trigger) throw new Error('Action menu trigger not found')
+    await act(async () => {
+        trigger.focus()
+        trigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }))
+    })
+    await waitFor(() => document.querySelector('[role="menuitem"]') !== null)
+}
+
+async function chooseActionMenuItem(label: string): Promise<void> {
+    const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
+        (candidate) => candidate.textContent?.trim() === label,
+    )
+    if (!item) throw new Error(`Action menu item not found: ${label}`)
+    await click(item)
+    await waitFor(() => document.querySelector('[role="menu"]') === null)
+    await waitFor(
+        () =>
+            document.activeElement === document.querySelector('button[aria-label="Open actions"]'),
+    )
+}
 async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<void> {
     const deadline = Date.now() + timeoutMs
     const waitUntil = async (): Promise<void> => {
@@ -130,10 +190,30 @@ async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<voi
 
 function getButton(container: HTMLElement, label: string): HTMLButtonElement {
     const button = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
-        (candidate) => candidate.textContent?.trim() === label,
+        (candidate) =>
+            candidate.getAttribute('aria-label') === label ||
+            candidate.textContent?.trim() === label,
     )
     if (!button) throw new Error(`button not found: ${label}`)
     return button
+}
+
+function getFilterPanel(container: HTMLElement, toggle: HTMLButtonElement): HTMLElement {
+    const contentId = toggle.getAttribute('aria-controls')
+    expect(contentId).not.toBeNull()
+    const panel = container.ownerDocument.getElementById(contentId!)
+    expect(panel).not.toBeNull()
+    return panel!
+}
+
+function expectFilterTogglePlacement(toggle: HTMLButtonElement, panel: HTMLElement): void {
+    const section = toggle.closest('section')
+    expect(section).not.toBeNull()
+    expect(section?.firstElementChild?.contains(toggle)).toBeTrue()
+    expect(panel.closest('section')).toBe(section)
+    expect(panel).not.toBe(section?.firstElementChild)
+    expect(toggle.closest('table')).toBeNull()
+    expect(panel.closest('table')).toBeNull()
 }
 
 beforeEach(() => {
@@ -220,12 +300,58 @@ describe('audit log UI', () => {
         })
     })
 
+    test('keeps draft filters when collapsed and resets them from the shared control', async () => {
+        const container = await renderPage([PERMISSIONS.AUDIT_LOGS_VIEW])
+        await waitFor(() => container.textContent?.includes('Alice Admin') === true)
+
+        const filtersButton = getButton(container, 'Filters')
+        const filterPanel = getFilterPanel(container, filtersButton)
+        expectFilterTogglePlacement(filtersButton, filterPanel)
+        expect(filtersButton.getAttribute('aria-expanded')).toBe('false')
+        const actorInput = container.querySelector<HTMLInputElement>(
+            'input[placeholder="UUID of the actor"]',
+        )
+        expect(actorInput).not.toBeNull()
+
+        await click(filtersButton)
+        expect(filtersButton.getAttribute('aria-expanded')).toBe('true')
+        await setInputValue(actorInput!, actorId)
+        await click(filtersButton)
+        expect(filtersButton.getAttribute('aria-expanded')).toBe('false')
+        expect(actorInput?.value).toBe(actorId)
+
+        await click(getButton(container, 'Reset filters'))
+        expect(actorInput?.value).toBe('')
+        expect(getButton(container, 'Filters').getAttribute('aria-label')).toBe('Filters')
+    })
+
+    test('applies selected action and resource values to the server query', async () => {
+        const container = await renderPage([PERMISSIONS.AUDIT_LOGS_VIEW])
+        await waitFor(() => getAuditEventsHandlerMock.mock.calls.length === 1)
+        await waitFor(() => container.textContent?.includes('Alice Admin') === true)
+
+        await click(getButton(container, 'Filters'))
+        await chooseSelectOption(container, 'Action', 'Update')
+        await chooseSelectOption(container, 'Resource', 'Proxy host')
+        await click(getButton(container, 'Apply filters'))
+        await waitFor(() => getAuditEventsHandlerMock.mock.calls.length === 2)
+
+        expect(getAuditEventsHandlerMock.mock.calls[1]?.[0]).toEqual({
+            data: { action: 'update', limit: 100, resource: 'proxy-host' },
+        })
+    })
+
     test('shows safe event details and blocks requests without permission', async () => {
         const container = await renderPage([PERMISSIONS.AUDIT_LOGS_VIEW])
         await waitFor(() => container.textContent?.includes('Alice Admin') === true)
-        await click(container.querySelector<HTMLButtonElement>('button[aria-expanded="false"]')!)
+        await openActionMenu(container)
+        await chooseActionMenuItem('Show event details')
         expect(container.textContent).toContain('Changed fields')
         expect(container.textContent).toContain('upstream')
+
+        await openActionMenu(container)
+        await chooseActionMenuItem('Hide event details')
+        expect(container.textContent).not.toContain('Changed fields')
 
         activeRoot?.unmount()
         activeRoot = null

@@ -53,12 +53,11 @@ afterEach(async () => {
 })
 
 describe('ActionMenu hover behavior', () => {
-    test('opens on mouse hover without moving focus from another control', async () => {
+    test('opens on mouse hover by default without moving focus from another control', async () => {
         await render(
             <>
                 <input aria-label="Search" />
                 <ActionMenu
-                    openOnHover
                     ariaLabel="Open proxy host actions"
                     items={[{ label: 'Edit', onSelect: () => undefined }]}
                 />
@@ -176,9 +175,10 @@ describe('ActionMenu hover behavior', () => {
         expect(document.activeElement === trigger).toBeTrue()
     })
 
-    test('does not add hover opening to menus that did not opt in', async () => {
+    test('supports explicitly disabling hover while preserving pointer opening', async () => {
         await render(
             <ActionMenu
+                openOnHover={false}
                 ariaLabel="Actions"
                 items={[{ label: 'Edit', onSelect: () => undefined }]}
             />,

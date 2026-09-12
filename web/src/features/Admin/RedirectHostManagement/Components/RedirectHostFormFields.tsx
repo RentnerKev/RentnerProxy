@@ -168,13 +168,19 @@ export default function RedirectHostFormFields({
             <form.Field name="statusCode">
                 {(field) => (
                     <div className={uiClassNames.form.field}>
-                        <span className={uiClassNames.form.label}>
+                        <label className={uiClassNames.form.label} htmlFor={`${formId}-statusCode`}>
                             {t('admin.redirectHosts.form.statusCode')}
-                        </span>
+                        </label>
                         <SelectControl
+                            id={`${formId}-statusCode`}
+                            name={field.name}
+                            required
                             ariaLabel={t('admin.redirectHosts.form.statusCode')}
                             className={uiClassNames.form.select}
                             disabled={isPending}
+                            invalid={field.state.meta.errors.length > 0}
+                            describedBy={`${formId}-statusCode-error`}
+                            onBlur={field.handleBlur}
                             value={field.state.value}
                             options={[301, 302, 307, 308].map((code) => ({
                                 value: String(code),
@@ -195,10 +201,15 @@ export default function RedirectHostFormFields({
                 {(field) =>
                     canAssignCertificates ? (
                         <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
-                            <span className={uiClassNames.form.label}>
+                            <label
+                                className={uiClassNames.form.label}
+                                htmlFor={`${formId}-certificateId`}
+                            >
                                 {t('admin.redirectHosts.form.certificate')}
-                            </span>
+                            </label>
                             <SelectControl
+                                id={`${formId}-certificateId`}
+                                name={field.name}
                                 ariaLabel={t('admin.redirectHosts.form.certificate')}
                                 className={uiClassNames.form.select}
                                 disabled={
@@ -206,6 +217,9 @@ export default function RedirectHostFormFields({
                                     assignableCertificatesLoading ||
                                     assignableCertificatesLoadFailed
                                 }
+                                invalid={field.state.meta.errors.length > 0}
+                                describedBy={`${formId}-certificateId-hint ${formId}-certificateId-error`}
+                                onBlur={field.handleBlur}
                                 value={field.state.value ?? ''}
                                 placeholder={t('admin.redirectHosts.form.noCertificate')}
                                 options={assignableCertificates.map((certificate) => ({
@@ -215,7 +229,10 @@ export default function RedirectHostFormFields({
                                 }))}
                                 onValueChange={(value) => field.handleChange(value || null)}
                             />
-                            <p className={uiClassNames.form.hint}>
+                            <p
+                                id={`${formId}-certificateId-hint`}
+                                className={uiClassNames.form.hint}
+                            >
                                 {t('admin.redirectHosts.form.certificateHint')}
                             </p>
                             {assignableCertificatesLoading ? (

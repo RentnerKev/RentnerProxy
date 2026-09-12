@@ -163,10 +163,16 @@ export default function UpstreamTlsFields({
                                         )
                                     return (
                                         <div className={uiClassNames.form.field}>
-                                            <span className={uiClassNames.form.label}>
+                                            <label
+                                                className={uiClassNames.form.label}
+                                                htmlFor={formId + '-trustedCaId'}
+                                            >
                                                 {t('admin.proxyHosts.upstreamTls.trustedCa')}
-                                            </span>
+                                            </label>
                                             <SelectControl
+                                                id={formId + '-trustedCaId'}
+                                                name={field.name}
+                                                required
                                                 ariaLabel={t(
                                                     'admin.proxyHosts.upstreamTls.trustedCa',
                                                 )}
@@ -177,6 +183,14 @@ export default function UpstreamTlsFields({
                                                     trustedCasLoading ||
                                                     trustedCasLoadFailed
                                                 }
+                                                invalid={field.state.meta.errors.length > 0}
+                                                describedBy={
+                                                    formId +
+                                                    '-trustedCaId-hint ' +
+                                                    formId +
+                                                    '-trustedCaId-error'
+                                                }
+                                                onBlur={field.handleBlur}
                                                 options={[
                                                     {
                                                         value: 'system',
@@ -206,7 +220,10 @@ export default function UpstreamTlsFields({
                                                     )
                                                 }
                                             />
-                                            <p className={uiClassNames.form.hint}>
+                                            <p
+                                                id={formId + '-trustedCaId-hint'}
+                                                className={uiClassNames.form.hint}
+                                            >
                                                 {t('admin.proxyHosts.upstreamTls.trustHint')}
                                             </p>
                                             {trustedCasLoadFailed ? (

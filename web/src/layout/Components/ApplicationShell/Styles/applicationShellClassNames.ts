@@ -43,7 +43,7 @@ export const applicationShellClassNames = {
         activeLink: `${navigationLinkClassName} border-brand-500/20 bg-brand-500/12 text-white`,
     },
     topbar: {
-        toggle: 'group grid size-[2.25rem] cursor-pointer place-items-center rounded-full border border-border-strong bg-surface-raised text-muted transition-[border-color,background-color,color] duration-[180ms] hover:border-brand-500 hover:bg-surface-hover hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-brand-500 motion-reduce:transition-none',
+        toggle: 'group grid size-12 cursor-pointer place-items-center rounded-xl border border-border-strong bg-surface-raised text-muted transition-[border-color,background-color,color] duration-[180ms] hover:border-brand-500 hover:bg-surface-hover hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-brand-500 motion-reduce:transition-none',
         theme: 'flex items-center',
     },
     userPanel: {
@@ -56,8 +56,8 @@ export const applicationShellClassNames = {
         actions:
             'grid w-full grid-cols-2 gap-[0.45rem] pr-1 [&>:only-child]:col-span-full shell:flex shell:justify-between',
         accountAction:
-            'inline-flex min-h-[2.35rem] min-w-0 cursor-pointer items-center justify-center gap-[0.45rem] rounded-full border border-white/10 bg-white/[0.04] px-[0.7rem] py-[0.45rem] text-[0.72rem] font-extrabold text-mist-300 no-underline transition-[background-color,color,border-color] duration-150 hover:border-brand-500/35 hover:bg-brand-500/12 hover:text-[#eaffef] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-300 motion-reduce:transition-none [&>svg]:size-4 [&>svg]:shrink-0',
+            'inline-flex h-12 min-w-0 cursor-pointer items-center justify-center gap-[0.45rem] rounded-xl border border-white/10 bg-white/[0.04] px-[0.7rem] py-0 text-sm font-extrabold text-mist-300 no-underline transition-[background-color,color,border-color] duration-150 hover:border-brand-500/35 hover:bg-brand-500/12 hover:text-[#eaffef] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-300 motion-reduce:transition-none [&>svg]:size-4 [&>svg]:shrink-0',
         logoutAction:
-            'inline-flex min-h-[2.35rem] min-w-0 cursor-pointer items-center justify-center gap-[0.45rem] rounded-full border border-red-400/30 bg-red-700/15 px-[0.7rem] py-[0.45rem] text-[0.72rem] font-extrabold text-red-300 transition-[background-color,color,border-color] duration-150 enabled:hover:border-red-300/50 enabled:hover:bg-red-700/25 enabled:hover:text-red-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-[0.55] motion-reduce:transition-none [&>svg]:size-4 [&>svg]:shrink-0',
+            'inline-flex h-12 min-w-0 cursor-pointer items-center justify-center gap-[0.45rem] rounded-xl border border-red-400/30 bg-red-700/15 px-[0.7rem] py-0 text-sm font-extrabold text-red-300 transition-[background-color,color,border-color] duration-150 enabled:hover:border-red-300/50 enabled:hover:bg-red-700/25 enabled:hover:text-red-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-[0.55] motion-reduce:transition-none [&>svg]:size-4 [&>svg]:shrink-0',
     },
 } as const

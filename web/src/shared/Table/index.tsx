@@ -1,6 +1,10 @@
 import type { RowData } from '@tanstack/react-table'
 
-import { uiClassNames } from '../Styles/uiClassNames'
+import TableLayout from './Components/TableLayout'
+import TableFilters from './Components/TableFilters'
+import TableFilterToggle from './Components/TableFilterToggle'
+import useTableFilters from './Hooks/useTableFilters'
+import TableColumnFilters from './Components/TableColumnFilters'
 import TableBody from './Components/TableBody'
 import TableHead from './Components/TableHead'
 import TablePagination from './Components/TablePagination'
@@ -35,33 +39,76 @@ export default function DataTable<TData extends RowData>({
     tableMinWidthClassName = 'min-w-[60rem]',
 }: DataTableProps<TData>) {
     const { searchId, titleId } = useDataTableIds()
+    const filterPanel = useTableFilters(showColumnFilters, onToggleColumnFilters)
 
     return (
-        <section aria-labelledby={titleId} className={uiClassNames.table.panel}>
-            <TableToolbar
-                table={table}
-                titleId={titleId}
-                eyebrow={eyebrow}
-                title={title}
-                description={description}
-                searchInput={searchInput}
-                searchId={searchId}
-                searchLabel={searchLabel}
-                searchPlaceholder={searchPlaceholder}
-                showColumnFilters={showColumnFilters}
-                enableColumnFilters={enableColumnFilters}
-                onSearchChange={onSearchChange}
-                onToggleColumnFilters={onToggleColumnFilters}
-                onResetFilters={onResetFilters}
-                action={action}
-            />
+        <TableLayout
+            titleId={titleId}
+            title={title}
+            eyebrow={eyebrow}
+            description={description}
+            toolbar={
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
+                    <TableToolbar
+                        searchInput={searchInput}
+                        searchId={searchId}
+                        searchLabel={searchLabel}
+                        searchPlaceholder={searchPlaceholder}
+                        onSearchChange={onSearchChange}
+                    />
+                    {action}
+                </div>
+            }
+            filterToggle={
+                enableColumnFilters ? (
+                    <table.Subscribe
+                        source={table.atoms.columnFilters}
+                        selector={(filters) => filters.length}
+                    >
+                        {(count) => (
+                            <TableFilterToggle
+                                contentId={filterPanel.contentId}
+                                expanded={filterPanel.open}
+                                onToggle={filterPanel.toggle}
+                                activeCount={count + (searchInput.trim() ? 1 : 0)}
+                            />
+                        )}
+                    </table.Subscribe>
+                ) : null
+            }
+            filters={
+                enableColumnFilters ? (
+                    <table.Subscribe
+                        source={table.atoms.columnFilters}
+                        selector={(filters) => filters.length}
+                    >
+                        {(count) => (
+                            <TableFilters
+                                contentId={filterPanel.contentId}
+                                expanded={filterPanel.open}
+                                activeCount={count + (searchInput.trim() ? 1 : 0)}
+                                onReset={onResetFilters}
+                            >
+                                <TableColumnFilters
+                                    table={table}
+                                    filterConfigs={columnFilterConfigs}
+                                />
+                            </TableFilters>
+                        )}
+                    </table.Subscribe>
+                ) : null
+            }
+            pagination={
+                <TablePagination
+                    table={table}
+                    itemLabel={itemLabel}
+                    pageSizeOptions={pageSizeOptions}
+                />
+            }
+        >
             <div className="overflow-x-auto">
                 <table className={`w-full border-collapse ${tableMinWidthClassName}`}>
-                    <TableHead
-                        table={table}
-                        showColumnFilters={showColumnFilters}
-                        columnFilterConfigs={columnFilterConfigs}
-                    />
+                    <TableHead table={table} />
                     <TableBody
                         table={table}
                         isLoading={isLoading}
@@ -71,11 +118,6 @@ export default function DataTable<TData extends RowData>({
                     />
                 </table>
             </div>
-            <TablePagination
-                table={table}
-                itemLabel={itemLabel}
-                pageSizeOptions={pageSizeOptions}
-            />
-        </section>
+        </TableLayout>
     )
 }

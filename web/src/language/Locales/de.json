@@ -26,6 +26,7 @@
         "closeDialog": "Dialog schließen",
         "showPassword": "Passwort anzeigen",
         "hidePassword": "Passwort verbergen",
+        "actions": "Aktionen",
         "openActions": "Aktionen öffnen",
         "profilePicture": "Profilbild von {{name}}",
         "backHome": "Zur Startseite"
@@ -1130,7 +1131,10 @@
                 "enabledHint": "Aktivierte Hosts werden in die nächste Proxy-Runtime-Konfiguration aufgenommen.",
                 "statusReadOnly": "Sie haben keine Berechtigung, den gespeicherten Status dieses Redirect-Hosts zu ändern."
             },
-            "status": { "enabled": "Aktiviert", "disabled": "Deaktiviert" },
+            "status": {
+                "enabled": "Aktiviert",
+                "disabled": "Deaktiviert"
+            },
             "statusCodes": {
                 "301": "301 · Dauerhaft",
                 "302": "302 · Gefunden",
@@ -1153,7 +1157,10 @@
                 "createdFrom": "Erstellt ab",
                 "createdTo": "Erstellt bis"
             },
-            "cells": { "https": "HTTPS-Zertifikat", "http": "HTTP" },
+            "cells": {
+                "https": "HTTPS-Zertifikat",
+                "http": "HTTP"
+            },
             "table": {
                 "eyebrow": "Gespeicherte Konfiguration",
                 "count_one": "{{count}} Redirect-Host",
@@ -1782,7 +1789,6 @@
             "disable": "Weiterleitungs-Hosts deaktivieren",
             "apply": "Weiterleitungskonfiguration anwenden"
         },
-
         "certificates": {
             "view": "Zertifikate anzeigen",
             "create": "Zertifikate importieren",
@@ -1791,7 +1797,6 @@
             "issue": "ACME-Zertifikate anfordern",
             "renew": "ACME-Zertifikate erneuern"
         },
-
         "access_policies": {
             "view": "Zugriffsrichtlinien anzeigen",
             "create": "Zugriffsrichtlinien erstellen",
@@ -1800,10 +1805,8 @@
             "assign": "Zugriffsrichtlinien zuweisen",
             "apply": "Zugriffsrichtlinien-Konfiguration anwenden"
         },
-
         "proxy-access-logs:view": "Proxy-Zugriffsprotokolle anzeigen",
         "audit-logs:view": "Audit-Protokoll anzeigen",
-
         "trusted_cas": {
             "view": "Vertrauenswürdige CAs anzeigen",
             "create": "Vertrauenswürdige CAs importieren",
@@ -1870,6 +1873,8 @@
             "fri": "Fr",
             "sat": "Sa",
             "sun": "So"
-        }
+        },
+        "hours": "Stunden",
+        "minutes": "Minuten"
     }
 }

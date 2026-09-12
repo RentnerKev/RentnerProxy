@@ -6,7 +6,7 @@ import {
     createDateRangeFilter,
     createTrimmedIncludesStringFilter,
 } from '../../../../shared/Table/Helpers/tableFilters'
-import type { ClientTableFeatures } from '../../../../shared/Table/Hooks/useClientTableLogic'
+import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { RedirectHostSummary } from '../../../../shared/Types/redirect-hosts.types'
 import RedirectHostTableActions from '../Components/RedirectHostTableActions'
 import {

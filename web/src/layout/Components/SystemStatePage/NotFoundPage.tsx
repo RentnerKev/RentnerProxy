@@ -17,7 +17,7 @@ export default function NotFoundPage() {
         >
             <Link
                 to="/"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-bold text-navy-950 transition-colors hover:bg-brand-400 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400 motion-reduce:transition-none"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 py-0 text-sm font-bold text-navy-950 transition-colors hover:bg-brand-400 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400 motion-reduce:transition-none"
             >
                 {t('common.backHome')}
                 <ArrowRight aria-hidden="true" className="size-4" />

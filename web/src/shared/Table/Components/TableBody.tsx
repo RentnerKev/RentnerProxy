@@ -55,7 +55,7 @@ export default function TableBody<TData extends RowData>({
                                     aria-label={t('table.cell', {
                                         column: cell.column.id,
                                     })}
-                                    className="px-4 py-[0.85rem] align-middle text-[0.78rem] text-ink-soft"
+                                    className={`px-4 py-[0.85rem] align-middle text-[0.78rem] text-ink-soft ${cell.column.id === 'actions' ? 'sticky right-0 bg-surface text-right' : ''}`}
                                 >
                                     <div className="min-w-0">
                                         <table.FlexRender cell={cell} />

@@ -7,7 +7,7 @@ import {
     createDateRangeFilter,
     createTrimmedIncludesStringFilter,
 } from '../../../../shared/Table/Helpers/tableFilters'
-import type { ClientTableFeatures } from '../../../../shared/Table/Hooks/useClientTableLogic'
+import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
 import ProxyHostTableActions from '../Components/ProxyHostTableActions'
 import {

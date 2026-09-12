@@ -1,7 +1,7 @@
 import type { FilterFn, Row, RowData } from '@tanstack/react-table'
 
 import type { TableDateRangeFilterValue, TableFilterOption } from '../Types/table.types'
-import type { ClientTableFeatures } from '../Hooks/useClientTableLogic'
+import type { ClientTableFeatures } from '../clientTable'
 
 function filterTrimmedIncludesString<TData extends RowData>(
     row: Row<ClientTableFeatures, TData>,

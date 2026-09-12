@@ -19,7 +19,7 @@ export default function TrustedCaManagementPageView({
                 title={t('admin.trustedCas.page.title')}
                 description={t('admin.trustedCas.page.description')}
                 action={
-                    state.canCreate ? (
+                    state.isError && state.canCreate ? (
                         <button
                             type="button"
                             className={uiClassNames.button.add}
