@@ -35,7 +35,6 @@ fn accepts_only_v7_and_returns_canonical_hosts() {
 
 #[test]
 fn v7_revision_matches_the_typescript_proxy_known_vector() {
-    // Same fixture and digest as web/src/tests/proxy-runtime.test.ts.
     let hosts = vec![host(
         "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
         &["www.demo.test", "demo.test"],
@@ -77,7 +76,6 @@ fn v7_revision_matches_the_typescript_ip_rules_known_vector() {
 
 #[test]
 fn v7_revision_matches_the_typescript_redirect_known_vector() {
-    // Same deliberately unsorted fixture as web/src/tests/redirect-hosts-runtime.test.ts.
     let hosts = vec![host(
         "018f2f52-7c1b-7cc0-9f3c-6a9952c54019",
         &["proxy.test"],
@@ -343,7 +341,6 @@ fn basic_auth_accounts_require_bounded_sorted_exact_argon2id_phc() {
     };
     assert!(validate_proxy_config(valid.clone()).is_ok());
 
-    // Shared with the TypeScript snapshot property suite.
     assert_eq!(
         valid.revision,
         "sha256:6a76f1e090fa29f7223b382e03c073ee3f1b04fc016273c8de9acea17f71e78c"

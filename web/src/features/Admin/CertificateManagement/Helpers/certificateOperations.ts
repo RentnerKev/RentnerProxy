@@ -56,9 +56,6 @@ export function getCertificateOperationDisplay(
         }
     }
 
-    // Older controllers only exposed the coarse operation flag. Preserve that
-    // signal during a rolling upgrade without inventing a percentage or a
-    // more specific stage than the controller observed.
     if (certificate.operation !== 'idle') {
         return {
             id: null,

@@ -120,7 +120,7 @@ async function saveSettings(
         })
         throw error
     }
-    // The database commit stays durable if the runtime cannot currently apply it.
+
     return reconcileProxyConfigurationWithAudit(actor.id)
 }
 

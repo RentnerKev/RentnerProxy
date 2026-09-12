@@ -18,8 +18,6 @@ const PASSWORD_MAX_LENGTH = 256
 const PASSWORD_MAX_LENGTH_MESSAGE = `Password must contain at most ${PASSWORD_MAX_LENGTH} characters.`
 
 function enforcePasswordCodeUnitLimit(password: string, context: z.RefinementCtx) {
-    // Keep this aligned with the server's String.length limit. Zod 4.5 measures
-    // string constraints in Unicode code points, while String.length is UTF-16.
     if (password.length > PASSWORD_MAX_LENGTH) {
         context.addIssue({
             code: 'too_big',

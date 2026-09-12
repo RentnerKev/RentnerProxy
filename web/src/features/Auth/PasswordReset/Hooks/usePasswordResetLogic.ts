@@ -37,9 +37,7 @@ export default function usePasswordResetLogic() {
 
             try {
                 await mutation.mutateAsync(value)
-            } catch {
-                // The mutation callback reports transport failures.
-            }
+            } catch {}
         },
     })
 

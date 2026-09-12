@@ -24,7 +24,6 @@ function notFound(): Response {
     })
 }
 
-/** Serve only regular files below the immutable packaged client directory. */
 export function createStaticAssetFetch(clientRoot: string, fallback: RuntimeFetch): RuntimeFetch {
     const root = realpathSync(clientRoot)
 

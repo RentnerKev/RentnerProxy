@@ -2,7 +2,6 @@ import { sql } from 'drizzle-orm'
 import { jsonb, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { rentnerProxySchema } from './base'
 
-// Deliberately has no FK: this is an upgrade archive and must survive host deletion.
 export const proxyHostLegacySettings = rentnerProxySchema.table('proxy_host_legacy_settings', {
     id: uuid('id')
         .primaryKey()

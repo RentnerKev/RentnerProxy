@@ -9,7 +9,6 @@ export type AuditActorKind = (typeof AUDIT_ACTOR_KINDS)[number]
 export const AUDIT_RESULTS = ['success', 'failure', 'denied'] as const
 export type AuditResult = (typeof AUDIT_RESULTS)[number]
 
-/** Stable actions shared by user mutations and observed system operations. */
 export const AUDIT_ACTIONS = [
     'login',
     'logout',
@@ -109,7 +108,6 @@ export const AUDIT_CHANGED_FIELDS = [
 ] as const
 export type AuditChangedField = (typeof AUDIT_CHANGED_FIELDS)[number]
 
-/** Values safe to persist in the audit trail. Never pass request or credential data here. */
 export interface AuditMetadata {
     readonly authenticationMethod?: AuditAuthenticationMethod
     readonly reason?: 'authentication_failed'

@@ -1,6 +1,5 @@
 import type { ToastMessage, ToastOptions, ToastTone } from '../Types/toast.types'
 
-// Adapted from RentnerToasts: a bounded stack, owned by a provider rather than an SSR singleton.
 export function createToastStore() {
     const emptySnapshot: ReadonlyArray<ToastMessage> = []
     let toasts = emptySnapshot

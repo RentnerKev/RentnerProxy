@@ -18,7 +18,6 @@ import type { ProxyRuntimeSnapshot } from './Types/proxy-runtime.types'
 import { recordAuditEventBestEffort } from '../Audit/audit.service'
 
 export async function getProxyRuntimeSnapshotService(): Promise<ProxyRuntimeSnapshot> {
-    // Hosts, domains and HTTP settings must come from the same committed snapshot.
     return getAuthDatabase().transaction((transaction) => readProxyRuntimeSnapshot(transaction), {
         isolationLevel: 'repeatable read',
         accessMode: 'read only',
@@ -73,7 +72,6 @@ export async function applyProxyConfigurationService(
     return reconcileProxyConfigurationWithAudit(actor.id)
 }
 
-/** Reconcile is durable and asynchronous: record its actual acknowledgement state separately. */
 export async function reconcileProxyConfigurationWithAudit(
     actorId: string,
 ): Promise<ProxyRuntimeMutationStatus> {

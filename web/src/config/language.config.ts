@@ -28,7 +28,6 @@ export const FLAG_IMAGES: Record<AppLanguage, string> = {
     fr: '/images/flags/fr.svg',
 }
 
-// Shared controls on public routes stay English without loading a locale catalog.
 export const PUBLIC_ENGLISH: Record<string, string> = {
     'toast.notification': 'Notification',
     'toast.viewport': 'Notifications ({hotkey})',

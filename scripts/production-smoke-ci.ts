@@ -38,8 +38,7 @@ type Suite = keyof typeof smokeSuites
 type Result = { status: 'PASS' | 'FAIL'; checks: number; seconds: number }
 
 // Raw child output can contain assertion operands, generated credentials or PEM material.
-// Publish only counts, fixed diagnostic categories and locations in the selected smoke source.
-// Raw output is neither written to disk nor uploaded as an artifact.
+
 export function smokeProgress(suite: Suite) {
     let checks = 0
     let reportedChecks: number | undefined
@@ -104,7 +103,6 @@ export function smokeProgress(suite: Suite) {
 }
 
 function temporaryRoot(scope: string): string {
-    // Only this computed child directory is removed, never RUNNER_TEMP itself.
     return resolve(process.env.RUNNER_TEMP ?? tmpdir(), 'rentnerproxy-smokes-' + scope)
 }
 
@@ -208,9 +206,7 @@ async function cleanup(scope: string, root: string): Promise<void> {
             ) {
                 result = value as Result
             }
-        } catch {
-            // A skipped or cancelled step may not have written a result.
-        }
+        } catch {}
         rows.push(
             '| ' +
                 smokeSuites[suite].label +
@@ -225,8 +221,7 @@ async function cleanup(scope: string, root: string): Promise<void> {
     }
     const filter = 'label=' + SMOKE_RUN_LABEL + '=' + scope
     let failed = false
-    // Remove containers before their persistent state and networks. Every query has the exact
-    // run/attempt label, including temporary OpenSSL and Compose restore helper containers.
+
     for (const [list, remove] of [
         [
             ['container', 'ls', '--all', '--quiet'],

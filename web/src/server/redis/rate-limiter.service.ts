@@ -168,7 +168,6 @@ export function createRateLimitKey(scope: string, identifier: string): string {
     return `${RATE_LIMIT_KEY_PREFIX}:${scope}:${hashRateLimitIdentifier(identifier)}`
 }
 
-// Database user IDs are non-secret UUIDs, not credentials or password hashes.
 export function createUserRateLimitKey(scope: string, userId: string): string {
     const normalizedUserId = userId.trim().toLowerCase()
     const parsedUserId = USER_ID_SCHEMA.safeParse(normalizedUserId)
@@ -271,9 +270,6 @@ export async function consumeRateLimit(
 }
 
 export function getClientIp(request: Request): string {
-    // A web Request has no peer socket address. Forwarded headers remain untrusted until the
-    // deployment defines a trusted-proxy boundary, so forged X-Forwarded-For/X-Real-IP values
-    // are intentionally ignored.
     void request
     return UNKNOWN_CLIENT_IP
 }
@@ -296,10 +292,7 @@ function resolveRateLimitClientIp(
         if (isIP(resolvedClientIp)) {
             clientIp = resolvedClientIp
         }
-    } catch {
-        // A missing peer address must not bypass the account limit or make forwarded headers
-        // implicitly trusted. The shared unknown-IP bucket is the conservative fallback.
-    }
+    } catch {}
 
     return clientIp
 }

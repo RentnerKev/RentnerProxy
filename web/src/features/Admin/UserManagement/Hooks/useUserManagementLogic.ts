@@ -126,9 +126,7 @@ export default function useUserManagementLogic({
 
         try {
             await disableMutation.mutateAsync(disableTarget)
-        } catch {
-            // The mutation callback reports transport failures while keeping the dialog open.
-        }
+        } catch {}
     }, [disableMutation, disableTarget])
     const enableUser = useCallback(
         (user: UserSummary) => enableMutation.mutate(user),

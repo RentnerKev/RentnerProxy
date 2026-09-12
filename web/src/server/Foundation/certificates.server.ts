@@ -72,8 +72,7 @@ const certificateMetadataSchema = z
         dnsCleanupPending: z.boolean().optional(),
         lastErrorCode: z.enum(CERTIFICATE_ERROR_CODES).nullable(),
         updatedAt: timestamp,
-        // These fields were added after the original controller contract. Keep
-        // them optional so a rolling upgrade can still read older controllers.
+
         nextAttemptAt: timestamp.nullable().optional(),
         attemptCount: z.number().int().nonnegative().optional(),
         lastAttemptAt: timestamp.nullable().optional(),

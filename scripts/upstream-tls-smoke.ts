@@ -90,9 +90,7 @@ async function waitFor(
     while (Date.now() < deadline) {
         try {
             if (await check()) return
-        } catch {
-            // Docker containers and the controller may still be starting.
-        }
+        } catch {}
         await Bun.sleep(250)
     }
     throw new Error('Timed out waiting for ' + label)
@@ -360,9 +358,7 @@ async function controllerJson(path: string, init: RequestInit = {}): Promise<Jso
     let parsed: JsonObject = {}
     try {
         parsed = JSON.parse(body) as JsonObject
-    } catch {
-        // Assertions use the status when an endpoint returns no JSON.
-    }
+    } catch {}
     return { httpStatus: response.status, ...parsed }
 }
 

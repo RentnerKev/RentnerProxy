@@ -166,8 +166,6 @@ export async function consumePasswordResetService(input: {
                     return { success: false as const, code: 'invalid_or_expired_token' as const }
                 }
 
-                // Argon2 is intentionally deferred until the capability has been validated and locked.
-                // Invalid public tokens must not be able to trigger expensive password hashing work.
                 const passwordHash = await hashPassword(input.password)
 
                 const consumedTokens = await transaction

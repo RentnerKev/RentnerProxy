@@ -100,9 +100,7 @@ async function waitFor(
     while (Date.now() < deadline) {
         try {
             if (await check()) return
-        } catch {
-            // A container or an asynchronous ACME operation may not be ready yet.
-        }
+        } catch {}
         await Bun.sleep(250)
     }
     throw new Error('Timed out waiting for ' + label)
@@ -313,7 +311,7 @@ async function runSmoke(): Promise<void> {
 
     try {
         await command(['docker', 'version', '--format', '{{.Server.Version}}'])
-        // Local fixture CAs have no revocation endpoints; keep chain and hostname verification.
+
         const curlVersion = await command(['curl', '--version'])
         if (curlVersion.includes('Schannel')) {
             curlTestCaArgs = ['--ssl-revoke-best-effort']
@@ -370,7 +368,6 @@ async function runSmoke(): Promise<void> {
         await command(['docker', 'volume', 'create', stateVolume])
         dnsFixture = await startCertificateDnsFixture(dnsToken)
 
-        // Extract Pebble's official endpoint CA from the pinned image; it is never committed.
         certSource = project + '-cert-source'
         await command(['docker', 'create', '--name', certSource, pebbleImage])
         await command(['docker', 'cp', certSource + ':/test/certs/pebble.minica.pem', minicaPath])
@@ -604,7 +601,7 @@ async function runSmoke(): Promise<void> {
         }
         async function restartRuntime(): Promise<void> {
             await command(['docker', 'restart', runtimeContainer], { timeoutMs: 60_000 })
-            // Docker may allocate a different address after the network fault/restart tests.
+
             await refreshRuntimeDns()
             await waitForRuntimeReady()
         }
@@ -617,8 +614,6 @@ async function runSmoke(): Promise<void> {
             }, 'Caddy runtime ready after restart')
         }
         async function expireRetryFixture(certificateId: string): Promise<void> {
-            // Advance only this disposable fixture's persisted retry deadline while stopped.
-            // Production has no retry bypass or clock override endpoint.
             await command(['docker', 'stop', runtimeContainer], { timeoutMs: 60_000 })
             const indexPath = '/var/lib/rentnerproxy/proxy/certificates/certificate-metadata.json'
             const fixturePath = resolve(temp, 'retry-index.json')
@@ -1182,7 +1177,7 @@ async function runSmoke(): Promise<void> {
             'redirect.test:' + httpsPort + ':127.0.0.1',
             'https://redirect.test:' + httpsPort + '/real/path?query=a%2Fb',
         ])
-        // Linux curl negotiates HTTP/2 for HTTPS; both protocols must preserve the status.
+
         assert.match(redirectOverHttps, /^HTTP\/(?:1\.1|2) 308(?:\s|$)/u)
         assert.match(
             redirectOverHttps,
@@ -1229,7 +1224,7 @@ async function runSmoke(): Promise<void> {
         ).catch(() => '')
         assert.match(servedOne, /BEGIN CERTIFICATE/u)
         assert.match(servedTwo, /BEGIN CERTIFICATE/u)
-        // The actual SNI certificate is checked by extracting each first PEM block.
+
         const servedOnePem = servedOne.match(
             /-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/u,
         )?.[0]
@@ -1885,10 +1880,6 @@ async function runSmoke(): Promise<void> {
         )
         passed('controller restart preserves account, metadata and live HTTPS configuration')
 
-        // Remove only Caddy's admin socket to force the real activation path to
-        // fail after the CA response has been persisted.  The controller can
-        // still finish the ACME order, and Caddy's verified old configuration
-        // must remain the served certificate while the candidate is retried.
         const adminSocketPath = '/var/lib/rentnerproxy/proxy/caddy-admin.sock'
         await command(['docker', 'exec', runtimeContainer, 'test', '-S', adminSocketPath])
         await command(['docker', 'exec', runtimeContainer, 'rm', '--', adminSocketPath])
@@ -1926,9 +1917,6 @@ async function runSmoke(): Promise<void> {
             'Caddy apply failure keeps the old served certificate while the issued candidate is durable',
         )
 
-        // Keep Pebble offline before restarting so startup recovery cannot
-        // accidentally begin a fresh ACME order before the explicit candidate
-        // retry below.
         await command(['docker', 'network', 'disconnect', network, pebbleContainer], {
             timeoutMs: 30_000,
         })
@@ -2160,8 +2148,7 @@ async function runSmoke(): Promise<void> {
         assert.ok(dnsFixture.records.length > 0)
         await checkWildcardTraffic()
         dnsFixture.failCleanup = false
-        // Take Pebble offline before restart.  DNS cleanup and activation must
-        // recover from the persisted state without requesting another order.
+
         await command(['docker', 'network', 'disconnect', network, pebbleContainer], {
             timeoutMs: 30_000,
         })

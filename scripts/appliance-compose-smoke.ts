@@ -12,8 +12,6 @@ import { fileURLToPath } from 'node:url'
 import { restoreSmokeDiagnostic, smokeCompose, smokeDockerArguments } from './smoke-resources'
 import { verifyAlpha1Upgrade } from './alpha1-upgrade-smoke'
 
-// This smoke deliberately uses a separate env file. Compose otherwise auto-loads the
-// repository .env, which may contain real SMTP credentials on a developer machine.
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const rootComposeFile = join(repositoryRoot, 'docker-compose.yml')
 const productionDockerfile = join(repositoryRoot, 'docker', 'production', 'Dockerfile')
@@ -136,9 +134,7 @@ async function waitFor(
     while (Date.now() < deadline) {
         try {
             if (await check()) return
-        } catch {
-            // The container may be between creation, start, and health transitions.
-        }
+        } catch {}
         await Bun.sleep(500)
     }
     throw new Error('timed out waiting for ' + label)
@@ -252,8 +248,7 @@ async function runSmoke(): Promise<void> {
     const temporaryComposeFile = join(temporaryRoot, 'docker-compose.yml')
     const imageTag = 'rentnerproxy-appliance-smoke:' + runId
     const volumeName = project + '-data'
-    // PostgreSQL's base image declares this unused volume in addition to our real PGDATA.
-    // Give it an owned name so Compose recreation/restore cannot orphan anonymous volumes.
+
     const inheritedVolumeName = project + '-postgres-base'
     const [httpPort, managementPort, httpsPort] = await Promise.all([
         availableLoopbackPort(),
@@ -386,7 +381,7 @@ async function runSmoke(): Promise<void> {
         passed('empty appliance volume builds and starts healthy')
         assert.equal(
             await command(['docker', 'exec', id, 'sha256sum', '/usr/share/licenses/caddy/LICENSE']),
-            // Git may check this file out with LF or CRLF. The image must contain those exact bytes.
+
             digest(await readFile(join(repositoryRoot, 'docker', 'licenses', 'Caddy-LICENSE'))) +
                 '  /usr/share/licenses/caddy/LICENSE',
         )
@@ -592,8 +587,7 @@ async function runSmoke(): Promise<void> {
         const proxy = await httpStatus('http://127.0.0.1:' + httpPort + '/')
         assert.ok(proxy.status >= 200 && proxy.status < 500)
         passed('setup, liveness, readiness, and proxy HTTP endpoints respond')
-        // Send headers only: Bun rejects the declared size before receiving a large body.
-        // Fetch can surface a socket error if it is still uploading when that rejection closes it.
+
         const oversizedStatus = await new Promise<number | undefined>((resolveStatus, reject) => {
             const request = httpRequest(
                 'http://127.0.0.1:' + managementPort + '/health/live',
@@ -745,9 +739,6 @@ async function runSmoke(): Promise<void> {
         assert.equal(restoredMarker, marker)
         passed('container recreation preserves generated secrets, volume state, and database state')
 
-        // Exercise the appliance path with a real managed certificate and a real host backend.
-        // The backend is deliberately outside the appliance, while host.docker.internal keeps
-        // this smoke isolated from any developer service running on the machine.
         const backendPort = await availableLoopbackPort()
         const trafficMarker = 'appliance-real-traffic-' + runId
         backend = Bun.serve({

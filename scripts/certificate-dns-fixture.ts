@@ -9,7 +9,6 @@ interface TxtRecord {
     readonly comment?: string
 }
 
-/** Minimal authoritative responder for the isolated certificate smoke, never production DNS. */
 export function dnsFixtureResponse(
     query: Buffer,
     records: readonly TxtRecord[],
@@ -80,8 +79,7 @@ export async function startCertificateDnsFixture(apiToken: string) {
             resolve()
         })
     })
-    // Pebble uses DNS over TCP even for small ACME validation queries.
-    // TCP frames carry a two-byte length and may be split or coalesced by the transport.
+
     const connections = new Set<Socket>()
     const tcp = createServer((socket) => {
         connections.add(socket)

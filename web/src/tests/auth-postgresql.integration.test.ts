@@ -301,7 +301,7 @@ async function runWithSessionToken<T>(token: string, operation: () => Promise<T>
     })
 
     const request = new Request('http://localhost/')
-    // DOM test Requests strip Cookie during construction; this models an incoming server request.
+
     request.headers.set('cookie', `${SESSION_COOKIE_NAME}=${token}`)
     await handler(request, {})
 

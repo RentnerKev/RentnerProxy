@@ -77,7 +77,7 @@ test('supports date keyboard navigation and Escape', async () => {
     await key(selected, 'ArrowRight')
     expect(document.activeElement?.getAttribute('data-calendar-date')).toBe('2026-09-13')
     await key(document.activeElement as HTMLElement, 'Enter')
-    // Native keyboard activation is supplied by browsers; the DOM fixture verifies focus movement.
+
     await key(document.activeElement as HTMLElement, 'Escape')
     expect(document.querySelector('[role="dialog"]')).toBeNull()
 })

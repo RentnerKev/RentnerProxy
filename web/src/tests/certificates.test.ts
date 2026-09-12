@@ -226,8 +226,6 @@ describe('certificate validation and status', () => {
         expect(getCertificateStatus('pending', null, null)).toBe('pending')
         expect(getCertificateStatus('failed', start, end)).toBe('failed')
 
-        // Renewal status follows two thirds of the actual lifetime. A fixed
-        // 30-day cap would incorrectly keep this one-year certificate valid.
         const longEnd = new Date('2027-01-01T00:00:00Z')
         expect(
             getCertificateStatus('valid', start, longEnd, Date.parse('2026-08-31T00:00:00Z')),

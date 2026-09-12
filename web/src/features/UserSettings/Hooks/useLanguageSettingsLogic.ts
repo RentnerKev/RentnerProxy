@@ -20,7 +20,6 @@ export default function useLanguageSettingsLogic() {
     const isDirty = selectedLanguage !== language
     const mutation = useMutation({
         mutationFn: async (nextLanguage: AppLanguage) => {
-            // Keep the persisted preference and visible language unchanged if loading fails.
             const resources = await loadLanguageBootstrap(nextLanguage).catch(() => {
                 throw new Error('language.loadFailed')
             })

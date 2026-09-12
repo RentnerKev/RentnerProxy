@@ -930,8 +930,6 @@ export function assertWorkflowRunPullRequest(
     pullRequests: readonly WorkflowRunPullRequest[],
     expected: ExpectedPullRequest,
 ): void {
-    // GitHub may omit this association for runs from fork pull requests. The independent
-    // base..head ancestry check still prevents old head checks from crossing a base update.
     if (pullRequests.length === 0) return
     const matches = pullRequests.filter(
         (pullRequest) =>
@@ -1079,8 +1077,7 @@ async function verifyGate(
             if (checkEvaluation.state === 'success') {
                 // eslint-disable-next-line no-await-in-loop -- provenance is checked only after every required check succeeds
                 await verifyRequiredCheckProvenance(api, requiredChecks, checkRuns, expected)
-                // Re-read lifecycle after the checks and provenance have passed. A merge can
-                // close the PR while this gate is still running.
+
                 // eslint-disable-next-line no-await-in-loop -- the lifecycle must be current before returning a successful gate
                 const currentPullRequest = await fetchPullRequest(api, expected.number)
                 const currentEvaluation = evaluatePullRequest(currentPullRequest, expected)

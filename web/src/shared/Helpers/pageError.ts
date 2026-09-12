@@ -60,7 +60,7 @@ function reportedError(error: unknown) {
 function classifyPageError(error: unknown): PageErrorCode {
     let cause = error
     let fallback: PageErrorCode = 'UNEXPECTED'
-    // Drizzle wraps the driver's SQLSTATE in cause. Bound traversal also handles cycles safely.
+
     for (let depth = 0; depth < 8 && isRecord(cause); depth += 1) {
         for (const value of [
             cause.errno,
@@ -125,7 +125,6 @@ export function getPageErrorDetails(error: unknown) {
     }
 }
 
-// TanStack serializes Error.message, not custom properties. Never include the original message/cause.
 export function createPageError(error: unknown): Error {
     const existing = reportedError(error)
     const code = existing?.code ?? classifyPageError(error)

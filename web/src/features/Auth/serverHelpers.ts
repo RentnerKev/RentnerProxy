@@ -48,7 +48,7 @@ function getPageErrorLogDetails(error: unknown) {
                 driverCodes.add(value)
             }
         }
-        // Keep only project-relative call sites, never error messages, SQL, parameters, or URLs.
+
         const frames = typeof cause.stack === 'string' ? cause.stack.split('\n').slice(-16) : []
         for (const frame of frames) {
             const match =

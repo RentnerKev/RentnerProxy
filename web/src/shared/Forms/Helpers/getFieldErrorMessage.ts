@@ -50,7 +50,6 @@ function localizeValidationIssue(t: Translate, issue: ValidationIssue): string {
     return t('validation.invalidValue')
 }
 
-// Store structured errors so already-visible validation messages follow language changes.
 export function getValidationIssue(schema: z.ZodType, value: unknown, field?: string) {
     const result = schema.safeParse(value)
     const issue = result.success ? undefined : result.error.issues[0]

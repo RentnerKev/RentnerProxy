@@ -393,7 +393,7 @@ export async function updateProxyHostService(
             }
 
             await assertDomainsAvailableInTransaction(transaction, domains, proxyHost.id)
-            // Omitted fields preserve an existing assignment for older clients and ordinary edits.
+
             const certificateId =
                 parsedInput.certificateId === undefined
                     ? proxyHost.certificateId

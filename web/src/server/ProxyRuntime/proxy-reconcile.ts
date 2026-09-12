@@ -33,8 +33,6 @@ export interface ProxyReconciler {
     readonly checkDrift: () => Promise<void>
 }
 
-// The caller deadline applies to the acknowledgement promise only. The worker owns the
-// underlying request, so an expired admin request cannot abandon an in-flight controller apply.
 export function createProxyReconciler(
     dependencies: ReconcileDependencies,
     timeoutMs = PROXY_RECONCILE_TIMEOUT_MS,
@@ -100,8 +98,6 @@ export function createProxyReconciler(
 
             const target = requested
             try {
-                // PostgreSQL is authoritative: read immediately before every apply and again
-                // after it, so concurrent mutations coalesce into the newest committed state.
                 const snapshot = await dependencies.loadSnapshot()
                 if (stopped) break
                 const applied = await dependencies.applySnapshot(
@@ -120,11 +116,9 @@ export function createProxyReconciler(
                 resolveCompleted()
             } catch {
                 if (stopped) break
-                // The committed change is already durable; report pending promptly while the
-                // owned worker continues retrying independently of the admin request.
+
                 resolvePending()
-                // Keep retrying with bounded backoff until the durable desired snapshot applies.
-                // Logs contain no database URLs, tokens, response bodies, or engine output.
+
                 console.warn('[proxy-runtime] reconcile unavailable')
                 await waitForWakeOrDelay(retryDelay)
                 if (stopped) break

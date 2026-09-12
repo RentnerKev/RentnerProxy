@@ -13,7 +13,6 @@ import {
     type Alpha1UpgradeFixture,
 } from './alpha1-upgrade-fixture'
 
-// Published Alpha 1, verified against the release's OCI version and source revision.
 export const ALPHA1_IMAGE =
     'ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.1@sha256:f88edb70a80db7c527e1a963e835593f6998ab4541f810e26cf75ffa63da0d3f'
 const ALPHA1_REVISION = 'a147176c6096935dc5d9824f671b5f21d89b636b'

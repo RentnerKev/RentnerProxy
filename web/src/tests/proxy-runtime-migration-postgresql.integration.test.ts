@@ -102,7 +102,6 @@ describe('Caddy runtime migration on PostgreSQL', () => {
                 },
             }
 
-            // Reconstruct the two changed schema objects inside a rollback-only transaction, then
             // execute the exact generated upgrade SQL against representative pre-upgrade rows.
             await expect(
                 getAuthDatabase().transaction(async (transaction) => {
@@ -136,8 +135,7 @@ describe('Caddy runtime migration on PostgreSQL', () => {
                             target: systemSettings.key,
                             set: { value: sql`EXCLUDED.value` },
                         })
-                    // Old Bun/Drizzle versions can store a JSON string inside JSONB. Also seed a
-                    // native object so the actual upgrade covers both persisted representations.
+
                     await transaction.execute(sql`
                 INSERT INTO rentnerproxy.system_settings (key, value)
                 VALUES (${whitespaceHostKey}, jsonb_build_object('version', 1, 'httpSettings',

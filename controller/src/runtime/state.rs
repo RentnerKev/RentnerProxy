@@ -1,16 +1,17 @@
+mod paths;
+use paths::{
+    canonical_absolute_entry, create_missing_state_directory, create_private_directory,
+    ensure_direct_child, ensure_regular_file_metadata, invalid_state_path, is_link,
+    remove_tree_without_links, resolve_existing_path, temporary_component,
+};
 use std::{
-    fs::{self, File, Metadata, OpenOptions},
+    fs::{self, File, OpenOptions},
     io::{ErrorKind, Read, Write},
     path::{Component, Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 pub(super) const LAST_APPLY_FILE: &str = "last-apply-at";
 
-/// A canonical directory whose children are addressed by one checked component.
-///
-/// The directory and its ancestors must be controlled by trusted local accounts.
-/// Component and canonical-path checks keep request data within that directory.
 #[derive(Clone, Debug)]
 pub(super) struct SafeDir {
     path: PathBuf,
@@ -76,8 +77,6 @@ impl SafeDir {
                 Ok(Self { path })
             }
             Err(error) if error.kind() == ErrorKind::NotFound => {
-                // `candidate` is made solely from a canonical SafeDir and one validated
-                // component, so this creation sink cannot escape the state root.
                 create_private_directory(&candidate)?;
                 let path = candidate.canonicalize()?;
                 ensure_direct_child(&self.path, &path)?;
@@ -159,8 +158,7 @@ impl SafeDir {
         let temporary_name = temporary_component(component)?;
         let temporary = self.child(&temporary_name)?;
         let mut options = OpenOptions::new();
-        // `temporary` is an internal, one-component name. create_new prevents truncation of a
-        // planted file and the randomized name prevents collision with a known temporary path.
+
         options.create_new(true).write(true);
         #[cfg(unix)]
         {
@@ -224,7 +222,6 @@ impl SafeDir {
     }
 
     fn child(&self, component: &str) -> std::io::Result<PathBuf> {
-        // Revalidate the retained directory before each sink in case it was replaced.
         if resolve_existing_path(&self.path)? != self.path {
             return Err(invalid_state_path());
         }
@@ -331,195 +328,4 @@ pub(super) fn validate_component(component: &str) -> std::io::Result<()> {
         return Err(invalid_state_path());
     }
     Ok(())
-}
-
-fn canonical_absolute_entry(path: &Path) -> std::io::Result<PathBuf> {
-    validate_path(path)?;
-    if !path.is_absolute() {
-        return Err(invalid_state_path());
-    }
-    #[cfg(unix)]
-    let requested = path;
-    let parent = path
-        .parent()
-        .ok_or_else(invalid_state_path)?
-        .canonicalize()?;
-    let path = path.canonicalize()?;
-    ensure_direct_child(&parent, &path)?;
-    #[cfg(unix)]
-    if path != requested {
-        return Err(invalid_state_path());
-    }
-    Ok(path)
-}
-
-fn resolve_existing_path(path: &Path) -> std::io::Result<PathBuf> {
-    validate_path(path)?;
-    if !path.is_absolute() {
-        return Err(invalid_state_path());
-    }
-    let canonical = path.canonicalize()?;
-    #[cfg(unix)]
-    if canonical != path {
-        return Err(invalid_state_path());
-    }
-    Ok(canonical)
-}
-
-fn validate_path(path: &Path) -> std::io::Result<()> {
-    let value = path.to_string_lossy();
-    if value.is_empty() || value.contains("..") || value.contains('\0') {
-        return Err(invalid_state_path());
-    }
-    // Windows canonicalization resolves junctions; inspect the requested components first.
-    #[cfg(windows)]
-    for ancestor in path.ancestors() {
-        match fs::symlink_metadata(ancestor) {
-            Ok(metadata) if is_link(&metadata) => return Err(invalid_state_path()),
-            Ok(_) => {}
-            Err(error) if error.kind() == ErrorKind::NotFound => {}
-            Err(error) => return Err(error),
-        }
-    }
-    Ok(())
-}
-
-fn create_missing_state_directory(path: &Path) -> std::io::Result<PathBuf> {
-    validate_path(path)?;
-    if !path.is_absolute() {
-        return Err(invalid_state_path());
-    }
-    let mut missing = Vec::<String>::new();
-    let mut ancestor = path;
-    let root = loop {
-        match ancestor.canonicalize() {
-            Ok(root) => break root,
-            Err(error) if error.kind() == ErrorKind::NotFound => {
-                let component = ancestor
-                    .file_name()
-                    .and_then(|value| value.to_str())
-                    .ok_or_else(invalid_state_path)?;
-                validate_component(component)?;
-                missing.push(component.to_owned());
-                ancestor = ancestor.parent().ok_or_else(invalid_state_path)?;
-            }
-            Err(error) => return Err(error),
-        }
-    };
-    let mut parent = root;
-    let metadata = fs::symlink_metadata(&parent)?;
-    if is_link(&metadata) || !metadata.file_type().is_dir() {
-        return Err(invalid_state_path());
-    }
-    for component in missing.iter().rev() {
-        let candidate = parent.join(component);
-        create_private_directory(&candidate)?;
-        let child = candidate.canonicalize()?;
-        ensure_direct_child(&parent, &child)?;
-        let metadata = fs::symlink_metadata(&child)?;
-        if is_link(&metadata) || !metadata.file_type().is_dir() {
-            return Err(invalid_state_path());
-        }
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&child, fs::Permissions::from_mode(0o700))?;
-        }
-        parent = child;
-    }
-    Ok(parent)
-}
-
-fn create_private_directory(path: &Path) -> std::io::Result<()> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::DirBuilderExt;
-        match fs::DirBuilder::new().mode(0o700).create(path) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == ErrorKind::AlreadyExists => Ok(()),
-            Err(error) => Err(error),
-        }
-    }
-    #[cfg(not(unix))]
-    match fs::create_dir(path) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == ErrorKind::AlreadyExists => Ok(()),
-        Err(error) => Err(error),
-    }
-}
-
-fn ensure_direct_child(parent: &Path, path: &Path) -> std::io::Result<()> {
-    if !path.starts_with(parent) || path.parent() != Some(parent) {
-        return Err(invalid_state_path());
-    }
-    Ok(())
-}
-
-fn ensure_regular_file_metadata(metadata: &Metadata) -> std::io::Result<()> {
-    if is_link(metadata) || !metadata.file_type().is_file() {
-        return Err(invalid_state_path());
-    }
-    Ok(())
-}
-
-fn remove_tree_without_links(parent: &Path, path: &Path) -> std::io::Result<()> {
-    let path = path.canonicalize()?;
-    ensure_direct_child(parent, &path)?;
-    let metadata = fs::symlink_metadata(&path)?;
-    if is_link(&metadata) {
-        return Err(invalid_state_path());
-    }
-    if metadata.file_type().is_file() {
-        return fs::remove_file(&path);
-    }
-    if !metadata.file_type().is_dir() {
-        return Err(invalid_state_path());
-    }
-    for entry in fs::read_dir(&path)? {
-        let entry = entry?;
-        let name = entry
-            .file_name()
-            .to_str()
-            .ok_or_else(invalid_state_path)?
-            .to_owned();
-        validate_component(&name)?;
-        let requested = path.join(&name);
-        let child = requested.canonicalize()?;
-        #[cfg(unix)]
-        if child != requested {
-            return Err(invalid_state_path());
-        }
-        remove_tree_without_links(&path, &child)?;
-    }
-    fs::remove_dir(path)
-}
-
-fn temporary_component(component: &str) -> std::io::Result<String> {
-    validate_component(component)?;
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(std::io::Error::other)?
-        .as_nanos();
-    let temporary = format!(".{component}.{}.{}.tmp", std::process::id(), nanos);
-    validate_component(&temporary)?;
-    Ok(temporary)
-}
-
-fn is_link(metadata: &Metadata) -> bool {
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        metadata.file_attributes() & 0x0000_0400 != 0
-    }
-    #[cfg(not(windows))]
-    {
-        metadata.file_type().is_symlink()
-    }
-}
-
-fn invalid_state_path() -> std::io::Error {
-    std::io::Error::new(
-        ErrorKind::InvalidInput,
-        "runtime state path is not a regular entry in its state directory",
-    )
 }

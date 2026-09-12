@@ -274,7 +274,6 @@ async function asUser<T>(userId: string, operation: () => Promise<T>): Promise<T
 }
 
 function importInput() {
-    // Only this DB/transport double uses sentinels; Rust and the real smoke validate real PEM.
     return {
         name: PREFIX + randomUUID(),
         certificatePem: 'fixture-certificate',

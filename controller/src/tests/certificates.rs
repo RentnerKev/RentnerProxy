@@ -32,8 +32,6 @@ async fn retry_attempt_history_continues_after_backoff_has_reached_its_cap() {
     store.finish_failed(id, CertificateError::AcmeFailed).await;
     drop(store);
 
-    // Resume a long-running failure history with its deadline already elapsed.
-    // The delay is capped, but the observable attempt counter must keep growing.
     let path = state_dir.join("certificates/certificate-metadata.json");
     let mut index: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
@@ -248,8 +246,6 @@ async fn candidate_sidecar_recovers_when_pending_index_entry_is_missing() {
 
 #[tokio::test]
 async fn stale_promoted_candidate_sidecar_is_removed_before_manual_replacement() {
-    // A live store must also remove a completed candidate sidecar before a
-    // manual replacement changes the active pointer.
     let live_state_dir = test_state_dir();
     let live_id = "0198d98a-0000-7000-8000-000000000017";
     let (live_store, _, _) = active_acme_store(live_state_dir.clone(), live_id).await;
@@ -311,7 +307,6 @@ async fn stale_promoted_candidate_sidecar_is_removed_before_manual_replacement()
         .expect("candidate should promote");
     assert!(store.get(id).await.unwrap().candidate.is_none());
 
-    // Simulate a crash after the active index commit and before sidecar removal.
     std::fs::write(&manifest_path, stale_manifest).expect("stale sidecar should be restorable");
     drop(store);
 
@@ -806,8 +801,6 @@ async fn certificate_index_limits_preserve_persisted_and_in_memory_metadata() {
             let domain = format!("{label}.{label}.{label}.{}.test", "b".repeat(55));
             template["domains"] = serde_json::json!(vec![domain; 100]);
         } else if let Some(template) = template.as_object_mut() {
-            // Keep the count-limit fixture representative of an older index. These terminal
-            // fields were added later and are optional during rolling upgrades.
             template.remove("currentOperation");
             template.remove("lastActivatedAt");
         }
@@ -1172,8 +1165,6 @@ async fn acme_account_retry_deadline_blocks_environment_across_certificates_and_
         Err(CertificateError::OperationInProgress)
     );
 
-    // An index written by an older version has no account cooldown field;
-    // deserialization must default it to an empty map.
     let index_path = state_dir.join("certificates/certificate-metadata.json");
     let mut old_index: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&index_path).unwrap()).unwrap();

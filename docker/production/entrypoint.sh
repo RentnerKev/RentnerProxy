@@ -109,8 +109,6 @@ initialize_layout() {
 initialize_secrets() {
     RENTNERPROXY_DATABASE_HOST=127.0.0.1 bun "$app_directory/docker/web/bootstrap-secrets.mjs"
 
-    # Bootstrap creates the common directory as root:0700.  Each service needs
-    # traversal only to its own 0700 directory, never directory listing access.
     chmod 0711 /run/rentnerproxy
     chown rentnerproxy-web:rentnerproxy-web "$(dirname "$app_key_file")" \
         "$(dirname "$database_url_file")"
@@ -118,8 +116,6 @@ initialize_secrets() {
         "$(dirname "$database_url_file")"
     chown rentnerproxy-web:rentnerproxy-web "$app_key_file" "$database_url_file"
     chmod 0400 "$app_key_file" "$database_url_file"
-    # DNS credentials use the application key, with a private runtime copy for
-    # the controller. The database URL remains accessible only to the web UID.
     install -d -m 0700 -o rentnerproxy -g rentnerproxy "$(dirname "$controller_app_key_file")"
     install -m 0400 -o rentnerproxy -g rentnerproxy "$app_key_file" "$controller_app_key_file"
     chown rentnerproxy:rentnerproxy-web "$(dirname "$controller_token_file")"
@@ -153,8 +149,6 @@ initialize_postgres_data_directory() {
 }
 
 ensure_application_database() {
-    # Older clusters used the application role as their only bootstrap superuser. Do not
-    # demote their only administrator or silently recreate persistent data.
     if ! gosu postgres psql --no-psqlrc --no-password \
         --host=/var/run/postgresql \
         --username=postgres \
@@ -164,8 +158,6 @@ ensure_application_database() {
         fatal 'PostgreSQL needs an independent postgres bootstrap role; migrate the existing cluster before restarting'
     fi
 
-    # The password is inherited only by this child process, never passed as an argument.
-    # psql quotes it as an SQL literal; suppress statement logging around credential changes.
     if ! RENTNERPROXY_DATABASE_PASSWORD=$(<"$postgres_password_file") \
         gosu postgres psql --no-psqlrc --no-password --quiet \
         --host=/var/run/postgresql \

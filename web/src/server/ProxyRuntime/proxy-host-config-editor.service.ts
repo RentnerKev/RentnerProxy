@@ -47,7 +47,7 @@ async function readHostEditorState(transaction: AuthTransaction, proxyHostId: st
         httpSettings,
         trustedCas,
     )
-    // Another host's edit must not invalidate this host's draft. Shared defaults do.
+
     const baseRevision =
         'sha256:' +
         new Bun.CryptoHasher('sha256')
@@ -76,7 +76,7 @@ export async function getProxyHostConfigEditorService(
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
     const id = proxyHostConfigEditorIdSchema.parse({ proxyHostId }).proxyHostId
     const state = await loadHostEditorState(id, actor.id)
-    // Ordinary DTOs do not need Controller-owned certificate filesystem paths.
+
     const visibleHost = state.host
     // The structured editor's template is always generated without expert text.
     const defaultsSnapshot = createProxyRuntimeSnapshot(

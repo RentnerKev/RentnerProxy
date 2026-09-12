@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-// Adapted from RentnerToasts; copy only the same safe message that is displayed to the user.
 export default function useCopyToastMessage(message: string) {
     const [status, setStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
     const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)

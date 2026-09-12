@@ -86,7 +86,6 @@ export class GitHubReleaseClient {
 
             let response: Response
             try {
-                // Pagination is serial because each response owns the next-page link.
                 // eslint-disable-next-line no-await-in-loop
                 response = await this.#fetch(url, {
                     headers: {
@@ -111,7 +110,6 @@ export class GitHubReleaseClient {
                 )
             }
 
-            // Keep parsing in the same sequential pagination transaction as its request.
             // eslint-disable-next-line no-await-in-loop
             const payload: unknown = await response.json()
             if (!Array.isArray(payload)) {

@@ -15,7 +15,6 @@ export const RESTORE_SMOKE_OPERATIONS = [
 const restoreDatabaseDetailsPattern =
     /Restore database phase: (initialize|archive|render|assemble|execute)(?:; SQLSTATE: (23514|42P01|3F000|42501|42601|42710|2BP01|25P02))?\./u
 
-/** Only fixed operation/phase names and recognized SQLSTATE codes leave captured output. */
 export function restoreSmokeDiagnostic(output: string): string | undefined {
     const operation = RESTORE_SMOKE_OPERATIONS.find((name) =>
         output.includes('production restore operation failed: ' + name + '.'),
@@ -73,11 +72,6 @@ function addLabels(target: Record<string, any>, scope: string): void {
     target.labels = labelsWithSmokeRun(target.labels, scope)
 }
 
-/**
- * Add the CI scope to directly-created Docker resources. Commands that are
- * not resource creation commands are returned unchanged so inspection and
- * teardown continue to address the resource by their existing identifiers.
- */
 export function smokeDockerArguments(argumentsList: readonly string[]): string[] {
     const scope = smokeRunScope()
     const args = [...argumentsList]
@@ -98,7 +92,6 @@ export function smokeDockerArguments(argumentsList: readonly string[]): string[]
     return args
 }
 
-/** Add the CI scope to Compose services, built images, named volumes, and the default network. */
 export function smokeCompose(source: string): string {
     const scope = smokeRunScope()
     if (!scope) return source

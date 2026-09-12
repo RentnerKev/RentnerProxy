@@ -3,7 +3,7 @@ import '@tanstack/react-start/server-only'
 
 const hostDomainUniqueConstraints = new Set([
     'host_domains_domain_unique',
-    // Keep mapping old errors while an existing database is being migrated.
+
     'proxy_host_domains_domain_unique',
 ])
 

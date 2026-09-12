@@ -15,7 +15,6 @@ function isPermissionDenial(error: unknown): boolean {
     )
 }
 
-/** Record a rolled-back mutation without allowing audit availability to mask the original error. */
 export function recordMutationFailureBestEffort(input: {
     readonly actorId: string
     readonly action: AuditAction

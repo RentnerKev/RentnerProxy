@@ -36,8 +36,6 @@ export async function readProxyHttpSettings(
     return normalizeProxyHttpSettings(stored.data.httpSettings)
 }
 
-// Every host/editor mutation takes this lock before reading or changing desired
-// configuration, so stale editor saves cannot overwrite a newer host revision.
 export async function lockProxyRuntimeSettings(transaction: AuthTransaction): Promise<void> {
     await transaction
         .insert(systemSettings)
@@ -113,7 +111,6 @@ export async function readProxyHostHttpSettingsMap(
     return result
 }
 
-// Callers hold the shared runtime settings lock before changing a host override.
 export async function writeProxyHostHttpSettings(
     transaction: AuthTransaction,
     proxyHostId: string,

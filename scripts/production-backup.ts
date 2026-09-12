@@ -202,7 +202,6 @@ async function backup(): Promise<void> {
             )
         }
 
-        // Capture container output so private backup files belong to the invoking host user.
         const appEncryptionKey = await runCommandBytes(
             [
                 ...compose,

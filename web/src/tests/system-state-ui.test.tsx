@@ -40,7 +40,7 @@ function errorRouter(loader: () => void, language?: AppLanguage) {
 async function render(router: AnyRouter) {
     const container = document.createElement('div')
     document.body.append(container)
-    // The router intentionally catches these fixture errors; do not print React's error stacks.
+
     activeRoot = createRoot(container, { onCaughtError: () => {} })
     await act(async () => {
         await router.load()
