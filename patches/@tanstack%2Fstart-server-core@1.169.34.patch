@@ -1,0 +1,67 @@
+diff --git a/dist/esm/request-response.js b/dist/esm/request-response.js
+index d5e677c151dae610247571a9d95ae9cb6b7116da..06253ca25b68058f97cbae6c07200aa9c499bf01 100644
+--- a/dist/esm/request-response.js
++++ b/dist/esm/request-response.js
+@@ -31,6 +31,13 @@ function attachResponseHeaders(value, event) {
+ 	if (value instanceof Response) mergeEventResponseHeaders(value, event);
+ 	return value;
+ }
++function handleRequestAbort(value, request) {
++	if (!isPromiseLike(value)) return value;
++	return Promise.resolve(value).catch((error) => {
++		if (request.signal.aborted && error === request.signal.reason) return new Response(null, { status: 499 });
++		throw error;
++	});
++}
+ function requestHandler(handler) {
+ 	return (request, requestOpts) => {
+ 		let h3Event;
+@@ -43,7 +50,8 @@ function requestHandler(handler) {
+ 			});
+ 			throw error;
+ 		}
+-		return toResponse(attachResponseHeaders(eventStorage.run({ h3Event }, () => handler(request, requestOpts)), h3Event), h3Event);
++		const response = handleRequestAbort(eventStorage.run({ h3Event }, () => handler(request, requestOpts)), request);
++		return toResponse(attachResponseHeaders(response, h3Event), h3Event);
+ 	};
+ }
+ function getH3Event() {
+diff --git a/src/request-response.ts b/src/request-response.ts
+index 2f0456bedf6b4bb409add91dcb59ef8c1263de62..421937a4246ed934ad6b3e5339c4345a9c62728b 100644
+--- a/src/request-response.ts
++++ b/src/request-response.ts
+@@ -69,6 +69,22 @@ function isPromiseLike<T>(value: MaybePromise<T>): value is Promise<T> {
+   return typeof (value as Promise<T>).then === 'function'
+ }
+ 
++function handleRequestAbort<T>(
++  value: MaybePromise<T>,
++  request: Request,
++): MaybePromise<T | Response> {
++  if (!isPromiseLike(value)) {
++    return value
++  }
++
++  return Promise.resolve(value).catch((error) => {
++    if (request.signal.aborted && error === request.signal.reason) {
++      return new Response(null, { status: 499 })
++    }
++    throw error
++  })
++}
++
+ function getSetCookieValues(headers: Headers): Array<string> {
+   const headersWithSetCookie = headers as HeadersWithGetSetCookie
+   if (typeof headersWithSetCookie.getSetCookie === 'function') {
+@@ -135,8 +151,9 @@ export function requestHandler<TRegister = unknown>(
+       throw error
+     }
+ 
+-    const response = eventStorage.run({ h3Event }, () =>
+-      handler(request, requestOpts),
++    const response = handleRequestAbort(
++      eventStorage.run({ h3Event }, () => handler(request, requestOpts)),
++      request,
+     )
+     return h3_toResponse(attachResponseHeaders(response, h3Event), h3Event)
+   }
