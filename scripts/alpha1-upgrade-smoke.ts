@@ -8,6 +8,9 @@ import { join } from 'node:path'
 import { smokeCompose } from './smoke-resources'
 import { verifyRestoreRollback } from './restore-rollback-smoke'
 import {
+    ALPHA1_MIGRATION_COUNT,
+    ALPHA3_MIGRATION_COUNT,
+    CURRENT_MIGRATION_COUNT,
     assertAlpha1UpgradeFixture,
     seedAlpha1UpgradeFixture,
     type Alpha1UpgradeFixture,
@@ -15,10 +18,44 @@ import {
 
 export const ALPHA1_IMAGE =
     'ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.1@sha256:f88edb70a80db7c527e1a963e835593f6998ab4541f810e26cf75ffa63da0d3f'
-const ALPHA1_REVISION = 'a147176c6096935dc5d9824f671b5f21d89b636b'
+export const ALPHA1_REVISION = 'a147176c6096935dc5d9824f671b5f21d89b636b'
+export const ALPHA3_IMAGE =
+    'ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.3@sha256:f876c9c59c819cf537617ff256ec247eae9897adf632453117496fbea6a28742'
+export const ALPHA3_REVISION = 'a1bb0117828606cd10919871a098eb3a794b912e'
+
+export interface PublishedUpgradeBaseline {
+    readonly name: 'Alpha 1' | 'Alpha 3'
+    readonly image: string
+    readonly version: string
+    readonly revision: string
+    readonly migrationCount: number
+    readonly targetName: 'Alpha 4'
+    readonly directoryName: string
+}
+
+export const ALPHA1_BASELINE: PublishedUpgradeBaseline = {
+    name: 'Alpha 1',
+    image: ALPHA1_IMAGE,
+    version: 'v1.0.0-alpha.1',
+    revision: ALPHA1_REVISION,
+    migrationCount: ALPHA1_MIGRATION_COUNT,
+    targetName: 'Alpha 4',
+    directoryName: 'alpha1-upgrade',
+}
+
+export const ALPHA3_BASELINE: PublishedUpgradeBaseline = {
+    name: 'Alpha 3',
+    image: ALPHA3_IMAGE,
+    version: 'v1.0.0-alpha.3',
+    revision: ALPHA3_REVISION,
+    migrationCount: ALPHA3_MIGRATION_COUNT,
+    targetName: 'Alpha 4',
+    directoryName: 'alpha3-upgrade',
+}
+
 type Command = (argumentsList: string[], timeoutMs?: number) => Promise<string>
 
-interface UpgradeSmokeOptions {
+export interface UpgradeSmokeOptions {
     readonly imageTag: string
     readonly temporaryRoot: string
     readonly upstreamPort: number
@@ -47,27 +84,28 @@ async function waitFor(
     throw new Error('Upgrade smoke timed out: ' + label)
 }
 
-function composeDocument(image: string): string {
+function composeDocument(image: string, includePublicOrigin: boolean): string {
+    const environment = {
+        SMTP_FROM: '${SMTP_FROM:?Set SMTP_FROM}',
+        SMTP_HOST: '${SMTP_HOST:?Set SMTP_HOST}',
+        SMTP_PASSWORD: '${SMTP_PASSWORD:?Set SMTP_PASSWORD}',
+        SMTP_PORT: '${SMTP_PORT:-587}',
+        SMTP_SECURE: '${SMTP_SECURE:-false}',
+        SMTP_USER: '${SMTP_USER:?Set SMTP_USER}',
+        ...(includePublicOrigin
+            ? {
+                  RENTNERPROXY_PUBLIC_ORIGIN:
+                      '${RENTNERPROXY_PUBLIC_ORIGIN:?Set RENTNERPROXY_PUBLIC_ORIGIN}',
+              }
+            : {}),
+    }
     return smokeCompose(
         JSON.stringify({
             services: {
                 rentnerproxy: {
                     image,
                     extra_hosts: ['host.docker.internal:host-gateway'],
-                    environment: {
-                        ...(image === ALPHA1_IMAGE
-                            ? {}
-                            : {
-                                  RENTNERPROXY_PUBLIC_ORIGIN:
-                                      '${RENTNERPROXY_PUBLIC_ORIGIN:?Set RENTNERPROXY_PUBLIC_ORIGIN}',
-                              }),
-                        SMTP_FROM: '${SMTP_FROM:?Set SMTP_FROM}',
-                        SMTP_HOST: '${SMTP_HOST:?Set SMTP_HOST}',
-                        SMTP_PASSWORD: '${SMTP_PASSWORD:?Set SMTP_PASSWORD}',
-                        SMTP_PORT: '${SMTP_PORT:-587}',
-                        SMTP_SECURE: '${SMTP_SECURE:-false}',
-                        SMTP_USER: '${SMTP_USER:?Set SMTP_USER}',
-                    },
+                    environment,
                     volumes: ['data:/var/lib/rentnerproxy', 'postgres-base:/var/lib/postgresql'],
                 },
             },
@@ -76,17 +114,25 @@ function composeDocument(image: string): string {
     )
 }
 
-export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise<void> {
+export async function verifyPublishedUpgrade(
+    options: UpgradeSmokeOptions,
+    baseline: PublishedUpgradeBaseline,
+): Promise<void> {
     const { command, passed } = options
     const runId = randomUUID().replaceAll('-', '').slice(0, 12)
     const project = 'rentnerproxy-alpha-upgrade-' + runId
     const restoreProject = project + '-restore'
-    const directory = join(options.temporaryRoot, 'alpha1-upgrade')
+    const directory = join(options.temporaryRoot, baseline.directoryName)
+    const baselineId = baseline.name.toLowerCase().replaceAll(' ', '')
+    const includePublicOrigin = Boolean(options.environment.RENTNERPROXY_PUBLIC_ORIGIN?.trim())
     await mkdir(directory)
-    const oldComposeFile = join(directory, 'alpha1.compose.json')
-    const newComposeFile = join(directory, 'alpha2.compose.json')
-    await writeFile(oldComposeFile, composeDocument(ALPHA1_IMAGE))
-    await writeFile(newComposeFile, composeDocument(options.imageTag))
+    const oldComposeFile = join(directory, baselineId + '.compose.json')
+    const newComposeFile = join(
+        directory,
+        baseline.targetName.toLowerCase().replaceAll(' ', '') + '.compose.json',
+    )
+    await writeFile(oldComposeFile, composeDocument(baseline.image, includePublicOrigin))
+    await writeFile(newComposeFile, composeDocument(options.imageTag, includePublicOrigin))
     const compose = (file: string, name = project) => [
         'docker',
         'compose',
@@ -125,7 +171,7 @@ export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise
             id,
             'bun',
             '-e',
-            `await Bun.write('/tmp/alpha1-upgrade-ca.pem',${JSON.stringify(fixture.caPem)})`,
+            `await Bun.write('/tmp/${baselineId}-upgrade-ca.pem',${JSON.stringify(fixture.caPem)})`,
         ])
         for (const host of [fixture.hostDomain, fixture.aliasDomain]) {
             await waitFor(
@@ -148,6 +194,19 @@ export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise
                     ])) === options.trafficMarker,
                 'HTTP ' + host,
             )
+            const servedFingerprint = await command([
+                'docker',
+                'exec',
+                id,
+                'sh',
+                '-ceu',
+                `printf '' | openssl s_client -connect 127.0.0.1:8443 -servername ${host} -showcerts 2>/dev/null | openssl x509 -noout -fingerprint -sha256`,
+            ])
+            const fingerprint = /fingerprint=([0-9a-f:]+)/iu.exec(servedFingerprint)?.[1]
+            assert.equal(
+                fingerprint ? 'sha256:' + fingerprint.replaceAll(':', '').toLowerCase() : null,
+                fixture.certificateFingerprint,
+            )
             assert.equal(
                 await command([
                     'docker',
@@ -162,7 +221,7 @@ export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise
                     '--noproxy',
                     '*',
                     '--cacert',
-                    '/tmp/alpha1-upgrade-ca.pem',
+                    '/tmp/' + baselineId + '-upgrade-ca.pem',
                     '--resolve',
                     host + ':8443:127.0.0.1',
                     'https://' + host + ':8443/upgrade-traffic',
@@ -198,7 +257,7 @@ export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise
         )
     }
     try {
-        await command(['docker', 'pull', '--platform', 'linux/amd64', ALPHA1_IMAGE], 900_000)
+        await command(['docker', 'pull', '--platform', 'linux/amd64', baseline.image], 900_000)
         const labels = JSON.parse(
             await command([
                 'docker',
@@ -206,11 +265,11 @@ export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise
                 'inspect',
                 '--format',
                 '{{json .Config.Labels}}',
-                ALPHA1_IMAGE,
+                baseline.image,
             ]),
         ) as Record<string, string>
-        assert.equal(labels['org.opencontainers.image.version'], 'v1.0.0-alpha.1')
-        assert.equal(labels['org.opencontainers.image.revision'], ALPHA1_REVISION)
+        assert.equal(labels['org.opencontainers.image.version'], baseline.version)
+        assert.equal(labels['org.opencontainers.image.revision'], baseline.revision)
         await command([...oldCompose, 'up', '--detach'], 240_000)
         let id = await containerId(oldCompose)
         await healthy(id)
@@ -219,12 +278,24 @@ export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise
             command,
             upstreamPort: options.upstreamPort,
             runId,
+            ...(options.environment.RENTNERPROXY_PUBLIC_ORIGIN?.trim()
+                ? { managementOrigin: options.environment.RENTNERPROXY_PUBLIC_ORIGIN.trim() }
+                : {}),
         })
-        await assertAlpha1UpgradeFixture({ containerId: id, command, fixture, expectAlpha2: false })
+        await assertAlpha1UpgradeFixture({
+            containerId: id,
+            command,
+            fixture,
+            expectAlpha2: false,
+            expectedMigrationCount: baseline.migrationCount,
+            expectCurrentSchema: false,
+        })
         await traffic(id, fixture)
         const originalRevision = await activeRevision(id)
         passed(
-            'published Alpha 1 image starts with real users, roles, hosts, certificates and desired state',
+            'published ' +
+                baseline.name +
+                ' image starts with real users, roles, hosts, certificates and desired state',
         )
 
         const backupRoot = join(directory, 'backups')
@@ -247,19 +318,33 @@ export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise
         await command([...nextCompose, 'up', '--detach'], 240_000)
         id = await containerId(nextCompose)
         await healthy(id)
-        await assertAlpha1UpgradeFixture({ containerId: id, command, fixture, expectAlpha2: true })
+        await assertAlpha1UpgradeFixture({
+            containerId: id,
+            command,
+            fixture,
+            expectAlpha2: true,
+            expectedMigrationCount: CURRENT_MIGRATION_COUNT,
+        })
         await traffic(id, fixture)
         assert.equal(await activeRevision(id), originalRevision)
         passed(
-            'in-place Alpha 1 upgrade preserves database records and live HTTP, HTTPS and redirects',
+            'in-place ' +
+                baseline.name +
+                ' upgrade preserves database records and live HTTP, HTTPS and redirects',
         )
 
         await command([...nextCompose, 'restart', 'rentnerproxy'], 180_000)
         await healthy(id)
-        await assertAlpha1UpgradeFixture({ containerId: id, command, fixture, expectAlpha2: true })
+        await assertAlpha1UpgradeFixture({
+            containerId: id,
+            command,
+            fixture,
+            expectAlpha2: true,
+            expectedMigrationCount: CURRENT_MIGRATION_COUNT,
+        })
         await traffic(id, fixture)
         assert.equal(await activeRevision(id), originalRevision)
-        passed('repeated startup after Alpha 1 upgrade is idempotent')
+        passed('repeated startup after ' + baseline.name + ' upgrade is idempotent')
         await command([...nextCompose, 'down', '--remove-orphans'], 180_000)
 
         await options.commandWithEnvironment(
@@ -282,10 +367,16 @@ export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise
             command,
             fixture,
             expectAlpha2: true,
+            expectedMigrationCount: CURRENT_MIGRATION_COUNT,
         })
         await traffic(restoredId, fixture)
         assert.equal(await activeRevision(restoredId), originalRevision)
-        passed('Alpha 1 database and controller backup restores into a fresh Alpha 2 appliance')
+        passed(
+            baseline.name +
+                ' database and controller backup restores into a fresh ' +
+                baseline.targetName +
+                ' appliance',
+        )
         await verifyRestoreRollback({
             containerId: restoredId,
             command,
@@ -302,6 +393,7 @@ export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise
             command,
             fixture,
             expectAlpha2: true,
+            expectedMigrationCount: CURRENT_MIGRATION_COUNT,
         })
         await traffic(restoredId, fixture)
         assert.equal(await activeRevision(restoredId), originalRevision)
@@ -314,4 +406,12 @@ export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise
             () => undefined,
         )
     }
+}
+
+export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise<void> {
+    return verifyPublishedUpgrade(options, ALPHA1_BASELINE)
+}
+
+export async function verifyAlpha3Upgrade(options: UpgradeSmokeOptions): Promise<void> {
+    return verifyPublishedUpgrade(options, ALPHA3_BASELINE)
 }

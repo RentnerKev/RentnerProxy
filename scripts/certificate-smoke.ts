@@ -13,6 +13,7 @@ import { startCertificateDnsFixture } from './certificate-dns-fixture'
 import { verifyProxyAccessLogs } from './proxy-access-logs-smoke'
 import { verifyDurableCertificateJob } from './certificate-job-smoke'
 import { buildHttp3Client, requestHttp3Client, assertHttp3Response } from './http3-client'
+import { restoreCertificateStateFixture } from './certificate-state-restore-smoke'
 import { CERTIFICATE_ERROR_CODES } from '../web/src/config/certificates.config'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
@@ -1988,6 +1989,20 @@ async function runSmoke(): Promise<void> {
         await command(['docker', 'network', 'disconnect', network, pebbleContainer], {
             timeoutMs: 30_000,
         })
+
+        await restoreCertificateStateFixture(command, {
+            container: runtimeContainer,
+            volume: stateVolume,
+            image: runtimeImage,
+            requiredFiles: [
+                'certificates/certificate-metadata.json',
+                'certificates/acme-accounts/staging.json',
+                'certificates/' + acmeId + '/candidate.json',
+            ],
+        })
+        passed(
+            'production archive restores active material, issued candidate, operation journal and ACME account',
+        )
         await restartRuntime()
         let restartedCandidate: Record<string, any> = {}
         await waitFor(async () => {
@@ -2215,11 +2230,21 @@ async function runSmoke(): Promise<void> {
         const cleanupRecoveredFingerprint = cleanupFailure.fingerprint
         assert.ok(dnsFixture.records.length > 0)
         await checkWildcardTraffic()
-        dnsFixture.failCleanup = false
-
         await command(['docker', 'network', 'disconnect', network, pebbleContainer], {
             timeoutMs: 30_000,
         })
+
+        await restoreCertificateStateFixture(command, {
+            container: runtimeContainer,
+            volume: stateVolume,
+            image: runtimeImage,
+            requiredFiles: [
+                'certificates/certificate-metadata.json',
+                'certificates/acme-accounts/staging.json',
+            ],
+        })
+        passed('production archive restores encrypted DNS credentials and pending cleanup state')
+        dnsFixture.failCleanup = false
         await restartRuntime()
         await waitFor(
             async () => (await controllerRequest('/internal/v1/proxy/status')).status === 200,

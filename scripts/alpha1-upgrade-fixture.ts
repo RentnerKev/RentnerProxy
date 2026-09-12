@@ -3,6 +3,10 @@ import migrationJournal from '../web/drizzle/meta/_journal.json'
 
 export type Command = (args: string[], timeoutMs?: number) => Promise<string>
 
+export const ALPHA1_MIGRATION_COUNT = 13
+export const ALPHA3_MIGRATION_COUNT = 17
+export const CURRENT_MIGRATION_COUNT = migrationJournal.entries.length
+
 export interface Alpha1UpgradeFixture {
     readonly runId: string
     readonly ownerUserId: string
@@ -36,6 +40,7 @@ export interface Alpha1UpgradeFixture {
     readonly hostHttpSettings: Readonly<Record<string, number>>
     readonly unsupportedHostSettings: Readonly<Record<string, number>>
     readonly advancedConfig: string
+    readonly managementOrigin?: string
 }
 
 const postgresPasswordFile = '/run/rentnerproxy/postgres/value'
@@ -244,6 +249,7 @@ export async function seedAlpha1UpgradeFixture(input: {
     readonly command: Command
     readonly upstreamPort: number
     readonly runId: string
+    readonly managementOrigin?: string
 }): Promise<Alpha1UpgradeFixture> {
     validateRunId(input.runId)
     if (
@@ -310,6 +316,13 @@ export async function seedAlpha1UpgradeFixture(input: {
     const caNotBefore = requireString(metadata.caNotBefore, 'CA notBefore')
     const caNotAfter = requireString(metadata.caNotAfter, 'CA notAfter')
     const customPermissionKeys = ['proxy_hosts.view', 'redirect_hosts.view'] as const
+    if (input.managementOrigin !== undefined && input.managementOrigin.length > 2_048) {
+        throw new Error('Management origin is too long.')
+    }
+    const managementOriginSql =
+        input.managementOrigin === undefined
+            ? ''
+            : `,\n('management_origin_v1',${sqlQuote(JSON.stringify({ version: 1, origin: input.managementOrigin }))}::jsonb)`
     const sql = `
 begin;
 insert into rentnerproxy.roles (id,key,name,description,is_system)
@@ -358,7 +371,7 @@ values (${sqlQuote(disabledTlsProxyHostId)},${sqlQuote(advancedConfig)},${sqlQuo
 insert into rentnerproxy.system_settings (key,value)
 values
 ('proxy_runtime_editor_v1',${sqlQuote(JSON.stringify({ version: 1, httpSettings: globalHttpSettings }))}::jsonb),
-(${sqlQuote('proxy_runtime_host_v1:' + disabledTlsProxyHostId)},${sqlQuote(JSON.stringify({ version: 1, httpSettings: hostHttpSettings }))}::jsonb)
+(${sqlQuote('proxy_runtime_host_v1:' + disabledTlsProxyHostId)},${sqlQuote(JSON.stringify({ version: 1, httpSettings: hostHttpSettings }))}::jsonb)${managementOriginSql}
 on conflict (key) do update set value=excluded.value,updated_at=now();
 commit;
 `
@@ -397,6 +410,9 @@ commit;
         hostHttpSettings,
         unsupportedHostSettings,
         advancedConfig,
+        ...(input.managementOrigin === undefined
+            ? {}
+            : { managementOrigin: input.managementOrigin }),
     }
 }
 
@@ -413,8 +429,14 @@ export async function assertAlpha1UpgradeFixture(input: {
     readonly command: Command
     readonly fixture: Alpha1UpgradeFixture
     readonly expectAlpha2: boolean
+    readonly expectedMigrationCount?: number
+    readonly expectCurrentSchema?: boolean
 }): Promise<void> {
     const f = input.fixture
+    const managementOrigin =
+        f.managementOrigin === undefined
+            ? '0'
+            : `(select count(*) from rentnerproxy.system_settings where key='management_origin_v1' and value=${sqlQuote(JSON.stringify({ version: 1, origin: f.managementOrigin }))}::jsonb)`
     const base = await queryJson(
         input.command,
         input.containerId,
@@ -451,12 +473,15 @@ export async function assertAlpha1UpgradeFixture(input: {
             'globalSettings', (select count(*) from rentnerproxy.system_settings where key='proxy_runtime_editor_v1' and value=${sqlQuote(JSON.stringify({ version: 1, httpSettings: f.globalHttpSettings }))}::jsonb),
             'hostSettings', (select count(*) from rentnerproxy.system_settings where key=${sqlQuote('proxy_runtime_host_v1:' + f.disabledTlsProxyHostId)} and value=${sqlQuote(JSON.stringify({ version: 1, httpSettings: f.hostHttpSettings }))}::jsonb),
             'legacy', (select count(*) from rentnerproxy.proxy_host_legacy_settings where proxy_host_id=${sqlQuote(f.disabledTlsProxyHostId)} and advanced_config=${sqlQuote(f.advancedConfig)} and unsupported_settings=${sqlQuote(JSON.stringify(f.unsupportedHostSettings))}::jsonb),
+            'managementOrigin', ${managementOrigin},
             'migrations', (select count(*) from drizzle.__drizzle_migrations)
         ) as value`,
     )
     const number = (key: string) => Number(base[key] ?? 0)
 
-    const expectedMigrationCount = input.expectAlpha2 ? migrationJournal.entries.length : 13
+    const expectedMigrationCount =
+        input.expectedMigrationCount ??
+        (input.expectAlpha2 ? CURRENT_MIGRATION_COUNT : ALPHA1_MIGRATION_COUNT)
     if (number('migrations') !== expectedMigrationCount) {
         throw new Error('Unexpected migration journal state for Alpha 1 fixture.')
     }
@@ -496,6 +521,9 @@ export async function assertAlpha1UpgradeFixture(input: {
     if (number('globalSettings') !== 1 || number('hostSettings') !== 1) {
         throw new Error('Alpha 1 fixture HTTP settings were not preserved.')
     }
+    if (number('managementOrigin') !== (f.managementOrigin === undefined ? 0 : 1)) {
+        throw new Error('The legacy management origin was not preserved.')
+    }
 
     if (!input.expectAlpha2) return
     const migrated = await queryJson(
@@ -511,7 +539,12 @@ export async function assertAlpha1UpgradeFixture(input: {
             'liveDomains', (select count(*) from rentnerproxy.host_domains where proxy_host_id=${sqlQuote(f.liveProxyHostId)} and domain in (${sqlQuote(f.hostDomain)},${sqlQuote(f.aliasDomain)})),
             'redirectDomains', (select count(*) from rentnerproxy.host_domains where redirect_host_id=${sqlQuote(f.redirectHostId)} and domain=${sqlQuote(f.redirectDomain)}),
             'policyColumn', exists(select 1 from information_schema.columns where table_schema='rentnerproxy' and table_name='proxy_hosts' and column_name='access_policy_id'),
-            'policyNull', (select count(*) from rentnerproxy.proxy_hosts where id in (${sqlQuote(f.liveProxyHostId)},${sqlQuote(f.disabledTlsProxyHostId)}) and access_policy_id is null)
+            'policyNull', (select count(*) from rentnerproxy.proxy_hosts where id in (${sqlQuote(f.liveProxyHostId)},${sqlQuote(f.disabledTlsProxyHostId)}) and access_policy_id is null),
+            'durableEventCursor', to_regclass('rentnerproxy.certificate_event_cursor') is not null,
+            'durableEventReceipts', to_regclass('rentnerproxy.certificate_event_receipts') is not null,
+            'currentOperationColumn', exists(select 1 from information_schema.columns where table_schema='rentnerproxy' and table_name='certificates' and column_name='current_operation'),
+            'candidateColumn', exists(select 1 from information_schema.columns where table_schema='rentnerproxy' and table_name='certificates' and column_name='candidate'),
+            'nextAttemptColumn', exists(select 1 from information_schema.columns where table_schema='rentnerproxy' and table_name='certificates' and column_name='next_attempt_at')
         ) as value`,
     )
     if (
@@ -521,11 +554,17 @@ export async function assertAlpha1UpgradeFixture(input: {
         migrated.ipRules !== true ||
         Number(migrated.newRolePermissions ?? 0) !== 16 ||
         migrated.policyColumn !== true ||
+        ((input.expectCurrentSchema ?? true) &&
+            (migrated.durableEventCursor !== true ||
+                migrated.durableEventReceipts !== true ||
+                migrated.currentOperationColumn !== true ||
+                migrated.candidateColumn !== true ||
+                migrated.nextAttemptColumn !== true)) ||
         Number(migrated.policyNull ?? 0) !== 2 ||
         Number(migrated.legacy ?? 0) !== 1 ||
         Number(migrated.liveDomains ?? 0) !== 2 ||
         Number(migrated.redirectDomains ?? 0) !== 1
     ) {
-        throw new Error('Alpha 1 to Alpha 2 migration did not preserve the fixture schema/data.')
+        throw new Error('Alpha 1 to Alpha 4 migration did not preserve the fixture schema/data.')
     }
 }

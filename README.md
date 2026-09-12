@@ -34,7 +34,7 @@ management origin and an SMTP host, user, password, and sender address are requi
 
 Download [`docker-compose.yml`](./docker-compose.yml) and [`.env.production.example`](./.env.production.example)
 to an empty folder. Set the Compose image to
-`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.2`, copy the environment template, and set
+`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.3`, copy the environment template, and set
 `RENTNERPROXY_PUBLIC_ORIGIN` and the SMTP values:
 
 ```bash
@@ -105,6 +105,24 @@ bun --env-file=/srv/rentnerproxy/.env scripts/production-restore.ts \
 
 Restore replaces the target project's data. Stop the original appliance before recovery uses
 the same host ports, and preserve its volumes until recovery health and traffic are verified.
+
+### Alpha 4 upgrade verification
+
+The production smoke gate upgrades the published, digest-pinned Alpha 3 appliance in place,
+checks migrations and existing users, roles, hosts, certificate fingerprints and traffic,
+then verifies repeated starts, backup/restore into fresh volumes and failed-restore rollback.
+The earlier Alpha 1 upgrade path remains covered.
+
+Certificate recovery tests archive real active and candidate material, ACME accounts,
+operation journals, retry state and encrypted DNS credentials using the production archive
+filters. They restore the files before restarting the controller with the local CA offline.
+The production backup/restore test also compares durable binding jobs, renewal metadata,
+event receipts and cursor state, and verifies request decryption with the restored application key.
+
+Run `bun run check`, `bun run certificates:smoke` and `bun run production:smoke` for this gate.
+The required Production Smokes CI job also checks proxy forwarding and upstream TLS.
+Keep the deployment environment, including `RENTNERPROXY_PUBLIC_ORIGIN`, trusted proxy CIDRs
+and TCP/UDP port mappings, alongside the backup: these settings are not stored in PostgreSQL.
 
 ## Features
 

@@ -10,8 +10,14 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { restoreSmokeDiagnostic, smokeCompose, smokeDockerArguments } from './smoke-resources'
-import { verifyAlpha1Upgrade } from './alpha1-upgrade-smoke'
 import { buildHttp3Client, requestHttp3Client, assertHttp3Response } from './http3-client'
+import { verifyAlpha1Upgrade, verifyAlpha3Upgrade } from './alpha1-upgrade-smoke'
+import {
+    seedAlpha4PersistenceFixture,
+    readAlpha4PersistenceSnapshot,
+    assertAlpha4PersistenceFixture,
+    assertAlpha4PersistenceRequestDecrypts,
+} from './alpha4-persistence-fixture'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const rootComposeFile = join(repositoryRoot, 'docker-compose.yml')
@@ -19,6 +25,7 @@ const productionDockerfile = join(repositoryRoot, 'docker', 'production', 'Docke
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const project = 'rentnerproxy-appliance-smoke-' + runId
 const publicOrigin = 'https://management.appliance-smoke.invalid'
+const trustedProxyCidrs = '127.0.0.1/32,::1/128'
 const smtpEnvironment = {
     SMTP_FROM: 'RentnerProxy <noreply@appliance-smoke.invalid>',
     SMTP_HOST: 'smtp.appliance-smoke.invalid',
@@ -268,6 +275,8 @@ async function runSmoke(): Promise<void> {
             .join('\n') +
             '\nRENTNERPROXY_PUBLIC_ORIGIN=' +
             publicOrigin +
+            '\nRENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=' +
+            trustedProxyCidrs +
             '\n',
         'utf8',
     )
@@ -316,6 +325,7 @@ async function runSmoke(): Promise<void> {
         ...commandEnvironment,
         ...smtpEnvironment,
         RENTNERPROXY_PUBLIC_ORIGIN: publicOrigin,
+        RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS: trustedProxyCidrs,
         RENTNERPROXY_COMPOSE_FILE: temporaryComposeFile,
     }
 
@@ -350,7 +360,7 @@ async function runSmoke(): Promise<void> {
                 'RENTNERPROXY_PUBLIC_ORIGIN',
             ].toSorted(),
         )
-        assert.equal(service.environment?.RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS, '')
+        assert.equal(service.environment?.RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS, trustedProxyCidrs)
         assert.equal(service.environment?.RENTNERPROXY_PUBLIC_ORIGIN, publicOrigin)
         assert.deepEqual(
             (service.ports ?? []).map(({ published, target, protocol }) => ({
@@ -661,6 +671,9 @@ async function runSmoke(): Promise<void> {
         passed('database, Redis, and controller are unpublished and loopback-only')
 
         const environment = JSON.parse(await inspect(id, '{{json .Config.Env}}')) as string[]
+        assert.ok(
+            environment.includes('RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=' + trustedProxyCidrs),
+        )
         for (const name of smtpNames) {
             assert.ok(
                 environment.includes(
@@ -945,6 +958,24 @@ async function runSmoke(): Promise<void> {
             'sha256sum',
             proxyBackupMarker,
         ])
+        const persistenceFixture = await seedAlpha4PersistenceFixture({
+            command,
+            containerId: recreatedId,
+            runId,
+        })
+        const persistenceSnapshot = await readAlpha4PersistenceSnapshot({
+            command,
+            containerId: recreatedId,
+            fixture: persistenceFixture,
+        })
+        await assertAlpha4PersistenceRequestDecrypts({
+            command,
+            containerId: recreatedId,
+            fixture: persistenceFixture,
+        })
+        passed(
+            'durable binding jobs, renewal retry metadata and event receipts are present before backup',
+        )
         const backupRoot = join(temporaryRoot, 'backups')
         await commandWithEnvironment(
             [
@@ -1022,6 +1053,29 @@ async function runSmoke(): Promise<void> {
         )
         const restoredId = await containerId(restoreCompose)
         await waitForHealthy(restoredId)
+        const restoredEnvironment = JSON.parse(
+            await inspect(restoredId, '{{json .Config.Env}}'),
+        ) as string[]
+        assert.ok(restoredEnvironment.includes('RENTNERPROXY_PUBLIC_ORIGIN=' + publicOrigin))
+        assert.ok(
+            restoredEnvironment.includes(
+                'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=' + trustedProxyCidrs,
+            ),
+        )
+        await assertAlpha4PersistenceFixture({
+            command,
+            containerId: restoredId,
+            fixture: persistenceFixture,
+            expected: persistenceSnapshot,
+        })
+        await assertAlpha4PersistenceRequestDecrypts({
+            command,
+            containerId: restoredId,
+            fixture: persistenceFixture,
+        })
+        passed(
+            'backup restores exact binding jobs, retry states and event journal data with decryptable requests',
+        )
         const disasterRestoreSecrets = JSON.parse(
             await command([
                 'docker',
@@ -1062,6 +1116,10 @@ async function runSmoke(): Promise<void> {
         await assertRealTraffic(
             restoredId,
             'v3 restore heals Caddy from desired DB and preserves HTTP/HTTPS traffic',
+        )
+        await assertPublishedQuic()
+        passed(
+            'verified HTTP/3 and deployment origin survive restore with trusted proxy configuration',
         )
         await command([
             'docker',
@@ -1194,17 +1252,19 @@ async function runSmoke(): Promise<void> {
         await restoreLegacyFixture(legacyV1, legacyComposes[1]!, legacyProjects[1]!, 1)
         await command([...legacyComposes[1]!, 'down', '--volumes', '--remove-orphans'], 180_000)
         await command([...restoreCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
-        await verifyAlpha1Upgrade({
-            imageTag,
-            temporaryRoot,
-            upstreamPort: backendPort,
-            trafficMarker,
-            envFile,
-            environment: scriptEnvironment,
-            command,
-            commandWithEnvironment,
-            passed,
-        })
+        for (const verifyUpgrade of [verifyAlpha1Upgrade, verifyAlpha3Upgrade]) {
+            await verifyUpgrade({
+                imageTag,
+                temporaryRoot,
+                upstreamPort: backendPort,
+                trafficMarker,
+                envFile,
+                environment: scriptEnvironment,
+                command,
+                commandWithEnvironment,
+                passed,
+            })
+        }
     } finally {
         backend?.stop(true)
         await commandFails([...compose, 'down', '--volumes', '--remove-orphans'], 180_000)

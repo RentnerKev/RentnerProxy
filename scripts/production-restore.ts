@@ -15,31 +15,7 @@ const databaseUser = 'rentnerproxy'
 const stateArchiveName = 'controller-state.tar'
 const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.mjs'
 const healthcheckScript = '/opt/rentnerproxy/web/docker/web/healthcheck.mjs'
-const legacyRuntimeStateExclusions = [
-    './active.conf',
-    './candidate.conf',
-    './last-known-good.conf',
-    './last-good.conf',
-    './engine.pid',
-    './host-configs',
-    './host-configs/**',
-    './*.pid',
-    './runtime-probe.sock',
-    './caddy-admin.sock',
-    './caddy/**/*.sock',
-    './caddy/**/*.tmp',
-    './caddy/**/*.lock',
-    './cache',
-    './bootstrap',
-    './runtime',
-    './tmp',
-    './run',
-    './log',
-    './logs',
-    '*.log',
-    '*.log.*',
-    '.*.tmp',
-]
+import { stateArchiveExclusions as legacyRuntimeStateExclusions } from './controller-state-archive'
 
 function optionValue(argumentsList: string[], name: string): string | undefined {
     const index = argumentsList.indexOf(name)
