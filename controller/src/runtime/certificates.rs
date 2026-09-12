@@ -40,7 +40,7 @@ const MAX_CANDIDATE_MANIFEST_BYTES: usize = 256 * 1024;
 const MAX_CERTIFICATES: usize = 10_000;
 // Leave room for error codes, retry timestamps, attempt metadata and delays
 // after interrupted ACME jobs.
-const INTERRUPTED_OPERATION_HEADROOM_BYTES: usize = 384;
+const INTERRUPTED_OPERATION_HEADROOM_BYTES: usize = 2_048;
 const MIN_ACME_RETRY_DELAY_SECONDS: u32 = 1_800;
 const MAX_ACME_RETRY_DELAY_SECONDS: u32 = 21_600;
 const MIN_CANDIDATE_RETRY_DELAY_SECONDS: u32 = 60;
@@ -1220,13 +1220,7 @@ impl CertificateStore {
         }
         committed.metadata.updated_at =
             committed_at.unwrap_or_else(|| committed.metadata.updated_at.clone());
-        if committed.metadata.source == CertificateSource::Manual {
-            // The event journal is the durable history for completed imports. Keeping the
-            // terminal snapshot out of every large certificate index entry preserves the
-            // existing index size budget while the in-flight placeholder remains observable.
-            committed.metadata.current_operation = None;
-            committed.metadata.last_activated_at = None;
-        }
+        let is_manual_import = committed.metadata.source == CertificateSource::Manual;
         let operation_id = committed
             .metadata
             .current_operation
@@ -1237,16 +1231,41 @@ impl CertificateStore {
         let previous = index
             .certificates
             .insert(staged.id.clone(), committed.clone());
-        if let Some(operation_id) = operation_id.as_deref()
-            && let Err(error) = operations::append_event(
-                &mut index,
-                operation_id,
-                &staged.id,
-                operations::CertificateEventKind::Activated,
-                CertificateOperationStage::Applied,
-                None,
-            )
-        {
+        let append = operation_id.as_deref().map_or(Ok(()), |operation_id| {
+            let import_events = if is_manual_import {
+                operations::append_event(
+                    &mut index,
+                    operation_id,
+                    &staged.id,
+                    operations::CertificateEventKind::Accepted,
+                    CertificateOperationStage::Queued,
+                    None,
+                )
+                .and_then(|()| {
+                    operations::append_event(
+                        &mut index,
+                        operation_id,
+                        &staged.id,
+                        operations::CertificateEventKind::Started,
+                        CertificateOperationStage::Queued,
+                        None,
+                    )
+                })
+            } else {
+                Ok(())
+            };
+            import_events.and_then(|()| {
+                operations::append_event(
+                    &mut index,
+                    operation_id,
+                    &staged.id,
+                    operations::CertificateEventKind::Activated,
+                    CertificateOperationStage::Applied,
+                    None,
+                )
+            })
+        });
+        if let Err(error) = append {
             match previous.as_ref() {
                 Some(previous) => {
                     index
@@ -2418,6 +2437,61 @@ impl CertificateStore {
     }
 }
 
+fn ensure_issued_event(
+    index: &mut CertificateIndex,
+    id: &str,
+    candidate: &StoredCertificateCandidate,
+) -> Result<(), CertificateError> {
+    let operation = candidate
+        .staged
+        .metadata
+        .current_operation
+        .as_ref()
+        .ok_or(CertificateError::StoreUnavailable)?;
+    if !operations::current_operation_is_valid(operation)
+        || !matches!(operation.kind, OperationKind::Issue | OperationKind::Renew)
+    {
+        return Err(CertificateError::StoreUnavailable);
+    }
+
+    {
+        let active = index
+            .certificates
+            .get_mut(id)
+            .ok_or(CertificateError::StoreUnavailable)?;
+        match active.metadata.current_operation.as_ref() {
+            Some(current) if current.id != operation.id => {
+                return Err(CertificateError::StoreUnavailable);
+            }
+            Some(_) => {}
+            None => {
+                active.metadata.current_operation = Some(operation.clone());
+            }
+        }
+    }
+
+    let already_recorded = index.events.iter().any(|event| {
+        event.operation_id == operation.id
+            && event.certificate_id == id
+            && event.kind == CertificateEventKind::Issued
+            && event.stage == CertificateOperationStage::CertificateReady
+            && event.error_code.is_none()
+    });
+    if already_recorded {
+        return Ok(());
+    }
+
+    operations::append_event(
+        index,
+        &operation.id,
+        id,
+        CertificateEventKind::Issued,
+        CertificateOperationStage::CertificateReady,
+        None,
+    )?;
+    Ok(())
+}
+
 fn reconcile_candidate_manifests(
     certificates_dir: &SafeDir,
     index: &mut CertificateIndex,
@@ -2464,11 +2538,22 @@ fn reconcile_candidate_manifests(
                 candidate.staged.metadata.current_operation = Some(candidate_operation.clone());
                 changed = true;
             }
-            if let Some(active) = index.certificates.get_mut(&id)
-                && active.metadata.current_operation.is_none()
-            {
-                active.metadata.current_operation = Some(candidate_operation);
-                changed = true;
+            if let Some(active) = index.certificates.get_mut(&id) {
+                let active_operation = active.metadata.current_operation.clone();
+                match active_operation.as_ref() {
+                    Some(current) if current.id == candidate_operation.id => {
+                        if current != &candidate_operation {
+                            active.metadata.current_operation = Some(candidate_operation.clone());
+                            active.metadata.updated_at = candidate_operation.updated_at.clone();
+                            changed = true;
+                        }
+                    }
+                    Some(_) => {}
+                    None => {
+                        active.metadata.current_operation = Some(candidate_operation);
+                        changed = true;
+                    }
+                }
             }
         }
         match (indexed, sidecar) {
@@ -2534,7 +2619,13 @@ fn reconcile_candidate_manifests(
                     if sidecar.base_material_id != active.material_id {
                         return Err(CertificateError::StoreUnavailable);
                     }
-                    index.pending_candidates.insert(id, sidecar);
+                    index.pending_candidates.insert(id.clone(), sidecar);
+                    let candidate = index
+                        .pending_candidates
+                        .get(&id)
+                        .cloned()
+                        .ok_or(CertificateError::StoreUnavailable)?;
+                    ensure_issued_event(index, &id, &candidate)?;
                     changed = true;
                 }
             }

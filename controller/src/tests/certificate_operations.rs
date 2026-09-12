@@ -155,6 +155,139 @@ async fn acme_candidate_staging_records_issued_event() {
 }
 
 #[tokio::test]
+async fn sidecar_recovery_records_issued_event_once_with_stable_operation_id() {
+    let directory = state_dir();
+    std::fs::create_dir_all(&directory).unwrap();
+    let store = CertificateStore::new(directory.clone());
+    store.initialize().await.unwrap();
+    store.begin_issue(ID, issue_request(), false).await.unwrap();
+    let certificate = rcgen::generate_simple_self_signed(vec!["example.com".to_owned()]).unwrap();
+    let staged = store
+        .stage_acme(
+            ID,
+            &issue_request(),
+            certificate.cert.pem(),
+            certificate.signing_key.serialize_pem(),
+        )
+        .await
+        .unwrap();
+    let operation_id = staged
+        .stored
+        .metadata
+        .current_operation
+        .as_ref()
+        .unwrap()
+        .id
+        .clone();
+    drop(store);
+
+    // Model a stop after the durable sidecar write but before the index write: the sidecar
+    // remains, while the pending pointer and its in-memory Issued event are absent on disk.
+    let index_path = directory.join("certificates/certificate-metadata.json");
+    let mut index: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&index_path).unwrap()).unwrap();
+    index["pendingCandidates"]
+        .as_object_mut()
+        .unwrap()
+        .remove(ID);
+    let events = index["events"].as_array_mut().unwrap();
+    events.retain(|event| event["kind"] != "issued");
+    index["eventSequence"] = serde_json::json!(events.len());
+    std::fs::write(&index_path, serde_json::to_vec(&index).unwrap()).unwrap();
+
+    let reopened = CertificateStore::new(directory.clone());
+    reopened.initialize().await.unwrap();
+    let first_page = reopened.events(None, 20).await.unwrap();
+    let first_issued = first_page
+        .events
+        .iter()
+        .filter(|event| event.kind == CertificateEventKind::Issued)
+        .collect::<Vec<_>>();
+    assert_eq!(first_issued.len(), 1);
+    assert_eq!(first_issued[0].operation_id, operation_id);
+    let issued_event_id = first_issued[0].id.clone();
+    drop(reopened);
+
+    let restarted = CertificateStore::new(directory);
+    restarted.initialize().await.unwrap();
+    let second_page = restarted.events(None, 20).await.unwrap();
+    let second_issued = second_page
+        .events
+        .iter()
+        .filter(|event| event.kind == CertificateEventKind::Issued)
+        .collect::<Vec<_>>();
+    assert_eq!(second_issued.len(), 1);
+    assert_eq!(second_issued[0].operation_id, operation_id);
+    assert_eq!(second_issued[0].id, issued_event_id);
+}
+
+#[tokio::test]
+async fn manual_import_records_accepted_started_and_activated_events() {
+    let directory = state_dir();
+    std::fs::create_dir_all(&directory).unwrap();
+    let store = CertificateStore::new(directory.clone());
+    store.initialize().await.unwrap();
+    let certificate = rcgen::generate_simple_self_signed(vec!["example.com".to_owned()]).unwrap();
+    let staged = store
+        .stage_manual(
+            ID,
+            CertificateImportRequest {
+                certificate_pem: certificate.cert.pem(),
+                private_key_pem: certificate.signing_key.serialize_pem(),
+                chain_pem: None,
+                required_domains: Some(vec!["example.com".to_owned()]),
+            },
+        )
+        .await
+        .unwrap();
+    let operation_id = staged
+        .stored
+        .metadata
+        .current_operation
+        .as_ref()
+        .unwrap()
+        .id
+        .clone();
+    store.commit_staged(&staged).await.unwrap();
+
+    let page = store.events(None, 20).await.unwrap();
+    assert_eq!(
+        page.events
+            .iter()
+            .map(|event| event.kind)
+            .collect::<Vec<_>>(),
+        vec![
+            CertificateEventKind::Accepted,
+            CertificateEventKind::Started,
+            CertificateEventKind::Activated,
+        ]
+    );
+    assert!(
+        page.events
+            .iter()
+            .all(|event| event.operation_id == operation_id)
+    );
+    assert!(page.events.iter().all(|event| event.certificate_id == ID));
+    let metadata = store.get(ID).await.unwrap();
+    let operation = metadata.current_operation.unwrap();
+    assert_eq!(operation.id, operation_id);
+    assert_eq!(operation.stage, CertificateOperationStage::Applied);
+    assert!(metadata.last_activated_at.is_some());
+
+    drop(store);
+    let reopened = CertificateStore::new(directory);
+    reopened.initialize().await.unwrap();
+    let recovered = reopened.get(ID).await.unwrap();
+    let recovered_operation = recovered.current_operation.unwrap();
+    assert_eq!(recovered_operation.id, operation_id);
+    assert_eq!(
+        recovered_operation.stage,
+        CertificateOperationStage::Applied
+    );
+    assert!(recovered.last_activated_at.is_some());
+}
+
+#[tokio::test]
 async fn operation_stage_updates_active_timestamp_and_survives_restart() {
     let directory = state_dir();
     std::fs::create_dir_all(&directory).unwrap();

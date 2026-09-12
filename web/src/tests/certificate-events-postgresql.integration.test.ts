@@ -251,6 +251,17 @@ describe('certificate event synchronization with PostgreSQL', () => {
         },
     )
 
+    integrationTest('repairs a malformed durable cursor only after a matching CAS', async () => {
+        await getAuthDatabase()
+            .update(certificateEventCursor)
+            .set({ cursor: 'malformed-cursor' })
+            .where(eq(certificateEventCursor.id, 1))
+        await expect(synchronizeCertificateEventsOnce()).resolves.toBe(true)
+        expect(await readCursor()).toBe(CURSOR)
+        expect(await readEventRows()).toHaveLength(1)
+        expect(await readAuditRows()).toHaveLength(1)
+    })
+
     integrationTest(
         'serializes concurrent snapshots through the cursor compare and swap',
         async () => {

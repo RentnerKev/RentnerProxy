@@ -38,6 +38,13 @@ interface FetchedEvents {
     readonly metadata: readonly ControllerCertificateMetadata[]
 }
 
+interface CursorSnapshot {
+    /** The exact value read from the durable row, used for compare-and-swap. */
+    readonly expectedCursor: Cursor
+    /** A validated value safe to send to the controller, or null when repairing corruption. */
+    readonly fetchCursor: Cursor
+}
+
 function parseCursor(
     cursor: Cursor,
 ): { readonly storeId: string; readonly sequence: bigint } | null {
@@ -68,20 +75,28 @@ function cursorIsAtLeast(candidate: Cursor, current: Cursor): boolean {
     )
 }
 
-async function readCursor(): Promise<Cursor> {
+async function readCursor(): Promise<CursorSnapshot> {
     const rows = await getAuthDatabase()
         .select({ cursor: certificateEventCursor.cursor })
         .from(certificateEventCursor)
         .where(sql`${certificateEventCursor.id} = 1`)
         .limit(1)
     const cursor = rows.at(0)?.cursor ?? null
-    return cursor === null || parseCursor(cursor) !== null ? cursor : null
+    return {
+        expectedCursor: cursor,
+        fetchCursor: cursor === null || parseCursor(cursor) !== null ? cursor : null,
+    }
 }
 
-async function fetchEventsAndMetadata(expectedCursor: Cursor): Promise<FetchedEvents> {
-    let after = expectedCursor
-    let nextCursor = expectedCursor
-    let resetRequired = false
+async function fetchEventsAndMetadata(
+    fetchCursor: Cursor,
+    expectedCursor: Cursor,
+): Promise<FetchedEvents> {
+    let after = fetchCursor
+    let nextCursor = fetchCursor
+    // A malformed durable cursor must be repaired, but only after the transaction confirms that
+    // the same malformed value is still present. A concurrent valid cursor will fail that CAS.
+    let resetRequired = expectedCursor !== fetchCursor
     const events: CertificateEventMetadata[] = []
 
     for (let pageNumber = 0; pageNumber < CERTIFICATE_EVENT_MAX_PAGES_PER_TICK; pageNumber += 1) {
@@ -200,7 +215,9 @@ async function persistFetchedBatch(batch: FetchedEvents): Promise<boolean> {
 
 export async function synchronizeCertificateEventsOnce(): Promise<boolean> {
     const cursor = await readCursor()
-    return persistFetchedBatch(await fetchEventsAndMetadata(cursor))
+    return persistFetchedBatch(
+        await fetchEventsAndMetadata(cursor.fetchCursor, cursor.expectedCursor),
+    )
 }
 
 let stopped = false

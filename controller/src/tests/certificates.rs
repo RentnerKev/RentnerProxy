@@ -805,24 +805,63 @@ async fn certificate_index_limits_preserve_persisted_and_in_memory_metadata() {
             let label = "a".repeat(63);
             let domain = format!("{label}.{label}.{label}.{}.test", "b".repeat(55));
             template["domains"] = serde_json::json!(vec![domain; 100]);
+        } else if let Some(template) = template.as_object_mut() {
+            // Keep the count-limit fixture representative of an older index. These terminal
+            // fields were added later and are optional during rolling upgrades.
+            template.remove("currentOperation");
+            template.remove("lastActivatedAt");
         }
-        let entries = fixture["certificates"].as_object_mut().unwrap();
-        entries.clear();
-        let entry_bytes = serde_json::to_vec(&template).unwrap().len() + seed_id.len() + 4;
+        fixture["certificates"].as_object_mut().unwrap().clear();
         let count = if at_byte_limit {
-            (MAX_INDEX_BYTES - 128) / entry_bytes
+            let first_id = "0198d98a-0000-7000-8000-000000000000".to_owned();
+            let mut first_entry = template.clone();
+            first_entry["id"] = serde_json::json!(first_id);
+            fixture["certificates"]
+                .as_object_mut()
+                .unwrap()
+                .insert(first_id, first_entry);
+            let first_size = serde_json::to_vec(&fixture).unwrap().len();
+
+            let second_id = "0198d98a-0000-7000-8000-000000000001".to_owned();
+            let mut second_entry = template.clone();
+            second_entry["id"] = serde_json::json!(second_id);
+            fixture["certificates"]
+                .as_object_mut()
+                .unwrap()
+                .insert(second_id, second_entry);
+            let second_size = serde_json::to_vec(&fixture).unwrap().len();
+            let per_entry = second_size - first_size;
+            let mut count = 2 + (MAX_INDEX_BYTES - second_size) / per_entry;
+            for number in 2..count {
+                let id = format!("0198d98a-0000-7000-8000-{number:012x}");
+                let mut entry = template.clone();
+                entry["id"] = serde_json::json!(id);
+                fixture["certificates"]
+                    .as_object_mut()
+                    .unwrap()
+                    .insert(id, entry);
+            }
+            while serde_json::to_vec(&fixture).unwrap().len() > MAX_INDEX_BYTES {
+                count -= 1;
+                let id = format!("0198d98a-0000-7000-8000-{count:012x}");
+                fixture["certificates"].as_object_mut().unwrap().remove(&id);
+            }
+            count
         } else {
             10_000
         };
-        for number in 0..count {
-            let id = format!("0198d98a-0000-7000-8000-{number:012x}");
-            let mut entry = template.clone();
-            entry["id"] = serde_json::json!(id);
-            entries.insert(id, entry);
+        if !at_byte_limit {
+            let entries = fixture["certificates"].as_object_mut().unwrap();
+            for number in 0..count {
+                let id = format!("0198d98a-0000-7000-8000-{number:012x}");
+                let mut entry = template.clone();
+                entry["id"] = serde_json::json!(id);
+                entries.insert(id, entry);
+            }
         }
         if at_byte_limit {
             let current_bytes = serde_json::to_vec(&fixture).unwrap().len();
-            let mut remaining = MAX_INDEX_BYTES - 64 - current_bytes;
+            let mut remaining = MAX_INDEX_BYTES.saturating_sub(64 + current_bytes);
             for entry in fixture["certificates"]
                 .as_object_mut()
                 .unwrap()
