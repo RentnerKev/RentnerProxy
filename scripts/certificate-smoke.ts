@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
+import { isIP } from 'node:net'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -32,73 +33,6 @@ let opensslMode: 'host' | 'docker' = 'host'
 let curlTestCaArgs: string[] = []
 let opensslTempDirectory = ''
 const opensslImage = runtimeImage
-
-type DockerNetworkIpamConfig = {
-    readonly Subnet?: string
-    readonly Gateway?: string
-}
-
-type DockerNetworkInspection = {
-    readonly IPAM?: { readonly Config?: readonly DockerNetworkIpamConfig[] }
-    readonly Containers?: Readonly<
-        Record<string, { readonly IPv4Address?: string; readonly IPv6Address?: string }>
-    >
-}
-
-function ipv4ToNumber(value: string): number {
-    const octets = value.split('.').map((octet) => Number(octet))
-    if (
-        octets.length !== 4 ||
-        octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)
-    ) {
-        throw new Error('Docker smoke network returned an invalid IPv4 address')
-    }
-    return (
-        (((octets[0] ?? 0) * 256 + (octets[1] ?? 0)) * 256 + (octets[2] ?? 0)) * 256 +
-        (octets[3] ?? 0)
-    )
-}
-
-function numberToIpv4(value: number): string {
-    return [24, 16, 8, 0].map((shift) => (value >>> shift) & 0xff).join('.')
-}
-
-function chooseTrustedIpv4(subnet: string, gateway: string | undefined): string {
-    const [networkAddress, prefixText] = subnet.split('/')
-    const prefix = Number(prefixText)
-    if (!networkAddress || !Number.isInteger(prefix) || prefix < 8 || prefix > 30) {
-        throw new Error('Docker smoke network has no usable IPv4 subnet')
-    }
-    const hostCount = 2 ** (32 - prefix)
-    const networkNumber = ipv4ToNumber(networkAddress)
-    const gatewayNumber = gateway?.includes('.') ? ipv4ToNumber(gateway) : undefined
-    const candidateOffsets = [hostCount - 2, hostCount - 3, 250, 240, 200, 100, 10, 2]
-    for (const offset of candidateOffsets) {
-        if (offset <= 0 || offset >= hostCount - 1) continue
-        const candidate = networkNumber + offset
-        if (candidate !== gatewayNumber) return numberToIpv4(candidate)
-    }
-    throw new Error('Docker smoke network has no free static IPv4 candidate')
-}
-
-function chooseTrustedIpv6(subnet: string, gateway: string | undefined): string {
-    const [networkAddress, prefixText] = subnet.split('/')
-    if (!networkAddress || prefixText !== '64') {
-        throw new Error('Docker smoke network has no usable /64 IPv6 subnet')
-    }
-    const base = networkAddress.endsWith('::') ? networkAddress.slice(0, -2) : networkAddress
-    const candidate = base + '::100'
-    if (candidate === gateway) throw new Error('Docker smoke network IPv6 candidate is occupied')
-    return candidate
-}
-
-function inspectDockerNetwork(value: string): DockerNetworkInspection {
-    const parsed: unknown = JSON.parse(value)
-    assert.ok(Array.isArray(parsed))
-    const inspection = parsed[0] as DockerNetworkInspection | undefined
-    assert.ok(inspection)
-    return inspection
-}
 
 function uuidV7(): string {
     const bytes = randomBytes(16)
@@ -404,17 +338,6 @@ async function runSmoke(): Promise<void> {
             { inherit: true, timeoutMs: 900_000 },
         )
         await command(['docker', 'network', 'create', '--ipv6', network])
-        const networkInspection = inspectDockerNetwork(
-            await command(['docker', 'network', 'inspect', network]),
-        )
-        const ipamConfigs = networkInspection.IPAM?.Config ?? []
-        const ipv4Config = ipamConfigs.find((config) => config.Subnet?.includes('.'))
-        const ipv6Config = ipamConfigs.find((config) => config.Subnet?.includes(':'))
-        if (!ipv4Config?.Subnet || !ipv6Config?.Subnet) {
-            throw new Error('Docker smoke network did not provide dual-stack IPAM')
-        }
-        const trustedProxyIpv4 = chooseTrustedIpv4(ipv4Config.Subnet, ipv4Config.Gateway)
-        const trustedProxyIpv6 = chooseTrustedIpv6(ipv6Config.Subnet, ipv6Config.Gateway)
         await command(
             [
                 'docker',
@@ -424,10 +347,6 @@ async function runSmoke(): Promise<void> {
                 trustedProxyContainer,
                 '--network',
                 network,
-                '--ip',
-                trustedProxyIpv4,
-                '--ip6',
-                trustedProxyIpv6,
                 '--volume',
                 temp + ':/test:ro',
                 '--entrypoint',
@@ -438,6 +357,16 @@ async function runSmoke(): Promise<void> {
             ],
             { timeoutMs: 60_000 },
         )
+        const trustedAddresses = await command([
+            'docker',
+            'inspect',
+            '--format',
+            '{{range .NetworkSettings.Networks}}{{.IPAddress}}|{{.GlobalIPv6Address}}{{end}}',
+            trustedProxyContainer,
+        ])
+        const [trustedProxyIpv4, trustedProxyIpv6] = trustedAddresses.split('|')
+        assert.ok(trustedProxyIpv4 && isIP(trustedProxyIpv4) === 4)
+        assert.ok(trustedProxyIpv6 && isIP(trustedProxyIpv6) === 6)
         await command(['docker', 'volume', 'create', stateVolume])
         dnsFixture = await startCertificateDnsFixture(dnsToken)
 
