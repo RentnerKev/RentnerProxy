@@ -1,3 +1,4 @@
+use ipnet::IpNet;
 use std::{env, fs, io::Read, net::SocketAddr, path::PathBuf};
 
 const LISTEN_ADDR_ENV: &str = "RENTNERPROXY_CONTROLLER_LISTEN_ADDR";
@@ -8,6 +9,7 @@ const PROXY_STATE_DIR_ENV: &str = "RENTNERPROXY_PROXY_STATE_DIR";
 const PROXY_HTTP_PORT_ENV: &str = "RENTNERPROXY_PROXY_HTTP_PORT";
 const PROXY_HTTPS_PORT_ENV: &str = "RENTNERPROXY_PROXY_HTTPS_PORT";
 const PROXY_PUBLIC_HTTPS_PORT_ENV: &str = "RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT";
+const PROXY_TRUSTED_PROXY_CIDRS_ENV: &str = "RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS";
 const SYSTEM_CA_BUNDLE_ENV: &str = "RENTNERPROXY_SYSTEM_CA_BUNDLE";
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:8081";
 const DEFAULT_PROXY_HTTP_PORT: u16 = 8_080;
@@ -40,11 +42,13 @@ pub(crate) struct Config {
     pub(crate) proxy_http_port: u16,
     pub(crate) proxy_https_port: u16,
     pub(crate) proxy_public_https_port: u16,
+    pub(crate) proxy_trusted_proxy_cidrs: Vec<String>,
     pub(crate) system_ca_bundle: PathBuf,
 }
 
 #[derive(Debug)]
 pub(crate) enum ConfigError {
+    InvalidTrustedProxyCidrs,
     InvalidListenAddr {
         variable: &'static str,
         value: String,
@@ -83,6 +87,10 @@ pub(crate) enum ConfigError {
 impl std::fmt::Display for ConfigError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::InvalidTrustedProxyCidrs => write!(
+                formatter,
+                "invalid {PROXY_TRUSTED_PROXY_CIDRS_ENV}: expected at most 128 distinct canonical IPv4/IPv6 CIDRs, without all-address or IPv4-mapped ranges"
+            ),
             Self::InvalidListenAddr {
                 variable,
                 value,
@@ -143,6 +151,7 @@ impl std::error::Error for ConfigError {
         match self {
             Self::InvalidListenAddr { source, .. } => Some(source),
             Self::InvalidListenAddrEncoding { .. }
+            | Self::InvalidTrustedProxyCidrs
             | Self::InvalidControllerToken { .. }
             | Self::ConflictingControllerTokenSources { .. }
             | Self::InvalidControllerTokenFile { .. }
@@ -195,6 +204,8 @@ impl Config {
             DEFAULT_PROXY_PUBLIC_HTTPS_PORT,
         )?;
         config.system_ca_bundle = parse_system_ca_bundle(system_ca_bundle.as_deref())?;
+        config.proxy_trusted_proxy_cidrs =
+            parse_trusted_proxy_cidrs(read_env(PROXY_TRUSTED_PROXY_CIDRS_ENV)?.as_deref())?;
         Ok(config)
     }
 
@@ -256,9 +267,36 @@ impl Config {
             proxy_http_port,
             proxy_https_port: DEFAULT_PROXY_HTTPS_PORT,
             proxy_public_https_port: DEFAULT_PROXY_PUBLIC_HTTPS_PORT,
+            proxy_trusted_proxy_cidrs: Vec::new(),
             system_ca_bundle: PathBuf::from(DEFAULT_SYSTEM_CA_BUNDLE),
         })
     }
+}
+
+pub(crate) fn parse_trusted_proxy_cidrs(value: Option<&str>) -> Result<Vec<String>, ConfigError> {
+    let value = value.unwrap_or_default().trim();
+    if value.is_empty() {
+        return Ok(Vec::new());
+    }
+    if value.len() > 8_192 {
+        return Err(ConfigError::InvalidTrustedProxyCidrs);
+    }
+    let mut ranges = std::collections::BTreeSet::new();
+    for raw in value.split(',') {
+        let raw = raw.trim();
+        let net: IpNet = raw
+            .parse()
+            .map_err(|_| ConfigError::InvalidTrustedProxyCidrs)?;
+        if net.prefix_len() == 0
+            || net.trunc().to_string() != raw
+            || matches!(net, IpNet::V6(net) if net.network().to_ipv4_mapped().is_some())
+            || !ranges.insert(raw.to_owned())
+            || ranges.len() > 128
+        {
+            return Err(ConfigError::InvalidTrustedProxyCidrs);
+        }
+    }
+    Ok(ranges.into_iter().collect())
 }
 
 fn parse_system_ca_bundle(value: Option<&str>) -> Result<PathBuf, ConfigError> {

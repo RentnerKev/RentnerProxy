@@ -23,6 +23,7 @@ pub(crate) struct RenderSettings {
     pub(crate) admin_socket: Option<PathBuf>,
     pub(crate) state_dir: PathBuf,
     pub(crate) controller_port: u16,
+    pub(crate) trusted_proxy_cidrs: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -105,9 +106,19 @@ struct HttpServer {
     #[serde(skip_serializing_if = "Option::is_none")]
     strict_sni_host: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    trusted_proxies: Option<TrustedProxies>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    trusted_proxies_strict: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     tls_connection_policies: Option<Vec<TlsConnectionPolicy>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     logs: Option<ServerLogs>,
+}
+
+#[derive(Serialize)]
+struct TrustedProxies {
+    source: String,
+    ranges: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -135,12 +146,19 @@ struct MatcherSet {
     #[serde(skip_serializing_if = "Option::is_none")]
     remote_ip: Option<RemoteIpMatcher>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    vars: Option<BTreeMap<String, Vec<String>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     not: Option<Vec<MatcherSet>>,
 }
 
 #[derive(Serialize)]
 struct RemoteIpMatcher {
     ranges: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct Subroute {
+    routes: Vec<Route>,
 }
 
 impl MatcherSet {
@@ -166,6 +184,8 @@ enum Handler {
     StaticResponse(StaticResponse),
     #[serde(rename = "reverse_proxy")]
     ReverseProxy(Box<ReverseProxy>),
+    #[serde(rename = "subroute")]
+    Subroute(Subroute),
     #[serde(rename = "request_body")]
     RequestBody(RequestBody),
     #[serde(rename = "authentication")]
@@ -368,6 +388,8 @@ fn render_config_inner(
             write_timeout: seconds(config.http_settings.send_timeout_seconds),
             idle_timeout: seconds(config.http_settings.keepalive_timeout_seconds),
             strict_sni_host: None,
+            trusted_proxies: trusted_proxies(&settings.trusted_proxy_cidrs),
+            trusted_proxies_strict: (!settings.trusted_proxy_cidrs.is_empty()).then_some(1),
             tls_connection_policies: None,
             logs: Some(ServerLogs {}),
         },
@@ -403,6 +425,8 @@ fn render_config_inner(
                 write_timeout: None,
                 idle_timeout: None,
                 strict_sni_host: None,
+                trusted_proxies: None,
+                trusted_proxies_strict: None,
                 tls_connection_policies: None,
                 logs: None,
             },
@@ -414,7 +438,7 @@ fn render_config_inner(
         let mut certs = Vec::new();
         let mut loaded_certificate_ids = BTreeSet::new();
         let mut policies = Vec::new();
-        let mut https_routes = vec![challenge_route(settings.controller_port)];
+        let mut https_routes = vec![challenge_route(settings.controller_port, "https")];
         for host in &config.proxy_hosts {
             let Some(certificate_id) = host.certificate_id.as_ref() else {
                 continue;
@@ -445,6 +469,7 @@ fn render_config_inner(
                 Some(upstream_tls),
                 true,
                 &config.http_settings,
+                &settings.trusted_proxy_cidrs,
             )?);
         }
         for host in &config.redirect_hosts {
@@ -486,6 +511,8 @@ fn render_config_inner(
                     write_timeout: seconds(config.http_settings.send_timeout_seconds),
                     idle_timeout: seconds(config.http_settings.keepalive_timeout_seconds),
                     strict_sni_host: Some(true),
+                    trusted_proxies: trusted_proxies(&settings.trusted_proxy_cidrs),
+                    trusted_proxies_strict: (!settings.trusted_proxy_cidrs.is_empty()).then_some(1),
                     tls_connection_policies: Some(policies),
                     logs: Some(ServerLogs {}),
                 },
@@ -571,7 +598,7 @@ fn http_routes(
     public_https_port: u16,
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
 ) -> Result<Vec<Route>, RenderError> {
-    let mut routes = vec![challenge_route(settings.controller_port)];
+    let mut routes = vec![challenge_route(settings.controller_port, "http")];
     for host in &config.proxy_hosts {
         routes.extend(host_routes(
             host,
@@ -579,6 +606,7 @@ fn http_routes(
             upstream_tls,
             false,
             &config.http_settings,
+            &settings.trusted_proxy_cidrs,
         )?);
     }
     for host in &config.redirect_hosts {
@@ -588,14 +616,20 @@ fn http_routes(
     Ok(routes)
 }
 
-fn challenge_route(controller_port: u16) -> Route {
+fn challenge_route(controller_port: u16, forwarded_proto: &str) -> Route {
     Route {
         matchers: vec![MatcherSet::path(vec![
             "/.well-known/acme-challenge/*".to_owned(),
         ])],
         handle: vec![Handler::ReverseProxy(Box::new(
-            reverse_proxy(&format!("127.0.0.1:{controller_port}"), None, None, None)
-                .expect("controller challenge proxy is always valid"),
+            reverse_proxy(
+                &format!("127.0.0.1:{controller_port}"),
+                None,
+                None,
+                None,
+                forwarded_proto,
+            )
+            .expect("controller challenge proxy is always valid"),
         ))],
         terminal: true,
     }
@@ -607,6 +641,62 @@ fn host_routes(
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
     https_listener: bool,
     defaults: &ProxyHttpSettings,
+    trusted_proxy_cidrs: &[String],
+) -> Result<Vec<Route>, RenderError> {
+    if !https_listener && !trusted_proxy_cidrs.is_empty() {
+        let trusted_routes = host_routes_for_listener(
+            host,
+            public_https_port,
+            upstream_tls,
+            true,
+            defaults,
+            "https",
+        )?;
+        let trusted_route = Route {
+            matchers: vec![trusted_forwarded_matcher(
+                &host.domains,
+                trusted_proxy_cidrs,
+            )],
+            handle: vec![Handler::Subroute(Subroute {
+                routes: trusted_routes,
+            })],
+            terminal: true,
+        };
+        if host.force_https {
+            return Ok(vec![
+                trusted_route,
+                redirect_to_https_route(&host.domains, public_https_port),
+            ]);
+        }
+        let mut routes = vec![trusted_route];
+        routes.extend(host_routes_for_listener(
+            host,
+            public_https_port,
+            upstream_tls,
+            false,
+            defaults,
+            "http",
+        )?);
+        return Ok(routes);
+    }
+
+    host_routes_for_listener(
+        host,
+        public_https_port,
+        upstream_tls,
+        https_listener,
+        defaults,
+        if https_listener { "https" } else { "http" },
+    )
+}
+
+fn host_routes_for_listener(
+    host: &ProxyHost,
+    public_https_port: u16,
+    upstream_tls: Option<&UpstreamTlsRenderSettings>,
+    https_listener: bool,
+    defaults: &ProxyHttpSettings,
+    forwarded_proto: &str,
 ) -> Result<Vec<Route>, RenderError> {
     let Some(policy) = host.access_policy.as_ref() else {
         if host.force_https && !https_listener {
@@ -621,6 +711,7 @@ fn host_routes(
             defaults,
             MatcherSet::host(&host.domains),
             None,
+            forwarded_proto,
         )?]);
     };
 
@@ -648,14 +739,14 @@ fn host_routes(
             public_https_port,
         )]);
     }
-
-    match policy.mode {
+    let routes = match policy.mode {
         AccessPolicyMode::Public => Ok(vec![proxy_route(
             host,
             upstream_tls,
             defaults,
             MatcherSet::host(&host.domains),
             None,
+            forwarded_proto,
         )?]),
         AccessPolicyMode::Authenticated => Ok(vec![proxy_route(
             host,
@@ -663,23 +754,26 @@ fn host_routes(
             defaults,
             MatcherSet::host(&host.domains),
             policy.basic_auth.as_ref(),
+            forwarded_proto,
         )?]),
         AccessPolicyMode::IpRestricted => ip_only_routes(
             host,
             upstream_tls,
             defaults,
             policy.ip_rules.as_ref().expect("validated IP provider"),
+            forwarded_proto,
         ),
         AccessPolicyMode::Combined => match policy.combination {
             Some(AccessPolicyCombination::All) => {
-                combined_all_routes(host, upstream_tls, defaults, policy)
+                combined_all_routes(host, upstream_tls, defaults, policy, forwarded_proto)
             }
             Some(AccessPolicyCombination::Any) => {
-                combined_any_routes(host, upstream_tls, defaults, policy)
+                combined_any_routes(host, upstream_tls, defaults, policy, forwarded_proto)
             }
             None => Ok(vec![denied_host_route(&host.domains)]),
         },
-    }
+    }?;
+    Ok(routes)
 }
 
 fn denied_host_route(domains: &[String]) -> Route {
@@ -700,9 +794,23 @@ fn redirect_to_https_route(domains: &[String], public_https_port: u16) -> Route 
         handle: vec![Handler::StaticResponse(StaticResponse {
             body: None,
             status_code: Some(308),
-            headers: Some(location_headers(force_https_location(public_https_port))),
+            headers: Some(force_https_headers(force_https_location(public_https_port))),
         })],
         terminal: true,
+    }
+}
+
+fn trusted_forwarded_matcher(domains: &[String], trusted_proxy_cidrs: &[String]) -> MatcherSet {
+    MatcherSet {
+        host: Some(domains.to_vec()),
+        remote_ip: Some(RemoteIpMatcher {
+            ranges: rendered_ranges(trusted_proxy_cidrs),
+        }),
+        vars: Some(BTreeMap::from([(
+            "{http.request.header.X-Forwarded-Proto}".to_owned(),
+            vec!["https".to_owned()],
+        )])),
+        ..MatcherSet::default()
     }
 }
 
@@ -712,6 +820,7 @@ fn proxy_route(
     defaults: &ProxyHttpSettings,
     matcher: MatcherSet,
     basic_auth: Option<&BasicAuth>,
+    forwarded_proto: &str,
 ) -> Result<Route, RenderError> {
     let mut handle = Vec::new();
     if let Some(auth) = basic_auth {
@@ -728,7 +837,13 @@ fn proxy_route(
         }));
     }
     let upstream = upstream_dial(&host.forward_host, host.forward_port);
-    let mut proxy = reverse_proxy(&upstream, Some(host), Some(defaults), upstream_tls)?;
+    let mut proxy = reverse_proxy(
+        &upstream,
+        Some(host),
+        Some(defaults),
+        upstream_tls,
+        forwarded_proto,
+    )?;
     if basic_auth.is_some()
         || host.access_policy.as_ref().is_some_and(|policy| {
             policy.mode == AccessPolicyMode::Combined && policy.basic_auth.is_some()
@@ -771,13 +886,21 @@ fn ip_only_routes(
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
     defaults: &ProxyHttpSettings,
     rules: &IpRules,
+    forwarded_proto: &str,
 ) -> Result<Vec<Route>, RenderError> {
     let mut routes = Vec::new();
     if !rules.deny.is_empty() {
         routes.push(static_route(ip_matcher(&host.domains, &rules.deny), 403));
     }
     if let Some(matcher) = ip_allowed_matcher(&host.domains, rules) {
-        routes.push(proxy_route(host, upstream_tls, defaults, matcher, None)?);
+        routes.push(proxy_route(
+            host,
+            upstream_tls,
+            defaults,
+            matcher,
+            None,
+            forwarded_proto,
+        )?);
     }
     routes.push(denied_host_route(&host.domains));
     Ok(routes)
@@ -788,6 +911,7 @@ fn combined_all_routes(
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
     defaults: &ProxyHttpSettings,
     policy: &AccessPolicy,
+    forwarded_proto: &str,
 ) -> Result<Vec<Route>, RenderError> {
     let Some(rules) = policy.ip_rules.as_ref() else {
         return Ok(vec![denied_host_route(&host.domains)]);
@@ -803,6 +927,7 @@ fn combined_all_routes(
             defaults,
             matcher,
             Some(auth),
+            forwarded_proto,
         )?);
     }
     routes.push(denied_host_route(&host.domains));
@@ -814,12 +939,20 @@ fn combined_any_routes(
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
     defaults: &ProxyHttpSettings,
     policy: &AccessPolicy,
+    forwarded_proto: &str,
 ) -> Result<Vec<Route>, RenderError> {
     let mut routes = Vec::new();
     if let Some(rules) = policy.ip_rules.as_ref()
         && let Some(matcher) = ip_allowed_matcher(&host.domains, rules)
     {
-        routes.push(proxy_route(host, upstream_tls, defaults, matcher, None)?);
+        routes.push(proxy_route(
+            host,
+            upstream_tls,
+            defaults,
+            matcher,
+            None,
+            forwarded_proto,
+        )?);
     }
     if let Some(auth) = policy.basic_auth.as_ref() {
         routes.push(proxy_route(
@@ -828,6 +961,7 @@ fn combined_any_routes(
             defaults,
             MatcherSet::host(&host.domains),
             Some(auth),
+            forwarded_proto,
         )?);
     } else {
         routes.push(denied_host_route(&host.domains));
@@ -977,12 +1111,17 @@ fn reverse_proxy(
     host: Option<&ProxyHost>,
     defaults: Option<&ProxyHttpSettings>,
     ca_settings: Option<&UpstreamTlsRenderSettings>,
+    forwarded_proto: &str,
 ) -> Result<ReverseProxy, RenderError> {
     let mut set = BTreeMap::new();
     set.insert("Host".to_owned(), vec!["{http.request.host}".to_owned()]);
     set.insert(
         "X-Real-IP".to_owned(),
         vec!["{http.request.remote.host}".to_owned()],
+    );
+    set.insert(
+        "X-Forwarded-Proto".to_owned(),
+        vec![forwarded_proto.to_owned()],
     );
     let mut transport = HttpTransport {
         protocol: "http".to_owned(),
@@ -1081,7 +1220,24 @@ fn reverse_proxy(
 }
 
 fn location_headers(value: String) -> BTreeMap<String, Vec<String>> {
-    BTreeMap::from([(String::from("Location"), vec![value])])
+    BTreeMap::from([
+        (
+            String::from("Cache-Control"),
+            vec![String::from("no-store")],
+        ),
+        (String::from("Location"), vec![value]),
+    ])
+}
+
+fn force_https_headers(value: String) -> BTreeMap<String, Vec<String>> {
+    location_headers(value)
+}
+
+fn trusted_proxies(cidrs: &[String]) -> Option<TrustedProxies> {
+    (!cidrs.is_empty()).then(|| TrustedProxies {
+        source: "static".to_owned(),
+        ranges: rendered_ranges(cidrs),
+    })
 }
 
 fn upstream_dial(host: &str, port: u16) -> String {
@@ -1171,6 +1327,7 @@ pub(crate) fn render_host_config_for_runtime(
     defaults: &ProxyHttpSettings,
     public_https_port: u16,
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
+    trusted_proxy_cidrs: &[String],
 ) -> Result<String, RenderError> {
     let source = HostSource {
         http: HostSourceRoutes::from_routes(host_routes(
@@ -1179,13 +1336,21 @@ pub(crate) fn render_host_config_for_runtime(
             upstream_tls,
             false,
             defaults,
+            trusted_proxy_cidrs,
         )?),
         https: host
             .certificate_id
             .as_ref()
             .map(|_| {
-                host_routes(host, public_https_port, upstream_tls, true, defaults)
-                    .map(HostSourceRoutes::from_routes)
+                host_routes(
+                    host,
+                    public_https_port,
+                    upstream_tls,
+                    true,
+                    defaults,
+                    trusted_proxy_cidrs,
+                )
+                .map(HostSourceRoutes::from_routes)
             })
             .transpose()?,
     };
@@ -1196,6 +1361,7 @@ pub(crate) fn render_host_sources_for_runtime(
     configuration: &ValidatedProxyConfig,
     public_https_port: u16,
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
+    trusted_proxy_cidrs: &[String],
 ) -> Result<BTreeMap<String, String>, RenderError> {
     let mut sources = BTreeMap::new();
     for host in &configuration.proxy_hosts {
@@ -1204,6 +1370,7 @@ pub(crate) fn render_host_sources_for_runtime(
             &configuration.http_settings,
             public_https_port,
             upstream_tls,
+            trusted_proxy_cidrs,
         )?;
         if source.len() > MAX_RENDERED_PROXY_HOST_SOURCE_BYTES {
             return Err(RenderError::ConfigTooLarge);

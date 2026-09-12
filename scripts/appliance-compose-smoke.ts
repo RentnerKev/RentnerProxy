@@ -36,6 +36,7 @@ for (const variable of [
     'POSTGRES_PASSWORD',
     'RENTNERPROXY_APP_KEY_FILE',
     'RENTNERPROXY_CONTROLLER_TOKEN',
+    'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS',
 ]) {
     delete commandEnvironment[variable]
 }
@@ -327,7 +328,11 @@ async function runSmoke(): Promise<void> {
         const service = rendered.services.rentnerproxy
         assert.ok(service)
         assert.equal(service.image, imageTag)
-        assert.deepEqual(Object.keys(service.environment ?? {}).toSorted(), smtpNames)
+        assert.deepEqual(
+            Object.keys(service.environment ?? {}).toSorted(),
+            [...smtpNames, 'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS'].toSorted(),
+        )
+        assert.equal(service.environment?.RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS, '')
         assert.deepEqual(
             (service.ports ?? []).map(({ published, target }) => ({ published, target })),
             [
