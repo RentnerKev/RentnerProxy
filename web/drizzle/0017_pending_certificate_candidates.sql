@@ -1,0 +1,2 @@
+ALTER TABLE "rentnerproxy"."certificates" ADD COLUMN "candidate" jsonb;--> statement-breakpoint
+ALTER TABLE "rentnerproxy"."certificates" ADD COLUMN "dns_cleanup_pending" boolean DEFAULT false NOT NULL;

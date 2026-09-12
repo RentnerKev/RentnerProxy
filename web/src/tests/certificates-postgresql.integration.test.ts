@@ -64,6 +64,14 @@ interface Metadata {
     expiresAt: string | null
     issuer: string | null
     fingerprint: string | null
+    candidate?: {
+        fingerprint: string
+        issuedAt: string
+        expiresAt: string
+        lastErrorCode: string | null
+        nextAttemptAt: string | null
+    } | null
+    dnsCleanupPending?: boolean
     lastErrorCode: string | null
     updatedAt: string
 }
@@ -555,14 +563,57 @@ describe('certificate management with PostgreSQL', () => {
                 environment: 'staging',
                 status: 'pending',
                 operation: 'issuing',
+                candidate: null,
+                dnsCleanupPending: false,
             })
+            const issuedCandidate = {
+                fingerprint: 'sha256:' + 'c'.repeat(64),
+                issuedAt: '2026-09-01T00:00:00Z',
+                expiresAt: '2027-09-01T00:00:00Z',
+                lastErrorCode: null,
+                nextAttemptAt: '2026-09-02T00:00:00Z',
+            }
+            controller!.entries.set(id, {
+                ...controller!.entries.get(id)!,
+                candidate: issuedCandidate,
+                dnsCleanupPending: true,
+            })
+            expect((await asUser(owner, getCertificatesService))[0]).toMatchObject({
+                status: 'pending',
+                candidate: {
+                    fingerprint: issuedCandidate.fingerprint,
+                    issuedAt: new Date(issuedCandidate.issuedAt),
+                    expiresAt: new Date(issuedCandidate.expiresAt),
+                    nextAttemptAt: new Date(issuedCandidate.nextAttemptAt),
+                },
+                dnsCleanupPending: true,
+            })
+            await expect(
+                asUser(owner, () => createProxyHostService(hostInput(id))),
+            ).rejects.toMatchObject({ code: 'certificate_expired' })
             controller!.entries.set(
                 id,
-                validMetadata(id, ['www.example.com'], { source: 'acme', environment: 'staging' }),
+                validMetadata(id, ['www.example.com'], {
+                    source: 'acme',
+                    environment: 'staging',
+                    candidate: issuedCandidate,
+                    dnsCleanupPending: false,
+                }),
             )
-            expect((await asUser(owner, getCertificatesService))[0]?.status).toBe('valid')
+            expect((await asUser(owner, getCertificatesService))[0]).toMatchObject({
+                status: 'valid',
+                candidate: {
+                    fingerprint: issuedCandidate.fingerprint,
+                },
+            })
             await asUser(owner, () => renewCertificateService(id))
-            expect((await asUser(owner, getCertificatesService))[0]?.operation).toBe('renewing')
+            expect((await asUser(owner, getCertificatesService))[0]).toMatchObject({
+                operation: 'renewing',
+                fingerprint: 'sha256:' + 'a'.repeat(64),
+                candidate: {
+                    fingerprint: issuedCandidate.fingerprint,
+                },
+            })
             controller!.entries.set(id, {
                 ...controller!.entries.get(id)!,
                 operation: 'idle',

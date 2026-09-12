@@ -727,6 +727,30 @@ async function runSmoke(): Promise<void> {
                 timeoutMs: 15_000,
             })
         }
+        async function servedCertificateFingerprint(
+            hostname: string,
+            outputPath: string,
+        ): Promise<string> {
+            const served = await openssl(
+                [
+                    's_client',
+                    '-connect',
+                    '127.0.0.1:' + httpsPort,
+                    '-servername',
+                    hostname,
+                    '-CAfile',
+                    temp + '/issuance-root.pem',
+                    '-showcerts',
+                ],
+                15_000,
+            ).catch(() => '')
+            const pem = served.match(
+                /-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/u,
+            )?.[0]
+            assert.ok(pem)
+            await writeFile(outputPath, pem)
+            return 'sha256:' + (await fingerprint(outputPath))
+        }
         const one = host(uuidV7(), 'one.test', backend.port!, firstId, true)
         const two = host(uuidV7(), 'two.test', backend.port!, secondId, true)
         const acmeHost = host(uuidV7(), 'acme.invalid', backend.port!)
@@ -1418,6 +1442,113 @@ async function runSmoke(): Promise<void> {
         )
         passed('controller restart preserves account, metadata and live HTTPS configuration')
 
+        // Remove only Caddy's admin socket to force the real activation path to
+        // fail after the CA response has been persisted.  The controller can
+        // still finish the ACME order, and Caddy's verified old configuration
+        // must remain the served certificate while the candidate is retried.
+        const adminSocketPath = '/var/lib/rentnerproxy/proxy/caddy-admin.sock'
+        await command(['docker', 'exec', runtimeContainer, 'test', '-S', adminSocketPath])
+        await command(['docker', 'exec', runtimeContainer, 'rm', '--', adminSocketPath])
+        const failedActivationRenew = await controllerRequest(
+            '/internal/v1/certificates/' + acmeId + '/renew',
+            { method: 'POST', body: '{}' },
+        )
+        assert.equal(failedActivationRenew.status, 202)
+        let failedActivation: Record<string, any> = {}
+        await waitFor(
+            async () => {
+                failedActivation = jsonObject(
+                    await (await controllerRequest('/internal/v1/certificates/' + acmeId)).json(),
+                )
+                return (
+                    failedActivation.operation === 'idle' &&
+                    failedActivation.candidate !== null &&
+                    failedActivation.fingerprint === afterRenew.fingerprint
+                )
+            },
+            'Caddy apply failure with a persisted ACME candidate',
+            120_000,
+        )
+        assert.equal(failedActivation.status, 'valid')
+        assert.equal(failedActivation.lastErrorCode, 'runtime_apply_failed')
+        assert.notEqual(failedActivation.candidate.fingerprint, afterRenew.fingerprint)
+        assert.equal(
+            await servedCertificateFingerprint(
+                'acme.invalid',
+                temp + '/served-acme-caddy-failure.pem',
+            ),
+            afterRenew.fingerprint,
+        )
+        passed(
+            'Caddy apply failure keeps the old served certificate while the issued candidate is durable',
+        )
+
+        // Keep Pebble offline before restarting so startup recovery cannot
+        // accidentally begin a fresh ACME order before the explicit candidate
+        // retry below.
+        await command(['docker', 'network', 'disconnect', network, pebbleContainer], {
+            timeoutMs: 30_000,
+        })
+        await restartRuntime()
+        let restartedCandidate: Record<string, any> = {}
+        await waitFor(async () => {
+            restartedCandidate = jsonObject(
+                await (await controllerRequest('/internal/v1/certificates/' + acmeId)).json(),
+            )
+            return (
+                restartedCandidate.operation === 'idle' &&
+                restartedCandidate.candidate !== null &&
+                restartedCandidate.fingerprint === afterRenew.fingerprint
+            )
+        }, 'candidate recovery after Caddy restart')
+        const candidateFingerprint = restartedCandidate.candidate.fingerprint
+        const candidateRetry = await controllerRequest(
+            '/internal/v1/certificates/' + acmeId + '/renew',
+            { method: 'POST', body: '{}' },
+        )
+        assert.equal(candidateRetry.status, 202)
+        let activatedCandidate: Record<string, any> = {}
+        await waitFor(
+            async () => {
+                activatedCandidate = jsonObject(
+                    await (await controllerRequest('/internal/v1/certificates/' + acmeId)).json(),
+                )
+                return (
+                    activatedCandidate.operation === 'idle' &&
+                    activatedCandidate.candidate === null &&
+                    activatedCandidate.fingerprint === candidateFingerprint
+                )
+            },
+            'candidate activation with Pebble offline',
+            120_000,
+        )
+        assert.equal(activatedCandidate.lastErrorCode, null)
+        assert.equal(
+            await servedCertificateFingerprint(
+                'acme.invalid',
+                temp + '/served-acme-candidate-retry.pem',
+            ),
+            candidateFingerprint,
+        )
+        assert.match(
+            await curl([
+                '--cacert',
+                temp + '/issuance-root.pem',
+                '--resolve',
+                'acme.invalid:' + httpsPort + ':127.0.0.1',
+                'https://acme.invalid:' + httpsPort + '/candidate-retry',
+            ]),
+            /certificate-smoke-backend/u,
+        )
+        await command(
+            ['docker', 'network', 'connect', '--alias', 'pebble', network, pebbleContainer],
+            { timeoutMs: 30_000 },
+        )
+        await waitForPebbleNetwork()
+        passed(
+            'restarted runtime activates the same candidate with Pebble offline and serves its new TLS fingerprint',
+        )
+
         const wildcardId = uuidV7()
         const dnsRequest = {
             domains: ['*.example.com', 'example.com'],
@@ -1568,42 +1699,52 @@ async function runSmoke(): Promise<void> {
             'visible DNS cleanup failure',
             180_000,
         )
-        assert.equal(cleanupFailure.lastErrorCode, 'dns_cleanup_failed')
+        assert.equal(cleanupFailure.lastErrorCode, null)
         assert.equal(cleanupFailure.status, 'valid')
-        assert.equal(cleanupFailure.fingerprint, wildcardRenewed.fingerprint)
+        assert.equal(cleanupFailure.candidate, null)
+        assert.equal(cleanupFailure.dnsCleanupPending, true)
+        assert.notEqual(cleanupFailure.fingerprint, wildcardRenewed.fingerprint)
+        const cleanupRecoveredFingerprint = cleanupFailure.fingerprint
         assert.ok(dnsFixture.records.length > 0)
         await checkWildcardTraffic()
         dnsFixture.failCleanup = false
+        // Take Pebble offline before restart.  DNS cleanup and activation must
+        // recover from the persisted state without requesting another order.
+        await command(['docker', 'network', 'disconnect', network, pebbleContainer], {
+            timeoutMs: 30_000,
+        })
         await restartRuntime()
         await waitFor(
             async () => (await controllerRequest('/internal/v1/proxy/status')).status === 200,
             'restart with pending DNS cleanup',
         )
-        assert.equal(
-            (
-                await controllerRequest('/internal/v1/certificates/' + wildcardId + '/renew', {
-                    method: 'POST',
-                    body: '{}',
-                })
-            ).status,
-            409,
+        let afterDnsRecovery: Record<string, any> = {}
+        await waitFor(
+            async () => {
+                afterDnsRecovery = jsonObject(
+                    await (
+                        await controllerRequest('/internal/v1/certificates/' + wildcardId)
+                    ).json(),
+                )
+                return (
+                    afterDnsRecovery.operation === 'idle' &&
+                    afterDnsRecovery.candidate === null &&
+                    afterDnsRecovery.dnsCleanupPending === false &&
+                    afterDnsRecovery.fingerprint === cleanupRecoveredFingerprint
+                )
+            },
+            'issued candidate and DNS cleanup recovery without a second order',
+            180_000,
         )
-        passed('manual DNS renewal cannot bypass persisted backoff after restart')
-        await expireRetryFixture(wildcardId)
-        assert.equal(
-            (
-                await controllerRequest('/internal/v1/certificates/' + wildcardId + '/renew', {
-                    method: 'POST',
-                    body: '{}',
-                })
-            ).status,
-            202,
-        )
-        await waitForDnsCertificate()
         assert.equal(dnsFixture.records.length, 0)
         await checkWildcardTraffic()
+        await command(
+            ['docker', 'network', 'connect', '--alias', 'pebble', network, pebbleContainer],
+            { timeoutMs: 30_000 },
+        )
+        await waitForPebbleNetwork()
         passed(
-            'failed DNS cleanup preserves live TLS and pending proofs are cleaned on retry after restart',
+            'DNS cleanup failure keeps the issued certificate live and restart recovery clears proofs without another CA order',
         )
 
         const unrelatedDnsId = uuidV7()

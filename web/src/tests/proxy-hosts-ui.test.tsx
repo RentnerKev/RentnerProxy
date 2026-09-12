@@ -232,6 +232,8 @@ const assignableCertificate: CertificateSummary = {
     expiresAt: new Date('2026-04-01T12:00:00Z'),
     issuer: 'Pebble',
     fingerprint: 'SHA256:fixture',
+    candidate: null,
+    dnsCleanupPending: false,
     lastErrorCode: null,
     assignedHostCount: 0,
     createdAt: new Date('2026-01-01T12:00:00Z'),

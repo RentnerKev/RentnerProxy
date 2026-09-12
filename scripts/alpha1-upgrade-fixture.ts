@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import migrationJournal from '../web/drizzle/meta/_journal.json'
 
 /** The runner owns process creation; this helper only supplies structured argv. */
 export type Command = (args: string[], timeoutMs?: number) => Promise<string>
@@ -455,7 +456,8 @@ export async function assertAlpha1UpgradeFixture(input: {
         ) as value`,
     )
     const number = (key: string) => Number(base[key] ?? 0)
-    const expectedMigrationCount = input.expectAlpha2 ? 17 : 13
+    // The target image follows this checkout; only the published Alpha 1 baseline is fixed.
+    const expectedMigrationCount = input.expectAlpha2 ? migrationJournal.entries.length : 13
     if (number('migrations') !== expectedMigrationCount) {
         throw new Error('Unexpected migration journal state for Alpha 1 fixture.')
     }
@@ -502,6 +504,7 @@ export async function assertAlpha1UpgradeFixture(input: {
         input.containerId,
         `select json_build_object(
             'accessPolicies', to_regclass('rentnerproxy.access_policies') is not null,
+            'certificateCandidateDefaults', (select count(*) from rentnerproxy.certificates where id=${sqlQuote(f.certificateId)} and candidate is null and dns_cleanup_pending=false),
             'basicAuth', to_regclass('rentnerproxy.access_policy_basic_auth_accounts') is not null,
             'ipRules', exists(select 1 from information_schema.columns where table_schema='rentnerproxy' and table_name='access_policies' and column_name='ip_rules'),
             'newRolePermissions', (select count(*) from rentnerproxy.role_permissions rp join rentnerproxy.roles r on r.id=rp.role_id join rentnerproxy.permissions p on p.id=rp.permission_id where r.key in ('owner','admin') and p.key in ('access_policies.view','access_policies.create','access_policies.update','access_policies.delete','access_policies.assign','access_policies.apply','proxy-access-logs:view','audit-logs:view')),
@@ -514,6 +517,7 @@ export async function assertAlpha1UpgradeFixture(input: {
     )
     if (
         migrated.accessPolicies !== true ||
+        Number(migrated.certificateCandidateDefaults ?? 0) !== 1 ||
         migrated.basicAuth !== true ||
         migrated.ipRules !== true ||
         Number(migrated.newRolePermissions ?? 0) !== 16 ||

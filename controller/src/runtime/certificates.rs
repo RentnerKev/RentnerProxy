@@ -28,13 +28,18 @@ pub(crate) const MAX_CERTIFICATE_PEM_BYTES: usize = 256 * 1024;
 pub(crate) const MAX_PRIVATE_KEY_PEM_BYTES: usize = 64 * 1024;
 const CERTIFICATE_INDEX_FILE: &str = "certificate-metadata.json";
 const CERTIFICATES_DIRECTORY: &str = "certificates";
+const CANDIDATE_MANIFEST_FILE: &str = "candidate.json";
+const CANDIDATE_MANIFEST_VERSION: u8 = 1;
 const MAX_CERTIFICATE_INDEX_BYTES: usize = 8 * 1024 * 1024;
+const MAX_CANDIDATE_MANIFEST_BYTES: usize = 256 * 1024;
 const MAX_CERTIFICATES: usize = 10_000;
 // Leave room for error codes, retry timestamps, attempt metadata and delays
 // after interrupted ACME jobs.
 const INTERRUPTED_OPERATION_HEADROOM_BYTES: usize = 384;
 const MIN_ACME_RETRY_DELAY_SECONDS: u32 = 1_800;
 const MAX_ACME_RETRY_DELAY_SECONDS: u32 = 21_600;
+const MIN_CANDIDATE_RETRY_DELAY_SECONDS: u32 = 60;
+const MAX_CANDIDATE_RETRY_DELAY_SECONDS: u32 = 300;
 
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -102,6 +107,16 @@ pub(crate) enum CertificateOperation {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct CertificateCandidate {
+    pub(crate) fingerprint: String,
+    pub(crate) issued_at: String,
+    pub(crate) expires_at: String,
+    pub(crate) last_error_code: Option<String>,
+    pub(crate) next_attempt_at: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct CertificateMetadata {
     pub(crate) id: String,
     pub(crate) source: CertificateSource,
@@ -120,9 +135,11 @@ pub(crate) struct CertificateMetadata {
     pub(crate) last_attempt_at: Option<String>,
     pub(crate) last_success_at: Option<String>,
     pub(crate) next_renewal_at: Option<String>,
+    pub(crate) candidate: Option<CertificateCandidate>,
+    pub(crate) dns_cleanup_pending: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 struct StoredCertificate {
     #[serde(flatten)]
@@ -138,7 +155,7 @@ struct StoredCertificate {
     retry_delay_seconds: Option<u32>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct StoredMetadata {
     id: String,
@@ -161,7 +178,7 @@ struct StoredMetadata {
     last_success_at: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct StoredAcmeConfiguration {
     contact_email: Option<String>,
@@ -171,6 +188,33 @@ struct StoredAcmeConfiguration {
     dns_provider: Option<EncryptedDnsConfig>,
     #[serde(default)]
     pending_dns_records: Vec<DnsRecordIntent>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct CandidateActivation {
+    #[serde(default)]
+    next_attempt_at: Option<String>,
+    #[serde(default)]
+    attempt_count: u32,
+    #[serde(default)]
+    last_attempt_at: Option<String>,
+    #[serde(default)]
+    last_error_code: Option<String>,
+    #[serde(default)]
+    retry_delay_seconds: Option<u32>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct StoredCertificateCandidate {
+    version: u8,
+    staged: StoredCertificate,
+    #[serde(default)]
+    base_material_id: Option<String>,
+    activation_operation: CertificateOperation,
+    #[serde(default)]
+    activation: CandidateActivation,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -183,6 +227,12 @@ struct CertificateIndex {
         skip_serializing_if = "BTreeMap::is_empty"
     )]
     acme_retry_until: BTreeMap<CertificateEnvironment, String>,
+    #[serde(
+        default,
+        rename = "pendingCandidates",
+        skip_serializing_if = "BTreeMap::is_empty"
+    )]
+    pending_candidates: BTreeMap<String, StoredCertificateCandidate>,
 }
 
 #[derive(Clone, Debug)]
@@ -249,6 +299,10 @@ impl StagedCertificate {
         &self.id
     }
 
+    pub(crate) fn is_acme(&self) -> bool {
+        self.stored.metadata.source == CertificateSource::Acme
+    }
+
     pub(crate) fn covers_domains(&self, domains: &[String]) -> bool {
         self.stored.metadata.status == CertificateStatus::Valid
             && domains
@@ -298,12 +352,14 @@ impl CertificateStore {
         if !index_is_valid(&index) {
             return Err(CertificateError::StoreUnavailable);
         }
+        let recovered_candidate_state =
+            reconcile_candidate_manifests(&certificates_dir, &mut index)?;
         let mut recovered_interrupted_operation = false;
         let recovery_now = utc_now()?;
         let recovery_deadline = OffsetDateTime::now_utc().checked_add(time::Duration::seconds(
             i64::from(MIN_ACME_RETRY_DELAY_SECONDS),
         ));
-        for entry in index.certificates.values_mut() {
+        for (id, entry) in &mut index.certificates {
             if entry.metadata.operation != CertificateOperation::Idle {
                 entry.metadata.operation = CertificateOperation::Idle;
                 entry.metadata.status = if entry.material_id.is_some() {
@@ -311,6 +367,12 @@ impl CertificateStore {
                 } else {
                     CertificateStatus::Failed
                 };
+                if let Some(candidate) = index.pending_candidates.get(id) {
+                    entry.metadata.last_error_code = candidate.activation.last_error_code.clone();
+                    entry.metadata.updated_at = recovery_now.clone();
+                    recovered_interrupted_operation = true;
+                    continue;
+                }
                 entry.metadata.last_error_code =
                     Some(CertificateError::AcmeFailed.code().to_owned());
                 entry.metadata.attempt_count = entry.metadata.attempt_count.max(1);
@@ -331,7 +393,7 @@ impl CertificateStore {
                 recovered_interrupted_operation = true;
             }
         }
-        if recovered_interrupted_operation {
+        if recovered_interrupted_operation || recovered_candidate_state {
             persist_index(&certificates_dir, &index)?;
         }
         *self.index.lock().await = index;
@@ -342,7 +404,8 @@ impl CertificateStore {
         let index = self.index.lock().await;
         let now = OffsetDateTime::now_utc();
         index.certificates.get(id).is_some_and(|entry| {
-            !retry_is_blocking(entry, now)
+            !index.pending_candidates.contains_key(id)
+                && !retry_is_blocking(entry, now)
                 && entry
                     .metadata
                     .environment
@@ -351,7 +414,13 @@ impl CertificateStore {
     }
     pub(crate) async fn list(&self) -> Result<Vec<CertificateMetadata>, CertificateError> {
         let index = self.index.lock().await;
-        Ok(index.certificates.values().map(public_metadata).collect())
+        Ok(index
+            .certificates
+            .iter()
+            .map(|(id, stored)| {
+                public_metadata_with_candidate(stored, index.pending_candidates.get(id))
+            })
+            .collect())
     }
 
     pub(crate) async fn get(&self, id: &str) -> Result<CertificateMetadata, CertificateError> {
@@ -359,7 +428,7 @@ impl CertificateStore {
         index
             .certificates
             .get(id)
-            .map(public_metadata)
+            .map(|stored| public_metadata_with_candidate(stored, index.pending_candidates.get(id)))
             .ok_or(CertificateError::NotFound)
     }
 
@@ -369,13 +438,20 @@ impl CertificateStore {
         request: CertificateImportRequest,
     ) -> Result<StagedCertificate, CertificateError> {
         self.acquire_lease(id).await?;
-        let has_pending_dns = {
+        let (has_candidate, has_pending_dns) = {
             let index = self.index.lock().await;
-            index
-                .certificates
-                .get(id)
-                .and_then(|entry| entry.acme.as_ref())
-                .is_some_and(|acme| !acme.pending_dns_records.is_empty())
+            (
+                index.pending_candidates.contains_key(id),
+                index
+                    .certificates
+                    .get(id)
+                    .and_then(|entry| entry.acme.as_ref())
+                    .is_some_and(|acme| !acme.pending_dns_records.is_empty()),
+            )
+        };
+        if has_candidate {
+            self.release_lease(id).await;
+            return Err(CertificateError::OperationInProgress);
         };
         if has_pending_dns {
             self.release_lease(id).await;
@@ -397,13 +473,34 @@ impl CertificateStore {
         certificate_pem: String,
         private_key_pem: String,
     ) -> Result<StagedCertificate, CertificateError> {
-        let acme = match self.stored_acme_configuration(id, request) {
-            Ok(acme) => acme,
-            Err(error) => {
-                self.release_lease(id).await;
-                return Err(error);
+        let stage_context = {
+            let index = self.index.lock().await;
+            match index.certificates.get(id) {
+                None => Err(CertificateError::NotFound),
+                Some(_) if index.pending_candidates.contains_key(id) => {
+                    Err(CertificateError::OperationInProgress)
+                }
+                Some(current)
+                    if !matches!(
+                        current.metadata.operation,
+                        CertificateOperation::Issuing | CertificateOperation::Renewing
+                    ) =>
+                {
+                    Err(CertificateError::OperationInProgress)
+                }
+                Some(current) => Ok((
+                    current.material_id.clone(),
+                    current.metadata.operation,
+                    current
+                        .acme
+                        .as_ref()
+                        .map(|acme| acme.pending_dns_records.clone())
+                        .unwrap_or_default(),
+                )),
             }
         };
+        let (base_material_id, activation_operation, pending_dns_records) = stage_context?;
+        let acme = self.stored_acme_configuration(id, request)?;
         let result = self.stage_import_with_lease(
             id,
             &CertificateImportRequest {
@@ -416,10 +513,31 @@ impl CertificateStore {
             Some(request.environment),
             Some(acme),
         );
-        if result.is_err() {
-            self.release_lease(id).await;
+        let mut staged = result?;
+        // The active entry owns the DNS cleanup journal. Carry the intents into the candidate as
+        // well so a sidecar is self-contained if the index write is interrupted after staging.
+        if let Some(acme) = staged.stored.acme.as_mut() {
+            acme.pending_dns_records = pending_dns_records;
         }
-        result
+        let candidate = StoredCertificateCandidate {
+            version: CANDIDATE_MANIFEST_VERSION,
+            staged: staged.stored.clone(),
+            base_material_id,
+            activation_operation,
+            activation: CandidateActivation::default(),
+        };
+        let certificates_dir = self.ensure_certificates_dir()?;
+        // Write the sidecar before the index pointer. This ordering makes a successful CA
+        // response recoverable even if certificate-metadata.json is temporarily unavailable.
+        persist_candidate_manifest(&certificates_dir, id, &candidate)?;
+        let persistence = {
+            let mut index = self.index.lock().await;
+            index.pending_candidates.insert(id.to_owned(), candidate);
+            persist_index(&certificates_dir, &index)
+        };
+        // Retain the lease through failure finalization so activation cannot race bookkeeping.
+        persistence?;
+        Ok(staged)
     }
 
     fn stored_acme_configuration(
@@ -512,11 +630,201 @@ impl CertificateStore {
         })
     }
 
+    pub(crate) async fn pending_candidate_ids(&self) -> Result<Vec<String>, CertificateError> {
+        let index = self.index.lock().await;
+        Ok(index.pending_candidates.keys().cloned().collect())
+    }
+
+    pub(crate) async fn begin_candidate_activation(
+        &self,
+        id: &str,
+        scheduled: bool,
+    ) -> Result<Option<StagedCertificate>, CertificateError> {
+        self.acquire_lease(id).await?;
+        let now = OffsetDateTime::now_utc();
+        let (candidate, active) = {
+            let index = self.index.lock().await;
+            let Some(candidate) = index.pending_candidates.get(id).cloned() else {
+                drop(index);
+                self.release_lease(id).await;
+                return Ok(None);
+            };
+            let Some(active) = index.certificates.get(id).cloned() else {
+                drop(index);
+                self.release_lease(id).await;
+                return Err(CertificateError::StoreUnavailable);
+            };
+            if active.material_id == candidate.staged.material_id {
+                drop(index);
+                self.release_lease(id).await;
+                return Ok(None);
+            }
+            if candidate.base_material_id != active.material_id {
+                drop(index);
+                self.release_lease(id).await;
+                return Err(CertificateError::StoreUnavailable);
+            }
+            if active.metadata.operation != CertificateOperation::Idle {
+                drop(index);
+                self.release_lease(id).await;
+                return Err(CertificateError::OperationInProgress);
+            }
+            if scheduled
+                && candidate
+                    .activation
+                    .next_attempt_at
+                    .as_deref()
+                    .and_then(|deadline| OffsetDateTime::parse(deadline, &Rfc3339).ok())
+                    .is_some_and(|deadline| deadline > now)
+            {
+                drop(index);
+                self.release_lease(id).await;
+                return Ok(None);
+            }
+            (candidate, active)
+        };
+
+        let certificates_dir = match self.certificates_dir() {
+            Ok(directory) => directory,
+            Err(error) => {
+                self.release_lease(id).await;
+                return Err(error);
+            }
+        };
+        if let Err(error) = validate_candidate_material(&certificates_dir, id, &candidate.staged) {
+            self.release_lease(id).await;
+            return Err(error);
+        }
+
+        let now_string = match utc_now() {
+            Ok(now) => now,
+            Err(error) => {
+                self.release_lease(id).await;
+                return Err(error);
+            }
+        };
+        let mut attempted_candidate = candidate.clone();
+        attempted_candidate.activation.attempt_count = attempted_candidate
+            .activation
+            .attempt_count
+            .saturating_add(1);
+        attempted_candidate.activation.last_attempt_at = Some(now_string.clone());
+        attempted_candidate.activation.last_error_code = None;
+        attempted_candidate.activation.next_attempt_at = None;
+        let mut index = self.index.lock().await;
+        let Some(current_candidate) = index.pending_candidates.get(id).cloned() else {
+            drop(index);
+            self.release_lease(id).await;
+            return Ok(None);
+        };
+        let Some(current_active) = index.certificates.get(id).cloned() else {
+            drop(index);
+            self.release_lease(id).await;
+            return Err(CertificateError::StoreUnavailable);
+        };
+        if current_candidate.staged != candidate.staged
+            || current_candidate.base_material_id != active.material_id
+            || current_active.material_id != active.material_id
+            || current_active.metadata.operation != CertificateOperation::Idle
+        {
+            drop(index);
+            self.release_lease(id).await;
+            return Err(CertificateError::OperationInProgress);
+        }
+        if let Err(error) = persist_candidate_manifest(&certificates_dir, id, &attempted_candidate)
+        {
+            drop(index);
+            self.release_lease(id).await;
+            return Err(error);
+        }
+
+        index
+            .pending_candidates
+            .insert(id.to_owned(), attempted_candidate.clone());
+        let active_before = current_active;
+        let mut active_attempt = active_before.clone();
+        active_attempt.metadata.operation = attempted_candidate.activation_operation;
+        active_attempt.metadata.last_error_code = None;
+        active_attempt.metadata.updated_at = now_string;
+        index.certificates.insert(id.to_owned(), active_attempt);
+        // The sidecar is already durable. Retain both in-memory changes if the index is
+        // temporarily unavailable; the caller can still attempt activation and a restart can
+        // reconstruct the candidate from the sidecar.
+        let _ = persist_index(&certificates_dir, &index);
+        drop(index);
+        Ok(Some(StagedCertificate {
+            id: id.to_owned(),
+            stored: attempted_candidate.staged,
+        }))
+    }
+
     pub(crate) async fn commit_staged(
         &self,
         staged: &StagedCertificate,
     ) -> Result<CertificateMetadata, CertificateError> {
         let mut index = self.index.lock().await;
+        if let Some(candidate) = index.pending_candidates.get(&staged.id).cloned() {
+            let Some(previous) = index.certificates.get(&staged.id).cloned() else {
+                drop(index);
+                return Err(CertificateError::StoreUnavailable);
+            };
+            if candidate.staged != staged.stored
+                || candidate.base_material_id != previous.material_id
+            {
+                drop(index);
+                return Err(CertificateError::StoreUnavailable);
+            }
+            let mut committed = candidate.staged.clone();
+            // The active entry owns the current provider configuration and DNS journal. Preserve
+            // it across promotion so cleanup remains attributable to this certificate.
+            committed.acme = previous.acme.clone().or(committed.acme);
+            committed.metadata.operation = CertificateOperation::Idle;
+            committed.metadata.status = CertificateStatus::Valid;
+            committed.metadata.last_error_code = None;
+            committed.metadata.attempt_count = 0;
+            committed.metadata.last_success_at = utc_now().ok();
+            committed.metadata.last_attempt_at = previous.metadata.last_attempt_at.clone();
+            committed.next_attempt_at = None;
+            committed.retry_delay_seconds = None;
+
+            let previous_candidate = index.pending_candidates.remove(&staged.id);
+            let previous_active = index
+                .certificates
+                .insert(staged.id.clone(), committed.clone());
+            let result = self
+                .certificates_dir()
+                .and_then(|directory| persist_index(&directory, &index));
+            if let Err(error) = result {
+                if let Some(previous_active) = previous_active {
+                    index
+                        .certificates
+                        .insert(staged.id.clone(), previous_active);
+                }
+                if let Some(previous_candidate) = previous_candidate {
+                    index
+                        .pending_candidates
+                        .insert(staged.id.clone(), previous_candidate);
+                }
+                // Keep the lease until the runtime has restored the previous Caddy state and
+                // calls finish_candidate_failed. Releasing here would allow a new operation to
+                // race that rollback while the candidate is still outstanding.
+                drop(index);
+                return Err(error);
+            }
+            let metadata = public_metadata_with_candidate(&committed, None);
+            drop(index);
+            if let Ok(directory) = self.certificates_dir() {
+                let _ = remove_candidate_manifest(&directory, &staged.id);
+            }
+            self.release_lease(&staged.id).await;
+            return Ok(metadata);
+        }
+
+        // A previous successful promotion may have left its cleanup manifest.
+        // Remove it before another pointer change, otherwise restart could
+        // mistake it for an outstanding candidate against a newer active version.
+        self.certificates_dir()
+            .and_then(|directory| remove_candidate_manifest(&directory, &staged.id))?;
         let mut committed = staged.stored.clone();
         if committed.metadata.source == CertificateSource::Acme {
             committed.metadata.attempt_count = 0;
@@ -552,10 +860,9 @@ impl CertificateStore {
                 }
             }
             drop(index);
-            self.release_lease(&staged.id).await;
             return Err(error);
         }
-        let metadata = public_metadata(&committed);
+        let metadata = public_metadata_with_candidate(&committed, None);
         drop(index);
         self.release_lease(&staged.id).await;
         Ok(metadata)
@@ -564,6 +871,62 @@ impl CertificateStore {
     pub(crate) async fn discard_staged(&self, staged: &StagedCertificate) {
         self.release_lease(&staged.id).await;
     }
+
+    pub(crate) async fn finish_candidate_failed(
+        &self,
+        staged: &StagedCertificate,
+        error: CertificateError,
+    ) {
+        let mut index = self.index.lock().await;
+        let Some(previous_candidate) = index.pending_candidates.get(&staged.id).cloned() else {
+            drop(index);
+            self.release_lease(&staged.id).await;
+            return;
+        };
+        if previous_candidate.staged != staged.stored {
+            drop(index);
+            self.release_lease(&staged.id).await;
+            return;
+        }
+        let now = utc_now().ok();
+        let mut candidate = previous_candidate;
+        candidate.activation.attempt_count = candidate.activation.attempt_count.max(1);
+        let delay = next_candidate_retry_delay(
+            &staged.id,
+            candidate.activation.attempt_count,
+            candidate.activation.retry_delay_seconds,
+        );
+        candidate.activation.retry_delay_seconds = Some(delay);
+        candidate.activation.next_attempt_at = candidate_retry_deadline(delay);
+        candidate.activation.last_error_code = Some(error.code().to_owned());
+        if candidate.activation.last_attempt_at.is_none() {
+            candidate.activation.last_attempt_at = now.clone();
+        }
+        index
+            .pending_candidates
+            .insert(staged.id.clone(), candidate.clone());
+        if let Some(active) = index.certificates.get_mut(&staged.id) {
+            active.metadata.operation = CertificateOperation::Idle;
+            active.metadata.status = if active.material_id.is_some() {
+                CertificateStatus::Valid
+            } else {
+                CertificateStatus::Failed
+            };
+            active.metadata.last_error_code = Some(error.code().to_owned());
+            if let Some(now) = now {
+                active.metadata.updated_at = now;
+            }
+        }
+        // Preserve the candidate in memory even if either persistence step is unavailable. The
+        // sidecar is attempted first so the issued material remains recoverable after a restart.
+        if let Ok(directory) = self.certificates_dir() {
+            let _ = persist_candidate_manifest(&directory, &staged.id, &candidate);
+            let _ = persist_index(&directory, &index);
+        }
+        drop(index);
+        self.release_lease(&staged.id).await;
+    }
+
     pub(crate) async fn begin_issue(
         &self,
         id: &str,
@@ -616,6 +979,11 @@ impl CertificateStore {
             .get(id)
             .is_some_and(|current| current.metadata.operation != CertificateOperation::Idle)
         {
+            drop(index);
+            self.release_lease(id).await;
+            return Err(CertificateError::OperationInProgress);
+        }
+        if index.pending_candidates.contains_key(id) {
             drop(index);
             self.release_lease(id).await;
             return Err(CertificateError::OperationInProgress);
@@ -740,6 +1108,11 @@ impl CertificateStore {
             return Err(CertificateError::InvalidCertificate);
         }
         if current.metadata.operation != CertificateOperation::Idle {
+            drop(index);
+            self.release_lease(id).await;
+            return Err(CertificateError::OperationInProgress);
+        }
+        if index.pending_candidates.contains_key(id) {
             drop(index);
             self.release_lease(id).await;
             return Err(CertificateError::OperationInProgress);
@@ -882,6 +1255,23 @@ impl CertificateStore {
     }
 
     pub(crate) async fn finish_failed(&self, id: &str, error: CertificateError) {
+        let pending_candidate = {
+            let index = self.index.lock().await;
+            index
+                .pending_candidates
+                .get(id)
+                .map(|candidate| StagedCertificate {
+                    id: id.to_owned(),
+                    stored: candidate.staged.clone(),
+                })
+        };
+        if let Some(staged) = pending_candidate {
+            // A CA response may have been journaled just before a storage or cleanup error was
+            // reported. Keep that candidate authoritative so this failure cannot open a second
+            // order or erase recoverable material.
+            self.finish_candidate_failed(&staged, error).await;
+            return;
+        }
         let mut index = self.index.lock().await;
         if let Some(entry) = index.certificates.get_mut(id) {
             let had_acme_operation = entry.metadata.operation != CertificateOperation::Idle;
@@ -937,6 +1327,78 @@ impl CertificateStore {
                     .map(|acme| acme.pending_dns_records.clone())
                     .unwrap_or_default()
             })
+    }
+
+    pub(crate) async fn pending_dns_cleanup_ids(&self) -> Result<Vec<String>, CertificateError> {
+        let index = self.index.lock().await;
+        Ok(index
+            .certificates
+            .iter()
+            .filter(|(_, entry)| {
+                entry
+                    .acme
+                    .as_ref()
+                    .is_some_and(|acme| !acme.pending_dns_records.is_empty())
+            })
+            .map(|(id, _)| id.clone())
+            .collect())
+    }
+
+    /// Acquire the certificate lease and return the durable DNS cleanup work.  Credentials are
+    /// decrypted only while the lease is held; callers must invoke `finish_dns_cleanup` on every
+    /// returned item, including provider failures, so another operation cannot race cleanup.
+    pub(crate) async fn begin_dns_cleanup(
+        &self,
+        id: &str,
+    ) -> Result<
+        Option<(
+            CertificateEnvironment,
+            DnsProviderConfig,
+            Vec<DnsRecordIntent>,
+        )>,
+        CertificateError,
+    > {
+        self.acquire_lease(id).await?;
+        let result = {
+            let index = self.index.lock().await;
+            match index.certificates.get(id) {
+                None => Err(CertificateError::NotFound),
+                Some(entry) => match entry.acme.as_ref() {
+                    None => Ok(None),
+                    Some(acme) if acme.pending_dns_records.is_empty() => Ok(None),
+                    Some(acme) => entry
+                        .metadata
+                        .environment
+                        .ok_or(CertificateError::DnsCredentialsUnavailable)
+                        .and_then(|environment| {
+                            acme.dns_provider
+                                .as_ref()
+                                .ok_or(CertificateError::DnsCredentialsUnavailable)
+                                .and_then(|encrypted| {
+                                    super::dns::decrypt(encrypted, id).map(|provider| {
+                                        (environment, provider, acme.pending_dns_records.clone())
+                                    })
+                                })
+                        })
+                        .map(Some),
+                },
+            }
+        };
+        match result {
+            Ok(Some(work)) => Ok(Some(work)),
+            Ok(None) => {
+                self.release_lease(id).await;
+                Ok(None)
+            }
+            Err(error) => {
+                self.release_lease(id).await;
+                Err(error)
+            }
+        }
+    }
+
+    pub(crate) async fn finish_dns_cleanup(&self, id: &str) {
+        self.release_lease(id).await;
     }
 
     /// Update the durable DNS cleanup journal while the caller owns the
@@ -1089,6 +1551,11 @@ impl CertificateStore {
             self.release_lease(id).await;
             return Err(CertificateError::OperationInProgress);
         }
+        if index.pending_candidates.contains_key(id) {
+            drop(index);
+            self.release_lease(id).await;
+            return Err(CertificateError::OperationInProgress);
+        }
         if entry
             .acme
             .as_ref()
@@ -1151,6 +1618,98 @@ impl CertificateStore {
         Ok(())
     }
 
+    /// Remove unreferenced material versions after the caller has confirmed that the active
+    /// runtime and index agree. Candidate versions, active versions, and every version belonging
+    /// to a leased certificate remain untouched so an in-flight activation can always roll back.
+    pub(crate) async fn collect_garbage(&self) -> Result<(), CertificateError> {
+        // Operations acquire the lease before the index. Keep the same lock order here so a
+        // concurrent activation cannot mutate a pointer while versions are being enumerated.
+        let leases = self.leases.lock().await;
+        let index = self.index.lock().await;
+        let certificates_dir = self.certificates_dir()?;
+        let mut protected = BTreeMap::<String, BTreeSet<String>>::new();
+        for (id, entry) in &index.certificates {
+            if let Some(material_id) = &entry.material_id {
+                protected
+                    .entry(id.clone())
+                    .or_default()
+                    .insert(material_id.clone());
+            }
+            if let Some(candidate) = index.pending_candidates.get(id)
+                && let Some(material_id) = &candidate.staged.material_id
+            {
+                protected
+                    .entry(id.clone())
+                    .or_default()
+                    .insert(material_id.clone());
+            }
+        }
+
+        let certificate_entries = std::fs::read_dir(certificates_dir.path())
+            .map_err(|_| CertificateError::StoreUnavailable)?;
+        for certificate_entry in certificate_entries {
+            let certificate_entry =
+                certificate_entry.map_err(|_| CertificateError::StoreUnavailable)?;
+            let file_type = certificate_entry
+                .file_type()
+                .map_err(|_| CertificateError::StoreUnavailable)?;
+            if !file_type.is_dir() {
+                continue;
+            }
+            let Some(id) = certificate_entry.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            if !is_canonical_uuid_v7(&id) || !index.certificates.contains_key(&id) {
+                continue;
+            }
+            if leases.contains(&id) {
+                continue;
+            }
+            let certificate_dir = certificates_dir
+                .open_dir(&id)
+                .map_err(|_| CertificateError::StoreUnavailable)?;
+            let versions_dir = match certificate_dir.open_dir("versions") {
+                Ok(directory) => directory,
+                Err(error) if error.kind() == ErrorKind::NotFound => continue,
+                Err(_) => return Err(CertificateError::StoreUnavailable),
+            };
+            let versions = std::fs::read_dir(versions_dir.path())
+                .map_err(|_| CertificateError::StoreUnavailable)?;
+            for version in versions {
+                let version = version.map_err(|_| CertificateError::StoreUnavailable)?;
+                let file_type = version
+                    .file_type()
+                    .map_err(|_| CertificateError::StoreUnavailable)?;
+                if !file_type.is_dir() {
+                    continue;
+                }
+                let Some(version_id) = version.file_name().to_str().map(str::to_owned) else {
+                    continue;
+                };
+                // Staging and tombstone directories may be involved in a recovery path. Leave
+                // them for the explicit maintenance/recovery code instead of racing it here.
+                if version_id.starts_with('.')
+                    || version_id.len() != 64
+                    || !version_id.bytes().all(|byte| byte.is_ascii_hexdigit())
+                {
+                    continue;
+                }
+                if protected
+                    .get(&id)
+                    .is_some_and(|versions| versions.contains(&version_id))
+                {
+                    continue;
+                }
+                versions_dir
+                    .remove_dir_tree(&version_id)
+                    .map_err(|_| CertificateError::StoreUnavailable)?;
+            }
+        }
+        drop(index);
+        drop(leases);
+        Ok(())
+    }
+
     async fn acquire_lease(&self, id: &str) -> Result<(), CertificateError> {
         let mut leases = self.leases.lock().await;
         if !leases.insert(id.to_owned()) {
@@ -1178,6 +1737,260 @@ impl CertificateStore {
             .ensure_dir(CERTIFICATES_DIRECTORY)
             .map_err(|_| CertificateError::StoreUnavailable)
     }
+}
+
+fn reconcile_candidate_manifests(
+    certificates_dir: &SafeDir,
+    index: &mut CertificateIndex,
+) -> Result<bool, CertificateError> {
+    let certificate_ids: Vec<String> = index.certificates.keys().cloned().collect();
+    let mut changed = false;
+
+    for id in certificate_ids {
+        let sidecar = read_candidate_manifest(certificates_dir, &id)?;
+        let indexed = index.pending_candidates.get(&id).cloned();
+        match (indexed, sidecar) {
+            (Some(indexed), Some(sidecar)) => {
+                if !candidate_is_valid(&id, &sidecar) || !candidate_is_valid(&id, &indexed) {
+                    return Err(CertificateError::StoreUnavailable);
+                }
+                let active = index
+                    .certificates
+                    .get(&id)
+                    .ok_or(CertificateError::StoreUnavailable)?;
+                if active.material_id == sidecar.staged.material_id {
+                    index.pending_candidates.remove(&id);
+                    remove_candidate_manifest(certificates_dir, &id)?;
+                    changed = true;
+                    continue;
+                }
+                if sidecar.base_material_id != active.material_id
+                    || indexed.base_material_id != active.material_id
+                {
+                    return Err(CertificateError::StoreUnavailable);
+                }
+                if indexed != sidecar {
+                    // The sidecar is written before the index so it is the durable source of
+                    // truth when a process stops between those two writes.
+                    index.pending_candidates.insert(id, sidecar);
+                    changed = true;
+                }
+            }
+            (Some(indexed), None) => {
+                if !candidate_is_valid(&id, &indexed) {
+                    return Err(CertificateError::StoreUnavailable);
+                }
+                let active = index
+                    .certificates
+                    .get(&id)
+                    .ok_or(CertificateError::StoreUnavailable)?;
+                if active.material_id == indexed.staged.material_id {
+                    index.pending_candidates.remove(&id);
+                    changed = true;
+                    continue;
+                }
+                if indexed.base_material_id != active.material_id {
+                    return Err(CertificateError::StoreUnavailable);
+                }
+                // Older candidate indexes did not have a sidecar. Recreate one before exposing
+                // the candidate to the runtime so a later index write cannot lose the material.
+                persist_candidate_manifest(certificates_dir, &id, &indexed)?;
+            }
+            (None, Some(sidecar)) => {
+                if !candidate_is_valid(&id, &sidecar) {
+                    return Err(CertificateError::StoreUnavailable);
+                }
+                let active = index
+                    .certificates
+                    .get(&id)
+                    .ok_or(CertificateError::StoreUnavailable)?;
+                if active.material_id == sidecar.staged.material_id {
+                    // The index promotion completed but cleanup of the sidecar did not. The
+                    // active pointer is authoritative, so this manifest is safe to remove.
+                    remove_candidate_manifest(certificates_dir, &id)?;
+                } else {
+                    if sidecar.base_material_id != active.material_id {
+                        return Err(CertificateError::StoreUnavailable);
+                    }
+                    index.pending_candidates.insert(id, sidecar);
+                    changed = true;
+                }
+            }
+            (None, None) => {}
+        }
+    }
+
+    if index
+        .pending_candidates
+        .keys()
+        .any(|id| !index.certificates.contains_key(id))
+    {
+        return Err(CertificateError::StoreUnavailable);
+    }
+
+    Ok(changed)
+}
+
+fn read_candidate_manifest(
+    certificates_dir: &SafeDir,
+    id: &str,
+) -> Result<Option<StoredCertificateCandidate>, CertificateError> {
+    let certificate_dir = match certificates_dir.open_dir(id) {
+        Ok(directory) => directory,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err(CertificateError::StoreUnavailable),
+    };
+    let Some(bytes) = read_regular_private_file(
+        &certificate_dir,
+        CANDIDATE_MANIFEST_FILE,
+        MAX_CANDIDATE_MANIFEST_BYTES,
+    )?
+    else {
+        return Ok(None);
+    };
+    let candidate =
+        serde_json::from_slice(&bytes).map_err(|_| CertificateError::StoreUnavailable)?;
+    Ok(Some(candidate))
+}
+
+fn persist_candidate_manifest(
+    certificates_dir: &SafeDir,
+    id: &str,
+    candidate: &StoredCertificateCandidate,
+) -> Result<(), CertificateError> {
+    if !candidate_is_valid(id, candidate) {
+        return Err(CertificateError::StoreUnavailable);
+    }
+    let certificate_dir = certificates_dir
+        .open_dir(id)
+        .map_err(|_| CertificateError::StoreUnavailable)?;
+    let bytes = serde_json::to_vec(candidate).map_err(|_| CertificateError::StoreUnavailable)?;
+    if bytes.len() > MAX_CANDIDATE_MANIFEST_BYTES {
+        return Err(CertificateError::StoreUnavailable);
+    }
+    write_private_file(&certificate_dir, CANDIDATE_MANIFEST_FILE, &bytes)?;
+    #[cfg(unix)]
+    certificate_dir
+        .sync()
+        .map_err(|_| CertificateError::StoreUnavailable)?;
+    Ok(())
+}
+
+fn remove_candidate_manifest(certificates_dir: &SafeDir, id: &str) -> Result<(), CertificateError> {
+    let certificate_dir = match certificates_dir.open_dir(id) {
+        Ok(directory) => directory,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(_) => return Err(CertificateError::StoreUnavailable),
+    };
+    let path = match certificate_dir.file_path(CANDIDATE_MANIFEST_FILE) {
+        Ok(path) => path,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(_) => return Err(CertificateError::StoreUnavailable),
+    };
+    std::fs::remove_file(path).map_err(|_| CertificateError::StoreUnavailable)?;
+    #[cfg(unix)]
+    certificate_dir
+        .sync()
+        .map_err(|_| CertificateError::StoreUnavailable)?;
+    Ok(())
+}
+
+fn candidate_is_valid(id: &str, candidate: &StoredCertificateCandidate) -> bool {
+    let staged = &candidate.staged;
+    candidate.version == CANDIDATE_MANIFEST_VERSION
+        && is_canonical_uuid_v7(id)
+        && staged.metadata.id == id
+        && staged.metadata.source == CertificateSource::Acme
+        && staged.metadata.environment.is_some()
+        && staged.metadata.status == CertificateStatus::Valid
+        && staged.metadata.operation == CertificateOperation::Idle
+        && (1..=100).contains(&staged.metadata.domains.len())
+        && staged
+            .metadata
+            .domains
+            .iter()
+            .all(|domain| is_certificate_domain(domain))
+        && staged.material_id.as_ref().is_some_and(|material_id| {
+            material_id.len() == 64 && material_id.bytes().all(|byte| byte.is_ascii_hexdigit())
+        })
+        && staged
+            .metadata
+            .fingerprint
+            .as_ref()
+            .is_some_and(|fingerprint| valid_fingerprint(fingerprint))
+        && staged
+            .metadata
+            .issued_at
+            .as_ref()
+            .is_some_and(|timestamp| valid_timestamp(timestamp))
+        && staged
+            .metadata
+            .expires_at
+            .as_ref()
+            .is_some_and(|timestamp| valid_timestamp(timestamp))
+        && valid_timestamp(&staged.metadata.updated_at)
+        && staged
+            .metadata
+            .issuer
+            .as_ref()
+            .is_none_or(|issuer| issuer.len() <= 512)
+        && staged
+            .next_attempt_at
+            .as_ref()
+            .is_none_or(|timestamp| valid_timestamp(timestamp))
+        && staged.retry_delay_seconds.is_none_or(|delay| {
+            (MIN_ACME_RETRY_DELAY_SECONDS..=MAX_ACME_RETRY_DELAY_SECONDS).contains(&delay)
+        })
+        && candidate
+            .base_material_id
+            .as_ref()
+            .is_none_or(|material_id| {
+                material_id.len() == 64 && material_id.bytes().all(|byte| byte.is_ascii_hexdigit())
+            })
+        && matches!(
+            candidate.activation_operation,
+            CertificateOperation::Issuing | CertificateOperation::Renewing
+        )
+        && candidate
+            .activation
+            .next_attempt_at
+            .as_ref()
+            .is_none_or(|timestamp| valid_timestamp(timestamp))
+        && candidate
+            .activation
+            .last_attempt_at
+            .as_ref()
+            .is_none_or(|timestamp| valid_timestamp(timestamp))
+        && candidate
+            .activation
+            .last_error_code
+            .as_ref()
+            .is_none_or(|error| error.len() <= 128)
+        && candidate
+            .activation
+            .retry_delay_seconds
+            .is_none_or(|delay| {
+                (MIN_CANDIDATE_RETRY_DELAY_SECONDS..=MAX_CANDIDATE_RETRY_DELAY_SECONDS)
+                    .contains(&delay)
+            })
+        && staged.acme.as_ref().is_some_and(|acme| {
+            let provider_is_valid = match acme.challenge_type {
+                AcmeChallengeType::Http01 => acme.dns_provider.is_none(),
+                AcmeChallengeType::Dns01 => acme.dns_provider.as_ref().is_some_and(|config| {
+                    config.version == 1
+                        && config.nonce.len() == 12
+                        && (16..=8 * 1024).contains(&config.ciphertext.len())
+                }),
+            };
+            provider_is_valid
+                && acme.pending_dns_records.len() <= 256
+                && acme
+                    .pending_dns_records
+                    .iter()
+                    .all(|intent| dns_intent_belongs_to(intent, id))
+                && (acme.challenge_type == AcmeChallengeType::Dns01
+                    || acme.pending_dns_records.is_empty())
+        })
 }
 
 fn ensure_material_version(
@@ -1264,7 +2077,60 @@ fn material_at(
         private_key_path,
     })
 }
+
+fn validate_candidate_material(
+    certificates_dir: &SafeDir,
+    id: &str,
+    staged: &StoredCertificate,
+) -> Result<(), CertificateError> {
+    let material_id = staged
+        .material_id
+        .as_deref()
+        .ok_or(CertificateError::StoreUnavailable)?;
+    let certificate_dir = certificates_dir
+        .open_dir(id)
+        .map_err(|_| CertificateError::StoreUnavailable)?;
+    let versions_dir = certificate_dir
+        .open_dir("versions")
+        .map_err(|_| CertificateError::StoreUnavailable)?;
+    let version_dir = versions_dir
+        .open_dir(material_id)
+        .map_err(|_| CertificateError::StoreUnavailable)?;
+    let fullchain =
+        read_regular_private_file(&version_dir, "fullchain.pem", MAX_CERTIFICATE_PEM_BYTES)?
+            .ok_or(CertificateError::StoreUnavailable)?;
+    let private_key =
+        read_regular_private_file(&version_dir, "private-key.pem", MAX_PRIVATE_KEY_PEM_BYTES)?
+            .ok_or(CertificateError::StoreUnavailable)?;
+    let fullchain =
+        String::from_utf8(fullchain).map_err(|_| CertificateError::InvalidCertificate)?;
+    let private_key =
+        String::from_utf8(private_key).map_err(|_| CertificateError::InvalidCertificate)?;
+    let parsed = ParsedCertificate::parse(&CertificateImportRequest {
+        certificate_pem: fullchain,
+        private_key_pem: private_key,
+        chain_pem: None,
+        required_domains: None,
+    })?;
+    if parsed.domains != staged.metadata.domains
+        || staged.metadata.fingerprint.as_deref() != Some(parsed.fingerprint.as_str())
+        || staged.metadata.issued_at.as_deref() != Some(parsed.issued_at.as_str())
+        || staged.metadata.expires_at.as_deref() != Some(parsed.expires_at.as_str())
+        || staged.metadata.issuer.as_deref() != Some(parsed.issuer.as_str())
+    {
+        return Err(CertificateError::StoreUnavailable);
+    }
+    Ok(())
+}
+
 fn public_metadata(stored: &StoredCertificate) -> CertificateMetadata {
+    public_metadata_with_candidate(stored, None)
+}
+
+fn public_metadata_with_candidate(
+    stored: &StoredCertificate,
+    candidate: Option<&StoredCertificateCandidate>,
+) -> CertificateMetadata {
     CertificateMetadata {
         id: stored.metadata.id.clone(),
         source: stored.metadata.source,
@@ -1283,7 +2149,22 @@ fn public_metadata(stored: &StoredCertificate) -> CertificateMetadata {
         last_attempt_at: stored.metadata.last_attempt_at.clone(),
         last_success_at: stored.metadata.last_success_at.clone(),
         next_renewal_at: next_renewal_at(stored),
+        candidate: candidate.and_then(candidate_metadata),
+        dns_cleanup_pending: stored
+            .acme
+            .as_ref()
+            .is_some_and(|acme| !acme.pending_dns_records.is_empty()),
     }
+}
+
+fn candidate_metadata(candidate: &StoredCertificateCandidate) -> Option<CertificateCandidate> {
+    Some(CertificateCandidate {
+        fingerprint: candidate.staged.metadata.fingerprint.clone()?,
+        issued_at: candidate.staged.metadata.issued_at.clone()?,
+        expires_at: candidate.staged.metadata.expires_at.clone()?,
+        last_error_code: candidate.activation.last_error_code.clone(),
+        next_attempt_at: candidate.activation.next_attempt_at.clone(),
+    })
 }
 
 struct ParsedCertificate {
@@ -1610,6 +2491,10 @@ fn read_regular_private_file(
 }
 fn index_is_valid(index: &CertificateIndex) -> bool {
     index.certificates.len() <= MAX_CERTIFICATES
+        && index.pending_candidates.len() <= MAX_CERTIFICATES
+        && index.pending_candidates.iter().all(|(id, candidate)| {
+            index.certificates.contains_key(id) && candidate_is_valid(id, candidate)
+        })
         && index
             .acme_retry_until
             .values()
@@ -1762,6 +2647,38 @@ fn next_retry_delay(id: &str, attempt_count: u32, previous: Option<u32>) -> u32 
     .min(u64::from(MAX_ACME_RETRY_DELAY_SECONDS)) as u32
 }
 
+fn next_candidate_retry_delay(id: &str, attempt_count: u32, previous: Option<u32>) -> u32 {
+    let exponent = attempt_count.saturating_sub(1).min(3);
+    let base = u64::from(MIN_CANDIDATE_RETRY_DELAY_SECONDS)
+        .saturating_mul(1_u64 << exponent)
+        .min(u64::from(MAX_CANDIDATE_RETRY_DELAY_SECONDS));
+    let previous = previous.unwrap_or(base as u32).clamp(
+        MIN_CANDIDATE_RETRY_DELAY_SECONDS,
+        MAX_CANDIDATE_RETRY_DELAY_SECONDS,
+    );
+    let base = base.max(u64::from(previous));
+    let jitter_max =
+        (base / 4).min(u64::from(MAX_CANDIDATE_RETRY_DELAY_SECONDS).saturating_sub(base));
+    let entropy = OffsetDateTime::now_utc()
+        .unix_timestamp_nanos()
+        .unsigned_abs() as u64
+        ^ id.bytes().fold(0_u64, |hash, byte| {
+            hash.wrapping_mul(16777619).wrapping_add(u64::from(byte))
+        });
+    base.saturating_add(if jitter_max == 0 {
+        0
+    } else {
+        entropy % (jitter_max + 1)
+    })
+    .min(u64::from(MAX_CANDIDATE_RETRY_DELAY_SECONDS)) as u32
+}
+
+fn candidate_retry_deadline(delay_seconds: u32) -> Option<String> {
+    OffsetDateTime::now_utc()
+        .checked_add(time::Duration::seconds(i64::from(delay_seconds)))
+        .and_then(|deadline| deadline.format(&Rfc3339).ok())
+}
+
 fn next_renewal_at(stored: &StoredCertificate) -> Option<String> {
     if stored.metadata.source != CertificateSource::Acme {
         return None;
@@ -1795,6 +2712,12 @@ pub(crate) fn renewal_timestamp(
 
 fn valid_timestamp(value: &str) -> bool {
     value.len() <= 40 && OffsetDateTime::parse(value, &Rfc3339).is_ok()
+}
+
+fn valid_fingerprint(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value[7..].bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 fn persist_index(directory: &SafeDir, index: &CertificateIndex) -> Result<(), CertificateError> {
     if !index_is_valid(index) {

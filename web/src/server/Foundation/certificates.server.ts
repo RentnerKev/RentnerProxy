@@ -43,6 +43,17 @@ const certificateMetadataSchema = z
             .string()
             .regex(/^sha256:[a-f0-9]{64}$/u)
             .nullable(),
+        candidate: z
+            .object({
+                fingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
+                issuedAt: timestamp,
+                expiresAt: timestamp,
+                lastErrorCode: z.enum(CERTIFICATE_ERROR_CODES).nullable(),
+                nextAttemptAt: timestamp.nullable(),
+            })
+            .nullable()
+            .optional(),
+        dnsCleanupPending: z.boolean().optional(),
         lastErrorCode: z.enum(CERTIFICATE_ERROR_CODES).nullable(),
         updatedAt: timestamp,
         // These fields were added after the original controller contract. Keep
@@ -65,6 +76,12 @@ const certificateMetadataSchema = z
                     Date.parse(certificate.issuedAt) >= Date.parse(certificate.expiresAt)))
         )
             context.addIssue({ code: 'custom', message: 'Invalid certificate metadata.' })
+        if (
+            certificate.candidate &&
+            Date.parse(certificate.candidate.issuedAt) >=
+                Date.parse(certificate.candidate.expiresAt)
+        )
+            context.addIssue({ code: 'custom', message: 'Invalid candidate metadata.' })
     })
 
 export type ControllerCertificateMetadata = z.infer<typeof certificateMetadataSchema>

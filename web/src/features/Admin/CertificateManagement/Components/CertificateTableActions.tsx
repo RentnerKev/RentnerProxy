@@ -23,7 +23,11 @@ export default function CertificateTableActions({
         ...(certificate.source === 'acme' && canRenew
             ? [
                   {
-                      label: t('admin.certificates.actions.renew'),
+                      label: t(
+                          certificate.candidate
+                              ? 'admin.certificates.actions.retry'
+                              : 'admin.certificates.actions.renew',
+                      ),
                       onSelect: () => onRenew(certificate),
                       disabled: isPending,
                   },

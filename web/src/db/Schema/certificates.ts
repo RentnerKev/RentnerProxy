@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { check, index, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg-core'
+import { boolean, check, index, jsonb, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg-core'
 import type {
     AcmeEnvironment,
     CertificateErrorCode,
@@ -7,6 +7,7 @@ import type {
     CertificateSource,
     CertificateStoredStatus,
 } from '../../config/certificates.config'
+import type { CertificateCandidateMetadata } from '../../shared/Types/certificates.types'
 import { rentnerProxySchema } from './base'
 
 export const certificates = rentnerProxySchema.table(
@@ -30,6 +31,8 @@ export const certificates = rentnerProxySchema.table(
         expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }),
         issuer: varchar('issuer', { length: 512 }),
         fingerprint: varchar('fingerprint', { length: 71 }),
+        candidate: jsonb('candidate').$type<CertificateCandidateMetadata | null>(),
+        dnsCleanupPending: boolean('dns_cleanup_pending').notNull().default(false),
         lastErrorCode: varchar('last_error_code', { length: 64 }).$type<CertificateErrorCode>(),
         createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
             .notNull()

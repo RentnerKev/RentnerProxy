@@ -10,7 +10,8 @@ use crate::{
         revision_from_config, validate_proxy_config, validate_trusted_ca_pem,
     },
     runtime::{
-        CertificateError, CertificateImportRequest, EngineError, EngineFuture, ProxyEngine,
+        CertificateEnvironment, CertificateError, CertificateImportRequest,
+        CertificateIssueRequest, CertificateStore, EngineError, EngineFuture, ProxyEngine,
         ProxyRuntime, RuntimeError, RuntimeSettings,
         clock::{civil_from_days, utc_now},
     },
@@ -23,7 +24,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
-    time::Duration,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::{Mutex, Notify};
 const HOST_ID: &str = "00000000-0000-0000-0000-000000000000";
@@ -42,6 +43,7 @@ struct FakeCaddy {
     delay_ms: AtomicU64,
     start_delay_ms: AtomicU64,
     load_started: Notify,
+    block_certificate_index: Mutex<Option<std::path::PathBuf>>,
 }
 impl FakeCaddy {
     fn new() -> Arc<Self> {
@@ -57,6 +59,7 @@ impl FakeCaddy {
             delay_ms: AtomicU64::new(0),
             start_delay_ms: AtomicU64::new(0),
             load_started: Notify::new(),
+            block_certificate_index: Mutex::new(None),
         })
     }
     async fn next(queue: &Mutex<VecDeque<Result<(), EngineError>>>) -> Result<(), EngineError> {
@@ -86,6 +89,10 @@ impl ProxyEngine for FakeCaddy {
             if result.is_ok() || result == Err(EngineError::InvalidResponse) {
                 *self.configuration.lock().await = json.to_owned();
             }
+            if let Some(index) = self.block_certificate_index.lock().await.take() {
+                std::fs::rename(&index, index.with_extension("saved")).unwrap();
+                std::fs::create_dir(&index).unwrap();
+            }
             result
         })
     }
@@ -114,9 +121,13 @@ impl ProxyEngine for FakeCaddy {
 }
 fn runtime(engine: Option<Arc<dyn ProxyEngine>>) -> (Arc<ProxyRuntime>, RuntimeSettings) {
     let path = std::env::temp_dir().join(format!(
-        "rentnerproxy-caddy-test-{}-{}",
+        "rentnerproxy-caddy-test-{}-{}-{}",
         std::process::id(),
-        NEXT.fetch_add(1, Ordering::SeqCst)
+        NEXT.fetch_add(1, Ordering::SeqCst),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos(),
     ));
     let mut settings = RuntimeSettings::new(path, 18_080);
     settings.stage_timeout = Duration::from_millis(500);
@@ -745,6 +756,251 @@ async fn rejected_certificate_replacement_preserves_pointer_and_active_material(
     );
     assert_eq!(runtime.active_config().await.unwrap(), before);
     assert!(runtime.is_ready().await);
+}
+
+async fn runtime_with_issued_candidate(
+    engine: Arc<FakeCaddy>,
+) -> (Arc<ProxyRuntime>, RuntimeSettings, String) {
+    let (_, settings) = runtime(None);
+    std::fs::create_dir_all(&settings.state_dir).unwrap();
+    let store = CertificateStore::new(settings.state_dir.clone());
+    store.initialize().await.unwrap();
+    let request = CertificateIssueRequest {
+        domains: vec!["example.com".to_owned()],
+        environment: CertificateEnvironment::Staging,
+        contact_email: None,
+        challenge_type: Default::default(),
+        dns_provider: None,
+        accept_terms: true,
+    };
+    store
+        .begin_issue(CERT_ID, request.clone(), false)
+        .await
+        .unwrap();
+    let first = rcgen::generate_simple_self_signed(request.domains.clone()).unwrap();
+    let staged = store
+        .stage_acme(
+            CERT_ID,
+            &request,
+            first.cert.pem(),
+            first.signing_key.serialize_pem(),
+        )
+        .await
+        .unwrap();
+    let old = store
+        .commit_staged(&staged)
+        .await
+        .unwrap()
+        .fingerprint
+        .unwrap();
+    drop(store);
+    let initial = ProxyRuntime::new(settings.clone(), Some(engine.clone()));
+    initial.initialize().await;
+    let mut host = host(HOST_ID, &["example.com"], "http", "backend", 4_000);
+    host.certificate_id = Some(CERT_ID.to_owned());
+    host.force_https = true;
+    initial
+        .apply(validate_proxy_config(super::fixtures::request(vec![host])).unwrap())
+        .await
+        .unwrap();
+    initial.shutdown().await;
+    drop(initial);
+
+    let store = CertificateStore::new(settings.state_dir.clone());
+    store.initialize().await.unwrap();
+    store.begin_renewal(CERT_ID).await.unwrap();
+    let next = rcgen::generate_simple_self_signed(request.domains.clone()).unwrap();
+    store
+        .stage_acme(
+            CERT_ID,
+            &request,
+            next.cert.pem(),
+            next.signing_key.serialize_pem(),
+        )
+        .await
+        .unwrap();
+    // Crash after issuance, before activation. No ACME account or server exists:
+    // successful recovery can only reuse this exact persisted material.
+    drop(store);
+    let reopened = ProxyRuntime::new(settings.clone(), Some(engine));
+    reopened.initialize().await;
+    assert_eq!(
+        reopened
+            .certificate(CERT_ID)
+            .await
+            .unwrap()
+            .fingerprint
+            .as_deref(),
+        Some(old.as_str())
+    );
+    (reopened, settings, old)
+}
+
+#[tokio::test]
+async fn issued_candidate_survives_load_rejection_and_restart_without_an_acme_order() {
+    let engine = FakeCaddy::new();
+    let (runtime, settings, old) = runtime_with_issued_candidate(engine.clone()).await;
+    let before = runtime.active_config().await.unwrap();
+    engine
+        .loads
+        .lock()
+        .await
+        .push_back(Err(EngineError::Rejected));
+    assert_eq!(
+        runtime.retry_certificate_candidate(CERT_ID, false).await,
+        Err(CertificateError::RuntimeApplyFailed)
+    );
+    assert_eq!(runtime.active_config().await.unwrap(), before);
+    assert_eq!(
+        runtime
+            .certificate(CERT_ID)
+            .await
+            .unwrap()
+            .fingerprint
+            .as_deref(),
+        Some(old.as_str())
+    );
+    runtime.shutdown().await;
+    let reopened = ProxyRuntime::new(settings, Some(engine));
+    reopened.initialize().await;
+    let applied = reopened
+        .start_acme_renewal(
+            CERT_ID.to_owned(),
+            crate::server::challenges::ChallengeStore::new(),
+        )
+        .await
+        .unwrap();
+    assert_ne!(applied.fingerprint.as_deref(), Some(old.as_str()));
+    assert!(
+        reopened
+            .retry_certificate_candidate(CERT_ID, false)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(reopened.is_ready().await);
+}
+
+#[tokio::test]
+async fn issued_candidate_survives_uncertain_load_and_probe_failure() {
+    for probe_failure in [false, true] {
+        let engine = FakeCaddy::new();
+        let (runtime, _, old) = runtime_with_issued_candidate(engine.clone()).await;
+        let before = runtime.active_config().await.unwrap();
+        if probe_failure {
+            engine
+                .probes
+                .lock()
+                .await
+                .push_back(Err(EngineError::InvalidResponse));
+        } else {
+            engine.delay_ms.store(700, Ordering::SeqCst);
+        }
+        assert_eq!(
+            runtime.retry_certificate_candidate(CERT_ID, false).await,
+            Err(CertificateError::RuntimeApplyFailed)
+        );
+        engine.delay_ms.store(0, Ordering::SeqCst);
+        assert_eq!(runtime.active_config().await.unwrap(), before);
+        assert_eq!(
+            runtime
+                .certificate(CERT_ID)
+                .await
+                .unwrap()
+                .fingerprint
+                .as_deref(),
+            Some(old.as_str())
+        );
+        let applied = runtime
+            .retry_certificate_candidate(CERT_ID, false)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_ne!(applied.fingerprint.as_deref(), Some(old.as_str()));
+        assert!(runtime.is_ready().await);
+    }
+}
+
+#[tokio::test]
+async fn candidate_metadata_commit_failure_restores_traffic_and_retains_material() {
+    let engine = FakeCaddy::new();
+    let (runtime, settings, old) = runtime_with_issued_candidate(engine.clone()).await;
+    let before = runtime.active_config().await.unwrap();
+    let index = settings
+        .state_dir
+        .join("certificates/certificate-metadata.json");
+    *engine.block_certificate_index.lock().await = Some(index.clone());
+    assert_eq!(
+        runtime.retry_certificate_candidate(CERT_ID, false).await,
+        Err(CertificateError::RuntimeApplyFailed)
+    );
+    assert_eq!(runtime.active_config().await.unwrap(), before);
+    assert_eq!(*engine.configuration.lock().await, before.0);
+    assert_eq!(
+        runtime
+            .certificate(CERT_ID)
+            .await
+            .unwrap()
+            .fingerprint
+            .as_deref(),
+        Some(old.as_str())
+    );
+    std::fs::remove_dir(&index).unwrap();
+    std::fs::rename(index.with_extension("saved"), &index).unwrap();
+    runtime.shutdown().await;
+    let reopened = ProxyRuntime::new(settings, Some(engine));
+    reopened.initialize().await;
+    let applied = reopened
+        .retry_certificate_candidate(CERT_ID, false)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_ne!(applied.fingerprint.as_deref(), Some(old.as_str()));
+    assert!(reopened.is_ready().await);
+}
+
+#[tokio::test]
+async fn candidate_activation_uses_latest_host_configuration_and_serializes_delete() {
+    let engine = FakeCaddy::new();
+    let (runtime, _, old) = runtime_with_issued_candidate(engine.clone()).await;
+    let mut updated = host(HOST_ID, &["example.com"], "http", "new-backend", 4_001);
+    updated.certificate_id = Some(CERT_ID.to_owned());
+    updated.force_https = true;
+    let updated = validate_proxy_config(request(vec![updated])).unwrap();
+    runtime.apply(updated.clone()).await.unwrap();
+    engine.delay_ms.store(50, Ordering::SeqCst);
+    let pending = {
+        let runtime = Arc::clone(&runtime);
+        tokio::spawn(async move { runtime.retry_certificate_candidate(CERT_ID, false).await })
+    };
+    tokio::task::yield_now().await;
+    assert_eq!(
+        runtime.delete_certificate(CERT_ID).await,
+        Err(CertificateError::InUse)
+    );
+    let applied = pending.await.unwrap().unwrap().unwrap();
+    assert_ne!(applied.fingerprint.as_deref(), Some(old.as_str()));
+    let (json, revision) = runtime.active_config().await.unwrap();
+    assert_eq!(revision, Some(updated.revision));
+    assert!(json.contains("new-backend:4001"));
+}
+
+#[tokio::test]
+async fn candidate_retry_after_host_unbinding_does_not_restore_obsolete_routes() {
+    let engine = FakeCaddy::new();
+    let (runtime, _, old) = runtime_with_issued_candidate(engine.clone()).await;
+    runtime.apply(configuration(4_002)).await.unwrap();
+    let current = runtime.active_config().await.unwrap();
+    let loads = engine.load_count.load(Ordering::SeqCst);
+    let applied = runtime
+        .retry_certificate_candidate(CERT_ID, false)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_ne!(applied.fingerprint.as_deref(), Some(old.as_str()));
+    assert_eq!(runtime.active_config().await.unwrap(), current);
+    assert_eq!(engine.load_count.load(Ordering::SeqCst), loads);
+    assert!(!current.0.contains("/certificates/"));
 }
 
 #[tokio::test]
