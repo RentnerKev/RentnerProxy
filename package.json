@@ -78,7 +78,4 @@
         }
     },
     "packageManager": "bun@1.4.2",
-    "patchedDependencies": {
-        "@tanstack/start-server-core@1.169.34": "patches/@tanstack%2Fstart-server-core@1.169.34.patch"
-    }
 }
