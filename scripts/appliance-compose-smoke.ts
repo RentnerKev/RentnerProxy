@@ -266,7 +266,7 @@ async function runSmoke(): Promise<void> {
             .join('\n') + '\n',
         'utf8',
     )
-    const rootCompose = await readFile(rootComposeFile, 'utf8')
+    const rootCompose = (await readFile(rootComposeFile, 'utf8')).replaceAll('\r\n', '\n')
     const temporaryCompose = smokeCompose(
         rootCompose
             .replace(
