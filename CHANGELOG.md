@@ -19,6 +19,8 @@ user-visible changes, not a raw commit log.
 - Restoring an older backup replaces newer application-schema objects in the same transaction;
   a failed SQL restore preserves the previous database.
 - Bounded release-validation test subprocesses and aligned the CI Bun version with the appliance.
+- Fixed administrative response headers and preserved client-cancellation handling across updated
+  TanStack Start dependencies.
 
 ### Upgrade notes and limitations
 
