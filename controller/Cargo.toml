@@ -15,22 +15,22 @@ axum = { version = "0.8.9", default-features = false, features = [
 base64 = "0.23.1"
 bytes = "1.12.1"
 http-body-util = "0.1.5"
-hyper = { version = "1.11.0", default-features = false, features = ["client", "http1"] }
+hyper = { version = "1.11.1", default-features = false, features = ["client", "http1"] }
 hyper-util = { version = "0.1.20", default-features = false, features = ["tokio"] }
 httpdate = "1.0.3"
-ipnet = "2.12.1"
+ipnet = "2.12.2"
 instant-acme = { version = "0.8.5", default-features = false, features = [
     "hyper-rustls",
     "ring",
     "rcgen",
 ] }
 libc = "0.2.189"
-reqwest = { version = "0.13.4", default-features = false, features = [
+reqwest = { version = "0.13.5", default-features = false, features = [
     "rustls-no-provider",
     "json",
 ] }
 ring = "0.17.14"
-rustls = { version = "0.23.43", default-features = false, features = ["ring", "std", "tls12"] }
+rustls = { version = "0.23.44", default-features = false, features = ["ring", "std", "tls12"] }
 time = { version = "0.3.55", default-features = false, features = ["formatting", "parsing", "std"] }
 x509-parser = "0.18.1"
 serde = { version = "1.0.229", features = ["derive"] }

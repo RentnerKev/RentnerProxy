@@ -2,8 +2,6 @@
 
 !package.json
 !bun.lock
-!patches/
-!patches/**
 
 # Imported by the TypeScript contract tests checked during the build.
 !.github/
