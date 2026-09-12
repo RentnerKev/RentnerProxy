@@ -23,6 +23,8 @@ import {
     requirePermissionInTransaction,
 } from '../../Auth/Access/rbac.service'
 import { revokeAllUserSessionsInTransaction } from '../../Auth/Access/sessions.service'
+import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
 
 async function lockOwnerPolicy(transaction: AuthTransaction): Promise<void> {
     await transaction.execute(sql`select pg_advisory_xact_lock(${ACTIVE_OWNER_ADVISORY_LOCK_ID})`)
@@ -243,9 +245,33 @@ export async function updateUserService(input: {
                 await transaction.delete(userInvites).where(eq(userInvites.userId, user.id))
             }
 
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'update',
+                resource: 'user',
+                targetId: user.id,
+                result: 'success',
+                metadata: {
+                    changedFields: [
+                        ...(normalizedDisplayName === undefined ? [] : (['displayName'] as const)),
+                        ...(emailChanged ? (['email'] as const) : []),
+                        ...(input.roleKeys === undefined ? [] : (['roles'] as const)),
+                    ],
+                    ...(input.roleKeys === undefined ? {} : { count: nextRoleKeys.length }),
+                },
+            })
+
             return toUserSummary(updatedUser, nextRoleKeys)
         })
     } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'update',
+            resource: 'user',
+            targetId: input.userId,
+            error,
+        })
         if (isUniqueConstraintViolation(error)) {
             throw new AuthDomainError('email_conflict', 'Email address is already in use.')
         }
@@ -258,110 +284,152 @@ export async function disableUserService(userId: string): Promise<UserSummary> {
     const actor = await requirePermissionService(PERMISSIONS.USERS_DISABLE)
     const db = getAuthDatabase()
 
-    return db.transaction(async (transaction) => {
-        await lockOwnerPolicy(transaction)
-        const transactionActor = await requirePermissionInTransaction(
-            transaction,
-            actor.id,
-            PERMISSIONS.USERS_DISABLE,
-        )
-        const user = await loadUserForUpdate(transaction, userId)
-
-        if (!user) {
-            throw new AuthDomainError('user_not_found', 'User was not found.')
-        }
-
-        if (user.id === actor.id) {
-            throw new AuthDomainError(
-                'permission_denied',
-                'Users cannot disable their own account.',
+    try {
+        return await db.transaction(async (transaction) => {
+            await lockOwnerPolicy(transaction)
+            const transactionActor = await requirePermissionInTransaction(
+                transaction,
+                actor.id,
+                PERMISSIONS.USERS_DISABLE,
             )
-        }
+            const user = await loadUserForUpdate(transaction, userId)
 
-        const roleKeys = await getUserRoleKeysInTransaction(transaction, user.id)
-        assertOwnerManagementAllowed(transactionActor.roles, roleKeys, roleKeys)
-        await assertActiveOwnerRemains(transaction, {
-            currentRoleKeys: roleKeys,
-            currentStatus: user.status,
-            nextRoleKeys: roleKeys,
-            nextStatus: 'disabled',
-        })
+            if (!user) {
+                throw new AuthDomainError('user_not_found', 'User was not found.')
+            }
 
-        const updatedRows = await transaction
-            .update(users)
-            .set({ status: 'disabled', updatedAt: new Date() })
-            .where(and(eq(users.id, user.id), ne(users.status, 'disabled')))
-            .returning({
-                createdAt: users.createdAt,
-                displayName: users.displayName,
-                email: users.email,
-                id: users.id,
-                profileImageVersion: users.profileImageVersion,
-                status: users.status,
-                updatedAt: users.updatedAt,
+            if (user.id === actor.id) {
+                throw new AuthDomainError(
+                    'permission_denied',
+                    'Users cannot disable their own account.',
+                )
+            }
+
+            const roleKeys = await getUserRoleKeysInTransaction(transaction, user.id)
+            assertOwnerManagementAllowed(transactionActor.roles, roleKeys, roleKeys)
+            await assertActiveOwnerRemains(transaction, {
+                currentRoleKeys: roleKeys,
+                currentStatus: user.status,
+                nextRoleKeys: roleKeys,
+                nextStatus: 'disabled',
             })
-        const updatedUser = updatedRows.at(0) ?? { ...user, status: 'disabled' as const }
 
-        await revokeAllUserSessionsInTransaction(transaction, user.id)
-        await transaction.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id))
-        await transaction.delete(userInvites).where(eq(userInvites.userId, user.id))
+            const updatedRows = await transaction
+                .update(users)
+                .set({ status: 'disabled', updatedAt: new Date() })
+                .where(and(eq(users.id, user.id), ne(users.status, 'disabled')))
+                .returning({
+                    createdAt: users.createdAt,
+                    displayName: users.displayName,
+                    email: users.email,
+                    id: users.id,
+                    profileImageVersion: users.profileImageVersion,
+                    status: users.status,
+                    updatedAt: users.updatedAt,
+                })
+            const updatedUser = updatedRows.at(0) ?? { ...user, status: 'disabled' as const }
 
-        return toUserSummary(updatedUser, roleKeys)
-    })
+            await revokeAllUserSessionsInTransaction(transaction, user.id)
+            await transaction
+                .delete(passwordResetTokens)
+                .where(eq(passwordResetTokens.userId, user.id))
+            await transaction.delete(userInvites).where(eq(userInvites.userId, user.id))
+
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'disable',
+                resource: 'user',
+                targetId: user.id,
+                result: 'success',
+            })
+
+            return toUserSummary(updatedUser, roleKeys)
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'disable',
+            resource: 'user',
+            targetId: userId,
+            error,
+        })
+        throw error
+    }
 }
 
 export async function enableUserService(userId: string): Promise<UserSummary> {
     const actor = await requirePermissionService(PERMISSIONS.USERS_ENABLE)
     const db = getAuthDatabase()
 
-    return db.transaction(async (transaction) => {
-        await lockOwnerPolicy(transaction)
-        const transactionActor = await requirePermissionInTransaction(
-            transaction,
-            actor.id,
-            PERMISSIONS.USERS_ENABLE,
-        )
-        const user = await loadUserForUpdate(transaction, userId)
-
-        if (!user) {
-            throw new AuthDomainError('user_not_found', 'User was not found.')
-        }
-
-        if (user.status !== 'disabled') {
-            throw new AuthDomainError('invalid_input', 'Only disabled users may be enabled.')
-        }
-
-        const roleKeys = await getUserRoleKeysInTransaction(transaction, user.id)
-        assertOwnerManagementAllowed(transactionActor.roles, roleKeys, roleKeys)
-
-        const updatedRows = await transaction
-            .update(users)
-            .set({ status: 'active', updatedAt: new Date() })
-            .where(
-                and(
-                    eq(users.id, user.id),
-                    eq(users.status, 'disabled'),
-                    isNotNull(users.passwordHash),
-                ),
+    try {
+        return await db.transaction(async (transaction) => {
+            await lockOwnerPolicy(transaction)
+            const transactionActor = await requirePermissionInTransaction(
+                transaction,
+                actor.id,
+                PERMISSIONS.USERS_ENABLE,
             )
-            .returning({
-                createdAt: users.createdAt,
-                displayName: users.displayName,
-                email: users.email,
-                id: users.id,
-                profileImageVersion: users.profileImageVersion,
-                status: users.status,
-                updatedAt: users.updatedAt,
+            const user = await loadUserForUpdate(transaction, userId)
+
+            if (!user) {
+                throw new AuthDomainError('user_not_found', 'User was not found.')
+            }
+
+            if (user.status !== 'disabled') {
+                throw new AuthDomainError('invalid_input', 'Only disabled users may be enabled.')
+            }
+
+            const roleKeys = await getUserRoleKeysInTransaction(transaction, user.id)
+            assertOwnerManagementAllowed(transactionActor.roles, roleKeys, roleKeys)
+
+            const updatedRows = await transaction
+                .update(users)
+                .set({ status: 'active', updatedAt: new Date() })
+                .where(
+                    and(
+                        eq(users.id, user.id),
+                        eq(users.status, 'disabled'),
+                        isNotNull(users.passwordHash),
+                    ),
+                )
+                .returning({
+                    createdAt: users.createdAt,
+                    displayName: users.displayName,
+                    email: users.email,
+                    id: users.id,
+                    profileImageVersion: users.profileImageVersion,
+                    status: users.status,
+                    updatedAt: users.updatedAt,
+                })
+            const updatedUser = updatedRows.at(0)
+
+            if (!updatedUser) {
+                throw new AuthDomainError(
+                    'invalid_input',
+                    'Account activation must be completed first.',
+                )
+            }
+
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'enable',
+                resource: 'user',
+                targetId: user.id,
+                result: 'success',
             })
-        const updatedUser = updatedRows.at(0)
 
-        if (!updatedUser) {
-            throw new AuthDomainError(
-                'invalid_input',
-                'Account activation must be completed first.',
-            )
-        }
-
-        return toUserSummary(updatedUser, roleKeys)
-    })
+            return toUserSummary(updatedUser, roleKeys)
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'enable',
+            resource: 'user',
+            targetId: userId,
+            error,
+        })
+        throw error
+    }
 }

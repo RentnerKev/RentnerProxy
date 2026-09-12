@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { SMOKE_RUN_LABEL, smokeRunScope } from './smoke-resources'
+import { isRestoreSmokeDiagnostic, SMOKE_RUN_LABEL, smokeRunScope } from './smoke-resources'
 import { CERTIFICATE_ERROR_CODES } from '../web/src/config/certificates.config'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
@@ -67,8 +67,20 @@ export function smokeProgress(suite: Suite) {
             } else if (line.includes('AssertionError')) {
                 diagnostic = 'Smoke assertion failed'
             }
-            const location = line.match(/(?:scripts[/\\])([a-z-]+\.ts):(\d+):(\d+)/u)
-            if (location?.[1] === specification.source) {
+            if (suite === 'production' && isRestoreSmokeDiagnostic(line)) {
+                diagnostic = line
+            }
+            const location = line.match(/(?:scripts[/\\])([a-z0-9-]+\.ts):(\d+):(\d+)/u)
+            if (
+                location &&
+                (location[1] === specification.source ||
+                    (suite === 'production' &&
+                        [
+                            'alpha1-upgrade-smoke.ts',
+                            'alpha1-upgrade-fixture.ts',
+                            'restore-rollback-smoke.ts',
+                        ].includes(location[1]!)))
+            ) {
                 diagnostic = (
                     diagnostic +
                     ' at scripts/' +

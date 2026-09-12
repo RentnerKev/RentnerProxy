@@ -47,7 +47,8 @@
         "redirectHosts": "Hosts de redirección",
         "certificates": "Certificados",
         "accessPolicies": "Políticas de acceso",
-        "proxyAccessLogs": "Registros de acceso"
+        "proxyAccessLogs": "Registros de acceso",
+        "auditLogs": "Registro de auditoría"
     },
     "language": {
         "title": "Idioma",
@@ -1516,6 +1517,137 @@
                 "loadFailed": "No se pudieron cargar los registros de acceso."
             }
         },
+        "auditLogs": {
+            "page": {
+                "eyebrow": "Trazabilidad",
+                "title": "Registro de auditoría",
+                "description": "Revisa los eventos de seguridad y administración registrados por RentnerProxy.",
+                "retention": "El registro de auditoría conserva hasta 90 días de eventos recientes y está limitado para proteger los recursos del sistema."
+            },
+            "states": {
+                "unavailableTitle": "Registro de auditoría no disponible",
+                "unavailableDescription": "No se pudo cargar el historial de auditoría. Inténtalo de nuevo.",
+                "forbiddenTitle": "Registro de auditoría restringido",
+                "forbiddenDescription": "Tu cuenta no tiene permiso para ver el registro de auditoría."
+            },
+            "table": {
+                "eyebrow": "Eventos registrados",
+                "title": "Eventos de auditoría",
+                "description": "Revisa quién cambió qué y si cada operación se completó, falló o fue rechazada.",
+                "emptyTitle": "No hay eventos de auditoría",
+                "emptyDescription": "No hay eventos que coincidan con el periodo y los filtros seleccionados.",
+                "filteredEmptyDescription": "Ningún evento de auditoría coincide con estos filtros."
+            },
+            "filters": {
+                "actor": "ID de usuario del actor",
+                "actorPlaceholder": "UUID del actor",
+                "action": "Acción",
+                "allActions": "Todas las acciones",
+                "resource": "Recurso",
+                "allResources": "Todos los recursos",
+                "from": "Desde (UTC)",
+                "to": "Hasta (UTC)"
+            },
+            "actions": {
+                "apply": "Aplicar filtros",
+                "refresh": "Actualizar",
+                "showDetails": "Mostrar detalles del evento",
+                "hideDetails": "Ocultar detalles del evento"
+            },
+            "columns": {
+                "time": "Hora (UTC)",
+                "actor": "Actor",
+                "action": "Acción",
+                "resource": "Recurso",
+                "target": "Objetivo",
+                "result": "Resultado",
+                "details": "Detalles",
+                "actorKind": "Tipo de actor",
+                "eventId": "ID del evento",
+                "metadata": "Metadatos seguros"
+            },
+            "values": {
+                "actorKinds": {
+                    "user": "Usuario",
+                    "anonymous": "Anónimo",
+                    "system": "Sistema"
+                },
+                "results": {
+                    "success": "Correcto",
+                    "failure": "Fallido",
+                    "denied": "Rechazado"
+                },
+                "actions": {
+                    "login": "Iniciar sesión",
+                    "logout": "Cerrar sesión",
+                    "create": "Crear",
+                    "update": "Actualizar",
+                    "delete": "Eliminar",
+                    "enable": "Activar",
+                    "disable": "Desactivar",
+                    "rotate": "Rotar",
+                    "reset": "Restablecer",
+                    "accept": "Aceptar",
+                    "reauthenticate": "Volver a autenticar",
+                    "import": "Importar",
+                    "replace": "Sustituir",
+                    "request": "Solicitar",
+                    "renew": "Renovar",
+                    "save": "Guardar",
+                    "apply": "Aplicar"
+                },
+                "resources": {
+                    "session": "Sesión",
+                    "password": "Contraseña",
+                    "totp": "TOTP",
+                    "recovery-codes": "Códigos de recuperación",
+                    "passkey": "Passkey",
+                    "invite": "Invitación",
+                    "setup": "Configuración inicial",
+                    "security-settings": "Configuración de seguridad",
+                    "user": "Usuario",
+                    "role": "Rol",
+                    "proxy-host": "Host proxy",
+                    "redirect-host": "Host de redirección",
+                    "access-policy": "Política de acceso",
+                    "basic-auth-account": "Cuenta de Basic Auth",
+                    "certificate": "Certificado",
+                    "trusted-ca": "CA de confianza",
+                    "proxy-runtime-settings": "Configuración de ejecución del proxy",
+                    "proxy-host-settings": "Configuración del host proxy",
+                    "proxy-runtime": "Ejecución del proxy"
+                }
+            },
+            "metadata": {
+                "authenticationMethod": "Método de autenticación",
+                "reason": "Motivo",
+                "failureCode": "Código de error",
+                "changedFields": "Campos modificados",
+                "assigned": "Asignado",
+                "previousId": "ID anterior",
+                "nextId": "ID siguiente",
+                "runtimeStatus": "Estado de ejecución",
+                "count": "Cantidad"
+            },
+            "details": {
+                "noMetadata": "No hay más metadatos seguros."
+            },
+            "pagination": {
+                "pageSummary": "{{count}} eventos en esta página",
+                "label": "Paginación del registro de auditoría",
+                "page": "Página {{page}}",
+                "previous": "Página anterior",
+                "next": "Página siguiente"
+            },
+            "validation": {
+                "actorUserId": "Introduce una UUID de actor válida.",
+                "dateTime": "Introduce una fecha y hora UTC válidas.",
+                "dateRange": "La fecha inicial debe ser anterior o igual a la fecha final."
+            },
+            "errors": {
+                "loadFailed": "No se pudieron cargar los eventos de auditoría."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Certificados",
@@ -1607,7 +1739,8 @@
             "certificates": "Certificados",
             "trusted_cas": "CA de confianza",
             "access_policies": "Políticas de acceso",
-            "proxy-access-logs": "Registros de acceso del proxy"
+            "proxy-access-logs": "Registros de acceso del proxy",
+            "audit-logs": "Registro de auditoría"
         },
         "app": {
             "access": "Acceso a la aplicación"
@@ -1669,6 +1802,7 @@
         },
 
         "proxy-access-logs:view": "Ver registros de acceso del proxy",
+        "audit-logs:view": "Ver el registro de auditoría",
 
         "trusted_cas": {
             "view": "Ver CA de confianza",

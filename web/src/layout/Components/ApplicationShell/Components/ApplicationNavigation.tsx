@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import {
     ArrowRight,
     Award,
+    ClipboardList,
     KeyRound,
     LayoutDashboard,
     Network,
@@ -63,6 +64,12 @@ export default function ApplicationNavigation({ items }: ApplicationNavigationPr
                         />
                     ) : item.to === '/proxy-access-logs' ? (
                         <ScrollText
+                            aria-hidden="true"
+                            className="size-4 shrink-0"
+                            strokeWidth={1.8}
+                        />
+                    ) : item.to === '/audit-logs' ? (
+                        <ClipboardList
                             aria-hidden="true"
                             className="size-4 shrink-0"
                             strokeWidth={1.8}

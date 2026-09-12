@@ -42,6 +42,8 @@ import {
 } from '../../Foundation/certificates.server'
 import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
 import { CertificateDomainError } from './certificates.errors'
+import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
 
 type CertificateRow = typeof certificates.$inferSelect
 
@@ -296,6 +298,14 @@ async function createPendingCertificate(
                 })),
             )
         }
+        await appendAuditEventInTransaction(transaction, {
+            actorUserId: actorId,
+            actorKind: 'user',
+            action: 'create',
+            resource: 'certificate',
+            targetId: created.id,
+            result: 'success',
+        })
         return created.id
     })
 }
@@ -341,6 +351,7 @@ async function importCertificateMaterial(
     permission: PermissionKey,
     certificateId: string,
     input: ImportCertificateInput,
+    action: 'import' | 'replace',
 ): Promise<string> {
     let submitted = false
     try {
@@ -361,8 +372,23 @@ async function importCertificateMaterial(
                 .update(certificates)
                 .set({ name: input.name, updatedAt: new Date() })
                 .where(eq(certificates.id, certificateId))
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actorId,
+                actorKind: 'user',
+                action,
+                resource: 'certificate',
+                targetId: certificateId,
+                result: 'success',
+            })
         })
     } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId,
+            action,
+            resource: 'certificate',
+            targetId: certificateId,
+            error,
+        })
         if (submitted && error instanceof CertificateDomainError)
             await markCertificateFailure(certificateId, error)
         throw error
@@ -379,7 +405,13 @@ export async function importCertificateService(input: ImportCertificateInput): P
         environment: null,
         domains: [],
     })
-    return importCertificateMaterial(actor.id, PERMISSIONS.CERTIFICATES_CREATE, id, parsed)
+    return importCertificateMaterial(
+        actor.id,
+        PERMISSIONS.CERTIFICATES_CREATE,
+        id,
+        parsed,
+        'import',
+    )
 }
 
 export async function replaceCertificateService(input: ReplaceCertificateInput): Promise<string> {
@@ -390,6 +422,7 @@ export async function replaceCertificateService(input: ReplaceCertificateInput):
         PERMISSIONS.CERTIFICATES_UPDATE,
         parsed.certificateId.toLowerCase(),
         parsed,
+        'replace',
     )
 }
 
@@ -414,8 +447,23 @@ export async function requestCertificateService(input: RequestCertificateInput):
                 transaction,
                 await issueControllerCertificate(id, parsed),
             )
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'request',
+                resource: 'certificate',
+                targetId: id,
+                result: 'success',
+            })
         })
     } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'request',
+            resource: 'certificate',
+            targetId: id,
+            error,
+        })
         if (error instanceof CertificateDomainError) await markCertificateFailure(id, error)
         throw error
     }
@@ -425,38 +473,84 @@ export async function requestCertificateService(input: RequestCertificateInput):
 export async function renewCertificateService(certificateId: string): Promise<string> {
     const actor = await requirePermissionService(PERMISSIONS.CERTIFICATES_RENEW)
     const id = parseId(certificateId)
-    await getAuthDatabase().transaction(async (transaction) => {
-        await lockProxyRuntimeSettings(transaction)
-        await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.CERTIFICATES_RENEW)
-        const row = await getCertificateRow(transaction, id)
-        if (row.source !== 'acme') throw new CertificateDomainError('invalid_input')
-        await persistControllerMetadata(transaction, await renewControllerCertificate(id))
-    })
+    try {
+        await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
+            await requirePermissionInTransaction(
+                transaction,
+                actor.id,
+                PERMISSIONS.CERTIFICATES_RENEW,
+            )
+            const row = await getCertificateRow(transaction, id)
+            if (row.source !== 'acme') throw new CertificateDomainError('invalid_input')
+            await persistControllerMetadata(transaction, await renewControllerCertificate(id))
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'renew',
+                resource: 'certificate',
+                targetId: id,
+                result: 'success',
+            })
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'renew',
+            resource: 'certificate',
+            targetId: id,
+            error,
+        })
+        throw error
+    }
     return id
 }
 
 export async function deleteCertificateService(certificateId: string): Promise<void> {
     const actor = await requirePermissionService(PERMISSIONS.CERTIFICATES_DELETE)
     const id = parseId(certificateId)
-    await getAuthDatabase().transaction(async (transaction) => {
-        await lockProxyRuntimeSettings(transaction)
-        await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.CERTIFICATES_DELETE)
-        await getCertificateRow(transaction, id)
-        const proxyAssigned = await transaction
-            .select({ id: proxyHosts.id })
-            .from(proxyHosts)
-            .where(eq(proxyHosts.certificateId, id))
-            .limit(1)
-        const redirectAssigned = await transaction
-            .select({ id: redirectHosts.id })
-            .from(redirectHosts)
-            .where(eq(redirectHosts.certificateId, id))
-            .limit(1)
-        if (proxyAssigned.length > 0 || redirectAssigned.length > 0)
-            throw new CertificateDomainError('certificate_in_use')
-        await deleteControllerCertificate(id)
-        await transaction.delete(certificates).where(eq(certificates.id, id))
-    })
+    try {
+        await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
+            await requirePermissionInTransaction(
+                transaction,
+                actor.id,
+                PERMISSIONS.CERTIFICATES_DELETE,
+            )
+            await getCertificateRow(transaction, id)
+            const proxyAssigned = await transaction
+                .select({ id: proxyHosts.id })
+                .from(proxyHosts)
+                .where(eq(proxyHosts.certificateId, id))
+                .limit(1)
+            const redirectAssigned = await transaction
+                .select({ id: redirectHosts.id })
+                .from(redirectHosts)
+                .where(eq(redirectHosts.certificateId, id))
+                .limit(1)
+            if (proxyAssigned.length > 0 || redirectAssigned.length > 0)
+                throw new CertificateDomainError('certificate_in_use')
+            await deleteControllerCertificate(id)
+            await transaction.delete(certificates).where(eq(certificates.id, id))
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'delete',
+                resource: 'certificate',
+                targetId: id,
+                result: 'success',
+            })
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'delete',
+            resource: 'certificate',
+            targetId: id,
+            error,
+        })
+        throw error
+    }
 }
 
 export async function validateCertificateAssignmentInTransaction(

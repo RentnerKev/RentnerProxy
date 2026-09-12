@@ -19,6 +19,7 @@ import {
     hostDomains,
     certificateDomains,
     certificates,
+    auditEvents,
     proxyHosts,
     rolePermissions,
     roles,
@@ -616,6 +617,17 @@ describe('ProxyHost management with PostgreSQL', () => {
                     .from(hostDomains)
                     .where(eq(hostDomains.proxyHostId, created.id)),
             ).toEqual([])
+
+            const auditRows = await getAuthDatabase()
+                .select({ action: auditEvents.action, result: auditEvents.result })
+                .from(auditEvents)
+                .where(eq(auditEvents.targetId, created.id))
+                .orderBy(auditEvents.createdAt, auditEvents.id)
+            expect(auditRows).toEqual([
+                { action: 'create', result: 'success' },
+                { action: 'update', result: 'success' },
+                { action: 'delete', result: 'success' },
+            ])
         },
     )
 
@@ -638,6 +650,12 @@ describe('ProxyHost management with PostgreSQL', () => {
             )
 
             expectProxyHostDomainError(updateError, 'domain_conflict')
+            const failedAudit = await getAuthDatabase()
+                .select({ action: auditEvents.action, result: auditEvents.result })
+                .from(auditEvents)
+                .where(eq(auditEvents.targetId, first.id))
+                .orderBy(auditEvents.createdAt, auditEvents.id)
+            expect(failedAudit).toContainEqual({ action: 'update', result: 'failure' })
             expect(
                 await getAuthDatabase()
                     .select({ domain: hostDomains.domain })

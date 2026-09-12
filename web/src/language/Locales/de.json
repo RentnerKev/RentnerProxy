@@ -47,7 +47,8 @@
         "redirectHosts": "Weiterleitungs-Hosts",
         "certificates": "Zertifikate",
         "accessPolicies": "Zugriffsrichtlinien",
-        "proxyAccessLogs": "Zugriffsprotokolle"
+        "proxyAccessLogs": "Zugriffsprotokolle",
+        "auditLogs": "Audit-Protokoll"
     },
     "language": {
         "title": "Sprache",
@@ -1516,6 +1517,137 @@
                 "loadFailed": "Die Zugriffsprotokolle konnten nicht geladen werden."
             }
         },
+        "auditLogs": {
+            "page": {
+                "eyebrow": "Nachvollziehbarkeit",
+                "title": "Audit-Protokoll",
+                "description": "Prüfe Sicherheits- und Administrationsereignisse, die RentnerProxy aufgezeichnet hat.",
+                "retention": "Das Audit-Protokoll bewahrt bis zu 90 Tage aktuelle Ereignisse auf und bleibt zum Schutz der Systemressourcen begrenzt."
+            },
+            "states": {
+                "unavailableTitle": "Audit-Protokoll nicht verfügbar",
+                "unavailableDescription": "Die Audit-Historie konnte nicht geladen werden. Versuche es erneut.",
+                "forbiddenTitle": "Audit-Protokoll ist geschützt",
+                "forbiddenDescription": "Deinem Konto fehlt die Berechtigung, das Audit-Protokoll zu sehen."
+            },
+            "table": {
+                "eyebrow": "Aufgezeichnete Ereignisse",
+                "title": "Audit-Ereignisse",
+                "description": "Prüfe, wer was geändert hat und ob der Vorgang erfolgreich war, fehlgeschlagen ist oder abgelehnt wurde.",
+                "emptyTitle": "Keine Audit-Ereignisse",
+                "emptyDescription": "Für Zeitraum und Filter gibt es keine passenden Ereignisse.",
+                "filteredEmptyDescription": "Keine Audit-Ereignisse passen zu diesen Filtern."
+            },
+            "filters": {
+                "actor": "Benutzer-ID des Akteurs",
+                "actorPlaceholder": "UUID des Akteurs",
+                "action": "Aktion",
+                "allActions": "Alle Aktionen",
+                "resource": "Ressource",
+                "allResources": "Alle Ressourcen",
+                "from": "Von (UTC)",
+                "to": "Bis (UTC)"
+            },
+            "actions": {
+                "apply": "Filter anwenden",
+                "refresh": "Aktualisieren",
+                "showDetails": "Ereignisdetails anzeigen",
+                "hideDetails": "Ereignisdetails ausblenden"
+            },
+            "columns": {
+                "time": "Zeit (UTC)",
+                "actor": "Akteur",
+                "action": "Aktion",
+                "resource": "Ressource",
+                "target": "Ziel",
+                "result": "Ergebnis",
+                "details": "Details",
+                "actorKind": "Akteursart",
+                "eventId": "Ereignis-ID",
+                "metadata": "Sichere Metadaten"
+            },
+            "values": {
+                "actorKinds": {
+                    "user": "Benutzer",
+                    "anonymous": "Anonym",
+                    "system": "System"
+                },
+                "results": {
+                    "success": "Erfolgreich",
+                    "failure": "Fehlgeschlagen",
+                    "denied": "Abgelehnt"
+                },
+                "actions": {
+                    "login": "Anmelden",
+                    "logout": "Abmelden",
+                    "create": "Erstellen",
+                    "update": "Aktualisieren",
+                    "delete": "Löschen",
+                    "enable": "Aktivieren",
+                    "disable": "Deaktivieren",
+                    "rotate": "Ersetzen",
+                    "reset": "Zurücksetzen",
+                    "accept": "Annehmen",
+                    "reauthenticate": "Erneut authentifizieren",
+                    "import": "Importieren",
+                    "replace": "Ersetzen",
+                    "request": "Anfordern",
+                    "renew": "Erneuern",
+                    "save": "Speichern",
+                    "apply": "Anwenden"
+                },
+                "resources": {
+                    "session": "Sitzung",
+                    "password": "Passwort",
+                    "totp": "TOTP",
+                    "recovery-codes": "Wiederherstellungscodes",
+                    "passkey": "Passkey",
+                    "invite": "Einladung",
+                    "setup": "Einrichtung",
+                    "security-settings": "Sicherheitseinstellungen",
+                    "user": "Benutzer",
+                    "role": "Rolle",
+                    "proxy-host": "Proxy-Host",
+                    "redirect-host": "Weiterleitungs-Host",
+                    "access-policy": "Zugriffsrichtlinie",
+                    "basic-auth-account": "Basic-Auth-Konto",
+                    "certificate": "Zertifikat",
+                    "trusted-ca": "Vertrauenswürdige CA",
+                    "proxy-runtime-settings": "Proxy-Laufzeiteinstellungen",
+                    "proxy-host-settings": "Proxy-Host-Einstellungen",
+                    "proxy-runtime": "Proxy-Laufzeit"
+                }
+            },
+            "metadata": {
+                "authenticationMethod": "Authentifizierungsmethode",
+                "reason": "Grund",
+                "failureCode": "Fehlercode",
+                "changedFields": "Geänderte Felder",
+                "assigned": "Zugewiesen",
+                "previousId": "Vorherige ID",
+                "nextId": "Nächste ID",
+                "runtimeStatus": "Laufzeitstatus",
+                "count": "Anzahl"
+            },
+            "details": {
+                "noMetadata": "Keine weiteren sicheren Metadaten."
+            },
+            "pagination": {
+                "pageSummary": "{{count}} Ereignisse auf dieser Seite",
+                "label": "Seitennavigation des Audit-Protokolls",
+                "page": "Seite {{page}}",
+                "previous": "Vorherige Seite",
+                "next": "Nächste Seite"
+            },
+            "validation": {
+                "actorUserId": "Gib eine gültige Akteurs-UUID ein.",
+                "dateTime": "Gib ein gültiges Datum und eine gültige UTC-Zeit ein.",
+                "dateRange": "Das Startdatum muss vor oder am Enddatum liegen."
+            },
+            "errors": {
+                "loadFailed": "Die Audit-Ereignisse konnten nicht geladen werden."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Zertifikate",
@@ -1607,7 +1739,8 @@
             "certificates": "Zertifikate",
             "trusted_cas": "Vertrauenswürdige CAs",
             "access_policies": "Zugriffsrichtlinien",
-            "proxy-access-logs": "Proxy-Zugriffsprotokolle"
+            "proxy-access-logs": "Proxy-Zugriffsprotokolle",
+            "audit-logs": "Audit-Protokoll"
         },
         "app": {
             "access": "Anwendungszugriff"
@@ -1669,6 +1802,7 @@
         },
 
         "proxy-access-logs:view": "Proxy-Zugriffsprotokolle anzeigen",
+        "audit-logs:view": "Audit-Protokoll anzeigen",
 
         "trusted_cas": {
             "view": "Vertrauenswürdige CAs anzeigen",
