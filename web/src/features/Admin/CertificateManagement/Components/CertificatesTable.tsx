@@ -31,7 +31,11 @@ export default function CertificatesTable(props: CertificateTableProps) {
         <DataTable
             table={state.table}
             eyebrow={t('admin.certificates.table.eyebrow')}
-            title={t('admin.certificates.table.count', { count: props.certificates.length })}
+            title={
+                props.loading
+                    ? t('admin.certificates.table.loading')
+                    : t('admin.certificates.table.count', { count: props.certificates.length })
+            }
             description={t('admin.certificates.table.description')}
             searchInput={state.searchInput}
             searchLabel={t('admin.certificates.table.searchLabel')}

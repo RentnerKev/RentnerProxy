@@ -21,7 +21,11 @@ export default function TrustedCasTable(props: TrustedCaTableProps) {
         <DataTable
             table={state.table}
             eyebrow={t('admin.trustedCas.table.eyebrow')}
-            title={t('admin.trustedCas.table.count', { count: props.trustedCas.length })}
+            title={
+                props.loading
+                    ? t('admin.trustedCas.table.loading')
+                    : t('admin.trustedCas.table.count', { count: props.trustedCas.length })
+            }
             description={t('admin.trustedCas.table.description')}
             searchInput={state.searchInput}
             searchLabel={t('admin.trustedCas.table.searchLabel')}

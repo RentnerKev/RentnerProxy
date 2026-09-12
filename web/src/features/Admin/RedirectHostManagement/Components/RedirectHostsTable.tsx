@@ -10,7 +10,11 @@ export default function RedirectHostsTable(props: RedirectHostsTableProps) {
         <DataTable
             table={state.table}
             eyebrow={t('admin.redirectHosts.table.eyebrow')}
-            title={t('admin.redirectHosts.table.count', { count: redirectHosts.length })}
+            title={
+                loading
+                    ? t('admin.redirectHosts.table.loading')
+                    : t('admin.redirectHosts.table.count', { count: redirectHosts.length })
+            }
             description={t('admin.redirectHosts.table.description')}
             searchInput={state.searchInput}
             searchLabel={t('admin.redirectHosts.table.searchLabel')}

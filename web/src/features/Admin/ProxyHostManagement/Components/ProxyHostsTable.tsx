@@ -12,7 +12,11 @@ export default function ProxyHostsTable(props: ProxyHostsTableProps) {
         <DataTable
             table={state.table}
             eyebrow={t('admin.proxyHosts.table.eyebrow')}
-            title={t('admin.proxyHosts.table.count', { count: proxyHosts.length })}
+            title={
+                loading
+                    ? t('admin.proxyHosts.table.loading')
+                    : t('admin.proxyHosts.table.count', { count: proxyHosts.length })
+            }
             description={t('admin.proxyHosts.table.description')}
             searchInput={state.searchInput}
             searchLabel={t('admin.proxyHosts.table.searchLabel')}

@@ -31,6 +31,7 @@ export default function AccessPolicyRuntimeStatusPanel({
     status,
 }: AccessPolicyRuntimeStatusPanelProps) {
     const { t } = useTranslationStore()
+    if (status === undefined && !isError) return null
     const displayStatus = isError ? undefined : status
     const state = displayStatus?.state ?? 'unavailable'
     const showApply =
