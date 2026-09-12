@@ -29,6 +29,8 @@ const certificate: CertificateSummary = {
     expiresAt: new Date('2026-04-01T00:00:00Z'),
     issuer: 'Pebble',
     fingerprint: 'SHA256:fixture',
+    candidate: null,
+    dnsCleanupPending: false,
     lastErrorCode: null,
     assignedHostCount: 1,
     createdAt: new Date('2026-01-01T00:00:00Z'),
@@ -291,6 +293,49 @@ describe('certificate management UI', () => {
         expect(document.body.textContent).toContain('Details')
         expect(document.body.textContent).not.toContain('Renew')
         expect(document.body.textContent).not.toContain('Delete')
+    })
+
+    test('shows pending candidates and retries activation through the renew action', async () => {
+        const candidateCertificate: CertificateSummary = {
+            ...certificate,
+            dnsCleanupPending: true,
+            candidate: {
+                fingerprint: 'sha256:' + 'b'.repeat(64),
+                issuedAt: new Date('2026-02-01T00:00:00Z'),
+                expiresAt: new Date('2027-02-01T00:00:00Z'),
+                lastErrorCode: 'runtime_apply_failed',
+                nextAttemptAt: new Date('2026-02-01T10:42:00Z'),
+            },
+        }
+        getCertificatesHandlerMock.mockResolvedValueOnce([candidateCertificate])
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_RENEW])
+        await waitFor(() => document.body.textContent?.includes('Pending activation') === true)
+        await openMenu(button('Open certificate actions'))
+        expect(document.body.textContent).toContain('Retry activation')
+        const detailsAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Details',
+        )
+        expect(detailsAction).toBeDefined()
+        await click(detailsAction!)
+        await waitFor(() => document.body.textContent?.includes('Candidate fingerprint') === true)
+        expect(document.body.textContent).toContain('10:42 UTC')
+        expect(document.body.textContent).toContain('DNS cleanup is still pending')
+        expect(document.body.textContent).toContain(certificate.fingerprint!)
+        expect(document.body.textContent).toContain(candidateCertificate.candidate!.fingerprint)
+        await click(button('Close dialog'))
+        await waitFor(() => document.querySelector('[role=dialog]') === null)
+        await openMenu(button('Open certificate actions'))
+        const retryAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Retry activation',
+        )
+        expect(retryAction).toBeDefined()
+        await click(retryAction!)
+        await waitFor(() => document.body.textContent?.includes('Retry activation') === true)
+        await click(lastButton('Retry activation'))
+        await waitFor(() => renewCertificateHandlerMock.mock.calls.length === 1)
+        expect(renewCertificateHandlerMock).toHaveBeenCalledWith({
+            data: { certificateId: certificate.id },
+        })
     })
 
     test('submits manual PEM values directly and clears them after success', async () => {

@@ -115,3 +115,23 @@ deadlines. These fields travel with the controller-state backup; retain the enti
 directory and encryption key. This scheduling change requires no database or proxy snapshot
 version change. For rollback, restore the pre-upgrade backup rather than opening upgraded
 state with an older controller.
+
+### Issued certificates awaiting activation
+
+The controller saves an issued ACME certificate as a durable candidate before attempting
+activation. A Caddy load rejection, timeout, failed revision probe, or certificate metadata
+write failure keeps that candidate for another activation attempt. Existing active material
+continues serving until Caddy confirms the replacement and the active pointer is persisted.
+Restart recovery validates the saved material and resumes activation without requesting a
+second certificate from the CA.
+
+Certificate details distinguish the active certificate from an issued candidate awaiting
+activation. Retrying a candidate only retries activation; CA cooldowns still govern any new
+issuance. The controller also retries candidates automatically. DNS proof cleanup is tracked
+separately and resumes after restart using only the controller's own saved cleanup intents.
+
+Backups must retain the complete controller certificate directory, including candidate
+manifests and material versions, together with the application encryption key. The additive
+database migration stores candidate display metadata; the controller remains the owner of
+certificate material and activation. The proxy snapshot remains version 7. Rollback requires
+restoring the pre-upgrade backup with the previous image.

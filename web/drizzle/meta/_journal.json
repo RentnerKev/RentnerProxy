@@ -120,6 +120,13 @@
             "when": 1789174662166,
             "tag": "0016_audit_events",
             "breakpoints": true
+        },
+        {
+            "idx": 17,
+            "version": "7",
+            "when": 1789232362947,
+            "tag": "0017_pending_certificate_candidates",
+            "breakpoints": true
         }
     ]
 }

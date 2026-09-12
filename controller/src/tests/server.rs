@@ -5,7 +5,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
-    time::Duration,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use axum::{
@@ -59,9 +59,13 @@ impl ProxyEngine for TestEngine {
 
 async fn test_app(token: Option<ControllerToken>) -> Router {
     let unique = format!(
-        "server-{}-{}",
+        "server-{}-{}-{}",
         std::process::id(),
-        TEST_COUNTER.fetch_add(1, Ordering::SeqCst)
+        TEST_COUNTER.fetch_add(1, Ordering::SeqCst),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos(),
     );
     let mut settings = RuntimeSettings::new(std::env::temp_dir().join(unique), 18_080);
     settings.stage_timeout = Duration::from_millis(100);

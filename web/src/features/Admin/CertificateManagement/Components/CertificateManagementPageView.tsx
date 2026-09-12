@@ -119,11 +119,22 @@ export default function CertificateManagementPageView({
                 <ConfirmDialog
                     open
                     onOpenChange={handler.setRenewDialogOpen}
-                    title={t('admin.certificates.confirm.renewTitle', {
-                        name: state.renewTarget.name,
-                    })}
-                    description={t('admin.certificates.confirm.renewDescription')}
-                    confirmLabel={t('admin.certificates.actions.renew')}
+                    title={t(
+                        state.renewTarget.candidate
+                            ? 'admin.certificates.confirm.retryTitle'
+                            : 'admin.certificates.confirm.renewTitle',
+                        { name: state.renewTarget.name },
+                    )}
+                    description={t(
+                        state.renewTarget.candidate
+                            ? 'admin.certificates.confirm.retryDescription'
+                            : 'admin.certificates.confirm.renewDescription',
+                    )}
+                    confirmLabel={t(
+                        state.renewTarget.candidate
+                            ? 'admin.certificates.actions.retry'
+                            : 'admin.certificates.actions.renew',
+                    )}
                     pendingLabel={t('admin.certificates.actions.renewing')}
                     isPending={state.isRenewing}
                     onConfirm={handler.confirmRenew}

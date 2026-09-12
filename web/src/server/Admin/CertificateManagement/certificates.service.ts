@@ -81,6 +81,15 @@ async function persistControllerMetadata(
     }
     const issuedAt = metadata.issuedAt ? new Date(metadata.issuedAt) : null
     const expiresAt = metadata.expiresAt ? new Date(metadata.expiresAt) : null
+    const candidate =
+        metadata.candidate === undefined
+            ? row.candidate
+            : metadata.candidate
+              ? {
+                    ...metadata.candidate,
+                }
+              : null
+    const dnsCleanupPending = metadata.dnsCleanupPending ?? row.dnsCleanupPending
     const domains = [...new Set(metadata.domains)].toSorted()
     const existingDomains = (
         await transaction
@@ -98,6 +107,8 @@ async function persistControllerMetadata(
         row.issuer !== metadata.issuer ||
         row.issuedAt?.getTime() !== issuedAt?.getTime() ||
         row.expiresAt?.getTime() !== expiresAt?.getTime() ||
+        JSON.stringify(row.candidate) !== JSON.stringify(candidate) ||
+        row.dnsCleanupPending !== dnsCleanupPending ||
         domainsChanged
     if (!changed) return
     await transaction
@@ -109,6 +120,8 @@ async function persistControllerMetadata(
             expiresAt,
             issuer: metadata.issuer,
             fingerprint: metadata.fingerprint,
+            candidate,
+            dnsCleanupPending,
             lastErrorCode: metadata.lastErrorCode,
             updatedAt: new Date(),
         })
@@ -174,6 +187,18 @@ async function readCertificateSummaries(): Promise<CertificateSummary[]> {
                 expiresAt: row.expiresAt,
                 issuer: row.issuer,
                 fingerprint: row.fingerprint,
+                candidate: row.candidate
+                    ? {
+                          fingerprint: row.candidate.fingerprint,
+                          issuedAt: new Date(row.candidate.issuedAt),
+                          expiresAt: new Date(row.candidate.expiresAt),
+                          lastErrorCode: row.candidate.lastErrorCode,
+                          nextAttemptAt: row.candidate.nextAttemptAt
+                              ? new Date(row.candidate.nextAttemptAt)
+                              : null,
+                      }
+                    : null,
+                dnsCleanupPending: row.dnsCleanupPending,
                 lastErrorCode: row.lastErrorCode,
                 assignedHostCount: counts.get(row.id) ?? 0,
                 createdAt: row.createdAt,

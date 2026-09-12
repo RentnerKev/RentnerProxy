@@ -6,6 +6,22 @@ import type {
     CertificateStatus,
 } from '../../config/certificates.config'
 
+export interface CertificateCandidateMetadata {
+    readonly fingerprint: string
+    readonly issuedAt: string
+    readonly expiresAt: string
+    readonly lastErrorCode: CertificateErrorCode | null
+    readonly nextAttemptAt: string | null
+}
+
+export interface CertificateCandidate {
+    readonly fingerprint: string
+    readonly issuedAt: Date
+    readonly expiresAt: Date
+    readonly lastErrorCode: CertificateErrorCode | null
+    readonly nextAttemptAt: Date | null
+}
+
 export interface CertificateSummary {
     readonly id: string
     readonly name: string
@@ -18,6 +34,8 @@ export interface CertificateSummary {
     readonly expiresAt: Date | null
     readonly issuer: string | null
     readonly fingerprint: string | null
+    readonly candidate: CertificateCandidate | null
+    readonly dnsCleanupPending: boolean
     readonly lastErrorCode: CertificateErrorCode | null
     readonly assignedHostCount: number
     readonly createdAt: Date

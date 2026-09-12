@@ -67,6 +67,13 @@ impl ProxyRuntime {
                 .commit_staged(&staged)
                 .await
                 .map_err(|_| RuntimeError::ApplyFailed)?;
+            if let Err(error) = runtime.certificate_store.collect_garbage().await {
+                warn!(
+                    ?error,
+                    stage = "certificate_gc",
+                    "Certificate cleanup will retry later"
+                );
+            }
             Ok(ApplyOutcome::Unchanged)
         })
         .await
@@ -169,6 +176,19 @@ impl ProxyRuntime {
         state.engine_available = true;
         drop(state);
         *self.active_configuration.lock().await = Some(configuration.clone());
+        // Only collect old versions once both the served configuration and
+        // the durable active pointer agree, while apply_lock still excludes
+        // another activation or deletion. The store also protects candidates
+        // and every certificate with an outstanding material lease.
+        if staged.is_some()
+            && let Err(error) = self.certificate_store.collect_garbage().await
+        {
+            warn!(
+                ?error,
+                stage = "certificate_gc",
+                "Certificate cleanup will retry later"
+            );
+        }
         info!(revision = %configuration.revision, unchanged, duration_ms = elapsed_millis(started_at),
               hosts = configuration.proxy_hosts.len() + configuration.redirect_hosts.len(), "Caddy configuration verified");
         Ok(if unchanged {

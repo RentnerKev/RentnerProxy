@@ -5,6 +5,7 @@ import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErr
 import SelectControl from '../../../../shared/Select'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { MAX_REDIRECT_HOST_DOMAINS } from '../../../../config/redirect-hosts.config'
+import { certificateCoversDomains } from '../../CertificateManagement/Helpers/certificateValidation'
 import { redirectDestinationSchema, redirectDomainSchema } from '../validation'
 import type { RedirectHostFormFieldsProps } from '../Types/redirect-host-form.types'
 export default function RedirectHostFormFields({
@@ -222,11 +223,24 @@ export default function RedirectHostFormFields({
                                 onBlur={field.handleBlur}
                                 value={field.state.value ?? ''}
                                 placeholder={t('admin.redirectHosts.form.noCertificate')}
-                                options={assignableCertificates.map((certificate) => ({
-                                    value: certificate.id,
-                                    label:
-                                        certificate.name + ' · ' + certificate.domains.join(', '),
-                                }))}
+                                options={assignableCertificates
+                                    .filter(
+                                        (certificate) =>
+                                            ((certificate.status === 'valid' ||
+                                                certificate.status === 'expiring') &&
+                                                certificateCoversDomains(
+                                                    certificate.domains,
+                                                    form.state.values.domains,
+                                                )) ||
+                                            certificate.id === field.state.value,
+                                    )
+                                    .map((certificate) => ({
+                                        value: certificate.id,
+                                        label:
+                                            certificate.name +
+                                            ' · ' +
+                                            certificate.domains.join(', '),
+                                    }))}
                                 onValueChange={(value) => field.handleChange(value || null)}
                             />
                             <p
