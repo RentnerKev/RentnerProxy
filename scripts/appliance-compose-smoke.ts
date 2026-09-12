@@ -325,6 +325,7 @@ async function runSmoke(): Promise<void> {
         ...commandEnvironment,
         ...smtpEnvironment,
         RENTNERPROXY_PUBLIC_ORIGIN: publicOrigin,
+        RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS: trustedProxyCidrs,
         RENTNERPROXY_COMPOSE_FILE: temporaryComposeFile,
     }
 
@@ -1055,6 +1056,7 @@ async function runSmoke(): Promise<void> {
         const restoredEnvironment = JSON.parse(
             await inspect(restoredId, '{{json .Config.Env}}'),
         ) as string[]
+        assert.ok(restoredEnvironment.includes('RENTNERPROXY_PUBLIC_ORIGIN=' + publicOrigin))
         assert.ok(
             restoredEnvironment.includes(
                 'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=' + trustedProxyCidrs,
@@ -1114,6 +1116,10 @@ async function runSmoke(): Promise<void> {
         await assertRealTraffic(
             restoredId,
             'v3 restore heals Caddy from desired DB and preserves HTTP/HTTPS traffic',
+        )
+        await assertPublishedQuic()
+        passed(
+            'verified HTTP/3 and deployment origin survive restore with trusted proxy configuration',
         )
         await command([
             'docker',

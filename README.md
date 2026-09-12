@@ -34,7 +34,7 @@ management origin and an SMTP host, user, password, and sender address are requi
 
 Download [`docker-compose.yml`](./docker-compose.yml) and [`.env.production.example`](./.env.production.example)
 to an empty folder. Set the Compose image to
-`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.2`, copy the environment template, and set
+`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.3`, copy the environment template, and set
 `RENTNERPROXY_PUBLIC_ORIGIN` and the SMTP values:
 
 ```bash

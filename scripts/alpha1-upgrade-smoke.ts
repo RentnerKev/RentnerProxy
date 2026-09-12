@@ -29,7 +29,7 @@ export interface PublishedUpgradeBaseline {
     readonly version: string
     readonly revision: string
     readonly migrationCount: number
-    readonly targetName: 'Alpha 2' | 'Alpha 4'
+    readonly targetName: 'Alpha 4'
     readonly directoryName: string
 }
 
@@ -39,7 +39,7 @@ export const ALPHA1_BASELINE: PublishedUpgradeBaseline = {
     version: 'v1.0.0-alpha.1',
     revision: ALPHA1_REVISION,
     migrationCount: ALPHA1_MIGRATION_COUNT,
-    targetName: 'Alpha 2',
+    targetName: 'Alpha 4',
     directoryName: 'alpha1-upgrade',
 }
 
@@ -415,4 +415,3 @@ export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise
 export async function verifyAlpha3Upgrade(options: UpgradeSmokeOptions): Promise<void> {
     return verifyPublishedUpgrade(options, ALPHA3_BASELINE)
 }
-
