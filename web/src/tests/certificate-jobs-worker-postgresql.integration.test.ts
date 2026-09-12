@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto'
-import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { eq, inArray, like, or } from 'drizzle-orm'
 
 import { PERMISSIONS, SYSTEM_ROLES } from '../config/permissions.config'
@@ -30,6 +30,7 @@ const integrationTest = enabled ? test : test.skip
 const HOST_PREFIX = 'certificate-job-worker-backend-'
 const CERTIFICATE_PREFIX = 'certificate-job-worker-'
 const EMAIL_SUFFIX = '@certificate-job-worker.invalid'
+const originalEncryptionKey = process.env.APP_ENCRYPTION_KEY
 
 type CertificateJobRow = typeof certificateJobs.$inferSelect
 type JobController = {
@@ -306,6 +307,7 @@ async function cleanupFixture(): Promise<void> {
 
 beforeAll(async () => {
     if (!enabled) return
+    process.env.APP_ENCRYPTION_KEY = randomBytes(32).toString('base64')
     await cleanupFixture()
     await getAuthDatabase().transaction(ensureAuthorizationRegistryInTransaction)
 })
@@ -316,6 +318,11 @@ beforeEach(async () => {
 
 afterEach(async () => {
     if (enabled) await cleanupFixture()
+})
+
+afterAll(() => {
+    if (originalEncryptionKey === undefined) delete process.env.APP_ENCRYPTION_KEY
+    else process.env.APP_ENCRYPTION_KEY = originalEncryptionKey
 })
 
 describe('certificate job worker with PostgreSQL', () => {
