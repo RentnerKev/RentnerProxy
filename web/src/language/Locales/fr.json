@@ -1130,7 +1130,10 @@
                 "enabledHint": "Les hôtes activés sont inclus dans la prochaine configuration du moteur proxy.",
                 "statusReadOnly": "Vous n’avez pas l’autorisation de modifier le statut enregistré de cet hôte de redirection."
             },
-            "status": { "enabled": "Activé", "disabled": "Désactivé" },
+            "status": {
+                "enabled": "Activé",
+                "disabled": "Désactivé"
+            },
             "statusCodes": {
                 "301": "301 · Permanent",
                 "302": "302 · Trouvé",
@@ -1153,7 +1156,10 @@
                 "createdFrom": "Créé à partir du",
                 "createdTo": "Créé jusqu’au"
             },
-            "cells": { "https": "Certificat HTTPS", "http": "HTTP" },
+            "cells": {
+                "https": "Certificat HTTPS",
+                "http": "HTTP"
+            },
             "table": {
                 "eyebrow": "Configuration enregistrée",
                 "count_one": "{{count}} hôte de redirection",
@@ -1782,7 +1788,6 @@
             "disable": "Désactiver les hôtes de redirection",
             "apply": "Appliquer la configuration de redirection"
         },
-
         "certificates": {
             "view": "Afficher les certificats",
             "create": "Importer des certificats",
@@ -1791,7 +1796,6 @@
             "issue": "Demander des certificats ACME",
             "renew": "Renouveler les certificats ACME"
         },
-
         "access_policies": {
             "view": "Afficher les règles d’accès",
             "create": "Créer des règles d’accès",
@@ -1800,10 +1804,8 @@
             "assign": "Attribuer des règles d’accès",
             "apply": "Appliquer la configuration des règles d’accès"
         },
-
         "proxy-access-logs:view": "Afficher les journaux d’accès du proxy",
         "audit-logs:view": "Afficher le journal d’audit",
-
         "trusted_cas": {
             "view": "Afficher les AC de confiance",
             "create": "Importer des AC de confiance",
@@ -1870,6 +1872,8 @@
             "fri": "Ven",
             "sat": "Sam",
             "sun": "Dim"
-        }
+        },
+        "hours": "Heures",
+        "minutes": "Minutes"
     }
 }

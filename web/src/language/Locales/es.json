@@ -1130,7 +1130,10 @@
                 "enabledHint": "Los hosts activados se incluyen en la próxima configuración del runtime del proxy.",
                 "statusReadOnly": "No tienes permiso para cambiar el estado guardado de este host de redirección."
             },
-            "status": { "enabled": "Activado", "disabled": "Desactivado" },
+            "status": {
+                "enabled": "Activado",
+                "disabled": "Desactivado"
+            },
             "statusCodes": {
                 "301": "301 · Permanente",
                 "302": "302 · Encontrado",
@@ -1153,7 +1156,10 @@
                 "createdFrom": "Creado desde",
                 "createdTo": "Creado hasta"
             },
-            "cells": { "https": "Certificado HTTPS", "http": "HTTP" },
+            "cells": {
+                "https": "Certificado HTTPS",
+                "http": "HTTP"
+            },
             "table": {
                 "eyebrow": "Configuración guardada",
                 "count_one": "{{count}} host de redirección",
@@ -1782,7 +1788,6 @@
             "disable": "Desactivar hosts de redirección",
             "apply": "Aplicar la configuración de redirección"
         },
-
         "certificates": {
             "view": "Ver certificados",
             "create": "Importar certificados",
@@ -1791,7 +1796,6 @@
             "issue": "Solicitar certificados ACME",
             "renew": "Renovar certificados ACME"
         },
-
         "access_policies": {
             "view": "Ver políticas de acceso",
             "create": "Crear políticas de acceso",
@@ -1800,10 +1804,8 @@
             "assign": "Asignar políticas de acceso",
             "apply": "Aplicar la configuración de políticas de acceso"
         },
-
         "proxy-access-logs:view": "Ver registros de acceso del proxy",
         "audit-logs:view": "Ver el registro de auditoría",
-
         "trusted_cas": {
             "view": "Ver CA de confianza",
             "create": "Importar CA de confianza",
@@ -1870,6 +1872,8 @@
             "fri": "Vie",
             "sat": "Sáb",
             "sun": "Dom"
-        }
+        },
+        "hours": "Horas",
+        "minutes": "Minutos"
     }
 }

@@ -1,9 +1,8 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import * as Popover from 'radix-ui/popover'
 
 import useTranslationStore from '../../../language/useTranslationStore'
 import type { CalendarPopoverContentProps } from '../Types/date-range-calendar.types'
-import CalendarMonthGrid from './CalendarMonthGrid'
+import CalendarMonthView from './CalendarMonthView'
 
 export default function CalendarPopoverContent({
     ariaLabel,
@@ -47,38 +46,11 @@ export default function CalendarPopoverContent({
                     </div>
 
                     <div className="p-3">
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                            <button
-                                type="button"
-                                aria-label={t('calendar.previousMonth')}
-                                onClick={handler.showPreviousMonth}
-                                className="grid size-9 place-items-center rounded-xl border border-border bg-surface text-muted transition-colors hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-                            >
-                                <ChevronLeft
-                                    aria-hidden="true"
-                                    className="size-4"
-                                    strokeWidth={1.8}
-                                />
-                            </button>
-                            <h3 className="text-sm font-extrabold text-ink-soft" aria-live="polite">
-                                {state.monthLabel}
-                            </h3>
-                            <button
-                                type="button"
-                                aria-label={t('calendar.nextMonth')}
-                                onClick={handler.showNextMonth}
-                                className="grid size-9 place-items-center rounded-xl border border-border bg-surface text-muted transition-colors hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-                            >
-                                <ChevronRight
-                                    aria-hidden="true"
-                                    className="size-4"
-                                    strokeWidth={1.8}
-                                />
-                            </button>
-                        </div>
-
-                        <CalendarMonthGrid
+                        <CalendarMonthView
                             focusedDateValue={state.focusedDateValue}
+                            monthLabel={state.monthLabel}
+                            onNextMonth={handler.showNextMonth}
+                            onPreviousMonth={handler.showPreviousMonth}
                             weeks={state.weeks}
                             onDayFocus={handler.handleDayFocus}
                             onDayKeyDown={handler.handleDayKeyDown}
@@ -94,7 +66,7 @@ export default function CalendarPopoverContent({
                             <button
                                 type="button"
                                 onClick={handler.clear}
-                                className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-extrabold text-muted transition-colors hover:bg-surface-hover hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                className="inline-flex h-12 shrink-0 items-center justify-center rounded-lg px-2.5 text-xs font-extrabold text-muted transition-colors hover:bg-surface-hover hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                             >
                                 {t('calendar.clear')}
                             </button>

@@ -1130,7 +1130,10 @@
                 "enabledHint": "Enabled hosts are included in the next proxy runtime configuration.",
                 "statusReadOnly": "You do not have permission to change this redirect host’s saved status."
             },
-            "status": { "enabled": "Enabled", "disabled": "Disabled" },
+            "status": {
+                "enabled": "Enabled",
+                "disabled": "Disabled"
+            },
             "statusCodes": {
                 "301": "301 · Permanent",
                 "302": "302 · Found",
@@ -1153,7 +1156,10 @@
                 "createdFrom": "Created from",
                 "createdTo": "Created to"
             },
-            "cells": { "https": "HTTPS certificate", "http": "HTTP" },
+            "cells": {
+                "https": "HTTPS certificate",
+                "http": "HTTP"
+            },
             "table": {
                 "eyebrow": "Saved configuration",
                 "count_one": "{{count}} redirect host",
@@ -1782,7 +1788,6 @@
             "disable": "Disable redirect hosts",
             "apply": "Apply redirect configuration"
         },
-
         "certificates": {
             "view": "View certificates",
             "create": "Import certificates",
@@ -1791,7 +1796,6 @@
             "issue": "Request ACME certificates",
             "renew": "Renew ACME certificates"
         },
-
         "access_policies": {
             "view": "View access policies",
             "create": "Create access policies",
@@ -1800,10 +1804,8 @@
             "assign": "Assign access policies",
             "apply": "Apply access policy configuration"
         },
-
         "proxy-access-logs:view": "View proxy access logs",
         "audit-logs:view": "View audit log",
-
         "trusted_cas": {
             "view": "View trusted CAs",
             "create": "Import trusted CAs",
@@ -1870,6 +1872,8 @@
             "fri": "Fri",
             "sat": "Sat",
             "sun": "Sun"
-        }
+        },
+        "hours": "Hours",
+        "minutes": "Minutes"
     }
 }

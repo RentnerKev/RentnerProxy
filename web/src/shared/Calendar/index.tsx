@@ -9,13 +9,20 @@ import type { DateRangeCalendarProps } from './Types/date-range-calendar.types'
 export default function DateRangeCalendar({
     ariaLabel,
     className,
+    closeOnSelect,
     fromLabel,
     onValueChange,
+    selectionMode,
     toLabel,
     value,
 }: DateRangeCalendarProps) {
     const { t } = useTranslationStore()
-    const { contentRef, state, handler } = useDateRangeCalendarLogic({ onValueChange, value })
+    const { contentRef, state, handler } = useDateRangeCalendarLogic({
+        closeOnSelect,
+        onValueChange,
+        selectionMode,
+        value,
+    })
     const resolvedFromLabel = fromLabel ?? t('calendar.from')
     const resolvedToLabel = toLabel ?? t('calendar.to')
 
