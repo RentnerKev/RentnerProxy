@@ -1,5 +1,44 @@
 export const SMOKE_RUN_LABEL = 'io.rentnerproxy.smoke-run'
 
+export const RESTORE_SMOKE_OPERATIONS = [
+    'inspect controller state archive',
+    'validate controller state archive types',
+    'initialize restore target',
+    'quiesce restore target',
+    'stage application encryption key restore',
+    'restore PostgreSQL',
+    'restore controller state',
+    'complete application encryption key restore',
+    'start restored appliance',
+] as const
+
+const restoreDatabaseDetailsPattern =
+    /Restore database phase: (initialize|archive|render|assemble|execute)(?:; SQLSTATE: (23514|42P01|3F000|42501|42601|42710|2BP01|25P02))?\./u
+
+/** Only fixed operation/phase names and recognized SQLSTATE codes leave captured output. */
+export function restoreSmokeDiagnostic(output: string): string | undefined {
+    const operation = RESTORE_SMOKE_OPERATIONS.find((name) =>
+        output.includes('production restore operation failed: ' + name + '.'),
+    )
+    if (operation === undefined) return undefined
+    const details =
+        operation === 'restore PostgreSQL' ? output.match(restoreDatabaseDetailsPattern) : null
+    return (
+        'Restore failed: ' +
+        operation +
+        (details ? ' (' + details[1] + (details[2] ? '; SQLSTATE: ' + details[2] : '') + ')' : '')
+    )
+}
+
+export function isRestoreSmokeDiagnostic(line: string): boolean {
+    return (
+        RESTORE_SMOKE_OPERATIONS.some((name) => line === 'Restore failed: ' + name) ||
+        /^Restore failed: restore PostgreSQL \((initialize|archive|render|assemble|execute)(?:; SQLSTATE: (23514|42P01|3F000|42501|42601|42710|2BP01|25P02))?\)$/u.test(
+            line,
+        )
+    )
+}
+
 const smokeRunScopePattern = /^(?:[0-9]+-[0-9]+|local-[a-f0-9]{12})$/u
 const smokeRunScopeMaxLength = 80
 
