@@ -6,6 +6,7 @@ import { mkdir, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { smokeCompose } from './smoke-resources'
+import { verifyRestoreRollback } from './restore-rollback-smoke'
 import {
     assertAlpha1UpgradeFixture,
     seedAlpha1UpgradeFixture,
@@ -280,6 +281,26 @@ export async function verifyAlpha1Upgrade(options: UpgradeSmokeOptions): Promise
         await traffic(restoredId, fixture)
         assert.equal(await activeRevision(restoredId), originalRevision)
         passed('Alpha 1 database and controller backup restores into a fresh Alpha 2 appliance')
+        await verifyRestoreRollback({
+            containerId: restoredId,
+            command,
+            commandWithEnvironment: options.commandWithEnvironment,
+            environment: options.environment,
+            composeFile: newComposeFile,
+            project: restoreProject,
+            backupPath,
+            temporaryRoot: directory,
+            waitForHealthy: () => healthy(restoredId),
+        })
+        await assertAlpha1UpgradeFixture({
+            containerId: restoredId,
+            command,
+            fixture,
+            expectAlpha2: true,
+        })
+        await traffic(restoredId, fixture)
+        assert.equal(await activeRevision(restoredId), originalRevision)
+        passed('failed SQL restore rolls back and restarts the unchanged appliance')
     } finally {
         await command([...nextCompose, 'down', '--volumes', '--remove-orphans'], 180_000).catch(
             () => undefined,

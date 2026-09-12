@@ -412,15 +412,40 @@ async function restore(): Promise<void> {
             )
             stagedApplicationKey = true
 
-            const restoreDatabaseCommand =
-                'set -Eeuo pipefail; test -s /var/lib/rentnerproxy/postgres-data/PG_VERSION; install -d -m 0700 -o postgres -g postgres /var/run/postgresql; chmod 00700 /var/run/postgresql; gosu postgres postgres -D /var/lib/rentnerproxy/postgres-data -c listen_addresses= -c unix_socket_directories=/var/run/postgresql >&2 & postgres_pid=$!; cleanup() { kill -TERM "$postgres_pid" 2>/dev/null || true; wait "$postgres_pid" 2>/dev/null || true; }; trap cleanup EXIT; ready=false; for attempt in $(seq 1 60); do if gosu postgres pg_isready --host=/var/run/postgresql --username=' +
-                databaseUser +
-                ' --dbname=' +
-                database +
-                ' >/dev/null 2>&1; then ready=true; break; fi; kill -0 "$postgres_pid" 2>/dev/null || exit 1; sleep 1; done; "$ready"; gosu postgres pg_restore --host=/var/run/postgresql --exit-on-error --single-transaction --no-owner --no-acl --clean --if-exists --username=' +
-                databaseUser +
-                ' --dbname=' +
-                database
+            const restoreDatabaseCommand = [
+                'set -Eeuo pipefail',
+                'umask 077',
+                'test -s /var/lib/rentnerproxy/postgres-data/PG_VERSION',
+                'install -d -m 0700 -o postgres -g postgres /var/run/postgresql',
+                'chmod 00700 /var/run/postgresql',
+                'gosu postgres postgres -D /var/lib/rentnerproxy/postgres-data -c listen_addresses= -c unix_socket_directories=/var/run/postgresql >&2 & postgres_pid=$!',
+                'dump_path=""',
+                'rendered_sql_path=""',
+                'restore_sql_path=""',
+                'cleanup() {',
+                '    if [ -n "$dump_path" ]; then rm -f -- "$dump_path" || true; fi',
+                '    if [ -n "$rendered_sql_path" ]; then rm -f -- "$rendered_sql_path" || true; fi',
+                '    if [ -n "$restore_sql_path" ]; then rm -f -- "$restore_sql_path" || true; fi',
+                '    kill -TERM "$postgres_pid" 2>/dev/null || true',
+                '    wait "$postgres_pid" 2>/dev/null || true',
+                '}',
+                'trap cleanup EXIT',
+                'ready=false',
+                `for attempt in $(seq 1 60); do if gosu postgres pg_isready --host=/var/run/postgresql --username=${databaseUser} --dbname=${database} >/dev/null 2>&1; then ready=true; break; fi; kill -0 "$postgres_pid" 2>/dev/null || exit 1; sleep 1; done`,
+                '"$ready"',
+                'dump_path=$(mktemp /tmp/rentnerproxy-restore-dump.XXXXXX)',
+                'rendered_sql_path=$(mktemp /tmp/rentnerproxy-restore-sql.XXXXXX)',
+                'restore_sql_path=$(mktemp /tmp/rentnerproxy-restore-final-sql.XXXXXX)',
+                'chmod 0600 "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
+                'chown postgres:postgres "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
+                'cat > "$dump_path"',
+                'gosu postgres pg_restore --exit-on-error --no-owner --no-acl --clean --if-exists --file="$rendered_sql_path" "$dump_path"',
+                '{',
+                '    printf "%s\\n" "DROP SCHEMA IF EXISTS rentnerproxy CASCADE;" "DROP SCHEMA IF EXISTS drizzle CASCADE;"',
+                '    cat "$rendered_sql_path"',
+                '} > "$restore_sql_path"',
+                `gosu postgres psql --host=/var/run/postgresql --single-transaction --set=ON_ERROR_STOP=1 --no-psqlrc --username=${databaseUser} --dbname=${database} --file="$restore_sql_path"`,
+            ].join('\n')
             await runCommandWithInput(
                 [
                     ...compose,

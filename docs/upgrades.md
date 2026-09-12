@@ -40,7 +40,9 @@ The upgrade smoke test starts the published Alpha 1 image with its original sche
 users, role assignments, proxy and redirect hosts, certificates, trusted CAs and settings.
 It upgrades the same volumes, restarts the result, and restores the Alpha 1 backup into a fresh
 candidate appliance. HTTP, certificate-verified HTTPS and redirects are checked at each stage.
-Separate migration tests cover failed migrations and retry behavior. Backup formats 1 and 2
+It also attempts a valid dump whose data violates a restored constraint and checks that the
+failed SQL restore leaves the prior database and live traffic intact. Separate migration tests
+cover failed migrations and retry behavior. Backup formats 1 and 2
 remain supported by the restore tool; new backups use format 3.
 
 ## Recover a failed startup
@@ -65,3 +67,8 @@ bun --env-file=/srv/rentnerproxy/.env scripts/production-restore.ts \
 The restore command replaces the target project's data. Stop the original appliance before
 starting recovery on the same host ports. Check health and traffic before retiring the old
 volumes. Preserve the restored encryption key so encrypted credentials remain usable.
+
+The database restore prepares its SQL before resetting the application schemas, then executes
+both in one transaction. A SQL failure rolls back that transaction and the staged encryption key.
+Controller-state replacement happens after the database succeeds; a later failure may require
+restoring the complete backup again.

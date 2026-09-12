@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { smokeCompose, smokeDockerArguments } from './smoke-resources'
+import { restoreSmokeDiagnostic, smokeCompose, smokeDockerArguments } from './smoke-resources'
 import { verifyAlpha1Upgrade } from './alpha1-upgrade-smoke'
 
 // This smoke deliberately uses a separate env file. Compose otherwise auto-loads the
@@ -69,6 +69,8 @@ async function command(argumentsList: string[], timeoutMs = 120_000): Promise<st
     try {
         const [exitCode, output, errorOutput] = await Promise.all([child.exited, stdout, stderr])
         if (exitCode !== 0) {
+            const diagnostic = restoreSmokeDiagnostic(errorOutput)
+            if (diagnostic) console.error(diagnostic)
             throw new Error('smoke command failed: ' + argumentsList.slice(0, 2).join(' '))
         }
         return (output || errorOutput).trim()
@@ -103,7 +105,11 @@ async function commandWithEnvironment(
     try {
         const [exitCode, output, errorOutput] = await Promise.all([child.exited, stdout, stderr])
         if (exitCode !== 0) {
-            throw new Error('smoke command failed: ' + argumentsList.slice(0, 2).join(' '))
+            const diagnostic = restoreSmokeDiagnostic(errorOutput)
+            if (diagnostic) console.error(diagnostic)
+            throw new Error(
+                diagnostic ?? 'smoke command failed: ' + argumentsList.slice(0, 2).join(' '),
+            )
         }
         return (output || errorOutput).trim()
     } finally {
@@ -1172,7 +1178,7 @@ try {
     const locations =
         error instanceof Error
             ? error.stack?.matchAll(
-                  /(appliance-compose-smoke|alpha1-upgrade-smoke|alpha1-upgrade-fixture)\.ts:(\d+):(\d+)/gu,
+                  /(appliance-compose-smoke|alpha1-upgrade-smoke|alpha1-upgrade-fixture|restore-rollback-smoke)\.ts:(\d+):(\d+)/gu,
               )
             : undefined
     if (locations) {

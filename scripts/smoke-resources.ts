@@ -1,5 +1,25 @@
 export const SMOKE_RUN_LABEL = 'io.rentnerproxy.smoke-run'
 
+export const RESTORE_SMOKE_OPERATIONS = [
+    'inspect controller state archive',
+    'validate controller state archive types',
+    'initialize restore target',
+    'quiesce restore target',
+    'stage application encryption key restore',
+    'restore PostgreSQL',
+    'restore controller state',
+    'complete application encryption key restore',
+    'start restored appliance',
+] as const
+
+/** Only a fixed operation name may leave the captured restore subprocess output. */
+export function restoreSmokeDiagnostic(output: string): string | undefined {
+    const operation = RESTORE_SMOKE_OPERATIONS.find((name) =>
+        output.includes('production restore operation failed: ' + name + '.'),
+    )
+    return operation === undefined ? undefined : 'Restore failed: ' + operation
+}
+
 const smokeRunScopePattern = /^(?:[0-9]+-[0-9]+|local-[a-f0-9]{12})$/u
 const smokeRunScopeMaxLength = 80
 

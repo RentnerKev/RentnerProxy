@@ -3,12 +3,31 @@ import { describe, expect, test } from 'bun:test'
 import { smokeProgress } from '../../../scripts/production-smoke-ci'
 import {
     SMOKE_RUN_LABEL,
+    restoreSmokeDiagnostic,
     smokeCompose,
     smokeDockerArguments,
     smokeRunScope,
 } from '../../../scripts/smoke-resources'
 
 describe('production smoke CI output boundary', () => {
+    test('keeps restore phases and upgrade locations without forwarding raw errors', () => {
+        const raw =
+            'Production restore failed: production restore operation failed: restore PostgreSQL. No automatic destructive retry was attempted.\nprivate-value'
+        const diagnostic = restoreSmokeDiagnostic(raw)
+        expect(diagnostic).toBe('Restore failed: restore PostgreSQL')
+        expect(
+            restoreSmokeDiagnostic('production restore operation failed: private-value.'),
+        ).toBeUndefined()
+        const progress = smokeProgress('production')
+        progress.consume(diagnostic!)
+        progress.consume('at scripts/alpha1-upgrade-smoke.ts:264:20')
+        progress.consume('Restore failed: private-value')
+        progress.consume('at scripts/private-value.ts:1:1')
+        expect(progress.result(1).diagnostic).toBe(
+            'Restore failed: restore PostgreSQL at scripts/alpha1-upgrade-smoke.ts:264:20',
+        )
+    })
+
     test('requires a successful process and matching observed completion counts', () => {
         const progress = smokeProgress('proxy')
         expect(progress.consume('PASS forwarding headers')).toBe('Proxy runtime: check 1 passed')
