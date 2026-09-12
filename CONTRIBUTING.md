@@ -69,8 +69,8 @@ cancellation; unrelated errors still follow the normal error handler.
 Keep modules focused on one responsibility. Split large Rust implementations into named modules
 for lifecycle, persistence, validation, rendering, and external-provider work as appropriate.
 Keep public facades small and imports explicit; use the narrowest visibility required by callers.
-The controller runtime module map and persistence rules are documented in
-[Controller runtime structure](docs/controller-runtime.md).
+Keep project documentation in README.md and CONTRIBUTING.md. Do not create a `docs/`
+directory or a CHANGELOG.md file.
 
 Use descriptive names and Markdown documentation instead of explanatory comments in source code.
 Retain functional compiler, formatter, linter, and generated-file directives when required by
