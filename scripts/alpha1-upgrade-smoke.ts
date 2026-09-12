@@ -55,6 +55,12 @@ function composeDocument(image: string): string {
                     image,
                     extra_hosts: ['host.docker.internal:host-gateway'],
                     environment: {
+                        ...(image === ALPHA1_IMAGE
+                            ? {}
+                            : {
+                                  RENTNERPROXY_PUBLIC_ORIGIN:
+                                      '${RENTNERPROXY_PUBLIC_ORIGIN:?Set RENTNERPROXY_PUBLIC_ORIGIN}',
+                              }),
                         SMTP_FROM: '${SMTP_FROM:?Set SMTP_FROM}',
                         SMTP_HOST: '${SMTP_HOST:?Set SMTP_HOST}',
                         SMTP_PASSWORD: '${SMTP_PASSWORD:?Set SMTP_PASSWORD}',

@@ -392,13 +392,11 @@ describe('first-owner setup with PostgreSQL', () => {
         const first = await setupFirstOwnerService({
             displayName: 'First Owner',
             email: testEmail('first-owner'),
-            managementOrigin: 'https://admin.example.com',
             password: CURRENT_PASSWORD,
         })
         const second = await setupFirstOwnerService({
             displayName: 'Second Owner',
             email: testEmail('second-owner'),
-            managementOrigin: 'https://admin.example.com',
             password: CURRENT_PASSWORD,
         })
 
@@ -424,13 +422,11 @@ describe('first-owner setup with PostgreSQL', () => {
             {
                 displayName: 'Parallel Owner One',
                 email: testEmail('parallel-one'),
-                managementOrigin: 'https://admin.example.com',
                 password: CURRENT_PASSWORD,
             },
             {
                 displayName: 'Parallel Owner Two',
                 email: testEmail('parallel-two'),
-                managementOrigin: 'https://admin.example.com',
                 password: CURRENT_PASSWORD,
             },
         ]
@@ -1456,12 +1452,12 @@ describe('account security with PostgreSQL and Redis', () => {
         'enables SHA256 TOTP, enforces MFA/replay rules, rotates recovery codes, and manages passkeys',
         async () => {
             const originalEncryptionKey = process.env.APP_ENCRYPTION_KEY
-            const originalAppUrl = process.env.APP_URL
+            const originalPublicOrigin = process.env.RENTNERPROXY_PUBLIC_ORIGIN
             const originalRpId = process.env.WEBAUTHN_RP_ID
             process.env.APP_ENCRYPTION_KEY = Buffer.from(
                 crypto.getRandomValues(new Uint8Array(32)),
             ).toString('base64')
-            process.env.APP_URL = 'http://localhost:3000'
+            process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'http://localhost:3000'
             process.env.WEBAUTHN_RP_ID = 'localhost'
 
             try {
@@ -1829,8 +1825,9 @@ describe('account security with PostgreSQL and Redis', () => {
             } finally {
                 if (originalEncryptionKey === undefined) delete process.env.APP_ENCRYPTION_KEY
                 else process.env.APP_ENCRYPTION_KEY = originalEncryptionKey
-                if (originalAppUrl === undefined) delete process.env.APP_URL
-                else process.env.APP_URL = originalAppUrl
+                if (originalPublicOrigin === undefined)
+                    delete process.env.RENTNERPROXY_PUBLIC_ORIGIN
+                else process.env.RENTNERPROXY_PUBLIC_ORIGIN = originalPublicOrigin
                 if (originalRpId === undefined) delete process.env.WEBAUTHN_RP_ID
                 else process.env.WEBAUTHN_RP_ID = originalRpId
             }

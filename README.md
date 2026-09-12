@@ -27,22 +27,24 @@
 
 For the production appliance, use Docker Engine with the Compose plugin. Keep host ports `80`
 and `443` available, and allow inbound TCP and UDP traffic on `443` in the host firewall; the
-management UI is bound to `127.0.0.1:81`. PostgreSQL and Redis are included, but an SMTP host,
-user, password, and sender address are required.
+management UI is bound to `127.0.0.1:81`. PostgreSQL and Redis are included, but a public
+management origin and an SMTP host, user, password, and sender address are required.
 
 ## Installation
 
 Download [`docker-compose.yml`](./docker-compose.yml) and [`.env.production.example`](./.env.production.example)
 to an empty folder. Set the Compose image to
-`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.2`, copy the environment template, and set SMTP values:
+`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.2`, copy the environment template, and set
+`RENTNERPROXY_PUBLIC_ORIGIN` and the SMTP values:
 
 ```bash
 cp .env.production.example .env
 docker compose up -d
 ```
 
-Open `http://localhost:81` and finish first-owner setup with the public management address users
-will use. Data is kept in the persistent `rentnerproxy` volume. For remote management, use an SSH
+Open `http://localhost:81` and finish first-owner setup with the owner account details. The public
+management origin is configured through `RENTNERPROXY_PUBLIC_ORIGIN`, outside the setup flow. Data is
+kept in the persistent `rentnerproxy` volume. For remote management, use an SSH
 tunnel such as `ssh -L 8181:127.0.0.1:81 user@server` and open `http://localhost:8181`.
 
 ### TLS termination in front of managed hosts
@@ -85,9 +87,11 @@ bun --env-file=/srv/rentnerproxy/.env scripts/production-backup.ts \
 ```
 
 The backup briefly stops the appliance and restarts it afterward. Keep the complete backup
-directory, Compose file, and SMTP `.env` privately outside the appliance volume. Backups include
-the database, controller state, certificates, and encryption key; Redis and proxy request logs
-are excluded. Check container health and configured hosts after upgrading.
+directory, Compose file, and `.env` containing `RENTNERPROXY_PUBLIC_ORIGIN` privately outside the
+appliance volume. Backups include the database, controller state, certificates, and encryption key;
+the deployment environment is not part of the backup, and Redis and proxy request logs are excluded.
+Use the same canonical origin in the restore environment before starting the restored appliance.
+Check container health and configured hosts after upgrading.
 
 For rollback, restore the pre-upgrade backup into fresh volumes using the previous exact image.
 Prepare a separate Compose file and project; never run an older image against the upgraded database:

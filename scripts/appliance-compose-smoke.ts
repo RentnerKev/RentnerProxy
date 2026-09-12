@@ -18,6 +18,7 @@ const rootComposeFile = join(repositoryRoot, 'docker-compose.yml')
 const productionDockerfile = join(repositoryRoot, 'docker', 'production', 'Dockerfile')
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const project = 'rentnerproxy-appliance-smoke-' + runId
+const publicOrigin = 'https://management.appliance-smoke.invalid'
 const smtpEnvironment = {
     SMTP_FROM: 'RentnerProxy <noreply@appliance-smoke.invalid>',
     SMTP_HOST: 'smtp.appliance-smoke.invalid',
@@ -36,6 +37,7 @@ for (const variable of [
     'RENTNERPROXY_APP_KEY_FILE',
     'RENTNERPROXY_CONTROLLER_TOKEN',
     'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS',
+    'RENTNERPROXY_PUBLIC_ORIGIN',
 ]) {
     delete commandEnvironment[variable]
 }
@@ -263,7 +265,10 @@ async function runSmoke(): Promise<void> {
         envFile,
         smtpNames
             .map((name) => `${name}=${smtpEnvironment[name as keyof typeof smtpEnvironment]}`)
-            .join('\n') + '\n',
+            .join('\n') +
+            '\nRENTNERPROXY_PUBLIC_ORIGIN=' +
+            publicOrigin +
+            '\n',
         'utf8',
     )
     const rootCompose = (await readFile(rootComposeFile, 'utf8')).replaceAll('\r\n', '\n')
@@ -310,6 +315,7 @@ async function runSmoke(): Promise<void> {
     const scriptEnvironment: NodeJS.ProcessEnv = {
         ...commandEnvironment,
         ...smtpEnvironment,
+        RENTNERPROXY_PUBLIC_ORIGIN: publicOrigin,
         RENTNERPROXY_COMPOSE_FILE: temporaryComposeFile,
     }
 
@@ -341,9 +347,11 @@ async function runSmoke(): Promise<void> {
                 ...smtpNames,
                 'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS',
                 'RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT',
+                'RENTNERPROXY_PUBLIC_ORIGIN',
             ].toSorted(),
         )
         assert.equal(service.environment?.RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS, '')
+        assert.equal(service.environment?.RENTNERPROXY_PUBLIC_ORIGIN, publicOrigin)
         assert.deepEqual(
             (service.ports ?? []).map(({ published, target, protocol }) => ({
                 published,

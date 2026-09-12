@@ -5,9 +5,12 @@ import { isIP } from 'node:net'
 import { isAbsolute } from 'node:path'
 
 import { APP_ENCRYPTION_KEY_BYTES, WEBAUTHN_RP_NAME } from '../config/auth-security.config'
-import { parseTrustedManagementOrigin } from '../config/management-origin.config'
+import {
+    DEFAULT_PUBLIC_ORIGIN,
+    PUBLIC_ORIGIN_ENVIRONMENT_VARIABLE,
+    parsePublicOrigin,
+} from '../config/management-origin.config'
 
-const DEFAULT_APP_URL = 'http://localhost:5173'
 const DEFAULT_CONTROLLER_BASE_URL = 'http://127.0.0.1:8081'
 const MAXIMUM_SECRET_FILE_BYTES = 4_096
 const SMTP_FROM_ADDRESS_PATTERN =
@@ -107,7 +110,7 @@ function readSecretEnvironment(variable: string): string | undefined {
     }
 }
 
-export { parseTrustedManagementOrigin } from '../config/management-origin.config'
+export { parsePublicOrigin, parseTrustedManagementOrigin } from '../config/management-origin.config'
 
 export function getControllerBaseUrl(): string | null {
     const configured = process.env.RENTNERPROXY_CONTROLLER_URL
@@ -204,25 +207,15 @@ export function getRedisUrl(): string | null {
     return parseRedisUrl(process.env.REDIS_URL)
 }
 
-export function parseAppUrl(configured: string | undefined): string | null {
-    if (configured === undefined) {
-        return process.env.NODE_ENV === 'production' ? null : DEFAULT_APP_URL
+export function getPublicOrigin(): string | null {
+    const configured = process.env[PUBLIC_ORIGIN_ENVIRONMENT_VARIABLE]
+    const environment = process.env.NODE_ENV === 'production' ? 'production' : 'development'
+
+    if (configured === undefined && environment === 'development') {
+        return DEFAULT_PUBLIC_ORIGIN
     }
 
-    const appUrl = normalizeHttpOrigin(configured.trim())
-
-    if (
-        !appUrl ||
-        (process.env.NODE_ENV === 'production' && parseTrustedManagementOrigin(appUrl) === null)
-    ) {
-        return null
-    }
-
-    return appUrl
-}
-
-export function getAppUrl(): string | null {
-    return parseAppUrl(process.env.APP_URL)
+    return parsePublicOrigin(configured, environment)
 }
 
 export function parseAppEncryptionKey(configured: string | undefined): Uint8Array | null {
@@ -258,9 +251,9 @@ export function getAppEncryptionKey(): Uint8Array | null {
 
 export function parseWebAuthnRpId(
     configured: string | undefined,
-    appUrl: string | null,
+    publicOrigin: string | null,
 ): string | null {
-    if (configured === undefined || !appUrl) {
+    if (configured === undefined || !publicOrigin) {
         return null
     }
 
@@ -275,7 +268,7 @@ export function parseWebAuthnRpId(
         return null
     }
 
-    const hostname = new URL(appUrl).hostname.toLowerCase()
+    const hostname = new URL(publicOrigin).hostname.toLowerCase()
 
     if (hostname !== rpId) {
         return null
@@ -284,9 +277,17 @@ export function parseWebAuthnRpId(
     return rpId
 }
 
+export function deriveWebAuthnRpId(publicOrigin: string): string | null {
+    try {
+        return parseWebAuthnRpId(new URL(publicOrigin).hostname, publicOrigin)
+    } catch {
+        return null
+    }
+}
+
 export function getWebAuthnConfiguration(): WebAuthnConfiguration | null {
-    const origin = getAppUrl()
-    const rpId = parseWebAuthnRpId(process.env.WEBAUTHN_RP_ID, origin)
+    const origin = getPublicOrigin()
+    const rpId = origin ? deriveWebAuthnRpId(origin) : null
 
     return origin && rpId ? { origin, rpId, rpName: WEBAUTHN_RP_NAME } : null
 }
@@ -301,6 +302,7 @@ export function validateProductionEnvironment(): void {
     const databaseUrl = getDatabaseUrl()
     const redisUrl = getRedisUrl()
     const appEncryptionKey = getAppEncryptionKey()
+    const publicOrigin = getPublicOrigin()
     const controllerUrl = getControllerBaseUrl()
     const controllerToken = getControllerToken()
     const smtp = getSmtpConfiguration()
@@ -309,6 +311,7 @@ export function validateProductionEnvironment(): void {
     if (!databaseUrl) invalidVariables.push('DATABASE_URL')
     if (!redisUrl) invalidVariables.push('REDIS_URL')
     if (!appEncryptionKey) invalidVariables.push('APP_ENCRYPTION_KEY')
+    if (!publicOrigin) invalidVariables.push(PUBLIC_ORIGIN_ENVIRONMENT_VARIABLE)
     if (!process.env.RENTNERPROXY_CONTROLLER_URL?.trim() || !controllerUrl)
         invalidVariables.push('RENTNERPROXY_CONTROLLER_URL')
     if (!controllerToken) invalidVariables.push('RENTNERPROXY_CONTROLLER_TOKEN')
@@ -318,9 +321,12 @@ export function validateProductionEnvironment(): void {
     }
 
     if (invalidVariables.length > 0) {
-        throw new Error(
-            'Invalid production environment. Check: ' + invalidVariables.join(', ') + '.',
-        )
+        let message = 'Invalid production environment. Check: ' + invalidVariables.join(', ') + '.'
+        if (!publicOrigin) {
+            message +=
+                ' Set RENTNERPROXY_PUBLIC_ORIGIN to a valid deployment origin. For Alpha 3 upgrades, use the previous management origin from management_origin_v1; Alpha 4 does not read that database value automatically.'
+        }
+        throw new Error(message)
     }
 }
 

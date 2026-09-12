@@ -58,7 +58,7 @@ function createActionUrl(appUrl: string, path: ActionMailDefinition['path'], tok
     try {
         configuredAppUrl = new URL(appUrl)
     } catch {
-        throw new Error('APP_URL is invalid.')
+        throw new Error('RENTNERPROXY_PUBLIC_ORIGIN is invalid.')
     }
 
     if (
@@ -67,7 +67,7 @@ function createActionUrl(appUrl: string, path: ActionMailDefinition['path'], tok
         configuredAppUrl.password ||
         !configuredAppUrl.hostname
     ) {
-        throw new Error('APP_URL is invalid.')
+        throw new Error('RENTNERPROXY_PUBLIC_ORIGIN is invalid.')
     }
 
     const actionUrl = new URL(path, configuredAppUrl)
