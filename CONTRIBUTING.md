@@ -8,6 +8,25 @@ Search the existing issues before opening a new one. Please open an issue before
 
 Never include credentials, tokens, private configuration, personal data, or unredacted sensitive logs in an issue, commit, or pull request.
 
+## Development setup
+
+Install Bun 1.4.2, Rust 1.98.0, PostgreSQL 18 or newer, and Redis. Clone the repository, start
+PostgreSQL and Redis separately, and prepare the web environment:
+
+```bash
+cp .env.example .env
+# Configure DATABASE_URL, REDIS_URL, SMTP_*, and the local APP_URL.
+# Generate APP_ENCRYPTION_KEY, then copy the result into .env.
+bun -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+# Set RENTNERPROXY_CONTROLLER_TOKEN for certificate management or non-loopback controller access.
+bun install --frozen-lockfile
+bun run db:migrate
+bun run dev
+```
+
+The web app is available at `http://localhost:5173`. Keep `APP_ENCRYPTION_KEY` unchanged when
+restarting a development instance or restoring its data.
+
 ## Development workflow
 
 1. Search the existing issues. Open the appropriate issue form for a meaningful bug or feature
