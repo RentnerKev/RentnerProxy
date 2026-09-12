@@ -59,6 +59,7 @@ pub(crate) struct RuntimeSettings {
     pub(crate) http_port: u16,
     pub(crate) https_port: u16,
     pub(crate) public_https_port: u16,
+    pub(crate) trusted_proxy_cidrs: Vec<String>,
     pub(crate) controller_port: u16,
     pub(crate) lock_wait: Duration,
     pub(crate) stage_timeout: Duration,
@@ -72,6 +73,7 @@ impl RuntimeSettings {
             http_port,
             https_port: 8_443,
             public_https_port: 443,
+            trusted_proxy_cidrs: Vec::new(),
             controller_port: 8_081,
             lock_wait: Duration::from_secs(2),
             stage_timeout: Duration::from_secs(15),
@@ -89,6 +91,7 @@ impl RuntimeSettings {
             admin_socket: cfg!(unix).then(|| self.state_dir.join("caddy-admin.sock")),
             state_dir: self.state_dir.clone(),
             controller_port: self.controller_port,
+            trusted_proxy_cidrs: self.trusted_proxy_cidrs.clone(),
         }
     }
 }
@@ -664,6 +667,7 @@ impl ProxyRuntime {
             &config.http_settings,
             self.settings.public_https_port,
             Some(&upstream_tls),
+            &self.settings.trusted_proxy_cidrs,
         )
         .map_err(|_| RuntimeError::ApplyFailed)?;
         if source.len() > MAX_RENDERED_PROXY_HOST_SOURCE_BYTES {
@@ -701,6 +705,7 @@ impl ProxyRuntime {
             config,
             self.settings.public_https_port,
             Some(&upstream_tls),
+            &self.settings.trusted_proxy_cidrs,
         )
         .map_err(|_| RuntimeError::ApplyFailed)
     }

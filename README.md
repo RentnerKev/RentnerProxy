@@ -44,6 +44,27 @@ Open `http://localhost:81` and finish first-owner setup with the public manageme
 will use. Data is kept in the persistent `rentnerproxy` volume. For remote management, use an SSH
 tunnel such as `ssh -L 8181:127.0.0.1:81 user@server` and open `http://localhost:8181`.
 
+### TLS termination in front of managed hosts
+
+When another proxy terminates public HTTPS and forwards HTTP to RentnerProxy, set
+`RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS` in the production `.env` to that proxy's direct
+socket-peer addresses, for example `192.0.2.10/32,2001:db8::10/128`, then recreate the appliance.
+The setting defaults to empty. It accepts at most 128 distinct canonical IPv4/IPv6 CIDRs;
+all-address (`/0`) and IPv4-mapped IPv6 ranges are rejected. Use the narrowest stable addresses
+available on your deployment network, and configure the terminating proxy to overwrite incoming
+`X-Forwarded-Proto` with a single value derived from its actual TLS connection.
+
+Only a configured socket peer carrying exactly one `X-Forwarded-Proto: https` value can bypass
+the managed host's HTTP-to-HTTPS redirect. Missing, repeated, comma-separated, or other values
+do not bypass it. Direct untrusted clients cannot establish trust with forwarding headers.
+Force HTTPS keeps its method-preserving 308 response and public HTTPS port, with
+`Cache-Control: no-store`; ACME HTTP-01 challenge handling remains ahead of the redirect.
+
+This data-plane setting is independent of `RENTNERPROXY_TRUST_PROXY_HEADERS`, which governs
+the management web application. Existing access-policy IP rules continue to use the direct
+peer address. Keep these deployment settings with your Compose configuration when moving or
+restoring an appliance; they are not part of database snapshots.
+
 ### Upgrade
 
 Create a production backup, set the Compose image to the target release, then pull and recreate:

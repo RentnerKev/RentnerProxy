@@ -17,6 +17,7 @@ const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const project = 'rentnerproxy-certificate-smoke-' + runId
 const network = project + '-network'
 const runtimeContainer = project + '-runtime'
+const trustedProxyContainer = project + '-trusted-proxy'
 const pebbleContainer = project + '-pebble'
 const runtimeImage = project + ':runtime'
 const pebbleImage =
@@ -31,6 +32,73 @@ let opensslMode: 'host' | 'docker' = 'host'
 let curlTestCaArgs: string[] = []
 let opensslTempDirectory = ''
 const opensslImage = runtimeImage
+
+type DockerNetworkIpamConfig = {
+    readonly Subnet?: string
+    readonly Gateway?: string
+}
+
+type DockerNetworkInspection = {
+    readonly IPAM?: { readonly Config?: readonly DockerNetworkIpamConfig[] }
+    readonly Containers?: Readonly<
+        Record<string, { readonly IPv4Address?: string; readonly IPv6Address?: string }>
+    >
+}
+
+function ipv4ToNumber(value: string): number {
+    const octets = value.split('.').map((octet) => Number(octet))
+    if (
+        octets.length !== 4 ||
+        octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)
+    ) {
+        throw new Error('Docker smoke network returned an invalid IPv4 address')
+    }
+    return (
+        (((octets[0] ?? 0) * 256 + (octets[1] ?? 0)) * 256 + (octets[2] ?? 0)) * 256 +
+        (octets[3] ?? 0)
+    )
+}
+
+function numberToIpv4(value: number): string {
+    return [24, 16, 8, 0].map((shift) => (value >>> shift) & 0xff).join('.')
+}
+
+function chooseTrustedIpv4(subnet: string, gateway: string | undefined): string {
+    const [networkAddress, prefixText] = subnet.split('/')
+    const prefix = Number(prefixText)
+    if (!networkAddress || !Number.isInteger(prefix) || prefix < 8 || prefix > 30) {
+        throw new Error('Docker smoke network has no usable IPv4 subnet')
+    }
+    const hostCount = 2 ** (32 - prefix)
+    const networkNumber = ipv4ToNumber(networkAddress)
+    const gatewayNumber = gateway?.includes('.') ? ipv4ToNumber(gateway) : undefined
+    const candidateOffsets = [hostCount - 2, hostCount - 3, 250, 240, 200, 100, 10, 2]
+    for (const offset of candidateOffsets) {
+        if (offset <= 0 || offset >= hostCount - 1) continue
+        const candidate = networkNumber + offset
+        if (candidate !== gatewayNumber) return numberToIpv4(candidate)
+    }
+    throw new Error('Docker smoke network has no free static IPv4 candidate')
+}
+
+function chooseTrustedIpv6(subnet: string, gateway: string | undefined): string {
+    const [networkAddress, prefixText] = subnet.split('/')
+    if (!networkAddress || prefixText !== '64') {
+        throw new Error('Docker smoke network has no usable /64 IPv6 subnet')
+    }
+    const base = networkAddress.endsWith('::') ? networkAddress.slice(0, -2) : networkAddress
+    const candidate = base + '::100'
+    if (candidate === gateway) throw new Error('Docker smoke network IPv6 candidate is occupied')
+    return candidate
+}
+
+function inspectDockerNetwork(value: string): DockerNetworkInspection {
+    const parsed: unknown = JSON.parse(value)
+    assert.ok(Array.isArray(parsed))
+    const inspection = parsed[0] as DockerNetworkInspection | undefined
+    assert.ok(inspection)
+    return inspection
+}
 
 function uuidV7(): string {
     const bytes = randomBytes(16)
@@ -303,6 +371,8 @@ async function runSmoke(): Promise<void> {
     const dnsToken = randomBytes(32).toString('hex')
     let controllerUrl = ''
     let httpUrl = ''
+    let runtimeIpv4 = ''
+    let runtimeIpv6 = ''
     let pebbleManagementUrl = ''
     let minicaPath = temp + '/pebble.minica.pem'
     let certSource = ''
@@ -310,7 +380,8 @@ async function runSmoke(): Promise<void> {
     try {
         await command(['docker', 'version', '--format', '{{.Server.Version}}'])
         // Local fixture CAs have no revocation endpoints; keep chain and hostname verification.
-        if ((await command(['curl', '--version'])).includes('Schannel')) {
+        const curlVersion = await command(['curl', '--version'])
+        if (curlVersion.includes('Schannel')) {
             curlTestCaArgs = ['--ssl-revoke-best-effort']
         }
         try {
@@ -332,7 +403,41 @@ async function runSmoke(): Promise<void> {
             ],
             { inherit: true, timeoutMs: 900_000 },
         )
-        await command(['docker', 'network', 'create', network])
+        await command(['docker', 'network', 'create', '--ipv6', network])
+        const networkInspection = inspectDockerNetwork(
+            await command(['docker', 'network', 'inspect', network]),
+        )
+        const ipamConfigs = networkInspection.IPAM?.Config ?? []
+        const ipv4Config = ipamConfigs.find((config) => config.Subnet?.includes('.'))
+        const ipv6Config = ipamConfigs.find((config) => config.Subnet?.includes(':'))
+        if (!ipv4Config?.Subnet || !ipv6Config?.Subnet) {
+            throw new Error('Docker smoke network did not provide dual-stack IPAM')
+        }
+        const trustedProxyIpv4 = chooseTrustedIpv4(ipv4Config.Subnet, ipv4Config.Gateway)
+        const trustedProxyIpv6 = chooseTrustedIpv6(ipv6Config.Subnet, ipv6Config.Gateway)
+        await command(
+            [
+                'docker',
+                'run',
+                '--detach',
+                '--name',
+                trustedProxyContainer,
+                '--network',
+                network,
+                '--ip',
+                trustedProxyIpv4,
+                '--ip6',
+                trustedProxyIpv6,
+                '--volume',
+                temp + ':/test:ro',
+                '--entrypoint',
+                '/usr/bin/tail',
+                runtimeImage,
+                '-f',
+                '/dev/null',
+            ],
+            { timeoutMs: 60_000 },
+        )
         await command(['docker', 'volume', 'create', stateVolume])
         dnsFixture = await startCertificateDnsFixture(dnsToken)
 
@@ -524,6 +629,12 @@ async function runSmoke(): Promise<void> {
                 '--env',
                 'RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT=' + httpsPort,
                 '--env',
+                'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=' +
+                    trustedProxyIpv4 +
+                    '/32,' +
+                    trustedProxyIpv6 +
+                    '/128',
+                '--env',
                 'RENTNERPROXY_ACME_TEST_DIRECTORY_URL=https://pebble:14000/dir',
                 '--env',
                 'RENTNERPROXY_ACME_TEST_ROOT_CERT=/test/pebble.minica.pem',
@@ -546,14 +657,21 @@ async function runSmoke(): Promise<void> {
         controllerUrl = 'http://127.0.0.1:' + controllerPort
         const dnsAddresses = dnsFixture.addresses
         async function refreshRuntimeDns(): Promise<void> {
-            const runtimeAddress = await command([
+            runtimeIpv4 = await command([
                 'docker',
                 'inspect',
                 '--format',
                 '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',
                 runtimeContainer,
             ])
-            dnsAddresses.set('acme.invalid', runtimeAddress)
+            runtimeIpv6 = await command([
+                'docker',
+                'inspect',
+                '--format',
+                '{{range .NetworkSettings.Networks}}{{.GlobalIPv6Address}}{{end}}',
+                runtimeContainer,
+            ])
+            dnsAddresses.set('acme.invalid', runtimeIpv4)
         }
         async function restartRuntime(): Promise<void> {
             await command(['docker', 'restart', runtimeContainer], { timeoutMs: 60_000 })
@@ -727,6 +845,57 @@ async function runSmoke(): Promise<void> {
                 timeoutMs: 15_000,
             })
         }
+        async function trustedProxyCurl(
+            addressFamily: 'ipv4' | 'ipv6',
+            args: string[],
+            path = '/',
+        ): Promise<string> {
+            const runtimeAddress =
+                addressFamily === 'ipv4'
+                    ? runtimeIpv4
+                    : (() => {
+                          assert.ok(runtimeIpv6)
+                          return '[' + runtimeIpv6 + ']'
+                      })()
+            return command([
+                'docker',
+                'exec',
+                trustedProxyContainer,
+                'curl',
+                '--silent',
+                '--show-error',
+                '--noproxy',
+                '*',
+                '--include',
+                '--max-time',
+                '5',
+                ...args,
+                'http://' + runtimeAddress + ':8080' + path,
+            ])
+        }
+        async function trustedTlsFrontCurl(args: string[], path = '/'): Promise<string> {
+            return command([
+                'docker',
+                'exec',
+                '--user',
+                '0',
+                trustedProxyContainer,
+                '/usr/bin/curl',
+                '--silent',
+                '--show-error',
+                '--noproxy',
+                '*',
+                '--include',
+                '--max-time',
+                '5',
+                '--cacert',
+                '/test/ca.pem',
+                '--resolve',
+                'one.test:9443:127.0.0.1',
+                ...args,
+                'https://one.test:9443' + path,
+            ])
+        }
         async function servedCertificateFingerprint(
             hostname: string,
             outputPath: string,
@@ -774,6 +943,257 @@ async function runSmoke(): Promise<void> {
         assert.equal(typeof jsonObject(previewSource).apps, 'object')
         assert.equal(JSON.stringify(previewSource).includes('BEGIN '), false)
         await apply(initialSnapshot)
+        const trustedFrontConfigPath = temp + '/trusted-front.json'
+        await writeFile(
+            trustedFrontConfigPath,
+            JSON.stringify({
+                admin: { disabled: true },
+                apps: {
+                    http: {
+                        servers: {
+                            'trusted-front': {
+                                listen: [':9443'],
+                                routes: [
+                                    {
+                                        handle: [
+                                            {
+                                                handler: 'reverse_proxy',
+                                                upstreams: [{ dial: runtimeIpv4 + ':8080' }],
+                                                headers: {
+                                                    request: {
+                                                        set: {
+                                                            Host: ['{http.request.host}'],
+                                                            'X-Forwarded-Proto': [
+                                                                '{http.request.scheme}',
+                                                            ],
+                                                        },
+                                                        delete: [
+                                                            'Forwarded',
+                                                            'X-Forwarded-For',
+                                                            'X-Forwarded-Host',
+                                                            'X-Forwarded-Port',
+                                                            'X-Forwarded-Prefix',
+                                                            'Proxy',
+                                                        ],
+                                                    },
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                                automatic_https: { disable: true },
+                                protocols: ['h1', 'h2'],
+                                strict_sni_host: true,
+                                tls_connection_policies: [
+                                    {
+                                        match: { sni: ['one.test'] },
+                                        certificate_selection: { any_tag: ['trusted-front'] },
+                                        protocol_min: 'tls1.2',
+                                        alpn: ['h2', 'http/1.1'],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    tls: {
+                        certificates: {
+                            load_files: [
+                                {
+                                    certificate: '/test/one.test.pem',
+                                    key: '/test/one.test.key',
+                                    tags: ['trusted-front'],
+                                },
+                            ],
+                        },
+                    },
+                },
+            }),
+        )
+        await command([
+            'docker',
+            'exec',
+            '--user',
+            '0',
+            trustedProxyContainer,
+            '/usr/bin/caddy',
+            'validate',
+            '--config',
+            '/test/trusted-front.json',
+        ])
+        await command([
+            'docker',
+            'exec',
+            '--user',
+            '0',
+            '--detach',
+            trustedProxyContainer,
+            '/usr/bin/caddy',
+            'run',
+            '--config',
+            '/test/trusted-front.json',
+        ])
+        await waitFor(
+            async () =>
+                /^HTTP\/1\.1 200(?:\s|$)/u.test(
+                    await trustedTlsFrontCurl(['--http1.1'], '/trusted-front-ready'),
+                ),
+            'trusted TLS front listener',
+        )
+        const trustedFrontPath = '/trusted-front/post?query=front%2Frequest'
+        for (const protocol of ['--http1.1', '--http2'] as const) {
+            const frontResponse = await trustedTlsFrontCurl(
+                [
+                    protocol,
+                    '--request',
+                    'POST',
+                    '--data',
+                    'front-body',
+                    '--header',
+                    'X-Forwarded-Proto: http',
+                ],
+                trustedFrontPath,
+            )
+            assert.match(
+                frontResponse,
+                protocol === '--http1.1' ? /^HTTP\/1\.1 200(?:\s|$)/u : /^HTTP\/2 200(?:\s|$)/u,
+            )
+            assert.doesNotMatch(frontResponse, /308/u)
+            assert.match(frontResponse, /"method":"POST"/u)
+            assert.match(frontResponse, /"path":"\/trusted-front\/post\?query=front%2Frequest"/u)
+            assert.match(frontResponse, /"body":"front-body"/u)
+        }
+        passed(
+            'real TLS front termination proxies h1/h2 POST traffic to the HTTP runtime and overwrites forged X-Forwarded-Proto',
+        )
+        const trustedPath = '/trusted-termination/path?query=a%2Fb'
+        const trustedHeaders = ['--header', 'Host: one.test']
+        const trustedAccepted = (addressFamily: 'ipv4' | 'ipv6') =>
+            trustedProxyCurl(
+                addressFamily,
+                [
+                    '--request',
+                    'POST',
+                    '--data',
+                    'trusted-body',
+                    ...trustedHeaders,
+                    '--header',
+                    'X-Forwarded-Proto: https',
+                ],
+                trustedPath,
+            )
+        for (const addressFamily of ['ipv4', 'ipv6'] as const) {
+            const accepted = await trustedAccepted(addressFamily)
+            assert.match(accepted, /^HTTP\/1\.1 200(?:\s|$)/u)
+            assert.match(accepted, /"method":"POST"/u)
+            assert.match(accepted, /"path":"\/trusted-termination\/path\?query=a%2Fb"/u)
+            assert.match(accepted, /"body":"trusted-body"/u)
+        }
+        const rejectionCases = [
+            { label: 'http', headers: ['--header', 'X-Forwarded-Proto: http'] },
+            { label: 'empty', headers: ['--header', 'X-Forwarded-Proto:'] },
+            {
+                label: 'duplicate same',
+                headers: [
+                    '--header',
+                    'X-Forwarded-Proto: https',
+                    '--header',
+                    'X-Forwarded-Proto: https',
+                ],
+            },
+            {
+                label: 'duplicate different',
+                headers: [
+                    '--header',
+                    'X-Forwarded-Proto: https',
+                    '--header',
+                    'X-Forwarded-Proto: http',
+                ],
+            },
+            { label: 'comma', headers: ['--header', 'X-Forwarded-Proto: https,https'] },
+        ]
+        for (const scenario of rejectionCases) {
+            const rejected = await trustedProxyCurl(
+                'ipv4',
+                [...trustedHeaders, ...scenario.headers],
+                trustedPath,
+            )
+            assert.match(rejected, /^HTTP\/1\.1 308(?:\s|$)/u, scenario.label)
+            assert.match(
+                rejected,
+                new RegExp(
+                    'Location: https://one\\.test:' +
+                        httpsPort +
+                        '/trusted-termination/path\\?query=a%2Fb',
+                    'iu',
+                ),
+                scenario.label,
+            )
+            assert.match(rejected, /Cache-Control: no-store/iu, scenario.label)
+        }
+        const untrustedDefault = await curl([
+            '--include',
+            '--request',
+            'POST',
+            '--data',
+            'untrusted-body',
+            httpUrl + trustedPath,
+            ...trustedHeaders,
+        ])
+        assert.match(untrustedDefault, /^HTTP\/1\.1 308(?:\s|$)/u)
+        const untrustedForged = await curl([
+            '--include',
+            '--request',
+            'POST',
+            '--data',
+            'untrusted-body',
+            httpUrl + trustedPath,
+            ...trustedHeaders,
+            '--header',
+            'X-Forwarded-Proto: https',
+        ])
+        assert.match(untrustedForged, /^HTTP\/1\.1 308(?:\s|$)/u)
+        assert.match(
+            untrustedForged,
+            new RegExp(
+                'Location: https://one\\.test:' +
+                    httpsPort +
+                    '/trusted-termination/path\\?query=a%2Fb',
+                'iu',
+            ),
+        )
+        assert.match(untrustedForged, /Cache-Control: no-store/iu)
+        const untrustedFollowed = await curl([
+            '--location',
+            '--cacert',
+            temp + '/ca.pem',
+            '--resolve',
+            'one.test:' + httpPort + ':127.0.0.1',
+            '--resolve',
+            'one.test:' + httpsPort + ':127.0.0.1',
+            '--request',
+            'POST',
+            '--data',
+            'untrusted-body',
+            httpUrl + trustedPath,
+            ...trustedHeaders,
+            '--header',
+            'X-Forwarded-Proto: https',
+        ])
+        assert.match(untrustedFollowed, /"method":"POST"/u)
+        assert.match(untrustedFollowed, /"path":"\/trusted-termination\/path\?query=a%2Fb"/u)
+        assert.match(untrustedFollowed, /"body":"untrusted-body"/u)
+        const acmePrecedence = await curl([
+            '--include',
+            httpUrl + '/.well-known/acme-challenge/trusted-termination-token',
+            ...trustedHeaders,
+            '--header',
+            'X-Forwarded-Proto: https',
+        ])
+        assert.match(acmePrecedence, /^HTTP\/1\.1 404(?:\s|$)/u)
+        assert.doesNotMatch(acmePrecedence, /Location:/iu)
+        passed(
+            'trusted TLS termination requires one exact https value from the configured IPv4/IPv6 peers; forged, empty, duplicate and comma values keep a no-store public-port 308 and ACME remains first',
+        )
         passed('TLS preview and apply resolve controller-owned material without returning PEM')
 
         const httpsOne = await curl([
@@ -792,6 +1212,37 @@ async function runSmoke(): Promise<void> {
         ])
         assert.match(httpsOne, /certificate-smoke-backend/u)
         assert.match(httpsTwo, /certificate-smoke-backend/u)
+        const httpsOneHttp1 = await curl([
+            '--http1.1',
+            '--cacert',
+            temp + '/ca.pem',
+            '--resolve',
+            'one.test:' + httpsPort + ':127.0.0.1',
+            'https://one.test:' + httpsPort + '/http1',
+        ])
+        assert.match(httpsOneHttp1, /certificate-smoke-backend/u)
+        // Debian's pinned runtime curl supports HTTP/2 even when the host's Windows curl does not.
+        const httpsOneHttp2 = await command([
+            'docker',
+            'exec',
+            trustedProxyContainer,
+            '/usr/bin/curl',
+            '--silent',
+            '--show-error',
+            '--noproxy',
+            '*',
+            '--http2',
+            '--cacert',
+            '/test/ca.pem',
+            '--resolve',
+            'one.test:8443:' + runtimeIpv4,
+            '--write-out',
+            '\n%{http_version}',
+            'https://one.test:8443/http2',
+        ])
+        assert.match(httpsOneHttp2, /certificate-smoke-backend/u)
+        assert.match(httpsOneHttp2, /\n2$/u)
+        passed('curl verifies HTTP/1.1 and negotiated HTTP/2 requests over TLS')
         const upstreamCountBeforeRedirect = upstreamRequests.length
         const redirectOverHttps = await curl([
             '--include',
@@ -2192,6 +2643,9 @@ async function runSmoke(): Promise<void> {
     } finally {
         backend?.stop(true)
         dnsFixture?.stop()
+        await command(['docker', 'rm', '--force', '--volumes', trustedProxyContainer]).catch(
+            () => undefined,
+        )
         await command(['docker', 'rm', '--force', '--volumes', runtimeContainer]).catch(
             () => undefined,
         )

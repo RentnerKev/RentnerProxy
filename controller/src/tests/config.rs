@@ -12,6 +12,40 @@ use crate::config::{
 
 static NEXT_SECRET_FILE: AtomicU64 = AtomicU64::new(0);
 
+#[test]
+fn trusted_proxy_cidrs_default_empty_and_validate_explicit_networks() {
+    use crate::config::parse_trusted_proxy_cidrs;
+    assert_eq!(
+        parse_trusted_proxy_cidrs(None).unwrap(),
+        Vec::<String>::new()
+    );
+    assert!(parse_trusted_proxy_cidrs(Some("  ")).unwrap().is_empty());
+    assert_eq!(
+        parse_trusted_proxy_cidrs(Some("2001:db8::/64, 192.0.2.0/24")).unwrap(),
+        vec!["192.0.2.0/24", "2001:db8::/64"]
+    );
+    for invalid in [
+        "0.0.0.0/0",
+        "::/0",
+        "::ffff:192.0.2.0/120",
+        "192.0.2.1/24",
+        "192.0.2.1",
+        "192.0.2.0/24,",
+        "private_ranges",
+        "192.0.2.0/24,192.0.2.0/24",
+    ] {
+        assert!(
+            parse_trusted_proxy_cidrs(Some(invalid)).is_err(),
+            "accepted {invalid}"
+        );
+    }
+    let excessive = (0..129)
+        .map(|n| format!("10.0.0.{n}/32"))
+        .collect::<Vec<_>>()
+        .join(",");
+    assert!(parse_trusted_proxy_cidrs(Some(&excessive)).is_err());
+}
+
 fn valid_token() -> &'static str {
     "0123456789abcdef0123456789abcdef"
 }
