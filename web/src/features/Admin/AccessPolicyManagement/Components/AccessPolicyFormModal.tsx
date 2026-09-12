@@ -2,6 +2,7 @@ import useTranslationStore from '../../../../language/useTranslationStore'
 import { Modal } from '../../../../shared/Modal'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { AccessPolicyFormModalProps } from '../Types/access-policy-form.types'
+import { getBasicAuthAccountCount } from '../Helpers/basicAuthPolicyState'
 import useAccessPolicyFormModal from '../Hooks/useAccessPolicyFormModal'
 import AccessPolicyFormFields from './AccessPolicyFormFields'
 
@@ -45,6 +46,9 @@ export default function AccessPolicyFormModal(props: AccessPolicyFormModalProps)
                 onSubmit={handler.handleSubmit}
             >
                 <AccessPolicyFormFields
+                    basicAuthAccountCount={
+                        props.policy ? getBasicAuthAccountCount(props.policy) : 0
+                    }
                     errors={state.errors}
                     formId={state.formId}
                     isPending={state.isPending}

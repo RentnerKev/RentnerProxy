@@ -34,7 +34,7 @@ export default function AccessPoliciesTable(props: AccessPoliciesTableProps) {
             }}
             itemLabel={t('admin.accessPolicies.table.itemLabel')}
             action={props.action}
-            tableMinWidthClassName="min-w-[64rem]"
+            tableMinWidthClassName="min-w-[72rem]"
         />
     )
 }

@@ -17,7 +17,10 @@ use tower::ServiceExt;
 
 use crate::{
     config::{Config, ControllerToken},
-    models::{ProxyConfigRequest, ProxyHost, ProxyHttpSettings},
+    models::{
+        AccessPolicy, AccessPolicyMode, BasicAuth, BasicAuthAccount, ProxyConfigRequest, ProxyHost,
+        ProxyHttpSettings,
+    },
     proxy::{revision_for_configuration, revision_for_hosts},
     runtime::{EngineFuture, ProxyEngine, ProxyRuntime, RuntimeSettings},
     server::{AppState, app_with_state, auth::constant_time_equal},
@@ -89,6 +92,27 @@ fn valid_payload() -> Vec<u8> {
         trusted_cas: Vec::new(),
     })
     .unwrap()
+}
+
+const BASIC_AUTH_HASH: &str = "$argon2id$v=19$m=47104,t=1,p=1$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y";
+
+fn basic_auth_payload() -> Vec<u8> {
+    let mut configuration: ProxyConfigRequest =
+        serde_json::from_slice(&valid_payload()).expect("fixture should deserialize");
+    configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+        basic_auth: Some(BasicAuth {
+            accounts: vec![BasicAuthAccount {
+                username: "admin".to_owned(),
+                password_hash: BASIC_AUTH_HASH.to_owned(),
+            }],
+        }),
+    });
+    configuration.revision =
+        revision_for_configuration(&configuration.proxy_hosts, &configuration.http_settings);
+    serde_json::to_vec(&configuration).expect("fixture should serialize")
 }
 
 fn request(uri: &str, body: Vec<u8>) -> Request<Body> {
@@ -321,6 +345,70 @@ async fn source_endpoints_are_authenticated_and_preview_is_pure() {
     .unwrap();
     assert_eq!(active["activeRevision"], revision);
     assert!(active["config"].as_str().unwrap().contains("idle_timeout"));
+}
+
+#[tokio::test]
+async fn all_config_source_endpoints_redact_basic_auth_but_keep_revision_and_handler() {
+    let router = test_app(None).await;
+    let payload = basic_auth_payload();
+    let expected_revision =
+        serde_json::from_slice::<serde_json::Value>(&payload).unwrap()["revision"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+    let host_path = "/internal/v1/proxy/hosts/018f4b4a-7d1f-7abc-8def-0123456789ab/config";
+    let host_preview_path =
+        "/internal/v1/proxy/hosts/018f4b4a-7d1f-7abc-8def-0123456789ab/config/preview";
+
+    for (method, path, body) in [
+        ("POST", "/internal/v1/proxy/config/preview", payload.clone()),
+        ("POST", host_preview_path, payload.clone()),
+    ] {
+        let response = router
+            .clone()
+            .oneshot(request_with_method(method, path, Body::from(body)))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "{method} {path}");
+        let response: serde_json::Value = serde_json::from_slice(
+            &axum::body::to_bytes(response.into_body(), 512 * 1024)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(response["revision"], expected_revision);
+        let source = response["config"].as_str().unwrap();
+        assert!(!source.contains(BASIC_AUTH_HASH));
+        assert!(source.contains("[redacted]"));
+        assert!(source.contains("authentication"));
+    }
+
+    let applied = router
+        .clone()
+        .oneshot(request("/internal/v1/proxy/config", payload))
+        .await
+        .unwrap();
+    assert_eq!(applied.status(), StatusCode::OK);
+
+    for path in ["/internal/v1/proxy/config", host_path] {
+        let response = router
+            .clone()
+            .oneshot(request_with_method("GET", path, Body::empty()))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "GET {path}");
+        let response: serde_json::Value = serde_json::from_slice(
+            &axum::body::to_bytes(response.into_body(), 512 * 1024)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(response["activeRevision"], expected_revision);
+        let source = response["config"].as_str().unwrap();
+        assert!(!source.contains(BASIC_AUTH_HASH));
+        assert!(source.contains("[redacted]"));
+        assert!(source.contains("authentication"));
+    }
 }
 
 #[tokio::test]

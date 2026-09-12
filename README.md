@@ -100,7 +100,7 @@ for development checks before opening a pull request.
 - Certificate import and automatic HTTPS certificates with ACME renewal.
 - DNS-01 with Cloudflare, including wildcard certificates and mixed wildcard/ordinary names.
 - Upstream TLS verification with custom trusted CAs.
-- Reusable Proxy Host Access Policies with explicit public or closed access.
+- Reusable Proxy Host Access Policies with Basic Authentication and multiple user accounts.
 - User and role management with two-factor authentication and passkeys.
 - Backup, restore, and automatic configuration recovery after restarts.
 - English, German, Spanish, and French with theme settings.
@@ -108,8 +108,8 @@ for development checks before opening a pull request.
 ### Proxy Host Access Policies
 
 Create a policy in **Access Policies** and assign it to one or more Proxy Hosts.
-Only **Public** currently allows traffic; other modes return HTTP 403 until Basic Auth and
-IP rules are available. See the [Access Policies guide](./docs/access-policies.md).
+Use **Authenticated** and add accounts through **Credentials** to require a login.
+See the [Access Policies guide](./docs/access-policies.md) for combinations and apply status.
 
 ### DNS-01 and wildcard certificates
 

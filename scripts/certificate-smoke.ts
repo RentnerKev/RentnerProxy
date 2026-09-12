@@ -1611,6 +1611,93 @@ async function runSmoke(): Promise<void> {
         passed(
             'Access Policies deny HTTP and verified HTTPS in every protected mode while preserving ACME challenges',
         )
+
+        const authUsername = 'https-smoke'
+        const authPassword = 'HTTPS-smoke-password:one'
+        const passwordHash = await Bun.password.hash(authPassword, {
+            algorithm: 'argon2id',
+            memoryCost: 47104,
+            timeCost: 1,
+        })
+        const basicAuth = { accounts: [{ username: authUsername, passwordHash }] }
+        const basicPolicy = { id: policyId, mode: 'authenticated', combination: null, basicAuth }
+        const authSnapshot = snapshot([{ ...policyHost, accessPolicy: basicPolicy }])
+        const authCurl = (password?: string) =>
+            curl([
+                '--include',
+                '--cacert',
+                temp + '/issuance-root.pem',
+                '--resolve',
+                'policy.example.com:' + httpsPort + ':127.0.0.1',
+                ...(password === undefined ? [] : ['--user', authUsername + ':' + password]),
+                'https://policy.example.com:' + httpsPort + '/basic-auth',
+            ])
+        for (const mode of [
+            { mode: 'authenticated', combination: null, allowed: true },
+            { mode: 'combined', combination: 'any', allowed: true },
+            { mode: 'combined', combination: 'all', allowed: false },
+            { mode: 'ip-restricted', combination: null, allowed: false },
+        ]) {
+            await apply(
+                snapshot([
+                    {
+                        ...policyHost,
+                        accessPolicy: {
+                            ...basicPolicy,
+                            mode: mode.mode,
+                            combination: mode.combination,
+                        },
+                    },
+                ]),
+            )
+            const beforeDenied = upstreamRequests.length
+            const denied = await authCurl('incorrect-password')
+            assert.match(
+                denied,
+                mode.allowed ? /^HTTP\/(?:1\.1|2) 401(?:\s|$)/u : /^HTTP\/(?:1\.1|2) 403(?:\s|$)/u,
+            )
+            if (mode.allowed) assert.match(denied, /www-authenticate: Basic realm="RentnerProxy"/iu)
+            assert.equal(upstreamRequests.length, beforeDenied)
+            const authorized = await authCurl(authPassword)
+            assert.match(
+                authorized,
+                mode.allowed ? /^HTTP\/(?:1\.1|2) 200(?:\s|$)/u : /^HTTP\/(?:1\.1|2) 403(?:\s|$)/u,
+            )
+            if (mode.allowed) assert.match(authorized, /certificate-smoke-backend/u)
+            else assert.equal(upstreamRequests.length, beforeDenied)
+        }
+        await apply(authSnapshot)
+        assert.match(await authCurl(), /^HTTP\/(?:1\.1|2) 401(?:\s|$)/u)
+        for (const path of [
+            '/internal/v1/proxy/config',
+            '/internal/v1/proxy/hosts/' + String(policyHost.id) + '/config',
+        ]) {
+            for (const isAuthPreview of [false, true]) {
+                const response = await controllerRequest(
+                    path + (isAuthPreview ? '/preview' : ''),
+                    isAuthPreview ? { method: 'POST', body: JSON.stringify(authSnapshot) } : {},
+                )
+                assert.equal(response.status, 200)
+                const source = await response.text()
+                assert.equal(source.includes(passwordHash), false)
+                assert.equal(source.includes('$argon2'), false)
+                assert.equal(source.includes(authPassword), false)
+                assert.equal(source.includes('authentication'), true)
+            }
+        }
+        await apply(snapshot([{ ...policyHost, forceHttps: true, accessPolicy: basicPolicy }]))
+        const forceAuthHttps = await fetch(httpUrl + '/basic-auth', {
+            headers: { host: 'policy.example.com' },
+            redirect: 'manual',
+            signal: AbortSignal.timeout(5_000),
+        })
+        assert.equal(forceAuthHttps.status, 308)
+        assert.equal(forceAuthHttps.headers.has('www-authenticate'), false)
+        await forceAuthHttps.body?.cancel()
+        assert.match(await authCurl(authPassword), /^HTTP\/(?:1\.1|2) 200(?:\s|$)/u)
+        passed(
+            'Basic Auth enforces verified HTTPS and combination semantics, preserves redirects and redacts every config API',
+        )
         console.log('Certificate HTTPS/ACME integration: ' + assertions + ' checks passed.')
     } finally {
         backend?.stop(true)

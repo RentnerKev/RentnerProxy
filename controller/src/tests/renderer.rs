@@ -4,7 +4,10 @@ use serde_json::Value;
 
 use super::fixtures::{host, request};
 use crate::{
-    models::{AccessPolicy, AccessPolicyMode, ProxyHttpSettings, ValidatedProxyConfig},
+    models::{
+        AccessPolicy, AccessPolicyMode, BasicAuth, BasicAuthAccount, ProxyHttpSettings,
+        ValidatedProxyConfig,
+    },
     proxy::revision_from_config,
     runtime::renderer::{
         RenderSettings, TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings, render_config,
@@ -83,6 +86,7 @@ fn protected_host_routes_are_terminal_403s_on_http_and_https() {
         id: "0198d98a-0000-7000-8000-000000000001".into(),
         mode: AccessPolicyMode::Authenticated,
         combination: None,
+        basic_auth: None,
     });
     let http: Value =
         serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
@@ -124,6 +128,53 @@ fn protected_host_routes_are_terminal_403s_on_http_and_https() {
     assert_eq!(https_route["handle"][0]["handler"], "static_response");
     assert_eq!(https_route["handle"][0]["status_code"], 403);
     assert!(https_route["handle"][1].is_null());
+}
+
+#[test]
+fn basic_auth_is_before_body_and_proxy_and_uses_fixed_caddy_settings() {
+    let mut configuration = config();
+    configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+        basic_auth: Some(BasicAuth {
+            accounts: vec![BasicAuthAccount {
+                username: "admin".into(),
+                password_hash: "$argon2id$v=19$m=47104,t=1,p=1$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y".into(),
+            }],
+        }),
+    });
+    configuration.proxy_hosts[0]
+        .http_settings
+        .client_max_body_size_bytes = Some(4096);
+    let json: Value =
+        serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
+    let handle = &json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"][1]["handle"];
+    assert_eq!(handle[0]["handler"], "authentication");
+    assert_eq!(
+        handle[0]["providers"]["http_basic"]["hash"]["algorithm"],
+        "argon2id"
+    );
+    assert_eq!(
+        handle[0]["providers"]["http_basic"]["realm"],
+        "RentnerProxy"
+    );
+    assert_eq!(
+        handle[0]["providers"]["http_basic"]["hash_cache"],
+        serde_json::json!({})
+    );
+    assert_eq!(
+        handle[0]["providers"]["http_basic"]["accounts"][0]["password"],
+        "$argon2id$v=19$m=47104,t=1,p=1$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y"
+    );
+    assert_eq!(handle[1]["handler"], "request_body");
+    assert_eq!(handle[2]["handler"], "reverse_proxy");
+    assert!(
+        handle[2]["headers"]["request"]["delete"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("Authorization"))
+    );
 }
 
 #[test]

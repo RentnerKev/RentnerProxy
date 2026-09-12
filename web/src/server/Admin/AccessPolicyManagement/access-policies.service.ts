@@ -11,7 +11,7 @@ import {
     type AccessPolicyMode,
 } from '../../../config/access-policies.config'
 import { PERMISSIONS } from '../../../config/permissions.config'
-import { accessPolicies, proxyHosts } from '../../../db/schema'
+import { accessPolicyBasicAuthAccounts, accessPolicies, proxyHosts } from '../../../db/schema'
 import type { AccessPolicySummary } from '../../../shared/Types/access-policies.types'
 import { requirePermissionService } from '../../Auth/Access/authorization.service'
 import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
@@ -70,7 +70,11 @@ function assertPolicyShape(
     }
 }
 
-function toSummary(row: AccessPolicyRow, assignedHostCount: number): AccessPolicySummary {
+function toSummary(
+    row: AccessPolicyRow,
+    assignedHostCount: number,
+    basicAuthAccountCount: number,
+): AccessPolicySummary {
     return {
         id: row.id,
         name: row.name,
@@ -78,6 +82,7 @@ function toSummary(row: AccessPolicyRow, assignedHostCount: number): AccessPolic
         mode: row.mode,
         combination: row.combination,
         assignedHostCount,
+        basicAuthAccountCount,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
     }
@@ -102,7 +107,16 @@ async function readSummaries(): Promise<Array<AccessPolicySummary>> {
                         : [[entry.accessPolicyId, entry.count] as const],
                 ),
             )
-            return rows.map((row) => toSummary(row, counts.get(row.id) ?? 0))
+            const basicAuthAccounts = await transaction
+                .select({ policyId: accessPolicyBasicAuthAccounts.policyId, count: count() })
+                .from(accessPolicyBasicAuthAccounts)
+                .groupBy(accessPolicyBasicAuthAccounts.policyId)
+            const accountCounts = new Map(
+                basicAuthAccounts.map((entry) => [entry.policyId, entry.count] as const),
+            )
+            return rows.map((row) =>
+                toSummary(row, counts.get(row.id) ?? 0, accountCounts.get(row.id) ?? 0),
+            )
         },
         { isolationLevel: 'repeatable read', accessMode: 'read only' },
     )
@@ -170,7 +184,7 @@ export async function createAccessPolicyService(
         return created
     })
     return {
-        ...toSummary(row, 0),
+        ...toSummary(row, 0, 0),
         accessPolicyId: row.id,
         runtimeStatus: await reconcileProxyConfigurationService(),
     }
@@ -211,10 +225,18 @@ export async function updateAccessPolicyService(
             .returning()
         const updated = rows.at(0)
         if (!updated) throw new AccessPolicyDomainError('access_policy_not_found')
-        return { row: updated, count: await assignmentCount(transaction, id) }
+        const accountRows = await transaction
+            .select({ count: count() })
+            .from(accessPolicyBasicAuthAccounts)
+            .where(eq(accessPolicyBasicAuthAccounts.policyId, id))
+        return {
+            row: updated,
+            count: await assignmentCount(transaction, id),
+            basicAuthAccountCount: accountRows.at(0)?.count ?? 0,
+        }
     })
     return {
-        ...toSummary(row.row, row.count),
+        ...toSummary(row.row, row.count, row.basicAuthAccountCount),
         accessPolicyId: row.row.id,
         runtimeStatus: await reconcileProxyConfigurationService(),
     }

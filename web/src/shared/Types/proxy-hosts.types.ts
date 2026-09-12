@@ -1,10 +1,12 @@
 import type { ProxyHostForwardScheme } from '../../config/proxy-hosts.config'
 import type { AccessPolicyCombination, AccessPolicyMode } from '../../config/access-policies.config'
+import type { AccessPolicyBasicAuthRuntime } from './access-policies.types'
 
 export interface ProxyHostAccessPolicy {
     readonly id: string
     readonly mode: AccessPolicyMode
     readonly combination: AccessPolicyCombination | null
+    readonly basicAuth?: AccessPolicyBasicAuthRuntime | undefined
 }
 
 export interface ProxyHostSummary {

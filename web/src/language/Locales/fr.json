@@ -1238,8 +1238,9 @@
                 "creating": "Création…",
                 "name": "Nom de la politique",
                 "mode": "Mode de protection",
-                "modeHint": "Public autorise les requêtes sans contrôle. Les autres modes attendent leurs fournisseurs.",
+                "modeHint": "Public autorise les requêtes sans contrôle. Les politiques authentifiées utilisent des comptes Basic Auth ; les contrôles IP nécessitent leur fournisseur.",
                 "combination": "Règle de politique combinée",
+                "availabilityTitle": "Basic Auth et disponibilité des requêtes",
                 "warningTitle": "Les méthodes de protection ne sont pas configurées",
                 "warningDescription": "Tant que les fournisseurs requis ne sont pas disponibles, ce mode refuse toutes les requêtes. Vérifiez l’exécution avant de l’attribuer."
             },
@@ -1262,6 +1263,7 @@
                 "name": "Nom",
                 "mode": "Mode",
                 "combination": "Combinaison",
+                "basicAuth": "Basic Auth",
                 "assigned": "Hôtes attribués",
                 "created": "Créée",
                 "actions": "Actions"
@@ -1289,6 +1291,95 @@
                 "filteredEmptyTitle": "Aucune politique d’accès correspondante",
                 "filteredEmptyDescription": "Modifiez la recherche ou réinitialisez les filtres actifs.",
                 "itemLabel": "politiques d’accès"
+            },
+            "basicAuth": {
+                "title": "Identifiants Basic Auth pour {{name}}",
+                "description": "Gérez les noms d’utilisateur et les mots de passe de cette politique. Les mots de passe ne sont jamais affichés ni renvoyés.",
+                "status": {
+                    "available": "Basic Auth disponible",
+                    "combinedAnyAvailable": "Basic Auth peut autoriser les requêtes",
+                    "combinedAnyMissing": "Aucun compte Basic Auth — les requêtes sont refusées",
+                    "ipProviderRequired": "Fermé jusqu’à la configuration de l’accès IP",
+                    "publicIgnored": "Ignoré par la politique publique"
+                },
+                "form": {
+                    "createTitle": "Ajouter un compte Basic Auth",
+                    "editTitle": "Modifier le compte Basic Auth",
+                    "description": "Enregistrez un nom d’utilisateur et un mot de passe pour cette politique d’accès.",
+                    "username": "Nom d’utilisateur",
+                    "usernameHint": "Utilisez au plus 64 lettres ASCII, chiffres, ., _, @ ou - ; commencez par une lettre ou un chiffre.",
+                    "password": "Mot de passe",
+                    "passwordCreateHint": "Utilisez un mot de passe de 1 à 256 caractères.",
+                    "passwordEditHint": "Laissez vide pour conserver le mot de passe actuel. Saisissez-en un nouveau pour le remplacer.",
+                    "transportHint": "Utilisez HTTPS pour les hôtes associés à cette politique. Le transport reste contrôlé par le réglage Force HTTPS de chaque hôte."
+                },
+                "actions": {
+                    "credentials": "Identifiants",
+                    "addAccount": "Ajouter un compte",
+                    "editAccount": "Modifier",
+                    "deleteAccount": "Supprimer",
+                    "deleting": "Suppression…",
+                    "saving": "Enregistrement…",
+                    "create": "Créer le compte",
+                    "save": "Enregistrer le compte",
+                    "open": "Gérer les identifiants Basic Auth de {{name}}"
+                },
+                "columns": {
+                    "username": "Nom d’utilisateur",
+                    "created": "Créé",
+                    "updated": "Modifié",
+                    "actions": "Actions"
+                },
+                "cells": {
+                    "accountCount_one": "{{count}} compte",
+                    "accountCount_other": "{{count}} comptes"
+                },
+                "table": {
+                    "eyebrow": "Comptes Basic Auth",
+                    "count_one": "{{count}} compte Basic Auth",
+                    "count_other": "{{count}} comptes Basic Auth",
+                    "description": "Les identifiants sont stockés sous forme de hachages et ne sont jamais affichés ici.",
+                    "caption": "Comptes Basic Auth",
+                    "loading": "Chargement des comptes Basic Auth",
+                    "emptyDescription": "Aucun compte Basic Auth n’est configuré. Les requêtes utilisant cette politique seront refusées jusqu’à l’ajout d’un compte.",
+                    "limit": "Cette politique a atteint la limite de 32 comptes."
+                },
+                "confirm": {
+                    "deleteTitle": "Supprimer le compte Basic Auth ?",
+                    "deleteDescription": "Le compte Basic Auth « {{username}} » sera supprimé.",
+                    "deleteWarning": "Cette action est irréversible."
+                },
+                "validation": {
+                    "usernameRequired": "Saisissez un nom d’utilisateur.",
+                    "usernameTooLong": "Les noms d’utilisateur ne peuvent pas dépasser 64 caractères.",
+                    "usernameInvalid": "Utilisez 1 à 64 lettres ASCII, chiffres, ., _, @ ou - ; le premier caractère doit être une lettre ou un chiffre.",
+                    "passwordRequired": "Saisissez un mot de passe.",
+                    "passwordTooLong": "Les mots de passe ne peuvent pas dépasser 256 caractères.",
+                    "username": "Saisissez un nom d’utilisateur valide.",
+                    "password": "Saisissez un mot de passe valide.",
+                    "changes": "Indiquez un nom d’utilisateur ou un nouveau mot de passe."
+                },
+                "errors": {
+                    "loadFailed": "Les comptes Basic Auth n’ont pas pu être chargés.",
+                    "saveFailed": "Le compte Basic Auth n’a pas pu être enregistré.",
+                    "deleteFailed": "Le compte Basic Auth n’a pas pu être supprimé.",
+                    "accountNotFound": "Le compte Basic Auth n’existe plus.",
+                    "basic_auth_account_not_found": "Le compte Basic Auth n’existe plus.",
+                    "basic_auth_username_conflict": "Ce nom d’utilisateur est déjà utilisé par cette politique.",
+                    "basic_auth_account_limit": "Cette politique contient déjà le nombre maximal de comptes Basic Auth.",
+                    "invalid_input": "Vérifiez les valeurs du compte Basic Auth et réessayez.",
+                    "controller_unavailable": "Le contrôleur proxy est indisponible. Réessayez plus tard."
+                },
+                "messages": {
+                    "created": "Compte Basic Auth créé.",
+                    "updated": "Compte Basic Auth modifié.",
+                    "deleted": "Compte Basic Auth supprimé.",
+                    "savedPending": "Compte Basic Auth enregistré. Les changements attendent leur application."
+                },
+                "states": {
+                    "unavailableTitle": "Comptes Basic Auth indisponibles",
+                    "unavailableDescription": "La liste des comptes Basic Auth n’a pas pu être chargée. Réessayez."
+                }
             },
             "validation": {
                 "nameRequired": "Saisissez un nom de politique d’accès.",

@@ -40,6 +40,7 @@ export interface AccessPolicyFormModalHandler {
 }
 
 export interface AccessPolicyFormFieldsProps {
+    readonly basicAuthAccountCount: number
     readonly errors: AccessPolicyFormModalState['errors']
     readonly formId: string
     readonly isPending: boolean

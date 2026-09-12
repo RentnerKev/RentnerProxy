@@ -27,6 +27,7 @@ export function startTestUpstream(options: TestUpstreamOptions = {}) {
                 'x-forwarded-prefix': request.headers.get('x-forwarded-prefix'),
                 forwarded: request.headers.get('forwarded'),
                 proxy: request.headers.get('proxy'),
+                hasAuthorization: request.headers.has('authorization'),
                 upgrade: request.headers.get('upgrade'),
                 connection: request.headers.get('connection'),
             })

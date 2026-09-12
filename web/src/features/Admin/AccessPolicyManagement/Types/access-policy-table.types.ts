@@ -5,9 +5,11 @@ import type { AccessPolicySummary } from '../../../../shared/Types/access-polici
 export interface AccessPoliciesTableProps {
     readonly action?: ReactNode
     readonly canDelete: boolean
+    readonly canViewCredentials?: boolean
     readonly canUpdate: boolean
     readonly isLoading: boolean
     readonly isPending: boolean
+    readonly onCredentials?: (policy: AccessPolicySummary) => void
     readonly onDelete: (policy: AccessPolicySummary) => void
     readonly onEdit: (policy: AccessPolicySummary) => void
     readonly policies: ReadonlyArray<AccessPolicySummary>
@@ -15,7 +17,13 @@ export interface AccessPoliciesTableProps {
 
 export type AccessPolicyTableActionProps = Pick<
     AccessPoliciesTableProps,
-    'canDelete' | 'canUpdate' | 'isPending' | 'onDelete' | 'onEdit'
+    | 'canDelete'
+    | 'canUpdate'
+    | 'canViewCredentials'
+    | 'isPending'
+    | 'onCredentials'
+    | 'onDelete'
+    | 'onEdit'
 >
 
 export interface AccessPolicyTableActionsProps extends AccessPolicyTableActionProps {
@@ -40,4 +48,10 @@ export interface AccessPolicyAssignedCountCellProps {
 
 export interface AccessPolicyCreatedAtCellProps {
     readonly value: unknown
+}
+
+export interface AccessPolicyBasicAuthCellProps {
+    readonly combination: AccessPolicySummary['combination']
+    readonly count: number
+    readonly mode: AccessPolicySummary['mode']
 }

@@ -1238,8 +1238,9 @@
                 "creating": "Creating…",
                 "name": "Policy name",
                 "mode": "Protection mode",
-                "modeHint": "Public allows requests without an access check. Other modes are reserved until their providers are configured.",
+                "modeHint": "Public allows requests without an access check. Authenticated policies use Basic Auth accounts; IP checks require their provider.",
                 "combination": "Combined policy rule",
+                "availabilityTitle": "Basic Auth and request availability",
                 "warningTitle": "Protection methods are not configured",
                 "warningDescription": "Until the required providers are available, applying this mode denies every request. Review the runtime before assigning it to a live host."
             },
@@ -1262,6 +1263,7 @@
                 "name": "Name",
                 "mode": "Mode",
                 "combination": "Combination",
+                "basicAuth": "Basic Auth",
                 "assigned": "Assigned hosts",
                 "created": "Created",
                 "actions": "Actions"
@@ -1289,6 +1291,95 @@
                 "filteredEmptyTitle": "No access policies match your filters",
                 "filteredEmptyDescription": "Adjust the search or reset the active filters to see more policies.",
                 "itemLabel": "access policies"
+            },
+            "basicAuth": {
+                "title": "Basic Auth credentials for {{name}}",
+                "description": "Manage usernames and passwords for this policy. Passwords are never displayed or returned.",
+                "status": {
+                    "available": "Basic Auth available",
+                    "combinedAnyAvailable": "Basic Auth can allow requests",
+                    "combinedAnyMissing": "No Basic Auth accounts — requests are denied",
+                    "ipProviderRequired": "Closed until IP access is configured",
+                    "publicIgnored": "Ignored by the public policy"
+                },
+                "form": {
+                    "createTitle": "Add Basic Auth account",
+                    "editTitle": "Edit Basic Auth account",
+                    "description": "Save a username and password for this access policy.",
+                    "username": "Username",
+                    "usernameHint": "Use up to 64 ASCII letters, digits, ., _, @ or -; start with a letter or digit.",
+                    "password": "Password",
+                    "passwordCreateHint": "Use a password of 1–256 characters.",
+                    "passwordEditHint": "Leave blank to keep the existing password. Enter a new password to rotate it.",
+                    "transportHint": "Use HTTPS for hosts assigned to this policy. Transport remains controlled by each host’s Force HTTPS setting."
+                },
+                "actions": {
+                    "credentials": "Credentials",
+                    "addAccount": "Add account",
+                    "editAccount": "Edit",
+                    "deleteAccount": "Delete",
+                    "deleting": "Deleting…",
+                    "saving": "Saving…",
+                    "create": "Create account",
+                    "save": "Save account",
+                    "open": "Manage Basic Auth credentials for {{name}}"
+                },
+                "columns": {
+                    "username": "Username",
+                    "created": "Created",
+                    "updated": "Updated",
+                    "actions": "Actions"
+                },
+                "cells": {
+                    "accountCount_one": "{{count}} account",
+                    "accountCount_other": "{{count}} accounts"
+                },
+                "table": {
+                    "eyebrow": "Basic Auth accounts",
+                    "count_one": "{{count}} Basic Auth account",
+                    "count_other": "{{count}} Basic Auth accounts",
+                    "description": "Credentials are stored as password hashes and are never shown here.",
+                    "caption": "Basic Auth accounts",
+                    "loading": "Loading Basic Auth accounts",
+                    "emptyDescription": "No Basic Auth accounts are configured. Requests using this policy will be denied until an account is added.",
+                    "limit": "This policy has reached the 32-account limit."
+                },
+                "confirm": {
+                    "deleteTitle": "Delete Basic Auth account?",
+                    "deleteDescription": "The Basic Auth account “{{username}}” will be removed.",
+                    "deleteWarning": "This action cannot be undone."
+                },
+                "validation": {
+                    "usernameRequired": "Enter a username.",
+                    "usernameTooLong": "Usernames must contain no more than 64 characters.",
+                    "usernameInvalid": "Use 1–64 ASCII letters, digits, ., _, @ or -; the first character must be a letter or digit.",
+                    "passwordRequired": "Enter a password.",
+                    "passwordTooLong": "Passwords must contain no more than 256 characters.",
+                    "username": "Enter a valid username.",
+                    "password": "Enter a valid password.",
+                    "changes": "Provide a username or a new password."
+                },
+                "errors": {
+                    "loadFailed": "Basic Auth accounts could not be loaded.",
+                    "saveFailed": "The Basic Auth account could not be saved.",
+                    "deleteFailed": "The Basic Auth account could not be deleted.",
+                    "accountNotFound": "The Basic Auth account no longer exists.",
+                    "basic_auth_account_not_found": "The Basic Auth account no longer exists.",
+                    "basic_auth_username_conflict": "That username is already used by this policy.",
+                    "basic_auth_account_limit": "This policy already has the maximum number of Basic Auth accounts.",
+                    "invalid_input": "Review the Basic Auth account values and try again.",
+                    "controller_unavailable": "The proxy controller is unavailable. Try again later."
+                },
+                "messages": {
+                    "created": "Basic Auth account created successfully.",
+                    "updated": "Basic Auth account updated successfully.",
+                    "deleted": "Basic Auth account deleted successfully.",
+                    "savedPending": "Basic Auth account saved. Changes are waiting to be applied."
+                },
+                "states": {
+                    "unavailableTitle": "Basic Auth accounts unavailable",
+                    "unavailableDescription": "The Basic Auth account list could not be loaded. Try again."
+                }
             },
             "validation": {
                 "nameRequired": "Enter an access policy name.",

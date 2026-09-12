@@ -30,6 +30,7 @@ export default function useAccessPolicyManagementLogic({
     const [showCreate, setShowCreate] = useState(false)
     const [selectedPolicy, setSelectedPolicy] = useState<AccessPolicySummary | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<AccessPolicySummary | null>(null)
+    const [credentialsPolicy, setCredentialsPolicy] = useState<AccessPolicySummary | null>(null)
 
     const policiesQuery = useQuery({
         queryKey: accessPolicyManagementQueryKeys.all,
@@ -101,6 +102,21 @@ export default function useAccessPolicyManagementLogic({
     const setEditorOpen = useCallback((open: boolean) => {
         if (!open) setSelectedPolicy(null)
     }, [])
+    const openCredentials = useCallback((policy: AccessPolicySummary) => {
+        setShowCreate(false)
+        setSelectedPolicy(null)
+        setDeleteTarget(null)
+        setCredentialsPolicy(policy)
+    }, [])
+    const setCredentialsOpen = useCallback((open: boolean) => {
+        if (!open) setCredentialsPolicy(null)
+    }, [])
+    const handleAccountsChange = useCallback(async () => {
+        await queryClient.invalidateQueries({
+            queryKey: accessPolicyManagementQueryKeys.all,
+            exact: true,
+        })
+    }, [queryClient])
     const openDelete = useCallback(
         (policy: AccessPolicySummary) => {
             if (policy.assignedHostCount > 0) return
@@ -137,7 +153,9 @@ export default function useAccessPolicyManagementLogic({
             canApply: permissionSet.has(PERMISSIONS.ACCESS_POLICIES_APPLY),
             canCreate: permissionSet.has(PERMISSIONS.ACCESS_POLICIES_CREATE),
             canDelete: permissionSet.has(PERMISSIONS.ACCESS_POLICIES_DELETE),
+            canViewCredentials: permissionSet.has(PERMISSIONS.ACCESS_POLICIES_VIEW),
             canUpdate: permissionSet.has(PERMISSIONS.ACCESS_POLICIES_UPDATE),
+            credentialsPolicy,
             deleteTarget,
             isApplying: applyMutation.isPending,
             isDeleting: deleteMutation.isPending,
@@ -155,7 +173,9 @@ export default function useAccessPolicyManagementLogic({
             apply: () => applyMutation.mutate(),
             confirmDelete,
             handleFormSuccess,
+            handleAccountsChange,
             openCreate,
+            openCredentials,
             openDelete,
             openEditor,
             retry,
@@ -163,6 +183,7 @@ export default function useAccessPolicyManagementLogic({
             setCreateOpen,
             setDeleteOpen,
             setEditorOpen,
+            setCredentialsOpen,
         },
     }
 }

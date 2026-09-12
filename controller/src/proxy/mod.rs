@@ -6,6 +6,8 @@ use std::{
     net::{Ipv4Addr, Ipv6Addr},
 };
 
+use base64::{Engine as _, engine::general_purpose::STANDARD_NO_PAD};
+
 use crate::models::{ProxyConfigRequest, ProxyHttpSettings, TrustedCa, ValidatedProxyConfig};
 
 #[cfg(test)]
@@ -206,12 +208,55 @@ fn has_valid_upstream_tls(host: &crate::models::ProxyHost) -> bool {
 }
 
 fn has_valid_access_policy_shape(policy: &crate::models::AccessPolicy) -> bool {
-    match policy.mode {
+    let combination_valid = match policy.mode {
         crate::models::AccessPolicyMode::Combined => policy.combination.is_some(),
         crate::models::AccessPolicyMode::Public
         | crate::models::AccessPolicyMode::Authenticated
         | crate::models::AccessPolicyMode::IpRestricted => policy.combination.is_none(),
+    };
+    combination_valid && policy.basic_auth.as_ref().is_none_or(has_valid_basic_auth)
+}
+
+fn has_valid_basic_auth(auth: &crate::models::BasicAuth) -> bool {
+    if auth.accounts.is_empty() || auth.accounts.len() > 32 {
+        return false;
     }
+    let mut previous = None;
+    for account in &auth.accounts {
+        if !is_valid_basic_auth_username(&account.username)
+            || !is_valid_basic_auth_hash(&account.password_hash)
+            || previous.is_some_and(|value: &str| value >= account.username.as_str())
+        {
+            return false;
+        }
+        previous = Some(account.username.as_str());
+    }
+    true
+}
+
+fn is_valid_basic_auth_username(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    (1..=64).contains(&bytes.len())
+        && bytes[0].is_ascii_alphanumeric()
+        && bytes[1..]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'@' | b'-'))
+}
+
+fn is_valid_basic_auth_hash(value: &str) -> bool {
+    let parts = value.split('$').collect::<Vec<_>>();
+    parts.len() == 6
+        && parts[1] == "argon2id"
+        && parts[2] == "v=19"
+        && parts[3] == "m=47104,t=1,p=1"
+        && is_exact_raw_base64_32(parts[4])
+        && is_exact_raw_base64_32(parts[5])
+}
+
+fn is_exact_raw_base64_32(value: &str) -> bool {
+    STANDARD_NO_PAD
+        .decode(value)
+        .is_ok_and(|bytes| bytes.len() == 32 && STANDARD_NO_PAD.encode(bytes) == value)
 }
 
 fn has_valid_redirect_destination(value: &str, preserve_request_uri: bool) -> bool {
