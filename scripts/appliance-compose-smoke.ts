@@ -10,8 +10,8 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { restoreSmokeDiagnostic, smokeCompose, smokeDockerArguments } from './smoke-resources'
-import { verifyAlpha1Upgrade } from './alpha1-upgrade-smoke'
 import { buildHttp3Client, requestHttp3Client, assertHttp3Response } from './http3-client'
+import { verifyAlpha1Upgrade, verifyAlpha3Upgrade } from './alpha1-upgrade-smoke'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const rootComposeFile = join(repositoryRoot, 'docker-compose.yml')
@@ -1194,17 +1194,19 @@ async function runSmoke(): Promise<void> {
         await restoreLegacyFixture(legacyV1, legacyComposes[1]!, legacyProjects[1]!, 1)
         await command([...legacyComposes[1]!, 'down', '--volumes', '--remove-orphans'], 180_000)
         await command([...restoreCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
-        await verifyAlpha1Upgrade({
-            imageTag,
-            temporaryRoot,
-            upstreamPort: backendPort,
-            trafficMarker,
-            envFile,
-            environment: scriptEnvironment,
-            command,
-            commandWithEnvironment,
-            passed,
-        })
+        for (const verifyUpgrade of [verifyAlpha1Upgrade, verifyAlpha3Upgrade]) {
+            await verifyUpgrade({
+                imageTag,
+                temporaryRoot,
+                upstreamPort: backendPort,
+                trafficMarker,
+                envFile,
+                environment: scriptEnvironment,
+                command,
+                commandWithEnvironment,
+                passed,
+            })
+        }
     } finally {
         backend?.stop(true)
         await commandFails([...compose, 'down', '--volumes', '--remove-orphans'], 180_000)

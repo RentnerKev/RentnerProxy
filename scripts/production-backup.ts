@@ -1,3 +1,4 @@
+import { stateArchiveExclusions } from './controller-state-archive'
 import { createHash, randomUUID } from 'node:crypto'
 import { chmod, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
@@ -12,30 +13,6 @@ const databaseUser = 'rentnerproxy'
 const statePath = '/var/lib/rentnerproxy/proxy'
 const stateArchiveName = 'controller-state.tar'
 const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.mjs'
-const stateArchiveExclusions = [
-    './active.conf',
-    './candidate.conf',
-    './last-known-good.conf',
-    './last-good.conf',
-    './engine.pid',
-    './host-configs',
-    './host-configs/**',
-    './caddy-admin.sock',
-    './runtime-probe.sock',
-    './caddy/**/*.sock',
-    './caddy/**/*.tmp',
-    './caddy/**/*.lock',
-    './cache',
-    './bootstrap',
-    './runtime',
-    './tmp',
-    './run',
-    './log',
-    './logs',
-    '*.log',
-    '*.log.*',
-    '.*.tmp',
-]
 
 type CommandOptions = Readonly<{
     timeoutMs?: number
