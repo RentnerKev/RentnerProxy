@@ -1,4 +1,6 @@
+import { auditAuthOperation } from '../Core/audit-auth.server'
 import '@tanstack/react-start/server-only'
+import { appendAuditEventInTransaction } from '../../Audit/audit.service'
 
 import { and, count, eq, isNull, lt } from 'drizzle-orm'
 
@@ -151,106 +153,136 @@ export async function confirmTotpSetupService(input: {
     | { readonly code: 'authentication_failed' | 'challenge_expired'; readonly success: false }
     | { readonly recoveryCodes: ReadonlyArray<string>; readonly success: true }
 > {
-    await requireRecentAuthenticationForSession(input.currentSession)
-    await requireSessionPermission(input.currentSession, PERMISSIONS.ACCOUNT_UPDATE)
+    return auditAuthOperation(
+        {
+            actorUserId: input.currentSession.user.id,
+            actorKind: 'user',
+            action: 'enable',
+            resource: 'totp',
+            targetId: input.currentSession.user.id,
+        },
+        async () => {
+            await requireRecentAuthenticationForSession(input.currentSession)
+            await requireSessionPermission(input.currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
-    const verification = await acquireCodeChallengeVerification('totp-setup', input.flowId)
+            const verification = await acquireCodeChallengeVerification('totp-setup', input.flowId)
 
-    if (
-        !verification ||
-        verification.challenge.userId !== input.currentSession.user.id ||
-        verification.challenge.sessionId !== input.currentSession.id
-    ) {
-        return { code: 'challenge_expired', success: false }
-    }
+            if (
+                !verification ||
+                verification.challenge.userId !== input.currentSession.user.id ||
+                verification.challenge.sessionId !== input.currentSession.id
+            ) {
+                return { code: 'challenge_expired', success: false }
+            }
 
-    const code = normalizeTotpCode(input.token)
-    const ciphertext = decodeBase64Url(verification.challenge.ciphertext)
-    const iv = decodeBase64Url(verification.challenge.iv)
+            const code = normalizeTotpCode(input.token)
+            const ciphertext = decodeBase64Url(verification.challenge.ciphertext)
+            const iv = decodeBase64Url(verification.challenge.iv)
 
-    if (!code || !ciphertext || !iv) {
-        const failure = await failCodeChallengeVerification({
-            ...verification,
-            kind: 'totp-setup',
-        })
-        return {
-            code: failure === 'locked' ? 'challenge_expired' : 'authentication_failed',
-            success: false,
-        }
-    }
+            if (!code || !ciphertext || !iv) {
+                const failure = await failCodeChallengeVerification({
+                    ...verification,
+                    kind: 'totp-setup',
+                })
+                return {
+                    code: failure === 'locked' ? 'challenge_expired' : 'authentication_failed',
+                    success: false,
+                }
+            }
 
-    let secret: string
+            let secret: string
 
-    try {
-        secret = await decryptSecret(
-            { ciphertext, iv },
-            createTotpEncryptionContext(input.currentSession.user.id),
-        )
-    } catch (error) {
-        await releaseCodeChallengeVerification({ ...verification, kind: 'totp-setup' })
-        throw error
-    }
+            try {
+                secret = await decryptSecret(
+                    { ciphertext, iv },
+                    createTotpEncryptionContext(input.currentSession.user.id),
+                )
+            } catch (error) {
+                await releaseCodeChallengeVerification({ ...verification, kind: 'totp-setup' })
+                throw error
+            }
 
-    const matchedCounter = getMatchedTotpCounter(secret, input.currentSession.user.email, code)
+            const matchedCounter = getMatchedTotpCounter(
+                secret,
+                input.currentSession.user.email,
+                code,
+            )
 
-    if (matchedCounter === null) {
-        const failure = await failCodeChallengeVerification({
-            ...verification,
-            kind: 'totp-setup',
-        })
-        return {
-            code: failure === 'locked' ? 'challenge_expired' : 'authentication_failed',
-            success: false,
-        }
-    }
+            if (matchedCounter === null) {
+                const failure = await failCodeChallengeVerification({
+                    ...verification,
+                    kind: 'totp-setup',
+                })
+                return {
+                    code: failure === 'locked' ? 'challenge_expired' : 'authentication_failed',
+                    success: false,
+                }
+            }
 
-    const consumed = await consumeCodeChallengeVerification({ ...verification, kind: 'totp-setup' })
-
-    if (!consumed) {
-        return { code: 'challenge_expired', success: false }
-    }
-
-    const recoveryCodes = await createRecoveryCodeBatch()
-    const created = await getAuthDatabase().transaction(async (transaction) => {
-        await requireRecentSessionInTransaction(transaction, input.currentSession)
-        await requirePermissionInTransaction(
-            transaction,
-            input.currentSession.user.id,
-            PERMISSIONS.ACCOUNT_UPDATE,
-        )
-        const now = new Date()
-        const factors = await transaction
-            .insert(userTotpFactors)
-            .values({
-                enabledAt: now,
-                lastUsedCounter: matchedCounter,
-                secretCiphertext: ciphertext,
-                secretIv: iv,
-                updatedAt: now,
-                userId: input.currentSession.user.id,
+            const consumed = await consumeCodeChallengeVerification({
+                ...verification,
+                kind: 'totp-setup',
             })
-            .onConflictDoNothing({ target: userTotpFactors.userId })
-            .returning({ id: userTotpFactors.id })
 
-        if (factors.length !== 1) {
-            return false
-        }
+            if (!consumed) {
+                return { code: 'challenge_expired', success: false }
+            }
 
-        await insertRecoveryCodeBatch(transaction, input.currentSession.user.id, recoveryCodes)
-        await revokeOtherUserSessionsInTransaction(
-            transaction,
-            input.currentSession.user.id,
-            input.currentSession.id,
-        )
-        return true
-    })
+            const recoveryCodes = await createRecoveryCodeBatch()
+            const created = await getAuthDatabase().transaction(async (transaction) => {
+                await requireRecentSessionInTransaction(transaction, input.currentSession)
+                await requirePermissionInTransaction(
+                    transaction,
+                    input.currentSession.user.id,
+                    PERMISSIONS.ACCOUNT_UPDATE,
+                )
+                const now = new Date()
+                const factors = await transaction
+                    .insert(userTotpFactors)
+                    .values({
+                        enabledAt: now,
+                        lastUsedCounter: matchedCounter,
+                        secretCiphertext: ciphertext,
+                        secretIv: iv,
+                        updatedAt: now,
+                        userId: input.currentSession.user.id,
+                    })
+                    .onConflictDoNothing({ target: userTotpFactors.userId })
+                    .returning({ id: userTotpFactors.id })
 
-    return created
-        ? {
-              recoveryCodes: recoveryCodes.map((recoveryCode) => recoveryCode.plaintext),
-              success: true,
-          }
-        : { code: 'authentication_failed', success: false }
+                if (factors.length !== 1) {
+                    return false
+                }
+
+                await insertRecoveryCodeBatch(
+                    transaction,
+                    input.currentSession.user.id,
+                    recoveryCodes,
+                )
+                await revokeOtherUserSessionsInTransaction(
+                    transaction,
+                    input.currentSession.user.id,
+                    input.currentSession.id,
+                )
+                await appendAuditEventInTransaction(transaction, {
+                    actorUserId: input.currentSession.user.id,
+                    actorKind: 'user',
+                    action: 'enable',
+                    resource: 'totp',
+                    targetId: input.currentSession.user.id,
+                    result: 'success',
+                })
+                return true
+            })
+
+            return created
+                ? {
+                      recoveryCodes: recoveryCodes.map((recoveryCode) => recoveryCode.plaintext),
+                      success: true,
+                  }
+                : { code: 'authentication_failed', success: false }
+        },
+    )
 }
 
 export async function regenerateRecoveryCodesService(
@@ -259,75 +291,113 @@ export async function regenerateRecoveryCodesService(
     | { readonly code: 'authentication_failed'; readonly success: false }
     | { readonly recoveryCodes: ReadonlyArray<string>; readonly success: true }
 > {
-    await requireRecentAuthenticationForSession(currentSession)
-    await requireSessionPermission(currentSession, PERMISSIONS.ACCOUNT_UPDATE)
+    return auditAuthOperation(
+        {
+            actorUserId: currentSession.user.id,
+            actorKind: 'user',
+            action: 'rotate',
+            resource: 'recovery-codes',
+            targetId: currentSession.user.id,
+        },
+        async () => {
+            await requireRecentAuthenticationForSession(currentSession)
+            await requireSessionPermission(currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
-    const recoveryCodes = await createRecoveryCodeBatch()
-    const regenerated = await getAuthDatabase().transaction(async (transaction) => {
-        await requireRecentSessionInTransaction(transaction, currentSession)
-        await requirePermissionInTransaction(
-            transaction,
-            currentSession.user.id,
-            PERMISSIONS.ACCOUNT_UPDATE,
-        )
-        const factors = await transaction
-            .select({ id: userTotpFactors.id })
-            .from(userTotpFactors)
-            .where(eq(userTotpFactors.userId, currentSession.user.id))
-            .limit(1)
-            .for('update')
+            const recoveryCodes = await createRecoveryCodeBatch()
+            const regenerated = await getAuthDatabase().transaction(async (transaction) => {
+                await requireRecentSessionInTransaction(transaction, currentSession)
+                await requirePermissionInTransaction(
+                    transaction,
+                    currentSession.user.id,
+                    PERMISSIONS.ACCOUNT_UPDATE,
+                )
+                const factors = await transaction
+                    .select({ id: userTotpFactors.id })
+                    .from(userTotpFactors)
+                    .where(eq(userTotpFactors.userId, currentSession.user.id))
+                    .limit(1)
+                    .for('update')
 
-        if (factors.length !== 1) {
-            return false
-        }
+                if (factors.length !== 1) {
+                    return false
+                }
 
-        await transaction
-            .delete(userRecoveryCodes)
-            .where(eq(userRecoveryCodes.userId, currentSession.user.id))
-        await insertRecoveryCodeBatch(transaction, currentSession.user.id, recoveryCodes)
-        await revokeOtherUserSessionsInTransaction(
-            transaction,
-            currentSession.user.id,
-            currentSession.id,
-        )
-        return true
-    })
+                await transaction
+                    .delete(userRecoveryCodes)
+                    .where(eq(userRecoveryCodes.userId, currentSession.user.id))
+                await insertRecoveryCodeBatch(transaction, currentSession.user.id, recoveryCodes)
+                await revokeOtherUserSessionsInTransaction(
+                    transaction,
+                    currentSession.user.id,
+                    currentSession.id,
+                )
+                await appendAuditEventInTransaction(transaction, {
+                    actorUserId: currentSession.user.id,
+                    actorKind: 'user',
+                    action: 'rotate',
+                    resource: 'recovery-codes',
+                    targetId: currentSession.user.id,
+                    result: 'success',
+                })
+                return true
+            })
 
-    return regenerated
-        ? { recoveryCodes: recoveryCodes.map((code) => code.plaintext), success: true }
-        : { code: 'authentication_failed', success: false }
+            return regenerated
+                ? { recoveryCodes: recoveryCodes.map((code) => code.plaintext), success: true }
+                : { code: 'authentication_failed', success: false }
+        },
+    )
 }
 
 export async function disableTotpService(currentSession: CurrentSession): Promise<boolean> {
-    await requireRecentAuthenticationForSession(currentSession)
-    await requireSessionPermission(currentSession, PERMISSIONS.ACCOUNT_UPDATE)
+    return auditAuthOperation(
+        {
+            actorUserId: currentSession.user.id,
+            actorKind: 'user',
+            action: 'disable',
+            resource: 'totp',
+            targetId: currentSession.user.id,
+        },
+        async () => {
+            await requireRecentAuthenticationForSession(currentSession)
+            await requireSessionPermission(currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
-    return getAuthDatabase().transaction(async (transaction) => {
-        await requireRecentSessionInTransaction(transaction, currentSession)
-        await requirePermissionInTransaction(
-            transaction,
-            currentSession.user.id,
-            PERMISSIONS.ACCOUNT_UPDATE,
-        )
-        const deleted = await transaction
-            .delete(userTotpFactors)
-            .where(eq(userTotpFactors.userId, currentSession.user.id))
-            .returning({ id: userTotpFactors.id })
+            return getAuthDatabase().transaction(async (transaction) => {
+                await requireRecentSessionInTransaction(transaction, currentSession)
+                await requirePermissionInTransaction(
+                    transaction,
+                    currentSession.user.id,
+                    PERMISSIONS.ACCOUNT_UPDATE,
+                )
+                const deleted = await transaction
+                    .delete(userTotpFactors)
+                    .where(eq(userTotpFactors.userId, currentSession.user.id))
+                    .returning({ id: userTotpFactors.id })
 
-        if (deleted.length !== 1) {
-            return false
-        }
+                if (deleted.length !== 1) {
+                    return false
+                }
 
-        await transaction
-            .delete(userRecoveryCodes)
-            .where(eq(userRecoveryCodes.userId, currentSession.user.id))
-        await revokeOtherUserSessionsInTransaction(
-            transaction,
-            currentSession.user.id,
-            currentSession.id,
-        )
-        return true
-    })
+                await transaction
+                    .delete(userRecoveryCodes)
+                    .where(eq(userRecoveryCodes.userId, currentSession.user.id))
+                await revokeOtherUserSessionsInTransaction(
+                    transaction,
+                    currentSession.user.id,
+                    currentSession.id,
+                )
+                await appendAuditEventInTransaction(transaction, {
+                    actorUserId: currentSession.user.id,
+                    actorKind: 'user',
+                    action: 'disable',
+                    resource: 'totp',
+                    targetId: currentSession.user.id,
+                    result: 'success',
+                })
+                return true
+            })
+        },
+    )
 }
 
 export async function createLoginMfaChallengeService(userId: string) {
@@ -346,170 +416,222 @@ export async function completeLoginMfaWithTotpService(input: {
     challengeId: string
     token: string
 }): Promise<MfaLoginCompletionResult> {
-    const verification = await acquireCodeChallengeVerification('login-mfa', input.challengeId)
+    return auditAuthOperation(
+        {
+            actorUserId: null,
+            actorKind: 'anonymous',
+            action: 'login',
+            resource: 'session',
+            targetId: null,
+            metadata: { authenticationMethod: 'totp' },
+        },
+        async () => {
+            const verification = await acquireCodeChallengeVerification(
+                'login-mfa',
+                input.challengeId,
+            )
 
-    if (!verification) {
-        return { code: 'challenge_expired', success: false }
-    }
+            if (!verification) {
+                return { code: 'challenge_expired', success: false }
+            }
 
-    const code = normalizeTotpCode(input.token)
-    const factors = await getAuthDatabase()
-        .select({
-            lastUsedCounter: userTotpFactors.lastUsedCounter,
-            secretCiphertext: userTotpFactors.secretCiphertext,
-            secretIv: userTotpFactors.secretIv,
-        })
-        .from(userTotpFactors)
-        .where(eq(userTotpFactors.userId, verification.challenge.userId))
-        .limit(1)
-    const factor = factors.at(0)
+            const code = normalizeTotpCode(input.token)
+            const factors = await getAuthDatabase()
+                .select({
+                    lastUsedCounter: userTotpFactors.lastUsedCounter,
+                    secretCiphertext: userTotpFactors.secretCiphertext,
+                    secretIv: userTotpFactors.secretIv,
+                })
+                .from(userTotpFactors)
+                .where(eq(userTotpFactors.userId, verification.challenge.userId))
+                .limit(1)
+            const factor = factors.at(0)
 
-    if (!code || !factor) {
-        const failure = await failCodeChallengeVerification({
-            ...verification,
-            kind: 'login-mfa',
-        })
-        return {
-            code: failure === 'locked' ? 'challenge_expired' : 'authentication_failed',
-            success: false,
-        }
-    }
+            if (!code || !factor) {
+                const failure = await failCodeChallengeVerification({
+                    ...verification,
+                    kind: 'login-mfa',
+                })
+                return {
+                    code: failure === 'locked' ? 'challenge_expired' : 'authentication_failed',
+                    success: false,
+                }
+            }
 
-    let secret: string
+            let secret: string
 
-    try {
-        secret = await decryptSecret(
-            { ciphertext: factor.secretCiphertext, iv: factor.secretIv },
-            createTotpEncryptionContext(verification.challenge.userId),
-        )
-    } catch (error) {
-        await releaseCodeChallengeVerification({ ...verification, kind: 'login-mfa' })
-        throw error
-    }
-
-    const matchedCounter = getMatchedTotpCounter(secret, 'login', code)
-
-    if (matchedCounter === null) {
-        const failure = await failCodeChallengeVerification({
-            ...verification,
-            kind: 'login-mfa',
-        })
-        return {
-            code: failure === 'locked' ? 'challenge_expired' : 'authentication_failed',
-            success: false,
-        }
-    }
-
-    const consumed = await consumeCodeChallengeVerification({ ...verification, kind: 'login-mfa' })
-
-    if (!consumed) {
-        return { code: 'challenge_expired', success: false }
-    }
-
-    try {
-        return await getAuthDatabase().transaction(async (transaction) => {
-            const updated = await transaction
-                .update(userTotpFactors)
-                .set({ lastUsedCounter: matchedCounter, updatedAt: new Date() })
-                .where(
-                    and(
-                        eq(userTotpFactors.userId, consumed.userId),
-                        lt(userTotpFactors.lastUsedCounter, matchedCounter),
-                    ),
+            try {
+                secret = await decryptSecret(
+                    { ciphertext: factor.secretCiphertext, iv: factor.secretIv },
+                    createTotpEncryptionContext(verification.challenge.userId),
                 )
-                .returning({ id: userTotpFactors.id })
-
-            if (updated.length !== 1) {
-                return { code: 'authentication_failed' as const, success: false as const }
+            } catch (error) {
+                await releaseCodeChallengeVerification({ ...verification, kind: 'login-mfa' })
+                throw error
             }
 
-            const session = await createSessionInTransaction(transaction, consumed.userId)
-            return {
-                session: { expiresAt: session.expiresAt, id: session.id, token: session.token },
-                success: true as const,
-            }
-        })
-    } catch (error) {
-        if (error instanceof AuthDomainError && error.code === 'user_not_active') {
-            return { code: 'authentication_failed', success: false }
-        }
+            const matchedCounter = getMatchedTotpCounter(secret, 'login', code)
 
-        throw error
-    }
+            if (matchedCounter === null) {
+                const failure = await failCodeChallengeVerification({
+                    ...verification,
+                    kind: 'login-mfa',
+                })
+                return {
+                    code: failure === 'locked' ? 'challenge_expired' : 'authentication_failed',
+                    success: false,
+                }
+            }
+
+            const consumed = await consumeCodeChallengeVerification({
+                ...verification,
+                kind: 'login-mfa',
+            })
+
+            if (!consumed) {
+                return { code: 'challenge_expired', success: false }
+            }
+
+            try {
+                return await getAuthDatabase().transaction(async (transaction) => {
+                    const updated = await transaction
+                        .update(userTotpFactors)
+                        .set({ lastUsedCounter: matchedCounter, updatedAt: new Date() })
+                        .where(
+                            and(
+                                eq(userTotpFactors.userId, consumed.userId),
+                                lt(userTotpFactors.lastUsedCounter, matchedCounter),
+                            ),
+                        )
+                        .returning({ id: userTotpFactors.id })
+
+                    if (updated.length !== 1) {
+                        return { code: 'authentication_failed' as const, success: false as const }
+                    }
+
+                    const session = await createSessionInTransaction(
+                        transaction,
+                        consumed.userId,
+                        'totp',
+                    )
+                    return {
+                        session: {
+                            expiresAt: session.expiresAt,
+                            id: session.id,
+                            token: session.token,
+                        },
+                        success: true as const,
+                    }
+                })
+            } catch (error) {
+                if (error instanceof AuthDomainError && error.code === 'user_not_active') {
+                    return { code: 'authentication_failed', success: false }
+                }
+
+                throw error
+            }
+        },
+    )
 }
 
 export async function completeLoginMfaWithRecoveryCodeService(input: {
     challengeId: string
     recoveryCode: string
 }): Promise<MfaLoginCompletionResult> {
-    const verification = await acquireCodeChallengeVerification('login-mfa', input.challengeId)
+    return auditAuthOperation(
+        {
+            actorUserId: null,
+            actorKind: 'anonymous',
+            action: 'login',
+            resource: 'session',
+            targetId: null,
+            metadata: { authenticationMethod: 'recovery-code' },
+        },
+        async () => {
+            const verification = await acquireCodeChallengeVerification(
+                'login-mfa',
+                input.challengeId,
+            )
 
-    if (!verification) {
-        return { code: 'challenge_expired', success: false }
-    }
-
-    const normalized = normalizeRecoveryCode(input.recoveryCode)
-    const codeHash = normalized ? await hashRecoveryCode(normalized) : null
-    const codeRows = codeHash
-        ? await getAuthDatabase()
-              .select({ id: userRecoveryCodes.id })
-              .from(userRecoveryCodes)
-              .where(
-                  and(
-                      eq(userRecoveryCodes.userId, verification.challenge.userId),
-                      eq(userRecoveryCodes.codeHash, codeHash),
-                      isNull(userRecoveryCodes.usedAt),
-                  ),
-              )
-              .limit(1)
-        : []
-
-    if (!codeHash || codeRows.length !== 1) {
-        const failure = await failCodeChallengeVerification({
-            ...verification,
-            kind: 'login-mfa',
-        })
-        return {
-            code: failure === 'locked' ? 'challenge_expired' : 'authentication_failed',
-            success: false,
-        }
-    }
-
-    const consumed = await consumeCodeChallengeVerification({ ...verification, kind: 'login-mfa' })
-
-    if (!consumed) {
-        return { code: 'challenge_expired', success: false }
-    }
-
-    try {
-        return await getAuthDatabase().transaction(async (transaction) => {
-            const used = await transaction
-                .update(userRecoveryCodes)
-                .set({ usedAt: new Date() })
-                .where(
-                    and(
-                        eq(userRecoveryCodes.userId, consumed.userId),
-                        eq(userRecoveryCodes.codeHash, codeHash),
-                        isNull(userRecoveryCodes.usedAt),
-                    ),
-                )
-                .returning({ id: userRecoveryCodes.id })
-
-            if (used.length !== 1) {
-                return { code: 'authentication_failed' as const, success: false as const }
+            if (!verification) {
+                return { code: 'challenge_expired', success: false }
             }
 
-            const session = await createSessionInTransaction(transaction, consumed.userId)
-            return {
-                session: { expiresAt: session.expiresAt, id: session.id, token: session.token },
-                success: true as const,
-            }
-        })
-    } catch (error) {
-        if (error instanceof AuthDomainError && error.code === 'user_not_active') {
-            return { code: 'authentication_failed', success: false }
-        }
+            const normalized = normalizeRecoveryCode(input.recoveryCode)
+            const codeHash = normalized ? await hashRecoveryCode(normalized) : null
+            const codeRows = codeHash
+                ? await getAuthDatabase()
+                      .select({ id: userRecoveryCodes.id })
+                      .from(userRecoveryCodes)
+                      .where(
+                          and(
+                              eq(userRecoveryCodes.userId, verification.challenge.userId),
+                              eq(userRecoveryCodes.codeHash, codeHash),
+                              isNull(userRecoveryCodes.usedAt),
+                          ),
+                      )
+                      .limit(1)
+                : []
 
-        throw error
-    }
+            if (!codeHash || codeRows.length !== 1) {
+                const failure = await failCodeChallengeVerification({
+                    ...verification,
+                    kind: 'login-mfa',
+                })
+                return {
+                    code: failure === 'locked' ? 'challenge_expired' : 'authentication_failed',
+                    success: false,
+                }
+            }
+
+            const consumed = await consumeCodeChallengeVerification({
+                ...verification,
+                kind: 'login-mfa',
+            })
+
+            if (!consumed) {
+                return { code: 'challenge_expired', success: false }
+            }
+
+            try {
+                return await getAuthDatabase().transaction(async (transaction) => {
+                    const used = await transaction
+                        .update(userRecoveryCodes)
+                        .set({ usedAt: new Date() })
+                        .where(
+                            and(
+                                eq(userRecoveryCodes.userId, consumed.userId),
+                                eq(userRecoveryCodes.codeHash, codeHash),
+                                isNull(userRecoveryCodes.usedAt),
+                            ),
+                        )
+                        .returning({ id: userRecoveryCodes.id })
+
+                    if (used.length !== 1) {
+                        return { code: 'authentication_failed' as const, success: false as const }
+                    }
+
+                    const session = await createSessionInTransaction(
+                        transaction,
+                        consumed.userId,
+                        'recovery-code',
+                    )
+                    return {
+                        session: {
+                            expiresAt: session.expiresAt,
+                            id: session.id,
+                            token: session.token,
+                        },
+                        success: true as const,
+                    }
+                })
+            } catch (error) {
+                if (error instanceof AuthDomainError && error.code === 'user_not_active') {
+                    return { code: 'authentication_failed', success: false }
+                }
+
+                throw error
+            }
+        },
+    )
 }

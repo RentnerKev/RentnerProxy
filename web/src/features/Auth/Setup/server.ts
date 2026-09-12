@@ -27,7 +27,7 @@ export const setupOwnerHandler = createServerFn({ method: 'POST' })
                 return { success: false, message: 'Setup is no longer available.' }
             }
 
-            const session = await createSessionService(result.userId)
+            const session = await createSessionService(result.userId, 'setup')
             setSessionCookie(session.token, session.expiresAt)
             return { success: true, message: 'Owner account created.' }
         } catch (error) {

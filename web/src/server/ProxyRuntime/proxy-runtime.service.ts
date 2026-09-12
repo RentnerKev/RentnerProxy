@@ -1,7 +1,10 @@
 import '@tanstack/react-start/server-only'
 
 import { PERMISSIONS } from '../../config/permissions.config'
-import type { ProxyRuntimeSyncStatus } from '../../shared/Types/proxy-runtime.types'
+import type {
+    ProxyRuntimeMutationStatus,
+    ProxyRuntimeSyncStatus,
+} from '../../shared/Types/proxy-runtime.types'
 import { requirePermissionService } from '../Auth/Access/authorization.service'
 import { getAuthDatabase } from '../Auth/Core/database.server'
 import {
@@ -12,6 +15,7 @@ import { createProxyReconciler } from './proxy-reconcile'
 import { compareProxyRuntimeStatus } from './proxy-runtime-snapshot'
 import { readProxyRuntimeSnapshot } from './proxy-runtime-data'
 import type { ProxyRuntimeSnapshot } from './Types/proxy-runtime.types'
+import { recordAuditEventBestEffort } from '../Audit/audit.service'
 
 export async function getProxyRuntimeSnapshotService(): Promise<ProxyRuntimeSnapshot> {
     // Hosts, domains and HTTP settings must come from the same committed snapshot.
@@ -65,6 +69,36 @@ export async function getProxyRuntimeStatusService(
 export async function applyProxyConfigurationService(
     permission: RuntimeApplyPermission = PERMISSIONS.PROXY_HOSTS_APPLY,
 ) {
-    await requirePermissionService(permission)
-    return reconcileProxyConfigurationService()
+    const actor = await requirePermissionService(permission)
+    return reconcileProxyConfigurationWithAudit(actor.id)
+}
+
+/** Reconcile is durable and asynchronous: record its actual acknowledgement state separately. */
+export async function reconcileProxyConfigurationWithAudit(
+    actorId: string,
+): Promise<ProxyRuntimeMutationStatus> {
+    try {
+        const status = await reconcileProxyConfigurationService()
+        await recordAuditEventBestEffort({
+            actorUserId: actorId,
+            actorKind: 'user',
+            action: 'apply',
+            resource: 'proxy-runtime',
+            targetId: null,
+            result: 'success',
+            metadata: { runtimeStatus: status },
+        })
+        return status
+    } catch (error) {
+        await recordAuditEventBestEffort({
+            actorUserId: actorId,
+            actorKind: 'user',
+            action: 'apply',
+            resource: 'proxy-runtime',
+            targetId: null,
+            result: 'failure',
+            metadata: { runtimeStatus: 'failed', failureCode: 'runtime_failed' },
+        })
+        throw error
+    }
 }

@@ -16,6 +16,7 @@ import {
     hasEnabledTotpFactorService,
 } from '../TwoFactor/two-factor.service'
 import { createOpaqueToken } from '../Core/tokens.server'
+import { recordAuditEventBestEffort } from '../../Audit/audit.service'
 
 const dummyPassword = createOpaqueToken()
 const dummyPasswordHash = hashPassword(dummyPassword)
@@ -51,6 +52,15 @@ export async function loginService(input: {
     )
 
     if (!user || user.status !== 'active' || !user.passwordHash || !passwordMatches) {
+        await recordAuditEventBestEffort({
+            actorUserId: null,
+            actorKind: 'anonymous',
+            action: 'login',
+            resource: 'session',
+            targetId: null,
+            result: 'failure',
+            metadata: { authenticationMethod: 'password', reason: 'authentication_failed' },
+        })
         return { success: false, code: 'invalid_credentials' }
     }
 
@@ -59,6 +69,15 @@ export async function loginService(input: {
     )
 
     if (!access?.permissions.includes(PERMISSIONS.APP_ACCESS)) {
+        await recordAuditEventBestEffort({
+            actorUserId: null,
+            actorKind: 'anonymous',
+            action: 'login',
+            resource: 'session',
+            targetId: null,
+            result: 'denied',
+            metadata: { authenticationMethod: 'password', reason: 'authentication_failed' },
+        })
         return { success: false, code: 'invalid_credentials' }
     }
 
@@ -84,6 +103,15 @@ export async function loginService(input: {
             },
         }
     } catch (error) {
+        await recordAuditEventBestEffort({
+            actorUserId: null,
+            actorKind: 'anonymous',
+            action: 'login',
+            resource: 'session',
+            targetId: null,
+            result: 'failure',
+            metadata: { authenticationMethod: 'password' },
+        })
         if (isAuthDomainError(error) && error.code === 'user_not_active') {
             return { success: false, code: 'invalid_credentials' }
         }

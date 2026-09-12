@@ -6,7 +6,7 @@ import { PERMISSIONS } from '../../../config/permissions.config'
 import { accessPolicies, hostDomains, proxyHosts } from '../../../db/schema'
 import type { ProxyHostSummary } from '../../../shared/Types/proxy-hosts.types'
 import type { ProxyRuntimeMutationStatus } from '../../../shared/Types/proxy-runtime.types'
-import { reconcileProxyConfigurationService } from '../../ProxyRuntime/proxy-runtime.service'
+import { reconcileProxyConfigurationWithAudit } from '../../ProxyRuntime/proxy-runtime.service'
 import {
     lockProxyRuntimeSettings,
     writeProxyHostHttpSettings,
@@ -25,6 +25,8 @@ import {
 import { mapProxyHostDomainUniqueViolation, ProxyHostDomainError } from './proxy-hosts.errors'
 import { normalizeUpstreamTlsSettings } from './upstream-tls.service'
 import { validateTrustedCaAssignmentInTransaction } from '../TrustedCaManagement/trusted-cas.service'
+import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
 
 export type ProxyHostMutationSummary = ProxyHostSummary & {
     readonly runtimeStatus: ProxyRuntimeMutationStatus
@@ -255,8 +257,9 @@ export async function createProxyHostService(
     const domains = parsedInput.domains.toSorted()
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_CREATE)
 
+    let saved: ProxyHostSummary
     try {
-        const saved = await getAuthDatabase().transaction(async (transaction) => {
+        saved = await getAuthDatabase().transaction(async (transaction) => {
             await lockProxyRuntimeSettings(transaction)
             await requirePermissionInTransaction(
                 transaction,
@@ -327,11 +330,25 @@ export async function createProxyHostService(
                 .insert(hostDomains)
                 .values(domains.map((domain) => ({ domain, proxyHostId: proxyHost.id })))
 
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'create',
+                resource: 'proxy-host',
+                targetId: proxyHost.id,
+                result: 'success',
+            })
+
             return toProxyHostSummary(proxyHost, domains)
         })
-
-        return { ...saved, runtimeStatus: await reconcileProxyConfigurationService() }
     } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'create',
+            resource: 'proxy-host',
+            targetId: null,
+            error,
+        })
         const domainConflict = mapProxyHostDomainUniqueViolation(error)
 
         if (domainConflict) {
@@ -340,6 +357,7 @@ export async function createProxyHostService(
 
         throw error
     }
+    return { ...saved, runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
 }
 
 export async function updateProxyHostService(
@@ -349,8 +367,9 @@ export async function updateProxyHostService(
     const domains = parsedInput.domains.toSorted()
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_UPDATE)
 
+    let saved: ProxyHostSummary
     try {
-        const saved = await getAuthDatabase().transaction(async (transaction) => {
+        saved = await getAuthDatabase().transaction(async (transaction) => {
             await lockProxyRuntimeSettings(transaction)
             await requirePermissionInTransaction(
                 transaction,
@@ -455,11 +474,47 @@ export async function updateProxyHostService(
 
             await replaceDomainsInTransaction(transaction, proxyHost.id, domains)
 
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'update',
+                resource: 'proxy-host',
+                targetId: proxyHost.id,
+                result: 'success',
+                metadata: {
+                    changedFields: [
+                        'domains',
+                        'upstream',
+                        'tls',
+                        ...(parsedInput.certificateId === undefined
+                            ? []
+                            : (['certificate'] as const)),
+                        ...(parsedInput.trustedCaId === undefined ? [] : (['trustedCa'] as const)),
+                        ...(parsedInput.enabled === proxyHost.enabled ? [] : (['status'] as const)),
+                        ...(accessPolicyId === proxyHost.accessPolicyId
+                            ? []
+                            : (['accessPolicy'] as const)),
+                    ],
+                    ...(accessPolicyId === proxyHost.accessPolicyId
+                        ? {}
+                        : {
+                              assigned: accessPolicyId !== null,
+                              previousId: proxyHost.accessPolicyId,
+                              nextId: accessPolicyId,
+                          }),
+                },
+            })
+
             return toProxyHostSummary(updatedProxyHost, domains)
         })
-
-        return { ...saved, runtimeStatus: await reconcileProxyConfigurationService() }
     } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'update',
+            resource: 'proxy-host',
+            targetId: parsedInput.proxyHostId,
+            error,
+        })
         const domainConflict = mapProxyHostDomainUniqueViolation(error)
 
         if (domainConflict) {
@@ -468,6 +523,7 @@ export async function updateProxyHostService(
 
         throw error
     }
+    return { ...saved, runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
 }
 
 export async function deleteProxyHostService(
@@ -476,20 +532,43 @@ export async function deleteProxyHostService(
     const id = parseProxyHostId(proxyHostId)
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_DELETE)
 
-    await getAuthDatabase().transaction(async (transaction) => {
-        await lockProxyRuntimeSettings(transaction)
-        await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.PROXY_HOSTS_DELETE)
-        const proxyHost = await loadProxyHostForUpdate(transaction, id)
+    try {
+        await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
+            await requirePermissionInTransaction(
+                transaction,
+                actor.id,
+                PERMISSIONS.PROXY_HOSTS_DELETE,
+            )
+            const proxyHost = await loadProxyHostForUpdate(transaction, id)
 
-        if (!proxyHost) {
-            throw new ProxyHostDomainError('proxy_host_not_found', 'Proxy host was not found.')
-        }
+            if (!proxyHost) {
+                throw new ProxyHostDomainError('proxy_host_not_found', 'Proxy host was not found.')
+            }
 
-        await writeProxyHostHttpSettings(transaction, proxyHost.id, {})
-        await transaction.delete(proxyHosts).where(eq(proxyHosts.id, proxyHost.id))
-    })
+            await writeProxyHostHttpSettings(transaction, proxyHost.id, {})
+            await transaction.delete(proxyHosts).where(eq(proxyHosts.id, proxyHost.id))
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'delete',
+                resource: 'proxy-host',
+                targetId: proxyHost.id,
+                result: 'success',
+            })
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'delete',
+            resource: 'proxy-host',
+            targetId: id,
+            error,
+        })
+        throw error
+    }
 
-    return { runtimeStatus: await reconcileProxyConfigurationService() }
+    return { runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
 }
 
 async function setProxyHostEnabledService(
@@ -500,61 +579,82 @@ async function setProxyHostEnabledService(
     const permission = enabled ? PERMISSIONS.PROXY_HOSTS_ENABLE : PERMISSIONS.PROXY_HOSTS_DISABLE
     const actor = await requirePermissionService(permission)
 
-    const saved = await getAuthDatabase().transaction(async (transaction) => {
-        await lockProxyRuntimeSettings(transaction)
-        await requirePermissionInTransaction(transaction, actor.id, permission)
-        const proxyHost = await loadProxyHostForUpdate(transaction, id)
+    let saved: ProxyHostSummary
+    try {
+        saved = await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
+            await requirePermissionInTransaction(transaction, actor.id, permission)
+            const proxyHost = await loadProxyHostForUpdate(transaction, id)
 
-        if (!proxyHost) {
-            throw new ProxyHostDomainError('proxy_host_not_found', 'Proxy host was not found.')
-        }
+            if (!proxyHost) {
+                throw new ProxyHostDomainError('proxy_host_not_found', 'Proxy host was not found.')
+            }
 
-        if (proxyHost.enabled === enabled) {
-            throw new ProxyHostDomainError(
-                'invalid_status_transition',
-                'Proxy host already has the requested status.',
-            )
-        }
+            if (proxyHost.enabled === enabled) {
+                throw new ProxyHostDomainError(
+                    'invalid_status_transition',
+                    'Proxy host already has the requested status.',
+                )
+            }
 
-        const domains = await loadProxyHostDomainsInTransaction(transaction, proxyHost.id)
-        if (enabled) {
-            await validateTrustedCaAssignmentInTransaction(transaction, proxyHost.trustedCaId)
-            await validateCertificateAssignmentInTransaction(
-                transaction,
-                proxyHost.certificateId,
-                proxyHost.forceHttps,
-                domains,
-            )
-        }
-        const rows = await transaction
-            .update(proxyHosts)
-            .set({ enabled, updatedAt: new Date() })
-            .where(eq(proxyHosts.id, proxyHost.id))
-            .returning({
-                createdAt: proxyHosts.createdAt,
-                enabled: proxyHosts.enabled,
-                certificateId: proxyHosts.certificateId,
-                forceHttps: proxyHosts.forceHttps,
-                verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
-                upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
-                trustedCaId: proxyHosts.trustedCaId,
-                accessPolicyId: proxyHosts.accessPolicyId,
-                forwardHost: proxyHosts.forwardHost,
-                forwardPort: proxyHosts.forwardPort,
-                forwardScheme: proxyHosts.forwardScheme,
-                id: proxyHosts.id,
-                updatedAt: proxyHosts.updatedAt,
+            const domains = await loadProxyHostDomainsInTransaction(transaction, proxyHost.id)
+            if (enabled) {
+                await validateTrustedCaAssignmentInTransaction(transaction, proxyHost.trustedCaId)
+                await validateCertificateAssignmentInTransaction(
+                    transaction,
+                    proxyHost.certificateId,
+                    proxyHost.forceHttps,
+                    domains,
+                )
+            }
+            const rows = await transaction
+                .update(proxyHosts)
+                .set({ enabled, updatedAt: new Date() })
+                .where(eq(proxyHosts.id, proxyHost.id))
+                .returning({
+                    createdAt: proxyHosts.createdAt,
+                    enabled: proxyHosts.enabled,
+                    certificateId: proxyHosts.certificateId,
+                    forceHttps: proxyHosts.forceHttps,
+                    verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
+                    upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
+                    trustedCaId: proxyHosts.trustedCaId,
+                    accessPolicyId: proxyHosts.accessPolicyId,
+                    forwardHost: proxyHosts.forwardHost,
+                    forwardPort: proxyHosts.forwardPort,
+                    forwardScheme: proxyHosts.forwardScheme,
+                    id: proxyHosts.id,
+                    updatedAt: proxyHosts.updatedAt,
+                })
+            const updatedProxyHost = rows.at(0)
+
+            if (!updatedProxyHost) {
+                throw new ProxyHostDomainError('proxy_host_not_found', 'Proxy host was not found.')
+            }
+
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: enabled ? 'enable' : 'disable',
+                resource: 'proxy-host',
+                targetId: proxyHost.id,
+                result: 'success',
             })
-        const updatedProxyHost = rows.at(0)
 
-        if (!updatedProxyHost) {
-            throw new ProxyHostDomainError('proxy_host_not_found', 'Proxy host was not found.')
-        }
+            return toProxyHostSummary(updatedProxyHost, domains)
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: enabled ? 'enable' : 'disable',
+            resource: 'proxy-host',
+            targetId: id,
+            error,
+        })
+        throw error
+    }
 
-        return toProxyHostSummary(updatedProxyHost, domains)
-    })
-
-    return { ...saved, runtimeStatus: await reconcileProxyConfigurationService() }
+    return { ...saved, runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
 }
 
 export function enableProxyHostService(proxyHostId: string): Promise<ProxyHostMutationSummary> {

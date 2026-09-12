@@ -47,7 +47,8 @@
         "redirectHosts": "Redirect hosts",
         "certificates": "Certificates",
         "accessPolicies": "Access policies",
-        "proxyAccessLogs": "Access logs"
+        "proxyAccessLogs": "Access logs",
+        "auditLogs": "Audit log"
     },
     "language": {
         "title": "Language",
@@ -1516,6 +1517,137 @@
                 "loadFailed": "Access logs could not be loaded."
             }
         },
+        "auditLogs": {
+            "page": {
+                "eyebrow": "Accountability",
+                "title": "Audit log",
+                "description": "Review security and administration events recorded by RentnerProxy.",
+                "retention": "The audit log retains up to 90 days of recent events and is bounded to protect system resources."
+            },
+            "states": {
+                "unavailableTitle": "Audit log unavailable",
+                "unavailableDescription": "The audit history could not be loaded. Try again.",
+                "forbiddenTitle": "Audit log is restricted",
+                "forbiddenDescription": "Your account does not have permission to view the audit log."
+            },
+            "table": {
+                "eyebrow": "Recorded events",
+                "title": "Audit events",
+                "description": "Review who changed what and whether each operation succeeded, failed, or was denied.",
+                "emptyTitle": "No audit events",
+                "emptyDescription": "No events match the selected period and filters.",
+                "filteredEmptyDescription": "No audit events match these filters."
+            },
+            "filters": {
+                "actor": "Actor user ID",
+                "actorPlaceholder": "UUID of the actor",
+                "action": "Action",
+                "allActions": "All actions",
+                "resource": "Resource",
+                "allResources": "All resources",
+                "from": "From (UTC)",
+                "to": "To (UTC)"
+            },
+            "actions": {
+                "apply": "Apply filters",
+                "refresh": "Refresh",
+                "showDetails": "Show event details",
+                "hideDetails": "Hide event details"
+            },
+            "columns": {
+                "time": "Time (UTC)",
+                "actor": "Actor",
+                "action": "Action",
+                "resource": "Resource",
+                "target": "Target",
+                "result": "Result",
+                "details": "Details",
+                "actorKind": "Actor type",
+                "eventId": "Event ID",
+                "metadata": "Safe metadata"
+            },
+            "values": {
+                "actorKinds": {
+                    "user": "User",
+                    "anonymous": "Anonymous",
+                    "system": "System"
+                },
+                "results": {
+                    "success": "Success",
+                    "failure": "Failure",
+                    "denied": "Denied"
+                },
+                "actions": {
+                    "login": "Login",
+                    "logout": "Logout",
+                    "create": "Create",
+                    "update": "Update",
+                    "delete": "Delete",
+                    "enable": "Enable",
+                    "disable": "Disable",
+                    "rotate": "Rotate",
+                    "reset": "Reset",
+                    "accept": "Accept",
+                    "reauthenticate": "Reauthenticate",
+                    "import": "Import",
+                    "replace": "Replace",
+                    "request": "Request",
+                    "renew": "Renew",
+                    "save": "Save",
+                    "apply": "Apply"
+                },
+                "resources": {
+                    "session": "Session",
+                    "password": "Password",
+                    "totp": "TOTP",
+                    "recovery-codes": "Recovery codes",
+                    "passkey": "Passkey",
+                    "invite": "Invite",
+                    "setup": "Setup",
+                    "security-settings": "Security settings",
+                    "user": "User",
+                    "role": "Role",
+                    "proxy-host": "Proxy host",
+                    "redirect-host": "Redirect host",
+                    "access-policy": "Access policy",
+                    "basic-auth-account": "Basic Auth account",
+                    "certificate": "Certificate",
+                    "trusted-ca": "Trusted CA",
+                    "proxy-runtime-settings": "Proxy runtime settings",
+                    "proxy-host-settings": "Proxy host settings",
+                    "proxy-runtime": "Proxy runtime"
+                }
+            },
+            "metadata": {
+                "authenticationMethod": "Authentication method",
+                "reason": "Reason",
+                "failureCode": "Failure code",
+                "changedFields": "Changed fields",
+                "assigned": "Assigned",
+                "previousId": "Previous ID",
+                "nextId": "Next ID",
+                "runtimeStatus": "Runtime status",
+                "count": "Count"
+            },
+            "details": {
+                "noMetadata": "No additional safe metadata."
+            },
+            "pagination": {
+                "pageSummary": "{{count}} events on this page",
+                "label": "Audit log pagination",
+                "page": "Page {{page}}",
+                "previous": "Previous page",
+                "next": "Next page"
+            },
+            "validation": {
+                "actorUserId": "Enter a valid actor UUID.",
+                "dateTime": "Enter a valid UTC date and time.",
+                "dateRange": "The start date must be on or before the end date."
+            },
+            "errors": {
+                "loadFailed": "Audit events could not be loaded."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Certificates",
@@ -1607,7 +1739,8 @@
             "certificates": "Certificates",
             "trusted_cas": "Trusted CAs",
             "access_policies": "Access policies",
-            "proxy-access-logs": "Proxy access logs"
+            "proxy-access-logs": "Proxy access logs",
+            "audit-logs": "Audit log"
         },
         "app": {
             "access": "Application access"
@@ -1669,6 +1802,7 @@
         },
 
         "proxy-access-logs:view": "View proxy access logs",
+        "audit-logs:view": "View audit log",
 
         "trusted_cas": {
             "view": "View trusted CAs",

@@ -2,12 +2,13 @@ import { randomUUID } from 'node:crypto'
 
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { requestHandler } from '@tanstack/react-start/server'
-import { inArray, like, eq } from 'drizzle-orm'
+import { inArray, like, eq, and } from 'drizzle-orm'
 
 import { SESSION_COOKIE_NAME } from '../config/auth.config'
 import { PERMISSIONS, SYSTEM_ROLES, type PermissionKey } from '../config/permissions.config'
 import {
     accessPolicies,
+    auditEvents,
     permissions,
     proxyHosts,
     rolePermissions,
@@ -272,6 +273,23 @@ describe('Access policy management with PostgreSQL', () => {
             expect(
                 (await runAsUser(owner.id, getAccessPoliciesService)).map((row) => row.id),
             ).toEqual(expect.arrayContaining([policyA.id, policyB.id]))
+            await runAsUser(owner.id, () =>
+                updateProxyHostService({
+                    ...proxyHostInput(),
+                    proxyHostId: host.id,
+                    accessPolicyId: policyB.id,
+                }),
+            )
+            const assignmentEvents = await getAuthDatabase()
+                .select({ metadata: auditEvents.metadata })
+                .from(auditEvents)
+                .where(and(eq(auditEvents.targetId, host.id), eq(auditEvents.action, 'update')))
+            expect(assignmentEvents.map((event) => event.metadata)).toContainEqual({
+                changedFields: ['domains', 'upstream', 'tls', 'accessPolicy'],
+                assigned: true,
+                previousId: policyA.id,
+                nextId: policyB.id,
+            })
         },
     )
 
