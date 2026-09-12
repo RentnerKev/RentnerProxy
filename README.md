@@ -25,28 +25,24 @@
 
 ## Requirements
 
-For the production appliance:
-
-- Docker Engine with the Compose plugin.
-- Host ports `80` and `443` available; the management UI uses `127.0.0.1:81`.
-- SMTP host, user, password, and sender address. PostgreSQL and Redis are included.
+For the production appliance, use Docker Engine with the Compose plugin. Keep host ports `80`
+and `443` available; the management UI is bound to `127.0.0.1:81`. PostgreSQL and Redis are
+included, but an SMTP host, user, password, and sender address are required.
 
 ## Installation
 
 Download [`docker-compose.yml`](./docker-compose.yml) and [`.env.production.example`](./.env.production.example)
-in an empty folder, then run:
+to an empty folder. Set the Compose image to
+`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.2`, copy the environment template, and set SMTP values:
 
 ```bash
 cp .env.production.example .env
-# Edit .env with your SMTP settings.
-# For Alpha 1, set image: ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.1 in docker-compose.yml.
 docker compose up -d
 ```
 
-Open `http://localhost:81` and finish first-owner setup with the public
-management address users will use. Data is kept in the persistent `rentnerproxy` volume. Proxy
-traffic uses ports `80` and `443`; for remote management, use an SSH tunnel such as
-`ssh -L 8181:127.0.0.1:81 user@server` and open `http://localhost:8181`.
+Open `http://localhost:81` and finish first-owner setup with the public management address users
+will use. Data is kept in the persistent `rentnerproxy` volume. For remote management, use an SSH
+tunnel such as `ssh -L 8181:127.0.0.1:81 user@server` and open `http://localhost:8181`.
 
 ### Upgrade
 
@@ -57,67 +53,20 @@ docker compose pull
 docker compose up -d
 ```
 
-See the [upgrade and recovery guide](./docs/upgrades.md) for backup commands and rollback.
-
-### Release image tags
-
-Published releases select their Docker channel from the version tag:
-
-| GitHub release tag | Moving Docker tag | Exact Docker tag  |
-| ------------------ | ----------------- | ----------------- |
-| `v1.0.0-alpha.1`   | `:alpha`          | `:v1.0.0-alpha.1` |
-| `v1.0.0-beta.1`    | `:beta`           | `:v1.0.0-beta.1`  |
-| `v1.0.0`           | `:latest`         | `:v1.0.0`         |
-
-Use `ghcr.io/rentnerkev/rentnerproxy` with the desired tag. Each moving tag follows
-the most recently published release in its channel. Exact version tags pin a release.
-Alpha and beta releases must be marked as GitHub pre-releases; stable releases must not.
-Other prerelease suffixes are rejected. The `:dev` channel is retired; PR preview tags
-remain unchanged. Alpha, beta and stable releases each use their own release banner.
-
-### Development installation
-
-Contributors need Bun 1.4.2, Rust 1.98.0, PostgreSQL 18+, and Redis.
-Clone the repository, start PostgreSQL and Redis separately, then run:
-
-```bash
-cp .env.example .env
-# Configure DATABASE_URL, REDIS_URL, SMTP_*, and the local APP_URL.
-# Generate APP_ENCRYPTION_KEY below, then copy the result into .env.
-bun -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
-# Set RENTNERPROXY_CONTROLLER_TOKEN for certificate management or non-loopback controller access.
-bun install --frozen-lockfile
-bun run db:migrate
-bun run dev
-```
-
-The web app is available at `http://localhost:5173`. See [`CONTRIBUTING.md`](./CONTRIBUTING.md)
-for development checks before opening a pull request.
+See the [upgrade and recovery guide](./docs/upgrades.md) and [release guide](./docs/releases.md).
 
 ## Features
 
-- Caddy 2.11.4 powers proxy hosts for HTTP, HTTPS, redirects, and WebSockets.
-- Certificate import and automatic HTTPS certificates with ACME renewal.
-- DNS-01 with Cloudflare, including wildcard certificates and mixed wildcard/ordinary names.
+- Caddy 2.11.4 proxy hosts for HTTP, HTTPS, redirects, and WebSockets.
+- Certificate import and ACME renewal, including DNS-01 and wildcard certificates.
 - Upstream TLS verification with custom trusted CAs.
-- Reusable Access Policies with Basic Authentication and IPv4/IPv6 allow and deny rules.
-- Recent proxy request logs with host/status filters and search.
-- Read-only administrative audit log with actor, action and date filters.
+- Reusable Access Policies with Basic Authentication and IPv4/IPv6 rules.
+- Recent proxy request logs and a read-only administrative audit log.
 - User and role management with two-factor authentication and passkeys.
 - Backup, restore, and automatic configuration recovery after restarts.
-- English, German, Spanish, and French with theme settings.
+- English, German, Spanish, and French language and theme settings.
 
-### Proxy Host Access Policies
+See the [Access Policies guide](./docs/access-policies.md) and [certificate guide](./docs/certificates.md)
+for feature-specific usage.
 
-Create a policy in **Access Policies** and assign it to one or more Proxy Hosts.
-Use **Authenticated** and add accounts through **Credentials** to require a login.
-See the [Access Policies guide](./docs/access-policies.md) for combinations and apply status.
-
-### DNS-01 and wildcard certificates
-
-In **Certificates**, select **DNS-01** and supply a Cloudflare zone ID and a token restricted
-to that zone. The token needs **Zone / Zone / Read** and **Zone / DNS / Edit** permissions; see
-[Cloudflare's API token permissions](https://developers.cloudflare.com/fundamentals/api/reference/permissions/).
-Wildcard and ordinary names can be requested together, but every name must belong to the
-selected zone. Keep `APP_ENCRYPTION_KEY` unchanged across restarts and restores so certificates
-can renew. HTTP-01 remains the default for ordinary certificates.
+Development setup and checks are in [`CONTRIBUTING.md`](./CONTRIBUTING.md).

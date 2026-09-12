@@ -475,6 +475,8 @@ export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedRe
         `docker pull ${channelImage}`,
         codeFence,
         '',
+        `[Release details and limitations](${repositoryWebUrl(input.repository)}/blob/${encodeURIComponent(input.tagName)}/CHANGELOG.md) · [Upgrade and recovery guide](${repositoryWebUrl(input.repository)}/blob/${encodeURIComponent(input.tagName)}/docs/upgrades.md)`,
+        '',
         issueChangelog.trimEnd(),
         '',
     ].join('\n')
@@ -483,6 +485,8 @@ export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedRe
         `# RentnerProxy ${input.tagName} Changelog`,
         '',
         `> **${releaseType}** · Published **${date}**`,
+        '',
+        `[Release details and limitations](${repositoryWebUrl(input.repository)}/blob/${encodeURIComponent(input.tagName)}/CHANGELOG.md) · [Upgrade and recovery guide](${repositoryWebUrl(input.repository)}/blob/${encodeURIComponent(input.tagName)}/docs/upgrades.md)`,
         '',
         issueChangelog.trimEnd(),
         '',
