@@ -401,6 +401,79 @@ async fn access_log_query_validation_is_bounded() {
             "{query}"
         );
     }
+    let malformed_snapshot = test_app(None)
+        .await
+        .oneshot(
+            Request::builder()
+                .uri("/internal/v1/proxy/access-logs?snapshot=bad!")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(malformed_snapshot.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn access_log_snapshot_response_has_explicit_reset_and_expiry() {
+    let router = test_app(None).await;
+    let first = router
+        .clone()
+        .oneshot(request_with_method(
+            "GET",
+            "/internal/v1/proxy/access-logs",
+            Body::empty(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(first.status(), StatusCode::OK);
+    let first: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(first.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    let snapshot = first["snapshot"].as_str().unwrap().to_owned();
+    assert_eq!(snapshot.len(), 43);
+    assert!(first["snapshotExpiresAt"].as_str().unwrap().contains('T'));
+    assert_eq!(first["snapshotReset"], false);
+
+    let continuation = router
+        .clone()
+        .oneshot(request_with_method(
+            "GET",
+            &format!("/internal/v1/proxy/access-logs?snapshot={snapshot}&offset=1"),
+            Body::empty(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(continuation.status(), StatusCode::OK);
+    let continuation: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(continuation.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(continuation["snapshot"], snapshot);
+    assert_eq!(continuation["snapshotReset"], false);
+
+    let reset = router
+        .oneshot(request_with_method(
+            "GET",
+            "/internal/v1/proxy/access-logs?snapshot=AAAAAAAAAAAAAAAA&offset=1",
+            Body::empty(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(reset.status(), StatusCode::OK);
+    let reset: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(reset.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(reset["offset"], 0);
+    assert_eq!(reset["snapshotReset"], true);
 }
 
 #[tokio::test]

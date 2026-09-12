@@ -48,10 +48,10 @@ export default function ProxyAccessLogsPageView({
                     filters={state.filters}
                     filterErrors={state.filterErrors}
                     total={state.total}
-                    offset={state.offset}
-                    limit={state.limit}
-                    hasMore={state.hasMore}
                     truncated={state.truncated}
+                    snapshotReset={state.snapshotReset}
+                    pageSize={state.pageSize}
+                    currentPage={state.currentPage}
                     isLoading={state.isLoading}
                     isRefreshing={state.isRefreshing}
                     onHostChange={handler.onHostChange}
@@ -60,8 +60,8 @@ export default function ProxyAccessLogsPageView({
                     onApplyFilters={handler.applyFilters}
                     onResetFilters={handler.resetFilters}
                     onRefresh={handler.refresh}
-                    onPreviousPage={handler.previousPage}
-                    onNextPage={handler.nextPage}
+                    onPageChange={handler.onPageChange}
+                    onPageSizeChange={handler.onPageSizeChange}
                     onToggleDetails={handler.toggleEntryDetails}
                 />
             )}

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { Fragment } from 'react'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
@@ -8,6 +8,7 @@ import TableFilterToggle from '../../../../shared/Table/Components/TableFilterTo
 import useTableFilters from '../../../../shared/Table/Hooks/useTableFilters'
 import TableLayout from '../../../../shared/Table/Components/TableLayout'
 import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBody'
+import RemoteTablePagination from '../../../../shared/Table/Components/RemoteTablePagination'
 import { ActionMenu } from '../../../../shared/ActionMenu'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { Tooltip } from '../../../../shared/Tooltip'
@@ -15,6 +16,7 @@ import type { ProxyAccessLogEntry } from '../../../../shared/Types/proxy-access-
 import {
     formatBytes,
     formatDuration,
+    PROXY_ACCESS_LOGS_PAGE_SIZES,
     statusClassName,
     withoutQueryString,
 } from '../Helpers/proxyAccessLogs'
@@ -56,10 +58,10 @@ export default function ProxyAccessLogsTable({
     filters,
     filterErrors,
     total,
-    offset,
-    limit,
-    hasMore,
     truncated,
+    snapshotReset,
+    pageSize,
+    currentPage,
     isLoading,
     isRefreshing,
     onHostChange,
@@ -68,8 +70,8 @@ export default function ProxyAccessLogsTable({
     onApplyFilters,
     onResetFilters,
     onRefresh,
-    onPreviousPage,
-    onNextPage,
+    onPageChange,
+    onPageSizeChange,
     onToggleDetails,
 }: ProxyAccessLogsTableProps) {
     const { locale, t } = useTranslationStore()
@@ -80,11 +82,6 @@ export default function ProxyAccessLogsTable({
         filters.search.trim(),
     ].filter((value) => value.length > 0).length
     const hasActiveFilters = activeFilterCount > 0
-    const firstItem = entries.length === 0 ? 0 : offset + 1
-    const lastItem = offset + entries.length
-    const currentPage = Math.floor(offset / Math.max(limit, 1)) + 1
-    const pageCount = hasMore ? currentPage + 1 : Math.max(currentPage, 1)
-
     return (
         <TableLayout
             titleId="proxy-access-logs-table-title"
@@ -221,53 +218,30 @@ export default function ProxyAccessLogsTable({
                 </TableFilters>
             }
             pagination={
-                <div className="flex flex-col gap-3 border-t border-border bg-surface-subtle px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted">
-                        <p aria-live="polite">
-                            <span className="font-extrabold text-ink-soft">
-                                {t('admin.proxyAccessLogs.pagination.range', {
-                                    from: firstItem,
-                                    to: lastItem,
-                                    count: total,
-                                })}
-                            </span>
-                        </p>
-                        {truncated ? (
-                            <span>{t('admin.proxyAccessLogs.pagination.truncated')}</span>
-                        ) : null}
-                    </div>
-                    <nav
-                        aria-label={t('admin.proxyAccessLogs.pagination.label')}
-                        className="flex items-center justify-between gap-2 sm:justify-end"
-                    >
-                        <p
-                            className="mr-1 min-w-20 text-center text-xs text-muted"
+                <div>
+                    {snapshotReset ? (
+                        <output
+                            className="block border-t border-border bg-surface-subtle px-4 pt-3 text-xs text-muted"
                             aria-live="polite"
                         >
-                            {t('admin.proxyAccessLogs.pagination.page', {
-                                page: currentPage,
-                                count: pageCount,
-                            })}
+                            {t('admin.proxyAccessLogs.pagination.snapshotReset')}
+                        </output>
+                    ) : null}
+                    {truncated ? (
+                        <p className="bg-surface-subtle px-4 pt-3 text-xs text-muted">
+                            {t('admin.proxyAccessLogs.pagination.truncated')}
                         </p>
-                        <button
-                            type="button"
-                            className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
-                            onClick={onPreviousPage}
-                            disabled={offset === 0 || isRefreshing}
-                            aria-label={t('admin.proxyAccessLogs.pagination.previous')}
-                        >
-                            <ChevronLeft aria-hidden="true" className="size-4" />
-                        </button>
-                        <button
-                            type="button"
-                            className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
-                            onClick={onNextPage}
-                            disabled={!hasMore || isRefreshing}
-                            aria-label={t('admin.proxyAccessLogs.pagination.next')}
-                        >
-                            <ChevronRight aria-hidden="true" className="size-4" />
-                        </button>
-                    </nav>
+                    ) : null}
+                    <RemoteTablePagination
+                        pageIndex={Math.max(currentPage - 1, 0)}
+                        pageSize={pageSize}
+                        total={total}
+                        pageSizeOptions={PROXY_ACCESS_LOGS_PAGE_SIZES}
+                        itemLabel={t('admin.proxyAccessLogs.pagination.itemLabel')}
+                        onPageChange={(nextPageIndex) => onPageChange(nextPageIndex + 1)}
+                        onPageSizeChange={onPageSizeChange}
+                        disabled={isLoading || isRefreshing}
+                    />
                 </div>
             }
         >

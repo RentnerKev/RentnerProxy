@@ -96,6 +96,24 @@ export interface TablePaginationProps<TData extends RowData> {
     readonly pageSizeOptions: ReadonlyArray<number>
 }
 
+export interface TablePaginationControlsProps {
+    readonly pageIndex: number
+    readonly pageSize: number
+    readonly total: number
+    readonly pageSizeOptions: ReadonlyArray<number>
+    readonly itemLabel: string
+    readonly onPageChange: (pageIndex: number) => void
+    readonly onPageSizeChange: (pageSize: number) => void
+    readonly disabled?: boolean
+}
+
+export interface RemoteTablePaginationProps extends Omit<
+    TablePaginationControlsProps,
+    'pageSizeOptions'
+> {
+    readonly pageSizeOptions?: ReadonlyArray<number>
+}
+
 export interface DataTableProps<TData extends RowData> {
     readonly table: ClientTable<TData>
     readonly eyebrow: string

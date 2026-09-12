@@ -9,9 +9,9 @@ import { getProxyAccessLogsHandler } from '../server'
 import { proxyAccessLogsQuerySchema } from '../validation'
 import {
     emptyProxyAccessLogsFilters,
+    PROXY_ACCESS_LOGS_DEFAULT_PAGE_SIZE,
+    PROXY_ACCESS_LOGS_PAGE_SIZES,
     parseStatusFilter,
-    PROXY_ACCESS_LOGS_PAGE_SIZE,
-    sortProxyAccessLogsNewestFirst,
     toProxyAccessLogsQuery,
 } from '../Helpers/proxyAccessLogs'
 import type {
@@ -30,19 +30,34 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
         emptyProxyAccessLogsFilters,
     )
     const [filterErrors, setFilterErrors] = useState<ProxyAccessLogsFilterErrors>({})
-    const [offset, setOffset] = useState(0)
+    const [pageSize, setPageSize] = useState(PROXY_ACCESS_LOGS_DEFAULT_PAGE_SIZE)
+    const [page, setPage] = useState(1)
+    const [snapshot, setSnapshot] = useState<string | undefined>()
+    const [captureVersion, setCaptureVersion] = useState(0)
     const [expandedEntry, setExpandedEntry] = useState<string | null>(null)
-    const request = useMemo(() => toProxyAccessLogsQuery(filters, offset), [filters, offset])
+    const offset = (page - 1) * pageSize
+    const request = useMemo(
+        () => toProxyAccessLogsQuery(filters, offset, pageSize, snapshot),
+        [filters, offset, pageSize, snapshot],
+    )
     const logsQuery = useQuery<ProxyAccessLogsResult>({
-        queryKey: proxyAccessLogsQueryKeys.list(request),
+        queryKey: [...proxyAccessLogsQueryKeys.list(request), captureVersion],
         queryFn: () => getProxyAccessLogsHandler({ data: request }),
         enabled: canView,
         retry: false,
+        refetchOnMount: false,
+        refetchOnReconnect: false,
+        refetchOnWindowFocus: false,
+        staleTime: Infinity,
+        gcTime: 0,
     })
-    const sortedEntries = useMemo(
-        () => sortProxyAccessLogsNewestFirst(canView ? (logsQuery.data?.entries ?? []) : []),
-        [canView, logsQuery.data?.entries],
-    )
+    const entries = canView ? (logsQuery.data?.entries ?? []) : []
+    const snapshotReset = canView && (logsQuery.data?.snapshotReset ?? false)
+    const total = canView ? (logsQuery.data?.total ?? 0) : 0
+    const effectiveLimit = canView ? (logsQuery.data?.limit ?? pageSize) : pageSize
+    const pageCount = Math.max(Math.ceil(total / Math.max(effectiveLimit, 1)), 1)
+
+    const currentPage = snapshotReset ? 1 : page
     const timestampFormatter = useMemo(
         () =>
             new Intl.DateTimeFormat(locale, {
@@ -68,7 +83,7 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
         setFilterErrors((current) => ({ ...current, [key]: undefined }))
     }, [])
     const applyFilters = useCallback(() => {
-        const candidateRequest = toProxyAccessLogsQuery(draftFilters, 0)
+        const candidateRequest = toProxyAccessLogsQuery(draftFilters, 0, pageSize)
         const errors: ProxyAccessLogsFilterErrors = {}
         if (draftFilters.status.trim() && parseStatusFilter(draftFilters.status) === undefined) {
             errors.status = 'admin.proxyAccessLogs.validation.status'
@@ -103,37 +118,61 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
         setFilterErrors({})
         setFilters(normalizedFilters)
         setDraftFilters(normalizedFilters)
-        setOffset(0)
-    }, [draftFilters])
+        setPage(1)
+        setSnapshot(undefined)
+        setCaptureVersion((current) => current + 1)
+        setExpandedEntry(null)
+    }, [draftFilters, pageSize])
     const resetFilters = useCallback(() => {
         setFilters(emptyProxyAccessLogsFilters)
         setDraftFilters(emptyProxyAccessLogsFilters)
         setFilterErrors({})
-        setOffset(0)
+        setPage(1)
+        setSnapshot(undefined)
+        setCaptureVersion((current) => current + 1)
+        setExpandedEntry(null)
     }, [])
     const refresh = useCallback(async () => {
         await queryClient.invalidateQueries({
             queryKey: proxyAccessLogsQueryKeys.all,
             refetchType: 'none',
         })
-        setOffset(0)
-        if (offset === 0) void logsQuery.refetch()
-    }, [logsQuery, offset, queryClient])
+        setPage(1)
+        setSnapshot(undefined)
+        setCaptureVersion((current) => current + 1)
+        setExpandedEntry(null)
+    }, [queryClient])
     const retry = useCallback(() => {
         void logsQuery.refetch()
     }, [logsQuery])
-    const previousPage = useCallback(() => {
-        setOffset((current) => Math.max(0, current - PROXY_ACCESS_LOGS_PAGE_SIZE))
+    const changePage = useCallback(
+        (nextPage: number) => {
+            const boundedPage = Math.min(Math.max(nextPage, 1), pageCount)
+            if (boundedPage === currentPage) return
+            setPage(boundedPage)
+            setSnapshot(logsQuery.data?.snapshot ?? snapshot)
+            setExpandedEntry(null)
+        },
+        [currentPage, logsQuery.data?.snapshot, pageCount, snapshot],
+    )
+    const changePageSize = useCallback((nextPageSize: number) => {
+        if (
+            !PROXY_ACCESS_LOGS_PAGE_SIZES.includes(
+                nextPageSize as (typeof PROXY_ACCESS_LOGS_PAGE_SIZES)[number],
+            )
+        )
+            return
+        setPageSize(nextPageSize)
+        setPage(1)
+        setSnapshot(undefined)
+        setCaptureVersion((current) => current + 1)
+        setExpandedEntry(null)
     }, [])
-    const nextPage = useCallback(() => {
-        if (!logsQuery.data?.hasMore) return
-        setOffset((current) => current + PROXY_ACCESS_LOGS_PAGE_SIZE)
-    }, [logsQuery.data?.hasMore])
 
     return {
         state: {
             canView,
-            entries: sortedEntries,
+            entries,
             expandedEntry,
             formatTimestamp,
             filterErrors,
@@ -146,20 +185,22 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
             isError: canView && logsQuery.isError,
             isLoading: canView && logsQuery.isPending,
             isRefreshing: logsQuery.isFetching && !logsQuery.isPending,
-            limit: canView
-                ? (logsQuery.data?.limit ?? PROXY_ACCESS_LOGS_PAGE_SIZE)
-                : PROXY_ACCESS_LOGS_PAGE_SIZE,
-            offset,
-            total: canView ? (logsQuery.data?.total ?? 0) : 0,
+            limit: effectiveLimit,
+            offset: logsQuery.data?.offset ?? offset,
+            total,
             truncated: canView && (logsQuery.data?.truncated ?? false),
+            snapshotReset,
+            pageSize,
+            pageCount,
+            currentPage,
         },
         handler: {
-            nextPage,
             applyFilters,
             onHostChange: (value: string) => updateFilter('host', value),
             onSearchChange: (value: string) => updateFilter('search', value),
             onStatusChange: (value: string) => updateFilter('status', value),
-            previousPage,
+            onPageChange: changePage,
+            onPageSizeChange: changePageSize,
             refresh,
             resetFilters,
             retry,

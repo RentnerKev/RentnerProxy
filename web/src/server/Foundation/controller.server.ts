@@ -190,6 +190,8 @@ export async function getProxyAccessLogs(
         searchParams.set('limit', String(parsedQuery.data.limit))
     if (parsedQuery.data.offset !== undefined)
         searchParams.set('offset', String(parsedQuery.data.offset))
+    if (parsedQuery.data.snapshot !== undefined)
+        searchParams.set('snapshot', parsedQuery.data.snapshot)
 
     const path = ('/internal/v1/proxy/access-logs?' +
         searchParams.toString()) as `/internal/v1/proxy/access-logs${string}`

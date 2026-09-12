@@ -116,9 +116,12 @@ pub(super) async fn access_logs(request: Request, state: AppState) -> Result<Res
     }
     let Query(query) = Query::<AccessLogQuery>::try_from_uri(request.uri())
         .map_err(|_| ApiError::validation_failed())?;
-    let query = query
-        .validate()
-        .map_err(|_| ApiError::validation_failed())?;
+    let query = query.validate().map_err(|error| match error {
+        crate::runtime::access_logs::AccessLogQueryError::Invalid => ApiError::validation_failed(),
+        crate::runtime::access_logs::AccessLogQueryError::MalformedSnapshot => {
+            ApiError::invalid_snapshot()
+        }
+    })?;
     state
         .runtime
         .access_logs(query)

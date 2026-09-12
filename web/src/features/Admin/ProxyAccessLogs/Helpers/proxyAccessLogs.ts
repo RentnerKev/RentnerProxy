@@ -1,10 +1,8 @@
-import type {
-    ProxyAccessLogEntry,
-    ProxyAccessLogsQuery,
-} from '../../../../shared/Types/proxy-access-logs.types'
+import type { ProxyAccessLogsQuery } from '../../../../shared/Types/proxy-access-logs.types'
 import type { ProxyAccessLogsFilters } from '../Types/proxy-access-logs.types'
 
-export const PROXY_ACCESS_LOGS_PAGE_SIZE = 100
+export const PROXY_ACCESS_LOGS_DEFAULT_PAGE_SIZE = 15
+export const PROXY_ACCESS_LOGS_PAGE_SIZES = [15, 25, 50, 100] as const
 
 export const emptyProxyAccessLogsFilters: ProxyAccessLogsFilters = {
     host: '',
@@ -23,6 +21,8 @@ export function parseStatusFilter(value: string): number | undefined {
 export function toProxyAccessLogsQuery(
     filters: ProxyAccessLogsFilters,
     offset: number,
+    limit: number,
+    snapshot?: string,
 ): ProxyAccessLogsQuery {
     const host = filters.host.trim()
     const search = filters.search.trim()
@@ -32,8 +32,9 @@ export function toProxyAccessLogsQuery(
         ...(host ? { host } : {}),
         ...(status === undefined ? {} : { status }),
         ...(search ? { search } : {}),
-        limit: PROXY_ACCESS_LOGS_PAGE_SIZE,
+        limit,
         offset,
+        ...(snapshot ? { snapshot } : {}),
     }
 }
 
@@ -42,20 +43,6 @@ export function withoutQueryString(value: string): string {
     const queryStart = value.search(/[?#]/u)
     const path = queryStart < 0 ? value : value.slice(0, queryStart)
     return path || '/'
-}
-
-export function sortProxyAccessLogsNewestFirst(
-    entries: readonly ProxyAccessLogEntry[],
-): ProxyAccessLogEntry[] {
-    return entries
-        .map((entry, index) => ({ entry, index }))
-        .toSorted((left, right) => {
-            const rightTimestamp = Date.parse(right.entry.timestamp)
-            const leftTimestamp = Date.parse(left.entry.timestamp)
-            if (rightTimestamp !== leftTimestamp) return rightTimestamp - leftTimestamp
-            return left.index - right.index
-        })
-        .map(({ entry }) => entry)
 }
 
 export function formatDuration(durationMs: number): string {

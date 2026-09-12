@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { normalizeProxyDomain } from '../ProxyHostManagement/Helpers/proxyHostValidation'
 
-export const PROXY_ACCESS_LOGS_DEFAULT_LIMIT = 100
+export const PROXY_ACCESS_LOGS_DEFAULT_LIMIT = 15
 export const PROXY_ACCESS_LOGS_MAX_LIMIT = 200
 export const PROXY_ACCESS_LOGS_MAX_OFFSET = 10_000
 export const PROXY_ACCESS_LOGS_MAX_SEARCH_BYTES = 128
@@ -46,7 +46,10 @@ export const proxyAccessLogsSearchSchema = z
         message: 'admin.proxyAccessLogs.validation.search',
     })
 
+const snapshotSchema = z.string().regex(/^[A-Za-z0-9_-]{16,64}$/u)
+
 export const proxyAccessLogsQuerySchema = z.strictObject({
+    snapshot: snapshotSchema.optional(),
     host: proxyAccessLogHostSchema.optional(),
     status: z
         .number('admin.proxyAccessLogs.validation.status')
@@ -108,8 +111,14 @@ export const proxyAccessLogsResultSchema = z
         total: z.number().int().min(0).max(PROXY_ACCESS_LOGS_MAX_OFFSET),
         hasMore: z.boolean(),
         truncated: z.boolean(),
+        snapshot: snapshotSchema,
+        snapshotExpiresAt: timestampSchema,
+        snapshotReset: z.boolean(),
     })
     .superRefine((result, context) => {
+        if (result.snapshotReset && result.offset !== 0) {
+            context.addIssue({ code: 'custom', path: ['offset'] })
+        }
         if (result.entries.length > result.limit) {
             context.addIssue({ code: 'custom', path: ['entries'] })
         }

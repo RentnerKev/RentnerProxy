@@ -1566,7 +1566,9 @@
             },
             "pagination": {
                 "range": "{{from}}–{{to}} sur {{count}} requêtes",
+                "itemLabel": "requêtes",
                 "truncated": "La période récente est limitée.",
+                "snapshotReset": "L’instantané précédent a expiré ou n’est plus disponible. La première page des journaux actuels est affichée.",
                 "label": "Pagination des journaux d’accès",
                 "page": "Page {{page}} sur {{count}}",
                 "previous": "Page précédente",
@@ -1915,6 +1917,7 @@
             "rowsPerPage": "Lignes par page",
             "label": "Pagination du tableau",
             "page": "Page {{page}} sur {{count}}",
+            "goToPage": "Aller à la page {{page}}",
             "first": "Aller à la première page",
             "previous": "Aller à la page précédente",
             "next": "Aller à la page suivante",

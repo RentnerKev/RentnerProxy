@@ -37,15 +37,26 @@ const secondEntry = {
     status: 404,
 } as const
 
+let resetNextResponse = false
+
 const getProxyAccessLogsHandlerMock = mock(
-    async ({ data }: { readonly data: ProxyAccessLogsQuery }): Promise<ProxyAccessLogsResult> => ({
-        entries: data.offset === 0 ? [firstEntry] : [secondEntry],
-        limit: data.limit ?? 100,
-        offset: data.offset ?? 0,
-        total: 101,
-        hasMore: (data.offset ?? 0) === 0,
-        truncated: false,
-    }),
+    async ({ data }: { readonly data: ProxyAccessLogsQuery }): Promise<ProxyAccessLogsResult> => {
+        const snapshotReset = resetNextResponse
+        resetNextResponse = false
+        return {
+            entries: data.offset === 0 ? [firstEntry] : [secondEntry],
+            limit: data.limit ?? 15,
+            offset: snapshotReset ? 0 : (data.offset ?? 0),
+            total: 101,
+            hasMore: (data.offset ?? 0) < 100,
+            truncated: false,
+            snapshot: snapshotReset
+                ? 'snapshot-fresh-20260912'
+                : (data.snapshot ?? 'snapshot-initial-20260912'),
+            snapshotExpiresAt: '2026-09-12T13:00:00.000Z',
+            snapshotReset,
+        }
+    },
 )
 
 mock.module('../features/Admin/ProxyAccessLogs/server', () => ({
@@ -95,6 +106,38 @@ async function setInputValue(input: HTMLInputElement, value: string): Promise<vo
         setter?.call(input, value)
         input.dispatchEvent(new Event('input', { bubbles: true }))
         input.dispatchEvent(new Event('change', { bubbles: true }))
+        await Promise.resolve()
+    })
+}
+
+async function chooseSelectOption(ariaLabel: string, optionLabel: string): Promise<void> {
+    const trigger = getButton(document.body, ariaLabel)
+    await act(async () => {
+        trigger.dispatchEvent(
+            new PointerEvent('pointerdown', {
+                bubbles: true,
+                button: 0,
+                cancelable: true,
+                pointerType: 'mouse',
+            }),
+        )
+        await Promise.resolve()
+    })
+    await waitFor(() => document.querySelector('[role="listbox"]') !== null)
+    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+        (candidate) => candidate.textContent?.trim() === optionLabel,
+    )
+    expect(option).toBeDefined()
+    await act(async () => {
+        option?.dispatchEvent(
+            new PointerEvent('pointerup', {
+                bubbles: true,
+                button: 0,
+                cancelable: true,
+                pointerType: 'mouse',
+            }),
+        )
+        option?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
         await Promise.resolve()
     })
 }
@@ -164,14 +207,18 @@ function expectFilterTogglePlacement(toggle: HTMLButtonElement, panel: HTMLEleme
 
 beforeEach(() => {
     getProxyAccessLogsHandlerMock.mockClear()
+    resetNextResponse = false
 })
 
-afterEach(() => {
-    activeRoot?.unmount()
-    activeRoot = null
-    activeQueryClient?.clear()
-    activeQueryClient = null
-    document.body.replaceChildren()
+afterEach(async () => {
+    await act(async () => {
+        activeRoot?.unmount()
+        activeRoot = null
+        activeQueryClient?.clear()
+        activeQueryClient = null
+        document.body.replaceChildren()
+        await Promise.resolve()
+    })
 })
 
 describe('proxy access-log UI', () => {
@@ -180,7 +227,7 @@ describe('proxy access-log UI', () => {
         await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 1)
         await waitFor(() => container.textContent?.includes('/dashboard') === true)
         expect(getProxyAccessLogsHandlerMock.mock.calls[0]?.[0]).toEqual({
-            data: { limit: 100, offset: 0 },
+            data: { limit: 15, offset: 0 },
         })
         expect(container.textContent).toContain('/dashboard')
 
@@ -194,11 +241,14 @@ describe('proxy access-log UI', () => {
         await click(getButton(container, 'Apply filters'))
         await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 2)
         expect(getProxyAccessLogsHandlerMock.mock.calls[1]?.[0]).toEqual({
-            data: { host: 'app.example.com', limit: 100, offset: 0 },
+            data: { host: 'app.example.com', limit: 15, offset: 0 },
         })
 
+        await waitFor(
+            () => container.querySelector('button[aria-label="Go to next page"]') !== null,
+        )
         const nextButton = container.querySelector<HTMLButtonElement>(
-            'button[aria-label="Next page"]',
+            'button[aria-label="Go to next page"]',
         )
         expect(nextButton).not.toBeNull()
         await waitFor(() => nextButton?.disabled === false)
@@ -206,16 +256,88 @@ describe('proxy access-log UI', () => {
         await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 3)
         await waitFor(() => container.textContent?.includes('/older') === true)
         expect(getProxyAccessLogsHandlerMock.mock.calls[2]?.[0]).toEqual({
-            data: { host: 'app.example.com', limit: 100, offset: 100 },
+            data: {
+                host: 'app.example.com',
+                limit: 15,
+                offset: 15,
+                snapshot: 'snapshot-initial-20260912',
+            },
         })
         expect(container.textContent).toContain('/older')
 
         await click(getButton(container, 'Refresh'))
         await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 4)
         expect(getProxyAccessLogsHandlerMock.mock.calls[3]?.[0]).toEqual({
-            data: { host: 'app.example.com', limit: 100, offset: 0 },
+            data: { host: 'app.example.com', limit: 15, offset: 0 },
         })
         expect(container.textContent).toContain('/dashboard')
+    })
+
+    test('changes page size, uses numbered pages, and preserves the snapshot', async () => {
+        const container = await renderPage([PERMISSIONS.PROXY_ACCESS_LOGS_VIEW])
+        await waitFor(() => container.textContent?.includes('/dashboard') === true)
+
+        await chooseSelectOption('Rows per page', '25')
+        await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 2)
+        expect(getProxyAccessLogsHandlerMock.mock.calls[1]?.[0]).toEqual({
+            data: { limit: 25, offset: 0 },
+        })
+
+        await click(getButton(container, 'Go to page 3'))
+        await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 3)
+        expect(getProxyAccessLogsHandlerMock.mock.calls[2]?.[0]).toEqual({
+            data: {
+                limit: 25,
+                offset: 50,
+                snapshot: 'snapshot-initial-20260912',
+            },
+        })
+    })
+
+    test('requests a fresh snapshot when returning to a previously used page size', async () => {
+        const container = await renderPage([PERMISSIONS.PROXY_ACCESS_LOGS_VIEW])
+        await waitFor(() => container.textContent?.includes('/dashboard') === true)
+
+        await chooseSelectOption('Rows per page', '25')
+        await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 2)
+        expect(getProxyAccessLogsHandlerMock.mock.calls[1]?.[0]).toEqual({
+            data: { limit: 25, offset: 0 },
+        })
+
+        await chooseSelectOption('Rows per page', '15')
+        await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 3)
+        expect(getProxyAccessLogsHandlerMock.mock.calls[2]?.[0]).toEqual({
+            data: { limit: 15, offset: 0 },
+        })
+    })
+
+    test('announces snapshot reset and settles on returned first page', async () => {
+        const container = await renderPage([PERMISSIONS.PROXY_ACCESS_LOGS_VIEW])
+        await waitFor(() => container.textContent?.includes('/dashboard') === true)
+        resetNextResponse = true
+
+        await waitFor(
+            () => container.querySelector('button[aria-label="Go to next page"]') !== null,
+        )
+        await click(getButton(container, 'Go to next page'))
+        await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 2)
+        await waitFor(() => container.textContent?.includes('previous snapshot expired') === true)
+        expect(getProxyAccessLogsHandlerMock.mock.calls[1]?.[0]).toEqual({
+            data: {
+                limit: 15,
+                offset: 15,
+                snapshot: 'snapshot-initial-20260912',
+            },
+        })
+        await waitFor(() => container.textContent?.includes('Page 1 of 7') === true)
+        expect(getProxyAccessLogsHandlerMock).toHaveBeenCalledTimes(2)
+        expect(container.textContent).toContain('Page 1 of 7')
+        await click(getButton(container, 'Go to next page'))
+        await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 3)
+        expect(getProxyAccessLogsHandlerMock.mock.calls[2]?.[0]).toEqual({
+            data: { limit: 15, offset: 15, snapshot: 'snapshot-fresh-20260912' },
+        })
+        await waitFor(() => container.textContent?.includes('Page 2 of 7') === true)
     })
 
     test('keeps draft filters when collapsed and resets them from the shared control', async () => {
