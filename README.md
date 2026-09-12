@@ -57,7 +57,7 @@ docker compose pull
 docker compose up -d
 ```
 
-Keep the backup and the existing `.env` file, including `APP_ENCRYPTION_KEY`.
+See the [upgrade and recovery guide](./docs/upgrades.md) for backup commands and rollback.
 
 ### Release image tags
 

@@ -10,6 +10,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { smokeCompose, smokeDockerArguments } from './smoke-resources'
+import { verifyAlpha1Upgrade } from './alpha1-upgrade-smoke'
 
 // This smoke deliberately uses a separate env file. Compose otherwise auto-loads the
 // repository .env, which may contain real SMTP credentials on a developer machine.
@@ -1135,6 +1136,19 @@ async function runSmoke(): Promise<void> {
         await command([...legacyComposes[0]!, 'down', '--volumes', '--remove-orphans'], 180_000)
         const legacyV1 = await makeLegacyFixture(1)
         await restoreLegacyFixture(legacyV1, legacyComposes[1]!, legacyProjects[1]!, 1)
+        await command([...legacyComposes[1]!, 'down', '--volumes', '--remove-orphans'], 180_000)
+        await command([...restoreCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
+        await verifyAlpha1Upgrade({
+            imageTag,
+            temporaryRoot,
+            upstreamPort: backendPort,
+            trafficMarker,
+            envFile,
+            environment: scriptEnvironment,
+            command,
+            commandWithEnvironment,
+            passed,
+        })
     } finally {
         backend?.stop(true)
         await commandFails([...compose, 'down', '--volumes', '--remove-orphans'], 180_000)
@@ -1157,13 +1171,13 @@ try {
     )
     const locations =
         error instanceof Error
-            ? error.stack?.matchAll(/appliance-compose-smoke\.ts:(\d+):(\d+)/gu)
+            ? error.stack?.matchAll(
+                  /(appliance-compose-smoke|alpha1-upgrade-smoke|alpha1-upgrade-fixture)\.ts:(\d+):(\d+)/gu,
+              )
             : undefined
     if (locations) {
         for (const location of [...locations].slice(0, 6)) {
-            console.error(
-                'at scripts/appliance-compose-smoke.ts:' + location[1] + ':' + location[2],
-            )
+            console.error('at scripts/' + location[1] + '.ts:' + location[2] + ':' + location[3])
         }
     }
     process.exitCode = 1
