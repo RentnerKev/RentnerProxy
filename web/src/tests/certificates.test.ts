@@ -339,6 +339,14 @@ describe('sensitive controller certificate transport', () => {
                         lastAttemptAt: '2026-08-31T00:00:00Z',
                         lastSuccessAt: '2026-06-01T00:00:00Z',
                         nextRenewalAt: '2026-09-15T00:00:00Z',
+                        candidate: {
+                            fingerprint: 'sha256:' + 'b'.repeat(64),
+                            issuedAt: '2026-08-30T00:00:00Z',
+                            expiresAt: '2027-08-30T00:00:00Z',
+                            lastErrorCode: null,
+                            nextAttemptAt: null,
+                        },
+                        dnsCleanupPending: false,
                     }),
                 ],
             }),
@@ -350,8 +358,42 @@ describe('sensitive controller certificate transport', () => {
                 lastAttemptAt: '2026-08-31T00:00:00Z',
                 lastSuccessAt: '2026-06-01T00:00:00Z',
                 nextRenewalAt: '2026-09-15T00:00:00Z',
+                candidate: {
+                    fingerprint: 'sha256:' + 'b'.repeat(64),
+                    issuedAt: '2026-08-30T00:00:00Z',
+                    expiresAt: '2027-08-30T00:00:00Z',
+                    lastErrorCode: null,
+                    nextAttemptAt: null,
+                },
+                dnsCleanupPending: false,
             },
         ])
+    })
+
+    test('rejects malformed candidate metadata while accepting legacy responses', async () => {
+        mockController(async () =>
+            Response.json({ certificates: [metadata({ candidate: undefined })] }),
+        )
+        await expect(getControllerCertificates()).resolves.toHaveLength(1)
+
+        mockController(async () =>
+            Response.json({
+                certificates: [
+                    metadata({
+                        candidate: {
+                            fingerprint: 'sha256:invalid',
+                            issuedAt: '2026-08-30T00:00:00Z',
+                            expiresAt: '2027-08-30T00:00:00Z',
+                            lastErrorCode: null,
+                            nextAttemptAt: null,
+                        },
+                    }),
+                ],
+            }),
+        )
+        await expect(getControllerCertificates()).rejects.toMatchObject({
+            code: 'controller_unavailable',
+        })
     })
 
     test.each([

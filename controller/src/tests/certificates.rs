@@ -1,4 +1,5 @@
 use std::{
+    path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -69,6 +70,486 @@ fn test_state_dir() -> std::path::PathBuf {
             .expect("system time should be after epoch")
             .as_nanos(),
     ))
+}
+
+fn acme_request() -> CertificateIssueRequest {
+    CertificateIssueRequest {
+        domains: vec!["example.com".to_owned()],
+        environment: CertificateEnvironment::Staging,
+        contact_email: None,
+        challenge_type: Default::default(),
+        dns_provider: None,
+        accept_terms: true,
+    }
+}
+
+fn import_request() -> (CertificateImportRequest, String) {
+    let certificate = rcgen::generate_simple_self_signed(vec!["example.com".to_owned()])
+        .expect("test certificate should generate");
+    (
+        CertificateImportRequest {
+            certificate_pem: certificate.cert.pem(),
+            private_key_pem: certificate.signing_key.serialize_pem(),
+            chain_pem: None,
+            required_domains: Some(vec!["example.com".to_owned()]),
+        },
+        certificate.cert.pem(),
+    )
+}
+
+async fn active_acme_store(state_dir: PathBuf, id: &str) -> (CertificateStore, String, PathBuf) {
+    std::fs::create_dir_all(&state_dir).expect("test state directory should exist");
+    let store = CertificateStore::new(state_dir);
+    store.initialize().await.expect("store should initialize");
+    let request = acme_request();
+    store
+        .begin_issue(id, request.clone(), false)
+        .await
+        .expect("initial ACME issue should begin");
+    let (material, _) = import_request();
+    let staged = store
+        .stage_acme(
+            id,
+            &request,
+            material.certificate_pem,
+            material.private_key_pem,
+        )
+        .await
+        .expect("initial ACME material should stage");
+    let metadata = store
+        .commit_staged(&staged)
+        .await
+        .expect("initial ACME material should activate");
+    let fingerprint = metadata
+        .fingerprint
+        .expect("active material should have a fingerprint");
+    let active_version = store
+        .material(id)
+        .await
+        .expect("active material should resolve")
+        .fullchain_path
+        .parent()
+        .expect("active version directory should exist")
+        .to_owned();
+    (store, fingerprint, active_version)
+}
+
+async fn stage_acme_candidate(store: &CertificateStore, state_dir: &Path, id: &str) -> PathBuf {
+    let (_, renewal_request) = store.begin_renewal(id).await.expect("renewal should begin");
+    let (material, _) = import_request();
+    let _staged = store
+        .stage_acme(
+            id,
+            &renewal_request,
+            material.certificate_pem,
+            material.private_key_pem,
+        )
+        .await
+        .expect("renewal material should stage");
+    let candidate_manifest = state_dir
+        .join("certificates")
+        .join(id)
+        .join("candidate.json");
+    let candidate: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(&candidate_manifest).expect("candidate sidecar should exist"),
+    )
+    .expect("candidate sidecar should be JSON");
+    let material_id = candidate["staged"]["materialId"]
+        .as_str()
+        .expect("candidate should point at material")
+        .to_owned();
+    candidate_manifest
+        .parent()
+        .expect("candidate directory should exist")
+        .join("versions")
+        .join(material_id)
+}
+
+fn copy_material_version(source: &Path, destination: &Path) {
+    std::fs::create_dir(destination).expect("unreferenced version directory should create");
+    for name in ["fullchain.pem", "private-key.pem"] {
+        std::fs::copy(source.join(name), destination.join(name))
+            .expect("material version file should copy");
+    }
+}
+
+#[tokio::test]
+async fn staged_candidate_preserves_active_material_across_restart() {
+    let state_dir = test_state_dir();
+    let id = "0198d98a-0000-7000-8000-000000000010";
+    let (store, old_fingerprint, _) = active_acme_store(state_dir.clone(), id).await;
+    let candidate_version = stage_acme_candidate(&store, &state_dir, id).await;
+    let before_restart = store
+        .get(id)
+        .await
+        .expect("active metadata should remain readable");
+    assert_eq!(
+        before_restart.fingerprint.as_deref(),
+        Some(old_fingerprint.as_str())
+    );
+    assert!(before_restart.candidate.is_some());
+    drop(store);
+
+    let reopened = CertificateStore::new(state_dir);
+    reopened
+        .initialize()
+        .await
+        .expect("candidate should recover");
+    let metadata = reopened
+        .get(id)
+        .await
+        .expect("metadata should survive restart");
+    assert_eq!(
+        metadata.fingerprint.as_deref(),
+        Some(old_fingerprint.as_str())
+    );
+    assert_ne!(
+        metadata
+            .candidate
+            .as_ref()
+            .map(|candidate| candidate.fingerprint.as_str()),
+        Some(old_fingerprint.as_str())
+    );
+    assert_eq!(
+        reopened.pending_candidate_ids().await.unwrap(),
+        vec![id.to_owned()]
+    );
+    assert!(candidate_version.join("fullchain.pem").is_file());
+}
+
+#[tokio::test]
+async fn candidate_sidecar_recovers_when_pending_index_entry_is_missing() {
+    let state_dir = test_state_dir();
+    let id = "0198d98a-0000-7000-8000-000000000011";
+    let (store, _, _) = active_acme_store(state_dir.clone(), id).await;
+    stage_acme_candidate(&store, &state_dir, id).await;
+    drop(store);
+
+    let index_path = state_dir.join("certificates/certificate-metadata.json");
+    let mut index: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&index_path).unwrap()).unwrap();
+    index
+        .as_object_mut()
+        .expect("certificate index should be an object")
+        .remove("pendingCandidates");
+    std::fs::write(&index_path, serde_json::to_vec(&index).unwrap()).unwrap();
+
+    let reopened = CertificateStore::new(state_dir);
+    reopened
+        .initialize()
+        .await
+        .expect("sidecar should restore candidate");
+    assert_eq!(
+        reopened.pending_candidate_ids().await.unwrap(),
+        vec![id.to_owned()]
+    );
+    assert!(reopened.get(id).await.unwrap().candidate.is_some());
+}
+
+#[tokio::test]
+async fn stale_promoted_candidate_sidecar_is_removed_before_manual_replacement() {
+    // A live store must also remove a completed candidate sidecar before a
+    // manual replacement changes the active pointer.
+    let live_state_dir = test_state_dir();
+    let live_id = "0198d98a-0000-7000-8000-000000000017";
+    let (live_store, _, _) = active_acme_store(live_state_dir.clone(), live_id).await;
+    stage_acme_candidate(&live_store, &live_state_dir, live_id).await;
+    drop(live_store);
+    let live_manifest_path = live_state_dir
+        .join("certificates")
+        .join(live_id)
+        .join("candidate.json");
+    let live_stale_manifest =
+        std::fs::read(&live_manifest_path).expect("candidate sidecar should exist");
+    let live_store = CertificateStore::new(live_state_dir.clone());
+    live_store.initialize().await.unwrap();
+    let live_staged = live_store
+        .begin_candidate_activation(live_id, false)
+        .await
+        .unwrap()
+        .expect("candidate should activate");
+    live_store.commit_staged(&live_staged).await.unwrap();
+    std::fs::write(&live_manifest_path, live_stale_manifest)
+        .expect("stale sidecar should be restorable");
+    let (manual, _) = import_request();
+    let manual_staged = live_store
+        .stage_manual(live_id, manual)
+        .await
+        .expect("manual replacement should ignore stale sidecar");
+    let manual_metadata = live_store
+        .commit_staged(&manual_staged)
+        .await
+        .expect("manual replacement should commit");
+    assert_eq!(manual_metadata.source, CertificateSource::Manual);
+    assert!(!live_manifest_path.is_file());
+    drop(live_store);
+
+    let state_dir = test_state_dir();
+    let id = "0198d98a-0000-7000-8000-000000000016";
+    let (store, _, _) = active_acme_store(state_dir.clone(), id).await;
+    stage_acme_candidate(&store, &state_dir, id).await;
+    drop(store);
+
+    let manifest_path = state_dir
+        .join("certificates")
+        .join(id)
+        .join("candidate.json");
+    let stale_manifest = std::fs::read(&manifest_path).expect("candidate sidecar should exist");
+    let store = CertificateStore::new(state_dir.clone());
+    store
+        .initialize()
+        .await
+        .expect("candidate should initialize");
+    let staged = store
+        .begin_candidate_activation(id, false)
+        .await
+        .unwrap()
+        .expect("candidate should activate");
+    store
+        .commit_staged(&staged)
+        .await
+        .expect("candidate should promote");
+    assert!(store.get(id).await.unwrap().candidate.is_none());
+
+    // Simulate a crash after the active index commit and before sidecar removal.
+    std::fs::write(&manifest_path, stale_manifest).expect("stale sidecar should be restorable");
+    drop(store);
+
+    let reopened = CertificateStore::new(state_dir);
+    reopened
+        .initialize()
+        .await
+        .expect("restart should discard the promoted sidecar");
+    assert!(reopened.get(id).await.unwrap().candidate.is_none());
+    assert!(!manifest_path.is_file());
+
+    let (manual, _) = import_request();
+    let staged = reopened
+        .stage_manual(id, manual)
+        .await
+        .expect("manual replacement should not be blocked by stale sidecar");
+    let metadata = reopened
+        .commit_staged(&staged)
+        .await
+        .expect("manual replacement should commit");
+    assert_eq!(metadata.source, CertificateSource::Manual);
+}
+
+#[tokio::test]
+async fn unknown_candidate_version_is_rejected_without_dropping_the_sidecar() {
+    let state_dir = test_state_dir();
+    let id = "0198d98a-0000-7000-8000-000000000012";
+    let (store, _, _) = active_acme_store(state_dir.clone(), id).await;
+    stage_acme_candidate(&store, &state_dir, id).await;
+    drop(store);
+
+    let manifest_path = state_dir
+        .join("certificates")
+        .join(id)
+        .join("candidate.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["version"] = serde_json::json!(255);
+    std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+
+    let reopened = CertificateStore::new(state_dir);
+    assert_eq!(
+        reopened.initialize().await,
+        Err(CertificateError::StoreUnavailable)
+    );
+    assert!(
+        manifest_path.is_file(),
+        "rejected candidate must remain for recovery"
+    );
+}
+
+#[tokio::test]
+async fn tampered_candidate_material_is_rejected_and_remains_guarded() {
+    for (offset, tamper_fingerprint) in [(0, false), (1, true)] {
+        let state_dir = test_state_dir();
+        let id = format!("0198d98a-0000-7000-8000-0000000000{offset:02x}");
+        let (store, _, _) = active_acme_store(state_dir.clone(), &id).await;
+        let candidate_version = stage_acme_candidate(&store, &state_dir, &id).await;
+        drop(store);
+
+        if tamper_fingerprint {
+            let manifest_path = state_dir
+                .join("certificates")
+                .join(&id)
+                .join("candidate.json");
+            let mut manifest: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
+            manifest["staged"]["fingerprint"] =
+                serde_json::json!(format!("sha256:{}", "f".repeat(64)));
+            std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        } else {
+            let (material, _) = import_request();
+            std::fs::write(
+                candidate_version.join("private-key.pem"),
+                material.private_key_pem,
+            )
+            .unwrap();
+        }
+
+        let reopened = CertificateStore::new(state_dir);
+        reopened
+            .initialize()
+            .await
+            .expect("candidate metadata should parse");
+        let expected_error = if tamper_fingerprint {
+            CertificateError::StoreUnavailable
+        } else {
+            CertificateError::KeyMismatch
+        };
+        assert!(matches!(
+            reopened.begin_candidate_activation(&id, false).await,
+            Err(error) if error == expected_error
+        ));
+        assert_eq!(reopened.pending_candidate_ids().await.unwrap(), vec![id]);
+    }
+}
+
+#[tokio::test]
+async fn pending_candidate_blocks_new_issue_renewal_manual_stage_and_delete() {
+    let state_dir = test_state_dir();
+    let id = "0198d98a-0000-7000-8000-000000000013";
+    let (store, _, _) = active_acme_store(state_dir.clone(), id).await;
+    stage_acme_candidate(&store, &state_dir, id).await;
+    drop(store);
+
+    let reopened = CertificateStore::new(state_dir);
+    reopened.initialize().await.unwrap();
+    assert_eq!(
+        reopened.begin_issue(id, acme_request(), false).await,
+        Err(CertificateError::OperationInProgress)
+    );
+    assert!(matches!(
+        reopened.begin_renewal(id).await,
+        Err(CertificateError::OperationInProgress)
+    ));
+    let (manual, _) = import_request();
+    assert!(matches!(
+        reopened.stage_manual(id, manual).await,
+        Err(CertificateError::OperationInProgress)
+    ));
+    assert_eq!(
+        reopened.delete_if_unused(id, false).await,
+        Err(CertificateError::OperationInProgress)
+    );
+}
+
+#[tokio::test]
+async fn garbage_collection_preserves_active_pending_and_leased_versions_until_promotion() {
+    let state_dir = test_state_dir();
+    let id = "0198d98a-0000-7000-8000-000000000014";
+    let (store, _, active_version) = active_acme_store(state_dir.clone(), id).await;
+    let versions_dir = state_dir.join("certificates").join(id).join("versions");
+    let unreferenced = versions_dir.join("e".repeat(64));
+    copy_material_version(&active_version, &unreferenced);
+    let candidate_version = stage_acme_candidate(&store, &state_dir, id).await;
+
+    store.collect_garbage().await.unwrap();
+    assert!(
+        active_version.exists(),
+        "leased active material must remain"
+    );
+    assert!(
+        candidate_version.exists(),
+        "leased candidate material must remain"
+    );
+    assert!(
+        unreferenced.exists(),
+        "all versions for a leased ID must remain"
+    );
+    drop(store);
+
+    let reopened = CertificateStore::new(state_dir);
+    reopened.initialize().await.unwrap();
+    reopened.collect_garbage().await.unwrap();
+    assert!(
+        active_version.exists(),
+        "active material must remain while candidate is pending"
+    );
+    assert!(
+        candidate_version.exists(),
+        "pending candidate material must remain"
+    );
+    assert!(
+        !unreferenced.exists(),
+        "unleased, unreferenced material can be collected without touching active or pending versions"
+    );
+
+    let promoted = reopened
+        .begin_candidate_activation(id, false)
+        .await
+        .unwrap()
+        .expect("pending candidate should be activatable");
+    reopened.commit_staged(&promoted).await.unwrap();
+    reopened.collect_garbage().await.unwrap();
+    assert!(
+        !active_version.exists(),
+        "old active material should collect after promotion"
+    );
+    assert!(
+        candidate_version.exists(),
+        "promoted material must remain active"
+    );
+    assert!(
+        !unreferenced.exists(),
+        "unreferenced material should collect after promotion"
+    );
+}
+
+#[tokio::test]
+async fn candidate_sidecar_recovers_after_index_write_failure() {
+    let state_dir = test_state_dir();
+    std::fs::create_dir_all(&state_dir).unwrap();
+    let store = CertificateStore::new(state_dir.clone());
+    store.initialize().await.unwrap();
+    let id = "0198d98a-0000-7000-8000-000000000015";
+    let request = acme_request();
+    store.begin_issue(id, request.clone(), false).await.unwrap();
+
+    let index_path = state_dir.join("certificates/certificate-metadata.json");
+    let backup_path = state_dir.join("certificates/certificate-metadata.backup");
+    std::fs::rename(&index_path, &backup_path).unwrap();
+    std::fs::create_dir(&index_path).unwrap();
+    let (material, _) = import_request();
+    assert!(matches!(
+        store
+            .stage_acme(
+                id,
+                &request,
+                material.certificate_pem,
+                material.private_key_pem,
+            )
+            .await,
+        Err(CertificateError::StoreUnavailable)
+    ));
+    let sidecar_path = state_dir
+        .join("certificates")
+        .join(id)
+        .join("candidate.json");
+    assert!(
+        sidecar_path.is_file(),
+        "sidecar must precede the index pointer"
+    );
+    assert!(matches!(
+        store.begin_candidate_activation(id, false).await,
+        Err(CertificateError::OperationInProgress)
+    ));
+    std::fs::remove_dir(&index_path).unwrap();
+    std::fs::rename(&backup_path, &index_path).unwrap();
+    drop(store);
+
+    let reopened = CertificateStore::new(state_dir);
+    reopened.initialize().await.unwrap();
+    assert_eq!(
+        reopened.pending_candidate_ids().await.unwrap(),
+        vec![id.to_owned()]
+    );
+    assert!(reopened.get(id).await.unwrap().candidate.is_some());
+    assert_eq!(reopened.get(id).await.unwrap().last_error_code, None);
 }
 
 #[tokio::test]

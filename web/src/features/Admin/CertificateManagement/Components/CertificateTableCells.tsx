@@ -48,12 +48,25 @@ export function CertificateSourceCell({ source }: { readonly source: Certificate
     )
 }
 
-export function CertificateStatusCell({ status }: { readonly status: CertificateStatus }) {
+export function CertificateStatusCell({
+    candidate,
+    status,
+}: {
+    readonly candidate: boolean
+    readonly status: CertificateStatus
+}) {
     const { t } = useTranslationStore()
     return (
-        <span className={`${badge} ${certificateStatusClass(status)}`}>
-            {t(`admin.certificates.status.${status}`)}
-        </span>
+        <div className="flex flex-wrap gap-2">
+            <span className={`${badge} ${certificateStatusClass(status)}`}>
+                {t(`admin.certificates.status.${status}`)}
+            </span>
+            {candidate ? (
+                <span className={`${badge} bg-info-bg text-info-text`}>
+                    {t('admin.certificates.status.candidate')}
+                </span>
+            ) : null}
+        </div>
     )
 }
 

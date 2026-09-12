@@ -36,7 +36,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
     time::Duration,
 };
@@ -51,6 +51,7 @@ use trusted_cas::TrustedCaStore;
 
 const BASELINE_PROBE_REVISION: &str = "none";
 const ACTIVE_CONFIGURATION_FILE: &str = "active-proxy-snapshot.json";
+const MAX_CANDIDATE_ACTIVATIONS_PER_TICK: usize = 4;
 
 #[derive(Clone, Debug)]
 pub(crate) struct RuntimeSettings {
@@ -129,6 +130,8 @@ pub(crate) struct ProxyRuntime {
     trusted_ca_store: TrustedCaStore,
     renewal_task: Mutex<Option<JoinHandle<()>>>,
     recovery_task: Mutex<Option<JoinHandle<()>>>,
+    candidate_cursor: AtomicUsize,
+    dns_cleanup_cursor: AtomicUsize,
 }
 
 impl ProxyRuntime {
@@ -163,6 +166,8 @@ impl ProxyRuntime {
             active_configuration: Mutex::new(None),
             renewal_task: Mutex::new(None),
             recovery_task: Mutex::new(None),
+            candidate_cursor: AtomicUsize::new(0),
+            dns_cleanup_cursor: AtomicUsize::new(0),
         })
     }
 
@@ -409,6 +414,8 @@ impl ProxyRuntime {
             timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
                 timer.tick().await;
+                runtime.retry_certificate_candidates().await;
+                runtime.recover_dns_cleanup().await;
                 runtime.renew_due_certificates(challenges.clone()).await;
             }
         }));
@@ -474,30 +481,56 @@ impl ProxyRuntime {
         self.commit_or_reapply_staged_certificate(staged).await
     }
 
-    pub(crate) async fn activate_acme_certificate(
-        self: &Arc<Self>,
-        id: &str,
-        request: &CertificateIssueRequest,
-        certificate_pem: String,
-        private_key_pem: String,
-    ) -> Result<CertificateMetadata, CertificateError> {
-        let staged = self
-            .certificate_store
-            .stage_acme(id, request, certificate_pem, private_key_pem)
-            .await?;
-        self.commit_or_reapply_staged_certificate(staged).await
-    }
-
     async fn commit_or_reapply_staged_certificate(
         self: &Arc<Self>,
         staged: StagedCertificate,
     ) -> Result<CertificateMetadata, CertificateError> {
         let id = staged.id().to_owned();
         if self.apply_staged_for_active(staged.clone()).await.is_err() {
-            self.certificate_store.discard_staged(&staged).await;
+            if staged.is_acme() {
+                self.certificate_store
+                    .finish_candidate_failed(&staged, CertificateError::RuntimeApplyFailed)
+                    .await;
+            } else {
+                self.certificate_store.discard_staged(&staged).await;
+            }
             return Err(CertificateError::RuntimeApplyFailed);
         }
         self.certificate_store.get(&id).await
+    }
+
+    pub(crate) async fn retry_certificate_candidate(
+        self: &Arc<Self>,
+        id: &str,
+        scheduled: bool,
+    ) -> Result<Option<CertificateMetadata>, CertificateError> {
+        let Some(staged) = self
+            .certificate_store
+            .begin_candidate_activation(id, scheduled)
+            .await?
+        else {
+            return Ok(None);
+        };
+        self.commit_or_reapply_staged_certificate(staged)
+            .await
+            .map(Some)
+    }
+
+    async fn retry_certificate_candidates(self: &Arc<Self>) {
+        let Ok(mut ids) = self.certificate_store.pending_candidate_ids().await else {
+            return;
+        };
+        if ids.is_empty() {
+            return;
+        }
+        let offset = self.candidate_cursor.fetch_add(1, Ordering::Relaxed) % ids.len();
+        ids.rotate_left(offset);
+        for id in ids.into_iter().take(MAX_CANDIDATE_ACTIVATIONS_PER_TICK) {
+            if self.stopping.load(Ordering::SeqCst) {
+                break;
+            }
+            let _ = self.retry_certificate_candidate(&id, true).await;
+        }
     }
 
     pub(crate) async fn delete_certificate(&self, id: &str) -> Result<(), CertificateError> {
@@ -868,6 +901,8 @@ mod renewal_tests {
             next_renewal_at: Some(format(
                 issued + time::Duration::seconds(days.saturating_mul(86_400).saturating_mul(2) / 3),
             )),
+            candidate: None,
+            dns_cleanup_pending: false,
         }
     }
 

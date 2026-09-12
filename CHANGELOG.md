@@ -12,6 +12,9 @@ user-visible changes, not a raw commit log.
   every minute, including short-lived certificates.
 - Persist retry deadlines and attempt history, apply bounded backoff with jitter, and prevent
   manual retries or restarts from bypassing CA retry deadlines.
+- Preserve issued ACME certificate candidates across activation failures and restarts, so
+  Caddy activation can be retried without ordering another certificate. Keep active material
+  separate from pending candidates and recover outstanding DNS cleanup independently.
 
 ### Upgrade notes
 
@@ -19,6 +22,9 @@ user-visible changes, not a raw commit log.
   state and the encryption key together when backing up and restoring. The scheduling change
   does not require a database migration or proxy snapshot version change.
 - Alpha 4 is under development; no Alpha 4 tag or release has been published by this work.
+- Candidate display metadata uses an additive database migration. Back up the entire
+  controller certificate directory and encryption key to preserve active material, pending
+  candidates, and DNS cleanup intents. The proxy snapshot remains version 7.
 
 ## [v1.0.0-alpha.2]
 

@@ -669,7 +669,8 @@
                 "valid": "Valid",
                 "expiring": "Expiring soon",
                 "expired": "Expired",
-                "failed": "Failed"
+                "failed": "Failed",
+                "candidate": "Pending activation"
             },
             "cells": {
                 "moreDomains": "Show {{count}} more domains"
@@ -680,6 +681,7 @@
                 "requestForHost": "Request certificate for this host",
                 "details": "Details",
                 "renew": "Renew",
+                "retry": "Retry activation",
                 "replace": "Replace",
                 "delete": "Delete",
                 "saving": "Saving...",
@@ -695,7 +697,13 @@
                 "issuer": "Issuer",
                 "issuedAt": "Issued",
                 "fingerprint": "Fingerprint",
-                "assignedHosts": "Assigned hosts"
+                "assignedHosts": "Assigned hosts",
+                "candidate": "Issued candidate pending activation",
+                "candidateIssuedAt": "Candidate issued",
+                "candidateExpiresAt": "Candidate expires",
+                "candidateFingerprint": "Candidate fingerprint",
+                "candidateNextAttemptAt": "Next activation attempt",
+                "dnsCleanupPending": "DNS cleanup is still pending before another ACME attempt can start."
             },
             "import": {
                 "title": "Import certificate",
@@ -744,6 +752,8 @@
             "confirm": {
                 "renewTitle": "Renew {{name}}?",
                 "renewDescription": "Start a new ACME order for this certificate.",
+                "retryTitle": "Retry activation for {{name}}?",
+                "retryDescription": "Retry activation of the issued certificate candidate.",
                 "deleteTitle": "Delete {{name}}?",
                 "deleteDescription": "This removes the certificate and is blocked while a proxy or redirect host still uses it."
             },

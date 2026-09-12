@@ -194,6 +194,19 @@ export function useDateFormatter() {
     )
 }
 
+export function useDateTimeFormatter() {
+    const { locale } = useTranslationStore()
+    return useMemo(
+        () =>
+            new Intl.DateTimeFormat(locale, {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+                timeZone: 'UTC',
+            }),
+        [locale],
+    )
+}
+
 export function useDocumentLanguage() {
     return useRouterState({
         select: (state) => {

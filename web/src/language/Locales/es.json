@@ -669,7 +669,8 @@
                 "valid": "Válido",
                 "expiring": "Caduca pronto",
                 "expired": "Caducado",
-                "failed": "Fallido"
+                "failed": "Fallido",
+                "candidate": "Activación pendiente"
             },
             "cells": {
                 "moreDomains": "Mostrar {{count}} dominios más"
@@ -680,6 +681,7 @@
                 "requestForHost": "Solicitar certificado para este host",
                 "details": "Detalles",
                 "renew": "Renovar",
+                "retry": "Reintentar activación",
                 "replace": "Reemplazar",
                 "delete": "Eliminar",
                 "saving": "Guardando...",
@@ -695,7 +697,13 @@
                 "issuer": "Emisor",
                 "issuedAt": "Emitido",
                 "fingerprint": "Huella digital",
-                "assignedHosts": "Hosts asignados"
+                "assignedHosts": "Hosts asignados",
+                "candidate": "Candidato emitido pendiente de activación",
+                "candidateIssuedAt": "Candidato emitido",
+                "candidateExpiresAt": "El candidato caduca",
+                "candidateFingerprint": "Huella del candidato",
+                "candidateNextAttemptAt": "Próximo intento de activación",
+                "dnsCleanupPending": "La limpieza DNS sigue pendiente antes de iniciar otro intento de ACME."
             },
             "import": {
                 "title": "Importar certificado",
@@ -744,6 +752,8 @@
             "confirm": {
                 "renewTitle": "¿Renovar {{name}}?",
                 "renewDescription": "Inicia un nuevo pedido ACME para este certificado.",
+                "retryTitle": "¿Reintentar la activación de {{name}}?",
+                "retryDescription": "Reintenta la activación del candidato de certificado emitido.",
                 "deleteTitle": "¿Eliminar {{name}}?",
                 "deleteDescription": "Esto elimina el certificado y se bloquea mientras un host proxy o de redirección siga utilizándolo."
             },

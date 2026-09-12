@@ -48,12 +48,78 @@ struct PendingAccountRegistration {
 }
 
 impl ProxyRuntime {
+    /// Start a bounded sweep for DNS records left by an interrupted ACME job.
+    ///
+    /// Cleanup is independent from certificate issuance and activation.  Each
+    /// task claims the certificate lease through the store, so a concurrent
+    /// issuance, deletion, or another scheduler tick cannot mutate the same
+    /// journal.  The existing ACME semaphore bounds provider work to the same
+    /// four slots as issuance.
+    pub(crate) async fn recover_dns_cleanup(self: &Arc<Self>) {
+        let Ok(mut ids) = self.certificate_store.pending_dns_cleanup_ids().await else {
+            return;
+        };
+        // A failing provider must not keep the first few IDs at the front of
+        // every sweep forever.  Rotate the snapshot so later certificates get
+        // a chance whenever fewer than four cleanup permits are available.
+        if !ids.is_empty() {
+            let offset = self
+                .dns_cleanup_cursor
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                % ids.len();
+            ids.rotate_left(offset);
+        }
+        for id in ids {
+            if self.stopping.load(std::sync::atomic::Ordering::SeqCst) {
+                break;
+            }
+            let Ok(permit) = ACME_JOBS.try_acquire() else {
+                break;
+            };
+            let runtime = Arc::clone(self);
+            tokio::spawn(async move {
+                let _permit = permit;
+                runtime.recover_dns_cleanup_one(&id).await;
+            });
+        }
+    }
+
+    async fn recover_dns_cleanup_one(&self, id: &str) {
+        let work = match self.certificate_store.begin_dns_cleanup(id).await {
+            Ok(Some(work)) => work,
+            Ok(None) | Err(_) => return,
+        };
+        let (environment, config, intents) = work;
+        let result = match DnsProvider::from_config(config, environment) {
+            Ok(provider) => self.cleanup_dns_challenges(id, &provider, &intents).await,
+            Err(error) => Err(error),
+        };
+        // `cleanup_dns_challenges` persists every successful intent removal;
+        // releasing the claim is the only finalization needed here.  On an
+        // error, the remaining intents stay durable for the next sweep.
+        let _ = result;
+        self.certificate_store.finish_dns_cleanup(id).await;
+    }
+
     pub(crate) async fn start_acme_issue(
         self: &Arc<Self>,
         id: String,
         request: CertificateIssueRequest,
         challenges: ChallengeStore,
     ) -> Result<super::CertificateMetadata, CertificateError> {
+        // An issue request can carry different domains, environment, or DNS
+        // credentials from the order that produced a pending candidate.  Do
+        // not silently treat that new request as satisfied by activating the
+        // old candidate; explicit renewal/recovery owns candidate activation.
+        if self
+            .certificate_store
+            .pending_candidate_ids()
+            .await?
+            .iter()
+            .any(|candidate_id| candidate_id == &id)
+        {
+            return Err(CertificateError::OperationInProgress);
+        }
         let permit = ACME_JOBS
             .try_acquire()
             .map_err(|_| CertificateError::OperationInProgress)?;
@@ -74,6 +140,11 @@ impl ProxyRuntime {
         id: String,
         challenges: ChallengeStore,
     ) -> Result<super::CertificateMetadata, CertificateError> {
+        // Candidate activation is independent of ACME retry backoff.  Do it
+        // before taking a CA job slot or checking the next-order deadline.
+        if let Some(metadata) = self.retry_certificate_candidate(&id, false).await? {
+            return Ok(metadata);
+        }
         let permit = ACME_JOBS
             .try_acquire()
             .map_err(|_| CertificateError::OperationInProgress)?;
@@ -161,7 +232,7 @@ impl ProxyRuntime {
         }
         let mut registered = Vec::new();
         let mut dns_intents: Vec<DnsRecordIntent> = Vec::new();
-        let result = timeout(
+        let order_result = timeout(
             if request.challenge_type == AcmeChallengeType::Dns01 {
                 DNS_ORDER_TIMEOUT
             } else {
@@ -179,32 +250,57 @@ impl ProxyRuntime {
         .await
         .unwrap_or(Err(CertificateError::AcmeFailed));
 
-        // Cleanup also runs after failed authorizations, network failures and order timeouts.
-        // The store persists intents before POST, including when the POST response is lost.
-        // Cleanup has its own deadline, independent of the cancelled order future.
-        let dns_cleanup = if let Some(provider) = dns_provider.as_ref() {
-            self.cleanup_dns_challenges(&id, provider, &dns_intents)
-                .await
-        } else {
-            Ok(())
+        // Persist an issued candidate before touching the DNS cleanup records.
+        // This makes the successful CA response recoverable if cleanup or
+        // process shutdown interrupts the rest of this operation.  The store
+        // keeps the candidate separate from the active certificate and from
+        // the DNS cleanup journal.
+        let (candidate, issue_error) = match order_result {
+            Ok((certificate_pem, private_key_pem)) => {
+                match self
+                    .certificate_store
+                    .stage_acme(&id, &request, certificate_pem, private_key_pem)
+                    .await
+                {
+                    Ok(staged) => (Some(staged), None),
+                    Err(error) => (None, Some(error)),
+                }
+            }
+            Err(error) => (None, Some(error)),
         };
+
+        // The order no longer needs HTTP challenge responses once polling has
+        // returned.  Remove them before any independent DNS cleanup or
+        // candidate activation can fail, so every path releases the in-memory
+        // challenge state.
         for (domain, token) in registered {
             challenges.remove(&domain, &token).await;
         }
 
-        let result = match dns_cleanup {
-            Err(error) => Err(error),
-            Ok(()) => match result {
-                Ok((certificate_pem, private_key_pem)) => self
-                    .activate_acme_certificate(&id, &request, certificate_pem, private_key_pem)
-                    .await
-                    .map(|_| ()),
-                Err(error) => Err(error),
-            },
-        };
-        if let Err(error) = result {
+        // Activate the candidate independently of DNS cleanup.  The cleanup
+        // journal belongs to the active certificate and is preserved by the
+        // store when the candidate becomes active, so a provider outage cannot
+        // discard an otherwise valid issued certificate.  Activation releases
+        // the issuance lease; reload the current cleanup journal and provider
+        // configuration before touching DNS to avoid racing a concurrent
+        // recovery or replacement.
+        if let Some(staged) = candidate {
+            let _ = self.commit_or_reapply_staged_certificate(staged).await;
+            self.recover_dns_cleanup_one(&id).await;
+            // Candidate activation failures are recorded by
+            // `commit_or_reapply_staged_certificate` itself.  Calling
+            // `finish_failed` here would overwrite the independent candidate
+            // recovery state and could make a second CA order possible.
+            return;
+        }
+
+        // With no candidate, first finish the order/staging failure so the
+        // original operation lease is released.  Cleanup then claims the
+        // lease itself and reloads persisted intents.
+        if let Some(error) = issue_error {
             self.certificate_store.finish_failed(&id, error).await;
         }
+        self.recover_dns_cleanup_one(&id).await;
     }
 
     async fn cleanup_dns_challenges(

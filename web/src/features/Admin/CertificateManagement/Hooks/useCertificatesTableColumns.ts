@@ -48,7 +48,10 @@ export default function useCertificatesTableColumns(actions: CertificateTablePro
                 filterFn: filterFn_equalsString,
                 enableGlobalFilter: true,
                 cell: ({ row }) =>
-                    createElement(CertificateStatusCell, { status: row.original.status }),
+                    createElement(CertificateStatusCell, {
+                        candidate: row.original.candidate !== null,
+                        status: row.original.status,
+                    }),
             },
             {
                 accessorKey: 'expiresAt',

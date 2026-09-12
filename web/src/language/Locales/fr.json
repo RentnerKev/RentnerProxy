@@ -669,7 +669,8 @@
                 "valid": "Valide",
                 "expiring": "Expire bientôt",
                 "expired": "Expiré",
-                "failed": "Échec"
+                "failed": "Échec",
+                "candidate": "Activation en attente"
             },
             "cells": {
                 "moreDomains": "Afficher {{count}} domaines supplémentaires"
@@ -680,6 +681,7 @@
                 "requestForHost": "Demander un certificat pour cet hôte",
                 "details": "Détails",
                 "renew": "Renouveler",
+                "retry": "Réessayer l’activation",
                 "replace": "Remplacer",
                 "delete": "Supprimer",
                 "saving": "Enregistrement...",
@@ -695,7 +697,13 @@
                 "issuer": "Émetteur",
                 "issuedAt": "Délivré",
                 "fingerprint": "Empreinte",
-                "assignedHosts": "Hôtes attribués"
+                "assignedHosts": "Hôtes attribués",
+                "candidate": "Certificat délivré en attente d’activation",
+                "candidateIssuedAt": "Certificat candidat délivré",
+                "candidateExpiresAt": "Expiration du candidat",
+                "candidateFingerprint": "Empreinte du candidat",
+                "candidateNextAttemptAt": "Prochaine tentative d’activation",
+                "dnsCleanupPending": "Le nettoyage DNS est encore en attente avant de lancer une nouvelle tentative ACME."
             },
             "import": {
                 "title": "Importer un certificat",
@@ -744,6 +752,8 @@
             "confirm": {
                 "renewTitle": "Renouveler {{name}} ?",
                 "renewDescription": "Démarrer une nouvelle commande ACME pour ce certificat.",
+                "retryTitle": "Réessayer l’activation de {{name}} ?",
+                "retryDescription": "Réessayez l’activation du certificat délivré en attente.",
                 "deleteTitle": "Supprimer {{name}} ?",
                 "deleteDescription": "Le certificat sera supprimé ; l’opération est bloquée tant qu’un hôte proxy ou de redirection l’utilise encore."
             },

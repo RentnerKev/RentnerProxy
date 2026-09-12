@@ -669,7 +669,8 @@
                 "valid": "Gültig",
                 "expiring": "Läuft bald ab",
                 "expired": "Abgelaufen",
-                "failed": "Fehlgeschlagen"
+                "failed": "Fehlgeschlagen",
+                "candidate": "Aktivierung ausstehend"
             },
             "cells": {
                 "moreDomains": "Weitere {{count}} Domains anzeigen"
@@ -680,6 +681,7 @@
                 "requestForHost": "Zertifikat für diesen Host anfordern",
                 "details": "Einzelheiten",
                 "renew": "Erneuern",
+                "retry": "Aktivierung wiederholen",
                 "replace": "Ersetzen",
                 "delete": "Löschen",
                 "saving": "Wird gespeichert...",
@@ -695,7 +697,13 @@
                 "issuer": "Aussteller",
                 "issuedAt": "Ausgestellt",
                 "fingerprint": "Fingerabdruck",
-                "assignedHosts": "Zugewiesene Hosts"
+                "assignedHosts": "Zugewiesene Hosts",
+                "candidate": "Ausgestellter Kandidat wartet auf Aktivierung",
+                "candidateIssuedAt": "Kandidat ausgestellt",
+                "candidateExpiresAt": "Kandidat läuft ab",
+                "candidateFingerprint": "Fingerabdruck des Kandidaten",
+                "candidateNextAttemptAt": "Nächster Aktivierungsversuch",
+                "dnsCleanupPending": "Die DNS-Bereinigung steht noch aus, bevor ein weiterer ACME-Versuch starten kann."
             },
             "import": {
                 "title": "Zertifikat importieren",
@@ -744,6 +752,8 @@
             "confirm": {
                 "renewTitle": "{{name}} erneuern?",
                 "renewDescription": "Starte eine neue ACME-Bestellung für dieses Zertifikat.",
+                "retryTitle": "Aktivierung für {{name}} wiederholen?",
+                "retryDescription": "Wiederhole die Aktivierung des ausgestellten Zertifikatskandidaten.",
                 "deleteTitle": "{{name}} löschen?",
                 "deleteDescription": "Dadurch wird das Zertifikat entfernt; dies ist blockiert, solange es noch von einem Proxy- oder Redirect-Host verwendet wird."
             },
