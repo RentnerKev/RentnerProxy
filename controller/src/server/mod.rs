@@ -16,8 +16,8 @@ use challenges::ChallengeStore;
 
 use auth::{authorize_certificate_request, authorize_internal_request};
 use handlers::{
-    apply_proxy_config, challenge_response, delete_certificate, get_certificate, health,
-    import_certificate, issue_certificate, list_certificates, preview_proxy_config,
+    access_logs, apply_proxy_config, challenge_response, delete_certificate, get_certificate,
+    health, import_certificate, issue_certificate, list_certificates, preview_proxy_config,
     preview_proxy_host_config, proxy_status, read_proxy_config, read_proxy_host_config, readiness,
     renew_certificate, validate_trusted_ca,
 };
@@ -101,6 +101,13 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             get({
                 let state = state.clone();
                 move || proxy_status(state.clone())
+            }),
+        )
+        .route(
+            "/internal/v1/proxy/access-logs",
+            get({
+                let state = state.clone();
+                move |query| access_logs(query, state.clone())
             }),
         )
         .route(

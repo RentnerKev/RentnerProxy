@@ -1,3 +1,4 @@
+pub(crate) mod access_logs;
 mod acme;
 mod apply;
 mod certificates;
@@ -131,6 +132,12 @@ pub(crate) struct ProxyRuntime {
 }
 
 impl ProxyRuntime {
+    pub(crate) async fn access_logs(
+        &self,
+        query: access_logs::ValidatedAccessLogQuery,
+    ) -> Result<access_logs::AccessLogResponse, access_logs::ReadError> {
+        access_logs::read(&self.settings.state_dir, query).await
+    }
     pub(crate) fn new(
         settings: RuntimeSettings,
         engine: Option<Arc<dyn ProxyEngine>>,
@@ -182,6 +189,17 @@ impl ProxyRuntime {
         caddy
             .ensure_dir("data")
             .map_err(|_| RuntimeError::Unavailable)?;
+        let logs = state_dir(&self.settings.state_dir)
+            .and_then(|dir| dir.ensure_dir("logs"))
+            .map_err(|_| RuntimeError::Unavailable)?;
+        match std::fs::symlink_metadata(logs.path().join("access.log")) {
+            Ok(_) => {
+                logs.open_file("access.log")
+                    .map_err(|_| RuntimeError::Unavailable)?;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => return Err(RuntimeError::Unavailable),
+        }
         let autosave_dir = caddy
             .ensure_dir("config")
             .and_then(|dir| dir.ensure_dir("caddy"))

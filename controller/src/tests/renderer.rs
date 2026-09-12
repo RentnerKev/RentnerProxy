@@ -171,9 +171,9 @@ fn basic_auth_is_before_body_and_proxy_and_uses_fixed_caddy_settings() {
         "$argon2id$v=19$m=47104,t=1,p=1$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y"
     );
     assert_eq!(handle[1]["handler"], "request_body");
-    assert_eq!(handle[2]["handler"], "reverse_proxy");
+    assert_eq!(handle[3]["handler"], "reverse_proxy");
     assert!(
-        handle[2]["headers"]["request"]["delete"]
+        handle[3]["headers"]["request"]["delete"]
             .as_array()
             .unwrap()
             .contains(&serde_json::json!("Authorization"))
@@ -208,7 +208,7 @@ fn ip_restricted_routes_deny_before_allow_and_expand_ipv4_mapped_peers() {
         routes[1]["match"][0]["remote_ip"]["ranges"],
         serde_json::json!(["192.0.2.128/25", "::ffff:192.0.2.128/121"])
     );
-    assert_eq!(routes[2]["handle"][0]["handler"], "reverse_proxy");
+    assert_eq!(routes[2]["handle"][1]["handler"], "reverse_proxy");
     assert_eq!(
         routes[2]["match"][0]["remote_ip"]["ranges"],
         serde_json::json!(["192.0.2.0/24", "::ffff:192.0.2.0/120"])
@@ -322,10 +322,10 @@ fn combined_any_uses_ip_without_auth_then_basic_auth_as_fallback() {
     let routes = json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"]
         .as_array()
         .unwrap();
-    assert_eq!(routes[1]["handle"][0]["handler"], "reverse_proxy");
+    assert_eq!(routes[1]["handle"][1]["handler"], "reverse_proxy");
     assert_eq!(routes[2]["handle"][0]["handler"], "authentication");
     assert!(
-        routes[1]["handle"][0]["headers"]["request"]["delete"]
+        routes[1]["handle"][1]["headers"]["request"]["delete"]
             .as_array()
             .unwrap()
             .contains(&serde_json::json!("Authorization"))
@@ -428,7 +428,7 @@ fn upstream_tls_uses_explicit_trust_sni_and_native_forwarding_defaults() {
         render_config_with_tls(config, &settings(), &tls, &BTreeMap::new(), trust)
     };
     let json: Value = serde_json::from_str(&render(&configuration, &trust).unwrap()).unwrap();
-    let proxy = &json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"][1]["handle"][0];
+    let proxy = &json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"][1]["handle"][1];
     assert_eq!(proxy["upstreams"][0]["dial"], "[2001:db8::2]:9443");
     assert_eq!(proxy["transport"]["tls"]["server_name"], "upstream.example");
     assert_eq!(proxy["transport"]["tls"]["ca"]["provider"], "file");
@@ -471,7 +471,7 @@ fn upstream_tls_uses_explicit_trust_sni_and_native_forwarding_defaults() {
         trusted_ca_id: None,
     });
     let json: Value = serde_json::from_str(&render(&configuration, &trust).unwrap()).unwrap();
-    let tls = &json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"][1]["handle"][0]["transport"]
+    let tls = &json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"][1]["handle"][1]["transport"]
         ["tls"];
     assert_eq!(tls["insecure_skip_verify"], true);
     assert!(tls["ca"].is_null());
@@ -506,7 +506,7 @@ fn host_sources_include_effective_http_and_https_routes() {
         "https://{http.request.host}:9443{http.request.uri}"
     );
     assert_eq!(json["https"]["handle"][0]["max_size"], 1024);
-    let transport = &json["https"]["handle"][1]["transport"];
+    let transport = &json["https"]["handle"][2]["transport"];
     assert_eq!(transport["dial_timeout"], "4s");
     assert_eq!(transport["read_timeout"], "17s");
     assert_eq!(transport["response_header_timeout"], "17s");
@@ -549,4 +549,32 @@ fn redirect_handlers_keep_exact_destination_and_encoded_request_uri_semantics() 
             assert_eq!(routes[1]["handle"][0]["headers"]["Location"][0], expected);
         }
     }
+}
+
+#[test]
+fn access_logging_is_private_bounded_and_excludes_probe() {
+    let json: Value = serde_json::from_str(&render_config(None, &settings()).unwrap()).unwrap();
+    let logs = &json["logging"]["logs"];
+    assert!(
+        logs["access"]["writer"]["filename"]
+            .as_str()
+            .unwrap()
+            .ends_with("/logs/access.log")
+    );
+    assert_eq!(logs["access"]["writer"]["mode"], "0600");
+    assert_eq!(logs["access"]["writer"]["dir_mode"], "0700");
+    assert_eq!(logs["access"]["writer"]["roll_size_mb"], 4);
+    assert_eq!(logs["access"]["writer"]["roll_keep"], 4);
+    assert_eq!(logs["access"]["writer"]["roll_keep_days"], 7);
+    assert_eq!(logs["access"]["writer"]["roll_compression"], "none");
+    let fields = &logs["access"]["encoder"]["fields"];
+    assert_eq!(fields["request>headers"]["filter"], "delete");
+    assert_eq!(fields["resp_headers"]["filter"], "delete");
+    assert_eq!(fields["user_id"]["filter"], "delete");
+    assert_eq!(fields["request>uri"]["regexp"], "\\?.*$");
+    assert_eq!(
+        json["apps"]["http"]["servers"]["rentnerproxy-http"]["logs"],
+        serde_json::json!({})
+    );
+    assert!(json["apps"]["http"]["servers"]["rentnerproxy-probe"]["logs"].is_null());
 }

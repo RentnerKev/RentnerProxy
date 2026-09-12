@@ -41,6 +41,7 @@ export const PERMISSIONS = {
     ACCESS_POLICIES_DELETE: 'access_policies.delete',
     ACCESS_POLICIES_ASSIGN: 'access_policies.assign',
     ACCESS_POLICIES_APPLY: 'access_policies.apply',
+    PROXY_ACCESS_LOGS_VIEW: 'proxy-access-logs:view',
     ACCOUNT_VIEW: 'account.view',
     ACCOUNT_UPDATE: 'account.update',
 } as const
@@ -93,6 +94,7 @@ export const PERMISSION_REGISTRY = [
     { key: PERMISSIONS.ACCESS_POLICIES_DELETE, name: 'Delete access policies' },
     { key: PERMISSIONS.ACCESS_POLICIES_ASSIGN, name: 'Assign access policies' },
     { key: PERMISSIONS.ACCESS_POLICIES_APPLY, name: 'Apply access policies' },
+    { key: PERMISSIONS.PROXY_ACCESS_LOGS_VIEW, name: 'View proxy access logs' },
     { key: PERMISSIONS.ACCOUNT_VIEW, name: 'View own account' },
     { key: PERMISSIONS.ACCOUNT_UPDATE, name: 'Update own account' },
 ] as const satisfies ReadonlyArray<{ key: PermissionKey; name: string }>
@@ -161,6 +163,7 @@ export const SYSTEM_ROLE_REGISTRY = [
             PERMISSIONS.ACCESS_POLICIES_DELETE,
             PERMISSIONS.ACCESS_POLICIES_ASSIGN,
             PERMISSIONS.ACCESS_POLICIES_APPLY,
+            PERMISSIONS.PROXY_ACCESS_LOGS_VIEW,
             PERMISSIONS.ACCOUNT_VIEW,
             PERMISSIONS.ACCOUNT_UPDATE,
         ],

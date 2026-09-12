@@ -6,6 +6,7 @@ use std::{
 
 use ipnet::{IpNet, Ipv6Net};
 use serde::Serialize;
+use serde_json::{Value, json};
 
 use crate::models::{
     AccessPolicy, AccessPolicyCombination, AccessPolicyMode, BasicAuth, IpDefaultAction, IpRules,
@@ -57,6 +58,7 @@ pub(crate) enum RenderError {
 struct CaddyConfig {
     admin: Admin,
     storage: Storage,
+    logging: Value,
     apps: Apps,
 }
 
@@ -104,7 +106,12 @@ struct HttpServer {
     strict_sni_host: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     tls_connection_policies: Option<Vec<TlsConnectionPolicy>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    logs: Option<ServerLogs>,
 }
+
+#[derive(Serialize)]
+struct ServerLogs {}
 
 #[derive(Serialize)]
 struct AutoHttps {
@@ -163,6 +170,14 @@ enum Handler {
     RequestBody(RequestBody),
     #[serde(rename = "authentication")]
     Authentication(Authentication),
+    #[serde(rename = "log_append")]
+    LogAppend(LogAppend),
+}
+
+#[derive(Serialize)]
+struct LogAppend {
+    key: String,
+    value: String,
 }
 
 #[derive(Serialize)]
@@ -354,6 +369,7 @@ fn render_config_inner(
             idle_timeout: seconds(config.http_settings.keepalive_timeout_seconds),
             strict_sni_host: None,
             tls_connection_policies: None,
+            logs: Some(ServerLogs {}),
         },
     );
     {
@@ -388,6 +404,7 @@ fn render_config_inner(
                 idle_timeout: None,
                 strict_sni_host: None,
                 tls_connection_policies: None,
+                logs: None,
             },
         );
     }
@@ -470,6 +487,7 @@ fn render_config_inner(
                     idle_timeout: seconds(config.http_settings.keepalive_timeout_seconds),
                     strict_sni_host: Some(true),
                     tls_connection_policies: Some(policies),
+                    logs: Some(ServerLogs {}),
                 },
             );
             tls_app = Some(TlsApp {
@@ -487,6 +505,7 @@ fn render_config_inner(
             module: "file_system".to_owned(),
             root: format!("{state_root}/caddy/data"),
         },
+        logging: logging_config(&state_root),
         apps: Apps {
             http: HttpApp { servers },
             tls: tls_app,
@@ -507,6 +526,43 @@ fn empty_config() -> ValidatedProxyConfig {
         http_settings: ProxyHttpSettings::default(),
         trusted_cas: Vec::new(),
     }
+}
+
+fn logging_config(state_root: &str) -> Value {
+    let filters = json!({
+        "format": "filter",
+        "wrap": { "format": "json" },
+        "fields": {
+            "request>headers": { "filter": "delete" },
+            "resp_headers": { "filter": "delete" },
+            "user_id": { "filter": "delete" },
+            "request>uri": { "filter": "regexp", "regexp": "\\?.*$", "value": "" }
+        }
+    });
+    let file = json!({
+        "output": "file",
+        "filename": format!("{state_root}/logs/access.log"),
+        "mode": "0600",
+        "dir_mode": "0700",
+        "roll_size_mb": 4,
+        "roll_keep": 4,
+        "roll_keep_days": 7,
+        "roll_compression": "none"
+    });
+    json!({
+        "logs": {
+            "default": {
+                "writer": { "output": "stderr" },
+                "encoder": filters.clone(),
+                "exclude": ["http.log.access"]
+            },
+            "access": {
+                "writer": file,
+                "encoder": filters,
+                "include": ["http.log.access"]
+            }
+        }
+    })
 }
 
 fn http_routes(
@@ -686,6 +742,10 @@ fn proxy_route(
             .delete
             .push("Authorization".to_owned());
     }
+    handle.push(Handler::LogAppend(LogAppend {
+        key: "upstream".to_owned(),
+        value: "{http.reverse_proxy.upstream.address}".to_owned(),
+    }));
     handle.push(Handler::ReverseProxy(Box::new(proxy)));
     Ok(Route {
         matchers: vec![matcher],

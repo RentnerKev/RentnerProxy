@@ -46,7 +46,8 @@
         "proxyHosts": "Proxy hosts",
         "redirectHosts": "Redirect hosts",
         "certificates": "Certificates",
-        "accessPolicies": "Access policies"
+        "accessPolicies": "Access policies",
+        "proxyAccessLogs": "Access logs"
     },
     "language": {
         "title": "Language",
@@ -1449,6 +1450,72 @@
                 "applyFailed": "The access policy configuration could not be applied."
             }
         },
+        "proxyAccessLogs": {
+            "page": {
+                "eyebrow": "Proxy observability",
+                "title": "Access logs",
+                "description": "Review recent requests handled by your proxy.",
+                "retention": "Recent requests are retained for up to 7 days; older entries may be trimmed."
+            },
+            "states": {
+                "unavailableTitle": "Access logs unavailable",
+                "unavailableDescription": "The recent request history could not be loaded. Try again.",
+                "forbiddenTitle": "Access logs are restricted",
+                "forbiddenDescription": "Your account does not have permission to view proxy access logs."
+            },
+            "table": {
+                "eyebrow": "Recent requests",
+                "title": "Proxy access logs",
+                "description": "Inspect request timing and outcomes without exposing headers, payloads, or query strings.",
+                "emptyTitle": "No recent requests",
+                "emptyDescription": "No requests are available in the retention window.",
+                "filteredEmptyDescription": "No requests match these filters."
+            },
+            "filters": {
+                "host": "Host",
+                "hostPlaceholder": "example.com",
+                "status": "Status",
+                "statusPlaceholder": "404",
+                "search": "Search",
+                "searchPlaceholder": "Search host, method, or path…"
+            },
+            "actions": {
+                "apply": "Apply filters",
+                "refresh": "Refresh",
+                "showDetails": "Show request details",
+                "hideDetails": "Hide request details"
+            },
+            "columns": {
+                "time": "Time (UTC)",
+                "host": "Host",
+                "method": "Method",
+                "path": "Path",
+                "status": "Status",
+                "duration": "Duration",
+                "clientIp": "Client IP",
+                "bytes": "Bytes",
+                "upstream": "Upstream",
+                "protocol": "Protocol"
+            },
+            "pagination": {
+                "range": "{{from}}–{{to}} of {{count}} requests",
+                "truncated": "Recent window is bounded.",
+                "label": "Access log pagination",
+                "page": "Page {{page}} of {{count}}",
+                "previous": "Previous page",
+                "next": "Next page"
+            },
+            "validation": {
+                "host": "Enter a valid host name.",
+                "status": "Enter a status code from 100 to 599.",
+                "search": "Search text is too long or contains unsupported characters.",
+                "limit": "The page size is invalid.",
+                "offset": "The page offset is invalid."
+            },
+            "errors": {
+                "loadFailed": "Access logs could not be loaded."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Certificates",
@@ -1539,7 +1606,8 @@
             "redirect_hosts": "Redirect hosts",
             "certificates": "Certificates",
             "trusted_cas": "Trusted CAs",
-            "access_policies": "Access policies"
+            "access_policies": "Access policies",
+            "proxy-access-logs": "Proxy access logs"
         },
         "app": {
             "access": "Application access"
@@ -1599,6 +1667,8 @@
             "assign": "Assign access policies",
             "apply": "Apply access policy configuration"
         },
+
+        "proxy-access-logs:view": "View proxy access logs",
 
         "trusted_cas": {
             "view": "View trusted CAs",

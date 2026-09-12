@@ -46,7 +46,8 @@
         "proxyHosts": "Hôtes proxy",
         "redirectHosts": "Hôtes de redirection",
         "certificates": "Certificats",
-        "accessPolicies": "Politiques d’accès"
+        "accessPolicies": "Politiques d’accès",
+        "proxyAccessLogs": "Journaux d’accès"
     },
     "language": {
         "title": "Langue",
@@ -1449,6 +1450,72 @@
                 "applyFailed": "La configuration de la politique n’a pas pu être appliquée."
             }
         },
+        "proxyAccessLogs": {
+            "page": {
+                "eyebrow": "Observabilité du proxy",
+                "title": "Journaux d’accès",
+                "description": "Consultez les requêtes récentes traitées par votre proxy.",
+                "retention": "Les requêtes récentes sont conservées jusqu’à 7 jours ; les plus anciennes peuvent être supprimées plus tôt."
+            },
+            "states": {
+                "unavailableTitle": "Journaux d’accès indisponibles",
+                "unavailableDescription": "L’historique récent des requêtes n’a pas pu être chargé. Réessayez.",
+                "forbiddenTitle": "Journaux d’accès protégés",
+                "forbiddenDescription": "Votre compte n’est pas autorisé à consulter les journaux d’accès du proxy."
+            },
+            "table": {
+                "eyebrow": "Requêtes récentes",
+                "title": "Journaux d’accès du proxy",
+                "description": "Examinez les durées et les résultats sans exposer les en-têtes, les charges utiles ni les chaînes de requête.",
+                "emptyTitle": "Aucune requête récente",
+                "emptyDescription": "Aucune requête n’est disponible dans la période de conservation.",
+                "filteredEmptyDescription": "Aucune requête ne correspond à ces filtres."
+            },
+            "filters": {
+                "host": "Hôte",
+                "hostPlaceholder": "example.com",
+                "status": "Statut",
+                "statusPlaceholder": "404",
+                "search": "Rechercher",
+                "searchPlaceholder": "Rechercher un hôte, une méthode ou un chemin…"
+            },
+            "actions": {
+                "apply": "Appliquer les filtres",
+                "refresh": "Actualiser",
+                "showDetails": "Afficher les détails de la requête",
+                "hideDetails": "Masquer les détails de la requête"
+            },
+            "columns": {
+                "time": "Heure (UTC)",
+                "host": "Hôte",
+                "method": "Méthode",
+                "path": "Chemin",
+                "status": "Statut",
+                "duration": "Durée",
+                "clientIp": "IP client",
+                "bytes": "Octets",
+                "upstream": "Upstream",
+                "protocol": "Protocole"
+            },
+            "pagination": {
+                "range": "{{from}}–{{to}} sur {{count}} requêtes",
+                "truncated": "La période récente est limitée.",
+                "label": "Pagination des journaux d’accès",
+                "page": "Page {{page}} sur {{count}}",
+                "previous": "Page précédente",
+                "next": "Page suivante"
+            },
+            "validation": {
+                "host": "Saisissez un nom d’hôte valide.",
+                "status": "Saisissez un code de statut compris entre 100 et 599.",
+                "search": "Le texte de recherche est trop long ou contient des caractères non pris en charge.",
+                "limit": "La taille de page est invalide.",
+                "offset": "Le décalage de page est invalide."
+            },
+            "errors": {
+                "loadFailed": "Les journaux d’accès n’ont pas pu être chargés."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Certificats",
@@ -1539,7 +1606,8 @@
             "redirect_hosts": "Hôtes de redirection",
             "certificates": "Certificats",
             "trusted_cas": "AC de confiance",
-            "access_policies": "Politiques d’accès"
+            "access_policies": "Politiques d’accès",
+            "proxy-access-logs": "Journaux d’accès du proxy"
         },
         "app": {
             "access": "Accès à l’application"
@@ -1599,6 +1667,8 @@
             "assign": "Attribuer des règles d’accès",
             "apply": "Appliquer la configuration des règles d’accès"
         },
+
+        "proxy-access-logs:view": "Afficher les journaux d’accès du proxy",
 
         "trusted_cas": {
             "view": "Afficher les AC de confiance",

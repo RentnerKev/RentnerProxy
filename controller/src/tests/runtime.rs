@@ -135,6 +135,22 @@ fn configuration(port: u16) -> ValidatedProxyConfig {
     .unwrap()
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn startup_rejects_dangling_access_log_symlink_before_starting_caddy() {
+    let engine = FakeCaddy::new();
+    let (runtime, settings) = runtime(Some(engine.clone()));
+    std::fs::create_dir_all(settings.state_dir.join("logs")).unwrap();
+    let target = settings.state_dir.join("unexpected-log-target");
+    std::os::unix::fs::symlink(&target, settings.state_dir.join("logs/access.log")).unwrap();
+    runtime.initialize().await;
+    assert_eq!(engine.start_count.load(Ordering::SeqCst), 0);
+    assert!(!target.exists());
+    assert!(!runtime.status().await.running);
+    runtime.shutdown().await;
+    std::fs::remove_dir_all(&settings.state_dir).unwrap();
+}
+
 fn basic_auth_configuration(port: u16, password_hash: &str) -> ValidatedProxyConfig {
     let mut configuration = configuration(port);
     configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {

@@ -5,6 +5,10 @@ import { z } from 'zod'
 
 import type { ServiceHealth } from '../../shared/Types/health.types'
 import type { ProxyConfigSource, ProxyRuntimeStatus } from '../../shared/Types/proxy-runtime.types'
+import type {
+    ProxyAccessLogsQuery,
+    ProxyAccessLogsResult,
+} from '../../shared/Types/proxy-access-logs.types'
 import { getControllerBaseUrl, getControllerToken, isLoopbackControllerUrl } from '../env.server'
 import {
     MAX_RUNTIME_PAYLOAD_BYTES,
@@ -15,6 +19,11 @@ import type {
     ProxyRuntimeSnapshot,
 } from '../ProxyRuntime/Types/proxy-runtime.types'
 import { parseControllerHealth } from './controller-health'
+import {
+    PROXY_ACCESS_LOGS_MAX_RESPONSE_BYTES,
+    proxyAccessLogsQuerySchema,
+    proxyAccessLogsResultSchema,
+} from '../../features/Admin/ProxyAccessLogs/validation'
 
 const HEALTH_TIMEOUT_MS = 1_200
 const STATUS_TIMEOUT_MS = 2_000
@@ -89,6 +98,7 @@ export async function controllerRequest(
         | '/health'
         | '/ready'
         | '/internal/v1/proxy/status'
+        | `/internal/v1/proxy/access-logs${string}`
         | '/internal/v1/proxy/config'
         | '/internal/v1/proxy/config/preview'
         | `/internal/v1/proxy/hosts/${string}/config`
@@ -99,6 +109,7 @@ export async function controllerRequest(
     options: ControllerRequestOptions,
 ): Promise<unknown> {
     const baseUrl = getControllerBaseUrl()
+    const safePath = path.split('?')[0] ?? path
     if (!baseUrl) return null
     if (
         options.confidential &&
@@ -139,7 +150,10 @@ export async function controllerRequest(
         ) {
             await response.body?.cancel()
             if (response.status === 404 && options.allowNotFound) return null
-            console.warn('[controller] request unavailable', { path, status: response.status })
+            console.warn('[controller] request unavailable', {
+                path: safePath,
+                status: response.status,
+            })
             return null
         }
 
@@ -151,11 +165,40 @@ export async function controllerRequest(
         return error.success ? error.data : null
     } catch {
         // Never log the URL, token, response body, or a raw network/engine error.
-        console.warn('[controller] request unavailable', { path })
+        console.warn('[controller] request unavailable', { path: safePath })
         return null
     } finally {
         clearTimeout(timeout)
     }
+}
+
+const PROXY_ACCESS_LOGS_TIMEOUT_MS = 5_000
+
+export async function getProxyAccessLogs(
+    query: ProxyAccessLogsQuery,
+): Promise<ProxyAccessLogsResult | null> {
+    const parsedQuery = proxyAccessLogsQuerySchema.safeParse(query)
+    if (!parsedQuery.success) return null
+
+    const searchParams = new URLSearchParams()
+    if (parsedQuery.data.host !== undefined) searchParams.set('host', parsedQuery.data.host)
+    if (parsedQuery.data.status !== undefined)
+        searchParams.set('status', String(parsedQuery.data.status))
+    if (parsedQuery.data.search !== undefined) searchParams.set('search', parsedQuery.data.search)
+    if (parsedQuery.data.limit !== undefined)
+        searchParams.set('limit', String(parsedQuery.data.limit))
+    if (parsedQuery.data.offset !== undefined)
+        searchParams.set('offset', String(parsedQuery.data.offset))
+
+    const path = ('/internal/v1/proxy/access-logs?' +
+        searchParams.toString()) as `/internal/v1/proxy/access-logs${string}`
+    const payload = await controllerRequest(path, {
+        timeoutMs: PROXY_ACCESS_LOGS_TIMEOUT_MS,
+        privileged: true,
+        responseLimit: PROXY_ACCESS_LOGS_MAX_RESPONSE_BYTES,
+    })
+    const parsed = proxyAccessLogsResultSchema.safeParse(payload)
+    return parsed.success ? parsed.data : null
 }
 
 export async function checkControllerHealth(): Promise<ServiceHealth> {
