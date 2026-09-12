@@ -40,29 +40,29 @@
         "@simplewebauthn/server": "14.0.1",
         "@tanstack/react-form": "1.33.5",
         "@tanstack/react-query": "5.102.8",
-        "@tanstack/react-router": "1.170.33",
-        "@tanstack/react-start": "1.168.50",
+        "@tanstack/react-router": "1.170.35",
+        "@tanstack/react-start": "1.168.52",
         "@tanstack/react-table": "9.2.4",
         "drizzle-orm": "0.45.2",
         "i18next": "26.4.2",
         "i18next-resources-to-backend": "1.2.3",
-        "lucide-react": "1.43.0",
-        "nodemailer": "10.0.1",
+        "lucide-react": "1.44.0",
+        "nodemailer": "10.0.3",
         "otpauth": "9.5.2",
         "qrcode.react": "4.2.0",
         "radix-ui": "1.6.7",
-        "react": "19.2.8",
-        "react-dom": "19.2.8",
+        "react": "19.3.0",
+        "react-dom": "19.3.0",
         "react-easy-crop": "6.2.3",
-        "zod": "4.5.4"
+        "zod": "4.6.2"
     },
     "devDependencies": {
-        "@happy-dom/global-registrator": "20.14.0",
+        "@happy-dom/global-registrator": "20.14.3",
         "@tailwindcss/vite": "4.3.3",
         "@types/bun": "1.4.2",
         "@types/node": "26.5.0",
-        "@types/react": "19.2.18",
-        "@types/react-dom": "19.2.7",
+        "@types/react": "19.3.0",
+        "@types/react-dom": "19.3.0",
         "@vitejs/plugin-react": "6.1.1",
         "drizzle-kit": "0.31.10",
         "fast-check": "4.9.0",
@@ -70,7 +70,7 @@
         "oxlint": "1.82.0",
         "tailwindcss": "4.3.3",
         "typescript": "7.0.2",
-        "vite": "8.2.2"
+        "vite": "8.3.0"
     },
     "overrides": {
         "@esbuild-kit/core-utils": {
@@ -79,6 +79,6 @@
     },
     "packageManager": "bun@1.4.2",
     "patchedDependencies": {
-        "@tanstack/start-server-core@1.169.32": "patches/@tanstack%2Fstart-server-core@1.169.32.patch"
+        "@tanstack/start-server-core@1.169.34": "patches/@tanstack%2Fstart-server-core@1.169.34.patch"
     }
 }
