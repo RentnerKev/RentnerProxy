@@ -1,6 +1,5 @@
 import { access, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { spawnSync } from 'node:child_process'
 
 import { describe, expect, test } from 'bun:test'
 
@@ -15,6 +14,39 @@ function workflowPath(name: string): string {
 
 async function workflow(name: string): Promise<string> {
     return readFile(workflowPath(name), 'utf8')
+}
+
+const RELEASE_VALIDATION_TIMEOUT_MS = 5_000
+
+async function runReleaseValidation(
+    bash: string,
+    validation: string,
+    env: NodeJS.ProcessEnv,
+): Promise<number> {
+    const child = Bun.spawn([bash, '-c', validation], {
+        cwd: repositoryRoot,
+        env,
+        stdin: 'ignore',
+        stdout: 'ignore',
+        stderr: 'ignore',
+    })
+    const completion = child.exited
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+        return await Promise.race([
+            completion,
+            new Promise<never>((_, reject) => {
+                timer = setTimeout(() => {
+                    child.kill()
+                    reject(new Error('release validation subprocess timed out'))
+                }, RELEASE_VALIDATION_TIMEOUT_MS)
+            }),
+        ])
+    } finally {
+        if (timer !== undefined) clearTimeout(timer)
+        if (child.exitCode === null) child.kill()
+        await completion
+    }
 }
 
 describe('release workflow entry points', () => {
@@ -71,19 +103,16 @@ describe('shared release pipeline', () => {
             ['v1.0.0+build', 'stable', 'false', false],
         ] as const
         for (const [tag, channel, prerelease, accepted] of cases) {
-            const result = spawnSync(bash, ['-c', validation], {
-                encoding: 'utf8',
-                env: {
-                    ...process.env,
-                    RELEASE_TAG: tag,
-                    RELEASE_CHANNEL: channel,
-                    RELEASE_PRERELEASE: prerelease,
-                    RELEASE_ID: '123',
-                    RELEASE_PUBLISHED_AT: '2026-09-09T12:00:00Z',
-                },
+            // oxlint-disable-next-line no-await-in-loop -- Keep subprocesses sequential and bounded.
+            const exitCode = await runReleaseValidation(bash, validation, {
+                ...process.env,
+                RELEASE_TAG: tag,
+                RELEASE_CHANNEL: channel,
+                RELEASE_PRERELEASE: prerelease,
+                RELEASE_ID: '123',
+                RELEASE_PUBLISHED_AT: '2026-09-09T12:00:00Z',
             })
-            expect(result.error).toBeUndefined()
-            expect({ tag, accepted: result.status === 0 }).toEqual({ tag, accepted })
+            expect({ tag, accepted: exitCode === 0 }).toEqual({ tag, accepted })
         }
     })
 
