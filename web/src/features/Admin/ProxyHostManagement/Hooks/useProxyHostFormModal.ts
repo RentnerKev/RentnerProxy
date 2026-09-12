@@ -32,7 +32,9 @@ export default function useProxyHostFormModal(props: ProxyHostFormModalProps): {
             description: t('admin.proxyHosts.form.description'),
             title: t(isCreate ? 'admin.proxyHosts.actions.add' : 'admin.proxyHosts.form.editTitle'),
             pendingSubmitLabel: t(isCreate ? 'admin.proxyHosts.form.creating' : 'common.saving'),
-            submitLabel: t(isCreate ? 'admin.proxyHosts.actions.create' : 'common.save'),
+            submitLabel: state.requestNewCertificate
+                ? t('admin.certificates.actions.request')
+                : t(isCreate ? 'admin.proxyHosts.actions.create' : 'common.save'),
         },
         handler: { ...handler, handleSubmit },
     }

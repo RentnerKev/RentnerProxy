@@ -12,11 +12,13 @@ import type { ProxyHostFormFieldsProps } from '../Types/proxy-host-form.types'
 import { proxyForwardHostSchema, proxyHostFormSchema } from '../validation'
 import DomainInputs from './DomainInputs'
 import UpstreamTlsFields from './UpstreamTlsFields'
+import CertificateRequestFields from '../../CertificateManagement/Components/CertificateRequestFields'
 
 export default function ProxyHostFormFields({
     addDomain,
     canChangeEnabled,
     canAssignCertificates,
+    canRequestCertificate,
     canAssignPolicies,
     assignableAccessPolicies,
     assignableAccessPoliciesLoadFailed,
@@ -34,6 +36,9 @@ export default function ProxyHostFormFields({
     removeDomain,
     retryAssignableAccessPolicies,
     retryAssignableCertificates,
+    requestNewCertificate,
+    setRequestNewCertificate,
+    certificateRequestForm,
 }: ProxyHostFormFieldsProps) {
     const { t } = useTranslationStore()
 
@@ -180,7 +185,7 @@ export default function ProxyHostFormFields({
                                 form.state.values.domains,
                             ),
                     )
-                    return canAssignCertificates ? (
+                    return canAssignCertificates || canRequestCertificate ? (
                         <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
                             <label
                                 className={uiClassNames.form.label}
@@ -195,23 +200,46 @@ export default function ProxyHostFormFields({
                                 className={uiClassNames.form.select}
                                 disabled={
                                     isPending ||
-                                    assignableCertificatesLoading ||
-                                    assignableCertificatesLoadFailed
+                                    (canAssignCertificates &&
+                                        (assignableCertificatesLoading ||
+                                            assignableCertificatesLoadFailed))
                                 }
                                 invalid={field.state.meta.errors.length > 0}
                                 describedBy={`${formId}-certificateId-hint ${formId}-certificateId-error`}
                                 onBlur={field.handleBlur}
-                                value={field.state.value ?? ''}
+                                value={
+                                    requestNewCertificate
+                                        ? '__request-new__'
+                                        : (field.state.value ?? '')
+                                }
                                 placeholder={t('admin.proxyHosts.form.noCertificate')}
-                                options={usableCertificates.map((certificate) => ({
-                                    value: certificate.id,
-                                    label:
-                                        certificate.name + ' · ' + certificate.domains.join(', '),
-                                }))}
                                 onValueChange={(value) => {
+                                    if (value === '__request-new__') {
+                                        field.handleChange(null)
+                                        setRequestNewCertificate(true)
+                                        return
+                                    }
+                                    setRequestNewCertificate(false)
                                     field.handleChange(value || null)
                                     if (!value) form.setFieldValue('forceHttps', false)
                                 }}
+                                options={[
+                                    ...(canRequestCertificate
+                                        ? [
+                                              {
+                                                  value: '__request-new__',
+                                                  label: t('admin.certificates.actions.request'),
+                                              },
+                                          ]
+                                        : []),
+                                    ...usableCertificates.map((certificate) => ({
+                                        value: certificate.id,
+                                        label:
+                                            certificate.name +
+                                            ' · ' +
+                                            certificate.domains.join(', '),
+                                    })),
+                                ]}
                             />
                             <p
                                 id={`${formId}-certificateId-hint`}
@@ -246,6 +274,20 @@ export default function ProxyHostFormFields({
                     ) : null
                 }}
             </form.Field>
+            {requestNewCertificate ? (
+                <div
+                    className={`${uiClassNames.form.wide} grid gap-4 rounded-xl border border-info-text/20 bg-info-bg p-3`}
+                >
+                    <p className="m-0 text-sm leading-relaxed text-info-text">
+                        {t('admin.certificates.form.domainsHint')}
+                    </p>
+                    <CertificateRequestFields
+                        form={certificateRequestForm}
+                        isPending={isPending}
+                        readOnlyDomains
+                    />
+                </div>
+            ) : null}
             <form.Field name="accessPolicyId">
                 {(field) => {
                     const selectedPolicy = assignableAccessPolicies.find(
@@ -332,9 +374,11 @@ export default function ProxyHostFormFields({
                                 (certificate) => certificate.id === certificateId,
                             )
                             const usable =
-                                selected !== undefined &&
-                                (selected.status === 'valid' || selected.status === 'expiring') &&
-                                certificateCoversDomains(selected.domains, domains)
+                                requestNewCertificate ||
+                                (selected !== undefined &&
+                                    (selected.status === 'valid' ||
+                                        selected.status === 'expiring') &&
+                                    certificateCoversDomains(selected.domains, domains))
                             return canAssignCertificates ? (
                                 <div
                                     className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}

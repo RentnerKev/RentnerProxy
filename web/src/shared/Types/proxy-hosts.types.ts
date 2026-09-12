@@ -1,6 +1,7 @@
 import type { ProxyHostForwardScheme } from '../../config/proxy-hosts.config'
 import type { AccessPolicyCombination, AccessPolicyMode } from '../../config/access-policies.config'
 import type { AccessPolicyBasicAuthRuntime, AccessPolicyIpRules } from './access-policies.types'
+import type { CertificateJobSummary } from './certificate-jobs.types'
 
 export interface ProxyHostAccessPolicy {
     readonly id: string
@@ -11,6 +12,7 @@ export interface ProxyHostAccessPolicy {
 }
 
 export interface ProxyHostSummary {
+    readonly certificateJob?: CertificateJobSummary | null
     readonly id: string
     readonly domains: Array<string>
     readonly forwardScheme: ProxyHostForwardScheme

@@ -1,6 +1,6 @@
-import { useForm } from '@tanstack/react-form'
+import { useForm, useStore } from '@tanstack/react-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { accessPolicyManagementQueryKeys } from '../../AccessPolicyManagement/queryKeys'
 import { getAssignableAccessPoliciesHandler } from '../../AccessPolicyManagement/server'
 import { trustedCaManagementQueryKeys } from '../../TrustedCaManagement/queryKeys'
@@ -10,11 +10,19 @@ import { getAssignableCertificatesHandler } from '../../CertificateManagement/se
 import { MAX_PROXY_HOST_DOMAINS } from '../../../../config/proxy-hosts.config'
 import useToast from '../../../../shared/Toast/Hooks/useToast'
 import { proxyHostManagementQueryKeys } from '../queryKeys'
+import {
+    createProxyHostWithCertificateHandler,
+    updateProxyHostWithCertificateHandler,
+} from '../CertificateJobs/server'
+import useCertificateRequestLogic from '../../CertificateManagement/Hooks/useCertificateRequestLogic'
+import { hostCertificateRequestSchema } from '../certificate-job-validation'
 import { createProxyHostHandler, updateProxyHostHandler } from '../server'
 import type {
     ProxyHostEditorFormValues,
     ProxyHostFormModalProps,
 } from '../Types/proxy-host-form.types'
+import type { ProxyHostActionResult } from '../../../../shared/Types/proxy-runtime.types'
+import type { CertificateJobActionResult } from '../../../../shared/Types/certificate-jobs.types'
 import { proxyHostFormSchema } from '../validation'
 
 type UseProxyHostFormLogicParams = Pick<
@@ -22,6 +30,7 @@ type UseProxyHostFormLogicParams = Pick<
     | 'canEnable'
     | 'canDisable'
     | 'canAssignCertificates'
+    | 'canRequestCertificate'
     | 'canAssignPolicies'
     | 'mode'
     | 'onSuccess'
@@ -32,6 +41,7 @@ export default function useProxyHostFormLogic({
     canEnable,
     canDisable,
     canAssignCertificates = false,
+    canRequestCertificate = false,
     canAssignPolicies = false,
     mode,
     onSuccess,
@@ -44,6 +54,17 @@ export default function useProxyHostFormLogic({
     )
     const [pendingDisableValues, setPendingDisableValues] =
         useState<ProxyHostEditorFormValues | null>(null)
+    const [requestNewCertificate, setRequestNewCertificate] = useState(false)
+    const [certificateJobIdempotencyKey] = useState(() => crypto.randomUUID())
+    const suggestedRequestName = useRef(proxyHost?.domains[0] ?? '')
+    const certificateRequest = useCertificateRequestLogic({
+        initialDomains: proxyHost?.domains ?? [''],
+        initialName: proxyHost?.domains[0] ?? '',
+        onOpenChange: () => undefined,
+        onSuccess: async () => undefined,
+        open: true,
+        readOnlyDomains: true,
+    })
     const trustedCasQuery = useQuery({
         queryKey: trustedCaManagementQueryKeys.assignable,
         queryFn: () => getAssignableTrustedCasHandler(),
@@ -61,7 +82,11 @@ export default function useProxyHostFormLogic({
         enabled: canAssignPolicies,
         staleTime: 30_000,
     })
-    const mutation = useMutation({
+    const mutation = useMutation<
+        ProxyHostActionResult | CertificateJobActionResult,
+        Error,
+        ProxyHostEditorFormValues
+    >({
         mutationFn: (values: ProxyHostEditorFormValues) => {
             const data = proxyHostFormSchema.parse(values)
             const submittedData = canAssignPolicies
@@ -71,8 +96,36 @@ export default function useProxyHostFormLogic({
                       delete preserved.accessPolicyId
                       return preserved
                   })()
+            const request = requestNewCertificate
+                ? (() => {
+                      const parsed = certificateRequest.getRequestInput({
+                          ...certificateRequest.form.state.values,
+                          domains: hostDomains,
+                      })
+                      const { domains: _domains, ...withoutDomains } = parsed
+                      return hostCertificateRequestSchema.parse(withoutDomains)
+                  })()
+                : null
+            if (mode === 'create' && request) {
+                return createProxyHostWithCertificateHandler({
+                    data: {
+                        idempotencyKey: certificateJobIdempotencyKey,
+                        host: submittedData,
+                        request,
+                    },
+                })
+            }
             if (mode === 'create') return createProxyHostHandler({ data: submittedData })
             if (!proxyHost) throw new Error('admin.proxyHosts.errors.proxy_host_not_found')
+            if (request) {
+                return updateProxyHostWithCertificateHandler({
+                    data: {
+                        idempotencyKey: certificateJobIdempotencyKey,
+                        host: { ...submittedData, proxyHostId: proxyHost.id },
+                        request,
+                    },
+                })
+            }
             return updateProxyHostHandler({
                 data: { ...submittedData, proxyHostId: proxyHost.id },
             })
@@ -98,7 +151,7 @@ export default function useProxyHostFormLogic({
                     queryKey: accessPolicyManagementQueryKeys.all,
                 }),
             ])
-            if (result.runtimeStatus === 'pending')
+            if ('runtimeStatus' in result && result.runtimeStatus === 'pending')
                 toast.warning('admin.proxyHosts.runtime.savedPending')
             else toast.success(result.message)
             setPendingDisableValues(null)
@@ -131,6 +184,10 @@ export default function useProxyHostFormLogic({
         validators: { onSubmit: proxyHostFormSchema },
         onSubmit: async ({ value }) => {
             mutation.reset()
+            if (requestNewCertificate) {
+                const errors = await certificateRequest.form.validate('submit')
+                if (Object.keys(errors).length > 0) return
+            }
             if (mode === 'edit' && proxyHost?.enabled && !value.enabled) {
                 setPendingDisableValues({ ...value, domains: [...value.domains] })
                 return
@@ -138,6 +195,16 @@ export default function useProxyHostFormLogic({
             await mutation.mutateAsync(value).catch(() => undefined)
         },
     })
+    const hostDomains = useStore(form.store, (state) => state.values.domains)
+    useEffect(() => {
+        certificateRequest.form.setFieldValue('domains', [...hostDomains])
+        const currentName = certificateRequest.form.getFieldValue('name')
+        if (!currentName.trim() || currentName === suggestedRequestName.current) {
+            const nextName = hostDomains[0] ?? ''
+            certificateRequest.form.setFieldValue('name', nextName)
+            suggestedRequestName.current = nextName
+        }
+    }, [certificateRequest.form, hostDomains])
     const addDomain = useCallback(() => {
         if (form.state.values.domains.length >= MAX_PROXY_HOST_DOMAINS || mutation.isPending) return
         form.pushFieldValue('domains', '')
@@ -161,6 +228,7 @@ export default function useProxyHostFormLogic({
     return {
         state: {
             canAssignCertificates,
+            canRequestCertificate,
             canAssignPolicies,
             assignableAccessPolicies: accessPoliciesQuery.data ?? [],
             assignableAccessPoliciesLoadFailed: accessPoliciesQuery.isError,
@@ -175,6 +243,8 @@ export default function useProxyHostFormLogic({
             disableConfirmationOpen: pendingDisableValues !== null,
             domainKeys,
             form,
+            certificateRequestForm: certificateRequest.form,
+            requestNewCertificate,
             isPending: mutation.isPending,
         },
         handler: {
@@ -184,6 +254,7 @@ export default function useProxyHostFormLogic({
             retryAssignableAccessPolicies,
             confirmDisable,
             setDisableConfirmationOpen,
+            setRequestNewCertificate,
         },
     }
 }

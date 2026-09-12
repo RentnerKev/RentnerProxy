@@ -11,6 +11,7 @@ import { basename, dirname, resolve } from 'node:path'
 import { smokeDockerArguments } from './smoke-resources'
 import { startCertificateDnsFixture } from './certificate-dns-fixture'
 import { verifyProxyAccessLogs } from './proxy-access-logs-smoke'
+import { verifyDurableCertificateJob } from './certificate-job-smoke'
 import { CERTIFICATE_ERROR_CODES } from '../web/src/config/certificates.config'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
@@ -536,6 +537,8 @@ async function runSmoke(): Promise<void> {
                 'plain.invalid',
                 '--network-alias',
                 'acme.invalid',
+                '--network-alias',
+                'certificate-job.example.com',
                 '--add-host',
                 'host.docker.internal:host-gateway',
                 '--publish',
@@ -598,6 +601,7 @@ async function runSmoke(): Promise<void> {
                 runtimeContainer,
             ])
             dnsAddresses.set('acme.invalid', runtimeIpv4)
+            dnsAddresses.set('certificate-job.example.com', runtimeIpv4)
         }
         async function restartRuntime(): Promise<void> {
             await command(['docker', 'restart', runtimeContainer], { timeoutMs: 60_000 })
@@ -2555,6 +2559,32 @@ async function runSmoke(): Promise<void> {
         })
         passed(
             'request logs preserve privacy, filters and pagination across restart and bounded rotation',
+        )
+        await verifyDurableCertificateJob({
+            controllerUrl,
+            httpUrl,
+            token,
+            backendPort: backend.port!,
+            temporaryDirectory: temp,
+            waitFor,
+            restartRuntime,
+            verifyHttps: async () => {
+                const response = await command([
+                    'curl',
+                    '--silent',
+                    '--show-error',
+                    '--head',
+                    '--cacert',
+                    temp + '/issuance-root.pem',
+                    '--resolve',
+                    'certificate-job.example.com:' + httpsPort + ':127.0.0.1',
+                    'https://certificate-job.example.com:' + httpsPort + '/job-ready',
+                ])
+                assert.match(response, /^HTTP\/(?:1\.1|2) 200(?:\s|$)/u)
+            },
+        })
+        passed(
+            'durable certificate jobs survive web and controller restart before verified HTTPS activation',
         )
         console.log('Certificate HTTPS/ACME integration: ' + assertions + ' checks passed.')
     } finally {

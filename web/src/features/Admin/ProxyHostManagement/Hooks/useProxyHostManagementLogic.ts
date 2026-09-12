@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { PERMISSIONS } from '../../../../config/permissions.config'
 import useToast from '../../../../shared/Toast/Hooks/useToast'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
+import { isCertificateJobActive } from '../../../../config/certificate-jobs.config'
 import { accessPolicyManagementQueryKeys } from '../../AccessPolicyManagement/queryKeys'
 import { proxyHostManagementQueryKeys } from '../queryKeys'
 import {
@@ -33,6 +34,13 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
     const proxyHostsQuery = useQuery({
         queryKey: proxyHostManagementQueryKeys.all,
         queryFn: () => getProxyHostsHandler(),
+        refetchInterval: (query) =>
+            query.state.data?.some(
+                (host) => host.certificateJob && isCertificateJobActive(host.certificateJob.stage),
+            )
+                ? 2_000
+                : 15_000,
+        refetchIntervalInBackground: false,
     })
     const runtimeStatusQuery = useQuery({
         queryKey: proxyHostManagementQueryKeys.runtimeStatus,
@@ -215,15 +223,26 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
     const retryRuntime = useCallback(() => {
         void runtimeStatusQuery.refetch()
     }, [runtimeStatusQuery])
+    const currentCertificateRequestTarget = certificateRequestTarget
+        ? (proxyHostsQuery.data?.find((host) => host.id === certificateRequestTarget.id) ??
+          certificateRequestTarget)
+        : null
 
     return {
         state: {
             canApply: permissionSet.has(PERMISSIONS.PROXY_HOSTS_APPLY),
             canAssignCertificates:
-                permissionSet.has(PERMISSIONS.PROXY_HOSTS_CREATE) ||
-                permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE),
+                permissionSet.has(PERMISSIONS.CERTIFICATES_VIEW) &&
+                (permissionSet.has(PERMISSIONS.PROXY_HOSTS_CREATE) ||
+                    permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE)),
             canAssignPolicies: permissionSet.has(PERMISSIONS.ACCESS_POLICIES_ASSIGN),
-            canRequestCertificate: permissionSet.has(PERMISSIONS.CERTIFICATES_ISSUE),
+            canRequestCertificate:
+                permissionSet.has(PERMISSIONS.CERTIFICATES_ISSUE) &&
+                permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE),
+            canCreateCertificateJob:
+                permissionSet.has(PERMISSIONS.CERTIFICATES_ISSUE) &&
+                (permissionSet.has(PERMISSIONS.PROXY_HOSTS_CREATE) ||
+                    permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE)),
             canEditConfig:
                 permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE) &&
                 permissionSet.has(PERMISSIONS.PROXY_HOSTS_APPLY),
@@ -249,7 +268,7 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
             showCreate,
             configTarget,
             globalConfigOpen,
-            certificateRequestTarget,
+            certificateRequestTarget: currentCertificateRequestTarget,
         },
         handler: {
             apply,

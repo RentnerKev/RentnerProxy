@@ -1,8 +1,12 @@
 import { useForm } from '@tanstack/react-form'
-import { useId, useState } from 'react'
+import { useCallback, useId, useState } from 'react'
+import { isCertificateJobActive } from '../../../../config/certificate-jobs.config'
 import useToast from '../../../../shared/Toast/Hooks/useToast'
-import type { CertificateActionResult } from '../../../../shared/Types/certificates.types'
 import { requestCertificateHandler } from '../server'
+import {
+    requestProxyHostCertificateHandler,
+    retryCertificateJobHandler,
+} from '../../ProxyHostManagement/CertificateJobs/server'
 import {
     certificateRequestFormSchema,
     certificateRequestInputFromForm,
@@ -11,13 +15,30 @@ import {
 import type { CertificateRequestModalProps } from '../Types/certificate-management.types'
 
 export default function useCertificateRequestLogic({
+    certificateJob,
+    expectedUpdatedAt,
     initialDomains,
     initialName,
+    proxyHostId,
+    readOnlyDomains = false,
     onSuccess,
 }: CertificateRequestModalProps) {
     const toast = useToast()
     const formId = useId()
     const [isPending, setIsPending] = useState(false)
+    const [idempotencyKey] = useState(() => crypto.randomUUID())
+    const retryableJob = Boolean(
+        certificateJob &&
+        (certificateJob.stage === 'failed' ||
+            certificateJob.stage === 'needs_attention' ||
+            (isCertificateJobActive(certificateJob.stage) &&
+                certificateJob.lastErrorCode !== null)),
+    )
+    const getRequestInput = useCallback(
+        (value: Parameters<typeof certificateRequestInputFromForm>[0]) =>
+            requestCertificateInputSchema.parse(certificateRequestInputFromForm(value)),
+        [],
+    )
     const form = useForm({
         defaultValues: {
             name: initialName ?? '',
@@ -33,12 +54,22 @@ export default function useCertificateRequestLogic({
             if (isPending) return
             setIsPending(true)
             try {
-                const parsed = requestCertificateInputSchema.parse(
-                    certificateRequestInputFromForm(value),
-                )
-                const result: CertificateActionResult = await requestCertificateHandler({
-                    data: parsed,
-                })
+                const parsed = retryableJob ? null : getRequestInput(value)
+                const result = retryableJob
+                    ? await retryCertificateJobHandler({ data: { jobId: certificateJob!.id } })
+                    : proxyHostId
+                      ? await requestProxyHostCertificateHandler({
+                            data: {
+                                idempotencyKey,
+                                proxyHostId,
+                                expectedUpdatedAt: expectedUpdatedAt ?? new Date().toISOString(),
+                                request: (() => {
+                                    const { domains: _domains, ...request } = parsed!
+                                    return request
+                                })(),
+                            },
+                        })
+                      : await requestCertificateHandler({ data: parsed! })
                 if (!result.success) {
                     toast.error(result.message)
                     return
@@ -61,7 +92,7 @@ export default function useCertificateRequestLogic({
                 setIsPending(false)
             }
         },
-        validators: { onSubmit: certificateRequestFormSchema },
+        validators: retryableJob ? {} : { onSubmit: certificateRequestFormSchema },
     })
-    return { form, formId, isPending }
+    return { form, formId, isPending, getRequestInput, readOnlyDomains, retryableJob }
 }

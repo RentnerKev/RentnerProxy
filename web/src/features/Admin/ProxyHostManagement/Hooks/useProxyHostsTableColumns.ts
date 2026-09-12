@@ -72,7 +72,10 @@ export default function useProxyHostsTableColumns({
                 filterFn: filterFn_equalsString,
                 enableGlobalFilter: true,
                 cell: ({ row }) =>
-                    createElement(ProxyHostStatusCell, { enabled: row.original.enabled }),
+                    createElement(ProxyHostStatusCell, {
+                        enabled: row.original.enabled,
+                        certificateJob: row.original.certificateJob,
+                    }),
             },
             {
                 accessorKey: 'createdAt',

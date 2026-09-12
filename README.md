@@ -194,3 +194,22 @@ UI announces a reset and returns to the first page. Refresh loads the latest log
 keeps at most eight snapshots within a 16 MiB cache. They are temporary, are lost on restart,
 and are excluded from backups. The existing bounded log scan and visible truncation notice
 still apply; pagination does not promise access to logs beyond that retained window.
+
+### Certificates requested from proxy hosts
+
+Create and Edit offer a new ACME certificate using the host's domains. The host row also
+offers Request certificate. Saving commits the host, pending certificate, and durable job
+in one transaction. Repeating the same request returns the original job and certificate.
+The web worker continues after the dialog closes or the web process restarts.
+
+A new host remains disabled until its certificate is valid. During replacement, an existing
+valid certificate covering the requested domains remains assigned. Before assignment, the
+worker checks the full host revision, domain coverage, certificate ownership, and the
+requesting user's current permissions. Changed or deleted hosts and revoked permissions
+require attention instead of silently applying an outdated request.
+
+The job reports completion only after the controller confirms the current proxy revision.
+Activation failures remain visible and can be retried with the existing certificate and
+issued candidate. Job request data is encrypted with the application encryption key and
+cleared after completion. Include the job table in the same database backup as the host and
+certificate records.

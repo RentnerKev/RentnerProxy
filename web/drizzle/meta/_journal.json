@@ -134,6 +134,13 @@
             "when": 1789239033691,
             "tag": "0018_durable_certificate_operations",
             "breakpoints": true
+        },
+        {
+            "idx": 19,
+            "version": "7",
+            "when": 1789246463427,
+            "tag": "0019_certificate_binding_jobs",
+            "breakpoints": true
         }
     ]
 }

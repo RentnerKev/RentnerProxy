@@ -897,6 +897,23 @@
                 "enabled": "Hôte proxy activé avec succès.",
                 "disabled": "Hôte proxy désactivé avec succès."
             },
+            "certificateJob": {
+                "messages": {
+                    "queued": "Demande de certificat mise en file.",
+                    "retried": "Nouvel essai du certificat mis en file."
+                },
+                "errors": {
+                    "host_changed": "L’hôte proxy a changé. Vérifiez ses domaines et réessayez.",
+                    "host_deleted": "L’hôte proxy n’existe plus.",
+                    "permission_revoked": "Votre autorisation de certificat a été révoquée.",
+                    "certificate_deleted": "Le certificat du traitement a été supprimé.",
+                    "certificate_used_elsewhere": "Le certificat est déjà attribué ailleurs.",
+                    "idempotency_conflict": "Cette clé de demande a déjà été utilisée autrement.",
+                    "job_not_found": "Le traitement du certificat est introuvable.",
+                    "actionFailed": "L’action du traitement de certificat a échoué.",
+                    "loadFailed": "Le statut du traitement de certificat est indisponible."
+                }
+            },
             "states": {
                 "unavailableTitle": "Les hôtes proxy sont indisponibles",
                 "unavailableDescription": "Impossible de charger les hôtes proxy enregistrés. Réessayez."

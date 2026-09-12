@@ -1,5 +1,6 @@
 import type { PermissionKey } from '../../../../config/permissions.config'
 import type { CertificateSummary } from '../../../../shared/Types/certificates.types'
+import type { CertificateJobSummary } from '../../../../shared/Types/certificate-jobs.types'
 import type useCertificateManagementLogic from '../Hooks/useCertificateManagementLogic'
 
 export interface CertificateManagementPageProps {
@@ -58,4 +59,8 @@ export interface CertificateRequestModalProps {
     readonly onSuccess: () => void | Promise<void>
     readonly initialDomains?: ReadonlyArray<string>
     readonly initialName?: string
+    readonly proxyHostId?: string
+    readonly expectedUpdatedAt?: string
+    readonly readOnlyDomains?: boolean
+    readonly certificateJob?: CertificateJobSummary | null | undefined
 }

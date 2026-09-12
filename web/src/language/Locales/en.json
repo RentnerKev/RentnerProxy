@@ -897,6 +897,23 @@
                 "enabled": "Proxy host enabled successfully.",
                 "disabled": "Proxy host disabled successfully."
             },
+            "certificateJob": {
+                "messages": {
+                    "queued": "Certificate request queued.",
+                    "retried": "Certificate retry queued."
+                },
+                "errors": {
+                    "host_changed": "The proxy host changed. Review its domains and try again.",
+                    "host_deleted": "The proxy host no longer exists.",
+                    "permission_revoked": "Your certificate permission was revoked.",
+                    "certificate_deleted": "The certificate job material was deleted.",
+                    "certificate_used_elsewhere": "The certificate is already assigned elsewhere.",
+                    "idempotency_conflict": "This request key was already used for another request.",
+                    "job_not_found": "The certificate job could not be found.",
+                    "actionFailed": "The certificate job action failed.",
+                    "loadFailed": "The certificate job status could not be loaded."
+                }
+            },
             "states": {
                 "unavailableTitle": "Proxy hosts are unavailable",
                 "unavailableDescription": "The saved proxy hosts could not be loaded. Try again."

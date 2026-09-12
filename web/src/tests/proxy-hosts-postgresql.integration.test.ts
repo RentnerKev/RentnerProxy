@@ -605,7 +605,7 @@ describe('ProxyHost management with PostgreSQL', () => {
             expect(updated.updatedAt.getTime()).toBeGreaterThanOrEqual(created.updatedAt.getTime())
             const { runtimeStatus: _runtimeStatus, ...updatedWithoutRuntimeStatus } = updated
             expect(await runAsUser(owner.id, getProxyHostsService)).toEqual([
-                updatedWithoutRuntimeStatus,
+                { ...updatedWithoutRuntimeStatus, certificateJob: null },
             ])
 
             await runAsUser(owner.id, () => deleteProxyHostService(created.id))
