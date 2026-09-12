@@ -43,7 +43,7 @@ const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => 
         getRequestProtocol({ xForwardedProto: getTrustProxyHeaders() }),
         nonce,
     )
-    setResponseHeaders(securityHeaders as unknown as Parameters<typeof setResponseHeaders>[0])
+    setResponseHeaders(new Headers(securityHeaders))
 
     const result = await next({ context: { cspNonce: nonce } })
     return {

@@ -1,5 +1,5 @@
 diff --git a/dist/esm/request-response.js b/dist/esm/request-response.js
-index 4ce23fae2de3772646a2380a9e64c3f468b051f6..5e147cb350eacc4e35ffa93971dd1bc064cf1cbd 100644
+index d5e677c151dae610247571a9d95ae9cb6b7116da..06253ca25b68058f97cbae6c07200aa9c499bf01 100644
 --- a/dist/esm/request-response.js
 +++ b/dist/esm/request-response.js
 @@ -31,6 +31,13 @@ function attachResponseHeaders(value, event) {
@@ -16,7 +16,7 @@ index 4ce23fae2de3772646a2380a9e64c3f468b051f6..5e147cb350eacc4e35ffa93971dd1bc0
  function requestHandler(handler) {
  	return (request, requestOpts) => {
  		let h3Event;
-@@ -43,8 +50,9 @@ function requestHandler(handler) {
+@@ -43,7 +50,8 @@ function requestHandler(handler) {
  			});
  			throw error;
  		}
@@ -26,13 +26,12 @@ index 4ce23fae2de3772646a2380a9e64c3f468b051f6..5e147cb350eacc4e35ffa93971dd1bc0
  	};
  }
  function getH3Event() {
- 	const event = eventStorage.getStore();
 diff --git a/src/request-response.ts b/src/request-response.ts
-index e0ad8a336a37bc29ccdff48d87dfb5b360b633f1..0183d0b4ff5fe92d6215851f96567da743ecd50d 100644
+index 2f0456bedf6b4bb409add91dcb59ef8c1263de62..421937a4246ed934ad6b3e5339c4345a9c62728b 100644
 --- a/src/request-response.ts
 +++ b/src/request-response.ts
-@@ -118,6 +118,22 @@ function attachResponseHeaders<T>(
-   return value
+@@ -69,6 +69,22 @@ function isPromiseLike<T>(value: MaybePromise<T>): value is Promise<T> {
+   return typeof (value as Promise<T>).then === 'function'
  }
  
 +function handleRequestAbort<T>(
@@ -51,21 +50,18 @@ index e0ad8a336a37bc29ccdff48d87dfb5b360b633f1..0183d0b4ff5fe92d6215851f96567da7
 +  })
 +}
 +
- export function requestHandler<TRegister = unknown>(
-   handler: RequestHandler<TRegister>,
- ) {
-@@ -135,9 +151,12 @@ export function requestHandler<TRegister = unknown>(
+ function getSetCookieValues(headers: Headers): Array<string> {
+   const headersWithSetCookie = headers as HeadersWithGetSetCookie
+   if (typeof headersWithSetCookie.getSetCookie === 'function') {
+@@ -135,8 +151,9 @@ export function requestHandler<TRegister = unknown>(
        throw error
      }
  
 -    const response = eventStorage.run({ h3Event }, () =>
 -      handler(request, requestOpts),
 +    const response = handleRequestAbort(
-+      eventStorage.run({ h3Event }, () =>
-+        handler(request, requestOpts),
-+      ),
++      eventStorage.run({ h3Event }, () => handler(request, requestOpts)),
 +      request,
      )
      return h3_toResponse(attachResponseHeaders(response, h3Event), h3Event)
    }
- }
