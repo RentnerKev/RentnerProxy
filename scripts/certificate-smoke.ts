@@ -12,6 +12,7 @@ import { smokeDockerArguments } from './smoke-resources'
 import { startCertificateDnsFixture } from './certificate-dns-fixture'
 import { verifyProxyAccessLogs } from './proxy-access-logs-smoke'
 import { verifyDurableCertificateJob } from './certificate-job-smoke'
+import { buildHttp3Client, requestHttp3Client, assertHttp3Response } from './http3-client'
 import { CERTIFICATE_ERROR_CODES } from '../web/src/config/certificates.config'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
@@ -22,6 +23,7 @@ const runtimeContainer = project + '-runtime'
 const trustedProxyContainer = project + '-trusted-proxy'
 const pebbleContainer = project + '-pebble'
 const runtimeImage = project + ':runtime'
+const http3Image = project + ':http3-client'
 const pebbleImage =
     'ghcr.io/letsencrypt/pebble:2.10.1@sha256:ddf230642b1a584f519f32e347de1b05a6e4c1f6c35c1863b33effeab5f78199'
 const token = randomBytes(32).toString('hex')
@@ -336,6 +338,7 @@ async function runSmoke(): Promise<void> {
             ],
             { inherit: true, timeoutMs: 900_000 },
         )
+        await buildHttp3Client(command, http3Image)
         await command(['docker', 'network', 'create', '--ipv6', network])
         await command(
             [
@@ -495,6 +498,7 @@ async function runSmoke(): Promise<void> {
 
         const httpPort = await freePort()
         const httpsPort = await freePort()
+        const tcpOnlyHttpsPort = await freePort()
         const controllerPort = await freePort()
         const upstreamRequests: string[] = []
         backend = Bun.serve({
@@ -545,6 +549,10 @@ async function runSmoke(): Promise<void> {
                 '127.0.0.1:' + httpPort + ':8080',
                 '--publish',
                 '127.0.0.1:' + httpsPort + ':8443',
+                '--publish',
+                '127.0.0.1:' + httpsPort + ':8443/udp',
+                '--publish',
+                '127.0.0.1:' + tcpOnlyHttpsPort + ':8443/tcp',
                 '--publish',
                 '127.0.0.1:' + controllerPort + ':8081',
                 '--env',
@@ -668,7 +676,9 @@ async function runSmoke(): Promise<void> {
             '{{json .HostConfig.PortBindings}}',
             runtimeContainer,
         ])
-        assert.doesNotMatch(portBindings, /\/udp/iu)
+        assert.deepEqual(JSON.parse(portBindings)['8443/udp'], [
+            { HostIp: '127.0.0.1', HostPort: String(httpsPort) },
+        ])
         passed('isolated controller and Caddy runtime are ready')
 
         async function controllerRequest(
@@ -1172,6 +1182,47 @@ async function runSmoke(): Promise<void> {
         assert.match(httpsOneHttp2, /certificate-smoke-backend/u)
         assert.match(httpsOneHttp2, /\n2$/u)
         passed('curl verifies HTTP/1.1 and negotiated HTTP/2 requests over TLS')
+        const quic = (options: Partial<Parameters<typeof requestHttp3Client>[1]> = {}) =>
+            requestHttp3Client(command, {
+                image: http3Image,
+                caFile: temp + '/ca.pem',
+                hostname: 'one.test',
+                port: httpsPort,
+                ...options,
+            })
+        const firstQuic = await quic()
+        assertHttp3Response(firstQuic, 200, httpsPort)
+        assert.equal(firstQuic.fingerprint, 'sha256:' + firstFingerprint)
+        assert.match(firstQuic.output, /certificate-smoke-backend/u)
+        const h2Fallback = await quic({ protocol: '--http2' })
+        assert.equal(h2Fallback.protocol, '2')
+        assert.equal(h2Fallback.status, 200)
+        const h1Fallback = await quic({ protocol: '--http1.1' })
+        assert.equal(h1Fallback.protocol, '1.1')
+        assert.equal(h1Fallback.status, 200)
+        await assert.rejects(() => quic({ port: tcpOnlyHttpsPort }))
+        const blockedUdp = await quic({ protocol: '--http3', port: tcpOnlyHttpsPort })
+        assert.equal(blockedUdp.protocol, '2')
+        assert.equal(blockedUdp.status, 200)
+        assertHttp3Response(await quic({ hostname: 'redirect.test' }), 308, httpsPort)
+        assertHttp3Response(
+            await quic({ path: '/.well-known/acme-challenge/missing' }),
+            404,
+            httpsPort,
+        )
+        const mismatchedAuthority = await quic({ headers: ['Host: missing.example.com'] })
+        assert.equal(mismatchedAuthority.status, 421)
+        assert.equal(mismatchedAuthority.protocol, '3')
+        assert.doesNotMatch(mismatchedAuthority.output, /^alt-svc:.*:8443/gimu)
+        const mismatchedTcpAuthority = await quic({
+            protocol: '--http2',
+            headers: ['Host: missing.example.com'],
+        })
+        assert.equal(mismatchedTcpAuthority.status, 421)
+        assert.doesNotMatch(mismatchedTcpAuthority.output, /^alt-svc:.*:8443/gimu)
+        passed(
+            'verified HTTP/3 crosses published UDP with public-port Alt-Svc; HTTP/2 and HTTP/1.1 survive unavailable UDP',
+        )
         const upstreamCountBeforeRedirect = upstreamRequests.length
         const redirectOverHttps = await curl([
             '--include',
@@ -1291,6 +1342,12 @@ async function runSmoke(): Promise<void> {
         )
         passed(
             'certificate replacement changes the SNI fingerprint without changing the active revision',
+        )
+        const replacedQuic = await quic()
+        assertHttp3Response(replacedQuic, 200, httpsPort)
+        assert.equal(replacedQuic.fingerprint, 'sha256:' + replacementFingerprint)
+        passed(
+            'HTTP/3 reload serves the replaced certificate fingerprint in a fresh verified handshake',
         )
 
         const redirect = await curl([
@@ -1883,6 +1940,13 @@ async function runSmoke(): Promise<void> {
             /certificate-smoke-backend/u,
         )
         passed('controller restart preserves account, metadata and live HTTPS configuration')
+        const restartedQuic = await quic({
+            hostname: 'acme.invalid',
+            caFile: temp + '/issuance-root.pem',
+        })
+        assertHttp3Response(restartedQuic, 200, httpsPort)
+        assert.equal(restartedQuic.fingerprint, afterRenew.fingerprint)
+        passed('HTTP/3 preserves the renewed certificate after controller and Caddy restart')
 
         const adminSocketPath = '/var/lib/rentnerproxy/proxy/caddy-admin.sock'
         await command(['docker', 'exec', runtimeContainer, 'test', '-S', adminSocketPath])
@@ -2290,6 +2354,13 @@ async function runSmoke(): Promise<void> {
         const basicAuth = { accounts: [{ username: authUsername, passwordHash }] }
         const basicPolicy = { id: policyId, mode: 'authenticated', combination: null, basicAuth }
         const authSnapshot = snapshot([{ ...policyHost, accessPolicy: basicPolicy }])
+        const policyQuic = (options: Partial<Parameters<typeof requestHttp3Client>[1]> = {}) =>
+            quic({
+                hostname: 'policy.example.com',
+                caFile: temp + '/issuance-root.pem',
+                path: '/basic-auth',
+                ...options,
+            })
         const authCurl = (password?: string) =>
             curl([
                 '--include',
@@ -2320,6 +2391,11 @@ async function runSmoke(): Promise<void> {
             )
             const beforeDenied = upstreamRequests.length
             const denied = await authCurl('incorrect-password')
+            assertHttp3Response(
+                await policyQuic({ credentials: authUsername + ':incorrect-password' }),
+                mode.allowed ? 401 : 403,
+                httpsPort,
+            )
             assert.match(
                 denied,
                 mode.allowed ? /^HTTP\/(?:1\.1|2) 401(?:\s|$)/u : /^HTTP\/(?:1\.1|2) 403(?:\s|$)/u,
@@ -2327,6 +2403,11 @@ async function runSmoke(): Promise<void> {
             if (mode.allowed) assert.match(denied, /www-authenticate: Basic realm="RentnerProxy"/iu)
             assert.equal(upstreamRequests.length, beforeDenied)
             const authorized = await authCurl(authPassword)
+            assertHttp3Response(
+                await policyQuic({ credentials: authUsername + ':' + authPassword }),
+                mode.allowed ? 200 : 403,
+                httpsPort,
+            )
             assert.match(
                 authorized,
                 mode.allowed ? /^HTTP\/(?:1\.1|2) 200(?:\s|$)/u : /^HTTP\/(?:1\.1|2) 403(?:\s|$)/u,
@@ -2354,6 +2435,17 @@ async function runSmoke(): Promise<void> {
             }
         }
         await apply(snapshot([{ ...policyHost, forceHttps: true, accessPolicy: basicPolicy }]))
+        assertHttp3Response(
+            await policyQuic({
+                credentials: authUsername + ':' + authPassword,
+                network: 'container:' + trustedProxyContainer,
+                address: runtimeIpv4,
+                port: 8443,
+                headers: ['X-Forwarded-Proto: http'],
+            }),
+            200,
+            httpsPort,
+        )
         const forceAuthHttps = await fetch(httpUrl + '/basic-auth', {
             headers: { host: 'policy.example.com' },
             redirect: 'manual',
@@ -2414,6 +2506,20 @@ async function runSmoke(): Promise<void> {
             )
             for (const address of ['127.0.0.1', '[::1]']) {
                 const result = await localIpCurl(address)
+                assertHttp3Response(
+                    await policyQuic({
+                        network: 'container:' + runtimeContainer,
+                        address,
+                        port: 8443,
+                        headers: [
+                            'X-Forwarded-For: 192.0.2.99',
+                            'X-Real-IP: 192.0.2.99',
+                            'Forwarded: for=192.0.2.99',
+                        ],
+                    }),
+                    scenario.expected,
+                    httpsPort,
+                )
                 assert.equal(
                     Number(result.match(/^HTTP\/(?:1\.1|2) (\d{3})/u)?.[1]),
                     scenario.expected,
@@ -2604,6 +2710,7 @@ async function runSmoke(): Promise<void> {
         await command(['docker', 'volume', 'rm', stateVolume]).catch(() => undefined)
         await command(['docker', 'network', 'rm', network]).catch(() => undefined)
         await command(['docker', 'image', 'rm', runtimeImage]).catch(() => undefined)
+        await command(['docker', 'image', 'rm', http3Image]).catch(() => undefined)
         if (isOwnedTempDirectory(temp)) await rm(temp, { recursive: true, force: true })
     }
 }

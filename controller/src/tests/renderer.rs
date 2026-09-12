@@ -114,7 +114,41 @@ fn challenge_route_precedes_host_routes_and_public_unknowns_are_404() {
         .unwrap(),
     )
     .unwrap();
-    let https_challenge = &tls_json["apps"]["http"]["servers"]["rentnerproxy-https"]["routes"][0];
+    let https_routes = &tls_json["apps"]["http"]["servers"]["rentnerproxy-https"]["routes"];
+    let https_server = &tls_json["apps"]["http"]["servers"]["rentnerproxy-https"];
+    assert_eq!(
+        https_server["protocols"],
+        serde_json::json!(["h1", "h2", "h3"])
+    );
+    assert_eq!(https_server["allow_0rtt"], false);
+    assert_eq!(https_routes[0]["handle"][0]["handler"], "headers");
+    assert_eq!(https_routes[0]["terminal"], false);
+    assert_eq!(
+        https_routes[0]["handle"][0]["response"]["set"]["Alt-Svc"],
+        serde_json::json!(["h3=\":443\"; ma=2592000"])
+    );
+    assert_eq!(https_routes[0]["handle"][0]["response"]["deferred"], true);
+    assert_eq!(
+        https_routes[0]["handle"][1]["response"]["set"]["Alt-Svc"],
+        serde_json::json!(["h3=\":443\"; ma=2592000"])
+    );
+    assert_eq!(https_routes[0]["handle"][1]["response"]["deferred"], false);
+    assert!(tls_json["apps"]["http"]["servers"]["rentnerproxy-http"]["errors"].is_null());
+    assert!(tls_json["apps"]["http"]["servers"]["rentnerproxy-probe"]["errors"].is_null());
+    let error_route = &https_server["errors"]["routes"][0];
+    assert_eq!(error_route["terminal"], true);
+    assert_eq!(error_route["handle"][0]["handler"], "headers");
+    assert_eq!(
+        error_route["handle"][0]["response"]["set"]["Alt-Svc"],
+        serde_json::json!(["h3=\":443\"; ma=2592000"])
+    );
+    assert_eq!(error_route["handle"][0]["response"]["deferred"], false);
+    assert_eq!(error_route["handle"][1]["handler"], "static_response");
+    assert_eq!(
+        error_route["handle"][1]["status_code"],
+        "{http.error.status_code}"
+    );
+    let https_challenge = &https_routes[1];
     assert_eq!(
         https_challenge["match"][0]["path"][0],
         "/.well-known/acme-challenge/*"
@@ -171,7 +205,7 @@ fn protected_host_routes_are_terminal_403s_on_http_and_https() {
         .unwrap(),
     )
     .unwrap();
-    let https_route = &https["apps"]["http"]["servers"]["rentnerproxy-https"]["routes"][1];
+    let https_route = &https["apps"]["http"]["servers"]["rentnerproxy-https"]["routes"][2];
     assert_eq!(https_route["handle"][0]["handler"], "static_response");
     assert_eq!(https_route["handle"][0]["status_code"], 403);
     assert!(https_route["handle"][1].is_null());
@@ -507,6 +541,10 @@ fn tls_rendering_uses_file_loaders_and_explicit_sni_selection() {
     let https = &json["apps"]["http"]["servers"]["rentnerproxy-https"];
     assert_eq!(https["automatic_https"]["disable"], true);
     assert_eq!(https["strict_sni_host"], true);
+    assert_eq!(
+        https["routes"][0]["handle"][0]["response"]["set"]["Alt-Svc"],
+        serde_json::json!(["h3=\":8443\"; ma=2592000"])
+    );
     assert_eq!(
         https["tls_connection_policies"][0]["certificate_selection"]["any_tag"][0].as_str(),
         configuration.proxy_hosts[0].certificate_id.as_deref()

@@ -26,8 +26,9 @@
 ## Requirements
 
 For the production appliance, use Docker Engine with the Compose plugin. Keep host ports `80`
-and `443` available; the management UI is bound to `127.0.0.1:81`. PostgreSQL and Redis are
-included, but an SMTP host, user, password, and sender address are required.
+and `443` available, and allow inbound TCP and UDP traffic on `443` in the host firewall; the
+management UI is bound to `127.0.0.1:81`. PostgreSQL and Redis are included, but an SMTP host,
+user, password, and sender address are required.
 
 ## Installation
 
