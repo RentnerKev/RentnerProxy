@@ -46,7 +46,8 @@
         "proxyHosts": "Proxy-Hosts",
         "redirectHosts": "Weiterleitungs-Hosts",
         "certificates": "Zertifikate",
-        "accessPolicies": "Zugriffsrichtlinien"
+        "accessPolicies": "Zugriffsrichtlinien",
+        "proxyAccessLogs": "Zugriffsprotokolle"
     },
     "language": {
         "title": "Sprache",
@@ -1449,6 +1450,72 @@
                 "applyFailed": "Die Konfiguration konnte nicht angewendet werden."
             }
         },
+        "proxyAccessLogs": {
+            "page": {
+                "eyebrow": "Proxy-Beobachtung",
+                "title": "Zugriffsprotokolle",
+                "description": "Prüfe die letzten Anfragen, die dein Proxy verarbeitet hat.",
+                "retention": "Letzte Anfragen bleiben bis zu 7 Tage erhalten; ältere Einträge können früher entfernt werden."
+            },
+            "states": {
+                "unavailableTitle": "Zugriffsprotokolle nicht verfügbar",
+                "unavailableDescription": "Die letzten Anfragen konnten nicht geladen werden. Versuche es erneut.",
+                "forbiddenTitle": "Zugriffsprotokolle sind geschützt",
+                "forbiddenDescription": "Deinem Konto fehlt die Berechtigung, Proxy-Zugriffsprotokolle zu sehen."
+            },
+            "table": {
+                "eyebrow": "Letzte Anfragen",
+                "title": "Proxy-Zugriffsprotokolle",
+                "description": "Prüfe Laufzeiten und Ergebnisse, ohne Header, Payloads oder Query-Strings offenzulegen.",
+                "emptyTitle": "Keine aktuellen Anfragen",
+                "emptyDescription": "Im Aufbewahrungszeitraum sind keine Anfragen verfügbar.",
+                "filteredEmptyDescription": "Keine Anfrage passt zu diesen Filtern."
+            },
+            "filters": {
+                "host": "Host",
+                "hostPlaceholder": "example.com",
+                "status": "Status",
+                "statusPlaceholder": "404",
+                "search": "Suche",
+                "searchPlaceholder": "Host, Methode oder Pfad suchen…"
+            },
+            "actions": {
+                "apply": "Filter anwenden",
+                "refresh": "Aktualisieren",
+                "showDetails": "Anfragedetails anzeigen",
+                "hideDetails": "Anfragedetails ausblenden"
+            },
+            "columns": {
+                "time": "Zeit (UTC)",
+                "host": "Host",
+                "method": "Methode",
+                "path": "Pfad",
+                "status": "Status",
+                "duration": "Dauer",
+                "clientIp": "Client-IP",
+                "bytes": "Bytes",
+                "upstream": "Upstream",
+                "protocol": "Protokoll"
+            },
+            "pagination": {
+                "range": "{{from}}–{{to}} von {{count}} Anfragen",
+                "truncated": "Der aktuelle Zeitraum ist begrenzt.",
+                "label": "Seitennavigation der Zugriffsprotokolle",
+                "page": "Seite {{page}} von {{count}}",
+                "previous": "Vorherige Seite",
+                "next": "Nächste Seite"
+            },
+            "validation": {
+                "host": "Gib einen gültigen Hostnamen ein.",
+                "status": "Gib einen Statuscode von 100 bis 599 ein.",
+                "search": "Der Suchtext ist zu lang oder enthält nicht unterstützte Zeichen.",
+                "limit": "Die Seitengröße ist ungültig.",
+                "offset": "Der Seitenoffset ist ungültig."
+            },
+            "errors": {
+                "loadFailed": "Die Zugriffsprotokolle konnten nicht geladen werden."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Zertifikate",
@@ -1539,7 +1606,8 @@
             "redirect_hosts": "Weiterleitungs-Hosts",
             "certificates": "Zertifikate",
             "trusted_cas": "Vertrauenswürdige CAs",
-            "access_policies": "Zugriffsrichtlinien"
+            "access_policies": "Zugriffsrichtlinien",
+            "proxy-access-logs": "Proxy-Zugriffsprotokolle"
         },
         "app": {
             "access": "Anwendungszugriff"
@@ -1599,6 +1667,8 @@
             "assign": "Zugriffsrichtlinien zuweisen",
             "apply": "Zugriffsrichtlinien-Konfiguration anwenden"
         },
+
+        "proxy-access-logs:view": "Proxy-Zugriffsprotokolle anzeigen",
 
         "trusted_cas": {
             "view": "Vertrauenswürdige CAs anzeigen",

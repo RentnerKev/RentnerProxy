@@ -15,6 +15,7 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAccessPoliciesRouteImport } from './routes/_authenticated/access-policies'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedCertificatesRouteImport } from './routes/_authenticated/certificates'
+import { Route as AuthenticatedProxyAccessLogsRouteImport } from './routes/_authenticated/proxy-access-logs'
 import { Route as AuthenticatedProxyHostsRouteImport } from './routes/_authenticated/proxy-hosts'
 import { Route as AuthenticatedRedirectHostsRouteImport } from './routes/_authenticated/redirect-hosts'
 import { Route as AuthenticatedRolesRouteImport } from './routes/_authenticated/roles'
@@ -58,6 +59,12 @@ const AuthenticatedCertificatesRoute =
   AuthenticatedCertificatesRouteImport.update({
     id: '/certificates',
     path: '/certificates',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedProxyAccessLogsRoute =
+  AuthenticatedProxyAccessLogsRouteImport.update({
+    id: '/proxy-access-logs',
+    path: '/proxy-access-logs',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedProxyHostsRoute = AuthenticatedProxyHostsRouteImport.update({
@@ -137,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/access-policies': typeof AuthenticatedAccessPoliciesRoute
   '/account': typeof AuthenticatedAccountRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
+  '/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
   '/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
   '/roles': typeof AuthenticatedRolesRoute
@@ -157,6 +165,7 @@ export interface FileRoutesByTo {
   '/access-policies': typeof AuthenticatedAccessPoliciesRoute
   '/account': typeof AuthenticatedAccountRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
+  '/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
   '/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
   '/roles': typeof AuthenticatedRolesRoute
@@ -178,6 +187,7 @@ export interface FileRoutesById {
   '/_authenticated/access-policies': typeof AuthenticatedAccessPoliciesRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/certificates': typeof AuthenticatedCertificatesRoute
+  '/_authenticated/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/_authenticated/proxy-hosts': typeof AuthenticatedProxyHostsRoute
   '/_authenticated/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
   '/_authenticated/roles': typeof AuthenticatedRolesRoute
@@ -201,6 +211,7 @@ export interface FileRouteTypes {
     | '/access-policies'
     | '/account'
     | '/certificates'
+    | '/proxy-access-logs'
     | '/proxy-hosts'
     | '/redirect-hosts'
     | '/roles'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/access-policies'
     | '/account'
     | '/certificates'
+    | '/proxy-access-logs'
     | '/proxy-hosts'
     | '/redirect-hosts'
     | '/roles'
@@ -241,6 +253,7 @@ export interface FileRouteTypes {
     | '/_authenticated/access-policies'
     | '/_authenticated/account'
     | '/_authenticated/certificates'
+    | '/_authenticated/proxy-access-logs'
     | '/_authenticated/proxy-hosts'
     | '/_authenticated/redirect-hosts'
     | '/_authenticated/roles'
@@ -308,6 +321,13 @@ declare module '@tanstack/react-router' {
       path: '/certificates'
       fullPath: '/certificates'
       preLoaderRoute: typeof AuthenticatedCertificatesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/proxy-access-logs': {
+      id: '/_authenticated/proxy-access-logs'
+      path: '/proxy-access-logs'
+      fullPath: '/proxy-access-logs'
+      preLoaderRoute: typeof AuthenticatedProxyAccessLogsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/proxy-hosts': {
@@ -415,6 +435,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccessPoliciesRoute: typeof AuthenticatedAccessPoliciesRoute
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedCertificatesRoute: typeof AuthenticatedCertificatesRoute
+  AuthenticatedProxyAccessLogsRoute: typeof AuthenticatedProxyAccessLogsRoute
   AuthenticatedProxyHostsRoute: typeof AuthenticatedProxyHostsRoute
   AuthenticatedRedirectHostsRoute: typeof AuthenticatedRedirectHostsRoute
   AuthenticatedRolesRoute: typeof AuthenticatedRolesRoute
@@ -426,6 +447,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccessPoliciesRoute: AuthenticatedAccessPoliciesRoute,
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedCertificatesRoute: AuthenticatedCertificatesRoute,
+  AuthenticatedProxyAccessLogsRoute: AuthenticatedProxyAccessLogsRoute,
   AuthenticatedProxyHostsRoute: AuthenticatedProxyHostsRoute,
   AuthenticatedRedirectHostsRoute: AuthenticatedRedirectHostsRoute,
   AuthenticatedRolesRoute: AuthenticatedRolesRoute,

@@ -9,6 +9,7 @@ import { basename, dirname, resolve } from 'node:path'
 
 import { smokeDockerArguments } from './smoke-resources'
 import { startCertificateDnsFixture } from './certificate-dns-fixture'
+import { verifyProxyAccessLogs } from './proxy-access-logs-smoke'
 import { CERTIFICATE_ERROR_CODES } from '../web/src/config/certificates.config'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
@@ -1869,6 +1870,31 @@ async function runSmoke(): Promise<void> {
         assert.match(await localIpCurl('[::1]'), /^HTTP\/(?:1\.1|2) 403(?:\s|$)/u)
         passed(
             'IP rules preserve HTTPS redirects and ACME and retain their IPv4/IPv6 behavior after restart',
+        )
+        const loggingSnapshot = snapshot([{ ...policyHost, accessPolicy: undefined }])
+        await apply(loggingSnapshot)
+        await verifyProxyAccessLogs({
+            controllerUrl,
+            httpUrl,
+            runtimeContainer,
+            controllerRequest,
+            command,
+            waitFor,
+            restart: async () => {
+                await restartRuntime()
+                await waitFor(async () => {
+                    const response = await controllerRequest('/internal/v1/proxy/status')
+                    if (!response.ok) return false
+                    const status = jsonObject(await response.json())
+                    return (
+                        status.running === true &&
+                        status.activeRevision === loggingSnapshot.revision
+                    )
+                }, 'access log restart recovery')
+            },
+        })
+        passed(
+            'request logs preserve privacy, filters and pagination across restart and bounded rotation',
         )
         console.log('Certificate HTTPS/ACME integration: ' + assertions + ' checks passed.')
     } finally {

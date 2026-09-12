@@ -866,6 +866,14 @@ async function runSmoke(): Promise<void> {
         await command([
             'docker',
             'exec',
+            recreatedId,
+            'test',
+            '-s',
+            '/var/lib/rentnerproxy/proxy/logs/access.log',
+        ])
+        await command([
+            'docker',
+            'exec',
             '--user',
             '10001:10001',
             recreatedId,
@@ -897,6 +905,20 @@ async function runSmoke(): Promise<void> {
         const backupEntries = await readdir(backupRoot)
         assert.equal(backupEntries.length, 1)
         const backupPath = join(backupRoot, backupEntries[0]!)
+        const archivedStateFiles = await command([
+            'docker',
+            'run',
+            '--rm',
+            '--entrypoint',
+            'tar',
+            '--volume',
+            backupPath + ':/backup:ro',
+            imageTag,
+            '--list',
+            '--file=/backup/controller-state.tar',
+        ])
+        assert.doesNotMatch(archivedStateFiles, /(?:^|\n)\.\/logs(?:\/|$)/u)
+        passed('production backups exclude the request logs from real proxy traffic')
         if (process.platform !== 'win32') {
             assert.equal((await stat(backupPath)).mode & 0o777, 0o700)
             for (const name of [

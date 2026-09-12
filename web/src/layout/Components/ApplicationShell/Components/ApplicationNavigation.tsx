@@ -5,6 +5,7 @@ import {
     KeyRound,
     LayoutDashboard,
     Network,
+    ScrollText,
     ShieldCheck,
     UsersRound,
 } from 'lucide-react'
@@ -56,6 +57,12 @@ export default function ApplicationNavigation({ items }: ApplicationNavigationPr
                         />
                     ) : item.to === '/access-policies' ? (
                         <KeyRound
+                            aria-hidden="true"
+                            className="size-4 shrink-0"
+                            strokeWidth={1.8}
+                        />
+                    ) : item.to === '/proxy-access-logs' ? (
+                        <ScrollText
                             aria-hidden="true"
                             className="size-4 shrink-0"
                             strokeWidth={1.8}

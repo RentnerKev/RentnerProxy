@@ -46,7 +46,8 @@
         "proxyHosts": "Hosts proxy",
         "redirectHosts": "Hosts de redirección",
         "certificates": "Certificados",
-        "accessPolicies": "Políticas de acceso"
+        "accessPolicies": "Políticas de acceso",
+        "proxyAccessLogs": "Registros de acceso"
     },
     "language": {
         "title": "Idioma",
@@ -1449,6 +1450,72 @@
                 "applyFailed": "No se pudo aplicar la configuración de la política."
             }
         },
+        "proxyAccessLogs": {
+            "page": {
+                "eyebrow": "Observabilidad del proxy",
+                "title": "Registros de acceso",
+                "description": "Revisa las solicitudes recientes gestionadas por tu proxy.",
+                "retention": "Las solicitudes recientes se conservan hasta 7 días; las entradas antiguas pueden eliminarse antes."
+            },
+            "states": {
+                "unavailableTitle": "Registros de acceso no disponibles",
+                "unavailableDescription": "No se pudo cargar el historial reciente de solicitudes. Inténtalo de nuevo.",
+                "forbiddenTitle": "Registros de acceso restringidos",
+                "forbiddenDescription": "Tu cuenta no tiene permiso para ver los registros de acceso del proxy."
+            },
+            "table": {
+                "eyebrow": "Solicitudes recientes",
+                "title": "Registros de acceso del proxy",
+                "description": "Consulta los tiempos y resultados sin exponer encabezados, cargas útiles ni cadenas de consulta.",
+                "emptyTitle": "No hay solicitudes recientes",
+                "emptyDescription": "No hay solicitudes disponibles en el periodo de conservación.",
+                "filteredEmptyDescription": "Ninguna solicitud coincide con estos filtros."
+            },
+            "filters": {
+                "host": "Host",
+                "hostPlaceholder": "example.com",
+                "status": "Estado",
+                "statusPlaceholder": "404",
+                "search": "Buscar",
+                "searchPlaceholder": "Buscar host, método o ruta…"
+            },
+            "actions": {
+                "apply": "Aplicar filtros",
+                "refresh": "Actualizar",
+                "showDetails": "Mostrar detalles de la solicitud",
+                "hideDetails": "Ocultar detalles de la solicitud"
+            },
+            "columns": {
+                "time": "Hora (UTC)",
+                "host": "Host",
+                "method": "Método",
+                "path": "Ruta",
+                "status": "Estado",
+                "duration": "Duración",
+                "clientIp": "IP del cliente",
+                "bytes": "Bytes",
+                "upstream": "Upstream",
+                "protocol": "Protocolo"
+            },
+            "pagination": {
+                "range": "{{from}}–{{to}} de {{count}} solicitudes",
+                "truncated": "El periodo reciente es limitado.",
+                "label": "Paginación de registros de acceso",
+                "page": "Página {{page}} de {{count}}",
+                "previous": "Página anterior",
+                "next": "Página siguiente"
+            },
+            "validation": {
+                "host": "Introduce un nombre de host válido.",
+                "status": "Introduce un código de estado entre 100 y 599.",
+                "search": "El texto de búsqueda es demasiado largo o contiene caracteres no compatibles.",
+                "limit": "El tamaño de página no es válido.",
+                "offset": "El desplazamiento de página no es válido."
+            },
+            "errors": {
+                "loadFailed": "No se pudieron cargar los registros de acceso."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Certificados",
@@ -1539,7 +1606,8 @@
             "redirect_hosts": "Hosts de redirección",
             "certificates": "Certificados",
             "trusted_cas": "CA de confianza",
-            "access_policies": "Políticas de acceso"
+            "access_policies": "Políticas de acceso",
+            "proxy-access-logs": "Registros de acceso del proxy"
         },
         "app": {
             "access": "Acceso a la aplicación"
@@ -1599,6 +1667,8 @@
             "assign": "Asignar políticas de acceso",
             "apply": "Aplicar la configuración de políticas de acceso"
         },
+
+        "proxy-access-logs:view": "Ver registros de acceso del proxy",
 
         "trusted_cas": {
             "view": "Ver CA de confianza",

@@ -25,6 +25,9 @@ export default function getApplicationShellViewModel(
         ...(permissionSet.has(PERMISSIONS.ACCESS_POLICIES_VIEW)
             ? ([{ to: '/access-policies', label: t('shell.accessPolicies') }] as const)
             : []),
+        ...(permissionSet.has(PERMISSIONS.PROXY_ACCESS_LOGS_VIEW)
+            ? ([{ to: '/proxy-access-logs', label: t('shell.proxyAccessLogs') }] as const)
+            : []),
         ...(permissionSet.has(PERMISSIONS.USERS_VIEW)
             ? ([{ to: '/users', label: t('shell.users') }] as const)
             : []),

@@ -101,6 +101,7 @@ for development checks before opening a pull request.
 - DNS-01 with Cloudflare, including wildcard certificates and mixed wildcard/ordinary names.
 - Upstream TLS verification with custom trusted CAs.
 - Reusable Access Policies with Basic Authentication and IPv4/IPv6 allow and deny rules.
+- Recent proxy request logs with host/status filters and search.
 - User and role management with two-factor authentication and passkeys.
 - Backup, restore, and automatic configuration recovery after restarts.
 - English, German, Spanish, and French with theme settings.
