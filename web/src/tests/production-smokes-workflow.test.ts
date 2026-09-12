@@ -34,7 +34,7 @@ describe('production smokes workflow triggers and gate', () => {
 
     test('exposes one stable Production Smokes check with bounded concurrency', async () => {
         const source = await workflow()
-        const jobs = source.slice(source.indexOf('jobs:')).match(/^    [a-z][a-z0-9-]*:\s*$/gmu)
+        const jobs = source.slice(source.indexOf('jobs:')).match(/^    [a-z][a-z0-9-]*:/gmu)
 
         expect(jobs).toEqual(['    production-smokes:'])
         expect(source).toContain('name: Production Smokes')

@@ -1,4 +1,3 @@
-import { CERTIFICATE_EXPIRING_WINDOW_MS } from '../../../../config/certificates.config'
 import type {
     CertificateStatus,
     CertificateStoredStatus,
@@ -63,9 +62,6 @@ export function getCertificateStatus(
     if (storedStatus !== 'valid' || !issuedAt || !expiresAt) return storedStatus
     if (expiresAt.getTime() <= now) return 'expired'
     if (issuedAt.getTime() > now) return 'pending'
-    const window = Math.min(
-        CERTIFICATE_EXPIRING_WINDOW_MS,
-        (expiresAt.getTime() - issuedAt.getTime()) / 3,
-    )
+    const window = (expiresAt.getTime() - issuedAt.getTime()) / 3
     return expiresAt.getTime() - now <= window ? 'expiring' : 'valid'
 }

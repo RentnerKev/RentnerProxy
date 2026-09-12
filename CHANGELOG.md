@@ -4,6 +4,22 @@ All notable changes to RentnerProxy are documented here. Public releases will al
 human-readable GitHub Release with the same summary. This file is intentionally a summary of
 user-visible changes, not a raw commit log.
 
+## [Unreleased]
+
+### Fixed
+
+- Schedule ACME renewal after two thirds of the real certificate lifetime and check due work
+  every minute, including short-lived certificates.
+- Persist retry deadlines and attempt history, apply bounded backoff with jitter, and prevent
+  manual retries or restarts from bypassing CA retry deadlines.
+
+### Upgrade notes
+
+- Existing Alpha 3 certificate indexes and retry deadlines remain readable. Keep controller
+  state and the encryption key together when backing up and restoring. The scheduling change
+  does not require a database migration or proxy snapshot version change.
+- Alpha 4 is under development; no Alpha 4 tag or release has been published by this work.
+
 ## [v1.0.0-alpha.2]
 
 ### Added

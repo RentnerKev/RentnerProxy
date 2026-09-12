@@ -172,6 +172,16 @@ fn dns_lifecycle_with_isolated_key() {
                 reopened.delete_if_unused(ID, false).await,
                 Err(CertificateError::DnsCleanupFailed)
             );
+            // Restart recovery journals a bounded retry deadline.  Advance
+            // this disposable fixture before exercising DNS cleanup renewal.
+            reopened
+                .index
+                .lock()
+                .await
+                .certificates
+                .get_mut(ID)
+                .unwrap()
+                .next_attempt_at = Some("2000-01-01T00:00:00Z".to_owned());
             assert_eq!(
                 reopened.begin_issue(ID, request.clone(), false).await,
                 Err(CertificateError::DnsCleanupFailed)
@@ -252,7 +262,19 @@ fn dns_lifecycle_with_isolated_key() {
                 config.ciphertext[0] ^= 1;
                 original
             };
-            for _ in 0..2 {
+            for attempt in 0..2 {
+                if attempt > 0 {
+                    // The first credential failure journals a retry deadline;
+                    // advance this disposable fixture before a second probe.
+                    reopened
+                        .index
+                        .lock()
+                        .await
+                        .certificates
+                        .get_mut(ID)
+                        .unwrap()
+                        .next_attempt_at = Some("2000-01-01T00:00:00Z".to_owned());
+                }
                 assert!(matches!(
                     reopened.begin_renewal(ID).await,
                     Err(CertificateError::DnsCredentialsUnavailable)
@@ -277,6 +299,14 @@ fn dns_lifecycle_with_isolated_key() {
                 .as_mut()
                 .unwrap()
                 .dns_provider = Some(original_config);
+            reopened
+                .index
+                .lock()
+                .await
+                .certificates
+                .get_mut(ID)
+                .unwrap()
+                .next_attempt_at = Some("2000-01-01T00:00:00Z".to_owned());
             reopened.begin_renewal(ID).await.unwrap();
             reopened
                 .finish_failed(ID, CertificateError::AcmeFailed)

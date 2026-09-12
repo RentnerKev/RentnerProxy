@@ -16,7 +16,6 @@ export const MAX_CERTIFICATE_NAME_LENGTH = 120
 export const MAX_CERTIFICATE_DOMAINS = 100
 export const MAX_CERTIFICATE_PEM_LENGTH = 256 * 1_024
 export const MAX_PRIVATE_KEY_PEM_LENGTH = 64 * 1_024
-export const CERTIFICATE_EXPIRING_WINDOW_MS = 30 * 24 * 60 * 60 * 1_000
 export const CERTIFICATE_ERROR_CODES = [
     'invalid_input',
     'invalid_certificate',

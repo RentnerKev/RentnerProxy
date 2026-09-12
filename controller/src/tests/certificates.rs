@@ -4,13 +4,60 @@ use std::{
 };
 
 use crate::runtime::{
-    CertificateEnvironment, CertificateError, CertificateImportRequest, CertificateSource,
-    CertificateStatus, CertificateStore,
+    CertificateEnvironment, CertificateError, CertificateImportRequest, CertificateIssueRequest,
+    CertificateSource, CertificateStatus, CertificateStore,
 };
 
 use super::fixtures::fail_next_private_key_write_below;
 
 static STORE_TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+#[tokio::test]
+async fn retry_attempt_history_continues_after_backoff_has_reached_its_cap() {
+    let state_dir = test_state_dir();
+    std::fs::create_dir_all(&state_dir).unwrap();
+    let store = CertificateStore::new(state_dir.clone());
+    store.initialize().await.unwrap();
+    let id = "0198d98a-0000-7000-8000-000000000007";
+    let request = CertificateIssueRequest {
+        domains: vec!["example.com".to_owned()],
+        environment: CertificateEnvironment::Staging,
+        contact_email: None,
+        challenge_type: Default::default(),
+        dns_provider: None,
+        accept_terms: true,
+    };
+    store.begin_issue(id, request.clone(), false).await.unwrap();
+    store.finish_failed(id, CertificateError::AcmeFailed).await;
+    drop(store);
+
+    // Resume a long-running failure history with its deadline already elapsed.
+    // The delay is capped, but the observable attempt counter must keep growing.
+    let path = state_dir.join("certificates/certificate-metadata.json");
+    let mut index: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    index["certificates"][id]["attemptCount"] = 32.into();
+    index["certificates"][id]["retryDelaySeconds"] = 21_600.into();
+    index["certificates"][id]["nextAttemptAt"] = "2000-01-01T00:00:00Z".into();
+    std::fs::write(&path, serde_json::to_vec(&index).unwrap()).unwrap();
+
+    let restarted = CertificateStore::new(state_dir.clone());
+    restarted.initialize().await.unwrap();
+    let attempt = restarted.begin_issue(id, request, false).await.unwrap();
+    assert_eq!(attempt.attempt_count, 33);
+    restarted
+        .finish_failed(id, CertificateError::AcmeFailed)
+        .await;
+    let failed = restarted.get(id).await.unwrap();
+    assert_eq!(failed.attempt_count, 33);
+    drop(restarted);
+    let reopened = CertificateStore::new(state_dir);
+    reopened.initialize().await.unwrap();
+    assert_eq!(reopened.get(id).await.unwrap().attempt_count, 33);
+    assert!(!reopened.renewal_is_allowed(id).await);
+    let index: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    assert_eq!(index["certificates"][id]["retryDelaySeconds"], 21_600);
+}
 
 fn test_state_dir() -> std::path::PathBuf {
     let counter = STORE_TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
@@ -361,4 +408,274 @@ async fn certificate_index_limits_preserve_persisted_and_in_memory_metadata() {
             .expect("failed growth must leave a restartable index");
         assert_eq!(reopened.list().await.unwrap(), before);
     }
+}
+
+#[tokio::test]
+async fn acme_retry_metadata_preserves_success_material_across_restart() {
+    let state_dir = test_state_dir();
+    std::fs::create_dir_all(&state_dir).expect("test state directory should exist");
+    let store = CertificateStore::new(state_dir.clone());
+    store.initialize().await.expect("store should initialize");
+    let id = "0198d98a-0000-7000-8000-000000000002";
+    let request = CertificateIssueRequest {
+        domains: vec!["example.com".to_owned()],
+        environment: CertificateEnvironment::Staging,
+        contact_email: None,
+        challenge_type: Default::default(),
+        dns_provider: None,
+        accept_terms: true,
+    };
+    let leaf = rcgen::generate_simple_self_signed(request.domains.clone())
+        .expect("test certificate should generate");
+
+    let started = store
+        .begin_issue(id, request.clone(), false)
+        .await
+        .expect("ACME issue should begin");
+    assert_eq!(started.attempt_count, 1);
+    assert!(started.last_attempt_at.is_some());
+    let staged = store
+        .stage_acme(
+            id,
+            &request,
+            leaf.cert.pem(),
+            leaf.signing_key.serialize_pem(),
+        )
+        .await
+        .expect("test ACME material should stage");
+    let issued = store
+        .commit_staged(&staged)
+        .await
+        .expect("test ACME material should commit");
+    assert_eq!(issued.attempt_count, 0);
+    assert!(issued.last_success_at.is_some());
+    let fingerprint = issued.fingerprint.clone();
+
+    let ca_deadline = time::OffsetDateTime::now_utc() + time::Duration::days(2);
+    store
+        .defer_acme_retry(id, ca_deadline)
+        .await
+        .expect("CA retry deadline should persist");
+    store
+        .defer_acme_retry(
+            id,
+            time::OffsetDateTime::now_utc() + time::Duration::minutes(1),
+        )
+        .await
+        .expect("a shorter CA deadline should not replace the first one");
+    store.finish_failed(id, CertificateError::AcmeFailed).await;
+    let failed = store.get(id).await.expect("failed metadata should remain");
+    assert_eq!(failed.status, CertificateStatus::Valid);
+    assert_eq!(failed.fingerprint, fingerprint);
+    assert_eq!(failed.attempt_count, 1);
+    assert!(failed.last_attempt_at.is_some());
+    assert!(failed.next_attempt_at.is_some());
+    assert!(
+        time::OffsetDateTime::parse(
+            failed.next_attempt_at.as_deref().unwrap(),
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("retry deadline should parse")
+            >= ca_deadline
+    );
+    assert!(matches!(
+        store.begin_renewal(id).await,
+        Err(CertificateError::OperationInProgress)
+    ));
+    drop(store);
+
+    let reopened = CertificateStore::new(state_dir);
+    reopened.initialize().await.expect("store should restart");
+    let restarted = reopened
+        .get(id)
+        .await
+        .expect("metadata should survive restart");
+    assert_eq!(restarted.next_attempt_at, failed.next_attempt_at);
+    assert_eq!(restarted.fingerprint, fingerprint);
+    assert!(matches!(
+        reopened.begin_renewal(id).await,
+        Err(CertificateError::OperationInProgress)
+    ));
+}
+
+#[tokio::test]
+async fn failed_acme_replacement_of_imported_certificate_keeps_old_material_and_backoff() {
+    let state_dir = test_state_dir();
+    std::fs::create_dir_all(&state_dir).expect("test state directory should exist");
+    let store = CertificateStore::new(state_dir.clone());
+    store.initialize().await.expect("store should initialize");
+    let id = "0198d98a-0000-7000-8000-000000000003";
+    let leaf = rcgen::generate_simple_self_signed(vec!["example.com".to_owned()])
+        .expect("test certificate should generate");
+    let imported = store
+        .stage_manual(
+            id,
+            CertificateImportRequest {
+                certificate_pem: leaf.cert.pem(),
+                private_key_pem: leaf.signing_key.serialize_pem(),
+                chain_pem: None,
+                required_domains: Some(vec!["example.com".to_owned()]),
+            },
+        )
+        .await
+        .expect("manual material should stage");
+    let imported = store
+        .commit_staged(&imported)
+        .await
+        .expect("manual material should commit");
+    let request = CertificateIssueRequest {
+        domains: vec!["example.com".to_owned()],
+        environment: CertificateEnvironment::Staging,
+        contact_email: None,
+        challenge_type: Default::default(),
+        dns_provider: None,
+        accept_terms: true,
+    };
+    store
+        .begin_issue(id, request, false)
+        .await
+        .expect("replacement issuance should begin");
+    let ca_deadline = time::OffsetDateTime::now_utc() + time::Duration::days(2);
+    store
+        .defer_acme_retry(id, ca_deadline)
+        .await
+        .expect("CA retry deadline should apply to an active replacement");
+    store.finish_failed(id, CertificateError::AcmeFailed).await;
+    let failed = store.get(id).await.expect("old metadata should remain");
+    assert_eq!(failed.status, CertificateStatus::Valid);
+    assert_eq!(failed.fingerprint, imported.fingerprint);
+    assert!(failed.next_attempt_at.is_some());
+    assert!(
+        time::OffsetDateTime::parse(
+            failed.next_attempt_at.as_deref().unwrap(),
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("retry deadline should parse")
+            >= ca_deadline
+    );
+    let replacement = rcgen::generate_simple_self_signed(vec!["example.com".to_owned()])
+        .expect("replacement certificate should generate");
+    let replacement = store
+        .stage_manual(
+            id,
+            CertificateImportRequest {
+                certificate_pem: replacement.cert.pem(),
+                private_key_pem: replacement.signing_key.serialize_pem(),
+                chain_pem: None,
+                required_domains: Some(vec!["example.com".to_owned()]),
+            },
+        )
+        .await
+        .expect("manual replacement should stage during a CA cooldown");
+    let replacement = store
+        .commit_staged(&replacement)
+        .await
+        .expect("manual replacement should commit during a CA cooldown");
+    assert_eq!(replacement.source, CertificateSource::Manual);
+    assert_ne!(replacement.fingerprint, imported.fingerprint);
+    assert_eq!(replacement.next_attempt_at, failed.next_attempt_at);
+    assert_eq!(
+        store
+            .begin_issue(
+                id,
+                CertificateIssueRequest {
+                    domains: vec!["example.com".to_owned()],
+                    environment: CertificateEnvironment::Staging,
+                    contact_email: None,
+                    challenge_type: Default::default(),
+                    dns_provider: None,
+                    accept_terms: true,
+                },
+                false,
+            )
+            .await,
+        Err(CertificateError::OperationInProgress)
+    );
+}
+
+#[tokio::test]
+async fn acme_account_retry_deadline_blocks_environment_across_certificates_and_restart() {
+    let state_dir = test_state_dir();
+    std::fs::create_dir_all(&state_dir).expect("test state directory should exist");
+    let store = CertificateStore::new(state_dir.clone());
+    store.initialize().await.expect("store should initialize");
+    let staging_id = "0198d98a-0000-7000-8000-000000000004";
+    let other_id = "0198d98a-0000-7000-8000-000000000005";
+    let request = |environment| CertificateIssueRequest {
+        domains: vec!["example.com".to_owned()],
+        environment,
+        contact_email: None,
+        challenge_type: Default::default(),
+        dns_provider: None,
+        accept_terms: true,
+    };
+
+    store
+        .begin_issue(staging_id, request(CertificateEnvironment::Staging), false)
+        .await
+        .expect("first staging order should begin");
+    let ca_deadline = time::OffsetDateTime::now_utc() + time::Duration::days(2);
+    store
+        .defer_acme_account_retry(CertificateEnvironment::Staging, ca_deadline)
+        .await
+        .expect("environment retry deadline should persist");
+    store
+        .finish_failed(staging_id, CertificateError::AcmeFailed)
+        .await;
+
+    assert_eq!(
+        store
+            .begin_issue(other_id, request(CertificateEnvironment::Staging), false,)
+            .await,
+        Err(CertificateError::OperationInProgress)
+    );
+    store
+        .begin_issue(other_id, request(CertificateEnvironment::Production), false)
+        .await
+        .expect("a different ACME environment should remain available");
+    store
+        .finish_failed(other_id, CertificateError::AcmeFailed)
+        .await;
+    drop(store);
+
+    let reopened = CertificateStore::new(state_dir.clone());
+    reopened.initialize().await.expect("store should restart");
+    let restarted_id = "0198d98a-0000-7000-8000-000000000006";
+    assert_eq!(
+        reopened
+            .begin_issue(
+                restarted_id,
+                request(CertificateEnvironment::Staging),
+                false,
+            )
+            .await,
+        Err(CertificateError::OperationInProgress)
+    );
+
+    // An index written by an older version has no account cooldown field;
+    // deserialization must default it to an empty map.
+    let index_path = state_dir.join("certificates/certificate-metadata.json");
+    let mut old_index: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&index_path).unwrap()).unwrap();
+    old_index
+        .as_object_mut()
+        .expect("index should be an object")
+        .remove("acmeRetryUntil");
+    std::fs::write(&index_path, serde_json::to_vec(&old_index).unwrap()).unwrap();
+    let migrated = CertificateStore::new(state_dir);
+    migrated
+        .initialize()
+        .await
+        .expect("old index should migrate without account cooldown metadata");
+    migrated
+        .begin_issue(
+            restarted_id,
+            request(CertificateEnvironment::Staging),
+            false,
+        )
+        .await
+        .expect("old index migration should leave staging available");
+    migrated
+        .finish_failed(restarted_id, CertificateError::AcmeFailed)
+        .await;
 }
