@@ -22,6 +22,9 @@ export default function getApplicationShellViewModel(
         permissionSet.has(PERMISSIONS.TRUSTED_CAS_VIEW)
             ? ([{ to: '/certificates', label: t('shell.certificates') }] as const)
             : []),
+        ...(permissionSet.has(PERMISSIONS.ACCESS_POLICIES_VIEW)
+            ? ([{ to: '/access-policies', label: t('shell.accessPolicies') }] as const)
+            : []),
         ...(permissionSet.has(PERMISSIONS.USERS_VIEW)
             ? ([{ to: '/users', label: t('shell.users') }] as const)
             : []),

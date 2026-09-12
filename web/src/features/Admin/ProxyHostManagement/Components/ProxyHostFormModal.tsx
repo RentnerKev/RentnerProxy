@@ -31,6 +31,7 @@ export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
                         {...state}
                         addDomain={handler.addDomain}
                         removeDomain={handler.removeDomain}
+                        retryAssignableAccessPolicies={handler.retryAssignableAccessPolicies}
                         retryAssignableCertificates={handler.retryAssignableCertificates}
                     />
                 </form>

@@ -9,6 +9,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
+use serde_json::Value;
 
 use crate::{
     models::{ApplyOutcome, ProxyConfigRequest, ProxyRuntimeStatus, ValidatedProxyConfig},
@@ -243,7 +244,7 @@ pub(super) async fn apply_proxy_config(
 pub(super) async fn read_proxy_config(state: AppState) -> Result<Response, ApiError> {
     let (config, active_revision) = state.runtime.active_config().await.map_err(runtime_error)?;
     Ok(no_store_json(ProxyConfigSourceResponse {
-        config,
+        config: redacted_config_source(&config)?,
         active_revision,
     }))
 }
@@ -261,7 +262,7 @@ pub(super) async fn read_proxy_host_config(
         .await
         .map_err(runtime_error)?;
     Ok(no_store_json(ProxyConfigSourceResponse {
-        config,
+        config: redacted_config_source(&config)?,
         active_revision: Some(active_revision),
     }))
 }
@@ -284,7 +285,7 @@ pub(super) async fn preview_proxy_host_config(
         .preview_host_config(&configuration, &host_id)
         .map_err(runtime_error)?;
     Ok(no_store_json(ProxyConfigPreviewResponse {
-        config,
+        config: redacted_config_source(&config)?,
         revision,
     }))
 }
@@ -301,9 +302,54 @@ pub(super) async fn preview_proxy_config(
         .await
         .map_err(runtime_error)?;
     Ok(no_store_json(ProxyConfigPreviewResponse {
-        config,
+        config: redacted_config_source(&config)?,
         revision,
     }))
+}
+
+fn redacted_config_source(config: &str) -> Result<String, ApiError> {
+    let mut value = serde_json::from_str::<Value>(config).map_err(|_| ApiError::apply_failed())?;
+    redact_auth_passwords(&mut value).map_err(|_| ApiError::apply_failed())?;
+    serde_json::to_string(&value).map_err(|_| ApiError::apply_failed())
+}
+
+fn redact_auth_passwords(value: &mut Value) -> Result<(), ()> {
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                redact_auth_passwords(value)?;
+            }
+        }
+        Value::Object(object) => {
+            if object.get("handler").and_then(Value::as_str) == Some("authentication") {
+                let providers = object
+                    .get_mut("providers")
+                    .and_then(Value::as_object_mut)
+                    .ok_or(())?;
+                let basic = providers
+                    .get_mut("http_basic")
+                    .and_then(Value::as_object_mut)
+                    .ok_or(())?;
+                let accounts = basic
+                    .get_mut("accounts")
+                    .and_then(Value::as_array_mut)
+                    .ok_or(())?;
+                for account in accounts {
+                    let account = account.as_object_mut().ok_or(())?;
+                    let password = account.get_mut("password").ok_or(())?;
+                    if !password.is_string() {
+                        return Err(());
+                    }
+                    *password = Value::String("[redacted]".to_owned());
+                }
+            }
+            for value in object.values_mut() {
+                redact_auth_passwords(value)?;
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+    Ok(())
 }
 
 fn validated_proxy_config(

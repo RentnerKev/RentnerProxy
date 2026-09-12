@@ -45,7 +45,8 @@
         "expandNavigation": "Navigation ausklappen",
         "proxyHosts": "Proxy-Hosts",
         "redirectHosts": "Weiterleitungs-Hosts",
-        "certificates": "Zertifikate"
+        "certificates": "Zertifikate",
+        "accessPolicies": "Zugriffsrichtlinien"
     },
     "language": {
         "title": "Sprache",
@@ -884,6 +885,9 @@
                 "certificate": "TLS-Zertifikat",
                 "noCertificate": "Kein Zertifikat",
                 "certificateHint": "Weise ein verwendbares Zertifikat zu, das alle Domains des Hosts abdeckt.",
+                "accessPolicy": "Zugriffsrichtlinie",
+                "noAccessPolicy": "Keine Zugriffsrichtlinie",
+                "accessPolicyHint": "Öffentliche oder nicht zugewiesene Hosts erlauben Anfragen. Eingeschränkte Modi verweigern derzeit alle Anfragen, bis ihre Anbieter konfiguriert sind.",
                 "forceHttps": "HTTPS erzwingen",
                 "forceHttpsHint": "Leite HTTP-Anfragen dieses Hosts zu HTTPS um.",
                 "forceHttpsRequiresCertificate": "Weise zuerst ein verwendbares Zertifikat zu, das alle Domains abdeckt."
@@ -1182,6 +1186,225 @@
                 "destination": "Geben Sie eine gültige absolute HTTP- oder HTTPS-URL ohne Zugangsdaten oder ungültige Escape-Sequenzen ein."
             }
         },
+        "accessPolicies": {
+            "page": {
+                "eyebrow": "Zugriffskontrolle",
+                "title": "Zugriffsrichtlinien",
+                "description": "Definiere wiederverwendbare Richtlinien und weise sie Proxy-Hosts zu."
+            },
+            "runtime": {
+                "title": "Laufzeit der Zugriffsrichtlinien",
+                "synced": "Laufzeit synchronisiert",
+                "syncedDescription": "Die aktive Konfiguration entspricht der gespeicherten Konfiguration.",
+                "pending": "Gespeicherte Änderungen warten auf die Anwendung.",
+                "pendingDescription": "Die bisherige Konfiguration bleibt aktiv, bis die Änderungen angewendet werden.",
+                "unavailable": "Laufzeit nicht verfügbar.",
+                "unavailableDescription": "Die Laufzeit ist momentan nicht erreichbar. Änderungen bleiben vorgemerkt.",
+                "apply": "Änderungen anwenden",
+                "applying": "Wird angewendet…",
+                "applyFailed": "Die Konfiguration konnte nicht angewendet werden.",
+                "savedPending": "Gespeicherte Änderungen warten auf die Anwendung."
+            },
+            "messages": {
+                "created": "Zugriffsrichtlinie erfolgreich erstellt.",
+                "updated": "Zugriffsrichtlinie erfolgreich aktualisiert.",
+                "deleted": "Zugriffsrichtlinie erfolgreich gelöscht.",
+                "savedPending": "Zugriffsrichtlinie gespeichert. Änderungen warten auf die Anwendung.",
+                "applied": "Konfiguration der Zugriffsrichtlinie erfolgreich angewendet."
+            },
+            "states": {
+                "unavailableTitle": "Zugriffsrichtlinien nicht verfügbar",
+                "unavailableDescription": "Die Liste konnte nicht geladen werden. Versuche es erneut."
+            },
+            "actions": {
+                "add": "Zugriffsrichtlinie hinzufügen",
+                "create": "Zugriffsrichtlinie erstellen",
+                "edit": "Bearbeiten",
+                "delete": "Löschen",
+                "deleting": "Wird gelöscht…",
+                "open": "Aktionen für {{name}} öffnen",
+                "none": "Keine Aktionen verfügbar",
+                "deleteDescription": "„{{name}}“ dauerhaft entfernen.",
+                "deleteAssigned": "Proxy-Hosts zugewiesen — zuerst Zuweisungen entfernen."
+            },
+            "confirm": {
+                "deleteTitle": "Zugriffsrichtlinie löschen?",
+                "deleteDescription": "Die Zugriffsrichtlinie „{{name}}“ wird entfernt.",
+                "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
+            },
+            "form": {
+                "description": "Wähle, wie diese Richtlinie Anfragen nach der Anwendung behandelt.",
+                "editTitle": "Zugriffsrichtlinie bearbeiten",
+                "creating": "Wird erstellt…",
+                "name": "Name der Richtlinie",
+                "mode": "Schutzmodus",
+                "modeHint": "Öffentlich erlaubt Anfragen ohne Prüfung. Authentifizierte Richtlinien verwenden Basic-Auth-Konten; IP-Prüfungen benötigen ihren Anbieter.",
+                "combination": "Regel für kombinierte Richtlinie",
+                "availabilityTitle": "Basic Auth und Anfrageverfügbarkeit",
+                "warningTitle": "Schutzmethoden sind nicht eingerichtet",
+                "warningDescription": "Bis die erforderlichen Anbieter verfügbar sind, wird jede Anfrage in diesem Modus abgewiesen. Prüfe die Laufzeit vor der Zuweisung."
+            },
+            "mode": {
+                "public": "Öffentlich",
+                "authenticated": "Authentifiziert",
+                "ip-restricted": "IP-beschränkt",
+                "combined": "Kombiniert",
+                "unconfigured": "Nicht eingerichtet — weist alle Anfragen ab"
+            },
+            "combination": {
+                "all": "Alle Prüfungen müssen bestehen",
+                "any": "Eine Prüfung darf bestehen"
+            },
+            "combinationDescription": {
+                "all": "Authentifizierungs- und IP-Prüfung müssen beide erfolgreich sein.",
+                "any": "Eine erfolgreiche Authentifizierungs- oder IP-Prüfung genügt."
+            },
+            "columns": {
+                "name": "Name",
+                "mode": "Modus",
+                "combination": "Kombination",
+                "basicAuth": "Basic Auth",
+                "assigned": "Zugewiesene Hosts",
+                "created": "Erstellt",
+                "actions": "Aktionen"
+            },
+            "cells": {
+                "assignedHosts_one": "{{count}} Host",
+                "assignedHosts_other": "{{count}} Hosts"
+            },
+            "filters": {
+                "name": "Namen filtern…",
+                "allModes": "Alle Modi",
+                "createdFrom": "Erstellt ab",
+                "createdTo": "Erstellt bis"
+            },
+            "table": {
+                "eyebrow": "Gespeicherte Richtlinien",
+                "count_one": "{{count}} Zugriffsrichtlinie",
+                "count_other": "{{count}} Zugriffsrichtlinien",
+                "description": "Suche Richtlinien, Schutzmodi und Host-Zuweisungen.",
+                "searchLabel": "Zugriffsrichtlinien durchsuchen",
+                "searchPlaceholder": "Namen, Modi oder Zuweisungen suchen…",
+                "loading": "Zugriffsrichtlinien werden geladen",
+                "emptyTitle": "Noch keine Zugriffsrichtlinien",
+                "emptyDescription": "Füge eine Richtlinie für wiederverwendbares Zugriffsverhalten hinzu.",
+                "filteredEmptyTitle": "Keine passenden Zugriffsrichtlinien",
+                "filteredEmptyDescription": "Passe die Suche an oder setze aktive Filter zurück.",
+                "itemLabel": "Zugriffsrichtlinien"
+            },
+            "basicAuth": {
+                "title": "Basic-Auth-Zugangsdaten für {{name}}",
+                "description": "Verwalte Benutzernamen und Passwörter für diese Richtlinie. Passwörter werden nie angezeigt oder zurückgegeben.",
+                "status": {
+                    "available": "Basic Auth verfügbar",
+                    "combinedAnyAvailable": "Basic Auth kann Anfragen erlauben",
+                    "combinedAnyMissing": "Keine Basic-Auth-Konten — Anfragen werden abgelehnt",
+                    "ipProviderRequired": "Geschlossen, bis der IP-Zugriff konfiguriert ist",
+                    "publicIgnored": "Von der öffentlichen Richtlinie ignoriert"
+                },
+                "form": {
+                    "createTitle": "Basic-Auth-Konto hinzufügen",
+                    "editTitle": "Basic-Auth-Konto bearbeiten",
+                    "description": "Speichere einen Benutzernamen und ein Passwort für diese Zugriffsrichtlinie.",
+                    "username": "Benutzername",
+                    "usernameHint": "Bis zu 64 ASCII-Buchstaben, Ziffern, ., _, @ oder -; beginne mit einem Buchstaben oder einer Ziffer.",
+                    "password": "Passwort",
+                    "passwordCreateHint": "Verwende ein Passwort mit 1–256 Zeichen.",
+                    "passwordEditHint": "Leer lassen, um das bestehende Passwort beizubehalten. Gib ein neues Passwort ein, um es zu ersetzen.",
+                    "transportHint": "Verwende HTTPS für Hosts mit dieser Richtlinie. Der Transport bleibt durch die Force-HTTPS-Einstellung jedes Hosts gesteuert."
+                },
+                "actions": {
+                    "credentials": "Zugangsdaten",
+                    "addAccount": "Konto hinzufügen",
+                    "editAccount": "Bearbeiten",
+                    "deleteAccount": "Löschen",
+                    "deleting": "Wird gelöscht…",
+                    "saving": "Wird gespeichert…",
+                    "create": "Konto erstellen",
+                    "save": "Konto speichern",
+                    "open": "Basic-Auth-Zugangsdaten für {{name}} verwalten"
+                },
+                "columns": {
+                    "username": "Benutzername",
+                    "created": "Erstellt",
+                    "updated": "Aktualisiert",
+                    "actions": "Aktionen"
+                },
+                "cells": {
+                    "accountCount_one": "{{count}} Konto",
+                    "accountCount_other": "{{count}} Konten"
+                },
+                "table": {
+                    "eyebrow": "Basic-Auth-Konten",
+                    "count_one": "{{count}} Basic-Auth-Konto",
+                    "count_other": "{{count}} Basic-Auth-Konten",
+                    "description": "Zugangsdaten werden als Passwort-Hashes gespeichert und hier nie angezeigt.",
+                    "caption": "Basic-Auth-Konten",
+                    "loading": "Basic-Auth-Konten werden geladen",
+                    "emptyDescription": "Keine Basic-Auth-Konten konfiguriert. Anfragen mit dieser Richtlinie werden abgelehnt, bis ein Konto hinzugefügt wird.",
+                    "limit": "Diese Richtlinie hat das Limit von 32 Konten erreicht."
+                },
+                "confirm": {
+                    "deleteTitle": "Basic-Auth-Konto löschen?",
+                    "deleteDescription": "Das Basic-Auth-Konto „{{username}}“ wird entfernt.",
+                    "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
+                },
+                "validation": {
+                    "usernameRequired": "Gib einen Benutzernamen ein.",
+                    "usernameTooLong": "Benutzernamen dürfen höchstens 64 Zeichen enthalten.",
+                    "usernameInvalid": "Verwende 1–64 ASCII-Buchstaben, Ziffern, ., _, @ oder -; das erste Zeichen muss ein Buchstabe oder eine Ziffer sein.",
+                    "passwordRequired": "Gib ein Passwort ein.",
+                    "passwordTooLong": "Passwörter dürfen höchstens 256 Zeichen enthalten.",
+                    "username": "Gib einen gültigen Benutzernamen ein.",
+                    "password": "Gib ein gültiges Passwort ein.",
+                    "changes": "Gib einen Benutzernamen oder ein neues Passwort an."
+                },
+                "errors": {
+                    "loadFailed": "Basic-Auth-Konten konnten nicht geladen werden.",
+                    "saveFailed": "Das Basic-Auth-Konto konnte nicht gespeichert werden.",
+                    "deleteFailed": "Das Basic-Auth-Konto konnte nicht gelöscht werden.",
+                    "accountNotFound": "Das Basic-Auth-Konto existiert nicht mehr.",
+                    "basic_auth_account_not_found": "Das Basic-Auth-Konto existiert nicht mehr.",
+                    "basic_auth_username_conflict": "Dieser Benutzername wird bereits von dieser Richtlinie verwendet.",
+                    "basic_auth_account_limit": "Diese Richtlinie hat bereits die maximale Zahl an Basic-Auth-Konten.",
+                    "invalid_input": "Prüfe die Werte des Basic-Auth-Kontos und versuche es erneut.",
+                    "controller_unavailable": "Der Proxy-Controller ist nicht verfügbar. Versuche es später erneut."
+                },
+                "messages": {
+                    "created": "Basic-Auth-Konto erfolgreich erstellt.",
+                    "updated": "Basic-Auth-Konto erfolgreich aktualisiert.",
+                    "deleted": "Basic-Auth-Konto erfolgreich gelöscht.",
+                    "savedPending": "Basic-Auth-Konto gespeichert. Änderungen warten auf die Anwendung."
+                },
+                "states": {
+                    "unavailableTitle": "Basic-Auth-Konten nicht verfügbar",
+                    "unavailableDescription": "Die Basic-Auth-Kontoliste konnte nicht geladen werden. Versuche es erneut."
+                }
+            },
+            "validation": {
+                "nameRequired": "Gib einen Namen für die Zugriffsrichtlinie ein.",
+                "nameTooLong": "Namen dürfen höchstens 120 Zeichen enthalten.",
+                "nameMax": "Namen dürfen höchstens 120 Zeichen enthalten.",
+                "nameInvalid": "Verwende druckbare Zeichen im Namen der Zugriffsrichtlinie.",
+                "descriptionMax": "Beschreibungen dürfen höchstens 1.000 Zeichen enthalten.",
+                "descriptionInvalid": "Verwende druckbare Zeichen in der Beschreibung.",
+                "combinationRequired": "Wähle die Auswertung der kombinierten Prüfungen.",
+                "combination": "Kombinierte Richtlinien benötigen genau eine Kombinationsregel.",
+                "changes": "Gib mindestens eine Änderung an."
+            },
+            "errors": {
+                "loadFailed": "Die Daten der Zugriffsrichtlinien konnten nicht geladen werden.",
+                "runtimeUnavailable": "Der Laufzeitstatus der Zugriffsrichtlinie ist nicht verfügbar.",
+                "saveFailed": "Die Zugriffsrichtlinie konnte nicht gespeichert werden.",
+                "deleteFailed": "Die Zugriffsrichtlinie konnte nicht gelöscht werden.",
+                "policyNotFound": "Die Zugriffsrichtlinie existiert nicht mehr.",
+                "access_policy_not_found": "Die Zugriffsrichtlinie existiert nicht mehr.",
+                "access_policy_in_use": "Diese Zugriffsrichtlinie ist einem Proxy-Host zugewiesen.",
+                "invalid_input": "Prüfe die Werte der Zugriffsrichtlinie und versuche es erneut.",
+                "controller_unavailable": "Der Proxy-Controller ist nicht verfügbar.",
+                "applyFailed": "Die Konfiguration konnte nicht angewendet werden."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Zertifikate",
@@ -1271,7 +1494,8 @@
             "proxy_hosts": "Proxy-Hosts",
             "redirect_hosts": "Weiterleitungs-Hosts",
             "certificates": "Zertifikate",
-            "trusted_cas": "Vertrauenswürdige CAs"
+            "trusted_cas": "Vertrauenswürdige CAs",
+            "access_policies": "Zugriffsrichtlinien"
         },
         "app": {
             "access": "Anwendungszugriff"
@@ -1321,6 +1545,15 @@
             "delete": "Nicht verwendete Zertifikate löschen",
             "issue": "ACME-Zertifikate anfordern",
             "renew": "ACME-Zertifikate erneuern"
+        },
+
+        "access_policies": {
+            "view": "Zugriffsrichtlinien anzeigen",
+            "create": "Zugriffsrichtlinien erstellen",
+            "update": "Zugriffsrichtlinien aktualisieren",
+            "delete": "Zugriffsrichtlinien löschen",
+            "assign": "Zugriffsrichtlinien zuweisen",
+            "apply": "Zugriffsrichtlinien-Konfiguration anwenden"
         },
 
         "trusted_cas": {

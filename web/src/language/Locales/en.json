@@ -45,7 +45,8 @@
         "expandNavigation": "Expand navigation",
         "proxyHosts": "Proxy hosts",
         "redirectHosts": "Redirect hosts",
-        "certificates": "Certificates"
+        "certificates": "Certificates",
+        "accessPolicies": "Access policies"
     },
     "language": {
         "title": "Language",
@@ -884,6 +885,9 @@
                 "certificate": "TLS certificate",
                 "noCertificate": "No certificate",
                 "certificateHint": "Assign a usable certificate covering every host domain.",
+                "accessPolicy": "Access policy",
+                "noAccessPolicy": "No access policy",
+                "accessPolicyHint": "Public or unassigned hosts allow requests. Restricted modes currently deny all requests until their providers are configured.",
                 "forceHttps": "Force HTTPS",
                 "forceHttpsHint": "Redirect HTTP requests to HTTPS for this host.",
                 "forceHttpsRequiresCertificate": "Assign a usable certificate covering all domains first."
@@ -1182,6 +1186,225 @@
                 "destination": "Enter a valid absolute HTTP or HTTPS URL without credentials or an invalid escape."
             }
         },
+        "accessPolicies": {
+            "page": {
+                "eyebrow": "Access control",
+                "title": "Access policies",
+                "description": "Define reusable policies and assign them to proxy hosts."
+            },
+            "runtime": {
+                "title": "Access policy runtime",
+                "synced": "Access policy runtime synchronized",
+                "syncedDescription": "The active access policy configuration matches the saved configuration.",
+                "pending": "Saved access policy changes are waiting to be applied.",
+                "pendingDescription": "The previous access policy configuration remains active until the saved changes are applied.",
+                "unavailable": "Access policy runtime unavailable.",
+                "unavailableDescription": "The runtime cannot currently be reached. Saved access policy changes remain queued for a later apply.",
+                "apply": "Apply access policy changes",
+                "applying": "Applying…",
+                "applyFailed": "The access policy configuration could not be applied.",
+                "savedPending": "Saved access policy changes are waiting to be applied."
+            },
+            "messages": {
+                "created": "Access policy created successfully.",
+                "updated": "Access policy updated successfully.",
+                "deleted": "Access policy deleted successfully.",
+                "savedPending": "Access policy saved. Changes are waiting to be applied.",
+                "applied": "Access policy configuration applied successfully."
+            },
+            "states": {
+                "unavailableTitle": "Access policies unavailable",
+                "unavailableDescription": "The access policy list could not be loaded. Try again."
+            },
+            "actions": {
+                "add": "Add access policy",
+                "create": "Create access policy",
+                "edit": "Edit",
+                "delete": "Delete",
+                "deleting": "Deleting…",
+                "open": "Open actions for {{name}}",
+                "none": "No actions available",
+                "deleteDescription": "Permanently remove “{{name}}”.",
+                "deleteAssigned": "Assigned to proxy hosts — remove those assignments first."
+            },
+            "confirm": {
+                "deleteTitle": "Delete access policy?",
+                "deleteDescription": "The access policy “{{name}}” will be removed.",
+                "deleteWarning": "This action cannot be undone."
+            },
+            "form": {
+                "description": "Choose how this policy handles requests once it is applied.",
+                "editTitle": "Edit access policy",
+                "creating": "Creating…",
+                "name": "Policy name",
+                "mode": "Protection mode",
+                "modeHint": "Public allows requests without an access check. Authenticated policies use Basic Auth accounts; IP checks require their provider.",
+                "combination": "Combined policy rule",
+                "availabilityTitle": "Basic Auth and request availability",
+                "warningTitle": "Protection methods are not configured",
+                "warningDescription": "Until the required providers are available, applying this mode denies every request. Review the runtime before assigning it to a live host."
+            },
+            "mode": {
+                "public": "Public",
+                "authenticated": "Authenticated",
+                "ip-restricted": "IP restricted",
+                "combined": "Combined",
+                "unconfigured": "Unconfigured — denies all requests"
+            },
+            "combination": {
+                "all": "All checks must pass",
+                "any": "Any check may pass"
+            },
+            "combinationDescription": {
+                "all": "Authentication and IP checks must both succeed.",
+                "any": "A successful authentication or IP check is enough."
+            },
+            "columns": {
+                "name": "Name",
+                "mode": "Mode",
+                "combination": "Combination",
+                "basicAuth": "Basic Auth",
+                "assigned": "Assigned hosts",
+                "created": "Created",
+                "actions": "Actions"
+            },
+            "cells": {
+                "assignedHosts_one": "{{count}} host",
+                "assignedHosts_other": "{{count}} hosts"
+            },
+            "filters": {
+                "name": "Filter names…",
+                "allModes": "All modes",
+                "createdFrom": "Created from",
+                "createdTo": "Created to"
+            },
+            "table": {
+                "eyebrow": "Saved policies",
+                "count_one": "{{count}} access policy",
+                "count_other": "{{count}} access policies",
+                "description": "Search policies, protection modes, and host assignments.",
+                "searchLabel": "Search access policies",
+                "searchPlaceholder": "Search names, modes, or assignments…",
+                "loading": "Loading access policies",
+                "emptyTitle": "No access policies yet",
+                "emptyDescription": "Add a policy to define reusable access behavior for proxy hosts.",
+                "filteredEmptyTitle": "No access policies match your filters",
+                "filteredEmptyDescription": "Adjust the search or reset the active filters to see more policies.",
+                "itemLabel": "access policies"
+            },
+            "basicAuth": {
+                "title": "Basic Auth credentials for {{name}}",
+                "description": "Manage usernames and passwords for this policy. Passwords are never displayed or returned.",
+                "status": {
+                    "available": "Basic Auth available",
+                    "combinedAnyAvailable": "Basic Auth can allow requests",
+                    "combinedAnyMissing": "No Basic Auth accounts — requests are denied",
+                    "ipProviderRequired": "Closed until IP access is configured",
+                    "publicIgnored": "Ignored by the public policy"
+                },
+                "form": {
+                    "createTitle": "Add Basic Auth account",
+                    "editTitle": "Edit Basic Auth account",
+                    "description": "Save a username and password for this access policy.",
+                    "username": "Username",
+                    "usernameHint": "Use up to 64 ASCII letters, digits, ., _, @ or -; start with a letter or digit.",
+                    "password": "Password",
+                    "passwordCreateHint": "Use a password of 1–256 characters.",
+                    "passwordEditHint": "Leave blank to keep the existing password. Enter a new password to rotate it.",
+                    "transportHint": "Use HTTPS for hosts assigned to this policy. Transport remains controlled by each host’s Force HTTPS setting."
+                },
+                "actions": {
+                    "credentials": "Credentials",
+                    "addAccount": "Add account",
+                    "editAccount": "Edit",
+                    "deleteAccount": "Delete",
+                    "deleting": "Deleting…",
+                    "saving": "Saving…",
+                    "create": "Create account",
+                    "save": "Save account",
+                    "open": "Manage Basic Auth credentials for {{name}}"
+                },
+                "columns": {
+                    "username": "Username",
+                    "created": "Created",
+                    "updated": "Updated",
+                    "actions": "Actions"
+                },
+                "cells": {
+                    "accountCount_one": "{{count}} account",
+                    "accountCount_other": "{{count}} accounts"
+                },
+                "table": {
+                    "eyebrow": "Basic Auth accounts",
+                    "count_one": "{{count}} Basic Auth account",
+                    "count_other": "{{count}} Basic Auth accounts",
+                    "description": "Credentials are stored as password hashes and are never shown here.",
+                    "caption": "Basic Auth accounts",
+                    "loading": "Loading Basic Auth accounts",
+                    "emptyDescription": "No Basic Auth accounts are configured. Requests using this policy will be denied until an account is added.",
+                    "limit": "This policy has reached the 32-account limit."
+                },
+                "confirm": {
+                    "deleteTitle": "Delete Basic Auth account?",
+                    "deleteDescription": "The Basic Auth account “{{username}}” will be removed.",
+                    "deleteWarning": "This action cannot be undone."
+                },
+                "validation": {
+                    "usernameRequired": "Enter a username.",
+                    "usernameTooLong": "Usernames must contain no more than 64 characters.",
+                    "usernameInvalid": "Use 1–64 ASCII letters, digits, ., _, @ or -; the first character must be a letter or digit.",
+                    "passwordRequired": "Enter a password.",
+                    "passwordTooLong": "Passwords must contain no more than 256 characters.",
+                    "username": "Enter a valid username.",
+                    "password": "Enter a valid password.",
+                    "changes": "Provide a username or a new password."
+                },
+                "errors": {
+                    "loadFailed": "Basic Auth accounts could not be loaded.",
+                    "saveFailed": "The Basic Auth account could not be saved.",
+                    "deleteFailed": "The Basic Auth account could not be deleted.",
+                    "accountNotFound": "The Basic Auth account no longer exists.",
+                    "basic_auth_account_not_found": "The Basic Auth account no longer exists.",
+                    "basic_auth_username_conflict": "That username is already used by this policy.",
+                    "basic_auth_account_limit": "This policy already has the maximum number of Basic Auth accounts.",
+                    "invalid_input": "Review the Basic Auth account values and try again.",
+                    "controller_unavailable": "The proxy controller is unavailable. Try again later."
+                },
+                "messages": {
+                    "created": "Basic Auth account created successfully.",
+                    "updated": "Basic Auth account updated successfully.",
+                    "deleted": "Basic Auth account deleted successfully.",
+                    "savedPending": "Basic Auth account saved. Changes are waiting to be applied."
+                },
+                "states": {
+                    "unavailableTitle": "Basic Auth accounts unavailable",
+                    "unavailableDescription": "The Basic Auth account list could not be loaded. Try again."
+                }
+            },
+            "validation": {
+                "nameRequired": "Enter an access policy name.",
+                "nameTooLong": "Access policy names must contain no more than 120 characters.",
+                "nameMax": "Access policy names must contain no more than 120 characters.",
+                "nameInvalid": "Use printable characters in the access policy name.",
+                "descriptionMax": "Descriptions must contain no more than 1,000 characters.",
+                "descriptionInvalid": "Use printable characters in the description.",
+                "combinationRequired": "Choose how the combined checks should be evaluated.",
+                "combination": "Combined policies require exactly one combination rule.",
+                "changes": "Provide at least one change."
+            },
+            "errors": {
+                "loadFailed": "Access policy data could not be loaded.",
+                "runtimeUnavailable": "Access policy runtime status is unavailable.",
+                "saveFailed": "The access policy could not be saved.",
+                "deleteFailed": "The access policy could not be deleted.",
+                "policyNotFound": "The access policy no longer exists.",
+                "access_policy_not_found": "The access policy no longer exists.",
+                "access_policy_in_use": "This access policy is assigned to a proxy host.",
+                "invalid_input": "Review the access policy values and try again.",
+                "controller_unavailable": "The proxy controller is unavailable.",
+                "applyFailed": "The access policy configuration could not be applied."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Certificates",
@@ -1271,7 +1494,8 @@
             "proxy_hosts": "Proxy hosts",
             "redirect_hosts": "Redirect hosts",
             "certificates": "Certificates",
-            "trusted_cas": "Trusted CAs"
+            "trusted_cas": "Trusted CAs",
+            "access_policies": "Access policies"
         },
         "app": {
             "access": "Application access"
@@ -1321,6 +1545,15 @@
             "delete": "Delete unused certificates",
             "issue": "Request ACME certificates",
             "renew": "Renew ACME certificates"
+        },
+
+        "access_policies": {
+            "view": "View access policies",
+            "create": "Create access policies",
+            "update": "Update access policies",
+            "delete": "Delete access policies",
+            "assign": "Assign access policies",
+            "apply": "Apply access policy configuration"
         },
 
         "trusted_cas": {

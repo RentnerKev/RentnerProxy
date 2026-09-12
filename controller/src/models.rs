@@ -54,6 +54,51 @@ pub(crate) struct ProxyHost {
     pub(crate) force_https: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) upstream_tls: Option<UpstreamTls>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) access_policy: Option<AccessPolicy>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct AccessPolicy {
+    pub(crate) id: String,
+    pub(crate) mode: AccessPolicyMode,
+    pub(crate) combination: Option<AccessPolicyCombination>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) basic_auth: Option<BasicAuth>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct BasicAuth {
+    pub(crate) accounts: Vec<BasicAuthAccount>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct BasicAuthAccount {
+    pub(crate) username: String,
+    pub(crate) password_hash: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub(crate) enum AccessPolicyMode {
+    #[serde(rename = "public")]
+    Public,
+    #[serde(rename = "authenticated")]
+    Authenticated,
+    #[serde(rename = "ip-restricted")]
+    IpRestricted,
+    #[serde(rename = "combined")]
+    Combined,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub(crate) enum AccessPolicyCombination {
+    #[serde(rename = "all")]
+    All,
+    #[serde(rename = "any")]
+    Any,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

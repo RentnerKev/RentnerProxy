@@ -193,6 +193,9 @@ export async function applyProxyRuntimeConfiguration(
     const payload = await controllerRequest('/internal/v1/proxy/config', {
         timeoutMs: Math.min(timeoutMs, CONTROLLER_APPLY_TIMEOUT_MS),
         privileged: true,
+        confidential: snapshot.proxyHosts.some(
+            (host) => host.accessPolicy?.basicAuth !== undefined,
+        ),
         body,
     })
     const result = applySchema.safeParse(payload)
@@ -225,6 +228,9 @@ export async function previewProxyConfiguration(
         timeoutMs: CONTROLLER_APPLY_TIMEOUT_MS,
         method: 'POST',
         privileged: true,
+        confidential: snapshot.proxyHosts.some(
+            (host) => host.accessPolicy?.basicAuth !== undefined,
+        ),
         body,
         responseLimit: MAX_CONFIG_RESPONSE_BYTES,
     })
@@ -279,6 +285,9 @@ export async function previewProxyHostConfiguration(
             timeoutMs: CONTROLLER_APPLY_TIMEOUT_MS,
             privileged: true,
             method: 'POST',
+            confidential: snapshot.proxyHosts.some(
+                (host) => host.accessPolicy?.basicAuth !== undefined,
+            ),
             body,
             responseLimit: MAX_HOST_CONFIG_RESPONSE_BYTES,
         },

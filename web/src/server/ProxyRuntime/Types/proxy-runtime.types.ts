@@ -1,6 +1,7 @@
 import type { ProxyHostForwardScheme } from '../../../config/proxy-hosts.config'
 import type { RedirectHostStatusCode } from '../../../config/redirect-hosts.config'
 import type { ProxyHttpSettings } from '../../../shared/Types/proxy-runtime.types'
+import type { ProxyHostAccessPolicy } from '../../../shared/Types/proxy-hosts.types'
 
 export type ProxyHostHttpSettings = Pick<
     ProxyHttpSettings,
@@ -20,6 +21,7 @@ export interface ProxyRuntimeHost {
     readonly certificateId?: string | null
     readonly forceHttps?: boolean
     readonly upstreamTls?: ProxyRuntimeUpstreamTls
+    readonly accessPolicy?: ProxyHostAccessPolicy | undefined
 }
 
 export interface ProxyRuntimeUpstreamTls {

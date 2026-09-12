@@ -45,7 +45,8 @@
         "expandNavigation": "Expandir navegación",
         "proxyHosts": "Hosts proxy",
         "redirectHosts": "Hosts de redirección",
-        "certificates": "Certificados"
+        "certificates": "Certificados",
+        "accessPolicies": "Políticas de acceso"
     },
     "language": {
         "title": "Idioma",
@@ -884,6 +885,9 @@
                 "certificate": "Certificado TLS",
                 "noCertificate": "Sin certificado",
                 "certificateHint": "Asigna un certificado utilizable que cubra todos los dominios del host.",
+                "accessPolicy": "Política de acceso",
+                "noAccessPolicy": "Sin política de acceso",
+                "accessPolicyHint": "Los hosts públicos o sin asignar permiten solicitudes. Los modos restringidos deniegan actualmente todas las solicitudes hasta configurar sus proveedores.",
                 "forceHttps": "Forzar HTTPS",
                 "forceHttpsHint": "Redirige las solicitudes HTTP de este host a HTTPS.",
                 "forceHttpsRequiresCertificate": "Asigna primero un certificado utilizable que cubra todos los dominios."
@@ -1182,6 +1186,225 @@
                 "destination": "Introduce una URL HTTP o HTTPS absoluta válida, sin credenciales ni escapes no válidos."
             }
         },
+        "accessPolicies": {
+            "page": {
+                "eyebrow": "Control de acceso",
+                "title": "Políticas de acceso",
+                "description": "Define políticas reutilizables y asígnalas a hosts proxy."
+            },
+            "runtime": {
+                "title": "Ejecución de políticas de acceso",
+                "synced": "Ejecución sincronizada",
+                "syncedDescription": "La configuración activa coincide con la configuración guardada.",
+                "pending": "Los cambios guardados esperan ser aplicados.",
+                "pendingDescription": "La configuración anterior permanece activa hasta aplicar los cambios.",
+                "unavailable": "Ejecución no disponible.",
+                "unavailableDescription": "La ejecución no está disponible. Los cambios quedan pendientes.",
+                "apply": "Aplicar cambios",
+                "applying": "Aplicando…",
+                "applyFailed": "No se pudo aplicar la configuración.",
+                "savedPending": "Los cambios guardados esperan ser aplicados."
+            },
+            "messages": {
+                "created": "Política de acceso creada correctamente.",
+                "updated": "Política de acceso actualizada correctamente.",
+                "deleted": "Política de acceso eliminada correctamente.",
+                "savedPending": "Política de acceso guardada. Los cambios están pendientes.",
+                "applied": "Configuración de la política de acceso aplicada correctamente."
+            },
+            "states": {
+                "unavailableTitle": "Políticas de acceso no disponibles",
+                "unavailableDescription": "No se pudo cargar la lista. Inténtalo de nuevo."
+            },
+            "actions": {
+                "add": "Añadir política de acceso",
+                "create": "Crear política de acceso",
+                "edit": "Editar",
+                "delete": "Eliminar",
+                "deleting": "Eliminando…",
+                "open": "Abrir acciones para {{name}}",
+                "none": "No hay acciones disponibles",
+                "deleteDescription": "Eliminar “{{name}}” permanentemente.",
+                "deleteAssigned": "Asignada a hosts proxy — elimina primero las asignaciones."
+            },
+            "confirm": {
+                "deleteTitle": "¿Eliminar política de acceso?",
+                "deleteDescription": "La política de acceso “{{name}}” será eliminada.",
+                "deleteWarning": "Esta acción no se puede deshacer."
+            },
+            "form": {
+                "description": "Elige cómo gestiona las solicitudes esta política al aplicarse.",
+                "editTitle": "Editar política de acceso",
+                "creating": "Creando…",
+                "name": "Nombre de la política",
+                "mode": "Modo de protección",
+                "modeHint": "Público permite solicitudes sin comprobación. Las políticas autenticadas usan cuentas Basic Auth; las comprobaciones IP requieren su proveedor.",
+                "combination": "Regla de política combinada",
+                "availabilityTitle": "Basic Auth y disponibilidad de solicitudes",
+                "warningTitle": "Los métodos de protección no están configurados",
+                "warningDescription": "Hasta que estén disponibles los proveedores necesarios, este modo rechaza todas las solicitudes. Revisa la ejecución antes de asignarlo."
+            },
+            "mode": {
+                "public": "Público",
+                "authenticated": "Autenticado",
+                "ip-restricted": "IP restringida",
+                "combined": "Combinado",
+                "unconfigured": "Sin configurar — rechaza todas las solicitudes"
+            },
+            "combination": {
+                "all": "Deben pasar todas las comprobaciones",
+                "any": "Puede pasar cualquier comprobación"
+            },
+            "combinationDescription": {
+                "all": "Deben funcionar la autenticación y la comprobación IP.",
+                "any": "Es suficiente que funcione la autenticación o la comprobación IP."
+            },
+            "columns": {
+                "name": "Nombre",
+                "mode": "Modo",
+                "combination": "Combinación",
+                "basicAuth": "Basic Auth",
+                "assigned": "Hosts asignados",
+                "created": "Creada",
+                "actions": "Acciones"
+            },
+            "cells": {
+                "assignedHosts_one": "{{count}} host",
+                "assignedHosts_other": "{{count}} hosts"
+            },
+            "filters": {
+                "name": "Filtrar nombres…",
+                "allModes": "Todos los modos",
+                "createdFrom": "Creada desde",
+                "createdTo": "Creada hasta"
+            },
+            "table": {
+                "eyebrow": "Políticas guardadas",
+                "count_one": "{{count}} política de acceso",
+                "count_other": "{{count}} políticas de acceso",
+                "description": "Busca políticas, modos de protección y asignaciones.",
+                "searchLabel": "Buscar políticas de acceso",
+                "searchPlaceholder": "Buscar nombres, modos o asignaciones…",
+                "loading": "Cargando políticas de acceso",
+                "emptyTitle": "Aún no hay políticas de acceso",
+                "emptyDescription": "Añade una política para definir el acceso reutilizable.",
+                "filteredEmptyTitle": "No hay políticas de acceso coincidentes",
+                "filteredEmptyDescription": "Ajusta la búsqueda o restablece los filtros activos.",
+                "itemLabel": "políticas de acceso"
+            },
+            "basicAuth": {
+                "title": "Credenciales Basic Auth para {{name}}",
+                "description": "Gestiona los nombres de usuario y las contraseñas de esta política. Las contraseñas nunca se muestran ni se devuelven.",
+                "status": {
+                    "available": "Basic Auth disponible",
+                    "combinedAnyAvailable": "Basic Auth puede permitir solicitudes",
+                    "combinedAnyMissing": "No hay cuentas Basic Auth — las solicitudes se deniegan",
+                    "ipProviderRequired": "Cerrado hasta configurar el acceso IP",
+                    "publicIgnored": "Ignorado por la política pública"
+                },
+                "form": {
+                    "createTitle": "Añadir cuenta Basic Auth",
+                    "editTitle": "Editar cuenta Basic Auth",
+                    "description": "Guarda un nombre de usuario y una contraseña para esta política de acceso.",
+                    "username": "Nombre de usuario",
+                    "usernameHint": "Usa hasta 64 letras ASCII, dígitos, ., _, @ o -; comienza con una letra o un dígito.",
+                    "password": "Contraseña",
+                    "passwordCreateHint": "Usa una contraseña de 1–256 caracteres.",
+                    "passwordEditHint": "Déjalo en blanco para conservar la contraseña actual. Introduce una nueva para cambiarla.",
+                    "transportHint": "Usa HTTPS para los hosts asignados a esta política. El transporte sigue controlado por el ajuste Force HTTPS de cada host."
+                },
+                "actions": {
+                    "credentials": "Credenciales",
+                    "addAccount": "Añadir cuenta",
+                    "editAccount": "Editar",
+                    "deleteAccount": "Eliminar",
+                    "deleting": "Eliminando…",
+                    "saving": "Guardando…",
+                    "create": "Crear cuenta",
+                    "save": "Guardar cuenta",
+                    "open": "Gestionar credenciales Basic Auth de {{name}}"
+                },
+                "columns": {
+                    "username": "Nombre de usuario",
+                    "created": "Creada",
+                    "updated": "Actualizada",
+                    "actions": "Acciones"
+                },
+                "cells": {
+                    "accountCount_one": "{{count}} cuenta",
+                    "accountCount_other": "{{count}} cuentas"
+                },
+                "table": {
+                    "eyebrow": "Cuentas Basic Auth",
+                    "count_one": "{{count}} cuenta Basic Auth",
+                    "count_other": "{{count}} cuentas Basic Auth",
+                    "description": "Las credenciales se almacenan como hashes y nunca se muestran aquí.",
+                    "caption": "Cuentas Basic Auth",
+                    "loading": "Cargando cuentas Basic Auth",
+                    "emptyDescription": "No hay cuentas Basic Auth configuradas. Las solicitudes con esta política se denegarán hasta añadir una cuenta.",
+                    "limit": "Esta política ha alcanzado el límite de 32 cuentas."
+                },
+                "confirm": {
+                    "deleteTitle": "¿Eliminar cuenta Basic Auth?",
+                    "deleteDescription": "Se eliminará la cuenta Basic Auth “{{username}}”.",
+                    "deleteWarning": "Esta acción no se puede deshacer."
+                },
+                "validation": {
+                    "usernameRequired": "Introduce un nombre de usuario.",
+                    "usernameTooLong": "Los nombres de usuario no pueden superar los 64 caracteres.",
+                    "usernameInvalid": "Usa 1–64 letras ASCII, dígitos, ., _, @ o -; el primer carácter debe ser una letra o un dígito.",
+                    "passwordRequired": "Introduce una contraseña.",
+                    "passwordTooLong": "Las contraseñas no pueden superar los 256 caracteres.",
+                    "username": "Introduce un nombre de usuario válido.",
+                    "password": "Introduce una contraseña válida.",
+                    "changes": "Indica un nombre de usuario o una contraseña nueva."
+                },
+                "errors": {
+                    "loadFailed": "No se pudieron cargar las cuentas Basic Auth.",
+                    "saveFailed": "No se pudo guardar la cuenta Basic Auth.",
+                    "deleteFailed": "No se pudo eliminar la cuenta Basic Auth.",
+                    "accountNotFound": "La cuenta Basic Auth ya no existe.",
+                    "basic_auth_account_not_found": "La cuenta Basic Auth ya no existe.",
+                    "basic_auth_username_conflict": "Ese nombre de usuario ya lo usa esta política.",
+                    "basic_auth_account_limit": "Esta política ya tiene el máximo de cuentas Basic Auth.",
+                    "invalid_input": "Revisa los valores de la cuenta Basic Auth e inténtalo de nuevo.",
+                    "controller_unavailable": "El controlador proxy no está disponible. Inténtalo más tarde."
+                },
+                "messages": {
+                    "created": "Cuenta Basic Auth creada correctamente.",
+                    "updated": "Cuenta Basic Auth actualizada correctamente.",
+                    "deleted": "Cuenta Basic Auth eliminada correctamente.",
+                    "savedPending": "Cuenta Basic Auth guardada. Los cambios esperan a aplicarse."
+                },
+                "states": {
+                    "unavailableTitle": "Cuentas Basic Auth no disponibles",
+                    "unavailableDescription": "No se pudo cargar la lista de cuentas Basic Auth. Inténtalo de nuevo."
+                }
+            },
+            "validation": {
+                "nameRequired": "Introduce un nombre para la política de acceso.",
+                "nameTooLong": "El nombre no puede superar los 120 caracteres.",
+                "nameMax": "El nombre no puede superar los 120 caracteres.",
+                "nameInvalid": "Usa caracteres imprimibles en el nombre de la política.",
+                "descriptionMax": "La descripción no puede superar 1.000 caracteres.",
+                "descriptionInvalid": "Usa caracteres imprimibles en la descripción.",
+                "combinationRequired": "Elige cómo evaluar las comprobaciones combinadas.",
+                "combination": "Las políticas combinadas requieren una regla de combinación.",
+                "changes": "Indica al menos un cambio."
+            },
+            "errors": {
+                "loadFailed": "No se pudieron cargar los datos de las políticas de acceso.",
+                "runtimeUnavailable": "El estado de ejecución de las políticas no está disponible.",
+                "saveFailed": "No se pudo guardar la política de acceso.",
+                "deleteFailed": "No se pudo eliminar la política de acceso.",
+                "policyNotFound": "La política de acceso ya no existe.",
+                "access_policy_not_found": "La política de acceso ya no existe.",
+                "access_policy_in_use": "Esta política está asignada a un host proxy.",
+                "invalid_input": "Revisa los valores de la política e inténtalo de nuevo.",
+                "controller_unavailable": "El controlador proxy no está disponible.",
+                "applyFailed": "No se pudo aplicar la configuración de la política."
+            }
+        },
         "trustedCas": {
             "page": {
                 "eyebrow": "Certificados",
@@ -1271,7 +1494,8 @@
             "proxy_hosts": "Hosts proxy",
             "redirect_hosts": "Hosts de redirección",
             "certificates": "Certificados",
-            "trusted_cas": "CA de confianza"
+            "trusted_cas": "CA de confianza",
+            "access_policies": "Políticas de acceso"
         },
         "app": {
             "access": "Acceso a la aplicación"
@@ -1321,6 +1545,15 @@
             "delete": "Eliminar certificados no utilizados",
             "issue": "Solicitar certificados ACME",
             "renew": "Renovar certificados ACME"
+        },
+
+        "access_policies": {
+            "view": "Ver políticas de acceso",
+            "create": "Crear políticas de acceso",
+            "update": "Actualizar políticas de acceso",
+            "delete": "Eliminar políticas de acceso",
+            "assign": "Asignar políticas de acceso",
+            "apply": "Aplicar la configuración de políticas de acceso"
         },
 
         "trusted_cas": {

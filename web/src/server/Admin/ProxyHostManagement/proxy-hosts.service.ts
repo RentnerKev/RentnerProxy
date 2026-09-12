@@ -3,7 +3,7 @@ import '@tanstack/react-start/server-only'
 import { and, asc, eq, inArray, isNotNull, ne, or } from 'drizzle-orm'
 
 import { PERMISSIONS } from '../../../config/permissions.config'
-import { hostDomains, proxyHosts } from '../../../db/schema'
+import { accessPolicies, hostDomains, proxyHosts } from '../../../db/schema'
 import type { ProxyHostSummary } from '../../../shared/Types/proxy-hosts.types'
 import type { ProxyRuntimeMutationStatus } from '../../../shared/Types/proxy-runtime.types'
 import { reconcileProxyConfigurationService } from '../../ProxyRuntime/proxy-runtime.service'
@@ -41,6 +41,7 @@ type ProxyHostRow = {
     verifyUpstreamTls: boolean
     upstreamTlsServerName: string | null
     trustedCaId: string | null
+    accessPolicyId?: string | null
     createdAt: Date
     updatedAt: Date
 }
@@ -62,6 +63,7 @@ function toProxyHostSummary(
         verifyUpstreamTls: proxyHost.verifyUpstreamTls,
         upstreamTlsServerName: proxyHost.upstreamTlsServerName,
         trustedCaId: proxyHost.trustedCaId,
+        accessPolicyId: proxyHost.accessPolicyId ?? null,
         forwardHost: proxyHost.forwardHost,
         forwardPort: proxyHost.forwardPort,
         forwardScheme: proxyHost.forwardScheme,
@@ -83,6 +85,7 @@ async function loadProxyHostForUpdate(
             verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
             upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
             trustedCaId: proxyHosts.trustedCaId,
+            accessPolicyId: proxyHosts.accessPolicyId,
             forwardHost: proxyHosts.forwardHost,
             forwardPort: proxyHosts.forwardPort,
             forwardScheme: proxyHosts.forwardScheme,
@@ -191,6 +194,7 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
             verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
             upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
             trustedCaId: proxyHosts.trustedCaId,
+            accessPolicyId: proxyHosts.accessPolicyId,
             forwardHost: proxyHosts.forwardHost,
             forwardPort: proxyHosts.forwardPort,
             forwardScheme: proxyHosts.forwardScheme,
@@ -223,6 +227,7 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
                     verifyUpstreamTls: row.verifyUpstreamTls,
                     upstreamTlsServerName: row.upstreamTlsServerName,
                     trustedCaId: row.trustedCaId,
+                    accessPolicyId: row.accessPolicyId,
                     forwardHost: row.forwardHost,
                     forwardPort: row.forwardPort,
                     forwardScheme: row.forwardScheme,
@@ -262,6 +267,22 @@ export async function createProxyHostService(
             const certificateId = parsedInput.certificateId?.toLowerCase() ?? null
             const forceHttps = parsedInput.forceHttps ?? false
             const upstreamTls = normalizeUpstreamTlsSettings(parsedInput)
+            const accessPolicyId = parsedInput.accessPolicyId?.toLowerCase() ?? null
+            if (accessPolicyId) {
+                await requirePermissionInTransaction(
+                    transaction,
+                    actor.id,
+                    PERMISSIONS.ACCESS_POLICIES_ASSIGN,
+                )
+                const policy = await transaction
+                    .select({ id: accessPolicies.id })
+                    .from(accessPolicies)
+                    .where(eq(accessPolicies.id, accessPolicyId))
+                    .limit(1)
+                if (!policy.at(0)) {
+                    throw new ProxyHostDomainError('invalid_input', 'Access policy was not found.')
+                }
+            }
             await validateTrustedCaAssignmentInTransaction(transaction, upstreamTls.trustedCaId)
             await validateCertificateAssignmentInTransaction(
                 transaction,
@@ -276,6 +297,7 @@ export async function createProxyHostService(
                     certificateId,
                     forceHttps,
                     ...upstreamTls,
+                    accessPolicyId,
                     forwardHost: parsedInput.forwardHost,
                     forwardPort: parsedInput.forwardPort,
                     forwardScheme: parsedInput.forwardScheme,
@@ -288,6 +310,7 @@ export async function createProxyHostService(
                     verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
                     upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
                     trustedCaId: proxyHosts.trustedCaId,
+                    accessPolicyId: proxyHosts.accessPolicyId,
                     forwardHost: proxyHosts.forwardHost,
                     forwardPort: proxyHosts.forwardPort,
                     forwardScheme: proxyHosts.forwardScheme,
@@ -358,6 +381,36 @@ export async function updateProxyHostService(
                     : (parsedInput.certificateId?.toLowerCase() ?? null)
             const forceHttps = parsedInput.forceHttps ?? proxyHost.forceHttps
             const upstreamTls = normalizeUpstreamTlsSettings(parsedInput, proxyHost)
+            const accessPolicyId =
+                parsedInput.accessPolicyId === undefined
+                    ? proxyHost.accessPolicyId
+                    : (parsedInput.accessPolicyId?.toLowerCase() ?? null)
+            if (accessPolicyId) {
+                if (accessPolicyId !== proxyHost.accessPolicyId) {
+                    await requirePermissionInTransaction(
+                        transaction,
+                        actor.id,
+                        PERMISSIONS.ACCESS_POLICIES_ASSIGN,
+                    )
+                }
+                const policy = await transaction
+                    .select({ id: accessPolicies.id })
+                    .from(accessPolicies)
+                    .where(eq(accessPolicies.id, accessPolicyId))
+                    .limit(1)
+                if (!policy.at(0)) {
+                    throw new ProxyHostDomainError('invalid_input', 'Access policy was not found.')
+                }
+            } else if (
+                parsedInput.accessPolicyId !== undefined &&
+                proxyHost.accessPolicyId !== null
+            ) {
+                await requirePermissionInTransaction(
+                    transaction,
+                    actor.id,
+                    PERMISSIONS.ACCESS_POLICIES_ASSIGN,
+                )
+            }
             await validateTrustedCaAssignmentInTransaction(transaction, upstreamTls.trustedCaId)
             await validateCertificateAssignmentInTransaction(
                 transaction,
@@ -372,6 +425,7 @@ export async function updateProxyHostService(
                     certificateId,
                     forceHttps,
                     ...upstreamTls,
+                    accessPolicyId,
                     forwardHost: parsedInput.forwardHost,
                     forwardPort: parsedInput.forwardPort,
                     forwardScheme: parsedInput.forwardScheme,
@@ -386,6 +440,7 @@ export async function updateProxyHostService(
                     verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
                     upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
                     trustedCaId: proxyHosts.trustedCaId,
+                    accessPolicyId: proxyHosts.accessPolicyId,
                     forwardHost: proxyHosts.forwardHost,
                     forwardPort: proxyHosts.forwardPort,
                     forwardScheme: proxyHosts.forwardScheme,
@@ -483,6 +538,7 @@ async function setProxyHostEnabledService(
                 verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
                 upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
                 trustedCaId: proxyHosts.trustedCaId,
+                accessPolicyId: proxyHosts.accessPolicyId,
                 forwardHost: proxyHosts.forwardHost,
                 forwardPort: proxyHosts.forwardPort,
                 forwardScheme: proxyHosts.forwardScheme,

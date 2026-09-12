@@ -2,6 +2,11 @@
 import '@tanstack/react-start/server-only'
 
 import { z } from 'zod'
+import {
+    ACCESS_POLICY_COMBINATIONS,
+    ACCESS_POLICY_MODES,
+    MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY,
+} from '../../config/access-policies.config'
 
 import {
     normalizeProxyHttpSettings,
@@ -41,11 +46,57 @@ const runtimeUpstreamTlsSchema = z.strictObject({
     serverName: proxyUpstreamTlsServerNameSchema.nullable().default(null),
     trustedCaId: z.uuidv7().nullable().default(null),
 })
+function isCanonicalBasicAuthHash(value: string): boolean {
+    const match =
+        /^\$argon2id\$v=19\$m=47104,t=1,p=1\$([A-Za-z0-9+/]{43})\$([A-Za-z0-9+/]{43})$/u.exec(value)
+    if (!match) return false
+    return [match[1]!, match[2]!].every((part) => {
+        const decoded = Buffer.from(part, 'base64')
+        return decoded.byteLength === 32 && decoded.toString('base64').replace(/=+$/u, '') === part
+    })
+}
 const runtimeTrustedCaSchema = z.strictObject({
     id: z.uuidv7(),
     pem: createTrustedCaInputSchema.shape.pem,
     fingerprintSha256: z.string().regex(PROXY_RUNTIME_REVISION_PATTERN),
 })
+const runtimeAccessPolicySchema = z
+    .strictObject({
+        id: z.uuidv7().transform((id) => id.toLowerCase()),
+        mode: z.enum(ACCESS_POLICY_MODES),
+        combination: z.enum(ACCESS_POLICY_COMBINATIONS).nullable(),
+        basicAuth: z
+            .strictObject({
+                accounts: z
+                    .array(
+                        z.strictObject({
+                            username: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$/u),
+                            passwordHash: z.string().refine(isCanonicalBasicAuthHash),
+                        }),
+                    )
+                    .min(1)
+                    .max(MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY),
+            })
+            .optional(),
+    })
+    .superRefine((policy, context) => {
+        if ((policy.mode === 'combined') !== (policy.combination !== null)) {
+            context.addIssue({ code: 'custom', message: 'Invalid access policy combination.' })
+        }
+        if (policy.basicAuth !== undefined) {
+            const usernames = new Set<string>()
+            for (const [index, account] of policy.basicAuth.accounts.entries()) {
+                if (usernames.has(account.username)) {
+                    context.addIssue({
+                        code: 'custom',
+                        path: ['basicAuth', 'accounts', index, 'username'],
+                        message: 'Duplicate Basic Auth username.',
+                    })
+                }
+                usernames.add(account.username)
+            }
+        }
+    })
 
 const runtimeHostSchema = z
     .strictObject({
@@ -59,6 +110,7 @@ const runtimeHostSchema = z
         certificateId: z.uuidv7().nullish(),
         forceHttps: z.boolean().default(false),
         upstreamTls: runtimeUpstreamTlsSchema.optional(),
+        accessPolicy: runtimeAccessPolicySchema.optional(),
     })
     .refine(
         (host) => !host.forceHttps || !!host.certificateId,
@@ -120,11 +172,34 @@ export function createProxyRuntimeSnapshot(
 
     const ids = new Set<string>()
     const domains = new Set<string>()
+    const accessPolicies = new Map<string, string>()
     let totalDomains = 0
     const proxyHosts = enabledHosts
         .map((input): ProxyRuntimeHost => {
             const host = runtimeHostSchema.parse(input)
             const id = host.id.toLowerCase()
+
+            let normalizedAccessPolicy = host.accessPolicy
+                ? runtimeAccessPolicySchema.parse(host.accessPolicy)
+                : undefined
+            if (normalizedAccessPolicy?.basicAuth) {
+                normalizedAccessPolicy = {
+                    ...normalizedAccessPolicy,
+                    basicAuth: {
+                        accounts: normalizedAccessPolicy.basicAuth.accounts.toSorted(
+                            (left, right) => compareAscii(left.username, right.username),
+                        ),
+                    },
+                }
+            }
+            if (normalizedAccessPolicy) {
+                const configuration = JSON.stringify(normalizedAccessPolicy)
+                const existing = accessPolicies.get(normalizedAccessPolicy.id)
+                if (existing !== undefined && existing !== configuration) {
+                    throw new Error('Proxy runtime snapshot contains inconsistent access policies.')
+                }
+                accessPolicies.set(normalizedAccessPolicy.id, configuration)
+            }
 
             if (ids.has(id) || host.domains.some((domain) => domains.has(domain))) {
                 throw new Error('Proxy runtime snapshot contains duplicate hosts or domains.')
@@ -158,6 +233,7 @@ export function createProxyRuntimeSnapshot(
                           },
                       }
                     : {},
+                normalizedAccessPolicy ? { accessPolicy: normalizedAccessPolicy } : {},
             )
         })
         .toSorted((left, right) => compareAscii(left.id, right.id))

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as PublicRouteRouteImport } from './routes/_public/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedAccessPoliciesRouteImport } from './routes/_authenticated/access-policies'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedCertificatesRouteImport } from './routes/_authenticated/certificates'
 import { Route as AuthenticatedProxyHostsRouteImport } from './routes/_authenticated/proxy-hosts'
@@ -42,6 +43,12 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAccessPoliciesRoute =
+  AuthenticatedAccessPoliciesRouteImport.update({
+    id: '/access-policies',
+    path: '/access-policies',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
   id: '/account',
   path: '/account',
@@ -127,6 +134,7 @@ const MediaAvatarsUserIdRoute = MediaAvatarsUserIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/access-policies': typeof AuthenticatedAccessPoliciesRoute
   '/account': typeof AuthenticatedAccountRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
@@ -146,6 +154,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
+  '/access-policies': typeof AuthenticatedAccessPoliciesRoute
   '/account': typeof AuthenticatedAccountRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
@@ -166,6 +175,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_public': typeof PublicRouteRouteWithChildren
+  '/_authenticated/access-policies': typeof AuthenticatedAccessPoliciesRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/certificates': typeof AuthenticatedCertificatesRoute
   '/_authenticated/proxy-hosts': typeof AuthenticatedProxyHostsRoute
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/access-policies'
     | '/account'
     | '/certificates'
     | '/proxy-hosts'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/access-policies'
     | '/account'
     | '/certificates'
     | '/proxy-hosts'
@@ -226,6 +238,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authenticated'
     | '/_public'
+    | '/_authenticated/access-policies'
     | '/_authenticated/account'
     | '/_authenticated/certificates'
     | '/_authenticated/proxy-hosts'
@@ -274,6 +287,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/access-policies': {
+      id: '/_authenticated/access-policies'
+      path: '/access-policies'
+      fullPath: '/access-policies'
+      preLoaderRoute: typeof AuthenticatedAccessPoliciesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/account': {
@@ -392,6 +412,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAccessPoliciesRoute: typeof AuthenticatedAccessPoliciesRoute
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedCertificatesRoute: typeof AuthenticatedCertificatesRoute
   AuthenticatedProxyHostsRoute: typeof AuthenticatedProxyHostsRoute
@@ -402,6 +423,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAccessPoliciesRoute: AuthenticatedAccessPoliciesRoute,
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedCertificatesRoute: AuthenticatedCertificatesRoute,
   AuthenticatedProxyHostsRoute: AuthenticatedProxyHostsRoute,

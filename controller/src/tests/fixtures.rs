@@ -20,6 +20,7 @@ pub(super) fn host(
         certificate_id: None,
         force_https: false,
         upstream_tls: None,
+        access_policy: None,
     }
 }
 
