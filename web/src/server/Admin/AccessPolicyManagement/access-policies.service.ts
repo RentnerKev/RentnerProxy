@@ -81,6 +81,7 @@ function toSummary(
         description: row.description,
         mode: row.mode,
         combination: row.combination,
+        ipRules: row.ipRules,
         assignedHostCount,
         basicAuthAccountCount,
         createdAt: row.createdAt,
@@ -217,6 +218,7 @@ export async function updateAccessPolicyService(
             .set({
                 ...(parsed.name === undefined ? {} : { name: parsed.name }),
                 ...(parsed.description === undefined ? {} : { description: parsed.description }),
+                ...(parsed.ipRules === undefined ? {} : { ipRules: parsed.ipRules }),
                 mode,
                 combination,
                 updatedAt: new Date(),

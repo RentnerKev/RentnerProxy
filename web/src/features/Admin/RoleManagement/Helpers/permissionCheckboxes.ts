@@ -7,9 +7,21 @@ export interface PermissionGroup {
     readonly permissions: ReadonlyArray<(typeof PERMISSION_REGISTRY)[number]>
 }
 
-function getPermissionNamespace(permissionKey: string): string {
-    const separatorIndex = permissionKey.indexOf('.')
-    return separatorIndex === -1 ? permissionKey : permissionKey.slice(0, separatorIndex)
+function getPermissionGroup(permissionKey: string): { namespace: string; prefix: string } {
+    const dotIndex = permissionKey.indexOf('.')
+    const colonIndex = permissionKey.indexOf(':')
+    const separatorIndex =
+        dotIndex === -1 ? colonIndex : colonIndex === -1 ? dotIndex : Math.min(dotIndex, colonIndex)
+
+    if (separatorIndex === -1) {
+        return { namespace: permissionKey, prefix: `${permissionKey}.` }
+    }
+
+    const namespace = permissionKey.slice(0, separatorIndex)
+    return {
+        namespace,
+        prefix: `${namespace}${permissionKey[separatorIndex]}`,
+    }
 }
 
 export function getAvailablePermissionGroups(
@@ -24,11 +36,11 @@ export function getAvailablePermissionGroups(
             continue
         }
 
-        const namespace = getPermissionNamespace(permission.key)
+        const { namespace, prefix } = getPermissionGroup(permission.key)
         const existing = groups.get(namespace)
         groups.set(namespace, {
             label: `permissions.group.${namespace}`,
-            prefix: `${namespace}.`,
+            prefix,
             permissions: existing ? [...existing.permissions, permission] : [permission],
         })
     }
@@ -37,7 +49,7 @@ export function getAvailablePermissionGroups(
 }
 
 export function getPermissionCheckboxInputId(fieldName: string, permissionKey: string): string {
-    return `${fieldName}-${permissionKey.replaceAll('.', '-')}`
+    return `${fieldName}-${permissionKey.replace(/[.:]/gu, '-')}`
 }
 
 export function getNextSelectedPermissionKeys(

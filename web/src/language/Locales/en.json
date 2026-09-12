@@ -46,7 +46,8 @@
         "proxyHosts": "Proxy hosts",
         "redirectHosts": "Redirect hosts",
         "certificates": "Certificates",
-        "accessPolicies": "Access policies"
+        "accessPolicies": "Access policies",
+        "proxyAccessLogs": "Access logs"
     },
     "language": {
         "title": "Language",
@@ -1242,7 +1243,38 @@
                 "combination": "Combined policy rule",
                 "availabilityTitle": "Basic Auth and request availability",
                 "warningTitle": "Protection methods are not configured",
-                "warningDescription": "Until the required providers are available, applying this mode denies every request. Review the runtime before assigning it to a live host."
+                "warningDescription": "Until the required providers are available, applying this mode denies every request. Review the runtime before assigning it to a live host.",
+                "ipRules": {
+                    "title": "IP access rules",
+                    "description": "Use the socket peer address only. X-Forwarded-For is ignored; behind a proxy, the proxy address is evaluated.",
+                    "configure": "Configure IP access",
+                    "configureHint": "Leave this off to keep the IP provider disabled. Deny is recommended as the default.",
+                    "defaultAction": "Default action",
+                    "defaultActionHint": "Deny is recommended. A deny entry wins when an address matches both lists.",
+                    "allow": "Allow list",
+                    "allowHint": "One IP address or CIDR network per line.",
+                    "deny": "Deny list",
+                    "denyHint": "One IP address or CIDR network per line. Deny wins if both lists match.",
+                    "denyRecommended": "Deny (recommended)"
+                }
+            },
+            "availability": {
+                "publicIgnored": "Public policy — authentication and IP rules are ignored.",
+                "authenticatedAvailable": "Basic Auth is configured and can allow requests.",
+                "authenticatedMissing": "No Basic Auth accounts — requests are denied.",
+                "ipRestrictedAvailable": "IP access is configured and can allow matching requests.",
+                "ipRestrictedMissing": "IP access is not configured — requests are denied.",
+                "ipRestrictedBlocksAll": "IP access is configured to deny all requests.",
+                "combinedAllAvailable": "AND: Basic Auth and IP access are both configured.",
+                "combinedAllMissingAuth": "AND: Basic Auth accounts are missing — requests are denied.",
+                "combinedAllMissingIp": "AND: IP access is not configured — requests are denied.",
+                "combinedAllMissingBoth": "AND: Basic Auth accounts and IP access are missing — requests are denied.",
+                "combinedAllIpBlocksAll": "AND: IP access is configured to deny all requests.",
+                "combinedAnyAvailableAuth": "OR: Basic Auth can allow requests even when an IP check denies them.",
+                "combinedAnyAvailableIp": "OR: IP access can allow matching requests when configured.",
+                "combinedAnyAvailableBoth": "OR: Basic Auth or IP access can allow requests.",
+                "combinedAnyIpBlocksAll": "OR: IP access is configured to deny all requests.",
+                "combinedAnyMissing": "OR: no access method is configured — requests are denied."
             },
             "mode": {
                 "public": "Public",
@@ -1264,6 +1296,7 @@
                 "mode": "Mode",
                 "combination": "Combination",
                 "basicAuth": "Basic Auth",
+                "ipRules": "IP access",
                 "assigned": "Assigned hosts",
                 "created": "Created",
                 "actions": "Actions"
@@ -1271,6 +1304,16 @@
             "cells": {
                 "assignedHosts_one": "{{count}} host",
                 "assignedHosts_other": "{{count}} hosts"
+            },
+            "ipRules": {
+                "defaultAction": {
+                    "allow": "Default allow",
+                    "deny": "Default deny"
+                },
+                "cells": {
+                    "summary": "{{action}}; {{count}} rules (allow: {{allow}}, deny: {{deny}})",
+                    "notConfigured": "Not configured"
+                }
             },
             "filters": {
                 "name": "Filter names…",
@@ -1390,6 +1433,8 @@
                 "descriptionInvalid": "Use printable characters in the description.",
                 "combinationRequired": "Choose how the combined checks should be evaluated.",
                 "combination": "Combined policies require exactly one combination rule.",
+                "ipRulesInvalid": "Enter only valid IP addresses or CIDR networks, one per line.",
+                "ipRulesTooMany": "Each IP list can contain no more than 128 entries.",
                 "changes": "Provide at least one change."
             },
             "errors": {
@@ -1403,6 +1448,72 @@
                 "invalid_input": "Review the access policy values and try again.",
                 "controller_unavailable": "The proxy controller is unavailable.",
                 "applyFailed": "The access policy configuration could not be applied."
+            }
+        },
+        "proxyAccessLogs": {
+            "page": {
+                "eyebrow": "Proxy observability",
+                "title": "Access logs",
+                "description": "Review recent requests handled by your proxy.",
+                "retention": "Recent requests are retained for up to 7 days; older entries may be trimmed."
+            },
+            "states": {
+                "unavailableTitle": "Access logs unavailable",
+                "unavailableDescription": "The recent request history could not be loaded. Try again.",
+                "forbiddenTitle": "Access logs are restricted",
+                "forbiddenDescription": "Your account does not have permission to view proxy access logs."
+            },
+            "table": {
+                "eyebrow": "Recent requests",
+                "title": "Proxy access logs",
+                "description": "Inspect request timing and outcomes without exposing headers, payloads, or query strings.",
+                "emptyTitle": "No recent requests",
+                "emptyDescription": "No requests are available in the retention window.",
+                "filteredEmptyDescription": "No requests match these filters."
+            },
+            "filters": {
+                "host": "Host",
+                "hostPlaceholder": "example.com",
+                "status": "Status",
+                "statusPlaceholder": "404",
+                "search": "Search",
+                "searchPlaceholder": "Search host, method, or path…"
+            },
+            "actions": {
+                "apply": "Apply filters",
+                "refresh": "Refresh",
+                "showDetails": "Show request details",
+                "hideDetails": "Hide request details"
+            },
+            "columns": {
+                "time": "Time (UTC)",
+                "host": "Host",
+                "method": "Method",
+                "path": "Path",
+                "status": "Status",
+                "duration": "Duration",
+                "clientIp": "Client IP",
+                "bytes": "Bytes",
+                "upstream": "Upstream",
+                "protocol": "Protocol"
+            },
+            "pagination": {
+                "range": "{{from}}–{{to}} of {{count}} requests",
+                "truncated": "Recent window is bounded.",
+                "label": "Access log pagination",
+                "page": "Page {{page}} of {{count}}",
+                "previous": "Previous page",
+                "next": "Next page"
+            },
+            "validation": {
+                "host": "Enter a valid host name.",
+                "status": "Enter a status code from 100 to 599.",
+                "search": "Search text is too long or contains unsupported characters.",
+                "limit": "The page size is invalid.",
+                "offset": "The page offset is invalid."
+            },
+            "errors": {
+                "loadFailed": "Access logs could not be loaded."
             }
         },
         "trustedCas": {
@@ -1495,7 +1606,8 @@
             "redirect_hosts": "Redirect hosts",
             "certificates": "Certificates",
             "trusted_cas": "Trusted CAs",
-            "access_policies": "Access policies"
+            "access_policies": "Access policies",
+            "proxy-access-logs": "Proxy access logs"
         },
         "app": {
             "access": "Application access"
@@ -1555,6 +1667,8 @@
             "assign": "Assign access policies",
             "apply": "Apply access policy configuration"
         },
+
+        "proxy-access-logs:view": "View proxy access logs",
 
         "trusted_cas": {
             "view": "View trusted CAs",

@@ -46,7 +46,8 @@
         "proxyHosts": "Hôtes proxy",
         "redirectHosts": "Hôtes de redirection",
         "certificates": "Certificats",
-        "accessPolicies": "Politiques d’accès"
+        "accessPolicies": "Politiques d’accès",
+        "proxyAccessLogs": "Journaux d’accès"
     },
     "language": {
         "title": "Langue",
@@ -1242,7 +1243,38 @@
                 "combination": "Règle de politique combinée",
                 "availabilityTitle": "Basic Auth et disponibilité des requêtes",
                 "warningTitle": "Les méthodes de protection ne sont pas configurées",
-                "warningDescription": "Tant que les fournisseurs requis ne sont pas disponibles, ce mode refuse toutes les requêtes. Vérifiez l’exécution avant de l’attribuer."
+                "warningDescription": "Tant que les fournisseurs requis ne sont pas disponibles, ce mode refuse toutes les requêtes. Vérifiez l’exécution avant de l’attribuer.",
+                "ipRules": {
+                    "title": "Règles d’accès IP",
+                    "description": "Utilisez uniquement l’adresse du pair de socket. X-Forwarded-For est ignoré ; derrière un proxy, l’adresse du proxy est évaluée.",
+                    "configure": "Configurer l’accès IP",
+                    "configureHint": "Laissez cette option désactivée pour garder le fournisseur IP inactif. Refuser est recommandé par défaut.",
+                    "defaultAction": "Action par défaut",
+                    "defaultActionHint": "Refuser est recommandé. Une entrée de refus gagne lorsqu’une adresse correspond aux deux listes.",
+                    "allow": "Liste d’autorisation",
+                    "allowHint": "Une adresse IP ou un réseau CIDR par ligne.",
+                    "deny": "Liste de refus",
+                    "denyHint": "Une adresse IP ou un réseau CIDR par ligne. Le refus gagne si les deux listes correspondent.",
+                    "denyRecommended": "Refuser (recommandé)"
+                }
+            },
+            "availability": {
+                "publicIgnored": "Politique publique — l’authentification et les règles IP sont ignorées.",
+                "authenticatedAvailable": "Basic Auth est configuré et peut autoriser les requêtes.",
+                "authenticatedMissing": "Aucun compte Basic Auth — les requêtes sont refusées.",
+                "ipRestrictedAvailable": "L’accès IP est configuré et peut autoriser les requêtes correspondantes.",
+                "ipRestrictedMissing": "L’accès IP n’est pas configuré — les requêtes sont refusées.",
+                "ipRestrictedBlocksAll": "L’accès IP est configuré pour refuser toutes les requêtes.",
+                "combinedAllAvailable": "ET : Basic Auth et l’accès IP sont configurés.",
+                "combinedAllMissingAuth": "ET : les comptes Basic Auth manquent — les requêtes sont refusées.",
+                "combinedAllMissingIp": "ET : l’accès IP n’est pas configuré — les requêtes sont refusées.",
+                "combinedAllMissingBoth": "ET : les comptes Basic Auth et l’accès IP manquent — les requêtes sont refusées.",
+                "combinedAllIpBlocksAll": "ET : l’accès IP est configuré pour refuser toutes les requêtes.",
+                "combinedAnyAvailableAuth": "OU : Basic Auth peut autoriser les requêtes même si le contrôle IP les refuse.",
+                "combinedAnyAvailableIp": "OU : l’accès IP peut autoriser les requêtes correspondantes lorsqu’il est configuré.",
+                "combinedAnyAvailableBoth": "OU : Basic Auth ou l’accès IP peut autoriser les requêtes.",
+                "combinedAnyIpBlocksAll": "OU : l’accès IP est configuré pour refuser toutes les requêtes.",
+                "combinedAnyMissing": "OU : aucune méthode d’accès n’est configurée — les requêtes sont refusées."
             },
             "mode": {
                 "public": "Public",
@@ -1264,6 +1296,7 @@
                 "mode": "Mode",
                 "combination": "Combinaison",
                 "basicAuth": "Basic Auth",
+                "ipRules": "Accès IP",
                 "assigned": "Hôtes attribués",
                 "created": "Créée",
                 "actions": "Actions"
@@ -1271,6 +1304,16 @@
             "cells": {
                 "assignedHosts_one": "{{count}} hôte",
                 "assignedHosts_other": "{{count}} hôtes"
+            },
+            "ipRules": {
+                "defaultAction": {
+                    "allow": "Autoriser par défaut",
+                    "deny": "Refuser par défaut"
+                },
+                "cells": {
+                    "summary": "{{action}} ; règles : {{count}} (autoriser : {{allow}}, refuser : {{deny}})",
+                    "notConfigured": "Non configuré"
+                }
             },
             "filters": {
                 "name": "Filtrer les noms…",
@@ -1390,6 +1433,8 @@
                 "descriptionInvalid": "Utilisez des caractères imprimables dans la description.",
                 "combinationRequired": "Choisissez l’évaluation des vérifications combinées.",
                 "combination": "Une politique combinée nécessite une règle de combinaison.",
+                "ipRulesInvalid": "Saisissez uniquement des adresses IP ou réseaux CIDR valides, un par ligne.",
+                "ipRulesTooMany": "Chaque liste IP peut contenir au maximum 128 entrées.",
                 "changes": "Indiquez au moins une modification."
             },
             "errors": {
@@ -1403,6 +1448,72 @@
                 "invalid_input": "Vérifiez les valeurs de la politique et réessayez.",
                 "controller_unavailable": "Le contrôleur proxy est indisponible.",
                 "applyFailed": "La configuration de la politique n’a pas pu être appliquée."
+            }
+        },
+        "proxyAccessLogs": {
+            "page": {
+                "eyebrow": "Observabilité du proxy",
+                "title": "Journaux d’accès",
+                "description": "Consultez les requêtes récentes traitées par votre proxy.",
+                "retention": "Les requêtes récentes sont conservées jusqu’à 7 jours ; les plus anciennes peuvent être supprimées plus tôt."
+            },
+            "states": {
+                "unavailableTitle": "Journaux d’accès indisponibles",
+                "unavailableDescription": "L’historique récent des requêtes n’a pas pu être chargé. Réessayez.",
+                "forbiddenTitle": "Journaux d’accès protégés",
+                "forbiddenDescription": "Votre compte n’est pas autorisé à consulter les journaux d’accès du proxy."
+            },
+            "table": {
+                "eyebrow": "Requêtes récentes",
+                "title": "Journaux d’accès du proxy",
+                "description": "Examinez les durées et les résultats sans exposer les en-têtes, les charges utiles ni les chaînes de requête.",
+                "emptyTitle": "Aucune requête récente",
+                "emptyDescription": "Aucune requête n’est disponible dans la période de conservation.",
+                "filteredEmptyDescription": "Aucune requête ne correspond à ces filtres."
+            },
+            "filters": {
+                "host": "Hôte",
+                "hostPlaceholder": "example.com",
+                "status": "Statut",
+                "statusPlaceholder": "404",
+                "search": "Rechercher",
+                "searchPlaceholder": "Rechercher un hôte, une méthode ou un chemin…"
+            },
+            "actions": {
+                "apply": "Appliquer les filtres",
+                "refresh": "Actualiser",
+                "showDetails": "Afficher les détails de la requête",
+                "hideDetails": "Masquer les détails de la requête"
+            },
+            "columns": {
+                "time": "Heure (UTC)",
+                "host": "Hôte",
+                "method": "Méthode",
+                "path": "Chemin",
+                "status": "Statut",
+                "duration": "Durée",
+                "clientIp": "IP client",
+                "bytes": "Octets",
+                "upstream": "Upstream",
+                "protocol": "Protocole"
+            },
+            "pagination": {
+                "range": "{{from}}–{{to}} sur {{count}} requêtes",
+                "truncated": "La période récente est limitée.",
+                "label": "Pagination des journaux d’accès",
+                "page": "Page {{page}} sur {{count}}",
+                "previous": "Page précédente",
+                "next": "Page suivante"
+            },
+            "validation": {
+                "host": "Saisissez un nom d’hôte valide.",
+                "status": "Saisissez un code de statut compris entre 100 et 599.",
+                "search": "Le texte de recherche est trop long ou contient des caractères non pris en charge.",
+                "limit": "La taille de page est invalide.",
+                "offset": "Le décalage de page est invalide."
+            },
+            "errors": {
+                "loadFailed": "Les journaux d’accès n’ont pas pu être chargés."
             }
         },
         "trustedCas": {
@@ -1495,7 +1606,8 @@
             "redirect_hosts": "Hôtes de redirection",
             "certificates": "Certificats",
             "trusted_cas": "AC de confiance",
-            "access_policies": "Politiques d’accès"
+            "access_policies": "Politiques d’accès",
+            "proxy-access-logs": "Journaux d’accès du proxy"
         },
         "app": {
             "access": "Accès à l’application"
@@ -1555,6 +1667,8 @@
             "assign": "Attribuer des règles d’accès",
             "apply": "Appliquer la configuration des règles d’accès"
         },
+
+        "proxy-access-logs:view": "Afficher les journaux d’accès du proxy",
 
         "trusted_cas": {
             "view": "Afficher les AC de confiance",

@@ -54,4 +54,12 @@ export interface AccessPolicyBasicAuthCellProps {
     readonly combination: AccessPolicySummary['combination']
     readonly count: number
     readonly mode: AccessPolicySummary['mode']
+    readonly ipRules: AccessPolicySummary['ipRules']
+}
+
+export interface AccessPolicyIpRulesCellProps {
+    readonly basicAuthAccountCount: number
+    readonly combination: AccessPolicySummary['combination']
+    readonly ipRules: AccessPolicySummary['ipRules']
+    readonly mode: AccessPolicySummary['mode']
 }

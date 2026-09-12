@@ -36,6 +36,7 @@ export interface ApplicationNavigationItem {
         | '/redirect-hosts'
         | '/certificates'
         | '/access-policies'
+        | '/proxy-access-logs'
         | '/roles'
         | '/users'
 }

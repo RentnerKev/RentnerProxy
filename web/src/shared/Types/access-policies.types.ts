@@ -1,4 +1,7 @@
 import type { AccessPolicyCombination, AccessPolicyMode } from '../../config/access-policies.config'
+import type { AccessPolicyIpRules } from '../Helpers/ipAccessRules'
+
+export type { AccessPolicyIpRuleAction, AccessPolicyIpRules } from '../Helpers/ipAccessRules'
 
 export interface AccessPolicyBasicAuthRuntimeAccount {
     readonly username: string
@@ -15,6 +18,7 @@ export interface AccessPolicySummary {
     readonly description: string
     readonly mode: AccessPolicyMode
     readonly combination: AccessPolicyCombination | null
+    readonly ipRules: AccessPolicyIpRules | null
     readonly assignedHostCount: number
     readonly basicAuthAccountCount: number
     readonly createdAt: Date

@@ -1,7 +1,7 @@
 use axum::{
     Json,
     body::Bytes,
-    extract::{Path, rejection::BytesRejection},
+    extract::{Path, Query, Request, rejection::BytesRejection},
     http::{
         HeaderMap, HeaderValue, StatusCode,
         header::{CACHE_CONTROL, CONTENT_TYPE, HOST},
@@ -19,7 +19,7 @@ use crate::{
     },
     runtime::{
         CertificateError, CertificateImportRequest, CertificateIssueRequest, CertificateMetadata,
-        RuntimeError,
+        RuntimeError, access_logs::AccessLogQuery,
     },
 };
 
@@ -104,6 +104,30 @@ fn is_challenge_token(value: &str) -> bool {
 
 pub(super) async fn proxy_status(state: AppState) -> Result<Json<ProxyRuntimeStatus>, ApiError> {
     Ok(Json(state.runtime.status().await))
+}
+
+pub(super) async fn access_logs(request: Request, state: AppState) -> Result<Response, ApiError> {
+    if request
+        .uri()
+        .query()
+        .is_some_and(|query| query.len() > 4096)
+    {
+        return Err(ApiError::validation_failed());
+    }
+    let Query(query) = Query::<AccessLogQuery>::try_from_uri(request.uri())
+        .map_err(|_| ApiError::validation_failed())?;
+    let query = query
+        .validate()
+        .map_err(|_| ApiError::validation_failed())?;
+    state
+        .runtime
+        .access_logs(query)
+        .await
+        .map(no_store_json)
+        .map_err(|error| match error {
+            crate::runtime::access_logs::ReadError::Busy => ApiError::busy(),
+            crate::runtime::access_logs::ReadError::Failed => ApiError::runtime_unavailable(),
+        })
 }
 
 pub(super) async fn list_certificates(state: AppState) -> Result<Response, ApiError> {

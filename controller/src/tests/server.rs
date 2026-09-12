@@ -109,6 +109,7 @@ fn basic_auth_payload() -> Vec<u8> {
                 password_hash: BASIC_AUTH_HASH.to_owned(),
             }],
         }),
+        ip_rules: None,
     });
     configuration.revision =
         revision_for_configuration(&configuration.proxy_hosts, &configuration.http_settings);
@@ -239,6 +240,28 @@ async fn proxy_endpoints_require_configured_authentication() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let response = test_app(Some(
+        Config::from_values(
+            None,
+            Some("0123456789abcdef0123456789abcdef"),
+            None,
+            None,
+            None,
+            false,
+        )
+        .unwrap()
+        .controller_token
+        .unwrap(),
+    ))
+    .await
+    .oneshot(request_with_method(
+        "GET",
+        "/internal/v1/proxy/access-logs",
+        Body::empty(),
+    ))
+    .await
+    .unwrap();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -345,6 +368,65 @@ async fn source_endpoints_are_authenticated_and_preview_is_pure() {
     .unwrap();
     assert_eq!(active["activeRevision"], revision);
     assert!(active["config"].as_str().unwrap().contains("idle_timeout"));
+}
+
+#[tokio::test]
+async fn access_log_query_validation_is_bounded() {
+    for query in [
+        "?limit=0",
+        "?limit=201",
+        "?offset=10001",
+        "?status=99",
+        "?search=%00",
+        "?unknown=value",
+        "?limit=1&limit=2",
+    ] {
+        let response = test_app(None)
+            .await
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/internal/v1/proxy/access-logs{query}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            response.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{query}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn access_log_query_decodes_utf8_and_rejects_oversized_input() {
+    let router = test_app(None).await;
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/internal/v1/proxy/access-logs?search=%C3%A4%26%3F&limit=1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers().get("cache-control").unwrap(), "no-store");
+    let oversized = router
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/internal/v1/proxy/access-logs?search={}",
+                    "x".repeat(4097)
+                ))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(oversized.status(), StatusCode::UNPROCESSABLE_ENTITY);
 }
 
 #[tokio::test]

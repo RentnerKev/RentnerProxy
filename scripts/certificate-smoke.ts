@@ -9,6 +9,7 @@ import { basename, dirname, resolve } from 'node:path'
 
 import { smokeDockerArguments } from './smoke-resources'
 import { startCertificateDnsFixture } from './certificate-dns-fixture'
+import { verifyProxyAccessLogs } from './proxy-access-logs-smoke'
 import { CERTIFICATE_ERROR_CODES } from '../web/src/config/certificates.config'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
@@ -471,6 +472,9 @@ async function runSmoke(): Promise<void> {
                 const url = new URL(request.url)
                 const requestBody = await request.text()
                 upstreamRequests.push(request.method + ' ' + url.pathname + url.search)
+                if (url.pathname === '/basic-auth') {
+                    assert.equal(request.headers.has('authorization'), false)
+                }
                 if (url.pathname.startsWith('/.well-known/acme-challenge/')) {
                     return new Response('unexpected upstream challenge', { status: 500 })
                 }
@@ -1697,6 +1701,200 @@ async function runSmoke(): Promise<void> {
         assert.match(await authCurl(authPassword), /^HTTP\/(?:1\.1|2) 200(?:\s|$)/u)
         passed(
             'Basic Auth enforces verified HTTPS and combination semantics, preserves redirects and redacts every config API',
+        )
+
+        const ipAllowAll = { defaultAction: 'allow', allow: [], deny: [] }
+        const ipDenyAll = { defaultAction: 'deny', allow: [], deny: [] }
+        const loopbackRules = {
+            defaultAction: 'deny',
+            allow: ['127.0.0.0/8', '::1/128'],
+            deny: [],
+        }
+        const ipPolicy = { id: policyId, mode: 'ip-restricted', combination: null }
+        const localIpCurl = (address: string, password?: string) =>
+            command([
+                'docker',
+                'exec',
+                runtimeContainer,
+                'curl',
+                '--silent',
+                '--show-error',
+                '--noproxy',
+                '*',
+                '--include',
+                '--max-time',
+                '5',
+                '--header',
+                'Host: policy.example.com',
+                '--header',
+                'X-Forwarded-For: 192.0.2.99',
+                '--header',
+                'X-Real-IP: 192.0.2.99',
+                '--header',
+                'Forwarded: for=192.0.2.99',
+                ...(password === undefined ? [] : ['--user', authUsername + ':' + password]),
+                'http://' + address + ':8080/ip-rules',
+            ])
+        for (const scenario of [
+            { rules: loopbackRules, expected: 200 },
+            { rules: { ...loopbackRules, deny: ['127.0.0.1/32', '::1/128'] }, expected: 403 },
+            { rules: { ...ipAllowAll, deny: ['127.0.0.0/8', '::1/128'] }, expected: 403 },
+            { rules: ipAllowAll, expected: 200 },
+            { rules: ipDenyAll, expected: 403 },
+            { rules: { ...ipDenyAll, allow: ['192.0.2.99/32'] }, expected: 403 },
+        ]) {
+            await apply(
+                snapshot([
+                    { ...policyHost, accessPolicy: { ...ipPolicy, ipRules: scenario.rules } },
+                ]),
+            )
+            for (const address of ['127.0.0.1', '[::1]']) {
+                const result = await localIpCurl(address)
+                assert.equal(
+                    Number(result.match(/^HTTP\/(?:1\.1|2) (\d{3})/u)?.[1]),
+                    scenario.expected,
+                )
+                if (scenario.expected === 403)
+                    assert.doesNotMatch(result, /certificate-smoke-backend/u)
+                else assert.match(result, /certificate-smoke-backend/u)
+            }
+        }
+        passed(
+            'real IPv4 and IPv6 peers enforce CIDRs, deny precedence and explicit defaults; forged forwarding headers cannot allow access',
+        )
+        await apply(
+            snapshot([
+                {
+                    ...policyHost,
+                    accessPolicy: {
+                        ...ipPolicy,
+                        ipRules: { ...ipDenyAll, allow: ['::/0'] },
+                    },
+                },
+            ]),
+        )
+        assert.match(await localIpCurl('127.0.0.1'), /^HTTP\/(?:1\.1|2) 403(?:\s|$)/u)
+        assert.match(await localIpCurl('[::1]'), /^HTTP\/(?:1\.1|2) 200(?:\s|$)/u)
+        passed('an IPv6 all-addresses rule does not authorize IPv4 peers')
+
+        for (const scenario of [
+            { combination: 'all', rules: ipAllowAll, password: undefined, expected: 401 },
+            { combination: 'all', rules: ipAllowAll, password: authPassword, expected: 200 },
+            { combination: 'all', rules: ipDenyAll, password: authPassword, expected: 403 },
+            { combination: 'any', rules: ipAllowAll, password: 'wrong', expected: 200 },
+            { combination: 'any', rules: ipDenyAll, password: 'wrong', expected: 401 },
+            { combination: 'any', rules: ipDenyAll, password: authPassword, expected: 200 },
+        ]) {
+            await apply(
+                snapshot([
+                    {
+                        ...policyHost,
+                        accessPolicy: {
+                            ...basicPolicy,
+                            mode: 'combined',
+                            combination: scenario.combination,
+                            ipRules: scenario.rules,
+                        },
+                    },
+                ]),
+            )
+            const result = await authCurl(scenario.password)
+            assert.equal(Number(result.match(/^HTTP\/(?:1\.1|2) (\d{3})/u)?.[1]), scenario.expected)
+            if (scenario.expected !== 200) assert.doesNotMatch(result, /certificate-smoke-backend/u)
+        }
+        for (const combination of ['all', 'any']) {
+            await apply(
+                snapshot([
+                    {
+                        ...policyHost,
+                        accessPolicy: {
+                            ...ipPolicy,
+                            mode: 'combined',
+                            combination,
+                            ipRules: ipAllowAll,
+                        },
+                    },
+                ]),
+            )
+            const result = await authCurl()
+            assert.equal(
+                Number(result.match(/^HTTP\/(?:1\.1|2) (\d{3})/u)?.[1]),
+                combination === 'all' ? 403 : 200,
+            )
+        }
+        passed(
+            'verified HTTPS combines IP rules and Basic Auth with explicit all/any semantics, including missing credentials',
+        )
+
+        await apply(
+            snapshot([
+                {
+                    ...policyHost,
+                    forceHttps: true,
+                    accessPolicy: { ...ipPolicy, ipRules: ipDenyAll },
+                },
+            ]),
+        )
+        const redirectIp = await fetch(httpUrl + '/ip-rules', {
+            headers: { host: 'policy.example.com' },
+            redirect: 'manual',
+            signal: AbortSignal.timeout(5_000),
+        })
+        assert.equal(redirectIp.status, 308)
+        await redirectIp.body?.cancel()
+        assert.match(await authCurl(), /^HTTP\/(?:1\.1|2) 403(?:\s|$)/u)
+        const ipChallenge = await fetch(httpUrl + '/.well-known/acme-challenge/unknown-ip-token', {
+            headers: { host: 'policy.example.com' },
+            signal: AbortSignal.timeout(5_000),
+        })
+        assert.equal(ipChallenge.status, 404)
+        await ipChallenge.body?.cancel()
+        const persistedIpSnapshot = snapshot([
+            {
+                ...policyHost,
+                accessPolicy: {
+                    ...ipPolicy,
+                    ipRules: { ...ipDenyAll, allow: ['127.0.0.0/8'] },
+                },
+            },
+        ])
+        await apply(persistedIpSnapshot)
+        await restartRuntime()
+        await waitFor(async () => {
+            const response = await controllerRequest('/internal/v1/proxy/status')
+            if (!response.ok) return false
+            const status = jsonObject(await response.json())
+            return status.running === true && status.activeRevision === persistedIpSnapshot.revision
+        }, 'IP policy recovery after restart')
+        assert.match(await localIpCurl('127.0.0.1'), /^HTTP\/(?:1\.1|2) 200(?:\s|$)/u)
+        assert.match(await localIpCurl('[::1]'), /^HTTP\/(?:1\.1|2) 403(?:\s|$)/u)
+        passed(
+            'IP rules preserve HTTPS redirects and ACME and retain their IPv4/IPv6 behavior after restart',
+        )
+        const loggingSnapshot = snapshot([{ ...policyHost, accessPolicy: undefined }])
+        await apply(loggingSnapshot)
+        await verifyProxyAccessLogs({
+            controllerUrl,
+            httpUrl,
+            runtimeContainer,
+            controllerRequest,
+            command,
+            waitFor,
+            restart: async () => {
+                await restartRuntime()
+                await waitFor(async () => {
+                    const response = await controllerRequest('/internal/v1/proxy/status')
+                    if (!response.ok) return false
+                    const status = jsonObject(await response.json())
+                    return (
+                        status.running === true &&
+                        status.activeRevision === loggingSnapshot.revision
+                    )
+                }, 'access log restart recovery')
+            },
+        })
+        passed(
+            'request logs preserve privacy, filters and pagination across restart and bounded rotation',
         )
         console.log('Certificate HTTPS/ACME integration: ' + assertions + ' checks passed.')
     } finally {

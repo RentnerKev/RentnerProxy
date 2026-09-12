@@ -46,7 +46,8 @@
         "proxyHosts": "Proxy-Hosts",
         "redirectHosts": "Weiterleitungs-Hosts",
         "certificates": "Zertifikate",
-        "accessPolicies": "Zugriffsrichtlinien"
+        "accessPolicies": "Zugriffsrichtlinien",
+        "proxyAccessLogs": "Zugriffsprotokolle"
     },
     "language": {
         "title": "Sprache",
@@ -1242,7 +1243,38 @@
                 "combination": "Regel für kombinierte Richtlinie",
                 "availabilityTitle": "Basic Auth und Anfrageverfügbarkeit",
                 "warningTitle": "Schutzmethoden sind nicht eingerichtet",
-                "warningDescription": "Bis die erforderlichen Anbieter verfügbar sind, wird jede Anfrage in diesem Modus abgewiesen. Prüfe die Laufzeit vor der Zuweisung."
+                "warningDescription": "Bis die erforderlichen Anbieter verfügbar sind, wird jede Anfrage in diesem Modus abgewiesen. Prüfe die Laufzeit vor der Zuweisung.",
+                "ipRules": {
+                    "title": "IP-Zugriffsregeln",
+                    "description": "Verwende nur die Socket-Peer-Adresse. X-Forwarded-For wird ignoriert; hinter einem Proxy wird die Proxy-Adresse geprüft.",
+                    "configure": "IP-Zugriff konfigurieren",
+                    "configureHint": "Deaktiviert lässt den IP-Anbieter aus. Als Standard wird Ablehnen empfohlen.",
+                    "defaultAction": "Standardaktion",
+                    "defaultActionHint": "Ablehnen wird empfohlen. Ein Ablehnen-Eintrag gewinnt, wenn eine Adresse in beiden Listen vorkommt.",
+                    "allow": "Erlaubnisliste",
+                    "allowHint": "Eine IP-Adresse oder ein CIDR-Netz pro Zeile.",
+                    "deny": "Sperrliste",
+                    "denyHint": "Eine IP-Adresse oder ein CIDR-Netz pro Zeile. Sperren gewinnt bei Übereinstimmung beider Listen.",
+                    "denyRecommended": "Ablehnen (empfohlen)"
+                }
+            },
+            "availability": {
+                "publicIgnored": "Öffentliche Richtlinie — Authentifizierung und IP-Regeln werden ignoriert.",
+                "authenticatedAvailable": "Basic Auth ist eingerichtet und kann Anfragen erlauben.",
+                "authenticatedMissing": "Keine Basic-Auth-Konten — Anfragen werden abgelehnt.",
+                "ipRestrictedAvailable": "IP-Zugriff ist eingerichtet und kann passende Anfragen erlauben.",
+                "ipRestrictedMissing": "IP-Zugriff ist nicht eingerichtet — Anfragen werden abgelehnt.",
+                "ipRestrictedBlocksAll": "IP-Zugriff ist eingerichtet, weist aber alle Anfragen ab.",
+                "combinedAllAvailable": "UND: Basic Auth und IP-Zugriff sind eingerichtet.",
+                "combinedAllMissingAuth": "UND: Basic-Auth-Konten fehlen — Anfragen werden abgelehnt.",
+                "combinedAllMissingIp": "UND: IP-Zugriff ist nicht eingerichtet — Anfragen werden abgelehnt.",
+                "combinedAllMissingBoth": "UND: Basic-Auth-Konten und IP-Zugriff fehlen — Anfragen werden abgelehnt.",
+                "combinedAllIpBlocksAll": "UND: Der IP-Zugriff weist alle Anfragen ab.",
+                "combinedAnyAvailableAuth": "ODER: Basic Auth kann Anfragen erlauben, auch wenn die IP-Prüfung sie ablehnt.",
+                "combinedAnyAvailableIp": "ODER: IP-Zugriff kann passende Anfragen erlauben, wenn er eingerichtet ist.",
+                "combinedAnyAvailableBoth": "ODER: Basic Auth oder IP-Zugriff kann Anfragen erlauben.",
+                "combinedAnyIpBlocksAll": "ODER: Der IP-Zugriff weist alle Anfragen ab.",
+                "combinedAnyMissing": "ODER: Keine Zugriffsmethode ist eingerichtet — Anfragen werden abgelehnt."
             },
             "mode": {
                 "public": "Öffentlich",
@@ -1264,6 +1296,7 @@
                 "mode": "Modus",
                 "combination": "Kombination",
                 "basicAuth": "Basic Auth",
+                "ipRules": "IP-Zugriff",
                 "assigned": "Zugewiesene Hosts",
                 "created": "Erstellt",
                 "actions": "Aktionen"
@@ -1271,6 +1304,16 @@
             "cells": {
                 "assignedHosts_one": "{{count}} Host",
                 "assignedHosts_other": "{{count}} Hosts"
+            },
+            "ipRules": {
+                "defaultAction": {
+                    "allow": "Standard: Erlauben",
+                    "deny": "Standard: Ablehnen"
+                },
+                "cells": {
+                    "summary": "{{action}}; Regeln: {{count}} (erlauben: {{allow}}, sperren: {{deny}})",
+                    "notConfigured": "Nicht eingerichtet"
+                }
             },
             "filters": {
                 "name": "Namen filtern…",
@@ -1390,6 +1433,8 @@
                 "descriptionInvalid": "Verwende druckbare Zeichen in der Beschreibung.",
                 "combinationRequired": "Wähle die Auswertung der kombinierten Prüfungen.",
                 "combination": "Kombinierte Richtlinien benötigen genau eine Kombinationsregel.",
+                "ipRulesInvalid": "Gib nur gültige IP-Adressen oder CIDR-Netze ein, eine pro Zeile.",
+                "ipRulesTooMany": "Jede IP-Liste darf höchstens 128 Einträge enthalten.",
                 "changes": "Gib mindestens eine Änderung an."
             },
             "errors": {
@@ -1403,6 +1448,72 @@
                 "invalid_input": "Prüfe die Werte der Zugriffsrichtlinie und versuche es erneut.",
                 "controller_unavailable": "Der Proxy-Controller ist nicht verfügbar.",
                 "applyFailed": "Die Konfiguration konnte nicht angewendet werden."
+            }
+        },
+        "proxyAccessLogs": {
+            "page": {
+                "eyebrow": "Proxy-Beobachtung",
+                "title": "Zugriffsprotokolle",
+                "description": "Prüfe die letzten Anfragen, die dein Proxy verarbeitet hat.",
+                "retention": "Letzte Anfragen bleiben bis zu 7 Tage erhalten; ältere Einträge können früher entfernt werden."
+            },
+            "states": {
+                "unavailableTitle": "Zugriffsprotokolle nicht verfügbar",
+                "unavailableDescription": "Die letzten Anfragen konnten nicht geladen werden. Versuche es erneut.",
+                "forbiddenTitle": "Zugriffsprotokolle sind geschützt",
+                "forbiddenDescription": "Deinem Konto fehlt die Berechtigung, Proxy-Zugriffsprotokolle zu sehen."
+            },
+            "table": {
+                "eyebrow": "Letzte Anfragen",
+                "title": "Proxy-Zugriffsprotokolle",
+                "description": "Prüfe Laufzeiten und Ergebnisse, ohne Header, Payloads oder Query-Strings offenzulegen.",
+                "emptyTitle": "Keine aktuellen Anfragen",
+                "emptyDescription": "Im Aufbewahrungszeitraum sind keine Anfragen verfügbar.",
+                "filteredEmptyDescription": "Keine Anfrage passt zu diesen Filtern."
+            },
+            "filters": {
+                "host": "Host",
+                "hostPlaceholder": "example.com",
+                "status": "Status",
+                "statusPlaceholder": "404",
+                "search": "Suche",
+                "searchPlaceholder": "Host, Methode oder Pfad suchen…"
+            },
+            "actions": {
+                "apply": "Filter anwenden",
+                "refresh": "Aktualisieren",
+                "showDetails": "Anfragedetails anzeigen",
+                "hideDetails": "Anfragedetails ausblenden"
+            },
+            "columns": {
+                "time": "Zeit (UTC)",
+                "host": "Host",
+                "method": "Methode",
+                "path": "Pfad",
+                "status": "Status",
+                "duration": "Dauer",
+                "clientIp": "Client-IP",
+                "bytes": "Bytes",
+                "upstream": "Upstream",
+                "protocol": "Protokoll"
+            },
+            "pagination": {
+                "range": "{{from}}–{{to}} von {{count}} Anfragen",
+                "truncated": "Der aktuelle Zeitraum ist begrenzt.",
+                "label": "Seitennavigation der Zugriffsprotokolle",
+                "page": "Seite {{page}} von {{count}}",
+                "previous": "Vorherige Seite",
+                "next": "Nächste Seite"
+            },
+            "validation": {
+                "host": "Gib einen gültigen Hostnamen ein.",
+                "status": "Gib einen Statuscode von 100 bis 599 ein.",
+                "search": "Der Suchtext ist zu lang oder enthält nicht unterstützte Zeichen.",
+                "limit": "Die Seitengröße ist ungültig.",
+                "offset": "Der Seitenoffset ist ungültig."
+            },
+            "errors": {
+                "loadFailed": "Die Zugriffsprotokolle konnten nicht geladen werden."
             }
         },
         "trustedCas": {
@@ -1495,7 +1606,8 @@
             "redirect_hosts": "Weiterleitungs-Hosts",
             "certificates": "Zertifikate",
             "trusted_cas": "Vertrauenswürdige CAs",
-            "access_policies": "Zugriffsrichtlinien"
+            "access_policies": "Zugriffsrichtlinien",
+            "proxy-access-logs": "Proxy-Zugriffsprotokolle"
         },
         "app": {
             "access": "Anwendungszugriff"
@@ -1555,6 +1667,8 @@
             "assign": "Zugriffsrichtlinien zuweisen",
             "apply": "Zugriffsrichtlinien-Konfiguration anwenden"
         },
+
+        "proxy-access-logs:view": "Proxy-Zugriffsprotokolle anzeigen",
 
         "trusted_cas": {
             "view": "Vertrauenswürdige CAs anzeigen",

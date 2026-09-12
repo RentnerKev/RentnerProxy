@@ -1,8 +1,9 @@
 use super::fixtures::{host, request};
 use crate::{
     models::{
-        AccessPolicy, AccessPolicyMode, ApplyOutcome, BasicAuth, BasicAuthAccount,
-        ProxyConfigRequest, ProxyHttpSettings, TrustedCa, UpstreamTls, ValidatedProxyConfig,
+        AccessPolicy, AccessPolicyMode, ApplyOutcome, BasicAuth, BasicAuthAccount, IpDefaultAction,
+        IpRules, ProxyConfigRequest, ProxyHttpSettings, TrustedCa, UpstreamTls,
+        ValidatedProxyConfig,
     },
     proxy::{
         revision_for_configuration, revision_for_configuration_with_trusted_cas,
@@ -134,6 +135,22 @@ fn configuration(port: u16) -> ValidatedProxyConfig {
     .unwrap()
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn startup_rejects_dangling_access_log_symlink_before_starting_caddy() {
+    let engine = FakeCaddy::new();
+    let (runtime, settings) = runtime(Some(engine.clone()));
+    std::fs::create_dir_all(settings.state_dir.join("logs")).unwrap();
+    let target = settings.state_dir.join("unexpected-log-target");
+    std::os::unix::fs::symlink(&target, settings.state_dir.join("logs/access.log")).unwrap();
+    runtime.initialize().await;
+    assert_eq!(engine.start_count.load(Ordering::SeqCst), 0);
+    assert!(!target.exists());
+    assert!(!runtime.status().await.running);
+    runtime.shutdown().await;
+    std::fs::remove_dir_all(&settings.state_dir).unwrap();
+}
+
 fn basic_auth_configuration(port: u16, password_hash: &str) -> ValidatedProxyConfig {
     let mut configuration = configuration(port);
     configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
@@ -146,6 +163,7 @@ fn basic_auth_configuration(port: u16, password_hash: &str) -> ValidatedProxyCon
                 password_hash: password_hash.to_owned(),
             }],
         }),
+        ip_rules: None,
     });
     configuration.revision =
         revision_for_configuration(&configuration.proxy_hosts, &configuration.http_settings);
@@ -248,15 +266,20 @@ async fn rejected_apply_keeps_the_last_known_protected_configuration() {
     let mut protected = configuration(4_000);
     protected.proxy_hosts[0].access_policy = Some(AccessPolicy {
         id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
-        mode: AccessPolicyMode::Authenticated,
+        mode: AccessPolicyMode::IpRestricted,
         combination: None,
         basic_auth: None,
+        ip_rules: Some(IpRules {
+            default_action: IpDefaultAction::Deny,
+            allow: vec!["192.0.2.0/24".to_owned()],
+            deny: Vec::new(),
+        }),
     });
     protected.revision =
         revision_for_configuration(&protected.proxy_hosts, &protected.http_settings);
     runtime.apply(protected).await.unwrap();
     let previous = runtime.active_config().await.unwrap();
-    assert!(previous.0.contains("\"status_code\":403"));
+    assert!(previous.0.contains("192.0.2.0/24"));
     let snapshot = std::fs::read(settings.state_dir.join("active-proxy-snapshot.json")).unwrap();
 
     engine
@@ -273,13 +296,44 @@ async fn rejected_apply_keeps_the_last_known_protected_configuration() {
         std::fs::read(settings.state_dir.join("active-proxy-snapshot.json")).unwrap(),
         snapshot
     );
+    assert!(engine.configuration.lock().await.contains("192.0.2.0/24"));
+}
+
+#[tokio::test]
+async fn restart_restores_verified_ip_rules_routes() {
+    let engine = FakeCaddy::new();
+    let (runtime, settings) = runtime(Some(engine));
+    runtime.initialize().await;
+    let mut configuration = configuration(4_000);
+    configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
+        mode: AccessPolicyMode::IpRestricted,
+        combination: None,
+        basic_auth: None,
+        ip_rules: Some(IpRules {
+            default_action: IpDefaultAction::Allow,
+            allow: Vec::new(),
+            deny: vec!["203.0.113.0/24".to_owned()],
+        }),
+    });
+    configuration.revision =
+        revision_for_configuration(&configuration.proxy_hosts, &configuration.http_settings);
+    runtime.apply(configuration.clone()).await.unwrap();
+    let active = runtime.active_config().await.unwrap();
+    runtime.shutdown().await;
+
+    let restarted = ProxyRuntime::new(settings, Some(FakeCaddy::new()));
+    restarted.initialize().await;
+    assert_eq!(restarted.active_config().await.unwrap(), active);
     assert!(
-        engine
-            .configuration
-            .lock()
+        restarted
+            .active_config()
             .await
-            .contains("\"status_code\":403")
+            .unwrap()
+            .0
+            .contains("203.0.113.0/24")
     );
+    restarted.shutdown().await;
 }
 
 #[tokio::test]
@@ -347,6 +401,7 @@ async fn basic_auth_rotation_is_transactional_and_removal_closes_the_host() {
         mode: AccessPolicyMode::Authenticated,
         combination: None,
         basic_auth: None,
+        ip_rules: None,
     });
     removed.revision = revision_for_configuration(&removed.proxy_hosts, &removed.http_settings);
     runtime.apply(removed).await.unwrap();

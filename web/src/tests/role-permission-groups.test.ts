@@ -28,6 +28,7 @@ describe('role permission groups', () => {
             'users.',
             'roles.',
             'access_policies.',
+            'proxy-access-logs:',
             'account.',
         ])
         expect(groups.flatMap(({ permissions }) => permissions.map(({ key }) => key))).toEqual(

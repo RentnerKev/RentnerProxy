@@ -1,0 +1,1 @@
+ALTER TABLE "rentnerproxy"."access_policies" ADD COLUMN "ip_rules" jsonb DEFAULT null;

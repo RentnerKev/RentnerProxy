@@ -1,0 +1,67 @@
+import type {
+    ProxyAccessLogEntry,
+    ProxyAccessLogsQuery,
+} from '../../../../shared/Types/proxy-access-logs.types'
+import type { ProxyAccessLogsFilters } from '../Types/proxy-access-logs.types'
+
+export const PROXY_ACCESS_LOGS_PAGE_SIZE = 100
+
+export const emptyProxyAccessLogsFilters: ProxyAccessLogsFilters = {
+    host: '',
+    status: '',
+    search: '',
+}
+
+export function parseStatusFilter(value: string): number | undefined {
+    const normalized = value.trim()
+    if (!/^\d{3}$/u.test(normalized)) return undefined
+
+    const status = Number(normalized)
+    return status >= 100 && status <= 599 ? status : undefined
+}
+
+export function toProxyAccessLogsQuery(
+    filters: ProxyAccessLogsFilters,
+    offset: number,
+): ProxyAccessLogsQuery {
+    const host = filters.host.trim()
+    const search = filters.search.trim()
+    const status = parseStatusFilter(filters.status)
+
+    return {
+        ...(host ? { host } : {}),
+        ...(status === undefined ? {} : { status }),
+        ...(search ? { search } : {}),
+        limit: PROXY_ACCESS_LOGS_PAGE_SIZE,
+        offset,
+    }
+}
+
+/** Keep request paths free from query strings before they reach the UI. */
+export function withoutQueryString(value: string): string {
+    const queryStart = value.search(/[?#]/u)
+    const path = queryStart < 0 ? value : value.slice(0, queryStart)
+    return path || '/'
+}
+
+export function sortProxyAccessLogsNewestFirst(
+    entries: readonly ProxyAccessLogEntry[],
+): ProxyAccessLogEntry[] {
+    return entries
+        .map((entry, index) => ({ entry, index }))
+        .toSorted((left, right) => {
+            const rightTimestamp = Date.parse(right.entry.timestamp)
+            const leftTimestamp = Date.parse(left.entry.timestamp)
+            if (rightTimestamp !== leftTimestamp) return rightTimestamp - leftTimestamp
+            return left.index - right.index
+        })
+        .map(({ entry }) => entry)
+}
+
+export function formatDuration(durationMs: number): string {
+    return `${Math.max(0, Math.round(durationMs))} ms`
+}
+
+export function formatBytes(bytes: number, locale: string): string {
+    return new Intl.NumberFormat(locale).format(Math.max(0, Math.round(bytes)))
+}
