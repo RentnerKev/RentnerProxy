@@ -55,7 +55,6 @@ function createLanguageInstance(language: AppLanguage, resources?: Resource) {
     return { instance, ready }
 }
 
-// Only authenticated flows call this; importing the hook loads no catalogs.
 export async function loadLanguageBootstrap(value: unknown): Promise<LanguageBootstrap> {
     const { instance, ready } = createLanguageInstance(
         isAppLanguage(value) ? value : FALLBACK_LANGUAGE,
@@ -121,7 +120,6 @@ export function AuthenticatedLanguageProvider({
     readonly bootstrap: LanguageBootstrap
     readonly children: ReactNode
 }) {
-    // Keyed by user ID in the route: no global language shared by users or SSR requests.
     const [store] = useState(() => createTranslationStore(bootstrap))
     const appliedBootstrap = useRef(bootstrap)
     const snapshot = useSyncExternalStore(

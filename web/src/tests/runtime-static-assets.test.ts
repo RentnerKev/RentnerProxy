@@ -82,7 +82,6 @@ describe('runtime static assets', () => {
         try {
             await symlink(join(outside, 'secret.txt'), join(root, 'assets', 'link.txt'))
         } catch (error) {
-            // Symlink creation can be unavailable on Windows CI; containment is still tested below.
             if (
                 !(
                     error instanceof Error &&

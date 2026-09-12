@@ -29,7 +29,7 @@ const temporaryComposeFile = join(temporaryComposeDirectory, 'docker-compose.yml
 const environment: NodeJS.ProcessEnv = {
     ...process.env,
     RENTNERPROXY_CONTROLLER_TOKEN: token,
-    // Docker allocates free loopback ports, so normal dev services remain untouched.
+
     RENTNERPROXY_PROXY_DEV_HTTP_PORT: '0',
     RENTNERPROXY_PROXY_DEV_HTTPS_PORT: '0',
     RENTNERPROXY_PROXY_DEV_CONTROLLER_PORT: '0',
@@ -121,9 +121,7 @@ async function waitFor(
     while (Date.now() < deadline) {
         try {
             if (await check()) return
-        } catch {
-            // Containers may not be ready yet.
-        }
+        } catch {}
         await Bun.sleep(150)
     }
 
@@ -215,7 +213,7 @@ async function runSmoke(): Promise<void> {
             process.env.RENTNERPROXY_CONTROLLER_URL = controllerUrl
             environment.RENTNERPROXY_CONTROLLER_URL = controllerUrl
         }
-        // Docker may allocate different ephemeral host ports after restart/start.
+
         await refreshRuntimeAddresses()
 
         const [
@@ -436,8 +434,7 @@ async function runSmoke(): Promise<void> {
         }
         const created = await authorized(() => services.createProxyHostService(hostInput))
         assert.equal(created.runtimeStatus, 'applied')
-        // A graceful reload briefly overlaps retiring and new workers. Poll new HTTP
-        // connections for the expected routing; never restart Caddy to apply it.
+
         await expectProxyMessage('demo.test', 'upstream-one')
         passed('authorized create -> PostgreSQL -> full snapshot -> Caddy -> backend response')
         await expectWebSocketUpgrade('demo.test')
@@ -791,8 +788,7 @@ async function runSmoke(): Promise<void> {
             httpSettings: snapshot.httpSettings,
             trustedCas: snapshot.trustedCas,
         })
-        // Caddy deliberately does not resolve upstream DNS while loading JSON. Block its
-        // internal Unix listener instead, which is a real, controlled bind failure.
+
         const probeSocket = '/var/lib/rentnerproxy/proxy/runtime-probe.sock'
         await command([
             ...compose,

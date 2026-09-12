@@ -735,7 +735,6 @@ export async function upsertManagedComment(
     }
 
     for (const duplicateComment of sortedComments.slice(1)) {
-        // Marker-owned duplicates are safe to remove and keeping one avoids edit-event spam.
         // eslint-disable-next-line no-await-in-loop
         await writer.deleteComment(duplicateComment.id)
     }
@@ -878,7 +877,6 @@ class GitHubTriageClient implements CommentWriter {
             })
             let response: Response
             try {
-                // Pagination is serial because the Link header determines completeness.
                 // eslint-disable-next-line no-await-in-loop
                 response = await this.#fetch(url, {
                     headers: {
@@ -1106,13 +1104,11 @@ async function cleanupManagedState(
     for (const ownedLabel of ownedLabelsFromComments(comments)) {
         const actualLabel = currentLabels.get(ownedLabel)
         if (actualLabel !== undefined) {
-            // Only labels recorded as workflow-owned in its own bot comment are removed.
             // eslint-disable-next-line no-await-in-loop
             await client.removeLabel(actualLabel)
         }
     }
     for (const comment of comments) {
-        // Only github-actions[bot] comments with the exact marker reach this function.
         // eslint-disable-next-line no-await-in-loop
         await client.deleteComment(comment.id)
     }
@@ -1142,7 +1138,7 @@ async function mapWithConcurrency<T, Result>(
                 if (value === undefined) {
                     return
                 }
-                // The bounded worker pool deliberately awaits one API request at a time.
+
                 // eslint-disable-next-line no-await-in-loop
                 results[index] = await mapper(value)
             }

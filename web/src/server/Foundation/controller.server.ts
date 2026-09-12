@@ -161,11 +161,10 @@ export async function controllerRequest(
         const payload = await readBoundedJson(response, options.responseLimit)
         if (response.ok) return payload
         if (options.acceptNonOkJson) return payload
-        // Error responses can only carry a bounded code, never a successful DTO.
+
         const error = z.object({ error: z.string().max(64) }).safeParse(payload)
         return error.success ? error.data : null
     } catch {
-        // Never log the URL, token, response body, or a raw network/engine error.
         console.warn('[controller] request unavailable', { path: safePath })
         return null
     } finally {
@@ -289,7 +288,6 @@ export async function previewProxyConfiguration(
     return result.success && result.data.revision === snapshot.revision ? result.data : null
 }
 
-// JSON escaping can expand a 64 KiB raw source by up to six times.
 const MAX_HOST_CONFIG_RESPONSE_BYTES = 512 * 1_024
 
 export async function getActiveProxyHostConfiguration(

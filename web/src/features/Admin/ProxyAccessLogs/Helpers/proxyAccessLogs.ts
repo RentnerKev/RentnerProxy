@@ -38,7 +38,6 @@ export function toProxyAccessLogsQuery(
     }
 }
 
-/** Keep request paths free from query strings before they reach the UI. */
 export function withoutQueryString(value: string): string {
     const queryStart = value.search(/[?#]/u)
     const path = queryStart < 0 ? value : value.slice(0, queryStart)

@@ -81,9 +81,7 @@ export default function useRoleManagementLogic({ permissions }: RoleManagementPa
 
         try {
             await deleteMutation.mutateAsync(deleteTarget)
-        } catch {
-            // The mutation callback reports transport failures while keeping the dialog open.
-        }
+        } catch {}
     }, [deleteMutation, deleteTarget])
     const handleFormSuccess = useCallback(() => {
         setShowCreate(false)

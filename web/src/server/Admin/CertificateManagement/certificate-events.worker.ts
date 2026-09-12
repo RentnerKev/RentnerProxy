@@ -39,9 +39,8 @@ interface FetchedEvents {
 }
 
 interface CursorSnapshot {
-    /** The exact value read from the durable row, used for compare-and-swap. */
     readonly expectedCursor: Cursor
-    /** A validated value safe to send to the controller, or null when repairing corruption. */
+
     readonly fetchCursor: Cursor
 }
 
@@ -94,8 +93,7 @@ async function fetchEventsAndMetadata(
 ): Promise<FetchedEvents> {
     let after = fetchCursor
     let nextCursor = fetchCursor
-    // A malformed durable cursor must be repaired, but only after the transaction confirms that
-    // the same malformed value is still present. A concurrent valid cursor will fail that CAS.
+
     let resetRequired = expectedCursor !== fetchCursor
     const events: CertificateEventMetadata[] = []
 
@@ -108,8 +106,6 @@ async function fetchEventsAndMetadata(
         after = page.nextCursor
     }
 
-    // The list and event endpoints are both authoritative controller reads. Fetch them before
-    // opening the transaction so a 503 leaves every local table unchanged.
     const metadata = await getControllerCertificates()
     return { expectedCursor, nextCursor, resetRequired, events, metadata }
 }
@@ -153,14 +149,11 @@ async function persistFetchedBatch(batch: FetchedEvents): Promise<boolean> {
             .limit(1)
             .for('update')
         const currentCursor = cursorRow?.cursor ?? null
-        // Another web instance may have committed a newer page while this instance was reading
-        // the controller. Discard the whole stale batch, including metadata, so it cannot regress
-        // a current operation or move the durable cursor backwards.
+
         if (currentCursor !== batch.expectedCursor) return false
 
         await lockProxyRuntimeSettings(transaction)
-        // A background snapshot must not mark a certificate created after the fetch as missing.
-        // The interactive authoritative listing retains the existing missing-row reconciliation.
+
         await persistControllerCertificatesMetadataInTransaction(transaction, batch.metadata, false)
         const newEvents: CertificateEventMetadata[] = []
         for (const event of batch.events) {

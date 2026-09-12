@@ -36,16 +36,12 @@ function parseEventInput(input: AuditEventInput): AuditEventInput {
     }
 }
 
-/**
- * Append inside the caller's transaction. This function intentionally does no auth lookup or
- * permission check: doing either here would recurse when recording a permission denial.
- */
 export async function appendAuditEventInTransaction(
     transaction: AuthTransaction,
     input: AuditEventInput,
 ): Promise<void> {
     const parsed = parseEventInput(input)
-    // Serialize retention with every append while remaining in the caller's transaction.
+
     await transaction.execute(sql`select pg_advisory_xact_lock(${AUDIT_RETENTION_LOCK_ID})`)
     await transaction.insert(auditEvents).values({
         actorUserId: parsed.actorUserId,
@@ -59,7 +55,6 @@ export async function appendAuditEventInTransaction(
     await pruneAuditEventsInTransaction(transaction)
 }
 
-/** Import a bounded controller page while applying audit retention only once per batch. */
 export async function appendAuditEventsInTransaction(
     transaction: AuthTransaction,
     inputs: readonly AuditEventInput[],
@@ -82,22 +77,18 @@ export async function appendAuditEventsInTransaction(
     await pruneAuditEventsInTransaction(transaction)
 }
 
-/** Best-effort failure/denial event. Never masks the original operation failure. */
 export async function recordAuditEventBestEffort(input: AuditEventInput): Promise<void> {
     try {
         await getAuthDatabase().transaction(async (transaction) => {
             await appendAuditEventInTransaction(transaction, input)
         })
-    } catch {
-        // Audit availability must never turn a failed login or mutation into a different error.
-    }
+    } catch {}
 }
 
 export async function pruneAuditEventsInTransaction(transaction: AuthTransaction): Promise<void> {
     const cutoff = new Date(Date.now() - AUDIT_RETENTION_DAYS * 24 * 60 * 60 * 1_000)
     await transaction.delete(auditEvents).where(lt(auditEvents.createdAt, cutoff))
-    // Keep the exact cap in SQL. Loading all excess IDs into JS would turn a large audit table
-    // into an unbounded memory/parameter workload.
+
     await transaction.execute(sql`
         delete from "rentnerproxy"."audit_events"
         where "id" in (

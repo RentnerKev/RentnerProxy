@@ -101,11 +101,6 @@ export const certificates = rentnerProxySchema.table(
     ],
 )
 
-/**
- * Event receipts deliberately have no foreign keys. The controller may report an event for a
- * certificate that was deleted locally, and that event still belongs in the audit trail exactly
- * once.
- */
 export const certificateEventReceipts = rentnerProxySchema.table(
     'certificate_event_receipts',
     {
@@ -138,7 +133,6 @@ export const certificateEventReceipts = rentnerProxySchema.table(
     ],
 )
 
-/** Singleton durable cursor for the controller's certificate event stream. */
 export const certificateEventCursor = rentnerProxySchema.table(
     'certificate_event_cursor',
     {

@@ -1,6 +1,5 @@
 import type { ProxyHttpSettings } from '../shared/Types/proxy-runtime.types'
 
-// Order is part of the v7 Rust/TypeScript snapshot hash contract.
 export const PROXY_HTTP_SETTINGS = [
     {
         key: 'clientMaxBodySizeBytes',

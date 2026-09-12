@@ -46,8 +46,6 @@ impl AppState {
 }
 
 pub(crate) fn app_with_state(state: AppState) -> Router {
-    // Capture application-owned state when registering routes. Only request extractors
-    // belong in handler parameters; runtime paths and credentials are never request data.
     let certificates = Router::new()
         .route(
             "/internal/v1/certificates/events",

@@ -13,7 +13,7 @@ export default function RootDocument({ children }: RootDocumentProps) {
             return isCspNonce(nonce) ? nonce : undefined
         },
     })
-    // Client navigation must retain the nonce from the current document's CSP.
+
     const nonce = getClientCspNonce() ?? routeNonce
     setClientCspNonce(nonce)
 
@@ -23,7 +23,7 @@ export default function RootDocument({ children }: RootDocumentProps) {
             className="min-h-full min-w-80 [font-synthesis:none] [scrollbar-gutter:stable] [text-rendering:optimizeLegibility]"
         >
             <head>
-                {/* Vite reads .nonce; the router's own meta only provides .content. */}
+                {}
                 {nonce ? <meta property="csp-nonce" content={nonce} nonce={nonce} /> : null}
                 <HeadContent />
             </head>

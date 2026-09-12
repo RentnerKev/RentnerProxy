@@ -1,3 +1,4 @@
+use super::validation::{index_is_valid, is_acme_request_domain};
 use super::*;
 use base64::Engine as _;
 
@@ -79,7 +80,6 @@ fn wildcard_request_contract_and_legacy_http_default() {
 fn dns_lifecycle_with_isolated_key() {
     const CHILD: &str = "RENTNERPROXY_DNS_STORE_TEST_CHILD";
     if std::env::var_os(CHILD).is_none() {
-        // Configure a child process instead of mutating the multi-threaded test runner's environment.
         let output = std::process::Command::new(std::env::current_exe().unwrap())
             .args([
                 "--exact",
@@ -172,8 +172,7 @@ fn dns_lifecycle_with_isolated_key() {
                 reopened.delete_if_unused(ID, false).await,
                 Err(CertificateError::DnsCleanupFailed)
             );
-            // Restart recovery journals a bounded retry deadline.  Advance
-            // this disposable fixture before exercising DNS cleanup renewal.
+
             reopened
                 .index
                 .lock()
@@ -245,7 +244,6 @@ fn dns_lifecycle_with_isolated_key() {
             assert_ne!(renewed.fingerprint, first.fingerprint);
             assert_eq!(renewed.domains, first.domains);
 
-            // Invalid encrypted credentials must leave live TLS material usable and release the lease.
             let original_config = {
                 let mut index = reopened.index.lock().await;
                 let config = index
@@ -264,8 +262,6 @@ fn dns_lifecycle_with_isolated_key() {
             };
             for attempt in 0..2 {
                 if attempt > 0 {
-                    // The first credential failure journals a retry deadline;
-                    // advance this disposable fixture before a second probe.
                     reopened
                         .index
                         .lock()

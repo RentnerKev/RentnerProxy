@@ -19,7 +19,7 @@ impl ProxyRuntime {
     ) -> Result<ApplyOutcome, RuntimeError> {
         let sequence = self.apply_sequence.fetch_add(1, Ordering::SeqCst) + 1;
         let runtime = Arc::clone(self);
-        // Client disconnects cannot cancel a partially accepted activation.
+
         tokio::spawn(async move {
             let _guard = timeout(runtime.settings.lock_wait, runtime.apply_lock.lock())
                 .await
@@ -116,11 +116,8 @@ impl ProxyRuntime {
         };
         let unchanged = previous == json && previous_revision == configuration.revision;
         if !unchanged {
-            // Caddy validates/provisions the entire document transactionally. Rejection keeps old traffic.
             if let Err(error) = self.run_stage(engine.load(&json)).await {
                 if error != EngineError::Rejected {
-                    // A timeout/invalid response cannot establish whether /load completed.
-                    // A new process eliminates any late completion from the uncertain request.
                     self.restore_verified_locked(&previous, &previous_revision, true)
                         .await;
                 }
@@ -138,7 +135,7 @@ impl ProxyRuntime {
             warn!(revision = %configuration.revision, stage = "runtime_probe", ?error, "Caddy did not confirm activation");
             return Err(RuntimeError::ApplyFailed);
         }
-        // Certificate metadata remains unchanged until the new material is actually served.
+
         if let Some(staged) = staged
             && self.certificate_store.commit_staged(staged).await.is_err()
         {
@@ -147,8 +144,6 @@ impl ProxyRuntime {
             return Err(RuntimeError::ApplyFailed);
         }
         if self.persist_active_configuration(&configuration).is_err() {
-            // This is only a recovery cache. PostgreSQL remains authoritative and startup reconciliation
-            // repairs a stale cache; never claim failed proxy traffic after a verified successful load.
             warn!(revision = %configuration.revision, stage = "snapshot_cache", "Caddy recovery snapshot was not persisted");
         }
         let applied_at = if unchanged {
@@ -176,10 +171,7 @@ impl ProxyRuntime {
         state.engine_available = true;
         drop(state);
         *self.active_configuration.lock().await = Some(configuration.clone());
-        // Only collect old versions once both the served configuration and
-        // the durable active pointer agree, while apply_lock still excludes
-        // another activation or deletion. The store also protects candidates
-        // and every certificate with an outstanding material lease.
+
         if staged.is_some()
             && let Err(error) = self.certificate_store.collect_garbage().await
         {
@@ -220,7 +212,6 @@ impl ProxyRuntime {
                 "Caddy restored the verified configuration"
             );
         } else {
-            // The owned recovery worker will retry with bounded backoff.
             warn!(
                 stage = "recovery",
                 "Caddy remains unavailable; automatic recovery pending"

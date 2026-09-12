@@ -139,7 +139,6 @@ describe('safe page error diagnostics', () => {
     })
 
     test('sanitizes auth-state loader failures before they leave the server', async () => {
-        // Isolate module mocks: other suites exercise the real server functions and services.
         const script = `
             import { mock } from 'bun:test'
             let responseStatus = 200

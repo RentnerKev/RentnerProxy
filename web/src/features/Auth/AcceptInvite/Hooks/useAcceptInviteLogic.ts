@@ -39,9 +39,7 @@ export default function useAcceptInviteLogic() {
 
             try {
                 await mutation.mutateAsync(value)
-            } catch {
-                // The mutation callback reports transport failures.
-            }
+            } catch {}
         },
     })
 

@@ -79,7 +79,6 @@ export function applyAdminUiSecurityHeaders(
                 headers: mergedHeaders,
             })
         } catch {
-            // Keep the original response intact if the platform forbids header replacement.
             return response
         }
     }

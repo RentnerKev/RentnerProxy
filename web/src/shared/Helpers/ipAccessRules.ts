@@ -62,7 +62,7 @@ function parseIpv6(value: string): number[] | null {
           ]
         : values
     if (parsed.length !== 8) return null
-    // IPv4-mapped IPv6 addresses are deliberately excluded from this contract.
+
     if (parsed.slice(0, 5).every((group) => group === 0) && parsed[5] === 0xffff) return null
     return parsed
 }

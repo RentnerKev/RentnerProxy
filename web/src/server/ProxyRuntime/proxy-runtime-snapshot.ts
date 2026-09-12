@@ -184,7 +184,6 @@ function compareAscii(left: string, right: string): number {
     return left < right ? -1 : left > right ? 1 : 0
 }
 
-// Property order and omission of empty host settings preserve the Rust hash contract.
 export function createProxyRuntimeSnapshot(
     hosts: ReadonlyArray<ProxyRuntimeHost & { readonly enabled: boolean }>,
     httpSettings: ProxyHttpSettings = {},
@@ -326,7 +325,7 @@ export function createProxyRuntimeSnapshot(
         const ca = availableCas.get(id)
         if (!ca) throw new Error('Referenced trusted CA is missing.')
         const parsed = runtimeTrustedCaSchema.parse(ca)
-        // PEM and fingerprint were canonicalized together by the Controller before persistence.
+
         return { id, pem: parsed.pem, fingerprintSha256: parsed.fingerprintSha256 }
     })
     const snapshot = {

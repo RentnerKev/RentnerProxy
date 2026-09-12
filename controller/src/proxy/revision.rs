@@ -3,8 +3,6 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
-/// Hashes the single, stable snapshot shape used by the controller protocol.
-/// Struct declaration order is intentional: it is the canonical JSON order.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CanonicalSnapshot<'a> {
@@ -63,9 +61,6 @@ fn hash_snapshot(snapshot: &impl Serialize) -> String {
     format!("sha256:{}", hex_digest(digest.as_ref()))
 }
 
-/// Extracts the revision from the typed Caddy probe route emitted by the
-/// renderer. The probe is deliberately a static response, so this also works
-/// with a persisted Admin API config without relying on comments.
 pub(crate) fn revision_from_config(contents: &str) -> Option<String> {
     let config = serde_json::from_str::<ProbeConfig>(contents).ok()?;
     config

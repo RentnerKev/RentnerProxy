@@ -27,8 +27,7 @@ const startProxyRuntimeLifecycle = createServerOnlyFn(async () => {
             startProxyRuntimeReconciliation()
         },
     )
-    // serve.mjs emits this before exit and awaits every promise pushed into the array.
-    // Register synchronously so shutdown during module initialization still drains safely.
+
     process.once('rentnerproxy:shutdown', (pending: Array<Promise<void>>) => {
         pending.push(initializing.then(() => stop?.()).then(() => undefined))
     })
@@ -46,8 +45,7 @@ const startCertificateEventsLifecycle = createServerOnlyFn(async () => {
                 startCertificateEventsSynchronization()
             },
         )
-    // serve.mjs emits this before exit and awaits every promise pushed into the array.
-    // Register synchronously so shutdown during module initialization still drains safely.
+
     process.once('rentnerproxy:shutdown', (pending: Array<Promise<void>>) => {
         pending.push(initializing.then(() => stop?.()).then(() => undefined))
     })

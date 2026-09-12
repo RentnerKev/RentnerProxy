@@ -571,7 +571,6 @@ async fn restart_keeps_verified_routes_after_certificate_expiry_but_rejects_new_
     let before = runtime.active_config().await.unwrap();
     runtime.shutdown().await;
 
-    // Simulate time passing for the stored certificate; this does not change desired state.
     let index_path = settings
         .state_dir
         .join("certificates/certificate-metadata.json");
@@ -593,7 +592,6 @@ async fn restart_keeps_verified_routes_after_certificate_expiry_but_rejects_new_
     assert_eq!(recovered.active_config().await.unwrap(), before);
     recovered.shutdown().await;
 
-    // Recovery relaxes only expiry, never the stored certificate's domain ownership.
     index["certificates"][CERT_ID]["domains"] = serde_json::json!(["other.test"]);
     std::fs::write(index_path, serde_json::to_vec(&index).unwrap()).unwrap();
     let mismatched = ProxyRuntime::new(settings, Some(FakeCaddy::new()));
@@ -819,8 +817,7 @@ async fn runtime_with_issued_candidate(
         )
         .await
         .unwrap();
-    // Crash after issuance, before activation. No ACME account or server exists:
-    // successful recovery can only reuse this exact persisted material.
+
     drop(store);
     let reopened = ProxyRuntime::new(settings.clone(), Some(engine));
     reopened.initialize().await;

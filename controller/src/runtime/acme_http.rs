@@ -22,12 +22,6 @@ use super::super::{ProxyRuntime, certificates::CertificateEnvironment};
 const MAX_ACME_REQUEST_BODY_BYTES: usize = 1 << 20;
 const MAX_ACME_RESPONSE_BODY_BYTES: usize = 1 << 20;
 
-/// Reqwest-backed ACME transport.
-///
-/// The runtime and certificate ID are owned by the transport for the lifetime
-/// of an issuance attempt.  This lets a Retry-After deadline be persisted
-/// after headers arrive and before the response is handed back to
-/// instant-acme, including when a later body read or operation is cancelled.
 pub(crate) struct AcmeHttpClient {
     client: Client,
     runtime: Arc<ProxyRuntime>,
@@ -42,9 +36,6 @@ impl AcmeHttpClient {
         certificate_id: String,
         environment: CertificateEnvironment,
     ) -> Result<Self, Error> {
-        // reqwest is compiled with rustls-no-provider in the controller.  The
-        // ring provider is installed by the caller before constructing this
-        // client, matching the DNS provider's TLS setup.
         let mut builder = Client::builder()
             .timeout(Duration::from_secs(30))
             .no_proxy()
@@ -52,8 +43,7 @@ impl AcmeHttpClient {
         if let Some(root_certificate_pem) = root_certificate_pem {
             let certificate = reqwest::Certificate::from_pem(root_certificate_pem)
                 .map_err(|error| Error::Other(Box::new(error)))?;
-            // Match instant-acme's builder_with_root behavior: a configured
-            // staging root is the complete trust store for that client.
+
             builder = builder.tls_certs_only([certificate]);
         }
         let client = builder
@@ -100,9 +90,7 @@ impl HttpClient for AcmeHttpClient {
                 .request(parts.method, parts.uri.to_string())
                 .headers(parts.headers)
                 .body(body);
-            // The request's URI has already been checked above.  Keeping the
-            // reqwest redirect policy disabled prevents an ACME endpoint from
-            // moving a signed request to another origin.
+
             let response = request
                 .send()
                 .await
@@ -113,9 +101,6 @@ impl HttpClient for AcmeHttpClient {
             if retry_after_is_actionable(status)
                 && let Some(deadline) = parse_retry_after(&headers, OffsetDateTime::now_utc())
             {
-                // This happens before body collection and before the
-                // BytesResponse is returned.  The certificate operation
-                // lease is held by the caller while the request runs.
                 if retry_after_is_account_scoped(status) {
                     runtime
                         .certificate_store
@@ -148,9 +133,7 @@ fn bytes_response(
         .version(version)
         .body(BodyWrapper::from(bytes))
         .map_err(Error::Http)?;
-    // ACME relies on Replay-Nonce and Location in addition to the body.
-    // Preserve every header, including duplicate field values, when adapting
-    // the reqwest response.
+
     *response.headers_mut() = headers;
     Ok(BytesResponse::from(response))
 }
@@ -194,14 +177,6 @@ fn retry_after_is_account_scoped(status: axum::http::StatusCode) -> bool {
         || status == axum::http::StatusCode::SERVICE_UNAVAILABLE
 }
 
-/// Parse one RFC 9110 Retry-After value.
-///
-/// Retry-After is not a list-valued header.  Multiple field values therefore
-/// make the hint ambiguous and are ignored.  The caller supplies `now` so the
-/// conversion is deterministic in focused parser tests.  Numeric delays that
-/// cannot be represented by `OffsetDateTime` use its maximum representable
-/// value, preserving a conservative durable deadline instead of retrying
-/// immediately after an absurd CA value.
 pub(crate) fn parse_retry_after(
     headers: &HeaderMap,
     now: OffsetDateTime,

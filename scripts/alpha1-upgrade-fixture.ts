@@ -1,7 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import migrationJournal from '../web/drizzle/meta/_journal.json'
 
-/** The runner owns process creation; this helper only supplies structured argv. */
 export type Command = (args: string[], timeoutMs?: number) => Promise<string>
 
 export interface Alpha1UpgradeFixture {
@@ -456,7 +455,7 @@ export async function assertAlpha1UpgradeFixture(input: {
         ) as value`,
     )
     const number = (key: string) => Number(base[key] ?? 0)
-    // The target image follows this checkout; only the published Alpha 1 baseline is fixed.
+
     const expectedMigrationCount = input.expectAlpha2 ? migrationJournal.entries.length : 13
     if (number('migrations') !== expectedMigrationCount) {
         throw new Error('Unexpected migration journal state for Alpha 1 fixture.')

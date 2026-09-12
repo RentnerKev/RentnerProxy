@@ -8,7 +8,6 @@ function isPostgresUniqueViolationCode(value: unknown): boolean {
     return value === POSTGRES_UNIQUE_VIOLATION || value === 23_505
 }
 
-/** Drizzle exposes Bun's PostgreSQL error through one or more `cause` wrappers. */
 export function isUniqueConstraintViolation(error: unknown): boolean {
     const seen = new Set<object>()
     let current: unknown = error

@@ -215,18 +215,11 @@ async function persistControllerMetadata(
     }
 }
 
-/**
- * Persist one authoritative controller listing while the caller owns its transaction and any
- * coordination lock. This deliberately updates only rows that already exist in the web database;
- * controller-only certificates are never silently created by a poller.
- */
 export async function persistControllerCertificatesMetadataInTransaction(
     transaction: AuthTransaction,
     metadata: readonly ControllerCertificateMetadata[],
     markMissing = true,
 ): Promise<void> {
-    // A successful authoritative listing can reveal interrupted deletion or lost local material.
-    // Keep the DB record and assignments for recovery; never silently downgrade a host to HTTP.
     if (markMissing) {
         await transaction
             .update(certificates)
@@ -270,7 +263,6 @@ async function readCertificateSummaries(): Promise<CertificateSummary[]> {
     const database = getAuthDatabase()
     return database.transaction(
         async (transaction) => {
-            // One consistent metadata snapshot; serial reads use the same reserved SQL connection.
             const rows = await transaction
                 .select()
                 .from(certificates)
@@ -355,18 +347,13 @@ async function synchronizeCertificateMetadata(
     actorId: string,
     permission: PermissionKey,
 ): Promise<void> {
-    // Fetch before opening a database transaction. A controller outage must leave the last
-    // authoritative web snapshot untouched and must never hold a SQL connection during I/O.
     let metadata: ControllerCertificateMetadata[]
     try {
         metadata = await getControllerCertificates()
     } catch {
-        // Lists are an authoritative read. Never return stale local rows after a controller 503,
-        // malformed response, timeout, or readiness failure.
         throw new CertificateDomainError('controller_unavailable')
     }
     await getAuthDatabase().transaction(async (transaction) => {
-        // Use the existing mutation lock so stale polling cannot overwrite a just-replaced certificate.
         await lockProxyRuntimeSettings(transaction)
         await requirePermissionInTransaction(transaction, actorId, permission)
         await persistControllerCertificatesMetadataInTransaction(transaction, metadata)
@@ -450,7 +437,7 @@ async function markCertificateFailure(certificateId: string, error: unknown): Pr
     await getAuthDatabase().transaction(async (transaction) => {
         await lockProxyRuntimeSettings(transaction)
         const row = await getCertificateRow(transaction, certificateId)
-        // A rejected replacement never invalidates existing material, including a concurrent success.
+
         if (row.status === 'valid') return
         await transaction
             .update(certificates)

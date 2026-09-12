@@ -266,7 +266,6 @@ export function parseWebAuthnRpId(
 
     const rpId = configured.trim().toLowerCase()
 
-    // Loopback IPs can be secure contexts, but WebAuthn still requires a domain RP ID.
     if (
         isIP(rpId) !== 0 ||
         !/^(?:localhost|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*)$/.test(

@@ -181,8 +181,6 @@ async fn sidecar_recovery_records_issued_event_once_with_stable_operation_id() {
         .clone();
     drop(store);
 
-    // Model a stop after the durable sidecar write but before the index write: the sidecar
-    // remains, while the pending pointer and its in-memory Issued event are absent on disk.
     let index_path = directory.join("certificates/certificate-metadata.json");
     let mut index: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&index_path).unwrap()).unwrap();

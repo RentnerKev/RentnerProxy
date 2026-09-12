@@ -477,7 +477,7 @@ describe('trusted CAs with PostgreSQL', () => {
                     ).rejects.toMatchObject({ code: 'invalid_input' }),
                 ),
             )
-            // The connection uses an IP; only the expected TLS identity is a DNS name.
+
             const input = hostInput('ip-override')
             const host = await asUser(owner, () =>
                 createProxyHostService({

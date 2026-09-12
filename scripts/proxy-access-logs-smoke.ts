@@ -142,8 +142,6 @@ export async function verifyProxyAccessLogs(options: SmokeOptions): Promise<void
     query.set('snapshot', restartedPage.snapshot)
     query.set('offset', '0')
 
-    // Enough actual requests to rotate beyond the configured four archives.
-    // Concurrent batches remain bounded and consume every response body.
     const padding = 'x'.repeat(1800)
     for (let start = 0; start < 12_000; start += 24) {
         await Promise.all(

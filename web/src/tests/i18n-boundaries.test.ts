@@ -52,7 +52,7 @@ describe('language boundaries', () => {
                 violations.push(path)
                 continue
             }
-            // TanStack removes server implementation imports at this transport boundary.
+
             if (/[\\/]server(?:Helpers)?\.ts$/u.test(path) || !/\.tsx?$/u.test(path)) continue
             // oxlint-disable-next-line no-await-in-loop -- Discover the next imports from this dependency graph node.
             const source = await readFile(path, 'utf8')

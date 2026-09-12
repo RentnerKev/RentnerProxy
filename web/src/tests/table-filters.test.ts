@@ -8,7 +8,6 @@ import type { TableDateRangeFilterValue } from '../shared/Table/Types/table.type
 type DateRow = { createdAt: string }
 
 function matchesDate(value: unknown, range: TableDateRangeFilterValue) {
-    // This unit only reads getValue; the remaining TanStack row APIs are not exercised.
     const row = { getValue: () => value } as unknown as Row<ClientTableFeatures, DateRow>
     return createDateRangeFilter<DateRow>()(row, 'createdAt', range, () => {})
 }

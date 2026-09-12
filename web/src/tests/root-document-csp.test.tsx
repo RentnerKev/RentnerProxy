@@ -31,10 +31,10 @@ describe('document CSP nonce', () => {
         const window = new Window()
         try {
             window.document.write(html)
-            // This is the exact lookup performed by Vite's CSS injection client.
+
             const meta = window.document.querySelector('meta[property="csp-nonce"]')
             expect(meta?.getAttribute('nonce')).toBe(nonce)
-            // TanStack reads .content from the same first meta during hydration.
+
             expect(meta?.getAttribute('content')).toBe(nonce)
         } finally {
             await window.happyDOM.close()

@@ -272,7 +272,6 @@ export async function acceptInviteService(input: {
                     return { success: false as const, code: 'invalid_or_expired_token' as const }
                 }
 
-                // Only a live, exclusively locked invitation may incur Argon2 work.
                 const passwordHash = await hashPassword(input.password)
 
                 const acceptedInvites = await transaction

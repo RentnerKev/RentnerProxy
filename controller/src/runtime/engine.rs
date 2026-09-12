@@ -24,7 +24,6 @@ const MAX_CONTROL_RESPONSE_BYTES: usize = 4_096;
 pub(crate) type EngineFuture<'a> =
     Pin<Box<dyn Future<Output = Result<(), EngineError>> + Send + 'a>>;
 
-/// Control surface of the one supported runtime; the trait permits isolated failure tests.
 pub(crate) trait ProxyEngine: Send + Sync {
     fn start<'a>(&'a self, configuration: &'a str, expected_revision: &'a str) -> EngineFuture<'a>;
     fn load<'a>(&'a self, configuration: &'a str) -> EngineFuture<'a>;
@@ -141,7 +140,6 @@ impl CaddyProcess {
     }
 
     async fn start_owned(&self, configuration: &str, revision: &str) -> Result<(), EngineError> {
-        // Runtime's apply lock is the sole lifecycle serialization boundary.
         if self.child_running().await {
             return self.verify_revision(revision).await;
         }
@@ -262,7 +260,6 @@ struct ControlResponse {
 #[path = "../tests/caddy_transport.rs"]
 mod tests;
 
-// Cancellation also closes the independent Hyper transport task.
 struct ConnectionTask(JoinHandle<()>);
 impl Drop for ConnectionTask {
     fn drop(&mut self) {

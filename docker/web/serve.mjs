@@ -16,7 +16,7 @@ const runtimeFetch = createRuntimeFetch(application)
 const server = Bun.serve({
     hostname,
     port,
-    // Fits the 8 MiB avatar limit after base64/JSON encoding.
+
     maxRequestBodySize: 12 * 1024 * 1024,
     fetch: createStaticAssetFetch(clientRoot, runtimeFetch),
 })

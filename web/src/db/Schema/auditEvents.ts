@@ -67,7 +67,7 @@ export const auditEvents = rentnerProxySchema.table(
         createdAt: timestamp('created_at', { precision: 3, withTimezone: true, mode: 'date' })
             .notNull()
             .defaultNow(),
-        // Deliberately no FK: audit history must survive user deletion.
+
         actorUserId: uuid('actor_user_id'),
         actorKind: auditActorKind('actor_kind').notNull(),
         action: auditAction('action').notNull(),

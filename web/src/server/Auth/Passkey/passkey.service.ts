@@ -104,12 +104,6 @@ function toStoredTransports(value: ReadonlyArray<string>): Array<string> {
     return value.filter((transport) => valid.has(transport))
 }
 
-/**
- * SimpleWebAuthn v14 models PRF extension inputs as BufferSource values. Those values are valid
- * WebAuthn inputs, but they are not serializable across a TanStack server function boundary. The
- * passkey flows in this application do not use PRF, so preserve the other JSON-safe extensions and
- * deliberately omit PRF from the options sent to the browser.
- */
 interface SerializableWebAuthnExtensions {
     readonly appid?: string
     readonly credProps?: boolean

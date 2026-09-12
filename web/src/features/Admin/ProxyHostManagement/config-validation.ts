@@ -12,8 +12,6 @@ export const proxyHttpSettingsSchema = z.strictObject({
     keepaliveTimeoutSeconds: z.number().int().min(1).max(300).optional(),
 })
 
-// Caddy has no equivalent for per-host connection idle timeout. Keep these
-// fields valid for shared settings, but reject them for new host overrides.
 export const proxyHostHttpSettingsSchema = proxyHttpSettingsSchema.omit({
     sendTimeoutSeconds: true,
     keepaliveTimeoutSeconds: true,

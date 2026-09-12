@@ -462,8 +462,7 @@ async function restore(): Promise<void> {
                 'rendered_sql_path=$(mktemp /tmp/rentnerproxy-restore-sql.XXXXXX)',
                 'restore_sql_path=$(mktemp /tmp/rentnerproxy-restore-final-sql.XXXXXX)',
                 'chmod 0600 "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
-                // Keep root-written files root-owned until complete: protected_regular blocks
-                // root truncating another user's existing files in sticky /tmp directories.
+
                 'restore_phase=archive',
                 'cat > "$dump_path"',
                 'chown postgres:postgres "$dump_path" "$rendered_sql_path"',
@@ -505,7 +504,7 @@ async function restore(): Promise<void> {
                 'set -Eeuo pipefail; umask 077; for item in /var/lib/rentnerproxy/proxy/* /var/lib/rentnerproxy/proxy/.[!.]* /var/lib/rentnerproxy/proxy/..?*; do [ -e "$item" ] || continue; rm -rf -- "$item"; done; tar --extract --no-same-owner ' +
                 restoreExclusions.join(' ') +
                 ' --file=- --directory=/var/lib/rentnerproxy/proxy; chmod 700 /var/lib/rentnerproxy/proxy'
-            // The controller UID cannot read the host user's private backup directory.
+
             await runCommandWithInput(
                 [
                     ...compose,

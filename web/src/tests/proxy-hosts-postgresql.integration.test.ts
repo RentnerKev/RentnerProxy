@@ -543,8 +543,6 @@ beforeAll(async () => {
 
 beforeEach(async () => {
     if (dedicatedDatabaseVerified) {
-        // Only explicitly started test controllers may receive test snapshots.
-        // An empty URL disables the client; deleting it would select localhost.
         process.env.RENTNERPROXY_CONTROLLER_URL = ''
         process.env.RENTNERPROXY_CONTROLLER_TOKEN = ''
         await cleanTestRows()

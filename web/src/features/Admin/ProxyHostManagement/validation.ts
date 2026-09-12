@@ -144,7 +144,6 @@ export const proxyHostFormSchema = createProxyHostFieldsSchema
 
 export const proxyHostIdInputSchema = z.object({ proxyHostId: z.uuid() })
 
-// Updates merge omitted TLS fields with the persisted HTTPS host before cross-field validation.
 export const updateProxyHostInputSchema = proxyHostInputSchema.extend(proxyHostIdInputSchema.shape)
 
 export type CreateProxyHostInput = z.input<typeof createProxyHostInputSchema>

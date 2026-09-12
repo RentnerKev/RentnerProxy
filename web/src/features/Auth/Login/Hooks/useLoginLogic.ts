@@ -61,9 +61,7 @@ export default function useLoginLogic() {
 
             try {
                 await mutation.mutateAsync(value)
-            } catch {
-                // The mutation callback reports transport failures.
-            }
+            } catch {}
         },
     })
     return {
@@ -78,9 +76,7 @@ export default function useLoginLogic() {
 
                 try {
                     await passkeyMutation.mutateAsync()
-                } catch {
-                    // The mutation callback reports transport failures.
-                }
+                } catch {}
             },
         },
     }

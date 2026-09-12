@@ -100,9 +100,7 @@ export default function useUserFormLogic({
 
             try {
                 await mutation.mutateAsync(value)
-            } catch {
-                // The mutation state keeps the modal open and exposes the transport failure.
-            }
+            } catch {}
         },
     })
 

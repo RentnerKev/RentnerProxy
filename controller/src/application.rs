@@ -12,7 +12,6 @@ use tracing_subscriber::{EnvFilter, filter::LevelFilter};
 
 const CONTROLLER_LISTEN_ADDR_ENV: &str = "RENTNERPROXY_CONTROLLER_LISTEN_ADDR";
 
-/// Performs a bounded in-container HTTP probe without adding a runtime HTTP client dependency.
 pub async fn healthcheck(endpoint: &str) -> ExitCode {
     let path = match endpoint {
         "health" => "/health",
@@ -63,7 +62,6 @@ pub async fn healthcheck(endpoint: &str) -> ExitCode {
     }
 }
 
-/// Initializes logging, runs the controller, and returns its process exit code.
 pub async fn run() -> ExitCode {
     if let Err(error) = init_tracing() {
         eprintln!("failed to initialize controller logging: {error}");
