@@ -115,19 +115,17 @@ impl ProxyRuntime {
             )
         };
         let unchanged = previous == json && previous_revision == configuration.revision;
-        if !unchanged {
-            if let Err(error) = self.run_stage(engine.load(&json)).await {
-                if error != EngineError::Rejected {
-                    self.restore_verified_locked(&previous, &previous_revision, true)
-                        .await;
-                }
-                warn!(revision = %configuration.revision, stage = "caddy_load", ?error, "Caddy apply failed");
-                return Err(if error == EngineError::Unavailable {
-                    RuntimeError::Unavailable
-                } else {
-                    RuntimeError::ApplyFailed
-                });
+        if !unchanged && let Err(error) = self.run_stage(engine.load(&json)).await {
+            if error != EngineError::Rejected {
+                self.restore_verified_locked(&previous, &previous_revision, true)
+                    .await;
             }
+            warn!(revision = %configuration.revision, stage = "caddy_load", ?error, "Caddy apply failed");
+            return Err(if error == EngineError::Unavailable {
+                RuntimeError::Unavailable
+            } else {
+                RuntimeError::ApplyFailed
+            });
         }
         if let Err(error) = self.run_stage(engine.probe(&configuration.revision)).await {
             self.restore_verified_locked(&previous, &previous_revision, false)

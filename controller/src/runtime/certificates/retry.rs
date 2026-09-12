@@ -40,11 +40,8 @@ impl CertificateStore {
             updated.metadata.updated_at = now;
         }
         index.certificates.insert(id.to_owned(), updated);
-        let result = self
-            .certificates_dir()
-            .and_then(|directory| persist_index(&directory, &index));
-
-        result
+        self.certificates_dir()
+            .and_then(|directory| persist_index(&directory, &index))
     }
 
     pub(crate) async fn defer_acme_account_retry(
