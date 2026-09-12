@@ -282,9 +282,9 @@ describe('database migration bootstrap', () => {
                 ])
 
                 const afterRetry = await probe`
-                select to_regclass(${`rentnerproxy.${fixture.markerTable}`}) as marker
+                select to_regclass(${`rentnerproxy.${fixture.markerTable}`}) is not null as exists
             `
-                expect(afterRetry[0]?.marker).toBe(`rentnerproxy.${fixture.markerTable}`)
+                expect(afterRetry[0]?.exists).toBe(true)
 
                 const journalRows = await probe`
                 select count(*)::int as count
