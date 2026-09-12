@@ -12,8 +12,19 @@ import { getAuthDatabase, type AuthTransaction } from '../Core/database.server'
 import { AuthDomainError } from '../Core/errors.server'
 import { resolveActiveUserAccessInTransaction } from './rbac.service'
 import { createOpaqueToken, hashOpaqueToken, isValidOpaqueToken } from '../Core/tokens.server'
+import { appendAuditEventInTransaction } from '../../Audit/audit.service'
 
-export async function createSessionInTransaction(transaction: AuthTransaction, userId: string) {
+export async function createSessionInTransaction(
+    transaction: AuthTransaction,
+    userId: string,
+    authenticationMethod:
+        | 'password'
+        | 'totp'
+        | 'recovery-code'
+        | 'passkey'
+        | 'invite'
+        | 'setup' = 'password',
+) {
     const token = createOpaqueToken()
     const tokenHash = await hashOpaqueToken(token)
     const now = new Date()
@@ -46,12 +57,24 @@ export async function createSessionInTransaction(transaction: AuthTransaction, u
         throw new AuthDomainError('user_not_active', 'User is not active.')
     }
 
+    await appendAuditEventInTransaction(transaction, {
+        actorUserId: userId,
+        actorKind: 'user',
+        action: 'login',
+        resource: 'session',
+        targetId: session.id,
+        result: 'success',
+        metadata: { authenticationMethod },
+    })
     return { id: session.id, token, expiresAt, reauthenticatedAt: now, user: access }
 }
 
-export async function createSessionService(userId: string) {
+export async function createSessionService(
+    userId: string,
+    authenticationMethod: 'password' | 'invite' | 'setup' = 'password',
+) {
     return getAuthDatabase().transaction((transaction) =>
-        createSessionInTransaction(transaction, userId),
+        createSessionInTransaction(transaction, userId, authenticationMethod),
     )
 }
 
@@ -120,12 +143,24 @@ export async function revokeSessionByTokenService(token: string): Promise<boolea
     }
 
     const tokenHash = await hashOpaqueToken(token)
-    const deletedSessions = await getAuthDatabase()
-        .delete(sessions)
-        .where(eq(sessions.tokenHash, tokenHash))
-        .returning({ id: sessions.id })
-
-    return deletedSessions.length > 0
+    return getAuthDatabase().transaction(async (transaction) => {
+        const deletedSessions = await transaction
+            .delete(sessions)
+            .where(eq(sessions.tokenHash, tokenHash))
+            .returning({ id: sessions.id, userId: sessions.userId })
+        const session = deletedSessions.at(0)
+        if (session) {
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: session.userId,
+                actorKind: 'user',
+                action: 'logout',
+                resource: 'session',
+                targetId: session.id,
+                result: 'success',
+            })
+        }
+        return deletedSessions.length > 0
+    })
 }
 
 export async function revokeCurrentSessionService(): Promise<boolean> {

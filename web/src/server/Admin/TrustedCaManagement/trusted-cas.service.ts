@@ -20,9 +20,11 @@ import {
 import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
 import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
 import { validateControllerTrustedCa } from '../../Foundation/trusted-cas.server'
-import { reconcileProxyConfigurationService } from '../../ProxyRuntime/proxy-runtime.service'
+import { reconcileProxyConfigurationWithAudit } from '../../ProxyRuntime/proxy-runtime.service'
 import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
 import { TrustedCaDomainError } from './trusted-cas.errors'
+import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
 
 export type TrustedCaMutationResult = {
     readonly trustedCaId: string
@@ -153,6 +155,14 @@ async function persistTrustedCa(
                         updatedAt: new Date(),
                     })
                     .where(eq(trustedCas.id, existingId))
+                await appendAuditEventInTransaction(transaction, {
+                    actorUserId: actorId,
+                    actorKind: 'user',
+                    action: 'replace',
+                    resource: 'trusted-ca',
+                    targetId: existingId,
+                    result: 'success',
+                })
                 return existingId
             }
             const [created] = await transaction
@@ -168,14 +178,29 @@ async function persistTrustedCa(
                 })
                 .returning({ id: trustedCas.id })
             if (!created) throw new TrustedCaDomainError('controller_unavailable')
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actorId,
+                actorKind: 'user',
+                action: 'create',
+                resource: 'trusted-ca',
+                targetId: created.id,
+                result: 'success',
+            })
             return created.id
         })
     } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId,
+            action: existingId ? 'replace' : 'create',
+            resource: 'trusted-ca',
+            targetId: existingId ?? null,
+            error,
+        })
         const databaseError = mapTrustedCaDatabaseError(error)
         if (databaseError) throw databaseError
         throw error
     }
-    return { trustedCaId, runtimeStatus: await reconcileProxyConfigurationService() }
+    return { trustedCaId, runtimeStatus: await reconcileProxyConfigurationWithAudit(actorId) }
 }
 
 export async function createTrustedCaService(
@@ -204,19 +229,42 @@ export async function deleteTrustedCaService(
 ): Promise<TrustedCaMutationResult> {
     const actor = await requirePermissionService(PERMISSIONS.TRUSTED_CAS_DELETE)
     const id = parseId(trustedCaId)
-    await getAuthDatabase().transaction(async (transaction) => {
-        await lockProxyRuntimeSettings(transaction)
-        await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.TRUSTED_CAS_DELETE)
-        await getTrustedCaForUpdate(transaction, id)
-        const [assigned] = await transaction
-            .select({ id: proxyHosts.id })
-            .from(proxyHosts)
-            .where(eq(proxyHosts.trustedCaId, id))
-            .limit(1)
-        if (assigned) throw new TrustedCaDomainError('trusted_ca_in_use')
-        await transaction.delete(trustedCas).where(eq(trustedCas.id, id))
-    })
-    return { trustedCaId: id, runtimeStatus: await reconcileProxyConfigurationService() }
+    try {
+        await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
+            await requirePermissionInTransaction(
+                transaction,
+                actor.id,
+                PERMISSIONS.TRUSTED_CAS_DELETE,
+            )
+            await getTrustedCaForUpdate(transaction, id)
+            const [assigned] = await transaction
+                .select({ id: proxyHosts.id })
+                .from(proxyHosts)
+                .where(eq(proxyHosts.trustedCaId, id))
+                .limit(1)
+            if (assigned) throw new TrustedCaDomainError('trusted_ca_in_use')
+            await transaction.delete(trustedCas).where(eq(trustedCas.id, id))
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'delete',
+                resource: 'trusted-ca',
+                targetId: id,
+                result: 'success',
+            })
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'delete',
+            resource: 'trusted-ca',
+            targetId: id,
+            error,
+        })
+        throw error
+    }
+    return { trustedCaId: id, runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
 }
 
 export async function validateTrustedCaAssignmentInTransaction(

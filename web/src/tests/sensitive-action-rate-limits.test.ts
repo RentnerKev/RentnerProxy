@@ -28,6 +28,7 @@ describe('sensitive action rate-limit placement', () => {
                 PERMISSIONS: { ACCOUNT_UPDATE: 'account.update', USERS_CREATE: 'users.create' },
             }))
             mock.module('./db/schema.ts', () => ({
+                auditEvents: {},
                 passwordResetTokens: {},
                 sessions: {},
                 userInvites: {},

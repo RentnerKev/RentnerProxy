@@ -1,4 +1,6 @@
+import { auditAuthOperation } from '../Core/audit-auth.server'
 import '@tanstack/react-start/server-only'
+import { appendAuditEventInTransaction } from '../../Audit/audit.service'
 
 import {
     generateAuthenticationOptions,
@@ -242,74 +244,93 @@ export async function finishPasskeyRegistrationService(input: {
     readonly code?: 'challenge_expired' | 'registration_failed'
     readonly success: boolean
 }> {
-    await requireRecentAuthenticationForSession(input.currentSession)
-    await requireSessionPermission(input.currentSession, PERMISSIONS.ACCOUNT_UPDATE)
+    return auditAuthOperation(
+        {
+            actorUserId: input.currentSession.user.id,
+            actorKind: 'user',
+            action: 'create',
+            resource: 'passkey',
+            targetId: null,
+        },
+        async () => {
+            await requireRecentAuthenticationForSession(input.currentSession)
+            await requireSessionPermission(input.currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
-    const configuration = await requireWebAuthnConfiguration()
-    const challenge = await consumeAuthChallenge('webauthn-registration', input.flowId)
+            const configuration = await requireWebAuthnConfiguration()
+            const challenge = await consumeAuthChallenge('webauthn-registration', input.flowId)
 
-    if (
-        !challenge ||
-        challenge.userId !== input.currentSession.user.id ||
-        challenge.sessionId !== input.currentSession.id
-    ) {
-        return { code: 'challenge_expired', success: false }
-    }
+            if (
+                !challenge ||
+                challenge.userId !== input.currentSession.user.id ||
+                challenge.sessionId !== input.currentSession.id
+            ) {
+                return { code: 'challenge_expired', success: false }
+            }
 
-    let verification: Awaited<ReturnType<typeof verifyRegistrationResponse>>
+            let verification: Awaited<ReturnType<typeof verifyRegistrationResponse>>
 
-    try {
-        verification = await verifyRegistrationResponse({
-            response: input.response,
-            expectedChallenge: challenge.challenge,
-            expectedOrigin: configuration.origin,
-            expectedRPID: configuration.rpId,
-            requireUserVerification: true,
-        })
-    } catch {
-        return { code: 'registration_failed', success: false }
-    }
+            try {
+                verification = await verifyRegistrationResponse({
+                    response: input.response,
+                    expectedChallenge: challenge.challenge,
+                    expectedOrigin: configuration.origin,
+                    expectedRPID: configuration.rpId,
+                    requireUserVerification: true,
+                })
+            } catch {
+                return { code: 'registration_failed', success: false }
+            }
 
-    if (!verification.verified) {
-        return { code: 'registration_failed', success: false }
-    }
+            if (!verification.verified) {
+                return { code: 'registration_failed', success: false }
+            }
 
-    const { credential, credentialBackedUp, credentialDeviceType } = verification.registrationInfo
-    const inserted = await getAuthDatabase().transaction(async (transaction) => {
-        await requireRecentSessionInTransaction(transaction, input.currentSession)
-        await requirePermissionInTransaction(
-            transaction,
-            input.currentSession.user.id,
-            PERMISSIONS.ACCOUNT_UPDATE,
-        )
-        const rows = await transaction
-            .insert(passkeys)
-            .values({
-                backedUp: credentialBackedUp,
-                counter: credential.counter,
-                credentialId: credential.id,
-                deviceType: credentialDeviceType,
-                name: normalizePasskeyName(input.name),
-                publicKey: credential.publicKey,
-                transports: toStoredTransports(input.response.response.transports ?? []),
-                userId: input.currentSession.user.id,
+            const { credential, credentialBackedUp, credentialDeviceType } =
+                verification.registrationInfo
+            const inserted = await getAuthDatabase().transaction(async (transaction) => {
+                await requireRecentSessionInTransaction(transaction, input.currentSession)
+                await requirePermissionInTransaction(
+                    transaction,
+                    input.currentSession.user.id,
+                    PERMISSIONS.ACCOUNT_UPDATE,
+                )
+                const rows = await transaction
+                    .insert(passkeys)
+                    .values({
+                        backedUp: credentialBackedUp,
+                        counter: credential.counter,
+                        credentialId: credential.id,
+                        deviceType: credentialDeviceType,
+                        name: normalizePasskeyName(input.name),
+                        publicKey: credential.publicKey,
+                        transports: toStoredTransports(input.response.response.transports ?? []),
+                        userId: input.currentSession.user.id,
+                    })
+                    .onConflictDoNothing({ target: passkeys.credentialId })
+                    .returning({ id: passkeys.id })
+
+                if (rows.length !== 1) {
+                    return false
+                }
+                await revokeOtherUserSessionsInTransaction(
+                    transaction,
+                    input.currentSession.user.id,
+                    input.currentSession.id,
+                )
+                await appendAuditEventInTransaction(transaction, {
+                    actorUserId: input.currentSession.user.id,
+                    actorKind: 'user',
+                    action: 'create',
+                    resource: 'passkey',
+                    targetId: rows[0]!.id,
+                    result: 'success',
+                })
+                return true
             })
-            .onConflictDoNothing({ target: passkeys.credentialId })
-            .returning({ id: passkeys.id })
 
-        if (rows.length !== 1) {
-            return false
-        }
-
-        await revokeOtherUserSessionsInTransaction(
-            transaction,
-            input.currentSession.user.id,
-            input.currentSession.id,
-        )
-        return true
-    })
-
-    return inserted ? { success: true } : { code: 'registration_failed', success: false }
+            return inserted ? { success: true } : { code: 'registration_failed', success: false }
+        },
+    )
 }
 
 export async function beginDiscoverablePasskeyAuthenticationService() {
@@ -337,90 +358,111 @@ export async function finishDiscoverablePasskeyAuthenticationService(input: {
     flowId: string
     response: AuthenticationResponseJSON
 }): Promise<PasskeyAuthenticationResult> {
-    const configuration = await requireWebAuthnConfiguration()
-    const challenge = await consumeAuthChallenge('webauthn-authentication', input.flowId)
+    return auditAuthOperation(
+        {
+            actorUserId: null,
+            actorKind: 'anonymous',
+            action: 'login',
+            resource: 'session',
+            targetId: null,
+            metadata: { authenticationMethod: 'passkey' },
+        },
+        async () => {
+            const configuration = await requireWebAuthnConfiguration()
+            const challenge = await consumeAuthChallenge('webauthn-authentication', input.flowId)
 
-    if (!challenge) {
-        return { code: 'challenge_expired', success: false }
-    }
+            if (!challenge) {
+                return { code: 'challenge_expired', success: false }
+            }
 
-    const rows = await getAuthDatabase()
-        .select({ passkey: passkeys, userId: users.id, userStatus: users.status })
-        .from(passkeys)
-        .innerJoin(users, eq(users.id, passkeys.userId))
-        .where(eq(passkeys.credentialId, input.response.id))
-        .limit(1)
-    const row = rows.at(0)
+            const rows = await getAuthDatabase()
+                .select({ passkey: passkeys, userId: users.id, userStatus: users.status })
+                .from(passkeys)
+                .innerJoin(users, eq(users.id, passkeys.userId))
+                .where(eq(passkeys.credentialId, input.response.id))
+                .limit(1)
+            const row = rows.at(0)
 
-    if (!row || row.userStatus !== 'active') {
-        return { code: 'authentication_failed', success: false }
-    }
+            if (!row || row.userStatus !== 'active') {
+                return { code: 'authentication_failed', success: false }
+            }
 
-    let verification: Awaited<ReturnType<typeof verifyAuthenticationResponse>>
-    const expectedUserHandle = Buffer.from(toWebAuthnUserId(row.userId)).toString('base64url')
+            let verification: Awaited<ReturnType<typeof verifyAuthenticationResponse>>
+            const expectedUserHandle = Buffer.from(toWebAuthnUserId(row.userId)).toString(
+                'base64url',
+            )
 
-    if (input.response.response.userHandle !== expectedUserHandle) {
-        return { code: 'authentication_failed', success: false }
-    }
+            if (input.response.response.userHandle !== expectedUserHandle) {
+                return { code: 'authentication_failed', success: false }
+            }
 
-    try {
-        verification = await verifyAuthenticationResponse({
-            response: input.response,
-            expectedChallenge: challenge.challenge,
-            expectedOrigin: configuration.origin,
-            expectedRPID: configuration.rpId,
-            credential: {
-                counter: row.passkey.counter,
-                id: row.passkey.credentialId,
-                publicKey: copyBytes(row.passkey.publicKey),
-                transports: toStoredTransports(row.passkey.transports),
-            },
-            requireUserVerification: true,
-        })
-    } catch {
-        return { code: 'authentication_failed', success: false }
-    }
-
-    if (!verification.verified) {
-        return { code: 'authentication_failed', success: false }
-    }
-
-    try {
-        return await getAuthDatabase().transaction(async (transaction) => {
-            const updated = await transaction
-                .update(passkeys)
-                .set({
-                    backedUp: verification.authenticationInfo.credentialBackedUp,
-                    counter: verification.authenticationInfo.newCounter,
-                    deviceType: verification.authenticationInfo.credentialDeviceType,
-                    lastUsedAt: new Date(),
+            try {
+                verification = await verifyAuthenticationResponse({
+                    response: input.response,
+                    expectedChallenge: challenge.challenge,
+                    expectedOrigin: configuration.origin,
+                    expectedRPID: configuration.rpId,
+                    credential: {
+                        counter: row.passkey.counter,
+                        id: row.passkey.credentialId,
+                        publicKey: copyBytes(row.passkey.publicKey),
+                        transports: toStoredTransports(row.passkey.transports),
+                    },
+                    requireUserVerification: true,
                 })
-                .where(
-                    and(eq(passkeys.id, row.passkey.id), eq(passkeys.counter, row.passkey.counter)),
-                )
-                .returning({ id: passkeys.id })
-
-            if (updated.length !== 1) {
-                return { code: 'authentication_failed' as const, success: false as const }
+            } catch {
+                return { code: 'authentication_failed', success: false }
             }
 
-            const session = await createSessionInTransaction(transaction, row.userId)
-            return {
-                session: {
-                    expiresAt: session.expiresAt,
-                    id: session.id,
-                    token: session.token,
-                },
-                success: true as const,
+            if (!verification.verified) {
+                return { code: 'authentication_failed', success: false }
             }
-        })
-    } catch (error) {
-        if (error instanceof AuthDomainError && error.code === 'user_not_active') {
-            return { code: 'authentication_failed', success: false }
-        }
 
-        throw error
-    }
+            try {
+                return await getAuthDatabase().transaction(async (transaction) => {
+                    const updated = await transaction
+                        .update(passkeys)
+                        .set({
+                            backedUp: verification.authenticationInfo.credentialBackedUp,
+                            counter: verification.authenticationInfo.newCounter,
+                            deviceType: verification.authenticationInfo.credentialDeviceType,
+                            lastUsedAt: new Date(),
+                        })
+                        .where(
+                            and(
+                                eq(passkeys.id, row.passkey.id),
+                                eq(passkeys.counter, row.passkey.counter),
+                            ),
+                        )
+                        .returning({ id: passkeys.id })
+
+                    if (updated.length !== 1) {
+                        return { code: 'authentication_failed' as const, success: false as const }
+                    }
+
+                    const session = await createSessionInTransaction(
+                        transaction,
+                        row.userId,
+                        'passkey',
+                    )
+                    return {
+                        session: {
+                            expiresAt: session.expiresAt,
+                            id: session.id,
+                            token: session.token,
+                        },
+                        success: true as const,
+                    }
+                })
+            } catch (error) {
+                if (error instanceof AuthDomainError && error.code === 'user_not_active') {
+                    return { code: 'authentication_failed', success: false }
+                }
+
+                throw error
+            }
+        },
+    )
 }
 
 export async function beginPasskeyReauthenticationService(currentSession: CurrentSession) {
@@ -467,73 +509,105 @@ export async function finishPasskeyReauthenticationService(input: {
     readonly code?: 'authentication_failed' | 'challenge_expired'
     readonly success: boolean
 }> {
-    const configuration = await requireWebAuthnConfiguration()
-    const challenge = await consumeAuthChallenge('webauthn-reauthentication', input.flowId)
+    return auditAuthOperation(
+        {
+            actorUserId: input.currentSession.user.id,
+            actorKind: 'user',
+            action: 'reauthenticate',
+            resource: 'session',
+            targetId: input.currentSession.id,
+            metadata: { authenticationMethod: 'passkey' },
+        },
+        async () => {
+            const configuration = await requireWebAuthnConfiguration()
+            const challenge = await consumeAuthChallenge('webauthn-reauthentication', input.flowId)
 
-    if (!isBoundReauthenticationChallenge(challenge, input.currentSession)) {
-        return { code: 'challenge_expired', success: false }
-    }
+            if (!isBoundReauthenticationChallenge(challenge, input.currentSession)) {
+                return { code: 'challenge_expired', success: false }
+            }
 
-    const rows = await getAuthDatabase()
-        .select({ passkey: passkeys })
-        .from(passkeys)
-        .where(
-            and(
-                eq(passkeys.credentialId, input.response.id),
-                eq(passkeys.userId, input.currentSession.user.id),
-            ),
-        )
-        .limit(1)
-    const passkey = rows.at(0)?.passkey
+            const rows = await getAuthDatabase()
+                .select({ passkey: passkeys })
+                .from(passkeys)
+                .where(
+                    and(
+                        eq(passkeys.credentialId, input.response.id),
+                        eq(passkeys.userId, input.currentSession.user.id),
+                    ),
+                )
+                .limit(1)
+            const passkey = rows.at(0)?.passkey
 
-    if (!passkey) {
-        return { code: 'authentication_failed', success: false }
-    }
+            if (!passkey) {
+                return { code: 'authentication_failed', success: false }
+            }
 
-    let verification: Awaited<ReturnType<typeof verifyAuthenticationResponse>>
+            let verification: Awaited<ReturnType<typeof verifyAuthenticationResponse>>
 
-    try {
-        verification = await verifyAuthenticationResponse({
-            response: input.response,
-            expectedChallenge: challenge.challenge,
-            expectedOrigin: configuration.origin,
-            expectedRPID: configuration.rpId,
-            credential: {
-                counter: passkey.counter,
-                id: passkey.credentialId,
-                publicKey: copyBytes(passkey.publicKey),
-                transports: toStoredTransports(passkey.transports),
-            },
-            requireUserVerification: true,
-        })
-    } catch {
-        return { code: 'authentication_failed', success: false }
-    }
+            try {
+                verification = await verifyAuthenticationResponse({
+                    response: input.response,
+                    expectedChallenge: challenge.challenge,
+                    expectedOrigin: configuration.origin,
+                    expectedRPID: configuration.rpId,
+                    credential: {
+                        counter: passkey.counter,
+                        id: passkey.credentialId,
+                        publicKey: copyBytes(passkey.publicKey),
+                        transports: toStoredTransports(passkey.transports),
+                    },
+                    requireUserVerification: true,
+                })
+            } catch {
+                return { code: 'authentication_failed', success: false }
+            }
 
-    if (!verification.verified) {
-        return { code: 'authentication_failed', success: false }
-    }
+            if (!verification.verified) {
+                return { code: 'authentication_failed', success: false }
+            }
 
-    const completed = await getAuthDatabase().transaction(async (transaction) => {
-        const updated = await transaction
-            .update(passkeys)
-            .set({
-                backedUp: verification.authenticationInfo.credentialBackedUp,
-                counter: verification.authenticationInfo.newCounter,
-                deviceType: verification.authenticationInfo.credentialDeviceType,
-                lastUsedAt: new Date(),
+            const completed = await getAuthDatabase().transaction(async (transaction) => {
+                const updated = await transaction
+                    .update(passkeys)
+                    .set({
+                        backedUp: verification.authenticationInfo.credentialBackedUp,
+                        counter: verification.authenticationInfo.newCounter,
+                        deviceType: verification.authenticationInfo.credentialDeviceType,
+                        lastUsedAt: new Date(),
+                    })
+                    .where(and(eq(passkeys.id, passkey.id), eq(passkeys.counter, passkey.counter)))
+                    .returning({ id: passkeys.id })
+
+                if (updated.length !== 1) {
+                    return false
+                }
+
+                const refreshed = await markSessionReauthenticatedInTransaction(
+                    transaction,
+                    input.currentSession,
+                )
+                if (refreshed) {
+                    await revokeOtherUserSessionsInTransaction(
+                        transaction,
+                        input.currentSession.user.id,
+                        input.currentSession.id,
+                    )
+                    await appendAuditEventInTransaction(transaction, {
+                        actorUserId: input.currentSession.user.id,
+                        actorKind: 'user',
+                        action: 'reauthenticate',
+                        resource: 'session',
+                        targetId: input.currentSession.id,
+                        result: 'success',
+                        metadata: { authenticationMethod: 'passkey' },
+                    })
+                }
+                return refreshed
             })
-            .where(and(eq(passkeys.id, passkey.id), eq(passkeys.counter, passkey.counter)))
-            .returning({ id: passkeys.id })
 
-        if (updated.length !== 1) {
-            return false
-        }
-
-        return markSessionReauthenticatedInTransaction(transaction, input.currentSession)
-    })
-
-    return completed ? { success: true } : { code: 'authentication_failed', success: false }
+            return completed ? { success: true } : { code: 'authentication_failed', success: false }
+        },
+    )
 }
 
 export async function renamePasskeyService(input: {
@@ -541,63 +615,97 @@ export async function renamePasskeyService(input: {
     name: string
     passkeyId: string
 }): Promise<boolean> {
-    return getAuthDatabase().transaction(async (transaction) => {
-        await requireRecentSessionInTransaction(transaction, input.currentSession)
-        await requirePermissionInTransaction(
-            transaction,
-            input.currentSession.user.id,
-            PERMISSIONS.ACCOUNT_UPDATE,
-        )
-        const updated = await transaction
-            .update(passkeys)
-            .set({ name: normalizePasskeyName(input.name) })
-            .where(
-                and(
-                    eq(passkeys.id, input.passkeyId),
-                    eq(passkeys.userId, input.currentSession.user.id),
-                ),
-            )
-            .returning({ id: passkeys.id })
+    return auditAuthOperation(
+        {
+            actorUserId: input.currentSession.user.id,
+            actorKind: 'user',
+            action: 'update',
+            resource: 'passkey',
+            targetId: input.passkeyId,
+        },
+        async () => {
+            return getAuthDatabase().transaction(async (transaction) => {
+                await requireRecentSessionInTransaction(transaction, input.currentSession)
+                await requirePermissionInTransaction(
+                    transaction,
+                    input.currentSession.user.id,
+                    PERMISSIONS.ACCOUNT_UPDATE,
+                )
+                const updated = await transaction
+                    .update(passkeys)
+                    .set({ name: normalizePasskeyName(input.name) })
+                    .where(
+                        and(
+                            eq(passkeys.id, input.passkeyId),
+                            eq(passkeys.userId, input.currentSession.user.id),
+                        ),
+                    )
+                    .returning({ id: passkeys.id })
 
-        return updated.length === 1
-    })
+                if (updated.length === 1) {
+                    await appendAuditEventInTransaction(transaction, {
+                        actorUserId: input.currentSession.user.id,
+                        actorKind: 'user',
+                        action: 'update',
+                        resource: 'passkey',
+                        targetId: input.passkeyId,
+                        result: 'success',
+                    })
+                }
+                return updated.length === 1
+            })
+        },
+    )
 }
 
 export async function deletePasskeyService(input: {
     currentSession: CurrentSession
     passkeyId: string
 }): Promise<boolean> {
-    await requireRecentAuthenticationForSession(input.currentSession)
-    await requireSessionPermission(input.currentSession, PERMISSIONS.ACCOUNT_UPDATE)
+    return auditAuthOperation(
+        {
+            actorUserId: input.currentSession.user.id,
+            actorKind: 'user',
+            action: 'delete',
+            resource: 'passkey',
+            targetId: input.passkeyId,
+        },
+        async () => {
+            await requireRecentAuthenticationForSession(input.currentSession)
+            await requireSessionPermission(input.currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
-    return getAuthDatabase().transaction(async (transaction) => {
-        await requireRecentSessionInTransaction(transaction, input.currentSession)
-        await requirePermissionInTransaction(
-            transaction,
-            input.currentSession.user.id,
-            PERMISSIONS.ACCOUNT_UPDATE,
-        )
-        const deleted = await transaction
-            .delete(passkeys)
-            .where(
-                and(
-                    eq(passkeys.id, input.passkeyId),
-                    eq(passkeys.userId, input.currentSession.user.id),
-                ),
-            )
-            .returning({ id: passkeys.id })
+            return getAuthDatabase().transaction(async (transaction) => {
+                await requireRecentSessionInTransaction(transaction, input.currentSession)
+                await requirePermissionInTransaction(
+                    transaction,
+                    input.currentSession.user.id,
+                    PERMISSIONS.ACCOUNT_UPDATE,
+                )
+                const deleted = await transaction
+                    .delete(passkeys)
+                    .where(
+                        and(
+                            eq(passkeys.id, input.passkeyId),
+                            eq(passkeys.userId, input.currentSession.user.id),
+                        ),
+                    )
+                    .returning({ id: passkeys.id })
 
-        if (deleted.length !== 1) {
-            return false
-        }
-
-        await revokeOtherUserSessionsInTransaction(
-            transaction,
-            input.currentSession.user.id,
-            input.currentSession.id,
-        )
-        return true
-    })
+                if (deleted.length !== 1) {
+                    return false
+                }
+                await appendAuditEventInTransaction(transaction, {
+                    actorUserId: input.currentSession.user.id,
+                    actorKind: 'user',
+                    action: 'delete',
+                    resource: 'passkey',
+                    targetId: input.passkeyId,
+                    result: 'success',
+                })
+                return true
+            })
+        },
+    )
 }
 
 function isBoundReauthenticationChallenge(

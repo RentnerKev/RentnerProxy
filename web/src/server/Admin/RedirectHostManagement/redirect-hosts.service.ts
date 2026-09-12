@@ -10,9 +10,11 @@ import type { ProxyRuntimeMutationStatus } from '../../../shared/Types/proxy-run
 import { requirePermissionService } from '../../Auth/Access/authorization.service'
 import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
 import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
-import { reconcileProxyConfigurationService } from '../../ProxyRuntime/proxy-runtime.service'
+import { reconcileProxyConfigurationWithAudit } from '../../ProxyRuntime/proxy-runtime.service'
 import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
 import { validateCertificateAssignmentInTransaction } from '../CertificateManagement/certificates.service'
+import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
 import {
     createRedirectHostInputSchema,
     redirectHostIdInputSchema,
@@ -210,8 +212,9 @@ export async function createRedirectHostService(
     const domains = parsedInput.domains.toSorted()
     const actor = await requirePermissionService(PERMISSIONS.REDIRECT_HOSTS_CREATE)
 
+    let saved: RedirectHostSummary
     try {
-        const saved = await getAuthDatabase().transaction(async (transaction) => {
+        saved = await getAuthDatabase().transaction(async (transaction) => {
             await lockProxyRuntimeSettings(transaction)
             await requirePermissionInTransaction(
                 transaction,
@@ -245,14 +248,29 @@ export async function createRedirectHostService(
             await transaction
                 .insert(hostDomains)
                 .values(domains.map((domain) => ({ domain, redirectHostId: redirectHost.id })))
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'create',
+                resource: 'redirect-host',
+                targetId: redirectHost.id,
+                result: 'success',
+            })
             return toRedirectHostSummary(redirectHost, domains)
         })
-        return { ...saved, runtimeStatus: await reconcileProxyConfigurationService() }
     } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'create',
+            resource: 'redirect-host',
+            targetId: null,
+            error,
+        })
         const domainConflict = mapRedirectHostDomainUniqueViolation(error)
         if (domainConflict) throw domainConflict
         throw error
     }
+    return { ...saved, runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
 }
 
 export async function updateRedirectHostService(
@@ -262,8 +280,9 @@ export async function updateRedirectHostService(
     const domains = parsedInput.domains.toSorted()
     const actor = await requirePermissionService(PERMISSIONS.REDIRECT_HOSTS_UPDATE)
 
+    let saved: RedirectHostSummary
     try {
-        const saved = await getAuthDatabase().transaction(async (transaction) => {
+        saved = await getAuthDatabase().transaction(async (transaction) => {
             await lockProxyRuntimeSettings(transaction)
             await requirePermissionInTransaction(
                 transaction,
@@ -312,14 +331,30 @@ export async function updateRedirectHostService(
             if (!updated)
                 throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
             await replaceDomainsInTransaction(transaction, redirectHost.id, domains)
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'update',
+                resource: 'redirect-host',
+                targetId: redirectHost.id,
+                result: 'success',
+                metadata: { changedFields: ['domains'] },
+            })
             return toRedirectHostSummary(updated, domains)
         })
-        return { ...saved, runtimeStatus: await reconcileProxyConfigurationService() }
     } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'update',
+            resource: 'redirect-host',
+            targetId: parsedInput.redirectHostId,
+            error,
+        })
         const domainConflict = mapRedirectHostDomainUniqueViolation(error)
         if (domainConflict) throw domainConflict
         throw error
     }
+    return { ...saved, runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
 }
 
 export async function deleteRedirectHostService(
@@ -327,19 +362,38 @@ export async function deleteRedirectHostService(
 ): Promise<{ readonly runtimeStatus: ProxyRuntimeMutationStatus }> {
     const id = parseRedirectHostId(redirectHostId)
     const actor = await requirePermissionService(PERMISSIONS.REDIRECT_HOSTS_DELETE)
-    await getAuthDatabase().transaction(async (transaction) => {
-        await lockProxyRuntimeSettings(transaction)
-        await requirePermissionInTransaction(
-            transaction,
-            actor.id,
-            PERMISSIONS.REDIRECT_HOSTS_DELETE,
-        )
-        const redirectHost = await loadRedirectHostForUpdate(transaction, id)
-        if (!redirectHost)
-            throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
-        await transaction.delete(redirectHosts).where(eq(redirectHosts.id, redirectHost.id))
-    })
-    return { runtimeStatus: await reconcileProxyConfigurationService() }
+    try {
+        await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
+            await requirePermissionInTransaction(
+                transaction,
+                actor.id,
+                PERMISSIONS.REDIRECT_HOSTS_DELETE,
+            )
+            const redirectHost = await loadRedirectHostForUpdate(transaction, id)
+            if (!redirectHost)
+                throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
+            await transaction.delete(redirectHosts).where(eq(redirectHosts.id, redirectHost.id))
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'delete',
+                resource: 'redirect-host',
+                targetId: redirectHost.id,
+                result: 'success',
+            })
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'delete',
+            resource: 'redirect-host',
+            targetId: id,
+            error,
+        })
+        throw error
+    }
+    return { runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
 }
 
 async function setRedirectHostEnabledService(
@@ -351,36 +405,56 @@ async function setRedirectHostEnabledService(
         ? PERMISSIONS.REDIRECT_HOSTS_ENABLE
         : PERMISSIONS.REDIRECT_HOSTS_DISABLE
     const actor = await requirePermissionService(permission)
-    const saved = await getAuthDatabase().transaction(async (transaction) => {
-        await lockProxyRuntimeSettings(transaction)
-        await requirePermissionInTransaction(transaction, actor.id, permission)
-        const redirectHost = await loadRedirectHostForUpdate(transaction, id)
-        if (!redirectHost)
-            throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
-        if (redirectHost.enabled === enabled)
-            throw new RedirectHostDomainError(
-                'invalid_status_transition',
-                'Redirect host already has the requested status.',
-            )
-        const domains = await loadRedirectHostDomainsInTransaction(transaction, redirectHost.id)
-        if (enabled)
-            await validateCertificateAssignmentInTransaction(
-                transaction,
-                redirectHost.certificateId,
-                false,
-                domains,
-            )
-        const rows = await transaction
-            .update(redirectHosts)
-            .set({ enabled, updatedAt: new Date() })
-            .where(eq(redirectHosts.id, redirectHost.id))
-            .returning()
-        const updated = rows.at(0)
-        if (!updated)
-            throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
-        return toRedirectHostSummary(updated, domains)
-    })
-    return { ...saved, runtimeStatus: await reconcileProxyConfigurationService() }
+    let saved: RedirectHostSummary
+    try {
+        saved = await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
+            await requirePermissionInTransaction(transaction, actor.id, permission)
+            const redirectHost = await loadRedirectHostForUpdate(transaction, id)
+            if (!redirectHost)
+                throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
+            if (redirectHost.enabled === enabled)
+                throw new RedirectHostDomainError(
+                    'invalid_status_transition',
+                    'Redirect host already has the requested status.',
+                )
+            const domains = await loadRedirectHostDomainsInTransaction(transaction, redirectHost.id)
+            if (enabled)
+                await validateCertificateAssignmentInTransaction(
+                    transaction,
+                    redirectHost.certificateId,
+                    false,
+                    domains,
+                )
+            const rows = await transaction
+                .update(redirectHosts)
+                .set({ enabled, updatedAt: new Date() })
+                .where(eq(redirectHosts.id, redirectHost.id))
+                .returning()
+            const updated = rows.at(0)
+            if (!updated)
+                throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: enabled ? 'enable' : 'disable',
+                resource: 'redirect-host',
+                targetId: redirectHost.id,
+                result: 'success',
+            })
+            return toRedirectHostSummary(updated, domains)
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: enabled ? 'enable' : 'disable',
+            resource: 'redirect-host',
+            targetId: id,
+            error,
+        })
+        throw error
+    }
+    return { ...saved, runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
 }
 
 export function enableRedirectHostService(

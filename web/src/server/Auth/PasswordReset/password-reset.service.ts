@@ -1,3 +1,4 @@
+import { auditAuthOperation } from '../Core/audit-auth.server'
 import '@tanstack/react-start/server-only'
 
 import { and, eq, gt, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
@@ -11,6 +12,10 @@ import { normalizeEmail } from '../Core/identity.server'
 import { hashPassword } from '../Core/password.server'
 import { revokeAllUserSessionsInTransaction } from '../Access/sessions.service'
 import { createOpaqueToken, hashOpaqueToken, isValidOpaqueToken } from '../Core/tokens.server'
+import {
+    appendAuditEventInTransaction,
+    recordAuditEventBestEffort,
+} from '../../Audit/audit.service'
 
 async function createPasswordResetDelivery(emailInput: string): Promise<TokenDelivery | null> {
     let email: string
@@ -71,6 +76,14 @@ export async function issuePasswordResetService(emailInput: string): Promise<Tok
 }
 
 export async function requestPasswordResetService(emailInput: string): Promise<void> {
+    await recordAuditEventBestEffort({
+        actorUserId: null,
+        actorKind: 'anonymous',
+        action: 'request',
+        resource: 'password',
+        targetId: null,
+        result: 'success',
+    })
     const delivery = await createPasswordResetDelivery(emailInput)
 
     if (!delivery) {
@@ -88,87 +101,106 @@ export async function consumePasswordResetService(input: {
     token: string
     password: string
 }): Promise<TokenConsumptionResult> {
-    if (!isValidOpaqueToken(input.token)) {
-        return { success: false, code: 'invalid_or_expired_token' }
-    }
+    return auditAuthOperation(
+        {
+            actorUserId: null,
+            actorKind: 'anonymous',
+            action: 'reset',
+            resource: 'password',
+            targetId: null,
+        },
+        async () => {
+            if (!isValidOpaqueToken(input.token)) {
+                return { success: false, code: 'invalid_or_expired_token' }
+            }
 
-    const tokenHash = await hashOpaqueToken(input.token)
-    const now = new Date()
-    const db = getAuthDatabase()
+            const tokenHash = await hashOpaqueToken(input.token)
+            const now = new Date()
+            const db = getAuthDatabase()
 
-    return db.transaction(async (transaction) => {
-        const tokenRows = await transaction
-            .select({ id: passwordResetTokens.id, userId: passwordResetTokens.userId })
-            .from(passwordResetTokens)
-            .where(
-                and(
-                    eq(passwordResetTokens.tokenHash, tokenHash),
-                    gt(passwordResetTokens.expiresAt, now),
-                    isNull(passwordResetTokens.consumedAt),
-                ),
-            )
-            .limit(1)
-        const resetToken = tokenRows.at(0)
+            return db.transaction(async (transaction) => {
+                const tokenRows = await transaction
+                    .select({ id: passwordResetTokens.id, userId: passwordResetTokens.userId })
+                    .from(passwordResetTokens)
+                    .where(
+                        and(
+                            eq(passwordResetTokens.tokenHash, tokenHash),
+                            gt(passwordResetTokens.expiresAt, now),
+                            isNull(passwordResetTokens.consumedAt),
+                        ),
+                    )
+                    .limit(1)
+                const resetToken = tokenRows.at(0)
 
-        if (!resetToken) {
-            return { success: false as const, code: 'invalid_or_expired_token' as const }
-        }
+                if (!resetToken) {
+                    return { success: false as const, code: 'invalid_or_expired_token' as const }
+                }
 
-        const userRows = await transaction
-            .select({ id: users.id, status: users.status })
-            .from(users)
-            .where(eq(users.id, resetToken.userId))
-            .limit(1)
-            .for('update')
-        const user = userRows.at(0)
+                const userRows = await transaction
+                    .select({ id: users.id, status: users.status })
+                    .from(users)
+                    .where(eq(users.id, resetToken.userId))
+                    .limit(1)
+                    .for('update')
+                const user = userRows.at(0)
 
-        if (!user || user.status !== 'active') {
-            return { success: false as const, code: 'invalid_or_expired_token' as const }
-        }
+                if (!user || user.status !== 'active') {
+                    return { success: false as const, code: 'invalid_or_expired_token' as const }
+                }
 
-        const lockedTokenRows = await transaction
-            .select({ id: passwordResetTokens.id })
-            .from(passwordResetTokens)
-            .where(
-                and(
-                    eq(passwordResetTokens.id, resetToken.id),
-                    eq(passwordResetTokens.tokenHash, tokenHash),
-                    gt(passwordResetTokens.expiresAt, now),
-                    isNull(passwordResetTokens.consumedAt),
-                ),
-            )
-            .limit(1)
-            .for('update')
+                const lockedTokenRows = await transaction
+                    .select({ id: passwordResetTokens.id })
+                    .from(passwordResetTokens)
+                    .where(
+                        and(
+                            eq(passwordResetTokens.id, resetToken.id),
+                            eq(passwordResetTokens.tokenHash, tokenHash),
+                            gt(passwordResetTokens.expiresAt, now),
+                            isNull(passwordResetTokens.consumedAt),
+                        ),
+                    )
+                    .limit(1)
+                    .for('update')
 
-        if (lockedTokenRows.length !== 1) {
-            return { success: false as const, code: 'invalid_or_expired_token' as const }
-        }
+                if (lockedTokenRows.length !== 1) {
+                    return { success: false as const, code: 'invalid_or_expired_token' as const }
+                }
 
-        // Argon2 is intentionally deferred until the capability has been validated and locked.
-        // Invalid public tokens must not be able to trigger expensive password hashing work.
-        const passwordHash = await hashPassword(input.password)
+                // Argon2 is intentionally deferred until the capability has been validated and locked.
+                // Invalid public tokens must not be able to trigger expensive password hashing work.
+                const passwordHash = await hashPassword(input.password)
 
-        const consumedTokens = await transaction
-            .update(passwordResetTokens)
-            .set({ consumedAt: now })
-            .where(
-                and(
-                    eq(passwordResetTokens.userId, user.id),
-                    isNull(passwordResetTokens.consumedAt),
-                ),
-            )
-            .returning({ id: passwordResetTokens.id })
+                const consumedTokens = await transaction
+                    .update(passwordResetTokens)
+                    .set({ consumedAt: now })
+                    .where(
+                        and(
+                            eq(passwordResetTokens.userId, user.id),
+                            isNull(passwordResetTokens.consumedAt),
+                        ),
+                    )
+                    .returning({ id: passwordResetTokens.id })
 
-        if (!consumedTokens.some((token) => token.id === resetToken.id)) {
-            return { success: false as const, code: 'invalid_or_expired_token' as const }
-        }
+                if (!consumedTokens.some((token) => token.id === resetToken.id)) {
+                    return { success: false as const, code: 'invalid_or_expired_token' as const }
+                }
 
-        await transaction
-            .update(users)
-            .set({ passwordHash, updatedAt: now })
-            .where(eq(users.id, user.id))
-        await revokeAllUserSessionsInTransaction(transaction, user.id)
+                await transaction
+                    .update(users)
+                    .set({ passwordHash, updatedAt: now })
+                    .where(eq(users.id, user.id))
+                await revokeAllUserSessionsInTransaction(transaction, user.id)
+                await appendAuditEventInTransaction(transaction, {
+                    actorUserId: user.id,
+                    actorKind: 'user',
+                    action: 'reset',
+                    resource: 'password',
+                    targetId: user.id,
+                    result: 'success',
+                })
 
-        return { success: true as const, userId: user.id }
-    })
+                return { success: true as const, userId: user.id }
+            })
+        },
+    )
 }

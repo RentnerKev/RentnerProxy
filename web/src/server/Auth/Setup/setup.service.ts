@@ -12,6 +12,7 @@ import { hashPassword } from '../Core/password.server'
 import { ensureAuthorizationRegistryInTransaction } from '../Access/registry.service'
 import { parseTrustedManagementOrigin } from '../../../config/management-origin.config'
 import { writeManagementOriginInTransaction } from '../../Configuration/management-origin.server'
+import { appendAuditEventInTransaction } from '../../Audit/audit.service'
 
 export type FirstOwnerSetupResult =
     | { readonly success: true; readonly userId: string; readonly email: string }
@@ -78,6 +79,15 @@ export async function setupFirstOwnerService(input: {
         await transaction.insert(userRoles).values({ roleId: ownerRole.id, userId: user.id })
 
         await writeManagementOriginInTransaction(transaction, managementOrigin)
+        await appendAuditEventInTransaction(transaction, {
+            actorUserId: user.id,
+            actorKind: 'user',
+            action: 'create',
+            resource: 'user',
+            targetId: user.id,
+            result: 'success',
+            metadata: { authenticationMethod: 'setup' },
+        })
 
         return { success: true as const, userId: user.id, email: user.email }
     })

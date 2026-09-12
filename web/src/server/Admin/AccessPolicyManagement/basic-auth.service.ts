@@ -20,11 +20,13 @@ import {
 import { requirePermissionService } from '../../Auth/Access/authorization.service'
 import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
 import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
-import { reconcileProxyConfigurationService } from '../../ProxyRuntime/proxy-runtime.service'
+import { reconcileProxyConfigurationWithAudit } from '../../ProxyRuntime/proxy-runtime.service'
 import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
 import { AccessPolicyDomainError } from './access-policies.errors'
 import { BasicAuthDomainError } from './basic-auth.errors'
 import { PERMISSIONS } from '../../../config/permissions.config'
+import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
 
 export interface BasicAuthAccountSummary {
     readonly id: string
@@ -205,14 +207,29 @@ export async function createBasicAuthAccountService(
                 .returning({ id: accessPolicyBasicAuthAccounts.id })
             const created = rows.at(0)
             if (!created) throw new BasicAuthDomainError('basic_auth_account_not_found')
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'create',
+                resource: 'basic-auth-account',
+                targetId: created.id,
+                result: 'success',
+            })
             return created.id
         })
     } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'create',
+            resource: 'basic-auth-account',
+            targetId: null,
+            error,
+        })
         const mapped = mapDatabaseError(error)
         if (mapped) throw mapped
         throw error
     }
-    return { accountId, runtimeStatus: await reconcileProxyConfigurationService() }
+    return { accountId, runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
 }
 
 export async function updateBasicAuthAccountService(
@@ -244,13 +261,34 @@ export async function updateBasicAuthAccountService(
                     updatedAt: new Date(),
                 })
                 .where(eq(accessPolicyBasicAuthAccounts.id, current.id))
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'update',
+                resource: 'basic-auth-account',
+                targetId: current.id,
+                result: 'success',
+                metadata: {
+                    changedFields: [
+                        ...(parsed.username === undefined ? [] : (['name'] as const)),
+                        ...(passwordHash === undefined ? [] : (['security'] as const)),
+                    ],
+                },
+            })
         })
     } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'update',
+            resource: 'basic-auth-account',
+            targetId: accountId,
+            error,
+        })
         const mapped = mapDatabaseError(error)
         if (mapped) throw mapped
         throw error
     }
-    return { accountId, runtimeStatus: await reconcileProxyConfigurationService() }
+    return { accountId, runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
 }
 
 export async function deleteBasicAuthAccountService(
@@ -260,18 +298,37 @@ export async function deleteBasicAuthAccountService(
     const parsed = parseInput(deleteBasicAuthAccountInputSchema, input)
     const policyId = parsed.accessPolicyId.toLowerCase()
     const accountId = parsed.accountId.toLowerCase()
-    await getAuthDatabase().transaction(async (transaction) => {
-        await lockProxyRuntimeSettings(transaction)
-        await requirePermissionInTransaction(
-            transaction,
-            actor.id,
-            PERMISSIONS.ACCESS_POLICIES_UPDATE,
-        )
-        await requirePolicyForUpdate(transaction, policyId)
-        const current = await requireAccountForUpdate(transaction, policyId, accountId)
-        await transaction
-            .delete(accessPolicyBasicAuthAccounts)
-            .where(eq(accessPolicyBasicAuthAccounts.id, current.id))
-    })
-    return { accountId, runtimeStatus: await reconcileProxyConfigurationService() }
+    try {
+        await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
+            await requirePermissionInTransaction(
+                transaction,
+                actor.id,
+                PERMISSIONS.ACCESS_POLICIES_UPDATE,
+            )
+            await requirePolicyForUpdate(transaction, policyId)
+            const current = await requireAccountForUpdate(transaction, policyId, accountId)
+            await transaction
+                .delete(accessPolicyBasicAuthAccounts)
+                .where(eq(accessPolicyBasicAuthAccounts.id, current.id))
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'delete',
+                resource: 'basic-auth-account',
+                targetId: current.id,
+                result: 'success',
+            })
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'delete',
+            resource: 'basic-auth-account',
+            targetId: accountId,
+            error,
+        })
+        throw error
+    }
+    return { accountId, runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
 }

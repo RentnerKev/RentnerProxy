@@ -30,7 +30,7 @@ export const acceptInviteHandler = createServerFn({ method: 'POST' })
                 return { success: false, message: 'This invitation is invalid or has expired.' }
             }
 
-            const session = await createSessionService(result.userId)
+            const session = await createSessionService(result.userId, 'invite')
 
             if (session.user.permissions.includes(PERMISSIONS.APP_ACCESS)) {
                 setSessionCookie(session.token, session.expiresAt)

@@ -1,0 +1,496 @@
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { Fragment } from 'react'
+
+import useTranslationStore from '../../../../language/useTranslationStore'
+import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import { Tooltip } from '../../../../shared/Tooltip'
+import type { AuditEventDto } from '../../../../shared/Types/audit-events.types'
+import {
+    auditActionValues,
+    auditEventKey,
+    auditResourceValues,
+    formatAuditActor,
+    getAuditMetadataEntries,
+} from '../Helpers/auditLogs'
+import type { AuditLogsTableProps } from '../Types/audit-logs.types'
+
+const tableControlClassName =
+    'h-10 w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink outline-hidden transition-[border-color,box-shadow] placeholder:text-muted-soft focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/20'
+
+const resultClassName = (result: AuditEventDto['result']) => {
+    switch (result) {
+        case 'success':
+            return 'border-brand-600/20 bg-success-bg text-success-text'
+        case 'denied':
+            return 'border-amber-500/25 bg-amber-500/10 text-amber-700'
+        default:
+            return 'border-red-500/25 bg-danger-bg text-danger-text'
+    }
+}
+
+function MetadataDetails({ event }: { readonly event: AuditEventDto }) {
+    const { t } = useTranslationStore()
+    const metadata = getAuditMetadataEntries(event.metadata)
+
+    return (
+        <dl className="grid gap-4 text-xs text-muted sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+                <dt className="font-mono text-[0.65rem] tracking-[0.06em] text-muted-soft uppercase">
+                    {t('admin.auditLogs.columns.actorKind')}
+                </dt>
+                <dd className="mt-1 font-mono text-ink-soft">
+                    {t(`admin.auditLogs.values.actorKinds.${event.actorKind}`)}
+                </dd>
+            </div>
+            <div>
+                <dt className="font-mono text-[0.65rem] tracking-[0.06em] text-muted-soft uppercase">
+                    {t('admin.auditLogs.columns.eventId')}
+                </dt>
+                <dd className="mt-1 break-all font-mono text-ink-soft">{event.id}</dd>
+            </div>
+            <div className="sm:col-span-2 lg:col-span-1">
+                <dt className="font-mono text-[0.65rem] tracking-[0.06em] text-muted-soft uppercase">
+                    {t('admin.auditLogs.columns.metadata')}
+                </dt>
+                <dd className="mt-1 font-mono text-ink-soft">
+                    {metadata.length > 0
+                        ? metadata.map(({ key, value }) => (
+                              <div className="break-words" key={key}>
+                                  <span className="text-muted-soft">
+                                      {t(`admin.auditLogs.metadata.${key}`)}:
+                                  </span>{' '}
+                                  {value}
+                              </div>
+                          ))
+                        : t('admin.auditLogs.details.noMetadata')}
+                </dd>
+            </div>
+        </dl>
+    )
+}
+
+function LoadingRows() {
+    const { t } = useTranslationStore()
+    return (
+        <tbody aria-busy="true">
+            {Array.from({ length: 8 }, (_, rowIndex) => (
+                <tr key={`audit-loading-${rowIndex}`} className="border-b border-border">
+                    {Array.from({ length: 7 }, (__, cellIndex) => (
+                        <td
+                            key={`audit-loading-${rowIndex}-${cellIndex}`}
+                            aria-label={t('table.loadingColumn', {
+                                label: t('admin.auditLogs.table.title'),
+                                column: cellIndex + 1,
+                            })}
+                            className="h-[3.65rem] px-4 py-3"
+                        >
+                            <span
+                                aria-hidden="true"
+                                className="block h-3.5 w-full max-w-36 animate-pulse rounded-full bg-neutral motion-reduce:animate-none"
+                            />
+                        </td>
+                    ))}
+                </tr>
+            ))}
+        </tbody>
+    )
+}
+
+export default function AuditLogsTable({
+    events,
+    expandedEventId,
+    formatTimestamp,
+    filters,
+    filterErrors,
+    hasMore,
+    isLoading,
+    isRefreshing,
+    pageNumber,
+    onActorChange,
+    onActionChange,
+    onResourceChange,
+    onFromChange,
+    onToChange,
+    onApplyFilters,
+    onResetFilters,
+    onRefresh,
+    onPreviousPage,
+    onNextPage,
+    onToggleDetails,
+}: AuditLogsTableProps) {
+    const { t } = useTranslationStore()
+    const hasActiveFilters =
+        filters.actorUserId.trim().length > 0 ||
+        filters.action.length > 0 ||
+        filters.resource.length > 0 ||
+        filters.from.length > 0 ||
+        filters.to.length > 0
+
+    return (
+        <section aria-labelledby="audit-logs-table-title" className={uiClassNames.table.panel}>
+            <div className="flex flex-col gap-4 border-b border-border px-[1.15rem] py-4">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                    <div className="min-w-0">
+                        <p className={uiClassNames.themedTechnicalLabel}>
+                            {t('admin.auditLogs.table.eyebrow')}
+                        </p>
+                        <h2
+                            id="audit-logs-table-title"
+                            className="mt-[0.4rem] text-xl text-ink-soft"
+                        >
+                            {t('admin.auditLogs.table.title')}
+                        </h2>
+                        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted">
+                            {t('admin.auditLogs.table.description')}
+                        </p>
+                    </div>
+
+                    <form
+                        className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end xl:justify-end"
+                        onSubmit={(event) => {
+                            event.preventDefault()
+                            onApplyFilters()
+                        }}
+                    >
+                        <label className="grid min-w-0 gap-1.5 sm:w-52">
+                            <span className="text-xs font-extrabold text-muted">
+                                {t('admin.auditLogs.filters.actor')}
+                            </span>
+                            <input
+                                type="text"
+                                value={filters.actorUserId}
+                                maxLength={36}
+                                placeholder={t('admin.auditLogs.filters.actorPlaceholder')}
+                                onChange={(event) => onActorChange(event.target.value)}
+                                aria-invalid={filterErrors.actorUserId !== undefined}
+                                aria-describedby={
+                                    filterErrors.actorUserId ? 'audit-log-actor-error' : undefined
+                                }
+                                className={tableControlClassName}
+                            />
+                            {filterErrors.actorUserId ? (
+                                <span
+                                    id="audit-log-actor-error"
+                                    role="alert"
+                                    className="text-xs text-danger-text"
+                                >
+                                    {t(filterErrors.actorUserId)}
+                                </span>
+                            ) : null}
+                        </label>
+                        <label className="grid min-w-0 gap-1.5 sm:w-40">
+                            <span className="text-xs font-extrabold text-muted">
+                                {t('admin.auditLogs.filters.action')}
+                            </span>
+                            <select
+                                value={filters.action}
+                                onChange={(event) =>
+                                    onActionChange(
+                                        event.target
+                                            .value as AuditLogsTableProps['filters']['action'],
+                                    )
+                                }
+                                aria-label={t('admin.auditLogs.filters.action')}
+                                className={tableControlClassName}
+                            >
+                                <option value="">{t('admin.auditLogs.filters.allActions')}</option>
+                                {auditActionValues.map((action) => (
+                                    <option key={action} value={action}>
+                                        {t(`admin.auditLogs.values.actions.${action}`)}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="grid min-w-0 gap-1.5 sm:w-44">
+                            <span className="text-xs font-extrabold text-muted">
+                                {t('admin.auditLogs.filters.resource')}
+                            </span>
+                            <select
+                                value={filters.resource}
+                                onChange={(event) =>
+                                    onResourceChange(
+                                        event.target
+                                            .value as AuditLogsTableProps['filters']['resource'],
+                                    )
+                                }
+                                aria-label={t('admin.auditLogs.filters.resource')}
+                                className={tableControlClassName}
+                            >
+                                <option value="">
+                                    {t('admin.auditLogs.filters.allResources')}
+                                </option>
+                                {auditResourceValues.map((resource) => (
+                                    <option key={resource} value={resource}>
+                                        {t(`admin.auditLogs.values.resources.${resource}`)}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="grid min-w-0 gap-1.5 sm:w-36">
+                            <span className="text-xs font-extrabold text-muted">
+                                {t('admin.auditLogs.filters.from')}
+                            </span>
+                            <input
+                                type="datetime-local"
+                                step={60}
+                                value={filters.from}
+                                onChange={(event) => onFromChange(event.target.value)}
+                                aria-invalid={
+                                    filterErrors.from !== undefined ||
+                                    filterErrors.dateRange !== undefined
+                                }
+                                className={tableControlClassName}
+                            />
+                        </label>
+                        <label className="grid min-w-0 gap-1.5 sm:w-36">
+                            <span className="text-xs font-extrabold text-muted">
+                                {t('admin.auditLogs.filters.to')}
+                            </span>
+                            <input
+                                type="datetime-local"
+                                step={60}
+                                value={filters.to}
+                                onChange={(event) => onToChange(event.target.value)}
+                                aria-invalid={
+                                    filterErrors.to !== undefined ||
+                                    filterErrors.dateRange !== undefined
+                                }
+                                className={tableControlClassName}
+                            />
+                        </label>
+                        <button
+                            type="submit"
+                            className={uiClassNames.button.primary}
+                            disabled={isRefreshing}
+                        >
+                            {t('admin.auditLogs.actions.apply')}
+                        </button>
+                        <button
+                            type="button"
+                            className={uiClassNames.button.secondary}
+                            onClick={onRefresh}
+                            disabled={isRefreshing}
+                        >
+                            <RefreshCw
+                                aria-hidden="true"
+                                className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                            />
+                            {t('admin.auditLogs.actions.refresh')}
+                        </button>
+                        {hasActiveFilters ? (
+                            <button
+                                type="button"
+                                onClick={onResetFilters}
+                                className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl border border-transparent px-3 text-sm font-extrabold text-muted transition-colors hover:border-border-strong hover:bg-surface-hover hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                            >
+                                {t('table.resetFilters')}
+                            </button>
+                        ) : null}
+                        {filterErrors.dateRange ? (
+                            <span role="alert" className="basis-full text-xs text-danger-text">
+                                {t(filterErrors.dateRange)}
+                            </span>
+                        ) : null}
+                    </form>
+                </div>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="w-full min-w-[72rem] border-collapse">
+                    <thead className="bg-surface-subtle font-mono text-[0.62rem] tracking-[0.07em] text-muted uppercase">
+                        <tr>
+                            {(
+                                [
+                                    'time',
+                                    'actor',
+                                    'action',
+                                    'resource',
+                                    'target',
+                                    'result',
+                                    'details',
+                                ] as const
+                            ).map((column) => (
+                                <th
+                                    key={column}
+                                    scope="col"
+                                    className="border-b border-border px-4 py-[0.85rem] text-left"
+                                >
+                                    {t(`admin.auditLogs.columns.${column}`)}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    {isLoading ? <LoadingRows /> : null}
+                    {!isLoading && events.length === 0 ? (
+                        <tbody>
+                            <tr>
+                                <td
+                                    colSpan={7}
+                                    aria-label={t('admin.auditLogs.table.emptyTitle')}
+                                    className="px-5 py-14"
+                                >
+                                    <div className="mx-auto flex max-w-md flex-col items-center text-center">
+                                        <span
+                                            className="mb-4 size-2.5 rounded-full bg-brand-500 shadow-[0_0_0_6px_rgb(48_238_97_/_12%)]"
+                                            aria-hidden="true"
+                                        />
+                                        <h3 className="text-base font-extrabold text-ink-soft">
+                                            {t('admin.auditLogs.table.emptyTitle')}
+                                        </h3>
+                                        <p className="mt-1.5 text-sm leading-relaxed text-muted">
+                                            {hasActiveFilters
+                                                ? t(
+                                                      'admin.auditLogs.table.filteredEmptyDescription',
+                                                  )
+                                                : t('admin.auditLogs.table.emptyDescription')}
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    ) : null}
+                    {!isLoading && events.length > 0 ? (
+                        <tbody>
+                            {events.map((event) => {
+                                const eventId = auditEventKey(event)
+                                const expanded = expandedEventId === eventId
+                                const detailsId = `audit-log-details-${eventId}`
+                                return (
+                                    <Fragment key={eventId}>
+                                        <tr className="border-b border-border transition-colors last:border-b-0 hover:bg-surface-hover">
+                                            <td className="px-4 py-[0.85rem] align-middle text-[0.78rem] text-ink-soft">
+                                                <button
+                                                    type="button"
+                                                    aria-expanded={expanded}
+                                                    aria-controls={detailsId}
+                                                    aria-label={t(
+                                                        expanded
+                                                            ? 'admin.auditLogs.actions.hideDetails'
+                                                            : 'admin.auditLogs.actions.showDetails',
+                                                    )}
+                                                    className="cursor-pointer rounded-md text-left outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                                    onClick={() => onToggleDetails(eventId)}
+                                                >
+                                                    <time
+                                                        dateTime={event.timestamp}
+                                                        className="whitespace-nowrap text-muted"
+                                                    >
+                                                        {formatTimestamp(event.timestamp)}
+                                                    </time>
+                                                </button>
+                                            </td>
+                                            <td className="max-w-48 break-words px-4 py-[0.85rem] align-middle text-[0.78rem] text-ink-soft">
+                                                <span className="font-extrabold">
+                                                    {formatAuditActor(event)}
+                                                </span>
+                                                {event.actorUserId && event.actorDisplayName ? (
+                                                    <Tooltip content={event.actorUserId}>
+                                                        <span
+                                                            aria-label={event.actorUserId}
+                                                            className="mt-1 block max-w-48 truncate font-mono text-[0.68rem] text-muted"
+                                                        >
+                                                            {event.actorUserId}
+                                                        </span>
+                                                    </Tooltip>
+                                                ) : null}
+                                            </td>
+                                            <td className="px-4 py-[0.85rem] align-middle text-xs font-extrabold text-ink-soft">
+                                                {t(
+                                                    `admin.auditLogs.values.actions.${event.action}`,
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-[0.85rem] align-middle text-xs text-muted">
+                                                {t(
+                                                    `admin.auditLogs.values.resources.${event.resource}`,
+                                                )}
+                                            </td>
+                                            <td className="max-w-48 break-all px-4 py-[0.85rem] align-middle font-mono text-xs text-muted">
+                                                {event.targetId ?? '—'}
+                                            </td>
+                                            <td className="px-4 py-[0.85rem] align-middle">
+                                                <span
+                                                    className={`inline-flex rounded-full border px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold ${resultClassName(event.result)}`}
+                                                >
+                                                    {t(
+                                                        `admin.auditLogs.values.results.${event.result}`,
+                                                    )}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-[0.85rem] align-middle">
+                                                <button
+                                                    type="button"
+                                                    aria-expanded={expanded}
+                                                    aria-controls={detailsId}
+                                                    className="cursor-pointer text-xs font-extrabold text-brand-text underline decoration-brand-500/40 underline-offset-4 outline-hidden hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                                    onClick={() => onToggleDetails(eventId)}
+                                                >
+                                                    {t(
+                                                        expanded
+                                                            ? 'admin.auditLogs.actions.hideDetails'
+                                                            : 'admin.auditLogs.actions.showDetails',
+                                                    )}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {expanded ? (
+                                            <tr
+                                                id={detailsId}
+                                                className="border-b border-border bg-surface-subtle"
+                                            >
+                                                <td
+                                                    colSpan={7}
+                                                    aria-label={t(
+                                                        'admin.auditLogs.actions.showDetails',
+                                                    )}
+                                                    className="px-4 py-3"
+                                                >
+                                                    <MetadataDetails event={event} />
+                                                </td>
+                                            </tr>
+                                        ) : null}
+                                    </Fragment>
+                                )
+                            })}
+                        </tbody>
+                    ) : null}
+                </table>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-border bg-surface-subtle px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p aria-live="polite" className="text-xs text-muted">
+                    <span className="font-extrabold text-ink-soft">
+                        {t('admin.auditLogs.pagination.pageSummary', {
+                            count: events.length,
+                        })}
+                    </span>
+                </p>
+                <nav
+                    aria-label={t('admin.auditLogs.pagination.label')}
+                    className="flex items-center justify-between gap-2 sm:justify-end"
+                >
+                    <p className="mr-1 min-w-20 text-center text-xs text-muted" aria-live="polite">
+                        {t('admin.auditLogs.pagination.page', { page: pageNumber })}
+                    </p>
+                    <button
+                        type="button"
+                        className="inline-flex size-9 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
+                        onClick={onPreviousPage}
+                        disabled={pageNumber === 1 || isRefreshing}
+                        aria-label={t('admin.auditLogs.pagination.previous')}
+                    >
+                        <ChevronLeft aria-hidden="true" className="size-4" />
+                    </button>
+                    <button
+                        type="button"
+                        className="inline-flex size-9 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
+                        onClick={onNextPage}
+                        disabled={!hasMore || isRefreshing}
+                        aria-label={t('admin.auditLogs.pagination.next')}
+                    >
+                        <ChevronRight aria-hidden="true" className="size-4" />
+                    </button>
+                </nav>
+            </div>
+        </section>
+    )
+}

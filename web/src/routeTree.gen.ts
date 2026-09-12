@@ -14,6 +14,7 @@ import { Route as PublicRouteRouteImport } from './routes/_public/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedAccessPoliciesRouteImport } from './routes/_authenticated/access-policies'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
+import { Route as AuthenticatedAuditLogsRouteImport } from './routes/_authenticated/audit-logs'
 import { Route as AuthenticatedCertificatesRouteImport } from './routes/_authenticated/certificates'
 import { Route as AuthenticatedProxyAccessLogsRouteImport } from './routes/_authenticated/proxy-access-logs'
 import { Route as AuthenticatedProxyHostsRouteImport } from './routes/_authenticated/proxy-hosts'
@@ -53,6 +54,11 @@ const AuthenticatedAccessPoliciesRoute =
 const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAuditLogsRoute = AuthenticatedAuditLogsRouteImport.update({
+  id: '/audit-logs',
+  path: '/audit-logs',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCertificatesRoute =
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/access-policies': typeof AuthenticatedAccessPoliciesRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/audit-logs': typeof AuthenticatedAuditLogsRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/access-policies': typeof AuthenticatedAccessPoliciesRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/audit-logs': typeof AuthenticatedAuditLogsRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
@@ -186,6 +194,7 @@ export interface FileRoutesById {
   '/_public': typeof PublicRouteRouteWithChildren
   '/_authenticated/access-policies': typeof AuthenticatedAccessPoliciesRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
+  '/_authenticated/audit-logs': typeof AuthenticatedAuditLogsRoute
   '/_authenticated/certificates': typeof AuthenticatedCertificatesRoute
   '/_authenticated/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/_authenticated/proxy-hosts': typeof AuthenticatedProxyHostsRoute
@@ -210,6 +219,7 @@ export interface FileRouteTypes {
     | '/'
     | '/access-policies'
     | '/account'
+    | '/audit-logs'
     | '/certificates'
     | '/proxy-access-logs'
     | '/proxy-hosts'
@@ -231,6 +241,7 @@ export interface FileRouteTypes {
     | '/'
     | '/access-policies'
     | '/account'
+    | '/audit-logs'
     | '/certificates'
     | '/proxy-access-logs'
     | '/proxy-hosts'
@@ -252,6 +263,7 @@ export interface FileRouteTypes {
     | '/_public'
     | '/_authenticated/access-policies'
     | '/_authenticated/account'
+    | '/_authenticated/audit-logs'
     | '/_authenticated/certificates'
     | '/_authenticated/proxy-access-logs'
     | '/_authenticated/proxy-hosts'
@@ -314,6 +326,13 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/account'
       preLoaderRoute: typeof AuthenticatedAccountRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/audit-logs': {
+      id: '/_authenticated/audit-logs'
+      path: '/audit-logs'
+      fullPath: '/audit-logs'
+      preLoaderRoute: typeof AuthenticatedAuditLogsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/certificates': {
@@ -434,6 +453,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccessPoliciesRoute: typeof AuthenticatedAccessPoliciesRoute
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
+  AuthenticatedAuditLogsRoute: typeof AuthenticatedAuditLogsRoute
   AuthenticatedCertificatesRoute: typeof AuthenticatedCertificatesRoute
   AuthenticatedProxyAccessLogsRoute: typeof AuthenticatedProxyAccessLogsRoute
   AuthenticatedProxyHostsRoute: typeof AuthenticatedProxyHostsRoute
@@ -446,6 +466,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccessPoliciesRoute: AuthenticatedAccessPoliciesRoute,
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
+  AuthenticatedAuditLogsRoute: AuthenticatedAuditLogsRoute,
   AuthenticatedCertificatesRoute: AuthenticatedCertificatesRoute,
   AuthenticatedProxyAccessLogsRoute: AuthenticatedProxyAccessLogsRoute,
   AuthenticatedProxyHostsRoute: AuthenticatedProxyHostsRoute,

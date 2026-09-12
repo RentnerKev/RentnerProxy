@@ -32,7 +32,9 @@ import {
     readProxyHostHttpSettings,
     writeProxyHostHttpSettings,
 } from './proxy-runtime-settings'
-import { reconcileProxyConfigurationService } from './proxy-runtime.service'
+import { reconcileProxyConfigurationWithAudit } from './proxy-runtime.service'
+import { appendAuditEventInTransaction } from '../Audit/audit.service'
+import { recordMutationFailureBestEffort } from './audit-mutation'
 
 async function readHostEditorState(transaction: AuthTransaction, proxyHostId: string) {
     const host = await readProxyRuntimeHost(transaction, proxyHostId)
@@ -130,20 +132,49 @@ async function saveHostSettings(
     proxyHostId: string,
     baseRevision: string,
     settings: ProxyHttpSettings,
+    action: 'save' | 'reset',
 ): Promise<{ readonly enabled: boolean; readonly runtimeStatus: ProxyRuntimeMutationStatus }> {
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_UPDATE)
     await requirePermissionService(PERMISSIONS.PROXY_HOSTS_APPLY)
-    const enabled = await getAuthDatabase().transaction(async (transaction) => {
-        await lockProxyRuntimeSettings(transaction)
-        await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.PROXY_HOSTS_UPDATE)
-        await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.PROXY_HOSTS_APPLY)
-        const latest = await readHostEditorState(transaction, proxyHostId)
-        if (latest.baseRevision !== baseRevision)
-            throw new ProxyConfigEditorError('configuration_conflict')
-        await writeProxyHostHttpSettings(transaction, proxyHostId, settings)
-        return latest.host.enabled
-    })
-    return { enabled, runtimeStatus: await reconcileProxyConfigurationService() }
+    let enabled: boolean
+    try {
+        enabled = await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
+            await requirePermissionInTransaction(
+                transaction,
+                actor.id,
+                PERMISSIONS.PROXY_HOSTS_UPDATE,
+            )
+            await requirePermissionInTransaction(
+                transaction,
+                actor.id,
+                PERMISSIONS.PROXY_HOSTS_APPLY,
+            )
+            const latest = await readHostEditorState(transaction, proxyHostId)
+            if (latest.baseRevision !== baseRevision)
+                throw new ProxyConfigEditorError('configuration_conflict')
+            await writeProxyHostHttpSettings(transaction, proxyHostId, settings)
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action,
+                resource: 'proxy-host-settings',
+                targetId: proxyHostId,
+                result: 'success',
+            })
+            return latest.host.enabled
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action,
+            resource: 'proxy-host-settings',
+            targetId: proxyHostId,
+            error,
+        })
+        throw error
+    }
+    return { enabled, runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
 }
 
 export async function saveProxyHostConfigEditorService(
@@ -156,6 +187,7 @@ export async function saveProxyHostConfigEditorService(
         parsed.proxyHostId,
         parsed.baseRevision,
         normalizeProxyHostHttpSettings(parsed.settings),
+        'save',
     )
 }
 
@@ -165,5 +197,5 @@ export async function resetProxyHostConfigEditorService(
     await requirePermissionService(PERMISSIONS.PROXY_HOSTS_UPDATE)
     await requirePermissionService(PERMISSIONS.PROXY_HOSTS_APPLY)
     const parsed = proxyHostConfigEditorResetSchema.parse(input)
-    return saveHostSettings(parsed.proxyHostId, parsed.baseRevision, {})
+    return saveHostSettings(parsed.proxyHostId, parsed.baseRevision, {}, 'reset')
 }

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { requestHandler } from '@tanstack/react-start/server'
-import { and, eq, inArray, like, notLike } from 'drizzle-orm'
+import { and, eq, gte, inArray, like, notLike } from 'drizzle-orm'
 import * as OTPAuth from 'otpauth'
 
 import { SESSION_COOKIE_NAME } from '../config/auth.config'
@@ -22,6 +22,7 @@ import {
     type PermissionKey,
 } from '../config/permissions.config'
 import {
+    auditEvents,
     passwordResetTokens,
     passkeys,
     permissions,
@@ -472,6 +473,22 @@ describe('login with PostgreSQL', () => {
         expect(storedSession.userId).toBe(user.id)
         expect(storedSession.tokenHash).toBe(await hashOpaqueToken(result.session.token))
         expect(storedSession.tokenHash).not.toContain(result.session.token)
+        const events = await getAuthDatabase()
+            .select()
+            .from(auditEvents)
+            .where(eq(auditEvents.targetId, result.session.id))
+        expect(events).toHaveLength(1)
+        expect(events[0]).toMatchObject({
+            actorUserId: user.id,
+            actorKind: 'user',
+            action: 'login',
+            resource: 'session',
+            result: 'success',
+            metadata: { authenticationMethod: 'password' },
+        })
+        expect(JSON.stringify(events)).not.toContain(result.session.token)
+        expect(JSON.stringify(events)).not.toContain(CURRENT_PASSWORD)
+        expect(JSON.stringify(events)).not.toContain(user.email)
     })
 
     integrationTest('returns the same denial for wrong, unknown, and disabled users', async () => {
@@ -480,6 +497,7 @@ describe('login with PostgreSQL', () => {
             email: testEmail('login-disabled'),
             status: 'disabled',
         })
+        const attemptsStartedAt = new Date()
         const wrongPassword = await loginService({
             email: active.email,
             password: 'a definitely incorrect password',
@@ -501,6 +519,29 @@ describe('login with PostgreSQL', () => {
         expect(unknownUser).toEqual({ success: false, code: 'invalid_credentials' })
         expect(disabledUser).toEqual({ success: false, code: 'invalid_credentials' })
         expect(storedSessions).toEqual([])
+        const failedLogins = await getAuthDatabase()
+            .select()
+            .from(auditEvents)
+            .where(
+                and(
+                    gte(auditEvents.createdAt, attemptsStartedAt),
+                    eq(auditEvents.action, 'login'),
+                    eq(auditEvents.result, 'failure'),
+                ),
+            )
+        expect(failedLogins).toHaveLength(3)
+        for (const event of failedLogins) {
+            expect(event).toMatchObject({
+                actorKind: 'anonymous',
+                actorUserId: null,
+                targetId: null,
+                resource: 'session',
+                metadata: { authenticationMethod: 'password', reason: 'authentication_failed' },
+            })
+        }
+        expect(JSON.stringify(failedLogins)).not.toContain(active.email)
+        expect(JSON.stringify(failedLogins)).not.toContain(disabled.email)
+        expect(JSON.stringify(failedLogins)).not.toContain(CURRENT_PASSWORD)
     })
 })
 
@@ -526,6 +567,19 @@ describe('sessions with PostgreSQL', () => {
         expect(await revokeSessionByTokenService(revokedSession.token)).toBeTrue()
         expect(await revokeSessionByTokenService(revokedSession.token)).toBeFalse()
         expect(await getSessionByTokenService(revokedSession.token)).toBeNull()
+        const logoutEvents = await getAuthDatabase()
+            .select()
+            .from(auditEvents)
+            .where(
+                and(eq(auditEvents.targetId, revokedSession.id), eq(auditEvents.action, 'logout')),
+            )
+        expect(logoutEvents).toHaveLength(1)
+        expect(logoutEvents[0]).toMatchObject({
+            actorUserId: user.id,
+            resource: 'session',
+            result: 'success',
+        })
+        expect(JSON.stringify(logoutEvents)).not.toContain(revokedSession.token)
     })
 
     integrationTest('denies an existing session after app access is removed', async () => {
@@ -1031,6 +1085,21 @@ describe('password reset with PostgreSQL', () => {
 
         expect(updatedUser.passwordHash).not.toBeNull()
         expect(await verifyPassword(NEW_PASSWORD, updatedUser.passwordHash ?? '')).toBeTrue()
+        const resetEvents = await getAuthDatabase()
+            .select()
+            .from(auditEvents)
+            .where(
+                and(
+                    eq(auditEvents.targetId, user.id),
+                    eq(auditEvents.resource, 'password'),
+                    eq(auditEvents.action, 'reset'),
+                ),
+            )
+        expect(resetEvents).toHaveLength(1)
+        expect(resetEvents[0]?.result).toBe('success')
+        expect(JSON.stringify(resetEvents)).not.toContain(NEW_PASSWORD)
+        expect(JSON.stringify(resetEvents)).not.toContain(activeDelivery.token)
+        expect(JSON.stringify(resetEvents)).not.toContain(updatedUser.passwordHash ?? 'unreachable')
     })
 
     integrationTest('keeps issued links usable until one password reset succeeds', async () => {
@@ -1069,6 +1138,36 @@ describe('password reset with PostgreSQL', () => {
 })
 
 describe('user invites with PostgreSQL', () => {
+    integrationTest(
+        'records a permission-denied invitation without submitted identity data',
+        async () => {
+            const viewer = await createTestUser()
+            const invitedEmail = testEmail('denied-invitation')
+            await expect(
+                runAsUser(viewer.id, () =>
+                    issueInviteService({
+                        email: invitedEmail,
+                        roleKeys: [SYSTEM_ROLES.VIEWER],
+                    }),
+                ),
+            ).rejects.toMatchObject({ code: 'permission_denied' })
+            const deniedEvents = await getAuthDatabase()
+                .select()
+                .from(auditEvents)
+                .where(
+                    and(eq(auditEvents.actorUserId, viewer.id), eq(auditEvents.resource, 'invite')),
+                )
+            expect(deniedEvents).toHaveLength(1)
+            expect(deniedEvents[0]).toMatchObject({
+                action: 'create',
+                result: 'denied',
+                targetId: null,
+                metadata: { failureCode: 'permission_denied' },
+            })
+            expect(JSON.stringify(deniedEvents)).not.toContain(invitedEmail)
+        },
+    )
+
     integrationTest('rejects unknown capabilities before password hashing', async () => {
         expect(
             await acceptInviteService({
@@ -1454,6 +1553,16 @@ describe('account security with PostgreSQL and Redis', () => {
                     .select({ id: sessions.id })
                     .from(sessions)
                     .where(eq(sessions.userId, user.id))
+                const auditLoginsBeforeChallenge = await getAuthDatabase()
+                    .select({ id: auditEvents.id })
+                    .from(auditEvents)
+                    .where(
+                        and(
+                            eq(auditEvents.actorUserId, user.id),
+                            eq(auditEvents.action, 'login'),
+                            eq(auditEvents.result, 'success'),
+                        ),
+                    )
                 const passwordLogin = await loginService({
                     email: user.email,
                     password: CURRENT_PASSWORD,
@@ -1468,6 +1577,17 @@ describe('account security with PostgreSQL and Redis', () => {
                     throw new Error('Password login did not create an MFA challenge.')
                 }
                 expect(sessionsAfterPasswordLogin).toHaveLength(sessionsBeforePasswordLogin.length)
+                const auditLoginsAfterChallenge = await getAuthDatabase()
+                    .select({ id: auditEvents.id })
+                    .from(auditEvents)
+                    .where(
+                        and(
+                            eq(auditEvents.actorUserId, user.id),
+                            eq(auditEvents.action, 'login'),
+                            eq(auditEvents.result, 'success'),
+                        ),
+                    )
+                expect(auditLoginsAfterChallenge).toEqual(auditLoginsBeforeChallenge)
 
                 const recoveryLogin = await completeLoginMfaWithRecoveryCodeService({
                     challengeId: passwordLogin.challenge.id,
@@ -1483,6 +1603,19 @@ describe('account security with PostgreSQL and Redis', () => {
                 if (!recoveryLogin.success) {
                     throw new Error('Recovery-code login unexpectedly failed.')
                 }
+                const recoveryAudit = await getAuthDatabase()
+                    .select()
+                    .from(auditEvents)
+                    .where(eq(auditEvents.targetId, recoveryLogin.session.id))
+                expect(recoveryAudit).toHaveLength(1)
+                expect(recoveryAudit[0]?.metadata).toEqual({
+                    authenticationMethod: 'recovery-code',
+                })
+                const auditJson = JSON.stringify(recoveryAudit)
+                expect(auditJson).not.toContain(setup.secret)
+                expect(auditJson).not.toContain(recoveryLogin.session.token)
+                for (const recoveryCode of activation.recoveryCodes)
+                    expect(auditJson).not.toContain(recoveryCode)
                 const currentSession = await getSessionByTokenService(recoveryLogin.session.token)
                 if (!currentSession) {
                     throw new Error('MFA session was not persisted.')

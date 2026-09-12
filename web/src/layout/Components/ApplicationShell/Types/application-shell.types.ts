@@ -37,6 +37,7 @@ export interface ApplicationNavigationItem {
         | '/certificates'
         | '/access-policies'
         | '/proxy-access-logs'
+        | '/audit-logs'
         | '/roles'
         | '/users'
 }

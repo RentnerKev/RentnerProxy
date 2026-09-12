@@ -19,6 +19,8 @@ import {
     normalizeKeys,
     requirePermissionInTransaction,
 } from '../../Auth/Access/rbac.service'
+import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
 
 const roleKeyPattern = /^[a-z][a-z0-9_.-]{1,99}$/
 const systemRoleKeys = new Set<string>(SYSTEM_ROLE_REGISTRY.map((role) => role.key))
@@ -225,12 +227,29 @@ export async function createRoleService(input: {
 
             await replaceRolePermissionsInTransaction(transaction, role.id, selectedPermissions)
 
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'create',
+                resource: 'role',
+                targetId: role.id,
+                result: 'success',
+                metadata: { count: selectedPermissions.length },
+            })
+
             return {
                 ...role,
                 permissionKeys: selectedPermissions.map((permission) => permission.key),
             }
         })
     } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'create',
+            resource: 'role',
+            targetId: null,
+            error,
+        })
         if (isUniqueConstraintViolation(error)) {
             throw new AuthDomainError('invalid_input', 'Role key is already in use.')
         }
@@ -259,132 +278,185 @@ export async function updateRoleService(input: {
         input.description === undefined ? undefined : normalizeRoleDescription(input.description)
     const db = getAuthDatabase()
 
-    return db.transaction(async (transaction) => {
-        const transactionActor = await requirePermissionInTransaction(
-            transaction,
-            actor.id,
-            PERMISSIONS.ROLES_UPDATE,
-        )
-        const roleRows = await transaction
-            .select({
-                createdAt: roles.createdAt,
-                description: roles.description,
-                id: roles.id,
-                isSystem: roles.isSystem,
-                key: roles.key,
-                name: roles.name,
-                updatedAt: roles.updatedAt,
-            })
-            .from(roles)
-            .where(eq(roles.id, input.roleId))
-            .limit(1)
-            .for('update')
-        const role = roleRows.at(0)
-
-        if (!role) {
-            throw new AuthDomainError('role_not_found', 'Role was not found.')
-        }
-
-        if (role.isSystem) {
-            throw new AuthDomainError('system_role_immutable', 'System roles cannot be changed.')
-        }
-
-        let selectedPermissions: Awaited<
-            ReturnType<typeof loadPermissionsByKeysInTransaction>
-        > | null = null
-
-        if (input.permissionKeys !== undefined) {
-            await requirePermissionInTransaction(
+    try {
+        return await db.transaction(async (transaction) => {
+            const transactionActor = await requirePermissionInTransaction(
                 transaction,
                 actor.id,
-                PERMISSIONS.ROLES_ASSIGN_PERMISSIONS,
+                PERMISSIONS.ROLES_UPDATE,
             )
-            selectedPermissions = await loadPermissionsByKeysInTransaction(
-                transaction,
-                input.permissionKeys,
-            )
-            assertPermissionAssignmentAllowed(transactionActor, selectedPermissions)
-        }
+            const roleRows = await transaction
+                .select({
+                    createdAt: roles.createdAt,
+                    description: roles.description,
+                    id: roles.id,
+                    isSystem: roles.isSystem,
+                    key: roles.key,
+                    name: roles.name,
+                    updatedAt: roles.updatedAt,
+                })
+                .from(roles)
+                .where(eq(roles.id, input.roleId))
+                .limit(1)
+                .for('update')
+            const role = roleRows.at(0)
 
-        const updatedRows = await transaction
-            .update(roles)
-            .set({
-                ...(normalizedDescription === undefined
-                    ? {}
-                    : { description: normalizedDescription }),
-                ...(normalizedName === undefined ? {} : { name: normalizedName }),
-                updatedAt: new Date(),
+            if (!role) {
+                throw new AuthDomainError('role_not_found', 'Role was not found.')
+            }
+
+            if (role.isSystem) {
+                throw new AuthDomainError(
+                    'system_role_immutable',
+                    'System roles cannot be changed.',
+                )
+            }
+
+            let selectedPermissions: Awaited<
+                ReturnType<typeof loadPermissionsByKeysInTransaction>
+            > | null = null
+
+            if (input.permissionKeys !== undefined) {
+                await requirePermissionInTransaction(
+                    transaction,
+                    actor.id,
+                    PERMISSIONS.ROLES_ASSIGN_PERMISSIONS,
+                )
+                selectedPermissions = await loadPermissionsByKeysInTransaction(
+                    transaction,
+                    input.permissionKeys,
+                )
+                assertPermissionAssignmentAllowed(transactionActor, selectedPermissions)
+            }
+
+            const updatedRows = await transaction
+                .update(roles)
+                .set({
+                    ...(normalizedDescription === undefined
+                        ? {}
+                        : { description: normalizedDescription }),
+                    ...(normalizedName === undefined ? {} : { name: normalizedName }),
+                    updatedAt: new Date(),
+                })
+                .where(eq(roles.id, role.id))
+                .returning({
+                    createdAt: roles.createdAt,
+                    description: roles.description,
+                    id: roles.id,
+                    isSystem: roles.isSystem,
+                    key: roles.key,
+                    name: roles.name,
+                    updatedAt: roles.updatedAt,
+                })
+            const updatedRole = updatedRows.at(0)
+
+            if (!updatedRole) {
+                throw new AuthDomainError('role_not_found', 'Role was not found.')
+            }
+
+            if (selectedPermissions) {
+                await replaceRolePermissionsInTransaction(transaction, role.id, selectedPermissions)
+            }
+
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'update',
+                resource: 'role',
+                targetId: role.id,
+                result: 'success',
+                metadata: {
+                    changedFields: [
+                        ...(normalizedName === undefined ? [] : (['name'] as const)),
+                        ...(normalizedDescription === undefined ? [] : (['description'] as const)),
+                        ...(selectedPermissions === null ? [] : (['permissions'] as const)),
+                    ],
+                    ...(selectedPermissions === null ? {} : { count: selectedPermissions.length }),
+                },
             })
-            .where(eq(roles.id, role.id))
-            .returning({
-                createdAt: roles.createdAt,
-                description: roles.description,
-                id: roles.id,
-                isSystem: roles.isSystem,
-                key: roles.key,
-                name: roles.name,
-                updatedAt: roles.updatedAt,
-            })
-        const updatedRole = updatedRows.at(0)
 
-        if (!updatedRole) {
-            throw new AuthDomainError('role_not_found', 'Role was not found.')
-        }
+            const effectivePermissionRows =
+                selectedPermissions ??
+                (await transaction
+                    .select({ id: permissions.id, key: permissions.key })
+                    .from(rolePermissions)
+                    .innerJoin(permissions, eq(permissions.id, rolePermissions.permissionId))
+                    .where(eq(rolePermissions.roleId, role.id)))
 
-        if (selectedPermissions) {
-            await replaceRolePermissionsInTransaction(transaction, role.id, selectedPermissions)
-        }
-
-        const effectivePermissionRows =
-            selectedPermissions ??
-            (await transaction
-                .select({ id: permissions.id, key: permissions.key })
-                .from(rolePermissions)
-                .innerJoin(permissions, eq(permissions.id, rolePermissions.permissionId))
-                .where(eq(rolePermissions.roleId, role.id)))
-
-        return {
-            ...updatedRole,
-            permissionKeys: effectivePermissionRows
-                .map((permission) => permission.key)
-                .filter(isRegisteredPermissionKey),
-        }
-    })
+            return {
+                ...updatedRole,
+                permissionKeys: effectivePermissionRows
+                    .map((permission) => permission.key)
+                    .filter(isRegisteredPermissionKey),
+            }
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'update',
+            resource: 'role',
+            targetId: input.roleId,
+            error,
+        })
+        throw error
+    }
 }
 
 export async function deleteRoleService(roleId: string): Promise<void> {
     const actor = await requirePermissionService(PERMISSIONS.ROLES_DELETE)
     const db = getAuthDatabase()
 
-    await db.transaction(async (transaction) => {
-        await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.ROLES_DELETE)
-        const roleRows = await transaction
-            .select({ id: roles.id, isSystem: roles.isSystem })
-            .from(roles)
-            .where(eq(roles.id, roleId))
-            .limit(1)
-            .for('update')
-        const role = roleRows.at(0)
+    try {
+        await db.transaction(async (transaction) => {
+            await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.ROLES_DELETE)
+            const roleRows = await transaction
+                .select({ id: roles.id, isSystem: roles.isSystem })
+                .from(roles)
+                .where(eq(roles.id, roleId))
+                .limit(1)
+                .for('update')
+            const role = roleRows.at(0)
 
-        if (!role) {
-            throw new AuthDomainError('role_not_found', 'Role was not found.')
-        }
+            if (!role) {
+                throw new AuthDomainError('role_not_found', 'Role was not found.')
+            }
 
-        if (role.isSystem) {
-            throw new AuthDomainError('system_role_immutable', 'System roles cannot be deleted.')
-        }
+            if (role.isSystem) {
+                throw new AuthDomainError(
+                    'system_role_immutable',
+                    'System roles cannot be deleted.',
+                )
+            }
 
-        const assignments = await transaction
-            .select({ userId: userRoles.userId })
-            .from(userRoles)
-            .where(eq(userRoles.roleId, role.id))
-            .limit(1)
-            .for('share')
+            const assignments = await transaction
+                .select({ userId: userRoles.userId })
+                .from(userRoles)
+                .where(eq(userRoles.roleId, role.id))
+                .limit(1)
+                .for('share')
 
-        if (assignments.length > 0) {
-            throw new AuthDomainError('role_in_use', 'Assigned roles cannot be deleted.')
-        }
+            if (assignments.length > 0) {
+                throw new AuthDomainError('role_in_use', 'Assigned roles cannot be deleted.')
+            }
 
-        await transaction.delete(roles).where(eq(roles.id, role.id))
-    })
+            await transaction.delete(roles).where(eq(roles.id, role.id))
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'delete',
+                resource: 'role',
+                targetId: role.id,
+                result: 'success',
+            })
+        })
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'delete',
+            resource: 'role',
+            targetId: roleId,
+            error,
+        })
+        throw error
+    }
 }
