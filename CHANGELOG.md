@@ -16,6 +16,8 @@ user-visible changes, not a raw commit log.
 
 - Serialized database startup migrations and authorization synchronization, with retry coverage.
 - Added actual Alpha 1 appliance upgrade, repeated startup and backup/restore verification.
+- Restoring an older backup replaces newer application-schema objects in the same transaction;
+  a failed SQL restore preserves the previous database.
 - Bounded release-validation test subprocesses and aligned the CI Bun version with the appliance.
 
 ### Upgrade notes and limitations
