@@ -31,6 +31,7 @@ jobs:
             head_repository: ${{ steps.gate.outputs.head_repository }}
             head_sha: ${{ steps.gate.outputs.head_sha }}
             immutable_tag: ${{ steps.gate.outputs.immutable_tag }}
+            lifecycle: ${{ steps.gate.outputs.lifecycle }}
             pr_number: ${{ steps.gate.outputs.pr_number }}
             repository: ${{ steps.gate.outputs.repository }}
             tested_sha: ${{ steps.gate.outputs.tested_sha }}
