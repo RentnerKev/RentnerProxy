@@ -36,7 +36,7 @@ export default function TableHead<TData extends RowData>({ table }: TableHeadPro
                                             key={header.id}
                                             scope="col"
                                             aria-sort={ariaSort}
-                                            className="h-12 border-b border-border px-4 py-0 text-left align-middle font-bold"
+                                            className={`h-12 border-b border-border px-4 py-0 align-middle font-bold ${header.column.id === 'actions' ? 'sticky right-0 bg-surface-subtle text-right' : 'text-left'}`}
                                         >
                                             {header.isPlaceholder ? null : canSort ? (
                                                 <button

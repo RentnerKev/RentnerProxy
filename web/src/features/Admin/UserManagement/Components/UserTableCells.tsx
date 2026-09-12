@@ -22,13 +22,15 @@ export function UserNameCell({ user }: UserNameCellProps) {
                 profileImageVersion={user.profileImageVersion}
                 userId={user.id}
             />
-            <span className="font-extrabold text-ink-soft">{user.displayName}</span>
+            <span className="min-w-0 max-w-64 wrap-anywhere font-extrabold text-ink-soft">
+                {user.displayName}
+            </span>
         </div>
     )
 }
 
 export function UserEmailCell({ value }: UserEmailCellProps) {
-    return <span className="text-muted">{value}</span>
+    return <span className="block max-w-64 wrap-anywhere text-muted">{value}</span>
 }
 
 export function UserStatusCell({ value }: UserStatusCellProps) {

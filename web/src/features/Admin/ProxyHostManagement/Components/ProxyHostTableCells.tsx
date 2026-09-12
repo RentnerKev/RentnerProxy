@@ -74,7 +74,7 @@ export function ProxyHostForwardCell({
     const { t } = useTranslationStore()
     return (
         <div className="grid justify-items-start gap-2">
-            <span className="whitespace-nowrap font-mono text-[0.72rem] text-muted">
+            <span className="block max-w-64 wrap-anywhere font-mono text-[0.72rem] text-muted">
                 {formatProxyHostForward(forwardScheme, forwardHost, forwardPort)}
             </span>
             {forwardScheme === 'https' && verifyUpstreamTls === false ? (

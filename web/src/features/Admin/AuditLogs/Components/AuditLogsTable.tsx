@@ -290,7 +290,16 @@ export default function AuditLogsTable({
             }
         >
             <div className="overflow-x-auto">
-                <table className="w-full min-w-[72rem] border-collapse">
+                <table className="w-full min-w-[60rem] table-fixed border-collapse">
+                    <colgroup>
+                        <col className="w-44" />
+                        <col className="w-48" />
+                        <col className="w-28" />
+                        <col className="w-28" />
+                        <col />
+                        <col className="w-28" />
+                        <col className="w-24" />
+                    </colgroup>
                     <thead className="bg-surface-subtle font-mono text-[0.62rem] tracking-[0.07em] text-muted uppercase">
                         <tr>
                             {(
@@ -307,7 +316,7 @@ export default function AuditLogsTable({
                                 <th
                                     key={column}
                                     scope="col"
-                                    className="border-b border-border px-4 py-[0.85rem] text-left"
+                                    className={`h-12 border-b border-border px-4 py-0 ${column === 'details' ? 'sticky right-0 bg-surface-subtle text-right' : 'text-left'}`}
                                 >
                                     {column === 'details'
                                         ? t('common.actions')
@@ -352,7 +361,7 @@ export default function AuditLogsTable({
                                                     {formatTimestamp(event.timestamp)}
                                                 </time>
                                             </td>
-                                            <td className="max-w-48 break-words px-4 py-[0.85rem] align-middle text-[0.78rem] text-ink-soft">
+                                            <td className="max-w-48 [overflow-wrap:anywhere] px-4 py-[0.85rem] align-middle text-[0.78rem] text-ink-soft">
                                                 <span className="font-extrabold">
                                                     {formatAuditActor(event)}
                                                 </span>
@@ -389,7 +398,7 @@ export default function AuditLogsTable({
                                                     )}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-[0.85rem] align-middle">
+                                            <td className="sticky right-0 bg-surface px-4 py-[0.85rem] align-middle text-right">
                                                 <ActionMenu
                                                     openOnHover
                                                     items={[

@@ -51,7 +51,7 @@ export const uiClassNames = {
         description: 'font-mono text-[0.62rem] text-muted',
     },
     table: {
-        panel: 'overflow-hidden rounded-2xl border border-border bg-surface shadow-surface',
+        panel: 'min-w-0 overflow-hidden rounded-2xl border border-border bg-surface shadow-surface',
         code: 'rounded-[0.3rem] bg-code px-[0.35rem] py-[0.18rem] text-[0.7rem] text-ink-soft',
         compactAction: 'px-3',
     },

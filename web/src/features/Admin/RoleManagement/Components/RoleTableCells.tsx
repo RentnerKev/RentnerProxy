@@ -17,10 +17,12 @@ export function RoleNameCell({ name, roleKey, isSystem }: RoleNameCellProps) {
     const { t } = useTranslationStore()
     return (
         <div className="grid gap-1">
-            <span className="font-extrabold text-ink-soft">
+            <span className="block max-w-64 wrap-anywhere font-extrabold text-ink-soft">
                 {isSystem ? t(`systemRoles.${roleKey}.name`) : name}
             </span>
-            <code className={`${uiClassNames.table.code} w-fit`}>{roleKey}</code>
+            <code className={`${uiClassNames.table.code} block w-fit max-w-64 wrap-anywhere`}>
+                {roleKey}
+            </code>
         </div>
     )
 }
@@ -28,7 +30,7 @@ export function RoleNameCell({ name, roleKey, isSystem }: RoleNameCellProps) {
 export function RoleDescriptionCell({ value, isSystem, roleKey }: RoleDescriptionCellProps) {
     const { t } = useTranslationStore()
     return (
-        <span className="block max-w-72 text-sm leading-relaxed text-muted">
+        <span className="block max-w-72 wrap-anywhere text-sm leading-relaxed text-muted">
             {isSystem ? t(`systemRoles.${roleKey}.description`) : value || '—'}
         </span>
     )

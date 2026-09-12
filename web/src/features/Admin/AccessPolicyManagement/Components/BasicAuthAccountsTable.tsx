@@ -39,7 +39,10 @@ export default function BasicAuthAccountsTable({
                             {t('admin.accessPolicies.basicAuth.columns.updated')}
                         </th>
                         {canUpdate ? (
-                            <th className="px-4 py-3 text-right" scope="col">
+                            <th
+                                className="sticky right-0 z-10 bg-surface-subtle px-4 py-3 text-right"
+                                scope="col"
+                            >
                                 {t('admin.accessPolicies.basicAuth.columns.actions')}
                             </th>
                         ) : null}
@@ -49,7 +52,9 @@ export default function BasicAuthAccountsTable({
                     {accounts.map((account) => (
                         <tr key={account.id}>
                             <th className="px-4 py-3 font-extrabold text-ink-soft" scope="row">
-                                {account.username}
+                                <span className="block max-w-64 wrap-anywhere">
+                                    {account.username}
+                                </span>
                             </th>
                             <td className="whitespace-nowrap px-4 py-3 text-muted">
                                 {formatBasicAuthDate(account.createdAt, formatter)}
@@ -58,7 +63,7 @@ export default function BasicAuthAccountsTable({
                                 {formatBasicAuthDate(account.updatedAt, formatter)}
                             </td>
                             {canUpdate ? (
-                                <td className="px-4 py-3">
+                                <td className="sticky right-0 z-10 bg-surface px-4 py-3">
                                     <div className="flex justify-end gap-2">
                                         <ActionMenu
                                             openOnHover

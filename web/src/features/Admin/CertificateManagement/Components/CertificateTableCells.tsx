@@ -18,7 +18,7 @@ export function CertificateDomainsCell({ domains }: { readonly domains: Readonly
     return (
         <div className={uiClassNames.chip.row}>
             {visible.map((domain) => (
-                <span className={uiClassNames.chip.item} key={domain}>
+                <span className={uiClassNames.chip.item + ' max-w-56 wrap-anywhere'} key={domain}>
                     {domain}
                 </span>
             ))}

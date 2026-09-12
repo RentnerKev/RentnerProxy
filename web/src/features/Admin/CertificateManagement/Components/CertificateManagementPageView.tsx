@@ -45,7 +45,7 @@ export default function CertificateManagementPageView({
                 eyebrow={t('admin.certificates.page.eyebrow')}
                 title={t('admin.certificates.page.title')}
                 description={t('admin.certificates.page.description')}
-                action={pageAction}
+                action={state.isError ? pageAction : undefined}
             />
             {state.isError ? (
                 <ContentState

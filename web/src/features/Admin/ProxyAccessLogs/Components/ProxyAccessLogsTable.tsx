@@ -256,60 +256,71 @@ export default function ProxyAccessLogsTable({
             }
         >
             <div className="overflow-x-auto">
-                <table className="w-full min-w-[72rem] border-collapse">
+                <table className="w-full min-w-[64rem] table-fixed border-collapse">
+                    <colgroup>
+                        <col className="w-44" />
+                        <col className="w-32" />
+                        <col className="w-20" />
+                        <col />
+                        <col className="w-20" />
+                        <col className="w-24" />
+                        <col className="w-28" />
+                        <col className="w-20" />
+                        <col className="w-20" />
+                    </colgroup>
                     <thead className="bg-surface-subtle font-mono text-[0.62rem] tracking-[0.07em] text-muted uppercase">
                         <tr>
                             <th
                                 scope="col"
-                                className="border-b border-border px-4 py-[0.85rem] text-left"
+                                className="h-12 border-b border-border px-4 py-0 text-left"
                             >
                                 {t('admin.proxyAccessLogs.columns.time')}
                             </th>
                             <th
                                 scope="col"
-                                className="border-b border-border px-4 py-[0.85rem] text-left"
+                                className="h-12 border-b border-border px-4 py-0 text-left"
                             >
                                 {t('admin.proxyAccessLogs.columns.host')}
                             </th>
                             <th
                                 scope="col"
-                                className="border-b border-border px-4 py-[0.85rem] text-left"
+                                className="h-12 border-b border-border px-4 py-0 text-left"
                             >
                                 {t('admin.proxyAccessLogs.columns.method')}
                             </th>
                             <th
                                 scope="col"
-                                className="border-b border-border px-4 py-[0.85rem] text-left"
+                                className="h-12 border-b border-border px-4 py-0 text-left"
                             >
                                 {t('admin.proxyAccessLogs.columns.path')}
                             </th>
                             <th
                                 scope="col"
-                                className="border-b border-border px-4 py-[0.85rem] text-left"
+                                className="h-12 border-b border-border px-4 py-0 text-left"
                             >
                                 {t('admin.proxyAccessLogs.columns.status')}
                             </th>
                             <th
                                 scope="col"
-                                className="border-b border-border px-4 py-[0.85rem] text-left"
+                                className="h-12 border-b border-border px-4 py-0 text-left"
                             >
                                 {t('admin.proxyAccessLogs.columns.duration')}
                             </th>
                             <th
                                 scope="col"
-                                className="border-b border-border px-4 py-[0.85rem] text-left"
+                                className="h-12 border-b border-border px-4 py-0 text-left"
                             >
                                 {t('admin.proxyAccessLogs.columns.clientIp')}
                             </th>
                             <th
                                 scope="col"
-                                className="border-b border-border px-4 py-[0.85rem] text-left"
+                                className="h-12 border-b border-border px-4 py-0 text-left"
                             >
                                 {t('admin.proxyAccessLogs.columns.bytes')}
                             </th>
                             <th
                                 scope="col"
-                                className="border-b border-border px-4 py-[0.85rem] text-right"
+                                className="sticky right-0 h-12 border-b border-border bg-surface-subtle px-4 py-0 text-right"
                             >
                                 {t('common.actions')}
                             </th>
@@ -354,7 +365,7 @@ export default function ProxyAccessLogsTable({
                                                     {formatTimestamp(entry.timestamp)}
                                                 </time>
                                             </td>
-                                            <td className="max-w-48 break-words px-4 py-[0.85rem] align-middle text-[0.78rem] font-extrabold text-ink-soft">
+                                            <td className="max-w-48 [overflow-wrap:anywhere] px-4 py-[0.85rem] align-middle text-[0.78rem] font-extrabold text-ink-soft">
                                                 {entry.host}
                                             </td>
                                             <td className="px-4 py-[0.85rem] align-middle font-mono text-xs text-ink-soft">
@@ -386,7 +397,7 @@ export default function ProxyAccessLogsTable({
                                             <td className="whitespace-nowrap px-4 py-[0.85rem] align-middle font-mono text-xs text-muted">
                                                 {formatBytes(entry.bytes, locale)}
                                             </td>
-                                            <td className="px-4 py-[0.85rem] align-middle text-right">
+                                            <td className="sticky right-0 bg-surface px-4 py-[0.85rem] align-middle text-right">
                                                 <ActionMenu
                                                     openOnHover
                                                     items={[
