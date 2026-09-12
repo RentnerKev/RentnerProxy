@@ -131,3 +131,14 @@ export function sortAuditEventsNewestFirst(events: readonly AuditEventDto[]): Au
         })
         .map(({ event }) => event)
 }
+
+export const resultClassName = (result: AuditEventDto['result']) => {
+    switch (result) {
+        case 'success':
+            return 'border-brand-600/20 bg-success-bg text-success-text'
+        case 'denied':
+            return 'border-amber-500/25 bg-amber-500/10 text-amber-700'
+        default:
+            return 'border-red-500/25 bg-danger-bg text-danger-text'
+    }
+}

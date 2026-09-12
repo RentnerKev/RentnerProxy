@@ -1,5 +1,5 @@
 import useTranslationStore, { useDateFormatter } from '../../../../language/useTranslationStore'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import { ActionMenu } from '../../../../shared/ActionMenu'
 import { formatBasicAuthDate } from '../Helpers/basicAuthTableCells'
 import type { BasicAuthAccountListProps } from '../Types/basic-auth.types'
 
@@ -60,32 +60,26 @@ export default function BasicAuthAccountsTable({
                             {canUpdate ? (
                                 <td className="px-4 py-3">
                                     <div className="flex justify-end gap-2">
-                                        <button
-                                            type="button"
-                                            className={`${uiClassNames.button.quiet} ${uiClassNames.table.compactAction}`}
-                                            aria-label={t(
-                                                'admin.accessPolicies.basicAuth.actions.editAccount',
-                                            )}
-                                            disabled={isPending}
-                                            onClick={() => onEdit(account)}
-                                        >
-                                            {t(
-                                                'admin.accessPolicies.basicAuth.actions.editAccount',
-                                            )}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className={`${uiClassNames.button.danger} ${uiClassNames.table.compactAction}`}
-                                            aria-label={t(
-                                                'admin.accessPolicies.basicAuth.actions.deleteAccount',
-                                            )}
-                                            disabled={isPending}
-                                            onClick={() => onDelete(account)}
-                                        >
-                                            {t(
-                                                'admin.accessPolicies.basicAuth.actions.deleteAccount',
-                                            )}
-                                        </button>
+                                        <ActionMenu
+                                            openOnHover
+                                            items={[
+                                                {
+                                                    label: t(
+                                                        'admin.accessPolicies.basicAuth.actions.editAccount',
+                                                    ),
+                                                    disabled: isPending,
+                                                    onSelect: () => onEdit(account),
+                                                },
+                                                {
+                                                    label: t(
+                                                        'admin.accessPolicies.basicAuth.actions.deleteAccount',
+                                                    ),
+                                                    destructive: true,
+                                                    disabled: isPending,
+                                                    onSelect: () => onDelete(account),
+                                                },
+                                            ]}
+                                        />
                                     </div>
                                 </td>
                             ) : null}

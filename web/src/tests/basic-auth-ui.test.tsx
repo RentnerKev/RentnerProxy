@@ -5,7 +5,7 @@ import type { Root } from 'react-dom/client'
 import { getAccessPolicyTableActionItems } from '../features/Admin/AccessPolicyManagement/Helpers/accessPolicyTableActions'
 import { validateBasicAuthAccount } from '../features/Admin/AccessPolicyManagement/Helpers/basicAuthValidation'
 import type { BasicAuthAccount } from '../features/Admin/AccessPolicyManagement/Types/basic-auth.types'
-import withTestLanguage from './Helpers/withTestLanguage'
+import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -15,6 +15,8 @@ const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { TooltipProvider } = await import('../shared/Tooltip')
 const { default: ToastProvider } = await import('../shared/Toast/Components/ToastProvider')
+const { default: BasicAuthAccountsTable } =
+    await import('../features/Admin/AccessPolicyManagement/Components/BasicAuthAccountsTable')
 
 const createBasicAuthAccountHandlerMock = mock(async (_input: unknown) => ({
     success: true as const,
@@ -89,6 +91,86 @@ async function renderAccountForm(
     })
 }
 
+async function renderAccountsTable(
+    canUpdate: boolean,
+    isPending: boolean,
+    onEdit: () => void,
+    onDelete: () => void,
+): Promise<HTMLElement> {
+    const container = document.createElement('div')
+    document.body.append(container)
+    activeRoot = withLanguageRoot(createRoot(container))
+    await act(async () => {
+        activeRoot?.render(
+            <TooltipProvider>
+                <BasicAuthAccountsTable
+                    accounts={[account]}
+                    canUpdate={canUpdate}
+                    isPending={isPending}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
+                />
+            </TooltipProvider>,
+        )
+        await Promise.resolve()
+    })
+    return container
+}
+
+async function click(element: Element): Promise<void> {
+    await act(async () => {
+        element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+        await Promise.resolve()
+        await Promise.resolve()
+    })
+}
+
+async function openActionMenu(container: HTMLElement): Promise<void> {
+    const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="Open actions"]')
+    expect(trigger).not.toBeNull()
+    await act(async () => {
+        trigger?.dispatchEvent(
+            new PointerEvent('pointerdown', {
+                bubbles: true,
+                button: 0,
+                cancelable: true,
+                pointerType: 'mouse',
+            }),
+        )
+        trigger?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+        trigger?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }))
+        await Promise.resolve()
+    })
+    await waitFor(() => document.querySelector('[role="menu"]') !== null)
+}
+
+async function chooseActionMenuItem(label: string): Promise<void> {
+    const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
+        (candidate) => candidate.textContent?.trim() === label,
+    )
+    expect(item).not.toBeUndefined()
+    await act(async () => {
+        item?.dispatchEvent(
+            new PointerEvent('pointerdown', {
+                bubbles: true,
+                button: 0,
+                cancelable: true,
+                pointerType: 'mouse',
+            }),
+        )
+        item?.dispatchEvent(
+            new PointerEvent('pointerup', {
+                bubbles: true,
+                button: 0,
+                cancelable: true,
+                pointerType: 'mouse',
+            }),
+        )
+        item?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+        await Promise.resolve()
+    })
+}
+
 async function setInputValue(input: HTMLInputElement, value: string): Promise<void> {
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
     await act(async () => {
@@ -114,10 +196,17 @@ async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<voi
     const waitUntil = async (): Promise<void> => {
         if (condition()) return
         if (Date.now() >= deadline) throw new Error('timed out waiting for UI state')
-        await new Promise((resolve) => setTimeout(resolve, 10))
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+        })
         await waitUntil()
     }
     await waitUntil()
+}
+
+function unmountActiveRoot(): void {
+    activeRoot?.unmount()
+    activeRoot = null
 }
 
 beforeEach(() => {
@@ -126,12 +215,67 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-    activeRoot?.unmount()
-    activeRoot = null
+    unmountActiveRoot()
     document.body.innerHTML = ''
 })
 
 describe('Basic Auth credential UI', () => {
+    test('keeps account actions permission-gated and pending-safe inside an action menu', async () => {
+        const selected: string[] = []
+        const container = await renderAccountsTable(
+            true,
+            false,
+            () => selected.push('edit'),
+            () => selected.push('delete'),
+        )
+
+        await openActionMenu(container)
+        expect(document.body.textContent).toContain('Edit')
+        expect(document.body.textContent).toContain('Delete')
+        await chooseActionMenuItem('Edit')
+        expect(selected).toEqual(['edit'])
+
+        unmountActiveRoot()
+        document.body.replaceChildren()
+
+        const deleteContainer = await renderAccountsTable(
+            true,
+            false,
+            () => selected.push('delete-edit'),
+            () => selected.push('delete'),
+        )
+        await openActionMenu(deleteContainer)
+        await chooseActionMenuItem('Delete')
+        expect(selected).toEqual(['edit', 'delete'])
+
+        unmountActiveRoot()
+        document.body.replaceChildren()
+
+        const pending = await renderAccountsTable(
+            true,
+            true,
+            () => selected.push('pending-edit'),
+            () => selected.push('pending-delete'),
+        )
+        await openActionMenu(pending)
+        const pendingItems = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+        expect(pendingItems).toHaveLength(2)
+        expect(pendingItems.every((item) => item.getAttribute('data-disabled') === '')).toBeTrue()
+        await click(pendingItems[0]!)
+        expect(selected).toEqual(['edit', 'delete'])
+
+        unmountActiveRoot()
+        document.body.replaceChildren()
+
+        const restricted = await renderAccountsTable(
+            false,
+            false,
+            () => undefined,
+            () => undefined,
+        )
+        expect(restricted.querySelector('button[aria-label="Open actions"]')).toBeNull()
+    })
+
     test('gates credential actions by view permission and keeps assigned CRUD controls separate', () => {
         const selected: string[] = []
         const items = getAccessPolicyTableActionItems(

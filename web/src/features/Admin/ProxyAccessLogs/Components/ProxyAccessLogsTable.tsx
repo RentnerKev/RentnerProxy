@@ -6,23 +6,20 @@ import TableBodyState from '../../../../shared/Table/Components/TableBodyState'
 import TableFilters from '../../../../shared/Table/Components/TableFilters'
 import TableLayout from '../../../../shared/Table/Components/TableLayout'
 import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBody'
+import { ActionMenu } from '../../../../shared/ActionMenu'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { Tooltip } from '../../../../shared/Tooltip'
 import type { ProxyAccessLogEntry } from '../../../../shared/Types/proxy-access-logs.types'
-import { formatBytes, formatDuration, withoutQueryString } from '../Helpers/proxyAccessLogs'
+import {
+    formatBytes,
+    formatDuration,
+    statusClassName,
+    withoutQueryString,
+} from '../Helpers/proxyAccessLogs'
 import type { ProxyAccessLogsTableProps } from '../Types/proxy-access-logs.types'
 
 const tableControlClassName =
     'h-12 min-w-0 w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink outline-hidden transition-[border-color,box-shadow] placeholder:text-muted-soft focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/20'
-
-const statusClassName = (status: number) =>
-    status >= 500
-        ? 'border-red-500/25 bg-danger-bg text-danger-text'
-        : status >= 400
-          ? 'border-amber-500/25 bg-amber-500/10 text-amber-700'
-          : status >= 300
-            ? 'border-blue-500/20 bg-info-bg text-info-text'
-            : 'border-brand-600/20 bg-success-bg text-success-text'
 
 function logEntryKey(entry: ProxyAccessLogEntry, index: number): string {
     return `${entry.timestamp}-${entry.host}-${index}`
@@ -238,7 +235,7 @@ export default function ProxyAccessLogsTable({
                         </p>
                         <button
                             type="button"
-                            className="inline-flex size-9 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
+                            className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
                             onClick={onPreviousPage}
                             disabled={offset === 0 || isRefreshing}
                             aria-label={t('admin.proxyAccessLogs.pagination.previous')}
@@ -247,7 +244,7 @@ export default function ProxyAccessLogsTable({
                         </button>
                         <button
                             type="button"
-                            className="inline-flex size-9 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
+                            className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
                             onClick={onNextPage}
                             disabled={!hasMore || isRefreshing}
                             aria-label={t('admin.proxyAccessLogs.pagination.next')}
@@ -310,18 +307,24 @@ export default function ProxyAccessLogsTable({
                             >
                                 {t('admin.proxyAccessLogs.columns.bytes')}
                             </th>
+                            <th
+                                scope="col"
+                                className="border-b border-border px-4 py-[0.85rem] text-right"
+                            >
+                                {t('common.actions')}
+                            </th>
                         </tr>
                     </thead>
                     {isLoading ? (
                         <TableLoadingBody
-                            columnCount={8}
+                            columnCount={9}
                             loadingLabel={t('admin.proxyAccessLogs.table.title')}
                         />
                     ) : null}
                     {!isLoading && entries.length === 0 ? (
                         <tbody>
                             <TableBodyState
-                                columnCount={8}
+                                columnCount={9}
                                 state={{
                                     title: t('admin.proxyAccessLogs.table.emptyTitle'),
                                     description: hasActiveFilters
@@ -344,25 +347,12 @@ export default function ProxyAccessLogsTable({
                                             className="border-b border-border transition-colors last:border-b-0 hover:bg-surface-hover"
                                         >
                                             <td className="px-4 py-[0.85rem] align-middle text-[0.78rem] text-ink-soft">
-                                                <button
-                                                    type="button"
-                                                    aria-expanded={expanded}
-                                                    aria-controls={detailsId}
-                                                    aria-label={t(
-                                                        expanded
-                                                            ? 'admin.proxyAccessLogs.actions.hideDetails'
-                                                            : 'admin.proxyAccessLogs.actions.showDetails',
-                                                    )}
-                                                    className="cursor-pointer rounded-md text-left outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-                                                    onClick={() => onToggleDetails(key)}
+                                                <time
+                                                    dateTime={entry.timestamp}
+                                                    className="whitespace-nowrap text-muted"
                                                 >
-                                                    <time
-                                                        dateTime={entry.timestamp}
-                                                        className="whitespace-nowrap text-muted"
-                                                    >
-                                                        {formatTimestamp(entry.timestamp)}
-                                                    </time>
-                                                </button>
+                                                    {formatTimestamp(entry.timestamp)}
+                                                </time>
                                             </td>
                                             <td className="max-w-48 break-words px-4 py-[0.85rem] align-middle text-[0.78rem] font-extrabold text-ink-soft">
                                                 {entry.host}
@@ -396,6 +386,21 @@ export default function ProxyAccessLogsTable({
                                             <td className="whitespace-nowrap px-4 py-[0.85rem] align-middle font-mono text-xs text-muted">
                                                 {formatBytes(entry.bytes, locale)}
                                             </td>
+                                            <td className="px-4 py-[0.85rem] align-middle text-right">
+                                                <ActionMenu
+                                                    openOnHover
+                                                    items={[
+                                                        {
+                                                            label: t(
+                                                                expanded
+                                                                    ? 'admin.proxyAccessLogs.actions.hideDetails'
+                                                                    : 'admin.proxyAccessLogs.actions.showDetails',
+                                                            ),
+                                                            onSelect: () => onToggleDetails(key),
+                                                        },
+                                                    ]}
+                                                />
+                                            </td>
                                         </tr>
                                         {expanded ? (
                                             <tr
@@ -404,7 +409,7 @@ export default function ProxyAccessLogsTable({
                                                 className="border-b border-border bg-surface-subtle"
                                             >
                                                 <td
-                                                    colSpan={8}
+                                                    colSpan={9}
                                                     aria-label={t(
                                                         'admin.proxyAccessLogs.actions.showDetails',
                                                     )}

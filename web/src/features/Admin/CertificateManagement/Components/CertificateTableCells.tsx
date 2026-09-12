@@ -26,7 +26,7 @@ export function CertificateDomainsCell({ domains }: { readonly domains: Readonly
                 <Tooltip content={extra.join(', ')}>
                     <button
                         type="button"
-                        className="inline-flex cursor-help items-center rounded-full border-0 bg-neutral px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-muted outline-hidden focus-visible:outline-2 focus-visible:outline-brand-500"
+                        className="inline-flex h-12 cursor-help items-center justify-center rounded-xl border-0 bg-neutral px-3 py-0 font-mono text-sm font-bold text-muted outline-hidden focus-visible:outline-2 focus-visible:outline-brand-500"
                         aria-label={t('admin.certificates.cells.moreDomains', {
                             count: extra.length,
                         })}

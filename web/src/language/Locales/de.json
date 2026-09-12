@@ -26,6 +26,7 @@
         "closeDialog": "Dialog schließen",
         "showPassword": "Passwort anzeigen",
         "hidePassword": "Passwort verbergen",
+        "actions": "Aktionen",
         "openActions": "Aktionen öffnen",
         "profilePicture": "Profilbild von {{name}}",
         "backHome": "Zur Startseite"

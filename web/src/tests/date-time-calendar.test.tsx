@@ -83,7 +83,11 @@ test('supports date keyboard navigation and Escape', async () => {
 })
 
 test('formats UTC wall time without normalizing a DST-gap clock value', () => {
-    const formatted = formatDateTimeLabel('2026-03-29T02:30', 'de-DE', (key) => key)
+    const formatted = formatDateTimeLabel(
+        '2026-03-29T02:30',
+        'de-DE',
+        (translationKey) => translationKey,
+    )
 
     expect(formatted.time).toContain('2:30')
     expect(formatted.time).not.toContain('3:30')

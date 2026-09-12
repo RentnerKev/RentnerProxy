@@ -28,7 +28,6 @@ export default function DateTimeCalendar({
                     type="button"
                     aria-label={ariaLabel}
                     aria-describedby={describedBy}
-                    aria-invalid={invalid || undefined}
                     data-invalid={invalid || undefined}
                     disabled={disabled}
                     className={triggerClassName}

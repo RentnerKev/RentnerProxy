@@ -7,7 +7,7 @@ export default function ActionMenuItemView({ item }: ActionMenuItemViewProps) {
         <DropdownMenu.Item
             {...(item.disabled ? { disabled: true } : {})}
             onSelect={item.onSelect}
-            className={`group flex cursor-pointer select-none flex-col rounded-lg px-3 py-2 text-sm outline-hidden transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-45 data-[highlighted]:bg-surface-hover data-[highlighted]:text-ink ${item.destructive ? 'text-danger-text data-[highlighted]:bg-danger-bg' : 'text-ink-soft'}`}
+            className={`group flex min-h-12 cursor-pointer select-none flex-col justify-center rounded-lg px-3 py-2 text-sm outline-hidden transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-45 data-[highlighted]:bg-surface-hover data-[highlighted]:text-ink ${item.destructive ? 'text-danger-text data-[highlighted]:bg-danger-bg' : 'text-ink-soft'}`}
         >
             <span className="font-bold leading-snug">{item.label}</span>
             {item.description ? (

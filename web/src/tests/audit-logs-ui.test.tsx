@@ -153,6 +153,28 @@ async function chooseSelectOption(
     await waitFor(() => document.querySelector('[role="listbox"]') === null)
 }
 
+async function openActionMenu(container: HTMLElement): Promise<void> {
+    const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="Open actions"]')
+    if (!trigger) throw new Error('Action menu trigger not found')
+    await act(async () => {
+        trigger.focus()
+        trigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }))
+    })
+    await waitFor(() => document.querySelector('[role="menuitem"]') !== null)
+}
+
+async function chooseActionMenuItem(label: string): Promise<void> {
+    const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
+        (candidate) => candidate.textContent?.trim() === label,
+    )
+    if (!item) throw new Error(`Action menu item not found: ${label}`)
+    await click(item)
+    await waitFor(() => document.querySelector('[role="menu"]') === null)
+    await waitFor(
+        () =>
+            document.activeElement === document.querySelector('button[aria-label="Open actions"]'),
+    )
+}
 async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<void> {
     const deadline = Date.now() + timeoutMs
     const waitUntil = async (): Promise<void> => {
@@ -300,11 +322,14 @@ describe('audit log UI', () => {
     test('shows safe event details and blocks requests without permission', async () => {
         const container = await renderPage([PERMISSIONS.AUDIT_LOGS_VIEW])
         await waitFor(() => container.textContent?.includes('Alice Admin') === true)
-        await click(
-            container.querySelector<HTMLButtonElement>('button[aria-label="Show event details"]')!,
-        )
+        await openActionMenu(container)
+        await chooseActionMenuItem('Show event details')
         expect(container.textContent).toContain('Changed fields')
         expect(container.textContent).toContain('upstream')
+
+        await openActionMenu(container)
+        await chooseActionMenuItem('Hide event details')
+        expect(container.textContent).not.toContain('Changed fields')
 
         activeRoot?.unmount()
         activeRoot = null

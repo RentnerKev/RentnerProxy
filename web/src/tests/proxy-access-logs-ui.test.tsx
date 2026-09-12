@@ -99,6 +99,28 @@ async function setInputValue(input: HTMLInputElement, value: string): Promise<vo
     })
 }
 
+async function openActionMenu(container: HTMLElement): Promise<void> {
+    const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="Open actions"]')
+    if (!trigger) throw new Error('Action menu trigger not found')
+    await act(async () => {
+        trigger.focus()
+        trigger.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }))
+    })
+    await waitFor(() => document.querySelector('[role="menuitem"]') !== null)
+}
+
+async function chooseActionMenuItem(label: string): Promise<void> {
+    const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
+        (candidate) => candidate.textContent?.trim() === label,
+    )
+    if (!item) throw new Error(`Action menu item not found: ${label}`)
+    await click(item)
+    await waitFor(() => document.querySelector('[role="menu"]') === null)
+    await waitFor(
+        () =>
+            document.activeElement === document.querySelector('button[aria-label="Open actions"]'),
+    )
+}
 async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<void> {
     const deadline = Date.now() + timeoutMs
     const waitUntil = async (): Promise<void> => {
@@ -197,6 +219,24 @@ describe('proxy access-log UI', () => {
         await click(getButton(container, 'Reset filters'))
         expect(hostInput?.value).toBe('')
         expect(getButton(container, 'Filters').textContent?.trim()).toBe('Filters')
+    })
+
+    test('opens request details from the action column while keeping time non-interactive', async () => {
+        const container = await renderPage([PERMISSIONS.PROXY_ACCESS_LOGS_VIEW])
+        await waitFor(() => container.textContent?.includes('/dashboard') === true)
+
+        const timestamp = container.querySelector('time')
+        expect(timestamp).not.toBeNull()
+        expect(timestamp?.closest('button')).toBeNull()
+
+        await openActionMenu(container)
+        await chooseActionMenuItem('Show request details')
+        expect(container.textContent).toContain('127.0.0.1:8080')
+        expect(container.textContent).toContain('HTTP/2')
+
+        await openActionMenu(container)
+        await chooseActionMenuItem('Hide request details')
+        expect(container.textContent).not.toContain('127.0.0.1:8080')
     })
 
     test('renders a restricted state and does not request logs without permission', async () => {

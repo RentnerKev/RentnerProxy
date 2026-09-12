@@ -7,6 +7,8 @@ import TableFilters from '../../../../shared/Table/Components/TableFilters'
 import TableLayout from '../../../../shared/Table/Components/TableLayout'
 import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBody'
 import SelectControl from '../../../../shared/Select'
+import DateTimeCalendar from '../../../../shared/Calendar/Components/DateTimeCalendar'
+import { ActionMenu } from '../../../../shared/ActionMenu'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { Tooltip } from '../../../../shared/Tooltip'
 import type { AuditEventDto } from '../../../../shared/Types/audit-events.types'
@@ -16,22 +18,12 @@ import {
     auditResourceValues,
     formatAuditActor,
     getAuditMetadataEntries,
+    resultClassName,
 } from '../Helpers/auditLogs'
 import type { AuditLogsTableProps } from '../Types/audit-logs.types'
 
 const tableControlClassName =
     'h-12 min-w-0 w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink outline-hidden transition-[border-color,box-shadow] placeholder:text-muted-soft focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/20'
-
-const resultClassName = (result: AuditEventDto['result']) => {
-    switch (result) {
-        case 'success':
-            return 'border-brand-600/20 bg-success-bg text-success-text'
-        case 'denied':
-            return 'border-amber-500/25 bg-amber-500/10 text-amber-700'
-        default:
-            return 'border-red-500/25 bg-danger-bg text-danger-text'
-    }
-}
 
 function MetadataDetails({ event }: { readonly event: AuditEventDto }) {
     const { t } = useTranslationStore()
@@ -205,32 +197,34 @@ export default function AuditLogsTable({
                             <span className="text-xs font-extrabold text-muted">
                                 {t('admin.auditLogs.filters.from')}
                             </span>
-                            <input
-                                type="datetime-local"
-                                step={60}
+                            <DateTimeCalendar
                                 value={filters.from}
-                                onChange={(event) => onFromChange(event.target.value)}
-                                aria-invalid={
+                                onValueChange={onFromChange}
+                                ariaLabel={t('admin.auditLogs.filters.from')}
+                                invalid={
                                     filterErrors.from !== undefined ||
                                     filterErrors.dateRange !== undefined
                                 }
-                                className={tableControlClassName}
+                                describedBy={
+                                    filterErrors.dateRange ? 'audit-date-range-error' : undefined
+                                }
                             />
                         </label>
                         <label className="grid min-w-0 gap-1.5">
                             <span className="text-xs font-extrabold text-muted">
                                 {t('admin.auditLogs.filters.to')}
                             </span>
-                            <input
-                                type="datetime-local"
-                                step={60}
+                            <DateTimeCalendar
                                 value={filters.to}
-                                onChange={(event) => onToChange(event.target.value)}
-                                aria-invalid={
+                                onValueChange={onToChange}
+                                ariaLabel={t('admin.auditLogs.filters.to')}
+                                invalid={
                                     filterErrors.to !== undefined ||
                                     filterErrors.dateRange !== undefined
                                 }
-                                className={tableControlClassName}
+                                describedBy={
+                                    filterErrors.dateRange ? 'audit-date-range-error' : undefined
+                                }
                             />
                         </label>
                         <div className="flex items-end">
@@ -243,7 +237,11 @@ export default function AuditLogsTable({
                             </button>
                         </div>
                         {filterErrors.dateRange ? (
-                            <span role="alert" className="col-span-full text-xs text-danger-text">
+                            <span
+                                id="audit-date-range-error"
+                                role="alert"
+                                className="col-span-full text-xs text-danger-text"
+                            >
                                 {t(filterErrors.dateRange)}
                             </span>
                         ) : null}
@@ -271,7 +269,7 @@ export default function AuditLogsTable({
                         </p>
                         <button
                             type="button"
-                            className="inline-flex size-9 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
+                            className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
                             onClick={onPreviousPage}
                             disabled={pageNumber === 1 || isRefreshing}
                             aria-label={t('admin.auditLogs.pagination.previous')}
@@ -280,7 +278,7 @@ export default function AuditLogsTable({
                         </button>
                         <button
                             type="button"
-                            className="inline-flex size-9 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
+                            className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
                             onClick={onNextPage}
                             disabled={!hasMore || isRefreshing}
                             aria-label={t('admin.auditLogs.pagination.next')}
@@ -311,7 +309,9 @@ export default function AuditLogsTable({
                                     scope="col"
                                     className="border-b border-border px-4 py-[0.85rem] text-left"
                                 >
-                                    {t(`admin.auditLogs.columns.${column}`)}
+                                    {column === 'details'
+                                        ? t('common.actions')
+                                        : t(`admin.auditLogs.columns.${column}`)}
                                 </th>
                             ))}
                         </tr>
@@ -345,25 +345,12 @@ export default function AuditLogsTable({
                                     <Fragment key={eventId}>
                                         <tr className="border-b border-border transition-colors last:border-b-0 hover:bg-surface-hover">
                                             <td className="px-4 py-[0.85rem] align-middle text-[0.78rem] text-ink-soft">
-                                                <button
-                                                    type="button"
-                                                    aria-expanded={expanded}
-                                                    aria-controls={detailsId}
-                                                    aria-label={t(
-                                                        expanded
-                                                            ? 'admin.auditLogs.actions.hideDetails'
-                                                            : 'admin.auditLogs.actions.showDetails',
-                                                    )}
-                                                    className="cursor-pointer rounded-md text-left outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-                                                    onClick={() => onToggleDetails(eventId)}
+                                                <time
+                                                    dateTime={event.timestamp}
+                                                    className="whitespace-nowrap text-muted"
                                                 >
-                                                    <time
-                                                        dateTime={event.timestamp}
-                                                        className="whitespace-nowrap text-muted"
-                                                    >
-                                                        {formatTimestamp(event.timestamp)}
-                                                    </time>
-                                                </button>
+                                                    {formatTimestamp(event.timestamp)}
+                                                </time>
                                             </td>
                                             <td className="max-w-48 break-words px-4 py-[0.85rem] align-middle text-[0.78rem] text-ink-soft">
                                                 <span className="font-extrabold">
@@ -403,19 +390,20 @@ export default function AuditLogsTable({
                                                 </span>
                                             </td>
                                             <td className="px-4 py-[0.85rem] align-middle">
-                                                <button
-                                                    type="button"
-                                                    aria-expanded={expanded}
-                                                    aria-controls={detailsId}
-                                                    className="cursor-pointer text-xs font-extrabold text-brand-text underline decoration-brand-500/40 underline-offset-4 outline-hidden hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-                                                    onClick={() => onToggleDetails(eventId)}
-                                                >
-                                                    {t(
-                                                        expanded
-                                                            ? 'admin.auditLogs.actions.hideDetails'
-                                                            : 'admin.auditLogs.actions.showDetails',
-                                                    )}
-                                                </button>
+                                                <ActionMenu
+                                                    openOnHover
+                                                    items={[
+                                                        {
+                                                            label: t(
+                                                                expanded
+                                                                    ? 'admin.auditLogs.actions.hideDetails'
+                                                                    : 'admin.auditLogs.actions.showDetails',
+                                                            ),
+                                                            onSelect: () =>
+                                                                onToggleDetails(eventId),
+                                                        },
+                                                    ]}
+                                                />
                                             </td>
                                         </tr>
                                         {expanded ? (
