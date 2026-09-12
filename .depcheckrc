@@ -1,0 +1,7 @@
+ignores:
+    # CSS imports in web/src/styles.css are not detected by depcheck.
+    - '@fontsource/lilita-one'
+    - tailwindcss
+    # Built into the Bun runtime; these are not npm dependencies.
+    - bun
+    - 'bun:test'

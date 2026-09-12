@@ -52,6 +52,18 @@ with production data.
 Database schema changes require a generated Drizzle migration. Review and commit generated
 migration SQL and run `bun run db:check` before opening the pull request.
 
+## Dependency auditing
+
+Run `npx depcheck@1.4.7` from the repository root to check dependency declarations.
+The `.depcheckrc` exclusions cover CSS imports from `web/src/styles.css` and Bun runtime
+modules. Keep directly imported test packages in `devDependencies`, even when they are
+already installed transitively.
+
+The custom server entry in `web/src/server.ts` handles request cancellation without patching
+TanStack. It forwards cancellation with an empty 499 `Response` as the signal reason so H3
+does not log it as a server error. Downstream code should use `signal.aborted` to detect
+cancellation; unrelated errors still follow the normal error handler.
+
 ## Commit convention
 
 Use Conventional Commits in English:
