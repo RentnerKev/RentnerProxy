@@ -4,6 +4,8 @@ import { Fragment } from 'react'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import TableBodyState from '../../../../shared/Table/Components/TableBodyState'
 import TableFilters from '../../../../shared/Table/Components/TableFilters'
+import TableFilterToggle from '../../../../shared/Table/Components/TableFilterToggle'
+import useTableFilters from '../../../../shared/Table/Hooks/useTableFilters'
 import TableLayout from '../../../../shared/Table/Components/TableLayout'
 import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBody'
 import { ActionMenu } from '../../../../shared/ActionMenu'
@@ -71,6 +73,7 @@ export default function ProxyAccessLogsTable({
     onToggleDetails,
 }: ProxyAccessLogsTableProps) {
     const { locale, t } = useTranslationStore()
+    const filterPanel = useTableFilters()
     const activeFilterCount = [
         filters.host.trim(),
         filters.status.trim(),
@@ -102,8 +105,21 @@ export default function ProxyAccessLogsTable({
                     {t('admin.proxyAccessLogs.actions.refresh')}
                 </button>
             }
+            filterToggle={
+                <TableFilterToggle
+                    contentId={filterPanel.contentId}
+                    expanded={filterPanel.open}
+                    onToggle={filterPanel.toggle}
+                    activeCount={activeFilterCount}
+                />
+            }
             filters={
-                <TableFilters activeCount={activeFilterCount} onReset={onResetFilters}>
+                <TableFilters
+                    contentId={filterPanel.contentId}
+                    expanded={filterPanel.open}
+                    activeCount={activeFilterCount}
+                    onReset={onResetFilters}
+                >
                     <form
                         className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3 items-end"
                         onSubmit={(event) => {

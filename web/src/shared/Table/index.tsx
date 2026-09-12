@@ -2,6 +2,8 @@ import type { RowData } from '@tanstack/react-table'
 
 import TableLayout from './Components/TableLayout'
 import TableFilters from './Components/TableFilters'
+import TableFilterToggle from './Components/TableFilterToggle'
+import useTableFilters from './Hooks/useTableFilters'
 import TableColumnFilters from './Components/TableColumnFilters'
 import TableBody from './Components/TableBody'
 import TableHead from './Components/TableHead'
@@ -37,6 +39,7 @@ export default function DataTable<TData extends RowData>({
     tableMinWidthClassName = 'min-w-[60rem]',
 }: DataTableProps<TData>) {
     const { searchId, titleId } = useDataTableIds()
+    const filterPanel = useTableFilters(showColumnFilters, onToggleColumnFilters)
 
     return (
         <TableLayout
@@ -56,6 +59,23 @@ export default function DataTable<TData extends RowData>({
                     {action}
                 </div>
             }
+            filterToggle={
+                enableColumnFilters ? (
+                    <table.Subscribe
+                        source={table.atoms.columnFilters}
+                        selector={(filters) => filters.length}
+                    >
+                        {(count) => (
+                            <TableFilterToggle
+                                contentId={filterPanel.contentId}
+                                expanded={filterPanel.open}
+                                onToggle={filterPanel.toggle}
+                                activeCount={count + (searchInput.trim() ? 1 : 0)}
+                            />
+                        )}
+                    </table.Subscribe>
+                ) : null
+            }
             filters={
                 enableColumnFilters ? (
                     <table.Subscribe
@@ -64,8 +84,8 @@ export default function DataTable<TData extends RowData>({
                     >
                         {(count) => (
                             <TableFilters
-                                expanded={showColumnFilters}
-                                onExpandedChange={onToggleColumnFilters}
+                                contentId={filterPanel.contentId}
+                                expanded={filterPanel.open}
                                 activeCount={count + (searchInput.trim() ? 1 : 0)}
                                 onReset={onResetFilters}
                             >

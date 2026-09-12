@@ -190,10 +190,30 @@ async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<voi
 
 function getButton(container: HTMLElement, label: string): HTMLButtonElement {
     const button = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
-        (candidate) => candidate.textContent?.trim() === label,
+        (candidate) =>
+            candidate.getAttribute('aria-label') === label ||
+            candidate.textContent?.trim() === label,
     )
     if (!button) throw new Error(`button not found: ${label}`)
     return button
+}
+
+function getFilterPanel(container: HTMLElement, toggle: HTMLButtonElement): HTMLElement {
+    const contentId = toggle.getAttribute('aria-controls')
+    expect(contentId).not.toBeNull()
+    const panel = container.ownerDocument.getElementById(contentId!)
+    expect(panel).not.toBeNull()
+    return panel!
+}
+
+function expectFilterTogglePlacement(toggle: HTMLButtonElement, panel: HTMLElement): void {
+    const section = toggle.closest('section')
+    expect(section).not.toBeNull()
+    expect(section?.firstElementChild?.contains(toggle)).toBeTrue()
+    expect(panel.closest('section')).toBe(section)
+    expect(panel).not.toBe(section?.firstElementChild)
+    expect(toggle.closest('table')).toBeNull()
+    expect(panel.closest('table')).toBeNull()
 }
 
 beforeEach(() => {
@@ -285,6 +305,8 @@ describe('audit log UI', () => {
         await waitFor(() => container.textContent?.includes('Alice Admin') === true)
 
         const filtersButton = getButton(container, 'Filters')
+        const filterPanel = getFilterPanel(container, filtersButton)
+        expectFilterTogglePlacement(filtersButton, filterPanel)
         expect(filtersButton.getAttribute('aria-expanded')).toBe('false')
         const actorInput = container.querySelector<HTMLInputElement>(
             'input[placeholder="UUID of the actor"]',
@@ -300,7 +322,7 @@ describe('audit log UI', () => {
 
         await click(getButton(container, 'Reset filters'))
         expect(actorInput?.value).toBe('')
-        expect(getButton(container, 'Filters').textContent?.trim()).toBe('Filters')
+        expect(getButton(container, 'Filters').getAttribute('aria-label')).toBe('Filters')
     })
 
     test('applies selected action and resource values to the server query', async () => {
