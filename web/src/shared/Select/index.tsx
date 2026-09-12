@@ -8,7 +8,7 @@ import { EMPTY_SELECT_VALUE, fromSelectValue } from './Helpers/selectValue'
 import type { SelectControlProps } from './Types/select-control.types'
 
 const itemClassName =
-    'group relative flex min-h-9 cursor-pointer select-none items-center rounded-lg py-2 pr-8 pl-3 text-xs font-bold text-ink-soft outline-hidden transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-surface-hover data-[highlighted]:text-ink data-[state=checked]:bg-success-bg data-[state=checked]:text-success-text motion-reduce:transition-none'
+    'group relative flex min-h-12 cursor-pointer select-none items-center rounded-lg py-2 pr-8 pl-3 text-sm font-bold text-ink-soft outline-hidden transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-surface-hover data-[highlighted]:text-ink data-[state=checked]:bg-success-bg data-[state=checked]:text-success-text motion-reduce:transition-none'
 
 export default function SelectControl({
     id,
@@ -43,7 +43,7 @@ export default function SelectControl({
                 onBlur={onBlur}
                 className={`group box-border inline-flex h-12 min-w-0 items-center justify-between gap-2 rounded-xl border border-input-border bg-surface-raised px-3 text-left text-sm text-ink outline-hidden transition-[border-color,box-shadow,background-color] data-[placeholder]:text-muted-soft hover:border-border-strong focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/20 aria-invalid:border-red-500 disabled:cursor-not-allowed disabled:opacity-[0.55] motion-reduce:transition-none ${className ?? ''}`}
             >
-                <Select.Value className="min-w-0 flex-1">
+                <Select.Value className="min-w-0 flex-1" placeholder={placeholder}>
                     {selectedOption ? <SelectOptionLabel option={selectedOption} /> : placeholder}
                 </Select.Value>
                 <Select.Icon className="shrink-0 text-muted transition-colors group-data-[state=open]:text-brand-text">

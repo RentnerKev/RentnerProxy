@@ -61,6 +61,7 @@ test('exposes label and error metadata and supports keyboard selection with disa
     const trigger = await render()
     expect(document.querySelector<HTMLSelectElement>('select[name="choice"]')?.value).toBe('')
     expect(trigger.id).toBe('choice')
+    expect(trigger.textContent).toContain('Choose')
     expect(trigger.getAttribute('aria-invalid')).toBe('true')
     expect(trigger.getAttribute('aria-describedby')).toBe('choice-error')
     await key(trigger, 'Enter')

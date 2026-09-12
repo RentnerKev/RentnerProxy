@@ -202,7 +202,7 @@ export default function ProxyConfigEditorModal({
                                         {t(`admin.proxyHosts.config.${field.labelKey}`)}
                                         <span className="flex items-center gap-2">
                                             <input
-                                                className="w-full rounded-lg border border-border bg-surface px-3 py-2"
+                                                className={uiClassNames.form.control}
                                                 type="number"
                                                 min={field.min}
                                                 max={field.max}
