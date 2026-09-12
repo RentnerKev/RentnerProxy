@@ -43,6 +43,10 @@ export default function useAccessPolicyFormModal(props: AccessPolicyFormModalPro
         handler: {
             handleSubmit,
             setCombination: form.handler.setCombination,
+            setIpRules: form.handler.setIpRules,
+            setIpRuleAllow: form.handler.setIpRuleAllow,
+            setIpRuleDefaultAction: form.handler.setIpRuleDefaultAction,
+            setIpRuleDeny: form.handler.setIpRuleDeny,
             setMode: form.handler.setMode,
             setName: form.handler.setName,
         },

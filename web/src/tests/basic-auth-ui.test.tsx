@@ -48,6 +48,7 @@ const policy = {
     description: '',
     mode: 'authenticated' as const,
     combination: null,
+    ipRules: null,
     assignedHostCount: 0,
     basicAuthAccountCount: 1,
     createdAt: account.createdAt,

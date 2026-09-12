@@ -6,7 +6,12 @@ import {
     ACCESS_POLICY_COMBINATIONS,
     ACCESS_POLICY_MODES,
     MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY,
+    MAX_ACCESS_POLICY_IP_RULES,
 } from '../../config/access-policies.config'
+import {
+    ACCESS_POLICY_IP_RULE_ACTIONS,
+    canonicalIpNetwork,
+} from '../../shared/Helpers/ipAccessRules'
 
 import {
     normalizeProxyHttpSettings,
@@ -55,6 +60,28 @@ function isCanonicalBasicAuthHash(value: string): boolean {
         return decoded.byteLength === 32 && decoded.toString('base64').replace(/=+$/u, '') === part
     })
 }
+const runtimeIpNetworkSchema = z.string().superRefine((value, context) => {
+    if (canonicalIpNetwork(value) !== value) {
+        context.addIssue({ code: 'custom', message: 'IP rules must use canonical networks.' })
+    }
+})
+const runtimeIpRulesSchema = z
+    .strictObject({
+        defaultAction: z.enum(ACCESS_POLICY_IP_RULE_ACTIONS),
+        allow: z.array(runtimeIpNetworkSchema).max(MAX_ACCESS_POLICY_IP_RULES),
+        deny: z.array(runtimeIpNetworkSchema).max(MAX_ACCESS_POLICY_IP_RULES),
+    })
+    .superRefine((rules, context) => {
+        for (const field of ['allow', 'deny'] as const) {
+            if (new Set(rules[field]).size !== rules[field].length) {
+                context.addIssue({
+                    code: 'custom',
+                    path: [field],
+                    message: 'IP rules cannot contain duplicate networks.',
+                })
+            }
+        }
+    })
 const runtimeTrustedCaSchema = z.strictObject({
     id: z.uuidv7(),
     pem: createTrustedCaInputSchema.shape.pem,
@@ -78,6 +105,7 @@ const runtimeAccessPolicySchema = z
                     .max(MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY),
             })
             .optional(),
+        ipRules: runtimeIpRulesSchema.optional(),
     })
     .superRefine((policy, context) => {
         if ((policy.mode === 'combined') !== (policy.combination !== null)) {
@@ -189,6 +217,16 @@ export function createProxyRuntimeSnapshot(
                         accounts: normalizedAccessPolicy.basicAuth.accounts.toSorted(
                             (left, right) => compareAscii(left.username, right.username),
                         ),
+                    },
+                }
+            }
+            if (normalizedAccessPolicy?.ipRules) {
+                normalizedAccessPolicy = {
+                    ...normalizedAccessPolicy,
+                    ipRules: {
+                        defaultAction: normalizedAccessPolicy.ipRules.defaultAction,
+                        allow: normalizedAccessPolicy.ipRules.allow.toSorted(compareAscii),
+                        deny: normalizedAccessPolicy.ipRules.deny.toSorted(compareAscii),
                     },
                 }
             }

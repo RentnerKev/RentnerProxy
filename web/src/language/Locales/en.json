@@ -1242,7 +1242,38 @@
                 "combination": "Combined policy rule",
                 "availabilityTitle": "Basic Auth and request availability",
                 "warningTitle": "Protection methods are not configured",
-                "warningDescription": "Until the required providers are available, applying this mode denies every request. Review the runtime before assigning it to a live host."
+                "warningDescription": "Until the required providers are available, applying this mode denies every request. Review the runtime before assigning it to a live host.",
+                "ipRules": {
+                    "title": "IP access rules",
+                    "description": "Use the socket peer address only. X-Forwarded-For is ignored; behind a proxy, the proxy address is evaluated.",
+                    "configure": "Configure IP access",
+                    "configureHint": "Leave this off to keep the IP provider disabled. Deny is recommended as the default.",
+                    "defaultAction": "Default action",
+                    "defaultActionHint": "Deny is recommended. A deny entry wins when an address matches both lists.",
+                    "allow": "Allow list",
+                    "allowHint": "One IP address or CIDR network per line.",
+                    "deny": "Deny list",
+                    "denyHint": "One IP address or CIDR network per line. Deny wins if both lists match.",
+                    "denyRecommended": "Deny (recommended)"
+                }
+            },
+            "availability": {
+                "publicIgnored": "Public policy — authentication and IP rules are ignored.",
+                "authenticatedAvailable": "Basic Auth is configured and can allow requests.",
+                "authenticatedMissing": "No Basic Auth accounts — requests are denied.",
+                "ipRestrictedAvailable": "IP access is configured and can allow matching requests.",
+                "ipRestrictedMissing": "IP access is not configured — requests are denied.",
+                "ipRestrictedBlocksAll": "IP access is configured to deny all requests.",
+                "combinedAllAvailable": "AND: Basic Auth and IP access are both configured.",
+                "combinedAllMissingAuth": "AND: Basic Auth accounts are missing — requests are denied.",
+                "combinedAllMissingIp": "AND: IP access is not configured — requests are denied.",
+                "combinedAllMissingBoth": "AND: Basic Auth accounts and IP access are missing — requests are denied.",
+                "combinedAllIpBlocksAll": "AND: IP access is configured to deny all requests.",
+                "combinedAnyAvailableAuth": "OR: Basic Auth can allow requests even when an IP check denies them.",
+                "combinedAnyAvailableIp": "OR: IP access can allow matching requests when configured.",
+                "combinedAnyAvailableBoth": "OR: Basic Auth or IP access can allow requests.",
+                "combinedAnyIpBlocksAll": "OR: IP access is configured to deny all requests.",
+                "combinedAnyMissing": "OR: no access method is configured — requests are denied."
             },
             "mode": {
                 "public": "Public",
@@ -1264,6 +1295,7 @@
                 "mode": "Mode",
                 "combination": "Combination",
                 "basicAuth": "Basic Auth",
+                "ipRules": "IP access",
                 "assigned": "Assigned hosts",
                 "created": "Created",
                 "actions": "Actions"
@@ -1271,6 +1303,16 @@
             "cells": {
                 "assignedHosts_one": "{{count}} host",
                 "assignedHosts_other": "{{count}} hosts"
+            },
+            "ipRules": {
+                "defaultAction": {
+                    "allow": "Default allow",
+                    "deny": "Default deny"
+                },
+                "cells": {
+                    "summary": "{{action}}; {{count}} rules (allow: {{allow}}, deny: {{deny}})",
+                    "notConfigured": "Not configured"
+                }
             },
             "filters": {
                 "name": "Filter names…",
@@ -1390,6 +1432,8 @@
                 "descriptionInvalid": "Use printable characters in the description.",
                 "combinationRequired": "Choose how the combined checks should be evaluated.",
                 "combination": "Combined policies require exactly one combination rule.",
+                "ipRulesInvalid": "Enter only valid IP addresses or CIDR networks, one per line.",
+                "ipRulesTooMany": "Each IP list can contain no more than 128 entries.",
                 "changes": "Provide at least one change."
             },
             "errors": {

@@ -94,6 +94,7 @@ export async function readProxyRuntimeSnapshot(
             accessPolicyId: proxyHosts.accessPolicyId,
             accessPolicyMode: accessPolicies.mode,
             accessPolicyCombination: accessPolicies.combination,
+            accessPolicyIpRules: accessPolicies.ipRules,
         })
         .from(proxyHosts)
         .leftJoin(hostDomains, eq(hostDomains.proxyHostId, proxyHosts.id))
@@ -149,6 +150,11 @@ export async function readProxyRuntimeSnapshot(
                                     row.accessPolicyMode === 'combined') &&
                                 accounts.length > 0
                                     ? { basicAuth: { accounts } }
+                                    : {}),
+                                ...((row.accessPolicyMode === 'ip-restricted' ||
+                                    row.accessPolicyMode === 'combined') &&
+                                row.accessPolicyIpRules !== null
+                                    ? { ipRules: row.accessPolicyIpRules }
                                     : {}),
                             },
                         }),
@@ -224,6 +230,7 @@ export async function readProxyRuntimeHost(
             accessPolicyId: proxyHosts.accessPolicyId,
             accessPolicyMode: accessPolicies.mode,
             accessPolicyCombination: accessPolicies.combination,
+            accessPolicyIpRules: accessPolicies.ipRules,
             enabled: proxyHosts.enabled,
         })
         .from(proxyHosts)
@@ -271,6 +278,11 @@ export async function readProxyRuntimeHost(
                           first.accessPolicyMode === 'combined') &&
                       accounts.length > 0
                           ? { basicAuth: { accounts } }
+                          : {}),
+                      ...((first.accessPolicyMode === 'ip-restricted' ||
+                          first.accessPolicyMode === 'combined') &&
+                      first.accessPolicyIpRules !== null
+                          ? { ipRules: first.accessPolicyIpRules }
                           : {}),
                   },
               }),

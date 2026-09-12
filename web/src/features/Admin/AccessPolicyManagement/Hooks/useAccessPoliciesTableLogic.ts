@@ -27,6 +27,9 @@ const createAccessPolicyGlobalFilter =
             policy.combination ? t(`admin.accessPolicies.combination.${policy.combination}`) : '',
             String(policy.assignedHostCount),
             String(getBasicAuthAccountCount(policy)),
+            policy.ipRules?.defaultAction ?? '',
+            ...(policy.ipRules?.allow ?? []),
+            ...(policy.ipRules?.deny ?? []),
         ].some((value) => value.toLocaleLowerCase(locale).includes(search))
     }
 

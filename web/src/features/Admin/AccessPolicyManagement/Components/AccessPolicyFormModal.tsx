@@ -53,6 +53,10 @@ export default function AccessPolicyFormModal(props: AccessPolicyFormModalProps)
                     formId={state.formId}
                     isPending={state.isPending}
                     setCombination={handler.setCombination}
+                    setIpRules={handler.setIpRules}
+                    setIpRuleAllow={handler.setIpRuleAllow}
+                    setIpRuleDefaultAction={handler.setIpRuleDefaultAction}
+                    setIpRuleDeny={handler.setIpRuleDeny}
                     setMode={handler.setMode}
                     setName={handler.setName}
                     values={state.values}

@@ -1242,7 +1242,38 @@
                 "combination": "Règle de politique combinée",
                 "availabilityTitle": "Basic Auth et disponibilité des requêtes",
                 "warningTitle": "Les méthodes de protection ne sont pas configurées",
-                "warningDescription": "Tant que les fournisseurs requis ne sont pas disponibles, ce mode refuse toutes les requêtes. Vérifiez l’exécution avant de l’attribuer."
+                "warningDescription": "Tant que les fournisseurs requis ne sont pas disponibles, ce mode refuse toutes les requêtes. Vérifiez l’exécution avant de l’attribuer.",
+                "ipRules": {
+                    "title": "Règles d’accès IP",
+                    "description": "Utilisez uniquement l’adresse du pair de socket. X-Forwarded-For est ignoré ; derrière un proxy, l’adresse du proxy est évaluée.",
+                    "configure": "Configurer l’accès IP",
+                    "configureHint": "Laissez cette option désactivée pour garder le fournisseur IP inactif. Refuser est recommandé par défaut.",
+                    "defaultAction": "Action par défaut",
+                    "defaultActionHint": "Refuser est recommandé. Une entrée de refus gagne lorsqu’une adresse correspond aux deux listes.",
+                    "allow": "Liste d’autorisation",
+                    "allowHint": "Une adresse IP ou un réseau CIDR par ligne.",
+                    "deny": "Liste de refus",
+                    "denyHint": "Une adresse IP ou un réseau CIDR par ligne. Le refus gagne si les deux listes correspondent.",
+                    "denyRecommended": "Refuser (recommandé)"
+                }
+            },
+            "availability": {
+                "publicIgnored": "Politique publique — l’authentification et les règles IP sont ignorées.",
+                "authenticatedAvailable": "Basic Auth est configuré et peut autoriser les requêtes.",
+                "authenticatedMissing": "Aucun compte Basic Auth — les requêtes sont refusées.",
+                "ipRestrictedAvailable": "L’accès IP est configuré et peut autoriser les requêtes correspondantes.",
+                "ipRestrictedMissing": "L’accès IP n’est pas configuré — les requêtes sont refusées.",
+                "ipRestrictedBlocksAll": "L’accès IP est configuré pour refuser toutes les requêtes.",
+                "combinedAllAvailable": "ET : Basic Auth et l’accès IP sont configurés.",
+                "combinedAllMissingAuth": "ET : les comptes Basic Auth manquent — les requêtes sont refusées.",
+                "combinedAllMissingIp": "ET : l’accès IP n’est pas configuré — les requêtes sont refusées.",
+                "combinedAllMissingBoth": "ET : les comptes Basic Auth et l’accès IP manquent — les requêtes sont refusées.",
+                "combinedAllIpBlocksAll": "ET : l’accès IP est configuré pour refuser toutes les requêtes.",
+                "combinedAnyAvailableAuth": "OU : Basic Auth peut autoriser les requêtes même si le contrôle IP les refuse.",
+                "combinedAnyAvailableIp": "OU : l’accès IP peut autoriser les requêtes correspondantes lorsqu’il est configuré.",
+                "combinedAnyAvailableBoth": "OU : Basic Auth ou l’accès IP peut autoriser les requêtes.",
+                "combinedAnyIpBlocksAll": "OU : l’accès IP est configuré pour refuser toutes les requêtes.",
+                "combinedAnyMissing": "OU : aucune méthode d’accès n’est configurée — les requêtes sont refusées."
             },
             "mode": {
                 "public": "Public",
@@ -1264,6 +1295,7 @@
                 "mode": "Mode",
                 "combination": "Combinaison",
                 "basicAuth": "Basic Auth",
+                "ipRules": "Accès IP",
                 "assigned": "Hôtes attribués",
                 "created": "Créée",
                 "actions": "Actions"
@@ -1271,6 +1303,16 @@
             "cells": {
                 "assignedHosts_one": "{{count}} hôte",
                 "assignedHosts_other": "{{count}} hôtes"
+            },
+            "ipRules": {
+                "defaultAction": {
+                    "allow": "Autoriser par défaut",
+                    "deny": "Refuser par défaut"
+                },
+                "cells": {
+                    "summary": "{{action}} ; règles : {{count}} (autoriser : {{allow}}, refuser : {{deny}})",
+                    "notConfigured": "Non configuré"
+                }
             },
             "filters": {
                 "name": "Filtrer les noms…",
@@ -1390,6 +1432,8 @@
                 "descriptionInvalid": "Utilisez des caractères imprimables dans la description.",
                 "combinationRequired": "Choisissez l’évaluation des vérifications combinées.",
                 "combination": "Une politique combinée nécessite une règle de combinaison.",
+                "ipRulesInvalid": "Saisissez uniquement des adresses IP ou réseaux CIDR valides, un par ligne.",
+                "ipRulesTooMany": "Chaque liste IP peut contenir au maximum 128 entrées.",
                 "changes": "Indiquez au moins une modification."
             },
             "errors": {

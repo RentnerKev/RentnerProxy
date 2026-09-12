@@ -1,9 +1,12 @@
 use super::fixtures::{host, request};
 use crate::{
-    models::{ProxyConfigRequest, ProxyHttpSettings, RedirectHost},
+    models::{
+        AccessPolicy, AccessPolicyMode, IpDefaultAction, IpRules, ProxyConfigRequest,
+        ProxyHttpSettings, RedirectHost,
+    },
     proxy::{
-        MAX_PROXY_HOSTS, ProxyValidationError, revision_for_configuration_with_redirects,
-        validate_proxy_config, validate_trusted_ca_pem,
+        MAX_PROXY_HOSTS, ProxyValidationError, revision_for_configuration,
+        revision_for_configuration_with_redirects, validate_proxy_config, validate_trusted_ca_pem,
     },
 };
 
@@ -54,6 +57,73 @@ fn detects_hash_spoofing() {
         validate_proxy_config(request),
         Err(ProxyValidationError::ValidationFailed)
     );
+}
+
+fn request_with_ip_rules(rules: IpRules) -> ProxyConfigRequest {
+    let mut request = request(vec![host(
+        "00000000-0000-0000-0000-000000000000",
+        &["demo.test"],
+        "http",
+        "backend",
+        4_000,
+    )]);
+    request.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
+        mode: AccessPolicyMode::IpRestricted,
+        combination: None,
+        basic_auth: None,
+        ip_rules: Some(rules),
+    });
+    request.revision = revision_for_configuration(&request.proxy_hosts, &request.http_settings);
+    request
+}
+
+#[test]
+fn ip_rules_require_canonical_sorted_non_mapped_cidrs_with_bounded_lists() {
+    let valid = request_with_ip_rules(IpRules {
+        default_action: IpDefaultAction::Deny,
+        allow: vec!["192.0.2.0/24".into(), "2001:db8::/32".into()],
+        deny: vec!["192.0.2.128/25".into()],
+    });
+    assert!(validate_proxy_config(valid).is_ok());
+    assert!(
+        validate_proxy_config(request_with_ip_rules(IpRules {
+            default_action: IpDefaultAction::Allow,
+            allow: vec!["::/0".into()],
+            deny: vec![],
+        }))
+        .is_ok()
+    );
+
+    for rules in [
+        IpRules {
+            default_action: IpDefaultAction::Deny,
+            allow: vec!["192.0.2.1/24".into()],
+            deny: vec![],
+        },
+        IpRules {
+            default_action: IpDefaultAction::Deny,
+            allow: vec!["::ffff:192.0.2.0/120".into()],
+            deny: vec![],
+        },
+        IpRules {
+            default_action: IpDefaultAction::Deny,
+            allow: vec!["2001:db8::/32".into(), "192.0.2.0/24".into()],
+            deny: vec![],
+        },
+        IpRules {
+            default_action: IpDefaultAction::Deny,
+            allow: (0..=128)
+                .map(|value| format!("192.0.2.{value}/32"))
+                .collect(),
+            deny: vec![],
+        },
+    ] {
+        assert_eq!(
+            validate_proxy_config(request_with_ip_rules(rules)),
+            Err(ProxyValidationError::ValidationFailed)
+        );
+    }
 }
 
 #[test]

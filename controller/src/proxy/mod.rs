@@ -7,8 +7,11 @@ use std::{
 };
 
 use base64::{Engine as _, engine::general_purpose::STANDARD_NO_PAD};
+use ipnet::IpNet;
 
-use crate::models::{ProxyConfigRequest, ProxyHttpSettings, TrustedCa, ValidatedProxyConfig};
+use crate::models::{
+    AccessPolicy, IpRules, ProxyConfigRequest, ProxyHttpSettings, TrustedCa, ValidatedProxyConfig,
+};
 
 #[cfg(test)]
 pub(crate) use revision::revision_for_configuration;
@@ -26,6 +29,7 @@ pub(crate) use trusted_ca::{
 pub(crate) const MAX_PROXY_HOSTS: usize = 1_000;
 const MAX_DOMAINS_PER_HOST: usize = 50;
 const MAX_TOTAL_DOMAINS: usize = 50_000;
+const MAX_IP_RULES_PER_LIST: usize = 128;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ProxyValidationError {
@@ -207,14 +211,42 @@ fn has_valid_upstream_tls(host: &crate::models::ProxyHost) -> bool {
     true
 }
 
-fn has_valid_access_policy_shape(policy: &crate::models::AccessPolicy) -> bool {
+fn has_valid_access_policy_shape(policy: &AccessPolicy) -> bool {
     let combination_valid = match policy.mode {
         crate::models::AccessPolicyMode::Combined => policy.combination.is_some(),
         crate::models::AccessPolicyMode::Public
         | crate::models::AccessPolicyMode::Authenticated
         | crate::models::AccessPolicyMode::IpRestricted => policy.combination.is_none(),
     };
-    combination_valid && policy.basic_auth.as_ref().is_none_or(has_valid_basic_auth)
+    combination_valid
+        && policy.basic_auth.as_ref().is_none_or(has_valid_basic_auth)
+        && policy.ip_rules.as_ref().is_none_or(has_valid_ip_rules)
+}
+
+fn has_valid_ip_rules(rules: &IpRules) -> bool {
+    has_valid_ip_rule_list(&rules.allow) && has_valid_ip_rule_list(&rules.deny)
+}
+
+fn has_valid_ip_rule_list(rules: &[String]) -> bool {
+    rules.len() <= MAX_IP_RULES_PER_LIST
+        && rules.windows(2).all(|pair| pair[0] < pair[1])
+        && rules.iter().all(|rule| {
+            let Ok(net) = rule.parse::<IpNet>() else {
+                return false;
+            };
+            if net.addr() != net.network() || net.to_string() != *rule {
+                return false;
+            }
+            match net {
+                IpNet::V4(_) => true,
+                IpNet::V6(net) => !is_ipv4_mapped(net.network()),
+            }
+        })
+}
+
+fn is_ipv4_mapped(address: std::net::Ipv6Addr) -> bool {
+    let octets = address.octets();
+    octets[..10] == [0; 10] && octets[10..12] == [0xff, 0xff]
 }
 
 fn has_valid_basic_auth(auth: &crate::models::BasicAuth) -> bool {

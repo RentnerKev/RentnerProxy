@@ -952,6 +952,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "instant-acme",
+ "ipnet",
  "libc",
  "rcgen",
  "reqwest",

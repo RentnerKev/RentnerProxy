@@ -100,7 +100,7 @@ for development checks before opening a pull request.
 - Certificate import and automatic HTTPS certificates with ACME renewal.
 - DNS-01 with Cloudflare, including wildcard certificates and mixed wildcard/ordinary names.
 - Upstream TLS verification with custom trusted CAs.
-- Reusable Proxy Host Access Policies with Basic Authentication and multiple user accounts.
+- Reusable Access Policies with Basic Authentication and IPv4/IPv6 allow and deny rules.
 - User and role management with two-factor authentication and passkeys.
 - Backup, restore, and automatic configuration recovery after restarts.
 - English, German, Spanish, and French with theme settings.
