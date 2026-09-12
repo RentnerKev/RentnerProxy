@@ -94,6 +94,19 @@ function validMetadata(id: string, domains: string[], overrides: Partial<Metadat
     }
 }
 
+function advanceUpdatedAt(updatedAt: string): string {
+    const previous = Date.parse(updatedAt)
+    return new Date(Math.max(Date.now(), previous + 1)).toISOString()
+}
+
+function mutateMetadata(current: Metadata, updates: Partial<Metadata>): Metadata {
+    return {
+        ...current,
+        ...updates,
+        updatedAt: advanceUpdatedAt(current.updatedAt),
+    }
+}
+
 function fakeController() {
     const entries = new Map<string, Metadata>()
     const state = {
@@ -181,7 +194,7 @@ function fakeController() {
             }
             const current = entries.get(id)
             if (!current) return Response.json({ error: 'certificate_not_found' }, { status: 404 })
-            const renewing = { ...current, operation: 'renewing' as const }
+            const renewing = mutateMetadata(current, { operation: 'renewing' as const })
             entries.set(id, renewing)
             return Response.json(renewing, { status: 202 })
         },
@@ -573,11 +586,13 @@ describe('certificate management with PostgreSQL', () => {
                 lastErrorCode: null,
                 nextAttemptAt: '2026-09-02T00:00:00Z',
             }
-            controller!.entries.set(id, {
-                ...controller!.entries.get(id)!,
-                candidate: issuedCandidate,
-                dnsCleanupPending: true,
-            })
+            controller!.entries.set(
+                id,
+                mutateMetadata(controller!.entries.get(id)!, {
+                    candidate: issuedCandidate,
+                    dnsCleanupPending: true,
+                }),
+            )
             expect((await asUser(owner, getCertificatesService))[0]).toMatchObject({
                 status: 'pending',
                 candidate: {
@@ -591,15 +606,16 @@ describe('certificate management with PostgreSQL', () => {
             await expect(
                 asUser(owner, () => createProxyHostService(hostInput(id))),
             ).rejects.toMatchObject({ code: 'certificate_expired' })
-            controller!.entries.set(
-                id,
-                validMetadata(id, ['www.example.com'], {
-                    source: 'acme',
-                    environment: 'staging',
-                    candidate: issuedCandidate,
-                    dnsCleanupPending: false,
-                }),
-            )
+            const valid = validMetadata(id, ['www.example.com'], {
+                source: 'acme',
+                environment: 'staging',
+                candidate: issuedCandidate,
+                dnsCleanupPending: false,
+            })
+            controller!.entries.set(id, {
+                ...valid,
+                updatedAt: advanceUpdatedAt(controller!.entries.get(id)!.updatedAt),
+            })
             expect((await asUser(owner, getCertificatesService))[0]).toMatchObject({
                 status: 'valid',
                 candidate: {
@@ -614,11 +630,13 @@ describe('certificate management with PostgreSQL', () => {
                     fingerprint: issuedCandidate.fingerprint,
                 },
             })
-            controller!.entries.set(id, {
-                ...controller!.entries.get(id)!,
-                operation: 'idle',
-                lastErrorCode: 'acme_failed',
-            })
+            controller!.entries.set(
+                id,
+                mutateMetadata(controller!.entries.get(id)!, {
+                    operation: 'idle',
+                    lastErrorCode: 'acme_failed',
+                }),
+            )
             expect((await asUser(owner, getCertificatesService))[0]).toMatchObject({
                 status: 'valid',
                 operation: 'idle',

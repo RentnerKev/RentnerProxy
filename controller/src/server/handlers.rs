@@ -8,7 +8,7 @@ use axum::{
     },
     response::{IntoResponse, Response},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
@@ -138,6 +138,58 @@ pub(super) async fn list_certificates(state: AppState) -> Result<Response, ApiEr
             .await
             .map_err(certificate_error)?,
     }))
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CertificateEventsQuery {
+    after: Option<String>,
+    limit: Option<usize>,
+}
+
+pub(super) async fn certificate_events(
+    request: Request,
+    state: AppState,
+) -> Result<Response, ApiError> {
+    if request.uri().query().is_some_and(|query| query.len() > 256) {
+        return Err(ApiError::validation_failed());
+    }
+    let Query(query) = Query::<CertificateEventsQuery>::try_from_uri(request.uri())
+        .map_err(|_| ApiError::validation_failed())?;
+    let limit = query.limit.unwrap_or(100);
+    if !(1..=200).contains(&limit)
+        || query.after.as_deref().is_some_and(|cursor| {
+            let Some((id, sequence)) = cursor.split_once(':') else {
+                return true;
+            };
+            !is_canonical_uuid_v7(id)
+                || sequence.is_empty()
+                || sequence.len() > 20
+                || !sequence.bytes().all(|byte| byte.is_ascii_digit())
+                || sequence.parse::<u64>().is_err()
+        })
+    {
+        return Err(ApiError::validation_failed());
+    }
+    Ok(no_store_json(
+        state
+            .runtime
+            .certificate_events(query.after.as_deref(), limit)
+            .await
+            .map_err(certificate_error)?,
+    ))
+}
+
+pub(super) async fn certificate_store_status(state: AppState) -> Response {
+    let readiness = state.runtime.certificate_store_readiness().await;
+    no_store_status_json(
+        if readiness == crate::runtime::CertificateStoreReadiness::Ready {
+            StatusCode::OK
+        } else {
+            StatusCode::SERVICE_UNAVAILABLE
+        },
+        serde_json::json!({ "readiness": readiness }),
+    )
 }
 
 pub(super) async fn get_certificate(

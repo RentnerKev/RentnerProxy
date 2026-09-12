@@ -295,6 +295,113 @@ describe('certificate management UI', () => {
         expect(document.body.textContent).not.toContain('Delete')
     })
 
+    test('shows observed operation stages and durable certificate metadata without fake progress', async () => {
+        const operationCertificate: CertificateSummary = {
+            ...certificate,
+            challengeType: 'dns-01',
+            currentOperation: {
+                id: '0192c8b4-6d5d-7c65-9dc0-7ac2c8ea0031',
+                kind: 'renew',
+                stage: 'waiting_for_validation',
+                startedAt: new Date('2026-02-01T09:00:00Z'),
+                updatedAt: new Date('2026-02-01T09:15:00Z'),
+            },
+            attemptCount: 2,
+            nextAttemptAt: new Date('2026-02-01T10:00:00Z'),
+            lastAttemptAt: new Date('2026-02-01T09:00:00Z'),
+            lastSuccessAt: new Date('2026-01-01T00:00:00Z'),
+            lastActivatedAt: new Date('2026-01-01T00:05:00Z'),
+            lastErrorAt: null,
+            nextRenewalAt: new Date('2026-03-01T00:00:00Z'),
+        }
+        getCertificatesHandlerMock.mockResolvedValueOnce([operationCertificate])
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_RENEW])
+        await waitFor(() => document.body.textContent?.includes('Waiting for validation') === true)
+        expect(document.body.textContent).toContain(operationCertificate.currentOperation!.id)
+        expect(document.body.textContent).not.toContain('%')
+        expect(document.querySelector('[role=progressbar]')).toBeNull()
+
+        await openMenu(button('Open certificate actions'))
+        const detailsAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Details',
+        )
+        expect(detailsAction).toBeDefined()
+        await click(detailsAction!)
+        await waitFor(() => document.body.textContent?.includes('Certificate metadata') === true)
+        expect(document.body.textContent).toContain(
+            'Test environment – certificates are not trusted by normal browsers.',
+        )
+        expect(document.body.textContent).toContain('Valid until')
+        expect(document.body.textContent).toContain('Automatic renewal')
+        expect(document.body.textContent).toContain('Active ACME')
+        expect(document.body.textContent).toContain('DNS-01 (Cloudflare)')
+        expect(document.body.textContent).toContain('Subject alternative names (SAN)')
+        expect(document.body.textContent).toContain('Next renewal')
+        expect(document.body.textContent).toContain('Last activation')
+        expect(document.body.textContent).toContain('Operation ID')
+        expect(document.body.textContent).toContain('Operation stage')
+        expect(document.body.textContent).toContain('Waiting for validation')
+    })
+
+    test('localizes the staging warning and keeps mutation actions disabled during an operation', async () => {
+        const operationCertificate: CertificateSummary = {
+            ...certificate,
+            currentOperation: {
+                id: '0192c8b4-6d5d-7c65-9dc0-7ac2c8ea0032',
+                kind: 'renew',
+                stage: 'applying',
+                startedAt: new Date('2026-02-01T09:00:00Z'),
+                updatedAt: new Date('2026-02-01T09:15:00Z'),
+            },
+        }
+        getCertificatesHandlerMock.mockResolvedValueOnce([operationCertificate])
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_RENEW], 'de')
+        await waitFor(
+            () => document.body.textContent?.includes('Zertifikat wird angewendet') === true,
+        )
+        expect(document.body.textContent).toContain(operationCertificate.currentOperation!.id)
+        await openMenu(button('Zertifikataktionen für Public edge öffnen'))
+        const renewAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Erneuern',
+        )
+        expect(renewAction).toBeDefined()
+        expect(renewAction?.getAttribute('aria-disabled')).toBe('true')
+
+        const detailsAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Einzelheiten',
+        )
+        expect(detailsAction).toBeDefined()
+        await click(detailsAction!)
+        await waitFor(() => document.body.textContent?.includes('Zertifikatmetadaten') === true)
+        expect(document.body.textContent).toContain(
+            'Testumgebung – Zertifikate werden von normalen Browsern nicht als vertrauenswürdig eingestuft.',
+        )
+    })
+
+    test('identifies manual imports as non-renewing certificates in details', async () => {
+        const manualCertificate: CertificateSummary = {
+            ...certificate,
+            source: 'manual',
+            environment: null,
+            challengeType: null,
+            currentOperation: null,
+        }
+        getCertificatesHandlerMock.mockResolvedValueOnce([manualCertificate])
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_UPDATE])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        await openMenu(button('Open certificate actions'))
+        const detailsAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Details',
+        )
+        expect(detailsAction).toBeDefined()
+        await click(detailsAction!)
+        await waitFor(() => document.body.textContent?.includes('Certificate metadata') === true)
+        expect(document.body.textContent).toContain('Manual import')
+        expect(document.body.textContent).not.toContain(
+            'Test environment – certificates are not trusted by normal browsers.',
+        )
+    })
+
     test('shows pending candidates and retries activation through the renew action', async () => {
         const candidateCertificate: CertificateSummary = {
             ...certificate,

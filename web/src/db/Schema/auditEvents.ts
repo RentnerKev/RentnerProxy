@@ -27,6 +27,13 @@ export const auditAction = rentnerProxySchema.enum('audit_action', [
     'renew',
     'save',
     'apply',
+    'accepted',
+    'started',
+    'issued',
+    'activated',
+    'renewed',
+    'retry_scheduled',
+    'failed',
 ])
 export const auditResource = rentnerProxySchema.enum('audit_resource', [
     'session',

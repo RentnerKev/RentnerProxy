@@ -16,10 +16,11 @@ use challenges::ChallengeStore;
 
 use auth::{authorize_certificate_request, authorize_internal_request};
 use handlers::{
-    access_logs, apply_proxy_config, challenge_response, delete_certificate, get_certificate,
-    health, import_certificate, issue_certificate, list_certificates, preview_proxy_config,
-    preview_proxy_host_config, proxy_status, read_proxy_config, read_proxy_host_config, readiness,
-    renew_certificate, validate_trusted_ca,
+    access_logs, apply_proxy_config, certificate_events, certificate_store_status,
+    challenge_response, delete_certificate, get_certificate, health, import_certificate,
+    issue_certificate, list_certificates, preview_proxy_config, preview_proxy_host_config,
+    proxy_status, read_proxy_config, read_proxy_host_config, readiness, renew_certificate,
+    validate_trusted_ca,
 };
 
 const MAX_PROXY_CONFIG_BODY_BYTES: usize = 16 * 1024 * 1024;
@@ -48,6 +49,27 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
     // Capture application-owned state when registering routes. Only request extractors
     // belong in handler parameters; runtime paths and credentials are never request data.
     let certificates = Router::new()
+        .route(
+            "/internal/v1/certificates/events",
+            get({
+                let state = state.clone();
+                move |request| certificate_events(request, state.clone())
+            }),
+        )
+        .route(
+            "/internal/v1/certificates/status",
+            get({
+                let state = state.clone();
+                move || certificate_store_status(state.clone())
+            }),
+        )
+        .route(
+            "/internal/v1/certificates/{id}/status",
+            get({
+                let state = state.clone();
+                move |id| get_certificate(id, state.clone())
+            }),
+        )
         .route(
             "/internal/v1/certificates",
             get({

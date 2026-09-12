@@ -37,6 +37,25 @@ const startProxyRuntimeLifecycle = createServerOnlyFn(async () => {
 
 if (typeof window === 'undefined') void startProxyRuntimeLifecycle()
 
+const startCertificateEventsLifecycle = createServerOnlyFn(async () => {
+    let stop: (() => Promise<void>) | null = null
+    const initializing =
+        import('./server/Admin/CertificateManagement/certificate-events.worker').then(
+            ({ startCertificateEventsSynchronization, stopCertificateEventsSynchronization }) => {
+                stop = stopCertificateEventsSynchronization
+                startCertificateEventsSynchronization()
+            },
+        )
+    // serve.mjs emits this before exit and awaits every promise pushed into the array.
+    // Register synchronously so shutdown during module initialization still drains safely.
+    process.once('rentnerproxy:shutdown', (pending: Array<Promise<void>>) => {
+        pending.push(initializing.then(() => stop?.()).then(() => undefined))
+    })
+    await initializing
+})
+
+if (typeof window === 'undefined') void startCertificateEventsLifecycle()
+
 const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => {
     const nonce = createCspNonce()
     const securityHeaders = getAdminUiSecurityHeaders(

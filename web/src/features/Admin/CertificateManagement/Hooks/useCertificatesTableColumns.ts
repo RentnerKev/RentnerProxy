@@ -9,9 +9,11 @@ import CertificateTableActions from '../Components/CertificateTableActions'
 import {
     CertificateDateCell,
     CertificateDomainsCell,
+    CertificateOperationCell,
     CertificateSourceCell,
     CertificateStatusCell,
 } from '../Components/CertificateTableCells'
+import { getCertificateOperationSearchValues } from '../Helpers/certificateOperations'
 
 export default function useCertificatesTableColumns(actions: CertificateTableProps) {
     const { t } = useTranslationStore()
@@ -52,6 +54,16 @@ export default function useCertificatesTableColumns(actions: CertificateTablePro
                         candidate: row.original.candidate !== null,
                         status: row.original.status,
                     }),
+            },
+            {
+                id: 'operation',
+                accessorFn: (certificate) =>
+                    getCertificateOperationSearchValues(certificate).join(' '),
+                header: t('admin.certificates.columns.operation'),
+                sortFn: 'text',
+                enableGlobalFilter: true,
+                cell: ({ row }) =>
+                    createElement(CertificateOperationCell, { certificate: row.original }),
             },
             {
                 accessorKey: 'expiresAt',

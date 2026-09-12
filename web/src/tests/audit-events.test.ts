@@ -97,3 +97,34 @@ describe('audit event validation', () => {
         )
     })
 })
+
+describe('certificate operation audit events', () => {
+    test('retains observed event identity and rejects arbitrary stage and error payloads', () => {
+        const metadata = {
+            operationId: USER_ID,
+            eventId: '0198d98a-0000-7000-8000-000000000002',
+            certificateStage: 'retry_scheduled',
+            occurredAt: '2026-09-12T17:00:00Z',
+            certificateErrorCode: 'runtime_apply_failed',
+        } as const
+        expect(
+            auditEventInputSchema.parse({
+                actorUserId: null,
+                actorKind: 'system',
+                action: 'retry_scheduled',
+                resource: 'certificate',
+                targetId: USER_ID,
+                result: 'failure',
+                metadata,
+            }).metadata,
+        ).toEqual(metadata)
+        for (const invalid of [
+            { ...metadata, operationId: 'not-an-id' },
+            { ...metadata, certificateStage: '50_percent' },
+            { ...metadata, certificateErrorCode: 'private provider response' },
+            { ...metadata, privateKey: 'private material' },
+            { ...metadata, occurredAt: 'not-a-timestamp' },
+        ])
+            expect(auditMetadataSchema.safeParse(invalid).success).toBe(false)
+    })
+})

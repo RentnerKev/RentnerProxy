@@ -5,6 +5,10 @@ import useClientTableLogic from '../../../../shared/Table/Hooks/useClientTableLo
 import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { CertificateSummary } from '../../../../shared/Types/certificates.types'
 import type { CertificateTableProps } from '../Types/certificate-management.types'
+import {
+    getCertificateOperationDisplay,
+    getCertificateOperationSearchValues,
+} from '../Helpers/certificateOperations'
 import useCertificatesTableColumns from './useCertificatesTableColumns'
 
 type Translate = ReturnType<typeof useTranslationStore>['t']
@@ -19,6 +23,7 @@ const createCertificateGlobalFilter =
         const certificate = row.original
         const status = t(`admin.certificates.status.${certificate.status}`)
         const source = t(`admin.certificates.source.${certificate.source}`)
+        const operation = getCertificateOperationDisplay(certificate)
         return [
             certificate.name,
             ...certificate.domains,
@@ -26,6 +31,11 @@ const createCertificateGlobalFilter =
             source,
             certificate.status,
             status,
+            ...getCertificateOperationSearchValues(certificate),
+            ...(operation.stage
+                ? [t(`admin.certificates.operationStages.${operation.stage}`)]
+                : []),
+            ...(operation.kind ? [t(`admin.certificates.operationKinds.${operation.kind}`)] : []),
         ].some((value) => value.toLocaleLowerCase(locale).includes(search))
     }
 

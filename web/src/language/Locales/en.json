@@ -644,7 +644,7 @@
                 "count_other": "{{count}} certificates",
                 "description": "Review certificate coverage, lifecycle status, and host assignments.",
                 "searchLabel": "Search certificates",
-                "searchPlaceholder": "Search name, domain, source, or status...",
+                "searchPlaceholder": "Search name, domain, source, status, or operation...",
                 "loading": "Loading certificates",
                 "emptyTitle": "No certificates yet",
                 "emptyDescription": "Import a certificate or request one through ACME.",
@@ -657,6 +657,7 @@
                 "domains": "Domains",
                 "source": "Source",
                 "status": "Status",
+                "operation": "Operation",
                 "expires": "Expires",
                 "actions": "Actions"
             },
@@ -672,9 +673,32 @@
                 "failed": "Failed",
                 "candidate": "Pending activation"
             },
+            "operation": {
+                "idle": "No operation in progress",
+                "operationId": "Operation ID"
+            },
+            "operationKinds": {
+                "issue": "Issue",
+                "renew": "Renewal",
+                "import": "Import"
+            },
+            "operationStages": {
+                "queued": "Queued",
+                "creating_order": "Creating ACME order",
+                "preparing_challenge": "Preparing challenge",
+                "waiting_for_validation": "Waiting for validation",
+                "finalizing": "Finalizing certificate",
+                "certificate_ready": "Certificate ready",
+                "applying": "Applying certificate",
+                "applied": "Applied",
+                "retry_scheduled": "Retry scheduled",
+                "failed": "Failed",
+                "needs_attention": "Needs attention"
+            },
             "cells": {
                 "moreDomains": "Show {{count}} more domains"
             },
+            "stagingWarning": "Test environment – certificates are not trusted by normal browsers.",
             "actions": {
                 "import": "Import certificate",
                 "request": "Request with ACME",
@@ -694,10 +718,35 @@
                 "title": "Certificate: {{name}}",
                 "description": "Metadata and current assignment information.",
                 "metadata": "Certificate metadata",
+                "validUntil": "Valid until",
+                "autoRenew": "Automatic renewal",
+                "autoRenewAcme": "Active ACME",
+                "autoRenewManual": "Manual import",
+                "environment": "Environment",
+                "challengeType": "Challenge type",
+                "san": "Subject alternative names (SAN)",
                 "issuer": "Issuer",
                 "issuedAt": "Issued",
                 "fingerprint": "Fingerprint",
                 "assignedHosts": "Assigned hosts",
+                "attemptCount": "Attempt count",
+                "retryStatus": "Retry status",
+                "retryScheduled": "Retry scheduled",
+                "retryFailed": "Last attempt failed",
+                "retryNone": "No retry scheduled",
+                "nextRenewalAt": "Next renewal",
+                "nextAttemptAt": "Next attempt",
+                "lastAttemptAt": "Last attempt",
+                "lastSuccessAt": "Last success",
+                "lastActivatedAt": "Last activation",
+                "lastErrorAt": "Last error",
+                "operationStatus": "Operation status",
+                "currentOperation": "Current operation",
+                "operationId": "Operation ID",
+                "operationKind": "Operation type",
+                "operationStage": "Operation stage",
+                "operationStartedAt": "Operation started",
+                "operationUpdatedAt": "Operation updated",
                 "candidate": "Issued candidate pending activation",
                 "candidateIssuedAt": "Candidate issued",
                 "candidateExpiresAt": "Candidate expires",
@@ -1611,7 +1660,14 @@
                     "request": "Request",
                     "renew": "Renew",
                     "save": "Save",
-                    "apply": "Apply"
+                    "apply": "Apply",
+                    "accepted": "Accepted",
+                    "started": "Started",
+                    "issued": "Issued",
+                    "activated": "Activated",
+                    "renewed": "Renewed",
+                    "retry_scheduled": "Retry scheduled",
+                    "failed": "Failed"
                 },
                 "resources": {
                     "session": "Session",
@@ -1644,7 +1700,12 @@
                 "previousId": "Previous ID",
                 "nextId": "Next ID",
                 "runtimeStatus": "Runtime status",
-                "count": "Count"
+                "count": "Count",
+                "operationId": "Operation ID",
+                "eventId": "Event ID",
+                "certificateStage": "Certificate stage",
+                "occurredAt": "Occurred at",
+                "certificateErrorCode": "Certificate error code"
             },
             "details": {
                 "noMetadata": "No additional safe metadata."

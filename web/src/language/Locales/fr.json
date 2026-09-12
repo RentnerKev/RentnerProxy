@@ -644,7 +644,7 @@
                 "count_other": "{{count}} certificats",
                 "description": "Consultez la couverture des certificats, leur état et leurs attributions aux hôtes.",
                 "searchLabel": "Rechercher des certificats",
-                "searchPlaceholder": "Rechercher un nom, un domaine, une source ou un état...",
+                "searchPlaceholder": "Rechercher un nom, un domaine, une source, un état ou une opération...",
                 "loading": "Chargement des certificats",
                 "emptyTitle": "Aucun certificat pour le moment",
                 "emptyDescription": "Importez un certificat ou demandez-en un via ACME.",
@@ -657,6 +657,7 @@
                 "domains": "Domaines",
                 "source": "Origine",
                 "status": "État",
+                "operation": "Opération",
                 "expires": "Expire",
                 "actions": "Opérations"
             },
@@ -672,9 +673,32 @@
                 "failed": "Échec",
                 "candidate": "Activation en attente"
             },
+            "operation": {
+                "idle": "Aucune opération en cours",
+                "operationId": "ID de l’opération"
+            },
+            "operationKinds": {
+                "issue": "Délivrance",
+                "renew": "Renouvellement",
+                "import": "Importation"
+            },
+            "operationStages": {
+                "queued": "En attente",
+                "creating_order": "Création de la commande ACME",
+                "preparing_challenge": "Préparation du défi",
+                "waiting_for_validation": "En attente de validation",
+                "finalizing": "Finalisation du certificat",
+                "certificate_ready": "Certificat prêt",
+                "applying": "Application du certificat",
+                "applied": "Appliqué",
+                "retry_scheduled": "Nouvel essai planifié",
+                "failed": "Échec",
+                "needs_attention": "Intervention requise"
+            },
             "cells": {
                 "moreDomains": "Afficher {{count}} domaines supplémentaires"
             },
+            "stagingWarning": "Environnement de test – les certificats ne sont pas approuvés par les navigateurs courants.",
             "actions": {
                 "import": "Importer un certificat",
                 "request": "Demander avec ACME",
@@ -694,10 +718,35 @@
                 "title": "Certificat : {{name}}",
                 "description": "Métadonnées et informations actuelles d’attribution.",
                 "metadata": "Métadonnées du certificat",
+                "validUntil": "Valide jusqu’au",
+                "autoRenew": "Renouvellement automatique",
+                "autoRenewAcme": "ACME actif",
+                "autoRenewManual": "Importation manuelle",
+                "environment": "Environnement",
+                "challengeType": "Type de défi",
+                "san": "Noms alternatifs du sujet (SAN)",
                 "issuer": "Émetteur",
                 "issuedAt": "Délivré",
                 "fingerprint": "Empreinte",
                 "assignedHosts": "Hôtes attribués",
+                "attemptCount": "Nombre de tentatives",
+                "retryStatus": "État du nouvel essai",
+                "retryScheduled": "Nouvel essai planifié",
+                "retryFailed": "La dernière tentative a échoué",
+                "retryNone": "Aucun nouvel essai planifié",
+                "nextRenewalAt": "Prochain renouvellement",
+                "nextAttemptAt": "Prochaine tentative",
+                "lastAttemptAt": "Dernière tentative",
+                "lastSuccessAt": "Dernière réussite",
+                "lastActivatedAt": "Dernière activation",
+                "lastErrorAt": "Dernière erreur",
+                "operationStatus": "État de l’opération",
+                "currentOperation": "Opération actuelle",
+                "operationId": "ID de l’opération",
+                "operationKind": "Type d’opération",
+                "operationStage": "Étape de l’opération",
+                "operationStartedAt": "Début de l’opération",
+                "operationUpdatedAt": "Mise à jour de l’opération",
                 "candidate": "Certificat délivré en attente d’activation",
                 "candidateIssuedAt": "Certificat candidat délivré",
                 "candidateExpiresAt": "Expiration du candidat",
@@ -1611,7 +1660,14 @@
                     "request": "Demander",
                     "renew": "Renouveler",
                     "save": "Enregistrer",
-                    "apply": "Appliquer"
+                    "apply": "Appliquer",
+                    "accepted": "Accepté",
+                    "started": "Démarré",
+                    "issued": "Délivré",
+                    "activated": "Activé",
+                    "renewed": "Renouvelé",
+                    "retry_scheduled": "Nouvel essai planifié",
+                    "failed": "Échec"
                 },
                 "resources": {
                     "session": "Session",
@@ -1644,7 +1700,12 @@
                 "previousId": "ID précédent",
                 "nextId": "ID suivant",
                 "runtimeStatus": "État d’exécution",
-                "count": "Nombre"
+                "count": "Nombre",
+                "operationId": "ID de l’opération",
+                "eventId": "ID de l’événement",
+                "certificateStage": "Étape du certificat",
+                "occurredAt": "Survenu le",
+                "certificateErrorCode": "Code d’erreur du certificat"
             },
             "details": {
                 "noMetadata": "Aucune autre métadonnée sûre."

@@ -338,6 +338,9 @@ impl ProxyRuntime {
         dns_provider: Option<&DnsProvider>,
         dns_intents: &mut Vec<DnsRecordIntent>,
     ) -> Result<(String, String), CertificateError> {
+        self.certificate_store
+            .record_operation_stage(id, super::CertificateOperationStage::CreatingOrder)
+            .await?;
         if let Some(provider) = dns_provider {
             // Reject names outside the configured zone before contacting ACME.
             provider.validate_sans(&request.domains).await?;
@@ -355,6 +358,10 @@ impl ProxyRuntime {
             .new_order(&NewOrder::new(&identifiers))
             .await
             .map_err(|_| CertificateError::AcmeFailed)?;
+
+        self.certificate_store
+            .record_operation_stage(id, super::CertificateOperationStage::PreparingChallenge)
+            .await?;
 
         match request.challenge_type {
             AcmeChallengeType::Http01 => {
@@ -446,6 +453,9 @@ impl ProxyRuntime {
             }
         }
 
+        self.certificate_store
+            .record_operation_stage(id, super::CertificateOperationStage::WaitingForValidation)
+            .await?;
         let status = order
             .poll_ready(&RetryPolicy::default())
             .await
@@ -453,6 +463,9 @@ impl ProxyRuntime {
         if status != OrderStatus::Ready {
             return Err(CertificateError::AcmeFailed);
         }
+        self.certificate_store
+            .record_operation_stage(id, super::CertificateOperationStage::Finalizing)
+            .await?;
         let private_key_pem = order
             .finalize()
             .await
