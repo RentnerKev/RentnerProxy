@@ -15,6 +15,16 @@ describe('production smoke CI output boundary', () => {
             'Production restore failed: production restore operation failed: restore PostgreSQL. No automatic destructive retry was attempted.\nprivate-value'
         const diagnostic = restoreSmokeDiagnostic(raw)
         expect(diagnostic).toBe('Restore failed: restore PostgreSQL')
+        const databaseDiagnostic = restoreSmokeDiagnostic(
+            raw + '\nRestore database phase: execute; SQLSTATE: 23514.',
+        )
+        expect(databaseDiagnostic).toBe(
+            'Restore failed: restore PostgreSQL (execute; SQLSTATE: 23514)',
+        )
+        const databaseProgress = smokeProgress('production')
+        databaseProgress.consume(databaseDiagnostic!)
+        databaseProgress.consume('Restore failed: restore PostgreSQL (private-value)')
+        expect(databaseProgress.result(1).diagnostic).toBe(databaseDiagnostic!)
         expect(
             restoreSmokeDiagnostic('production restore operation failed: private-value.'),
         ).toBeUndefined()

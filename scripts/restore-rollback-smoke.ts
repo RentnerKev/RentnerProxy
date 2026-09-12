@@ -210,7 +210,7 @@ export async function verifyRestoreRollback(input: VerifyRestoreRollbackInput): 
         }
         if (!restoreError) throw new Error('malformed restore fixture unexpectedly succeeded')
         const message = restoreError instanceof Error ? restoreError.message : String(restoreError)
-        if (message !== 'Restore failed: restore PostgreSQL') {
+        if (message !== 'Restore failed: restore PostgreSQL (execute; SQLSTATE: 23514)') {
             throw new Error('restore rollback smoke failed at an unexpected stage')
         }
         await input.waitForHealthy()
