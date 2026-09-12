@@ -5,8 +5,8 @@ import { z } from 'zod'
 
 import { parseTrustedManagementOrigin } from '../../config/management-origin.config'
 import { systemSettings } from '../../db/schema'
-import { getAppUrl, parseWebAuthnRpId, type WebAuthnConfiguration } from '../env.server'
-import { getAuthDatabase, type AuthTransaction } from '../Auth/Core/database.server'
+import { deriveWebAuthnRpId, getPublicOrigin, type WebAuthnConfiguration } from '../env.server'
+import { getAuthDatabase } from '../Auth/Core/database.server'
 
 export const MANAGEMENT_ORIGIN_SETTINGS_KEY = 'management_origin_v1'
 
@@ -14,19 +14,6 @@ const storedManagementOriginSchema = z.strictObject({
     version: z.literal(1),
     origin: z.string(),
 })
-
-export async function writeManagementOriginInTransaction(
-    transaction: AuthTransaction,
-    origin: string,
-): Promise<void> {
-    await transaction
-        .insert(systemSettings)
-        .values({ key: MANAGEMENT_ORIGIN_SETTINGS_KEY, value: { origin, version: 1 } })
-        .onConflictDoUpdate({
-            target: systemSettings.key,
-            set: { updatedAt: new Date(), value: { origin, version: 1 } },
-        })
-}
 
 export async function getStoredManagementOrigin(): Promise<string | null> {
     const rows = await getAuthDatabase()
@@ -41,16 +28,12 @@ export async function getStoredManagementOrigin(): Promise<string | null> {
 }
 
 export async function getRuntimeManagementOrigin(): Promise<string | null> {
-    if (process.env.APP_URL !== undefined) {
-        return getAppUrl()
-    }
-    return getStoredManagementOrigin()
+    return getPublicOrigin()
 }
 
 export async function getRuntimeWebAuthnConfiguration(): Promise<WebAuthnConfiguration | null> {
     const origin = await getRuntimeManagementOrigin()
     if (!origin) return null
-    const configuredRpId = process.env.WEBAUTHN_RP_ID ?? new URL(origin).hostname
-    const rpId = parseWebAuthnRpId(configuredRpId, origin)
+    const rpId = deriveWebAuthnRpId(origin)
     return rpId ? { origin, rpId, rpName: 'RentnerProxy' } : null
 }

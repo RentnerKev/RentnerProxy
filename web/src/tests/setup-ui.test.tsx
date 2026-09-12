@@ -25,12 +25,15 @@ mock.module('../features/Auth/Setup/server', () => ({
 mock.module('@tanstack/react-router', () => ({
     useNavigate: () => navigateMock,
     useRouter: () => ({ invalidate: invalidateMock }),
+    useRouterState: () => undefined,
 }))
 mock.module('../shared/Toast/Hooks/useToast', () => ({
     default: () => ({ error: toastErrorMock }),
 }))
 
 const useSetupLogic = (await import('../features/Auth/Setup/Hooks/useSetupLogic')).default
+const SetupForm = (await import('../features/Auth/Setup/Components/SetupForm')).default
+const { TooltipProvider } = await import('../shared/Tooltip')
 type SetupState = ReturnType<typeof useSetupLogic>['state']
 
 let activeRoot: Root | null = null
@@ -42,7 +45,7 @@ function SetupHarness({ onReady }: { readonly onReady: (state: SetupState) => vo
         onReady(state)
     }, [onReady, state])
 
-    return null
+    return createElement(TooltipProvider, null, createElement(SetupForm, { state }))
 }
 
 async function renderSetup(): Promise<SetupState> {
@@ -89,7 +92,6 @@ async function waitForCallCount(count: number): Promise<void> {
 async function fillValidSetup(state: SetupState): Promise<void> {
     state.form.setFieldValue('displayName', 'First Owner')
     state.form.setFieldValue('email', 'owner@example.com')
-    state.form.setFieldValue('managementOrigin', 'https://admin.example.com')
     state.form.setFieldValue('password', 'a secure phrase')
     state.form.setFieldValue('confirmPassword', 'a secure phrase')
     await new Promise((resolve) => setTimeout(resolve, 0))
@@ -114,6 +116,28 @@ afterEach(async () => {
 })
 
 describe('first-owner setup submission', () => {
+    test('does not render or submit a deployment origin field', async () => {
+        const state = await renderSetup()
+
+        expect(document.querySelector('input[name="managementOrigin"]')).toBeNull()
+
+        await act(async () => {
+            await fillValidSetup(state)
+            await state.form.handleSubmit()
+            await new Promise((resolve) => setTimeout(resolve, 0))
+        })
+
+        expect(setupOwnerHandlerMock).toHaveBeenCalledTimes(1)
+        expect(setupOwnerHandlerMock).toHaveBeenCalledWith({
+            data: {
+                displayName: 'First Owner',
+                email: 'owner@example.com',
+                password: 'a secure phrase',
+                confirmPassword: 'a secure phrase',
+            },
+        })
+    })
+
     test('does not send duplicate requests while the first submission is in flight', async () => {
         const state = await renderSetup()
         await act(async () => {

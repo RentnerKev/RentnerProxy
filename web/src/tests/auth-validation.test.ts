@@ -52,7 +52,6 @@ describe('authentication validation', () => {
         const result = setupInputSchema.safeParse({
             displayName: 'First Owner',
             email: 'owner@example.com',
-            managementOrigin: 'https://admin.example.com',
             password: 'a secure phrase',
             confirmPassword: 'a different phrase',
         })

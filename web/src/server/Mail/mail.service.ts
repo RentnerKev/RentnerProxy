@@ -50,14 +50,14 @@ function getMailClient(): MailClient {
     return mailClient
 }
 
-async function getRequiredAppUrl(): Promise<string> {
-    const appUrl = await getRuntimeManagementOrigin()
+async function getRequiredPublicOrigin(): Promise<string> {
+    const publicOrigin = await getRuntimeManagementOrigin()
 
-    if (!appUrl) {
-        throw new Error('APP_URL is not configured.')
+    if (!publicOrigin) {
+        throw new Error('RENTNERPROXY_PUBLIC_ORIGIN is not configured.')
     }
 
-    return appUrl
+    return publicOrigin
 }
 
 async function sendMail(to: string, template: MailTemplate): Promise<void> {
@@ -80,7 +80,7 @@ export async function sendPasswordResetEmailService({
     token,
 }: SendActionEmailInput): Promise<void> {
     const template = createPasswordResetEmailTemplate({
-        appUrl: await getRequiredAppUrl(),
+        appUrl: await getRequiredPublicOrigin(),
         displayName,
         token,
     })
@@ -94,7 +94,7 @@ export async function sendUserInviteEmailService({
     token,
 }: SendActionEmailInput): Promise<void> {
     const template = createUserInviteEmailTemplate({
-        appUrl: await getRequiredAppUrl(),
+        appUrl: await getRequiredPublicOrigin(),
         displayName,
         token,
     })

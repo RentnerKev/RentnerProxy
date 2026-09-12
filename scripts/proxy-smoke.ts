@@ -182,7 +182,7 @@ async function runSmoke(): Promise<void> {
             '/rentnerproxy_smoke'
         process.env.DATABASE_URL = databaseUrl
         process.env.NODE_ENV = 'test'
-        process.env.APP_URL = 'http://localhost:5173'
+        process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'http://localhost:5173'
         process.env.RENTNERPROXY_CONTROLLER_TOKEN = token
         environment.DATABASE_URL = databaseUrl
 

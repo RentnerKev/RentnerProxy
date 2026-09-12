@@ -23,7 +23,7 @@ export async function verifyDurableCertificateJob(options: JobSmokeOptions): Pro
     const environment = {
         ...process.env,
         NODE_ENV: 'test',
-        APP_URL: 'http://localhost:5173',
+        RENTNERPROXY_PUBLIC_ORIGIN: 'http://localhost:5173',
         APP_ENCRYPTION_KEY: randomBytes(32).toString('base64'),
         POSTGRES_PASSWORD: password,
         RENTNERPROXY_CONTROLLER_URL: options.controllerUrl,
