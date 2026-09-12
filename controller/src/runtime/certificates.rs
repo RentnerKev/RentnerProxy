@@ -35,7 +35,6 @@ const MAX_CERTIFICATES: usize = 10_000;
 const INTERRUPTED_OPERATION_HEADROOM_BYTES: usize = 384;
 const MIN_ACME_RETRY_DELAY_SECONDS: u32 = 1_800;
 const MAX_ACME_RETRY_DELAY_SECONDS: u32 = 21_600;
-const MAX_ACME_ATTEMPT_COUNT: u32 = 32;
 
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -648,11 +647,7 @@ impl CertificateStore {
         }
         let stored = if let Some(current) = index.certificates.get(id) {
             let mut preserved = current.clone();
-            let attempt_count = preserved
-                .metadata
-                .attempt_count
-                .saturating_add(1)
-                .min(MAX_ACME_ATTEMPT_COUNT);
+            let attempt_count = preserved.metadata.attempt_count.saturating_add(1);
             preserved.metadata.operation = if renewal {
                 CertificateOperation::Renewing
             } else {
@@ -775,11 +770,7 @@ impl CertificateStore {
         attempted.metadata.operation = CertificateOperation::Renewing;
         attempted.metadata.last_error_code = None;
         attempted.next_attempt_at = None;
-        attempted.metadata.attempt_count = attempted
-            .metadata
-            .attempt_count
-            .saturating_add(1)
-            .min(MAX_ACME_ATTEMPT_COUNT);
+        attempted.metadata.attempt_count = attempted.metadata.attempt_count.saturating_add(1);
         attempted.metadata.last_attempt_at = Some(now.clone());
         attempted.metadata.updated_at = now;
         index.certificates.insert(id.to_owned(), attempted.clone());
@@ -902,10 +893,7 @@ impl CertificateStore {
             };
             entry.metadata.last_error_code = Some(error.code().to_owned());
             if entry.metadata.source == CertificateSource::Acme || had_acme_operation {
-                entry.metadata.attempt_count = entry
-                    .metadata
-                    .attempt_count
-                    .clamp(1, MAX_ACME_ATTEMPT_COUNT);
+                entry.metadata.attempt_count = entry.metadata.attempt_count.max(1);
                 let delay =
                     next_retry_delay(id, entry.metadata.attempt_count, entry.retry_delay_seconds);
                 entry.retry_delay_seconds = Some(delay);
@@ -1671,7 +1659,6 @@ fn index_is_valid(index: &CertificateIndex) -> bool {
                     .next_attempt_at
                     .as_ref()
                     .is_none_or(|timestamp| valid_timestamp(timestamp))
-                && entry.metadata.attempt_count <= MAX_ACME_ATTEMPT_COUNT
                 && entry
                     .metadata
                     .last_attempt_at
