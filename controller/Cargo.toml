@@ -12,7 +12,7 @@ axum = { version = "0.8.9", default-features = false, features = [
     "http1",
     "query",
 ] }
-base64 = "0.22.1"
+base64 = "0.23.1"
 http-body-util = "0.1.5"
 hyper = { version = "1.11.0", default-features = false, features = ["client", "http1"] }
 hyper-util = { version = "0.1.20", default-features = false, features = ["tokio"] }
