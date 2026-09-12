@@ -14,11 +14,27 @@ export async function restoreCertificateStateFixture(
     const archiveVolume = input.volume + '-restore-' + randomUUID().replaceAll('-', '')
     await command(['docker', 'volume', 'create', archiveVolume])
     try {
+        await command([
+            'docker',
+            'run',
+            '--rm',
+            '--user',
+            '0:0',
+            '--entrypoint',
+            'chown',
+            '--volume',
+            archiveVolume + ':/archive',
+            input.image,
+            '10001:10001',
+            '/archive',
+        ])
         await command(['docker', 'stop', input.container], { timeoutMs: 60_000 })
         const run = [
             'docker',
             'run',
             '--rm',
+            '--user',
+            '10001:10001',
             '--entrypoint',
             'sh',
             '--volume',
@@ -54,7 +70,6 @@ export async function restoreCertificateStateFixture(
                 'cd /state; find . -type f -exec sha256sum {} + | LC_ALL=C sort > /archive/restored.sha256; ' +
                 'cmp /archive/expected.sha256 /archive/restored.sha256',
         ])
-        await command(['docker', 'start', input.container])
     } finally {
         await command(['docker', 'volume', 'rm', archiveVolume]).catch(() => undefined)
     }

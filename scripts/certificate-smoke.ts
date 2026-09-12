@@ -2000,8 +2000,6 @@ async function runSmoke(): Promise<void> {
                 'certificates/' + acmeId + '/candidate.json',
             ],
         })
-        await refreshRuntimeDns()
-        await waitForRuntimeReady()
         passed(
             'production archive restores active material, issued candidate, operation journal and ACME account',
         )
@@ -2232,8 +2230,6 @@ async function runSmoke(): Promise<void> {
         const cleanupRecoveredFingerprint = cleanupFailure.fingerprint
         assert.ok(dnsFixture.records.length > 0)
         await checkWildcardTraffic()
-        dnsFixture.failCleanup = false
-
         await command(['docker', 'network', 'disconnect', network, pebbleContainer], {
             timeoutMs: 30_000,
         })
@@ -2247,9 +2243,8 @@ async function runSmoke(): Promise<void> {
                 'certificates/acme-accounts/staging.json',
             ],
         })
-        await refreshRuntimeDns()
-        await waitForRuntimeReady()
         passed('production archive restores encrypted DNS credentials and pending cleanup state')
+        dnsFixture.failCleanup = false
         await restartRuntime()
         await waitFor(
             async () => (await controllerRequest('/internal/v1/proxy/status')).status === 200,

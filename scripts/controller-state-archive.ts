@@ -4,6 +4,7 @@ export const stateArchiveExclusions = [
     './last-known-good.conf',
     './last-good.conf',
     './engine.pid',
+    './*.pid',
     './host-configs',
     './host-configs/**',
     './caddy-admin.sock',
