@@ -74,11 +74,19 @@ async function getCertificateRow(
 async function persistControllerMetadata(
     transaction: AuthTransaction,
     metadata: ControllerCertificateMetadata,
+    guardControllerTimestamp = false,
 ): Promise<void> {
     const row = await getCertificateRow(transaction, metadata.id)
     if (row.source !== metadata.source || row.environment !== metadata.environment) {
         throw new CertificateDomainError('controller_unavailable')
     }
+    const controllerUpdatedAt = new Date(metadata.updatedAt)
+    if (
+        guardControllerTimestamp &&
+        row.controllerUpdatedAt !== null &&
+        controllerUpdatedAt.getTime() <= row.controllerUpdatedAt.getTime()
+    )
+        return
     const issuedAt = metadata.issuedAt ? new Date(metadata.issuedAt) : null
     const expiresAt = metadata.expiresAt ? new Date(metadata.expiresAt) : null
     const candidate =
@@ -90,6 +98,52 @@ async function persistControllerMetadata(
                 }
               : null
     const dnsCleanupPending = metadata.dnsCleanupPending ?? row.dnsCleanupPending
+    const currentOperation =
+        metadata.currentOperation === undefined
+            ? row.currentOperation
+            : metadata.currentOperation
+              ? { ...metadata.currentOperation }
+              : null
+    const challengeType =
+        metadata.challengeType === undefined ? row.challengeType : metadata.challengeType
+    const lastActivatedAt =
+        metadata.lastActivatedAt === undefined
+            ? row.lastActivatedAt
+            : metadata.lastActivatedAt === null
+              ? null
+              : new Date(metadata.lastActivatedAt)
+    const lastErrorAt =
+        metadata.lastErrorAt === undefined
+            ? row.lastErrorAt
+            : metadata.lastErrorAt === null
+              ? null
+              : new Date(metadata.lastErrorAt)
+    const nextAttemptAt =
+        metadata.nextAttemptAt === undefined
+            ? row.nextAttemptAt
+            : metadata.nextAttemptAt === null
+              ? null
+              : new Date(metadata.nextAttemptAt)
+    const attemptCount =
+        metadata.attemptCount === undefined ? row.attemptCount : metadata.attemptCount
+    const lastAttemptAt =
+        metadata.lastAttemptAt === undefined
+            ? row.lastAttemptAt
+            : metadata.lastAttemptAt === null
+              ? null
+              : new Date(metadata.lastAttemptAt)
+    const lastSuccessAt =
+        metadata.lastSuccessAt === undefined
+            ? row.lastSuccessAt
+            : metadata.lastSuccessAt === null
+              ? null
+              : new Date(metadata.lastSuccessAt)
+    const nextRenewalAt =
+        metadata.nextRenewalAt === undefined
+            ? row.nextRenewalAt
+            : metadata.nextRenewalAt === null
+              ? null
+              : new Date(metadata.nextRenewalAt)
     const domains = [...new Set(metadata.domains)].toSorted()
     const existingDomains = (
         await transaction
@@ -108,7 +162,17 @@ async function persistControllerMetadata(
         row.issuedAt?.getTime() !== issuedAt?.getTime() ||
         row.expiresAt?.getTime() !== expiresAt?.getTime() ||
         JSON.stringify(row.candidate) !== JSON.stringify(candidate) ||
+        JSON.stringify(row.currentOperation) !== JSON.stringify(currentOperation) ||
+        row.challengeType !== challengeType ||
         row.dnsCleanupPending !== dnsCleanupPending ||
+        row.lastActivatedAt?.getTime() !== lastActivatedAt?.getTime() ||
+        row.lastErrorAt?.getTime() !== lastErrorAt?.getTime() ||
+        row.nextAttemptAt?.getTime() !== nextAttemptAt?.getTime() ||
+        row.attemptCount !== attemptCount ||
+        row.lastAttemptAt?.getTime() !== lastAttemptAt?.getTime() ||
+        row.lastSuccessAt?.getTime() !== lastSuccessAt?.getTime() ||
+        row.nextRenewalAt?.getTime() !== nextRenewalAt?.getTime() ||
+        row.controllerUpdatedAt?.getTime() !== controllerUpdatedAt.getTime() ||
         domainsChanged
     if (!changed) return
     await transaction
@@ -121,8 +185,18 @@ async function persistControllerMetadata(
             issuer: metadata.issuer,
             fingerprint: metadata.fingerprint,
             candidate,
+            currentOperation,
+            challengeType,
             dnsCleanupPending,
             lastErrorCode: metadata.lastErrorCode,
+            lastActivatedAt,
+            lastErrorAt,
+            nextAttemptAt,
+            attemptCount,
+            lastAttemptAt,
+            lastSuccessAt,
+            nextRenewalAt,
+            controllerUpdatedAt,
             updatedAt: new Date(),
         })
         .where(eq(certificates.id, row.id))
@@ -138,6 +212,57 @@ async function persistControllerMetadata(
                 })),
             )
         }
+    }
+}
+
+/**
+ * Persist one authoritative controller listing while the caller owns its transaction and any
+ * coordination lock. This deliberately updates only rows that already exist in the web database;
+ * controller-only certificates are never silently created by a poller.
+ */
+export async function persistControllerCertificatesMetadataInTransaction(
+    transaction: AuthTransaction,
+    metadata: readonly ControllerCertificateMetadata[],
+    markMissing = true,
+): Promise<void> {
+    // A successful authoritative listing can reveal interrupted deletion or lost local material.
+    // Keep the DB record and assignments for recovery; never silently downgrade a host to HTTP.
+    if (markMissing) {
+        await transaction
+            .update(certificates)
+            .set({
+                status: 'failed',
+                operation: 'idle',
+                lastErrorCode: 'certificate_not_found',
+                lastErrorAt: new Date(),
+                updatedAt: new Date(),
+            })
+            .where(
+                metadata.length === 0
+                    ? eq(certificates.status, 'valid')
+                    : and(
+                          eq(certificates.status, 'valid'),
+                          notInArray(
+                              certificates.id,
+                              metadata.map((entry) => entry.id),
+                          ),
+                      ),
+            )
+    }
+    if (metadata.length === 0) return
+    const known = await transaction
+        .select({ id: certificates.id })
+        .from(certificates)
+        .where(
+            inArray(
+                certificates.id,
+                metadata.map((certificate) => certificate.id),
+            ),
+        )
+    const ids = new Set(known.map((row) => row.id))
+    for (const certificate of metadata) {
+        // oxlint-disable-next-line no-await-in-loop -- Ordered writes share one SQL transaction and runtime lock.
+        if (ids.has(certificate.id)) await persistControllerMetadata(transaction, certificate, true)
     }
 }
 
@@ -183,6 +308,16 @@ async function readCertificateSummaries(): Promise<CertificateSummary[]> {
                 environment: row.environment,
                 status: getCertificateStatus(row.status, row.issuedAt, row.expiresAt),
                 operation: row.operation,
+                currentOperation: row.currentOperation
+                    ? {
+                          id: row.currentOperation.id,
+                          kind: row.currentOperation.kind,
+                          stage: row.currentOperation.stage,
+                          startedAt: new Date(row.currentOperation.startedAt),
+                          updatedAt: new Date(row.currentOperation.updatedAt),
+                      }
+                    : null,
+                challengeType: row.challengeType,
                 issuedAt: row.issuedAt,
                 expiresAt: row.expiresAt,
                 issuer: row.issuer,
@@ -200,6 +335,13 @@ async function readCertificateSummaries(): Promise<CertificateSummary[]> {
                     : null,
                 dnsCleanupPending: row.dnsCleanupPending,
                 lastErrorCode: row.lastErrorCode,
+                lastActivatedAt: row.lastActivatedAt,
+                lastErrorAt: row.lastErrorAt,
+                nextAttemptAt: row.nextAttemptAt,
+                attemptCount: row.attemptCount,
+                lastAttemptAt: row.lastAttemptAt,
+                lastSuccessAt: row.lastSuccessAt,
+                nextRenewalAt: row.nextRenewalAt,
                 assignedHostCount: counts.get(row.id) ?? 0,
                 createdAt: row.createdAt,
                 updatedAt: row.updatedAt,
@@ -213,53 +355,21 @@ async function synchronizeCertificateMetadata(
     actorId: string,
     permission: PermissionKey,
 ): Promise<void> {
+    // Fetch before opening a database transaction. A controller outage must leave the last
+    // authoritative web snapshot untouched and must never hold a SQL connection during I/O.
+    let metadata: ControllerCertificateMetadata[]
+    try {
+        metadata = await getControllerCertificates()
+    } catch {
+        // Lists are an authoritative read. Never return stale local rows after a controller 503,
+        // malformed response, timeout, or readiness failure.
+        throw new CertificateDomainError('controller_unavailable')
+    }
     await getAuthDatabase().transaction(async (transaction) => {
         // Use the existing mutation lock so stale polling cannot overwrite a just-replaced certificate.
         await lockProxyRuntimeSettings(transaction)
         await requirePermissionInTransaction(transaction, actorId, permission)
-        let metadata: ControllerCertificateMetadata[]
-        try {
-            metadata = await getControllerCertificates()
-        } catch (error) {
-            if (error instanceof CertificateDomainError) return
-            throw error
-        }
-        // A successful authoritative listing can reveal interrupted deletion or lost local material.
-        // Keep the DB record and assignments for recovery; never silently downgrade a host to HTTP.
-        await transaction
-            .update(certificates)
-            .set({
-                status: 'failed',
-                operation: 'idle',
-                lastErrorCode: 'certificate_not_found',
-                updatedAt: new Date(),
-            })
-            .where(
-                metadata.length === 0
-                    ? eq(certificates.status, 'valid')
-                    : and(
-                          eq(certificates.status, 'valid'),
-                          notInArray(
-                              certificates.id,
-                              metadata.map((entry) => entry.id),
-                          ),
-                      ),
-            )
-        if (metadata.length === 0) return
-        const known = await transaction
-            .select({ id: certificates.id })
-            .from(certificates)
-            .where(
-                inArray(
-                    certificates.id,
-                    metadata.map((certificate) => certificate.id),
-                ),
-            )
-        const ids = new Set(known.map((row) => row.id))
-        for (const certificate of metadata) {
-            // oxlint-disable-next-line no-await-in-loop -- Ordered writes share one SQL transaction and runtime lock.
-            if (ids.has(certificate.id)) await persistControllerMetadata(transaction, certificate)
-        }
+        await persistControllerCertificatesMetadataInTransaction(transaction, metadata)
     })
 }
 

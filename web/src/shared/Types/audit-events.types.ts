@@ -1,10 +1,15 @@
+import type {
+    CertificateErrorCode,
+    CertificateOperationStage,
+} from '../../config/certificates.config'
+
 export const AUDIT_ACTOR_KINDS = ['user', 'anonymous', 'system'] as const
 export type AuditActorKind = (typeof AUDIT_ACTOR_KINDS)[number]
 
 export const AUDIT_RESULTS = ['success', 'failure', 'denied'] as const
 export type AuditResult = (typeof AUDIT_RESULTS)[number]
 
-/** Actions are deliberately generic so every audited domain uses one stable vocabulary. */
+/** Stable actions shared by user mutations and observed system operations. */
 export const AUDIT_ACTIONS = [
     'login',
     'logout',
@@ -23,6 +28,13 @@ export const AUDIT_ACTIONS = [
     'renew',
     'save',
     'apply',
+    'accepted',
+    'started',
+    'issued',
+    'activated',
+    'renewed',
+    'retry_scheduled',
+    'failed',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 
@@ -108,6 +120,11 @@ export interface AuditMetadata {
     readonly nextId?: string | null
     readonly runtimeStatus?: 'applied' | 'pending' | 'failed'
     readonly count?: number
+    readonly operationId?: string
+    readonly eventId?: string
+    readonly certificateStage?: CertificateOperationStage
+    readonly occurredAt?: string
+    readonly certificateErrorCode?: CertificateErrorCode
 }
 
 export interface AuditEventInput {

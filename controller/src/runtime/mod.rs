@@ -17,8 +17,8 @@ use certificates::StagedCertificate;
 #[cfg(test)]
 pub(crate) use certificates::{CertificateEnvironment, CertificateSource, CertificateStatus};
 pub(crate) use certificates::{
-    CertificateError, CertificateImportRequest, CertificateIssueRequest, CertificateMetadata,
-    CertificateStore,
+    CertificateError, CertificateEventPage, CertificateImportRequest, CertificateIssueRequest,
+    CertificateMetadata, CertificateOperationStage, CertificateStore, CertificateStoreReadiness,
 };
 pub(crate) use engine::{CaddyProcess, EngineError, EngineFuture, ProxyEngine};
 use renderer::{
@@ -230,10 +230,14 @@ impl ProxyRuntime {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(_) => return Err(RuntimeError::Unavailable),
         }
-        self.certificate_store
-            .initialize()
-            .await
-            .map_err(|_| RuntimeError::Unavailable)?;
+        // Caddy startup may fail after the certificate store was loaded. Recovery must not
+        // reload that live store while already accepted certificate work is running.
+        if self.certificate_store.readiness().await != CertificateStoreReadiness::Ready {
+            self.certificate_store
+                .initialize()
+                .await
+                .map_err(|_| RuntimeError::Unavailable)?;
+        }
         self.trusted_ca_store
             .initialize()
             .map_err(|_| RuntimeError::Unavailable)?;
@@ -453,6 +457,18 @@ impl ProxyRuntime {
         self.certificate_store.list().await
     }
 
+    pub(crate) async fn certificate_store_readiness(&self) -> CertificateStoreReadiness {
+        self.certificate_store.readiness().await
+    }
+
+    pub(crate) async fn certificate_events(
+        &self,
+        after: Option<&str>,
+        limit: usize,
+    ) -> Result<CertificateEventPage, CertificateError> {
+        self.certificate_store.events(after, limit).await
+    }
+
     pub(crate) async fn certificate(
         &self,
         id: &str,
@@ -486,7 +502,11 @@ impl ProxyRuntime {
         staged: StagedCertificate,
     ) -> Result<CertificateMetadata, CertificateError> {
         let id = staged.id().to_owned();
-        if self.apply_staged_for_active(staged.clone()).await.is_err() {
+        let recorded = self
+            .certificate_store
+            .record_operation_stage(&id, CertificateOperationStage::Applying)
+            .await;
+        if recorded.is_err() || self.apply_staged_for_active(staged.clone()).await.is_err() {
             if staged.is_acme() {
                 self.certificate_store
                     .finish_candidate_failed(&staged, CertificateError::RuntimeApplyFailed)
@@ -578,6 +598,9 @@ impl ProxyRuntime {
     }
 
     pub(crate) async fn is_ready(&self) -> bool {
+        if self.certificate_store.readiness().await != CertificateStoreReadiness::Ready {
+            return false;
+        }
         // A concurrent apply can legitimately change the probe while state is being committed.
         let Ok(_guard) = timeout(self.settings.lock_wait, self.apply_lock.lock()).await else {
             return false;
@@ -903,6 +926,10 @@ mod renewal_tests {
             )),
             candidate: None,
             dns_cleanup_pending: false,
+            current_operation: None,
+            challenge_type: None,
+            last_activated_at: None,
+            last_error_at: None,
         }
     }
 

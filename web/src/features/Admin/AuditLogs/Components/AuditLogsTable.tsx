@@ -19,6 +19,7 @@ import {
     auditEventKey,
     auditResourceValues,
     formatAuditActor,
+    formatAuditMetadataValue,
     getAuditMetadataEntries,
     resultClassName,
 } from '../Helpers/auditLogs'
@@ -58,7 +59,7 @@ function MetadataDetails({ event }: { readonly event: AuditEventDto }) {
                                   <span className="text-muted-soft">
                                       {t(`admin.auditLogs.metadata.${key}`)}:
                                   </span>{' '}
-                                  {value}
+                                  {formatAuditMetadataValue({ key, value }, t)}
                               </div>
                           ))
                         : t('admin.auditLogs.details.noMetadata')}

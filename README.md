@@ -135,3 +135,28 @@ manifests and material versions, together with the application encryption key. T
 database migration stores candidate display metadata; the controller remains the owner of
 certificate material and activation. The proxy snapshot remains version 7. Rollback requires
 restoring the pre-upgrade backup with the previous image.
+
+### Certificate operations and audit history
+
+Certificate issue and renewal work has a durable operation ID and records only observed
+steps, from accepted work through challenge handling, issued material, activation, and retry
+or failure. Activation retries reuse the operation associated with the issued candidate.
+Restart recovery retains those IDs. Certificate details show the current step alongside the
+active certificate, scheduling timestamps, last activation, and any pending candidate.
+Staging certificates are explicitly marked as test certificates that normal browsers do not trust.
+
+The web server synchronizes certificate metadata and controller events independently of an
+open management page. Event IDs are deduplicated when recording system audit entries, so
+restarting the web server or replaying a page does not create duplicate audit events. The
+controller retains a bounded journal of the latest 10,000 events; older history follows the
+web audit retention policy. Cursor resets identify controller replacement, restored state,
+or a replay window that has advanced while the web server was offline.
+
+Certificate APIs distinguish a successfully loaded empty store from a store that is not
+ready, failed initialization, or is corrupt. An unavailable store returns HTTP 503 and does
+not authorize clearing the web database's certificate records. The authenticated internal
+status and events endpoints use the same controller token as certificate management.
+
+The additive database migration stores operation and scheduling display metadata and event
+synchronization state. Include the database, full controller state directory, and encryption
+key in one consistent backup. The proxy snapshot format remains version 7.

@@ -1,6 +1,7 @@
 import { ActionMenu } from '../../../../shared/ActionMenu'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import type { CertificateTableActionsProps } from '../Types/certificate-management.types'
+import { hasActiveCertificateOperation } from '../Helpers/certificateOperations'
 
 export default function CertificateTableActions({
     certificate,
@@ -14,6 +15,7 @@ export default function CertificateTableActions({
     onReplace,
 }: CertificateTableActionsProps) {
     const { t } = useTranslationStore()
+    const operationActive = hasActiveCertificateOperation(certificate)
     const items = [
         {
             label: t('admin.certificates.actions.details'),
@@ -29,7 +31,7 @@ export default function CertificateTableActions({
                               : 'admin.certificates.actions.renew',
                       ),
                       onSelect: () => onRenew(certificate),
-                      disabled: isPending,
+                      disabled: isPending || operationActive,
                   },
               ]
             : []),
@@ -38,7 +40,7 @@ export default function CertificateTableActions({
                   {
                       label: t('admin.certificates.actions.replace'),
                       onSelect: () => onReplace(certificate),
-                      disabled: isPending,
+                      disabled: isPending || operationActive,
                   },
               ]
             : []),
@@ -47,7 +49,7 @@ export default function CertificateTableActions({
                   {
                       label: t('admin.certificates.actions.delete'),
                       onSelect: () => onDelete(certificate),
-                      disabled: isPending,
+                      disabled: isPending || operationActive,
                       destructive: true,
                   },
               ]

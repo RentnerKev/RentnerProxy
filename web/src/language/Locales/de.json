@@ -644,7 +644,7 @@
                 "count_other": "{{count}} Zertifikate",
                 "description": "Prüfe Zertifikatsabdeckung, Lebenszyklusstatus und Host-Zuweisungen.",
                 "searchLabel": "Zertifikate suchen",
-                "searchPlaceholder": "Name, Domain, Quelle oder Status suchen...",
+                "searchPlaceholder": "Name, Domain, Quelle, Status oder Vorgang suchen...",
                 "loading": "Zertifikate werden geladen",
                 "emptyTitle": "Noch keine Zertifikate",
                 "emptyDescription": "Importiere ein Zertifikat oder fordere eines über ACME an.",
@@ -657,6 +657,7 @@
                 "domains": "Domänen",
                 "source": "Quelle",
                 "status": "Zustand",
+                "operation": "Vorgang",
                 "expires": "Läuft ab",
                 "actions": "Aktionen"
             },
@@ -672,9 +673,32 @@
                 "failed": "Fehlgeschlagen",
                 "candidate": "Aktivierung ausstehend"
             },
+            "operation": {
+                "idle": "Kein Vorgang aktiv",
+                "operationId": "Vorgangs-ID"
+            },
+            "operationKinds": {
+                "issue": "Ausstellung",
+                "renew": "Erneuerung",
+                "import": "Import"
+            },
+            "operationStages": {
+                "queued": "Warteschlange",
+                "creating_order": "ACME-Auftrag wird erstellt",
+                "preparing_challenge": "Challenge wird vorbereitet",
+                "waiting_for_validation": "Warten auf Validierung",
+                "finalizing": "Zertifikat wird fertiggestellt",
+                "certificate_ready": "Zertifikat bereit",
+                "applying": "Zertifikat wird angewendet",
+                "applied": "Angewendet",
+                "retry_scheduled": "Wiederholung geplant",
+                "failed": "Fehlgeschlagen",
+                "needs_attention": "Aufmerksamkeit erforderlich"
+            },
             "cells": {
                 "moreDomains": "Weitere {{count}} Domains anzeigen"
             },
+            "stagingWarning": "Testumgebung – Zertifikate werden von normalen Browsern nicht als vertrauenswürdig eingestuft.",
             "actions": {
                 "import": "Zertifikat importieren",
                 "request": "Mit ACME anfordern",
@@ -694,10 +718,35 @@
                 "title": "Zertifikat: {{name}}",
                 "description": "Metadaten und aktuelle Zuweisungsinformationen.",
                 "metadata": "Zertifikatmetadaten",
+                "validUntil": "Gültig bis",
+                "autoRenew": "Automatische Erneuerung",
+                "autoRenewAcme": "Aktives ACME",
+                "autoRenewManual": "Manueller Import",
+                "environment": "Umgebung",
+                "challengeType": "Challenge-Typ",
+                "san": "Alternative Namen (SAN)",
                 "issuer": "Aussteller",
                 "issuedAt": "Ausgestellt",
                 "fingerprint": "Fingerabdruck",
                 "assignedHosts": "Zugewiesene Hosts",
+                "attemptCount": "Anzahl der Versuche",
+                "retryStatus": "Wiederholungsstatus",
+                "retryScheduled": "Wiederholung geplant",
+                "retryFailed": "Letzter Versuch fehlgeschlagen",
+                "retryNone": "Keine Wiederholung geplant",
+                "nextRenewalAt": "Nächste Erneuerung",
+                "nextAttemptAt": "Nächster Versuch",
+                "lastAttemptAt": "Letzter Versuch",
+                "lastSuccessAt": "Letzter Erfolg",
+                "lastActivatedAt": "Letzte Aktivierung",
+                "lastErrorAt": "Letzter Fehler",
+                "operationStatus": "Vorgangsstatus",
+                "currentOperation": "Aktueller Vorgang",
+                "operationId": "Vorgangs-ID",
+                "operationKind": "Vorgangsart",
+                "operationStage": "Vorgangsschritt",
+                "operationStartedAt": "Vorgang gestartet",
+                "operationUpdatedAt": "Vorgang aktualisiert",
                 "candidate": "Ausgestellter Kandidat wartet auf Aktivierung",
                 "candidateIssuedAt": "Kandidat ausgestellt",
                 "candidateExpiresAt": "Kandidat läuft ab",
@@ -1611,7 +1660,14 @@
                     "request": "Anfordern",
                     "renew": "Erneuern",
                     "save": "Speichern",
-                    "apply": "Anwenden"
+                    "apply": "Anwenden",
+                    "accepted": "Angenommen",
+                    "started": "Gestartet",
+                    "issued": "Ausgestellt",
+                    "activated": "Aktiviert",
+                    "renewed": "Erneuert",
+                    "retry_scheduled": "Wiederholung geplant",
+                    "failed": "Fehlgeschlagen"
                 },
                 "resources": {
                     "session": "Sitzung",
@@ -1644,7 +1700,12 @@
                 "previousId": "Vorherige ID",
                 "nextId": "Nächste ID",
                 "runtimeStatus": "Laufzeitstatus",
-                "count": "Anzahl"
+                "count": "Anzahl",
+                "operationId": "Vorgangs-ID",
+                "eventId": "Ereignis-ID",
+                "certificateStage": "Zertifikatsschritt",
+                "occurredAt": "Aufgetreten am",
+                "certificateErrorCode": "Zertifikat-Fehlercode"
             },
             "details": {
                 "noMetadata": "Keine weiteren sicheren Metadaten."

@@ -16,6 +16,7 @@ import {
 } from '../server'
 import { certificateManagementQueryKeys } from '../queryKeys'
 import type { CertificateManagementPageProps } from '../Types/certificate-management.types'
+import { hasActiveCertificateOperation } from '../Helpers/certificateOperations'
 
 const EMPTY_CERTIFICATES: CertificateSummary[] = []
 
@@ -28,7 +29,8 @@ export default function useCertificateManagementLogic({
     const certificatesQuery = useQuery({
         queryKey: certificateManagementQueryKeys.all,
         queryFn: () => getCertificatesHandler(),
-        refetchInterval: 15_000,
+        refetchInterval: (query) =>
+            query.state.data?.some(hasActiveCertificateOperation) ? 2_000 : 15_000,
     })
     const [importOpen, setImportOpen] = useState(false)
     const [requestOpen, setRequestOpen] = useState(false)
@@ -150,6 +152,10 @@ export default function useCertificateManagementLogic({
     const retry = useCallback(() => {
         void certificatesQuery.refetch()
     }, [certificatesQuery])
+    const currentDetailsTarget = detailsTarget
+        ? (certificatesQuery.data?.find((certificate) => certificate.id === detailsTarget.id) ??
+          detailsTarget)
+        : null
 
     return {
         state: {
@@ -160,7 +166,7 @@ export default function useCertificateManagementLogic({
             canRenew: permissionSet.has(PERMISSIONS.CERTIFICATES_RENEW),
             canUpdate: permissionSet.has(PERMISSIONS.CERTIFICATES_UPDATE),
             deleteTarget,
-            detailsTarget,
+            detailsTarget: currentDetailsTarget,
             importOpen,
             isDeleting: deleteMutation.isPending,
             isError: certificatesQuery.isError,

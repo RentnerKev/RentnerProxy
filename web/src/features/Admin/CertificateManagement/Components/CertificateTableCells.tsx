@@ -2,11 +2,16 @@ import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { Tooltip } from '../../../../shared/Tooltip'
 import useTranslationStore, { useDateFormatter } from '../../../../language/useTranslationStore'
 import type { CertificateSource, CertificateStatus } from '../../../../config/certificates.config'
+import type { CertificateSummary } from '../../../../shared/Types/certificates.types'
 import {
     certificateSourceClass,
     certificateStatusClass,
     formatCertificateDate,
 } from '../Helpers/certificateTableCells'
+import {
+    certificateOperationStageClass,
+    getCertificateOperationDisplay,
+} from '../Helpers/certificateOperations'
 
 const badge = 'inline-flex rounded-full px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold'
 
@@ -64,6 +69,37 @@ export function CertificateStatusCell({
             {candidate ? (
                 <span className={`${badge} bg-info-bg text-info-text`}>
                     {t('admin.certificates.status.candidate')}
+                </span>
+            ) : null}
+        </div>
+    )
+}
+
+export function CertificateOperationCell({
+    certificate,
+}: {
+    readonly certificate: CertificateSummary
+}) {
+    const { t } = useTranslationStore()
+    const operation = getCertificateOperationDisplay(certificate)
+    if (!operation.stage) {
+        return <span className="text-xs text-muted">{t('admin.certificates.operation.idle')}</span>
+    }
+    return (
+        <div className="grid justify-items-start gap-1">
+            <div className="flex flex-wrap gap-2">
+                <span className={`${badge} ${certificateOperationStageClass(operation.stage)}`}>
+                    {t(`admin.certificates.operationStages.${operation.stage}`)}
+                </span>
+                {operation.kind ? (
+                    <span className={`${badge} bg-neutral text-muted`}>
+                        {t(`admin.certificates.operationKinds.${operation.kind}`)}
+                    </span>
+                ) : null}
+            </div>
+            {operation.id ? (
+                <span className="max-w-52 break-all font-mono text-[0.68rem] text-muted">
+                    {t('admin.certificates.operation.operationId')}: {operation.id}
                 </span>
             ) : null}
         </div>

@@ -1231,6 +1231,14 @@ async function runSmoke(): Promise<void> {
             },
         )
         assert.equal(acmeIssue.status, 202)
+        const acceptedIssue = jsonObject(await acmeIssue.json())
+        assert.equal(acceptedIssue.currentOperation.kind, 'issue')
+        assert.equal(acceptedIssue.currentOperation.stage, 'queued')
+        const issueOperationId = acceptedIssue.currentOperation.id
+        assert.match(
+            issueOperationId,
+            /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+        )
         await waitFor(
             async () => {
                 const metadata = jsonObject(
@@ -1248,6 +1256,42 @@ async function runSmoke(): Promise<void> {
         assert.equal(acmeMetadata.source, 'acme')
         assert.equal(acmeMetadata.environment, 'staging')
         assert.equal(typeof acmeMetadata.fingerprint, 'string')
+        assert.equal(acmeMetadata.currentOperation.id, issueOperationId)
+        assert.equal(acmeMetadata.currentOperation.stage, 'applied')
+        assert.equal(acmeMetadata.challengeType, 'http-01')
+        assert.ok(Number.isFinite(Date.parse(acmeMetadata.lastActivatedAt)))
+        async function readCertificateEvents() {
+            const events: Record<string, any>[] = []
+            let after: string | null = null
+            for (let page = 0; page < 100; page += 1) {
+                const query = new URLSearchParams({ limit: '25' })
+                if (after) query.set('after', after)
+                const response = await controllerRequest(
+                    '/internal/v1/certificates/events?' + query.toString(),
+                )
+                assert.equal(response.status, 200)
+                assert.equal(response.headers.get('cache-control'), 'no-store')
+                const body = jsonObject(await response.json())
+                assert.ok(Array.isArray(body.events) && body.events.length <= 25)
+                events.push(...body.events)
+                if (!body.hasMore) {
+                    assert.equal(new Set(events.map((event) => event.id)).size, events.length)
+                    return events
+                }
+                assert.equal(typeof body.nextCursor, 'string')
+                assert.notEqual(body.nextCursor, after)
+                after = body.nextCursor
+            }
+            throw new Error('Certificate event pagination exceeded its bound')
+        }
+        const issuedEvents = (await readCertificateEvents()).filter(
+            (event) => event.operationId === issueOperationId,
+        )
+        assert.deepEqual(
+            issuedEvents.map((event) => event.kind),
+            ['accepted', 'started', 'issued', 'activated'],
+        )
+        assert.ok(issuedEvents.every((event) => event.certificateId === acmeId))
         assert.equal(
             upstreamRequests.some((request) => request.includes('/.well-known/acme-challenge/')),
             false,
@@ -1415,11 +1459,29 @@ async function runSmoke(): Promise<void> {
         passed(
             'ACME renewal reuses the persisted account and installs new certificate material after recovery',
         )
+        const renewalOperationId = afterRenew.currentOperation.id
+        assert.notEqual(renewalOperationId, issueOperationId)
+        const renewalEvents = (await readCertificateEvents()).filter(
+            (event) => event.operationId === renewalOperationId,
+        )
+        assert.deepEqual(
+            renewalEvents.map((event) => event.kind),
+            ['accepted', 'started', 'issued', 'activated', 'renewed'],
+        )
         await restartRuntime()
         await waitFor(async () => {
             const status = await controllerRequest('/internal/v1/proxy/status')
             return status.status === 200 && jsonObject(await status.json()).running === true
         }, 'controller restart with persisted certificate state')
+        assert.deepEqual(
+            (await readCertificateEvents()).filter(
+                (event) => event.operationId === renewalOperationId,
+            ),
+            renewalEvents,
+        )
+        passed(
+            'operation and event IDs survive controller restart with bounded duplicate-free event replay',
+        )
         assert.equal(
             jsonObject(
                 await (await controllerRequest('/internal/v1/certificates/' + acmeId)).json(),
@@ -1502,6 +1564,7 @@ async function runSmoke(): Promise<void> {
             )
         }, 'candidate recovery after Caddy restart')
         const candidateFingerprint = restartedCandidate.candidate.fingerprint
+        assert.equal(restartedCandidate.currentOperation.id, failedActivation.currentOperation.id)
         const candidateRetry = await controllerRequest(
             '/internal/v1/certificates/' + acmeId + '/renew',
             { method: 'POST', body: '{}' },
@@ -1523,6 +1586,14 @@ async function runSmoke(): Promise<void> {
             120_000,
         )
         assert.equal(activatedCandidate.lastErrorCode, null)
+        assert.equal(activatedCandidate.currentOperation.id, failedActivation.currentOperation.id)
+        assert.equal(activatedCandidate.currentOperation.stage, 'applied')
+        const activationEvents = (await readCertificateEvents()).filter(
+            (event) => event.operationId === activatedCandidate.currentOperation.id,
+        )
+        assert.equal(activationEvents.filter((event) => event.kind === 'issued').length, 1)
+        assert.equal(activationEvents.filter((event) => event.kind === 'activated').length, 1)
+        assert.ok(activationEvents.some((event) => event.kind === 'retry_scheduled'))
         assert.equal(
             await servedCertificateFingerprint(
                 'acme.invalid',

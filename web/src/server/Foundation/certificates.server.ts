@@ -2,8 +2,12 @@ import '@tanstack/react-start/server-only'
 
 import { z } from 'zod'
 import {
+    ACME_CHALLENGE_TYPES,
     ACME_ENVIRONMENTS,
+    CERTIFICATE_EVENT_KINDS,
     CERTIFICATE_ERROR_CODES,
+    CERTIFICATE_OPERATION_KINDS,
+    CERTIFICATE_OPERATION_STAGES,
     CERTIFICATE_OPERATIONS,
     CERTIFICATE_SOURCES,
     CERTIFICATE_STORED_STATUSES,
@@ -14,6 +18,7 @@ import type {
     RequestCertificateInput,
 } from '../../features/Admin/CertificateManagement/validation'
 import { normalizeCertificateDomain } from '../../features/Admin/CertificateManagement/Helpers/certificateValidation'
+import type { CertificateEventPage } from '../../shared/Types/certificates.types'
 import { CertificateDomainError } from '../Admin/CertificateManagement/certificates.errors'
 import { controllerRequest, CONTROLLER_APPLY_TIMEOUT_MS } from './controller.server'
 
@@ -36,6 +41,17 @@ const certificateMetadataSchema = z
             .max(MAX_CERTIFICATE_DOMAINS),
         status: z.enum(CERTIFICATE_STORED_STATUSES),
         operation: z.enum(CERTIFICATE_OPERATIONS),
+        currentOperation: z
+            .object({
+                id: z.uuid(),
+                kind: z.enum(CERTIFICATE_OPERATION_KINDS),
+                stage: z.enum(CERTIFICATE_OPERATION_STAGES),
+                startedAt: timestamp,
+                updatedAt: timestamp,
+            })
+            .nullable()
+            .optional(),
+        challengeType: z.enum(ACME_CHALLENGE_TYPES).nullable().optional(),
         issuedAt: timestamp.nullable(),
         expiresAt: timestamp.nullable(),
         issuer: z.string().max(512).nullable(),
@@ -63,6 +79,8 @@ const certificateMetadataSchema = z
         lastAttemptAt: timestamp.nullable().optional(),
         lastSuccessAt: timestamp.nullable().optional(),
         nextRenewalAt: timestamp.nullable().optional(),
+        lastActivatedAt: timestamp.nullable().optional(),
+        lastErrorAt: timestamp.nullable().optional(),
     })
     .superRefine((certificate, context) => {
         if (
@@ -87,6 +105,61 @@ const certificateMetadataSchema = z
 export type ControllerCertificateMetadata = z.infer<typeof certificateMetadataSchema>
 const errorSchema = z.object({ error: z.enum(CERTIFICATE_ERROR_CODES) })
 const RESPONSE_LIMIT = 8 * 1_024 * 1_024
+const CERTIFICATE_EVENTS_RESPONSE_LIMIT = 512 * 1_024
+const CERTIFICATE_EVENT_MAX_PAGE_SIZE = 200
+const CERTIFICATE_EVENT_CURSOR_MAX_BYTES = 57
+const MAX_EVENT_SEQUENCE = 18_446_744_073_709_551_615n
+const certificateEventIdSchema = z.uuidv7().refine((value) => value === value.toLowerCase())
+
+const certificateEventCursorSchema = z
+    .string()
+    .max(CERTIFICATE_EVENT_CURSOR_MAX_BYTES)
+    .refine((value) => {
+        const separator = value.indexOf(':')
+        if (separator <= 0 || separator !== value.lastIndexOf(':')) return false
+        const storeId = value.slice(0, separator)
+        const sequence = value.slice(separator + 1)
+        if (
+            storeId !== storeId.toLowerCase() ||
+            !certificateEventIdSchema.safeParse(storeId).success ||
+            !/^\d{1,20}$/u.test(sequence)
+        )
+            return false
+        try {
+            return BigInt(sequence) <= MAX_EVENT_SEQUENCE
+        } catch {
+            return false
+        }
+    })
+const certificateEventSchema = z.object({
+    id: certificateEventIdSchema,
+    operationId: certificateEventIdSchema,
+    certificateId: certificateEventIdSchema,
+    kind: z.enum(CERTIFICATE_EVENT_KINDS),
+    stage: z.enum(CERTIFICATE_OPERATION_STAGES),
+    occurredAt: timestamp,
+    errorCode: z.enum(CERTIFICATE_ERROR_CODES).nullable(),
+})
+const certificateEventPageSchema = z
+    .object({
+        events: z.array(certificateEventSchema).max(CERTIFICATE_EVENT_MAX_PAGE_SIZE),
+        nextCursor: certificateEventCursorSchema,
+        hasMore: z.boolean(),
+        resetRequired: z.boolean(),
+    })
+    .superRefine((page, context) => {
+        const ids = new Set<string>()
+        for (const [index, event] of page.events.entries()) {
+            if (ids.has(event.id)) {
+                context.addIssue({
+                    code: 'custom',
+                    path: ['events', index, 'id'],
+                    message: 'Event IDs must be unique within a page.',
+                })
+            }
+            ids.add(event.id)
+        }
+    })
 
 function assertNoControllerError(payload: unknown): void {
     const error = errorSchema.safeParse(payload)
@@ -121,6 +194,37 @@ export async function getControllerCertificates(): Promise<ControllerCertificate
         .safeParse(payload)
     if (!parsed.success) throw new CertificateDomainError('controller_unavailable')
     return parsed.data.certificates
+}
+
+export async function getControllerCertificateEvents(
+    after?: string | null,
+    limit = 100,
+): Promise<CertificateEventPage> {
+    if (!Number.isInteger(limit) || limit < 1 || limit > CERTIFICATE_EVENT_MAX_PAGE_SIZE) {
+        throw new CertificateDomainError('invalid_input')
+    }
+    if (
+        after !== undefined &&
+        after !== null &&
+        !certificateEventCursorSchema.safeParse(after).success
+    ) {
+        throw new CertificateDomainError('invalid_input')
+    }
+    const searchParams = new URLSearchParams({ limit: String(limit) })
+    if (after !== undefined && after !== null) searchParams.set('after', after)
+    const path =
+        `/internal/v1/certificates/events?${searchParams.toString()}` as `/internal/v1/certificates/events${string}`
+    const payload = await controllerRequest(path, {
+        privileged: true,
+        timeoutMs: 5_000,
+        responseLimit: CERTIFICATE_EVENTS_RESPONSE_LIMIT,
+        acceptErrorResponse: true,
+    })
+    assertNoControllerError(payload)
+    const parsed = certificateEventPageSchema.safeParse(payload)
+    if (!parsed.success || parsed.data.events.length > limit)
+        throw new CertificateDomainError('controller_unavailable')
+    return parsed.data
 }
 
 export async function getControllerCertificate(

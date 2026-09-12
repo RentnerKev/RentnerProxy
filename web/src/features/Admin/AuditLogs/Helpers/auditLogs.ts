@@ -6,6 +6,7 @@ import {
     type AuditEventsQuery,
 } from '../../../../shared/Types/audit-events.types'
 import type { AuditLogsFilterErrors, AuditLogsFilters } from '../Types/audit-logs.types'
+import type { Translate } from '../../../../language/useTranslationStore'
 
 export const AUDIT_LOGS_PAGE_SIZE = 100
 
@@ -93,11 +94,23 @@ const metadataKeys: readonly (keyof AuditMetadata)[] = [
     'nextId',
     'runtimeStatus',
     'count',
+    'operationId',
+    'eventId',
+    'certificateStage',
+    'occurredAt',
+    'certificateErrorCode',
 ]
 
 export interface AuditMetadataEntry {
     readonly key: keyof AuditMetadata
     readonly value: string
+}
+
+export function formatAuditMetadataValue(entry: AuditMetadataEntry, t: Translate): string {
+    if (entry.key === 'certificateStage')
+        return t(`admin.certificates.operationStages.${entry.value}`)
+    if (entry.key === 'certificateErrorCode') return t(`admin.certificates.errors.${entry.value}`)
+    return entry.value
 }
 
 export function getAuditMetadataEntries(metadata: AuditMetadata): AuditMetadataEntry[] {

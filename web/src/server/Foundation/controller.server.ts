@@ -105,6 +105,7 @@ export async function controllerRequest(
         | `/internal/v1/proxy/hosts/${string}/config/preview`
         | '/internal/v1/certificates'
         | `/internal/v1/certificates/${string}`
+        | `/internal/v1/certificates/events${string}`
         | '/internal/v1/trusted-cas/validate',
     options: ControllerRequestOptions,
 ): Promise<unknown> {

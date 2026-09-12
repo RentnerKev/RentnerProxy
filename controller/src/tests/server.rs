@@ -803,8 +803,14 @@ async fn routers_keep_their_captured_runtime_state_isolated() {
     }
 }
 
-const CERTIFICATE_ENDPOINTS: [(&str, &str); 7] = [
+const CERTIFICATE_ENDPOINTS: [(&str, &str); 10] = [
     ("GET", "/internal/v1/certificates"),
+    ("GET", "/internal/v1/certificates/events"),
+    ("GET", "/internal/v1/certificates/status"),
+    (
+        "GET",
+        "/internal/v1/certificates/0198d98a-0000-7000-8000-000000000001/status",
+    ),
     (
         "GET",
         "/internal/v1/certificates/0198d98a-0000-7000-8000-000000000001",
@@ -982,4 +988,123 @@ async fn trusted_ca_validation_endpoint_is_protected_and_returns_canonical_metad
     );
     assert!(accepted["notBefore"].as_str().is_some());
     assert!(accepted["notAfter"].as_str().is_some());
+}
+
+#[tokio::test]
+async fn certificate_store_status_distinguishes_uninitialized_empty_and_corrupt() {
+    for expected in ["not_ready", "ready", "corrupt"] {
+        let directory = std::env::temp_dir().join(format!(
+            "certificate-readiness-{}-{}",
+            expected,
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        if expected == "corrupt" {
+            std::fs::create_dir_all(directory.join("certificates")).unwrap();
+            std::fs::write(
+                directory.join("certificates/certificate-metadata.json"),
+                b"invalid-json",
+            )
+            .unwrap();
+        }
+        let runtime = ProxyRuntime::new(
+            RuntimeSettings::new(directory, 18_080),
+            Some(Arc::new(TestEngine(AtomicBool::new(false)))),
+        );
+        if expected != "not_ready" {
+            runtime.initialize().await;
+        }
+        let token_text = "readiness-test-controller-token-32-characters";
+        let token = Config::from_values(None, Some(token_text), None, None, None, false)
+            .unwrap()
+            .controller_token;
+        let router = app_with_state(AppState::new(runtime, token));
+        for path in [
+            "/internal/v1/certificates/status",
+            "/internal/v1/certificates",
+            "/internal/v1/certificates/events",
+        ] {
+            let response = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(path)
+                        .header("authorization", format!("Bearer {token_text}"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                if expected == "ready" {
+                    StatusCode::OK
+                } else {
+                    StatusCode::SERVICE_UNAVAILABLE
+                },
+                "{expected}: {path}"
+            );
+            let body: serde_json::Value = serde_json::from_slice(
+                &axum::body::to_bytes(response.into_body(), 8192)
+                    .await
+                    .unwrap(),
+            )
+            .unwrap();
+            if path.ends_with("/status") {
+                assert_eq!(body["readiness"], expected);
+            }
+            if expected != "ready" {
+                assert_ne!(body, serde_json::json!({"certificates": []}));
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn certificate_event_queries_are_bounded_and_strict() {
+    let token_text = "events-test-controller-token-32-characters";
+    let token = Config::from_values(None, Some(token_text), None, None, None, false)
+        .unwrap()
+        .controller_token;
+    let router = test_app(token).await;
+    for query in [
+        "limit=0",
+        "limit=201",
+        "limit=-1",
+        "after=invalid",
+        "limit=1&limit=2",
+        "unknown=1",
+        "after=0198d98a-0000-7000-8000-000000000001%3A18446744073709551616",
+    ] {
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/internal/v1/certificates/events?{query}"))
+                    .header("authorization", format!("Bearer {token_text}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            response.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{query}"
+        );
+    }
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/internal/v1/certificates/events?limit=200")
+                .header("authorization", format!("Bearer {token_text}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()["cache-control"], "no-store");
 }

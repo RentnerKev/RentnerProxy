@@ -24,6 +24,11 @@ use super::state::{SafeDir, state_dir};
 #[path = "../tests/certificate_dns.rs"]
 mod dns_tests;
 
+#[cfg(test)]
+#[path = "../tests/certificate_operations.rs"]
+mod operation_tests;
+mod operations;
+
 pub(crate) const MAX_CERTIFICATE_PEM_BYTES: usize = 256 * 1024;
 pub(crate) const MAX_PRIVATE_KEY_PEM_BYTES: usize = 64 * 1024;
 const CERTIFICATE_INDEX_FILE: &str = "certificate-metadata.json";
@@ -105,6 +110,11 @@ pub(crate) enum CertificateOperation {
     Renewing,
 }
 
+pub(crate) use operations::{
+    CertificateEvent, CertificateEventKind, CertificateEventPage, CertificateOperationStage,
+    CertificateStoreReadiness, CurrentOperation, OperationKind,
+};
+
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CertificateCandidate {
@@ -137,6 +147,10 @@ pub(crate) struct CertificateMetadata {
     pub(crate) next_renewal_at: Option<String>,
     pub(crate) candidate: Option<CertificateCandidate>,
     pub(crate) dns_cleanup_pending: bool,
+    pub(crate) current_operation: Option<CurrentOperation>,
+    pub(crate) challenge_type: Option<AcmeChallengeType>,
+    pub(crate) last_activated_at: Option<String>,
+    pub(crate) last_error_at: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -176,6 +190,14 @@ struct StoredMetadata {
     last_attempt_at: Option<String>,
     #[serde(default)]
     last_success_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    current_operation: Option<CurrentOperation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    challenge_type: Option<AcmeChallengeType>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    last_activated_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    last_error_at: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -233,6 +255,21 @@ struct CertificateIndex {
         skip_serializing_if = "BTreeMap::is_empty"
     )]
     pending_candidates: BTreeMap<String, StoredCertificateCandidate>,
+    #[serde(default, rename = "storeId")]
+    store_id: String,
+    #[serde(
+        default = "default_event_journal_version",
+        rename = "eventJournalVersion"
+    )]
+    event_journal_version: u8,
+    #[serde(default, rename = "eventSequence")]
+    event_sequence: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    events: Vec<CertificateEvent>,
+}
+
+fn default_event_journal_version() -> u8 {
+    1
 }
 
 #[derive(Clone, Debug)]
@@ -326,6 +363,7 @@ pub(crate) struct CertificateStore {
     state_dir: PathBuf,
     index: tokio::sync::Mutex<CertificateIndex>,
     leases: tokio::sync::Mutex<BTreeSet<String>>,
+    readiness: tokio::sync::Mutex<CertificateStoreReadiness>,
 }
 
 impl CertificateStore {
@@ -334,31 +372,67 @@ impl CertificateStore {
             state_dir,
             index: tokio::sync::Mutex::new(CertificateIndex::default()),
             leases: tokio::sync::Mutex::new(BTreeSet::new()),
+            readiness: tokio::sync::Mutex::new(CertificateStoreReadiness::NotReady),
         }
     }
 
     pub(crate) async fn initialize(&self) -> Result<(), CertificateError> {
+        let result = self.initialize_inner().await;
+        let readiness = if result.is_ok() {
+            CertificateStoreReadiness::Ready
+        } else {
+            let current = *self.readiness.lock().await;
+            if matches!(current, CertificateStoreReadiness::Corrupt) {
+                current
+            } else {
+                CertificateStoreReadiness::InitializationFailed
+            }
+        };
+        *self.readiness.lock().await = readiness;
+        result
+    }
+
+    async fn initialize_inner(&self) -> Result<(), CertificateError> {
         let certificates_dir = self.ensure_certificates_dir()?;
         let mut index = match read_regular_private_file(
             &certificates_dir,
             CERTIFICATE_INDEX_FILE,
             MAX_CERTIFICATE_INDEX_BYTES,
         )? {
-            Some(bytes) => {
-                serde_json::from_slice(&bytes).map_err(|_| CertificateError::StoreUnavailable)?
-            }
+            Some(bytes) => match serde_json::from_slice(&bytes) {
+                Ok(index) => index,
+                Err(_) => {
+                    *self.readiness.lock().await = CertificateStoreReadiness::Corrupt;
+                    return Err(CertificateError::StoreUnavailable);
+                }
+            },
             None => CertificateIndex::default(),
         };
+        let generated_store_id = index.store_id.is_empty();
+        if generated_store_id {
+            index.store_id = operations::new_uuid_v7()?;
+        }
+        if index.event_journal_version == 0 {
+            index.event_journal_version = default_event_journal_version();
+        }
         if !index_is_valid(&index) {
+            *self.readiness.lock().await = CertificateStoreReadiness::Corrupt;
             return Err(CertificateError::StoreUnavailable);
         }
         let recovered_candidate_state =
-            reconcile_candidate_manifests(&certificates_dir, &mut index)?;
+            match reconcile_candidate_manifests(&certificates_dir, &mut index) {
+                Ok(changed) => changed,
+                Err(error) => {
+                    *self.readiness.lock().await = CertificateStoreReadiness::Corrupt;
+                    return Err(error);
+                }
+            };
         let mut recovered_interrupted_operation = false;
         let recovery_now = utc_now()?;
         let recovery_deadline = OffsetDateTime::now_utc().checked_add(time::Duration::seconds(
             i64::from(MIN_ACME_RETRY_DELAY_SECONDS),
         ));
+        let mut recovery_events = Vec::new();
         for (id, entry) in &mut index.certificates {
             if entry.metadata.operation != CertificateOperation::Idle {
                 entry.metadata.operation = CertificateOperation::Idle;
@@ -379,6 +453,16 @@ impl CertificateStore {
                 if entry.metadata.last_attempt_at.is_none() {
                     entry.metadata.last_attempt_at = Some(recovery_now.clone());
                 }
+                entry.metadata.last_error_at = Some(recovery_now.clone());
+                let operation_id = entry
+                    .metadata
+                    .current_operation
+                    .as_ref()
+                    .map(|operation| operation.id.clone());
+                if let Some(operation) = entry.metadata.current_operation.as_mut() {
+                    operation.stage = CertificateOperationStage::RetryScheduled;
+                    operation.updated_at = recovery_now.clone();
+                }
                 entry.retry_delay_seconds = Some(
                     entry
                         .retry_delay_seconds
@@ -390,14 +474,43 @@ impl CertificateStore {
                         max_retry_deadline(entry.next_attempt_at.as_deref(), recovery_deadline);
                 }
                 entry.metadata.updated_at = recovery_now.clone();
+                if let Some(operation_id) = operation_id {
+                    recovery_events.push((
+                        operation_id,
+                        entry.metadata.id.clone(),
+                        entry.metadata.last_error_code.clone(),
+                    ));
+                }
                 recovered_interrupted_operation = true;
             }
         }
-        if recovered_interrupted_operation || recovered_candidate_state {
+        for (operation_id, certificate_id, error_code) in recovery_events {
+            let _ = operations::append_event(
+                &mut index,
+                &operation_id,
+                &certificate_id,
+                CertificateEventKind::Failed,
+                CertificateOperationStage::Failed,
+                error_code.clone(),
+            );
+            let _ = operations::append_event(
+                &mut index,
+                &operation_id,
+                &certificate_id,
+                CertificateEventKind::RetryScheduled,
+                CertificateOperationStage::RetryScheduled,
+                error_code,
+            );
+        }
+        if generated_store_id || recovered_interrupted_operation || recovered_candidate_state {
             persist_index(&certificates_dir, &index)?;
         }
         *self.index.lock().await = index;
         Ok(())
+    }
+
+    pub(crate) async fn readiness(&self) -> CertificateStoreReadiness {
+        *self.readiness.lock().await
     }
 
     pub(crate) async fn renewal_is_allowed(&self, id: &str) -> bool {
@@ -413,6 +526,7 @@ impl CertificateStore {
         })
     }
     pub(crate) async fn list(&self) -> Result<Vec<CertificateMetadata>, CertificateError> {
+        self.ensure_ready().await?;
         let index = self.index.lock().await;
         Ok(index
             .certificates
@@ -424,12 +538,105 @@ impl CertificateStore {
     }
 
     pub(crate) async fn get(&self, id: &str) -> Result<CertificateMetadata, CertificateError> {
+        self.ensure_ready().await?;
         let index = self.index.lock().await;
         index
             .certificates
             .get(id)
             .map(|stored| public_metadata_with_candidate(stored, index.pending_candidates.get(id)))
             .ok_or(CertificateError::NotFound)
+    }
+
+    pub(crate) async fn events(
+        &self,
+        after: Option<&str>,
+        limit: usize,
+    ) -> Result<CertificateEventPage, CertificateError> {
+        self.ensure_ready().await?;
+        let index = self.index.lock().await;
+        operations::events_page(&index, after, limit)
+    }
+
+    pub(crate) async fn record_operation_stage(
+        &self,
+        id: &str,
+        stage: CertificateOperationStage,
+    ) -> Result<(), CertificateError> {
+        self.ensure_ready().await?;
+        let now = utc_now()?;
+        let certificates_dir = self.certificates_dir()?;
+        let mut index = self.index.lock().await;
+        let Some(previous_active) = index.certificates.get(id).cloned() else {
+            // A new manual import is staged before its first active index entry exists. Its
+            // operation snapshot is carried by the staged material and finalized by commit.
+            return Ok(());
+        };
+        let Some(mut operation) = previous_active.metadata.current_operation.clone() else {
+            return Err(CertificateError::OperationInProgress);
+        };
+        if operation.stage == stage {
+            return Ok(());
+        }
+        operation.stage = stage;
+        operation.updated_at = now;
+        let previous_candidate = index.pending_candidates.get(id).cloned();
+        let previous_events = index.events.clone();
+        let previous_sequence = index.event_sequence;
+        if let Some(active) = index.certificates.get_mut(id) {
+            active.metadata.current_operation = Some(operation.clone());
+            active.metadata.updated_at = operation.updated_at.clone();
+        }
+        if let Some(candidate) = index.pending_candidates.get_mut(id) {
+            candidate.staged.metadata.current_operation = Some(operation.clone());
+        }
+        if let Some(kind) = operations::event_kind_for_stage(stage) {
+            let error_code = (stage == CertificateOperationStage::Failed
+                || stage == CertificateOperationStage::NeedsAttention)
+                .then(|| {
+                    index
+                        .certificates
+                        .get(id)
+                        .and_then(|entry| entry.metadata.last_error_code.clone())
+                })
+                .flatten();
+            operations::append_event(&mut index, &operation.id, id, kind, stage, error_code)?;
+        }
+        if let Some(candidate) = index.pending_candidates.get(id)
+            && let Err(error) = persist_candidate_manifest(&certificates_dir, id, candidate)
+        {
+            index
+                .certificates
+                .insert(id.to_owned(), previous_active.clone());
+            if let Some(previous_candidate) = previous_candidate.as_ref() {
+                index
+                    .pending_candidates
+                    .insert(id.to_owned(), previous_candidate.clone());
+            }
+            index.events = previous_events;
+            index.event_sequence = previous_sequence;
+            return Err(error);
+        }
+        if let Err(error) = persist_index(&certificates_dir, &index) {
+            index.certificates.insert(id.to_owned(), previous_active);
+            if let Some(previous_candidate) = previous_candidate.as_ref() {
+                index
+                    .pending_candidates
+                    .insert(id.to_owned(), previous_candidate.clone());
+                let _ = persist_candidate_manifest(&certificates_dir, id, previous_candidate);
+            }
+            index.events = previous_events;
+            index.event_sequence = previous_sequence;
+            return Err(error);
+        }
+        Ok(())
+    }
+
+    async fn ensure_ready(&self) -> Result<(), CertificateError> {
+        if matches!(self.readiness().await, CertificateStoreReadiness::Ready) {
+            Ok(())
+        } else {
+            Err(CertificateError::StoreUnavailable)
+        }
     }
 
     pub(crate) async fn stage_manual(
@@ -458,7 +665,57 @@ impl CertificateStore {
             return Err(CertificateError::DnsCleanupFailed);
         }
         match self.stage_import_with_lease(id, &request, CertificateSource::Manual, None, None) {
-            Ok(staged) => Ok(staged),
+            Ok(mut staged) => {
+                let operation = match operations::new_operation(OperationKind::Import) {
+                    Ok(operation) => operation,
+                    Err(error) => {
+                        self.release_lease(id).await;
+                        return Err(error);
+                    }
+                };
+                staged.stored.metadata.current_operation = Some(operation.clone());
+                let mut index = self.index.lock().await;
+                if let Some(previous) = index.certificates.get(id).cloned() {
+                    let previous_events = index.events.clone();
+                    let previous_sequence = index.event_sequence;
+                    let mut active = previous.clone();
+                    active.metadata.current_operation = Some(operation.clone());
+                    active.metadata.updated_at = operation.updated_at.clone();
+                    index.certificates.insert(id.to_owned(), active);
+                    let append = operations::append_event(
+                        &mut index,
+                        &operation.id,
+                        id,
+                        operations::CertificateEventKind::Accepted,
+                        CertificateOperationStage::Queued,
+                        None,
+                    )
+                    .and_then(|()| {
+                        operations::append_event(
+                            &mut index,
+                            &operation.id,
+                            id,
+                            operations::CertificateEventKind::Started,
+                            CertificateOperationStage::Queued,
+                            None,
+                        )
+                    })
+                    .and_then(|()| {
+                        self.certificates_dir()
+                            .and_then(|directory| persist_index(&directory, &index))
+                    });
+                    if let Err(error) = append {
+                        index.certificates.insert(id.to_owned(), previous);
+                        index.events = previous_events;
+                        index.event_sequence = previous_sequence;
+                        drop(index);
+                        self.release_lease(id).await;
+                        return Err(error);
+                    }
+                }
+                drop(index);
+                Ok(staged)
+            }
             Err(error) => {
                 self.release_lease(id).await;
                 Err(error)
@@ -491,6 +748,7 @@ impl CertificateStore {
                 Some(current) => Ok((
                     current.material_id.clone(),
                     current.metadata.operation,
+                    current.metadata.current_operation.clone(),
                     current
                         .acme
                         .as_ref()
@@ -499,7 +757,8 @@ impl CertificateStore {
                 )),
             }
         };
-        let (base_material_id, activation_operation, pending_dns_records) = stage_context?;
+        let (base_material_id, activation_operation, mut current_operation, pending_dns_records) =
+            stage_context?;
         let acme = self.stored_acme_configuration(id, request)?;
         let result = self.stage_import_with_lease(
             id,
@@ -514,6 +773,17 @@ impl CertificateStore {
             Some(acme),
         );
         let mut staged = result?;
+        let now = utc_now()?;
+        let Some(mut operation) = current_operation.take() else {
+            // ACME material must be tied to the operation accepted by begin_issue or
+            // begin_renewal.  Refusing an untracked candidate prevents an issued event from
+            // being attributed to a fabricated operation after a partial restart.
+            self.release_lease(id).await;
+            return Err(CertificateError::OperationInProgress);
+        };
+        operation.stage = CertificateOperationStage::CertificateReady;
+        operation.updated_at = now.clone();
+        staged.stored.metadata.current_operation = Some(operation.clone());
         // The active entry owns the DNS cleanup journal. Carry the intents into the candidate as
         // well so a sidecar is self-contained if the index write is interrupted after staging.
         if let Some(acme) = staged.stored.acme.as_mut() {
@@ -532,7 +802,25 @@ impl CertificateStore {
         persist_candidate_manifest(&certificates_dir, id, &candidate)?;
         let persistence = {
             let mut index = self.index.lock().await;
+            let Some(active) = index.certificates.get_mut(id) else {
+                self.release_lease(id).await;
+                return Err(CertificateError::NotFound);
+            };
+            active.metadata.current_operation = Some(operation.clone());
+            active.metadata.updated_at = now;
             index.pending_candidates.insert(id.to_owned(), candidate);
+            operations::append_event(
+                &mut index,
+                &operation.id,
+                id,
+                CertificateEventKind::Issued,
+                CertificateOperationStage::CertificateReady,
+                None,
+            )?;
+            // The sidecar and in-memory candidate remain authoritative if the index write is
+            // temporarily unavailable.  The caller can finalize the failure while holding the
+            // lease, and a restart can reconcile the durable sidecar without placing a second
+            // ACME order.
             persist_index(&certificates_dir, &index)
         };
         // Retain the lease through failure finalization so activation cannot race bookkeeping.
@@ -602,6 +890,10 @@ impl CertificateStore {
             request.private_key_pem.as_bytes(),
         )?;
 
+        let challenge_type = acme
+            .as_ref()
+            .map(|configuration| configuration.challenge_type);
+
         Ok(StagedCertificate {
             id: id.to_owned(),
             stored: StoredCertificate {
@@ -621,6 +913,10 @@ impl CertificateStore {
                     attempt_count: 0,
                     last_attempt_at: None,
                     last_success_at: None,
+                    current_operation: None,
+                    challenge_type,
+                    last_activated_at: None,
+                    last_error_at: None,
                 },
                 material_id: Some(material_id),
                 acme,
@@ -692,7 +988,7 @@ impl CertificateStore {
             }
         };
         if let Err(error) = validate_candidate_material(&certificates_dir, id, &candidate.staged) {
-            self.release_lease(id).await;
+            self.finish_candidate_attention(id, error).await;
             return Err(error);
         }
 
@@ -768,7 +1064,10 @@ impl CertificateStore {
                 drop(index);
                 return Err(CertificateError::StoreUnavailable);
             };
-            if candidate.staged != staged.stored
+            let mut staged_for_compare = staged.stored.clone();
+            staged_for_compare.metadata.current_operation =
+                candidate.staged.metadata.current_operation.clone();
+            if candidate.staged != staged_for_compare
                 || candidate.base_material_id != previous.material_id
             {
                 drop(index);
@@ -782,15 +1081,80 @@ impl CertificateStore {
             committed.metadata.status = CertificateStatus::Valid;
             committed.metadata.last_error_code = None;
             committed.metadata.attempt_count = 0;
-            committed.metadata.last_success_at = utc_now().ok();
+            let activation_time = utc_now().ok();
+            committed.metadata.last_success_at = activation_time.clone();
             committed.metadata.last_attempt_at = previous.metadata.last_attempt_at.clone();
+            let operation_kind = committed
+                .metadata
+                .current_operation
+                .as_ref()
+                .map(|operation| operation.kind);
+            if let Some(operation) = committed.metadata.current_operation.as_mut() {
+                operation.stage = CertificateOperationStage::Applied;
+                operation.updated_at = committed
+                    .metadata
+                    .last_success_at
+                    .clone()
+                    .unwrap_or_else(|| operation.updated_at.clone());
+            }
+            committed.metadata.updated_at = activation_time
+                .clone()
+                .unwrap_or_else(|| committed.metadata.updated_at.clone());
+            committed.metadata.last_activated_at = committed.metadata.last_success_at.clone();
             committed.next_attempt_at = None;
             committed.retry_delay_seconds = None;
 
+            let previous_events = index.events.clone();
+            let previous_event_sequence = index.event_sequence;
             let previous_candidate = index.pending_candidates.remove(&staged.id);
             let previous_active = index
                 .certificates
                 .insert(staged.id.clone(), committed.clone());
+            let operation_id = committed
+                .metadata
+                .current_operation
+                .as_ref()
+                .map(|operation| operation.id.clone());
+            let append = operation_id.as_deref().map_or(Ok(()), |operation_id| {
+                operations::append_event(
+                    &mut index,
+                    operation_id,
+                    &staged.id,
+                    operations::CertificateEventKind::Activated,
+                    CertificateOperationStage::Applied,
+                    None,
+                )
+                .and_then(|()| {
+                    if operation_kind == Some(OperationKind::Renew) {
+                        operations::append_event(
+                            &mut index,
+                            operation_id,
+                            &staged.id,
+                            operations::CertificateEventKind::Renewed,
+                            CertificateOperationStage::Applied,
+                            None,
+                        )
+                    } else {
+                        Ok(())
+                    }
+                })
+            });
+            if let Err(error) = append {
+                if let Some(previous_active) = previous_active.as_ref() {
+                    index
+                        .certificates
+                        .insert(staged.id.clone(), previous_active.clone());
+                }
+                if let Some(previous_candidate) = previous_candidate.as_ref() {
+                    index
+                        .pending_candidates
+                        .insert(staged.id.clone(), previous_candidate.clone());
+                }
+                index.events = previous_events;
+                index.event_sequence = previous_event_sequence;
+                drop(index);
+                return Err(error);
+            }
             let result = self
                 .certificates_dir()
                 .and_then(|directory| persist_index(&directory, &index));
@@ -805,6 +1169,8 @@ impl CertificateStore {
                         .pending_candidates
                         .insert(staged.id.clone(), previous_candidate);
                 }
+                index.events = previous_events;
+                index.event_sequence = previous_event_sequence;
                 // Keep the lease until the runtime has restored the previous Caddy state and
                 // calls finish_candidate_failed. Releasing here would allow a new operation to
                 // race that rollback while the candidate is still outstanding.
@@ -844,9 +1210,58 @@ impl CertificateStore {
             committed.metadata.last_attempt_at = previous.metadata.last_attempt_at.clone();
             committed.metadata.last_success_at = previous.metadata.last_success_at.clone();
         }
+        let committed_at = utc_now().ok();
+        if let Some(operation) = committed.metadata.current_operation.as_mut() {
+            operation.stage = CertificateOperationStage::Applied;
+            operation.updated_at = committed_at
+                .clone()
+                .unwrap_or_else(|| operation.updated_at.clone());
+            committed.metadata.last_activated_at = Some(operation.updated_at.clone());
+        }
+        committed.metadata.updated_at =
+            committed_at.unwrap_or_else(|| committed.metadata.updated_at.clone());
+        if committed.metadata.source == CertificateSource::Manual {
+            // The event journal is the durable history for completed imports. Keeping the
+            // terminal snapshot out of every large certificate index entry preserves the
+            // existing index size budget while the in-flight placeholder remains observable.
+            committed.metadata.current_operation = None;
+            committed.metadata.last_activated_at = None;
+        }
+        let operation_id = committed
+            .metadata
+            .current_operation
+            .as_ref()
+            .map(|operation| operation.id.clone());
+        let previous_events = index.events.clone();
+        let previous_event_sequence = index.event_sequence;
         let previous = index
             .certificates
             .insert(staged.id.clone(), committed.clone());
+        if let Some(operation_id) = operation_id.as_deref()
+            && let Err(error) = operations::append_event(
+                &mut index,
+                operation_id,
+                &staged.id,
+                operations::CertificateEventKind::Activated,
+                CertificateOperationStage::Applied,
+                None,
+            )
+        {
+            match previous.as_ref() {
+                Some(previous) => {
+                    index
+                        .certificates
+                        .insert(staged.id.clone(), previous.clone());
+                }
+                None => {
+                    index.certificates.remove(&staged.id);
+                }
+            }
+            index.events = previous_events;
+            index.event_sequence = previous_event_sequence;
+            drop(index);
+            return Err(error);
+        }
         let result = self
             .certificates_dir()
             .and_then(|directory| persist_index(&directory, &index));
@@ -859,6 +1274,8 @@ impl CertificateStore {
                     index.certificates.remove(&staged.id);
                 }
             }
+            index.events = previous_events;
+            index.event_sequence = previous_event_sequence;
             drop(index);
             return Err(error);
         }
@@ -869,6 +1286,61 @@ impl CertificateStore {
     }
 
     pub(crate) async fn discard_staged(&self, staged: &StagedCertificate) {
+        let mut index = self.index.lock().await;
+        if let Some(previous) = index.certificates.get(&staged.id).cloned()
+            && previous
+                .metadata
+                .current_operation
+                .as_ref()
+                .is_some_and(|operation| {
+                    staged
+                        .stored
+                        .metadata
+                        .current_operation
+                        .as_ref()
+                        .is_some_and(|staged_operation| staged_operation.id == operation.id)
+                })
+        {
+            let mut failed = previous;
+            if let Some(operation) = failed.metadata.current_operation.as_mut() {
+                operation.stage = CertificateOperationStage::Failed;
+                operation.updated_at = utc_now().unwrap_or_else(|_| operation.updated_at.clone());
+            }
+            failed.metadata.updated_at = failed
+                .metadata
+                .current_operation
+                .as_ref()
+                .map(|operation| operation.updated_at.clone())
+                .unwrap_or_else(|| failed.metadata.updated_at.clone());
+            failed.metadata.status = if failed.material_id.is_some() {
+                CertificateStatus::Valid
+            } else {
+                CertificateStatus::Failed
+            };
+            failed.metadata.last_error_code =
+                Some(CertificateError::RuntimeApplyFailed.code().to_owned());
+            failed.metadata.last_error_at = utc_now().ok();
+            index.certificates.insert(staged.id.clone(), failed);
+            let operation_id = index
+                .certificates
+                .get(&staged.id)
+                .and_then(|entry| entry.metadata.current_operation.as_ref())
+                .map(|operation| operation.id.clone());
+            if let Some(operation_id) = operation_id {
+                let _ = operations::append_event(
+                    &mut index,
+                    &operation_id,
+                    &staged.id,
+                    operations::CertificateEventKind::Failed,
+                    CertificateOperationStage::Failed,
+                    Some(CertificateError::RuntimeApplyFailed.code().to_owned()),
+                );
+            }
+            if let Ok(directory) = self.certificates_dir() {
+                let _ = persist_index(&directory, &index);
+            }
+        }
+        drop(index);
         self.release_lease(&staged.id).await;
     }
 
@@ -883,7 +1355,10 @@ impl CertificateStore {
             self.release_lease(&staged.id).await;
             return;
         };
-        if previous_candidate.staged != staged.stored {
+        let mut staged_for_compare = staged.stored.clone();
+        staged_for_compare.metadata.current_operation =
+            previous_candidate.staged.metadata.current_operation.clone();
+        if previous_candidate.staged != staged_for_compare {
             drop(index);
             self.release_lease(&staged.id).await;
             return;
@@ -902,6 +1377,12 @@ impl CertificateStore {
         if candidate.activation.last_attempt_at.is_none() {
             candidate.activation.last_attempt_at = now.clone();
         }
+        if let Some(operation) = candidate.staged.metadata.current_operation.as_mut() {
+            operation.stage = CertificateOperationStage::RetryScheduled;
+            if let Some(now) = now.clone() {
+                operation.updated_at = now;
+            }
+        }
         index
             .pending_candidates
             .insert(staged.id.clone(), candidate.clone());
@@ -913,6 +1394,8 @@ impl CertificateStore {
                 CertificateStatus::Failed
             };
             active.metadata.last_error_code = Some(error.code().to_owned());
+            active.metadata.last_error_at = now.clone();
+            active.metadata.current_operation = candidate.staged.metadata.current_operation.clone();
             if let Some(now) = now {
                 active.metadata.updated_at = now;
             }
@@ -921,10 +1404,75 @@ impl CertificateStore {
         // sidecar is attempted first so the issued material remains recoverable after a restart.
         if let Ok(directory) = self.certificates_dir() {
             let _ = persist_candidate_manifest(&directory, &staged.id, &candidate);
+            if let Some(operation) = candidate.staged.metadata.current_operation.as_ref() {
+                let _ = operations::append_event(
+                    &mut index,
+                    &operation.id,
+                    &staged.id,
+                    operations::CertificateEventKind::Failed,
+                    CertificateOperationStage::Failed,
+                    Some(error.code().to_owned()),
+                );
+                let _ = operations::append_event(
+                    &mut index,
+                    &operation.id,
+                    &staged.id,
+                    operations::CertificateEventKind::RetryScheduled,
+                    CertificateOperationStage::RetryScheduled,
+                    Some(error.code().to_owned()),
+                );
+            }
             let _ = persist_index(&directory, &index);
         }
         drop(index);
         self.release_lease(&staged.id).await;
+    }
+
+    async fn finish_candidate_attention(&self, id: &str, error: CertificateError) {
+        let mut index = self.index.lock().await;
+        let Some(mut candidate) = index.pending_candidates.get(id).cloned() else {
+            drop(index);
+            self.release_lease(id).await;
+            return;
+        };
+        let Some(operation) = candidate.staged.metadata.current_operation.as_mut() else {
+            drop(index);
+            self.release_lease(id).await;
+            return;
+        };
+        operation.stage = CertificateOperationStage::NeedsAttention;
+        operation.updated_at = utc_now().unwrap_or_else(|_| operation.updated_at.clone());
+        candidate.activation.last_error_code = Some(error.code().to_owned());
+        candidate.activation.next_attempt_at = None;
+        candidate.activation.retry_delay_seconds = None;
+        index
+            .pending_candidates
+            .insert(id.to_owned(), candidate.clone());
+        let candidate_operation = candidate.staged.metadata.current_operation.clone();
+        if let Some(active) = index.certificates.get_mut(id) {
+            active.metadata.operation = CertificateOperation::Idle;
+            active.metadata.last_error_code = Some(error.code().to_owned());
+            active.metadata.last_error_at = utc_now().ok();
+            active.metadata.current_operation = candidate_operation.clone();
+            active.metadata.updated_at =
+                utc_now().unwrap_or_else(|_| active.metadata.updated_at.clone());
+        }
+        if let Ok(directory) = self.certificates_dir() {
+            let _ = persist_candidate_manifest(&directory, id, &candidate);
+            if let Some(operation) = candidate_operation {
+                let _ = operations::append_event(
+                    &mut index,
+                    &operation.id,
+                    id,
+                    CertificateEventKind::Failed,
+                    CertificateOperationStage::NeedsAttention,
+                    Some(error.code().to_owned()),
+                );
+            }
+            let _ = persist_index(&directory, &index);
+        }
+        drop(index);
+        self.release_lease(id).await;
     }
 
     pub(crate) async fn begin_issue(
@@ -1013,6 +1561,11 @@ impl CertificateStore {
             self.release_lease(id).await;
             return Err(CertificateError::DnsCleanupFailed);
         }
+        let operation = operations::new_operation(if renewal {
+            OperationKind::Renew
+        } else {
+            OperationKind::Issue
+        })?;
         let stored = if let Some(current) = index.certificates.get(id) {
             let mut preserved = current.clone();
             let attempt_count = preserved.metadata.attempt_count.saturating_add(1);
@@ -1025,6 +1578,8 @@ impl CertificateStore {
             preserved.metadata.updated_at = now.clone();
             preserved.metadata.attempt_count = attempt_count;
             preserved.metadata.last_attempt_at = Some(now.clone());
+            preserved.metadata.current_operation = Some(operation.clone());
+            preserved.metadata.challenge_type = Some(request.challenge_type);
             preserved.next_attempt_at = None;
             if !renewal {
                 // A replacement order must journal the credentials for its own
@@ -1056,6 +1611,10 @@ impl CertificateStore {
                     attempt_count: 1,
                     last_attempt_at: Some(now),
                     last_success_at: None,
+                    current_operation: Some(operation.clone()),
+                    challenge_type: Some(request.challenge_type),
+                    last_activated_at: None,
+                    last_error_at: None,
                 },
                 material_id: None,
                 acme: Some(acme.expect("new ACME requests always have configuration")),
@@ -1064,10 +1623,47 @@ impl CertificateStore {
             }
         };
         let previous = index.certificates.insert(id.to_owned(), stored.clone());
+        let previous_events = index.events.clone();
+        let previous_event_sequence = index.event_sequence;
+        let operation_id = operation.id.as_str();
+        if let Err(error) = operations::append_event(
+            &mut index,
+            operation_id,
+            id,
+            operations::CertificateEventKind::Accepted,
+            CertificateOperationStage::Queued,
+            None,
+        )
+        .and_then(|()| {
+            operations::append_event(
+                &mut index,
+                operation_id,
+                id,
+                operations::CertificateEventKind::Started,
+                CertificateOperationStage::Queued,
+                None,
+            )
+        }) {
+            index.events = previous_events.clone();
+            index.event_sequence = previous_event_sequence;
+            match previous {
+                Some(previous) => {
+                    index.certificates.insert(id.to_owned(), previous);
+                }
+                None => {
+                    index.certificates.remove(id);
+                }
+            }
+            drop(index);
+            self.release_lease(id).await;
+            return Err(error);
+        }
         let persistence = self
             .certificates_dir()
             .and_then(|directory| persist_index(&directory, &index));
         if let Err(error) = persistence {
+            index.events = previous_events;
+            index.event_sequence = previous_event_sequence;
             match previous {
                 Some(previous) => {
                     index.certificates.insert(id.to_owned(), previous);
@@ -1138,6 +1734,14 @@ impl CertificateStore {
             return Err(CertificateError::InvalidCertificate);
         };
         let challenge_type = acme.challenge_type;
+        let operation = match operations::new_operation(OperationKind::Renew) {
+            Ok(operation) => operation,
+            Err(error) => {
+                drop(index);
+                self.release_lease(id).await;
+                return Err(error);
+            }
+        };
         let previous = current.clone();
         let mut attempted = previous.clone();
         attempted.metadata.operation = CertificateOperation::Renewing;
@@ -1146,12 +1750,43 @@ impl CertificateStore {
         attempted.metadata.attempt_count = attempted.metadata.attempt_count.saturating_add(1);
         attempted.metadata.last_attempt_at = Some(now.clone());
         attempted.metadata.updated_at = now;
+        attempted.metadata.current_operation = Some(operation.clone());
         index.certificates.insert(id.to_owned(), attempted.clone());
+        let previous_events = index.events.clone();
+        let previous_event_sequence = index.event_sequence;
+        let operation_id = operation.id.as_str();
+        if let Err(error) = operations::append_event(
+            &mut index,
+            operation_id,
+            id,
+            operations::CertificateEventKind::Accepted,
+            CertificateOperationStage::Queued,
+            None,
+        )
+        .and_then(|()| {
+            operations::append_event(
+                &mut index,
+                operation_id,
+                id,
+                operations::CertificateEventKind::Started,
+                CertificateOperationStage::Queued,
+                None,
+            )
+        }) {
+            index.certificates.insert(id.to_owned(), previous.clone());
+            index.events = previous_events;
+            index.event_sequence = previous_event_sequence;
+            drop(index);
+            self.release_lease(id).await;
+            return Err(error);
+        }
         if let Err(error) = self
             .certificates_dir()
             .and_then(|directory| persist_index(&directory, &index))
         {
             index.certificates.insert(id.to_owned(), previous);
+            index.events = previous_events;
+            index.event_sequence = previous_event_sequence;
             drop(index);
             self.release_lease(id).await;
             return Err(error);
@@ -1275,6 +1910,12 @@ impl CertificateStore {
         let mut index = self.index.lock().await;
         if let Some(entry) = index.certificates.get_mut(id) {
             let had_acme_operation = entry.metadata.operation != CertificateOperation::Idle;
+            let retryable = entry.metadata.source == CertificateSource::Acme || had_acme_operation;
+            let operation_id = entry
+                .metadata
+                .current_operation
+                .as_ref()
+                .map(|operation| operation.id.clone());
             entry.metadata.operation = CertificateOperation::Idle;
             entry.metadata.status = if entry.material_id.is_some() {
                 CertificateStatus::Valid
@@ -1282,7 +1923,7 @@ impl CertificateStore {
                 CertificateStatus::Failed
             };
             entry.metadata.last_error_code = Some(error.code().to_owned());
-            if entry.metadata.source == CertificateSource::Acme || had_acme_operation {
+            if retryable {
                 entry.metadata.attempt_count = entry.metadata.attempt_count.max(1);
                 let delay =
                     next_retry_delay(id, entry.metadata.attempt_count, entry.retry_delay_seconds);
@@ -1292,13 +1933,49 @@ impl CertificateStore {
                         max_retry_deadline(entry.next_attempt_at.as_deref(), deadline);
                 }
             }
-            if let Ok(now) = utc_now() {
+            let now = utc_now().ok();
+            if let Some(now) = now.clone() {
                 if entry.metadata.last_attempt_at.is_none()
                     && entry.metadata.source == CertificateSource::Acme
                 {
                     entry.metadata.last_attempt_at = Some(now.clone());
                 }
-                entry.metadata.updated_at = now;
+                entry.metadata.last_error_at = Some(now.clone());
+                if let Some(operation) = entry.metadata.current_operation.as_mut() {
+                    operation.stage = if retryable {
+                        CertificateOperationStage::RetryScheduled
+                    } else {
+                        CertificateOperationStage::Failed
+                    };
+                    operation.updated_at = now;
+                }
+                entry.metadata.updated_at =
+                    utc_now().unwrap_or_else(|_| entry.metadata.updated_at.clone());
+            }
+            if let Some(operation_id) = operation_id {
+                let stage = if retryable {
+                    CertificateOperationStage::RetryScheduled
+                } else {
+                    CertificateOperationStage::Failed
+                };
+                let _ = operations::append_event(
+                    &mut index,
+                    &operation_id,
+                    id,
+                    CertificateEventKind::Failed,
+                    CertificateOperationStage::Failed,
+                    Some(error.code().to_owned()),
+                );
+                if retryable {
+                    let _ = operations::append_event(
+                        &mut index,
+                        &operation_id,
+                        id,
+                        CertificateEventKind::RetryScheduled,
+                        stage,
+                        Some(error.code().to_owned()),
+                    );
+                }
             }
             let _ = self
                 .certificates_dir()
@@ -1429,6 +2106,8 @@ impl CertificateStore {
             return Err(CertificateError::DnsProviderInvalid);
         }
         let mut updated = previous.clone();
+        let now = utc_now()?;
+        updated.metadata.updated_at = now;
         let Some(acme) = updated.acme.as_mut() else {
             return Err(CertificateError::DnsProviderInvalid);
         };
@@ -1747,8 +2426,51 @@ fn reconcile_candidate_manifests(
     let mut changed = false;
 
     for id in certificate_ids {
-        let sidecar = read_candidate_manifest(certificates_dir, &id)?;
-        let indexed = index.pending_candidates.get(&id).cloned();
+        let mut sidecar = read_candidate_manifest(certificates_dir, &id)?;
+        let mut indexed = index.pending_candidates.get(&id).cloned();
+        if indexed.is_some() || sidecar.is_some() {
+            let candidate_operation = indexed
+                .as_ref()
+                .and_then(|candidate| candidate.staged.metadata.current_operation.clone())
+                .or_else(|| {
+                    sidecar
+                        .as_ref()
+                        .and_then(|candidate| candidate.staged.metadata.current_operation.clone())
+                })
+                .map(Ok)
+                .unwrap_or_else(|| {
+                    let activation_operation = indexed
+                        .as_ref()
+                        .map(|candidate| candidate.activation_operation)
+                        .or_else(|| {
+                            sidecar
+                                .as_ref()
+                                .map(|candidate| candidate.activation_operation)
+                        });
+                    operations::new_operation(match activation_operation {
+                        Some(CertificateOperation::Renewing) => OperationKind::Renew,
+                        _ => OperationKind::Issue,
+                    })
+                })?;
+            if let Some(candidate) = indexed.as_mut()
+                && candidate.staged.metadata.current_operation.is_none()
+            {
+                candidate.staged.metadata.current_operation = Some(candidate_operation.clone());
+                changed = true;
+            }
+            if let Some(candidate) = sidecar.as_mut()
+                && candidate.staged.metadata.current_operation.is_none()
+            {
+                candidate.staged.metadata.current_operation = Some(candidate_operation.clone());
+                changed = true;
+            }
+            if let Some(active) = index.certificates.get_mut(&id)
+                && active.metadata.current_operation.is_none()
+            {
+                active.metadata.current_operation = Some(candidate_operation);
+                changed = true;
+            }
+        }
         match (indexed, sidecar) {
             (Some(indexed), Some(sidecar)) => {
                 if !candidate_is_valid(&id, &sidecar) || !candidate_is_valid(&id, &indexed) {
@@ -2154,6 +2876,13 @@ fn public_metadata_with_candidate(
             .acme
             .as_ref()
             .is_some_and(|acme| !acme.pending_dns_records.is_empty()),
+        current_operation: stored.metadata.current_operation.clone(),
+        challenge_type: stored
+            .metadata
+            .challenge_type
+            .or_else(|| stored.acme.as_ref().map(|acme| acme.challenge_type)),
+        last_activated_at: stored.metadata.last_activated_at.clone(),
+        last_error_at: stored.metadata.last_error_at.clone(),
     }
 }
 
@@ -2490,7 +3219,8 @@ fn read_regular_private_file(
     }
 }
 fn index_is_valid(index: &CertificateIndex) -> bool {
-    index.certificates.len() <= MAX_CERTIFICATES
+    operations::journal_is_valid(index)
+        && index.certificates.len() <= MAX_CERTIFICATES
         && index.pending_candidates.len() <= MAX_CERTIFICATES
         && index.pending_candidates.iter().all(|(id, candidate)| {
             index.certificates.contains_key(id) && candidate_is_valid(id, candidate)
@@ -2536,6 +3266,21 @@ fn index_is_valid(index: &CertificateIndex) -> bool {
                     .as_ref()
                     .is_none_or(|timestamp| valid_timestamp(timestamp))
                 && valid_timestamp(&entry.metadata.updated_at)
+                && entry
+                    .metadata
+                    .current_operation
+                    .as_ref()
+                    .is_none_or(operations::current_operation_is_valid)
+                && entry
+                    .metadata
+                    .last_activated_at
+                    .as_ref()
+                    .is_none_or(|timestamp| valid_timestamp(timestamp))
+                && entry
+                    .metadata
+                    .last_error_at
+                    .as_ref()
+                    .is_none_or(|timestamp| valid_timestamp(timestamp))
                 && entry.material_id.as_ref().is_none_or(|material_id| {
                     material_id.len() == 64
                         && material_id.bytes().all(|byte| byte.is_ascii_hexdigit())

@@ -59,6 +59,29 @@ export async function appendAuditEventInTransaction(
     await pruneAuditEventsInTransaction(transaction)
 }
 
+/** Import a bounded controller page while applying audit retention only once per batch. */
+export async function appendAuditEventsInTransaction(
+    transaction: AuthTransaction,
+    inputs: readonly AuditEventInput[],
+): Promise<void> {
+    if (inputs.length === 0) return
+    if (inputs.length > 500) throw new AuthDomainError('invalid_input', 'Audit batch is too large.')
+    const events = inputs.map(parseEventInput)
+    await transaction.execute(sql`select pg_advisory_xact_lock(${AUDIT_RETENTION_LOCK_ID})`)
+    await transaction.insert(auditEvents).values(
+        events.map((event) => ({
+            actorUserId: event.actorUserId,
+            actorKind: event.actorKind,
+            action: event.action,
+            resource: event.resource,
+            targetId: event.targetId,
+            result: event.result,
+            metadata: event.metadata ?? {},
+        })),
+    )
+    await pruneAuditEventsInTransaction(transaction)
+}
+
 /** Best-effort failure/denial event. Never masks the original operation failure. */
 export async function recordAuditEventBestEffort(input: AuditEventInput): Promise<void> {
     try {

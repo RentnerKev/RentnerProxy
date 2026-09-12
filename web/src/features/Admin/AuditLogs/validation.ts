@@ -1,4 +1,8 @@
 import { z } from 'zod'
+import {
+    CERTIFICATE_ERROR_CODES,
+    CERTIFICATE_OPERATION_STAGES,
+} from '../../../config/certificates.config'
 
 import {
     AUDIT_ACTIONS,
@@ -42,6 +46,11 @@ export const auditMetadataSchema = z.strictObject({
     nextId: uuidSchema.nullable().optional(),
     runtimeStatus: z.enum(['applied', 'pending', 'failed']).optional(),
     count: z.number().int().min(0).max(10_000).optional(),
+    operationId: uuidSchema.optional(),
+    eventId: uuidSchema.optional(),
+    certificateStage: z.enum(CERTIFICATE_OPERATION_STAGES).optional(),
+    occurredAt: utcDateSchema.optional(),
+    certificateErrorCode: z.enum(CERTIFICATE_ERROR_CODES).optional(),
 })
 
 export const auditEventInputSchema = z
