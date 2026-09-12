@@ -75,8 +75,10 @@ export interface PullRequestSnapshot {
     readonly mergeable: boolean | null
     readonly mergeCommitSha: string | null
     readonly number: number
-    readonly state: string
+    readonly state: PullRequestLifecycle
 }
+
+export type PullRequestLifecycle = 'closed' | 'open'
 
 export interface ExpectedPullRequest {
     readonly baseRef: string
@@ -90,7 +92,7 @@ export interface ExpectedPullRequest {
 
 export interface PullRequestEvaluation {
     readonly reason: string
-    readonly state: 'failed' | 'pending' | 'success'
+    readonly state: 'closed' | 'failed' | 'pending' | 'success'
 }
 
 export interface PreviewComment {
@@ -215,6 +217,13 @@ function parseNonNegativeInteger(value: unknown, label: string): number {
 export function validateFullSha(value: unknown, label = 'Git SHA'): string {
     if (typeof value !== 'string' || !/^[0-9a-f]{40}$/u.test(value)) {
         throw new Error(`${label} is invalid.`)
+    }
+    return value
+}
+
+export function parsePullRequestLifecycle(value: unknown): PullRequestLifecycle {
+    if (value !== 'open' && value !== 'closed') {
+        throw new Error('Pull request state is invalid.')
     }
     return value
 }
@@ -439,16 +448,10 @@ export function evaluatePullRequest(
     if (pullRequest.number !== expected.number) {
         return { reason: 'Could not resolve pull request.', state: 'failed' }
     }
-    if (pullRequest.state !== 'open') {
-        return { reason: 'PR no longer open.', state: 'failed' }
+    if (pullRequest.baseRepository !== expected.baseRepository) {
+        return { reason: 'Pull request base changed.', state: 'failed' }
     }
-    if (pullRequest.draft) {
-        return { reason: 'Draft pull requests do not publish previews.', state: 'failed' }
-    }
-    if (
-        pullRequest.baseRepository !== expected.baseRepository ||
-        pullRequest.baseRef !== expected.baseRef
-    ) {
+    if (pullRequest.baseRef !== expected.baseRef) {
         return { reason: 'Pull request base changed.', state: 'failed' }
     }
     if (
@@ -457,7 +460,19 @@ export function evaluatePullRequest(
     ) {
         return { reason: 'Pull request head repository is unavailable.', state: 'failed' }
     }
-    if (pullRequest.headSha !== expected.headSha || pullRequest.baseSha !== expected.baseSha) {
+    if (pullRequest.headSha !== expected.headSha) {
+        return { reason: 'Pull request is stale.', state: 'failed' }
+    }
+    if (pullRequest.state === 'closed') {
+        return { reason: 'Pull request is closed; skipping preview publication.', state: 'closed' }
+    }
+    if (pullRequest.state !== 'open') {
+        return { reason: 'Pull request state is invalid.', state: 'failed' }
+    }
+    if (pullRequest.draft) {
+        return { reason: 'Draft pull requests do not publish previews.', state: 'failed' }
+    }
+    if (pullRequest.baseSha !== expected.baseSha) {
         return { reason: 'Pull request is stale.', state: 'failed' }
     }
     if (pullRequest.mergeable === null || pullRequest.mergeCommitSha === null) {
@@ -656,7 +671,7 @@ function parsePullRequest(value: unknown): PullRequestSnapshot {
                 ? null
                 : validateFullSha(pullRequest.merge_commit_sha, 'Pull request merge SHA'),
         number: parsePositiveInteger(pullRequest.number, 'Pull request number'),
-        state: stringValue(pullRequest.state, 'Pull request state'),
+        state: parsePullRequestLifecycle(pullRequest.state),
     }
 }
 
@@ -1027,6 +1042,15 @@ async function verifyGate(
         DEFAULT_POLL_INTERVAL_SECONDS,
     )
     const deadline = Date.now() + timeoutSeconds * 1_000
+    const initialPullRequest = await fetchPullRequest(api, expected.number)
+    const initialEvaluation = evaluatePullRequest(initialPullRequest, expected)
+    if (initialEvaluation.state === 'closed') {
+        if (waitForChecks) return initialPullRequest
+        throw new Error('Pull request is closed; refusing to revalidate publication.')
+    }
+    if (initialEvaluation.state === 'failed') {
+        throw new Error(initialEvaluation.reason)
+    }
     await verifyPullRequestBranchUpToDate(api, expected)
     const requiredChecks = await fetchRequiredChecks(api, expected.baseRef)
     let previousSummary = ''
@@ -1035,6 +1059,10 @@ async function verifyGate(
         // eslint-disable-next-line no-await-in-loop -- the gate intentionally polls current PR state
         const pullRequest = await fetchPullRequest(api, expected.number)
         const pullRequestEvaluation = evaluatePullRequest(pullRequest, expected)
+        if (pullRequestEvaluation.state === 'closed') {
+            if (waitForChecks) return pullRequest
+            throw new Error('Pull request is closed; refusing to revalidate publication.')
+        }
         if (pullRequestEvaluation.state === 'failed') {
             throw new Error(pullRequestEvaluation.reason)
         }
@@ -1051,7 +1079,19 @@ async function verifyGate(
             if (checkEvaluation.state === 'success') {
                 // eslint-disable-next-line no-await-in-loop -- provenance is checked only after every required check succeeds
                 await verifyRequiredCheckProvenance(api, requiredChecks, checkRuns, expected)
-                return pullRequest
+                // Re-read lifecycle after the checks and provenance have passed. A merge can
+                // close the PR while this gate is still running.
+                // eslint-disable-next-line no-await-in-loop -- the lifecycle must be current before returning a successful gate
+                const currentPullRequest = await fetchPullRequest(api, expected.number)
+                const currentEvaluation = evaluatePullRequest(currentPullRequest, expected)
+                if (currentEvaluation.state === 'closed') {
+                    if (waitForChecks) return currentPullRequest
+                    throw new Error('Pull request is closed; refusing to revalidate publication.')
+                }
+                if (currentEvaluation.state !== 'success') {
+                    throw new Error(currentEvaluation.reason)
+                }
+                return currentPullRequest
             }
             if (checkEvaluation.state === 'failed') {
                 throw new Error(`Required check failed: ${checkEvaluation.failed.join(', ')}`)
@@ -1141,16 +1181,29 @@ async function commandGate(): Promise<void> {
         number: pullRequest.number,
         testedSha: proof.testedSha,
     }
-    assertWorkflowRunPullRequest(workflowRun.pullRequests, expected)
-    await verifyWorkflowFileUnchanged(api, PREVIEW_TRIGGER_WORKFLOW_PATH, expected)
-    await verifyGate(api, expected, true)
     const identity = createPreviewIdentity(
         expected.baseRepository,
         expected.number,
         expected.testedSha,
     )
+    if (pullRequest.state === 'closed') {
+        console.log('Pull request is closed; skipping preview publication.')
+        await writeOutputs({
+            ...previewOutputs(identity, expected),
+            lifecycle: 'closed',
+            trigger_run_id: workflowRun.id,
+        })
+        return
+    }
+    assertWorkflowRunPullRequest(workflowRun.pullRequests, expected)
+    await verifyWorkflowFileUnchanged(api, PREVIEW_TRIGGER_WORKFLOW_PATH, expected)
+    const gatedPullRequest = await verifyGate(api, expected, true)
+    const lifecycle = gatedPullRequest.state
+    if (lifecycle === 'closed')
+        console.log('Pull request closed during gate; skipping preview publication.')
     await writeOutputs({
         ...previewOutputs(identity, expected),
+        lifecycle,
         trigger_run_id: workflowRun.id,
     })
 }
@@ -1164,7 +1217,6 @@ async function resolveWorkflowPullRequest(
     if (pullRequest.number !== pullRequestNumber) {
         throw new Error('Could not resolve pull request.')
     }
-    if (pullRequest.state !== 'open') throw new Error('PR no longer open.')
     if (pullRequest.headSha !== workflowRun.headSha) throw new Error('Pull request is stale.')
     if (
         pullRequest.baseRepository !== api.repository ||
@@ -1371,18 +1423,35 @@ async function commandResolve(): Promise<void> {
     }
     const pullRequest = await resolveWorkflowPullRequest(api, triggerRun, proof.pullRequestNumber)
     const pullRequestEvaluation = evaluatePullRequest(pullRequest, expected)
+    const identity = createPreviewIdentity(repository, expected.number, expected.testedSha)
+    if (pullRequestEvaluation.state === 'closed') {
+        console.log('Pull request is closed; skipping preview publication.')
+        await writeOutputs({
+            ...previewOutputs(identity, expected),
+            artifact_digest: artifact.digest,
+            artifact_size: artifact.sizeInBytes,
+            lifecycle: 'closed',
+            run_attempt: workflowRun.runAttempt,
+            run_id: workflowRun.id,
+            trigger_run_id: metadata.triggerRunId,
+        })
+        return
+    }
     if (pullRequestEvaluation.state !== 'success') {
         throw new Error(pullRequestEvaluation.reason)
     }
     assertWorkflowRunPullRequest(triggerRun.pullRequests, expected)
     await verifyWorkflowFileUnchanged(api, PREVIEW_TRIGGER_WORKFLOW_PATH, expected)
-    await verifyGate(api, expected, true)
-    const identity = createPreviewIdentity(repository, expected.number, expected.testedSha)
+    const gatedPullRequest = await verifyGate(api, expected, true)
+    const lifecycle = gatedPullRequest.state
+    if (lifecycle === 'closed')
+        console.log('Pull request closed during gate; skipping preview publication.')
 
     await writeOutputs({
         ...previewOutputs(identity, expected),
         artifact_digest: artifact.digest,
         artifact_size: artifact.sizeInBytes,
+        lifecycle,
         run_attempt: workflowRun.runAttempt,
         run_id: workflowRun.id,
         trigger_run_id: metadata.triggerRunId,

@@ -12,6 +12,7 @@ import {
     evaluatePullRequest,
     evaluateRequiredChecks,
     normalizeWorkflowPath,
+    parsePullRequestLifecycle,
     parsePositiveInteger,
     parsePullRequestNumberProof,
     parsePreviewArtifactMetadata,
@@ -383,10 +384,24 @@ describe('pull request freshness', () => {
         expect(evaluatePullRequest(currentPullRequest(), expectedPullRequest).state).toBe('success')
     })
 
-    test('rejects drafts, closed PRs, missing forks, and stale source state', () => {
+    test('classifies a closed PR for a harmless publication skip', () => {
+        expect(
+            evaluatePullRequest({ ...currentPullRequest(), state: 'closed' }, expectedPullRequest),
+        ).toEqual({
+            reason: 'Pull request is closed; skipping preview publication.',
+            state: 'closed',
+        })
+        expect(
+            evaluatePullRequest(
+                { ...currentPullRequest(), state: 'closed', baseSha: '4'.repeat(40) },
+                expectedPullRequest,
+            ).state,
+        ).toBe('closed')
+    })
+
+    test('rejects drafts, invalid lifecycle values, changed heads, and other stale source state', () => {
         const changes = [
             { draft: true },
-            { state: 'closed' },
             { headRepository: null },
             { headSha: '4'.repeat(40) },
             { baseSha: '4'.repeat(40) },
@@ -401,6 +416,25 @@ describe('pull request freshness', () => {
             )
             expect(result.state).toBe('failed')
         }
+
+        expect(
+            evaluatePullRequest(
+                { ...currentPullRequest(), state: 'closed', headSha: '4'.repeat(40) },
+                expectedPullRequest,
+            ).state,
+        ).toBe('failed')
+        expect(
+            evaluatePullRequest(
+                { ...currentPullRequest(), state: 'closed', baseRef: 'release' },
+                expectedPullRequest,
+            ).state,
+        ).toBe('failed')
+        expect(
+            evaluatePullRequest(
+                { ...currentPullRequest(), state: 'merged' as never },
+                expectedPullRequest,
+            ).state,
+        ).toBe('failed')
     })
 
     test('treats pending GitHub mergeability as non-publishable', () => {
@@ -410,6 +444,16 @@ describe('pull request freshness', () => {
                 expectedPullRequest,
             ).state,
         ).toBe('pending')
+    })
+})
+
+describe('pull request lifecycle parsing', () => {
+    test('accepts only the two GitHub pull request lifecycle states', () => {
+        expect(parsePullRequestLifecycle('open')).toBe('open')
+        expect(parsePullRequestLifecycle('closed')).toBe('closed')
+        for (const value of ['', 'merged', 'reopened', null, 42, false]) {
+            expect(() => parsePullRequestLifecycle(value)).toThrow('Pull request state is invalid.')
+        }
     })
 })
 

@@ -69,6 +69,7 @@ describe('trusted-triggered, read-only PR preview build workflow', () => {
         expect(build).toContain('ref: ${{ github.workflow_sha }}')
         expect(build).toContain('bun trusted/scripts/pr-preview.ts trigger-preflight')
         expect(build).toContain('bun trusted/scripts/pr-preview.ts gate')
+        expect(build).toContain('lifecycle: ${{ steps.gate.outputs.lifecycle }}')
         expect(build).toContain('name: pr-preview-source')
         expect(build).toContain('group: pr-preview-build-${{ needs.verify.outputs.pr_number }}')
         expect(build).not.toContain('group: pr-preview-build-${{ github.event.workflow_run.id }}')
@@ -142,6 +143,16 @@ describe('trusted PR preview publisher workflow', () => {
         expect(publisher).not.toMatch(/^\s+pull_request:\s*$/mu)
     })
 
+    test('skips registry publication and comments when trusted resolution sees a closed PR', async () => {
+        const publisher = await workflow('pr-preview-publish.yml')
+
+        expect(publisher).toContain('lifecycle: ${{ steps.resolve.outputs.lifecycle }}')
+        expect(publisher).toContain("if: needs.resolve.outputs.lifecycle == 'open'")
+        expect(publisher.match(/if: needs\.resolve\.outputs\.lifecycle == 'open'/gmu)).toHaveLength(
+            2,
+        )
+    })
+
     test('checks out only trusted workflow code and never executes the OCI image', async () => {
         const publisher = await workflow('pr-preview-publish.yml')
         const refs = [...publisher.matchAll(/^\s+ref:\s+(.+)$/gmu)].map((match) => match[1])
@@ -196,7 +207,7 @@ describe('trusted PR preview publisher workflow', () => {
             'group: pr-preview-publish-${{ needs.resolve.outputs.pr_number }}',
         )
         expect(publisher.match(/bun trusted\/scripts\/pr-preview\.ts revalidate/gmu)).toHaveLength(
-            3,
+            4,
         )
         expect(
             publisher.match(/bun trusted\/scripts\/pr-preview\.ts validate-digests/gmu),
@@ -214,6 +225,9 @@ describe('trusted PR preview publisher workflow', () => {
         )
         expect(publisher.match(/skopeo copy --preserve-digests/gmu)).toHaveLength(2)
         expect(publisher).not.toContain('--additional-tag')
+        expect(publisher).toContain(
+            'Recheck immediately before the first registry write. The PR can close',
+        )
     })
 
     test('keeps release channels, Git tags, source pushes, and releases out of scope', async () => {
