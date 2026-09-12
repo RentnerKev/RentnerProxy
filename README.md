@@ -92,3 +92,26 @@ the same host ports, and preserve its volumes until recovery health and traffic 
 - English, German, Spanish, and French language and theme settings.
 
 Development setup and checks are in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
+### Certificate renewal and retries
+
+ACME certificates become due after two thirds of their actual certificate lifetime. The
+controller checks every minute and retains the four global ACME slots and per-certificate
+leases. Imported certificates require manual replacement and are never automatically renewed.
+
+Failed operations retain their retry deadline across restarts. Exponential backoff starts at
+30 minutes, includes jitter, and is bounded at six hours; a later CA `Retry-After` deadline
+takes precedence. Manual retry respects the same deadline. Existing valid certificate material
+continues serving traffic after a failed renewal.
+
+CA throttling also pauses new attempts for the shared account in that ACME environment;
+staging and production remain separate. Manually importing replacement material does not clear
+an outstanding CA cooldown. The attempt counter measures consecutive attempts and resets only
+after successful ACME activation.
+
+The controller certificate index records retry scheduling and attempt history alongside the
+certificate material. Alpha 3 indexes are read compatibly, including existing `retryAfter`
+deadlines. These fields travel with the controller-state backup; retain the entire state
+directory and encryption key. This scheduling change requires no database or proxy snapshot
+version change. For rollback, restore the pre-upgrade backup rather than opening upgraded
+state with an older controller.

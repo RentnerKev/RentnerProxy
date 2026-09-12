@@ -225,7 +225,37 @@ describe('certificate validation and status', () => {
         expect(getCertificateStatus('valid', start, end, end.getTime())).toBe('expired')
         expect(getCertificateStatus('pending', null, null)).toBe('pending')
         expect(getCertificateStatus('failed', start, end)).toBe('failed')
+
+        // Renewal status follows two thirds of the actual lifetime. A fixed
+        // 30-day cap would incorrectly keep this one-year certificate valid.
+        const longEnd = new Date('2027-01-01T00:00:00Z')
+        expect(
+            getCertificateStatus('valid', start, longEnd, Date.parse('2026-08-31T00:00:00Z')),
+        ).toBe('valid')
+        expect(
+            getCertificateStatus('valid', start, longEnd, Date.parse('2026-09-02T00:00:00Z')),
+        ).toBe('expiring')
     })
+
+    test.each([6, 30, 45, 90])(
+        'starts expiring at exactly two thirds of a %i-day lifetime',
+        (lifetimeDays) => {
+            const day = 24 * 60 * 60 * 1_000
+            const issuedAt = new Date(0)
+            const expiresAt = new Date(lifetimeDays * day)
+            const twoThirdsElapsed = (lifetimeDays * day * 2) / 3
+
+            expect(getCertificateStatus('valid', issuedAt, expiresAt, twoThirdsElapsed - 1)).toBe(
+                'valid',
+            )
+            expect(getCertificateStatus('valid', issuedAt, expiresAt, twoThirdsElapsed)).toBe(
+                'expiring',
+            )
+            expect(getCertificateStatus('valid', issuedAt, expiresAt, twoThirdsElapsed + 1)).toBe(
+                'expiring',
+            )
+        },
+    )
 
     test('preserves omitted assignment fields for older proxy host requests', () => {
         const input = {
@@ -297,6 +327,33 @@ describe('certificate permissions and runtime contract', () => {
 })
 
 describe('sensitive controller certificate transport', () => {
+    test('accepts additive renewal scheduling metadata while preserving legacy payloads', async () => {
+        mockController(async () =>
+            Response.json({
+                certificates: [
+                    metadata({
+                        source: 'acme',
+                        environment: 'production',
+                        nextAttemptAt: '2026-09-01T00:00:00Z',
+                        attemptCount: 3,
+                        lastAttemptAt: '2026-08-31T00:00:00Z',
+                        lastSuccessAt: '2026-06-01T00:00:00Z',
+                        nextRenewalAt: '2026-09-15T00:00:00Z',
+                    }),
+                ],
+            }),
+        )
+        await expect(getControllerCertificates()).resolves.toMatchObject([
+            {
+                nextAttemptAt: '2026-09-01T00:00:00Z',
+                attemptCount: 3,
+                lastAttemptAt: '2026-08-31T00:00:00Z',
+                lastSuccessAt: '2026-06-01T00:00:00Z',
+                nextRenewalAt: '2026-09-15T00:00:00Z',
+            },
+        ])
+    })
+
     test.each([
         'acme_dns_required',
         'dns_provider_invalid',

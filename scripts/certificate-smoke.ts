@@ -559,6 +559,49 @@ async function runSmoke(): Promise<void> {
             await command(['docker', 'restart', runtimeContainer], { timeoutMs: 60_000 })
             // Docker may allocate a different address after the network fault/restart tests.
             await refreshRuntimeDns()
+            await waitForRuntimeReady()
+        }
+        async function waitForRuntimeReady(): Promise<void> {
+            await waitFor(async () => {
+                const response = await controllerRequest('/internal/v1/proxy/status')
+                if (!response.ok) return false
+                const status = jsonObject(await response.json())
+                return status.available === true && status.running === true
+            }, 'Caddy runtime ready after restart')
+        }
+        async function expireRetryFixture(certificateId: string): Promise<void> {
+            // Advance only this disposable fixture's persisted retry deadline while stopped.
+            // Production has no retry bypass or clock override endpoint.
+            await command(['docker', 'stop', runtimeContainer], { timeoutMs: 60_000 })
+            const indexPath = '/var/lib/rentnerproxy/proxy/certificates/certificate-metadata.json'
+            const fixturePath = resolve(temp, 'retry-index.json')
+            await command(['docker', 'cp', runtimeContainer + ':' + indexPath, fixturePath])
+            const index = JSON.parse(await Bun.file(fixturePath).text())
+            const entry = index.certificates[certificateId]
+            assert.ok(entry)
+            entry.nextAttemptAt = '2000-01-01T00:00:00Z'
+            delete entry.retryAfter
+            await writeFile(fixturePath, JSON.stringify(index), { mode: 0o600 })
+            await command(['docker', 'cp', fixturePath, runtimeContainer + ':' + indexPath])
+            await command([
+                'docker',
+                'run',
+                '--rm',
+                '--user',
+                '0',
+                '--entrypoint',
+                'sh',
+                '--volume',
+                stateVolume + ':/var/lib/rentnerproxy/proxy',
+                runtimeImage,
+                '-c',
+                'chown 10001:10001 "$1" && chmod 600 "$1"',
+                'fixture',
+                indexPath,
+            ])
+            await command(['docker', 'start', runtimeContainer])
+            await refreshRuntimeDns()
+            await waitForRuntimeReady()
         }
         await refreshRuntimeDns()
         httpUrl = 'http://127.0.0.1:' + httpPort
@@ -1287,6 +1330,32 @@ async function runSmoke(): Promise<void> {
             { timeoutMs: 30_000 },
         )
         await waitForPebbleNetwork()
+        assert.equal(
+            (
+                await controllerRequest('/internal/v1/certificates/' + acmeId + '/renew', {
+                    method: 'POST',
+                    body: '{}',
+                })
+            ).status,
+            409,
+        )
+        assert.ok(Date.parse(afterFailedRenew.nextAttemptAt) > Date.now())
+        await restartRuntime()
+        await waitFor(
+            async () => (await controllerRequest('/internal/v1/proxy/status')).status === 200,
+            'restart with persisted HTTP renewal retry',
+        )
+        assert.equal(
+            (
+                await controllerRequest('/internal/v1/certificates/' + acmeId + '/renew', {
+                    method: 'POST',
+                    body: '{}',
+                })
+            ).status,
+            409,
+        )
+        passed('manual retry respects the persisted HTTP renewal backoff across restart')
+        await expireRetryFixture(acmeId)
         const successfulRenew = await controllerRequest(
             '/internal/v1/certificates/' + acmeId + '/renew',
             { method: 'POST', body: '{}' },
@@ -1510,6 +1579,17 @@ async function runSmoke(): Promise<void> {
             async () => (await controllerRequest('/internal/v1/proxy/status')).status === 200,
             'restart with pending DNS cleanup',
         )
+        assert.equal(
+            (
+                await controllerRequest('/internal/v1/certificates/' + wildcardId + '/renew', {
+                    method: 'POST',
+                    body: '{}',
+                })
+            ).status,
+            409,
+        )
+        passed('manual DNS renewal cannot bypass persisted backoff after restart')
+        await expireRetryFixture(wildcardId)
         assert.equal(
             (
                 await controllerRequest('/internal/v1/certificates/' + wildcardId + '/renew', {

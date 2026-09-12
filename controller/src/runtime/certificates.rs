@@ -30,8 +30,12 @@ const CERTIFICATE_INDEX_FILE: &str = "certificate-metadata.json";
 const CERTIFICATES_DIRECTORY: &str = "certificates";
 const MAX_CERTIFICATE_INDEX_BYTES: usize = 8 * 1024 * 1024;
 const MAX_CERTIFICATES: usize = 10_000;
-// Leave room for error codes, retry timestamps and delays after interrupted ACME jobs.
-const INTERRUPTED_OPERATION_HEADROOM_BYTES: usize = 128;
+// Leave room for error codes, retry timestamps, attempt metadata and delays
+// after interrupted ACME jobs.
+const INTERRUPTED_OPERATION_HEADROOM_BYTES: usize = 384;
+const MIN_ACME_RETRY_DELAY_SECONDS: u32 = 1_800;
+const MAX_ACME_RETRY_DELAY_SECONDS: u32 = 21_600;
+const MAX_ACME_ATTEMPT_COUNT: u32 = 32;
 
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -74,7 +78,7 @@ pub(crate) enum CertificateSource {
     Acme,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum CertificateEnvironment {
     Staging,
@@ -112,6 +116,11 @@ pub(crate) struct CertificateMetadata {
     pub(crate) fingerprint: Option<String>,
     pub(crate) last_error_code: Option<String>,
     pub(crate) updated_at: String,
+    pub(crate) next_attempt_at: Option<String>,
+    pub(crate) attempt_count: u32,
+    pub(crate) last_attempt_at: Option<String>,
+    pub(crate) last_success_at: Option<String>,
+    pub(crate) next_renewal_at: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -122,8 +131,10 @@ struct StoredCertificate {
     material_id: Option<String>,
     #[serde(default)]
     acme: Option<StoredAcmeConfiguration>,
-    #[serde(default)]
-    retry_after: Option<String>,
+    // `retryAfter` was the name used by the first persisted scheduler.  Keep
+    // accepting it during rolling upgrades while writing the clearer name.
+    #[serde(rename = "nextAttemptAt", alias = "retryAfter", default)]
+    next_attempt_at: Option<String>,
     #[serde(default)]
     retry_delay_seconds: Option<u32>,
 }
@@ -143,6 +154,12 @@ struct StoredMetadata {
     fingerprint: Option<String>,
     last_error_code: Option<String>,
     updated_at: String,
+    #[serde(default)]
+    attempt_count: u32,
+    #[serde(default)]
+    last_attempt_at: Option<String>,
+    #[serde(default)]
+    last_success_at: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -161,6 +178,12 @@ struct StoredAcmeConfiguration {
 #[serde(deny_unknown_fields)]
 struct CertificateIndex {
     certificates: BTreeMap<String, StoredCertificate>,
+    #[serde(
+        default,
+        rename = "acmeRetryUntil",
+        skip_serializing_if = "BTreeMap::is_empty"
+    )]
+    acme_retry_until: BTreeMap<CertificateEnvironment, String>,
 }
 
 #[derive(Clone, Debug)]
@@ -277,6 +300,10 @@ impl CertificateStore {
             return Err(CertificateError::StoreUnavailable);
         }
         let mut recovered_interrupted_operation = false;
+        let recovery_now = utc_now()?;
+        let recovery_deadline = OffsetDateTime::now_utc().checked_add(time::Duration::seconds(
+            i64::from(MIN_ACME_RETRY_DELAY_SECONDS),
+        ));
         for entry in index.certificates.values_mut() {
             if entry.metadata.operation != CertificateOperation::Idle {
                 entry.metadata.operation = CertificateOperation::Idle;
@@ -287,9 +314,21 @@ impl CertificateStore {
                 };
                 entry.metadata.last_error_code =
                     Some(CertificateError::AcmeFailed.code().to_owned());
-                entry.retry_after = retry_after(1_800);
-                entry.retry_delay_seconds = Some(1_800);
-                entry.metadata.updated_at = utc_now()?;
+                entry.metadata.attempt_count = entry.metadata.attempt_count.max(1);
+                if entry.metadata.last_attempt_at.is_none() {
+                    entry.metadata.last_attempt_at = Some(recovery_now.clone());
+                }
+                entry.retry_delay_seconds = Some(
+                    entry
+                        .retry_delay_seconds
+                        .unwrap_or(MIN_ACME_RETRY_DELAY_SECONDS)
+                        .clamp(MIN_ACME_RETRY_DELAY_SECONDS, MAX_ACME_RETRY_DELAY_SECONDS),
+                );
+                if let Some(recovery_deadline) = recovery_deadline {
+                    entry.next_attempt_at =
+                        max_retry_deadline(entry.next_attempt_at.as_deref(), recovery_deadline);
+                }
+                entry.metadata.updated_at = recovery_now.clone();
                 recovered_interrupted_operation = true;
             }
         }
@@ -302,14 +341,14 @@ impl CertificateStore {
 
     pub(crate) async fn renewal_is_allowed(&self, id: &str) -> bool {
         let index = self.index.lock().await;
-        index
-            .certificates
-            .get(id)
-            .and_then(|entry| entry.retry_after.as_deref())
-            .is_none_or(|retry_after| {
-                OffsetDateTime::parse(retry_after, &Rfc3339)
-                    .is_ok_and(|retry_after| retry_after <= OffsetDateTime::now_utc())
-            })
+        let now = OffsetDateTime::now_utc();
+        index.certificates.get(id).is_some_and(|entry| {
+            !retry_is_blocking(entry, now)
+                && entry
+                    .metadata
+                    .environment
+                    .is_none_or(|environment| !account_retry_is_blocking(&index, environment, now))
+        })
     }
     pub(crate) async fn list(&self) -> Result<Vec<CertificateMetadata>, CertificateError> {
         let index = self.index.lock().await;
@@ -462,10 +501,13 @@ impl CertificateStore {
                     fingerprint: Some(parsed.fingerprint),
                     last_error_code: None,
                     updated_at: utc_now()?,
+                    attempt_count: 0,
+                    last_attempt_at: None,
+                    last_success_at: None,
                 },
                 material_id: Some(material_id),
                 acme,
-                retry_after: None,
+                next_attempt_at: None,
                 retry_delay_seconds: None,
             },
         })
@@ -476,9 +518,28 @@ impl CertificateStore {
         staged: &StagedCertificate,
     ) -> Result<CertificateMetadata, CertificateError> {
         let mut index = self.index.lock().await;
+        let mut committed = staged.stored.clone();
+        if committed.metadata.source == CertificateSource::Acme {
+            committed.metadata.attempt_count = 0;
+            committed.metadata.last_success_at = utc_now().ok();
+            committed.next_attempt_at = None;
+            committed.retry_delay_seconds = None;
+            if let Some(previous) = index.certificates.get(&staged.id) {
+                committed.metadata.last_attempt_at = previous.metadata.last_attempt_at.clone();
+            }
+        } else if let Some(previous) = index.certificates.get(&staged.id) {
+            // Importing replacement material is safe while a CA cooldown is
+            // active, but it must not erase the cooldown or the ACME attempt
+            // history that protects the next issuance request.
+            committed.next_attempt_at = previous.next_attempt_at.clone();
+            committed.retry_delay_seconds = previous.retry_delay_seconds;
+            committed.metadata.attempt_count = previous.metadata.attempt_count;
+            committed.metadata.last_attempt_at = previous.metadata.last_attempt_at.clone();
+            committed.metadata.last_success_at = previous.metadata.last_success_at.clone();
+        }
         let previous = index
             .certificates
-            .insert(staged.id.clone(), staged.stored.clone());
+            .insert(staged.id.clone(), committed.clone());
         let result = self
             .certificates_dir()
             .and_then(|directory| persist_index(&directory, &index));
@@ -495,7 +556,7 @@ impl CertificateStore {
             self.release_lease(&staged.id).await;
             return Err(error);
         }
-        let metadata = public_metadata(&staged.stored);
+        let metadata = public_metadata(&committed);
         drop(index);
         self.release_lease(&staged.id).await;
         Ok(metadata)
@@ -543,6 +604,7 @@ impl CertificateStore {
             });
         }
         let now = utc_now()?;
+        let now_instant = OffsetDateTime::now_utc();
         let acme = if renewal {
             None
         } else {
@@ -555,6 +617,20 @@ impl CertificateStore {
             .get(id)
             .is_some_and(|current| current.metadata.operation != CertificateOperation::Idle)
         {
+            drop(index);
+            self.release_lease(id).await;
+            return Err(CertificateError::OperationInProgress);
+        }
+        if index
+            .certificates
+            .get(id)
+            .is_some_and(|current| retry_is_blocking(current, now_instant))
+        {
+            drop(index);
+            self.release_lease(id).await;
+            return Err(CertificateError::OperationInProgress);
+        }
+        if account_retry_is_blocking(&index, request.environment, now_instant) {
             drop(index);
             self.release_lease(id).await;
             return Err(CertificateError::OperationInProgress);
@@ -572,14 +648,21 @@ impl CertificateStore {
         }
         let stored = if let Some(current) = index.certificates.get(id) {
             let mut preserved = current.clone();
+            let attempt_count = preserved
+                .metadata
+                .attempt_count
+                .saturating_add(1)
+                .min(MAX_ACME_ATTEMPT_COUNT);
             preserved.metadata.operation = if renewal {
                 CertificateOperation::Renewing
             } else {
                 CertificateOperation::Issuing
             };
             preserved.metadata.last_error_code = None;
-            preserved.metadata.updated_at = now;
-            preserved.retry_after = None;
+            preserved.metadata.updated_at = now.clone();
+            preserved.metadata.attempt_count = attempt_count;
+            preserved.metadata.last_attempt_at = Some(now.clone());
+            preserved.next_attempt_at = None;
             if !renewal {
                 // A replacement order must journal the credentials for its own
                 // DNS records before any provider request.  There are no
@@ -606,11 +689,14 @@ impl CertificateStore {
                     issuer: None,
                     fingerprint: None,
                     last_error_code: None,
-                    updated_at: now,
+                    updated_at: now.clone(),
+                    attempt_count: 1,
+                    last_attempt_at: Some(now),
+                    last_success_at: None,
                 },
                 material_id: None,
                 acme: Some(acme.expect("new ACME requests always have configuration")),
-                retry_after: None,
+                next_attempt_at: None,
                 retry_delay_seconds: None,
             }
         };
@@ -646,34 +732,68 @@ impl CertificateStore {
                 return Err(error);
             }
         };
+        let now_instant = OffsetDateTime::now_utc();
         let mut index = self.index.lock().await;
-        let Some(entry) = index.certificates.get(id) else {
+        let Some(current) = index.certificates.get(id) else {
             drop(index);
             self.release_lease(id).await;
             return Err(CertificateError::NotFound);
         };
-        if entry.metadata.source != CertificateSource::Acme {
+        if current.metadata.source != CertificateSource::Acme {
             drop(index);
             self.release_lease(id).await;
             return Err(CertificateError::InvalidCertificate);
         }
-        if entry.metadata.operation != CertificateOperation::Idle {
+        if current.metadata.operation != CertificateOperation::Idle {
             drop(index);
             self.release_lease(id).await;
             return Err(CertificateError::OperationInProgress);
         }
-        let Some(environment) = entry.metadata.environment else {
+        if retry_is_blocking(current, now_instant) {
+            drop(index);
+            self.release_lease(id).await;
+            return Err(CertificateError::OperationInProgress);
+        }
+        let Some(environment) = current.metadata.environment else {
             drop(index);
             self.release_lease(id).await;
             return Err(CertificateError::AcmeFailed);
         };
-        let Some(acme) = entry.acme.as_ref() else {
+        if account_retry_is_blocking(&index, environment, now_instant) {
+            drop(index);
+            self.release_lease(id).await;
+            return Err(CertificateError::OperationInProgress);
+        }
+        let Some(acme) = current.acme.as_ref() else {
             drop(index);
             self.release_lease(id).await;
             return Err(CertificateError::InvalidCertificate);
         };
         let challenge_type = acme.challenge_type;
-        let dns_provider = match entry
+        let previous = current.clone();
+        let mut attempted = previous.clone();
+        attempted.metadata.operation = CertificateOperation::Renewing;
+        attempted.metadata.last_error_code = None;
+        attempted.next_attempt_at = None;
+        attempted.metadata.attempt_count = attempted
+            .metadata
+            .attempt_count
+            .saturating_add(1)
+            .min(MAX_ACME_ATTEMPT_COUNT);
+        attempted.metadata.last_attempt_at = Some(now.clone());
+        attempted.metadata.updated_at = now;
+        index.certificates.insert(id.to_owned(), attempted.clone());
+        if let Err(error) = self
+            .certificates_dir()
+            .and_then(|directory| persist_index(&directory, &index))
+        {
+            index.certificates.insert(id.to_owned(), previous);
+            drop(index);
+            self.release_lease(id).await;
+            return Err(error);
+        }
+
+        let dns_provider = match attempted
             .acme
             .as_ref()
             .and_then(|acme| acme.dns_provider.as_ref())
@@ -692,9 +812,9 @@ impl CertificateStore {
             }
         };
         let request = CertificateIssueRequest {
-            domains: entry.metadata.domains.clone(),
+            domains: attempted.metadata.domains.clone(),
             environment,
-            contact_email: entry
+            contact_email: attempted
                 .acme
                 .as_ref()
                 .and_then(|acme| acme.contact_email.clone()),
@@ -702,30 +822,78 @@ impl CertificateStore {
             dns_provider,
             accept_terms: true,
         };
-        let previous = entry.clone();
-        let entry = index
-            .certificates
-            .get_mut(id)
-            .expect("certificate entry remains present while index is locked");
-        entry.metadata.operation = CertificateOperation::Renewing;
-        entry.metadata.last_error_code = None;
-        entry.retry_after = None;
-        entry.metadata.updated_at = now;
-        let metadata = public_metadata(entry);
-        let persistence = self
+        Ok((public_metadata(&attempted), request))
+    }
+
+    /// Extend the durable retry deadline from an ACME `Retry-After` response.
+    ///
+    /// The ACME operation lease is held by the caller while this method runs,
+    /// so this method deliberately does not acquire it again.  If persisting
+    /// the update fails, the conservative in-memory deadline is retained until
+    /// the next restart rather than allowing an immediate retry in this
+    /// process.
+    pub(crate) async fn defer_acme_retry(
+        &self,
+        id: &str,
+        deadline: OffsetDateTime,
+    ) -> Result<(), CertificateError> {
+        if !is_canonical_uuid_v7(id) {
+            return Err(CertificateError::NotFound);
+        }
+        let deadline = deadline
+            .format(&Rfc3339)
+            .map_err(|_| CertificateError::StoreUnavailable)?;
+        let mut index = self.index.lock().await;
+        let Some(previous) = index.certificates.get(id).cloned() else {
+            return Err(CertificateError::NotFound);
+        };
+        if previous.metadata.source != CertificateSource::Acme
+            && previous.metadata.operation == CertificateOperation::Idle
+        {
+            return Err(CertificateError::InvalidCertificate);
+        }
+        let mut updated = previous;
+        updated.next_attempt_at =
+            max_retry_deadline_string(updated.next_attempt_at.as_deref(), &deadline)
+                .or(Some(deadline));
+        if let Ok(now) = utc_now() {
+            updated.metadata.updated_at = now;
+        }
+        index.certificates.insert(id.to_owned(), updated);
+        let result = self
             .certificates_dir()
             .and_then(|directory| persist_index(&directory, &index));
-        if let Err(error) = persistence {
-            index.certificates.insert(id.to_owned(), previous);
-            drop(index);
-            self.release_lease(id).await;
-            return Err(error);
-        }
-        Ok((metadata, request))
+        // Keep `updated` in memory if persistence fails.  Retrying before the
+        // observed CA deadline would be less safe than requiring a restart.
+        result
     }
+
+    /// Extend the durable retry deadline for an ACME account environment.
+    ///
+    /// The deadline is shared by every certificate using that environment, so
+    /// a CA rate limit cannot be bypassed by starting a different certificate
+    /// order.  As with the per-certificate deadline, an in-memory update is
+    /// retained when persistence fails so this process remains fail-closed.
+    pub(crate) async fn defer_acme_account_retry(
+        &self,
+        environment: CertificateEnvironment,
+        deadline: OffsetDateTime,
+    ) -> Result<(), CertificateError> {
+        let deadline = deadline
+            .format(&Rfc3339)
+            .map_err(|_| CertificateError::StoreUnavailable)?;
+        let mut index = self.index.lock().await;
+        let current = index.acme_retry_until.get(&environment).map(String::as_str);
+        let updated = max_retry_deadline_string(current, &deadline).unwrap_or(deadline);
+        index.acme_retry_until.insert(environment, updated);
+        self.certificates_dir()
+            .and_then(|directory| persist_index(&directory, &index))
+    }
+
     pub(crate) async fn finish_failed(&self, id: &str, error: CertificateError) {
         let mut index = self.index.lock().await;
         if let Some(entry) = index.certificates.get_mut(id) {
+            let had_acme_operation = entry.metadata.operation != CertificateOperation::Idle;
             entry.metadata.operation = CertificateOperation::Idle;
             entry.metadata.status = if entry.material_id.is_some() {
                 CertificateStatus::Valid
@@ -733,16 +901,25 @@ impl CertificateStore {
                 CertificateStatus::Failed
             };
             entry.metadata.last_error_code = Some(error.code().to_owned());
-            if entry.metadata.source == CertificateSource::Acme {
-                let delay = entry
-                    .retry_delay_seconds
-                    .unwrap_or(900)
-                    .saturating_mul(2)
-                    .clamp(1_800, 21_600);
+            if entry.metadata.source == CertificateSource::Acme || had_acme_operation {
+                entry.metadata.attempt_count = entry
+                    .metadata
+                    .attempt_count
+                    .clamp(1, MAX_ACME_ATTEMPT_COUNT);
+                let delay =
+                    next_retry_delay(id, entry.metadata.attempt_count, entry.retry_delay_seconds);
                 entry.retry_delay_seconds = Some(delay);
-                entry.retry_after = retry_after(delay);
+                if let Some(deadline) = retry_deadline(delay) {
+                    entry.next_attempt_at =
+                        max_retry_deadline(entry.next_attempt_at.as_deref(), deadline);
+                }
             }
             if let Ok(now) = utc_now() {
+                if entry.metadata.last_attempt_at.is_none()
+                    && entry.metadata.source == CertificateSource::Acme
+                {
+                    entry.metadata.last_attempt_at = Some(now.clone());
+                }
                 entry.metadata.updated_at = now;
             }
             let _ = self
@@ -1113,6 +1290,11 @@ fn public_metadata(stored: &StoredCertificate) -> CertificateMetadata {
         fingerprint: stored.metadata.fingerprint.clone(),
         last_error_code: stored.metadata.last_error_code.clone(),
         updated_at: stored.metadata.updated_at.clone(),
+        next_attempt_at: stored.next_attempt_at.clone(),
+        attempt_count: stored.metadata.attempt_count,
+        last_attempt_at: stored.metadata.last_attempt_at.clone(),
+        last_success_at: stored.metadata.last_success_at.clone(),
+        next_renewal_at: next_renewal_at(stored),
     }
 }
 
@@ -1440,6 +1622,10 @@ fn read_regular_private_file(
 }
 fn index_is_valid(index: &CertificateIndex) -> bool {
     index.certificates.len() <= MAX_CERTIFICATES
+        && index
+            .acme_retry_until
+            .values()
+            .all(|timestamp| valid_timestamp(timestamp))
         && index.certificates.iter().all(|(id, entry)| {
             is_canonical_uuid_v7(id)
                 && entry.metadata.id == *id
@@ -1482,7 +1668,18 @@ fn index_is_valid(index: &CertificateIndex) -> bool {
                         && material_id.bytes().all(|byte| byte.is_ascii_hexdigit())
                 })
                 && entry
-                    .retry_after
+                    .next_attempt_at
+                    .as_ref()
+                    .is_none_or(|timestamp| valid_timestamp(timestamp))
+                && entry.metadata.attempt_count <= MAX_ACME_ATTEMPT_COUNT
+                && entry
+                    .metadata
+                    .last_attempt_at
+                    .as_ref()
+                    .is_none_or(|timestamp| valid_timestamp(timestamp))
+                && entry
+                    .metadata
+                    .last_success_at
                     .as_ref()
                     .is_none_or(|timestamp| valid_timestamp(timestamp))
                 && entry
@@ -1511,10 +1708,102 @@ fn index_is_valid(index: &CertificateIndex) -> bool {
         })
 }
 
-fn retry_after(delay_seconds: u32) -> Option<String> {
-    OffsetDateTime::now_utc()
-        .checked_add(time::Duration::seconds(i64::from(delay_seconds)))
-        .and_then(|timestamp| timestamp.format(&Rfc3339).ok())
+fn retry_deadline(delay_seconds: u32) -> Option<OffsetDateTime> {
+    OffsetDateTime::now_utc().checked_add(time::Duration::seconds(i64::from(delay_seconds)))
+}
+
+fn max_retry_deadline(existing: Option<&str>, candidate: OffsetDateTime) -> Option<String> {
+    let candidate = candidate.format(&Rfc3339).ok()?;
+    max_retry_deadline_string(existing, &candidate).or(Some(candidate))
+}
+
+fn max_retry_deadline_string(existing: Option<&str>, candidate: &str) -> Option<String> {
+    match existing {
+        Some(existing)
+            if OffsetDateTime::parse(existing, &Rfc3339)
+                .ok()
+                .zip(OffsetDateTime::parse(candidate, &Rfc3339).ok())
+                .is_some_and(|(existing, candidate)| existing >= candidate) =>
+        {
+            Some(existing.to_owned())
+        }
+        _ => Some(candidate.to_owned()),
+    }
+}
+
+fn retry_is_blocking(entry: &StoredCertificate, now: OffsetDateTime) -> bool {
+    entry
+        .next_attempt_at
+        .as_deref()
+        .and_then(|deadline| OffsetDateTime::parse(deadline, &Rfc3339).ok())
+        .is_some_and(|deadline| deadline > now)
+}
+
+fn account_retry_is_blocking(
+    index: &CertificateIndex,
+    environment: CertificateEnvironment,
+    now: OffsetDateTime,
+) -> bool {
+    index
+        .acme_retry_until
+        .get(&environment)
+        .and_then(|deadline| OffsetDateTime::parse(deadline, &Rfc3339).ok())
+        .is_some_and(|deadline| deadline > now)
+}
+
+fn next_retry_delay(id: &str, attempt_count: u32, previous: Option<u32>) -> u32 {
+    let exponent = attempt_count.saturating_sub(1).min(4);
+    let base = u64::from(MIN_ACME_RETRY_DELAY_SECONDS)
+        .saturating_mul(1_u64 << exponent)
+        .min(u64::from(MAX_ACME_RETRY_DELAY_SECONDS));
+    let previous = previous
+        .unwrap_or(base as u32)
+        .clamp(MIN_ACME_RETRY_DELAY_SECONDS, MAX_ACME_RETRY_DELAY_SECONDS);
+    let base = base.max(u64::from(previous));
+    let jitter_max = (base / 4).min(u64::from(MAX_ACME_RETRY_DELAY_SECONDS).saturating_sub(base));
+    let entropy = OffsetDateTime::now_utc()
+        .unix_timestamp_nanos()
+        .unsigned_abs() as u64
+        ^ id.bytes().fold(0_u64, |hash, byte| {
+            hash.wrapping_mul(16777619).wrapping_add(u64::from(byte))
+        });
+    base.saturating_add(if jitter_max == 0 {
+        0
+    } else {
+        entropy % (jitter_max + 1)
+    })
+    .min(u64::from(MAX_ACME_RETRY_DELAY_SECONDS)) as u32
+}
+
+fn next_renewal_at(stored: &StoredCertificate) -> Option<String> {
+    if stored.metadata.source != CertificateSource::Acme {
+        return None;
+    }
+    let issued = stored
+        .metadata
+        .issued_at
+        .as_deref()
+        .and_then(|value| OffsetDateTime::parse(value, &Rfc3339).ok())?;
+    let expires = stored
+        .metadata
+        .expires_at
+        .as_deref()
+        .and_then(|value| OffsetDateTime::parse(value, &Rfc3339).ok())?;
+    let due = renewal_timestamp(issued, expires)?;
+    due.format(&Rfc3339).ok()
+}
+
+pub(crate) fn renewal_timestamp(
+    issued: OffsetDateTime,
+    expires: OffsetDateTime,
+) -> Option<OffsetDateTime> {
+    let lifetime = expires - issued;
+    if lifetime <= time::Duration::ZERO {
+        return None;
+    }
+    let elapsed =
+        time::Duration::nanoseconds_i128(lifetime.whole_nanoseconds().saturating_mul(2) / 3);
+    issued.checked_add(elapsed)
 }
 
 fn valid_timestamp(value: &str) -> bool {

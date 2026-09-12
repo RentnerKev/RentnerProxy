@@ -405,7 +405,8 @@ impl ProxyRuntime {
         }
         let runtime = Arc::clone(self);
         *task = Some(tokio::spawn(async move {
-            let mut timer = interval(Duration::from_secs(6 * 60 * 60));
+            let mut timer = interval(Duration::from_secs(60));
+            timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
                 timer.tick().await;
                 runtime.renew_due_certificates(challenges.clone()).await;
@@ -797,21 +798,32 @@ impl ProxyRuntime {
     }
 
     fn renewal_is_due(certificate: &CertificateMetadata) -> bool {
+        Self::renewal_is_due_at(certificate, OffsetDateTime::now_utc())
+    }
+
+    fn renewal_is_due_at(certificate: &CertificateMetadata, now: OffsetDateTime) -> bool {
+        if certificate.source != certificates::CertificateSource::Acme
+            || certificate.status != certificates::CertificateStatus::Valid
+            || certificate.operation != certificates::CertificateOperation::Idle
+        {
+            return false;
+        }
+        let Some(issued_at) = certificate.issued_at.as_deref() else {
+            return false;
+        };
         let Some(expires_at) = certificate.expires_at.as_deref() else {
+            return false;
+        };
+        let Ok(issued_at) = OffsetDateTime::parse(issued_at, &Rfc3339) else {
             return false;
         };
         let Ok(expires_at) = OffsetDateTime::parse(expires_at, &Rfc3339) else {
             return false;
         };
-        let now = OffsetDateTime::now_utc();
-        let minimum_window = Duration::from_secs(30 * 24 * 60 * 60).as_secs() as i64;
-        let one_third = certificate
-            .issued_at
-            .as_deref()
-            .and_then(|issued_at| OffsetDateTime::parse(issued_at, &Rfc3339).ok())
-            .map(|issued_at| (expires_at - issued_at).whole_seconds() / 3)
-            .unwrap_or(minimum_window);
-        expires_at - now <= time::Duration::seconds(minimum_window.max(one_third))
+        let Some(renewal_at) = certificates::renewal_timestamp(issued_at, expires_at) else {
+            return false;
+        };
+        now >= renewal_at
     }
 }
 
@@ -822,4 +834,67 @@ fn is_readable_system_ca_bundle(path: &Path) -> bool {
     };
     let mut byte = [0u8; 1];
     file.read(&mut byte).is_ok_and(|read| read > 0)
+}
+
+#[cfg(test)]
+mod renewal_tests {
+    use super::*;
+
+    fn timestamp(value: &str) -> OffsetDateTime {
+        OffsetDateTime::parse(value, &Rfc3339).expect("test timestamp should parse")
+    }
+
+    fn certificate(source: certificates::CertificateSource, days: i64) -> CertificateMetadata {
+        let issued = timestamp("2026-01-01T00:00:00Z");
+        let expires = issued + time::Duration::days(days);
+        let format = |value: OffsetDateTime| value.format(&Rfc3339).unwrap();
+        CertificateMetadata {
+            id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
+            source,
+            environment: Some(certificates::CertificateEnvironment::Staging),
+            domains: vec!["example.com".to_owned()],
+            status: certificates::CertificateStatus::Valid,
+            operation: certificates::CertificateOperation::Idle,
+            issued_at: Some(format(issued)),
+            expires_at: Some(format(expires)),
+            issuer: Some("test".to_owned()),
+            fingerprint: Some("sha256:".to_owned() + &"0".repeat(64)),
+            last_error_code: None,
+            updated_at: format(issued),
+            next_attempt_at: None,
+            attempt_count: 0,
+            last_attempt_at: None,
+            last_success_at: None,
+            next_renewal_at: Some(format(
+                issued + time::Duration::seconds(days.saturating_mul(86_400).saturating_mul(2) / 3),
+            )),
+        }
+    }
+
+    #[test]
+    fn renewal_starts_after_two_thirds_of_each_real_lifetime() {
+        for days in [6, 30, 45, 90] {
+            let certificate = certificate(certificates::CertificateSource::Acme, days);
+            let issued = timestamp("2026-01-01T00:00:00Z");
+            let renewal_at = issued + time::Duration::seconds(days * 86_400 * 2 / 3);
+            assert!(
+                !ProxyRuntime::renewal_is_due_at(
+                    &certificate,
+                    renewal_at - time::Duration::seconds(1),
+                ),
+                "{days}-day certificate must remain idle before its boundary"
+            );
+            assert!(
+                ProxyRuntime::renewal_is_due_at(&certificate, renewal_at),
+                "{days}-day certificate must renew at its boundary"
+            );
+        }
+    }
+
+    #[test]
+    fn imported_certificates_are_never_due_for_acme_renewal() {
+        let certificate = certificate(certificates::CertificateSource::Manual, 6);
+        let now = timestamp("2026-01-06T00:00:00Z");
+        assert!(!ProxyRuntime::renewal_is_due_at(&certificate, now));
+    }
 }

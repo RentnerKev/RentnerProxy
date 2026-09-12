@@ -21,6 +21,10 @@ use crate::{
 
 use super::ProxyRuntime;
 use super::dns::{DnsProvider, DnsRecordIntent};
+use acme_http::AcmeHttpClient;
+
+#[path = "acme_http.rs"]
+mod acme_http;
 
 const ORDER_TIMEOUT: Duration = Duration::from_secs(120);
 const DNS_ORDER_TIMEOUT: Duration = Duration::from_secs(180);
@@ -242,7 +246,7 @@ impl ProxyRuntime {
             // Reject names outside the configured zone before contacting ACME.
             provider.validate_sans(&request.domains).await?;
         }
-        let account = timeout(ACCOUNT_TIMEOUT, self.acme_account(request))
+        let account = timeout(ACCOUNT_TIMEOUT, self.acme_account(id, request))
             .await
             .map_err(|_| CertificateError::AcmeFailed)??;
         let identifiers = request
@@ -365,20 +369,30 @@ impl ProxyRuntime {
     }
 
     async fn acme_account(
-        &self,
+        self: &Arc<Self>,
+        id: &str,
         request: &CertificateIssueRequest,
     ) -> Result<Account, CertificateError> {
         let _account_guard = ACCOUNT_REGISTRATION.lock().await;
         let (directory, root) = acme_directory(request.environment)?;
+        let root_pem = root
+            .as_deref()
+            .map(std::fs::read)
+            .transpose()
+            .map_err(|_| CertificateError::AcmeFailed)?;
+        let _ = rustls::crypto::ring::default_provider().install_default();
+        let http = AcmeHttpClient::new(
+            root_pem.as_deref(),
+            Arc::clone(self),
+            id.to_owned(),
+            request.environment,
+        )
+        .map_err(|_| CertificateError::AcmeFailed)?;
         let credentials = self
             .certificate_store
             .load_acme_account(request.environment)
             .await?;
-        let builder = match root {
-            Some(root) => Account::builder_with_root(root),
-            None => Account::builder(),
-        }
-        .map_err(|_| CertificateError::AcmeFailed)?;
+        let builder = Account::builder_with_http(Box::new(http));
 
         let pending = if let Some(credentials) = credentials {
             let stored_directory: AccountDirectory = serde_json::from_slice(&credentials)
