@@ -4,13 +4,8 @@ import { Fragment } from 'react'
 
 import useTranslationStore from '../../../language/useTranslationStore'
 import type { TableHeadProps } from '../Types/table.types'
-import TableColumnFilters from './TableColumnFilters'
 
-export default function TableHead<TData extends RowData>({
-    table,
-    showColumnFilters,
-    columnFilterConfigs,
-}: TableHeadProps<TData>) {
+export default function TableHead<TData extends RowData>({ table }: TableHeadProps<TData>) {
     const { t } = useTranslationStore()
 
     return (
@@ -73,12 +68,6 @@ export default function TableHead<TData extends RowData>({
                                     )
                                 })}
                             </tr>
-                            {showColumnFilters ? (
-                                <TableColumnFilters
-                                    headerGroup={headerGroup}
-                                    filterConfigs={columnFilterConfigs}
-                                />
-                            ) : null}
                         </Fragment>
                     ))
                 }

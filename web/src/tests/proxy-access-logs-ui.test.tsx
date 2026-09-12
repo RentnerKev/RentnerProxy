@@ -176,6 +176,29 @@ describe('proxy access-log UI', () => {
         expect(container.textContent).toContain('/dashboard')
     })
 
+    test('keeps draft filters when collapsed and resets them from the shared control', async () => {
+        const container = await renderPage([PERMISSIONS.PROXY_ACCESS_LOGS_VIEW])
+        await waitFor(() => container.textContent?.includes('/dashboard') === true)
+
+        const filtersButton = getButton(container, 'Filters')
+        expect(filtersButton.getAttribute('aria-expanded')).toBe('false')
+        const hostInput = container.querySelector<HTMLInputElement>(
+            'input[placeholder="example.com"]',
+        )
+        expect(hostInput).not.toBeNull()
+
+        await click(filtersButton)
+        expect(filtersButton.getAttribute('aria-expanded')).toBe('true')
+        await setInputValue(hostInput!, 'app.example.com')
+        await click(filtersButton)
+        expect(filtersButton.getAttribute('aria-expanded')).toBe('false')
+        expect(hostInput?.value).toBe('app.example.com')
+
+        await click(getButton(container, 'Reset filters'))
+        expect(hostInput?.value).toBe('')
+        expect(getButton(container, 'Filters').textContent?.trim()).toBe('Filters')
+    })
+
     test('renders a restricted state and does not request logs without permission', async () => {
         const container = await renderPage([])
         await act(async () => {

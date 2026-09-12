@@ -1,11 +1,4 @@
-import type {
-    Column,
-    ColumnDef,
-    FilterFn,
-    HeaderGroup,
-    RowData,
-    SortingState,
-} from '@tanstack/react-table'
+import type { Column, ColumnDef, FilterFn, RowData, SortingState } from '@tanstack/react-table'
 import type { ReactNode } from 'react'
 
 import type { ClientTable, ClientTableFeatures } from '../Hooks/useClientTableLogic'
@@ -75,32 +68,12 @@ export interface UseClientTableLogicReturn<TData extends RowData> {
     }
 }
 
-export interface TableToolbarProps<TData extends RowData> {
-    readonly table: ClientTable<TData>
-    readonly titleId: string
-    readonly eyebrow: string
-    readonly title: string
-    readonly description?: string | undefined
-    readonly searchInput: string
-    readonly searchId: string
-    readonly searchLabel: string
-    readonly searchPlaceholder: string
-    readonly showColumnFilters: boolean
-    readonly enableColumnFilters: boolean
-    readonly onSearchChange: (value: string) => void
-    readonly onToggleColumnFilters: () => void
-    readonly onResetFilters: () => void
-    readonly action?: ReactNode
-}
-
 export interface TableHeadProps<TData extends RowData> {
     readonly table: ClientTable<TData>
-    readonly showColumnFilters: boolean
-    readonly columnFilterConfigs: TableColumnFilterConfigs
 }
 
 export interface TableColumnFiltersProps<TData extends RowData> {
-    readonly headerGroup: HeaderGroup<ClientTableFeatures, TData>
+    readonly table: ClientTable<TData>
     readonly filterConfigs: TableColumnFilterConfigs
 }
 

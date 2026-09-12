@@ -220,10 +220,35 @@ describe('audit log UI', () => {
         })
     })
 
+    test('keeps draft filters when collapsed and resets them from the shared control', async () => {
+        const container = await renderPage([PERMISSIONS.AUDIT_LOGS_VIEW])
+        await waitFor(() => container.textContent?.includes('Alice Admin') === true)
+
+        const filtersButton = getButton(container, 'Filters')
+        expect(filtersButton.getAttribute('aria-expanded')).toBe('false')
+        const actorInput = container.querySelector<HTMLInputElement>(
+            'input[placeholder="UUID of the actor"]',
+        )
+        expect(actorInput).not.toBeNull()
+
+        await click(filtersButton)
+        expect(filtersButton.getAttribute('aria-expanded')).toBe('true')
+        await setInputValue(actorInput!, actorId)
+        await click(filtersButton)
+        expect(filtersButton.getAttribute('aria-expanded')).toBe('false')
+        expect(actorInput?.value).toBe(actorId)
+
+        await click(getButton(container, 'Reset filters'))
+        expect(actorInput?.value).toBe('')
+        expect(getButton(container, 'Filters').textContent?.trim()).toBe('Filters')
+    })
+
     test('shows safe event details and blocks requests without permission', async () => {
         const container = await renderPage([PERMISSIONS.AUDIT_LOGS_VIEW])
         await waitFor(() => container.textContent?.includes('Alice Admin') === true)
-        await click(container.querySelector<HTMLButtonElement>('button[aria-expanded="false"]')!)
+        await click(
+            container.querySelector<HTMLButtonElement>('button[aria-label="Show event details"]')!,
+        )
         expect(container.textContent).toContain('Changed fields')
         expect(container.textContent).toContain('upstream')
 

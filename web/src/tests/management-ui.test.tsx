@@ -436,6 +436,32 @@ describe('shared table preset', () => {
         expect(document.body.textContent).toContain('of 12 records')
     })
 
+    test('keeps active filters mounted and applied across collapse, then resets while collapsed', async () => {
+        await render(<TableHarness />)
+        const trigger = getButton('Filters')
+        const content = document.getElementById(trigger.getAttribute('aria-controls')!)!
+        expect(trigger.getAttribute('aria-expanded')).toBe('false')
+        expect(content.hidden).toBeTrue()
+        expect(content.closest('table')).toBeNull()
+
+        await click(trigger)
+        await chooseSelectOption('All statuses', 'Disabled')
+        expect(trigger.textContent).toContain('(1)')
+        expect(getDataRows().every((row) => row.textContent?.includes('disabled'))).toBeTrue()
+        const select = getButton('All statuses')
+
+        await click(trigger)
+        expect(content.hidden).toBeTrue()
+        expect(select.isConnected).toBeTrue()
+        expect(getDataRows().every((row) => row.textContent?.includes('disabled'))).toBeTrue()
+        await click(trigger)
+        expect(content.hidden).toBeFalse()
+        expect(getButton('All statuses')).toBe(select)
+        await click(trigger)
+        await click(getButton('Reset filters'))
+        expect(trigger.textContent).not.toContain('(1)')
+        expect(document.body.textContent).toContain('of 12 records')
+    })
     test('paginates, changes rows per page, and distinguishes filtered empty state', async () => {
         await render(<TableHarness />)
         expect(getDataRows()).toHaveLength(5)

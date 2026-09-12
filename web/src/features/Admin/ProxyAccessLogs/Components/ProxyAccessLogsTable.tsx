@@ -2,6 +2,10 @@ import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { Fragment } from 'react'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
+import TableBodyState from '../../../../shared/Table/Components/TableBodyState'
+import TableFilters from '../../../../shared/Table/Components/TableFilters'
+import TableLayout from '../../../../shared/Table/Components/TableLayout'
+import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBody'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { Tooltip } from '../../../../shared/Tooltip'
 import type { ProxyAccessLogEntry } from '../../../../shared/Types/proxy-access-logs.types'
@@ -9,7 +13,7 @@ import { formatBytes, formatDuration, withoutQueryString } from '../Helpers/prox
 import type { ProxyAccessLogsTableProps } from '../Types/proxy-access-logs.types'
 
 const tableControlClassName =
-    'h-10 w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink outline-hidden transition-[border-color,box-shadow] placeholder:text-muted-soft focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/20'
+    'h-12 min-w-0 w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink outline-hidden transition-[border-color,box-shadow] placeholder:text-muted-soft focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/20'
 
 const statusClassName = (status: number) =>
     status >= 500
@@ -46,33 +50,6 @@ function LogDetails({ entry }: { readonly entry: ProxyAccessLogEntry }) {
     )
 }
 
-function LoadingRows() {
-    const { t } = useTranslationStore()
-    return (
-        <tbody aria-busy="true">
-            {Array.from({ length: 8 }, (_, rowIndex) => (
-                <tr key={`log-loading-${rowIndex}`} className="border-b border-border">
-                    {Array.from({ length: 8 }, (__, cellIndex) => (
-                        <td
-                            key={`log-loading-${rowIndex}-${cellIndex}`}
-                            aria-label={t('table.loadingColumn', {
-                                label: t('admin.proxyAccessLogs.table.title'),
-                                column: cellIndex + 1,
-                            })}
-                            className="h-[3.65rem] px-4 py-3"
-                        >
-                            <span
-                                aria-hidden="true"
-                                className="block h-3.5 w-full max-w-32 animate-pulse rounded-full bg-neutral motion-reduce:animate-none"
-                            />
-                        </td>
-                    ))}
-                </tr>
-            ))}
-        </tbody>
-    )
-}
-
 export default function ProxyAccessLogsTable({
     entries,
     expandedEntry,
@@ -97,45 +74,47 @@ export default function ProxyAccessLogsTable({
     onToggleDetails,
 }: ProxyAccessLogsTableProps) {
     const { locale, t } = useTranslationStore()
-    const hasActiveFilters =
-        filters.host.trim().length > 0 ||
-        filters.status.trim().length > 0 ||
-        filters.search.trim().length > 0
+    const activeFilterCount = [
+        filters.host.trim(),
+        filters.status.trim(),
+        filters.search.trim(),
+    ].filter((value) => value.length > 0).length
+    const hasActiveFilters = activeFilterCount > 0
     const firstItem = entries.length === 0 ? 0 : offset + 1
     const lastItem = offset + entries.length
     const currentPage = Math.floor(offset / Math.max(limit, 1)) + 1
     const pageCount = hasMore ? currentPage + 1 : Math.max(currentPage, 1)
 
     return (
-        <section
-            aria-labelledby="proxy-access-logs-table-title"
-            className={uiClassNames.table.panel}
-        >
-            <div className="flex flex-col gap-4 border-b border-border px-[1.15rem] py-4">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                    <div className="min-w-0">
-                        <p className={uiClassNames.themedTechnicalLabel}>
-                            {t('admin.proxyAccessLogs.table.eyebrow')}
-                        </p>
-                        <h2
-                            id="proxy-access-logs-table-title"
-                            className="mt-[0.4rem] text-xl text-ink-soft"
-                        >
-                            {t('admin.proxyAccessLogs.table.title')}
-                        </h2>
-                        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted">
-                            {t('admin.proxyAccessLogs.table.description')}
-                        </p>
-                    </div>
-
+        <TableLayout
+            titleId="proxy-access-logs-table-title"
+            eyebrow={t('admin.proxyAccessLogs.table.eyebrow')}
+            title={t('admin.proxyAccessLogs.table.title')}
+            description={t('admin.proxyAccessLogs.table.description')}
+            toolbar={
+                <button
+                    type="button"
+                    className={uiClassNames.button.secondary}
+                    onClick={onRefresh}
+                    disabled={isRefreshing}
+                >
+                    <RefreshCw
+                        aria-hidden="true"
+                        className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                    />
+                    {t('admin.proxyAccessLogs.actions.refresh')}
+                </button>
+            }
+            filters={
+                <TableFilters activeCount={activeFilterCount} onReset={onResetFilters}>
                     <form
-                        className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end xl:justify-end"
+                        className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3 items-end"
                         onSubmit={(event) => {
                             event.preventDefault()
                             onApplyFilters()
                         }}
                     >
-                        <label className="grid min-w-0 gap-1.5 sm:w-44">
+                        <label className="grid min-w-0 gap-1.5">
                             <span className="text-xs font-extrabold text-muted">
                                 {t('admin.proxyAccessLogs.filters.host')}
                             </span>
@@ -161,7 +140,7 @@ export default function ProxyAccessLogsTable({
                                 </span>
                             ) : null}
                         </label>
-                        <label className="grid min-w-0 gap-1.5 sm:w-28">
+                        <label className="grid min-w-0 gap-1.5">
                             <span className="text-xs font-extrabold text-muted">
                                 {t('admin.proxyAccessLogs.filters.status')}
                             </span>
@@ -190,7 +169,7 @@ export default function ProxyAccessLogsTable({
                                 </span>
                             ) : null}
                         </label>
-                        <label className="grid min-w-0 gap-1.5 sm:w-64">
+                        <label className="grid min-w-0 gap-1.5">
                             <span className="text-xs font-extrabold text-muted">
                                 {t('admin.proxyAccessLogs.filters.search')}
                             </span>
@@ -216,38 +195,69 @@ export default function ProxyAccessLogsTable({
                                 </span>
                             ) : null}
                         </label>
-                        <button
-                            type="submit"
-                            className={uiClassNames.button.primary}
-                            disabled={isRefreshing}
+                        <div className="flex items-end">
+                            <button
+                                type="submit"
+                                className={uiClassNames.button.primary}
+                                disabled={isRefreshing}
+                            >
+                                {t('admin.proxyAccessLogs.actions.apply')}
+                            </button>
+                        </div>
+                    </form>
+                </TableFilters>
+            }
+            pagination={
+                <div className="flex flex-col gap-3 border-t border-border bg-surface-subtle px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted">
+                        <p aria-live="polite">
+                            <span className="font-extrabold text-ink-soft">
+                                {t('admin.proxyAccessLogs.pagination.range', {
+                                    from: firstItem,
+                                    to: lastItem,
+                                    count: total,
+                                })}
+                            </span>
+                        </p>
+                        {truncated ? (
+                            <span>{t('admin.proxyAccessLogs.pagination.truncated')}</span>
+                        ) : null}
+                    </div>
+                    <nav
+                        aria-label={t('admin.proxyAccessLogs.pagination.label')}
+                        className="flex items-center justify-between gap-2 sm:justify-end"
+                    >
+                        <p
+                            className="mr-1 min-w-20 text-center text-xs text-muted"
+                            aria-live="polite"
                         >
-                            {t('admin.proxyAccessLogs.actions.apply')}
+                            {t('admin.proxyAccessLogs.pagination.page', {
+                                page: currentPage,
+                                count: pageCount,
+                            })}
+                        </p>
+                        <button
+                            type="button"
+                            className="inline-flex size-9 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
+                            onClick={onPreviousPage}
+                            disabled={offset === 0 || isRefreshing}
+                            aria-label={t('admin.proxyAccessLogs.pagination.previous')}
+                        >
+                            <ChevronLeft aria-hidden="true" className="size-4" />
                         </button>
                         <button
                             type="button"
-                            className={uiClassNames.button.secondary}
-                            onClick={onRefresh}
-                            disabled={isRefreshing}
+                            className="inline-flex size-9 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
+                            onClick={onNextPage}
+                            disabled={!hasMore || isRefreshing}
+                            aria-label={t('admin.proxyAccessLogs.pagination.next')}
                         >
-                            <RefreshCw
-                                aria-hidden="true"
-                                className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
-                            />
-                            {t('admin.proxyAccessLogs.actions.refresh')}
+                            <ChevronRight aria-hidden="true" className="size-4" />
                         </button>
-                        {hasActiveFilters ? (
-                            <button
-                                type="button"
-                                onClick={onResetFilters}
-                                className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl border border-transparent px-3 text-sm font-extrabold text-muted transition-colors hover:border-border-strong hover:bg-surface-hover hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-                            >
-                                {t('table.resetFilters')}
-                            </button>
-                        ) : null}
-                    </form>
+                    </nav>
                 </div>
-            </div>
-
+            }
+        >
             <div className="overflow-x-auto">
                 <table className="w-full min-w-[72rem] border-collapse">
                     <thead className="bg-surface-subtle font-mono text-[0.62rem] tracking-[0.07em] text-muted uppercase">
@@ -302,33 +312,23 @@ export default function ProxyAccessLogsTable({
                             </th>
                         </tr>
                     </thead>
-                    {isLoading ? <LoadingRows /> : null}
+                    {isLoading ? (
+                        <TableLoadingBody
+                            columnCount={8}
+                            loadingLabel={t('admin.proxyAccessLogs.table.title')}
+                        />
+                    ) : null}
                     {!isLoading && entries.length === 0 ? (
                         <tbody>
-                            <tr>
-                                <td
-                                    colSpan={8}
-                                    aria-label={t('admin.proxyAccessLogs.table.emptyTitle')}
-                                    className="px-5 py-14"
-                                >
-                                    <div className="mx-auto flex max-w-md flex-col items-center text-center">
-                                        <span
-                                            className="mb-4 size-2.5 rounded-full bg-brand-500 shadow-[0_0_0_6px_rgb(48_238_97_/_12%)]"
-                                            aria-hidden="true"
-                                        />
-                                        <h3 className="text-base font-extrabold text-ink-soft">
-                                            {t('admin.proxyAccessLogs.table.emptyTitle')}
-                                        </h3>
-                                        <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                                            {hasActiveFilters
-                                                ? t(
-                                                      'admin.proxyAccessLogs.table.filteredEmptyDescription',
-                                                  )
-                                                : t('admin.proxyAccessLogs.table.emptyDescription')}
-                                        </p>
-                                    </div>
-                                </td>
-                            </tr>
+                            <TableBodyState
+                                columnCount={8}
+                                state={{
+                                    title: t('admin.proxyAccessLogs.table.emptyTitle'),
+                                    description: hasActiveFilters
+                                        ? t('admin.proxyAccessLogs.table.filteredEmptyDescription')
+                                        : t('admin.proxyAccessLogs.table.emptyDescription'),
+                                }}
+                            />
                         </tbody>
                     ) : null}
                     {!isLoading && entries.length > 0 ? (
@@ -421,52 +421,6 @@ export default function ProxyAccessLogsTable({
                     ) : null}
                 </table>
             </div>
-
-            <div className="flex flex-col gap-3 border-t border-border bg-surface-subtle px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted">
-                    <p aria-live="polite">
-                        <span className="font-extrabold text-ink-soft">
-                            {t('admin.proxyAccessLogs.pagination.range', {
-                                from: firstItem,
-                                to: lastItem,
-                                count: total,
-                            })}
-                        </span>
-                    </p>
-                    {truncated ? (
-                        <span>{t('admin.proxyAccessLogs.pagination.truncated')}</span>
-                    ) : null}
-                </div>
-                <nav
-                    aria-label={t('admin.proxyAccessLogs.pagination.label')}
-                    className="flex items-center justify-between gap-2 sm:justify-end"
-                >
-                    <p className="mr-1 min-w-20 text-center text-xs text-muted" aria-live="polite">
-                        {t('admin.proxyAccessLogs.pagination.page', {
-                            page: currentPage,
-                            count: pageCount,
-                        })}
-                    </p>
-                    <button
-                        type="button"
-                        className="inline-flex size-9 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
-                        onClick={onPreviousPage}
-                        disabled={offset === 0 || isRefreshing}
-                        aria-label={t('admin.proxyAccessLogs.pagination.previous')}
-                    >
-                        <ChevronLeft aria-hidden="true" className="size-4" />
-                    </button>
-                    <button
-                        type="button"
-                        className="inline-flex size-9 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
-                        onClick={onNextPage}
-                        disabled={!hasMore || isRefreshing}
-                        aria-label={t('admin.proxyAccessLogs.pagination.next')}
-                    >
-                        <ChevronRight aria-hidden="true" className="size-4" />
-                    </button>
-                </nav>
-            </div>
-        </section>
+        </TableLayout>
     )
 }
