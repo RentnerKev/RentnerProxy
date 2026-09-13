@@ -1,12 +1,11 @@
 import type {
-    ProxyConfigSource,
     ProxyHostConfigEditorData,
     ProxyConfigEditorData,
     ProxyHttpSettings,
 } from '../../../../shared/Types/proxy-runtime.types'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
 
-export type ProxyConfigEditorTab = 'edit' | 'active' | 'defaults' | 'preview'
+export type ProxyConfigEditorTab = 'edit' | 'active'
 
 export interface ProxyConfigEditorModalProps {
     readonly proxyHost: ProxyHostSummary
@@ -30,27 +29,18 @@ export interface ProxyConfigEditorState {
     readonly data: ProxyHostConfigEditorData | undefined
     readonly isError: boolean
     readonly isLoading: boolean
-    readonly isPreviewing: boolean
     readonly isRefreshing: boolean
-    readonly isReloadConfirmationOpen: boolean
     readonly isResetConfirmationOpen: boolean
     readonly isResetting: boolean
     readonly isSaving: boolean
-    readonly preview: ProxyConfigSource | null
-    readonly previewError: string | null
-    readonly isDirty: boolean
 }
 
 export interface ProxyConfigEditorHandlers {
-    readonly confirmReload: () => Promise<void>
     readonly confirmReset: () => Promise<void>
-    readonly preview: () => void
-    readonly refresh: () => void
     readonly reset: () => void
     readonly save: () => void
     readonly setActiveTab: (tab: ProxyConfigEditorTab) => void
     readonly setSetting: (key: keyof ProxyHttpSettings, value: number | undefined) => void
-    readonly setReloadConfirmationOpen: (open: boolean) => void
     readonly setResetConfirmationOpen: (open: boolean) => void
 }
 
