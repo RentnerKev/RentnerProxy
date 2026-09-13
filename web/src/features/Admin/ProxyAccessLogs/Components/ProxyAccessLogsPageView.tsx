@@ -55,13 +55,10 @@ export default function ProxyAccessLogsPageView({
                     pageSize={state.pageSize}
                     currentPage={state.currentPage}
                     isLoading={state.isLoading}
-                    isRefreshing={state.isRefreshing}
                     onHostChange={handler.onHostChange}
                     onStatusChange={handler.onStatusChange}
                     onSearchChange={handler.onSearchChange}
-                    onApplyFilters={handler.applyFilters}
                     onResetFilters={handler.resetFilters}
-                    onRefresh={handler.refresh}
                     onPageChange={handler.onPageChange}
                     onPageSizeChange={handler.onPageSizeChange}
                     onToggleDetails={handler.toggleEntryDetails}

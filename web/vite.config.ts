@@ -6,6 +6,8 @@ import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+import { createLiveVitePlugin } from './vite-live'
+
 const webRoot = fileURLToPath(new URL('.', import.meta.url))
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const cacheDirectory = fileURLToPath(new URL('../node_modules/.vite/web', import.meta.url))
@@ -42,6 +44,7 @@ export default defineConfig({
         strictPort: true,
     },
     plugins: [
+        createLiveVitePlugin(),
         tanstackStart({
             importProtection: {
                 client: {

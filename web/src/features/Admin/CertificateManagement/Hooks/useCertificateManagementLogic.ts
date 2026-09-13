@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 import { PERMISSIONS } from '../../../../config/permissions.config'
+import useLiveInvalidation from '../../../../shared/Live/useLiveInvalidation'
 import useToast from '../../../../shared/Toast/Hooks/useToast'
 import type {
     CertificateActionResult,
@@ -16,7 +17,6 @@ import {
 } from '../server'
 import { certificateManagementQueryKeys } from '../queryKeys'
 import type { CertificateManagementPageProps } from '../Types/certificate-management.types'
-import { hasActiveCertificateOperation } from '../Helpers/certificateOperations'
 
 const EMPTY_CERTIFICATES: CertificateSummary[] = []
 
@@ -24,13 +24,19 @@ export default function useCertificateManagementLogic({
     permissions,
 }: CertificateManagementPageProps) {
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
+    const canView = permissionSet.has(PERMISSIONS.CERTIFICATES_VIEW)
     const toast = useToast()
     const queryClient = useQueryClient()
     const certificatesQuery = useQuery({
         queryKey: certificateManagementQueryKeys.all,
         queryFn: () => getCertificatesHandler(),
-        refetchInterval: (query) =>
-            query.state.data?.some(hasActiveCertificateOperation) ? 2_000 : 15_000,
+        enabled: canView,
+    })
+    useLiveInvalidation({
+        topic: 'certificates',
+        query: {},
+        enabled: canView,
+        queryKeys: [certificateManagementQueryKeys.all],
     })
     const [importOpen, setImportOpen] = useState(false)
     const [requestOpen, setRequestOpen] = useState(false)

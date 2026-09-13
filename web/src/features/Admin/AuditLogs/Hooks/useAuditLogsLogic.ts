@@ -1,16 +1,18 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { PERMISSIONS } from '../../../../config/permissions.config'
 import useTranslationStore from '../../../../language/useTranslationStore'
+import useLiveQuery from '../../../../shared/Live/useLiveQuery'
 import type {
     AuditAction,
+    AuditActorOption,
     AuditEventsQuery,
     AuditEventsResult,
     AuditResource,
 } from '../../../../shared/Types/audit-events.types'
 import { auditLogsQueryKeys } from '../queryKeys'
-import { getAuditEventsHandler } from '../server'
+import { getAuditActorOptionsHandler, getAuditEventsHandler } from '../server'
 import {
     emptyAuditLogsFilters,
     sortAuditEventsNewestFirst,
@@ -34,9 +36,19 @@ export default function useAuditLogsLogic({ permissions }: AuditLogsPageProps) {
         () => toAuditEventsQuery(filters, cursor),
         [cursor, filters],
     )
+    const requestRef = useRef(request)
+    useEffect(() => {
+        requestRef.current = request
+    }, [request])
     const auditQuery = useQuery<AuditEventsResult>({
         queryKey: auditLogsQueryKeys.list(request),
         queryFn: () => getAuditEventsHandler({ data: request }),
+        enabled: canView,
+        retry: false,
+    })
+    const actorOptionsQuery = useQuery<readonly AuditActorOption[]>({
+        queryKey: auditLogsQueryKeys.actors(),
+        queryFn: () => getAuditActorOptionsHandler(),
         enabled: canView,
         retry: false,
     })
@@ -44,6 +56,23 @@ export default function useAuditLogsLogic({ permissions }: AuditLogsPageProps) {
         () => sortAuditEventsNewestFirst(canView ? (auditQuery.data?.events ?? []) : []),
         [auditQuery.data?.events, canView],
     )
+    const liveRequest = useMemo(() => toAuditEventsQuery(filters, undefined), [filters])
+    const onLiveData = useCallback(
+        async (data: AuditEventsResult) => {
+            if (requestRef.current !== request) return
+            const queryKey = auditLogsQueryKeys.list(request)
+            await queryClient.cancelQueries({ queryKey, exact: true })
+            if (requestRef.current !== request) return
+            queryClient.setQueryData(queryKey, data)
+        },
+        [queryClient, request],
+    )
+    const liveStatus = useLiveQuery<AuditEventsResult>({
+        topic: 'audit-logs',
+        query: liveRequest,
+        enabled: canView && cursorStack.length === 0,
+        onData: onLiveData,
+    })
     const timestampFormatter = useMemo(
         () =>
             new Intl.DateTimeFormat(locale, {
@@ -66,27 +95,18 @@ export default function useAuditLogsLogic({ permissions }: AuditLogsPageProps) {
             key: K,
             value: (typeof emptyAuditLogsFilters)[K],
         ) => {
-            setDraftFilters((current) => ({ ...current, [key]: value }))
-            setFilterErrors((current) => {
-                const next = { ...current }
-                delete next[key]
-                delete next.dateRange
-                return next
-            })
-        },
-        [],
-    )
-    const applyFilters = useCallback(() => {
-        const errors = validateAuditLogsFilters(draftFilters)
-        if (Object.keys(errors).length > 0) {
+            const next = { ...draftFilters, [key]: value }
+            const errors = validateAuditLogsFilters(next)
+            setDraftFilters(next)
             setFilterErrors(errors)
-            return
-        }
-        setFilterErrors({})
-        setFilters({ ...draftFilters, actorUserId: draftFilters.actorUserId.trim() })
-        setCursorStack([])
-        setExpandedEventId(null)
-    }, [draftFilters])
+            if (Object.keys(errors).length === 0) {
+                setFilters({ ...next, actorUserId: next.actorUserId.trim() })
+                setCursorStack([])
+                setExpandedEventId(null)
+            }
+        },
+        [draftFilters],
+    )
     const resetFilters = useCallback(() => {
         setFilters(emptyAuditLogsFilters)
         setDraftFilters(emptyAuditLogsFilters)
@@ -94,18 +114,6 @@ export default function useAuditLogsLogic({ permissions }: AuditLogsPageProps) {
         setCursorStack([])
         setExpandedEventId(null)
     }, [])
-    const refresh = useCallback(async () => {
-        await queryClient.invalidateQueries({
-            queryKey: auditLogsQueryKeys.all,
-            refetchType: 'none',
-        })
-        setCursorStack([])
-        setExpandedEventId(null)
-        if (cursorStack.length === 0) void auditQuery.refetch()
-    }, [auditQuery, cursorStack.length, queryClient])
-    const retry = useCallback(() => {
-        void auditQuery.refetch()
-    }, [auditQuery])
     const previousPage = useCallback(() => {
         setCursorStack((current) => current.slice(0, -1))
         setExpandedEventId(null)
@@ -122,23 +130,23 @@ export default function useAuditLogsLogic({ permissions }: AuditLogsPageProps) {
 
     return {
         state: {
+            actorOptions: canView ? (actorOptionsQuery.data ?? []) : [],
             canView,
+            liveStatus,
             events,
             expandedEventId,
             formatTimestamp,
             filterErrors,
             filters: draftFilters,
             hasMore: canView && (auditQuery.data?.hasMore ?? false),
-            isError: canView && auditQuery.isError,
-            isLoading: canView && auditQuery.isPending,
-            isRefreshing: auditQuery.isFetching && !auditQuery.isPending,
+            isError: canView && (auditQuery.isError || actorOptionsQuery.isError),
+            isLoading: canView && (auditQuery.isPending || actorOptionsQuery.isPending),
             nextCursor: canView ? (auditQuery.data?.nextCursor ?? null) : null,
             pageNumber: cursorStack.length + 1,
             result: canView ? auditQuery.data : undefined,
             request,
         },
         handler: {
-            applyFilters,
             onActionChange: (value: AuditAction | '') => updateFilter('action', value),
             onActorChange: (value: string) => updateFilter('actorUserId', value),
             onFromChange: (value: string) => updateFilter('from', value),
@@ -147,9 +155,10 @@ export default function useAuditLogsLogic({ permissions }: AuditLogsPageProps) {
             nextPage,
             onToggleDetails: toggleDetails,
             previousPage,
-            refresh,
             resetFilters,
-            retry,
+            retry: () => {
+                void Promise.all([auditQuery.refetch(), actorOptionsQuery.refetch()])
+            },
         },
     }
 }

@@ -202,6 +202,7 @@
         },
         "running": "En ejecución",
         "connected": "Conectado",
+        "connecting": "Conectando",
         "unavailable": "No disponible",
         "local": "Servicios base · Local",
         "status": "Estado de los servicios base",
@@ -210,8 +211,8 @@
         "serviceStatus": "Estado de los servicios base",
         "footer": "Estado de los servicios base · Conexiones verificadas por el servidor",
         "connectionMap": "Mapa de conexiones",
-        "summary": "Cuatro servicios. Un punto de control.",
-        "refreshDescription": "Cada resultado se verifica desde el servidor y se actualiza cada 30 segundos.",
+        "summary": "Cinco servicios. Un punto de control.",
+        "refreshDescription": "El estado de los servicios se verifica desde el servidor y se actualiza en directo mientras esta página está abierta.",
         "web": "Web",
         "services": {
             "web": {
@@ -229,6 +230,10 @@
             "redis": {
                 "label": "Redis",
                 "detail": "Comprobación de Redis desde el servidor"
+            },
+            "websocket": {
+                "label": "Servidor WebSocket",
+                "detail": "Servidor WebSocket nativo de Bun"
             }
         }
     },
@@ -1568,7 +1573,6 @@
                 "allStatuses": "Todos los estados"
             },
             "actions": {
-                "apply": "Aplicar filtros",
                 "refresh": "Actualizar",
                 "showDetails": "Mostrar detalles de la solicitud",
                 "hideDetails": "Ocultar detalles de la solicitud"
@@ -1628,8 +1632,8 @@
                 "filteredEmptyDescription": "Ningún evento de auditoría coincide con estos filtros."
             },
             "filters": {
-                "actor": "ID de usuario del actor",
-                "actorPlaceholder": "UUID del actor",
+                "actor": "Actor",
+                "actorPlaceholder": "Todos los usuarios",
                 "action": "Acción",
                 "allActions": "Todas las acciones",
                 "resource": "Recurso",
@@ -1638,7 +1642,6 @@
                 "to": "Hasta (UTC)"
             },
             "actions": {
-                "apply": "Aplicar filtros",
                 "refresh": "Actualizar",
                 "showDetails": "Mostrar detalles del evento",
                 "hideDetails": "Ocultar detalles del evento"

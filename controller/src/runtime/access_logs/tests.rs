@@ -393,7 +393,7 @@ fn snapshot_cache_expiry_is_fixed_and_evicts_lru_entries() {
     );
 
     let mut ids = Vec::new();
-    for _ in 0..MAX_SNAPSHOTS {
+    for index in 0..MAX_SNAPSHOTS {
         ids.push(
             cache
                 .insert(
@@ -402,7 +402,7 @@ fn snapshot_cache_expiry_is_fixed_and_evicts_lru_entries() {
                     CapturedLogs {
                         entries: Vec::new(),
                         truncated: false,
-                        available_hosts: Vec::new(),
+                        available_hosts: vec![format!("host-{index}")],
                         available_statuses: Vec::new(),
                     },
                     false,

@@ -1,5 +1,6 @@
 import { createRuntimeFetch } from './request-context.ts'
 import { createStaticAssetFetch } from './static-assets.ts'
+import { createLiveWebSocketRuntime } from '../../web/src/websockets/Server/realtimeWebSocket.ts'
 import { fileURLToPath } from 'node:url'
 
 const { default: application } = await import('../../web/dist/server/server.js')
@@ -13,12 +14,22 @@ if (!Number.isInteger(port) || port < 1 || port > 65_535 || !application?.fetch)
 }
 
 const runtimeFetch = createRuntimeFetch(application)
+const live = createLiveWebSocketRuntime({
+    allowedOrigin: process.env.RENTNERPROXY_PUBLIC_ORIGIN ?? 'http://localhost:5173',
+    readSnapshot: (request) => application.fetch(request),
+})
+const staticAssetFetch = createStaticAssetFetch(clientRoot, runtimeFetch)
 const server = Bun.serve({
     hostname,
     port,
 
     maxRequestBodySize: 12 * 1024 * 1024,
-    fetch: createStaticAssetFetch(clientRoot, runtimeFetch),
+    websocket: live.websocket,
+    fetch: async (request, bunServer) => {
+        const result = await live.handle(request, bunServer)
+        if (result.handled) return result.response
+        return staticAssetFetch(request, bunServer)
+    },
 })
 
 let shuttingDown = false
@@ -31,6 +42,7 @@ async function shutdown() {
     try {
         const pending = []
         process.emit('rentnerproxy:shutdown', pending)
+        pending.push(live.shutdown())
         await Promise.all([server.stop(false), ...pending])
         process.exitCode = 0
     } finally {

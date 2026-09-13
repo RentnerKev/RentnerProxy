@@ -4,9 +4,11 @@ import {
     createServerOnlyFn,
     createStart,
 } from '@tanstack/react-start'
-import { getRequestProtocol, setResponseHeaders } from '@tanstack/react-start/server'
+import { getRequest, getRequestProtocol, setResponseHeaders } from '@tanstack/react-start/server'
 
 import { getTrustProxyHeaders, validateProductionEnvironment } from './server/env.server'
+import { publishApplicationChange } from './websockets/Helpers/publishFunctions'
+import { startRealtimeRedis } from './websockets/Server/realtimeRedis.service'
 import {
     applyAdminUiSecurityHeaders,
     createCspNonce,
@@ -18,6 +20,9 @@ const validateProductionEnvironmentAtStartup = createServerOnlyFn(() => {
 })
 
 if (typeof window === 'undefined') validateProductionEnvironmentAtStartup()
+
+const startRealtimeEvents = createServerOnlyFn(startRealtimeRedis)
+if (typeof window === 'undefined') startRealtimeEvents()
 
 const startProxyRuntimeLifecycle = createServerOnlyFn(async () => {
     let stop: (() => Promise<void>) | null = null
@@ -90,6 +95,14 @@ const csrfMiddleware = createCsrfMiddleware({
     filter: (context) => context.handlerType === 'serverFn',
 })
 
+const liveChangesMiddleware = createMiddleware().server(async ({ next, handlerType }) => {
+    const result = await next()
+    if (handlerType === 'serverFn' && getRequest().method === 'POST' && result.response.ok) {
+        publishApplicationChange()
+    }
+    return result
+})
+
 export const startInstance = createStart(() => ({
-    requestMiddleware: [securityHeadersMiddleware, csrfMiddleware],
+    requestMiddleware: [securityHeadersMiddleware, csrfMiddleware, liveChangesMiddleware],
 }))

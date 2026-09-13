@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 
 import { PERMISSIONS } from '../../../../config/permissions.config'
+import useLiveInvalidation from '../../../../shared/Live/useLiveInvalidation'
 import useToast from '../../../../shared/Toast/Hooks/useToast'
 import type { AccessPolicySummary } from '../../../../shared/Types/access-policies.types'
 import { accessPolicyManagementQueryKeys } from '../queryKeys'
@@ -27,6 +28,7 @@ export default function useAccessPolicyManagementLogic({
     const toast = useToast()
     const queryClient = useQueryClient()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
+    const canView = permissionSet.has(PERMISSIONS.ACCESS_POLICIES_VIEW)
     const [showCreate, setShowCreate] = useState(false)
     const [selectedPolicy, setSelectedPolicy] = useState<AccessPolicySummary | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<AccessPolicySummary | null>(null)
@@ -35,12 +37,21 @@ export default function useAccessPolicyManagementLogic({
     const policiesQuery = useQuery({
         queryKey: accessPolicyManagementQueryKeys.all,
         queryFn: () => getAccessPoliciesHandler(),
+        enabled: canView,
     })
     const runtimeStatusQuery = useQuery({
         queryKey: accessPolicyManagementQueryKeys.runtimeStatus,
         queryFn: () => getAccessPolicyRuntimeStatusHandler(),
-        refetchInterval: 15_000,
-        refetchIntervalInBackground: false,
+        enabled: canView,
+    })
+    useLiveInvalidation({
+        topic: 'access-policies',
+        query: {},
+        enabled: canView,
+        queryKeys: [
+            accessPolicyManagementQueryKeys.all,
+            accessPolicyManagementQueryKeys.runtimeStatus,
+        ],
     })
     const invalidate = useCallback(async () => {
         await Promise.all([

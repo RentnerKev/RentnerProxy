@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 import { PERMISSIONS } from '../../../../config/permissions.config'
+import useLiveInvalidation from '../../../../shared/Live/useLiveInvalidation'
 import useToast from '../../../../shared/Toast/Hooks/useToast'
 import type { RedirectHostSummary } from '../../../../shared/Types/redirect-hosts.types'
 import { redirectHostManagementQueryKeys } from '../queryKeys'
@@ -19,6 +20,7 @@ export default function useRedirectHostManagementLogic({
 }: RedirectHostManagementPageProps) {
     const toast = useToast()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
+    const canView = permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_VIEW)
     const queryClient = useQueryClient()
     const [showCreate, setShowCreate] = useState(false)
     const [selected, setSelected] = useState<RedirectHostSummary | null>(null)
@@ -27,12 +29,21 @@ export default function useRedirectHostManagementLogic({
     const hostsQuery = useQuery({
         queryKey: redirectHostManagementQueryKeys.all,
         queryFn: () => getRedirectHostsHandler(),
+        enabled: canView,
     })
     const runtimeQuery = useQuery({
         queryKey: redirectHostManagementQueryKeys.runtimeStatus,
         queryFn: () => getRedirectRuntimeStatusHandler(),
-        refetchInterval: 15_000,
-        refetchIntervalInBackground: false,
+        enabled: canView,
+    })
+    useLiveInvalidation({
+        topic: 'redirect-hosts',
+        query: {},
+        enabled: canView,
+        queryKeys: [
+            redirectHostManagementQueryKeys.all,
+            redirectHostManagementQueryKeys.runtimeStatus,
+        ],
     })
     const invalidate = useCallback(async () => {
         await Promise.all([

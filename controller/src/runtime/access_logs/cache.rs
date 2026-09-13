@@ -83,6 +83,23 @@ impl SnapshotCache {
             .map_err(|_| ReadError::Failed)?;
         let mut state = self.state.lock().map_err(|_| ReadError::Failed)?;
         remove_expired(&mut state, now);
+        let capture_snapshot_query = SnapshotQuery::from_query(capture_query);
+        if let Some(snapshot_id) = state
+            .snapshots
+            .iter()
+            .find(|(_, snapshot)| {
+                snapshot.query == capture_snapshot_query
+                    && snapshot.entries == capture.entries
+                    && snapshot.truncated == capture.truncated
+                    && snapshot.available_hosts == capture.available_hosts
+                    && snapshot.available_statuses == capture.available_statuses
+            })
+            .map(|(snapshot_id, _)| snapshot_id.clone())
+        {
+            touch_snapshot(&mut state, &snapshot_id);
+            let snapshot = state.snapshots.get(&snapshot_id).ok_or(ReadError::Failed)?;
+            return Ok(page_response(&snapshot_id, snapshot, page_query, reset));
+        }
         let mut snapshot_id = new_snapshot_id().ok_or(ReadError::Failed)?;
         while state.snapshots.contains_key(&snapshot_id) {
             snapshot_id = new_snapshot_id().ok_or(ReadError::Failed)?;
@@ -111,7 +128,7 @@ impl SnapshotCache {
         state.bytes = state.bytes.saturating_add(bytes);
         state.lru.push_back(snapshot_id.clone());
         let snapshot = CachedSnapshot {
-            query: SnapshotQuery::from_query(capture_query),
+            query: capture_snapshot_query,
             total: capture.entries.len(),
             entries: capture.entries,
             truncated: capture.truncated,
@@ -315,6 +332,101 @@ mod tests {
         }
     }
 
+    fn entry(path: &str) -> AccessLogEntry {
+        AccessLogEntry {
+            timestamp: "2026-09-13T00:00:00Z".into(),
+            host: "example.com".into(),
+            method: "GET".into(),
+            path: path.into(),
+            status: 200,
+            duration_ms: 1,
+            client_ip: "192.0.2.1".into(),
+            upstream: None,
+            bytes: 0,
+            protocol: "HTTP/2".into(),
+        }
+    }
+
+    fn capture(path: &str) -> CapturedLogs {
+        CapturedLogs {
+            entries: vec![entry(path)],
+            truncated: false,
+            available_hosts: vec!["example.com".into()],
+            available_statuses: vec![200],
+        }
+    }
+
+    #[test]
+    fn identical_captures_reuse_unexpired_snapshot_without_evicting_history() {
+        let cache = SnapshotCache::new();
+        let query = query();
+        let now = Instant::now();
+        let historical = cache
+            .insert(&query, &query, capture("/historical"), false, now)
+            .unwrap();
+        let repeated = cache
+            .insert(&query, &query, capture("/current"), false, now)
+            .unwrap();
+        for _ in 0..MAX_SNAPSHOTS {
+            let response = cache
+                .insert(&query, &query, capture("/current"), false, now)
+                .unwrap();
+            assert_eq!(response.snapshot, repeated.snapshot);
+        }
+        assert_eq!(cache.len(), 2);
+        let mut historical_query = query.clone();
+        historical_query.snapshot = Some(historical.snapshot.clone());
+        assert_eq!(
+            cache
+                .lookup(&historical.snapshot, &historical_query, now)
+                .unwrap()
+                .unwrap()
+                .entries[0]
+                .path,
+            "/historical"
+        );
+    }
+
+    #[test]
+    fn changed_capture_gets_a_new_immutable_snapshot() {
+        let cache = SnapshotCache::new();
+        let query = query();
+        let now = Instant::now();
+        let first = cache
+            .insert(&query, &query, capture("/first"), false, now)
+            .unwrap();
+        let changed = cache
+            .insert(&query, &query, capture("/changed"), false, now)
+            .unwrap();
+        assert_ne!(first.snapshot, changed.snapshot);
+        let mut continuation = query.clone();
+        continuation.snapshot = Some(first.snapshot.clone());
+        assert_eq!(
+            cache
+                .lookup(&first.snapshot, &continuation, now)
+                .unwrap()
+                .unwrap()
+                .entries[0]
+                .path,
+            "/first"
+        );
+    }
+
+    #[test]
+    fn expired_identical_capture_is_replaced() {
+        let cache = SnapshotCache::new();
+        let query = query();
+        let now = Instant::now();
+        let first = cache
+            .insert(&query, &query, capture("/same"), false, now)
+            .unwrap();
+        let replacement = cache
+            .insert(&query, &query, capture("/same"), false, now + SNAPSHOT_TTL)
+            .unwrap();
+        assert_ne!(first.snapshot, replacement.snapshot);
+        assert_eq!(cache.len(), 1);
+    }
+
     #[test]
     fn vector_spare_capacity_is_counted_and_released_before_caching() {
         let query = query();
@@ -388,7 +500,7 @@ mod tests {
     fn aggregate_memory_bound_evicts_before_the_count_limit() {
         let cache = SnapshotCache::new();
         let query = query();
-        for _ in 0..8 {
+        for index in 0..8 {
             let entries = Vec::with_capacity(3 * 1024 * 1024 / size_of::<AccessLogEntry>());
             cache
                 .insert(
@@ -397,7 +509,7 @@ mod tests {
                     CapturedLogs {
                         entries,
                         truncated: false,
-                        available_hosts: Vec::new(),
+                        available_hosts: vec![format!("host-{index}")],
                         available_statuses: Vec::new(),
                     },
                     false,

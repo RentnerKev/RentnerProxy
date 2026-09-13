@@ -142,6 +142,11 @@ export interface AuditEventDto extends AuditEventInput {
     readonly metadata: AuditMetadata
 }
 
+export interface AuditActorOption {
+    readonly id: string
+    readonly displayName: string
+}
+
 export interface AuditEventsQuery {
     readonly actorUserId?: string | undefined
     readonly action?: AuditAction | undefined

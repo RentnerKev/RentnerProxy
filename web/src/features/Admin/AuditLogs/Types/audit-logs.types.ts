@@ -1,6 +1,7 @@
 import type { PermissionKey } from '../../../../config/permissions.config'
 import type {
     AuditAction,
+    AuditActorOption,
     AuditEventDto,
     AuditEventsQuery,
     AuditEventsResult,
@@ -27,6 +28,7 @@ export interface AuditLogsFilters {
 export type AuditLogsFilterErrors = Partial<Record<keyof AuditLogsFilters | 'dateRange', string>>
 
 export interface AuditLogsTableProps {
+    readonly actorOptions: readonly AuditActorOption[]
     readonly events: readonly AuditEventDto[]
     readonly expandedEventId: string | null
     readonly formatTimestamp: (value: string) => string
@@ -34,22 +36,20 @@ export interface AuditLogsTableProps {
     readonly filterErrors: AuditLogsFilterErrors
     readonly hasMore: boolean
     readonly isLoading: boolean
-    readonly isRefreshing: boolean
     readonly pageNumber: number
     readonly onActorChange: (value: string) => void
     readonly onActionChange: (value: AuditAction | '') => void
     readonly onResourceChange: (value: AuditResource | '') => void
     readonly onFromChange: (value: string) => void
     readonly onToChange: (value: string) => void
-    readonly onApplyFilters: () => void
     readonly onResetFilters: () => void
-    readonly onRefresh: () => void
     readonly onPreviousPage: () => void
     readonly onNextPage: () => void
     readonly onToggleDetails: (eventId: string) => void
 }
 
 export interface AuditLogsQueryState {
+    readonly actorOptions: readonly AuditActorOption[]
     readonly canView: boolean
     readonly events: readonly AuditEventDto[]
     readonly expandedEventId: string | null
@@ -58,7 +58,6 @@ export interface AuditLogsQueryState {
     readonly hasMore: boolean
     readonly isError: boolean
     readonly isLoading: boolean
-    readonly isRefreshing: boolean
     readonly nextCursor: string | null
     readonly pageNumber: number
     readonly result: AuditEventsResult | undefined
