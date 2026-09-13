@@ -330,6 +330,7 @@ jobs:
               with:
                   cache-from: type=gha,scope=release-${{ inputs.channel }}
                   cache-to: type=gha,mode=max,scope=release-${{ inputs.channel }}
+                  build-args: RENTNERPROXY_BUILD_VERSION=${{ inputs.release_tag }}
                   context: source
                   file: source/docker/production/Dockerfile
                   labels: ${{ steps.metadata.outputs.labels }}

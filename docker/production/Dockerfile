@@ -9,7 +9,8 @@ RUN bun install --frozen-lockfile
 FROM web-dependencies AS web-build
 
 COPY . .
-RUN bun run build:web \
+ARG RENTNERPROXY_BUILD_VERSION
+RUN RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" bun run build:web \
     && bun build web/src/db/migrate.ts --target=bun --outfile=/build/migrate.js
 
 FROM oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS web-runtime

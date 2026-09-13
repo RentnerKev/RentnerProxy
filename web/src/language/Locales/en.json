@@ -49,7 +49,9 @@
         "certificates": "Certificates",
         "accessPolicies": "Access policies",
         "proxyAccessLogs": "Access logs",
-        "auditLogs": "Audit log"
+        "auditLogs": "Audit log",
+        "systemVersion": "System version {{version}}",
+        "updateAvailable": "Update available to version {{version}}"
     },
     "language": {
         "title": "Language",
