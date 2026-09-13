@@ -45,6 +45,11 @@ restarting a development instance or restoring its data.
    no issue is needed.
 7. Let the required CI and security checks finish, then address maintainer review feedback.
 
+Repository administrators may commit and push directly to `main` using the administrator
+exception in the repository ruleset. Run the relevant checks before pushing and resolve
+any failures reported by the pipeline afterward. Other contributors must use the pull-request
+workflow, including the required reviews and CI checks.
+
 After the required checks succeed, automation may publish a PR preview Docker image. It contains
 unreviewed contributor code: back up any test instance, use isolated test data, and never run it
 with production data.

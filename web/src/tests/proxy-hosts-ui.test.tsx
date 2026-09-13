@@ -413,10 +413,8 @@ async function waitForToast(
 ): Promise<void> {
     await waitFor(() => document.querySelector('[data-toast-tone="' + tone + '"]') !== null)
     await waitFor(() => {
-        const announcement = document.querySelector('[aria-live]')
-        return (
-            announcement !== null &&
-            (message === undefined || announcement.textContent?.includes(message) === true)
+        return [...document.querySelectorAll('[aria-live]')].some(
+            (announcement) => message === undefined || announcement.textContent?.includes(message),
         )
     })
     await act(async () => {
@@ -1291,9 +1289,71 @@ describe('Caddy global proxy configuration editor', () => {
         expect(codeBlock?.querySelector('[data-token="key"]')).not.toBeNull()
         expect(codeBlock?.querySelector('[data-token="number"]')).not.toBeNull()
     })
+
+    for (const failure of ['response', 'transport'] as const) {
+        test(`shows global save ${failure} failures only in a toast and preserves the draft for retry`, async () => {
+            if (failure === 'response') {
+                saveProxyConfigEditorHandlerMock.mockResolvedValueOnce({
+                    success: false,
+                    message: 'admin.proxyHosts.config.errors.saveFailed',
+                })
+            } else {
+                saveProxyConfigEditorHandlerMock.mockRejectedValueOnce(new Error('unavailable'))
+            }
+            await openEditor()
+            const fields = [...document.querySelectorAll<HTMLInputElement>('input[type="number"]')]
+            await setControlValue(fields[2]!, '120')
+            await click(getButton('Save'))
+            await waitForToast('error', 'The HTTP settings could not be saved.')
+            expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(
+                'The HTTP settings could not be saved.',
+            )
+            expect(fields[2]?.value).toBe('120')
+            await click(getButton('Save'))
+            await waitFor(() => saveProxyConfigEditorHandlerMock.mock.calls.length === 2)
+            await waitForToast('success')
+        })
+    }
+
+    test('requires confirmation before restoring global defaults and supports cancel', async () => {
+        await openEditor()
+        await click(getButton('Restore defaults'))
+        await waitFor(
+            () => document.body.textContent?.includes('Restore generated defaults?') ?? false,
+        )
+        expect(resetProxyConfigEditorHandlerMock).not.toHaveBeenCalled()
+        await click(getLastButton('Cancel'))
+        await waitFor(() => !document.body.textContent?.includes('Restore generated defaults?'))
+        expect(resetProxyConfigEditorHandlerMock).not.toHaveBeenCalled()
+        await click(getButton('Restore defaults'))
+        await click(getButton('Restore and apply'))
+        await waitFor(() => resetProxyConfigEditorHandlerMock.mock.calls.length === 1)
+        await waitForToast('success')
+    })
 })
 
 describe('Caddy proxy host configuration editor', () => {
+    test('shows host save failures only in a toast', async () => {
+        saveProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+            success: false,
+            message: 'admin.proxyHosts.config.errors.saveFailed',
+        })
+        await renderPage([
+            PERMISSIONS.PROXY_HOSTS_VIEW,
+            PERMISSIONS.PROXY_HOSTS_UPDATE,
+            PERMISSIONS.PROXY_HOSTS_APPLY,
+        ])
+        await waitFor(() => getRows().length === 2)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Config'))
+        await waitFor(() => document.querySelector('input[type="number"]') !== null)
+        await click(getButton('Save'))
+        await waitForToast('error', 'The HTTP settings could not be saved.')
+        expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(
+            'The HTTP settings could not be saved.',
+        )
+    })
+
     test('renders numeric structured settings and read-only generated config', async () => {
         getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
             ...editorFixture,

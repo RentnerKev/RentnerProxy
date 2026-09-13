@@ -24,7 +24,6 @@ export interface ProxyConfigEditorDraft {
 }
 
 export interface ProxyConfigEditorState {
-    readonly actionError: string | null
     readonly activeTab: ProxyConfigEditorTab
     readonly settings: ProxyHttpSettings
     readonly baseRevision: string | null
@@ -67,7 +66,7 @@ export interface ProxyGlobalConfigEditorModalProps {
 }
 
 export interface ProxyGlobalConfigEditorState {
-    readonly actionError: string | null
+    readonly isResetConfirmationOpen: boolean
     readonly activeTab: 'edit' | 'active'
     readonly settings: ProxyHttpSettings
     readonly baseRevision: string | null

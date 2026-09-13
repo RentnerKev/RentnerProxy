@@ -5,6 +5,33 @@ import { createRuntimeFetch } from '../../../docker/web/request-context'
 import { withRequestAbortHandling } from '../server/request-abort.server'
 
 describe('application request abort handling with unpatched TanStack', () => {
+    test('preserves POST data exposed through lazy adapter getters', async () => {
+        const request = new Request('http://localhost/adapter')
+        const body = new Response('{"timeout":120}').body
+        Object.defineProperties(request, {
+            method: { get: () => 'POST' },
+            url: { get: () => 'http://localhost/settings?scope=global' },
+            headers: { get: () => new Headers({ 'content-type': 'application/json' }) },
+            body: { get: () => body },
+        })
+        const handler = withRequestAbortHandling(async (forwarded) =>
+            Response.json({
+                method: forwarded.method,
+                url: forwarded.url,
+                contentType: forwarded.headers.get('content-type'),
+                body: await forwarded.json(),
+            }),
+        )
+
+        const response = await handler(request, {})
+        expect(await response.json()).toEqual({
+            method: 'POST',
+            url: 'http://localhost/settings?scope=global',
+            contentType: 'application/json',
+            body: { timeout: 120 },
+        })
+    })
+
     test('returns an empty 499 when a pending handler rejects with the request abort reason', async () => {
         const controller = new AbortController()
         const abortReason = new Error('client disconnected')

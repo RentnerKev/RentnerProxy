@@ -39,7 +39,6 @@ export default function useProxyConfigEditorLogic({
         baseRevision: string
     } | null>(null)
     const [preview, setPreview] = useState<ProxyConfigSource | null>(null)
-    const [actionError, setActionError] = useState<string | null>(null)
     const [previewError, setPreviewError] = useState<string | null>(null)
     const [isResetConfirmationOpen, setResetConfirmationOpen] = useState(false)
     const [isReloadConfirmationOpen, setReloadConfirmationOpen] = useState(false)
@@ -57,7 +56,6 @@ export default function useProxyConfigEditorLogic({
     const isDirty =
         draft !== null && JSON.stringify(draft.settings) !== JSON.stringify(draft.baseline)
     const clearErrors = useCallback(() => {
-        setActionError(null)
         setPreviewError(null)
     }, [])
     const setSetting = useCallback(
@@ -89,7 +87,6 @@ export default function useProxyConfigEditorLogic({
             }),
         onSuccess: async (result) => {
             if (!result.success) {
-                setActionError(result.message)
                 toast.error(result.message)
                 return
             }
@@ -100,7 +97,6 @@ export default function useProxyConfigEditorLogic({
             onOpenChange(false)
         },
         onError: () => {
-            setActionError('admin.proxyHosts.config.errors.saveFailed')
             toast.error('admin.proxyHosts.config.errors.saveFailed')
         },
     })
@@ -126,7 +122,6 @@ export default function useProxyConfigEditorLogic({
             }),
         onSuccess: async (result) => {
             if (!result.success) {
-                setActionError(result.message)
                 toast.error(result.message)
                 return
             }
@@ -138,7 +133,6 @@ export default function useProxyConfigEditorLogic({
             onOpenChange(false)
         },
         onError: () => {
-            setActionError('admin.proxyHosts.config.errors.saveFailed')
             toast.error('admin.proxyHosts.config.errors.saveFailed')
         },
     })
@@ -181,7 +175,6 @@ export default function useProxyConfigEditorLogic({
         else void reload()
     }, [isDirty, reload])
     const state: ProxyConfigEditorState = {
-        actionError,
         activeTab,
         settings,
         baseRevision,

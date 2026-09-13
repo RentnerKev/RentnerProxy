@@ -1,7 +1,7 @@
 // oxlint-disable-next-line import/no-unassigned-import -- Keeps configuration persistence behind the server boundary.
 import '@tanstack/react-start/server-only'
 
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { systemSettings } from '../../db/schema'
@@ -20,6 +20,27 @@ const storedSettingsSchema = z.strictObject({
     httpSettings: proxyHttpSettingsSchema,
 })
 
+function parseStoredSettings(input: unknown, errorMessage: string) {
+    let value = input
+    if (typeof value === 'string') {
+        try {
+            value = JSON.parse(value)
+        } catch {
+            throw new Error(errorMessage)
+        }
+    }
+
+    const stored = storedSettingsSchema.safeParse(value)
+    if (!stored.success) throw new Error(errorMessage)
+    return stored.data
+}
+
+function jsonbValue(value: unknown) {
+    // Bun SQL encodes the bound object. Bypass Drizzle's JSON string encoder
+    // to avoid storing a JSONB string instead of a JSONB object.
+    return sql`${value}`
+}
+
 export async function readProxyHttpSettings(
     transaction: AuthTransaction,
 ): Promise<ProxyHttpSettings> {
@@ -31,15 +52,17 @@ export async function readProxyHttpSettings(
     const row = rows.at(0)
     if (!row) return {}
 
-    const stored = storedSettingsSchema.safeParse(row.value)
-    if (!stored.success) throw new Error('Stored proxy HTTP settings are invalid.')
-    return normalizeProxyHttpSettings(stored.data.httpSettings)
+    const stored = parseStoredSettings(row.value, 'Stored proxy HTTP settings are invalid.')
+    return normalizeProxyHttpSettings(stored.httpSettings)
 }
 
 export async function lockProxyRuntimeSettings(transaction: AuthTransaction): Promise<void> {
     await transaction
         .insert(systemSettings)
-        .values({ key: PROXY_RUNTIME_SETTINGS_KEY, value: { version: 1, httpSettings: {} } })
+        .values({
+            key: PROXY_RUNTIME_SETTINGS_KEY,
+            value: jsonbValue({ version: 1, httpSettings: {} }),
+        })
         .onConflictDoNothing({ target: systemSettings.key })
     await transaction
         .select({ id: systemSettings.id })
@@ -54,7 +77,10 @@ export async function writeProxyHttpSettings(
 ): Promise<void> {
     await transaction
         .update(systemSettings)
-        .set({ value: { version: 1, httpSettings }, updatedAt: new Date() })
+        .set({
+            value: jsonbValue({ version: 1, httpSettings }),
+            updatedAt: new Date(),
+        })
         .where(eq(systemSettings.key, PROXY_RUNTIME_SETTINGS_KEY))
 }
 
@@ -85,9 +111,8 @@ export async function readProxyHostHttpSettings(
         .limit(1)
     const row = rows.at(0)
     if (!row) return {}
-    const stored = storedSettingsSchema.safeParse(row.value)
-    if (!stored.success) throw new Error('Stored proxy host HTTP settings are invalid.')
-    return normalizeStoredHostSettings(stored.data.httpSettings)
+    const stored = parseStoredSettings(row.value, 'Stored proxy host HTTP settings are invalid.')
+    return normalizeStoredHostSettings(stored.httpSettings)
 }
 
 export async function readProxyHostHttpSettingsMap(
@@ -101,11 +126,13 @@ export async function readProxyHostHttpSettingsMap(
         .where(inArray(systemSettings.key, proxyHostIds.map(hostSettingsKey)))
     const result = new Map<string, ProxyHttpSettings>()
     for (const row of rows) {
-        const stored = storedSettingsSchema.safeParse(row.value)
-        if (!stored.success) throw new Error('Stored proxy host HTTP settings are invalid.')
+        const stored = parseStoredSettings(
+            row.value,
+            'Stored proxy host HTTP settings are invalid.',
+        )
         result.set(
             row.key.slice(HOST_SETTINGS_PREFIX.length),
-            normalizeStoredHostSettings(stored.data.httpSettings),
+            normalizeStoredHostSettings(stored.httpSettings),
         )
     }
     return result
@@ -125,6 +152,9 @@ export async function writeProxyHostHttpSettings(
     const value = { version: 1, httpSettings }
     await transaction
         .insert(systemSettings)
-        .values({ key, value })
-        .onConflictDoUpdate({ target: systemSettings.key, set: { value, updatedAt: new Date() } })
+        .values({ key, value: jsonbValue(value) })
+        .onConflictDoUpdate({
+            target: systemSettings.key,
+            set: { value: jsonbValue(value), updatedAt: new Date() },
+        })
 }

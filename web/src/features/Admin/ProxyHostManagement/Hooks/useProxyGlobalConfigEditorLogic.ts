@@ -24,12 +24,12 @@ export default function useProxyGlobalConfigEditorLogic({
     const toast = useToast()
     const queryClient = useQueryClient()
     const [activeTab, setActiveTab] = useState<'edit' | 'active'>('edit')
+    const [isResetConfirmationOpen, setResetConfirmationOpen] = useState(false)
     const [draft, setDraft] = useState<{
         settings: ProxyHttpSettings
         baseline: ProxyHttpSettings
         baseRevision: string
     } | null>(null)
-    const [actionError, setActionError] = useState<string | null>(null)
     const query = useQuery({
         queryKey: proxyHostManagementQueryKeys.configEditor,
         queryFn: () => getProxyConfigEditorHandler(),
@@ -47,7 +47,6 @@ export default function useProxyGlobalConfigEditorLogic({
             if (value === undefined) delete next[key]
             else next[key] = value
             setDraft({ settings: next, baseline: draft?.baseline ?? data.settings, baseRevision })
-            setActionError(null)
         },
         [baseRevision, canEdit, data, draft, query.isFetching, settings],
     )
@@ -62,7 +61,6 @@ export default function useProxyGlobalConfigEditorLogic({
             saveProxyConfigEditorHandler({ data: { baseRevision: baseRevision ?? '', settings } }),
         onSuccess: async (result) => {
             if (!result.success) {
-                setActionError(result.message)
                 toast.error(result.message)
                 return
             }
@@ -72,7 +70,6 @@ export default function useProxyGlobalConfigEditorLogic({
             toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](result.message)
         },
         onError: () => {
-            setActionError('admin.proxyHosts.config.errors.saveFailed')
             toast.error('admin.proxyHosts.config.errors.saveFailed')
         },
     })
@@ -81,22 +78,20 @@ export default function useProxyGlobalConfigEditorLogic({
             resetProxyConfigEditorHandler({ data: { baseRevision: baseRevision ?? '' } }),
         onSuccess: async (result) => {
             if (!result.success) {
-                setActionError(result.message)
                 toast.error(result.message)
                 return
             }
             await invalidate()
             setDraft(null)
+            setResetConfirmationOpen(false)
             onOpenChange(false)
             toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](result.message)
         },
         onError: () => {
-            setActionError('admin.proxyHosts.config.errors.saveFailed')
             toast.error('admin.proxyHosts.config.errors.saveFailed')
         },
     })
     const state: ProxyGlobalConfigEditorState = {
-        actionError,
         activeTab,
         settings,
         baseRevision,
@@ -105,18 +100,42 @@ export default function useProxyGlobalConfigEditorLogic({
         isRefreshing: query.isFetching,
         isSaving: saveMutation.isPending,
         isResetting: resetMutation.isPending,
+        isResetConfirmationOpen,
     }
     return {
         state,
         handler: {
             save: () => {
-                if (canEdit && !query.isFetching && baseRevision && !saveMutation.isPending)
+                if (
+                    canEdit &&
+                    !query.isFetching &&
+                    baseRevision &&
+                    !saveMutation.isPending &&
+                    !resetMutation.isPending
+                )
                     saveMutation.mutate()
             },
             reset: () => {
-                if (canEdit && !query.isFetching && baseRevision && !resetMutation.isPending)
-                    resetMutation.mutate()
+                if (
+                    canEdit &&
+                    !query.isFetching &&
+                    baseRevision &&
+                    !resetMutation.isPending &&
+                    !saveMutation.isPending
+                )
+                    setResetConfirmationOpen(true)
             },
+            confirmReset: async () => {
+                if (
+                    canEdit &&
+                    !query.isFetching &&
+                    baseRevision &&
+                    !resetMutation.isPending &&
+                    !saveMutation.isPending
+                )
+                    await resetMutation.mutateAsync().catch(() => undefined)
+            },
+            setResetConfirmationOpen,
             setActiveTab,
             setSetting,
         },

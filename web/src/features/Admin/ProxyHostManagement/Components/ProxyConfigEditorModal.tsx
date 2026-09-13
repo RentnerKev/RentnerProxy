@@ -227,13 +227,6 @@ export default function ProxyConfigEditorModal({
                         ) : (
                             <ReadOnlySource source={source} />
                         )}
-                        {state.actionError ? (
-                            <p role="alert" className="m-0 text-danger-text">
-                                {t(state.actionError, {
-                                    defaultValue: t('admin.proxyHosts.config.errors.saveFailed'),
-                                })}
-                            </p>
-                        ) : null}
                         {state.previewError ? (
                             <p role="alert" className="m-0 text-danger-text">
                                 {t(state.previewError, {
