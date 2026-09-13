@@ -6,6 +6,7 @@ import ApplicationNavigation from './Components/ApplicationNavigation'
 import ApplicationSidebarSurface from './Components/ApplicationSidebarSurface'
 import ApplicationTopbar from './Components/ApplicationTopbar'
 import ApplicationUserPanel from './Components/ApplicationUserPanel'
+import ApplicationVersion from './Components/ApplicationVersion'
 import getApplicationShellLayoutClassNames from './Helpers/getApplicationShellLayoutClassNames'
 import getApplicationShellViewModel from './Helpers/getApplicationShellViewModel'
 import useApplicationNavigationLogic from './Hooks/useApplicationNavigationLogic'
@@ -61,6 +62,7 @@ export default function AuthenticatedShell({
                         onLogout={onLogout}
                         user={user}
                     />
+                    <ApplicationVersion />
                 </div>
             </aside>
 

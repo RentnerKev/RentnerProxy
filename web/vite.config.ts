@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { builtinModules } from 'node:module'
 import { fileURLToPath } from 'node:url'
 
@@ -19,6 +20,13 @@ const serverBuiltins = [
 ]
 
 export default defineConfig({
+    define: {
+        RENTNERPROXY_BUILD_VERSION: JSON.stringify(
+            process.env.RENTNERPROXY_BUILD_VERSION ||
+                JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+                    .version + '-dev',
+        ),
+    },
     root: webRoot,
     envDir: repositoryRoot,
     cacheDir: cacheDirectory,

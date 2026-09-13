@@ -49,7 +49,9 @@
         "certificates": "Certificats",
         "accessPolicies": "Politiques d’accès",
         "proxyAccessLogs": "Journaux d’accès",
-        "auditLogs": "Journal d’audit"
+        "auditLogs": "Journal d’audit",
+        "systemVersion": "Version du système {{version}}",
+        "updateAvailable": "Mise à jour disponible vers la version {{version}}"
     },
     "language": {
         "title": "Langue",
