@@ -1278,47 +1278,18 @@ describe('Caddy global proxy configuration editor', () => {
         await waitFor(() => document.querySelectorAll('input[type="number"]').length === 6)
     }
 
-    test('disables editing and guards duplicate reloads while refresh is pending', async () => {
+    test('shows only settings and active config with formatted syntax colors', async () => {
         await openEditor()
-        const input = document.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]!
-        await setControlValue(input, '77777')
+        expect(document.body.textContent).not.toContain('Generated defaults')
+        expect(document.body.textContent).not.toContain('Preview')
+        expect(document.body.textContent).not.toContain('Reload')
 
-        let releaseReload!: (value: ProxyConfigEditorData) => void
-        getProxyConfigEditorHandlerMock.mockImplementationOnce(
-            () =>
-                new Promise<ProxyConfigEditorData>((resolve) => {
-                    releaseReload = resolve
-                }),
-        )
-        const reload = getButton('Reload')
-        await click(reload)
-        await waitFor(() => getProxyConfigEditorHandlerMock.mock.calls.length === 2)
-        await waitFor(() => reload.disabled && input.disabled)
-        expect(input.value).toBe('77777')
-
-        await click(reload)
-        expect(getProxyConfigEditorHandlerMock).toHaveBeenCalledTimes(2)
-
-        releaseReload(globalEditorFixture)
-        await waitFor(() => input.disabled === false)
-        expect(input.value).toBe('90')
-    })
-
-    test('preserves the draft and reports a safe error when refresh fails', async () => {
-        await openEditor()
-        const input = document.querySelectorAll<HTMLInputElement>('input[type="number"]')[2]!
-        await setControlValue(input, '88888')
-        getProxyConfigEditorHandlerMock.mockRejectedValueOnce(new Error('private config details'))
-
-        await click(getButton('Reload'))
-        await waitFor(() => getProxyConfigEditorHandlerMock.mock.calls.length === 2)
-        await waitFor(
-            () =>
-                document.body.textContent?.includes('The configuration could not be loaded.') ===
-                true,
-        )
-        expect(input.value).toBe('88888')
-        expect(document.body.textContent).not.toContain('private config details')
+        await click(getButton('Active config'))
+        const codeBlock = document.querySelector('pre[aria-label="Active config"]')
+        expect(codeBlock).not.toBeNull()
+        expect(codeBlock?.textContent).toContain('\n  "http"')
+        expect(codeBlock?.querySelector('[data-token="key"]')).not.toBeNull()
+        expect(codeBlock?.querySelector('[data-token="number"]')).not.toBeNull()
     })
 })
 

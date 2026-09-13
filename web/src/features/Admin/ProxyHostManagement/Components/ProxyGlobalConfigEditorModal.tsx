@@ -1,13 +1,11 @@
-import { Eye, RefreshCw, RotateCcw, Save } from 'lucide-react'
+import { RotateCcw, Save } from 'lucide-react'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
 import { Modal } from '../../../../shared/Modal'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import CaddyConfigCodeBlock from './CaddyConfigCodeBlock'
 import useProxyGlobalConfigEditorLogic from '../Hooks/useProxyGlobalConfigEditorLogic'
-import type {
-    ProxyConfigEditorTab,
-    ProxyGlobalConfigEditorModalProps,
-} from '../Types/proxy-config-editor.types'
+import type { ProxyGlobalConfigEditorModalProps } from '../Types/proxy-config-editor.types'
 
 const FIELDS = [
     ['clientMaxBodySizeBytes', 'fieldClientMaxBodySizeBytes', 1024, 1073741824, 'bytes'],
@@ -21,15 +19,8 @@ const FIELDS = [
 export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEditorModalProps) {
     const { t } = useTranslationStore()
     const { state, handler } = useProxyGlobalConfigEditorLogic(props)
-    const busy = state.isRefreshing || state.isSaving || state.isResetting || state.isPreviewing
-    const source =
-        state.activeTab === 'active'
-            ? state.data?.active?.config
-            : state.activeTab === 'defaults'
-              ? state.data?.defaults?.config
-              : state.activeTab === 'preview'
-                ? state.preview?.config
-                : undefined
+    const busy = state.isRefreshing || state.isSaving || state.isResetting
+    const source = state.data?.active?.config
     return (
         <Modal
             open={props.open}
@@ -61,15 +52,6 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                             </button>
                             <button
                                 type="button"
-                                className={uiClassNames.button.secondary}
-                                onClick={handler.preview}
-                                disabled={busy || !state.data}
-                            >
-                                <Eye className="size-4" />
-                                {t('admin.proxyHosts.config.preview')}
-                            </button>
-                            <button
-                                type="button"
                                 className={uiClassNames.button.primary}
                                 onClick={handler.save}
                                 disabled={busy || !state.data}
@@ -93,14 +75,7 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
             ) : (
                 <div className="grid gap-4">
                     <div className="flex flex-wrap gap-1">
-                        {(
-                            [
-                                'edit',
-                                'active',
-                                'defaults',
-                                ...(state.preview ? ['preview'] : []),
-                            ] as ProxyConfigEditorTab[]
-                        ).map((tab) => (
+                        {(['edit', 'active'] as const).map((tab) => (
                             <button
                                 key={tab}
                                 type="button"
@@ -112,15 +87,6 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                                 {t(`admin.proxyHosts.config.${tab === 'edit' ? 'settings' : tab}`)}
                             </button>
                         ))}
-                        <button
-                            type="button"
-                            className={uiClassNames.button.quiet}
-                            onClick={handler.refresh}
-                            disabled={busy}
-                        >
-                            <RefreshCw className="size-4" />
-                            {t('admin.proxyHosts.config.reload')}
-                        </button>
                     </div>
                     {state.activeTab === 'edit' ? (
                         <fieldset className="grid gap-3">
@@ -154,10 +120,11 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                                 </label>
                             ))}
                         </fieldset>
-                    ) : source ? (
-                        <pre className="max-h-96 overflow-auto rounded-xl border border-border bg-code p-3 text-xs text-ink-soft">
-                            {source}
-                        </pre>
+                    ) : state.activeTab === 'active' && source ? (
+                        <CaddyConfigCodeBlock
+                            source={source}
+                            ariaLabel={t('admin.proxyHosts.config.active')}
+                        />
                     ) : (
                         <p className="m-0 text-sm text-muted">
                             {t('admin.proxyHosts.config.unavailable')}

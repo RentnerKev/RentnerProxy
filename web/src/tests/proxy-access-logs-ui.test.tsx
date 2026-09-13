@@ -48,6 +48,8 @@ const getProxyAccessLogsHandlerMock = mock(
             limit: data.limit ?? 15,
             offset: snapshotReset ? 0 : (data.offset ?? 0),
             total: 101,
+            availableHosts: ['app.example.com', 'other.example', 'ts-laser.example'],
+            availableStatuses: [200, 404],
             hasMore: (data.offset ?? 0) < 100,
             truncated: false,
             snapshot: snapshotReset
@@ -152,6 +154,22 @@ async function openActionMenu(container: HTMLElement): Promise<void> {
     await waitFor(() => document.querySelector('[role="menuitem"]') !== null)
 }
 
+async function chooseHost(container: HTMLElement, searchValue: string, optionLabel: string) {
+    await click(getButton(container, 'Host'))
+    await waitFor(() => document.querySelector('[role="listbox"]') !== null)
+    const searchInput = container.querySelector<HTMLInputElement>(
+        'input[placeholder="Search hosts…"]',
+    )
+    expect(searchInput).not.toBeNull()
+    expect(document.activeElement).toBe(searchInput)
+    await setInputValue(searchInput!, searchValue)
+    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+        (candidate) => candidate.textContent?.trim() === optionLabel,
+    )
+    expect(option).toBeDefined()
+    await click(option!)
+}
+
 async function chooseActionMenuItem(label: string): Promise<void> {
     const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
         (candidate) => candidate.textContent?.trim() === label,
@@ -231,11 +249,7 @@ describe('proxy access-log UI', () => {
         })
         expect(container.textContent).toContain('/dashboard')
 
-        const hostInput = container.querySelector<HTMLInputElement>(
-            'input[placeholder="example.com"]',
-        )
-        expect(hostInput).not.toBeNull()
-        await setInputValue(hostInput!, 'app.example.com')
+        await chooseHost(container, 'app.example', 'app.example.com')
         expect(getProxyAccessLogsHandlerMock).toHaveBeenCalledTimes(1)
 
         await click(getButton(container, 'Apply filters'))
@@ -348,21 +362,47 @@ describe('proxy access-log UI', () => {
         const filterPanel = getFilterPanel(container, filtersButton)
         expectFilterTogglePlacement(filtersButton, filterPanel)
         expect(filtersButton.getAttribute('aria-expanded')).toBe('false')
-        const hostInput = container.querySelector<HTMLInputElement>(
-            'input[placeholder="example.com"]',
-        )
-        expect(hostInput).not.toBeNull()
+        const hostTrigger = getButton(container, 'Host')
 
         await click(filtersButton)
         expect(filtersButton.getAttribute('aria-expanded')).toBe('true')
-        await setInputValue(hostInput!, 'app.example.com')
+        await chooseHost(container, 'app.example', 'app.example.com')
         await click(filtersButton)
         expect(filtersButton.getAttribute('aria-expanded')).toBe('false')
-        expect(hostInput?.value).toBe('app.example.com')
+        expect(hostTrigger.textContent).toContain('app.example.com')
 
         await click(getButton(container, 'Reset filters'))
-        expect(hostInput?.value).toBe('')
+        expect(hostTrigger.textContent).toContain('All hosts')
         expect(getButton(container, 'Filters').getAttribute('aria-label')).toBe('Filters')
+    })
+
+    test('selects a status from the available status options', async () => {
+        const container = await renderPage([PERMISSIONS.PROXY_ACCESS_LOGS_VIEW])
+        await waitFor(() => container.textContent?.includes('/dashboard') === true)
+
+        await chooseSelectOption('Status', '404')
+        await click(getButton(container, 'Apply filters'))
+        await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 2)
+
+        expect(getProxyAccessLogsHandlerMock.mock.calls[1]?.[0]).toEqual({
+            data: { limit: 15, offset: 0, status: 404 },
+        })
+    })
+
+    test('debounces general search and includes partial host names in the query', async () => {
+        const container = await renderPage([PERMISSIONS.PROXY_ACCESS_LOGS_VIEW])
+        await waitFor(() => container.textContent?.includes('/dashboard') === true)
+
+        const searchInput = container.querySelector<HTMLInputElement>(
+            'input[placeholder="Search host, method, or path…"]',
+        )
+        expect(searchInput).not.toBeNull()
+        await setInputValue(searchInput!, 'ts-laser')
+        await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 2)
+
+        expect(getProxyAccessLogsHandlerMock.mock.calls[1]?.[0]).toEqual({
+            data: { limit: 15, offset: 0, search: 'ts-laser' },
+        })
     })
 
     test('opens request details from the action column while keeping time non-interactive', async () => {

@@ -1,5 +1,6 @@
 @import '@fontsource/lilita-one/latin-400.css';
 @import 'react-easy-crop/react-easy-crop.css';
+@import 'flag-icons/css/flag-icons.min.css';
 @import 'tailwindcss';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));

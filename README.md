@@ -211,12 +211,25 @@ Access Logs use the shared table pagination controls with 15 rows by default and
 15, 25, 50 and 100. Filtering and paging run in the controller. Changing filters or page size,
 or choosing Refresh, starts again on the first page.
 
+The searchable host dropdown includes configured domains and hosts found in the retained
+log scan. The status dropdown lists status codes found in that scan. General search matches
+host, method, or path and applies after a short typing pause; Apply filters also applies the
+current host and status selection immediately.
+
 Each result has a short-lived snapshot so new requests and log rotation cannot move rows
 between pages. Snapshots expire after two minutes and may be evicted sooner under load; the
 UI announces a reset and returns to the first page. Refresh loads the latest logs. The controller
 keeps at most eight snapshots within a 16 MiB cache. They are temporary, are lost on restart,
 and are excluded from backups. The existing bounded log scan and visible truncation notice
 still apply; pagination does not promise access to logs beyond that retained window.
+
+Client IPs include country flags when the bundled local GeoIP database can resolve them.
+Lookups do not send client addresses to an external service. Private and unknown addresses
+have no flag; IP geolocation is approximate and describes the logged address, which may be
+a forwarding proxy. Database updates ship with updates to the pinned `geoip-country` package.
+This product includes GeoLite2 Data created by [MaxMind](https://www.maxmind.com/), distributed
+under the GeoLite2 terms included in `geoip-country/LICENSE` and `geoip-country/EULA`.
+Flag artwork is provided by [flag-icons](https://github.com/lipis/flag-icons) under the MIT license.
 
 ### Certificates requested from proxy hosts
 

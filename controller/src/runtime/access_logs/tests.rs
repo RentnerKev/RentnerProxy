@@ -165,6 +165,32 @@ fn filters_and_pagination_report_filtered_indexes() {
 }
 
 #[test]
+fn search_matches_partial_host_without_returning_unrelated_rows() {
+    let state = TempState::new(true);
+    let now = OffsetDateTime::now_utc().unix_timestamp() as f64;
+    state.write(
+        "access.log",
+        &format!(
+            "{}\n{}\n",
+            line(now, "ts-laser.example", "/laser", 200, "laser"),
+            line(now, "other.example", "/other", 200, "other")
+        ),
+    );
+    let mut filtered = query(20, 0);
+    filtered.search = Some("ts-laser".into());
+
+    let response = read_blocking(state.path(), &filtered).unwrap();
+
+    assert_eq!(response.total, 1);
+    assert_eq!(response.entries[0].host, "ts-laser.example");
+    assert_eq!(
+        response.available_hosts,
+        vec!["other.example", "ts-laser.example"]
+    );
+    assert_eq!(response.available_statuses, vec![200]);
+}
+
+#[test]
 fn malformed_and_partial_lines_are_ignored() {
     let state = TempState::new(true);
     let now = OffsetDateTime::now_utc().unix_timestamp() as f64;
@@ -336,6 +362,8 @@ fn snapshot_cache_expiry_is_fixed_and_evicts_lru_entries() {
             CapturedLogs {
                 entries: Vec::new(),
                 truncated: false,
+                available_hosts: Vec::new(),
+                available_statuses: Vec::new(),
             },
             false,
             now,
@@ -374,6 +402,8 @@ fn snapshot_cache_expiry_is_fixed_and_evicts_lru_entries() {
                     CapturedLogs {
                         entries: Vec::new(),
                         truncated: false,
+                        available_hosts: Vec::new(),
+                        available_statuses: Vec::new(),
                     },
                     false,
                     now,
@@ -392,6 +422,8 @@ fn snapshot_cache_expiry_is_fixed_and_evicts_lru_entries() {
             CapturedLogs {
                 entries: Vec::new(),
                 truncated: false,
+                available_hosts: Vec::new(),
+                available_statuses: Vec::new(),
             },
             false,
             now,

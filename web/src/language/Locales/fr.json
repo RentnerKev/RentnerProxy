@@ -1557,11 +1557,15 @@
             },
             "filters": {
                 "host": "Hôte",
-                "hostPlaceholder": "example.com",
+                "hostPlaceholder": "Tous les hôtes",
                 "status": "Statut",
                 "statusPlaceholder": "404",
                 "search": "Rechercher",
-                "searchPlaceholder": "Rechercher un hôte, une méthode ou un chemin…"
+                "searchPlaceholder": "Rechercher un hôte, une méthode ou un chemin…",
+                "allHosts": "Tous les hôtes",
+                "hostSearchPlaceholder": "Rechercher un hôte…",
+                "noHosts": "Aucun hôte correspondant",
+                "allStatuses": "Tous les statuts"
             },
             "actions": {
                 "apply": "Appliquer les filtres",

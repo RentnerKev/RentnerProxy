@@ -44,6 +44,8 @@
         "@tanstack/react-start": "1.168.52",
         "@tanstack/react-table": "9.2.4",
         "drizzle-orm": "0.45.2",
+        "flag-icons": "7.5.0",
+        "geoip-country": "5.0.202609120131",
         "i18next": "26.4.2",
         "i18next-resources-to-backend": "1.2.3",
         "lucide-react": "1.45.0",

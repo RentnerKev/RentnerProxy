@@ -1,5 +1,6 @@
 use std::{
     cmp::{Ordering, Reverse},
+    collections::BTreeSet,
     fs::{self, File},
     io::{ErrorKind, Read, Seek, SeekFrom},
     path::Path,
@@ -28,6 +29,8 @@ pub(crate) enum ReadError {
 pub(crate) struct CapturedLogs {
     pub(crate) entries: Vec<AccessLogEntry>,
     pub(crate) truncated: bool,
+    pub(crate) available_hosts: Vec<String>,
+    pub(crate) available_statuses: Vec<u16>,
 }
 
 struct IndexedEntry {
@@ -91,6 +94,8 @@ pub(crate) fn read_blocking(
         limit: query.limit,
         offset: query.offset,
         total,
+        available_hosts: capture.available_hosts,
+        available_statuses: capture.available_statuses,
         has_more: query.offset.saturating_add(page_len) < total,
         truncated: capture.truncated,
         snapshot: String::new(),
@@ -103,6 +108,8 @@ fn empty_capture() -> CapturedLogs {
     CapturedLogs {
         entries: Vec::new(),
         truncated: false,
+        available_hosts: Vec::new(),
+        available_statuses: Vec::new(),
     }
 }
 
@@ -153,6 +160,8 @@ fn read_snapshot_blocking(
     let mut scanned = 0usize;
     let mut truncated = inventory_truncated || file_limit_truncated;
     let mut matches = Vec::new();
+    let mut available_hosts = BTreeSet::new();
+    let mut available_statuses = BTreeSet::new();
     for (_, name) in files {
         if remaining == 0 || scanned >= MAX_RECORDS {
             truncated = true;
@@ -188,6 +197,8 @@ fn read_snapshot_blocking(
             let Some(entry) = parse_entry(&value, cutoff) else {
                 continue;
             };
+            available_hosts.insert(entry.host.clone());
+            available_statuses.insert(entry.status);
             if matches_query(&entry, query) {
                 matches.push(IndexedEntry {
                     timestamp_nanos: OffsetDateTime::parse(&entry.timestamp, &Rfc3339)
@@ -202,8 +213,21 @@ fn read_snapshot_blocking(
     }
     matches.sort_by(compare_indexed_entries);
     let matches = matches.into_iter().map(|indexed| indexed.entry).collect();
-    let (entries, truncated) = cap_snapshot_entries(matches, query, truncated);
-    Ok(CapturedLogs { entries, truncated })
+    let available_hosts = super::bounded_available_hosts(available_hosts);
+    let available_statuses = available_statuses.into_iter().collect::<Vec<_>>();
+    let (entries, truncated) = cap_snapshot_entries(
+        matches,
+        query,
+        truncated,
+        &available_hosts,
+        &available_statuses,
+    );
+    Ok(CapturedLogs {
+        entries,
+        truncated,
+        available_hosts,
+        available_statuses,
+    })
 }
 
 fn compare_indexed_entries(left: &IndexedEntry, right: &IndexedEntry) -> Ordering {

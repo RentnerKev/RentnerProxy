@@ -6,6 +6,7 @@ export interface ProxyAccessLogEntry {
     readonly status: number
     readonly durationMs: number
     readonly clientIp: string
+    readonly countryCode?: string | null
     readonly upstream: string | null
     readonly bytes: number
     readonly protocol: string
@@ -25,6 +26,8 @@ export interface ProxyAccessLogsResult {
     readonly limit: number
     readonly offset: number
     readonly total: number
+    readonly availableHosts?: readonly string[]
+    readonly availableStatuses?: readonly number[]
     readonly hasMore: boolean
     readonly truncated: boolean
     readonly snapshot: string
