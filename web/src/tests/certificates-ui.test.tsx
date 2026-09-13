@@ -296,6 +296,49 @@ afterEach(async () => {
 })
 
 describe('certificate management UI', () => {
+    test('filters exact certificate names with search and expiry dates with the calendar', async () => {
+        const now = new Date()
+        const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-15`
+        getCertificatesHandlerMock.mockResolvedValueOnce([
+            { ...certificate, expiresAt: new Date(`${date}T23:59:59Z`) },
+            {
+                ...certificate,
+                id: 'second-certificate',
+                name: 'Public edge backup',
+                expiresAt: null,
+            },
+            {
+                ...certificate,
+                id: 'later-certificate',
+                name: 'Later expiry',
+                expiresAt: new Date(new Date(`${date}T00:00:00Z`).getTime() + 86_400_000),
+            },
+        ])
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW])
+        const table = document.querySelector('table')!
+        const rows = () => table.querySelectorAll('tbody tr')
+        await waitFor(() => document.body.textContent?.includes('Public edge backup') === true)
+        await click(button('Filters'))
+        await click(button('Filter Name…'))
+        const search = document.querySelector<HTMLInputElement>('input[aria-label="Filter Name…"]')!
+        expect(document.activeElement).toBe(search)
+        await setValue(search, 'Public edge')
+        const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+            (item) => item.textContent?.trim() === 'Public edge',
+        )!
+        await click(option)
+        await waitFor(() => rows().length === 1)
+        expect(rows()[0]?.textContent).not.toContain('backup')
+        await click(button('Reset filters'))
+        await waitFor(() => rows().length === 3)
+        await click(button('Filter by date range'))
+        await click(document.querySelector(`[data-calendar-date="${date}"]`)!)
+        await click(document.querySelector(`[data-calendar-date="${date}"]`)!)
+        await waitFor(() => rows().length === 1)
+        expect(rows()[0]?.textContent).toContain('Public edge')
+        expect(rows()[0]?.textContent).not.toContain('backup')
+    })
+
     test('shows certificate metadata to viewers without mutation actions', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)

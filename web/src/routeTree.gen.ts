@@ -26,6 +26,7 @@ import { Route as PublicForgotPasswordRouteImport } from './routes/_public/forgo
 import { Route as PublicLoginRouteImport } from './routes/_public/login'
 import { Route as PublicResetPasswordRouteImport } from './routes/_public/reset-password'
 import { Route as PublicSetupRouteImport } from './routes/_public/setup'
+import { Route as ApiLiveSnapshotRouteImport } from './routes/api/live-snapshot'
 import { Route as HealthLiveRouteImport } from './routes/health/live'
 import { Route as HealthReadyRouteImport } from './routes/health/ready'
 import { Route as PublicLoginIndexRouteImport } from './routes/_public/login.index'
@@ -119,6 +120,11 @@ const PublicSetupRoute = PublicSetupRouteImport.update({
   path: '/setup',
   getParentRoute: () => PublicRouteRoute,
 } as any)
+const ApiLiveSnapshotRoute = ApiLiveSnapshotRouteImport.update({
+  id: '/api/live-snapshot',
+  path: '/api/live-snapshot',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HealthLiveRoute = HealthLiveRouteImport.update({
   id: '/health/live',
   path: '/health/live',
@@ -161,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof PublicLoginRouteWithChildren
   '/reset-password': typeof PublicResetPasswordRoute
   '/setup': typeof PublicSetupRoute
+  '/api/live-snapshot': typeof ApiLiveSnapshotRoute
   '/health/live': typeof HealthLiveRoute
   '/health/ready': typeof HealthReadyRoute
   '/login/two-factor': typeof PublicLoginTwoFactorRoute
@@ -182,6 +189,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof PublicForgotPasswordRoute
   '/reset-password': typeof PublicResetPasswordRoute
   '/setup': typeof PublicSetupRoute
+  '/api/live-snapshot': typeof ApiLiveSnapshotRoute
   '/health/live': typeof HealthLiveRoute
   '/health/ready': typeof HealthReadyRoute
   '/login/two-factor': typeof PublicLoginTwoFactorRoute
@@ -206,6 +214,7 @@ export interface FileRoutesById {
   '/_public/login': typeof PublicLoginRouteWithChildren
   '/_public/reset-password': typeof PublicResetPasswordRoute
   '/_public/setup': typeof PublicSetupRoute
+  '/api/live-snapshot': typeof ApiLiveSnapshotRoute
   '/health/live': typeof HealthLiveRoute
   '/health/ready': typeof HealthReadyRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -231,6 +240,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/setup'
+    | '/api/live-snapshot'
     | '/health/live'
     | '/health/ready'
     | '/login/two-factor'
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/reset-password'
     | '/setup'
+    | '/api/live-snapshot'
     | '/health/live'
     | '/health/ready'
     | '/login/two-factor'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/_public/login'
     | '/_public/reset-password'
     | '/_public/setup'
+    | '/api/live-snapshot'
     | '/health/live'
     | '/health/ready'
     | '/_authenticated/'
@@ -286,6 +298,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   PublicRouteRoute: typeof PublicRouteRouteWithChildren
+  ApiLiveSnapshotRoute: typeof ApiLiveSnapshotRoute
   HealthLiveRoute: typeof HealthLiveRoute
   HealthReadyRoute: typeof HealthReadyRoute
   MediaAvatarsUserIdRoute: typeof MediaAvatarsUserIdRoute
@@ -412,6 +425,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicSetupRouteImport
       parentRoute: typeof PublicRouteRoute
     }
+    '/api/live-snapshot': {
+      id: '/api/live-snapshot'
+      path: '/api/live-snapshot'
+      fullPath: '/api/live-snapshot'
+      preLoaderRoute: typeof ApiLiveSnapshotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/health/live': {
       id: '/health/live'
       path: '/health/live'
@@ -516,6 +536,7 @@ const PublicRouteRouteWithChildren = PublicRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   PublicRouteRoute: PublicRouteRouteWithChildren,
+  ApiLiveSnapshotRoute: ApiLiveSnapshotRoute,
   HealthLiveRoute: HealthLiveRoute,
   HealthReadyRoute: HealthReadyRoute,
   MediaAvatarsUserIdRoute: MediaAvatarsUserIdRoute,

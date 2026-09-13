@@ -18,7 +18,7 @@ export default function CompactFoundationStatus({ services }: FoundationStatusVi
                     {t('foundation.refreshDescription')}
                 </p>
             </div>
-            <div className="grid gap-3 shell:grid-cols-4" aria-live="polite">
+            <div className="grid gap-3 shell:grid-cols-5" aria-live="polite">
                 {services.map((service, index) => (
                     <article
                         className="grid min-w-0 rounded-[0.9rem] border border-border bg-surface-raised p-4"

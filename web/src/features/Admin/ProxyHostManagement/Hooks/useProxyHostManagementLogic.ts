@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { PERMISSIONS } from '../../../../config/permissions.config'
 import useToast from '../../../../shared/Toast/Hooks/useToast'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
-import { isCertificateJobActive } from '../../../../config/certificate-jobs.config'
+import useLiveInvalidation from '../../../../shared/Live/useLiveInvalidation'
 import { accessPolicyManagementQueryKeys } from '../../AccessPolicyManagement/queryKeys'
 import { proxyHostManagementQueryKeys } from '../queryKeys'
 import {
@@ -22,6 +22,7 @@ const EMPTY_PROXY_HOSTS: ProxyHostSummary[] = []
 export default function useProxyHostManagementLogic({ permissions }: ProxyHostManagementPageProps) {
     const toast = useToast()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
+    const canView = permissionSet.has(PERMISSIONS.PROXY_HOSTS_VIEW)
     const [showCreate, setShowCreate] = useState(false)
     const [configTarget, setConfigTarget] = useState<ProxyHostSummary | null>(null)
     const [globalConfigOpen, setGlobalConfigOpen] = useState(false)
@@ -34,19 +35,18 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
     const proxyHostsQuery = useQuery({
         queryKey: proxyHostManagementQueryKeys.all,
         queryFn: () => getProxyHostsHandler(),
-        refetchInterval: (query) =>
-            query.state.data?.some(
-                (host) => host.certificateJob && isCertificateJobActive(host.certificateJob.stage),
-            )
-                ? 2_000
-                : 15_000,
-        refetchIntervalInBackground: false,
+        enabled: canView,
     })
     const runtimeStatusQuery = useQuery({
         queryKey: proxyHostManagementQueryKeys.runtimeStatus,
         queryFn: () => getProxyRuntimeStatusHandler(),
-        refetchInterval: 15_000,
-        refetchIntervalInBackground: false,
+        enabled: canView,
+    })
+    useLiveInvalidation({
+        topic: 'proxy-hosts',
+        query: {},
+        enabled: canView,
+        queryKeys: [proxyHostManagementQueryKeys.all, proxyHostManagementQueryKeys.runtimeStatus],
     })
     const invalidateProxyHostQueries = useCallback(async () => {
         await Promise.all([

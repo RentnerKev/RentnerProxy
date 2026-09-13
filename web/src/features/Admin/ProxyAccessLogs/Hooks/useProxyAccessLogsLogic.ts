@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { PERMISSIONS } from '../../../../config/permissions.config'
 import useTranslationStore from '../../../../language/useTranslationStore'
+import useLiveQuery from '../../../../shared/Live/useLiveQuery'
 import type { ProxyAccessLogsResult } from '../../../../shared/Types/proxy-access-logs.types'
 import { proxyAccessLogsQueryKeys } from '../queryKeys'
 import { getProxyAccessLogsHandler } from '../server'
@@ -33,15 +34,18 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
     const [pageSize, setPageSize] = useState(PROXY_ACCESS_LOGS_DEFAULT_PAGE_SIZE)
     const [page, setPage] = useState(1)
     const [snapshot, setSnapshot] = useState<string | undefined>()
-    const [captureVersion, setCaptureVersion] = useState(0)
     const [expandedEntry, setExpandedEntry] = useState<string | null>(null)
     const offset = (page - 1) * pageSize
     const request = useMemo(
         () => toProxyAccessLogsQuery(filters, offset, pageSize, snapshot),
         [filters, offset, pageSize, snapshot],
     )
+    const requestRef = useRef(request)
+    useEffect(() => {
+        requestRef.current = request
+    }, [request])
     const logsQuery = useQuery<ProxyAccessLogsResult>({
-        queryKey: [...proxyAccessLogsQueryKeys.list(request), captureVersion],
+        queryKey: proxyAccessLogsQueryKeys.list(request),
         queryFn: () => getProxyAccessLogsHandler({ data: request }),
         enabled: canView,
         retry: false,
@@ -50,6 +54,26 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
         refetchOnWindowFocus: false,
         staleTime: Infinity,
         gcTime: 0,
+    })
+    const liveRequest = useMemo(
+        () => toProxyAccessLogsQuery(filters, 0, pageSize),
+        [filters, pageSize],
+    )
+    const onLiveData = useCallback(
+        async (data: ProxyAccessLogsResult) => {
+            if (requestRef.current !== request) return
+            const queryKey = proxyAccessLogsQueryKeys.list(request)
+            await queryClient.cancelQueries({ queryKey, exact: true })
+            if (requestRef.current !== request) return
+            queryClient.setQueryData(queryKey, data)
+        },
+        [queryClient, request],
+    )
+    const liveStatus = useLiveQuery<ProxyAccessLogsResult>({
+        topic: 'access-logs',
+        query: liveRequest,
+        enabled: canView && page === 1,
+        onData: onLiveData,
     })
     const entries = canView ? (logsQuery.data?.entries ?? []) : []
     const snapshotReset = canView && (logsQuery.data?.snapshotReset ?? false)
@@ -120,7 +144,6 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
         setDraftFilters(normalizedFilters)
         setPage(1)
         setSnapshot(undefined)
-        setCaptureVersion((current) => current + 1)
         setExpandedEntry(null)
     }, [draftFilters, pageSize])
     const resetFilters = useCallback(() => {
@@ -129,27 +152,24 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
         setFilterErrors({})
         setPage(1)
         setSnapshot(undefined)
-        setCaptureVersion((current) => current + 1)
         setExpandedEntry(null)
     }, [])
     useEffect(() => {
-        if (draftFilters.search === filters.search) return
+        if (
+            draftFilters.search === filters.search &&
+            draftFilters.host === filters.host &&
+            draftFilters.status === filters.status
+        )
+            return
 
-        const timeout = setTimeout(() => {
-            applyFilters()
-        }, 300)
+        const timeout = setTimeout(
+            () => {
+                applyFilters()
+            },
+            draftFilters.search === filters.search ? 0 : 300,
+        )
         return () => clearTimeout(timeout)
-    }, [applyFilters, draftFilters.search, filters.search])
-    const refresh = useCallback(async () => {
-        await queryClient.invalidateQueries({
-            queryKey: proxyAccessLogsQueryKeys.all,
-            refetchType: 'none',
-        })
-        setPage(1)
-        setSnapshot(undefined)
-        setCaptureVersion((current) => current + 1)
-        setExpandedEntry(null)
-    }, [queryClient])
+    }, [applyFilters, draftFilters, filters])
     const retry = useCallback(() => {
         void logsQuery.refetch()
     }, [logsQuery])
@@ -158,7 +178,7 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
             const boundedPage = Math.min(Math.max(nextPage, 1), pageCount)
             if (boundedPage === currentPage) return
             setPage(boundedPage)
-            setSnapshot(logsQuery.data?.snapshot ?? snapshot)
+            setSnapshot(boundedPage === 1 ? undefined : (logsQuery.data?.snapshot ?? snapshot))
             setExpandedEntry(null)
         },
         [currentPage, logsQuery.data?.snapshot, pageCount, snapshot],
@@ -173,13 +193,13 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
         setPageSize(nextPageSize)
         setPage(1)
         setSnapshot(undefined)
-        setCaptureVersion((current) => current + 1)
         setExpandedEntry(null)
     }, [])
 
     return {
         state: {
             canView,
+            liveStatus,
             entries,
             availableHosts: logsQuery.data?.availableHosts ?? [],
             availableStatuses: logsQuery.data?.availableStatuses ?? [],
@@ -194,7 +214,6 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
             hasMore: canView && (logsQuery.data?.hasMore ?? false),
             isError: canView && logsQuery.isError,
             isLoading: canView && logsQuery.isPending,
-            isRefreshing: logsQuery.isFetching && !logsQuery.isPending,
             limit: effectiveLimit,
             offset: logsQuery.data?.offset ?? offset,
             total,
@@ -205,13 +224,11 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
             currentPage,
         },
         handler: {
-            applyFilters,
             onHostChange: (value: string) => updateFilter('host', value),
             onSearchChange: (value: string) => updateFilter('search', value),
             onStatusChange: (value: string) => updateFilter('status', value),
             onPageChange: changePage,
             onPageSizeChange: changePageSize,
-            refresh,
             resetFilters,
             retry,
             toggleEntryDetails,

@@ -54,6 +54,18 @@ export default function useCertificatesTableLogic(props: CertificateTableProps) 
     })
     const columnFilterConfigs = useMemo(
         () => ({
+            name: {
+                type: 'searchableSelect' as const,
+                placeholder: t('table.filterColumnPlaceholder', {
+                    column: t('admin.certificates.columns.name'),
+                }),
+                options: createSortedUniqueFilterOptions(
+                    data.map((certificate) => certificate.name),
+                ),
+            },
+            expiresAt: {
+                type: 'dateRange' as const,
+            },
             source: {
                 type: 'select' as const,
                 placeholder: t('admin.certificates.filters.allSources'),

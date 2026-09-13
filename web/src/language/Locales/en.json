@@ -202,6 +202,7 @@
         },
         "running": "Running",
         "connected": "Connected",
+        "connecting": "Connecting",
         "unavailable": "Unavailable",
         "local": "Foundation · Local",
         "status": "Foundation status",
@@ -210,8 +211,8 @@
         "serviceStatus": "Foundation service status",
         "footer": "Foundation status · Connection state is server-verified",
         "connectionMap": "Connection map",
-        "summary": "Four services. One control path.",
-        "refreshDescription": "Each result is checked through the server boundary and refreshed every 30 seconds.",
+        "summary": "Five services. One control path.",
+        "refreshDescription": "Service status is verified through the server boundary, with live updates while this page is open.",
         "web": "Web",
         "services": {
             "web": {
@@ -229,6 +230,10 @@
             "redis": {
                 "label": "Redis",
                 "detail": "Server-side Redis health check"
+            },
+            "websocket": {
+                "label": "WebSocket Server",
+                "detail": "Native Bun WebSocket server"
             }
         }
     },
@@ -1568,7 +1573,6 @@
                 "allStatuses": "All statuses"
             },
             "actions": {
-                "apply": "Apply filters",
                 "refresh": "Refresh",
                 "showDetails": "Show request details",
                 "hideDetails": "Hide request details"
@@ -1628,8 +1632,8 @@
                 "filteredEmptyDescription": "No audit events match these filters."
             },
             "filters": {
-                "actor": "Actor user ID",
-                "actorPlaceholder": "UUID of the actor",
+                "actor": "Actor",
+                "actorPlaceholder": "All users",
                 "action": "Action",
                 "allActions": "All actions",
                 "resource": "Resource",
@@ -1638,7 +1642,6 @@
                 "to": "To (UTC)"
             },
             "actions": {
-                "apply": "Apply filters",
                 "refresh": "Refresh",
                 "showDetails": "Show event details",
                 "hideDetails": "Hide event details"

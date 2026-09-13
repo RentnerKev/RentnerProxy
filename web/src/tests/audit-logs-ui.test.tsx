@@ -20,6 +20,7 @@ const { createRoot } = await import('react-dom/client')
 const { TooltipProvider } = await import('../shared/Tooltip')
 
 const actorId = '018f2f52-7c1b-7cc0-9f3c-6a9952c54021'
+const secondActorId = '018f2f52-7c1b-7cc0-9f3c-6a9952c54025'
 const targetId = '018f2f52-7c1b-7cc0-9f3c-6a9952c54022'
 const nextCursor = 'eyJ0aW1lc3RhbXAiOiIyMDI2LTA5LTEyVDEwOjAwOjAwLjAwMFoiLCJpZCI6IjAxOGYifQ'
 
@@ -63,8 +64,13 @@ const getAuditEventsHandlerMock = mock(
         }
     },
 )
+const getAuditActorOptionsHandlerMock = mock(async () => [
+    { id: actorId, displayName: 'Alice Admin' },
+    { id: secondActorId, displayName: 'Bob Viewer' },
+])
 
 mock.module('../features/Admin/AuditLogs/server', () => ({
+    getAuditActorOptionsHandler: getAuditActorOptionsHandlerMock,
     getAuditEventsHandler: getAuditEventsHandlerMock,
 }))
 
@@ -101,16 +107,6 @@ async function click(element: Element): Promise<void> {
     await act(async () => {
         element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
         await Promise.resolve()
-        await Promise.resolve()
-    })
-}
-
-async function setInputValue(input: HTMLInputElement, value: string): Promise<void> {
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
-    await act(async () => {
-        setter?.call(input, value)
-        input.dispatchEvent(new Event('input', { bubbles: true }))
-        input.dispatchEvent(new Event('change', { bubbles: true }))
         await Promise.resolve()
     })
 }
@@ -218,6 +214,7 @@ function expectFilterTogglePlacement(toggle: HTMLButtonElement, panel: HTMLEleme
 
 beforeEach(() => {
     getAuditEventsHandlerMock.mockClear()
+    getAuditActorOptionsHandlerMock.mockClear()
 })
 
 afterEach(() => {
@@ -252,7 +249,7 @@ describe('audit log UI', () => {
         })
     })
 
-    test('applies filters only on submit and navigates keyset pages', async () => {
+    test('applies valid filters automatically and navigates keyset pages', async () => {
         const container = await renderPage([PERMISSIONS.AUDIT_LOGS_VIEW])
         await waitFor(() => getAuditEventsHandlerMock.mock.calls.length === 1)
         await waitFor(() => container.textContent?.includes('Alice Admin') === true)
@@ -262,15 +259,14 @@ describe('audit log UI', () => {
         })
         expect(container.textContent).toContain('Update')
         expect(container.textContent).toContain('Success')
+        expect(
+            [...container.querySelectorAll('button')].some(
+                (button) => button.textContent?.trim() === 'Refresh',
+            ),
+        ).toBeFalse()
 
-        const actorInput = container.querySelector<HTMLInputElement>(
-            'input[placeholder="UUID of the actor"]',
-        )
-        expect(actorInput).not.toBeNull()
-        await setInputValue(actorInput!, actorId)
-        expect(getAuditEventsHandlerMock).toHaveBeenCalledTimes(1)
-
-        await click(getButton(container, 'Apply filters'))
+        await click(getButton(container, 'Filters'))
+        await chooseSelectOption(container, 'Actor', 'Alice Admin')
         await waitFor(() => getAuditEventsHandlerMock.mock.calls.length === 2)
         expect(getAuditEventsHandlerMock.mock.calls[1]?.[0]).toEqual({
             data: { actorUserId: actorId, limit: 100 },
@@ -300,7 +296,7 @@ describe('audit log UI', () => {
         })
     })
 
-    test('keeps draft filters when collapsed and resets them from the shared control', async () => {
+    test('keeps filters when collapsed and resets them from the shared control', async () => {
         const container = await renderPage([PERMISSIONS.AUDIT_LOGS_VIEW])
         await waitFor(() => container.textContent?.includes('Alice Admin') === true)
 
@@ -308,20 +304,20 @@ describe('audit log UI', () => {
         const filterPanel = getFilterPanel(container, filtersButton)
         expectFilterTogglePlacement(filtersButton, filterPanel)
         expect(filtersButton.getAttribute('aria-expanded')).toBe('false')
-        const actorInput = container.querySelector<HTMLInputElement>(
-            'input[placeholder="UUID of the actor"]',
-        )
-        expect(actorInput).not.toBeNull()
-
         await click(filtersButton)
         expect(filtersButton.getAttribute('aria-expanded')).toBe('true')
-        await setInputValue(actorInput!, actorId)
+        await chooseSelectOption(container, 'Actor', 'Alice Admin')
         await click(filtersButton)
         expect(filtersButton.getAttribute('aria-expanded')).toBe('false')
-        expect(actorInput?.value).toBe(actorId)
 
         await click(getButton(container, 'Reset filters'))
-        expect(actorInput?.value).toBe('')
+        await waitFor(() => getAuditEventsHandlerMock.mock.calls.length === 3)
+        expect(getAuditEventsHandlerMock.mock.calls[2]?.[0]).toEqual({
+            data: { limit: 100 },
+        })
+        expect(container.querySelector('button[aria-label="Actor"]')?.textContent).toContain(
+            'All users',
+        )
         expect(getButton(container, 'Filters').getAttribute('aria-label')).toBe('Filters')
     })
 
@@ -333,10 +329,9 @@ describe('audit log UI', () => {
         await click(getButton(container, 'Filters'))
         await chooseSelectOption(container, 'Action', 'Update')
         await chooseSelectOption(container, 'Resource', 'Proxy host')
-        await click(getButton(container, 'Apply filters'))
-        await waitFor(() => getAuditEventsHandlerMock.mock.calls.length === 2)
+        await waitFor(() => getAuditEventsHandlerMock.mock.calls.length === 3)
 
-        expect(getAuditEventsHandlerMock.mock.calls[1]?.[0]).toEqual({
+        expect(getAuditEventsHandlerMock.mock.calls[2]?.[0]).toEqual({
             data: { action: 'update', limit: 100, resource: 'proxy-host' },
         })
     })

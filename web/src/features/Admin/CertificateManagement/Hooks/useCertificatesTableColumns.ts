@@ -3,6 +3,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { createElement, useMemo } from 'react'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
+import { createDateRangeFilter } from '../../../../shared/Table/Helpers/tableFilters'
 import type { CertificateSummary } from '../../../../shared/Types/certificates.types'
 import type { CertificateTableProps } from '../Types/certificate-management.types'
 import CertificateTableActions from '../Components/CertificateTableActions'
@@ -15,6 +16,8 @@ import {
 } from '../Components/CertificateTableCells'
 import { getCertificateOperationSearchValues } from '../Helpers/certificateOperations'
 
+const expiryFilter = createDateRangeFilter<CertificateSummary>()
+
 export default function useCertificatesTableColumns(actions: CertificateTableProps) {
     const { t } = useTranslationStore()
     return useMemo<Array<ColumnDef<ClientTableFeatures, CertificateSummary>>>(
@@ -23,6 +26,7 @@ export default function useCertificatesTableColumns(actions: CertificateTablePro
                 accessorKey: 'name',
                 header: t('admin.certificates.columns.name'),
                 sortFn: 'text',
+                filterFn: filterFn_equalsString,
                 enableGlobalFilter: true,
             },
             {
@@ -70,6 +74,7 @@ export default function useCertificatesTableColumns(actions: CertificateTablePro
                 accessorKey: 'expiresAt',
                 header: t('admin.certificates.columns.expires'),
                 sortFn: sortFn_datetime,
+                filterFn: expiryFilter,
                 enableGlobalFilter: false,
                 cell: ({ row }) =>
                     createElement(CertificateDateCell, { value: row.original.expiresAt }),

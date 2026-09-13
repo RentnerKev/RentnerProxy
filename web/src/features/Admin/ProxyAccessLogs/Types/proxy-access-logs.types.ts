@@ -32,13 +32,10 @@ export interface ProxyAccessLogsTableProps {
     readonly pageSize: number
     readonly currentPage: number
     readonly isLoading: boolean
-    readonly isRefreshing: boolean
     readonly onHostChange: (value: string) => void
     readonly onStatusChange: (value: string) => void
     readonly onSearchChange: (value: string) => void
-    readonly onApplyFilters: () => void
     readonly onResetFilters: () => void
-    readonly onRefresh: () => void
     readonly onPageChange: (page: number) => void
     readonly onPageSizeChange: (pageSize: number) => void
     readonly onToggleDetails: (key: string) => void

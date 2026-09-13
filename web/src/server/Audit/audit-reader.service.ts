@@ -1,11 +1,12 @@
 import '@tanstack/react-start/server-only'
 
-import { and, desc, eq, gte, lte, lt, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, lte, lt, or, sql } from 'drizzle-orm'
 
 import { PERMISSIONS } from '../../config/permissions.config'
 import { auditEvents, users } from '../../db/schema'
 import type {
     AuditEventDto,
+    AuditActorOption,
     AuditEventsQuery,
     AuditEventsResult,
     AuditMetadata,
@@ -112,4 +113,13 @@ export async function listAuditEventsService(input: AuditEventsQuery): Promise<A
         },
         { isolationLevel: 'repeatable read', accessMode: 'read only' },
     )
+}
+
+export async function listAuditActorOptionsService(): Promise<readonly AuditActorOption[]> {
+    await requirePermissionService(PERMISSIONS.AUDIT_LOGS_VIEW)
+    const rows = await getAuthDatabase()
+        .select({ id: users.id, displayName: users.displayName })
+        .from(users)
+        .orderBy(asc(users.displayName), asc(users.id))
+    return rows
 }

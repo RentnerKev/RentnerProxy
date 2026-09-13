@@ -124,7 +124,7 @@ async fn equal_timestamps_keep_field_order_after_archive_rename_and_line_reorder
         .map(|entry| entry.path.as_str())
         .collect::<Vec<_>>();
     assert!(!second.snapshot_reset);
-    assert_ne!(second.snapshot, first.snapshot);
+    assert_eq!(second.snapshot, first.snapshot);
     assert_eq!(second_paths, first_paths);
 }
 

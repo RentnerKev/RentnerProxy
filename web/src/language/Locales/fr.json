@@ -202,6 +202,7 @@
         },
         "running": "En cours d’exécution",
         "connected": "Connecté",
+        "connecting": "Connexion en cours",
         "unavailable": "Indisponible",
         "local": "Services de base · Local",
         "status": "État des services de base",
@@ -210,8 +211,8 @@
         "serviceStatus": "État des services de base",
         "footer": "État des services de base · Connexions vérifiées côté serveur",
         "connectionMap": "Carte des connexions",
-        "summary": "Quatre services. Un point de contrôle.",
-        "refreshDescription": "Chaque résultat est vérifié côté serveur et actualisé toutes les 30 secondes.",
+        "summary": "Cinq services. Un point de contrôle.",
+        "refreshDescription": "L’état des services est vérifié côté serveur et mis à jour en direct tant que cette page est ouverte.",
         "web": "Web",
         "services": {
             "web": {
@@ -229,6 +230,10 @@
             "redis": {
                 "label": "Redis",
                 "detail": "Vérification de Redis côté serveur"
+            },
+            "websocket": {
+                "label": "Serveur WebSocket",
+                "detail": "Serveur WebSocket Bun natif"
             }
         }
     },
@@ -1568,7 +1573,6 @@
                 "allStatuses": "Tous les statuts"
             },
             "actions": {
-                "apply": "Appliquer les filtres",
                 "refresh": "Actualiser",
                 "showDetails": "Afficher les détails de la requête",
                 "hideDetails": "Masquer les détails de la requête"
@@ -1628,8 +1632,8 @@
                 "filteredEmptyDescription": "Aucun événement d’audit ne correspond à ces filtres."
             },
             "filters": {
-                "actor": "ID utilisateur de l’acteur",
-                "actorPlaceholder": "UUID de l’acteur",
+                "actor": "Acteur",
+                "actorPlaceholder": "Tous les utilisateurs",
                 "action": "Action",
                 "allActions": "Toutes les actions",
                 "resource": "Ressource",
@@ -1638,7 +1642,6 @@
                 "to": "Au (UTC)"
             },
             "actions": {
-                "apply": "Appliquer les filtres",
                 "refresh": "Actualiser",
                 "showDetails": "Afficher les détails de l’événement",
                 "hideDetails": "Masquer les détails de l’événement"

@@ -202,6 +202,7 @@
         },
         "running": "Läuft",
         "connected": "Verbunden",
+        "connecting": "Verbindung wird hergestellt",
         "unavailable": "Nicht verfügbar",
         "local": "Systembasis · Lokal",
         "status": "Systemstatus",
@@ -210,8 +211,8 @@
         "serviceStatus": "Status der Systemdienste",
         "footer": "Systemstatus · Verbindungsstatus serverseitig geprüft",
         "connectionMap": "Verbindungsübersicht",
-        "summary": "Vier Dienste. Eine Verwaltung.",
-        "refreshDescription": "Jedes Ergebnis wird serverseitig geprüft und alle 30 Sekunden aktualisiert.",
+        "summary": "Fünf Dienste. Eine Verwaltung.",
+        "refreshDescription": "Der Dienststatus wird serverseitig geprüft und live aktualisiert, solange diese Seite geöffnet ist.",
         "web": "Web",
         "services": {
             "web": {
@@ -229,6 +230,10 @@
             "redis": {
                 "label": "Redis",
                 "detail": "Serverseitige Redis-Statusprüfung"
+            },
+            "websocket": {
+                "label": "WebSocket-Server",
+                "detail": "Nativer Bun-WebSocket-Server"
             }
         }
     },
@@ -1568,7 +1573,6 @@
                 "allStatuses": "Alle Statuscodes"
             },
             "actions": {
-                "apply": "Filter anwenden",
                 "refresh": "Aktualisieren",
                 "showDetails": "Anfragedetails anzeigen",
                 "hideDetails": "Anfragedetails ausblenden"
@@ -1628,8 +1632,8 @@
                 "filteredEmptyDescription": "Keine Audit-Ereignisse passen zu diesen Filtern."
             },
             "filters": {
-                "actor": "Benutzer-ID des Akteurs",
-                "actorPlaceholder": "UUID des Akteurs",
+                "actor": "Akteur",
+                "actorPlaceholder": "Alle Benutzer",
                 "action": "Aktion",
                 "allActions": "Alle Aktionen",
                 "resource": "Ressource",
@@ -1638,7 +1642,6 @@
                 "to": "Bis (UTC)"
             },
             "actions": {
-                "apply": "Filter anwenden",
                 "refresh": "Aktualisieren",
                 "showDetails": "Ereignisdetails anzeigen",
                 "hideDetails": "Ereignisdetails ausblenden"

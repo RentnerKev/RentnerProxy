@@ -240,7 +240,7 @@ afterEach(async () => {
 })
 
 describe('proxy access-log UI', () => {
-    test('applies filters only on submit, paginates, and refreshes the first page', async () => {
+    test('automatically applies host filters and paginates', async () => {
         const container = await renderPage([PERMISSIONS.PROXY_ACCESS_LOGS_VIEW])
         await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 1)
         await waitFor(() => container.textContent?.includes('/dashboard') === true)
@@ -248,11 +248,10 @@ describe('proxy access-log UI', () => {
             data: { limit: 15, offset: 0 },
         })
         expect(container.textContent).toContain('/dashboard')
+        expect(container.textContent).not.toContain('Apply filters')
 
         await chooseHost(container, 'app.example', 'app.example.com')
-        expect(getProxyAccessLogsHandlerMock).toHaveBeenCalledTimes(1)
 
-        await click(getButton(container, 'Apply filters'))
         await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 2)
         expect(getProxyAccessLogsHandlerMock.mock.calls[1]?.[0]).toEqual({
             data: { host: 'app.example.com', limit: 15, offset: 0 },
@@ -279,12 +278,11 @@ describe('proxy access-log UI', () => {
         })
         expect(container.textContent).toContain('/older')
 
-        await click(getButton(container, 'Refresh'))
-        await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 4)
-        expect(getProxyAccessLogsHandlerMock.mock.calls[3]?.[0]).toEqual({
-            data: { host: 'app.example.com', limit: 15, offset: 0 },
-        })
-        expect(container.textContent).toContain('/dashboard')
+        expect(
+            [...container.querySelectorAll('button')].some(
+                (button) => button.textContent?.trim() === 'Refresh',
+            ),
+        ).toBeFalse()
     })
 
     test('changes page size, uses numbered pages, and preserves the snapshot', async () => {
@@ -354,7 +352,7 @@ describe('proxy access-log UI', () => {
         await waitFor(() => container.textContent?.includes('Page 2 of 7') === true)
     })
 
-    test('keeps draft filters when collapsed and resets them from the shared control', async () => {
+    test('keeps automatic filters when collapsed and resets them from the shared control', async () => {
         const container = await renderPage([PERMISSIONS.PROXY_ACCESS_LOGS_VIEW])
         await waitFor(() => container.textContent?.includes('/dashboard') === true)
 
@@ -376,15 +374,17 @@ describe('proxy access-log UI', () => {
         expect(getButton(container, 'Filters').getAttribute('aria-label')).toBe('Filters')
     })
 
-    test('selects a status from the available status options', async () => {
+    test('automatically applies status changes from a later page using a fresh snapshot', async () => {
         const container = await renderPage([PERMISSIONS.PROXY_ACCESS_LOGS_VIEW])
         await waitFor(() => container.textContent?.includes('/dashboard') === true)
 
-        await chooseSelectOption('Status', '404')
-        await click(getButton(container, 'Apply filters'))
+        await click(getButton(container, 'Go to next page'))
         await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 2)
+        await waitFor(() => container.textContent?.includes('/older') === true)
+        await chooseSelectOption('Status', '404')
+        await waitFor(() => getProxyAccessLogsHandlerMock.mock.calls.length === 3)
 
-        expect(getProxyAccessLogsHandlerMock.mock.calls[1]?.[0]).toEqual({
+        expect(getProxyAccessLogsHandlerMock.mock.calls[2]?.[0]).toEqual({
             data: { limit: 15, offset: 0, status: 404 },
         })
     })

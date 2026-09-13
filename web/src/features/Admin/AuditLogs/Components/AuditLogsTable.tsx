@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Fragment } from 'react'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
@@ -11,7 +11,6 @@ import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBo
 import SelectControl from '../../../../shared/Select'
 import DateTimeCalendar from '../../../../shared/Calendar/Components/DateTimeCalendar'
 import { ActionMenu } from '../../../../shared/ActionMenu'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { Tooltip } from '../../../../shared/Tooltip'
 import type { AuditEventDto } from '../../../../shared/Types/audit-events.types'
 import {
@@ -71,22 +70,20 @@ function MetadataDetails({ event }: { readonly event: AuditEventDto }) {
 
 export default function AuditLogsTable({
     events,
+    actorOptions,
     expandedEventId,
     formatTimestamp,
     filters,
     filterErrors,
     hasMore,
     isLoading,
-    isRefreshing,
     pageNumber,
     onActorChange,
     onActionChange,
     onResourceChange,
     onFromChange,
     onToChange,
-    onApplyFilters,
     onResetFilters,
-    onRefresh,
     onPreviousPage,
     onNextPage,
     onToggleDetails,
@@ -108,20 +105,6 @@ export default function AuditLogsTable({
             eyebrow={t('admin.auditLogs.table.eyebrow')}
             title={t('admin.auditLogs.table.title')}
             description={t('admin.auditLogs.table.description')}
-            toolbar={
-                <button
-                    type="button"
-                    className={uiClassNames.button.secondary}
-                    onClick={onRefresh}
-                    disabled={isRefreshing}
-                >
-                    <RefreshCw
-                        aria-hidden="true"
-                        className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
-                    />
-                    {t('admin.auditLogs.actions.refresh')}
-                </button>
-            }
             filterToggle={
                 <TableFilterToggle
                     contentId={filterPanel.contentId}
@@ -138,41 +121,23 @@ export default function AuditLogsTable({
                     onReset={onResetFilters}
                 >
                     {(resetButton) => (
-                        <form
-                            className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3 items-end"
-                            onSubmit={(event) => {
-                                event.preventDefault()
-                                onApplyFilters()
-                            }}
-                        >
-                            <label className="grid min-w-0 gap-1.5">
+                        <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3 items-end">
+                            <div className="grid min-w-0 gap-1.5">
                                 <span className="text-xs font-extrabold text-muted">
                                     {t('admin.auditLogs.filters.actor')}
                                 </span>
-                                <input
-                                    type="text"
-                                    value={filters.actorUserId}
-                                    maxLength={36}
-                                    placeholder={t('admin.auditLogs.filters.actorPlaceholder')}
-                                    onChange={(event) => onActorChange(event.target.value)}
-                                    aria-invalid={filterErrors.actorUserId !== undefined}
-                                    aria-describedby={
-                                        filterErrors.actorUserId
-                                            ? 'audit-log-actor-error'
-                                            : undefined
-                                    }
+                                <SelectControl
+                                    ariaLabel={t('admin.auditLogs.filters.actor')}
                                     className={tableControlClassName}
+                                    onValueChange={onActorChange}
+                                    options={actorOptions.map((option) => ({
+                                        label: option.displayName,
+                                        value: option.id,
+                                    }))}
+                                    placeholder={t('admin.auditLogs.filters.actorPlaceholder')}
+                                    value={filters.actorUserId}
                                 />
-                                {filterErrors.actorUserId ? (
-                                    <span
-                                        id="audit-log-actor-error"
-                                        role="alert"
-                                        className="text-xs text-danger-text"
-                                    >
-                                        {t(filterErrors.actorUserId)}
-                                    </span>
-                                ) : null}
-                            </label>
+                            </div>
                             <label className="grid min-w-0 gap-1.5">
                                 <span className="text-xs font-extrabold text-muted">
                                     {t('admin.auditLogs.filters.action')}
@@ -251,16 +216,7 @@ export default function AuditLogsTable({
                                     }
                                 />
                             </label>
-                            <div className="flex flex-wrap items-end gap-2">
-                                <button
-                                    type="submit"
-                                    className={uiClassNames.button.primary}
-                                    disabled={isRefreshing}
-                                >
-                                    {t('admin.auditLogs.actions.apply')}
-                                </button>
-                                {resetButton}
-                            </div>
+                            <div className="flex flex-wrap items-end gap-2">{resetButton}</div>
                             {filterErrors.dateRange ? (
                                 <span
                                     id="audit-date-range-error"
@@ -270,7 +226,7 @@ export default function AuditLogsTable({
                                     {t(filterErrors.dateRange)}
                                 </span>
                             ) : null}
-                        </form>
+                        </div>
                     )}
                 </TableFilters>
             }
@@ -297,7 +253,7 @@ export default function AuditLogsTable({
                             type="button"
                             className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
                             onClick={onPreviousPage}
-                            disabled={pageNumber === 1 || isRefreshing}
+                            disabled={pageNumber === 1 || isLoading}
                             aria-label={t('admin.auditLogs.pagination.previous')}
                         >
                             <ChevronLeft aria-hidden="true" className="size-4" />
@@ -306,7 +262,7 @@ export default function AuditLogsTable({
                             type="button"
                             className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
                             onClick={onNextPage}
-                            disabled={!hasMore || isRefreshing}
+                            disabled={!hasMore || isLoading}
                             aria-label={t('admin.auditLogs.pagination.next')}
                         >
                             <ChevronRight aria-hidden="true" className="size-4" />

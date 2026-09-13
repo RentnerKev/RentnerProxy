@@ -37,7 +37,7 @@ export default function FoundationStatusPage() {
                     }
                 />
             ) : (
-                <FoundationStatus health={state.data} compact />
+                <FoundationStatus health={state.data} liveStatus={state.liveStatus} compact />
             )}
         </>
     )

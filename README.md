@@ -137,6 +137,14 @@ and TCP/UDP port mappings, alongside the backup: these settings are not stored i
 
 Development setup and checks are in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
+### Live administration
+
+The management UI shares one native Bun WebSocket connection per visible browser tab. Changes to hosts, users, profile pictures, permissions, and settings invalidate the affected visible views. Application events are also distributed through the existing Redis connection setup. Expired or revoked sessions are revalidated through the same authorization services as HTTP requests.
+
+Pages subscribe only to the data they display. Access logs stop streaming when their page is left, a historical page is selected, or the tab becomes hidden. Returning opens a fresh subscription. Controller-backed log and runtime changes are sampled on the server only while subscribed; the browser does not poll them. The Overview includes the actual WebSocket connection status.
+
+Realtime code lives in `web/src/websockets`, separated into `Client`, `Server`, `Helpers`, and `Types`. Production upgrades share the web server port. Development proxies the same `/api/live` URL to a native Bun listener on a temporary loopback port; no additional public port or realtime credentials are needed.
+
 ### Certificate renewal and retries
 
 ACME certificates become due after two thirds of their actual certificate lifetime. The

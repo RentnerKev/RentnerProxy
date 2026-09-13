@@ -40,6 +40,7 @@ export default function AuditLogsPageView({ logic: { state, handler } }: AuditLo
                 />
             ) : (
                 <AuditLogsTable
+                    actorOptions={state.actorOptions}
                     events={state.events}
                     expandedEventId={state.expandedEventId}
                     formatTimestamp={state.formatTimestamp}
@@ -47,16 +48,13 @@ export default function AuditLogsPageView({ logic: { state, handler } }: AuditLo
                     filterErrors={state.filterErrors}
                     hasMore={state.hasMore}
                     isLoading={state.isLoading}
-                    isRefreshing={state.isRefreshing}
                     pageNumber={state.pageNumber}
                     onActorChange={handler.onActorChange}
                     onActionChange={handler.onActionChange}
                     onResourceChange={handler.onResourceChange}
                     onFromChange={handler.onFromChange}
                     onToChange={handler.onToChange}
-                    onApplyFilters={handler.applyFilters}
                     onResetFilters={handler.resetFilters}
-                    onRefresh={handler.refresh}
                     onPreviousPage={handler.previousPage}
                     onNextPage={handler.nextPage}
                     onToggleDetails={handler.onToggleDetails}

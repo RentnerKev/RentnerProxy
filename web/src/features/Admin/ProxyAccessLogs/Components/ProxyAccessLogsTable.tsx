@@ -1,4 +1,3 @@
-import { RefreshCw } from 'lucide-react'
 import { Fragment } from 'react'
 import useProxyAccessLogsFilterOptions from '../Hooks/useProxyAccessLogsFilterOptions'
 
@@ -12,7 +11,6 @@ import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBo
 import RemoteTablePagination from '../../../../shared/Table/Components/RemoteTablePagination'
 import SelectControl from '../../../../shared/Select'
 import { ActionMenu } from '../../../../shared/ActionMenu'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { Tooltip } from '../../../../shared/Tooltip'
 import type { ProxyAccessLogEntry } from '../../../../shared/Types/proxy-access-logs.types'
 import {
@@ -69,13 +67,10 @@ export default function ProxyAccessLogsTable({
     pageSize,
     currentPage,
     isLoading,
-    isRefreshing,
     onHostChange,
     onStatusChange,
     onSearchChange,
-    onApplyFilters,
     onResetFilters,
-    onRefresh,
     onPageChange,
     onPageSizeChange,
     onToggleDetails,
@@ -99,20 +94,6 @@ export default function ProxyAccessLogsTable({
             eyebrow={t('admin.proxyAccessLogs.table.eyebrow')}
             title={t('admin.proxyAccessLogs.table.title')}
             description={t('admin.proxyAccessLogs.table.description')}
-            toolbar={
-                <button
-                    type="button"
-                    className={uiClassNames.button.secondary}
-                    onClick={onRefresh}
-                    disabled={isRefreshing}
-                >
-                    <RefreshCw
-                        aria-hidden="true"
-                        className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
-                    />
-                    {t('admin.proxyAccessLogs.actions.refresh')}
-                </button>
-            }
             filterToggle={
                 <TableFilterToggle
                     contentId={filterPanel.contentId}
@@ -129,13 +110,7 @@ export default function ProxyAccessLogsTable({
                     onReset={onResetFilters}
                 >
                     {(resetButton) => (
-                        <form
-                            className="grid min-w-0 items-end gap-4 sm:grid-cols-2 lg:grid-cols-4"
-                            onSubmit={(event) => {
-                                event.preventDefault()
-                                onApplyFilters()
-                            }}
-                        >
+                        <div className="grid min-w-0 items-end gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <div className="grid min-w-0 gap-1.5">
                                 <span className="text-xs font-extrabold text-muted">
                                     {t('admin.proxyAccessLogs.filters.host')}
@@ -223,17 +198,8 @@ export default function ProxyAccessLogsTable({
                                     </span>
                                 ) : null}
                             </label>
-                            <div className="flex flex-wrap items-end gap-2">
-                                <button
-                                    type="submit"
-                                    className={uiClassNames.button.primary}
-                                    disabled={isRefreshing}
-                                >
-                                    {t('admin.proxyAccessLogs.actions.apply')}
-                                </button>
-                                {resetButton}
-                            </div>
-                        </form>
+                            <div className="flex flex-wrap items-end gap-2">{resetButton}</div>
+                        </div>
                     )}
                 </TableFilters>
             }
@@ -261,7 +227,7 @@ export default function ProxyAccessLogsTable({
                             itemLabel={t('admin.proxyAccessLogs.pagination.itemLabel')}
                             onPageChange={(nextPageIndex) => onPageChange(nextPageIndex + 1)}
                             onPageSizeChange={onPageSizeChange}
-                            disabled={isLoading || isRefreshing}
+                            disabled={isLoading}
                         />
                     </div>
                 )

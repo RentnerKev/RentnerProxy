@@ -43,7 +43,7 @@ export default function TableColumnFilters<TData extends RowData>({
                             </table.Subscribe>
                         </div>
                     )
-                    if (!resetButton || index !== headers.length - 1) return field
+                    if (index !== headers.length - 1) return field
 
                     const desktopSpan = ['xl:col-span-3', 'xl:col-span-2', 'xl:col-span-1'][
                         index % 3
