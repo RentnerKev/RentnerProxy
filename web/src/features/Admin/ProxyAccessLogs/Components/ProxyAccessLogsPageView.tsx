@@ -43,6 +43,8 @@ export default function ProxyAccessLogsPageView({
             ) : (
                 <ProxyAccessLogsTable
                     entries={state.entries}
+                    availableHosts={state.availableHosts}
+                    availableStatuses={state.availableStatuses}
                     expandedEntry={state.expandedEntry}
                     formatTimestamp={state.formatTimestamp}
                     filters={state.filters}

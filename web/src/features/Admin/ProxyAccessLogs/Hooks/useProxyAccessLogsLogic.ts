@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { PERMISSIONS } from '../../../../config/permissions.config'
 import useTranslationStore from '../../../../language/useTranslationStore'
@@ -132,6 +132,14 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
         setCaptureVersion((current) => current + 1)
         setExpandedEntry(null)
     }, [])
+    useEffect(() => {
+        if (draftFilters.search === filters.search) return
+
+        const timeout = setTimeout(() => {
+            applyFilters()
+        }, 300)
+        return () => clearTimeout(timeout)
+    }, [applyFilters, draftFilters.search, filters.search])
     const refresh = useCallback(async () => {
         await queryClient.invalidateQueries({
             queryKey: proxyAccessLogsQueryKeys.all,
@@ -173,6 +181,8 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
         state: {
             canView,
             entries,
+            availableHosts: logsQuery.data?.availableHosts ?? [],
+            availableStatuses: logsQuery.data?.availableStatuses ?? [],
             expandedEntry,
             formatTimestamp,
             filterErrors,

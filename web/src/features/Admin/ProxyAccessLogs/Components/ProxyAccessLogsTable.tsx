@@ -1,5 +1,6 @@
 import { RefreshCw } from 'lucide-react'
 import { Fragment } from 'react'
+import useProxyAccessLogsFilterOptions from '../Hooks/useProxyAccessLogsFilterOptions'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
 import TableBodyState from '../../../../shared/Table/Components/TableBodyState'
@@ -9,6 +10,7 @@ import useTableFilters from '../../../../shared/Table/Hooks/useTableFilters'
 import TableLayout from '../../../../shared/Table/Components/TableLayout'
 import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBody'
 import RemoteTablePagination from '../../../../shared/Table/Components/RemoteTablePagination'
+import SelectControl from '../../../../shared/Select'
 import { ActionMenu } from '../../../../shared/ActionMenu'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { Tooltip } from '../../../../shared/Tooltip'
@@ -21,6 +23,8 @@ import {
     withoutQueryString,
 } from '../Helpers/proxyAccessLogs'
 import type { ProxyAccessLogsTableProps } from '../Types/proxy-access-logs.types'
+import ClientIpCountry from './ClientIpCountry'
+import ProxyAccessLogsHostFilter from './ProxyAccessLogsHostFilter'
 
 const tableControlClassName =
     'h-12 min-w-0 w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink outline-hidden transition-[border-color,box-shadow] placeholder:text-muted-soft focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/20'
@@ -53,6 +57,8 @@ function LogDetails({ entry }: { readonly entry: ProxyAccessLogEntry }) {
 
 export default function ProxyAccessLogsTable({
     entries,
+    availableHosts,
+    availableStatuses,
     expandedEntry,
     formatTimestamp,
     filters,
@@ -76,6 +82,11 @@ export default function ProxyAccessLogsTable({
 }: ProxyAccessLogsTableProps) {
     const { locale, t } = useTranslationStore()
     const filterPanel = useTableFilters()
+    const { hostOptions, statusOptions } = useProxyAccessLogsFilterOptions({
+        availableHosts,
+        availableStatuses,
+        entries,
+    })
     const activeFilterCount = [
         filters.host.trim(),
         filters.status.trim(),
@@ -118,27 +129,31 @@ export default function ProxyAccessLogsTable({
                     onReset={onResetFilters}
                 >
                     <form
-                        className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3 items-end"
+                        className="grid min-w-0 items-end gap-4 sm:grid-cols-2 lg:grid-cols-4"
                         onSubmit={(event) => {
                             event.preventDefault()
                             onApplyFilters()
                         }}
                     >
-                        <label className="grid min-w-0 gap-1.5">
+                        <div className="grid min-w-0 gap-1.5">
                             <span className="text-xs font-extrabold text-muted">
                                 {t('admin.proxyAccessLogs.filters.host')}
                             </span>
-                            <input
-                                type="text"
-                                value={filters.host}
-                                maxLength={254}
-                                placeholder={t('admin.proxyAccessLogs.filters.hostPlaceholder')}
-                                onChange={(event) => onHostChange(event.target.value)}
-                                aria-invalid={filterErrors.host !== undefined}
-                                aria-describedby={
+                            <ProxyAccessLogsHostFilter
+                                allHostsLabel={t('admin.proxyAccessLogs.filters.allHosts')}
+                                ariaDescribedBy={
                                     filterErrors.host ? 'proxy-log-host-error' : undefined
                                 }
-                                className={tableControlClassName}
+                                invalid={filterErrors.host !== undefined}
+                                label={t('admin.proxyAccessLogs.filters.host')}
+                                noResultsLabel={t('admin.proxyAccessLogs.filters.noHosts')}
+                                onChange={onHostChange}
+                                options={hostOptions}
+                                placeholder={t('admin.proxyAccessLogs.filters.hostPlaceholder')}
+                                searchPlaceholder={t(
+                                    'admin.proxyAccessLogs.filters.hostSearchPlaceholder',
+                                )}
+                                value={filters.host}
                             />
                             {filterErrors.host ? (
                                 <span
@@ -149,25 +164,25 @@ export default function ProxyAccessLogsTable({
                                     {t(filterErrors.host)}
                                 </span>
                             ) : null}
-                        </label>
+                        </div>
                         <label className="grid min-w-0 gap-1.5">
                             <span className="text-xs font-extrabold text-muted">
                                 {t('admin.proxyAccessLogs.filters.status')}
                             </span>
-                            <input
-                                type="number"
-                                value={filters.status}
-                                min={100}
-                                max={599}
-                                step={1}
-                                inputMode="numeric"
-                                placeholder={t('admin.proxyAccessLogs.filters.statusPlaceholder')}
-                                onChange={(event) => onStatusChange(event.target.value)}
-                                aria-invalid={filterErrors.status !== undefined}
-                                aria-describedby={
+                            <SelectControl
+                                ariaLabel={t('admin.proxyAccessLogs.filters.status')}
+                                className="w-full"
+                                describedBy={
                                     filterErrors.status ? 'proxy-log-status-error' : undefined
                                 }
-                                className={tableControlClassName}
+                                invalid={filterErrors.status !== undefined}
+                                onValueChange={onStatusChange}
+                                options={statusOptions.map((status) => ({
+                                    label: String(status),
+                                    value: String(status),
+                                }))}
+                                placeholder={t('admin.proxyAccessLogs.filters.allStatuses')}
+                                value={filters.status}
                             />
                             {filterErrors.status ? (
                                 <span
@@ -248,18 +263,7 @@ export default function ProxyAccessLogsTable({
             }
         >
             <div className="overflow-x-auto">
-                <table className="w-full min-w-[64rem] table-fixed border-collapse">
-                    <colgroup>
-                        <col className="w-44" />
-                        <col className="w-32" />
-                        <col className="w-20" />
-                        <col />
-                        <col className="w-20" />
-                        <col className="w-24" />
-                        <col className="w-28" />
-                        <col className="w-20" />
-                        <col className="w-20" />
-                    </colgroup>
+                <table className="w-full min-w-[64rem] table-auto border-collapse">
                     <thead className="bg-surface-subtle font-mono text-[0.62rem] tracking-[0.07em] text-muted uppercase">
                         <tr>
                             <th
@@ -383,8 +387,8 @@ export default function ProxyAccessLogsTable({
                                             <td className="whitespace-nowrap px-4 py-[0.85rem] align-middle font-mono text-xs text-muted">
                                                 {formatDuration(entry.durationMs)}
                                             </td>
-                                            <td className="max-w-44 break-all px-4 py-[0.85rem] align-middle font-mono text-xs text-muted">
-                                                {entry.clientIp}
+                                            <td className="whitespace-nowrap px-4 py-[0.85rem] align-middle font-mono text-xs text-muted">
+                                                <ClientIpCountry entry={entry} />
                                             </td>
                                             <td className="whitespace-nowrap px-4 py-[0.85rem] align-middle font-mono text-xs text-muted">
                                                 {formatBytes(entry.bytes, locale)}

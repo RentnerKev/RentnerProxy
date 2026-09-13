@@ -17,6 +17,7 @@ pub(crate) const MAX_SNAPSHOTS: usize = 8;
 pub(crate) const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 pub(crate) const MAX_SINGLE_SNAPSHOT_BYTES: usize = MAX_LOG_BYTES;
 const MAX_SNAPSHOT_ID: usize = 64;
+const MAX_AVAILABLE_HOSTS: usize = MAX_RECORDS;
 const MAX_PATH: usize = 2048;
 const MAX_HOST: usize = 253;
 const MAX_METHOD: usize = 32;
@@ -139,6 +140,10 @@ pub(crate) struct AccessLogResponse {
     pub limit: usize,
     pub offset: usize,
     pub total: usize,
+    #[serde(rename = "availableHosts")]
+    pub available_hosts: Vec<String>,
+    #[serde(rename = "availableStatuses")]
+    pub available_statuses: Vec<u16>,
     #[serde(rename = "hasMore")]
     pub has_more: bool,
     pub truncated: bool,
@@ -163,6 +168,15 @@ pub(crate) struct AccessLogEntry {
     pub upstream: Option<String>,
     pub bytes: u64,
     pub protocol: String,
+}
+
+fn bounded_available_hosts(hosts: impl IntoIterator<Item = String>) -> Vec<String> {
+    let mut bounded = hosts
+        .into_iter()
+        .take(MAX_AVAILABLE_HOSTS)
+        .collect::<Vec<_>>();
+    bounded.shrink_to_fit();
+    bounded
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -269,6 +283,11 @@ fn matches_query(entry: &AccessLogEntry, query: &ValidatedAccessLogQuery) -> boo
         .is_none_or(|host| entry.host.eq_ignore_ascii_case(host))
         && query.status.is_none_or(|status| entry.status == status)
         && query.search.as_ref().is_none_or(|search| {
+            let search = search.trim();
+            if search.is_empty() {
+                return true;
+            }
+            let search = search.to_ascii_lowercase();
             [
                 entry.host.as_str(),
                 entry.method.as_str(),
@@ -278,7 +297,7 @@ fn matches_query(entry: &AccessLogEntry, query: &ValidatedAccessLogQuery) -> boo
                 entry.upstream.as_deref().unwrap_or(""),
             ]
             .into_iter()
-            .any(|field| field.contains(search))
+            .any(|field| field.to_ascii_lowercase().contains(&search))
         })
 }
 

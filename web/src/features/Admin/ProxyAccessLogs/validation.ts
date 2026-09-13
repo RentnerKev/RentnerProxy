@@ -6,7 +6,9 @@ export const PROXY_ACCESS_LOGS_DEFAULT_LIMIT = 15
 export const PROXY_ACCESS_LOGS_MAX_LIMIT = 200
 export const PROXY_ACCESS_LOGS_MAX_OFFSET = 10_000
 export const PROXY_ACCESS_LOGS_MAX_SEARCH_BYTES = 128
-export const PROXY_ACCESS_LOGS_MAX_RESPONSE_BYTES = 2 * 1_024 * 1_024
+export const PROXY_ACCESS_LOGS_MAX_RESPONSE_BYTES = 4 * 1_024 * 1_024
+export const PROXY_ACCESS_LOGS_MAX_AVAILABLE_HOSTS = 10_000
+export const PROXY_ACCESS_LOGS_MAX_AVAILABLE_STATUSES = 500
 
 // oxlint-disable-next-line no-control-regex -- Access-log filters must reject C0/C1 controls.
 const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F-\u009F]/u
@@ -98,6 +100,11 @@ const proxyAccessLogEntrySchema = z.strictObject({
     status: z.number().int().min(100).max(599),
     durationMs: safeNonNegativeNumberSchema,
     clientIp: responseTextSchema(64),
+    countryCode: z
+        .string()
+        .regex(/^[A-Z]{2}$/u)
+        .nullable()
+        .optional(),
     upstream: responseTextSchema(512).nullable(),
     bytes: safeNonNegativeNumberSchema,
     protocol: responseTextSchema(32),
@@ -109,6 +116,14 @@ export const proxyAccessLogsResultSchema = z
         limit: z.number().int().min(1).max(PROXY_ACCESS_LOGS_MAX_LIMIT),
         offset: z.number().int().min(0).max(PROXY_ACCESS_LOGS_MAX_OFFSET),
         total: z.number().int().min(0).max(PROXY_ACCESS_LOGS_MAX_OFFSET),
+        availableHosts: z
+            .array(responseTextSchema(253))
+            .max(PROXY_ACCESS_LOGS_MAX_AVAILABLE_HOSTS)
+            .default([]),
+        availableStatuses: z
+            .array(z.number().int().min(100).max(599))
+            .max(PROXY_ACCESS_LOGS_MAX_AVAILABLE_STATUSES)
+            .default([]),
         hasMore: z.boolean(),
         truncated: z.boolean(),
         snapshot: snapshotSchema,

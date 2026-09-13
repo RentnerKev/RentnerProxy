@@ -25,6 +25,8 @@ struct CachedSnapshot {
     entries: Vec<AccessLogEntry>,
     total: usize,
     truncated: bool,
+    available_hosts: Vec<String>,
+    available_statuses: Vec<u16>,
     expires_at: Instant,
     expires_at_utc: String,
     bytes: usize,
@@ -88,6 +90,8 @@ impl SnapshotCache {
         let bytes = snapshot_memory_bytes(
             capture_query,
             &capture.entries,
+            &capture.available_hosts,
+            &capture.available_statuses,
             snapshot_id.capacity(),
             expires_at_utc.capacity(),
         );
@@ -111,6 +115,8 @@ impl SnapshotCache {
             total: capture.entries.len(),
             entries: capture.entries,
             truncated: capture.truncated,
+            available_hosts: capture.available_hosts,
+            available_statuses: capture.available_statuses,
             expires_at,
             expires_at_utc,
             bytes,
@@ -183,6 +189,8 @@ fn page_response(
         limit: query.limit,
         offset: query.offset,
         total: snapshot.total,
+        available_hosts: snapshot.available_hosts.clone(),
+        available_statuses: snapshot.available_statuses.clone(),
         has_more,
         truncated: snapshot.truncated,
         snapshot: snapshot_id.to_owned(),
@@ -194,6 +202,8 @@ fn page_response(
 fn snapshot_memory_bytes(
     query: &ValidatedAccessLogQuery,
     entries: &Vec<AccessLogEntry>,
+    available_hosts: &[String],
+    available_statuses: &[u16],
     snapshot_id_capacity: usize,
     expires_at_capacity: usize,
 ) -> usize {
@@ -202,6 +212,10 @@ fn snapshot_memory_bytes(
         .saturating_add(snapshot_id_capacity)
         .saturating_add(expires_at_capacity)
         .saturating_add(query_memory_bytes(query))
+        .saturating_add(available_filters_memory_bytes(
+            available_hosts,
+            available_statuses,
+        ))
         .saturating_add(
             entries
                 .capacity()
@@ -239,9 +253,15 @@ pub(super) fn cap_snapshot_entries(
     entries: Vec<AccessLogEntry>,
     query: &ValidatedAccessLogQuery,
     mut truncated: bool,
+    available_hosts: &[String],
+    available_statuses: &[u16],
 ) -> (Vec<AccessLogEntry>, bool) {
     let base = SNAPSHOT_FIXED_BYTES
         .saturating_add(query_memory_bytes(query))
+        .saturating_add(available_filters_memory_bytes(
+            available_hosts,
+            available_statuses,
+        ))
         .saturating_add(SNAPSHOT_ID_BYTES * 2)
         .saturating_add(64);
     let mut used = base;
@@ -261,7 +281,8 @@ pub(super) fn cap_snapshot_entries(
     let mut bounded = Vec::with_capacity(keep);
     bounded.extend(entries.into_iter().take(keep));
     bounded.shrink_to_fit();
-    while snapshot_memory_bytes(query, &bounded, 64, 64) > MAX_SINGLE_SNAPSHOT_BYTES
+    while snapshot_memory_bytes(query, &bounded, available_hosts, available_statuses, 64, 64)
+        > MAX_SINGLE_SNAPSHOT_BYTES
         && !bounded.is_empty()
     {
         let next_len = bounded.len().saturating_sub(1);
@@ -269,6 +290,14 @@ pub(super) fn cap_snapshot_entries(
         truncated = true;
     }
     (bounded, truncated)
+}
+
+fn available_filters_memory_bytes(hosts: &[String], statuses: &[u16]) -> usize {
+    hosts
+        .len()
+        .saturating_mul(size_of::<String>())
+        .saturating_add(hosts.iter().map(String::capacity).sum::<usize>())
+        .saturating_add(statuses.len().saturating_mul(size_of::<u16>()))
 }
 
 #[cfg(test)]
@@ -303,11 +332,56 @@ mod tests {
             bytes: 0,
             protocol: "HTTP/2".into(),
         });
-        assert!(snapshot_memory_bytes(&query, &entries, 64, 64) > MAX_SINGLE_SNAPSHOT_BYTES);
-        let (bounded, truncated) = cap_snapshot_entries(entries, &query, false);
+        assert!(
+            snapshot_memory_bytes(&query, &entries, &[], &[], 64, 64) > MAX_SINGLE_SNAPSHOT_BYTES
+        );
+        let (bounded, truncated) = cap_snapshot_entries(entries, &query, false, &[], &[]);
         assert!(!truncated);
         assert_eq!(bounded.len(), 1);
-        assert!(snapshot_memory_bytes(&query, &bounded, 64, 64) < 4096);
+        assert!(snapshot_memory_bytes(&query, &bounded, &[], &[], 64, 64) < 4096);
+    }
+
+    #[test]
+    fn metadata_is_reserved_before_truncating_snapshot_entries() {
+        let query = query();
+        let hosts = (0..1000)
+            .map(|index| format!("host-{index}.{}.example", "a".repeat(200)))
+            .collect::<Vec<_>>();
+        let statuses = vec![200];
+        let entry = AccessLogEntry {
+            timestamp: "2026-09-13T00:00:00Z".into(),
+            host: "app.example".into(),
+            method: "GET".into(),
+            path: format!("/{}", "a".repeat(2047)),
+            status: 200,
+            duration_ms: 1,
+            client_ip: "192.0.2.1".into(),
+            upstream: None,
+            bytes: 0,
+            protocol: "HTTP/2".into(),
+        };
+        let (entries, truncated) =
+            cap_snapshot_entries(vec![entry; 2000], &query, false, &hosts, &statuses);
+        assert!(truncated);
+        assert!(!entries.is_empty());
+        let cache = SnapshotCache::new();
+        let response = cache
+            .insert(
+                &query,
+                &query,
+                CapturedLogs {
+                    entries,
+                    truncated,
+                    available_hosts: hosts,
+                    available_statuses: statuses,
+                },
+                false,
+                Instant::now(),
+            )
+            .unwrap();
+        assert_eq!(response.available_hosts.len(), 1000);
+        assert!(response.truncated);
+        assert!(cache.state.lock().unwrap().bytes <= MAX_SINGLE_SNAPSHOT_BYTES);
     }
 
     #[test]
@@ -323,6 +397,8 @@ mod tests {
                     CapturedLogs {
                         entries,
                         truncated: false,
+                        available_hosts: Vec::new(),
+                        available_statuses: Vec::new(),
                     },
                     false,
                     Instant::now(),

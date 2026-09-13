@@ -20,6 +20,8 @@ export type ProxyAccessLogsFilterErrors = Partial<Record<keyof ProxyAccessLogsFi
 
 export interface ProxyAccessLogsTableProps {
     readonly entries: readonly ProxyAccessLogEntry[]
+    readonly availableHosts: readonly string[]
+    readonly availableStatuses: readonly number[]
     readonly expandedEntry: string | null
     readonly formatTimestamp: (value: string) => string
     readonly filters: ProxyAccessLogsFilters

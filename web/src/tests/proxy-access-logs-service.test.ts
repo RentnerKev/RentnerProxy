@@ -11,6 +11,8 @@ const serviceScript = `
         limit: 100,
         offset: 0,
         total: 0,
+        availableHosts: [],
+        availableStatuses: [],
         hasMore: false,
         truncated: false,
     }
@@ -26,6 +28,15 @@ const serviceScript = `
             calls.push(query)
             return expectedResult
         },
+    }))
+    mock.module('./server/Auth/Core/database.server.ts', () => ({
+        getAuthDatabase: () => ({
+            select: () => ({
+                from: () => ({
+                    orderBy: async () => [{ domain: 'demo.test' }],
+                }),
+            }),
+        }),
     }))
 
     const { getProxyAccessLogsService } = await import(
@@ -69,6 +80,8 @@ describe('proxy access-log service authorization', () => {
             limit: 100,
             offset: 0,
             total: 0,
+            availableHosts: ['demo.test'],
+            availableStatuses: [],
             hasMore: false,
             truncated: false,
         })
