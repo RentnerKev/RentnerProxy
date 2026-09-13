@@ -1,6 +1,6 @@
 export interface SelectControlOption {
+    readonly countryCode?: string | undefined
     readonly disabled?: boolean | undefined
-    readonly imageSrc?: string | undefined
     readonly label: string
     readonly value: string
 }

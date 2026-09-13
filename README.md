@@ -223,13 +223,11 @@ keeps at most eight snapshots within a 16 MiB cache. They are temporary, are los
 and are excluded from backups. The existing bounded log scan and visible truncation notice
 still apply; pagination does not promise access to logs beyond that retained window.
 
-Client IPs include country flags when the bundled local GeoIP database can resolve them.
-Lookups do not send client addresses to an external service. Private and unknown addresses
-have no flag; IP geolocation is approximate and describes the logged address, which may be
-a forwarding proxy. Database updates ship with updates to the pinned `geoip-country` package.
-This product includes GeoLite2 Data created by [MaxMind](https://www.maxmind.com/), distributed
-under the GeoLite2 terms included in `geoip-country/LICENSE` and `geoip-country/EULA`.
-Flag artwork is provided by [flag-icons](https://github.com/lipis/flag-icons) under the MIT license.
+Access logs render a country flag when the stored entry supplies a country code.
+The web service and UI do not perform GeoIP lookups. Unknown countries have no flag.
+Country flags in access logs and language settings use
+[country-flag-icons](https://github.com/catamphetamine/country-flag-icons) under the MIT license.
+Language flags do not depend on a GeoIP database.
 
 ### Certificates requested from proxy hosts
 

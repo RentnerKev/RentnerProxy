@@ -5,8 +5,8 @@ import type { Root } from 'react-dom/client'
 
 import {
     AVAILABLE_LANGUAGES,
-    FLAG_IMAGES,
     isAppLanguage,
+    LANGUAGE_COUNTRY_CODES,
     LANGUAGE_RESOURCE_LOADERS,
 } from '../config/language.config'
 import { emailSchema } from '../features/Auth/Shared/validation'
@@ -50,7 +50,7 @@ function PickerProbe() {
             options={AVAILABLE_LANGUAGES.map((value) => ({
                 value,
                 label: t(`language.names.${value}`),
-                imageSrc: FLAG_IMAGES[value],
+                countryCode: LANGUAGE_COUNTRY_CODES[value],
             }))}
             onValueChange={(value) => {
                 if (isAppLanguage(value)) void setLanguage?.(value)
@@ -101,7 +101,7 @@ describe('authenticated language UI', () => {
         expect(renderToString(withTestLanguage(<LanguageProbe />, 'de'))).toBe(german)
         const dropdown = renderToString(withTestLanguage(<PickerProbe />, 'de'))
         expect(dropdown).toContain('Deutsch')
-        expect(dropdown).toContain(FLAG_IMAGES.de)
+        expect(dropdown).toContain('flag:DE')
     })
 
     test('preserves the selected language through StrictMode effect replay', async () => {
@@ -172,7 +172,7 @@ describe('authenticated language UI', () => {
     test('shows all four flags in the dropdown and keeps the selected flag after switching', async () => {
         const container = await render(withTestLanguage(<PickerProbe />))
         const trigger = container.querySelector<HTMLButtonElement>('[role="combobox"]')!
-        expect(trigger.querySelector('img')?.getAttribute('src')).toBe(FLAG_IMAGES.en)
+        expect(trigger.querySelector('[class*="flag:GB"]')).not.toBeNull()
         await act(async () => {
             trigger.dispatchEvent(
                 new PointerEvent('pointerdown', {
@@ -186,9 +186,13 @@ describe('authenticated language UI', () => {
         await waitFor(() => document.querySelector('[role="listbox"]') !== null)
         const options = [...document.querySelectorAll<HTMLElement>('[role="option"]')]
         expect(options.length).toBe(4)
-        expect(options.map((option) => option.querySelector('img')?.getAttribute('src'))).toEqual(
-            AVAILABLE_LANGUAGES.map((language) => FLAG_IMAGES[language]),
-        )
+        for (const language of AVAILABLE_LANGUAGES) {
+            expect(
+                options.some((option) =>
+                    option.querySelector(`[class*="flag:${LANGUAGE_COUNTRY_CODES[language]}"]`),
+                ),
+            ).toBe(true)
+        }
         const german = options.find((option) => option.textContent?.trim() === 'German')!
         await act(async () => {
             german.dispatchEvent(
@@ -202,7 +206,7 @@ describe('authenticated language UI', () => {
             german.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
         })
         await waitFor(() => trigger.textContent?.trim() === 'Deutsch')
-        expect(trigger.querySelector('img')?.getAttribute('src')).toBe(FLAG_IMAGES.de)
+        expect(trigger.querySelector('[class*="flag:DE"]')).not.toBeNull()
         expect(trigger.getAttribute('aria-label')).toBe('Anzeigesprache')
     })
 

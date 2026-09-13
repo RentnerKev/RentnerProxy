@@ -6,7 +6,7 @@ export interface ProxyAccessLogEntry {
     readonly status: number
     readonly durationMs: number
     readonly clientIp: string
-    readonly countryCode?: string | null
+    readonly countryCode?: string | null | undefined
     readonly upstream: string | null
     readonly bytes: number
     readonly protocol: string

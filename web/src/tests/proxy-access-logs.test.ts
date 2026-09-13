@@ -44,6 +44,27 @@ function restoreControllerEnvironment(): void {
 afterEach(restoreControllerEnvironment)
 
 describe('proxy access-log validation', () => {
+    test('preserves stored country codes and rejects malformed values', () => {
+        const result = {
+            entries: [{ ...entry, countryCode: 'DE' }],
+            limit: 15,
+            offset: 0,
+            total: 1,
+            hasMore: false,
+            truncated: false,
+            ...snapshotMetadata,
+        }
+        expect(proxyAccessLogsResultSchema.parse(result).entries[0]?.countryCode).toBe('DE')
+        for (const countryCode of ['de', 'USA', '../DE']) {
+            expect(
+                proxyAccessLogsResultSchema.safeParse({
+                    ...result,
+                    entries: [{ ...entry, countryCode }],
+                }).success,
+            ).toBeFalse()
+        }
+    })
+
     test('requires valid snapshot metadata and resets only to the first page', () => {
         const result = {
             entries: [],

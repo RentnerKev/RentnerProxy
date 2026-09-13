@@ -29,13 +29,13 @@ describe('client IP country display', () => {
         )
         expect(html).toContain('8.8.8.8')
         expect(html).toContain('whitespace-nowrap')
-        expect(html).toContain('fi-us')
+        expect(html).toContain('flag:US')
         expect(html).toContain('Vereinigte Staaten')
         expect(html).not.toContain('http')
     })
 
     test('shows just the IP for unknown or invalid country codes', () => {
-        for (const countryCode of [null, '', '../us', 'USA']) {
+        for (const countryCode of [null, '', '../us', 'USA', 'ZZ']) {
             const html = renderToStaticMarkup(
                 withTestLanguage(
                     <TooltipProvider>
@@ -44,7 +44,7 @@ describe('client IP country display', () => {
                 ),
             )
             expect(html).toContain(entry.clientIp)
-            expect(html).not.toContain('fi-')
+            expect(html).not.toContain('flag:')
         }
     })
 })

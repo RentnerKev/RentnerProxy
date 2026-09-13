@@ -100,6 +100,11 @@ const proxyAccessLogEntrySchema = z.strictObject({
     status: z.number().int().min(100).max(599),
     durationMs: safeNonNegativeNumberSchema,
     clientIp: responseTextSchema(64),
+    countryCode: z
+        .string()
+        .regex(/^[A-Z]{2}$/u)
+        .nullable()
+        .optional(),
     upstream: responseTextSchema(512).nullable(),
     bytes: safeNonNegativeNumberSchema,
     protocol: responseTextSchema(32),

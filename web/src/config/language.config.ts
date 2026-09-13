@@ -21,11 +21,11 @@ export const LANGUAGE_LOCALES: Record<AppLanguage, string> = {
     fr: 'fr-FR',
 }
 
-export const FLAG_IMAGES: Record<AppLanguage, string> = {
-    en: '/images/flags/en.svg',
-    de: '/images/flags/de.svg',
-    es: '/images/flags/es.svg',
-    fr: '/images/flags/fr.svg',
+export const LANGUAGE_COUNTRY_CODES: Record<AppLanguage, string> = {
+    en: 'GB',
+    de: 'DE',
+    es: 'ES',
+    fr: 'FR',
 }
 
 export const PUBLIC_ENGLISH: Record<string, string> = {

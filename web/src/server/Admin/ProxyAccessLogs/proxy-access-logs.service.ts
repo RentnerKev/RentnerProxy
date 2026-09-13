@@ -13,7 +13,6 @@ import { getAuthDatabase } from '../../Auth/Core/database.server'
 import { getProxyAccessLogs } from '../../Foundation/controller.server'
 import { proxyAccessLogsQuerySchema } from '../../../features/Admin/ProxyAccessLogs/validation'
 import { PERMISSIONS } from '../../../config/permissions.config'
-import { clientCountryCode } from './client-country'
 
 async function configuredProxyHostDomains(): Promise<readonly string[]> {
     const rows = await getAuthDatabase()
@@ -43,12 +42,5 @@ export async function getProxyAccessLogsService(
     const availableStatuses = [...new Set(result.availableStatuses ?? [])].toSorted(
         (left, right) => left - right,
     )
-    const entries = []
-    for (const entry of result.entries) {
-        entries.push({
-            ...entry,
-            countryCode: clientCountryCode(entry.clientIp),
-        })
-    }
-    return { ...result, availableHosts, availableStatuses, entries }
+    return { ...result, availableHosts, availableStatuses }
 }
