@@ -3,10 +3,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { createElement, useMemo } from 'react'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
-import {
-    createDateRangeFilter,
-    createTrimmedIncludesStringFilter,
-} from '../../../../shared/Table/Helpers/tableFilters'
+import { createDateRangeFilter } from '../../../../shared/Table/Helpers/tableFilters'
 import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
 import ProxyHostTableActions from '../Components/ProxyHostTableActions'
@@ -18,7 +15,6 @@ import {
 } from '../Components/ProxyHostTableCells'
 import type { ProxyHostTableActionProps } from '../Types/proxy-host-table.types'
 
-const textFilter = createTrimmedIncludesStringFilter<ProxyHostSummary>()
 const dateFilter = createDateRangeFilter<ProxyHostSummary>()
 
 export default function useProxyHostsTableColumns({
@@ -44,7 +40,7 @@ export default function useProxyHostsTableColumns({
                 accessorFn: (host) => host.domains.join(' '),
                 header: t('admin.proxyHosts.columns.domains'),
                 sortFn: 'text',
-                filterFn: textFilter,
+                filterFn: (row, _columnId, value) => row.original.domains.includes(String(value)),
                 enableGlobalFilter: true,
                 cell: ({ row }) =>
                     createElement(ProxyHostDomainsCell, { domains: row.original.domains }),

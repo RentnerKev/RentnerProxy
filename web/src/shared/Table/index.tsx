@@ -89,10 +89,15 @@ export default function DataTable<TData extends RowData>({
                                 activeCount={count + (searchInput.trim() ? 1 : 0)}
                                 onReset={onResetFilters}
                             >
-                                <TableColumnFilters
-                                    table={table}
-                                    filterConfigs={columnFilterConfigs}
-                                />
+                                {(resetButton) => (
+                                    <div className="grid min-w-0 items-end gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                        <TableColumnFilters
+                                            table={table}
+                                            filterConfigs={columnFilterConfigs}
+                                            resetButton={resetButton}
+                                        />
+                                    </div>
+                                )}
                             </TableFilters>
                         )}
                     </table.Subscribe>

@@ -137,132 +137,141 @@ export default function AuditLogsTable({
                     activeCount={activeFilterCount}
                     onReset={onResetFilters}
                 >
-                    <form
-                        className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3 items-end"
-                        onSubmit={(event) => {
-                            event.preventDefault()
-                            onApplyFilters()
-                        }}
-                    >
-                        <label className="grid min-w-0 gap-1.5">
-                            <span className="text-xs font-extrabold text-muted">
-                                {t('admin.auditLogs.filters.actor')}
-                            </span>
-                            <input
-                                type="text"
-                                value={filters.actorUserId}
-                                maxLength={36}
-                                placeholder={t('admin.auditLogs.filters.actorPlaceholder')}
-                                onChange={(event) => onActorChange(event.target.value)}
-                                aria-invalid={filterErrors.actorUserId !== undefined}
-                                aria-describedby={
-                                    filterErrors.actorUserId ? 'audit-log-actor-error' : undefined
-                                }
-                                className={tableControlClassName}
-                            />
-                            {filterErrors.actorUserId ? (
-                                <span
-                                    id="audit-log-actor-error"
-                                    role="alert"
-                                    className="text-xs text-danger-text"
+                    {(resetButton) => (
+                        <form
+                            className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3 items-end"
+                            onSubmit={(event) => {
+                                event.preventDefault()
+                                onApplyFilters()
+                            }}
+                        >
+                            <label className="grid min-w-0 gap-1.5">
+                                <span className="text-xs font-extrabold text-muted">
+                                    {t('admin.auditLogs.filters.actor')}
+                                </span>
+                                <input
+                                    type="text"
+                                    value={filters.actorUserId}
+                                    maxLength={36}
+                                    placeholder={t('admin.auditLogs.filters.actorPlaceholder')}
+                                    onChange={(event) => onActorChange(event.target.value)}
+                                    aria-invalid={filterErrors.actorUserId !== undefined}
+                                    aria-describedby={
+                                        filterErrors.actorUserId
+                                            ? 'audit-log-actor-error'
+                                            : undefined
+                                    }
+                                    className={tableControlClassName}
+                                />
+                                {filterErrors.actorUserId ? (
+                                    <span
+                                        id="audit-log-actor-error"
+                                        role="alert"
+                                        className="text-xs text-danger-text"
+                                    >
+                                        {t(filterErrors.actorUserId)}
+                                    </span>
+                                ) : null}
+                            </label>
+                            <label className="grid min-w-0 gap-1.5">
+                                <span className="text-xs font-extrabold text-muted">
+                                    {t('admin.auditLogs.filters.action')}
+                                </span>
+                                <SelectControl
+                                    ariaLabel={t('admin.auditLogs.filters.action')}
+                                    className={tableControlClassName}
+                                    value={filters.action}
+                                    placeholder={t('admin.auditLogs.filters.allActions')}
+                                    onValueChange={(value) =>
+                                        onActionChange(
+                                            value as AuditLogsTableProps['filters']['action'],
+                                        )
+                                    }
+                                    options={auditActionValues.map((action) => ({
+                                        label: t(`admin.auditLogs.values.actions.${action}`),
+                                        value: action,
+                                    }))}
+                                />
+                            </label>
+                            <label className="grid min-w-0 gap-1.5">
+                                <span className="text-xs font-extrabold text-muted">
+                                    {t('admin.auditLogs.filters.resource')}
+                                </span>
+                                <SelectControl
+                                    ariaLabel={t('admin.auditLogs.filters.resource')}
+                                    className={tableControlClassName}
+                                    value={filters.resource}
+                                    placeholder={t('admin.auditLogs.filters.allResources')}
+                                    onValueChange={(value) =>
+                                        onResourceChange(
+                                            value as AuditLogsTableProps['filters']['resource'],
+                                        )
+                                    }
+                                    options={auditResourceValues.map((resource) => ({
+                                        label: t(`admin.auditLogs.values.resources.${resource}`),
+                                        value: resource,
+                                    }))}
+                                />
+                            </label>
+                            <label className="grid min-w-0 gap-1.5">
+                                <span className="text-xs font-extrabold text-muted">
+                                    {t('admin.auditLogs.filters.from')}
+                                </span>
+                                <DateTimeCalendar
+                                    value={filters.from}
+                                    onValueChange={onFromChange}
+                                    ariaLabel={t('admin.auditLogs.filters.from')}
+                                    invalid={
+                                        filterErrors.from !== undefined ||
+                                        filterErrors.dateRange !== undefined
+                                    }
+                                    describedBy={
+                                        filterErrors.dateRange
+                                            ? 'audit-date-range-error'
+                                            : undefined
+                                    }
+                                />
+                            </label>
+                            <label className="grid min-w-0 gap-1.5">
+                                <span className="text-xs font-extrabold text-muted">
+                                    {t('admin.auditLogs.filters.to')}
+                                </span>
+                                <DateTimeCalendar
+                                    value={filters.to}
+                                    onValueChange={onToChange}
+                                    ariaLabel={t('admin.auditLogs.filters.to')}
+                                    invalid={
+                                        filterErrors.to !== undefined ||
+                                        filterErrors.dateRange !== undefined
+                                    }
+                                    describedBy={
+                                        filterErrors.dateRange
+                                            ? 'audit-date-range-error'
+                                            : undefined
+                                    }
+                                />
+                            </label>
+                            <div className="flex flex-wrap items-end gap-2">
+                                <button
+                                    type="submit"
+                                    className={uiClassNames.button.primary}
+                                    disabled={isRefreshing}
                                 >
-                                    {t(filterErrors.actorUserId)}
+                                    {t('admin.auditLogs.actions.apply')}
+                                </button>
+                                {resetButton}
+                            </div>
+                            {filterErrors.dateRange ? (
+                                <span
+                                    id="audit-date-range-error"
+                                    role="alert"
+                                    className="col-span-full text-xs text-danger-text"
+                                >
+                                    {t(filterErrors.dateRange)}
                                 </span>
                             ) : null}
-                        </label>
-                        <label className="grid min-w-0 gap-1.5">
-                            <span className="text-xs font-extrabold text-muted">
-                                {t('admin.auditLogs.filters.action')}
-                            </span>
-                            <SelectControl
-                                ariaLabel={t('admin.auditLogs.filters.action')}
-                                className={tableControlClassName}
-                                value={filters.action}
-                                placeholder={t('admin.auditLogs.filters.allActions')}
-                                onValueChange={(value) =>
-                                    onActionChange(
-                                        value as AuditLogsTableProps['filters']['action'],
-                                    )
-                                }
-                                options={auditActionValues.map((action) => ({
-                                    label: t(`admin.auditLogs.values.actions.${action}`),
-                                    value: action,
-                                }))}
-                            />
-                        </label>
-                        <label className="grid min-w-0 gap-1.5">
-                            <span className="text-xs font-extrabold text-muted">
-                                {t('admin.auditLogs.filters.resource')}
-                            </span>
-                            <SelectControl
-                                ariaLabel={t('admin.auditLogs.filters.resource')}
-                                className={tableControlClassName}
-                                value={filters.resource}
-                                placeholder={t('admin.auditLogs.filters.allResources')}
-                                onValueChange={(value) =>
-                                    onResourceChange(
-                                        value as AuditLogsTableProps['filters']['resource'],
-                                    )
-                                }
-                                options={auditResourceValues.map((resource) => ({
-                                    label: t(`admin.auditLogs.values.resources.${resource}`),
-                                    value: resource,
-                                }))}
-                            />
-                        </label>
-                        <label className="grid min-w-0 gap-1.5">
-                            <span className="text-xs font-extrabold text-muted">
-                                {t('admin.auditLogs.filters.from')}
-                            </span>
-                            <DateTimeCalendar
-                                value={filters.from}
-                                onValueChange={onFromChange}
-                                ariaLabel={t('admin.auditLogs.filters.from')}
-                                invalid={
-                                    filterErrors.from !== undefined ||
-                                    filterErrors.dateRange !== undefined
-                                }
-                                describedBy={
-                                    filterErrors.dateRange ? 'audit-date-range-error' : undefined
-                                }
-                            />
-                        </label>
-                        <label className="grid min-w-0 gap-1.5">
-                            <span className="text-xs font-extrabold text-muted">
-                                {t('admin.auditLogs.filters.to')}
-                            </span>
-                            <DateTimeCalendar
-                                value={filters.to}
-                                onValueChange={onToChange}
-                                ariaLabel={t('admin.auditLogs.filters.to')}
-                                invalid={
-                                    filterErrors.to !== undefined ||
-                                    filterErrors.dateRange !== undefined
-                                }
-                                describedBy={
-                                    filterErrors.dateRange ? 'audit-date-range-error' : undefined
-                                }
-                            />
-                        </label>
-                        <div className="flex items-end">
-                            <button
-                                type="submit"
-                                className={uiClassNames.button.primary}
-                                disabled={isRefreshing}
-                            >
-                                {t('admin.auditLogs.actions.apply')}
-                            </button>
-                        </div>
-                        {filterErrors.dateRange ? (
-                            <span
-                                id="audit-date-range-error"
-                                role="alert"
-                                className="col-span-full text-xs text-danger-text"
-                            >
-                                {t(filterErrors.dateRange)}
-                            </span>
-                        ) : null}
-                    </form>
+                        </form>
+                    )}
                 </TableFilters>
             }
             pagination={

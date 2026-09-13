@@ -7,11 +7,12 @@ import TableColumnFilterInput from './TableColumnFilterInput'
 export default function TableColumnFilters<TData extends RowData>({
     table,
     filterConfigs,
+    resetButton,
 }: TableColumnFiltersProps<TData>) {
     const { t } = useTranslationStore()
 
     return (
-        <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <>
             {table
                 .getFlatHeaders()
                 .filter(
@@ -20,15 +21,15 @@ export default function TableColumnFilters<TData extends RowData>({
                         header.subHeaders.length === 0 &&
                         header.column.getCanFilter(),
                 )
-                .map((header) => {
+                .map((header, index, headers) => {
                     const config = filterConfigs[header.column.id] ?? {
                         type: 'text',
                         placeholder: t('table.filterColumnPlaceholder', {
                             column: String(header.column.columnDef.header ?? ''),
                         }),
                     }
-                    return (
-                        <div key={header.id} className="grid min-w-0 content-start gap-1.5">
+                    const field = (
+                        <div key={header.id} className="grid min-w-0 flex-1 content-start gap-1.5">
                             <span className="text-xs font-extrabold text-muted">
                                 <table.FlexRender header={header} />
                             </span>
@@ -42,7 +43,26 @@ export default function TableColumnFilters<TData extends RowData>({
                             </table.Subscribe>
                         </div>
                     )
+                    if (!resetButton || index !== headers.length - 1) return field
+
+                    const desktopSpan = ['xl:col-span-3', 'xl:col-span-2', 'xl:col-span-1'][
+                        index % 3
+                    ]
+                    const fieldWidth = [
+                        'xl:max-w-[calc((100%_-_2rem)/3)]',
+                        'xl:max-w-[calc((100%_-_1rem)/2)]',
+                        '',
+                    ][index % 3]
+                    return (
+                        <div
+                            key={header.id}
+                            className={`flex min-w-0 items-end gap-4 ${index % 2 === 0 ? 'sm:col-span-2' : 'sm:col-span-1'} ${desktopSpan}`}
+                        >
+                            <div className={`min-w-0 flex-1 ${fieldWidth}`}>{field}</div>
+                            {resetButton}
+                        </div>
+                    )
                 })}
-        </div>
+        </>
     )
 }

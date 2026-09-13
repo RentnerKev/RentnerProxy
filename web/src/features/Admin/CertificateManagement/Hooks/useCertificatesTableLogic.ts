@@ -2,6 +2,7 @@ import type { FilterFn } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import useClientTableLogic from '../../../../shared/Table/Hooks/useClientTableLogic'
+import { createSortedUniqueFilterOptions } from '../../../../shared/Table/Helpers/tableFilters'
 import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { CertificateSummary } from '../../../../shared/Types/certificates.types'
 import type { CertificateTableProps } from '../Types/certificate-management.types'
@@ -61,6 +62,15 @@ export default function useCertificatesTableLogic(props: CertificateTableProps) 
                     { label: t('admin.certificates.source.acme'), value: 'acme' },
                 ],
             },
+            domains: {
+                type: 'searchableSelect' as const,
+                placeholder: t('table.filterColumnPlaceholder', {
+                    column: t('admin.certificates.columns.domains'),
+                }),
+                options: createSortedUniqueFilterOptions(
+                    data.flatMap((certificate) => certificate.domains),
+                ),
+            },
             status: {
                 type: 'select' as const,
                 placeholder: t('admin.certificates.filters.allStatuses'),
@@ -70,7 +80,7 @@ export default function useCertificatesTableLogic(props: CertificateTableProps) 
                 })),
             },
         }),
-        [t],
+        [data, t],
     )
     return {
         state: { ...table.state, columnFilterConfigs, showColumnFilters },

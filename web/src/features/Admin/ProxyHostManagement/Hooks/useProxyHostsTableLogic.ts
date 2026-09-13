@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
 import useClientTableLogic from '../../../../shared/Table/Hooks/useClientTableLogic'
+import { createSortedUniqueFilterOptions } from '../../../../shared/Table/Helpers/tableFilters'
 import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { TableColumnFilterConfigs } from '../../../../shared/Table/Types/table.types'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
@@ -51,9 +52,9 @@ export default function useProxyHostsTableLogic(props: ProxyHostsTableProps) {
     const columnFilterConfigs = useMemo<TableColumnFilterConfigs>(
         () => ({
             domains: {
-                type: 'text',
+                type: 'searchableSelect',
                 placeholder: t('admin.proxyHosts.filters.domains'),
-                maxLength: 254,
+                options: createSortedUniqueFilterOptions(data.flatMap((host) => host.domains)),
             },
             forward: {
                 type: 'select',
@@ -77,7 +78,7 @@ export default function useProxyHostsTableLogic(props: ProxyHostsTableProps) {
                 toLabel: t('admin.proxyHosts.filters.createdTo'),
             },
         }),
-        [t],
+        [data, t],
     )
 
     return {

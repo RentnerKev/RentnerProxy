@@ -108,3 +108,5 @@ export default function SelectControl({
 }
 
 export type { SelectControlOption, SelectControlProps } from './Types/select-control.types'
+export { default as SearchableSelect } from './SearchableSelect'
+export type { SearchableSelectOption, SearchableSelectProps } from './SearchableSelect'

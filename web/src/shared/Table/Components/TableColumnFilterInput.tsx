@@ -1,7 +1,7 @@
 import type { RowData } from '@tanstack/react-table'
 
 import DateRangeCalendar from '../../Calendar'
-import SelectControl from '../../Select'
+import SelectControl, { SearchableSelect } from '../../Select'
 import useTranslationStore from '../../../language/useTranslationStore'
 import getDateRangeFilterValue from '../Helpers/getDateRangeFilterValue'
 import type { TableColumnFilterInputProps } from '../Types/table.types'
@@ -27,6 +27,26 @@ export default function TableColumnFilterInput<TData extends RowData>({
                 options={config.options}
                 onValueChange={(value) => column.setFilterValue(value || undefined)}
                 className="w-full"
+            />
+        )
+    }
+
+    if (config.type === 'searchableSelect') {
+        const filterColumnLabel = t('table.filterColumn')
+        const allLabel = t('table.all')
+
+        return (
+            <SearchableSelect
+                value={String(column.getFilterValue() ?? '')}
+                ariaLabel={config.placeholder ?? filterColumnLabel}
+                allLabel={allLabel}
+                placeholder={config.placeholder ?? allLabel}
+                searchPlaceholder={
+                    config.searchPlaceholder ?? config.placeholder ?? filterColumnLabel
+                }
+                noResultsLabel={config.noResultsLabel ?? t('table.noResults')}
+                options={config.options}
+                onChange={(value) => column.setFilterValue(value || undefined)}
             />
         )
     }

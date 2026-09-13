@@ -30,6 +30,7 @@ export default function useCertificatesTableColumns(actions: CertificateTablePro
                 accessorFn: (certificate) => certificate.domains.join(' '),
                 header: t('admin.certificates.columns.domains'),
                 sortFn: 'text',
+                filterFn: (row, _columnId, value) => row.original.domains.includes(String(value)),
                 enableGlobalFilter: true,
                 cell: ({ row }) =>
                     createElement(CertificateDomainsCell, { domains: row.original.domains }),

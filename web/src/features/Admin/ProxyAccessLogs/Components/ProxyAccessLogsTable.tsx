@@ -128,108 +128,113 @@ export default function ProxyAccessLogsTable({
                     activeCount={activeFilterCount}
                     onReset={onResetFilters}
                 >
-                    <form
-                        className="grid min-w-0 items-end gap-4 sm:grid-cols-2 lg:grid-cols-4"
-                        onSubmit={(event) => {
-                            event.preventDefault()
-                            onApplyFilters()
-                        }}
-                    >
-                        <div className="grid min-w-0 gap-1.5">
-                            <span className="text-xs font-extrabold text-muted">
-                                {t('admin.proxyAccessLogs.filters.host')}
-                            </span>
-                            <ProxyAccessLogsHostFilter
-                                allHostsLabel={t('admin.proxyAccessLogs.filters.allHosts')}
-                                ariaDescribedBy={
-                                    filterErrors.host ? 'proxy-log-host-error' : undefined
-                                }
-                                invalid={filterErrors.host !== undefined}
-                                label={t('admin.proxyAccessLogs.filters.host')}
-                                noResultsLabel={t('admin.proxyAccessLogs.filters.noHosts')}
-                                onChange={onHostChange}
-                                options={hostOptions}
-                                placeholder={t('admin.proxyAccessLogs.filters.hostPlaceholder')}
-                                searchPlaceholder={t(
-                                    'admin.proxyAccessLogs.filters.hostSearchPlaceholder',
-                                )}
-                                value={filters.host}
-                            />
-                            {filterErrors.host ? (
-                                <span
-                                    id="proxy-log-host-error"
-                                    role="alert"
-                                    className="text-xs text-danger-text"
-                                >
-                                    {t(filterErrors.host)}
+                    {(resetButton) => (
+                        <form
+                            className="grid min-w-0 items-end gap-4 sm:grid-cols-2 lg:grid-cols-4"
+                            onSubmit={(event) => {
+                                event.preventDefault()
+                                onApplyFilters()
+                            }}
+                        >
+                            <div className="grid min-w-0 gap-1.5">
+                                <span className="text-xs font-extrabold text-muted">
+                                    {t('admin.proxyAccessLogs.filters.host')}
                                 </span>
-                            ) : null}
-                        </div>
-                        <label className="grid min-w-0 gap-1.5">
-                            <span className="text-xs font-extrabold text-muted">
-                                {t('admin.proxyAccessLogs.filters.status')}
-                            </span>
-                            <SelectControl
-                                ariaLabel={t('admin.proxyAccessLogs.filters.status')}
-                                className="w-full"
-                                describedBy={
-                                    filterErrors.status ? 'proxy-log-status-error' : undefined
-                                }
-                                invalid={filterErrors.status !== undefined}
-                                onValueChange={onStatusChange}
-                                options={statusOptions.map((status) => ({
-                                    label: String(status),
-                                    value: String(status),
-                                }))}
-                                placeholder={t('admin.proxyAccessLogs.filters.allStatuses')}
-                                value={filters.status}
-                            />
-                            {filterErrors.status ? (
-                                <span
-                                    id="proxy-log-status-error"
-                                    role="alert"
-                                    className="text-xs text-danger-text"
-                                >
-                                    {t(filterErrors.status)}
+                                <ProxyAccessLogsHostFilter
+                                    allHostsLabel={t('admin.proxyAccessLogs.filters.allHosts')}
+                                    ariaDescribedBy={
+                                        filterErrors.host ? 'proxy-log-host-error' : undefined
+                                    }
+                                    invalid={filterErrors.host !== undefined}
+                                    label={t('admin.proxyAccessLogs.filters.host')}
+                                    noResultsLabel={t('admin.proxyAccessLogs.filters.noHosts')}
+                                    onChange={onHostChange}
+                                    options={hostOptions}
+                                    placeholder={t('admin.proxyAccessLogs.filters.hostPlaceholder')}
+                                    searchPlaceholder={t(
+                                        'admin.proxyAccessLogs.filters.hostSearchPlaceholder',
+                                    )}
+                                    value={filters.host}
+                                />
+                                {filterErrors.host ? (
+                                    <span
+                                        id="proxy-log-host-error"
+                                        role="alert"
+                                        className="text-xs text-danger-text"
+                                    >
+                                        {t(filterErrors.host)}
+                                    </span>
+                                ) : null}
+                            </div>
+                            <label className="grid min-w-0 gap-1.5">
+                                <span className="text-xs font-extrabold text-muted">
+                                    {t('admin.proxyAccessLogs.filters.status')}
                                 </span>
-                            ) : null}
-                        </label>
-                        <label className="grid min-w-0 gap-1.5">
-                            <span className="text-xs font-extrabold text-muted">
-                                {t('admin.proxyAccessLogs.filters.search')}
-                            </span>
-                            <input
-                                type="search"
-                                value={filters.search}
-                                maxLength={200}
-                                placeholder={t('admin.proxyAccessLogs.filters.searchPlaceholder')}
-                                onChange={(event) => onSearchChange(event.target.value)}
-                                aria-invalid={filterErrors.search !== undefined}
-                                aria-describedby={
-                                    filterErrors.search ? 'proxy-log-search-error' : undefined
-                                }
-                                className={tableControlClassName}
-                            />
-                            {filterErrors.search ? (
-                                <span
-                                    id="proxy-log-search-error"
-                                    role="alert"
-                                    className="text-xs text-danger-text"
-                                >
-                                    {t(filterErrors.search)}
+                                <SelectControl
+                                    ariaLabel={t('admin.proxyAccessLogs.filters.status')}
+                                    className="w-full"
+                                    describedBy={
+                                        filterErrors.status ? 'proxy-log-status-error' : undefined
+                                    }
+                                    invalid={filterErrors.status !== undefined}
+                                    onValueChange={onStatusChange}
+                                    options={statusOptions.map((status) => ({
+                                        label: String(status),
+                                        value: String(status),
+                                    }))}
+                                    placeholder={t('admin.proxyAccessLogs.filters.allStatuses')}
+                                    value={filters.status}
+                                />
+                                {filterErrors.status ? (
+                                    <span
+                                        id="proxy-log-status-error"
+                                        role="alert"
+                                        className="text-xs text-danger-text"
+                                    >
+                                        {t(filterErrors.status)}
+                                    </span>
+                                ) : null}
+                            </label>
+                            <label className="grid min-w-0 gap-1.5">
+                                <span className="text-xs font-extrabold text-muted">
+                                    {t('admin.proxyAccessLogs.filters.search')}
                                 </span>
-                            ) : null}
-                        </label>
-                        <div className="flex items-end">
-                            <button
-                                type="submit"
-                                className={uiClassNames.button.primary}
-                                disabled={isRefreshing}
-                            >
-                                {t('admin.proxyAccessLogs.actions.apply')}
-                            </button>
-                        </div>
-                    </form>
+                                <input
+                                    type="search"
+                                    value={filters.search}
+                                    maxLength={200}
+                                    placeholder={t(
+                                        'admin.proxyAccessLogs.filters.searchPlaceholder',
+                                    )}
+                                    onChange={(event) => onSearchChange(event.target.value)}
+                                    aria-invalid={filterErrors.search !== undefined}
+                                    aria-describedby={
+                                        filterErrors.search ? 'proxy-log-search-error' : undefined
+                                    }
+                                    className={tableControlClassName}
+                                />
+                                {filterErrors.search ? (
+                                    <span
+                                        id="proxy-log-search-error"
+                                        role="alert"
+                                        className="text-xs text-danger-text"
+                                    >
+                                        {t(filterErrors.search)}
+                                    </span>
+                                ) : null}
+                            </label>
+                            <div className="flex flex-wrap items-end gap-2">
+                                <button
+                                    type="submit"
+                                    className={uiClassNames.button.primary}
+                                    disabled={isRefreshing}
+                                >
+                                    {t('admin.proxyAccessLogs.actions.apply')}
+                                </button>
+                                {resetButton}
+                            </div>
+                        </form>
+                    )}
                 </TableFilters>
             }
             pagination={

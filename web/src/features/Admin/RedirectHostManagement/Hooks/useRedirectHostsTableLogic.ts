@@ -2,6 +2,7 @@ import type { FilterFn } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import useClientTableLogic from '../../../../shared/Table/Hooks/useClientTableLogic'
+import { createSortedUniqueFilterOptions } from '../../../../shared/Table/Helpers/tableFilters'
 import type { ClientTableFeatures } from '../../../../shared/Table/clientTable'
 import type { TableColumnFilterConfigs } from '../../../../shared/Table/Types/table.types'
 import type { RedirectHostSummary } from '../../../../shared/Types/redirect-hosts.types'
@@ -28,9 +29,10 @@ const globalFilter =
 export default function useRedirectHostsTableLogic(props: RedirectHostsTableProps) {
     const { locale, t } = useTranslationStore()
     const [showColumnFilters, setShowColumnFilters] = useState(false)
+    const data = useMemo(() => [...props.redirectHosts], [props.redirectHosts])
     const columns = useRedirectHostsTableColumns(props)
     const tableLogic = useClientTableLogic({
-        data: useMemo(() => [...props.redirectHosts], [props.redirectHosts]),
+        data,
         columns,
         getRowId,
         initialSorting: [{ id: 'createdAt', desc: true }],
@@ -39,9 +41,9 @@ export default function useRedirectHostsTableLogic(props: RedirectHostsTableProp
     const columnFilterConfigs = useMemo<TableColumnFilterConfigs>(
         () => ({
             domains: {
-                type: 'text',
+                type: 'searchableSelect',
                 placeholder: t('admin.redirectHosts.filters.domains'),
-                maxLength: 254,
+                options: createSortedUniqueFilterOptions(data.flatMap((host) => host.domains)),
             },
             statusCode: {
                 type: 'select',
@@ -65,7 +67,7 @@ export default function useRedirectHostsTableLogic(props: RedirectHostsTableProp
                 toLabel: t('admin.redirectHosts.filters.createdTo'),
             },
         }),
-        [t],
+        [data, t],
     )
     return {
         state: { ...tableLogic.state, columnFilterConfigs, showColumnFilters },

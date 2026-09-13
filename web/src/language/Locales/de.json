@@ -1926,6 +1926,7 @@
         "filterColumn": "Spalte filtern",
         "all": "Alle",
         "filterEllipsis": "Filtern…",
+        "noResults": "Keine passenden Optionen",
         "filterByDateRange": "Nach Datumsbereich filtern",
         "filterColumnPlaceholder": "{{column}} filtern…",
         "cell": "Zelle {{column}}",

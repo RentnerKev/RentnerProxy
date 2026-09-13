@@ -601,6 +601,50 @@ describe('ProxyHost management table', () => {
         expect(document.body.textContent).toContain('Page 2 of 2')
     })
 
+    test('searches all domain options and selects an exact domain independently of free text search', async () => {
+        const hosts = Array.from({ length: 12 }, (_, index) => ({
+            ...enabledHost,
+            id: `domain-filter-${index}`,
+            domains: [
+                index === 11
+                    ? 'selected.example.com'
+                    : index === 0
+                      ? 'sub.selected.example.com'
+                      : `host-${index}.example.com`,
+            ],
+        }))
+        getProxyHostsHandlerMock.mockResolvedValueOnce(hosts)
+        await renderPage(allManagementPermissions)
+        await waitFor(() => getRows().length === 10)
+        await click(getButton('Filters'))
+        await click(getButton('Filter domains…'))
+        const domainSearch = document.querySelector<HTMLInputElement>(
+            'input[aria-label="Filter domains…"]',
+        )!
+        expect(document.activeElement).toBe(domainSearch)
+        await setControlValue(domainSearch, 'selected')
+        const options = [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')]
+        expect(options.map((option) => option.textContent?.trim())).toEqual([
+            'All',
+            'selected.example.com',
+            'sub.selected.example.com',
+        ])
+        await click(
+            options.find((option) => option.textContent?.trim() === 'selected.example.com')!,
+        )
+        await waitFor(() => getRows().length === 1)
+        expect(getRows()[0]?.textContent).toContain('selected.example.com')
+        expect(getRows()[0]?.textContent).not.toContain('sub.selected.example.com')
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[type="search"]')!,
+            'missing',
+        )
+        await waitFor(() => document.body.textContent?.includes('No proxy hosts match') === true)
+        await click(getButton('Reset filters'))
+        await waitFor(() => getRows().length === 10)
+        expect(document.querySelector<HTMLInputElement>('input[type="search"]')?.value).toBe('')
+    })
+
     test('sorts Created newest first by date and toggles to oldest first', async () => {
         const hosts: ProxyHostSummary[] = [
             {

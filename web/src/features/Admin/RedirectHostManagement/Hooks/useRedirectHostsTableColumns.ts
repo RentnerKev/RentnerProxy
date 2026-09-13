@@ -28,7 +28,7 @@ export default function useRedirectHostsTableColumns(props: RedirectHostTableAct
                 accessorFn: (host) => host.domains.join(' '),
                 header: t('admin.redirectHosts.columns.domains'),
                 sortFn: 'text',
-                filterFn: textFilter,
+                filterFn: (row, _columnId, value) => row.original.domains.includes(String(value)),
                 enableGlobalFilter: true,
                 cell: ({ row }) =>
                     createElement(RedirectHostDomainsCell, { domains: row.original.domains }),

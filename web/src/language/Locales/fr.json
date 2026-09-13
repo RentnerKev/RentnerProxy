@@ -1926,6 +1926,7 @@
         "filterColumn": "Filtrer la colonne",
         "all": "Tous",
         "filterEllipsis": "Filtrer…",
+        "noResults": "Aucune option correspondante",
         "filterByDateRange": "Filtrer par période",
         "filterColumnPlaceholder": "Filtrer {{column}}…",
         "cell": "Cellule {{column}}",

@@ -1926,6 +1926,7 @@
         "filterColumn": "Filtrar columna",
         "all": "Todos",
         "filterEllipsis": "Filtrar…",
+        "noResults": "No hay opciones coincidentes",
         "filterByDateRange": "Filtrar por intervalo de fechas",
         "filterColumnPlaceholder": "Filtrar {{column}}…",
         "cell": "Celda {{column}}",

@@ -25,6 +25,13 @@ export type TableColumnFilterConfig =
           readonly options: ReadonlyArray<TableFilterOption>
       }
     | {
+          readonly type: 'searchableSelect'
+          readonly placeholder?: string
+          readonly searchPlaceholder?: string
+          readonly noResultsLabel?: string
+          readonly options: ReadonlyArray<TableFilterOption>
+      }
+    | {
           readonly type: 'dateRange'
           readonly fromLabel?: string
           readonly toLabel?: string
@@ -75,6 +82,7 @@ export interface TableHeadProps<TData extends RowData> {
 export interface TableColumnFiltersProps<TData extends RowData> {
     readonly table: ClientTable<TData>
     readonly filterConfigs: TableColumnFilterConfigs
+    readonly resetButton?: ReactNode
 }
 
 export interface TableColumnFilterInputProps<TData extends RowData> {
