@@ -24,7 +24,7 @@ export function getApplicationTopbarClassName(isNavigationExpanded: boolean): st
 
 export const applicationShellClassNames = {
     sidebar: {
-        content: `relative z-20 flex min-h-0 flex-1 flex-col gap-5 p-4 pb-24 shell:gap-6 shell:py-7 shell:pr-[2.75rem] shell:pl-[1.35rem] ${mobileSurfaceMaskClassName} ${desktopContentMaskClassName}`,
+        content: `relative z-20 flex min-h-0 flex-1 flex-col gap-5 p-4 pb-24 shell:gap-6 shell:pt-7 shell:pb-1 shell:pr-[2.75rem] shell:pl-[1.35rem] ${mobileSurfaceMaskClassName} ${desktopContentMaskClassName}`,
         logoLink:
             'block w-fit max-w-[13rem] cursor-pointer rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400 shell:max-w-[14rem]',
         logoImage: 'block h-auto w-full',

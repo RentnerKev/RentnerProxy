@@ -11,7 +11,7 @@ export default function ApplicationVersion() {
     const updateLabel = t('shell.updateAvailable', { version: data?.latestVersion })
 
     return (
-        <div className="-mt-3 flex min-h-6 shrink-0 items-center justify-center gap-2 text-xs text-mist-400">
+        <div className="-mt-4 -ml-3 flex min-h-4 shrink-0 items-center justify-start gap-1.5 text-[0.65rem] leading-4 shell:-mt-5 shell:-ml-4 text-mist-400">
             <span
                 aria-label={t('shell.systemVersion', { version: APP_VERSION })}
                 className="font-mono tabular-nums"
@@ -25,9 +25,9 @@ export default function ApplicationVersion() {
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={updateLabel}
-                        className="inline-flex size-6 items-center justify-center rounded text-brand-500 hover:bg-brand-500/15 focus-visible:outline-2 focus-visible:outline-brand-500"
+                        className="inline-flex size-4 items-center justify-center rounded text-brand-500 hover:bg-brand-500/15 focus-visible:outline-2 focus-visible:outline-brand-500"
                     >
-                        <ArrowUp className="size-4" aria-hidden="true" />
+                        <ArrowUp className="size-3.5" aria-hidden="true" />
                     </a>
                 </Tooltip>
             ) : null}
