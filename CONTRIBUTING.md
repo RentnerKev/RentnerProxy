@@ -2,6 +2,11 @@
 
 Thank you for contributing to RentnerProxy. The project is at an early stage, so focused changes and clear discussion are especially valuable.
 
+Project decisions follow [GOVERNANCE.md](GOVERNANCE.md), and participation follows the
+[Code of Conduct](CODE_OF_CONDUCT.md). Consult the [roadmap](ROADMAP.md),
+[architecture](ARCHITECTURE.md), [security assurance case](ASSURANCE_CASE.md), and
+[release process](RELEASING.md) when a contribution affects those areas.
+
 ## Before you start
 
 Search the existing issues before opening a new one. Please open an issue before starting a large feature. Large architectural changes should be discussed in an issue before implementation.
@@ -74,12 +79,30 @@ cancellation; unrelated errors still follow the normal error handler.
 Keep modules focused on one responsibility. Split large Rust implementations into named modules
 for lifecycle, persistence, validation, rendering, and external-provider work as appropriate.
 Keep public facades small and imports explicit; use the narrowest visibility required by callers.
-Keep project documentation in README.md and CONTRIBUTING.md. Do not create a `docs/`
+Keep project documentation in Markdown files in the repository root. Do not create a `docs/`
 directory or a CHANGELOG.md file.
 
 Use descriptive names and Markdown documentation instead of explanatory comments in source code.
 Retain functional compiler, formatter, linter, and generated-file directives when required by
 the tooling.
+
+## Coding standards
+
+Contributions must follow the repository's coding standards:
+
+- TypeScript, TSX, and JavaScript use the project style defined in
+  [.oxfmtrc.json](.oxfmtrc.json) and [.oxlintrc.json](.oxlintrc.json): four-space indentation,
+  single quotes, no semicolons, a 100-column formatting target, and the enabled correctness,
+  suspicious-code, performance, React, and accessibility rules. Type checking uses
+  [web/tsconfig.json](web/tsconfig.json) and [scripts/tsconfig.json](scripts/tsconfig.json).
+- Rust follows the [Rust Style Guide](https://doc.rust-lang.org/style-guide/), enforced with
+  `cargo fmt`, and the repository's Clippy gate with warnings denied.
+- Markdown and configuration files follow the checked-in Oxfmt configuration and existing
+  surrounding conventions. Update affected documentation in the same change as behavior.
+
+Run `bun run format:check` and `bun run lint`; CI also runs Rust formatting and Clippy.
+Formatting can be applied with `bun run format`. Keep necessary tool exceptions narrow and
+explicit at the affected code, using functional directives as described above.
 
 ## Commit convention
 

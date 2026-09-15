@@ -9,6 +9,14 @@ RentnerProxy has no stable release and is not ready for production use. Security
 | `main`        | Yes       |
 | Older commits | No        |
 
+## Security expectations
+
+The [security assurance case](ASSURANCE_CASE.md) describes intended protections, deployment
+assumptions, supporting code and tests, and residual risks. The [architecture](ARCHITECTURE.md)
+documents service and certificate ownership boundaries. These are evidence-based design
+arguments, not an independent security certification. The [release process](RELEASING.md)
+documents the current absence of release-signature verification and reproducibility guarantees.
+
 ## Reporting a vulnerability
 
 Please do not report security vulnerabilities through public GitHub issues.

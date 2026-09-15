@@ -16,7 +16,7 @@
 <p align="center">
   <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL status"></a>
-  <a href="https://www.bestpractices.dev/projects/14354"><img src="https://www.bestpractices.dev/projects/14354/badge"></a>
+  <a href="https://www.bestpractices.dev/projects/14354"><img src="https://www.bestpractices.dev/projects/14354/badge" alt="OpenSSF Best Practices badge"></a>
 </p>
 
 > [!IMPORTANT]
@@ -34,7 +34,7 @@ management origin and an SMTP host, user, password, and sender address are requi
 
 Download [`docker-compose.yml`](./docker-compose.yml) and [`.env.production.example`](./.env.production.example)
 to an empty folder. Set the Compose image to
-`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.3`, copy the environment template, and set
+`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.5`, copy the environment template, and set
 `RENTNERPROXY_PUBLIC_ORIGIN` and the SMTP values:
 
 ```bash
@@ -255,3 +255,12 @@ Activation failures remain visible and can be retried with the existing certific
 issued candidate. Job request data is encrypted with the application encryption key and
 cleared after completion. Include the job table in the same database backup as the host and
 certificate records.
+
+## Project documentation
+
+- [Contributing and coding standards](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md) and [governance](GOVERNANCE.md)
+- [Roadmap](ROADMAP.md)
+- [Architecture](ARCHITECTURE.md)
+- [Security policy](SECURITY.md) and [security assurance case](ASSURANCE_CASE.md)
+- [Release process](RELEASING.md)
