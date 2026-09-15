@@ -22,6 +22,7 @@ import type {
 
 const EMPTY_SETTINGS: ProxyHttpSettings = {}
 
+/** Manages the per-host proxy configuration query, mutations, and local draft state. */
 export default function useProxyConfigEditorLogic({
     canEdit,
     onOpenChange,

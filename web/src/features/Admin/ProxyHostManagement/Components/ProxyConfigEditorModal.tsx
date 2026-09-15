@@ -15,6 +15,7 @@ const FIELDS = [
     ['proxySendTimeoutSeconds', 'fieldProxySendTimeoutSeconds', 1, 3600, 'seconds'],
 ] as const
 
+/** Renders the per-host proxy settings editor and active Caddy configuration. */
 export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProps) {
     const { t } = useTranslationStore()
     const { state, handler } = useProxyConfigEditorLogic(props)
