@@ -1449,4 +1449,60 @@ describe('Caddy proxy host configuration editor', () => {
         expect(document.body.textContent).not.toContain('Advanced')
         expect(document.body.textContent).not.toContain('Nginx')
     })
+
+    test('uses the shared formatted syntax block and removes preview-only host actions', async () => {
+        await renderPage([
+            PERMISSIONS.PROXY_HOSTS_VIEW,
+            PERMISSIONS.PROXY_HOSTS_UPDATE,
+            PERMISSIONS.PROXY_HOSTS_APPLY,
+        ])
+        await waitFor(() => getRows().length === 2)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Config'))
+        await waitFor(() => document.querySelectorAll('input[type="number"]').length === 4)
+
+        const dialog = document.querySelector('[role="dialog"]')!
+        expect(dialog.textContent).not.toContain('Preview')
+        expect(dialog.textContent).not.toContain('Generated defaults')
+        expect(dialog.textContent).not.toContain('Reload')
+
+        await click(getButton('Active config'))
+        const codeBlock = dialog.querySelector('pre[aria-label="Active config"]')
+        expect(codeBlock).not.toBeNull()
+        expect(codeBlock?.textContent).toContain('\n  "http"')
+        expect(codeBlock?.querySelector('[data-token="key"]')).not.toBeNull()
+        expect(codeBlock?.querySelector('[data-token="number"]')).not.toBeNull()
+    })
+
+    test('confirms host reset, preserves host identity, and reports success', async () => {
+        await renderPage([
+            PERMISSIONS.PROXY_HOSTS_VIEW,
+            PERMISSIONS.PROXY_HOSTS_UPDATE,
+            PERMISSIONS.PROXY_HOSTS_APPLY,
+        ])
+        await waitFor(() => getRows().length === 2)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Config'))
+        await waitFor(() => document.querySelector('input[type="number"]') !== null)
+
+        await click(getButton('Restore defaults'))
+        await waitFor(
+            () => document.body.textContent?.includes('Restore this host’s defaults?') ?? false,
+        )
+        expect(resetProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+        await click(getLastButton('Cancel'))
+        await waitFor(() => !document.body.textContent?.includes('Restore this host’s defaults?'))
+        expect(resetProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+
+        await click(getButton('Restore defaults'))
+        await click(getButton('Restore and apply'))
+        await waitFor(() => resetProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
+        expect(resetProxyHostConfigEditorHandlerMock).toHaveBeenCalledWith({
+            data: {
+                proxyHostId: enabledHost.id,
+                baseRevision: editorBaseRevision,
+            },
+        })
+        await waitForToast('success')
+    })
 })

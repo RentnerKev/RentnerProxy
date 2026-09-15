@@ -1,101 +1,48 @@
-import { RefreshCw, RotateCcw, Save, Eye } from 'lucide-react'
+import { RotateCcw, Save } from 'lucide-react'
+
 import useTranslationStore from '../../../../language/useTranslationStore'
-import { ConfirmDialog } from '../../../../shared/Modal/Components/ConfirmDialog'
 import { Modal } from '../../../../shared/Modal'
+import { ConfirmDialog } from '../../../../shared/Modal/Components/ConfirmDialog'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
-import type { ProxyHttpSettings } from '../../../../shared/Types/proxy-runtime.types'
+import CaddyConfigCodeBlock from './CaddyConfigCodeBlock'
 import useProxyConfigEditorLogic from '../Hooks/useProxyConfigEditorLogic'
 import type { ProxyConfigEditorModalProps } from '../Types/proxy-config-editor.types'
 
-const FIELDS: ReadonlyArray<{
-    key: keyof ProxyHttpSettings
-    labelKey: string
-    min: number
-    max: number
-    unitKey: string
-}> = [
-    {
-        key: 'clientMaxBodySizeBytes',
-        labelKey: 'fieldClientMaxBodySizeBytes',
-        min: 1024,
-        max: 1073741824,
-        unitKey: 'bytes',
-    },
-    {
-        key: 'proxyConnectTimeoutSeconds',
-        labelKey: 'fieldProxyConnectTimeoutSeconds',
-        min: 1,
-        max: 60,
-        unitKey: 'seconds',
-    },
-    {
-        key: 'proxyReadTimeoutSeconds',
-        labelKey: 'fieldProxyReadTimeoutSeconds',
-        min: 1,
-        max: 3600,
-        unitKey: 'seconds',
-    },
-    {
-        key: 'proxySendTimeoutSeconds',
-        labelKey: 'fieldProxySendTimeoutSeconds',
-        min: 1,
-        max: 3600,
-        unitKey: 'seconds',
-    },
-]
+const FIELDS = [
+    ['clientMaxBodySizeBytes', 'fieldClientMaxBodySizeBytes', 1024, 1073741824, 'bytes'],
+    ['proxyConnectTimeoutSeconds', 'fieldProxyConnectTimeoutSeconds', 1, 60, 'seconds'],
+    ['proxyReadTimeoutSeconds', 'fieldProxyReadTimeoutSeconds', 1, 3600, 'seconds'],
+    ['proxySendTimeoutSeconds', 'fieldProxySendTimeoutSeconds', 1, 3600, 'seconds'],
+] as const
 
-function ReadOnlySource({ source }: { readonly source: string | undefined }) {
+/** Renders the per-host proxy settings editor and active Caddy configuration. */
+export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProps) {
     const { t } = useTranslationStore()
-    return source ? (
-        <pre className="max-h-72 overflow-auto rounded-xl border border-border bg-code p-3 text-xs text-ink-soft">
-            {source}
-        </pre>
-    ) : (
-        <p className="m-0 text-sm text-muted">{t('admin.proxyHosts.config.unavailable')}</p>
-    )
-}
-
-export default function ProxyConfigEditorModal({
-    canEdit,
-    onOpenChange,
-    open,
-    proxyHost,
-}: ProxyConfigEditorModalProps) {
-    const { t } = useTranslationStore()
-    const { handler, state } = useProxyConfigEditorLogic({ canEdit, onOpenChange, open, proxyHost })
-    const busy = state.isSaving || state.isResetting || state.isPreviewing || state.isRefreshing
-    const source =
-        state.activeTab === 'active'
-            ? state.data?.active?.config
-            : state.activeTab === 'defaults'
-              ? state.data?.defaults?.config
-              : state.activeTab === 'preview'
-                ? state.preview?.config
-                : undefined
+    const { state, handler } = useProxyConfigEditorLogic(props)
+    const busy = state.isRefreshing || state.isSaving || state.isResetting
+    const source = state.data?.active?.config
     return (
         <>
             <Modal
-                open={open}
-                onOpenChange={onOpenChange}
+                open={props.open}
+                onOpenChange={props.onOpenChange}
                 title={t('admin.proxyHosts.config.hostTitle', {
-                    name: proxyHost.domains[0] ?? proxyHost.forwardHost,
+                    name: props.proxyHost.domains[0] ?? props.proxyHost.forwardHost,
                 })}
                 description={t('admin.proxyHosts.config.hostDescription')}
                 size="lg"
-                closeDisabled={
-                    busy || state.isResetConfirmationOpen || state.isReloadConfirmationOpen
-                }
+                closeDisabled={busy || state.isResetConfirmationOpen}
                 footer={
                     <>
                         <button
                             type="button"
                             className={uiClassNames.button.secondary}
-                            onClick={() => onOpenChange(false)}
+                            onClick={() => props.onOpenChange(false)}
                             disabled={busy}
                         >
                             {t('common.cancel')}
                         </button>
-                        {canEdit ? (
+                        {props.canEdit ? (
                             <>
                                 <button
                                     type="button"
@@ -105,15 +52,6 @@ export default function ProxyConfigEditorModal({
                                 >
                                     <RotateCcw className="size-4" />
                                     {t('admin.proxyHosts.config.resetButton')}
-                                </button>
-                                <button
-                                    type="button"
-                                    className={uiClassNames.button.secondary}
-                                    onClick={handler.preview}
-                                    disabled={busy || !state.data}
-                                >
-                                    <Eye className="size-4" />
-                                    {t('admin.proxyHosts.config.preview')}
                                 </button>
                                 <button
                                     type="button"
@@ -145,117 +83,73 @@ export default function ProxyConfigEditorModal({
                             </p>
                         ) : null}
                         <div className="flex flex-wrap gap-1">
-                            <button
-                                type="button"
-                                className={uiClassNames.button.quiet}
-                                onClick={() => handler.setActiveTab('edit')}
-                                aria-pressed={state.activeTab === 'edit'}
-                            >
-                                {t('admin.proxyHosts.config.settings')}
-                            </button>
-                            <button
-                                type="button"
-                                className={uiClassNames.button.quiet}
-                                onClick={() => handler.setActiveTab('active')}
-                                aria-pressed={state.activeTab === 'active'}
-                            >
-                                {t('admin.proxyHosts.config.active')}
-                            </button>
-                            <button
-                                type="button"
-                                className={uiClassNames.button.quiet}
-                                onClick={() => handler.setActiveTab('defaults')}
-                                aria-pressed={state.activeTab === 'defaults'}
-                            >
-                                {t('admin.proxyHosts.config.defaults')}
-                            </button>
-                            {state.preview ? (
+                            {(['edit', 'active'] as const).map((tab) => (
                                 <button
+                                    key={tab}
                                     type="button"
                                     className={uiClassNames.button.quiet}
-                                    onClick={() => handler.setActiveTab('preview')}
-                                    aria-pressed={state.activeTab === 'preview'}
+                                    onClick={() => handler.setActiveTab(tab)}
+                                    aria-pressed={state.activeTab === tab}
+                                    disabled={busy}
                                 >
-                                    {t('admin.proxyHosts.config.preview')}
+                                    {t(
+                                        `admin.proxyHosts.config.${tab === 'edit' ? 'settings' : tab}`,
+                                    )}
                                 </button>
-                            ) : null}
-                            <button
-                                type="button"
-                                className={uiClassNames.button.quiet}
-                                onClick={handler.refresh}
-                                disabled={busy}
-                            >
-                                <RefreshCw className="size-4" />
-                                {t('admin.proxyHosts.config.reload')}
-                            </button>
+                            ))}
                         </div>
                         {state.activeTab === 'edit' ? (
                             <fieldset className="grid gap-3">
                                 <legend className="text-base font-extrabold text-ink-soft">
                                     {t('admin.proxyHosts.config.settings')}
                                 </legend>
-                                {FIELDS.map((field) => (
-                                    <label
-                                        key={field.key}
-                                        className="grid gap-1 text-sm text-ink-soft"
-                                    >
-                                        {t(`admin.proxyHosts.config.${field.labelKey}`)}
+                                {FIELDS.map(([key, labelKey, min, max, unitKey]) => (
+                                    <label key={key} className="grid gap-1 text-sm text-ink-soft">
+                                        {t(`admin.proxyHosts.config.${labelKey}`)}
                                         <span className="flex items-center gap-2">
                                             <input
                                                 className={uiClassNames.form.control}
                                                 type="number"
-                                                min={field.min}
-                                                max={field.max}
-                                                value={state.settings[field.key] ?? ''}
+                                                min={min}
+                                                max={max}
+                                                value={state.settings[key] ?? ''}
                                                 onChange={(event) =>
                                                     handler.setSetting(
-                                                        field.key,
+                                                        key,
                                                         event.target.value === ''
                                                             ? undefined
                                                             : Number(event.target.value),
                                                     )
                                                 }
-                                                disabled={!canEdit || busy}
+                                                disabled={!props.canEdit || busy}
                                             />
                                             <small className="text-muted">
-                                                {t(`admin.proxyHosts.config.${field.unitKey}`)}
+                                                {t(`admin.proxyHosts.config.${unitKey}`)}
                                             </small>
                                         </span>
                                     </label>
                                 ))}
                             </fieldset>
+                        ) : state.activeTab === 'active' && source ? (
+                            <CaddyConfigCodeBlock
+                                source={source}
+                                ariaLabel={t('admin.proxyHosts.config.active')}
+                            />
                         ) : (
-                            <ReadOnlySource source={source} />
-                        )}
-                        {state.previewError ? (
-                            <p role="alert" className="m-0 text-danger-text">
-                                {t(state.previewError, {
-                                    defaultValue: t('admin.proxyHosts.config.errors.previewFailed'),
-                                })}
+                            <p className="m-0 text-sm text-muted">
+                                {t('admin.proxyHosts.config.unavailable')}
                             </p>
-                        ) : null}
+                        )}
                     </div>
                 )}
             </Modal>
-            {state.isReloadConfirmationOpen ? (
-                <ConfirmDialog
-                    open
-                    onOpenChange={handler.setReloadConfirmationOpen}
-                    title={t('admin.proxyHosts.config.reloadTitle')}
-                    description={t('admin.proxyHosts.config.reloadDescription')}
-                    confirmLabel={t('admin.proxyHosts.config.reloadConfirm')}
-                    pendingLabel={t('admin.proxyHosts.config.loading')}
-                    isPending={state.isRefreshing}
-                    onConfirm={handler.confirmReload}
-                />
-            ) : null}
             {state.isResetConfirmationOpen ? (
                 <ConfirmDialog
                     open
                     onOpenChange={handler.setResetConfirmationOpen}
                     title={t('admin.proxyHosts.config.hostResetTitle')}
                     description={t('admin.proxyHosts.config.hostResetDescription', {
-                        name: proxyHost.domains[0] ?? proxyHost.forwardHost,
+                        name: props.proxyHost.domains[0] ?? props.proxyHost.forwardHost,
                     })}
                     confirmLabel={t('admin.proxyHosts.config.resetConfirm')}
                     pendingLabel={t('admin.proxyHosts.config.resetting')}
