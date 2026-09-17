@@ -4,6 +4,7 @@ import { z } from 'zod'
 import {
     ACME_CHALLENGE_TYPES,
     ACME_ENVIRONMENTS,
+    DEFAULT_ACME_ENVIRONMENT,
     CERTIFICATE_EVENT_KINDS,
     CERTIFICATE_ERROR_CODES,
     CERTIFICATE_OPERATION_KINDS,
@@ -264,13 +265,14 @@ export async function importControllerCertificate(
     )
 }
 
+/** Requests certificate issuance from the controller using the shared ACME defaults. */
 export async function issueControllerCertificate(
     certificateId: string,
     input: RequestCertificateInput,
 ): Promise<ControllerCertificateMetadata> {
     const body = JSON.stringify({
         domains: input.domains,
-        environment: input.environment ?? 'staging',
+        environment: input.environment ?? DEFAULT_ACME_ENVIRONMENT,
         challengeType: input.challengeType ?? 'http-01',
         ...(input.dnsProvider ? { dnsProvider: input.dnsProvider } : {}),
         ...(input.contactEmail ? { contactEmail: input.contactEmail } : {}),

@@ -572,7 +572,7 @@ describe('certificate management with PostgreSQL', () => {
             )
             expect((await asUser(owner, getCertificatesService))[0]).toMatchObject({
                 source: 'acme',
-                environment: 'staging',
+                environment: 'production',
                 status: 'pending',
                 operation: 'issuing',
                 candidate: null,
@@ -607,7 +607,7 @@ describe('certificate management with PostgreSQL', () => {
             ).rejects.toMatchObject({ code: 'certificate_expired' })
             const valid = validMetadata(id, ['www.example.com'], {
                 source: 'acme',
-                environment: 'staging',
+                environment: 'production',
                 candidate: issuedCandidate,
                 dnsCleanupPending: false,
             })

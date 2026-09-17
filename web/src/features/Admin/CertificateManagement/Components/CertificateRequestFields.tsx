@@ -4,6 +4,7 @@ import SelectControl from '../../../../shared/Select'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type useCertificateRequestLogic from '../Hooks/useCertificateRequestLogic'
 
+/** Renders the ACME certificate request fields and environment-specific guidance. */
 export default function CertificateRequestFields({
     form,
     isPending,
@@ -234,12 +235,12 @@ export default function CertificateRequestFields({
                             }}
                             options={[
                                 {
-                                    label: t('admin.certificates.environment.staging'),
-                                    value: 'staging',
-                                },
-                                {
                                     label: t('admin.certificates.environment.production'),
                                     value: 'production',
+                                },
+                                {
+                                    label: t('admin.certificates.environment.staging'),
+                                    value: 'staging',
                                 },
                             ]}
                         />
@@ -247,7 +248,11 @@ export default function CertificateRequestFields({
                             id="certificate-request-environment-hint"
                             className={uiClassNames.form.hint}
                         >
-                            {t('admin.certificates.form.stagingHint')}
+                            {t(
+                                field.state.value === 'staging'
+                                    ? 'admin.certificates.form.stagingHint'
+                                    : 'admin.certificates.form.productionHint',
+                            )}
                         </p>
                         <FieldError
                             id="certificate-request-environment-error"

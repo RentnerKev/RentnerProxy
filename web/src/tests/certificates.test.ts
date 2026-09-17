@@ -122,7 +122,7 @@ describe('certificate validation and status', () => {
             ).toBeFalse()
         }
         const request = { name: 'Example', domains: ['www.example.com'], acceptTerms: true }
-        expect(requestCertificateInputSchema.parse(request).environment).toBe('staging')
+        expect(requestCertificateInputSchema.parse(request).environment).toBe('production')
         expect(
             requestCertificateInputSchema.safeParse({
                 ...request,
@@ -325,6 +325,32 @@ describe('certificate permissions and runtime contract', () => {
 })
 
 describe('sensitive controller certificate transport', () => {
+    test('defaults an omitted ACME environment to production at the controller boundary', async () => {
+        const requests: RequestInit[] = []
+        mockController(async (_url, init) => {
+            requests.push(init ?? {})
+            return Response.json(
+                metadata({
+                    source: 'acme',
+                    environment: 'production',
+                }),
+            )
+        })
+
+        await issueControllerCertificate(CERTIFICATE_ID, {
+            name: 'Production default',
+            domains: ['www.example.com'],
+            acceptTerms: true,
+        })
+
+        expect(JSON.parse(String(requests[0]?.body))).toMatchObject({
+            domains: ['www.example.com'],
+            environment: 'production',
+            challengeType: 'http-01',
+            acceptTerms: true,
+        })
+    })
+
     test('accepts additive renewal scheduling metadata while preserving legacy payloads', async () => {
         mockController(async () =>
             Response.json({

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import {
     ACME_CHALLENGE_TYPES,
     ACME_ENVIRONMENTS,
+    DEFAULT_ACME_ENVIRONMENT,
     MAX_CERTIFICATE_DOMAINS,
     MAX_CERTIFICATE_NAME_LENGTH,
     MAX_CERTIFICATE_PEM_LENGTH,
@@ -94,7 +95,7 @@ export const requestCertificateInputSchema = z
     .strictObject({
         name,
         domains: certificateDomainsSchema,
-        environment: z.enum(ACME_ENVIRONMENTS).default('staging'),
+        environment: z.enum(ACME_ENVIRONMENTS).default(DEFAULT_ACME_ENVIRONMENT),
         challengeType: z.enum(ACME_CHALLENGE_TYPES).default('http-01'),
         dnsProvider: dnsProviderSchema.optional(),
         contactEmail: z
@@ -145,6 +146,7 @@ export interface CertificateRequestFormValues {
     readonly acceptTerms: boolean
 }
 
+/** Converts certificate form values into the controller request shape. */
 export function certificateRequestInputFromForm(
     value: CertificateRequestFormValues,
 ): Record<string, unknown> {

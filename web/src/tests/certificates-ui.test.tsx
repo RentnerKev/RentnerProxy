@@ -242,6 +242,17 @@ async function chooseDnsChallenge(): Promise<void> {
     await click(dnsOption!)
 }
 
+/** Selects an ACME environment from the request form. */
+async function chooseAcmeEnvironment(environment: 'Production' | 'Staging'): Promise<void> {
+    await click(document.querySelector('[aria-label="ACME environment"]')!)
+    await waitFor(() => document.querySelector('[role=option]') !== null)
+    const option = [...document.querySelectorAll('[role=option]')].find(
+        (candidate) => candidate.textContent?.trim() === environment,
+    )
+    expect(option).toBeDefined()
+    await click(option!)
+}
+
 beforeEach(() => {
     getTrustedCasHandlerMock.mockReset().mockResolvedValue([trustedCa])
     createTrustedCaHandlerMock.mockReset().mockResolvedValue({
@@ -559,12 +570,15 @@ describe('certificate management UI', () => {
         await waitForToast('success')
     })
 
-    test('requests staging ACME by default with domains, contact, and accepted terms', async () => {
+    test('requests production ACME by default with domains, contact, and accepted terms', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
         await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
-        await setValue(document.querySelector('#certificate-request-name')!, 'Staging edge')
+        expect(document.body.textContent).toContain(
+            'Production issues a publicly trusted certificate for normal operation.',
+        )
+        await setValue(document.querySelector('#certificate-request-name')!, 'Production edge')
         await setValue(
             document.querySelector('#certificate-request-domains')!,
             'edge.example.com\nwww.edge.example.com',
@@ -582,9 +596,9 @@ describe('certificate management UI', () => {
         await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
         expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
             data: {
-                name: 'Staging edge',
+                name: 'Production edge',
                 domains: ['edge.example.com', 'www.edge.example.com'],
-                environment: 'staging',
+                environment: 'production',
                 challengeType: 'http-01',
                 contactEmail: 'ops@example.com',
                 acceptTerms: true,
@@ -596,6 +610,49 @@ describe('certificate management UI', () => {
                 document.querySelector<HTMLButtonElement>('[role=dialog] button[type=submit]')
                     ?.disabled,
             ).toBeTrue()
+        } finally {
+            await act(async () => finishRefresh?.())
+        }
+        await waitFor(() => document.querySelector('[role=dialog]') === null)
+        await waitForToast('success')
+    })
+
+    test('keeps staging available as an explicitly selected test environment', async () => {
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        await click(button('Request with ACME'))
+        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+        await chooseAcmeEnvironment('Staging')
+        expect(document.body.textContent).toContain(
+            'Staging is a test environment; certificates are not trusted by normal browsers.',
+        )
+        await setValue(document.querySelector('#certificate-request-name')!, 'Staging edge')
+        await setValue(document.querySelector('#certificate-request-domains')!, 'edge.example.com')
+        await click(document.querySelector('#certificate-request-terms')!)
+        let finishRefresh: (() => void) | undefined
+        getCertificatesHandlerMock.mockImplementationOnce(
+            () =>
+                new Promise<CertificateSummary[]>((resolve) => {
+                    finishRefresh = () => resolve([certificate])
+                }),
+        )
+        await click(lastButton('Request with ACME'))
+        await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
+        expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
+            data: {
+                name: 'Staging edge',
+                domains: ['edge.example.com'],
+                environment: 'staging',
+                challengeType: 'http-01',
+                contactEmail: '',
+                acceptTerms: true,
+            },
+        })
+        try {
+            await waitFor(() => finishRefresh !== undefined)
+            expect(
+                document.querySelector('[aria-label="ACME environment"]')?.textContent,
+            ).toContain('Production')
         } finally {
             await act(async () => finishRefresh?.())
         }
@@ -626,7 +683,7 @@ describe('certificate management UI', () => {
             data: {
                 name: 'Wildcard edge',
                 domains: ['*.example.com', 'example.com'],
-                environment: 'staging',
+                environment: 'production',
                 challengeType: 'dns-01',
                 dnsProvider: {
                     type: 'cloudflare',
