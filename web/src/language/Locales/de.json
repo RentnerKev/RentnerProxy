@@ -908,6 +908,13 @@
                 "disabled": "Proxy-Host erfolgreich deaktiviert."
             },
             "certificateJob": {
+                "background": {
+                    "title": "Zertifikatanfrage",
+                    "success": "Zertifikat erfolgreich zugewiesen.",
+                    "failure": "Die Zertifikatanfrage erfordert Aufmerksamkeit.",
+                    "retry": "Erneut versuchen",
+                    "viewCertificate": "Zertifikat anzeigen"
+                },
                 "messages": {
                     "queued": "Zertifikatanfrage wurde eingereiht.",
                     "retried": "Zertifikat-Wiederholung wurde eingereiht."

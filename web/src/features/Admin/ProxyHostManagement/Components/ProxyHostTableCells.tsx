@@ -11,15 +11,6 @@ import type {
     ProxyHostStatusCellProps,
 } from '../Types/proxy-host-table.types'
 
-const certificateJobStageToOperationStage = {
-    preparing: 'queued',
-    issuing: 'creating_order',
-    applying: 'applying',
-    applied: 'applied',
-    failed: 'failed',
-    needs_attention: 'needs_attention',
-} as const
-
 const statusBadgeClassName =
     'inline-flex rounded-full px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold data-[status=enabled]:bg-success-bg data-[status=enabled]:text-success-text data-[status=disabled]:bg-danger-bg data-[status=disabled]:text-danger-text'
 
@@ -76,24 +67,14 @@ export function ProxyHostForwardCell({
     )
 }
 
-export function ProxyHostStatusCell({ enabled, certificateJob }: ProxyHostStatusCellProps) {
+export function ProxyHostStatusCell({ enabled }: ProxyHostStatusCellProps) {
     const { t } = useTranslationStore()
     const status = enabled ? 'enabled' : 'disabled'
 
-    const certificateStage =
-        certificateJob?.controllerStage ??
-        (certificateJob ? certificateJobStageToOperationStage[certificateJob.stage] : null)
     return (
-        <div className="grid justify-items-start gap-2">
-            <span className={statusBadgeClassName} data-status={status}>
-                {t('admin.proxyHosts.status.' + status)}
-            </span>
-            {certificateStage ? (
-                <span className="text-xs font-semibold text-info-text">
-                    {t(`admin.certificates.operationStages.${certificateStage}`)}
-                </span>
-            ) : null}
-        </div>
+        <span className={statusBadgeClassName} data-status={status}>
+            {t('admin.proxyHosts.status.' + status)}
+        </span>
     )
 }
 

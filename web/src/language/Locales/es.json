@@ -908,6 +908,13 @@
                 "disabled": "Host proxy desactivado correctamente."
             },
             "certificateJob": {
+                "background": {
+                    "title": "Solicitud de certificado",
+                    "success": "Certificado asignado correctamente.",
+                    "failure": "La solicitud de certificado requiere atención.",
+                    "retry": "Reintentar",
+                    "viewCertificate": "Ver certificado"
+                },
                 "messages": {
                     "queued": "Solicitud de certificado en cola.",
                     "retried": "Reintento de certificado en cola."

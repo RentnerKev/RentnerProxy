@@ -24,6 +24,7 @@ import { createSessionService } from '../server/Auth/Access/sessions.service'
 import { getAuthDatabase } from '../server/Auth/Core/database.server'
 import {
     createProxyHostWithCertificateService,
+    getCertificateJobProgressService,
     retryCertificateJobService,
     requestProxyHostCertificateService,
     updateProxyHostWithCertificateService,
@@ -420,6 +421,58 @@ describe('certificate job creation with PostgreSQL', () => {
             expect(jobs[0]?.requestCiphertext).toBeTruthy()
             expect(jobs[0]?.requestIv).toBeTruthy()
             expect(certificateRows).toEqual([{ id: first.certificateId!, status: 'pending' }])
+        },
+    )
+
+    integrationTest(
+        'lists the current actor’s active jobs and only recently completed successes',
+        async () => {
+            const owner = await createOwner()
+            const otherOwner = await createOwner()
+            const activeToken = fixtureToken()
+            const recentToken = fixtureToken()
+            const expiredToken = fixtureToken()
+            const otherToken = fixtureToken()
+            const active = await asUser(owner, () =>
+                createProxyHostWithCertificateService(
+                    createInput(activeToken, [`active-${activeToken}.example.com`]),
+                ),
+            )
+            const recent = await asUser(owner, () =>
+                createProxyHostWithCertificateService(
+                    createInput(recentToken, [`recent-${recentToken}.example.com`]),
+                ),
+            )
+            const expired = await asUser(owner, () =>
+                createProxyHostWithCertificateService(
+                    createInput(expiredToken, [`expired-${expiredToken}.example.com`]),
+                ),
+            )
+            const other = await asUser(otherOwner, () =>
+                createProxyHostWithCertificateService(
+                    createInput(otherToken, [`other-${otherToken}.example.com`]),
+                ),
+            )
+            await getAuthDatabase()
+                .update(certificateJobs)
+                .set({ stage: 'applied', updatedAt: new Date() })
+                .where(eq(certificateJobs.id, recent.id))
+            await getAuthDatabase()
+                .update(certificateJobs)
+                .set({
+                    stage: 'applied',
+                    updatedAt: new Date(Date.now() - 5 * 60_000),
+                })
+                .where(eq(certificateJobs.id, expired.id))
+
+            const progress = await asUser(owner, () => getCertificateJobProgressService())
+            expect(progress.map((job) => job.id).toSorted()).toEqual(
+                [active.id, recent.id].toSorted(),
+            )
+            expect(progress.find((job) => job.id === active.id)?.stage).toBe('preparing')
+            expect(progress.find((job) => job.id === recent.id)?.stage).toBe('applied')
+            expect(progress.some((job) => job.id === expired.id)).toBeFalse()
+            expect(progress.some((job) => job.id === other.id)).toBeFalse()
         },
     )
 

@@ -53,7 +53,6 @@ export interface ProxyHostForwardCellProps {
 
 export interface ProxyHostStatusCellProps {
     readonly enabled: boolean
-    readonly certificateJob?: ProxyHostSummary['certificateJob']
 }
 
 export interface ProxyHostCreatedAtCellProps {

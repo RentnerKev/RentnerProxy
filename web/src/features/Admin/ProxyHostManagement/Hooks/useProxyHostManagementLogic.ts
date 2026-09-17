@@ -209,9 +209,9 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
     const apply = useCallback(() => {
         applyMutation.mutate()
     }, [applyMutation])
-    const handleCertificateRequestSuccess = useCallback(async () => {
-        await queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.all })
+    const handleCertificateRequestSuccess = useCallback(() => {
         setCertificateRequestTarget(null)
+        void queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.all })
     }, [queryClient])
     const handleFormSuccess = useCallback(() => {
         setShowCreate(false)

@@ -1,5 +1,7 @@
 import type { ToastMessage, ToastOptions, ToastTone } from '../Types/toast.types'
 
+const PERSISTENT_TOAST_DURATION_MS = 2_147_000_000
+
 export function createToastStore() {
     const emptySnapshot: ReadonlyArray<ToastMessage> = []
     let toasts = emptySnapshot
@@ -38,28 +40,66 @@ export function createToastStore() {
         publish(emptySnapshot)
     }
 
-    function show(message: string, tone: ToastTone = 'success', options: ToastOptions = {}) {
+    function createToast(
+        id: string,
+        revision: number,
+        kind: ToastMessage['kind'],
+        message: string,
+        tone: ToastTone,
+        options: ToastOptions,
+    ): ToastMessage {
         const title = options.title ?? `toast.titles.${tone}`
-        const duration = options.duration ?? (tone === 'error' ? 10000 : 6000)
-        const toast: ToastMessage = {
-            id: `toast-${++sequence}`,
+        const persistent = options.persistent ?? false
+        const duration =
+            options.duration ??
+            (persistent ? PERSISTENT_TOAST_DURATION_MS : tone === 'error' ? 10000 : 6000)
+        return {
+            id,
+            revision,
+            kind,
             message,
             title,
             tone,
             duration: duration > 0 ? duration : 6000,
             open: true,
+            actions: options.actions ?? [],
+            persistent,
+            dismissible: options.dismissible ?? true,
+            activity: options.activity ?? 'none',
+            ...(options.detail ? { detail: options.detail } : {}),
+            ...(options.context ? { context: options.context } : {}),
         }
+    }
+
+    function show(message: string, tone: ToastTone = 'success', options: ToastOptions = {}) {
+        const toast = createToast(`toast-${++sequence}`, 1, 'notification', message, tone, options)
+        const tasks = toasts.filter((entry) => entry.kind === 'task' && entry.open)
         const remaining = toasts
             .filter(
                 (entry) =>
+                    entry.kind === 'notification' &&
                     entry.open &&
-                    !(entry.message === message && entry.tone === tone && entry.title === title),
+                    !(
+                        entry.message === message &&
+                        entry.tone === tone &&
+                        entry.title === toast.title
+                    ),
             )
             .slice(-2)
         for (const entry of toasts) {
-            if (!remaining.includes(entry)) cancelRemoval(entry.id)
+            if (!tasks.includes(entry) && !remaining.includes(entry)) cancelRemoval(entry.id)
         }
-        publish([...remaining, toast])
+        publish([...tasks, ...remaining, toast])
+        return toast.id
+    }
+
+    function upsert(id: string, message: string, tone: ToastTone, options: ToastOptions = {}) {
+        cancelRemoval(id)
+        const current = toasts.find((toast) => toast.id === id)
+        const toast = createToast(id, (current?.revision ?? 0) + 1, 'task', message, tone, options)
+        publish(
+            current ? toasts.map((entry) => (entry.id === id ? toast : entry)) : [...toasts, toast],
+        )
         return toast.id
     }
 
@@ -78,7 +118,9 @@ export function createToastStore() {
             error: (message: string, options?: ToastOptions) => show(message, 'error', options),
             info: (message: string, options?: ToastOptions) => show(message, 'info', options),
             warning: (message: string, options?: ToastOptions) => show(message, 'warning', options),
+            upsert,
             dismiss,
+            remove,
             clear,
         },
     }

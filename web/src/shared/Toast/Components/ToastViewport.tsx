@@ -12,7 +12,7 @@ export default function ToastViewport() {
     return (
         <>
             {toasts.map((toast) => (
-                <ToastCard key={toast.id} toast={toast} />
+                <ToastCard key={`${toast.id}:${toast.revision}`} toast={toast} />
             ))}
             <ToastPrimitive.Viewport
                 label={t('toast.viewport')}

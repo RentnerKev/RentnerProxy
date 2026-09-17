@@ -13,8 +13,12 @@ import type {
     ProxyHostConfigEditorData,
     ProxyConfigEditorData,
 } from '../shared/Types/proxy-runtime.types'
-import type { CertificateJobActionResult } from '../shared/Types/certificate-jobs.types'
+import type {
+    CertificateJobActionResult,
+    CertificateJobSummary,
+} from '../shared/Types/certificate-jobs.types'
 import { proxyHostManagementQueryKeys } from '../features/Admin/ProxyHostManagement/queryKeys'
+import { certificateJobProgressQueryKeys } from '../features/Admin/ProxyHostManagement/CertificateJobs/queryKeys'
 import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
@@ -205,13 +209,18 @@ const retryCertificateJobHandlerMock = mock(
         message: 'admin.proxyHosts.certificateJob.errors.actionFailed',
     }),
 )
+const getCertificateJobProgressHandlerMock = mock(async (): Promise<CertificateJobSummary[]> => [])
 
 mock.module('../features/Admin/ProxyHostManagement/CertificateJobs/server', () => ({
     createProxyHostWithCertificateHandler: createProxyHostWithCertificateHandlerMock,
     updateProxyHostWithCertificateHandler: updateProxyHostWithCertificateHandlerMock,
     requestProxyHostCertificateHandler: requestProxyHostCertificateHandlerMock,
     retryCertificateJobHandler: retryCertificateJobHandlerMock,
+    getCertificateJobProgressHandler: getCertificateJobProgressHandlerMock,
 }))
+
+const { default: CertificateJobProgressObserver } =
+    await import('../features/Admin/ProxyHostManagement/CertificateJobs/CertificateJobProgressObserver')
 
 mock.module('../features/Admin/CertificateManagement/server', () => ({
     getAssignableCertificatesHandler: getAssignableCertificatesHandlerMock,
@@ -283,6 +292,23 @@ const disabledHost: ProxyHostSummary = {
     forwardPort: 443,
     forwardScheme: 'https',
     id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54020',
+}
+
+function certificateJobFixture(
+    overrides: Partial<CertificateJobSummary> = {},
+): CertificateJobSummary {
+    return {
+        id: '0198f2f0-0000-7000-8000-000000000081',
+        proxyHostId: enabledHost.id,
+        certificateId: assignableCertificate.id,
+        domains: ['app.example.com'],
+        stage: 'preparing',
+        controllerStage: null,
+        lastErrorCode: null,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+        ...overrides,
+    }
 }
 
 async function render(element: ReactElement): Promise<HTMLElement> {
@@ -496,6 +522,23 @@ beforeEach(() => {
     requestCertificateHandlerMock
         .mockReset()
         .mockResolvedValue({ success: true, message: 'admin.certificates.messages.requested' })
+    createProxyHostWithCertificateHandlerMock.mockReset().mockResolvedValue({
+        success: false,
+        message: 'admin.proxyHosts.certificateJob.errors.actionFailed',
+    })
+    updateProxyHostWithCertificateHandlerMock.mockReset().mockResolvedValue({
+        success: false,
+        message: 'admin.proxyHosts.certificateJob.errors.actionFailed',
+    })
+    requestProxyHostCertificateHandlerMock.mockReset().mockResolvedValue({
+        success: false,
+        message: 'admin.proxyHosts.certificateJob.errors.actionFailed',
+    })
+    retryCertificateJobHandlerMock.mockReset().mockResolvedValue({
+        success: false,
+        message: 'admin.proxyHosts.certificateJob.errors.actionFailed',
+    })
+    getCertificateJobProgressHandlerMock.mockReset().mockResolvedValue([])
     getProxyHostsHandlerMock.mockResolvedValue([enabledHost, disabledHost])
     getProxyRuntimeStatusHandlerMock.mockResolvedValue({
         available: true,
@@ -559,6 +602,215 @@ const allManagementPermissions = [
     PERMISSIONS.PROXY_HOSTS_DISABLE,
 ] as const
 
+const certificateProgressPermissions = [
+    PERMISSIONS.PROXY_HOSTS_VIEW,
+    PERMISSIONS.CERTIFICATES_VIEW,
+    PERMISSIONS.CERTIFICATES_ISSUE,
+] as const
+
+function getTaskToasts(): HTMLElement[] {
+    return [...document.querySelectorAll<HTMLElement>('[data-toast-kind="task"]')]
+}
+
+async function renderCertificateProgress(jobs: readonly CertificateJobSummary[]) {
+    getCertificateJobProgressHandlerMock.mockResolvedValue([...jobs])
+    return render(
+        withQueryClient(
+            <CertificateJobProgressObserver permissions={certificateProgressPermissions} />,
+        ),
+    )
+}
+
+describe('background certificate job progress', () => {
+    test('recovers multiple active jobs after reload with independent real stages', async () => {
+        await renderCertificateProgress([
+            certificateJobFixture(),
+            certificateJobFixture({
+                id: '0198f2f0-0000-7000-8000-000000000082',
+                proxyHostId: disabledHost.id,
+                domains: ['disabled.example.com'],
+                stage: 'issuing',
+                controllerStage: 'waiting_for_validation',
+            }),
+        ])
+
+        await waitFor(() => getTaskToasts().length === 2)
+        const text = getTaskToasts()
+            .map((toast) => toast.textContent ?? '')
+            .join('\n')
+        expect(text).toContain('app.example.com')
+        expect(text).toContain('Queued')
+        expect(text).toContain('disabled.example.com')
+        expect(text).toContain('Waiting for validation')
+        expect(text).not.toMatch(/\d+%/u)
+        for (const toast of getTaskToasts()) {
+            expect(toast.querySelector('.animate-spin')).not.toBeNull()
+            expect(toast.querySelector('[aria-label="Dismiss notification"]')).toBeNull()
+            expect(toast.querySelector('[aria-hidden="true"][style]')).toBeNull()
+        }
+    })
+
+    test('turns an active job into a brief success notification', async () => {
+        const active = certificateJobFixture()
+        await renderCertificateProgress([active])
+        await waitFor(() => getTaskToasts().length === 1)
+
+        await act(async () => {
+            activeQueryClient?.setQueryData(certificateJobProgressQueryKeys.all, [
+                { ...active, stage: 'applied', controllerStage: 'applied', updatedAt: new Date() },
+            ])
+            await Promise.resolve()
+        })
+
+        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'success')
+        const toast = getTaskToasts()[0]!
+        expect(toast.textContent).toContain('Certificate assigned successfully.')
+        expect(toast.querySelector('.animate-spin')).toBeNull()
+        expect(toast.querySelector('[aria-label="Dismiss notification"]')).not.toBeNull()
+        const progress = toast.querySelector<HTMLElement>('[aria-hidden="true"][style]')
+        expect(progress?.style.animationDuration).toBe('5000ms')
+        await waitFor(() => getTaskToasts().length === 0, 6_000)
+    }, 8_000)
+
+    test('keeps failures actionable and retries the exact job', async () => {
+        const failed = certificateJobFixture({
+            stage: 'failed',
+            controllerStage: 'failed',
+            lastErrorCode: 'controller_unavailable',
+        })
+        const retried = certificateJobFixture({ updatedAt: new Date('2026-01-01T00:01:00Z') })
+        retryCertificateJobHandlerMock.mockResolvedValue({
+            success: true,
+            message: 'admin.proxyHosts.certificateJob.messages.retried',
+            job: retried,
+        })
+        await renderCertificateProgress([failed])
+        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'error')
+        const failedToast = getTaskToasts()[0]!
+        expect(failedToast.textContent).toContain('The proxy controller is unavailable.')
+        expect(failedToast.querySelector('[aria-hidden="true"][style]')).toBeNull()
+        expect(failedToast.querySelector('[aria-label="Dismiss notification"]')).not.toBeNull()
+        expect(failedToast.querySelector<HTMLAnchorElement>('a')?.getAttribute('href')).toBe(
+            '/certificates',
+        )
+
+        getCertificateJobProgressHandlerMock.mockResolvedValue([retried])
+        await click(getButton('Retry'))
+        await waitFor(() => retryCertificateJobHandlerMock.mock.calls.length === 1)
+        expect(retryCertificateJobHandlerMock).toHaveBeenCalledWith({
+            data: { jobId: failed.id },
+        })
+        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'info')
+        expect(getTaskToasts()[0]?.textContent).toContain('Queued')
+        expect(getTaskToasts()[0]?.querySelector('[aria-label="Dismiss notification"]')).toBeNull()
+    })
+
+    test('updates failure actions when certificate permissions change', async () => {
+        const failed = certificateJobFixture({
+            stage: 'failed',
+            controllerStage: 'failed',
+            lastErrorCode: 'controller_unavailable',
+        })
+        getCertificateJobProgressHandlerMock.mockResolvedValue([failed])
+
+        function PermissionHarness() {
+            const [permissions, setPermissions] = useState<
+                readonly (typeof PERMISSIONS)[keyof typeof PERMISSIONS][]
+            >(certificateProgressPermissions)
+            return (
+                <>
+                    <button
+                        type="button"
+                        onClick={() => setPermissions([PERMISSIONS.PROXY_HOSTS_VIEW])}
+                    >
+                        Remove certificate permissions
+                    </button>
+                    <CertificateJobProgressObserver permissions={permissions} />
+                </>
+            )
+        }
+
+        await render(withQueryClient(<PermissionHarness />))
+        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'error')
+        expect(getButton('Retry')).toBeDefined()
+        expect(getTaskToasts()[0]?.querySelector('a[href="/certificates"]')).not.toBeNull()
+
+        await click(getButton('Remove certificate permissions'))
+        await waitFor(
+            () =>
+                !getTaskToasts()[0]?.textContent?.includes('Retry') &&
+                getTaskToasts()[0]?.querySelector('a[href="/certificates"]') === null,
+        )
+    })
+
+    test('keeps active progress visible while route content changes', async () => {
+        getCertificateJobProgressHandlerMock.mockResolvedValue([certificateJobFixture()])
+
+        function NavigationHarness() {
+            const [route, setRoute] = useState<'hosts' | 'certificates'>('hosts')
+            return (
+                <>
+                    <CertificateJobProgressObserver permissions={certificateProgressPermissions} />
+                    <button type="button" onClick={() => setRoute('certificates')}>
+                        Open certificates
+                    </button>
+                    <div data-testid="route-content">{route}</div>
+                </>
+            )
+        }
+
+        await render(withQueryClient(<NavigationHarness />))
+        await waitFor(() => getTaskToasts().length === 1)
+        await click(getButton('Open certificates'))
+        await waitFor(
+            () =>
+                document.querySelector('[data-testid="route-content"]')?.textContent ===
+                'certificates',
+        )
+        expect(getTaskToasts()).toHaveLength(1)
+        expect(getTaskToasts()[0]?.textContent).toContain('app.example.com')
+    })
+
+    test('recovers a terminal failure from an authoritative progress refresh', async () => {
+        const active = certificateJobFixture()
+        await renderCertificateProgress([active])
+        await waitFor(() => getTaskToasts().length === 1)
+        getCertificateJobProgressHandlerMock.mockResolvedValue([
+            {
+                ...active,
+                stage: 'failed',
+                controllerStage: 'failed',
+                lastErrorCode: 'controller_unavailable',
+                updatedAt: new Date('2026-01-01T00:01:00Z'),
+            },
+        ])
+
+        await act(async () => {
+            await activeQueryClient?.invalidateQueries({
+                queryKey: certificateJobProgressQueryKeys.all,
+            })
+        })
+
+        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'error')
+        expect(getTaskToasts()[0]?.textContent).toContain('The proxy controller is unavailable.')
+    })
+
+    test('does not replay an already completed success after reload', async () => {
+        await renderCertificateProgress([
+            certificateJobFixture({
+                stage: 'applied',
+                controllerStage: 'applied',
+                updatedAt: new Date(),
+            }),
+        ])
+        await waitFor(() => getCertificateJobProgressHandlerMock.mock.calls.length === 1)
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 0))
+        })
+        expect(getTaskToasts()).toHaveLength(0)
+    })
+})
+
 describe('ProxyHost management table', () => {
     test('renders all columns, compact domain overflow, forward target, IPv6, and status', async () => {
         await renderPage(allManagementPermissions)
@@ -579,6 +831,23 @@ describe('ProxyHost management table', () => {
         expect(domainLink?.target).toBe('_blank')
         expect(domainLink?.rel).toBe('noopener noreferrer')
         expect(domainLink?.getAttribute('aria-label')).toBe('Open app.example.com in a new tab')
+    })
+
+    test('does not leave certificate job stages in the host status column', async () => {
+        getProxyHostsHandlerMock.mockResolvedValueOnce([
+            {
+                ...enabledHost,
+                certificateJob: certificateJobFixture({
+                    stage: 'applied',
+                    controllerStage: 'applied',
+                }),
+            },
+        ])
+        await renderPage(allManagementPermissions)
+        await waitFor(() => getRows().length === 1)
+        expect(getRows()[0]?.textContent).toContain('Enabled')
+        expect(getRows()[0]?.textContent).not.toContain('Applied')
+        expect(getRows()[0]?.textContent).not.toContain('0198f2f0')
     })
 
     test('searches aliases and IP/port/scheme, filters status and scheme, sorts, and paginates', async () => {
@@ -1225,22 +1494,17 @@ test('creates a proxy host and queues a certificate job with read-only host doma
     const queuedJob = {
         success: true as const,
         message: 'admin.proxyHosts.certificateJob.messages.queued',
-        job: {
-            id: '0198f2f0-0000-7000-8000-000000000081',
-            proxyHostId: null,
-            certificateId: null,
-            domains: ['app.example.com'],
-            stage: 'preparing' as const,
-            controllerStage: null,
-            lastErrorCode: null,
-            createdAt: new Date('2026-01-01T00:00:00Z'),
-            updatedAt: new Date('2026-01-01T00:00:00Z'),
-        },
+        job: certificateJobFixture(),
     }
     createProxyHostWithCertificateHandlerMock.mockRejectedValueOnce(new Error('lost response'))
     createProxyHostWithCertificateHandlerMock.mockResolvedValueOnce(queuedJob)
     await render(
-        withQueryClient(<FormHarness mode="create" canAssignCertificates canRequestCertificate />),
+        withQueryClient(
+            <>
+                <CertificateJobProgressObserver permissions={certificateProgressPermissions} />
+                <FormHarness mode="create" canAssignCertificates canRequestCertificate />
+            </>,
+        ),
     )
     await setControlValue(
         document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!,
@@ -1270,6 +1534,13 @@ test('creates a proxy host and queues a certificate job with read-only host doma
     await click(forceHttps)
     await click(document.querySelector('[role="dialog"] button[type="submit"]')!)
     await waitFor(() => createProxyHostWithCertificateHandlerMock.mock.calls.length === 1)
+    let finishRefresh: (() => void) | undefined
+    const refresh = new Promise<void>((resolve) => {
+        finishRefresh = resolve
+    })
+    const invalidate = spyOn(activeQueryClient!, 'invalidateQueries').mockImplementation(
+        () => refresh,
+    )
     await click(document.querySelector('[role="dialog"] button[type="submit"]')!)
     await waitFor(() => createProxyHostWithCertificateHandlerMock.mock.calls.length === 2)
     const firstCall = createProxyHostWithCertificateHandlerMock.mock.calls[0]![0] as unknown as {
@@ -1300,6 +1571,71 @@ test('creates a proxy host and queues a certificate job with read-only host doma
         environment: 'production',
     })
     expect(firstCall.data.request).not.toHaveProperty('domains')
+    await waitFor(() => document.querySelector('[role="dialog"]') === null)
+    await waitFor(() => getTaskToasts().length === 1)
+    expect(getTaskToasts()[0]?.textContent).toContain('Certificate request')
+    expect(getTaskToasts()[0]?.textContent).toContain('app.example.com')
+    expect(getTaskToasts()[0]?.textContent).toContain('Queued')
+    expect(document.body.textContent).not.toContain('Certificate request queued.')
+    expect(
+        activeQueryClient!.getQueryData<CertificateJobSummary[]>(
+            certificateJobProgressQueryKeys.all,
+        ),
+    ).toEqual([queuedJob.job])
+    expect(invalidate).toHaveBeenCalled()
+    await act(async () => {
+        finishRefresh?.()
+        await refresh
+    })
+    invalidate.mockRestore()
+})
+
+test('closes an edited host form while its certificate job continues globally', async () => {
+    const queuedJob = certificateJobFixture({
+        id: '0198f2f0-0000-7000-8000-000000000085',
+        domains: enabledHost.domains,
+    })
+    updateProxyHostWithCertificateHandlerMock.mockImplementationOnce(async () => {
+        getCertificateJobProgressHandlerMock.mockResolvedValue([queuedJob])
+        return {
+            success: true,
+            message: 'admin.proxyHosts.certificateJob.messages.queued',
+            job: queuedJob,
+        }
+    })
+    await render(
+        withQueryClient(
+            <>
+                <CertificateJobProgressObserver permissions={certificateProgressPermissions} />
+                <FormHarness
+                    mode="edit"
+                    proxyHost={enabledHost}
+                    canAssignCertificates
+                    canRequestCertificate
+                />
+            </>,
+        ),
+    )
+    await waitFor(
+        () =>
+            document.querySelector<HTMLButtonElement>('button[aria-label="TLS certificate"]')
+                ?.disabled === false,
+    )
+    await chooseSelectOption('TLS certificate', 'Request with ACME')
+    await waitFor(() => document.querySelector('#certificate-request-terms') !== null)
+    await click(document.querySelector('#certificate-request-terms')!)
+    await click(document.querySelector('[role="dialog"] button[type="submit"]')!)
+
+    await waitFor(() => updateProxyHostWithCertificateHandlerMock.mock.calls.length === 1)
+    await waitFor(() => document.querySelector('[role="dialog"]') === null)
+    await waitFor(() => getTaskToasts().length === 1)
+    expect(getTaskToasts()[0]?.textContent).toContain('app.example.com')
+    expect(getTaskToasts()[0]?.textContent).toContain('Queued')
+    expect(
+        activeQueryClient!.getQueryData<CertificateJobSummary[]>(
+            certificateJobProgressQueryKeys.all,
+        ),
+    ).toEqual([queuedJob])
 })
 
 test('shows a safe assignable certificate load failure and offers retry', async () => {
