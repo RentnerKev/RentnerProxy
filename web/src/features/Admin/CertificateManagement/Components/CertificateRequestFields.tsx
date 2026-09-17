@@ -234,12 +234,12 @@ export default function CertificateRequestFields({
                             }}
                             options={[
                                 {
-                                    label: t('admin.certificates.environment.staging'),
-                                    value: 'staging',
-                                },
-                                {
                                     label: t('admin.certificates.environment.production'),
                                     value: 'production',
+                                },
+                                {
+                                    label: t('admin.certificates.environment.staging'),
+                                    value: 'staging',
                                 },
                             ]}
                         />
@@ -247,7 +247,11 @@ export default function CertificateRequestFields({
                             id="certificate-request-environment-hint"
                             className={uiClassNames.form.hint}
                         >
-                            {t('admin.certificates.form.stagingHint')}
+                            {t(
+                                field.state.value === 'staging'
+                                    ? 'admin.certificates.form.stagingHint'
+                                    : 'admin.certificates.form.productionHint',
+                            )}
                         </p>
                         <FieldError
                             id="certificate-request-environment-error"

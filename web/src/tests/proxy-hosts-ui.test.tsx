@@ -1285,9 +1285,12 @@ test('creates a proxy host and queues a certificate job with read-only host doma
     expect(firstCall.data.host.forceHttps).toBe(true)
     expect(firstCall.data.request).toMatchObject({
         name: 'App TLS',
-        environment: 'staging',
+        environment: 'production',
         challengeType: 'http-01',
         acceptTerms: true,
+    })
+    expect(secondCall.data.request).toMatchObject({
+        environment: 'production',
     })
     expect(firstCall.data.request).not.toHaveProperty('domains')
 })
