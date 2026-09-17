@@ -34,6 +34,11 @@ import {
     getProxyHostConfigEditorService,
     saveProxyHostConfigEditorService,
 } from '../server/ProxyRuntime/proxy-host-config-editor.service'
+import {
+    lockProxyRuntimeSettings,
+    readProxyHttpSettings,
+    writeProxyHttpSettings,
+} from '../server/ProxyRuntime/proxy-runtime-settings'
 import { getAuthDatabase } from '../server/Auth/Core/database.server'
 import { AuthDomainError } from '../server/Auth/Core/errors.server'
 import { ensureAuthorizationRegistryInTransaction } from '../server/Auth/Access/registry.service'
@@ -66,6 +71,7 @@ import { RedirectHostDomainError } from '../server/Admin/RedirectHostManagement/
 import { getDatabaseUrl } from '../server/env.server'
 import type { CreateProxyHostInput } from '../features/Admin/ProxyHostManagement/validation'
 import type { CreateRedirectHostInput } from '../features/Admin/RedirectHostManagement/validation'
+import type { ProxyHttpSettings } from '../shared/Types/proxy-runtime.types'
 import {
     applyRedirectConfigurationHandler,
     getRedirectRuntimeStatusHandler,
@@ -1604,11 +1610,25 @@ describe('Caddy structured proxy host configuration with PostgreSQL', () => {
                 createProxyHostService(proxyHostInput('caddy-settings')),
             )
             const controller = startFakeController(false)
+            let previousHttpSettings: ProxyHttpSettings | undefined
             try {
+                previousHttpSettings = await getAuthDatabase().transaction(async (transaction) => {
+                    await lockProxyRuntimeSettings(transaction)
+                    const previous = await readProxyHttpSettings(transaction)
+                    await writeProxyHttpSettings(transaction, {
+                        ...previous,
+                        proxyConnectTimeoutSeconds: 12,
+                    })
+                    return previous
+                })
                 const state = await runAsUser(owner.id, () =>
                     getProxyHostConfigEditorService(created.id),
                 )
                 expect(state.settings).toEqual({})
+                expect(state.inheritedSettings.proxyConnectTimeoutSeconds).toBe(12)
+                expect(
+                    controller.requests.filter(({ path }) => path.endsWith('/config/preview')),
+                ).toHaveLength(0)
                 const saved = await runAsUser(owner.id, () =>
                     saveProxyHostConfigEditorService({
                         proxyHostId: created.id,
@@ -1629,6 +1649,12 @@ describe('Caddy structured proxy host configuration with PostgreSQL', () => {
                 })
                 expect(next).not.toHaveProperty('advancedConfig')
             } finally {
+                if (previousHttpSettings !== undefined) {
+                    const settingsToRestore = previousHttpSettings
+                    await getAuthDatabase().transaction((transaction) =>
+                        writeProxyHttpSettings(transaction, settingsToRestore),
+                    )
+                }
                 await controller.server.stop(true)
             }
         },

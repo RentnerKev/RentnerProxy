@@ -1107,6 +1107,27 @@
                 "globalTitle": "Globale Caddy-HTTP-Einstellungen",
                 "globalDescription": "Gemeinsame HTTP-Einstellungen anpassen und die aktive native Caddy-Konfiguration einsehen.",
                 "hostDescription": "Dieser Proxy hat eine eigene Konfiguration. Host-Einstellungen überschreiben die gemeinsamen Standardwerte.",
+                "hostOverview": "Host-Konfiguration",
+                "clientTransport": "Client-HTTP / HTTPS",
+                "currentConfiguration": "Aktuelle Konfiguration",
+                "currentConfigurationStates": {
+                    "active": "Aktive Config geladen",
+                    "saved": "Für die nächste Aktivierung gespeichert",
+                    "unavailable": "Aktive Config nicht verfügbar"
+                },
+                "httpOnly": "Nur HTTP",
+                "httpAndHttps": "HTTP und HTTPS",
+                "httpsRedirect": "HTTPS · HTTP-Weiterleitung aktiv",
+                "upstreamHttp": "HTTP · kein Upstream-TLS",
+                "upstreamTlsSystemTrust": "HTTPS · mit Systemvertrauen geprüft",
+                "upstreamTlsCustomTrust": "HTTPS · mit eigener CA geprüft",
+                "sources": {
+                    "inherited": "Geerbt",
+                    "override": "Überschrieben"
+                },
+                "effectiveValue": "Wirksam: {{value}} {{unit}}",
+                "effectiveCaddyDefault": "Wirksam: Caddy-Standard",
+                "hostActiveUnavailable": "Für diesen Host ist keine aktive Konfiguration verfügbar.",
                 "editTab": "Config bearbeiten",
                 "views": "Konfigurationsansicht",
                 "sourceEditorLabel": "Caddy-Konfiguration des Proxy-Hosts",
