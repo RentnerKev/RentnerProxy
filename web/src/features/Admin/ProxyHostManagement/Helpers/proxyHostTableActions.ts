@@ -3,10 +3,12 @@ import type { Translate } from '../../../../language/useTranslationStore'
 import type { ProxyHostTableActionsProps } from '../Types/proxy-host-table.types'
 import { isCertificateJobActive } from '../../../../config/certificate-jobs.config'
 
+/** Returns the primary domain or forwarding host used to identify a proxy host. */
 function getProxyHostName(host: ProxyHostTableActionsProps['host']): string {
     return host.domains[0] ?? host.forwardHost
 }
 
+/** Builds the actions available for a proxy host in its current job and permission state. */
 export function getProxyHostTableActionItems(
     {
         canDelete,
@@ -51,7 +53,7 @@ export function getProxyHostTableActionItems(
                     : 'admin.certificates.actions.requestForHost',
             ),
             onSelect: () => onRequestCertificate(host),
-            disabled: isPending || (job !== null && job !== undefined && !retrying),
+            disabled: isPending || Boolean(job && isCertificateJobActive(job.stage) && !retrying),
         })
     }
 
