@@ -1,5 +1,5 @@
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
-import { Tooltip } from '../../../../shared/Tooltip'
+import { ManagedDomainLink, ManagedDomainOverflow } from '../../../../shared/Domain'
 import useTranslationStore, { useDateFormatter } from '../../../../language/useTranslationStore'
 import type { CertificateSource, CertificateStatus } from '../../../../config/certificates.config'
 import type { CertificateSummary } from '../../../../shared/Types/certificates.types'
@@ -23,22 +23,17 @@ export function CertificateDomainsCell({ domains }: { readonly domains: Readonly
     return (
         <div className={uiClassNames.chip.row}>
             {visible.map((domain) => (
-                <span className={uiClassNames.chip.item + ' max-w-56 wrap-anywhere'} key={domain}>
-                    {domain}
-                </span>
+                <ManagedDomainLink
+                    className={uiClassNames.chip.item + ' max-w-56 wrap-anywhere'}
+                    domain={domain}
+                    key={domain}
+                />
             ))}
             {extra.length > 0 ? (
-                <Tooltip content={extra.join(', ')}>
-                    <button
-                        type="button"
-                        className="inline-flex h-12 cursor-help items-center justify-center rounded-xl border-0 bg-neutral px-3 py-0 font-mono text-sm font-bold text-muted outline-hidden focus-visible:outline-2 focus-visible:outline-brand-500"
-                        aria-label={t('admin.certificates.cells.moreDomains', {
-                            count: extra.length,
-                        })}
-                    >
-                        +{extra.length}
-                    </button>
-                </Tooltip>
+                <ManagedDomainOverflow
+                    ariaLabel={t('common.moreDomains', { count: extra.length })}
+                    domains={extra}
+                />
             ) : null}
         </div>
     )

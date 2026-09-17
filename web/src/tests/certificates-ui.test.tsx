@@ -355,6 +355,14 @@ describe('certificate management UI', () => {
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         expect(document.body.textContent).toContain('Public edge')
         expect(document.body.textContent).toContain('Valid')
+        const certificateRow = [...document.querySelectorAll<HTMLTableRowElement>('tbody tr')].find(
+            (row) => row.textContent?.includes('Public edge'),
+        )!
+        expect(
+            [...certificateRow.querySelectorAll<HTMLAnchorElement>('a')]
+                .map((link) => link.getAttribute('href'))
+                .filter(Boolean),
+        ).toEqual(['https://app.example.com', 'https://www.example.com'])
         expect(document.body.textContent).not.toContain('Import certificate')
         expect(document.body.textContent).not.toContain('Request with ACME')
         await openMenu(button('Open certificate actions'))

@@ -29,7 +29,9 @@
         "actions": "Actions",
         "openActions": "Open actions",
         "profilePicture": "{{name}}'s profile picture",
-        "backHome": "Back to home"
+        "backHome": "Back to home",
+        "openDomainInNewTab": "Open {{domain}} in a new tab",
+        "moreDomains": "Show {{count}} more domains"
     },
     "shell": {
         "home": "RentnerProxy home",

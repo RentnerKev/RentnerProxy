@@ -1,4 +1,5 @@
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import { ManagedDomainLink, ManagedDomainOverflow } from '../../../../shared/Domain'
 import {
     useDateFormatter,
     default as useTranslationStore,
@@ -14,18 +15,21 @@ import type {
 const badge =
     'inline-flex rounded-full px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold data-[status=enabled]:bg-success-bg data-[status=enabled]:text-success-text data-[status=disabled]:bg-danger-bg data-[status=disabled]:text-danger-text'
 export function RedirectHostDomainsCell({ domains }: RedirectHostDomainsCellProps) {
+    const { t } = useTranslationStore()
     return domains.length ? (
         <div className={uiClassNames.chip.row}>
             {domains.slice(0, 2).map((domain) => (
-                <span
+                <ManagedDomainLink
                     className={uiClassNames.chip.item + ' inline-block max-w-56 truncate'}
+                    domain={domain}
                     key={domain}
-                >
-                    {domain}
-                </span>
+                />
             ))}
             {domains.length > 2 ? (
-                <span className={uiClassNames.chip.item}>+{domains.length - 2}</span>
+                <ManagedDomainOverflow
+                    ariaLabel={t('common.moreDomains', { count: domains.length - 2 })}
+                    domains={domains.slice(2)}
+                />
             ) : null}
         </div>
     ) : (
