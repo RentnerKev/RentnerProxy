@@ -109,4 +109,21 @@ describe('toast store', () => {
         expect(first.getSnapshot()).toEqual([])
         expect(second.getSnapshot()).toHaveLength(1)
     })
+
+    test('reports a manual dismissal exactly once', () => {
+        const store = createToastStore()
+        stores.push(store)
+        let dismissals = 0
+        store.notify.upsert('certificate-job-1', 'Failed', 'error', {
+            persistent: true,
+            onDismiss: () => {
+                dismissals += 1
+            },
+        })
+
+        store.notify.dismiss('certificate-job-1')
+        store.notify.dismiss('certificate-job-1')
+
+        expect(dismissals).toBe(1)
+    })
 })

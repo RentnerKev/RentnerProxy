@@ -757,7 +757,7 @@ describe('certificate management with PostgreSQL', () => {
     )
 
     integrationTest(
-        'blocks active renewal and binding jobs but ignores terminal operation history',
+        'blocks active renewal and binding jobs but allows failed scheduled retries',
         async () => {
             const owner = await createUser([SYSTEM_ROLES.OWNER])
             const id = await asUser(owner, () => importCertificateService(importInput()))
@@ -777,7 +777,7 @@ describe('certificate management with PostgreSQL', () => {
                     currentOperation: {
                         id: randomUUID(),
                         kind: 'renew',
-                        stage: 'failed',
+                        stage: 'retry_scheduled',
                         startedAt: new Date(Date.now() - 1_000).toISOString(),
                         updatedAt: new Date().toISOString(),
                     },
@@ -805,7 +805,7 @@ describe('certificate management with PostgreSQL', () => {
             })
             await database
                 .update(certificateJobs)
-                .set({ stage: 'applied' })
+                .set({ stage: 'failed', lastErrorCode: 'acme_failed' })
                 .where(eq(certificateJobs.id, job.id))
 
             await expect(asUser(owner, () => deleteCertificateService(id))).resolves.toMatchObject({

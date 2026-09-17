@@ -26,8 +26,10 @@ export function createToastStore() {
     }
 
     function dismiss(id: string) {
-        if (!toasts.some((toast) => toast.id === id && toast.open)) return
+        const dismissed = toasts.find((toast) => toast.id === id && toast.open)
+        if (!dismissed) return
         publish(toasts.map((toast) => (toast.id === id ? { ...toast, open: false } : toast)))
+        dismissed.onDismiss?.()
         removalTimers.set(
             id,
             setTimeout(() => remove(id), 220),
@@ -66,6 +68,7 @@ export function createToastStore() {
             persistent,
             dismissible: options.dismissible ?? true,
             activity: options.activity ?? 'none',
+            ...(options.onDismiss ? { onDismiss: options.onDismiss } : {}),
             ...(options.detail ? { detail: options.detail } : {}),
             ...(options.context ? { context: options.context } : {}),
         }

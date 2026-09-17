@@ -16,6 +16,7 @@ export interface ToastOptions {
     readonly persistent?: boolean
     readonly dismissible?: boolean
     readonly activity?: 'none' | 'running'
+    readonly onDismiss?: () => void
 }
 
 export interface ToastMessage {
@@ -33,4 +34,5 @@ export interface ToastMessage {
     readonly persistent: boolean
     readonly dismissible: boolean
     readonly activity: 'none' | 'running'
+    readonly onDismiss?: () => void
 }

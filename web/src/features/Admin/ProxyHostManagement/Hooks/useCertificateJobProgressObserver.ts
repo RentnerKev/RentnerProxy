@@ -26,6 +26,7 @@ import {
 import { proxyHostManagementQueryKeys } from '../queryKeys'
 
 const EMPTY_JOBS: CertificateJobSummary[] = []
+const DISMISSED_JOB_REVISIONS_STORAGE_KEY = 'rentnerproxy.certificate-job-dismissals.v1'
 const LIVE_QUERY_KEYS = [
     certificateJobProgressQueryKeys.all,
     proxyHostManagementQueryKeys.all,
@@ -35,6 +36,50 @@ const LIVE_QUERY_KEYS = [
 
 function taskId(jobId: string): string {
     return `certificate-job-${jobId}`
+}
+
+function jobStateRevision(job: CertificateJobSummary): string {
+    const updatedAt =
+        job.updatedAt instanceof Date ? job.updatedAt.getTime() : new Date(job.updatedAt).getTime()
+    return [
+        job.stage,
+        job.controllerStage ?? '',
+        job.lastErrorCode ?? '',
+        Number.isNaN(updatedAt) ? String(job.updatedAt) : String(updatedAt),
+    ].join(':')
+}
+
+function readDismissedJobRevisions(): Map<string, string> {
+    if (typeof window === 'undefined') return new Map()
+    try {
+        const value: unknown = JSON.parse(
+            window.sessionStorage.getItem(DISMISSED_JOB_REVISIONS_STORAGE_KEY) ?? '{}',
+        )
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return new Map()
+        return new Map(
+            Object.entries(value).filter(
+                (entry): entry is [string, string] => typeof entry[1] === 'string',
+            ),
+        )
+    } catch {
+        return new Map()
+    }
+}
+
+function persistDismissedJobRevisions(revisions: ReadonlyMap<string, string>): void {
+    if (typeof window === 'undefined') return
+    try {
+        if (revisions.size === 0) {
+            window.sessionStorage.removeItem(DISMISSED_JOB_REVISIONS_STORAGE_KEY)
+            return
+        }
+        window.sessionStorage.setItem(
+            DISMISSED_JOB_REVISIONS_STORAGE_KEY,
+            JSON.stringify(Object.fromEntries(revisions)),
+        )
+    } catch {
+        // Storage can be unavailable without affecting certificate progress reporting.
+    }
 }
 
 function jobSignature(
@@ -63,6 +108,7 @@ export default function useCertificateJobProgressObserver(
     const queryClient = useQueryClient()
     const initialized = useRef(false)
     const signatures = useRef(new Map<string, string>())
+    const dismissedJobRevisions = useMemo(() => readDismissedJobRevisions(), [])
     const jobsQuery = useQuery({
         queryKey: certificateJobProgressQueryKeys.all,
         queryFn: () => getCertificateJobProgressHandler(),
@@ -110,15 +156,29 @@ export default function useCertificateJobProgressObserver(
 
         const initialLoad = !initialized.current
         const currentIds = new Set<string>()
+        let dismissalsChanged = false
         for (const job of jobsQuery.data) {
             currentIds.add(job.id)
+            const revision = jobStateRevision(job)
+            const dismissedRevision = dismissedJobRevisions.get(job.id)
+            let dismissedStateChanged = false
+            if (dismissedRevision && dismissedRevision !== revision) {
+                dismissedJobRevisions.delete(job.id)
+                dismissalsChanged = true
+                dismissedStateChanged = true
+            }
+
             const signature = jobSignature(job, canRetry, canViewCertificate)
-            if (signatures.current.get(job.id) === signature) continue
+            if (signatures.current.get(job.id) === signature && !dismissedStateChanged) continue
             signatures.current.set(job.id, signature)
 
             if (initialLoad && job.stage === 'applied') continue
 
             const failure = isCertificateJobFailure(job)
+            if (failure && dismissedRevision === revision) {
+                toast.remove(taskId(job.id))
+                continue
+            }
             const actions: ToastAction[] = []
             if (canRetry && isCertificateJobRetryable(job)) {
                 actions.push({
@@ -149,6 +209,14 @@ export default function useCertificateJobProgressObserver(
                     persistent: job.stage !== 'applied',
                     dismissible: job.stage === 'applied' || failure,
                     activity: job.stage === 'applied' || failure ? 'none' : 'running',
+                    ...(failure
+                        ? {
+                              onDismiss: () => {
+                                  dismissedJobRevisions.set(job.id, revision)
+                                  persistDismissedJobRevisions(dismissedJobRevisions)
+                              },
+                          }
+                        : {}),
                     ...(job.stage === 'applied'
                         ? { duration: CERTIFICATE_JOB_SUCCESS_TOAST_DURATION_MS }
                         : {}),
@@ -168,6 +236,12 @@ export default function useCertificateJobProgressObserver(
             signatures.current.delete(jobId)
             toast.remove(taskId(jobId))
         }
+        for (const jobId of dismissedJobRevisions.keys()) {
+            if (currentIds.has(jobId)) continue
+            dismissedJobRevisions.delete(jobId)
+            dismissalsChanged = true
+        }
+        if (dismissalsChanged) persistDismissedJobRevisions(dismissedJobRevisions)
         initialized.current = true
-    }, [canRetry, canView, canViewCertificate, jobsQuery.data, retry, toast])
+    }, [canRetry, canView, canViewCertificate, dismissedJobRevisions, jobsQuery.data, retry, toast])
 }

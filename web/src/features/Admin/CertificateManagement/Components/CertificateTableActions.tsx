@@ -49,7 +49,7 @@ export default function CertificateTableActions({
                   {
                       label: t('admin.certificates.actions.delete'),
                       onSelect: () => onDelete(certificate),
-                      disabled: isPending || operationActive,
+                      disabled: isPending,
                       destructive: true,
                   },
               ]
