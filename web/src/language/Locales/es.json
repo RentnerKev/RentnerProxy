@@ -29,7 +29,9 @@
         "actions": "Acciones",
         "openActions": "Abrir acciones",
         "profilePicture": "Foto de perfil de {{name}}",
-        "backHome": "Volver al inicio"
+        "backHome": "Volver al inicio",
+        "openDomainInNewTab": "Abrir {{domain}} en una pestaña nueva",
+        "moreDomains": "Mostrar {{count}} dominios más"
     },
     "shell": {
         "home": "Inicio de RentnerProxy",
