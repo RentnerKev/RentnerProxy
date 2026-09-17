@@ -668,7 +668,7 @@ export async function renewCertificateService(certificateId: string): Promise<st
     return id
 }
 
-async function assertCertificateCanBeDeleted(
+async function prepareCertificateForDeletion(
     transaction: AuthTransaction,
     certificateId: string,
 ): Promise<void> {
@@ -676,8 +676,12 @@ async function assertCertificateCanBeDeleted(
     if (certificate.operation !== 'idle' || certificate.candidate !== null) {
         throw new CertificateDomainError('operation_in_progress')
     }
-    const activeJob = await transaction
-        .select({ id: certificateJobs.id })
+    const activeJobs = await transaction
+        .select({
+            id: certificateJobs.id,
+            lastErrorCode: certificateJobs.lastErrorCode,
+            leaseToken: certificateJobs.leaseToken,
+        })
         .from(certificateJobs)
         .where(
             and(
@@ -685,8 +689,21 @@ async function assertCertificateCanBeDeleted(
                 inArray(certificateJobs.stage, ['preparing', 'issuing', 'applying']),
             ),
         )
-        .limit(1)
-    if (activeJob.length > 0) throw new CertificateDomainError('operation_in_progress')
+        .for('update')
+    if (activeJobs.some((job) => !job.lastErrorCode || job.leaseToken !== null)) {
+        throw new CertificateDomainError('operation_in_progress')
+    }
+    if (activeJobs.length > 0) {
+        await transaction
+            .update(certificateJobs)
+            .set({ stage: 'failed', retryRequested: false, updatedAt: new Date() })
+            .where(
+                inArray(
+                    certificateJobs.id,
+                    activeJobs.map((job) => job.id),
+                ),
+            )
+    }
 }
 
 async function readCertificateAssignmentsForUpdate(
@@ -714,7 +731,7 @@ async function detachCertificateAssignments(
     actorId: string,
     certificateId: string,
 ): Promise<number> {
-    await assertCertificateCanBeDeleted(transaction, certificateId)
+    await prepareCertificateForDeletion(transaction, certificateId)
     const { proxyHostIds, redirectHostIds } = await readCertificateAssignmentsForUpdate(
         transaction,
         certificateId,
@@ -773,7 +790,7 @@ async function finalizeCertificateDeletion(
     return getAuthDatabase().transaction(async (transaction) => {
         await lockProxyRuntimeSettings(transaction)
         await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.CERTIFICATES_DELETE)
-        await assertCertificateCanBeDeleted(transaction, certificateId)
+        await prepareCertificateForDeletion(transaction, certificateId)
         const assignments = await readCertificateAssignmentsForUpdate(transaction, certificateId)
         if (assignments.proxyHostIds.length > 0 || assignments.redirectHostIds.length > 0) {
             throw new CertificateDomainError('certificate_in_use')

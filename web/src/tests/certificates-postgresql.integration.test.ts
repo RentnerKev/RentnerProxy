@@ -757,7 +757,7 @@ describe('certificate management with PostgreSQL', () => {
     )
 
     integrationTest(
-        'blocks active renewal and binding jobs but allows failed scheduled retries',
+        'blocks active work but cancels an idle failed retry before deletion',
         async () => {
             const owner = await createUser([SYSTEM_ROLES.OWNER])
             const id = await asUser(owner, () => importCertificateService(importInput()))
@@ -805,7 +805,18 @@ describe('certificate management with PostgreSQL', () => {
             })
             await database
                 .update(certificateJobs)
-                .set({ stage: 'failed', lastErrorCode: 'acme_failed' })
+                .set({
+                    lastErrorCode: 'controller_unavailable',
+                    leaseToken: randomUUID(),
+                    leaseExpiresAt: new Date(Date.now() + 60_000),
+                })
+                .where(eq(certificateJobs.id, job.id))
+            await expect(asUser(owner, () => deleteCertificateService(id))).rejects.toMatchObject({
+                code: 'operation_in_progress',
+            })
+            await database
+                .update(certificateJobs)
+                .set({ leaseToken: null, leaseExpiresAt: null })
                 .where(eq(certificateJobs.id, job.id))
 
             await expect(asUser(owner, () => deleteCertificateService(id))).resolves.toMatchObject({
@@ -815,11 +826,15 @@ describe('certificate management with PostgreSQL', () => {
             expect(
                 (
                     await database
-                        .select({ certificateId: certificateJobs.certificateId })
+                        .select({
+                            certificateId: certificateJobs.certificateId,
+                            retryRequested: certificateJobs.retryRequested,
+                            stage: certificateJobs.stage,
+                        })
                         .from(certificateJobs)
                         .where(eq(certificateJobs.id, job.id))
-                )[0]?.certificateId,
-            ).toBeNull()
+                )[0],
+            ).toEqual({ certificateId: null, retryRequested: false, stage: 'failed' })
         },
     )
 
