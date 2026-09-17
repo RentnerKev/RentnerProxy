@@ -1,7 +1,9 @@
 import { randomBytes, randomUUID } from 'node:crypto'
+import { requestHandler } from '@tanstack/react-start/server'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { eq, inArray, like, or } from 'drizzle-orm'
 
+import { SESSION_COOKIE_NAME } from '../config/auth.config'
 import { PERMISSIONS, SYSTEM_ROLES } from '../config/permissions.config'
 import {
     certificateDomains,
@@ -15,8 +17,10 @@ import {
 } from '../db/schema'
 import type { RequestCertificateInput } from '../features/Admin/CertificateManagement/validation'
 import { ensureAuthorizationRegistryInTransaction } from '../server/Auth/Access/registry.service'
+import { createSessionService } from '../server/Auth/Access/sessions.service'
 import { getAuthDatabase } from '../server/Auth/Core/database.server'
 import { CertificateDomainError } from '../server/Admin/CertificateManagement/certificates.errors'
+import { retryCertificateJobService } from '../server/Admin/ProxyHostManagement/certificate-jobs.service'
 import { runCertificateJobsOnce } from '../server/Admin/ProxyHostManagement/certificate-jobs.worker.server'
 import { readCertificateJobHost } from '../server/Admin/ProxyHostManagement/certificate-jobs.storage.server'
 import { encryptSecret } from '../server/Auth/Core/encryption.server'
@@ -78,6 +82,7 @@ function createController() {
     let failIssueOnce = false
     let getCalls = 0
     let issueCalls = 0
+    let renewCalls = 0
     const get = async (certificateId: string): Promise<ControllerCertificateMetadata> => {
         getCalls += 1
         const metadata = entries.get(certificateId)
@@ -98,13 +103,31 @@ function createController() {
             }
             return metadata
         },
-        renew: get,
+        renew: async (certificateId) => {
+            renewCalls += 1
+            const current = entries.get(certificateId)
+            if (!current) throw new CertificateDomainError('certificate_not_found')
+            if (!current.candidate) return current
+            const metadata = validMetadata(certificateId, current.domains, {
+                environment: current.environment ?? 'staging',
+                challengeType: current.challengeType ?? 'http-01',
+                currentOperation: null,
+                candidate: null,
+                dnsCleanupPending: false,
+                fingerprint: current.candidate.fingerprint,
+                issuedAt: current.candidate.issuedAt,
+                expiresAt: current.candidate.expiresAt,
+            })
+            entries.set(certificateId, metadata)
+            return metadata
+        },
     }
     return {
         controller,
         entries,
         getCalls: () => getCalls,
         issueCalls: () => issueCalls,
+        renewCalls: () => renewCalls,
         setFailIssueOnce: () => {
             failIssueOnce = true
         },
@@ -174,6 +197,29 @@ async function createUser(): Promise<string> {
         await transaction.insert(userRoles).values({ userId: user.id, roleId: role.id })
         return user.id
     })
+}
+
+/** Runs an authenticated service operation as the supplied fixture user. */
+async function asUser<T>(userId: string, operation: () => Promise<T>): Promise<T> {
+    const session = await createSessionService(userId)
+    let result: T | undefined
+    let failure: unknown
+    const handler = requestHandler(async () => {
+        try {
+            result = await operation()
+        } catch (error) {
+            failure = error
+        }
+        return new Response(null, { status: failure ? 500 : 204 })
+    })
+    await handler(
+        new Request('http://localhost/', {
+            headers: { cookie: `${SESSION_COOKIE_NAME}=${session.token}` },
+        }),
+        {},
+    )
+    if (failure) throw failure
+    return result as T
 }
 
 async function createJob(actorId: string): Promise<FixtureJob> {
@@ -268,6 +314,7 @@ async function readHost(id: string) {
 async function readCertificate(id: string) {
     const [certificate] = await getAuthDatabase()
         .select({
+            candidate: certificates.candidate,
             challengeType: certificates.challengeType,
             currentOperation: certificates.currentOperation,
             environment: certificates.environment,
@@ -491,6 +538,197 @@ describe('certificate job worker with PostgreSQL', () => {
             expectCompletedJob(await readJob(fixture.id))
             expect(controller.issueCalls()).toBe(0)
             expect(controller.getCalls()).toBe(2)
+        },
+    )
+
+    integrationTest('retries a retained candidate through controller renewal', async () => {
+        const actorId = await createUser()
+        const fixture = await createJob(actorId)
+        const controller = createController()
+        const runtime = createRuntime()
+        const operationId = randomUUID()
+        const issuedAt = new Date(Date.now() - 60_000).toISOString()
+        const expiresAt = new Date(Date.now() + 86_400_000).toISOString()
+        controller.entries.set(
+            fixture.certificateId,
+            validMetadata(fixture.certificateId, [fixture.domain], {
+                currentOperation: {
+                    id: operationId,
+                    kind: 'renew',
+                    stage: 'failed',
+                    startedAt: new Date(Date.now() - 120_000).toISOString(),
+                    updatedAt: new Date(Date.now() - 60_000).toISOString(),
+                },
+                candidate: {
+                    fingerprint: 'sha256:' + 'b'.repeat(64),
+                    issuedAt,
+                    expiresAt,
+                    lastErrorCode: 'acme_failed',
+                    nextAttemptAt: null,
+                },
+                lastErrorCode: 'acme_failed',
+            }),
+        )
+        await getAuthDatabase()
+            .update(certificateJobs)
+            .set({
+                stage: 'failed',
+                controllerOperationId: operationId,
+                lastErrorCode: 'acme_failed',
+            })
+            .where(eq(certificateJobs.id, fixture.id))
+
+        await asUser(actorId, () => retryCertificateJobService(fixture.id))
+        expect(await readJob(fixture.id)).toMatchObject({
+            stage: 'preparing',
+            controllerOperationId: operationId,
+            retryRequested: true,
+            lastErrorCode: null,
+        })
+        runtime.setAvailable(true)
+        await makeDue(fixture.id)
+        await runCertificateJobsOnce(controller.controller, runtime.runtime)
+
+        expect(controller.renewCalls()).toBe(1)
+        expect(controller.issueCalls()).toBe(0)
+        expectCompletedJob(await readJob(fixture.id))
+        expect(await readHost(fixture.hostId)).toMatchObject({
+            certificateId: fixture.certificateId,
+            enabled: true,
+        })
+        expect(await readCertificate(fixture.certificateId)).toMatchObject({
+            candidate: null,
+            currentOperation: null,
+            fingerprint: 'sha256:' + 'b'.repeat(64),
+            issuedAt: new Date(issuedAt),
+            expiresAt: new Date(expiresAt),
+            lastErrorCode: null,
+            operation: 'idle',
+            status: 'valid',
+        })
+    })
+
+    integrationTest('retries a matching failed operation with replacement issuance', async () => {
+        const actorId = await createUser()
+        const fixture = await createJob(actorId)
+        const controller = createController()
+        const runtime = createRuntime()
+        const operationId = randomUUID()
+        controller.entries.set(
+            fixture.certificateId,
+            validMetadata(fixture.certificateId, [fixture.domain], {
+                status: 'failed',
+                operation: 'idle',
+                currentOperation: {
+                    id: operationId,
+                    kind: 'issue',
+                    stage: 'failed',
+                    startedAt: new Date(Date.now() - 120_000).toISOString(),
+                    updatedAt: new Date(Date.now() - 60_000).toISOString(),
+                },
+                candidate: null,
+                issuedAt: null,
+                expiresAt: null,
+                issuer: null,
+                fingerprint: null,
+                lastErrorCode: 'acme_failed',
+            }),
+        )
+        await getAuthDatabase()
+            .update(certificateJobs)
+            .set({
+                stage: 'failed',
+                controllerOperationId: operationId,
+                lastErrorCode: 'acme_failed',
+            })
+            .where(eq(certificateJobs.id, fixture.id))
+
+        await asUser(actorId, () => retryCertificateJobService(fixture.id))
+        expect(await readJob(fixture.id)).toMatchObject({
+            controllerOperationId: operationId,
+            retryRequested: true,
+        })
+        runtime.setAvailable(true)
+        await makeDue(fixture.id)
+        await runCertificateJobsOnce(controller.controller, runtime.runtime)
+
+        expect(controller.issueCalls()).toBe(1)
+        expect(controller.renewCalls()).toBe(0)
+        expectCompletedJob(await readJob(fixture.id))
+        expect(await readHost(fixture.hostId)).toMatchObject({
+            certificateId: fixture.certificateId,
+            enabled: true,
+        })
+        expect(await readCertificate(fixture.certificateId)).toMatchObject({
+            candidate: null,
+            currentOperation: null,
+            fingerprint: 'sha256:' + 'a'.repeat(64),
+            lastErrorCode: null,
+            operation: 'idle',
+            status: 'valid',
+        })
+    })
+
+    integrationTest(
+        'consumes a retry with a retained unmatched operation without duplicate issuance',
+        async () => {
+            const actorId = await createUser()
+            const fixture = await createJob(actorId)
+            const controller = createController()
+            const operationId = randomUUID()
+            controller.entries.set(
+                fixture.certificateId,
+                validMetadata(fixture.certificateId, [fixture.domain], {
+                    status: 'failed',
+                    operation: 'idle',
+                    currentOperation: null,
+                    candidate: null,
+                    issuedAt: null,
+                    expiresAt: null,
+                    issuer: null,
+                    fingerprint: null,
+                    lastErrorCode: 'acme_failed',
+                }),
+            )
+            await getAuthDatabase()
+                .update(certificateJobs)
+                .set({
+                    stage: 'failed',
+                    controllerOperationId: operationId,
+                    lastErrorCode: 'acme_failed',
+                })
+                .where(eq(certificateJobs.id, fixture.id))
+
+            await asUser(actorId, () => retryCertificateJobService(fixture.id))
+            expect(await readJob(fixture.id)).toMatchObject({
+                controllerOperationId: operationId,
+                retryRequested: true,
+            })
+            await makeDue(fixture.id)
+            await runCertificateJobsOnce(controller.controller, createRuntime().runtime)
+
+            expect(controller.issueCalls()).toBe(0)
+            expect(controller.renewCalls()).toBe(0)
+            expect(await readJob(fixture.id)).toMatchObject({
+                stage: 'failed',
+                controllerOperationId: operationId,
+                retryRequested: false,
+                lastErrorCode: 'acme_failed',
+                leaseToken: null,
+                leaseExpiresAt: null,
+            })
+            expect(await readHost(fixture.hostId)).toMatchObject({
+                certificateId: null,
+                enabled: false,
+            })
+            expect(await readCertificate(fixture.certificateId)).toMatchObject({
+                candidate: null,
+                currentOperation: null,
+                fingerprint: null,
+                lastErrorCode: 'acme_failed',
+                operation: 'idle',
+                status: 'failed',
+            })
         },
     )
 })
