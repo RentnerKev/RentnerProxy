@@ -107,9 +107,12 @@ const editorFixture: ProxyHostConfigEditorData = {
     enabled: true,
     baseRevision: editorBaseRevision,
     settings: { proxyReadTimeoutSeconds: 90 },
+    inheritedSettings: {
+        clientMaxBodySizeBytes: 1_048_576,
+        proxyConnectTimeoutSeconds: 10,
+        proxyReadTimeoutSeconds: 60,
+    },
     active: { config: hostConfig(90), revision: editorBaseRevision },
-    generated: { config: hostConfig(90), revision: editorBaseRevision },
-    defaults: { config: hostConfig(undefined), revision: null },
 }
 const globalEditorFixture: ProxyConfigEditorData = {
     baseRevision: editorBaseRevision,
@@ -120,10 +123,6 @@ const globalEditorFixture: ProxyConfigEditorData = {
 const getProxyHostConfigEditorHandlerMock = mock(
     async (_input: unknown): Promise<ProxyHostConfigEditorData> => editorFixture,
 )
-const previewProxyHostConfigEditorHandlerMock = mock(async (_input: unknown) => ({
-    config: hostConfig(120),
-    revision: editorBaseRevision,
-}))
 const saveProxyHostConfigEditorHandlerMock = mock(
     async (_input: unknown): Promise<ProxyHostActionResult> => ({
         success: true,
@@ -162,7 +161,6 @@ mock.module('../features/Admin/ProxyHostManagement/server', () => ({
     saveProxyConfigEditorHandler: saveProxyConfigEditorHandlerMock,
     resetProxyConfigEditorHandler: resetProxyConfigEditorHandlerMock,
     getProxyHostConfigEditorHandler: getProxyHostConfigEditorHandlerMock,
-    previewProxyHostConfigEditorHandler: previewProxyHostConfigEditorHandlerMock,
     saveProxyHostConfigEditorHandler: saveProxyHostConfigEditorHandlerMock,
     resetProxyHostConfigEditorHandler: resetProxyHostConfigEditorHandlerMock,
     createProxyHostHandler: createProxyHostHandlerMock,
@@ -469,10 +467,6 @@ beforeEach(() => {
         runtimeStatus: 'applied',
     })
     getProxyHostConfigEditorHandlerMock.mockReset().mockResolvedValue(editorFixture)
-    previewProxyHostConfigEditorHandlerMock.mockReset().mockResolvedValue({
-        config: hostConfig(120),
-        revision: editorBaseRevision,
-    })
     saveProxyHostConfigEditorHandlerMock.mockReset().mockResolvedValue({
         success: true,
         message: 'admin.proxyHosts.config.saved',
@@ -1387,48 +1381,150 @@ describe('Caddy global proxy configuration editor', () => {
 })
 
 describe('Caddy proxy host configuration editor', () => {
-    test('shows host save failures only in a toast', async () => {
-        saveProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
-            success: false,
-            message: 'admin.proxyHosts.config.errors.saveFailed',
-        })
-        await renderPage([
-            PERMISSIONS.PROXY_HOSTS_VIEW,
-            PERMISSIONS.PROXY_HOSTS_UPDATE,
-            PERMISSIONS.PROXY_HOSTS_APPLY,
-        ])
+    const editablePermissions = [
+        PERMISSIONS.PROXY_HOSTS_VIEW,
+        PERMISSIONS.PROXY_HOSTS_UPDATE,
+        PERMISSIONS.PROXY_HOSTS_APPLY,
+    ] as const
+
+    async function openHostConfig(
+        permissions: readonly (typeof PERMISSIONS)[keyof typeof PERMISSIONS][] = editablePermissions,
+        name = 'app.example.com',
+    ): Promise<HTMLElement> {
+        await renderPage(permissions)
         await waitFor(() => getRows().length === 2)
-        await openMenu(getButton('Open actions for app.example.com'))
+        await openMenu(getButton(`Open actions for ${name}`))
         await click(getMenuItem('Config'))
         await waitFor(() => document.querySelector('input[type="number"]') !== null)
-        await click(getButton('Save'))
-        await waitForToast('error', 'The HTTP settings could not be saved.')
-        expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(
-            'The HTTP settings could not be saved.',
+        return document.querySelector('[role="dialog"]')!
+    }
+
+    for (const failure of ['response', 'transport'] as const) {
+        test(`shows host save ${failure} failures only in a toast`, async () => {
+            if (failure === 'response') {
+                saveProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+                    success: false,
+                    message: 'admin.proxyHosts.config.errors.saveFailed',
+                })
+            } else {
+                saveProxyHostConfigEditorHandlerMock.mockRejectedValueOnce(
+                    new Error('private transport failure'),
+                )
+            }
+            const dialog = await openHostConfig()
+            await click(getButton('Save'))
+            await waitForToast('error', 'The HTTP settings could not be saved.')
+            expect(dialog.textContent).not.toContain('The HTTP settings could not be saved.')
+            expect(dialog.textContent).not.toContain('private transport failure')
+        })
+    }
+
+    test('labels inherited and overridden values and updates the effective value', async () => {
+        const dialog = await openHostConfig()
+        const inherited = dialog.querySelector(
+            '[data-setting="clientMaxBodySizeBytes"]',
+        ) as HTMLElement
+        const overridden = dialog.querySelector(
+            '[data-setting="proxyReadTimeoutSeconds"]',
+        ) as HTMLElement
+        const caddyDefault = dialog.querySelector(
+            '[data-setting="proxySendTimeoutSeconds"]',
+        ) as HTMLElement
+
+        expect(inherited.dataset.settingSource).toBe('inherited')
+        expect(inherited.textContent).toContain('Inherited')
+        expect(inherited.textContent).toContain('Effective: 1048576 bytes')
+        expect(overridden.dataset.settingSource).toBe('override')
+        expect(overridden.textContent).toContain('Override')
+        expect(overridden.textContent).toContain('Effective: 90 seconds')
+        expect(caddyDefault.textContent).toContain('Effective: Caddy default')
+
+        const readTimeout = overridden.querySelector('input')!
+        expect(readTimeout.getAttribute('aria-describedby')).toBe(
+            'proxy-host-setting-proxyReadTimeoutSeconds-effective',
         )
+        await setControlValue(readTimeout, '')
+        await waitFor(() => overridden.dataset.settingSource === 'inherited')
+        expect(overridden.textContent).toContain('Effective: 60 seconds')
     })
 
-    test('renders numeric structured settings and read-only generated config', async () => {
+    test('renders numeric structured settings and read-only active config', async () => {
         getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
             ...editorFixture,
             settings: { proxyReadTimeoutSeconds: 90 },
-            active: { config: 'generated-caddy-config', revision: editorBaseRevision },
+            active: { config: 'active-caddy-config', revision: editorBaseRevision },
         })
-        await renderPage([
-            PERMISSIONS.PROXY_HOSTS_VIEW,
-            PERMISSIONS.PROXY_HOSTS_UPDATE,
-            PERMISSIONS.PROXY_HOSTS_APPLY,
-        ])
-        await waitFor(() => getRows().length === 2)
-        await openMenu(getButton('Open actions for app.example.com'))
-        await click(getMenuItem('Config'))
-        await waitFor(() => document.querySelector('input[type="number"]') !== null)
-        const input = document.querySelector<HTMLInputElement>('input[type="number"]')!
+        const dialog = await openHostConfig()
+        const input = dialog.querySelector<HTMLInputElement>('input[type="number"]')!
         expect(input.value).toBe('')
         expect(document.querySelector('#proxy-settings-source')).toBeNull()
         await click(getButton('Active config'))
-        expect(document.body.textContent).toContain('generated-caddy-config')
-        expect(document.querySelector('textarea')).toBeNull()
+        expect(dialog.textContent).toContain('active-caddy-config')
+        expect(dialog.querySelector('textarea')).toBeNull()
+    })
+
+    test('shows relevant host routing, HTTPS, TLS, and current configuration status', async () => {
+        const secureHost: ProxyHostSummary = {
+            ...enabledHost,
+            domains: [
+                'very-long-service-name-for-responsive-layout.example.com',
+                'service.example.com',
+            ],
+            certificateId: assignableCertificate.id,
+            forceHttps: true,
+            forwardScheme: 'https',
+            forwardHost: '2001:db8::10',
+            forwardPort: 443,
+            upstreamTlsServerName: 'backend-with-a-long-name.internal.example',
+            trustedCaId: assignableTrustedCa.id,
+        }
+        getProxyHostsHandlerMock.mockResolvedValueOnce([secureHost, disabledHost])
+
+        const dialog = await openHostConfig(editablePermissions, secureHost.domains[0]!)
+        expect(dialog.textContent).toContain(secureHost.domains[0]!)
+        expect(dialog.textContent).toContain('https://[2001:db8::10]:443')
+        expect(dialog.textContent).toContain('HTTPS · HTTP redirects enabled')
+        expect(dialog.textContent).toContain('HTTPS · verified with custom CA')
+        expect(dialog.textContent).toContain('backend-with-a-long-name.internal.example')
+        expect(dialog.querySelector('[data-config-state="active"]')?.textContent).toContain(
+            'Active config loaded',
+        )
+        expect(dialog.textContent).not.toContain(assignableCertificate.id)
+        expect(dialog.textContent).not.toContain(assignableTrustedCa.id)
+    })
+
+    test('keeps the host config readable but not editable for viewers', async () => {
+        const dialog = await openHostConfig([PERMISSIONS.PROXY_HOSTS_VIEW])
+        expect(dialog.textContent).toContain(
+            'You can view the configuration. Editing requires both update and apply permissions.',
+        )
+        expect(
+            [...dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')].every(
+                (input) => input.disabled,
+            ),
+        ).toBeTrue()
+        expect(
+            [...dialog.querySelectorAll('button')].some((button) =>
+                button.textContent?.includes('Save and apply'),
+            ),
+        ).toBeFalse()
+        expect(dialog.textContent).not.toContain('Restore defaults')
+        await click(getButton('Active config'))
+        expect(dialog.querySelector('pre[aria-label="Active config"]')).not.toBeNull()
+    })
+
+    test('explains an unavailable active config without offering reload', async () => {
+        getProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+            ...editorFixture,
+            active: null,
+        })
+        const dialog = await openHostConfig()
+        expect(dialog.querySelector('[data-config-state="unavailable"]')?.textContent).toContain(
+            'Active config unavailable',
+        )
+        await click(getButton('Active config'))
+        expect(dialog.textContent).toContain('No active configuration is available for this host.')
+        expect(dialog.textContent?.toLowerCase()).not.toContain('reload')
     })
 
     test('submits structured settings and has no advanced editor', async () => {
@@ -1436,16 +1532,8 @@ describe('Caddy proxy host configuration editor', () => {
             ...editorFixture,
             settings: {},
         })
-        await renderPage([
-            PERMISSIONS.PROXY_HOSTS_VIEW,
-            PERMISSIONS.PROXY_HOSTS_UPDATE,
-            PERMISSIONS.PROXY_HOSTS_APPLY,
-        ])
-        await waitFor(() => getRows().length === 2)
-        await openMenu(getButton('Open actions for app.example.com'))
-        await click(getMenuItem('Config'))
-        await waitFor(() => document.querySelector('input[type="number"]') !== null)
-        const fields = [...document.querySelectorAll<HTMLInputElement>('input[type="number"]')]
+        const dialog = await openHostConfig()
+        const fields = [...dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')]
         await setControlValue(fields[2]!, '120')
         await click(getButton('Save'))
         await waitFor(() => saveProxyHostConfigEditorHandlerMock.mock.calls.length === 1)
@@ -1461,20 +1549,13 @@ describe('Caddy proxy host configuration editor', () => {
     })
 
     test('uses the shared formatted syntax block and removes preview-only host actions', async () => {
-        await renderPage([
-            PERMISSIONS.PROXY_HOSTS_VIEW,
-            PERMISSIONS.PROXY_HOSTS_UPDATE,
-            PERMISSIONS.PROXY_HOSTS_APPLY,
-        ])
-        await waitFor(() => getRows().length === 2)
-        await openMenu(getButton('Open actions for app.example.com'))
-        await click(getMenuItem('Config'))
-        await waitFor(() => document.querySelectorAll('input[type="number"]').length === 4)
-
-        const dialog = document.querySelector('[role="dialog"]')!
+        const dialog = await openHostConfig()
+        expect(dialog.querySelectorAll('input[type="number"]')).toHaveLength(4)
         expect(dialog.textContent).not.toContain('Preview')
         expect(dialog.textContent).not.toContain('Generated defaults')
         expect(dialog.textContent).not.toContain('Reload')
+        expect(dialog.textContent).not.toContain('Response deadline')
+        expect(dialog.textContent).not.toContain('Connection idle timeout')
 
         await click(getButton('Active config'))
         const codeBlock = dialog.querySelector('pre[aria-label="Active config"]')
@@ -1484,16 +1565,36 @@ describe('Caddy proxy host configuration editor', () => {
         expect(codeBlock?.querySelector('[data-token="number"]')).not.toBeNull()
     })
 
+    test('reports pending saves and preserves conflicts for retry', async () => {
+        saveProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+            success: false,
+            message: 'admin.proxyHosts.config.errors.configuration_conflict',
+        })
+        const dialog = await openHostConfig()
+        const readTimeout = dialog.querySelector<HTMLInputElement>(
+            '#proxy-host-setting-proxyReadTimeoutSeconds',
+        )!
+        await setControlValue(readTimeout, '120')
+        await click(getButton('Save'))
+        await waitForToast(
+            'error',
+            'The saved configuration changed while this editor was open. Reload it before saving; your draft has been kept.',
+        )
+        expect(readTimeout.value).toBe('120')
+        expect(dialog.isConnected).toBeTrue()
+
+        saveProxyHostConfigEditorHandlerMock.mockResolvedValueOnce({
+            success: true,
+            message: 'admin.proxyHosts.runtime.savedPending',
+            runtimeStatus: 'pending',
+        })
+        await click(getButton('Save'))
+        await waitForToast('warning', 'Saved changes are waiting to be applied.')
+        await waitFor(() => !dialog.isConnected)
+    })
+
     test('confirms host reset, preserves host identity, and reports success', async () => {
-        await renderPage([
-            PERMISSIONS.PROXY_HOSTS_VIEW,
-            PERMISSIONS.PROXY_HOSTS_UPDATE,
-            PERMISSIONS.PROXY_HOSTS_APPLY,
-        ])
-        await waitFor(() => getRows().length === 2)
-        await openMenu(getButton('Open actions for app.example.com'))
-        await click(getMenuItem('Config'))
-        await waitFor(() => document.querySelector('input[type="number"]') !== null)
+        await openHostConfig()
 
         await click(getButton('Restore defaults'))
         await waitFor(

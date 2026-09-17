@@ -2,13 +2,11 @@ import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
 import {
     getProxyHostConfigEditorService,
-    previewProxyHostConfigEditorService,
     saveProxyHostConfigEditorService,
     resetProxyHostConfigEditorService,
 } from '../../../server/ProxyRuntime/proxy-host-config-editor.service'
 import {
     proxyHostConfigEditorIdSchema,
-    proxyHostConfigEditorPreviewSchema,
     proxyHostConfigEditorSaveSchema,
     proxyHostConfigEditorResetSchema,
 } from './config-validation'
@@ -265,17 +263,6 @@ export const getProxyHostConfigEditorHandler = createServerFn({ method: 'GET' })
             return await getProxyHostConfigEditorService(data.proxyHostId)
         } catch (error) {
             throwLocalizedQueryError(error, 'admin.proxyHosts.config.errors.loadFailed')
-        }
-    })
-
-export const previewProxyHostConfigEditorHandler = createServerFn({ method: 'POST' })
-    .validator(proxyHostConfigEditorPreviewSchema)
-    .handler(async ({ data }) => {
-        noStore()
-        try {
-            return await previewProxyHostConfigEditorService(data)
-        } catch (error) {
-            throwLocalizedQueryError(error, 'admin.proxyHosts.config.errors.previewFailed')
         }
     })
 

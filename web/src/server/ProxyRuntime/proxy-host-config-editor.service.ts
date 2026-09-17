@@ -8,21 +8,16 @@ import {
     proxyHostConfigEditorIdSchema,
     proxyHostConfigEditorSaveSchema,
     proxyHostConfigEditorResetSchema,
-    proxyHostConfigEditorPreviewSchema,
 } from '../../features/Admin/ProxyHostManagement/config-validation'
 import type {
     ProxyHostConfigEditorData,
-    ProxyConfigSource,
     ProxyHttpSettings,
     ProxyRuntimeMutationStatus,
 } from '../../shared/Types/proxy-runtime.types'
 import { requirePermissionService } from '../Auth/Access/authorization.service'
 import { requirePermissionInTransaction } from '../Auth/Access/rbac.service'
 import { getAuthDatabase, type AuthTransaction } from '../Auth/Core/database.server'
-import {
-    getActiveProxyHostConfiguration,
-    previewProxyHostConfiguration,
-} from '../Foundation/controller.server'
+import { getActiveProxyHostConfiguration } from '../Foundation/controller.server'
 import { ProxyConfigEditorError } from './proxy-config-editor.service'
 import { readProxyRuntimeHost, readProxyRuntimeTrustedCas } from './proxy-runtime-data'
 import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot'
@@ -77,55 +72,16 @@ export async function getProxyHostConfigEditorService(
     const id = proxyHostConfigEditorIdSchema.parse({ proxyHostId }).proxyHostId
     const state = await loadHostEditorState(id, actor.id)
 
-    const visibleHost = state.host
-    // The structured editor's template is always generated without expert text.
-    const defaultsSnapshot = createProxyRuntimeSnapshot(
-        [{ ...visibleHost, enabled: true }],
-        state.httpSettings,
-        state.trustedCas,
-    )
-    const generatedSnapshot = state.snapshot
-    const defaultsRequest = previewProxyHostConfiguration(id, defaultsSnapshot)
-    const [active, defaults, generated] = await Promise.all([
-        getActiveProxyHostConfiguration(id),
-        defaultsRequest,
-        generatedSnapshot.revision === defaultsSnapshot.revision
-            ? defaultsRequest
-            : previewProxyHostConfiguration(id, generatedSnapshot),
-    ])
+    const active = await getActiveProxyHostConfiguration(id)
     return {
         proxyHostId: id,
         hostLabel: state.host.domains[0] ?? state.host.forwardHost,
         enabled: state.host.enabled,
         baseRevision: state.baseRevision,
         settings: state.hostSettings,
+        inheritedSettings: state.httpSettings,
         active,
-        defaults,
-        generated,
     }
-}
-
-export async function previewProxyHostConfigEditorService(
-    input: z.input<typeof proxyHostConfigEditorPreviewSchema>,
-): Promise<ProxyConfigSource> {
-    const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
-    const parsed = proxyHostConfigEditorPreviewSchema.parse(input)
-    const settings = normalizeProxyHostHttpSettings(parsed.settings)
-    const state = await loadHostEditorState(parsed.proxyHostId, actor.id)
-    const snapshot = createProxyRuntimeSnapshot(
-        [
-            {
-                ...state.host,
-                enabled: true,
-                httpSettings: settings,
-            },
-        ],
-        state.httpSettings,
-        state.trustedCas,
-    )
-    const result = await previewProxyHostConfiguration(parsed.proxyHostId, snapshot)
-    if (!result) throw new ProxyConfigEditorError('runtime_unavailable')
-    return result
 }
 
 async function saveHostSettings(

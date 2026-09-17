@@ -59,7 +59,3 @@ export const proxyHostConfigEditorSaveSchema = proxyHostConfigEditorIdSchema.ext
 export const proxyHostConfigEditorResetSchema = proxyConfigEditorResetSchema.extend({
     ...proxyHostConfigEditorIdSchema.shape,
 })
-
-export const proxyHostConfigEditorPreviewSchema = proxyHostConfigEditorIdSchema.extend({
-    settings: proxyHostHttpSettingsSchema,
-})

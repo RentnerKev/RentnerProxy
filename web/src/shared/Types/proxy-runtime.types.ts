@@ -41,9 +41,12 @@ export type ProxyHostActionResult =
           readonly runtimeStatus: ProxyRuntimeMutationStatus
       }
 
-export interface ProxyHostConfigEditorData extends ProxyConfigEditorData {
+export interface ProxyHostConfigEditorData {
     readonly proxyHostId: string
     readonly hostLabel: string
     readonly enabled: boolean
-    readonly generated: ProxyConfigSource | null
+    readonly baseRevision: string
+    readonly settings: ProxyHttpSettings
+    readonly inheritedSettings: ProxyHttpSettings
+    readonly active: ProxyConfigSource | null
 }
