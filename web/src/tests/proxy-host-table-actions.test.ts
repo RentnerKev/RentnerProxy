@@ -21,6 +21,7 @@ const host: ProxyHostSummary = {
     updatedAt: new Date('2026-01-01T00:00:00Z'),
 }
 
+/** Creates the certificate action and captures selections for a representative job state. */
 function actionFor(
     stage: CertificateJobStage | null,
     options: { readonly hasError?: boolean; readonly isPending?: boolean } = {},

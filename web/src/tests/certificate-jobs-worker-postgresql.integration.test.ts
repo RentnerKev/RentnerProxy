@@ -255,6 +255,7 @@ async function readJob(id: string): Promise<CertificateJobRow> {
     return job
 }
 
+/** Reads the proxy-host fields updated when a certificate job is applied. */
 async function readHost(id: string) {
     const [host] = await getAuthDatabase()
         .select({ certificateId: proxyHosts.certificateId, enabled: proxyHosts.enabled })
@@ -263,6 +264,7 @@ async function readHost(id: string) {
     return host ?? null
 }
 
+/** Reads the certificate fields that should be finalized when a job completes. */
 async function readCertificate(id: string) {
     const [certificate] = await getAuthDatabase()
         .select({
@@ -282,6 +284,7 @@ async function readCertificate(id: string) {
     return certificate ?? null
 }
 
+/** Verifies that an applied certificate job has released its sensitive and leased state. */
 function expectCompletedJob(job: CertificateJobRow): void {
     expect(job).toMatchObject({
         stage: 'applied',
