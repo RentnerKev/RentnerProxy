@@ -48,6 +48,51 @@ describe('toast store', () => {
         ])
     })
 
+    test('keeps independent task notifications outside the three-message notification limit', () => {
+        const store = createToastStore()
+        stores.push(store)
+
+        store.notify.upsert('certificate-job-1', 'Queued', 'info', {
+            title: 'Certificate request',
+            context: 'app.example.com',
+            persistent: true,
+            dismissible: false,
+            activity: 'running',
+        })
+        store.notify.success('first')
+        store.notify.info('second')
+        store.notify.warning('third')
+        store.notify.error('fourth')
+
+        expect(store.getSnapshot()).toHaveLength(4)
+        expect(store.getSnapshot().filter((toast) => toast.kind === 'notification')).toHaveLength(3)
+        expect(store.getSnapshot()[0]).toMatchObject({
+            id: 'certificate-job-1',
+            revision: 1,
+            kind: 'task',
+            message: 'Queued',
+            context: 'app.example.com',
+            persistent: true,
+            dismissible: false,
+            activity: 'running',
+        })
+
+        store.notify.upsert('certificate-job-1', 'Certificate assigned successfully.', 'success', {
+            title: 'Certificate request',
+            duration: 5_000,
+        })
+
+        expect(store.getSnapshot().filter((toast) => toast.kind === 'task')).toEqual([
+            expect.objectContaining({
+                id: 'certificate-job-1',
+                revision: 2,
+                message: 'Certificate assigned successfully.',
+                tone: 'success',
+                duration: 5_000,
+            }),
+        ])
+    })
+
     test('isolates stores and removes dismissed notifications after their exit window', async () => {
         const first = createToastStore()
         const second = createToastStore()

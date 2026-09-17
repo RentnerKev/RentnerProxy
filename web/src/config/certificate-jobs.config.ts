@@ -10,6 +10,8 @@ export const CERTIFICATE_JOB_STAGES = [
 ] as const
 
 export type CertificateJobStage = (typeof CERTIFICATE_JOB_STAGES)[number]
+export const CERTIFICATE_JOB_SUCCESS_VISIBILITY_MS = 30_000
+export const CERTIFICATE_JOB_SUCCESS_TOAST_DURATION_MS = 5_000
 export type CertificateJobErrorCode =
     | CertificateErrorCode
     | 'host_changed'

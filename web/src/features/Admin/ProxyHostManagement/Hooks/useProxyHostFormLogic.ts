@@ -14,6 +14,7 @@ import {
     createProxyHostWithCertificateHandler,
     updateProxyHostWithCertificateHandler,
 } from '../CertificateJobs/server'
+import { publishCertificateJobProgress } from '../CertificateJobs/certificateJobProgress'
 import useCertificateRequestLogic from '../../CertificateManagement/Hooks/useCertificateRequestLogic'
 import { hostCertificateRequestSchema } from '../certificate-job-validation'
 import { createProxyHostHandler, updateProxyHostHandler } from '../server'
@@ -135,7 +136,10 @@ export default function useProxyHostFormLogic({
                 toast.error(result.message)
                 return
             }
-            await Promise.all([
+            if ('job' in result) {
+                await publishCertificateJobProgress(queryClient, result.job)
+            }
+            const refresh = Promise.all([
                 queryClient.invalidateQueries({ queryKey: trustedCaManagementQueryKeys.all }),
                 queryClient.invalidateQueries({
                     queryKey: proxyHostManagementQueryKeys.all,
@@ -151,6 +155,13 @@ export default function useProxyHostFormLogic({
                     queryKey: accessPolicyManagementQueryKeys.all,
                 }),
             ])
+            if ('job' in result) {
+                setPendingDisableValues(null)
+                onSuccess()
+                void refresh.catch(() => undefined)
+                return
+            }
+            await refresh
             if ('runtimeStatus' in result && result.runtimeStatus === 'pending')
                 toast.warning('admin.proxyHosts.runtime.savedPending')
             else toast.success(result.message)

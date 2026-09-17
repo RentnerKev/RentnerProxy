@@ -911,6 +911,13 @@
                 "disabled": "Hôte proxy désactivé avec succès."
             },
             "certificateJob": {
+                "background": {
+                    "title": "Demande de certificat",
+                    "success": "Certificat attribué avec succès.",
+                    "failure": "La demande de certificat nécessite votre attention.",
+                    "retry": "Réessayer",
+                    "viewCertificate": "Voir le certificat"
+                },
                 "messages": {
                     "queued": "Demande de certificat mise en file.",
                     "retried": "Nouvel essai du certificat mis en file."

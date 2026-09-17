@@ -1,4 +1,5 @@
 import { useForm } from '@tanstack/react-form'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useId, useState } from 'react'
 import { isCertificateJobActive } from '../../../../config/certificate-jobs.config'
 import { DEFAULT_ACME_ENVIRONMENT } from '../../../../config/certificates.config'
@@ -8,6 +9,7 @@ import {
     requestProxyHostCertificateHandler,
     retryCertificateJobHandler,
 } from '../../ProxyHostManagement/CertificateJobs/server'
+import { publishCertificateJobProgress } from '../../ProxyHostManagement/CertificateJobs/certificateJobProgress'
 import {
     certificateRequestFormSchema,
     certificateRequestInputFromForm,
@@ -27,6 +29,7 @@ export default function useCertificateRequestLogic({
     onSuccess,
 }: CertificateRequestModalProps) {
     const toast = useToast()
+    const queryClient = useQueryClient()
     const formId = useId()
     const [isPending, setIsPending] = useState(false)
     const [idempotencyKey] = useState(() => crypto.randomUUID())
@@ -89,7 +92,11 @@ export default function useCertificateRequestLogic({
                     acceptTerms: false,
                 }
                 form.reset(resetValues)
-                toast.success(result.message)
+                if ('job' in result) {
+                    await publishCertificateJobProgress(queryClient, result.job)
+                } else {
+                    toast.success(result.message)
+                }
                 await onSuccess()
             } catch {
                 toast.error('admin.certificates.errors.requestFailed')

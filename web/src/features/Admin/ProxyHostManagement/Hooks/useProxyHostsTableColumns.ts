@@ -70,7 +70,6 @@ export default function useProxyHostsTableColumns({
                 cell: ({ row }) =>
                     createElement(ProxyHostStatusCell, {
                         enabled: row.original.enabled,
-                        certificateJob: row.original.certificateJob,
                     }),
             },
             {

@@ -12,6 +12,7 @@ import {
     createProxyHostWithCertificateService,
     updateProxyHostWithCertificateService,
     requestProxyHostCertificateService,
+    getCertificateJobProgressService,
     getCertificateJobService,
     retryCertificateJobService,
 } from '../../../../server/Admin/ProxyHostManagement/certificate-jobs.service'
@@ -82,6 +83,17 @@ export const requestProxyHostCertificateHandler = createServerFn({ method: 'POST
             'admin.proxyHosts.certificateJob.messages.queued',
         ),
     )
+
+export const getCertificateJobProgressHandler = createServerFn({ method: 'GET' }).handler(
+    async () => {
+        setResponseHeader('Cache-Control', 'private, no-store')
+        try {
+            return await getCertificateJobProgressService()
+        } catch (error) {
+            throwLocalizedQueryError(error, 'admin.proxyHosts.certificateJob.errors.loadFailed')
+        }
+    },
+)
 
 export const getCertificateJobHandler = createServerFn({ method: 'GET' })
     .validator(certificateJobIdInputSchema)

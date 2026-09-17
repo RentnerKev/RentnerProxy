@@ -11,7 +11,10 @@ export default function useToastCardLogic(toast: ToastMessage) {
     const [paused, setPaused] = useState(false)
     const title = t(toast.title, { defaultValue: toast.title })
     const message = t(toast.message, { defaultValue: toast.message })
-    const clipboard = useCopyToastMessage(`${title}\n${message}`)
+    const detail = toast.detail ? t(toast.detail, { defaultValue: toast.detail }) : null
+    const clipboard = useCopyToastMessage(
+        [title, toast.context, message, detail].filter(Boolean).join('\n'),
+    )
     const copyLabel = t(
         clipboard.status === 'copied'
             ? 'toast.copied'
@@ -21,11 +24,11 @@ export default function useToastCardLogic(toast: ToastMessage) {
     )
 
     return {
-        state: { title, message, paused, copyLabel, copyStatus: clipboard.status },
+        state: { title, message, detail, paused, copyLabel, copyStatus: clipboard.status },
         handler: {
             copy: clipboard.copy,
             handleOpenChange: (open: boolean) => {
-                if (!open) notifications.dismiss(toast.id)
+                if (!open && toast.dismissible) notifications.dismiss(toast.id)
             },
             pause: () => setPaused(true),
             resume: () => setPaused(false),

@@ -911,6 +911,13 @@
                 "disabled": "Proxy host disabled successfully."
             },
             "certificateJob": {
+                "background": {
+                    "title": "Certificate request",
+                    "success": "Certificate assigned successfully.",
+                    "failure": "The certificate request needs attention.",
+                    "retry": "Retry",
+                    "viewCertificate": "View certificate"
+                },
                 "messages": {
                     "queued": "Certificate request queued.",
                     "retried": "Certificate retry queued."

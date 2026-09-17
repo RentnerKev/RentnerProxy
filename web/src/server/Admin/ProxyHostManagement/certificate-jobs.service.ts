@@ -1,9 +1,12 @@
 import '@tanstack/react-start/server-only'
 
-import { eq } from 'drizzle-orm'
+import { asc, desc, eq, isNotNull } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { isCertificateJobActive } from '../../../config/certificate-jobs.config'
+import {
+    CERTIFICATE_JOB_SUCCESS_VISIBILITY_MS,
+    isCertificateJobActive,
+} from '../../../config/certificate-jobs.config'
 import { PERMISSIONS, type PermissionKey } from '../../../config/permissions.config'
 import { certificates, certificateJobs, proxyHosts } from '../../../db/schema'
 import {
@@ -275,6 +278,32 @@ export async function getCertificateJobService(jobId: string): Promise<Certifica
         .limit(1)
     if (!job) throw new CertificateJobDomainError('job_not_found')
     return certificateJobSummary(job)
+}
+
+export async function getCertificateJobProgressService(): Promise<CertificateJobSummary[]> {
+    const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
+    const jobs = await getAuthDatabase()
+        .selectDistinctOn([certificateJobs.proxyHostId])
+        .from(certificateJobs)
+        .where(isNotNull(certificateJobs.proxyHostId))
+        .orderBy(
+            asc(certificateJobs.proxyHostId),
+            desc(certificateJobs.createdAt),
+            desc(certificateJobs.id),
+        )
+    const successCutoff = Date.now() - CERTIFICATE_JOB_SUCCESS_VISIBILITY_MS
+    return jobs
+        .filter(
+            (job) =>
+                job.actorUserId === actor.id &&
+                (job.stage !== 'applied' || job.updatedAt.getTime() >= successCutoff),
+        )
+        .map(certificateJobSummary)
+        .toSorted(
+            (left, right) =>
+                left.createdAt.getTime() - right.createdAt.getTime() ||
+                left.id.localeCompare(right.id),
+        )
 }
 
 export async function retryCertificateJobService(jobId: string): Promise<CertificateJobSummary> {
