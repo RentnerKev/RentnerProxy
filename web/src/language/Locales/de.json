@@ -787,7 +787,7 @@
                 "dnsApiToken": "Cloudflare-API-Token",
                 "environment": "ACME-Umgebung",
                 "productionHint": "Produktion stellt ein öffentlich vertrauenswürdiges Zertifikat für den normalen Betrieb aus.",
-                "stagingHint": "Staging ist eine Testumgebung; die Zertifikate werden von normalen Browsern nicht vertraut.",
+                "stagingHint": "Staging ist eine Testumgebung; die Zertifikate werden von normalen Browsern nicht als vertrauenswürdig eingestuft.",
                 "contactEmail": "Kontakt-E-Mail (optional)",
                 "contactHint": "Wird für ACME-Hinweise verwendet, sofern vom Aussteller unterstützt.",
                 "acceptTerms": "Ich akzeptiere die ACME-Nutzungsbedingungen",
