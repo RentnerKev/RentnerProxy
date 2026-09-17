@@ -477,6 +477,7 @@ function getLastButton(label: string): HTMLButtonElement {
 }
 
 beforeEach(() => {
+    window.sessionStorage.clear()
     getProxyConfigEditorHandlerMock.mockReset().mockResolvedValue(globalEditorFixture)
     previewProxyConfigEditorHandlerMock.mockReset().mockResolvedValue({
         config: hostConfig(120),
@@ -697,6 +698,43 @@ describe('background certificate job progress', () => {
         await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'info')
         expect(getTaskToasts()[0]?.textContent).toContain('Queued')
         expect(getTaskToasts()[0]?.querySelector('[aria-label="Dismiss notification"]')).toBeNull()
+    })
+
+    test('keeps an unchanged dismissed failure hidden after reload and shows new progress', async () => {
+        const failed = certificateJobFixture({
+            stage: 'failed',
+            controllerStage: 'retry_scheduled',
+            lastErrorCode: 'acme_failed',
+        })
+        await renderCertificateProgress([failed])
+        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'error')
+        await click(getButton('Dismiss notification'))
+        await waitFor(() => getTaskToasts().length === 0)
+
+        await act(async () => activeRoot?.unmount())
+        activeRoot = null
+        activeQueryClient?.clear()
+        activeQueryClient = null
+        document.body.replaceChildren()
+
+        await renderCertificateProgress([failed])
+        await waitFor(() => getCertificateJobProgressHandlerMock.mock.calls.length >= 2)
+        expect(getTaskToasts()).toHaveLength(0)
+
+        await act(async () => {
+            activeQueryClient?.setQueryData(certificateJobProgressQueryKeys.all, [
+                {
+                    ...failed,
+                    stage: 'preparing',
+                    controllerStage: 'queued',
+                    lastErrorCode: null,
+                    updatedAt: new Date('2026-01-01T00:01:00Z'),
+                },
+            ])
+            await Promise.resolve()
+        })
+        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'info')
+        expect(getTaskToasts()[0]?.textContent).toContain('Queued')
     })
 
     test('updates failure actions when certificate permissions change', async () => {

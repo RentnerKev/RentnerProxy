@@ -541,6 +541,45 @@ describe('certificate management UI', () => {
         expect(document.body.textContent).toContain('Applied')
     })
 
+    test('keeps deletion available for a failed scheduled retry', async () => {
+        const failedCertificate: CertificateSummary = {
+            ...certificate,
+            status: 'failed',
+            issuedAt: null,
+            expiresAt: null,
+            issuer: null,
+            fingerprint: null,
+            lastErrorCode: 'acme_failed',
+            nextAttemptAt: new Date('2026-02-01T10:42:00Z'),
+            currentOperation: {
+                id: '0192c8b4-6d5d-7c65-9dc0-7ac2c8ea0031',
+                kind: 'issue',
+                stage: 'retry_scheduled',
+                startedAt: new Date('2026-02-01T09:00:00Z'),
+                updatedAt: new Date('2026-02-01T09:15:00Z'),
+            },
+        }
+        getCertificatesHandlerMock.mockResolvedValueOnce([failedCertificate])
+        await renderPage([
+            PERMISSIONS.CERTIFICATES_VIEW,
+            PERMISSIONS.CERTIFICATES_RENEW,
+            PERMISSIONS.CERTIFICATES_DELETE,
+        ])
+        await waitFor(() => document.body.textContent?.includes('Retry scheduled') === true)
+        await openMenu(button('Open certificate actions'))
+
+        const renewAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Renew',
+        )
+        expect(renewAction?.getAttribute('aria-disabled')).toBe('true')
+        const deleteAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Delete',
+        )
+        expect(deleteAction?.getAttribute('aria-disabled')).not.toBe('true')
+        await click(deleteAction!)
+        await waitFor(() => document.querySelector('[role=dialog]') !== null)
+    })
+
     test('keeps replace and delete available after a completed manual apply', async () => {
         const completedImport: CertificateSummary = {
             ...certificate,
