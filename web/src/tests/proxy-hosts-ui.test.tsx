@@ -573,8 +573,8 @@ describe('ProxyHost management table', () => {
         expect(document.body.textContent).toContain('Enabled')
         expect(document.body.textContent).toContain('Disabled')
         const enabledRow = getRows().find((row) => row.textContent?.includes('app.example.com'))!
-        const domainLink = enabledRow.querySelector<HTMLAnchorElement>(
-            'a[href="https://app.example.com"]',
+        const domainLink = [...enabledRow.querySelectorAll<HTMLAnchorElement>('a')].find(
+            (link) => link.getAttribute('href') === 'https://app.example.com',
         )
         expect(domainLink?.target).toBe('_blank')
         expect(domainLink?.rel).toBe('noopener noreferrer')
