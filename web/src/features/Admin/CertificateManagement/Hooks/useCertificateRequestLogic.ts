@@ -1,6 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { useCallback, useId, useState } from 'react'
 import { isCertificateJobActive } from '../../../../config/certificate-jobs.config'
+import { DEFAULT_ACME_ENVIRONMENT } from '../../../../config/certificates.config'
 import useToast from '../../../../shared/Toast/Hooks/useToast'
 import { requestCertificateHandler } from '../server'
 import {
@@ -11,9 +12,11 @@ import {
     certificateRequestFormSchema,
     certificateRequestInputFromForm,
     requestCertificateInputSchema,
+    type CertificateRequestFormValues,
 } from '../validation'
 import type { CertificateRequestModalProps } from '../Types/certificate-management.types'
 
+/** Builds and submits certificate requests, including reset and retry behavior. */
 export default function useCertificateRequestLogic({
     certificateJob,
     expectedUpdatedAt,
@@ -39,17 +42,18 @@ export default function useCertificateRequestLogic({
             requestCertificateInputSchema.parse(certificateRequestInputFromForm(value)),
         [],
     )
+    const defaultValues: CertificateRequestFormValues = {
+        name: initialName ?? '',
+        domains: initialDomains ? [...initialDomains] : [''],
+        environment: DEFAULT_ACME_ENVIRONMENT,
+        challengeType: 'http-01',
+        dnsZoneId: '',
+        dnsApiToken: '',
+        contactEmail: '',
+        acceptTerms: false,
+    }
     const form = useForm({
-        defaultValues: {
-            name: initialName ?? '',
-            domains: initialDomains ? [...initialDomains] : [''],
-            environment: 'staging',
-            challengeType: 'http-01',
-            dnsZoneId: '',
-            dnsApiToken: '',
-            contactEmail: '',
-            acceptTerms: false,
-        },
+        defaultValues,
         onSubmit: async ({ value }) => {
             if (isPending) return
             setIsPending(true)
@@ -74,16 +78,17 @@ export default function useCertificateRequestLogic({
                     toast.error(result.message)
                     return
                 }
-                form.reset({
+                const resetValues: CertificateRequestFormValues = {
                     name: '',
                     domains: [''],
-                    environment: 'staging',
+                    environment: DEFAULT_ACME_ENVIRONMENT,
                     challengeType: 'http-01',
                     dnsZoneId: '',
                     dnsApiToken: '',
                     contactEmail: '',
                     acceptTerms: false,
-                })
+                }
+                form.reset(resetValues)
                 toast.success(result.message)
                 await onSuccess()
             } catch {

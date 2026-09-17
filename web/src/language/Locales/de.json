@@ -29,7 +29,9 @@
         "actions": "Aktionen",
         "openActions": "Aktionen öffnen",
         "profilePicture": "Profilbild von {{name}}",
-        "backHome": "Zur Startseite"
+        "backHome": "Zur Startseite",
+        "openDomainInNewTab": "{{domain}} in einem neuen Tab öffnen",
+        "moreDomains": "{{count}} weitere Domains anzeigen"
     },
     "shell": {
         "home": "RentnerProxy-Startseite",
@@ -786,7 +788,8 @@
                 "dnsZoneId": "Cloudflare-Zonen-ID",
                 "dnsApiToken": "Cloudflare-API-Token",
                 "environment": "ACME-Umgebung",
-                "stagingHint": "Staging ist standardmäßig ausgewählt und stellt kein produktionsvertrauenswürdiges Zertifikat aus.",
+                "productionHint": "Produktion stellt ein öffentlich vertrauenswürdiges Zertifikat für den normalen Betrieb aus.",
+                "stagingHint": "Staging ist eine Testumgebung; die Zertifikate werden von normalen Browsern nicht als vertrauenswürdig eingestuft.",
                 "contactEmail": "Kontakt-E-Mail (optional)",
                 "contactHint": "Wird für ACME-Hinweise verwendet, sofern vom Aussteller unterstützt.",
                 "acceptTerms": "Ich akzeptiere die ACME-Nutzungsbedingungen",

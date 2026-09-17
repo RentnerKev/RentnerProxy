@@ -242,6 +242,17 @@ async function chooseDnsChallenge(): Promise<void> {
     await click(dnsOption!)
 }
 
+/** Selects an ACME environment from the request form. */
+async function chooseAcmeEnvironment(environment: 'Production' | 'Staging'): Promise<void> {
+    await click(document.querySelector('[aria-label="ACME environment"]')!)
+    await waitFor(() => document.querySelector('[role=option]') !== null)
+    const option = [...document.querySelectorAll('[role=option]')].find(
+        (candidate) => candidate.textContent?.trim() === environment,
+    )
+    expect(option).toBeDefined()
+    await click(option!)
+}
+
 beforeEach(() => {
     getTrustedCasHandlerMock.mockReset().mockResolvedValue([trustedCa])
     createTrustedCaHandlerMock.mockReset().mockResolvedValue({
@@ -344,6 +355,14 @@ describe('certificate management UI', () => {
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         expect(document.body.textContent).toContain('Public edge')
         expect(document.body.textContent).toContain('Valid')
+        const certificateRow = [...document.querySelectorAll<HTMLTableRowElement>('tbody tr')].find(
+            (row) => row.textContent?.includes('Public edge'),
+        )!
+        expect(
+            [...certificateRow.querySelectorAll<HTMLAnchorElement>('a')]
+                .map((link) => link.getAttribute('href'))
+                .filter(Boolean),
+        ).toEqual(['https://app.example.com', 'https://www.example.com'])
         expect(document.body.textContent).not.toContain('Import certificate')
         expect(document.body.textContent).not.toContain('Request with ACME')
         await openMenu(button('Open certificate actions'))
@@ -398,6 +417,124 @@ describe('certificate management UI', () => {
         expect(document.body.textContent).toContain('Operation ID')
         expect(document.body.textContent).toContain('Operation stage')
         expect(document.body.textContent).toContain('Waiting for validation')
+    })
+
+    test('keeps completed operation history out of the table while preserving details and actions', async () => {
+        const completedCertificate: CertificateSummary = {
+            ...certificate,
+            currentOperation: {
+                id: '0192c8b4-6d5d-7c65-9dc0-7ac2c8ea0030',
+                kind: 'renew',
+                stage: 'applied',
+                startedAt: new Date('2026-02-01T09:00:00Z'),
+                updatedAt: new Date('2026-02-01T09:15:00Z'),
+            },
+        }
+        getCertificatesHandlerMock.mockResolvedValueOnce([completedCertificate])
+        await renderPage([
+            PERMISSIONS.CERTIFICATES_VIEW,
+            PERMISSIONS.CERTIFICATES_RENEW,
+            PERMISSIONS.CERTIFICATES_DELETE,
+        ])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+
+        const row = document.querySelector<HTMLTableRowElement>('tbody tr')!
+        expect(row.textContent).toContain('No operation in progress')
+        expect(row.textContent).not.toContain('Applied')
+        expect(row.textContent).not.toContain(completedCertificate.currentOperation!.id)
+
+        await openMenu(button('Open certificate actions'))
+        const renewAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Renew',
+        )
+        expect(renewAction?.getAttribute('aria-disabled')).not.toBe('true')
+        const deleteAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Delete',
+        )
+        expect(deleteAction?.getAttribute('aria-disabled')).not.toBe('true')
+        const detailsAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Details',
+        )
+        await click(detailsAction!)
+        await waitFor(() => document.body.textContent?.includes('Certificate metadata') === true)
+        expect(document.body.textContent).toContain(completedCertificate.currentOperation!.id)
+        expect(document.body.textContent).toContain('Renewal')
+        expect(document.body.textContent).toContain('Applied')
+    })
+
+    test('keeps replace and delete available after a completed manual apply', async () => {
+        const completedImport: CertificateSummary = {
+            ...certificate,
+            source: 'manual',
+            environment: null,
+            currentOperation: {
+                id: '0192c8b4-6d5d-7c65-9dc0-7ac2c8ea0040',
+                kind: 'import',
+                stage: 'applied',
+                startedAt: new Date('2026-02-01T09:00:00Z'),
+                updatedAt: new Date('2026-02-01T09:15:00Z'),
+            },
+        }
+        getCertificatesHandlerMock.mockResolvedValueOnce([completedImport])
+        await renderPage([
+            PERMISSIONS.CERTIFICATES_VIEW,
+            PERMISSIONS.CERTIFICATES_UPDATE,
+            PERMISSIONS.CERTIFICATES_DELETE,
+        ])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        expect(document.querySelector('tbody tr')?.textContent).toContain(
+            'No operation in progress',
+        )
+
+        await openMenu(button('Open certificate actions'))
+        for (const label of ['Replace', 'Delete']) {
+            const action = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+                (item) => item.textContent?.trim() === label,
+            )
+            expect(action?.getAttribute('aria-disabled')).not.toBe('true')
+        }
+    })
+
+    test('searches current operation IDs without exposing completed operation history', async () => {
+        const completed: CertificateSummary = {
+            ...certificate,
+            id: 'completed-certificate',
+            currentOperation: {
+                id: 'completed-operation-id',
+                kind: 'issue',
+                stage: 'applied',
+                startedAt: new Date('2026-02-01T09:00:00Z'),
+                updatedAt: new Date('2026-02-01T09:15:00Z'),
+            },
+        }
+        const active: CertificateSummary = {
+            ...certificate,
+            id: 'active-certificate',
+            name: 'Active certificate',
+            operation: 'renewing',
+            currentOperation: {
+                id: 'active-operation-id',
+                kind: 'renew',
+                stage: 'waiting_for_validation',
+                startedAt: new Date('2026-02-01T10:00:00Z'),
+                updatedAt: new Date('2026-02-01T10:15:00Z'),
+            },
+        }
+        getCertificatesHandlerMock.mockResolvedValueOnce([completed, active])
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW])
+        await waitFor(() => document.querySelectorAll('tbody tr').length === 2)
+        const search = document.querySelector<HTMLInputElement>('input[type="search"]')!
+
+        await setValue(search, 'active-operation-id')
+        await waitFor(() => document.querySelectorAll('tbody tr').length === 1)
+        expect(document.querySelector('tbody tr')?.textContent).toContain('Active certificate')
+        await setValue(search, 'completed-operation-id')
+        await waitFor(
+            () =>
+                document
+                    .querySelector('tbody tr')
+                    ?.textContent?.includes('No certificates match your filters') === true,
+        )
     })
 
     test('localizes the staging warning and keeps mutation actions disabled during an operation', async () => {
@@ -559,12 +696,15 @@ describe('certificate management UI', () => {
         await waitForToast('success')
     })
 
-    test('requests staging ACME by default with domains, contact, and accepted terms', async () => {
+    test('requests production ACME by default with domains, contact, and accepted terms', async () => {
         await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
         await waitFor(() => document.body.textContent?.includes('Public edge') === true)
         await click(button('Request with ACME'))
         await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
-        await setValue(document.querySelector('#certificate-request-name')!, 'Staging edge')
+        expect(document.body.textContent).toContain(
+            'Production issues a publicly trusted certificate for normal operation.',
+        )
+        await setValue(document.querySelector('#certificate-request-name')!, 'Production edge')
         await setValue(
             document.querySelector('#certificate-request-domains')!,
             'edge.example.com\nwww.edge.example.com',
@@ -582,9 +722,9 @@ describe('certificate management UI', () => {
         await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
         expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
             data: {
-                name: 'Staging edge',
+                name: 'Production edge',
                 domains: ['edge.example.com', 'www.edge.example.com'],
-                environment: 'staging',
+                environment: 'production',
                 challengeType: 'http-01',
                 contactEmail: 'ops@example.com',
                 acceptTerms: true,
@@ -596,6 +736,49 @@ describe('certificate management UI', () => {
                 document.querySelector<HTMLButtonElement>('[role=dialog] button[type=submit]')
                     ?.disabled,
             ).toBeTrue()
+        } finally {
+            await act(async () => finishRefresh?.())
+        }
+        await waitFor(() => document.querySelector('[role=dialog]') === null)
+        await waitForToast('success')
+    })
+
+    test('keeps staging available as an explicitly selected test environment', async () => {
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_ISSUE])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        await click(button('Request with ACME'))
+        await waitFor(() => document.querySelector('#certificate-request-domains') !== null)
+        await chooseAcmeEnvironment('Staging')
+        expect(document.body.textContent).toContain(
+            'Staging is a test environment; certificates are not trusted by normal browsers.',
+        )
+        await setValue(document.querySelector('#certificate-request-name')!, 'Staging edge')
+        await setValue(document.querySelector('#certificate-request-domains')!, 'edge.example.com')
+        await click(document.querySelector('#certificate-request-terms')!)
+        let finishRefresh: (() => void) | undefined
+        getCertificatesHandlerMock.mockImplementationOnce(
+            () =>
+                new Promise<CertificateSummary[]>((resolve) => {
+                    finishRefresh = () => resolve([certificate])
+                }),
+        )
+        await click(lastButton('Request with ACME'))
+        await waitFor(() => requestCertificateHandlerMock.mock.calls.length === 1)
+        expect(requestCertificateHandlerMock).toHaveBeenCalledWith({
+            data: {
+                name: 'Staging edge',
+                domains: ['edge.example.com'],
+                environment: 'staging',
+                challengeType: 'http-01',
+                contactEmail: '',
+                acceptTerms: true,
+            },
+        })
+        try {
+            await waitFor(() => finishRefresh !== undefined)
+            expect(
+                document.querySelector('[aria-label="ACME environment"]')?.textContent,
+            ).toContain('Production')
         } finally {
             await act(async () => finishRefresh?.())
         }
@@ -626,7 +809,7 @@ describe('certificate management UI', () => {
             data: {
                 name: 'Wildcard edge',
                 domains: ['*.example.com', 'example.com'],
-                environment: 'staging',
+                environment: 'production',
                 challengeType: 'dns-01',
                 dnsProvider: {
                     type: 'cloudflare',

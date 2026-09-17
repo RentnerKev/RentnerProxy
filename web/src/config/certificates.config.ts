@@ -3,6 +3,7 @@ export type CertificateSource = (typeof CERTIFICATE_SOURCES)[number]
 
 export const ACME_ENVIRONMENTS = ['staging', 'production'] as const
 export type AcmeEnvironment = (typeof ACME_ENVIRONMENTS)[number]
+export const DEFAULT_ACME_ENVIRONMENT: AcmeEnvironment = 'production'
 export const ACME_CHALLENGE_TYPES = ['http-01', 'dns-01'] as const
 export type AcmeChallengeType = (typeof ACME_CHALLENGE_TYPES)[number]
 

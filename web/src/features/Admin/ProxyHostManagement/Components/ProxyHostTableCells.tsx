@@ -1,4 +1,5 @@
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import { ManagedDomainLink, ManagedDomainOverflow } from '../../../../shared/Domain'
 import { Tooltip } from '../../../../shared/Tooltip'
 import { useDateFormatter } from '../../../../language/useTranslationStore'
 import useTranslationStore from '../../../../language/useTranslationStore'
@@ -23,24 +24,11 @@ const statusBadgeClassName =
     'inline-flex rounded-full px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold data-[status=enabled]:bg-success-bg data-[status=enabled]:text-success-text data-[status=disabled]:bg-danger-bg data-[status=disabled]:text-danger-text'
 
 function DomainChip({ domain }: { readonly domain: string }) {
-    const { t } = useTranslationStore()
     const chipClassName = uiClassNames.chip.item + ' inline-block max-w-56 truncate align-bottom'
     const isLong = domain.length > 28
-    const chip = <span className={chipClassName}>{domain}</span>
+    const chip = <ManagedDomainLink className={chipClassName} domain={domain} />
 
-    return isLong ? (
-        <Tooltip content={domain}>
-            <button
-                type="button"
-                aria-label={t('admin.proxyHosts.cells.showDomain', { domain })}
-                className="inline-block max-w-56 cursor-help truncate rounded-full border-0 bg-transparent p-0 text-left outline-hidden focus-visible:outline-2 focus-visible:outline-brand-500"
-            >
-                {chip}
-            </button>
-        </Tooltip>
-    ) : (
-        chip
-    )
+    return isLong ? <Tooltip content={domain}>{chip}</Tooltip> : chip
 }
 
 export function ProxyHostDomainsCell({ domains }: ProxyHostDomainsCellProps) {
@@ -58,17 +46,10 @@ export function ProxyHostDomainsCell({ domains }: ProxyHostDomainsCellProps) {
                 <DomainChip domain={domain} key={domain} />
             ))}
             {extraDomains.length > 0 ? (
-                <Tooltip content={extraDomains.join(', ')}>
-                    <button
-                        type="button"
-                        aria-label={t('admin.proxyHosts.cells.moreDomains', {
-                            count: extraDomains.length,
-                        })}
-                        className="inline-flex h-12 cursor-help items-center justify-center rounded-xl border-0 bg-neutral px-3 py-0 font-mono text-sm font-bold text-muted outline-hidden focus-visible:outline-2 focus-visible:outline-brand-500"
-                    >
-                        +{extraDomains.length}
-                    </button>
-                </Tooltip>
+                <ManagedDomainOverflow
+                    ariaLabel={t('common.moreDomains', { count: extraDomains.length })}
+                    domains={extraDomains}
+                />
             ) : null}
         </div>
     )

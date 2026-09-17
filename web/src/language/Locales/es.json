@@ -29,7 +29,9 @@
         "actions": "Acciones",
         "openActions": "Abrir acciones",
         "profilePicture": "Foto de perfil de {{name}}",
-        "backHome": "Volver al inicio"
+        "backHome": "Volver al inicio",
+        "openDomainInNewTab": "Abrir {{domain}} en una pestaña nueva",
+        "moreDomains": "Mostrar {{count}} dominios más"
     },
     "shell": {
         "home": "Inicio de RentnerProxy",
@@ -786,7 +788,8 @@
                 "dnsZoneId": "ID de zona de Cloudflare",
                 "dnsApiToken": "Token de API de Cloudflare",
                 "environment": "Entorno de ACME",
-                "stagingHint": "Staging está seleccionado por defecto y no emite un certificado de confianza para producción.",
+                "productionHint": "Producción emite un certificado de confianza pública para el funcionamiento normal.",
+                "stagingHint": "Staging es un entorno de prueba; los navegadores normales no confían en sus certificados.",
                 "contactEmail": "Correo de contacto (opcional)",
                 "contactHint": "Se utiliza para avisos de ACME cuando el emisor lo admite.",
                 "acceptTerms": "Acepto los términos del servicio de ACME",

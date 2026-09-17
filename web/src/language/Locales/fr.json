@@ -29,7 +29,9 @@
         "actions": "Actions",
         "openActions": "Ouvrir les actions",
         "profilePicture": "Photo de profil de {{name}}",
-        "backHome": "Retour à l’accueil"
+        "backHome": "Retour à l’accueil",
+        "openDomainInNewTab": "Ouvrir {{domain}} dans un nouvel onglet",
+        "moreDomains": "Afficher {{count}} domaines supplémentaires"
     },
     "shell": {
         "home": "Accueil de RentnerProxy",
@@ -786,7 +788,8 @@
                 "dnsZoneId": "ID de zone Cloudflare",
                 "dnsApiToken": "Jeton API Cloudflare",
                 "environment": "Environnement ACME",
-                "stagingHint": "Staging est sélectionné par défaut et ne délivre pas de certificat approuvé pour la production.",
+                "productionHint": "L’environnement de production délivre un certificat publiquement approuvé pour un usage normal.",
+                "stagingHint": "Staging est un environnement de test ; ses certificats ne sont pas approuvés par les navigateurs ordinaires.",
                 "contactEmail": "E-mail de contact (facultatif)",
                 "contactHint": "Utilisé pour les notifications ACME lorsque l’émetteur le prend en charge.",
                 "acceptTerms": "J’accepte les conditions d’utilisation d’ACME",

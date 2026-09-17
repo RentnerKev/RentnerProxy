@@ -29,7 +29,9 @@
         "actions": "Actions",
         "openActions": "Open actions",
         "profilePicture": "{{name}}'s profile picture",
-        "backHome": "Back to home"
+        "backHome": "Back to home",
+        "openDomainInNewTab": "Open {{domain}} in a new tab",
+        "moreDomains": "Show {{count}} more domains"
     },
     "shell": {
         "home": "RentnerProxy home",
@@ -786,7 +788,8 @@
                 "dnsZoneId": "Cloudflare zone ID",
                 "dnsApiToken": "Cloudflare API token",
                 "environment": "ACME environment",
-                "stagingHint": "Staging is selected by default and does not issue a production-trusted certificate.",
+                "productionHint": "Production issues a publicly trusted certificate for normal operation.",
+                "stagingHint": "Staging is a test environment; certificates are not trusted by normal browsers.",
                 "contactEmail": "Contact email (optional)",
                 "contactHint": "Used for ACME notices when supported by the issuer.",
                 "acceptTerms": "I accept the ACME terms of service",
