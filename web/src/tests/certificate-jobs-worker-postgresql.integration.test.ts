@@ -263,6 +263,37 @@ async function readHost(id: string) {
     return host ?? null
 }
 
+async function readCertificate(id: string) {
+    const [certificate] = await getAuthDatabase()
+        .select({
+            challengeType: certificates.challengeType,
+            currentOperation: certificates.currentOperation,
+            environment: certificates.environment,
+            expiresAt: certificates.expiresAt,
+            fingerprint: certificates.fingerprint,
+            issuedAt: certificates.issuedAt,
+            lastErrorCode: certificates.lastErrorCode,
+            operation: certificates.operation,
+            source: certificates.source,
+            status: certificates.status,
+        })
+        .from(certificates)
+        .where(eq(certificates.id, id))
+    return certificate ?? null
+}
+
+function expectCompletedJob(job: CertificateJobRow): void {
+    expect(job).toMatchObject({
+        stage: 'applied',
+        retryRequested: false,
+        lastErrorCode: null,
+        requestCiphertext: null,
+        requestIv: null,
+        leaseToken: null,
+        leaseExpiresAt: null,
+    })
+}
+
 async function makeDue(id: string, expiredLease = false): Promise<void> {
     const now = Date.now()
     await getAuthDatabase()
@@ -342,10 +373,22 @@ describe('certificate job worker with PostgreSQL', () => {
         await makeDue(fixture.id)
         await runCertificateJobsOnce(controller.controller, runtime.runtime)
         expect(controller.issueCalls()).toBe(1)
-        expect((await readJob(fixture.id)).stage).toBe('applied')
+        expectCompletedJob(await readJob(fixture.id))
         expect(await readHost(fixture.hostId)).toMatchObject({
             certificateId: fixture.certificateId,
             enabled: true,
+        })
+        expect(await readCertificate(fixture.certificateId)).toMatchObject({
+            challengeType: 'http-01',
+            currentOperation: null,
+            environment: 'staging',
+            expiresAt: expect.any(Date),
+            fingerprint: 'sha256:' + 'a'.repeat(64),
+            issuedAt: expect.any(Date),
+            lastErrorCode: null,
+            operation: 'idle',
+            source: 'acme',
+            status: 'valid',
         })
     })
 
@@ -363,7 +406,7 @@ describe('certificate job worker with PostgreSQL', () => {
 
         await runCertificateJobsOnce(controller.controller, runtime.runtime)
         const job = await readJob(fixture.id)
-        expect(job.stage).toBe('applied')
+        expectCompletedJob(job)
         expect(job.attemptCount).toBe(1)
         expect(controller.issueCalls()).toBe(0)
         expect(runtime.reconcileCalls()).toBeGreaterThan(0)
@@ -442,10 +485,7 @@ describe('certificate job worker with PostgreSQL', () => {
             runtime.setAvailable(true)
             await makeDue(fixture.id)
             await runCertificateJobsOnce(controller.controller, runtime.runtime)
-            expect(await readJob(fixture.id)).toMatchObject({
-                stage: 'applied',
-                lastErrorCode: null,
-            })
+            expectCompletedJob(await readJob(fixture.id))
             expect(controller.issueCalls()).toBe(0)
             expect(controller.getCalls()).toBe(2)
         },

@@ -51,7 +51,7 @@ export function getProxyHostTableActionItems(
                     : 'admin.certificates.actions.requestForHost',
             ),
             onSelect: () => onRequestCertificate(host),
-            disabled: isPending || (job !== null && job !== undefined && !retrying),
+            disabled: isPending || Boolean(job && isCertificateJobActive(job.stage) && !retrying),
         })
     }
 
