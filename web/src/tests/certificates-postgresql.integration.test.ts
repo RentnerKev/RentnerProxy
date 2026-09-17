@@ -1,14 +1,18 @@
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { requestHandler } from '@tanstack/react-start/server'
-import { eq, inArray, like, notLike, sql } from 'drizzle-orm'
+import { and, eq, inArray, like, notLike, sql } from 'drizzle-orm'
 import { SESSION_COOKIE_NAME } from '../config/auth.config'
 import { PERMISSIONS, SYSTEM_ROLES, type PermissionKey } from '../config/permissions.config'
 import {
+    auditEvents,
     certificateDomains,
+    certificateJobs,
     certificates,
+    hostDomains,
     permissions,
     proxyHosts,
+    redirectHosts,
     rolePermissions,
     roles,
     userRoles,
@@ -26,9 +30,9 @@ import {
 } from '../server/Admin/CertificateManagement/certificates.service'
 import {
     createProxyHostService,
-    disableProxyHostService,
     updateProxyHostService,
 } from '../server/Admin/ProxyHostManagement/proxy-hosts.service'
+import { createRedirectHostService } from '../server/Admin/RedirectHostManagement/redirect-hosts.service'
 import { getAuthDatabase } from '../server/Auth/Core/database.server'
 import { ensureAuthorizationRegistryInTransaction } from '../server/Auth/Access/registry.service'
 import { createSessionService } from '../server/Auth/Access/sessions.service'
@@ -110,6 +114,9 @@ function mutateMetadata(current: Metadata, updates: Partial<Metadata>): Metadata
 function fakeController() {
     const entries = new Map<string, Metadata>()
     const state = {
+        activeCertificateIds: new Set<string>(),
+        deleteRequests: 0,
+        failRuntimeApply: false,
         importDomains: ['demo.test', 'www.demo.test'],
         fingerprint: 'a',
         requests: 0,
@@ -126,7 +133,19 @@ function fakeController() {
             if (path === '/internal/v1/certificates' && request.method === 'GET')
                 return Response.json({ certificates: [...entries.values()] })
             if (path === '/internal/v1/proxy/config' && request.method === 'PUT') {
-                const body = (await request.json()) as { revision: string }
+                const body = (await request.json()) as {
+                    revision: string
+                    proxyHosts: Array<{ certificateId?: string | null }>
+                    redirectHosts: Array<{ certificateId?: string | null }>
+                }
+                if (state.failRuntimeApply) {
+                    return Response.json({ error: 'runtime_apply_failed' }, { status: 503 })
+                }
+                state.activeCertificateIds = new Set(
+                    [...body.proxyHosts, ...body.redirectHosts].flatMap(({ certificateId }) =>
+                        certificateId ? [certificateId] : [],
+                    ),
+                )
                 return Response.json({
                     activeRevision: body.revision,
                     status: 'applied',
@@ -156,6 +175,10 @@ function fakeController() {
                     : Response.json({ error: 'certificate_not_found' }, { status: 404 })
             }
             if (request.method === 'DELETE') {
+                state.deleteRequests += 1
+                if (state.activeCertificateIds.has(id)) {
+                    return Response.json({ error: 'certificate_in_use' }, { status: 409 })
+                }
                 entries.delete(id)
                 return Response.json({ deleted: true })
             }
@@ -282,21 +305,41 @@ function importInput() {
     }
 }
 
-function hostInput(certificateId: string | null = null, forceHttps = false) {
+function hostInput(
+    certificateId: string | null = null,
+    forceHttps = false,
+    options: {
+        readonly domains?: string[]
+        readonly enabled?: boolean
+        readonly forwardHost?: string
+    } = {},
+) {
     return {
-        domains: ['demo.test', 'www.demo.test'],
+        domains: options.domains ?? ['demo.test', 'www.demo.test'],
         forwardScheme: 'http' as const,
-        forwardHost: 'backend' + DOMAIN,
+        forwardHost: options.forwardHost ?? 'backend' + DOMAIN,
         forwardPort: 8080,
-        enabled: true,
+        enabled: options.enabled ?? true,
         certificateId,
         forceHttps,
+    }
+}
+
+function redirectInput(certificateId: string, domain: string) {
+    return {
+        domains: [domain],
+        destination: 'https://redirect-target' + DOMAIN + '/docs',
+        statusCode: 308 as const,
+        preserveRequestUri: false,
+        enabled: true,
+        certificateId,
     }
 }
 
 async function cleanup() {
     const database = getAuthDatabase()
     await database.delete(proxyHosts).where(like(proxyHosts.forwardHost, '%' + DOMAIN))
+    await database.delete(redirectHosts).where(like(redirectHosts.destination, '%' + DOMAIN + '%'))
     await database.delete(certificates).where(like(certificates.name, PREFIX + '%'))
     await database.delete(users).where(like(users.email, '%' + EMAIL))
     await database.delete(roles).where(like(roles.key, PREFIX + '%'))
@@ -321,12 +364,17 @@ beforeAll(async () => {
         .from(proxyHosts)
         .where(notLike(proxyHosts.forwardHost, '%' + DOMAIN))
         .limit(1)
+    const otherRedirects = await database
+        .select({ id: redirectHosts.id })
+        .from(redirectHosts)
+        .where(notLike(redirectHosts.destination, '%' + DOMAIN + '%'))
+        .limit(1)
     const otherCertificates = await database
         .select({ id: certificates.id })
         .from(certificates)
         .where(notLike(certificates.name, PREFIX + '%'))
         .limit(1)
-    if (otherUsers.length || otherHosts.length || otherCertificates.length)
+    if (otherUsers.length || otherHosts.length || otherRedirects.length || otherCertificates.length)
         throw new Error('Non-test data found; refusing certificate integration mutations.')
     verified = true
     await cleanup()
@@ -493,23 +541,345 @@ describe('certificate management with PostgreSQL', () => {
     })
 
     integrationTest(
-        'prevents deleting assigned certificates in service and FK, even on disabled hosts',
+        'detaches mixed host assignments, preserves HTTP routing, and deletes after runtime apply',
+        async () => {
+            const owner = await createUser([SYSTEM_ROLES.OWNER])
+            controller!.state.importDomains = ['proxy-one.test', 'proxy-two.test', 'redirect.test']
+            const id = await asUser(owner, () => importCertificateService(importInput()))
+            const first = await asUser(owner, () =>
+                createProxyHostService(
+                    hostInput(id, true, {
+                        domains: ['proxy-one.test'],
+                        forwardHost: 'first' + DOMAIN,
+                    }),
+                ),
+            )
+            const second = await asUser(owner, () =>
+                createProxyHostService(
+                    hostInput(id, false, {
+                        domains: ['proxy-two.test'],
+                        enabled: false,
+                        forwardHost: 'second' + DOMAIN,
+                    }),
+                ),
+            )
+            const redirect = await asUser(owner, () =>
+                createRedirectHostService(redirectInput(id, 'redirect.test')),
+            )
+            await expect(
+                getAuthDatabase().delete(certificates).where(eq(certificates.id, id)).execute(),
+            ).rejects.toThrow()
+
+            await expect(asUser(owner, () => deleteCertificateService(id))).resolves.toEqual({
+                deleted: true,
+                detachedHostCount: 3,
+                runtimeStatus: 'applied',
+            })
+            expect(controller!.entries.has(id)).toBeFalse()
+            expect(
+                await getAuthDatabase().select().from(certificates).where(eq(certificates.id, id)),
+            ).toHaveLength(0)
+            const storedHosts = await getAuthDatabase()
+                .select()
+                .from(proxyHosts)
+                .where(inArray(proxyHosts.id, [first.id, second.id]))
+            expect(storedHosts).toHaveLength(2)
+            expect(storedHosts).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        id: first.id,
+                        certificateId: null,
+                        enabled: true,
+                        forceHttps: false,
+                        forwardHost: 'first' + DOMAIN,
+                    }),
+                    expect.objectContaining({
+                        id: second.id,
+                        certificateId: null,
+                        enabled: false,
+                        forceHttps: false,
+                        forwardHost: 'second' + DOMAIN,
+                    }),
+                ]),
+            )
+            expect(
+                (
+                    await getAuthDatabase()
+                        .select()
+                        .from(redirectHosts)
+                        .where(eq(redirectHosts.id, redirect.id))
+                )[0],
+            ).toMatchObject({
+                certificateId: null,
+                destination: 'https://redirect-target' + DOMAIN + '/docs',
+                enabled: true,
+            })
+            expect(
+                await getAuthDatabase()
+                    .select()
+                    .from(hostDomains)
+                    .where(
+                        inArray(hostDomains.domain, [
+                            'proxy-one.test',
+                            'proxy-two.test',
+                            'redirect.test',
+                        ]),
+                    ),
+            ).toHaveLength(3)
+            const snapshot = await getProxyRuntimeSnapshotService()
+            const runtimeProxy = snapshot.proxyHosts.find((host) => host.id === first.id)
+            expect(runtimeProxy).toMatchObject({
+                domains: ['proxy-one.test'],
+                forwardHost: 'first' + DOMAIN,
+                forwardPort: 8080,
+                forwardScheme: 'http',
+                id: first.id,
+            })
+            expect(runtimeProxy).not.toHaveProperty('certificateId')
+            expect(runtimeProxy).not.toHaveProperty('forceHttps')
+            const runtimeRedirect = snapshot.redirectHosts.find((host) => host.id === redirect.id)
+            expect(runtimeRedirect).toMatchObject({
+                destination: 'https://redirect-target' + DOMAIN + '/docs',
+                domains: ['redirect.test'],
+                id: redirect.id,
+            })
+            expect(runtimeRedirect).not.toHaveProperty('certificateId')
+            expect(
+                await getAuthDatabase()
+                    .select({ resource: auditEvents.resource, targetId: auditEvents.targetId })
+                    .from(auditEvents)
+                    .where(
+                        and(
+                            eq(auditEvents.action, 'update'),
+                            inArray(auditEvents.targetId, [first.id, second.id, redirect.id]),
+                        ),
+                    ),
+            ).toEqual(
+                expect.arrayContaining([
+                    { resource: 'proxy-host', targetId: first.id },
+                    { resource: 'proxy-host', targetId: second.id },
+                    { resource: 'redirect-host', targetId: redirect.id },
+                ]),
+            )
+        },
+    )
+
+    integrationTest(
+        'retains the certificate after a real apply failure and completes deletion on retry',
+        async () => {
+            const owner = await createUser([SYSTEM_ROLES.OWNER])
+            const id = await asUser(owner, () => importCertificateService(importInput()))
+            const host = await asUser(owner, () => createProxyHostService(hostInput(id, true)))
+            controller!.state.failRuntimeApply = true
+
+            await expect(asUser(owner, () => deleteCertificateService(id))).resolves.toEqual({
+                deleted: false,
+                detachedHostCount: 1,
+                runtimeStatus: 'pending',
+            })
+            expect(controller!.entries.has(id)).toBeTrue()
+            expect(controller!.state.deleteRequests).toBe(0)
+            expect(
+                (
+                    await getAuthDatabase()
+                        .select()
+                        .from(proxyHosts)
+                        .where(eq(proxyHosts.id, host.id))
+                )[0],
+            ).toMatchObject({ certificateId: null, enabled: true, forceHttps: false })
+            expect(
+                await getAuthDatabase().select().from(certificates).where(eq(certificates.id, id)),
+            ).toHaveLength(1)
+
+            controller!.state.failRuntimeApply = false
+            await expect(asUser(owner, () => deleteCertificateService(id))).resolves.toEqual({
+                deleted: true,
+                detachedHostCount: 0,
+                runtimeStatus: 'applied',
+            })
+            expect(controller!.state.deleteRequests).toBeGreaterThanOrEqual(1)
+        },
+    )
+
+    integrationTest('deletes an unused certificate without reconciling the runtime', async () => {
+        const owner = await createUser([SYSTEM_ROLES.OWNER])
+        const id = await asUser(owner, () => importCertificateService(importInput()))
+        let reconcileCalls = 0
+
+        await expect(
+            asUser(owner, () =>
+                deleteCertificateService(id, {
+                    reconcile: async () => {
+                        reconcileCalls += 1
+                        return 'pending'
+                    },
+                }),
+            ),
+        ).resolves.toEqual({
+            deleted: true,
+            detachedHostCount: 0,
+            runtimeStatus: 'applied',
+        })
+        expect(reconcileCalls).toBe(0)
+    })
+
+    integrationTest(
+        'aborts final deletion when a concurrent edit reassigns the certificate',
+        async () => {
+            const owner = await createUser([SYSTEM_ROLES.OWNER])
+            const id = await asUser(owner, () => importCertificateService(importInput()))
+            const host = await asUser(owner, () => createProxyHostService(hostInput(id, true)))
+
+            await expect(
+                asUser(owner, () =>
+                    deleteCertificateService(id, {
+                        reconcile: async () => {
+                            await updateProxyHostService({
+                                ...hostInput(id, false),
+                                proxyHostId: host.id,
+                            })
+                            return 'applied'
+                        },
+                    }),
+                ),
+            ).rejects.toMatchObject({ code: 'certificate_in_use' })
+            expect(controller!.state.deleteRequests).toBe(0)
+            expect(controller!.entries.has(id)).toBeTrue()
+            expect(
+                (
+                    await getAuthDatabase()
+                        .select()
+                        .from(proxyHosts)
+                        .where(eq(proxyHosts.id, host.id))
+                )[0],
+            ).toMatchObject({ certificateId: id, forceHttps: false })
+        },
+    )
+
+    integrationTest(
+        'blocks active renewal and binding jobs but ignores terminal operation history',
         async () => {
             const owner = await createUser([SYSTEM_ROLES.OWNER])
             const id = await asUser(owner, () => importCertificateService(importInput()))
             const host = await asUser(owner, () => createProxyHostService(hostInput(id)))
+            const database = getAuthDatabase()
+            await database
+                .update(certificates)
+                .set({ operation: 'renewing' })
+                .where(eq(certificates.id, id))
             await expect(asUser(owner, () => deleteCertificateService(id))).rejects.toMatchObject({
-                code: 'certificate_in_use',
+                code: 'operation_in_progress',
             })
-            await expect(
-                getAuthDatabase().delete(certificates).where(eq(certificates.id, id)).execute(),
-            ).rejects.toThrow()
-            await asUser(owner, () => disableProxyHostService(host.id))
+            await database
+                .update(certificates)
+                .set({
+                    operation: 'idle',
+                    currentOperation: {
+                        id: randomUUID(),
+                        kind: 'renew',
+                        stage: 'failed',
+                        startedAt: new Date(Date.now() - 1_000).toISOString(),
+                        updatedAt: new Date().toISOString(),
+                    },
+                })
+                .where(eq(certificates.id, id))
+            const [job] = await database
+                .insert(certificateJobs)
+                .values({
+                    actorUserId: owner,
+                    proxyHostId: host.id,
+                    certificateId: id,
+                    idempotencyKey: randomUUID(),
+                    requestDigest: 'a'.repeat(64),
+                    domains: host.domains,
+                    requiredPermissions: [PERMISSIONS.CERTIFICATES_ISSUE],
+                    hostRevision: 'b'.repeat(64),
+                    desiredEnabled: true,
+                    desiredForceHttps: false,
+                    stage: 'preparing',
+                })
+                .returning({ id: certificateJobs.id })
+            if (!job) throw new Error('Certificate job fixture unavailable.')
             await expect(asUser(owner, () => deleteCertificateService(id))).rejects.toMatchObject({
-                code: 'certificate_in_use',
+                code: 'operation_in_progress',
             })
+            await database
+                .update(certificateJobs)
+                .set({ stage: 'applied' })
+                .where(eq(certificateJobs.id, job.id))
+
+            await expect(asUser(owner, () => deleteCertificateService(id))).resolves.toMatchObject({
+                deleted: true,
+                runtimeStatus: 'applied',
+            })
+            expect(
+                (
+                    await database
+                        .select({ certificateId: certificateJobs.certificateId })
+                        .from(certificateJobs)
+                        .where(eq(certificateJobs.id, job.id))
+                )[0]?.certificateId,
+            ).toBeNull()
         },
     )
+
+    integrationTest('requires host update permission before removing an assignment', async () => {
+        const owner = await createUser([SYSTEM_ROLES.OWNER])
+        const deleter = await createCustomUser([PERMISSIONS.CERTIFICATES_DELETE])
+        const id = await asUser(owner, () => importCertificateService(importInput()))
+        const host = await asUser(owner, () => createProxyHostService(hostInput(id, true)))
+
+        await expect(asUser(deleter, () => deleteCertificateService(id))).rejects.toMatchObject({
+            code: 'permission_denied',
+        })
+        expect(
+            (
+                await getAuthDatabase().select().from(proxyHosts).where(eq(proxyHosts.id, host.id))
+            )[0],
+        ).toMatchObject({ certificateId: id, forceHttps: true })
+        expect(controller!.state.deleteRequests).toBe(0)
+    })
+
+    integrationTest('uses the same assigned deletion contract for ACME certificates', async () => {
+        const owner = await createUser([SYSTEM_ROLES.OWNER])
+        const domain = 'acme-delete.example.com'
+        const id = await asUser(owner, () =>
+            requestCertificateService({
+                name: PREFIX + randomUUID(),
+                domains: [domain],
+                environment: 'staging',
+                acceptTerms: true,
+            }),
+        )
+        const pending = controller!.entries.get(id)!
+        controller!.entries.set(
+            id,
+            validMetadata(id, [domain], {
+                source: 'acme',
+                environment: 'staging',
+                updatedAt: advanceUpdatedAt(pending.updatedAt),
+            }),
+        )
+        await asUser(owner, getCertificatesService)
+        const host = await asUser(owner, () =>
+            createProxyHostService(
+                hostInput(id, true, {
+                    domains: [domain],
+                    forwardHost: 'acme' + DOMAIN,
+                }),
+            ),
+        )
+
+        await expect(asUser(owner, () => deleteCertificateService(id))).resolves.toMatchObject({
+            deleted: true,
+            detachedHostCount: 1,
+        })
+        expect(
+            (
+                await getAuthDatabase().select().from(proxyHosts).where(eq(proxyHosts.id, host.id))
+            )[0],
+        ).toMatchObject({ certificateId: null, enabled: true, forceHttps: false })
+    })
 
     integrationTest(
         'checks replacement coverage for every assigned domain and retains old valid metadata on failure',

@@ -814,7 +814,9 @@
                 "retryTitle": "Aktivierung für {{name}} wiederholen?",
                 "retryDescription": "Wiederhole die Aktivierung des ausgestellten Zertifikatskandidaten.",
                 "deleteTitle": "{{name}} löschen?",
-                "deleteDescription": "Dadurch wird das Zertifikat entfernt; dies ist blockiert, solange es noch von einem Proxy- oder Redirect-Host verwendet wird."
+                "deleteDescription": "Dadurch wird das ungenutzte Zertifikat dauerhaft entfernt.",
+                "deleteAssignedDescription_one": "Dieses Zertifikat wird derzeit von {{count}} Host verwendet. Beim Löschen werden HTTPS und bei Bedarf „HTTPS erzwingen“ für diesen Host entfernt. Der Host und sein HTTP-Routing bleiben erhalten.",
+                "deleteAssignedDescription_other": "Dieses Zertifikat wird derzeit von {{count}} Hosts verwendet. Beim Löschen werden HTTPS und bei Bedarf „HTTPS erzwingen“ für diese Hosts entfernt. Die Hosts und ihr HTTP-Routing bleiben erhalten."
             },
             "states": {
                 "unavailableTitle": "Zertifikate sind nicht verfügbar",
@@ -829,7 +831,8 @@
                 "replaced": "Zertifikat ersetzt.",
                 "requested": "Zertifikatsanfrage gestartet.",
                 "renewing": "Zertifikatserneuerung gestartet.",
-                "deleted": "Zertifikat gelöscht."
+                "deleted": "Zertifikat gelöscht.",
+                "deletePending": "Die Runtime-Synchronisierung steht noch aus. Das Zertifikat wurde beibehalten und kann nach der Synchronisierung gelöscht werden."
             },
             "errors": {
                 "loadFailed": "Zertifikate konnten nicht geladen werden.",

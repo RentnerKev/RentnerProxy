@@ -52,7 +52,11 @@ export default function useCertificateManagementLogic({
         await Promise.all([
             queryClient.invalidateQueries({ queryKey: certificateManagementQueryKeys.all }),
             queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.all }),
+            queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.runtimeStatus }),
             queryClient.invalidateQueries({ queryKey: redirectHostManagementQueryKeys.all }),
+            queryClient.invalidateQueries({
+                queryKey: redirectHostManagementQueryKeys.runtimeStatus,
+            }),
         ])
     }, [queryClient])
     const handleActionResult = useCallback(
@@ -79,9 +83,18 @@ export default function useCertificateManagementLogic({
         mutationFn: (certificateId: string) =>
             deleteCertificateHandler({ data: { certificateId } }),
         onSuccess: async (result) => {
-            await handleActionResult(result, () => setDeleteTarget(null))
+            await invalidateCertificateQueries()
+            if (!result.success) {
+                toast.error(result.message)
+                return
+            }
+            toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](result.message)
+            setDeleteTarget(null)
         },
-        onError: () => toast.error('admin.certificates.errors.deleteFailed'),
+        onError: async () => {
+            await invalidateCertificateQueries()
+            toast.error('admin.certificates.errors.deleteFailed')
+        },
     })
     const openImport = useCallback(() => {
         setReplaceTarget(null)

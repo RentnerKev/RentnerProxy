@@ -24,6 +24,23 @@ function noStore(): void {
     setResponseHeader('Cache-Control', 'private, no-store')
 }
 
+function certificateActionFailure(error: unknown): CertificateActionResult {
+    if (error instanceof CertificateDomainError) {
+        setResponseStatus(
+            error.code === 'certificate_not_found'
+                ? 404
+                : error.code === 'certificate_in_use' || error.code === 'operation_in_progress'
+                  ? 409
+                  : error.code === 'controller_unavailable' ||
+                      error.code === 'certificate_store_unavailable'
+                    ? 503
+                    : 422,
+        )
+        return { success: false, message: `admin.certificates.errors.${error.code}` }
+    }
+    return localizedActionFailure(error, 'admin.certificates.errors.actionFailed')
+}
+
 async function certificateAction(
     action: () => Promise<string | void>,
     message: string,
@@ -33,20 +50,7 @@ async function certificateAction(
         const certificateId = await action()
         return { success: true, message, ...(certificateId ? { certificateId } : {}) }
     } catch (error) {
-        if (error instanceof CertificateDomainError) {
-            setResponseStatus(
-                error.code === 'certificate_not_found'
-                    ? 404
-                    : error.code === 'certificate_in_use' || error.code === 'operation_in_progress'
-                      ? 409
-                      : error.code === 'controller_unavailable' ||
-                          error.code === 'certificate_store_unavailable'
-                        ? 503
-                        : 422,
-            )
-            return { success: false, message: `admin.certificates.errors.${error.code}` }
-        }
-        return localizedActionFailure(error, 'admin.certificates.errors.actionFailed')
+        return certificateActionFailure(error)
     }
 }
 
@@ -119,9 +123,18 @@ export const renewCertificateHandler = createServerFn({ method: 'POST' })
 
 export const deleteCertificateHandler = createServerFn({ method: 'POST' })
     .validator(certificateIdInputSchema)
-    .handler(({ data }) =>
-        certificateAction(
-            () => deleteCertificateService(data.certificateId),
-            'admin.certificates.messages.deleted',
-        ),
-    )
+    .handler(async ({ data }): Promise<CertificateActionResult> => {
+        noStore()
+        try {
+            const result = await deleteCertificateService(data.certificateId)
+            return {
+                success: true,
+                message: result.deleted
+                    ? 'admin.certificates.messages.deleted'
+                    : 'admin.certificates.messages.deletePending',
+                runtimeStatus: result.runtimeStatus,
+            }
+        } catch (error) {
+            return certificateActionFailure(error)
+        }
+    })

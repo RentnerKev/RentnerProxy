@@ -814,7 +814,9 @@
                 "retryTitle": "Réessayer l’activation de {{name}} ?",
                 "retryDescription": "Réessayez l’activation du certificat délivré en attente.",
                 "deleteTitle": "Supprimer {{name}} ?",
-                "deleteDescription": "Le certificat sera supprimé ; l’opération est bloquée tant qu’un hôte proxy ou de redirection l’utilise encore."
+                "deleteDescription": "Cette action supprime définitivement le certificat inutilisé.",
+                "deleteAssignedDescription_one": "Ce certificat est actuellement utilisé par {{count}} hôte. Sa suppression retire HTTPS de cet hôte et désactive Forcer HTTPS si nécessaire. L’hôte et son routage HTTP restent disponibles.",
+                "deleteAssignedDescription_other": "Ce certificat est actuellement utilisé par {{count}} hôtes. Sa suppression retire HTTPS de ces hôtes et désactive Forcer HTTPS si nécessaire. Les hôtes et leur routage HTTP restent disponibles."
             },
             "states": {
                 "unavailableTitle": "Les certificats sont indisponibles",
@@ -829,7 +831,8 @@
                 "replaced": "Certificat remplacé.",
                 "requested": "Demande de certificat démarrée.",
                 "renewing": "Renouvellement du certificat démarré.",
-                "deleted": "Certificat supprimé."
+                "deleted": "Certificat supprimé.",
+                "deletePending": "La synchronisation du runtime est encore en attente. Le certificat a été conservé et pourra être supprimé après la synchronisation."
             },
             "errors": {
                 "loadFailed": "Impossible de charger les certificats.",
