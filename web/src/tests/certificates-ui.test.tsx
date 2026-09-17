@@ -242,6 +242,7 @@ async function chooseDnsChallenge(): Promise<void> {
     await click(dnsOption!)
 }
 
+/** Selects an ACME environment from the request form. */
 async function chooseAcmeEnvironment(environment: 'Production' | 'Staging'): Promise<void> {
     await click(document.querySelector('[aria-label="ACME environment"]')!)
     await waitFor(() => document.querySelector('[role=option]') !== null)

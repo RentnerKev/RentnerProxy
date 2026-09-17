@@ -16,6 +16,7 @@ import {
 } from '../validation'
 import type { CertificateRequestModalProps } from '../Types/certificate-management.types'
 
+/** Builds and submits certificate requests, including reset and retry behavior. */
 export default function useCertificateRequestLogic({
     certificateJob,
     expectedUpdatedAt,

@@ -146,6 +146,7 @@ export interface CertificateRequestFormValues {
     readonly acceptTerms: boolean
 }
 
+/** Converts certificate form values into the controller request shape. */
 export function certificateRequestInputFromForm(
     value: CertificateRequestFormValues,
 ): Record<string, unknown> {

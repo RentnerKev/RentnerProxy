@@ -4,6 +4,7 @@ import SelectControl from '../../../../shared/Select'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type useCertificateRequestLogic from '../Hooks/useCertificateRequestLogic'
 
+/** Renders the ACME certificate request fields and environment-specific guidance. */
 export default function CertificateRequestFields({
     form,
     isPending,

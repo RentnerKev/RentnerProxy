@@ -265,6 +265,7 @@ export async function importControllerCertificate(
     )
 }
 
+/** Requests certificate issuance from the controller using the shared ACME defaults. */
 export async function issueControllerCertificate(
     certificateId: string,
     input: RequestCertificateInput,
