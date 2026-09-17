@@ -572,10 +572,10 @@ describe('ProxyHost management table', () => {
         expect(document.body.textContent).toContain('https://[2001:db8::1]:443')
         expect(document.body.textContent).toContain('Enabled')
         expect(document.body.textContent).toContain('Disabled')
-        const enabledRow = getRows().find((row) => row.textContent?.includes('app.example.com'))!
-        const domainLink = [...enabledRow.querySelectorAll<HTMLAnchorElement>('a')].find(
-            (link) => link.getAttribute('href') === 'https://app.example.com',
+        const domainLink = [...document.querySelectorAll<HTMLAnchorElement>('tbody a')].find(
+            (link) => link.textContent?.trim() === 'app.example.com',
         )
+        expect(domainLink?.getAttribute('href')).toBe('https://app.example.com')
         expect(domainLink?.target).toBe('_blank')
         expect(domainLink?.rel).toBe('noopener noreferrer')
         expect(domainLink?.getAttribute('aria-label')).toBe('Open app.example.com in a new tab')
