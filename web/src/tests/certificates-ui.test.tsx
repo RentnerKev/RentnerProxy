@@ -400,6 +400,124 @@ describe('certificate management UI', () => {
         expect(document.body.textContent).toContain('Waiting for validation')
     })
 
+    test('keeps completed operation history out of the table while preserving details and actions', async () => {
+        const completedCertificate: CertificateSummary = {
+            ...certificate,
+            currentOperation: {
+                id: '0192c8b4-6d5d-7c65-9dc0-7ac2c8ea0030',
+                kind: 'renew',
+                stage: 'applied',
+                startedAt: new Date('2026-02-01T09:00:00Z'),
+                updatedAt: new Date('2026-02-01T09:15:00Z'),
+            },
+        }
+        getCertificatesHandlerMock.mockResolvedValueOnce([completedCertificate])
+        await renderPage([
+            PERMISSIONS.CERTIFICATES_VIEW,
+            PERMISSIONS.CERTIFICATES_RENEW,
+            PERMISSIONS.CERTIFICATES_DELETE,
+        ])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+
+        const row = document.querySelector<HTMLTableRowElement>('tbody tr')!
+        expect(row.textContent).toContain('No operation in progress')
+        expect(row.textContent).not.toContain('Applied')
+        expect(row.textContent).not.toContain(completedCertificate.currentOperation!.id)
+
+        await openMenu(button('Open certificate actions'))
+        const renewAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Renew',
+        )
+        expect(renewAction?.getAttribute('aria-disabled')).not.toBe('true')
+        const deleteAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Delete',
+        )
+        expect(deleteAction?.getAttribute('aria-disabled')).not.toBe('true')
+        const detailsAction = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+            (item) => item.textContent?.trim() === 'Details',
+        )
+        await click(detailsAction!)
+        await waitFor(() => document.body.textContent?.includes('Certificate metadata') === true)
+        expect(document.body.textContent).toContain(completedCertificate.currentOperation!.id)
+        expect(document.body.textContent).toContain('Renewal')
+        expect(document.body.textContent).toContain('Applied')
+    })
+
+    test('keeps replace and delete available after a completed manual apply', async () => {
+        const completedImport: CertificateSummary = {
+            ...certificate,
+            source: 'manual',
+            environment: null,
+            currentOperation: {
+                id: '0192c8b4-6d5d-7c65-9dc0-7ac2c8ea0040',
+                kind: 'import',
+                stage: 'applied',
+                startedAt: new Date('2026-02-01T09:00:00Z'),
+                updatedAt: new Date('2026-02-01T09:15:00Z'),
+            },
+        }
+        getCertificatesHandlerMock.mockResolvedValueOnce([completedImport])
+        await renderPage([
+            PERMISSIONS.CERTIFICATES_VIEW,
+            PERMISSIONS.CERTIFICATES_UPDATE,
+            PERMISSIONS.CERTIFICATES_DELETE,
+        ])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        expect(document.querySelector('tbody tr')?.textContent).toContain(
+            'No operation in progress',
+        )
+
+        await openMenu(button('Open certificate actions'))
+        for (const label of ['Replace', 'Delete']) {
+            const action = [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+                (item) => item.textContent?.trim() === label,
+            )
+            expect(action?.getAttribute('aria-disabled')).not.toBe('true')
+        }
+    })
+
+    test('searches current operation IDs without exposing completed operation history', async () => {
+        const completed: CertificateSummary = {
+            ...certificate,
+            id: 'completed-certificate',
+            currentOperation: {
+                id: 'completed-operation-id',
+                kind: 'issue',
+                stage: 'applied',
+                startedAt: new Date('2026-02-01T09:00:00Z'),
+                updatedAt: new Date('2026-02-01T09:15:00Z'),
+            },
+        }
+        const active: CertificateSummary = {
+            ...certificate,
+            id: 'active-certificate',
+            name: 'Active certificate',
+            operation: 'renewing',
+            currentOperation: {
+                id: 'active-operation-id',
+                kind: 'renew',
+                stage: 'waiting_for_validation',
+                startedAt: new Date('2026-02-01T10:00:00Z'),
+                updatedAt: new Date('2026-02-01T10:15:00Z'),
+            },
+        }
+        getCertificatesHandlerMock.mockResolvedValueOnce([completed, active])
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW])
+        await waitFor(() => document.querySelectorAll('tbody tr').length === 2)
+        const search = document.querySelector<HTMLInputElement>('input[type="search"]')!
+
+        await setValue(search, 'active-operation-id')
+        await waitFor(() => document.querySelectorAll('tbody tr').length === 1)
+        expect(document.querySelector('tbody tr')?.textContent).toContain('Active certificate')
+        await setValue(search, 'completed-operation-id')
+        await waitFor(
+            () =>
+                document
+                    .querySelector('tbody tr')
+                    ?.textContent?.includes('No certificates match your filters') === true,
+        )
+    })
+
     test('localizes the staging warning and keeps mutation actions disabled during an operation', async () => {
         const operationCertificate: CertificateSummary = {
             ...certificate,
