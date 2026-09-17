@@ -458,6 +458,13 @@ function startFakeController(
             ) {
                 return Response.json(certificateMetadata)
             }
+            if (
+                request.method === 'DELETE' &&
+                certificateMetadata &&
+                url.pathname === '/internal/v1/certificates/' + certificateMetadata.id
+            ) {
+                return Response.json({ deleted: true })
+            }
 
             return new Response('not found', { status: 404 })
         },
@@ -1326,7 +1333,7 @@ describe('RedirectHost management with PostgreSQL', () => {
     }
 
     integrationTest(
-        'counts disabled redirect assignments and blocks certificate deletion',
+        'counts and safely detaches a disabled redirect during certificate deletion',
         async () => {
             const owner = await createTestUser([SYSTEM_ROLES.OWNER])
             const domain = testDomain('certificate')
@@ -1344,14 +1351,26 @@ describe('RedirectHost management with PostgreSQL', () => {
                 )
                 await runAsUser(owner.id, () => disableRedirectHostService(created.id))
                 const certificatesSummary = await runAsUser(owner.id, getCertificatesService)
-                const deleteError = await captureError(
-                    runAsUser(owner.id, () => deleteCertificateService(certificateId)),
+                const deleted = await runAsUser(owner.id, () =>
+                    deleteCertificateService(certificateId),
                 )
 
                 expect(
                     certificatesSummary.find((certificate) => certificate.id === certificateId),
                 ).toMatchObject({ assignedHostCount: 1 })
-                expect(deleteError).toMatchObject({ code: 'certificate_in_use' })
+                expect(deleted).toEqual({
+                    deleted: true,
+                    detachedHostCount: 1,
+                    runtimeStatus: 'applied',
+                })
+                expect(
+                    (
+                        await getAuthDatabase()
+                            .select()
+                            .from(redirectHosts)
+                            .where(eq(redirectHosts.id, created.id))
+                    )[0],
+                ).toMatchObject({ certificateId: null, enabled: false })
             } finally {
                 controller.server.stop(true)
             }

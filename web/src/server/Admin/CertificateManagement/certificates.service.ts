@@ -3,6 +3,8 @@ import '@tanstack/react-start/server-only'
 import { and, asc, count, eq, inArray, notInArray } from 'drizzle-orm'
 import type { z } from 'zod'
 import { PERMISSIONS, type PermissionKey } from '../../../config/permissions.config'
+import type { AuditEventInput } from '../../../shared/Types/audit-events.types'
+import type { ProxyRuntimeMutationStatus } from '../../../shared/Types/proxy-runtime.types'
 import {
     certificates,
     certificateJobs,
@@ -42,11 +44,48 @@ import {
     type ControllerCertificateMetadata,
 } from '../../Foundation/certificates.server'
 import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
+import { reconcileProxyConfigurationWithAudit } from '../../ProxyRuntime/proxy-runtime.service'
 import { CertificateDomainError } from './certificates.errors'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+import {
+    appendAuditEventInTransaction,
+    appendAuditEventsInTransaction,
+} from '../../Audit/audit.service'
 import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
 
 type CertificateRow = typeof certificates.$inferSelect
+
+export interface DeleteCertificateResult {
+    readonly deleted: boolean
+    readonly detachedHostCount: number
+    readonly runtimeStatus: ProxyRuntimeMutationStatus
+}
+
+interface CertificateDeletionRuntime {
+    readonly reconcile: (actorId: string) => Promise<ProxyRuntimeMutationStatus>
+}
+
+const certificateDeletionRuntime: CertificateDeletionRuntime = {
+    reconcile: reconcileProxyConfigurationWithAudit,
+}
+
+const CERTIFICATE_DETACH_AUDIT_BATCH_SIZE = 500
+
+async function appendCertificateDetachAuditEvents(
+    transaction: AuthTransaction,
+    events: readonly AuditEventInput[],
+    offset = 0,
+): Promise<void> {
+    if (offset >= events.length) return
+    await appendAuditEventsInTransaction(
+        transaction,
+        events.slice(offset, offset + CERTIFICATE_DETACH_AUDIT_BATCH_SIZE),
+    )
+    await appendCertificateDetachAuditEvents(
+        transaction,
+        events,
+        offset + CERTIFICATE_DETACH_AUDIT_BATCH_SIZE,
+    )
+}
 
 function parseInput<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
     const parsed = schema.safeParse(input)
@@ -629,52 +668,168 @@ export async function renewCertificateService(certificateId: string): Promise<st
     return id
 }
 
-export async function deleteCertificateService(certificateId: string): Promise<void> {
+async function assertCertificateCanBeDeleted(
+    transaction: AuthTransaction,
+    certificateId: string,
+): Promise<void> {
+    const certificate = await getCertificateRow(transaction, certificateId)
+    if (certificate.operation !== 'idle' || certificate.candidate !== null) {
+        throw new CertificateDomainError('operation_in_progress')
+    }
+    const activeJob = await transaction
+        .select({ id: certificateJobs.id })
+        .from(certificateJobs)
+        .where(
+            and(
+                eq(certificateJobs.certificateId, certificateId),
+                inArray(certificateJobs.stage, ['preparing', 'issuing', 'applying']),
+            ),
+        )
+        .limit(1)
+    if (activeJob.length > 0) throw new CertificateDomainError('operation_in_progress')
+}
+
+async function readCertificateAssignmentsForUpdate(
+    transaction: AuthTransaction,
+    certificateId: string,
+): Promise<{ readonly proxyHostIds: string[]; readonly redirectHostIds: string[] }> {
+    const proxyAssignments = await transaction
+        .select({ id: proxyHosts.id })
+        .from(proxyHosts)
+        .where(eq(proxyHosts.certificateId, certificateId))
+        .for('update')
+    const redirectAssignments = await transaction
+        .select({ id: redirectHosts.id })
+        .from(redirectHosts)
+        .where(eq(redirectHosts.certificateId, certificateId))
+        .for('update')
+    return {
+        proxyHostIds: proxyAssignments.map(({ id }) => id),
+        redirectHostIds: redirectAssignments.map(({ id }) => id),
+    }
+}
+
+async function detachCertificateAssignments(
+    transaction: AuthTransaction,
+    actorId: string,
+    certificateId: string,
+): Promise<number> {
+    await assertCertificateCanBeDeleted(transaction, certificateId)
+    const { proxyHostIds, redirectHostIds } = await readCertificateAssignmentsForUpdate(
+        transaction,
+        certificateId,
+    )
+    if (proxyHostIds.length > 0) {
+        await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_UPDATE)
+    }
+    if (redirectHostIds.length > 0) {
+        await requirePermissionInTransaction(
+            transaction,
+            actorId,
+            PERMISSIONS.REDIRECT_HOSTS_UPDATE,
+        )
+    }
+    const updatedAt = new Date()
+    if (proxyHostIds.length > 0) {
+        await transaction
+            .update(proxyHosts)
+            .set({ certificateId: null, forceHttps: false, updatedAt })
+            .where(eq(proxyHosts.certificateId, certificateId))
+    }
+    if (redirectHostIds.length > 0) {
+        await transaction
+            .update(redirectHosts)
+            .set({ certificateId: null, updatedAt })
+            .where(eq(redirectHosts.certificateId, certificateId))
+    }
+    const auditEvents: AuditEventInput[] = [
+        ...proxyHostIds.map((targetId) => ({
+            actorUserId: actorId,
+            actorKind: 'user' as const,
+            action: 'update' as const,
+            resource: 'proxy-host' as const,
+            targetId,
+            result: 'success' as const,
+            metadata: { changedFields: ['certificate', 'tls'] as const },
+        })),
+        ...redirectHostIds.map((targetId) => ({
+            actorUserId: actorId,
+            actorKind: 'user' as const,
+            action: 'update' as const,
+            resource: 'redirect-host' as const,
+            targetId,
+            result: 'success' as const,
+            metadata: { changedFields: ['certificate', 'tls'] as const },
+        })),
+    ]
+    await appendCertificateDetachAuditEvents(transaction, auditEvents)
+    return proxyHostIds.length + redirectHostIds.length
+}
+
+async function finalizeCertificateDeletion(
+    actorId: string,
+    certificateId: string,
+): Promise<'deleted' | 'runtime_in_use'> {
+    return getAuthDatabase().transaction(async (transaction) => {
+        await lockProxyRuntimeSettings(transaction)
+        await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.CERTIFICATES_DELETE)
+        await assertCertificateCanBeDeleted(transaction, certificateId)
+        const assignments = await readCertificateAssignmentsForUpdate(transaction, certificateId)
+        if (assignments.proxyHostIds.length > 0 || assignments.redirectHostIds.length > 0) {
+            throw new CertificateDomainError('certificate_in_use')
+        }
+        try {
+            await deleteControllerCertificate(certificateId)
+        } catch (error) {
+            if (error instanceof CertificateDomainError && error.code === 'certificate_in_use') {
+                return 'runtime_in_use'
+            }
+            throw error
+        }
+        await transaction.delete(certificates).where(eq(certificates.id, certificateId))
+        await appendAuditEventInTransaction(transaction, {
+            actorUserId: actorId,
+            actorKind: 'user',
+            action: 'delete',
+            resource: 'certificate',
+            targetId: certificateId,
+            result: 'success',
+        })
+        return 'deleted'
+    })
+}
+
+export async function deleteCertificateService(
+    certificateId: string,
+    runtime: CertificateDeletionRuntime = certificateDeletionRuntime,
+): Promise<DeleteCertificateResult> {
     const actor = await requirePermissionService(PERMISSIONS.CERTIFICATES_DELETE)
     const id = parseId(certificateId)
     try {
-        await getAuthDatabase().transaction(async (transaction) => {
+        const detachedHostCount = await getAuthDatabase().transaction(async (transaction) => {
             await lockProxyRuntimeSettings(transaction)
             await requirePermissionInTransaction(
                 transaction,
                 actor.id,
                 PERMISSIONS.CERTIFICATES_DELETE,
             )
-            await getCertificateRow(transaction, id)
-            const proxyAssigned = await transaction
-                .select({ id: proxyHosts.id })
-                .from(proxyHosts)
-                .where(eq(proxyHosts.certificateId, id))
-                .limit(1)
-            const redirectAssigned = await transaction
-                .select({ id: redirectHosts.id })
-                .from(redirectHosts)
-                .where(eq(redirectHosts.certificateId, id))
-                .limit(1)
-            if (proxyAssigned.length > 0 || redirectAssigned.length > 0)
-                throw new CertificateDomainError('certificate_in_use')
-            const activeJob = await transaction
-                .select({ id: certificateJobs.id })
-                .from(certificateJobs)
-                .where(
-                    and(
-                        eq(certificateJobs.certificateId, id),
-                        inArray(certificateJobs.stage, ['preparing', 'issuing', 'applying']),
-                    ),
-                )
-                .limit(1)
-            if (activeJob.length > 0) throw new CertificateDomainError('certificate_in_use')
-            await deleteControllerCertificate(id)
-            await transaction.delete(certificates).where(eq(certificates.id, id))
-            await appendAuditEventInTransaction(transaction, {
-                actorUserId: actor.id,
-                actorKind: 'user',
-                action: 'delete',
-                resource: 'certificate',
-                targetId: id,
-                result: 'success',
-            })
+            return detachCertificateAssignments(transaction, actor.id, id)
         })
+        if (detachedHostCount === 0) {
+            const finalization = await finalizeCertificateDeletion(actor.id, id)
+            if (finalization === 'deleted') {
+                return { deleted: true, detachedHostCount, runtimeStatus: 'applied' }
+            }
+        }
+        const runtimeStatus = await runtime.reconcile(actor.id)
+        if (runtimeStatus === 'pending') {
+            return { deleted: false, detachedHostCount, runtimeStatus }
+        }
+        const finalization = await finalizeCertificateDeletion(actor.id, id)
+        if (finalization === 'runtime_in_use') {
+            throw new CertificateDomainError('certificate_in_use')
+        }
+        return { deleted: true, detachedHostCount, runtimeStatus }
     } catch (error) {
         await recordMutationFailureBestEffort({
             actorId: actor.id,

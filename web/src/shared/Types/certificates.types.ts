@@ -9,6 +9,7 @@ import type {
     CertificateSource,
     CertificateStatus,
 } from '../../config/certificates.config'
+import type { ProxyRuntimeMutationStatus } from './proxy-runtime.types'
 
 export interface CertificateCurrentOperationMetadata {
     readonly id: string
@@ -99,5 +100,10 @@ export interface CertificateSummary {
 }
 
 export type CertificateActionResult =
-    | { readonly success: true; readonly message: string; readonly certificateId?: string }
+    | {
+          readonly success: true
+          readonly message: string
+          readonly certificateId?: string
+          readonly runtimeStatus?: ProxyRuntimeMutationStatus
+      }
     | { readonly success: false; readonly message: string }

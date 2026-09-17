@@ -147,7 +147,12 @@ export default function CertificateManagementPageView({
                     title={t('admin.certificates.confirm.deleteTitle', {
                         name: state.deleteTarget.name,
                     })}
-                    description={t('admin.certificates.confirm.deleteDescription')}
+                    description={t(
+                        state.deleteTarget.assignedHostCount > 0
+                            ? 'admin.certificates.confirm.deleteAssignedDescription'
+                            : 'admin.certificates.confirm.deleteDescription',
+                        { count: state.deleteTarget.assignedHostCount },
+                    )}
                     confirmLabel={t('admin.certificates.actions.delete')}
                     pendingLabel={t('admin.certificates.actions.deleting')}
                     destructive

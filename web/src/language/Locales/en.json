@@ -814,7 +814,9 @@
                 "retryTitle": "Retry activation for {{name}}?",
                 "retryDescription": "Retry activation of the issued certificate candidate.",
                 "deleteTitle": "Delete {{name}}?",
-                "deleteDescription": "This removes the certificate and is blocked while a proxy or redirect host still uses it."
+                "deleteDescription": "This permanently removes the unused certificate.",
+                "deleteAssignedDescription_one": "This certificate is currently used by {{count}} host. Deleting it removes HTTPS from that host and disables Force HTTPS where needed. The host and its HTTP routing remain available.",
+                "deleteAssignedDescription_other": "This certificate is currently used by {{count}} hosts. Deleting it removes HTTPS from these hosts and disables Force HTTPS where needed. The hosts and their HTTP routing remain available."
             },
             "states": {
                 "unavailableTitle": "Certificates are unavailable",
@@ -829,7 +831,8 @@
                 "replaced": "Certificate replaced.",
                 "requested": "Certificate request started.",
                 "renewing": "Certificate renewal started.",
-                "deleted": "Certificate deleted."
+                "deleted": "Certificate deleted.",
+                "deletePending": "Runtime synchronization is still pending. The certificate was kept and can be deleted after synchronization."
             },
             "errors": {
                 "loadFailed": "Certificates could not be loaded.",

@@ -814,7 +814,9 @@
                 "retryTitle": "¿Reintentar la activación de {{name}}?",
                 "retryDescription": "Reintenta la activación del candidato de certificado emitido.",
                 "deleteTitle": "¿Eliminar {{name}}?",
-                "deleteDescription": "Esto elimina el certificado y se bloquea mientras un host proxy o de redirección siga utilizándolo."
+                "deleteDescription": "Esto elimina permanentemente el certificado sin uso.",
+                "deleteAssignedDescription_one": "Este certificado lo utiliza actualmente {{count}} host. Al eliminarlo, se quita HTTPS de ese host y se desactiva Forzar HTTPS cuando sea necesario. El host y su enrutamiento HTTP permanecen disponibles.",
+                "deleteAssignedDescription_other": "Este certificado lo utilizan actualmente {{count}} hosts. Al eliminarlo, se quita HTTPS de esos hosts y se desactiva Forzar HTTPS cuando sea necesario. Los hosts y su enrutamiento HTTP permanecen disponibles."
             },
             "states": {
                 "unavailableTitle": "Los certificados no están disponibles",
@@ -829,7 +831,8 @@
                 "replaced": "Certificado reemplazado.",
                 "requested": "Solicitud de certificado iniciada.",
                 "renewing": "Renovación del certificado iniciada.",
-                "deleted": "Certificado eliminado."
+                "deleted": "Certificado eliminado.",
+                "deletePending": "La sincronización del runtime aún está pendiente. El certificado se conservó y podrá eliminarse después de la sincronización."
             },
             "errors": {
                 "loadFailed": "No se pudieron cargar los certificados.",

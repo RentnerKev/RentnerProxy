@@ -5,7 +5,10 @@ import type { QueryClient as QueryClientInstance } from '@tanstack/react-query'
 import type { Root } from 'react-dom/client'
 
 import { PERMISSIONS } from '../config/permissions.config'
-import type { CertificateSummary } from '../shared/Types/certificates.types'
+import type {
+    CertificateActionResult,
+    CertificateSummary,
+} from '../shared/Types/certificates.types'
 import { redirectHostManagementQueryKeys } from '../features/Admin/RedirectHostManagement/queryKeys'
 import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
 
@@ -72,9 +75,10 @@ const renewCertificateHandlerMock = mock(async () => ({
     success: true as const,
     message: 'admin.certificates.messages.renewing',
 }))
-const deleteCertificateHandlerMock = mock(async () => ({
+const deleteCertificateHandlerMock = mock(async (): Promise<CertificateActionResult> => ({
     success: true as const,
     message: 'admin.certificates.messages.deleted',
+    runtimeStatus: 'applied' as const,
 }))
 
 mock.module('../features/Admin/CertificateManagement/server', () => ({
@@ -292,6 +296,7 @@ beforeEach(() => {
     deleteCertificateHandlerMock.mockReset().mockResolvedValue({
         success: true,
         message: 'admin.certificates.messages.deleted',
+        runtimeStatus: 'applied',
     })
 })
 
@@ -369,6 +374,80 @@ describe('certificate management UI', () => {
         expect(document.body.textContent).toContain('Details')
         expect(document.body.textContent).not.toContain('Renew')
         expect(document.body.textContent).not.toContain('Delete')
+    })
+
+    test('confirms the exact assigned-host HTTPS impact before deletion', async () => {
+        getCertificatesHandlerMock.mockResolvedValueOnce([{ ...certificate, assignedHostCount: 3 }])
+        await renderPage([
+            PERMISSIONS.CERTIFICATES_VIEW,
+            PERMISSIONS.CERTIFICATES_DELETE,
+            PERMISSIONS.PROXY_HOSTS_UPDATE,
+            PERMISSIONS.REDIRECT_HOSTS_UPDATE,
+        ])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        await openMenu(button('Open certificate actions'))
+        await click(
+            [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+                (item) => item.textContent?.trim() === 'Delete',
+            )!,
+        )
+        await waitFor(() => document.querySelector('[role=dialog]') !== null)
+        expect(document.body.textContent).toContain(
+            'This certificate is currently used by 3 hosts.',
+        )
+        expect(document.body.textContent).toContain(
+            'The hosts and their HTTP routing remain available.',
+        )
+        expect(deleteCertificateHandlerMock).not.toHaveBeenCalled()
+        await click(lastButton('Delete'))
+        await waitFor(() => deleteCertificateHandlerMock.mock.calls.length === 1)
+        expect(deleteCertificateHandlerMock).toHaveBeenCalledWith({
+            data: { certificateId: certificate.id },
+        })
+        await waitForToast('success')
+    })
+
+    test('warns when host cleanup is saved but certificate deletion awaits runtime sync', async () => {
+        deleteCertificateHandlerMock.mockResolvedValueOnce({
+            success: true,
+            message: 'admin.certificates.messages.deletePending',
+            runtimeStatus: 'pending',
+        })
+        await renderPage([
+            PERMISSIONS.CERTIFICATES_VIEW,
+            PERMISSIONS.CERTIFICATES_DELETE,
+            PERMISSIONS.PROXY_HOSTS_UPDATE,
+        ])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        await openMenu(button('Open certificate actions'))
+        await click(
+            [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+                (item) => item.textContent?.trim() === 'Delete',
+            )!,
+        )
+        await click(lastButton('Delete'))
+        await waitForToast('warning')
+        expect(document.body.textContent).toContain(
+            'The certificate was kept and can be deleted after synchronization.',
+        )
+        expect(document.querySelector('[role=dialog]')).toBeNull()
+    })
+
+    test('uses a concise confirmation for an unassigned certificate', async () => {
+        getCertificatesHandlerMock.mockResolvedValueOnce([{ ...certificate, assignedHostCount: 0 }])
+        await renderPage([PERMISSIONS.CERTIFICATES_VIEW, PERMISSIONS.CERTIFICATES_DELETE])
+        await waitFor(() => document.body.textContent?.includes('Public edge') === true)
+        await openMenu(button('Open certificate actions'))
+        await click(
+            [...document.querySelectorAll<HTMLElement>('[role=menuitem]')].find(
+                (item) => item.textContent?.trim() === 'Delete',
+            )!,
+        )
+        await waitFor(() => document.querySelector('[role=dialog]') !== null)
+        expect(document.body.textContent).toContain(
+            'This permanently removes the unused certificate.',
+        )
+        expect(document.body.textContent).not.toContain('currently used by')
     })
 
     test('shows observed operation stages and durable certificate metadata without fake progress', async () => {
