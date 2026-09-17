@@ -23,6 +23,10 @@ type CertificateSummaryWithLegacyScheduling = CertificateSummary & {
     readonly schedulingDates?: Partial<CertificateSchedulingDates> | null
 }
 
+function isHistoricalCompletedOperation(certificate: CertificateSummary): boolean {
+    return certificate.operation === 'idle' && certificate.currentOperation?.stage === 'applied'
+}
+
 function asDate(value: Date | string | null | undefined): Date | null {
     if (value === null || value === undefined) return null
     const date = value instanceof Date ? value : new Date(value)
@@ -48,7 +52,7 @@ export function getCertificateOperationDisplay(
     certificate: CertificateSummary,
 ): CertificateOperationDisplay {
     const operation = certificate.currentOperation
-    if (operation) {
+    if (operation && !isHistoricalCompletedOperation(certificate)) {
         return {
             id: operation.id,
             kind: operation.kind,
@@ -87,8 +91,10 @@ export function getCertificateRetryError(certificate: CertificateSummary): strin
 
 export function hasActiveCertificateOperation(certificate: CertificateSummary): boolean {
     return (
-        (certificate.currentOperation !== null && certificate.currentOperation !== undefined) ||
-        certificate.operation !== 'idle'
+        certificate.operation !== 'idle' ||
+        (certificate.currentOperation !== null &&
+            certificate.currentOperation !== undefined &&
+            !isHistoricalCompletedOperation(certificate))
     )
 }
 
