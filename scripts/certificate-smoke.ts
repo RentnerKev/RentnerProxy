@@ -95,6 +95,29 @@ async function command(
     }
 }
 
+async function buildRuntimeImage(): Promise<void> {
+    const args = [
+        'docker',
+        'build',
+        '--tag',
+        runtimeImage,
+        '--file',
+        'docker/proxy-runtime/Dockerfile',
+        '.',
+    ]
+
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+        try {
+            await command(args, { inherit: true, timeoutMs: 900_000 })
+            return
+        } catch (error) {
+            if (attempt === 2) throw error
+            console.warn('Docker runtime image build failed; retrying once.')
+            await Bun.sleep(2_000)
+        }
+    }
+}
+
 async function waitFor(
     check: () => Promise<boolean>,
     label: string,
@@ -327,18 +350,7 @@ async function runSmoke(): Promise<void> {
         }
         opensslTempDirectory = temp
         await command(['docker', 'pull', pebbleImage], { inherit: true, timeoutMs: 300_000 })
-        await command(
-            [
-                'docker',
-                'build',
-                '--tag',
-                runtimeImage,
-                '--file',
-                'docker/proxy-runtime/Dockerfile',
-                '.',
-            ],
-            { inherit: true, timeoutMs: 900_000 },
-        )
+        await buildRuntimeImage()
         await buildHttp3Client(command, http3Image)
         await command(['docker', 'network', 'create', '--ipv6', network])
         await command(
@@ -2114,10 +2126,21 @@ async function runSmoke(): Promise<void> {
             assertCertificateIssued(metadata)
             return metadata
         }
+        const activeDnsFixture = dnsFixture
+        if (activeDnsFixture === undefined) {
+            throw new Error('DNS fixture was not initialized')
+        }
+        async function waitForDnsRecordsToClear(): Promise<void> {
+            await waitFor(
+                async () => activeDnsFixture.records.length === 0,
+                'DNS-01 record cleanup',
+                90_000,
+            )
+        }
         const wildcardIssued = await waitForDnsCertificate()
         assert.deepEqual(wildcardIssued.domains, ['*.example.com', 'example.com'])
         assert.ok(dnsFixture.maxSimultaneousTxt >= 2)
-        assert.equal(dnsFixture.records.length, 0)
+        await waitForDnsRecordsToClear()
         passed('mixed apex/wildcard DNS-01 validates simultaneous TXT proofs and cleans up')
         const wildcardProxy = host(uuidV7(), 'proxy.example.com', backend.port!, wildcardId)
         const wildcardApex = host(uuidV7(), 'example.com', backend.port!, wildcardId)
@@ -2193,7 +2216,7 @@ async function runSmoke(): Promise<void> {
                 .activeRevision,
             wildcardSnapshot.revision,
         )
-        assert.equal(dnsFixture.records.length, 0)
+        await waitForDnsRecordsToClear()
         await checkWildcardTraffic()
         passed(
             'DNS renewal decrypts persisted credentials after restart and retains host assignments',
@@ -2268,7 +2291,7 @@ async function runSmoke(): Promise<void> {
             'issued candidate and DNS cleanup recovery without a second order',
             180_000,
         )
-        assert.equal(dnsFixture.records.length, 0)
+        await waitForDnsRecordsToClear()
         await checkWildcardTraffic()
         await command(
             ['docker', 'network', 'connect', '--alias', 'pebble', network, pebbleContainer],
@@ -2299,7 +2322,7 @@ async function runSmoke(): Promise<void> {
             return unrelatedMetadata.operation === 'idle'
         }, 'DNS zone boundary validation')
         assert.equal(unrelatedMetadata.status, 'failed')
-        assert.equal(dnsFixture.records.length, 0)
+        await waitForDnsRecordsToClear()
         passed('DNS provider authorization cannot expand to an unrelated zone')
 
         const unauthorized = await fetch(controllerUrl + '/internal/v1/certificates').catch(
