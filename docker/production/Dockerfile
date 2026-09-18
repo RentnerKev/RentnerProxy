@@ -47,7 +47,7 @@ COPY controller/Cargo.toml controller/Cargo.lock ./
 COPY controller/src ./src
 RUN cargo build --locked --release
 
-FROM caddy:2.11.4@sha256:13ba145cba2f3e28fa801994876e4c086d1b95d5aa2a520a734765ffb6b12017 AS caddy-runtime
+FROM caddy:2.11.4@sha256:bfbff8b17bbd229b0255dbd33173646339e5afd4b0920f5e0fecbb6ee6d6c4dd AS caddy-runtime
 
 FROM redis:8.10.1-trixie@sha256:298e5b3bc566bade82f46ad5511777a4a07a294097ce16ada2f6a42be5239df5 AS redis-runtime
 
