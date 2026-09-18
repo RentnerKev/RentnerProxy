@@ -2126,9 +2126,13 @@ async function runSmoke(): Promise<void> {
             assertCertificateIssued(metadata)
             return metadata
         }
+        const activeDnsFixture = dnsFixture
+        if (activeDnsFixture === undefined) {
+            throw new Error('DNS fixture was not initialized')
+        }
         async function waitForDnsRecordsToClear(): Promise<void> {
             await waitFor(
-                async () => dnsFixture.records.length === 0,
+                async () => activeDnsFixture.records.length === 0,
                 'DNS-01 record cleanup',
                 90_000,
             )
