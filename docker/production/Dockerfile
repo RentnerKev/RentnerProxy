@@ -40,7 +40,7 @@ COPY --from=web-build /app/web/src/websockets ./web/src/websockets
 COPY --from=web-build /app/docker/web/serve.mjs ./docker/web/serve.mjs
 COPY --from=web-build /app/docker/web/healthcheck.mjs ./docker/web/healthcheck.mjs
 
-FROM rust:1.98.0-bookworm@sha256:82150a52ec202c1b14d7817e14516c392bb7f5cfebd88f1ed531cb37ebd39922 AS controller-build
+FROM rust:1.98.1-bookworm@sha256:93ce27a88655056a51dbdd8f5f2d7ddc071c7b0070fb288a37b5a285fc83971e AS controller-build
 
 WORKDIR /build
 COPY controller/Cargo.toml controller/Cargo.lock ./
