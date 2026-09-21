@@ -26,7 +26,7 @@ body:
       attributes:
           label: Version
           description: Provide the release, preview, development version, or commit you tested.
-          placeholder: e.g. v0.3.0, dev, pr-142, or a commit SHA
+          placeholder: e.g. v1.0.0-alpha.6, alpha, pr-142, or a commit SHA
       validations:
           required: true
 
@@ -36,8 +36,8 @@ body:
           label: Deployment type
           description: How is the affected RentnerProxy instance running?
           options:
-              - Stable Docker image
-              - Dev/pre-release image
+              - Versioned pre-release Docker image
+              - Moving alpha Docker image
               - PR preview image
               - Local development
               - Other

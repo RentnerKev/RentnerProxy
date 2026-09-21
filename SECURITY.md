@@ -2,7 +2,10 @@
 
 ## Supported versions
 
-RentnerProxy has no stable release and is not ready for production use. Security fixes currently target the latest commit on `main`; older commits and unreleased snapshots are not supported.
+RentnerProxy is in public alpha and has no stable release. It is suitable for testing and
+non-critical deployments, but it should not be treated as production-ready for critical traffic.
+Security fixes currently target the latest commit on `main`; older commits and unreleased
+snapshots are not supported.
 
 | Version       | Supported |
 | ------------- | --------- |

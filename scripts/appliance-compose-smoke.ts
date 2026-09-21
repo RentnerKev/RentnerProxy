@@ -281,13 +281,19 @@ async function runSmoke(): Promise<void> {
         'utf8',
     )
     const rootCompose = (await readFile(rootComposeFile, 'utf8')).replaceAll('\r\n', '\n')
+    const publishedImagePattern = /ghcr\.io\/rentnerkev\/rentnerproxy:[^\s]+/u
+    assert.match(
+        rootCompose,
+        publishedImagePattern,
+        'root Compose must contain the published RentnerProxy image',
+    )
     const temporaryCompose = smokeCompose(
         rootCompose
             .replace(
                 'services:\n    rentnerproxy:\n',
                 'services:\n    rentnerproxy:\n        extra_hosts:\n            - host.docker.internal:host-gateway\n',
             )
-            .replace('ghcr.io/rentnerkev/rentnerproxy:latest', imageTag)
+            .replace(publishedImagePattern, imageTag)
             .replace(
                 '        environment:\n',
                 '        environment:\n            RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT: "' +

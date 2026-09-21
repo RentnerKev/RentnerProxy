@@ -5,80 +5,236 @@
 <h1 align="center">RentnerProxy</h1>
 
 <p align="center">
-  <strong>Modern Reverse Proxy Manager</strong>
+  <strong>Modern self-hosted reverse proxy management powered by Caddy.</strong>
 </p>
 
 <p align="center">
-  A self-hosted reverse proxy manager in the earliest stage of development,<br>
-  with a Caddy 2.11.4 data plane and an MIT-licensed application.
+  RentnerProxy provides a web interface for proxy hosts, redirects, TLS certificates,
+  access policies, logs, users, and runtime configuration, backed by a Rust controller
+  and a Caddy data plane.
 </p>
 
 <p align="center">
   <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL status"></a>
   <a href="https://www.bestpractices.dev/projects/14354"><img src="https://www.bestpractices.dev/projects/14354/badge" alt="OpenSSF Best Practices badge"></a>
+  <a href="https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-alpha.6"><img src="https://img.shields.io/github/v/release/RentnerKev/RentnerProxy?include_prereleases&amp;sort=semver" alt="Current GitHub release"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/RentnerKev/RentnerProxy" alt="MIT license"></a>
 </p>
 
 > [!IMPORTANT]
-> RentnerProxy is still an early development project. Test upgrades and backups before using it
-> for critical production traffic.
+> RentnerProxy is currently in **public alpha**. Breaking changes may still occur,
+> backups before upgrades are strongly recommended, and this is not yet a stable 1.0 release.
 
-## Requirements
+## Quick start
 
-For the production appliance, use Docker Engine with the Compose plugin. Keep host ports `80`
-and `443` available, and allow inbound TCP and UDP traffic on `443` in the host firewall; the
-management UI is bound to `127.0.0.1:81`. PostgreSQL and Redis are included, but a public
-management origin and an SMTP host, user, password, and sender address are required.
+### Requirements
 
-## Installation
+- A `linux/amd64` host with Docker Engine and the Docker Compose plugin.
+- Free host ports `80/tcp`, `443/tcp`, and `443/udp`.
+- Inbound firewall access to those public traffic ports.
+- An HTTPS management origin and working SMTP account.
 
-Download [`docker-compose.yml`](./docker-compose.yml) and [`.env.production.example`](./.env.production.example)
-to an empty folder. Set the Compose image to
-`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.5`, copy the environment template, and set
-`RENTNERPROXY_PUBLIC_ORIGIN` and the SMTP values:
+The management UI is bound to `127.0.0.1:81` by default. PostgreSQL, Redis, the Rust
+controller, and Caddy are included in the appliance.
+
+### Install
+
+Download [`docker-compose.yml`](./docker-compose.yml) and
+[`.env.production.example`](./.env.production.example) into an empty directory, then:
 
 ```bash
 cp .env.production.example .env
+```
+
+Edit `.env` and set these required values:
+
+- `RENTNERPROXY_PUBLIC_ORIGIN` — the browser-facing HTTPS origin, for example
+  `https://proxy-admin.example.com`.
+- `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`.
+- `SMTP_PORT` and `SMTP_SECURE` if the supplied defaults do not match the SMTP server.
+
+Validate and start the appliance:
+
+```bash
+docker compose config
 docker compose up -d
 ```
 
-Open `http://localhost:81` and finish first-owner setup with the owner account details. The public
-management origin is configured through `RENTNERPROXY_PUBLIC_ORIGIN`, outside the setup flow. Data is
-kept in the persistent `rentnerproxy` volume. For remote management, use an SSH
-tunnel such as `ssh -L 8181:127.0.0.1:81 user@server` and open `http://localhost:8181`.
+The checked-in Compose file pins the immutable
+`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6` image. Open
+[`http://localhost:81`](http://localhost:81) on the Docker host and complete first-owner
+setup. For a remote host, keep the management port private and use an SSH tunnel:
+
+```bash
+ssh -L 8181:127.0.0.1:81 user@server
+```
+
+Then open `http://localhost:8181`. Normal browser use, links in email, and passkeys should use
+the configured `RENTNERPROXY_PUBLIC_ORIGIN`. Application state is stored in the persistent
+`rentnerproxy` Docker volume.
+
+### Release channel
+
+For repeatable installs and upgrades, keep the exact version tag:
+
+```text
+ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6
+```
+
+To follow the newest published alpha automatically, change the service image to the moving
+channel:
+
+```text
+ghcr.io/rentnerkev/rentnerproxy:alpha
+```
+
+The `alpha` tag moves when a new alpha is published. Do not use `latest` before a stable
+release; the [release policy](RELEASING.md#trigger-and-channels) reserves it for stable
+versions.
+
+## Current features
+
+- **Proxying:** proxy hosts and redirect hosts through Caddy, with HTTP/1.1, HTTP/2,
+  HTTP/3, and WebSocket support.
+- **Certificates:** controller-managed ACME issuance and automatic renewal with HTTP-01 or
+  Cloudflare DNS-01, wildcard certificates, manual certificate import, and durable retry and
+  activation state.
+- **Upstream security:** HTTPS upstream verification and reusable custom trusted CAs.
+- **Access control:** reusable Access Policies with Basic Authentication and IPv4/IPv6
+  allow/deny rules.
+- **Administration:** users, roles, granular permissions, TOTP two-factor authentication,
+  passkeys, and a read-only audit log.
+- **Visibility:** recent proxy access logs, runtime status, certificate operation progress,
+  and live WebSocket updates for active administration pages.
+- **Operations:** persistent desired state, revision-checked Caddy reconciliation, and
+  repository-provided backup and restore tooling.
+- **Interface:** light and dark themes plus English, German, Spanish, and French
+  translations.
+
+<!--
+## Screenshots
+
+Add only sanitized captures from the current public alpha:
+
+| Overview | Proxy Hosts |
+| --- | --- |
+| image | image |
+
+| Certificate Management | Access Logs |
+| --- | --- |
+| image | image |
+-->
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A[Web UI / API] --> B[(PostgreSQL desired state)]
+    B --> C[Rust controller]
+    C --> D[Validated, typed Caddy JSON]
+    D --> E[Caddy data plane]
+    E --> F[Managed upstreams]
+    C <--> G[ACME CA / DNS provider]
+```
+
+The management service owns user-facing state and permissions. The controller validates the
+desired proxy model, renders Caddy JSON, applies it through a private admin socket, and confirms
+the active revision. Certificate private material and ACME lifecycle state remain
+controller-owned. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the complete service, trust, and
+persistence boundaries.
+
+## Security and trust
+
+RentnerProxy uses typed proxy configuration rather than accepting arbitrary raw Caddy JSON.
+Management operations pass through authentication and role-based authorization; TOTP and
+passkeys are available for account protection. Controller-owned certificate storage,
+revision-probed configuration changes, strict trusted-proxy handling, security headers, and
+backup/restore verification provide additional layers.
+
+Repository automation includes CI, CodeQL, secret scanning, dependency review, and OpenSSF
+Scorecard analysis. These controls are evidence, not a security certification. Read the
+[security policy](SECURITY.md) and the repository-backed
+[assurance case](ASSURANCE_CASE.md) for supported versions, assumptions, and residual risks.
+Report vulnerabilities through the private process in `SECURITY.md`, never through a public
+issue.
+
+## Project status
+
+[`v1.0.0-alpha.6`](https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-alpha.6)
+is the current public alpha. RentnerProxy is usable for testing and non-critical deployments,
+but it has not reached its first stable release and should not be presented as production-ready
+for critical traffic.
+
+Before Beta 1, the project is focusing on security review, upgrade and migration compatibility,
+runtime reliability, backup/restore hardening, accessibility, and tester feedback. Back up the
+complete appliance state before every upgrade.
+
+## Planned for Beta 1
+
+The following are planned work, not current feature claims:
+
+- [CrowdSec integration](https://github.com/RentnerKev/RentnerProxy/issues/64).
+- [Forward Auth access policies](https://github.com/RentnerKev/RentnerProxy/issues/65).
+- [Nginx Proxy Manager importer](https://github.com/RentnerKev/RentnerProxy/issues/66).
+- Broader upgrade, recovery, compatibility, reliability, scale, security, and accessibility
+  validation.
+
+There is no promised release date. The [roadmap](ROADMAP.md) and
+[Beta 1 release gate](https://github.com/RentnerKev/RentnerProxy/issues/75) track the current
+scope.
+
+## Help test RentnerProxy
+
+RentnerProxy is looking for testers before Beta 1. Particularly useful feedback covers:
+
+- Fresh installations and upgrades from earlier alphas.
+- Backup, restore, and rollback on disposable test data.
+- Different Docker hosts and upstream applications.
+- HTTP-01, Cloudflare DNS-01, wildcard, renewal, and imported-certificate flows.
+- IPv4, IPv6, HTTP/3, trusted-proxy, and TLS-terminating proxy setups.
+- UI, accessibility, translation, and general usability problems.
+
+Report reproducible bugs with the
+[GitHub issue forms](https://github.com/RentnerKev/RentnerProxy/issues/new/choose). Remove
+credentials, private domains, internal addresses, and unrelated sensitive data first. Report
+security vulnerabilities privately as described in [`SECURITY.md`](SECURITY.md).
+
+## Deployment notes
 
 ### TLS termination in front of managed hosts
 
 When another proxy terminates public HTTPS and forwards HTTP to RentnerProxy, set
 `RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS` in the production `.env` to that proxy's direct
-socket-peer addresses, for example `192.0.2.10/32,2001:db8::10/128`, then recreate the appliance.
-The setting defaults to empty. It accepts at most 128 distinct canonical IPv4/IPv6 CIDRs;
-all-address (`/0`) and IPv4-mapped IPv6 ranges are rejected. Use the narrowest stable addresses
-available on your deployment network, and configure the terminating proxy to overwrite incoming
-`X-Forwarded-Proto` with a single value derived from its actual TLS connection.
+socket-peer addresses:
 
-Only a configured socket peer carrying exactly one `X-Forwarded-Proto: https` value can bypass
-the managed host's HTTP-to-HTTPS redirect. Missing, repeated, comma-separated, or other values
-do not bypass it. Direct untrusted clients cannot establish trust with forwarding headers.
-Force HTTPS keeps its method-preserving 308 response and public HTTPS port, with
-`Cache-Control: no-store`; ACME HTTP-01 challenge handling remains ahead of the redirect.
+```dotenv
+RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=192.0.2.10/32,2001:db8::10/128
+```
 
-This data-plane setting is independent of `RENTNERPROXY_TRUST_PROXY_HEADERS`, which governs
-the management web application. Existing access-policy IP rules continue to use the direct
-peer address. Keep these deployment settings with your Compose configuration when moving or
-restoring an appliance; they are not part of database snapshots.
+The setting is empty by default. Use only the narrowest stable addresses; all-address (`/0`)
+and IPv4-mapped IPv6 ranges are rejected. Configure the terminating proxy to overwrite
+`X-Forwarded-Proto` from the actual connection. This Caddy data-plane setting is separate from
+`RENTNERPROXY_TRUST_PROXY_HEADERS` for the management application. Preserve deployment
+settings alongside backups because they are not stored in PostgreSQL.
 
 ### Upgrade
 
-Create a production backup, set the Compose image to the target release, then pull and recreate:
+Create a production backup, change the Compose image to the target exact release, then pull and
+recreate:
 
 ```bash
 docker compose pull
 docker compose up -d
 ```
 
-Backup and restore tools require Bun 1.4.2, Docker Compose, and a repository checkout.
-Run them from the checkout with your installation's Compose file and project name:
+Check container health, the management UI, certificate state, and configured hosts after the
+upgrade.
+
+### Backup and restore
+
+The repository tools require Bun 1.4.2, Docker Compose, and a repository checkout. Run them with
+the installation's Compose file and project name:
 
 ```bash
 export RENTNERPROXY_COMPOSE_FILE=/srv/rentnerproxy/docker-compose.yml
@@ -86,15 +242,13 @@ bun --env-file=/srv/rentnerproxy/.env scripts/production-backup.ts \
   --project rentnerproxy --output /srv/rentnerproxy-backups
 ```
 
-The backup briefly stops the appliance and restarts it afterward. Keep the complete backup
-directory, Compose file, and `.env` containing `RENTNERPROXY_PUBLIC_ORIGIN` privately outside the
-appliance volume. Backups include the database, controller state, certificates, and encryption key;
-the deployment environment is not part of the backup, and Redis and proxy request logs are excluded.
-Use the same canonical origin in the restore environment before starting the restored appliance.
-Check container health and configured hosts after upgrading.
+Backup briefly stops and then restarts the appliance. Keep the entire backup directory,
+Compose file, and private `.env` outside the appliance volume. The backup contains PostgreSQL,
+controller and certificate state, and the application encryption key; Redis, proxy request
+logs, and deployment environment variables are excluded.
 
-For rollback, restore the pre-upgrade backup into fresh volumes using the previous exact image.
-Prepare a separate Compose file and project; never run an older image against the upgraded database:
+For rollback, restore the pre-upgrade backup into fresh volumes with the previous exact image.
+Never run an older image against an upgraded database:
 
 ```bash
 export RENTNERPROXY_COMPOSE_FILE=/srv/rentnerproxy-recovery/docker-compose.yml
@@ -103,164 +257,23 @@ bun --env-file=/srv/rentnerproxy/.env scripts/production-restore.ts \
   --input /srv/rentnerproxy-backups/BACKUP_DIRECTORY --confirm-replace
 ```
 
-Restore replaces the target project's data. Stop the original appliance before recovery uses
-the same host ports, and preserve its volumes until recovery health and traffic are verified.
+Restore replaces the target project's data. Stop the original appliance before a recovery
+project reuses the same host ports, and retain its volumes until recovery is verified.
 
-### Alpha 4 upgrade verification
+## Contributing
 
-The production smoke gate upgrades the published, digest-pinned Alpha 3 appliance in place,
-checks migrations and existing users, roles, hosts, certificate fingerprints and traffic,
-then verifies repeated starts, backup/restore into fresh volumes and failed-restore rollback.
-The earlier Alpha 1 upgrade path remains covered.
-
-Certificate recovery tests archive real active and candidate material, ACME accounts,
-operation journals, retry state and encrypted DNS credentials using the production archive
-filters. They restore the files before restarting the controller with the local CA offline.
-The production backup/restore test also compares durable binding jobs, renewal metadata,
-event receipts and cursor state, and verifies request decryption with the restored application key.
-
-Run `bun run check`, `bun run certificates:smoke` and `bun run production:smoke` for this gate.
-The required Production Smokes CI job also checks proxy forwarding and upstream TLS.
-Keep the deployment environment, including `RENTNERPROXY_PUBLIC_ORIGIN`, trusted proxy CIDRs
-and TCP/UDP port mappings, alongside the backup: these settings are not stored in PostgreSQL.
-
-## Features
-
-- Caddy 2.11.4 proxy hosts for HTTP, HTTPS, redirects, and WebSockets.
-- Certificate import and ACME renewal, including DNS-01 and wildcard certificates.
-- Upstream TLS verification with custom trusted CAs.
-- Reusable Access Policies with Basic Authentication and IPv4/IPv6 rules.
-- Recent proxy request logs and a read-only administrative audit log.
-- User and role management with two-factor authentication and passkeys.
-- Backup, restore, and automatic configuration recovery after restarts.
-- English, German, Spanish, and French language and theme settings.
-
-Development setup and checks are in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
-
-### Live administration
-
-The management UI shares one native Bun WebSocket connection per visible browser tab. Changes to hosts, users, profile pictures, permissions, and settings invalidate the affected visible views. Application events are also distributed through the existing Redis connection setup. Expired or revoked sessions are revalidated through the same authorization services as HTTP requests.
-
-Pages subscribe only to the data they display. Access logs stop streaming when their page is left, a historical page is selected, or the tab becomes hidden. Returning opens a fresh subscription. Controller-backed log and runtime changes are sampled on the server only while subscribed; the browser does not poll them. The Overview includes the actual WebSocket connection status.
-
-Realtime code lives in `web/src/websockets`, separated into `Client`, `Server`, `Helpers`, and `Types`. Production upgrades share the web server port. Development proxies the same `/api/live` URL to a native Bun listener on a temporary loopback port; no additional public port or realtime credentials are needed.
-
-### Certificate renewal and retries
-
-ACME certificates become due after two thirds of their actual certificate lifetime. The
-controller checks every minute and retains the four global ACME slots and per-certificate
-leases. Imported certificates require manual replacement and are never automatically renewed.
-
-Failed operations retain their retry deadline across restarts. Exponential backoff starts at
-30 minutes, includes jitter, and is bounded at six hours; a later CA `Retry-After` deadline
-takes precedence. Manual retry respects the same deadline. Existing valid certificate material
-continues serving traffic after a failed renewal.
-
-CA throttling also pauses new attempts for the shared account in that ACME environment;
-staging and production remain separate. Manually importing replacement material does not clear
-an outstanding CA cooldown. The attempt counter measures consecutive attempts and resets only
-after successful ACME activation.
-
-The controller certificate index records retry scheduling and attempt history alongside the
-certificate material. Alpha 3 indexes are read compatibly, including existing `retryAfter`
-deadlines. These fields travel with the controller-state backup; retain the entire state
-directory and encryption key. This scheduling change requires no database or proxy snapshot
-version change. For rollback, restore the pre-upgrade backup rather than opening upgraded
-state with an older controller.
-
-### Issued certificates awaiting activation
-
-The controller saves an issued ACME certificate as a durable candidate before attempting
-activation. A Caddy load rejection, timeout, failed revision probe, or certificate metadata
-write failure keeps that candidate for another activation attempt. Existing active material
-continues serving until Caddy confirms the replacement and the active pointer is persisted.
-Restart recovery validates the saved material and resumes activation without requesting a
-second certificate from the CA.
-
-Certificate details distinguish the active certificate from an issued candidate awaiting
-activation. Retrying a candidate only retries activation; CA cooldowns still govern any new
-issuance. The controller also retries candidates automatically. DNS proof cleanup is tracked
-separately and resumes after restart using only the controller's own saved cleanup intents.
-
-Backups must retain the complete controller certificate directory, including candidate
-manifests and material versions, together with the application encryption key. The additive
-database migration stores candidate display metadata; the controller remains the owner of
-certificate material and activation. The proxy snapshot remains version 7. Rollback requires
-restoring the pre-upgrade backup with the previous image.
-
-### Certificate operations and audit history
-
-Certificate issue and renewal work has a durable operation ID and records only observed
-steps, from accepted work through challenge handling, issued material, activation, and retry
-or failure. Activation retries reuse the operation associated with the issued candidate.
-Restart recovery retains those IDs. Certificate details show the current step alongside the
-active certificate, scheduling timestamps, last activation, and any pending candidate.
-Staging certificates are explicitly marked as test certificates that normal browsers do not trust.
-
-The web server synchronizes certificate metadata and controller events independently of an
-open management page. Event IDs are deduplicated when recording system audit entries, so
-restarting the web server or replaying a page does not create duplicate audit events. The
-controller retains a bounded journal of the latest 10,000 events; older history follows the
-web audit retention policy. Cursor resets identify controller replacement, restored state,
-or a replay window that has advanced while the web server was offline.
-
-Certificate APIs distinguish a successfully loaded empty store from a store that is not
-ready, failed initialization, or is corrupt. An unavailable store returns HTTP 503 and does
-not authorize clearing the web database's certificate records. The authenticated internal
-status and events endpoints use the same controller token as certificate management.
-
-The additive database migration stores operation and scheduling display metadata and event
-synchronization state. Include the database, full controller state directory, and encryption
-key in one consistent backup. The proxy snapshot format remains version 7.
-
-### Access-log pagination
-
-Access Logs use the shared table pagination controls with 15 rows by default and page sizes
-15, 25, 50 and 100. Filtering and paging run in the controller. Changing filters or page size,
-or choosing Refresh, starts again on the first page.
-
-The searchable host dropdown includes configured domains and hosts found in the retained
-log scan. The status dropdown lists status codes found in that scan. General search matches
-host, method, or path and applies after a short typing pause; Apply filters also applies the
-current host and status selection immediately.
-
-Each result has a short-lived snapshot so new requests and log rotation cannot move rows
-between pages. Snapshots expire after two minutes and may be evicted sooner under load; the
-UI announces a reset and returns to the first page. Refresh loads the latest logs. The controller
-keeps at most eight snapshots within a 16 MiB cache. They are temporary, are lost on restart,
-and are excluded from backups. The existing bounded log scan and visible truncation notice
-still apply; pagination does not promise access to logs beyond that retained window.
-
-Access logs render a country flag when the stored entry supplies a country code.
-The web service and UI do not perform GeoIP lookups. Unknown countries have no flag.
-Country flags in access logs and language settings use
-[country-flag-icons](https://github.com/catamphetamine/country-flag-icons) under the MIT license.
-Language flags do not depend on a GeoIP database.
-
-### Certificates requested from proxy hosts
-
-Create and Edit offer a new ACME certificate using the host's domains. The host row also
-offers Request certificate. Saving commits the host, pending certificate, and durable job
-in one transaction. Repeating the same request returns the original job and certificate.
-The web worker continues after the dialog closes or the web process restarts.
-
-A new host remains disabled until its certificate is valid. During replacement, an existing
-valid certificate covering the requested domains remains assigned. Before assignment, the
-worker checks the full host revision, domain coverage, certificate ownership, and the
-requesting user's current permissions. Changed or deleted hosts and revoked permissions
-require attention instead of silently applying an outdated request.
-
-The job reports completion only after the controller confirms the current proxy revision.
-Activation failures remain visible and can be retried with the existing certificate and
-issued candidate. Job request data is encrypted with the application encryption key and
-cleared after completion. Include the job table in the same database backup as the host and
-certificate records.
+Contributions, reproducible bug reports, and testing feedback are welcome. Please read the
+[contribution guide](CONTRIBUTING.md), follow the [Code of Conduct](CODE_OF_CONDUCT.md), check
+the [roadmap](ROADMAP.md), and use the private process in [`SECURITY.md`](SECURITY.md) for
+vulnerabilities.
 
 ## Project documentation
 
-- [Contributing and coding standards](CONTRIBUTING.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md) and [governance](GOVERNANCE.md)
-- [Roadmap](ROADMAP.md)
 - [Architecture](ARCHITECTURE.md)
 - [Security policy](SECURITY.md) and [security assurance case](ASSURANCE_CASE.md)
+- [Contributing](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), and
+  [governance](GOVERNANCE.md)
+- [Roadmap](ROADMAP.md)
 - [Release process](RELEASING.md)
+
+RentnerProxy is available under the [MIT License](LICENSE).

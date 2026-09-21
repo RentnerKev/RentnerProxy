@@ -1,6 +1,7 @@
 # Contributing to RentnerProxy
 
-Thank you for contributing to RentnerProxy. The project is at an early stage, so focused changes and clear discussion are especially valuable.
+Thank you for contributing to RentnerProxy. The project is in public alpha, so focused changes
+and clear discussion are especially valuable.
 
 Project decisions follow [GOVERNANCE.md](GOVERNANCE.md), and participation follows the
 [Code of Conduct](CODE_OF_CONDUCT.md). Consult the [roadmap](ROADMAP.md),
@@ -15,7 +16,8 @@ Never include credentials, tokens, private configuration, personal data, or unre
 
 ## Development setup
 
-Install Bun 1.4.2, Rust 1.98.0, PostgreSQL 18 or newer, and Redis. Clone the repository, start
+Install Bun 1.4.2, the Rust toolchain pinned by [`ci.yml`](.github/workflows/ci.yml), PostgreSQL
+18 or newer, and Redis. The controller requires Rust 1.88 or newer. Clone the repository, start
 PostgreSQL and Redis separately, and prepare the web environment:
 
 ```bash
@@ -37,11 +39,10 @@ restarting a development instance or restoring its data.
 1. Search the existing issues. Open the appropriate issue form for a meaningful bug or feature
    before starting work; report vulnerabilities only through the [security policy](SECURITY.md).
 2. Fork the repository and create a focused feature branch from `main`.
-3. Install Bun 1.4 and Rust 1.98.0 to match the container toolchain (the controller requires Rust
-   1.88 or newer), then
-   install dependencies with `bun install --frozen-lockfile`.
+3. Install Bun 1.4.2 and the Rust toolchain pinned by CI, then install dependencies with
+   `bun install --frozen-lockfile`.
 4. Make a small, self-contained change and add or update tests where appropriate. Proxy runtime
-   changes must preserve the single Caddy 2.11.4 JSON/Admin API data plane, version 7 snapshots,
+   changes must preserve the single Caddy JSON/Admin API data plane, version 7 snapshots,
    the controller-owned certificate and ACME boundary, and transactional load plus revision-probe
    confirmation.
 5. Run `bun run check` before opening a pull request.

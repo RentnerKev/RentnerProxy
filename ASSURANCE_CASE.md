@@ -1,7 +1,7 @@
 # RentnerProxy assurance case
 
 This is a lightweight, repository-backed assurance argument for the current
-early-stage implementation. It records intended security and reliability goals,
+public-alpha implementation. It records intended security and reliability goals,
 the threats that shape them, and evidence a reviewer can inspect. It is not a
 certification, independent audit, coverage report, signed-build statement, or
 reproducible-build claim. The system and reporting process remain subject to

@@ -1,6 +1,6 @@
 # RentnerProxy architecture
 
-RentnerProxy is an early-stage self-hosted reverse-proxy manager. The production
+RentnerProxy is a public-alpha self-hosted reverse-proxy manager. The production
 appliance is one Docker container with a Bun/TanStack management service, a Rust
 controller, Caddy, PostgreSQL, and Redis. The deployment and support posture is
 described in [`README.md`](./README.md), [`SECURITY.md`](./SECURITY.md), and

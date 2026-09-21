@@ -54,7 +54,7 @@ FROM redis:8.10.1-trixie@sha256:8a1efc5f479551822b47424ccae982026b633f28818eab03
 FROM postgres:18.6@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/RentnerKev/RentnerProxy" \
-    org.opencontainers.image.description="A zero-configuration RentnerProxy appliance"
+    org.opencontainers.image.description="Modern self-hosted reverse proxy manager powered by Caddy."
 
 ENV APP_DIR=/opt/rentnerproxy/web \
     NODE_ENV=production \
