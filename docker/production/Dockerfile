@@ -51,7 +51,7 @@ FROM caddy:2.11.4@sha256:14a9c00d4e833ebc2b65d36515b37bde3b73f0b323a2663aaafc889
 
 FROM redis:8.10.1-trixie@sha256:8a1efc5f479551822b47424ccae982026b633f28818eab0387348120a61e10e2 AS redis-runtime
 
-FROM postgres:18.6@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280 AS runtime
+FROM postgres:18.6@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/RentnerKev/RentnerProxy" \
     org.opencontainers.image.description="A zero-configuration RentnerProxy appliance"
