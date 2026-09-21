@@ -112,19 +112,17 @@ versions.
 - **Interface:** light and dark themes plus English, German, Spanish, and French
   translations.
 
-<!--
 ## Screenshots
 
-Add only sanitized captures from the current public alpha:
+| Secure sign-in                                             | Proxy host management                                                                                   |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| ![RentnerProxy secure sign-in](docs/screenshots/login.png) | ![RentnerProxy proxy hosts with internal forwarding targets censored](docs/screenshots/proxy-hosts.png) |
 
-| Overview | Proxy Hosts |
-| --- | --- |
-| image | image |
+| Certificate management                                                    | Account security                                                                                        |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| ![RentnerProxy certificate management](docs/screenshots/certificates.png) | ![RentnerProxy account security with the email address censored](docs/screenshots/account-security.png) |
 
-| Certificate Management | Access Logs |
-| --- | --- |
-| image | image |
--->
+Email addresses and internal forwarding targets are marked `[CENSORED]` in public screenshots.
 
 ## Architecture
 
