@@ -3,7 +3,7 @@ import type { InputProviderProps } from '@rentnerkev/inputs'
 export const INPUT_PROVIDER_PROPS = {
     validationMode: 'external',
     classNames: {
-        input: 'box-border h-12 w-full rounded-xl text-sm motion-reduce:transition-none',
+        input: 'box-border h-12 w-full rounded-xl text-sm font-medium motion-reduce:transition-none',
         textarea:
             'box-border min-h-26 w-full resize-y rounded-xl py-3 text-sm motion-reduce:transition-none',
         checkbox: 'mt-[0.12rem] size-4 accent-brand-600',
