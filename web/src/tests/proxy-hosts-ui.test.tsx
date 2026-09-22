@@ -938,13 +938,12 @@ describe('ProxyHost management table', () => {
         await click(getButton('Filters'))
         await click(getButton('Filter domains…'))
         const domainSearch = document.querySelector<HTMLInputElement>(
-            'input[aria-label="Filter domains…"]',
+            'input[placeholder="Filter domains…"]',
         )!
-        expect(document.activeElement).toBe(domainSearch)
+        await waitFor(() => document.activeElement === domainSearch)
         await setControlValue(domainSearch, 'selected')
         const options = [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')]
         expect(options.map((option) => option.textContent?.trim())).toEqual([
-            'All',
             'selected.example.com',
             'sub.selected.example.com',
         ])

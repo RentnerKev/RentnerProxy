@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { CustomSelect } from '@rentnerkev/select/select'
 
-import SelectControl from '../../Select'
 import useTranslationStore from '../../../language/useTranslationStore'
 import type { TablePaginationControlsProps } from '../Types/table.types'
 
@@ -9,7 +9,7 @@ export type TablePaginationItem = number | 'ellipsis'
 const paginationButtonClassName =
     'inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised px-2 text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text aria-[current=page]:border-brand-600 aria-[current=page]:bg-success-bg aria-[current=page]:text-success-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none'
 
-const pageSizeClassName = 'w-18'
+const pageSizeClassName = 'w-18!'
 const maxVisiblePageItems = 7
 
 function positiveInteger(value: number, fallback: number): number {
@@ -76,9 +76,9 @@ export default function TablePaginationControls({
                 </p>
                 <div className="flex min-w-0 items-center gap-2">
                     <span>{rowsPerPageLabel}</span>
-                    <SelectControl
+                    <CustomSelect
                         value={String(safePageSize)}
-                        ariaLabel={rowsPerPageLabel}
+                        aria-label={rowsPerPageLabel}
                         options={pageSizeOptions.map((option) => ({
                             label: String(option),
                             value: String(option),
@@ -91,6 +91,7 @@ export default function TablePaginationControls({
                             onPageSizeChange(nextPageSize)
                         }}
                         className={pageSizeClassName}
+                        searchable={false}
                     />
                 </div>
             </div>

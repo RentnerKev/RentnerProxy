@@ -104,7 +104,6 @@ describe('language boundaries', () => {
             'shared/Calendar',
             'shared/Table',
             'shared/Modal',
-            'shared/Select',
             'shared/Avatar',
             'shared/Forms',
             'layout/Components/SystemStatePage',

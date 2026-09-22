@@ -1,6 +1,6 @@
+import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
-import SelectControl from '../../../../shared/Select'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type useCertificateRequestLogic from '../Hooks/useCertificateRequestLogic'
 
@@ -94,15 +94,14 @@ export default function CertificateRequestFields({
                         >
                             {t('admin.certificates.form.challengeType')}
                         </label>
-                        <SelectControl
+                        <CustomSelect
                             id="certificate-request-challengeType"
                             name={field.name}
                             required
-                            ariaLabel={t('admin.certificates.form.challengeType')}
-                            className={uiClassNames.form.select}
+                            aria-label={t('admin.certificates.form.challengeType')}
                             disabled={isPending}
-                            invalid={field.state.meta.errors.length > 0}
-                            describedBy="certificate-request-challengeType-hint certificate-request-challengeType-error"
+                            aria-invalid={field.state.meta.errors.length > 0}
+                            aria-describedby="certificate-request-challengeType-hint certificate-request-challengeType-error"
                             onBlur={field.handleBlur}
                             value={field.state.value}
                             onValueChange={(value) => {
@@ -218,15 +217,14 @@ export default function CertificateRequestFields({
                         >
                             {t('admin.certificates.form.environment')}
                         </label>
-                        <SelectControl
+                        <CustomSelect
                             id="certificate-request-environment"
                             name={field.name}
                             required
-                            ariaLabel={t('admin.certificates.form.environment')}
-                            className={uiClassNames.form.select}
+                            aria-label={t('admin.certificates.form.environment')}
                             disabled={isPending}
-                            invalid={field.state.meta.errors.length > 0}
-                            describedBy="certificate-request-environment-hint certificate-request-environment-error"
+                            aria-invalid={field.state.meta.errors.length > 0}
+                            aria-describedby="certificate-request-environment-hint certificate-request-environment-error"
                             onBlur={field.handleBlur}
                             value={field.state.value}
                             onValueChange={(value) => {

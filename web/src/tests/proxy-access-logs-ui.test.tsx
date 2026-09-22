@@ -157,11 +157,11 @@ async function openActionMenu(container: HTMLElement): Promise<void> {
 async function chooseHost(container: HTMLElement, searchValue: string, optionLabel: string) {
     await click(getButton(container, 'Host'))
     await waitFor(() => document.querySelector('[role="listbox"]') !== null)
-    const searchInput = container.querySelector<HTMLInputElement>(
+    const searchInput = document.querySelector<HTMLInputElement>(
         'input[placeholder="Search hosts…"]',
     )
     expect(searchInput).not.toBeNull()
-    expect(document.activeElement).toBe(searchInput)
+    await waitFor(() => document.activeElement === searchInput)
     await setInputValue(searchInput!, searchValue)
     const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
         (candidate) => candidate.textContent?.trim() === optionLabel,

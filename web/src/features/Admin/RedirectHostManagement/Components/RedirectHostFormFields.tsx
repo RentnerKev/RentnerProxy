@@ -1,8 +1,8 @@
 import { Plus, Trash2 } from 'lucide-react'
+import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
 import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
-import SelectControl from '../../../../shared/Select'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { MAX_REDIRECT_HOST_DOMAINS } from '../../../../config/redirect-hosts.config'
 import { certificateCoversDomains } from '../../CertificateManagement/Helpers/certificateValidation'
@@ -172,15 +172,14 @@ export default function RedirectHostFormFields({
                         <label className={uiClassNames.form.label} htmlFor={`${formId}-statusCode`}>
                             {t('admin.redirectHosts.form.statusCode')}
                         </label>
-                        <SelectControl
+                        <CustomSelect
                             id={`${formId}-statusCode`}
                             name={field.name}
                             required
-                            ariaLabel={t('admin.redirectHosts.form.statusCode')}
-                            className={uiClassNames.form.select}
+                            aria-label={t('admin.redirectHosts.form.statusCode')}
                             disabled={isPending}
-                            invalid={field.state.meta.errors.length > 0}
-                            describedBy={`${formId}-statusCode-error`}
+                            aria-invalid={field.state.meta.errors.length > 0}
+                            aria-describedby={`${formId}-statusCode-error`}
                             onBlur={field.handleBlur}
                             value={field.state.value}
                             options={[301, 302, 307, 308].map((code) => ({
@@ -208,39 +207,44 @@ export default function RedirectHostFormFields({
                             >
                                 {t('admin.redirectHosts.form.certificate')}
                             </label>
-                            <SelectControl
+                            <CustomSelect
                                 id={`${formId}-certificateId`}
                                 name={field.name}
-                                ariaLabel={t('admin.redirectHosts.form.certificate')}
-                                className={uiClassNames.form.select}
+                                aria-label={t('admin.redirectHosts.form.certificate')}
                                 disabled={
                                     isPending ||
                                     assignableCertificatesLoading ||
                                     assignableCertificatesLoadFailed
                                 }
-                                invalid={field.state.meta.errors.length > 0}
-                                describedBy={`${formId}-certificateId-hint ${formId}-certificateId-error`}
+                                aria-invalid={field.state.meta.errors.length > 0}
+                                aria-describedby={`${formId}-certificateId-hint ${formId}-certificateId-error`}
                                 onBlur={field.handleBlur}
                                 value={field.state.value ?? ''}
                                 placeholder={t('admin.redirectHosts.form.noCertificate')}
-                                options={assignableCertificates
-                                    .filter(
-                                        (certificate) =>
-                                            ((certificate.status === 'valid' ||
-                                                certificate.status === 'expiring') &&
-                                                certificateCoversDomains(
-                                                    certificate.domains,
-                                                    form.state.values.domains,
-                                                )) ||
-                                            certificate.id === field.state.value,
-                                    )
-                                    .map((certificate) => ({
-                                        value: certificate.id,
-                                        label:
-                                            certificate.name +
-                                            ' · ' +
-                                            certificate.domains.join(', '),
-                                    }))}
+                                options={[
+                                    {
+                                        value: '',
+                                        label: t('admin.redirectHosts.form.noCertificate'),
+                                    },
+                                    ...assignableCertificates
+                                        .filter(
+                                            (certificate) =>
+                                                ((certificate.status === 'valid' ||
+                                                    certificate.status === 'expiring') &&
+                                                    certificateCoversDomains(
+                                                        certificate.domains,
+                                                        form.state.values.domains,
+                                                    )) ||
+                                                certificate.id === field.state.value,
+                                        )
+                                        .map((certificate) => ({
+                                            value: certificate.id,
+                                            label:
+                                                certificate.name +
+                                                ' · ' +
+                                                certificate.domains.join(', '),
+                                        })),
+                                ]}
                                 onValueChange={(value) => field.handleChange(value || null)}
                             />
                             <p

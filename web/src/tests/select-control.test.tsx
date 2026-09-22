@@ -6,7 +6,7 @@ if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { act, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
-const { default: SelectControl } = await import('../shared/Select')
+const { CustomSelect } = await import('@rentnerkev/select/select')
 let root: Root | undefined
 
 function Harness({ disabled = false }: { disabled?: boolean }) {
@@ -14,16 +14,16 @@ function Harness({ disabled = false }: { disabled?: boolean }) {
     return (
         <form>
             <label htmlFor="choice">Choice</label>
-            <SelectControl
+            <CustomSelect
                 id="choice"
                 name="choice"
-                ariaLabel="Choice"
+                aria-label="Choice"
                 placeholder="Choose"
                 value={value}
                 onValueChange={setValue}
                 disabled={disabled}
-                invalid={!value}
-                describedBy="choice-error"
+                aria-invalid={!value}
+                aria-describedby="choice-error"
                 options={[
                     { value: 'unavailable', label: 'Unavailable', disabled: true },
                     { value: 'available', label: 'Available' },
@@ -45,6 +45,7 @@ async function render(disabled = false) {
 
 async function key(element: Element, value: string) {
     await act(async () => {
+        if (element instanceof HTMLElement) element.focus()
         element.dispatchEvent(
             new KeyboardEvent('keydown', { key: value, bubbles: true, cancelable: true }),
         )
@@ -59,7 +60,7 @@ afterEach(async () => {
 
 test('exposes label and error metadata and supports keyboard selection with disabled options', async () => {
     const trigger = await render()
-    expect(document.querySelector<HTMLSelectElement>('select[name="choice"]')?.value).toBe('')
+    expect(document.querySelector<HTMLInputElement>('input[name="choice"]')?.value).toBe('')
     expect(trigger.id).toBe('choice')
     expect(trigger.textContent).toContain('Choose')
     expect(trigger.getAttribute('aria-invalid')).toBe('true')
@@ -74,7 +75,7 @@ test('exposes label and error metadata and supports keyboard selection with disa
     await key(available, 'Enter')
     expect(document.querySelector('output')?.textContent).toBe('available')
     expect(trigger.hasAttribute('aria-invalid')).toBeFalse()
-    expect(document.querySelector<HTMLSelectElement>('select[name="choice"]')?.value).toBe(
+    expect(document.querySelector<HTMLInputElement>('input[name="choice"]')?.value).toBe(
         'available',
     )
     expect(document.querySelector('[role="listbox"]')).toBeNull()

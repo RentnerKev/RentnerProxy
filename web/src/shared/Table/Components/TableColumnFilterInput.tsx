@@ -1,7 +1,7 @@
 import { RangeCalendar } from '@rentnerkev/calendar/range-calendar'
+import { CustomSelect } from '@rentnerkev/select/select'
 import type { RowData } from '@tanstack/react-table'
 
-import SelectControl, { SearchableSelect } from '../../Select'
 import { CALENDAR_CUSTOM_DESIGN } from '../../../config/calendar.config'
 import {
     getRangeCalendarInputValue,
@@ -25,13 +25,13 @@ export default function TableColumnFilterInput<TData extends RowData>({
         const allLabel = t('table.all')
 
         return (
-            <SelectControl
+            <CustomSelect
                 value={String(column.getFilterValue() ?? '')}
-                ariaLabel={config.placeholder ?? filterColumnLabel}
+                aria-label={config.placeholder ?? filterColumnLabel}
                 placeholder={config.placeholder ?? allLabel}
-                options={config.options}
+                options={[{ value: '', label: config.placeholder ?? allLabel }, ...config.options]}
                 onValueChange={(value) => column.setFilterValue(value || undefined)}
-                className="w-full"
+                searchable={false}
             />
         )
     }
@@ -41,17 +41,18 @@ export default function TableColumnFilterInput<TData extends RowData>({
         const allLabel = t('table.all')
 
         return (
-            <SearchableSelect
+            <CustomSelect
                 value={String(column.getFilterValue() ?? '')}
-                ariaLabel={config.placeholder ?? filterColumnLabel}
-                allLabel={allLabel}
+                aria-label={config.placeholder ?? filterColumnLabel}
                 placeholder={config.placeholder ?? allLabel}
-                searchPlaceholder={
-                    config.searchPlaceholder ?? config.placeholder ?? filterColumnLabel
-                }
-                noResultsLabel={config.noResultsLabel ?? t('table.noResults')}
-                options={config.options}
-                onChange={(value) => column.setFilterValue(value || undefined)}
+                messages={{
+                    searchPlaceholder:
+                        config.searchPlaceholder ?? config.placeholder ?? filterColumnLabel,
+                    noResults: config.noResultsLabel ?? t('table.noResults'),
+                }}
+                searchable
+                options={[{ value: '', label: allLabel }, ...config.options]}
+                onValueChange={(value) => column.setFilterValue(value || undefined)}
             />
         )
     }

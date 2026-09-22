@@ -1,4 +1,5 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
+import { CustomSelect } from '@rentnerkev/select/select'
 import { Fragment } from 'react'
 import useProxyAccessLogsFilterOptions from '../Hooks/useProxyAccessLogsFilterOptions'
 
@@ -11,7 +12,6 @@ import useTableFilters from '../../../../shared/Table/Hooks/useTableFilters'
 import TableLayout from '../../../../shared/Table/Components/TableLayout'
 import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBody'
 import RemoteTablePagination from '../../../../shared/Table/Components/RemoteTablePagination'
-import SelectControl from '../../../../shared/Select'
 import { ActionMenu } from '../../../../shared/ActionMenu'
 import type { ProxyAccessLogEntry } from '../../../../shared/Types/proxy-access-logs.types'
 import {
@@ -23,7 +23,6 @@ import {
 } from '../Helpers/proxyAccessLogs'
 import type { ProxyAccessLogsTableProps } from '../Types/proxy-access-logs.types'
 import ClientIpCountry from './ClientIpCountry'
-import ProxyAccessLogsHostFilter from './ProxyAccessLogsHostFilter'
 
 const tableControlClassName =
     'h-12 min-w-0 w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink outline-hidden transition-[border-color,box-shadow] placeholder:text-muted-soft focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/20'
@@ -116,20 +115,32 @@ export default function ProxyAccessLogsTable({
                                 <span className="text-xs font-extrabold text-muted">
                                     {t('admin.proxyAccessLogs.filters.host')}
                                 </span>
-                                <ProxyAccessLogsHostFilter
-                                    allHostsLabel={t('admin.proxyAccessLogs.filters.allHosts')}
-                                    ariaDescribedBy={
+                                <CustomSelect
+                                    id="proxy-log-host-filter"
+                                    aria-label={t('admin.proxyAccessLogs.filters.host')}
+                                    aria-describedby={
                                         filterErrors.host ? 'proxy-log-host-error' : undefined
                                     }
-                                    invalid={filterErrors.host !== undefined}
-                                    label={t('admin.proxyAccessLogs.filters.host')}
-                                    noResultsLabel={t('admin.proxyAccessLogs.filters.noHosts')}
-                                    onChange={onHostChange}
-                                    options={hostOptions}
+                                    aria-invalid={filterErrors.host !== undefined}
+                                    messages={{
+                                        noResults: t('admin.proxyAccessLogs.filters.noHosts'),
+                                        searchPlaceholder: t(
+                                            'admin.proxyAccessLogs.filters.hostSearchPlaceholder',
+                                        ),
+                                    }}
+                                    onValueChange={onHostChange}
+                                    options={[
+                                        {
+                                            label: t('admin.proxyAccessLogs.filters.allHosts'),
+                                            value: '',
+                                        },
+                                        ...hostOptions.map((host) => ({
+                                            label: host,
+                                            value: host,
+                                        })),
+                                    ]}
                                     placeholder={t('admin.proxyAccessLogs.filters.hostPlaceholder')}
-                                    searchPlaceholder={t(
-                                        'admin.proxyAccessLogs.filters.hostSearchPlaceholder',
-                                    )}
+                                    searchable
                                     value={filters.host}
                                 />
                                 {filterErrors.host ? (
@@ -146,18 +157,23 @@ export default function ProxyAccessLogsTable({
                                 <span className="text-xs font-extrabold text-muted">
                                     {t('admin.proxyAccessLogs.filters.status')}
                                 </span>
-                                <SelectControl
-                                    ariaLabel={t('admin.proxyAccessLogs.filters.status')}
-                                    className="w-full"
-                                    describedBy={
+                                <CustomSelect
+                                    aria-label={t('admin.proxyAccessLogs.filters.status')}
+                                    aria-describedby={
                                         filterErrors.status ? 'proxy-log-status-error' : undefined
                                     }
-                                    invalid={filterErrors.status !== undefined}
+                                    aria-invalid={filterErrors.status !== undefined}
                                     onValueChange={onStatusChange}
-                                    options={statusOptions.map((status) => ({
-                                        label: String(status),
-                                        value: String(status),
-                                    }))}
+                                    options={[
+                                        {
+                                            label: t('admin.proxyAccessLogs.filters.allStatuses'),
+                                            value: '',
+                                        },
+                                        ...statusOptions.map((status) => ({
+                                            label: String(status),
+                                            value: String(status),
+                                        })),
+                                    ]}
                                     placeholder={t('admin.proxyAccessLogs.filters.allStatuses')}
                                     value={filters.status}
                                 />

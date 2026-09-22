@@ -346,8 +346,10 @@ describe('certificate management UI', () => {
         await waitFor(() => document.body.textContent?.includes('Public edge backup') === true)
         await click(button('Filters'))
         await click(button('Filter Name…'))
-        const search = document.querySelector<HTMLInputElement>('input[aria-label="Filter Name…"]')!
-        expect(document.activeElement).toBe(search)
+        const search = document.querySelector<HTMLInputElement>(
+            'input[placeholder="Filter Name…"]',
+        )!
+        await waitFor(() => document.activeElement === search)
         await setValue(search, 'Public edge')
         const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
             (item) => item.textContent?.trim() === 'Public edge',

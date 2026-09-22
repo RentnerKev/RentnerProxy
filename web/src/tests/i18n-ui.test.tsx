@@ -27,7 +27,7 @@ const { act, StrictMode, useContext, useEffect } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { renderToString } = await import('react-dom/server')
 const { default: PasswordInput } = await import('../shared/Forms/PasswordInput')
-const { default: SelectControl } = await import('../shared/Select')
+const { CustomSelect } = await import('@rentnerkev/select/select')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 let activeRoot: Root | null = null
 let currentStore: TranslationStore | null = null
@@ -41,17 +41,30 @@ function LanguageProbe() {
     return <output data-language={language}>{t('shell.account')}</output>
 }
 
+function renderLanguage(value: keyof typeof LANGUAGE_COUNTRY_CODES, label: string) {
+    return (
+        <span className="flex items-center gap-2">
+            <span aria-hidden="true" className={`flag:${LANGUAGE_COUNTRY_CODES[value]} h-4 w-6`} />
+            <span>{label}</span>
+        </span>
+    )
+}
+
 function PickerProbe() {
     const { language, setLanguage, t } = useTranslationStore()
     return (
-        <SelectControl
-            ariaLabel={t('language.label')}
+        <CustomSelect
+            aria-label={t('language.label')}
             value={language}
             options={AVAILABLE_LANGUAGES.map((value) => ({
                 value,
                 label: t(`language.names.${value}`),
-                countryCode: LANGUAGE_COUNTRY_CODES[value],
             }))}
+            renderOption={(option) => renderLanguage(option.value, option.label)}
+            renderValue={(selected) => {
+                const option = selected[0]
+                return option ? renderLanguage(option.value, option.label) : null
+            }}
             onValueChange={(value) => {
                 if (isAppLanguage(value)) void setLanguage?.(value)
             }}

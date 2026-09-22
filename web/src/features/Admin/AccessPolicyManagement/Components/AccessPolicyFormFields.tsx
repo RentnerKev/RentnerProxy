@@ -1,5 +1,5 @@
+import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
-import SelectControl from '../../../../shared/Select'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { getAccessPolicyAvailability } from '../Helpers/basicAuthPolicyState'
 import {
@@ -86,14 +86,13 @@ export default function AccessPolicyFormFields({
                 <label className={uiClassNames.form.label} htmlFor={`${formId}-mode`}>
                     {t('admin.accessPolicies.form.mode')}
                 </label>
-                <SelectControl
+                <CustomSelect
                     id={`${formId}-mode`}
                     name="mode"
                     required
-                    ariaLabel={t('admin.accessPolicies.form.mode')}
-                    className={uiClassNames.form.select}
+                    aria-label={t('admin.accessPolicies.form.mode')}
                     disabled={isPending}
-                    describedBy={`${formId}-mode-hint`}
+                    aria-describedby={`${formId}-mode-hint`}
                     options={modes.map((mode) => ({
                         label: t(`admin.accessPolicies.mode.${mode}`),
                         value: mode,
@@ -196,14 +195,15 @@ export default function AccessPolicyFormFields({
                                 >
                                     {t('admin.accessPolicies.form.ipRules.defaultAction')}
                                 </label>
-                                <SelectControl
+                                <CustomSelect
                                     id={`${formId}-ip-rules-default-action`}
                                     name="ipRules.defaultAction"
                                     required
-                                    ariaLabel={t('admin.accessPolicies.form.ipRules.defaultAction')}
-                                    className={uiClassNames.form.select}
+                                    aria-label={t(
+                                        'admin.accessPolicies.form.ipRules.defaultAction',
+                                    )}
                                     disabled={isPending}
-                                    describedBy={`${formId}-ip-rules-default-action-hint`}
+                                    aria-describedby={`${formId}-ip-rules-default-action-hint`}
                                     options={[
                                         {
                                             label: t('admin.accessPolicies.form.ipRules.allow'),

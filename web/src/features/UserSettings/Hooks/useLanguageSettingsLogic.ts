@@ -2,11 +2,7 @@ import { useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 
-import {
-    AVAILABLE_LANGUAGES,
-    isAppLanguage,
-    LANGUAGE_COUNTRY_CODES,
-} from '../../../config/language.config'
+import { AVAILABLE_LANGUAGES, isAppLanguage } from '../../../config/language.config'
 import useTranslationStore, {
     loadLanguageBootstrap,
     type AppLanguage,
@@ -70,7 +66,6 @@ export default function useLanguageSettingsLogic() {
             options: AVAILABLE_LANGUAGES.map((value) => ({
                 value,
                 label: t(`language.names.${value}`),
-                countryCode: LANGUAGE_COUNTRY_CODES[value],
             })),
         },
         handler: {

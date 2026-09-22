@@ -1,4 +1,5 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
+import { CustomSelect } from '@rentnerkev/select/select'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Fragment } from 'react'
 
@@ -10,7 +11,6 @@ import TableFilterToggle from '../../../../shared/Table/Components/TableFilterTo
 import useTableFilters from '../../../../shared/Table/Hooks/useTableFilters'
 import TableLayout from '../../../../shared/Table/Components/TableLayout'
 import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBody'
-import SelectControl from '../../../../shared/Select'
 import UtcDateTimeInput from '../../../../shared/Forms/UtcDateTimeInput'
 import { ActionMenu } from '../../../../shared/ActionMenu'
 import type { AuditEventDto } from '../../../../shared/Types/audit-events.types'
@@ -24,9 +24,6 @@ import {
     resultClassName,
 } from '../Helpers/auditLogs'
 import type { AuditLogsTableProps } from '../Types/audit-logs.types'
-
-const tableControlClassName =
-    'h-12 min-w-0 w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink outline-hidden transition-[border-color,box-shadow] placeholder:text-muted-soft focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/20'
 
 function MetadataDetails({ event }: { readonly event: AuditEventDto }) {
     const { t } = useTranslationStore()
@@ -127,14 +124,19 @@ export default function AuditLogsTable({
                                 <span className="text-xs font-extrabold text-muted">
                                     {t('admin.auditLogs.filters.actor')}
                                 </span>
-                                <SelectControl
-                                    ariaLabel={t('admin.auditLogs.filters.actor')}
-                                    className={tableControlClassName}
+                                <CustomSelect
+                                    aria-label={t('admin.auditLogs.filters.actor')}
                                     onValueChange={onActorChange}
-                                    options={actorOptions.map((option) => ({
-                                        label: option.displayName,
-                                        value: option.id,
-                                    }))}
+                                    options={[
+                                        {
+                                            label: t('admin.auditLogs.filters.actorPlaceholder'),
+                                            value: '',
+                                        },
+                                        ...actorOptions.map((option) => ({
+                                            label: option.displayName,
+                                            value: option.id,
+                                        })),
+                                    ]}
                                     placeholder={t('admin.auditLogs.filters.actorPlaceholder')}
                                     value={filters.actorUserId}
                                 />
@@ -143,9 +145,8 @@ export default function AuditLogsTable({
                                 <span className="text-xs font-extrabold text-muted">
                                     {t('admin.auditLogs.filters.action')}
                                 </span>
-                                <SelectControl
-                                    ariaLabel={t('admin.auditLogs.filters.action')}
-                                    className={tableControlClassName}
+                                <CustomSelect
+                                    aria-label={t('admin.auditLogs.filters.action')}
                                     value={filters.action}
                                     placeholder={t('admin.auditLogs.filters.allActions')}
                                     onValueChange={(value) =>
@@ -153,19 +154,24 @@ export default function AuditLogsTable({
                                             value as AuditLogsTableProps['filters']['action'],
                                         )
                                     }
-                                    options={auditActionValues.map((action) => ({
-                                        label: t(`admin.auditLogs.values.actions.${action}`),
-                                        value: action,
-                                    }))}
+                                    options={[
+                                        {
+                                            label: t('admin.auditLogs.filters.allActions'),
+                                            value: '',
+                                        },
+                                        ...auditActionValues.map((action) => ({
+                                            label: t(`admin.auditLogs.values.actions.${action}`),
+                                            value: action,
+                                        })),
+                                    ]}
                                 />
                             </label>
                             <label className="grid min-w-0 gap-1.5">
                                 <span className="text-xs font-extrabold text-muted">
                                     {t('admin.auditLogs.filters.resource')}
                                 </span>
-                                <SelectControl
-                                    ariaLabel={t('admin.auditLogs.filters.resource')}
-                                    className={tableControlClassName}
+                                <CustomSelect
+                                    aria-label={t('admin.auditLogs.filters.resource')}
                                     value={filters.resource}
                                     placeholder={t('admin.auditLogs.filters.allResources')}
                                     onValueChange={(value) =>
@@ -173,10 +179,18 @@ export default function AuditLogsTable({
                                             value as AuditLogsTableProps['filters']['resource'],
                                         )
                                     }
-                                    options={auditResourceValues.map((resource) => ({
-                                        label: t(`admin.auditLogs.values.resources.${resource}`),
-                                        value: resource,
-                                    }))}
+                                    options={[
+                                        {
+                                            label: t('admin.auditLogs.filters.allResources'),
+                                            value: '',
+                                        },
+                                        ...auditResourceValues.map((resource) => ({
+                                            label: t(
+                                                `admin.auditLogs.values.resources.${resource}`,
+                                            ),
+                                            value: resource,
+                                        })),
+                                    ]}
                                 />
                             </label>
                             <label className="grid min-w-0 gap-1.5">

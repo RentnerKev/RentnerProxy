@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
+import { readFile } from 'node:fs/promises'
 import { filterFn_equalsString } from '@tanstack/react-table'
 import type { ColumnDef } from '@tanstack/react-table'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
@@ -12,7 +13,6 @@ import disableMotionAnimations from './Helpers/disableMotionAnimations'
 import { PERMISSIONS, PERMISSION_REGISTRY } from '../config/permissions.config'
 import { roleManagementQueryKeys } from '../features/Admin/RoleManagement/queryKeys'
 import { userManagementQueryKeys } from '../features/Admin/UserManagement/queryKeys'
-import { setClientCspNonce } from '../shared/Helpers/cspNonce'
 import { createTrimmedIncludesStringFilter } from '../shared/Table/Helpers/tableFilters'
 import type { ClientTableFeatures } from '../shared/Table/clientTable'
 import type { RoleManagementSummary, UserSummary } from '../shared/Types/auth.types'
@@ -427,36 +427,28 @@ function TableHarness({
 }
 
 describe('shared table preset', () => {
-    test('allows the opened selector viewport styles under the document CSP nonce', async () => {
-        const nonceKey = '__webpack_nonce__'
-        const previousNonce = Reflect.get(globalThis, nonceKey)
-        const nonce = 'management_select_document_nonce'
-
-        try {
-            setClientCspNonce(nonce)
-            await render(<TableHarness />)
-            await click(getButton('Filters'))
-            await act(async () => {
-                getButton('All statuses').dispatchEvent(
-                    new PointerEvent('pointerdown', {
-                        bubbles: true,
-                        button: 0,
-                        cancelable: true,
-                        pointerType: 'mouse',
-                    }),
-                )
-            })
-            await waitFor(() => document.querySelector('[role="listbox"]') !== null)
-
-            const viewportStyles = [...document.querySelectorAll('style')].filter((style) =>
-                style.textContent?.includes('[data-radix-select-viewport]'),
+    test('loads CSP-safe selector viewport styles from the package', async () => {
+        const stylesheet = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
+        const packageStylesheet = await readFile(
+            new URL('../../../node_modules/@rentnerkev/select/tailwind.css', import.meta.url),
+            'utf8',
+        )
+        expect(stylesheet).toContain("@import '@rentnerkev/select/tailwind.css'")
+        expect(packageStylesheet).toContain('[data-radix-select-viewport]')
+        await render(<TableHarness />)
+        await click(getButton('Filters'))
+        await act(async () => {
+            getButton('All statuses').dispatchEvent(
+                new PointerEvent('pointerdown', {
+                    bubbles: true,
+                    button: 0,
+                    cancelable: true,
+                    pointerType: 'mouse',
+                }),
             )
-            expect(viewportStyles).toHaveLength(1)
-            expect(viewportStyles[0]?.getAttribute('nonce')).toBe(nonce)
-        } finally {
-            if (previousNonce === undefined) Reflect.deleteProperty(globalThis, nonceKey)
-            else Reflect.set(globalThis, nonceKey, previousNonce)
-        }
+        })
+        await waitFor(() => document.querySelector('[role="listbox"]') !== null)
+        expect(document.querySelector('[data-radix-select-viewport]')).not.toBeNull()
     })
 
     test('sorts, filters, and resets through TanStack Table state', async () => {

@@ -1,8 +1,8 @@
+import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import { certificateCoversDomains } from '../../CertificateManagement/Helpers/certificateValidation'
 import FieldError from '../../../../shared/Forms/FieldError'
 import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
-import SelectControl from '../../../../shared/Select'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import {
     getAccessPolicyAvailability,
@@ -61,15 +61,14 @@ export default function ProxyHostFormFields({
                         >
                             {t('admin.proxyHosts.form.forwardScheme')}
                         </label>
-                        <SelectControl
+                        <CustomSelect
                             id={`${formId}-forwardScheme`}
                             name={field.name}
                             required
-                            ariaLabel={t('admin.proxyHosts.form.forwardScheme')}
-                            className={uiClassNames.form.select}
+                            aria-label={t('admin.proxyHosts.form.forwardScheme')}
                             disabled={isPending}
-                            invalid={field.state.meta.errors.length > 0}
-                            describedBy={`${formId}-forwardScheme-error`}
+                            aria-invalid={field.state.meta.errors.length > 0}
+                            aria-describedby={`${formId}-forwardScheme-error`}
                             onBlur={field.handleBlur}
                             options={[
                                 { label: t('admin.proxyHosts.scheme.http'), value: 'http' },
@@ -193,19 +192,18 @@ export default function ProxyHostFormFields({
                             >
                                 {t('admin.proxyHosts.form.certificate')}
                             </label>
-                            <SelectControl
+                            <CustomSelect
                                 id={`${formId}-certificateId`}
                                 name={field.name}
-                                ariaLabel={t('admin.proxyHosts.form.certificate')}
-                                className={uiClassNames.form.select}
+                                aria-label={t('admin.proxyHosts.form.certificate')}
                                 disabled={
                                     isPending ||
                                     (canAssignCertificates &&
                                         (assignableCertificatesLoading ||
                                             assignableCertificatesLoadFailed))
                                 }
-                                invalid={field.state.meta.errors.length > 0}
-                                describedBy={`${formId}-certificateId-hint ${formId}-certificateId-error`}
+                                aria-invalid={field.state.meta.errors.length > 0}
+                                aria-describedby={`${formId}-certificateId-hint ${formId}-certificateId-error`}
                                 onBlur={field.handleBlur}
                                 value={
                                     requestNewCertificate
@@ -224,6 +222,10 @@ export default function ProxyHostFormFields({
                                     if (!value) form.setFieldValue('forceHttps', false)
                                 }}
                                 options={[
+                                    {
+                                        value: '',
+                                        label: t('admin.proxyHosts.form.noCertificate'),
+                                    },
                                     ...(canRequestCertificate
                                         ? [
                                               {
@@ -309,25 +311,30 @@ export default function ProxyHostFormFields({
                             >
                                 {t('admin.proxyHosts.form.accessPolicy')}
                             </label>
-                            <SelectControl
+                            <CustomSelect
                                 id={`${formId}-accessPolicyId`}
                                 name={field.name}
-                                ariaLabel={t('admin.proxyHosts.form.accessPolicy')}
-                                className={uiClassNames.form.select}
+                                aria-label={t('admin.proxyHosts.form.accessPolicy')}
                                 disabled={
                                     isPending ||
                                     assignableAccessPoliciesLoading ||
                                     assignableAccessPoliciesLoadFailed
                                 }
-                                invalid={field.state.meta.errors.length > 0}
-                                describedBy={`${formId}-accessPolicyId-hint`}
+                                aria-invalid={field.state.meta.errors.length > 0}
+                                aria-describedby={`${formId}-accessPolicyId-hint`}
                                 onBlur={field.handleBlur}
                                 value={field.state.value ?? ''}
                                 placeholder={t('admin.proxyHosts.form.noAccessPolicy')}
-                                options={assignableAccessPolicies.map((policy) => ({
-                                    value: policy.id,
-                                    label: `${policy.name} · ${t(`admin.accessPolicies.mode.${policy.mode}`)}`,
-                                }))}
+                                options={[
+                                    {
+                                        value: '',
+                                        label: t('admin.proxyHosts.form.noAccessPolicy'),
+                                    },
+                                    ...assignableAccessPolicies.map((policy) => ({
+                                        value: policy.id,
+                                        label: `${policy.name} · ${t(`admin.accessPolicies.mode.${policy.mode}`)}`,
+                                    })),
+                                ]}
                                 onValueChange={(value) => field.handleChange(value || null)}
                             />
                             {availability ? (

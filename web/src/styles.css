@@ -5,6 +5,7 @@
 @import '@rentnerkev/toasts/tailwind.css';
 @import '@rentnerkev/tooltips/tailwind.css';
 @import '@rentnerkev/calendar/tailwind.css';
+@import '@rentnerkev/select/tailwind.css';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
@@ -40,6 +41,14 @@
     --color-border-dark: var(--theme-border);
     --color-secondary-text: var(--theme-muted);
     --color-muted-foreground: var(--theme-muted);
+    --color-select-control: var(--theme-surface-raised);
+    --color-select-surface: var(--theme-surface-raised);
+    --color-select-hover: var(--theme-surface-hover);
+    --color-select-border: var(--theme-input-border);
+    --color-select-border-strong: var(--theme-border-strong);
+    --color-select-foreground: var(--theme-ink);
+    --color-select-muted: var(--theme-muted);
+    --color-select-accent: var(--color-brand-600);
     --color-canvas: var(--theme-canvas);
     --color-surface: var(--theme-surface);
     --color-surface-raised: var(--theme-surface-raised);

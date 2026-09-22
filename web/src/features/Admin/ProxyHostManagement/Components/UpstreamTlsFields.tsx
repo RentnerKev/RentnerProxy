@@ -1,6 +1,6 @@
+import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
-import SelectControl from '../../../../shared/Select'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { normalizeForwardHost } from '../Helpers/proxyHostValidation'
 import type { ProxyHostFormFieldsProps } from '../Types/proxy-host-form.types'
@@ -169,22 +169,21 @@ export default function UpstreamTlsFields({
                                             >
                                                 {t('admin.proxyHosts.upstreamTls.trustedCa')}
                                             </label>
-                                            <SelectControl
+                                            <CustomSelect
                                                 id={formId + '-trustedCaId'}
                                                 name={field.name}
                                                 required
-                                                ariaLabel={t(
+                                                aria-label={t(
                                                     'admin.proxyHosts.upstreamTls.trustedCa',
                                                 )}
-                                                className={uiClassNames.form.select}
                                                 value={field.state.value ?? 'system'}
                                                 disabled={
                                                     isPending ||
                                                     trustedCasLoading ||
                                                     trustedCasLoadFailed
                                                 }
-                                                invalid={field.state.meta.errors.length > 0}
-                                                describedBy={
+                                                aria-invalid={field.state.meta.errors.length > 0}
+                                                aria-describedby={
                                                     formId +
                                                     '-trustedCaId-hint ' +
                                                     formId +
