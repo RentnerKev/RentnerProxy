@@ -11,7 +11,7 @@ import useTableFilters from '../../../../shared/Table/Hooks/useTableFilters'
 import TableLayout from '../../../../shared/Table/Components/TableLayout'
 import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBody'
 import SelectControl from '../../../../shared/Select'
-import DateTimeCalendar from '../../../../shared/Calendar/Components/DateTimeCalendar'
+import UtcDateTimeInput from '../../../../shared/Forms/UtcDateTimeInput'
 import { ActionMenu } from '../../../../shared/ActionMenu'
 import type { AuditEventDto } from '../../../../shared/Types/audit-events.types'
 import {
@@ -183,7 +183,7 @@ export default function AuditLogsTable({
                                 <span className="text-xs font-extrabold text-muted">
                                     {t('admin.auditLogs.filters.from')}
                                 </span>
-                                <DateTimeCalendar
+                                <UtcDateTimeInput
                                     value={filters.from}
                                     onValueChange={onFromChange}
                                     ariaLabel={t('admin.auditLogs.filters.from')}
@@ -202,7 +202,7 @@ export default function AuditLogsTable({
                                 <span className="text-xs font-extrabold text-muted">
                                     {t('admin.auditLogs.filters.to')}
                                 </span>
-                                <DateTimeCalendar
+                                <UtcDateTimeInput
                                     value={filters.to}
                                     onValueChange={onToChange}
                                     ariaLabel={t('admin.auditLogs.filters.to')}

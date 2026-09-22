@@ -33,8 +33,6 @@ export type TableColumnFilterConfig =
       }
     | {
           readonly type: 'dateRange'
-          readonly fromLabel?: string
-          readonly toLabel?: string
       }
 
 export type TableColumnFilterConfigs = Readonly<Record<string, TableColumnFilterConfig>>

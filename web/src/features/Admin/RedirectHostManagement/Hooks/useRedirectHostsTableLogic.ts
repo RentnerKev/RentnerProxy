@@ -63,8 +63,6 @@ export default function useRedirectHostsTableLogic(props: RedirectHostsTableProp
             },
             createdAt: {
                 type: 'dateRange',
-                fromLabel: t('admin.redirectHosts.filters.createdFrom'),
-                toLabel: t('admin.redirectHosts.filters.createdTo'),
             },
         }),
         [data, t],

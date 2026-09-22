@@ -1983,20 +1983,26 @@
         }
     },
     "calendar": {
-        "dates": "Calendar dates",
+        "required": "Please select a date.",
+        "apply": "Apply",
+        "open": "Open calendar",
+        "close": "Close calendar",
         "previousMonth": "Show previous month",
         "nextMonth": "Show next month",
         "clear": "Clear",
+        "day": "Day",
+        "rangeMode": "Range",
         "from": "From",
         "to": "To",
+        "time": "Time (UTC)",
+        "month": "Month",
+        "year": "Year",
+        "searchOptions": "Search options",
+        "searchPlaceholder": "Search…",
+        "noResults": "No results",
+        "noOptions": "No options",
         "anyDate": "Any date",
-        "fromDate": "From {{date}}",
-        "range": "{{from}} – {{to}}",
         "selectDate": "Select date",
-        "hint": {
-            "start": "Choose a start and end date.",
-            "end": "Now choose an end date."
-        },
         "weekdays": {
             "mon": "Mon",
             "tue": "Tue",

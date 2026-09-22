@@ -80,8 +80,6 @@ export default function useUsersTableLogic({ users, ...actions }: UsersTableProp
             },
             createdAt: {
                 type: 'dateRange',
-                fromLabel: t('admin.users.filters.createdFrom'),
-                toLabel: t('admin.users.filters.createdTo'),
             },
         }),
         [locale, users, t],

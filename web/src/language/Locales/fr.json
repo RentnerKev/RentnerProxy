@@ -1983,20 +1983,26 @@
         }
     },
     "calendar": {
-        "dates": "Dates du calendrier",
+        "required": "Veuillez sélectionner une date.",
+        "apply": "Appliquer",
+        "open": "Ouvrir le calendrier",
+        "close": "Fermer le calendrier",
         "previousMonth": "Afficher le mois précédent",
         "nextMonth": "Afficher le mois suivant",
         "clear": "Effacer",
+        "day": "Jour",
+        "rangeMode": "Période",
         "from": "Du",
         "to": "Au",
+        "time": "Heure (UTC)",
+        "month": "Mois",
+        "year": "Année",
+        "searchOptions": "Rechercher des options",
+        "searchPlaceholder": "Rechercher…",
+        "noResults": "Aucun résultat",
+        "noOptions": "Aucune option",
         "anyDate": "N'importe quelle date",
-        "fromDate": "À partir du {{date}}",
-        "range": "{{from}} – {{to}}",
         "selectDate": "Sélectionner une date",
-        "hint": {
-            "start": "Choisissez une date de début et une date de fin.",
-            "end": "Choisissez maintenant une date de fin."
-        },
         "weekdays": {
             "mon": "Lun",
             "tue": "Mar",

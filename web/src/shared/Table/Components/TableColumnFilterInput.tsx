@@ -1,9 +1,13 @@
+import { RangeCalendar } from '@rentnerkev/calendar/range-calendar'
 import type { RowData } from '@tanstack/react-table'
 
-import DateRangeCalendar from '../../Calendar'
 import SelectControl, { SearchableSelect } from '../../Select'
-import useTranslationStore from '../../../language/useTranslationStore'
-import getDateRangeFilterValue from '../Helpers/getDateRangeFilterValue'
+import { CALENDAR_CUSTOM_DESIGN } from '../../../config/calendar.config'
+import {
+    getRangeCalendarInputValue,
+    getTableDateRangeFilterValue,
+} from '../Helpers/calendarFilterValue.helpers'
+import useCalendarPresentation from '../../Calendar/Hooks/useCalendarPresentation'
 import type { TableColumnFilterInputProps } from '../Types/table.types'
 
 const controlClassName =
@@ -13,7 +17,8 @@ export default function TableColumnFilterInput<TData extends RowData>({
     column,
     config,
 }: TableColumnFilterInputProps<TData>) {
-    const { t } = useTranslationStore()
+    const calendar = useCalendarPresentation()
+    const { t } = calendar
 
     if (config.type === 'select') {
         const filterColumnLabel = t('table.filterColumn')
@@ -53,12 +58,19 @@ export default function TableColumnFilterInput<TData extends RowData>({
 
     if (config.type === 'dateRange') {
         return (
-            <DateRangeCalendar
-                value={getDateRangeFilterValue(column.getFilterValue())}
-                ariaLabel={t('table.filterByDateRange')}
-                fromLabel={config.fromLabel}
-                toLabel={config.toLabel}
-                onValueChange={(value) => column.setFilterValue(value)}
+            <RangeCalendar
+                aria-label={t('table.filterByDateRange')}
+                value={getRangeCalendarInputValue(column.getFilterValue())}
+                onChange={(value) => column.setFilterValue(getTableDateRangeFilterValue(value))}
+                className="h-12 w-full rounded-xl"
+                closeOnSelect
+                customDesign={CALENDAR_CUSTOM_DESIGN}
+                fastEdit={false}
+                isDeletable
+                locale={calendar.locale}
+                messages={calendar.messages}
+                placeholder={t('calendar.anyDate')}
+                weekStartsOn={1}
             />
         )
     }

@@ -65,8 +65,6 @@ export default function useAccessPoliciesTableLogic(props: AccessPoliciesTablePr
             },
             createdAt: {
                 type: 'dateRange',
-                fromLabel: t('admin.accessPolicies.filters.createdFrom'),
-                toLabel: t('admin.accessPolicies.filters.createdTo'),
             },
         }),
         [t],

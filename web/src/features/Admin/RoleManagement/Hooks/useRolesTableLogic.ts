@@ -74,8 +74,6 @@ const getColumnFilterConfigs = (t: Translate) =>
         },
         createdAt: {
             type: 'dateRange' as const,
-            fromLabel: t('admin.roles.filters.createdFrom'),
-            toLabel: t('admin.roles.filters.createdTo'),
         },
     }) satisfies TableColumnFilterConfigs
 

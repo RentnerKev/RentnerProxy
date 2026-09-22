@@ -1,38 +1,50 @@
 import { afterEach, expect, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
-import { formatDateTimeLabel } from '../shared/Calendar/Helpers/dateTimeCalendar.helpers'
+
 import withTestLanguage from './Helpers/withTestLanguage'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { act, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
-const { default: DateTimeCalendar } = await import('../shared/Calendar/Components/DateTimeCalendar')
+const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
+const { default: UtcDateTimeInput } = await import('../shared/Forms/UtcDateTimeInput')
 let root: Root | undefined
 
-function Harness() {
-    const [value, setValue] = useState('2026-09-12T13:45')
+function Harness({ initialValue }: { readonly initialValue: string }) {
+    const [value, setValue] = useState(initialValue)
+
     return (
         <>
-            <DateTimeCalendar ariaLabel="From (UTC)" value={value} onValueChange={setValue} />
+            <UtcDateTimeInput ariaLabel="From (UTC)" value={value} onValueChange={setValue} />
             <output>{value}</output>
         </>
     )
 }
 
-async function render() {
+async function render(initialValue = '2026-09-12T13:45') {
     const container = document.createElement('div')
     document.body.append(container)
     root = createRoot(container)
-    await act(async () => root!.render(withTestLanguage(<Harness />)))
+    await act(async () =>
+        root!.render(
+            withTestLanguage(
+                <TooltipProvider>
+                    <Harness initialValue={initialValue} />
+                </TooltipProvider>,
+            ),
+        ),
+    )
 }
+
 async function click(element: HTMLElement) {
     await act(async () => {
         element.click()
         await new Promise((resolve) => setTimeout(resolve, 20))
     })
 }
+
 async function key(element: HTMLElement, value: string) {
     await act(async () => {
         element.dispatchEvent(
@@ -41,54 +53,67 @@ async function key(element: HTMLElement, value: string) {
         await new Promise((resolve) => setTimeout(resolve, 30))
     })
 }
+
+async function setInput(element: HTMLInputElement, value: string) {
+    await act(async () => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+        setter?.call(element, value)
+        element.dispatchEvent(new Event('input', { bubbles: true }))
+        element.dispatchEvent(new Event('change', { bubbles: true }))
+        await Promise.resolve()
+    })
+}
+
+function findCalendarDay(label: string): HTMLButtonElement {
+    const day = [...document.querySelectorAll<HTMLButtonElement>('[data-calendar-day]')].find(
+        (button) => button.getAttribute('aria-label')?.includes(label),
+    )
+    if (!day) throw new Error(`Calendar day not found: ${label}`)
+    return day
+}
+
 afterEach(async () => {
     await act(async () => root?.unmount())
     document.body.replaceChildren()
 })
 
-test('selects a calendar day without shifting UTC wall time, edits time and clears', async () => {
+test('selects a package calendar day, edits UTC wall time and clears', async () => {
     await render()
     await click(document.querySelector<HTMLButtonElement>('button[aria-label="From (UTC)"]')!)
-    await click(document.querySelector<HTMLButtonElement>('[data-calendar-date="2026-09-14"]')!)
+    await click(findCalendarDay('September 14, 2026'))
     expect(document.querySelector('output')?.textContent).toBe('2026-09-14T13:45')
-    const hours = document.querySelector<HTMLButtonElement>(
-        '[role="combobox"][aria-label="Hours"]',
+
+    const time = document.querySelector<HTMLInputElement>(
+        'input[aria-label="From (UTC) · Time (UTC)"]',
     )!
-    await key(hours, 'Enter')
-    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
-        (item) => item.textContent === '08',
-    )!
-    await act(async () => option.focus())
-    await key(option, 'Enter')
+    await setInput(time, '08:45')
     expect(document.querySelector('output')?.textContent).toBe('2026-09-14T08:45')
-    const clear = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
-        (item) => item.textContent?.trim() === 'Clear',
-    )!
-    await click(clear)
+
+    await click(document.querySelector<HTMLButtonElement>('button[aria-label="Clear"]')!)
     expect(document.querySelector('output')?.textContent).toBe('')
 })
 
-test('supports date keyboard navigation and Escape', async () => {
+test('supports package date keyboard navigation and Escape', async () => {
     await render()
     const trigger = document.querySelector<HTMLButtonElement>('button[aria-label="From (UTC)"]')!
     await click(trigger)
-    const selected = document.querySelector<HTMLButtonElement>('[data-calendar-date="2026-09-12"]')!
+    const selected = document.querySelector<HTMLButtonElement>(
+        '[data-calendar-day][aria-pressed="true"]',
+    )!
     await act(async () => selected.focus())
     await key(selected, 'ArrowRight')
-    expect(document.activeElement?.getAttribute('data-calendar-date')).toBe('2026-09-13')
-    await key(document.activeElement as HTMLElement, 'Enter')
+    expect(document.activeElement?.textContent).toBe('13')
 
     await key(document.activeElement as HTMLElement, 'Escape')
     expect(document.querySelector('[role="dialog"]')).toBeNull()
 })
 
-test('formats UTC wall time without normalizing a DST-gap clock value', () => {
-    const formatted = formatDateTimeLabel(
-        '2026-03-29T02:30',
-        'de-DE',
-        (translationKey) => translationKey,
-    )
+test('preserves a UTC wall time that falls into the local DST gap', async () => {
+    await render('2026-03-29T02:30')
 
-    expect(formatted.time).toContain('2:30')
-    expect(formatted.time).not.toContain('3:30')
+    expect(
+        document.querySelector<HTMLInputElement>('input[aria-label="From (UTC) · Time (UTC)"]')
+            ?.value,
+    ).toBe('02:30')
+    expect(document.querySelector('output')?.textContent).toBe('2026-03-29T02:30')
 })

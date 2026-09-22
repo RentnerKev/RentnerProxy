@@ -13,7 +13,6 @@ import { PERMISSIONS, PERMISSION_REGISTRY } from '../config/permissions.config'
 import { roleManagementQueryKeys } from '../features/Admin/RoleManagement/queryKeys'
 import { userManagementQueryKeys } from '../features/Admin/UserManagement/queryKeys'
 import { setClientCspNonce } from '../shared/Helpers/cspNonce'
-import type { DateRangeValue } from '../shared/Calendar/Types/date-range-calendar.types'
 import { createTrimmedIncludesStringFilter } from '../shared/Table/Helpers/tableFilters'
 import type { ClientTableFeatures } from '../shared/Table/clientTable'
 import type { RoleManagementSummary, UserSummary } from '../shared/Types/auth.types'
@@ -41,7 +40,6 @@ const { default: UsersTable } =
 const { default: RolesTable } =
     await import('../features/Admin/RoleManagement/Components/RolesTable')
 const { ConfirmDialog } = await import('../shared/Modal/Components/ConfirmDialog')
-const { default: DateRangeCalendar } = await import('../shared/Calendar')
 const { default: DataTable } = await import('../shared/Table')
 const { default: useClientTableLogic } = await import('../shared/Table/Hooks/useClientTableLogic')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
@@ -538,38 +536,6 @@ describe('shared table preset', () => {
             )
         })
         expect(document.body.textContent).toContain('No records yet')
-    })
-})
-
-function DateRangeCalendarHarness() {
-    const [value, setValue] = useState<DateRangeValue>({ from: '2026-01-10' })
-
-    return (
-        <>
-            <DateRangeCalendar
-                ariaLabel="Created range"
-                value={value}
-                onValueChange={(nextValue) => setValue(nextValue ?? {})}
-            />
-            <output>
-                {value.from ? `${value.from} → ${value.to ?? 'open'}` : 'No date range'}
-            </output>
-        </>
-    )
-}
-
-describe('shared date range calendar', () => {
-    test('completes and clears a date range through the custom popover', async () => {
-        await render(<DateRangeCalendarHarness />)
-
-        await click(getButton('Created range: From 10 Jan 2026'))
-        expect(document.body.textContent).toContain('January 2026')
-        await click(getButton('Monday, 12 January 2026'))
-        expect(document.body.textContent).toContain('2026-01-10 → 2026-01-12')
-
-        await click(getButton('Created range: 10 Jan 2026 – 12 Jan 2026'))
-        await click(getButton('Clear'))
-        expect(document.body.textContent).toContain('No date range')
     })
 })
 

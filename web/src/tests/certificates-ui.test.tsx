@@ -321,6 +321,10 @@ describe('certificate management UI', () => {
     test('filters exact certificate names with search and expiry dates with the calendar', async () => {
         const now = new Date()
         const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-15`
+        const calendarDayLabel = new Date(now.getFullYear(), now.getMonth(), 15).toLocaleDateString(
+            'en-US',
+            { dateStyle: 'full' },
+        )
         getCertificatesHandlerMock.mockResolvedValueOnce([
             { ...certificate, expiresAt: new Date(`${date}T23:59:59Z`) },
             {
@@ -354,8 +358,12 @@ describe('certificate management UI', () => {
         await click(button('Reset filters'))
         await waitFor(() => rows().length === 3)
         await click(button('Filter by date range'))
-        await click(document.querySelector(`[data-calendar-date="${date}"]`)!)
-        await click(document.querySelector(`[data-calendar-date="${date}"]`)!)
+        const getCalendarDay = () =>
+            [...document.querySelectorAll<HTMLButtonElement>('[data-calendar-day]')].find((day) =>
+                day.getAttribute('aria-label')?.includes(calendarDayLabel),
+            )!
+        await click(getCalendarDay())
+        await click(getCalendarDay())
         await waitFor(() => rows().length === 1)
         expect(rows()[0]?.textContent).toContain('Public edge')
         expect(rows()[0]?.textContent).not.toContain('backup')

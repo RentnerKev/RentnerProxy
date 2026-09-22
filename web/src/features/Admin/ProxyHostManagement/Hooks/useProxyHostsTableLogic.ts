@@ -74,8 +74,6 @@ export default function useProxyHostsTableLogic(props: ProxyHostsTableProps) {
             },
             createdAt: {
                 type: 'dateRange',
-                fromLabel: t('admin.proxyHosts.filters.createdFrom'),
-                toLabel: t('admin.proxyHosts.filters.createdTo'),
             },
         }),
         [data, t],
