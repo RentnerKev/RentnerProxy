@@ -1,0 +1,10 @@
+Caddy CrowdSec Bouncer
+Version: v0.14.1
+Commit: 6b35f6be25e457aa0b94e32c6ae519123e50e7b7
+Source: https://github.com/hslatman/caddy-crowdsec-bouncer
+License: Apache License 2.0 (see LICENSE)
+
+This is a community-maintained Caddy module and is not an official CrowdSec
+or Caddy component. RentnerProxy applies the documented source transform shipped
+at docker/crowdsec/tooling/caddy-http-only.sh so that only its HTTP enforcement module
+is linked; AppSec and Layer 4 are not included.

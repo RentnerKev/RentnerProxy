@@ -6,6 +6,9 @@ readonly app_directory=/opt/rentnerproxy/web
 readonly data_directory=/var/lib/rentnerproxy
 readonly postgres_directory="$data_directory/postgres-data"
 readonly proxy_directory="$data_directory/proxy"
+readonly access_log_file="$proxy_directory/logs/access.log"
+readonly crowdsec_directory="$data_directory/crowdsec"
+readonly crowdsec_control_directory=/run/rentnerproxy/crowdsec
 readonly bootstrap_directory="$data_directory/bootstrap"
 readonly app_key_file=/run/rentnerproxy/app-key/value
 readonly controller_app_key_file=/run/rentnerproxy/controller-app-key/value
@@ -100,7 +103,27 @@ initialize_layout() {
 
     install -d -m 0711 -o root -g root "$data_directory"
     install -d -m 0700 -o postgres -g postgres "$postgres_directory"
-    install -d -m 0700 -o rentnerproxy -g rentnerproxy "$proxy_directory"
+    install -d -m 0710 -o rentnerproxy -g crowdsec "$proxy_directory"
+    [[ ! -L $proxy_directory/logs ]] || fatal 'the Caddy log directory is a symbolic link'
+    install -d -m 0750 -o rentnerproxy -g crowdsec "$proxy_directory/logs"
+    # chown inside install can clear setgid; apply it only after ownership is final.
+    chmod 2750 "$proxy_directory/logs"
+    if [[ -e $access_log_file || -L $access_log_file ]]; then
+        [[ -f $access_log_file && ! -L $access_log_file ]] \
+            || fatal 'the existing Caddy access log is not a regular file'
+        [[ $(stat -c '%u:%h' -- "$access_log_file") == 10001:1 ]] \
+            || fatal 'the existing Caddy access log has unsafe ownership or links'
+        chgrp crowdsec -- "$access_log_file"
+        chmod 0640 -- "$access_log_file"
+    fi
+    install -d -m 0711 -o crowdsec -g crowdsec "$crowdsec_directory"
+    install -d -m 0700 -o crowdsec -g crowdsec "$crowdsec_directory/credentials"
+    install -d -m 0700 -o crowdsec -g crowdsec "$crowdsec_directory/data"
+    install -d -m 0710 -o root -g rentnerproxy "$crowdsec_directory/bouncer"
+    install -d -m 0700 -o rentnerproxy -g rentnerproxy "$crowdsec_control_directory"
+    printf '%s\n' stopped > "$crowdsec_control_directory/desired-mode"
+    chown rentnerproxy:rentnerproxy "$crowdsec_control_directory/desired-mode"
+    chmod 0600 "$crowdsec_control_directory/desired-mode"
     install -d -m 0700 -o root -g root "$bootstrap_directory"
     install -d -m 0700 -o postgres -g postgres /var/run/postgresql
     chmod 00700 /var/run/postgresql
@@ -217,6 +240,11 @@ start_redis() {
     wait_for_command Redis gosu rentnerproxy "$redis_directory/bin/redis-cli" -h 127.0.0.1 ping
 }
 
+start_crowdsec_supervisor() {
+    start_child crowdsec-supervisor /usr/local/bin/rentnerproxy-crowdsec-supervisor
+    wait_for_command 'CrowdSec supervisor' test -s "$crowdsec_control_directory/status.json"
+}
+
 start_controller() {
     start_child controller env \
         APP_ENCRYPTION_KEY_FILE="$controller_app_key_file" \
@@ -277,6 +305,7 @@ initialize_secrets
 initialize_postgres_data_directory
 start_postgres
 start_redis
+start_crowdsec_supervisor
 start_controller
 run_migrations
 start_web

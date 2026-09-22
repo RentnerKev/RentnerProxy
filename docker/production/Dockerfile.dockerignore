@@ -19,8 +19,13 @@
 !docker/web/**
 !docker/production/
 !docker/production/entrypoint.sh
+!docker/crowdsec/
+!docker/crowdsec/**
 !docker/licenses/
 !docker/licenses/Caddy-LICENSE
+!docker/licenses/CaddyCrowdSecBouncer-NOTICE
+!docker/licenses/CrowdSec-LICENSE
+!docker/licenses/CrowdSec-NOTICE
 
 !scripts/
 !scripts/**
