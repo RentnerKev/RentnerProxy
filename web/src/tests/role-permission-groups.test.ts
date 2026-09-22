@@ -29,6 +29,7 @@ describe('role permission groups', () => {
             'roles.',
             'access_policies.',
             'proxy-access-logs:',
+            'crowdsec.',
             'audit-logs:',
             'account.',
         ])

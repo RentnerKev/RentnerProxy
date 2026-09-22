@@ -141,6 +141,13 @@
             "when": 1789246463427,
             "tag": "0019_certificate_binding_jobs",
             "breakpoints": true
+        },
+        {
+            "idx": 20,
+            "version": "7",
+            "when": 1790103395265,
+            "tag": "0020_chief_warpath",
+            "breakpoints": true
         }
     ]
 }
