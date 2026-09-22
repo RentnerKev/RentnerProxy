@@ -4,6 +4,9 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { QueryClient as QueryClientInstance } from '@tanstack/react-query'
 import type { Root } from 'react-dom/client'
 
+import { TOAST_PROVIDER_PROPS } from '../config/toast.config'
+import disableMotionAnimations from './Helpers/disableMotionAnimations'
+
 import { PERMISSIONS } from '../config/permissions.config'
 import type {
     CertificateActionResult,
@@ -14,12 +17,14 @@ import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+disableMotionAnimations()
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { TooltipProvider } = await import('../shared/Tooltip')
-const { default: ToastProvider } = await import('../shared/Toast/Components/ToastProvider')
+const { ToastProvider } = await import('@rentnerkev/toasts')
+const { toast } = await import('@rentnerkev/toasts/toast')
 const certificate: CertificateSummary = {
     id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54021',
     name: 'Public edge',
@@ -146,7 +151,7 @@ async function renderPage(
     await act(async () => {
         activeRoot?.render(
             <TooltipProvider>
-                <ToastProvider>
+                <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
                     <QueryClientProvider client={activeQueryClient!}>
                         {withTestLanguage(
                             <CertificateManagementPage permissions={permissions} />,
@@ -212,7 +217,7 @@ async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<voi
 }
 
 async function waitForToast(tone: 'success' | 'error' | 'warning'): Promise<void> {
-    await waitFor(() => document.querySelector('[data-toast-tone=' + tone + ']') !== null)
+    await waitFor(() => document.querySelector('.rentnerproxy-toast-' + tone) !== null)
     await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 300))
     })
@@ -258,6 +263,7 @@ async function chooseAcmeEnvironment(environment: 'Production' | 'Staging'): Pro
 }
 
 beforeEach(() => {
+    toast.dismissAll()
     getTrustedCasHandlerMock.mockReset().mockResolvedValue([trustedCa])
     createTrustedCaHandlerMock.mockReset().mockResolvedValue({
         success: true,

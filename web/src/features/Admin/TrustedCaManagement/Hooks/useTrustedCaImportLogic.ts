@@ -1,6 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { useId, useState } from 'react'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { createTrustedCaHandler, replaceTrustedCaHandler } from '../server'
 import { createTrustedCaInputSchema } from '../validation'
 import type { TrustedCaImportModalProps } from '../Types/trusted-ca-management.types'
@@ -9,7 +10,7 @@ export default function useTrustedCaImportLogic({
     trustedCa,
     onSuccess,
 }: TrustedCaImportModalProps) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const formId = useId()
     const [isPending, setIsPending] = useState(false)
     const form = useForm({
@@ -26,16 +27,20 @@ export default function useTrustedCaImportLogic({
                       })
                     : await createTrustedCaHandler({ data })
                 if (!result.success) {
-                    toast.error(result.message)
+                    toast.error(t(result.message), { title: t('toast.titles.error') })
                     return
                 }
                 form.reset()
                 if (result.runtimeStatus === 'pending')
-                    toast.warning('admin.trustedCas.messages.savedPending')
-                else toast.success(result.message)
+                    toast.warning(t('admin.trustedCas.messages.savedPending'), {
+                        title: t('toast.titles.warning'),
+                    })
+                else toast.success(t(result.message), { title: t('toast.titles.success') })
                 await onSuccess()
             } catch {
-                toast.error('admin.trustedCas.errors.saveFailed')
+                toast.error(t('admin.trustedCas.errors.saveFailed'), {
+                    title: t('toast.titles.error'),
+                })
             } finally {
                 setIsPending(false)
             }

@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 
 import { PERMISSIONS } from '../../../../config/permissions.config'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
 import useLiveInvalidation from '../../../../shared/Live/useLiveInvalidation'
 import { accessPolicyManagementQueryKeys } from '../../AccessPolicyManagement/queryKeys'
@@ -20,7 +21,7 @@ import type { ProxyHostManagementPageProps } from '../Types/proxy-host-managemen
 const EMPTY_PROXY_HOSTS: ProxyHostSummary[] = []
 
 export default function useProxyHostManagementLogic({ permissions }: ProxyHostManagementPageProps) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canView = permissionSet.has(PERMISSIONS.PROXY_HOSTS_VIEW)
     const [showCreate, setShowCreate] = useState(false)
@@ -65,69 +66,87 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
                 queryKey: proxyHostManagementQueryKeys.runtimeStatus,
             })
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
 
-            toast.success(result.message)
+            toast.success(t(result.message), { title: t('toast.titles.success') })
         },
-        onError: () => toast.error('admin.proxyHosts.runtime.applyFailed'),
+        onError: () =>
+            toast.error(t('admin.proxyHosts.runtime.applyFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const deleteMutation = useMutation({
         mutationFn: (proxyHost: ProxyHostSummary) =>
             deleteProxyHostHandler({ data: { proxyHostId: proxyHost.id } }),
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
 
             await invalidateProxyHostQueries()
             if (result.runtimeStatus === 'pending') {
-                toast.warning('admin.proxyHosts.runtime.savedPending')
+                toast.warning(t('admin.proxyHosts.runtime.savedPending'), {
+                    title: t('toast.titles.warning'),
+                })
             } else {
-                toast.success(result.message)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
             }
             setDeleteTarget(null)
         },
-        onError: () => toast.error('admin.proxyHosts.errors.deleteFailed'),
+        onError: () =>
+            toast.error(t('admin.proxyHosts.errors.deleteFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const disableMutation = useMutation({
         mutationFn: (proxyHost: ProxyHostSummary) =>
             disableProxyHostHandler({ data: { proxyHostId: proxyHost.id } }),
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
 
             await invalidateProxyHostQueries()
             if (result.runtimeStatus === 'pending') {
-                toast.warning('admin.proxyHosts.runtime.savedPending')
+                toast.warning(t('admin.proxyHosts.runtime.savedPending'), {
+                    title: t('toast.titles.warning'),
+                })
             } else {
-                toast.success(result.message)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
             }
             setDisableTarget(null)
         },
-        onError: () => toast.error('admin.proxyHosts.errors.disableFailed'),
+        onError: () =>
+            toast.error(t('admin.proxyHosts.errors.disableFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const enableMutation = useMutation({
         mutationFn: (proxyHost: ProxyHostSummary) =>
             enableProxyHostHandler({ data: { proxyHostId: proxyHost.id } }),
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
 
             await invalidateProxyHostQueries()
             if (result.runtimeStatus === 'pending') {
-                toast.warning('admin.proxyHosts.runtime.savedPending')
+                toast.warning(t('admin.proxyHosts.runtime.savedPending'), {
+                    title: t('toast.titles.warning'),
+                })
             } else {
-                toast.success(result.message)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
             }
         },
-        onError: () => toast.error('admin.proxyHosts.errors.enableFailed'),
+        onError: () =>
+            toast.error(t('admin.proxyHosts.errors.enableFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const openCertificateRequest = useCallback((proxyHost: ProxyHostSummary) => {
         setConfigTarget(null)

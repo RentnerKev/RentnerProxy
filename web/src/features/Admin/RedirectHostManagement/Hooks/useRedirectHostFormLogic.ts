@@ -2,7 +2,8 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { MAX_REDIRECT_HOST_DOMAINS } from '../../../../config/redirect-hosts.config'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { certificateManagementQueryKeys } from '../../CertificateManagement/queryKeys'
 import {
     getAssignableRedirectCertificatesHandler,
@@ -25,7 +26,7 @@ export default function useRedirectHostFormLogic({
     RedirectHostFormModalProps,
     'canEnable' | 'canDisable' | 'canAssignCertificates' | 'mode' | 'onSuccess' | 'redirectHost'
 >) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const [domainKeys, setDomainKeys] = useState(() =>
         (redirectHost?.domains ?? ['']).map(() => crypto.randomUUID()),
@@ -50,7 +51,8 @@ export default function useRedirectHostFormLogic({
                   : Promise.reject(new Error('admin.redirectHosts.errors.host_not_found'))
         },
         onSuccess: async (result) => {
-            if (!result.success) return toast.error(result.message)
+            if (!result.success)
+                return toast.error(t(result.message), { title: t('toast.titles.error') })
             await Promise.all([
                 queryClient.invalidateQueries({
                     queryKey: certificateManagementQueryKeys.assignable,
@@ -64,12 +66,17 @@ export default function useRedirectHostFormLogic({
                 }),
             ])
             if (result.runtimeStatus === 'pending')
-                toast.warning('admin.redirectHosts.runtime.savedPending')
-            else toast.success(result.message)
+                toast.warning(t('admin.redirectHosts.runtime.savedPending'), {
+                    title: t('toast.titles.warning'),
+                })
+            else toast.success(t(result.message), { title: t('toast.titles.success') })
             setPendingDisableValues(null)
             onSuccess()
         },
-        onError: () => toast.error('admin.redirectHosts.errors.saveFailed'),
+        onError: () =>
+            toast.error(t('admin.redirectHosts.errors.saveFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const retryAssignableCertificates = useCallback(() => {
         void certificatesQuery.refetch()

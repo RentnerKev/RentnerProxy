@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 
+import { TOAST_PROVIDER_PROPS } from '../config/toast.config'
+import disableMotionAnimations from './Helpers/disableMotionAnimations'
+
 import {
     getAccessPolicyAvailability,
     getIpAccessRuleCount,
@@ -15,12 +18,14 @@ import withTestLanguage from './Helpers/withTestLanguage'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+disableMotionAnimations()
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { TooltipProvider } = await import('../shared/Tooltip')
-const { default: ToastProvider } = await import('../shared/Toast/Components/ToastProvider')
+const { ToastProvider } = await import('@rentnerkev/toasts')
+const { toast } = await import('@rentnerkev/toasts/toast')
 
 const createAccessPolicyHandlerMock = mock(async (_input: unknown) => ({
     success: true as const,
@@ -74,7 +79,7 @@ async function renderForm(
         activeRoot?.render(
             withTestLanguage(
                 <TooltipProvider>
-                    <ToastProvider>
+                    <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
                         <QueryClientProvider client={queryClient}>
                             <AccessPolicyFormModal
                                 open
@@ -150,6 +155,7 @@ async function submitForm(): Promise<void> {
 }
 
 beforeEach(() => {
+    toast.dismissAll()
     createAccessPolicyHandlerMock.mockClear()
     updateAccessPolicyHandlerMock.mockClear()
 })

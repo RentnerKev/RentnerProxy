@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { PERMISSIONS } from '../../../../config/permissions.config'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type { TrustedCaSummary } from '../../../../shared/Types/trusted-cas.types'
 import { proxyHostManagementQueryKeys } from '../../ProxyHostManagement/queryKeys'
 import { trustedCaManagementQueryKeys } from '../queryKeys'
@@ -11,7 +12,7 @@ import type { TrustedCaManagementPageProps } from '../Types/trusted-ca-managemen
 const EMPTY_TRUSTED_CAS: readonly TrustedCaSummary[] = []
 
 export default function useTrustedCaManagementLogic({ permissions }: TrustedCaManagementPageProps) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const trustedCasQuery = useQuery({
         queryKey: trustedCaManagementQueryKeys.all,
@@ -32,14 +33,17 @@ export default function useTrustedCaManagementLogic({ permissions }: TrustedCaMa
         mutationFn: (trustedCaId: string) => deleteTrustedCaHandler({ data: { trustedCaId } }),
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
             await invalidate()
-            toast.success(result.message)
+            toast.success(t(result.message), { title: t('toast.titles.success') })
             setDeleteTarget(null)
         },
-        onError: () => toast.error('admin.trustedCas.errors.deleteFailed'),
+        onError: () =>
+            toast.error(t('admin.trustedCas.errors.deleteFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const handleFormSuccess = useCallback(async () => {
         await invalidate()

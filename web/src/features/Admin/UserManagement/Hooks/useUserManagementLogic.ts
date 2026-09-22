@@ -3,7 +3,8 @@ import { useRouter } from '@tanstack/react-router'
 import { useCallback, useMemo, useState } from 'react'
 
 import { PERMISSIONS, SYSTEM_ROLES } from '../../../../config/permissions.config'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type { RoleSummary, UserSummary } from '../../../../shared/Types/auth.types'
 import { roleManagementQueryKeys } from '../../RoleManagement/queryKeys'
 import { getRolesHandler } from '../../RoleManagement/server'
@@ -19,7 +20,7 @@ export default function useUserManagementLogic({
     currentUserRoleKeys,
     permissions,
 }: UserManagementPageProps) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const actorIsOwner = currentUserRoleKeys.includes(SYSTEM_ROLES.OWNER)
     const canAssignRoles =
@@ -45,7 +46,7 @@ export default function useUserManagementLogic({
         mutationFn: (user: UserSummary) => disableUserHandler({ data: { userId: user.id } }),
         onSuccess: async (result, user) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
 
@@ -55,23 +56,25 @@ export default function useUserManagementLogic({
                 await router.invalidate()
             }
 
-            toast.success(result.message)
+            toast.success(t(result.message), { title: t('toast.titles.success') })
             setDisableTarget(null)
         },
-        onError: () => toast.error('admin.users.errors.disableFailed'),
+        onError: () =>
+            toast.error(t('admin.users.errors.disableFailed'), { title: t('toast.titles.error') }),
     })
     const enableMutation = useMutation({
         mutationFn: (user: UserSummary) => enableUserHandler({ data: { userId: user.id } }),
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
 
             await queryClient.invalidateQueries({ queryKey: userManagementQueryKeys.all })
-            toast.success(result.message)
+            toast.success(t(result.message), { title: t('toast.titles.success') })
         },
-        onError: () => toast.error('admin.users.errors.enableFailed'),
+        onError: () =>
+            toast.error(t('admin.users.errors.enableFailed'), { title: t('toast.titles.error') }),
     })
     const assignableRoles = useMemo(() => {
         if (!canAssignRoles) {

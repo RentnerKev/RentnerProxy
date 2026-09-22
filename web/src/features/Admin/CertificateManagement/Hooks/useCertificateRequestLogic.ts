@@ -3,7 +3,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useId, useState } from 'react'
 import { isCertificateJobActive } from '../../../../config/certificate-jobs.config'
 import { DEFAULT_ACME_ENVIRONMENT } from '../../../../config/certificates.config'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { requestCertificateHandler } from '../server'
 import {
     requestProxyHostCertificateHandler,
@@ -28,7 +29,7 @@ export default function useCertificateRequestLogic({
     readOnlyDomains = false,
     onSuccess,
 }: CertificateRequestModalProps) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const formId = useId()
     const [isPending, setIsPending] = useState(false)
@@ -78,7 +79,7 @@ export default function useCertificateRequestLogic({
                         })
                       : await requestCertificateHandler({ data: parsed! })
                 if (!result.success) {
-                    toast.error(result.message)
+                    toast.error(t(result.message), { title: t('toast.titles.error') })
                     return
                 }
                 const resetValues: CertificateRequestFormValues = {
@@ -95,11 +96,13 @@ export default function useCertificateRequestLogic({
                 if ('job' in result) {
                     await publishCertificateJobProgress(queryClient, result.job)
                 } else {
-                    toast.success(result.message)
+                    toast.success(t(result.message), { title: t('toast.titles.success') })
                 }
                 await onSuccess()
             } catch {
-                toast.error('admin.certificates.errors.requestFailed')
+                toast.error(t('admin.certificates.errors.requestFailed'), {
+                    title: t('toast.titles.error'),
+                })
             } finally {
                 setIsPending(false)
             }

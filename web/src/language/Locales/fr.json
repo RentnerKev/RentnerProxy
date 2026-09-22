@@ -1,11 +1,9 @@
 {
     "toast": {
         "notification": "Notification",
-        "viewport": "Notifications ({hotkey})",
         "dismiss": "Fermer la notification",
         "copyError": "Copier le message d’erreur",
         "copied": "Copié",
-        "copyFailed": "Impossible de copier. Sélectionnez le message pour le copier.",
         "titles": {
             "success": "Opération réussie",
             "error": "Échec de l’action",

@@ -28,4 +28,5 @@ export interface ConfirmDialogProps {
 
 export interface PreventableEvent {
     readonly preventDefault: () => void
+    readonly target?: EventTarget | null
 }

@@ -2,16 +2,21 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 
+import { TOAST_PROVIDER_PROPS } from '../config/toast.config'
+import disableMotionAnimations from './Helpers/disableMotionAnimations'
+
 if (!GlobalRegistrator.isRegistered) {
     GlobalRegistrator.register()
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+disableMotionAnimations()
 
 const { act, useEffect, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { default: withTestLanguage } = await import('./Helpers/withTestLanguage')
 const { TooltipProvider } = await import('../shared/Tooltip')
-const { default: ToastProvider } = await import('../shared/Toast/Components/ToastProvider')
+const { ToastProvider } = await import('@rentnerkev/toasts')
+const { toast } = await import('@rentnerkev/toasts/toast')
 
 const beginPasskeyMock = mock(async () => ({
     success: true,
@@ -107,7 +112,7 @@ async function render(): Promise<HTMLElement> {
         activeRoot?.render(
             withTestLanguage(
                 <TooltipProvider>
-                    <ToastProvider>
+                    <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
                         <SecuritySettingsPanel />
                     </ToastProvider>
                 </TooltipProvider>,
@@ -153,10 +158,11 @@ function findButton(label: string): HTMLButtonElement | undefined {
 }
 
 function errorToasts(): Array<HTMLElement> {
-    return [...document.querySelectorAll<HTMLElement>('[data-toast-tone="error"]')]
+    return [...document.querySelectorAll<HTMLElement>('.rentnerproxy-toast-error')]
 }
 
 beforeEach(() => {
+    toast.dismissAll()
     document.body.replaceChildren()
     setRecentlyAuthenticated = null
     beginPasskeyMock.mockReset()

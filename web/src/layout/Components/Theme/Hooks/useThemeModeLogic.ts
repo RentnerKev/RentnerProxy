@@ -2,11 +2,12 @@ import { useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 
 import type { UserThemeMode } from '../../../../config/theme.config'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { updateCurrentUserThemeModeHandler } from '../../../../features/UserSettings/server'
 
 export default function useThemeModeLogic(initialThemeMode: UserThemeMode) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const confirmedThemeMode = useRef(initialThemeMode)
     const [themeMode, setThemeMode] = useState(initialThemeMode)
     const mutation = useMutation({
@@ -19,16 +20,16 @@ export default function useThemeModeLogic(initialThemeMode: UserThemeMode) {
             if (result.success) {
                 confirmedThemeMode.current = result.themeMode
                 setThemeMode(result.themeMode)
-                toast.success('theme.saved')
+                toast.success(t('theme.saved'), { title: t('toast.titles.success') })
                 return
             }
 
             setThemeMode(confirmedThemeMode.current)
-            toast.error(result.message)
+            toast.error(t(result.message), { title: t('toast.titles.error') })
         },
         onError: () => {
             setThemeMode(confirmedThemeMode.current)
-            toast.error('theme.saveFailed')
+            toast.error(t('theme.saveFailed'), { title: t('toast.titles.error') })
         },
     })
 

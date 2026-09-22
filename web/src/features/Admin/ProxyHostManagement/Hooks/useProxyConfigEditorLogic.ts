@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type {
     ProxyHttpSettings,
     ProxyHostConfigEditorData,
@@ -29,7 +30,7 @@ export default function useProxyConfigEditorLogic({
     open,
     proxyHost,
 }: ProxyConfigEditorLogicProps): ProxyConfigEditorLogic {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const [activeTab, setActiveTab] = useState<ProxyConfigEditorTab>('edit')
     const [draft, setDraft] = useState<{
@@ -75,16 +76,22 @@ export default function useProxyConfigEditorLogic({
             }),
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
             await invalidate()
             setDraft(null)
-            toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](result.message)
+            toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](t(result.message), {
+                title: t(
+                    'toast.titles.' + (result.runtimeStatus === 'pending' ? 'warning' : 'success'),
+                ),
+            })
             onOpenChange(false)
         },
         onError: () => {
-            toast.error('admin.proxyHosts.config.errors.saveFailed')
+            toast.error(t('admin.proxyHosts.config.errors.saveFailed'), {
+                title: t('toast.titles.error'),
+            })
         },
     })
     const resetMutation = useMutation({
@@ -94,17 +101,23 @@ export default function useProxyConfigEditorLogic({
             }),
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
             await invalidate()
             setDraft(null)
             setResetConfirmationOpen(false)
-            toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](result.message)
+            toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](t(result.message), {
+                title: t(
+                    'toast.titles.' + (result.runtimeStatus === 'pending' ? 'warning' : 'success'),
+                ),
+            })
             onOpenChange(false)
         },
         onError: () => {
-            toast.error('admin.proxyHosts.config.errors.saveFailed')
+            toast.error(t('admin.proxyHosts.config.errors.saveFailed'), {
+                title: t('toast.titles.error'),
+            })
         },
     })
     const save = useCallback(() => {

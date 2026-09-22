@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 import { PERMISSIONS } from '../../../../config/permissions.config'
 import useLiveInvalidation from '../../../../shared/Live/useLiveInvalidation'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type {
     CertificateActionResult,
     CertificateSummary,
@@ -25,7 +26,7 @@ export default function useCertificateManagementLogic({
 }: CertificateManagementPageProps) {
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canView = permissionSet.has(PERMISSIONS.CERTIFICATES_VIEW)
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const certificatesQuery = useQuery({
         queryKey: certificateManagementQueryKeys.all,
@@ -62,22 +63,25 @@ export default function useCertificateManagementLogic({
     const handleActionResult = useCallback(
         async (result: CertificateActionResult, onSuccess?: () => void) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return false
             }
             await invalidateCertificateQueries()
-            toast.success(result.message)
+            toast.success(t(result.message), { title: t('toast.titles.success') })
             onSuccess?.()
             return true
         },
-        [invalidateCertificateQueries, toast],
+        [invalidateCertificateQueries, t],
     )
     const renewMutation = useMutation({
         mutationFn: (certificateId: string) => renewCertificateHandler({ data: { certificateId } }),
         onSuccess: async (result) => {
             await handleActionResult(result, () => setRenewTarget(null))
         },
-        onError: () => toast.error('admin.certificates.errors.renewFailed'),
+        onError: () =>
+            toast.error(t('admin.certificates.errors.renewFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const deleteMutation = useMutation({
         mutationFn: (certificateId: string) =>
@@ -85,15 +89,21 @@ export default function useCertificateManagementLogic({
         onSuccess: async (result) => {
             await invalidateCertificateQueries()
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
-            toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](result.message)
+            toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](t(result.message), {
+                title: t(
+                    'toast.titles.' + (result.runtimeStatus === 'pending' ? 'warning' : 'success'),
+                ),
+            })
             setDeleteTarget(null)
         },
         onError: async () => {
             await invalidateCertificateQueries()
-            toast.error('admin.certificates.errors.deleteFailed')
+            toast.error(t('admin.certificates.errors.deleteFailed'), {
+                title: t('toast.titles.error'),
+            })
         },
     })
     const openImport = useCallback(() => {

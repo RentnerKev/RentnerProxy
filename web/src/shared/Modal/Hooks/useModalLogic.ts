@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 
+import { TOAST_ROOT_CLASS } from '../../../config/toast.config'
 import type { PreventableEvent } from '../Types/modal.types'
 
 interface UseModalLogicParams {
@@ -44,7 +45,11 @@ export default function useModalLogic({ closeDisabled, onOpenChange }: UseModalL
             }
         },
         preventClose: (event: PreventableEvent) => {
-            if (closeDisabled) {
+            const target = event.target
+            const isToastInteraction =
+                target instanceof Element && target.closest(`.${TOAST_ROOT_CLASS}`) !== null
+
+            if (closeDisabled || isToastInteraction) {
                 event.preventDefault()
             }
         },

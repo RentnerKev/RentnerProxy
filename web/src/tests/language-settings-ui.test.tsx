@@ -3,17 +3,22 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
+import { TOAST_PROVIDER_PROPS } from '../config/toast.config'
+import disableMotionAnimations from './Helpers/disableMotionAnimations'
+
 import type { LanguageUpdateResult as LanguageResult } from '../features/UserSettings/Types/language-server-result.types'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+disableMotionAnimations()
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { createMemoryHistory, createRootRoute, createRouter, RouterContextProvider } =
     await import('@tanstack/react-router')
-const { default: ToastProvider } = await import('../shared/Toast/Components/ToastProvider')
+const { ToastProvider } = await import('@rentnerkev/toasts')
+const { toast } = await import('@rentnerkev/toasts/toast')
 const { TooltipProvider } = await import('../shared/Tooltip')
 
 const settingsRouter = createRouter({
@@ -69,7 +74,7 @@ async function render(element: ReactElement): Promise<HTMLElement> {
         activeRoot?.render(
             withTestLanguage(
                 <TooltipProvider>
-                    <ToastProvider>
+                    <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
                         <RouterContextProvider router={settingsRouter}>
                             <QueryClientProvider client={activeQueryClient!}>
                                 {element}
@@ -95,9 +100,9 @@ async function waitFor(condition: () => boolean): Promise<void> {
 }
 
 function getToastMessages(container: HTMLElement, tone?: string): Array<string> {
-    const selector = tone ? '[data-toast-tone="' + tone + '"]' : '[data-toast-tone]'
+    const selector = tone ? `.rentnerproxy-toast-${tone}` : '.rentnerproxy-toast'
     return [...container.querySelectorAll<HTMLElement>(selector)].map(
-        (toast) => toast.textContent ?? '',
+        (toastNode) => toastNode.textContent ?? '',
     )
 }
 
@@ -149,6 +154,7 @@ afterEach(async () => {
         activeRoot?.unmount()
     })
     activeRoot = null
+    toast.dismissAll()
     activeQueryClient?.clear()
     activeQueryClient = null
     updateLanguageHandler.mockReset()

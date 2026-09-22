@@ -6,7 +6,8 @@ import {
     isAccessPolicyCombination,
     isAccessPolicyMode,
 } from '../../../../config/access-policies.config'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import {
     accessPolicyIpRulesToDraft,
     parseAccessPolicyIpRulesDraft,
@@ -41,7 +42,7 @@ export default function useAccessPolicyFormLogic({
     onSuccess,
     policy,
 }: Pick<AccessPolicyFormModalProps, 'mode' | 'onSuccess' | 'policy'>) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const [values, setValues] = useState<AccessPolicyFormValues>(() => ({
         name: policy?.name ?? '',
@@ -98,18 +99,23 @@ export default function useAccessPolicyFormLogic({
         },
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
             await invalidate()
             if (result.runtimeStatus === 'pending') {
-                toast.warning('admin.accessPolicies.runtime.savedPending')
+                toast.warning(t('admin.accessPolicies.runtime.savedPending'), {
+                    title: t('toast.titles.warning'),
+                })
             } else {
-                toast.success(result.message)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
             }
             onSuccess()
         },
-        onError: () => toast.error('admin.accessPolicies.errors.saveFailed'),
+        onError: () =>
+            toast.error(t('admin.accessPolicies.errors.saveFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
 
     const setName = useCallback((name: string) => {

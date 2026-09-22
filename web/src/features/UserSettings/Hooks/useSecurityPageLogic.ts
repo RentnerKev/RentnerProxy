@@ -1,7 +1,8 @@
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser'
 import { useState } from 'react'
 
-import useToast from '../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../language/useTranslationStore'
 import { getPasskeyRegistrationErrorKey } from '../Helpers/security'
 import useReauthenticationLogic from './useReauthenticationLogic'
 import useSecurityLogic from './useSecurityLogic'
@@ -19,7 +20,7 @@ type PasskeyNameRequest =
     | { readonly kind: 'rename'; readonly initialName?: string; readonly passkeyId: string }
 
 export default function useSecurityPageLogic() {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const security = useSecurityLogic()
     const reauthentication = useReauthenticationLogic()
     const [reauthAction, setReauthAction] = useState<ReauthenticationAction | null>(null)
@@ -50,7 +51,7 @@ export default function useSecurityPageLogic() {
         try {
             const started = await security.handler.beginPasskey()
             if (!started.success || !started.options || !started.challengeId) {
-                toast.error(started.message)
+                toast.error(t(started.message), { title: t('toast.titles.error') })
                 return false
             }
             const response = await startRegistration({ optionsJSON: started.options })
@@ -60,13 +61,15 @@ export default function useSecurityPageLogic() {
                 response,
             })
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return false
             }
-            toast.success(result.message)
+            toast.success(t(result.message), { title: t('toast.titles.success') })
             return true
         } catch (error) {
-            toast.error(getPasskeyRegistrationErrorKey(error))
+            toast.error(t(getPasskeyRegistrationErrorKey(error)), {
+                title: t('toast.titles.error'),
+            })
             return false
         }
     }
@@ -74,10 +77,12 @@ export default function useSecurityPageLogic() {
     async function renamePasskey(name: string, passkeyId: string): Promise<boolean> {
         try {
             const result = await security.handler.rename({ name, passkeyId })
-            toast.show(result.message, result.success ? 'success' : 'error')
+            toast[result.success ? 'success' : 'error'](t(result.message), {
+                title: t('toast.titles.' + (result.success ? 'success' : 'error')),
+            })
             return result.success
         } catch {
-            toast.error('account.passkeys.error.rename')
+            toast.error(t('account.passkeys.error.rename'), { title: t('toast.titles.error') })
             return false
         }
     }
@@ -85,10 +90,12 @@ export default function useSecurityPageLogic() {
     async function confirmTotp(code: string) {
         try {
             const result = await security.handler.confirmTotp(code)
-            toast.show(result.message, result.success ? 'success' : 'error')
+            toast[result.success ? 'success' : 'error'](t(result.message), {
+                title: t('toast.titles.' + (result.success ? 'success' : 'error')),
+            })
             return result
         } catch {
-            toast.error('account.twoFactor.error.verify')
+            toast.error(t('account.twoFactor.error.verify'), { title: t('toast.titles.error') })
         }
     }
 
@@ -96,10 +103,10 @@ export default function useSecurityPageLogic() {
         try {
             const result = await security.handler.beginTotp()
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
             }
         } catch {
-            toast.error('account.twoFactor.error.setupStart')
+            toast.error(t('account.twoFactor.error.setupStart'), { title: t('toast.titles.error') })
         }
     }
 
@@ -151,9 +158,11 @@ export default function useSecurityPageLogic() {
         try {
             const result = await reauthentication.handler.verifyPassword()
             if (result.success) await finishReauthentication()
-            else toast.error(result.message)
+            else toast.error(t(result.message), { title: t('toast.titles.error') })
         } catch {
-            toast.error('account.reauthentication.error.failed')
+            toast.error(t('account.reauthentication.error.failed'), {
+                title: t('toast.titles.error'),
+            })
         }
     }
 
@@ -161,7 +170,7 @@ export default function useSecurityPageLogic() {
         try {
             const started = await reauthentication.handler.beginPasskey()
             if (!started.success || !started.challengeId || !started.options) {
-                toast.error(started.message)
+                toast.error(t(started.message), { title: t('toast.titles.error') })
                 return
             }
             const response = await startAuthentication({ optionsJSON: started.options })
@@ -170,9 +179,11 @@ export default function useSecurityPageLogic() {
                 response,
             })
             if (result.success) await finishReauthentication()
-            else toast.error(result.message)
+            else toast.error(t(result.message), { title: t('toast.titles.error') })
         } catch {
-            toast.error('account.reauthentication.error.passkeyVerification')
+            toast.error(t('account.reauthentication.error.passkeyVerification'), {
+                title: t('toast.titles.error'),
+            })
         }
     }
 
@@ -227,9 +238,12 @@ export default function useSecurityPageLogic() {
                     : await renamePasskey(name, request.passkeyId)
         } catch {
             toast.error(
-                request.kind === 'add'
-                    ? 'account.passkeys.error.registrationFailed'
-                    : 'account.passkeys.error.rename',
+                t(
+                    request.kind === 'add'
+                        ? 'account.passkeys.error.registrationFailed'
+                        : 'account.passkeys.error.rename',
+                ),
+                { title: t('toast.titles.error') },
             )
         }
         if (success) setNameRequest(null)
@@ -248,13 +262,13 @@ export default function useSecurityPageLogic() {
                 result = await security.handler.remove({ passkeyId: request.passkeyId })
             }
             if (result.success) {
-                toast.success(result.message)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
                 setConfirmation(null)
             } else {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
             }
         } catch {
-            toast.error('account.security.error.change')
+            toast.error(t('account.security.error.change'), { title: t('toast.titles.error') })
         }
     }
 

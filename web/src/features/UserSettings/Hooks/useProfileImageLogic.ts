@@ -6,7 +6,8 @@ import type { Area, Point } from 'react-easy-crop'
 
 import { userManagementQueryKeys } from '../../Admin/UserManagement/queryKeys'
 import { updateProfileImageHandler } from '../server'
-import useToast from '../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../language/useTranslationStore'
 import { createCroppedProfileImageDataUrl, createProfileImageSource } from '../Helpers/profileImage'
 
 const INITIAL_CROP: Point = { x: 0, y: 0 }
@@ -19,7 +20,7 @@ function getProfileImageErrorKey(error: unknown, fallback: string): string {
 }
 
 export default function useProfileImageLogic() {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const saveInFlight = useRef(false)
     const queryClient = useQueryClient()
     const router = useRouter()
@@ -65,10 +66,12 @@ export default function useProfileImageLogic() {
                 setZoom(INITIAL_ZOOM)
                 setCroppedAreaPixels(null)
             } catch (error) {
-                toast.error(getProfileImageErrorKey(error, 'account.profileImage.error.open'))
+                toast.error(t(getProfileImageErrorKey(error, 'account.profileImage.error.open')), {
+                    title: t('toast.titles.error'),
+                })
             }
         },
-        [toast],
+        [t],
     )
 
     const handleCropComplete = useCallback((_croppedArea: Area, pixels: Area) => {
@@ -107,7 +110,7 @@ export default function useProfileImageLogic() {
             const result = await mutation.mutateAsync(imageDataUrl)
 
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
 
@@ -115,15 +118,17 @@ export default function useProfileImageLogic() {
                 queryClient.invalidateQueries({ queryKey: userManagementQueryKeys.all }),
                 router.invalidate(),
             ])
-            toast.success(result.message)
+            toast.success(t(result.message), { title: t('toast.titles.success') })
             resetEditor()
         } catch (error) {
-            toast.error(getProfileImageErrorKey(error, 'account.profileImage.error.update'))
+            toast.error(t(getProfileImageErrorKey(error, 'account.profileImage.error.update')), {
+                title: t('toast.titles.error'),
+            })
         } finally {
             saveInFlight.current = false
             setIsPreparing(false)
         }
-    }, [croppedAreaPixels, imageSrc, isPending, mutation, queryClient, resetEditor, router, toast])
+    }, [croppedAreaPixels, imageSrc, isPending, mutation, queryClient, resetEditor, router, t])
 
     return {
         state: {

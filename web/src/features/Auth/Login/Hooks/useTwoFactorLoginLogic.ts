@@ -2,7 +2,8 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { completeTwoFactorLoginHandler, getTwoFactorChallengeStatusHandler } from '../server'
 import type { TwoFactorLoginFormValues, TwoFactorLoginMode } from '../Types/login-security.types'
 import {
@@ -14,7 +15,7 @@ import {
 export default function useTwoFactorLoginLogic() {
     const navigate = useNavigate()
     const router = useRouter()
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const status = useQuery({
         queryKey: ['auth', 'two-factor-challenge'],
         queryFn: () => getTwoFactorChallengeStatusHandler({ data: {} }),
@@ -37,9 +38,12 @@ export default function useTwoFactorLoginLogic() {
                 await navigate({ to: '/login', replace: true })
             }
 
-            toast.error(result.message)
+            toast.error(t(result.message), { title: t('toast.titles.error') })
         },
-        onError: () => toast.error('Authentication service temporarily unavailable.'),
+        onError: () =>
+            toast.error(t('Authentication service temporarily unavailable.'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const defaultValues: TwoFactorLoginFormValues = {
         mode: 'totp',

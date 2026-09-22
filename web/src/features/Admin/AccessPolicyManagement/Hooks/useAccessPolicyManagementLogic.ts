@@ -3,7 +3,8 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { PERMISSIONS } from '../../../../config/permissions.config'
 import useLiveInvalidation from '../../../../shared/Live/useLiveInvalidation'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type { AccessPolicySummary } from '../../../../shared/Types/access-policies.types'
 import { accessPolicyManagementQueryKeys } from '../queryKeys'
 import {
@@ -25,7 +26,7 @@ type ActionResult = {
 export default function useAccessPolicyManagementLogic({
     permissions,
 }: AccessPolicyManagementPageProps) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canView = permissionSet.has(PERMISSIONS.ACCESS_POLICIES_VIEW)
@@ -75,10 +76,14 @@ export default function useAccessPolicyManagementLogic({
             await queryClient.invalidateQueries({
                 queryKey: accessPolicyManagementQueryKeys.runtimeStatus,
             })
-            if (result.success) toast.success(result.message)
-            else toast.error(result.message)
+            if (result.success)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
+            else toast.error(t(result.message), { title: t('toast.titles.error') })
         },
-        onError: () => toast.error('admin.accessPolicies.runtime.applyFailed'),
+        onError: () =>
+            toast.error(t('admin.accessPolicies.runtime.applyFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const deleteMutation = useMutation({
         mutationFn: async (policy: AccessPolicySummary): Promise<ActionResult> =>
@@ -87,18 +92,23 @@ export default function useAccessPolicyManagementLogic({
             })) as ActionResult,
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
             await invalidate()
             if (result.runtimeStatus === 'pending') {
-                toast.warning('admin.accessPolicies.runtime.savedPending')
+                toast.warning(t('admin.accessPolicies.runtime.savedPending'), {
+                    title: t('toast.titles.warning'),
+                })
             } else {
-                toast.success(result.message)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
             }
             setDeleteTarget(null)
         },
-        onError: () => toast.error('admin.accessPolicies.errors.deleteFailed'),
+        onError: () =>
+            toast.error(t('admin.accessPolicies.errors.deleteFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
 
     const openCreate = useCallback(() => {

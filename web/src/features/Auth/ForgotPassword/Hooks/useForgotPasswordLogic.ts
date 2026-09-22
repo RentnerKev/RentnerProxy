@@ -1,25 +1,29 @@
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { requestPasswordResetHandler } from '../server'
 import { forgotPasswordInputSchema } from '../validation'
 import type { ForgotPasswordFormValues } from '../Types/forgot-password-form.types'
 
 export default function useForgotPasswordLogic() {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const mutation = useMutation({
         mutationFn: (values: ForgotPasswordFormValues) =>
             requestPasswordResetHandler({ data: values }),
         onSuccess: (result) => {
             if (result.success) {
-                toast.success(result.message)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
                 return
             }
 
-            toast.error(result.message)
+            toast.error(t(result.message), { title: t('toast.titles.error') })
         },
-        onError: () => toast.error('Authentication service temporarily unavailable.'),
+        onError: () =>
+            toast.error(t('Authentication service temporarily unavailable.'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const form = useForm({
         defaultValues: { email: '' } satisfies ForgotPasswordFormValues,

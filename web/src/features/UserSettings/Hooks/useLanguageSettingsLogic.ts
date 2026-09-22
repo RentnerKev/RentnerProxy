@@ -12,11 +12,10 @@ import useTranslationStore, {
     type AppLanguage,
 } from '../../../language/useTranslationStore'
 import { updateCurrentUserLanguageHandler } from '../server'
-import useToast from '../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
 
 export default function useLanguageSettingsLogic() {
     const router = useRouter()
-    const toast = useToast()
     const { language, setLanguage, t } = useTranslationStore()
     const [draftLanguage, setDraftLanguage] = useState<AppLanguage | null>(null)
     const saveInFlight = useRef(false)
@@ -42,17 +41,20 @@ export default function useLanguageSettingsLogic() {
         onSuccess: (result) => {
             if (result.success) {
                 setDraftLanguage(null)
-                toast.success(result.message)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
                 void router.invalidate()
             } else {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
             }
         },
         onError: (error) => {
             toast.error(
-                error.message === 'language.loadFailed'
-                    ? 'language.loadFailed'
-                    : 'language.saveFailed',
+                t(
+                    error.message === 'language.loadFailed'
+                        ? 'language.loadFailed'
+                        : 'language.saveFailed',
+                ),
+                { title: t('toast.titles.error') },
             )
         },
         onSettled: () => {

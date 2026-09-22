@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import AuthenticatedRouteLayout from '../../layout/Components/AuthenticatedRouteLayout'
-import ToastProvider from '../../shared/Toast/Components/ToastProvider'
 import { requireAuthenticatedRoute } from '../../features/Auth/route-guards'
 import {
     AuthenticatedLanguageProvider,
@@ -20,9 +19,7 @@ function AuthenticatedLayout() {
 
     return (
         <AuthenticatedLanguageProvider key={user.id} bootstrap={bootstrap}>
-            <ToastProvider>
-                <AuthenticatedRouteLayout user={user} />
-            </ToastProvider>
+            <AuthenticatedRouteLayout user={user} />
         </AuthenticatedLanguageProvider>
     )
 }

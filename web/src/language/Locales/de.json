@@ -1,11 +1,9 @@
 {
     "toast": {
         "notification": "Benachrichtigung",
-        "viewport": "Benachrichtigungen ({hotkey})",
         "dismiss": "Benachrichtigung schließen",
         "copyError": "Fehlermeldung kopieren",
         "copied": "Kopiert",
-        "copyFailed": "Kopieren fehlgeschlagen. Markiere die Nachricht, um sie zu kopieren.",
         "titles": {
             "success": "Erfolgreich",
             "error": "Aktion fehlgeschlagen",

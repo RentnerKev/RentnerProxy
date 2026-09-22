@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { accessPolicyManagementQueryKeys } from '../queryKeys'
 import { MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY } from '../../../../config/access-policies.config'
 import { deleteBasicAuthAccountHandler, getBasicAuthAccountsHandler } from '../server'
@@ -20,7 +21,7 @@ export default function useBasicAuthAccountsLogic({
     open,
     policy,
 }: BasicAuthAccountsModalProps) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const [showForm, setShowForm] = useState(false)
     const [formAccount, setFormAccount] = useState<BasicAuthAccount | null>(null)
@@ -53,18 +54,23 @@ export default function useBasicAuthAccountsLogic({
             }),
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
             await invalidateAccounts()
             if (result.runtimeStatus === 'pending') {
-                toast.warning('admin.accessPolicies.basicAuth.messages.savedPending')
+                toast.warning(t('admin.accessPolicies.basicAuth.messages.savedPending'), {
+                    title: t('toast.titles.warning'),
+                })
             } else {
-                toast.success(result.message)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
             }
             setDeleteTarget(null)
         },
-        onError: () => toast.error('admin.accessPolicies.basicAuth.errors.deleteFailed'),
+        onError: () =>
+            toast.error(t('admin.accessPolicies.basicAuth.errors.deleteFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
 
     const openCreate = useCallback(() => {

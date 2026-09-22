@@ -3,21 +3,33 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
-import { AuthenticatedLanguageProvider, type AppLanguage } from '../language/useTranslationStore'
+import { TOAST_PROVIDER_PROPS } from '../config/toast.config'
+import {
+    AuthenticatedLanguageProvider,
+    type AppLanguage,
+    default as useTranslationStore,
+} from '../language/useTranslationStore'
 import { bootstraps, default as withTestLanguage } from './Helpers/withTestLanguage'
+import disableMotionAnimations from './Helpers/disableMotionAnimations'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+disableMotionAnimations()
 
-const { act, useState } = await import('react')
+const { ToastProvider } = await import('@rentnerkev/toasts')
+const { toast } = await import('@rentnerkev/toasts/toast')
+const { act, useMemo, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
-const { default: ToastProvider } = await import('../shared/Toast/Components/ToastProvider')
-const { default: useToast } = await import('../shared/Toast/Hooks/useToast')
-const { TooltipProvider } = await import('../shared/Tooltip')
 
 let activeRoot: Root | null = null
 
 const writeClipboardText = mock(async (_message: string): Promise<void> => {})
+const ENGLISH_TOAST_MESSAGES = {
+    regionLabel: 'Notification',
+    closeNotification: 'Dismiss notification',
+    copyError: 'Copy error message',
+    errorCopied: 'Copied',
+} as const
 
 function ToastButtons({
     prefix,
@@ -26,35 +38,51 @@ function ToastButtons({
     readonly prefix: string
     readonly onSwitchLanguage?: () => void
 }) {
-    const notifications = useToast()
+    const { t } = useTranslationStore()
 
     return (
         <div data-testid={`${prefix}-controls`}>
             <button
                 type="button"
                 data-testid={`${prefix}-one`}
-                onClick={() => notifications.success('account.password.success.changed')}
+                onClick={() =>
+                    toast.success(t('account.password.success.changed'), {
+                        title: t('toast.titles.success'),
+                    })
+                }
             >
                 Show one
             </button>
             <button
                 type="button"
                 data-testid={`${prefix}-two`}
-                onClick={() => notifications.info('account.profileImage.success.updated')}
+                onClick={() =>
+                    toast.info(t('account.profileImage.success.updated'), {
+                        title: t('toast.titles.info'),
+                    })
+                }
             >
                 Show two
             </button>
             <button
                 type="button"
                 data-testid={`${prefix}-three`}
-                onClick={() => notifications.warning('account.twoFactor.success.disabled')}
+                onClick={() =>
+                    toast.warning(t('account.twoFactor.success.disabled'), {
+                        title: t('toast.titles.warning'),
+                    })
+                }
             >
                 Show three
             </button>
             <button
                 type="button"
                 data-testid={`${prefix}-four`}
-                onClick={() => notifications.error('account.passkeys.error.registrationFailed')}
+                onClick={() =>
+                    toast.error(t('account.passkeys.error.registrationFailed'), {
+                        title: t('toast.titles.error'),
+                    })
+                }
             >
                 Show four
             </button>
@@ -62,19 +90,13 @@ function ToastButtons({
                 type="button"
                 data-testid={`${prefix}-short`}
                 onClick={() =>
-                    notifications.success('account.password.success.changed', { duration: 40 })
+                    toast.success(t('account.password.success.changed'), {
+                        title: t('toast.titles.success'),
+                        duration: 40,
+                    })
                 }
             >
                 Show short
-            </button>
-            <button
-                type="button"
-                data-testid={`${prefix}-pause`}
-                onClick={() =>
-                    notifications.success('account.password.success.changed', { duration: 120 })
-                }
-            >
-                Show pausing message
             </button>
             {onSwitchLanguage ? (
                 <button type="button" data-testid={`${prefix}-switch`} onClick={onSwitchLanguage}>
@@ -85,16 +107,35 @@ function ToastButtons({
     )
 }
 
+function LocalizedToastSurface({ onSwitchLanguage }: { readonly onSwitchLanguage: () => void }) {
+    const { language, t } = useTranslationStore()
+    const messages = useMemo(
+        () => ({
+            regionLabel: t('toast.notification'),
+            closeNotification: t('toast.dismiss'),
+            copyError: t('toast.copyError'),
+            errorCopied: t('toast.copied'),
+        }),
+        [t],
+    )
+
+    return (
+        <ToastProvider
+            {...TOAST_PROVIDER_PROPS}
+            locale={language === 'de' ? 'de' : 'en'}
+            messages={messages}
+        >
+            <ToastButtons prefix="language" onSwitchLanguage={onSwitchLanguage} />
+        </ToastProvider>
+    )
+}
+
 function LanguageToastHarness() {
     const [language, setLanguage] = useState<AppLanguage>('en')
 
     return (
         <AuthenticatedLanguageProvider bootstrap={bootstraps[language]}>
-            <TooltipProvider>
-                <ToastProvider>
-                    <ToastButtons prefix="language" onSwitchLanguage={() => setLanguage('de')} />
-                </ToastProvider>
-            </TooltipProvider>
+            <LocalizedToastSurface onSwitchLanguage={() => setLanguage('de')} />
         </AuthenticatedLanguageProvider>
     )
 }
@@ -130,7 +171,7 @@ async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<voi
 }
 
 function getToastNodes(container: Element): Array<HTMLElement> {
-    return [...container.querySelectorAll<HTMLElement>('[data-toast-tone]')]
+    return [...container.querySelectorAll<HTMLElement>('.rentnerproxy-toast')]
 }
 
 afterEach(async () => {
@@ -138,85 +179,82 @@ afterEach(async () => {
         activeRoot?.unmount()
     })
     activeRoot = null
+    toast.dismissAll()
     document.body.replaceChildren()
 })
 
 beforeEach(() => {
+    toast.dismissAll()
     document.body.replaceChildren()
     writeClipboardText.mockReset()
     writeClipboardText.mockResolvedValue(undefined)
 })
 
-describe('toast UI', () => {
-    test('shows at most three notifications and keeps providers isolated', async () => {
+describe('RentnerToasts integration', () => {
+    test('shows at most three notifications with a localized title and body', async () => {
         const container = await render(
             withTestLanguage(
-                <TooltipProvider>
-                    <div>
-                        <section data-testid="first-provider">
-                            <ToastProvider>
-                                <ToastButtons prefix="first" />
-                            </ToastProvider>
-                        </section>
-                        <section data-testid="second-provider">
-                            <ToastProvider>
-                                <ToastButtons prefix="second" />
-                            </ToastProvider>
-                        </section>
-                    </div>
-                </TooltipProvider>,
+                <ToastProvider
+                    {...TOAST_PROVIDER_PROPS}
+                    locale="en"
+                    messages={ENGLISH_TOAST_MESSAGES}
+                >
+                    <ToastButtons prefix="limit" />
+                </ToastProvider>,
             ),
         )
 
-        await click(container.querySelector('[data-testid="first-one"]')!)
-        await click(container.querySelector('[data-testid="first-two"]')!)
-        await click(container.querySelector('[data-testid="first-three"]')!)
-        await click(container.querySelector('[data-testid="first-four"]')!)
-        await click(container.querySelector('[data-testid="second-one"]')!)
+        await click(container.querySelector('[data-testid="limit-one"]')!)
+        await click(container.querySelector('[data-testid="limit-two"]')!)
+        await click(container.querySelector('[data-testid="limit-three"]')!)
+        await click(container.querySelector('[data-testid="limit-four"]')!)
+        await waitFor(() => getToastNodes(container).length === 3)
 
-        const firstProvider = container.querySelector('[data-testid="first-provider"]')!
-        const secondProvider = container.querySelector('[data-testid="second-provider"]')!
-        expect(getToastNodes(firstProvider)).toHaveLength(3)
-        const firstMessages = getToastNodes(firstProvider).map((toast) => toast.textContent ?? '')
+        const messages = getToastNodes(container).map((node) => node.textContent ?? '')
+        expect(messages.some((message) => message.includes('Password changed.'))).toBeFalse()
+        expect(messages.some((message) => message.includes('Information'))).toBeTrue()
+        expect(messages.some((message) => message.includes('Profile picture updated.'))).toBeTrue()
+        expect(messages.some((message) => message.includes('Please note'))).toBeTrue()
+        expect(messages.some((message) => message.includes('Action failed'))).toBeTrue()
         expect(
-            firstMessages.some((message) => message.includes('Profile picture updated.')),
+            messages.some((message) => message.includes('Passkey registration failed.')),
         ).toBeTrue()
-        expect(
-            firstMessages.some((message) =>
-                message.includes('Two-factor authentication disabled.'),
-            ),
-        ).toBeTrue()
-        expect(getToastNodes(secondProvider)).toHaveLength(1)
-        expect(getToastNodes(secondProvider)[0]?.textContent).toContain(
-            'Password changed. Other sessions were revoked.',
-        )
     })
 
-    test('updates an already visible message when the authenticated language changes', async () => {
+    test('uses the active language for both newly created toast titles and bodies', async () => {
         const container = await render(<LanguageToastHarness />)
 
         await click(container.querySelector('[data-testid="language-one"]')!)
+        expect(container.textContent).toContain('Success')
         expect(container.textContent).toContain('Password changed. Other sessions were revoked.')
 
         await click(container.querySelector('[data-testid="language-switch"]')!)
-        await waitFor(() => container.textContent?.includes('Passwort geändert.') ?? false)
+        await click(container.querySelector('[data-testid="language-one"]')!)
+        await waitFor(() => container.textContent?.includes('Erfolgreich') ?? false)
+        expect(container.textContent).toContain('Passwort geändert.')
     })
 
-    test('dismisses a notification from its close button and automatically removes short messages', async () => {
+    test('dismisses a toast and automatically removes short messages', async () => {
         const container = await render(
             withTestLanguage(
-                <TooltipProvider>
-                    <ToastProvider>
-                        <ToastButtons prefix="dismiss" />
-                    </ToastProvider>
-                </TooltipProvider>,
+                <ToastProvider
+                    {...TOAST_PROVIDER_PROPS}
+                    locale="en"
+                    messages={ENGLISH_TOAST_MESSAGES}
+                >
+                    <ToastButtons prefix="dismiss" />
+                </ToastProvider>,
             ),
         )
 
         await click(container.querySelector('[data-testid="dismiss-one"]')!)
-        const toast = getToastNodes(container)[0]
-        expect(toast).toBeDefined()
-        const close = toast?.querySelector('button')
+        const toastNode = getToastNodes(container)[0]
+        expect(toastNode?.textContent).toContain('Success')
+        expect(toastNode?.textContent).toContain('Password changed.')
+
+        const close = toastNode?.querySelector<HTMLButtonElement>(
+            '[aria-label="Dismiss notification"]',
+        )
         expect(close).not.toBeNull()
         await click(close!)
         await waitFor(() => getToastNodes(container).length === 0)
@@ -226,50 +264,7 @@ describe('toast UI', () => {
         await waitFor(() => getToastNodes(container).length === 0, 1_000)
     })
 
-    test('pauses expiry for hover and keyboard focus before resuming the countdown', async () => {
-        const container = await render(
-            withTestLanguage(
-                <TooltipProvider>
-                    <ToastProvider>
-                        <ToastButtons prefix="pause" />
-                    </ToastProvider>
-                </TooltipProvider>,
-            ),
-        )
-        const trigger = container.querySelector<HTMLButtonElement>('[data-testid="pause-pause"]')!
-        await click(trigger)
-        const viewport = container.querySelector<HTMLElement>('[data-toast-viewport]')!
-        const toast = getToastNodes(container)[0]!
-        const progress = toast.querySelector<HTMLElement>('[aria-hidden="true"][style]')!
-
-        await act(async () => {
-            toast.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
-        })
-        expect(progress.style.animationPlayState).toBe('paused')
-        await act(async () => {
-            await new Promise((resolve) => setTimeout(resolve, 160))
-        })
-        expect(getToastNodes(container)).toHaveLength(1)
-
-        await act(async () => {
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'F8', code: 'F8' }))
-        })
-        expect(document.activeElement).toBe(viewport)
-        await act(async () => {
-            viewport.parentElement?.dispatchEvent(new PointerEvent('pointerleave'))
-            await new Promise((resolve) => setTimeout(resolve, 160))
-        })
-        expect(getToastNodes(container)).toHaveLength(1)
-        expect(progress.style.animationPlayState).toBe('paused')
-
-        await act(async () => {
-            trigger.focus()
-        })
-        expect(progress.style.animationPlayState).toBe('running')
-        await waitFor(() => getToastNodes(container).length === 0)
-    })
-
-    test('announces and copies the visible error, and handles clipboard denial', async () => {
+    test('announces errors and copies their title together with the body', async () => {
         const originalClipboard = navigator.clipboard
         Object.defineProperty(navigator, 'clipboard', {
             configurable: true,
@@ -279,41 +274,35 @@ describe('toast UI', () => {
         try {
             const container = await render(
                 withTestLanguage(
-                    <TooltipProvider>
-                        <ToastProvider>
-                            <ToastButtons prefix="error" />
-                        </ToastProvider>
-                    </TooltipProvider>,
+                    <ToastProvider
+                        {...TOAST_PROVIDER_PROPS}
+                        locale="en"
+                        messages={ENGLISH_TOAST_MESSAGES}
+                    >
+                        <ToastButtons prefix="error" />
+                    </ToastProvider>,
                 ),
             )
             await click(container.querySelector('[data-testid="error-four"]')!)
-            expect(container.querySelector('[data-toast-viewport]')).not.toBeNull()
-            expect(container.querySelector('[role="region"]')?.getAttribute('aria-label')).toBe(
-                'Notifications (F8)',
-            )
-            await waitFor(
-                () =>
-                    document
-                        .querySelector('[aria-live="assertive"]')
-                        ?.textContent?.includes('Passkey registration failed.') ?? false,
-            )
 
-            const errorToast = container.querySelector('[data-toast-tone="error"]')!
-            const copyButton = errorToast.querySelector<HTMLButtonElement>('button')!
-            await click(copyButton)
-            await waitFor(() => copyButton.getAttribute('aria-label') === 'Copied')
+            expect(container.querySelector('[role="region"]')?.getAttribute('aria-label')).toBe(
+                'Notification',
+            )
+            const errorToast = container.querySelector<HTMLElement>(
+                '.rentnerproxy-toast-error[role="alert"]',
+            )
+            expect(errorToast?.textContent).toContain('Action failed')
+            expect(errorToast?.textContent).toContain('Passkey registration failed.')
+
+            const copyButton = errorToast?.querySelector<HTMLButtonElement>(
+                '[aria-label="Copy error message"]',
+            )
+            expect(copyButton).not.toBeNull()
+            await click(copyButton!)
+            await waitFor(() => copyButton?.getAttribute('aria-label') === 'Copied')
             expect(writeClipboardText).toHaveBeenCalledWith(
                 'Action failed\nPasskey registration failed.',
             )
-
-            writeClipboardText.mockRejectedValueOnce(new Error('Clipboard access denied'))
-            await click(copyButton)
-            await waitFor(
-                () =>
-                    errorToast.querySelector('output')?.textContent ===
-                    'Could not copy. Select the message to copy it.',
-            )
-            expect(getToastNodes(container)).toHaveLength(1)
         } finally {
             Object.defineProperty(navigator, 'clipboard', {
                 configurable: true,

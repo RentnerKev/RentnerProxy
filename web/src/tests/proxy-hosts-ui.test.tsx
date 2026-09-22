@@ -4,6 +4,9 @@ import type { QueryClient as QueryClientInstance } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
+import { TOAST_PROVIDER_PROPS } from '../config/toast.config'
+import disableMotionAnimations from './Helpers/disableMotionAnimations'
+
 import { PERMISSIONS } from '../config/permissions.config'
 import type { ProxyHostSummary } from '../shared/Types/proxy-hosts.types'
 import type { CertificateSummary } from '../shared/Types/certificates.types'
@@ -23,12 +26,14 @@ import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+disableMotionAnimations()
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { TooltipProvider } = await import('../shared/Tooltip')
-const { default: ToastProvider } = await import('../shared/Toast/Components/ToastProvider')
+const { ToastProvider } = await import('@rentnerkev/toasts')
+const { toast } = await import('@rentnerkev/toasts/toast')
 const { default: ProxyHostManagementPage } = await import('../features/Admin/ProxyHostManagement')
 const { default: ProxyHostFormModal } =
     await import('../features/Admin/ProxyHostManagement/Components/ProxyHostFormModal')
@@ -316,7 +321,18 @@ async function render(element: ReactElement): Promise<HTMLElement> {
     await act(async () => {
         activeRoot?.render(
             <TooltipProvider>
-                <ToastProvider>{element}</ToastProvider>
+                <ToastProvider
+                    {...TOAST_PROVIDER_PROPS}
+                    locale="en"
+                    messages={{
+                        regionLabel: 'Notification',
+                        closeNotification: 'Dismiss notification',
+                        copyError: 'Copy error message',
+                        errorCopied: 'Copied',
+                    }}
+                >
+                    {element}
+                </ToastProvider>
             </TooltipProvider>,
         )
     })
@@ -435,7 +451,7 @@ async function waitForToast(
     tone: 'error' | 'success' | 'warning',
     message?: string,
 ): Promise<void> {
-    await waitFor(() => document.querySelector('[data-toast-tone="' + tone + '"]') !== null)
+    await waitFor(() => document.querySelector(`.rentnerproxy-toast-${tone}`) !== null)
     await waitFor(() => {
         return [...document.querySelectorAll('[aria-live]')].some(
             (announcement) => message === undefined || announcement.textContent?.includes(message),
@@ -481,6 +497,7 @@ function getLastButton(label: string): HTMLButtonElement {
 }
 
 beforeEach(() => {
+    toast.dismissAll()
     window.sessionStorage.clear()
     getProxyConfigEditorHandlerMock.mockReset().mockResolvedValue(globalEditorFixture)
     previewProxyConfigEditorHandlerMock.mockReset().mockResolvedValue({
@@ -613,8 +630,8 @@ function PermissionHarness() {
     >(certificateProgressPermissions)
     return (
         <>
-            <button type="button" onClick={() => setPermissions([PERMISSIONS.PROXY_HOSTS_VIEW])}>
-                Remove certificate permissions
+            <button type="button" onClick={() => setPermissions([])}>
+                Remove proxy host permission
             </button>
             <CertificateJobProgressObserver permissions={permissions} />
         </>
@@ -635,7 +652,9 @@ function NavigationHarness() {
 }
 
 function getTaskToasts(): HTMLElement[] {
-    return [...document.querySelectorAll<HTMLElement>('[data-toast-kind="task"]')]
+    return [...document.querySelectorAll<HTMLElement>('.rentnerproxy-toast')].filter((toastNode) =>
+        toastNode.textContent?.includes('Certificate request'),
+    )
 }
 
 async function renderCertificateProgress(jobs: readonly CertificateJobSummary[]) {
@@ -662,17 +681,17 @@ describe('background certificate job progress', () => {
 
         await waitFor(() => getTaskToasts().length === 2)
         const text = getTaskToasts()
-            .map((toast) => toast.textContent ?? '')
+            .map((toastNode) => toastNode.textContent ?? '')
             .join('\n')
         expect(text).toContain('app.example.com')
         expect(text).toContain('Queued')
         expect(text).toContain('disabled.example.com')
         expect(text).toContain('Waiting for validation')
         expect(text).not.toMatch(/\d+%/u)
-        for (const toast of getTaskToasts()) {
-            expect(toast.querySelector('.animate-spin')).not.toBeNull()
-            expect(toast.querySelector('[aria-label="Dismiss notification"]')).toBeNull()
-            expect(toast.querySelector('[aria-hidden="true"][style]')).toBeNull()
+        for (const toastNode of getTaskToasts()) {
+            expect(toastNode.classList.contains('rentnerproxy-toast-info')).toBeTrue()
+            expect(toastNode.querySelector('[aria-label="Dismiss notification"]')).not.toBeNull()
+            expect(toastNode.querySelector('[data-testid="toast-progress"]')).toBeNull()
         }
     })
 
@@ -688,57 +707,46 @@ describe('background certificate job progress', () => {
             await Promise.resolve()
         })
 
-        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'success')
-        const toast = getTaskToasts()[0]!
-        expect(toast.textContent).toContain('Certificate assigned successfully.')
-        expect(toast.querySelector('.animate-spin')).toBeNull()
-        expect(toast.querySelector('[aria-label="Dismiss notification"]')).not.toBeNull()
-        const progress = toast.querySelector<HTMLElement>('[aria-hidden="true"][style]')
-        expect(progress?.style.animationDuration).toBe('5000ms')
+        await waitFor(
+            () => getTaskToasts()[0]?.classList.contains('rentnerproxy-toast-success') === true,
+        )
+        const toastNode = getTaskToasts()[0]!
+        expect(toastNode.textContent).toContain('Certificate assigned successfully.')
+        expect(toastNode.querySelector('[aria-label="Dismiss notification"]')).not.toBeNull()
+        expect(toastNode.querySelector('[data-testid="toast-progress"]')).not.toBeNull()
         await waitFor(() => getTaskToasts().length === 0, 6_000)
     }, 8_000)
 
-    test('keeps failures actionable and retries the exact job', async () => {
+    test('keeps failure details visible until the user dismisses them', async () => {
         const failed = certificateJobFixture({
             stage: 'failed',
             controllerStage: 'failed',
             lastErrorCode: 'controller_unavailable',
         })
-        const retried = certificateJobFixture({ updatedAt: new Date('2026-01-01T00:01:00Z') })
-        retryCertificateJobHandlerMock.mockResolvedValue({
-            success: true,
-            message: 'admin.proxyHosts.certificateJob.messages.retried',
-            job: retried,
-        })
         await renderCertificateProgress([failed])
-        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'error')
-        const failedToast = getTaskToasts()[0]!
-        expect(failedToast.textContent).toContain('The proxy controller is unavailable.')
-        expect(failedToast.querySelector('[aria-hidden="true"][style]')).toBeNull()
-        expect(failedToast.querySelector('[aria-label="Dismiss notification"]')).not.toBeNull()
-        expect(failedToast.querySelector<HTMLAnchorElement>('a')?.getAttribute('href')).toBe(
-            '/certificates',
+        await waitFor(
+            () => getTaskToasts()[0]?.classList.contains('rentnerproxy-toast-error') === true,
         )
-
-        getCertificateJobProgressHandlerMock.mockResolvedValue([retried])
-        await click(getButton('Retry'))
-        await waitFor(() => retryCertificateJobHandlerMock.mock.calls.length === 1)
-        expect(retryCertificateJobHandlerMock).toHaveBeenCalledWith({
-            data: { jobId: failed.id },
-        })
-        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'info')
-        expect(getTaskToasts()[0]?.textContent).toContain('Queued')
-        expect(getTaskToasts()[0]?.querySelector('[aria-label="Dismiss notification"]')).toBeNull()
+        const failedToast = getTaskToasts()[0]!
+        expect(failedToast.textContent).toContain('Certificate request')
+        expect(failedToast.textContent).toContain('app.example.com')
+        expect(failedToast.textContent).toContain('The proxy controller is unavailable.')
+        expect(failedToast.querySelector('[data-testid="toast-progress"]')).toBeNull()
+        expect(failedToast.querySelector('[aria-label="Dismiss notification"]')).not.toBeNull()
+        await click(getButton('Dismiss notification'))
+        await waitFor(() => getTaskToasts().length === 0)
     })
 
-    test('keeps an unchanged dismissed failure hidden after reload and shows new progress', async () => {
+    test('restores an authoritative failure after reload and then shows new progress', async () => {
         const failed = certificateJobFixture({
             stage: 'failed',
             controllerStage: 'retry_scheduled',
             lastErrorCode: 'acme_failed',
         })
         await renderCertificateProgress([failed])
-        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'error')
+        await waitFor(
+            () => getTaskToasts()[0]?.classList.contains('rentnerproxy-toast-error') === true,
+        )
         await click(getButton('Dismiss notification'))
         await waitFor(() => getTaskToasts().length === 0)
 
@@ -750,7 +758,9 @@ describe('background certificate job progress', () => {
 
         await renderCertificateProgress([failed])
         await waitFor(() => getCertificateJobProgressHandlerMock.mock.calls.length >= 2)
-        expect(getTaskToasts()).toHaveLength(0)
+        await waitFor(
+            () => getTaskToasts()[0]?.classList.contains('rentnerproxy-toast-error') === true,
+        )
 
         await act(async () => {
             activeQueryClient?.setQueryData(certificateJobProgressQueryKeys.all, [
@@ -764,11 +774,13 @@ describe('background certificate job progress', () => {
             ])
             await Promise.resolve()
         })
-        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'info')
+        await waitFor(
+            () => getTaskToasts()[0]?.classList.contains('rentnerproxy-toast-info') === true,
+        )
         expect(getTaskToasts()[0]?.textContent).toContain('Queued')
     })
 
-    test('updates failure actions when certificate permissions change', async () => {
+    test('dismisses certificate progress when proxy-host viewing permission is removed', async () => {
         const failed = certificateJobFixture({
             stage: 'failed',
             controllerStage: 'failed',
@@ -777,16 +789,12 @@ describe('background certificate job progress', () => {
         getCertificateJobProgressHandlerMock.mockResolvedValue([failed])
 
         await render(withQueryClient(<PermissionHarness />))
-        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'error')
-        expect(getButton('Retry')).toBeDefined()
-        expect(getTaskToasts()[0]?.querySelector('a[href="/certificates"]')).not.toBeNull()
-
-        await click(getButton('Remove certificate permissions'))
         await waitFor(
-            () =>
-                !getTaskToasts()[0]?.textContent?.includes('Retry') &&
-                getTaskToasts()[0]?.querySelector('a[href="/certificates"]') === null,
+            () => getTaskToasts()[0]?.classList.contains('rentnerproxy-toast-error') === true,
         )
+
+        await click(getButton('Remove proxy host permission'))
+        await waitFor(() => getTaskToasts().length === 0)
     })
 
     test('keeps active progress visible while route content changes', async () => {
@@ -824,7 +832,9 @@ describe('background certificate job progress', () => {
             })
         })
 
-        await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'error')
+        await waitFor(
+            () => getTaskToasts()[0]?.classList.contains('rentnerproxy-toast-error') === true,
+        )
         expect(getTaskToasts()[0]?.textContent).toContain('The proxy controller is unavailable.')
     })
 
@@ -1239,7 +1249,7 @@ describe('ProxyHost form modal', () => {
             queryKey: proxyHostManagementQueryKeys.runtimeStatus,
         })
         await waitForToast('success', 'Proxy host created successfully.')
-        expect(document.querySelector('[data-toast-tone="success"]')?.textContent).toContain(
+        expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
             'Proxy host created successfully.',
         )
         invalidate.mockRestore()
@@ -1477,7 +1487,7 @@ describe('ProxyHost confirmation and mutation flows', () => {
             await waitForToast('error')
             expect(document.body.textContent).toContain('app.example.com')
             expect(document.body.textContent).not.toContain('private SQL diagnostics')
-            expect(document.querySelector('[data-toast-tone="success"]')).toBeNull()
+            expect(document.querySelector('.rentnerproxy-toast-success')).toBeNull()
         },
     )
 })

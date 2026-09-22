@@ -6,6 +6,9 @@ import type { QueryClient as QueryClientInstance } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
+import { TOAST_PROVIDER_PROPS } from '../config/toast.config'
+import disableMotionAnimations from './Helpers/disableMotionAnimations'
+
 import { PERMISSIONS, PERMISSION_REGISTRY } from '../config/permissions.config'
 import { roleManagementQueryKeys } from '../features/Admin/RoleManagement/queryKeys'
 import { userManagementQueryKeys } from '../features/Admin/UserManagement/queryKeys'
@@ -21,12 +24,14 @@ if (!GlobalRegistrator.isRegistered) {
     GlobalRegistrator.register()
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+disableMotionAnimations()
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act, useState } = await import('react')
 const { createMemoryHistory, createRootRoute, createRouter, RouterContextProvider } =
     await import('@tanstack/react-router')
 const { createRoot } = await import('react-dom/client')
+const { createPortal } = await import('react-dom')
 const { default: RoleTableActions } =
     await import('../features/Admin/RoleManagement/Components/RoleTableActions')
 const { default: UserTableActions } =
@@ -40,7 +45,8 @@ const { default: DateRangeCalendar } = await import('../shared/Calendar')
 const { default: DataTable } = await import('../shared/Table')
 const { default: useClientTableLogic } = await import('../shared/Table/Hooks/useClientTableLogic')
 const { TooltipProvider } = await import('../shared/Tooltip')
-const { default: ToastProvider } = await import('../shared/Toast/Components/ToastProvider')
+const { ToastProvider } = await import('@rentnerkev/toasts')
+const { toast } = await import('@rentnerkev/toasts/toast')
 
 const createUserHandlerMock = mock(async (_input: unknown) => ({
     success: true,
@@ -99,7 +105,22 @@ async function render(element: ReactElement): Promise<HTMLElement> {
     await act(async () => {
         activeRoot?.render(
             <TooltipProvider>
-                <ToastProvider>{element}</ToastProvider>
+                {element}
+                {createPortal(
+                    <ToastProvider
+                        {...TOAST_PROVIDER_PROPS}
+                        locale="en"
+                        messages={{
+                            regionLabel: 'Notification',
+                            closeNotification: 'Dismiss notification',
+                            copyError: 'Copy error message',
+                            errorCopied: 'Copied',
+                        }}
+                    >
+                        {null}
+                    </ToastProvider>,
+                    document.body,
+                )}
             </TooltipProvider>,
         )
     })
@@ -268,6 +289,7 @@ function getDataRows(): Array<HTMLTableRowElement> {
 }
 
 beforeEach(() => {
+    toast.dismissAll()
     createUserHandlerMock.mockReset()
     updateUserHandlerMock.mockReset()
     createRoleHandlerMock.mockReset()
@@ -509,7 +531,7 @@ describe('shared table preset', () => {
         await act(async () => {
             activeRoot?.render(
                 <TooltipProvider>
-                    <ToastProvider>
+                    <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
                         <TableHarness data={[]} />
                     </ToastProvider>
                 </TooltipProvider>,
@@ -917,7 +939,7 @@ describe('user reactivation UI', () => {
         try {
             await openMenu(getButton('Open actions for Kevin Example'))
             await click(getMenuItem('Enable'))
-            await waitFor(() => document.querySelector('[data-toast-tone="success"]') !== null)
+            await waitFor(() => document.querySelector('.rentnerproxy-toast-success') !== null)
 
             expect(enableUserHandlerMock).toHaveBeenCalledWith({ data: { userId: user.id } })
             expect(invalidate).toHaveBeenCalledWith({ queryKey: userManagementQueryKeys.all })
@@ -925,7 +947,7 @@ describe('user reactivation UI', () => {
             expect(
                 activeQueryClient!.getQueryData<UserSummary[]>(userManagementQueryKeys.all),
             ).toEqual([user])
-            expect(document.querySelector('[data-toast-tone="success"]')?.textContent).toContain(
+            expect(document.querySelector('.rentnerproxy-toast-success')?.textContent).toContain(
                 'User enabled successfully.',
             )
             expect(document.querySelector('[role="dialog"]')).toBeNull()
@@ -952,16 +974,16 @@ describe('user reactivation UI', () => {
             try {
                 await openMenu(getButton('Open actions for Kevin Example'))
                 await click(getMenuItem('Enable'))
-                await waitFor(() => document.querySelector('[data-toast-tone="error"]') !== null)
+                await waitFor(() => document.querySelector('.rentnerproxy-toast-error') !== null)
 
                 expect(invalidate).not.toHaveBeenCalled()
-                expect(document.querySelector('[data-toast-tone="error"]')?.textContent).toContain(
+                expect(document.querySelector('.rentnerproxy-toast-error')?.textContent).toContain(
                     failure === 'domain'
                         ? 'You do not have permission to make this change.'
                         : 'The user could not be enabled.',
                 )
                 expect(document.body.textContent).not.toContain('private transport diagnostics')
-                expect(document.querySelector('[data-toast-tone="success"]')).toBeNull()
+                expect(document.querySelector('.rentnerproxy-toast-success')).toBeNull()
                 expect(
                     activeQueryClient!.getQueryData<UserSummary[]>(userManagementQueryKeys.all),
                 ).toEqual([{ ...user, status: 'disabled' }])
@@ -1083,9 +1105,10 @@ describe('user form modal', () => {
         await setControlValue(displayName!, 'Changed Name')
         await click(getButton('Save changes'))
         await waitFor(() =>
-            [...document.querySelectorAll<HTMLElement>('[data-toast-tone="error"]')].some(
-                (toast) =>
-                    toast.textContent?.includes('This email address is already in use.') ?? false,
+            [...document.querySelectorAll<HTMLElement>('.rentnerproxy-toast-error')].some(
+                (toastNode) =>
+                    toastNode.textContent?.includes('This email address is already in use.') ??
+                    false,
             ),
         )
         expect(document.querySelector('[role="dialog"]')).not.toBeNull()
@@ -1104,7 +1127,7 @@ describe('user form modal', () => {
         ).toBeNull()
 
         const closeToast = document.querySelector<HTMLButtonElement>(
-            '[data-toast-tone="error"] button[aria-label="Dismiss notification"]',
+            '.rentnerproxy-toast-error button[aria-label="Dismiss notification"]',
         )!
         await act(async () => {
             closeToast.dispatchEvent(
@@ -1112,7 +1135,7 @@ describe('user form modal', () => {
             )
         })
         await click(closeToast)
-        await waitFor(() => document.querySelector('[data-toast-tone="error"]') === null)
+        await waitFor(() => document.querySelector('.rentnerproxy-toast-error') === null)
         expect(document.querySelector('[role="dialog"]')).not.toBeNull()
         expect(displayName?.value).toBe('Changed Name')
     })

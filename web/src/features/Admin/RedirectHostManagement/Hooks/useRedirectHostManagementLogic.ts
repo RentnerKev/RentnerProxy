@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 import { PERMISSIONS } from '../../../../config/permissions.config'
 import useLiveInvalidation from '../../../../shared/Live/useLiveInvalidation'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type { RedirectHostSummary } from '../../../../shared/Types/redirect-hosts.types'
 import { redirectHostManagementQueryKeys } from '../queryKeys'
 import {
@@ -18,7 +19,7 @@ const EMPTY_REDIRECT_HOSTS: RedirectHostSummary[] = []
 export default function useRedirectHostManagementLogic({
     permissions,
 }: RedirectHostManagementPageProps) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canView = permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_VIEW)
     const queryClient = useQueryClient()
@@ -62,48 +63,70 @@ export default function useRedirectHostManagementLogic({
             await queryClient.invalidateQueries({
                 queryKey: redirectHostManagementQueryKeys.runtimeStatus,
             })
-            if (result.success) toast.success(result.message)
-            else toast.error(result.message)
+            if (result.success)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
+            else toast.error(t(result.message), { title: t('toast.titles.error') })
         },
-        onError: () => toast.error('admin.redirectHosts.runtime.applyFailed'),
+        onError: () =>
+            toast.error(t('admin.redirectHosts.runtime.applyFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const deleteMutation = useMutation({
         mutationFn: (host: RedirectHostSummary) =>
             deleteRedirectHostHandler({ data: { redirectHostId: host.id } }),
         onSuccess: async (result) => {
-            if (!result.success) return toast.error(result.message)
+            if (!result.success)
+                return toast.error(t(result.message), { title: t('toast.titles.error') })
             await invalidate()
             if (result.runtimeStatus === 'pending')
-                toast.warning('admin.redirectHosts.runtime.savedPending')
-            else toast.success(result.message)
+                toast.warning(t('admin.redirectHosts.runtime.savedPending'), {
+                    title: t('toast.titles.warning'),
+                })
+            else toast.success(t(result.message), { title: t('toast.titles.success') })
             setDeleteTarget(null)
         },
-        onError: () => toast.error('admin.redirectHosts.errors.deleteFailed'),
+        onError: () =>
+            toast.error(t('admin.redirectHosts.errors.deleteFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const disableMutation = useMutation({
         mutationFn: (host: RedirectHostSummary) =>
             disableRedirectHostHandler({ data: { redirectHostId: host.id } }),
         onSuccess: async (result) => {
-            if (!result.success) return toast.error(result.message)
+            if (!result.success)
+                return toast.error(t(result.message), { title: t('toast.titles.error') })
             await invalidate()
             if (result.runtimeStatus === 'pending')
-                toast.warning('admin.redirectHosts.runtime.savedPending')
-            else toast.success(result.message)
+                toast.warning(t('admin.redirectHosts.runtime.savedPending'), {
+                    title: t('toast.titles.warning'),
+                })
+            else toast.success(t(result.message), { title: t('toast.titles.success') })
             setDisableTarget(null)
         },
-        onError: () => toast.error('admin.redirectHosts.errors.disableFailed'),
+        onError: () =>
+            toast.error(t('admin.redirectHosts.errors.disableFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const enableMutation = useMutation({
         mutationFn: (host: RedirectHostSummary) =>
             enableRedirectHostHandler({ data: { redirectHostId: host.id } }),
         onSuccess: async (result) => {
-            if (!result.success) return toast.error(result.message)
+            if (!result.success)
+                return toast.error(t(result.message), { title: t('toast.titles.error') })
             await invalidate()
             if (result.runtimeStatus === 'pending')
-                toast.warning('admin.redirectHosts.runtime.savedPending')
-            else toast.success(result.message)
+                toast.warning(t('admin.redirectHosts.runtime.savedPending'), {
+                    title: t('toast.titles.warning'),
+                })
+            else toast.success(t(result.message), { title: t('toast.titles.success') })
         },
-        onError: () => toast.error('admin.redirectHosts.errors.enableFailed'),
+        onError: () =>
+            toast.error(t('admin.redirectHosts.errors.enableFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const openCreate = useCallback(() => {
         setSelected(null)

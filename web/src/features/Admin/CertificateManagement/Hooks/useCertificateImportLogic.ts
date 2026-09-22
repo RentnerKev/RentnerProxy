@@ -1,6 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { useId, useState } from 'react'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type { CertificateActionResult } from '../../../../shared/Types/certificates.types'
 import { importCertificateHandler, replaceCertificateHandler } from '../server'
 import { importCertificateInputSchema } from '../validation'
@@ -10,7 +11,7 @@ export default function useCertificateImportLogic({
     certificate,
     onSuccess,
 }: CertificateImportModalProps) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const formId = useId()
     const [isPending, setIsPending] = useState(false)
     const form = useForm({
@@ -31,14 +32,16 @@ export default function useCertificateImportLogic({
                       })
                     : await importCertificateHandler({ data: parsed })
                 if (!result.success) {
-                    toast.error(result.message)
+                    toast.error(t(result.message), { title: t('toast.titles.error') })
                     return
                 }
                 form.reset({ name: '', certificatePem: '', privateKeyPem: '', chainPem: '' })
-                toast.success(result.message)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
                 await onSuccess()
             } catch {
-                toast.error('admin.certificates.errors.importFailed')
+                toast.error(t('admin.certificates.errors.importFailed'), {
+                    title: t('toast.titles.error'),
+                })
             } finally {
                 setIsPending(false)
             }

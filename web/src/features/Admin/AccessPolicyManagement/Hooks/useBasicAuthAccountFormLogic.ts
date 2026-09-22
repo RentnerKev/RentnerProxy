@@ -1,7 +1,8 @@
 import { useMutation } from '@tanstack/react-query'
 import { useCallback, useId, useState } from 'react'
 
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { createBasicAuthAccountHandler, updateBasicAuthAccountHandler } from '../server'
 import { validateBasicAuthAccount } from '../Helpers/basicAuthValidation'
 import type {
@@ -17,7 +18,7 @@ export default function useBasicAuthAccountFormLogic({
     onOpenChange,
     onSuccess,
 }: BasicAuthAccountFormModalProps) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const formId = useId()
     const [values, setValues] = useState<BasicAuthAccountFormValues>(() => ({
         username: account?.username ?? '',
@@ -55,20 +56,25 @@ export default function useBasicAuthAccountFormLogic({
         },
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
 
             clearForm()
             if (result.runtimeStatus === 'pending') {
-                toast.warning('admin.accessPolicies.basicAuth.messages.savedPending')
+                toast.warning(t('admin.accessPolicies.basicAuth.messages.savedPending'), {
+                    title: t('toast.titles.warning'),
+                })
             } else {
-                toast.success(result.message)
+                toast.success(t(result.message), { title: t('toast.titles.success') })
             }
             mutation.reset()
             await onSuccess()
         },
-        onError: () => toast.error('admin.accessPolicies.basicAuth.errors.saveFailed'),
+        onError: () =>
+            toast.error(t('admin.accessPolicies.basicAuth.errors.saveFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
 
     const setUsername = useCallback((username: string) => {

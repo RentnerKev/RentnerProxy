@@ -2,7 +2,8 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { SYSTEM_ROLES } from '../../../../config/permissions.config'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { roleManagementQueryKeys } from '../../RoleManagement/queryKeys'
 import { userManagementQueryKeys } from '../queryKeys'
 import { createUserHandler, updateUserHandler } from '../server'
@@ -30,7 +31,7 @@ export default function useUserFormLogic({
     roles,
     user,
 }: UseUserFormLogicParams) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const mutation = useMutation({
         mutationFn: (values: UserFormValues) => {
@@ -59,7 +60,7 @@ export default function useUserFormLogic({
         },
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
 
@@ -79,10 +80,11 @@ export default function useUserFormLogic({
                 await onCurrentUserChanged()
             }
 
-            toast.success(result.message)
+            toast.success(t(result.message), { title: t('toast.titles.success') })
             onSuccess()
         },
-        onError: () => toast.error('admin.users.errors.saveFailed'),
+        onError: () =>
+            toast.error(t('admin.users.errors.saveFailed'), { title: t('toast.titles.error') }),
     })
     const defaultRoleKey =
         roles.find((role) => role.key === SYSTEM_ROLES.VIEWER)?.key ?? roles.at(0)?.key ?? ''

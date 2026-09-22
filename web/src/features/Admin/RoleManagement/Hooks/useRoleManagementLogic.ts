@@ -3,7 +3,8 @@ import { useRouter } from '@tanstack/react-router'
 import { useCallback, useMemo, useState } from 'react'
 
 import { PERMISSIONS } from '../../../../config/permissions.config'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type { RoleManagementSummary } from '../../../../shared/Types/auth.types'
 import { roleManagementQueryKeys } from '../queryKeys'
 import { deleteRoleHandler, getRolesHandler } from '../server'
@@ -12,7 +13,7 @@ import type { RoleManagementPageProps } from '../Types/role-management-component
 const EMPTY_ROLES: RoleManagementSummary[] = []
 
 export default function useRoleManagementLogic({ permissions }: RoleManagementPageProps) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canAssignPermissions = permissionSet.has(PERMISSIONS.ROLES_ASSIGN_PERMISSIONS)
     const [showCreate, setShowCreate] = useState(false)
@@ -30,15 +31,16 @@ export default function useRoleManagementLogic({ permissions }: RoleManagementPa
             deleteRoleHandler({ data: { roleId: role.id } }),
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
 
             await queryClient.invalidateQueries({ queryKey: roleManagementQueryKeys.all })
-            toast.success(result.message)
+            toast.success(t(result.message), { title: t('toast.titles.success') })
             setDeleteTarget(null)
         },
-        onError: () => toast.error('admin.roles.errors.deleteFailed'),
+        onError: () =>
+            toast.error(t('admin.roles.errors.deleteFailed'), { title: t('toast.titles.error') }),
     })
     const openCreate = useCallback(() => {
         setSelectedRole(null)

@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 
+import { TOAST_PROVIDER_PROPS } from '../config/toast.config'
+import disableMotionAnimations from './Helpers/disableMotionAnimations'
+
 import { getAccessPolicyTableActionItems } from '../features/Admin/AccessPolicyManagement/Helpers/accessPolicyTableActions'
 import { validateBasicAuthAccount } from '../features/Admin/AccessPolicyManagement/Helpers/basicAuthValidation'
 import type { BasicAuthAccount } from '../features/Admin/AccessPolicyManagement/Types/basic-auth.types'
@@ -9,12 +12,14 @@ import withTestLanguage, { withLanguageRoot } from './Helpers/withTestLanguage'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+disableMotionAnimations()
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { TooltipProvider } = await import('../shared/Tooltip')
-const { default: ToastProvider } = await import('../shared/Toast/Components/ToastProvider')
+const { ToastProvider } = await import('@rentnerkev/toasts')
+const { toast } = await import('@rentnerkev/toasts/toast')
 const { default: BasicAuthAccountsTable } =
     await import('../features/Admin/AccessPolicyManagement/Components/BasicAuthAccountsTable')
 
@@ -73,7 +78,7 @@ async function renderAccountForm(
         activeRoot?.render(
             withTestLanguage(
                 <TooltipProvider>
-                    <ToastProvider>
+                    <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
                         <QueryClientProvider client={queryClient}>
                             <BasicAuthAccountFormModal
                                 open
@@ -210,6 +215,7 @@ function unmountActiveRoot(): void {
 }
 
 beforeEach(() => {
+    toast.dismissAll()
     createBasicAuthAccountHandlerMock.mockClear()
     updateBasicAuthAccountHandlerMock.mockClear()
 })

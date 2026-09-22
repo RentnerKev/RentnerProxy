@@ -3,14 +3,15 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { beginPasskeyLoginHandler, finishPasskeyLoginHandler, loginHandler } from '../server'
 import { loginInputSchema } from '../validation'
 import type { LoginFormValues } from '../Types/login-form.types'
 export default function useLoginLogic() {
     const navigate = useNavigate()
     const router = useRouter()
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const mutation = useMutation({
         mutationFn: (values: LoginFormValues) => loginHandler({ data: values }),
         onSuccess: async (result) => {
@@ -21,13 +22,16 @@ export default function useLoginLogic() {
             }
             if ('requiresTwoFactor' in result && result.requiresTwoFactor) {
                 await navigate({ to: '/login/two-factor', replace: true })
-                toast.info(result.message)
+                toast.info(t(result.message), { title: t('toast.titles.info') })
                 return
             }
 
-            toast.error(result.message)
+            toast.error(t(result.message), { title: t('toast.titles.error') })
         },
-        onError: () => toast.error('Authentication service temporarily unavailable.'),
+        onError: () =>
+            toast.error(t('Authentication service temporarily unavailable.'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const passkeyMutation = useMutation({
         mutationFn: async () => {
@@ -49,9 +53,12 @@ export default function useLoginLogic() {
                 return
             }
 
-            toast.error(result.message)
+            toast.error(t(result.message), { title: t('toast.titles.error') })
         },
-        onError: () => toast.error('Authentication service temporarily unavailable.'),
+        onError: () =>
+            toast.error(t('Authentication service temporarily unavailable.'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const form = useForm({
         defaultValues: { email: '', password: '' } satisfies LoginFormValues,

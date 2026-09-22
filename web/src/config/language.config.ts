@@ -30,11 +30,9 @@ export const LANGUAGE_COUNTRY_CODES: Record<AppLanguage, string> = {
 
 export const PUBLIC_ENGLISH: Record<string, string> = {
     'toast.notification': 'Notification',
-    'toast.viewport': 'Notifications ({hotkey})',
     'toast.dismiss': 'Dismiss notification',
     'toast.copyError': 'Copy error message',
     'toast.copied': 'Copied',
-    'toast.copyFailed': 'Could not copy. Select the message to copy it.',
     'toast.titles.success': 'Success',
     'toast.titles.error': 'Action failed',
     'toast.titles.info': 'Information',

@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type { ProxyHttpSettings } from '../../../../shared/Types/proxy-runtime.types'
 import {
     getProxyConfigEditorHandler,
@@ -21,7 +22,7 @@ export default function useProxyGlobalConfigEditorLogic({
     onOpenChange,
     open,
 }: ProxyGlobalConfigEditorModalProps) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const [activeTab, setActiveTab] = useState<'edit' | 'active'>('edit')
     const [isResetConfirmationOpen, setResetConfirmationOpen] = useState(false)
@@ -61,16 +62,22 @@ export default function useProxyGlobalConfigEditorLogic({
             saveProxyConfigEditorHandler({ data: { baseRevision: baseRevision ?? '', settings } }),
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
             await invalidate()
             setDraft(null)
             onOpenChange(false)
-            toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](result.message)
+            toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](t(result.message), {
+                title: t(
+                    'toast.titles.' + (result.runtimeStatus === 'pending' ? 'warning' : 'success'),
+                ),
+            })
         },
         onError: () => {
-            toast.error('admin.proxyHosts.config.errors.saveFailed')
+            toast.error(t('admin.proxyHosts.config.errors.saveFailed'), {
+                title: t('toast.titles.error'),
+            })
         },
     })
     const resetMutation = useMutation({
@@ -78,17 +85,23 @@ export default function useProxyGlobalConfigEditorLogic({
             resetProxyConfigEditorHandler({ data: { baseRevision: baseRevision ?? '' } }),
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
             await invalidate()
             setDraft(null)
             setResetConfirmationOpen(false)
             onOpenChange(false)
-            toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](result.message)
+            toast[result.runtimeStatus === 'pending' ? 'warning' : 'success'](t(result.message), {
+                title: t(
+                    'toast.titles.' + (result.runtimeStatus === 'pending' ? 'warning' : 'success'),
+                ),
+            })
         },
         onError: () => {
-            toast.error('admin.proxyHosts.config.errors.saveFailed')
+            toast.error(t('admin.proxyHosts.config.errors.saveFailed'), {
+                title: t('toast.titles.error'),
+            })
         },
     })
     const state: ProxyGlobalConfigEditorState = {

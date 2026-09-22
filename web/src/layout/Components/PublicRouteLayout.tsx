@@ -1,11 +1,24 @@
+import { ToastProvider } from '@rentnerkev/toasts'
 import { Outlet } from '@tanstack/react-router'
+import { createPortal } from 'react-dom'
 
-import ToastProvider from '../../shared/Toast/Components/ToastProvider'
+import { TOAST_PROVIDER_PROPS } from '../../config/toast.config'
+import useClearNotificationsOnLayoutExit from '../Hooks/useClearNotificationsOnLayoutExit'
 
 export default function PublicRouteLayout() {
+    useClearNotificationsOnLayoutExit()
+
     return (
-        <ToastProvider>
+        <>
             <Outlet />
-        </ToastProvider>
+            {typeof document === 'undefined'
+                ? null
+                : createPortal(
+                      <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
+                          {null}
+                      </ToastProvider>,
+                      document.body,
+                  )}
+        </>
     )
 }

@@ -8,7 +8,8 @@ import { getAssignableTrustedCasHandler } from '../../TrustedCaManagement/server
 import { certificateManagementQueryKeys } from '../../CertificateManagement/queryKeys'
 import { getAssignableCertificatesHandler } from '../../CertificateManagement/server'
 import { MAX_PROXY_HOST_DOMAINS } from '../../../../config/proxy-hosts.config'
-import useToast from '../../../../shared/Toast/Hooks/useToast'
+import { toast } from '@rentnerkev/toasts/toast'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { proxyHostManagementQueryKeys } from '../queryKeys'
 import {
     createProxyHostWithCertificateHandler,
@@ -48,7 +49,7 @@ export default function useProxyHostFormLogic({
     onSuccess,
     proxyHost,
 }: UseProxyHostFormLogicParams) {
-    const toast = useToast()
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const [domainKeys, setDomainKeys] = useState(() =>
         (proxyHost?.domains ?? ['']).map(() => crypto.randomUUID()),
@@ -133,7 +134,7 @@ export default function useProxyHostFormLogic({
         },
         onSuccess: async (result) => {
             if (!result.success) {
-                toast.error(result.message)
+                toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
             }
             if ('job' in result) {
@@ -163,12 +164,17 @@ export default function useProxyHostFormLogic({
             }
             await refresh
             if ('runtimeStatus' in result && result.runtimeStatus === 'pending')
-                toast.warning('admin.proxyHosts.runtime.savedPending')
-            else toast.success(result.message)
+                toast.warning(t('admin.proxyHosts.runtime.savedPending'), {
+                    title: t('toast.titles.warning'),
+                })
+            else toast.success(t(result.message), { title: t('toast.titles.success') })
             setPendingDisableValues(null)
             onSuccess()
         },
-        onError: () => toast.error('admin.proxyHosts.errors.saveFailed'),
+        onError: () =>
+            toast.error(t('admin.proxyHosts.errors.saveFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     const retryAssignableCertificates = useCallback(() => {
         void certificatesQuery.refetch()
