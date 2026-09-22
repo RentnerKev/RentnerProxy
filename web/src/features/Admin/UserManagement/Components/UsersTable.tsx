@@ -1,7 +1,9 @@
+import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
+
+import { TOOLTIP_DEFAULT_PROPS } from '../../../../config/tooltip.config'
+import useTranslationStore from '../../../../language/useTranslationStore'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import DataTable from '../../../../shared/Table'
-import { Tooltip } from '../../../../shared/Tooltip'
-import useTranslationStore from '../../../../language/useTranslationStore'
 import useUsersTableLogic from '../Hooks/useUsersTableLogic'
 import type { UsersTableProps } from '../Types/user-management-component-props.types'
 
@@ -25,7 +27,12 @@ export default function UsersTable(props: UsersTableProps) {
     )
     const createAction = canCreate ? (
         createDisabled ? (
-            <Tooltip content={t('admin.users.messages.rolesNotReady')}>{createButton}</Tooltip>
+            <CustomTooltip
+                {...TOOLTIP_DEFAULT_PROPS}
+                content={t('admin.users.messages.rolesNotReady')}
+            >
+                {createButton}
+            </CustomTooltip>
         ) : (
             createButton
         )

@@ -20,7 +20,6 @@ export default function ProfileImagePanel({ canUpdateProfileImage, user }: Profi
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-4">
                 <UserAvatar
-                    displayName={user.displayName}
                     profileImageVersion={user.profileImageVersion}
                     size="lg"
                     userId={user.id}

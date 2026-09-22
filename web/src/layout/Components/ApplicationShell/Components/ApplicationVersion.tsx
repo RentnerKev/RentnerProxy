@@ -1,8 +1,9 @@
+import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { ArrowUp } from 'lucide-react'
 
+import { TOOLTIP_DEFAULT_PROPS } from '../../../../config/tooltip.config'
 import { APP_VERSION } from '../../../../config/version.config'
 import useTranslationStore from '../../../../language/useTranslationStore'
-import { Tooltip } from '../../../../shared/Tooltip'
 import useApplicationVersionLogic from '../../../../features/ApplicationVersion/Hooks/useApplicationVersionLogic'
 
 export default function ApplicationVersion() {
@@ -19,7 +20,7 @@ export default function ApplicationVersion() {
                 {APP_VERSION.startsWith('v') ? APP_VERSION : `v${APP_VERSION}`}
             </span>
             {data?.latestVersion ? (
-                <Tooltip content={updateLabel}>
+                <CustomTooltip {...TOOLTIP_DEFAULT_PROPS} content={updateLabel}>
                     <a
                         href="https://github.com/RentnerKev/RentnerProxy/releases"
                         target="_blank"
@@ -29,7 +30,7 @@ export default function ApplicationVersion() {
                     >
                         <ArrowUp className="size-3.5" aria-hidden="true" />
                     </a>
-                </Tooltip>
+                </CustomTooltip>
             ) : null}
         </div>
     )

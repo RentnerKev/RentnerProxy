@@ -19,7 +19,7 @@ const { createMemoryHistory, createRootRoute, createRouter, RouterContextProvide
     await import('@tanstack/react-router')
 const { ToastProvider } = await import('@rentnerkev/toasts')
 const { toast } = await import('@rentnerkev/toasts/toast')
-const { TooltipProvider } = await import('../shared/Tooltip')
+const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 
 const settingsRouter = createRouter({
     routeTree: createRootRoute(),

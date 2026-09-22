@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import ClientIpCountry from '../features/Admin/ProxyAccessLogs/Components/ClientIpCountry'
 import withTestLanguage from './Helpers/withTestLanguage'
-import { TooltipProvider } from '../shared/Tooltip'
+import { TooltipProvider } from '@rentnerkev/tooltips/tooltip'
 
 const entry = {
     timestamp: '2026-09-13T12:00:00Z',

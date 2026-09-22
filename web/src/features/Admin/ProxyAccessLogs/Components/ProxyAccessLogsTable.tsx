@@ -1,6 +1,8 @@
+import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { Fragment } from 'react'
 import useProxyAccessLogsFilterOptions from '../Hooks/useProxyAccessLogsFilterOptions'
 
+import { TOOLTIP_DEFAULT_PROPS } from '../../../../config/tooltip.config'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import TableBodyState from '../../../../shared/Table/Components/TableBodyState'
 import TableFilters from '../../../../shared/Table/Components/TableFilters'
@@ -11,7 +13,6 @@ import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBo
 import RemoteTablePagination from '../../../../shared/Table/Components/RemoteTablePagination'
 import SelectControl from '../../../../shared/Select'
 import { ActionMenu } from '../../../../shared/ActionMenu'
-import { Tooltip } from '../../../../shared/Tooltip'
 import type { ProxyAccessLogEntry } from '../../../../shared/Types/proxy-access-logs.types'
 import {
     formatBytes,
@@ -339,14 +340,17 @@ export default function ProxyAccessLogsTable({
                                                 {entry.method}
                                             </td>
                                             <td className="max-w-80 break-all px-4 py-[0.85rem] align-middle font-mono text-xs text-muted">
-                                                <Tooltip content={withoutQueryString(entry.path)}>
+                                                <CustomTooltip
+                                                    {...TOOLTIP_DEFAULT_PROPS}
+                                                    content={withoutQueryString(entry.path)}
+                                                >
                                                     <span
                                                         aria-label={withoutQueryString(entry.path)}
                                                         className="block max-w-80 break-all"
                                                     >
                                                         {withoutQueryString(entry.path)}
                                                     </span>
-                                                </Tooltip>
+                                                </CustomTooltip>
                                             </td>
                                             <td className="px-4 py-[0.85rem] align-middle">
                                                 <span

@@ -1,6 +1,8 @@
+import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
+
+import { TOOLTIP_DEFAULT_PROPS } from '../../../../config/tooltip.config'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { ManagedDomainLink, ManagedDomainOverflow } from '../../../../shared/Domain'
-import { Tooltip } from '../../../../shared/Tooltip'
 import { useDateFormatter } from '../../../../language/useTranslationStore'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import { formatProxyHostCreatedAt, formatProxyHostForward } from '../Helpers/proxyHostTableCells'
@@ -19,7 +21,13 @@ function DomainChip({ domain }: { readonly domain: string }) {
     const isLong = domain.length > 28
     const chip = <ManagedDomainLink className={chipClassName} domain={domain} />
 
-    return isLong ? <Tooltip content={domain}>{chip}</Tooltip> : chip
+    return isLong ? (
+        <CustomTooltip {...TOOLTIP_DEFAULT_PROPS} content={domain}>
+            {chip}
+        </CustomTooltip>
+    ) : (
+        chip
+    )
 }
 
 export function ProxyHostDomainsCell({ domains }: ProxyHostDomainsCellProps) {

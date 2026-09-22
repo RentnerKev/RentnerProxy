@@ -14,7 +14,7 @@ disableMotionAnimations()
 const { act, useEffect, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { default: withTestLanguage } = await import('./Helpers/withTestLanguage')
-const { TooltipProvider } = await import('../shared/Tooltip')
+const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 const { ToastProvider } = await import('@rentnerkev/toasts')
 const { toast } = await import('@rentnerkev/toasts/toast')
 

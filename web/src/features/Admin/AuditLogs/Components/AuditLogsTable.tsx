@@ -1,6 +1,8 @@
+import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Fragment } from 'react'
 
+import { TOOLTIP_DEFAULT_PROPS } from '../../../../config/tooltip.config'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import TableBodyState from '../../../../shared/Table/Components/TableBodyState'
 import TableFilters from '../../../../shared/Table/Components/TableFilters'
@@ -11,7 +13,6 @@ import TableLoadingBody from '../../../../shared/Table/Components/TableLoadingBo
 import SelectControl from '../../../../shared/Select'
 import DateTimeCalendar from '../../../../shared/Calendar/Components/DateTimeCalendar'
 import { ActionMenu } from '../../../../shared/ActionMenu'
-import { Tooltip } from '../../../../shared/Tooltip'
 import type { AuditEventDto } from '../../../../shared/Types/audit-events.types'
 import {
     auditActionValues,
@@ -348,14 +349,17 @@ export default function AuditLogsTable({
                                                     {formatAuditActor(event)}
                                                 </span>
                                                 {event.actorUserId && event.actorDisplayName ? (
-                                                    <Tooltip content={event.actorUserId}>
+                                                    <CustomTooltip
+                                                        {...TOOLTIP_DEFAULT_PROPS}
+                                                        content={event.actorUserId}
+                                                    >
                                                         <span
                                                             aria-label={event.actorUserId}
                                                             className="mt-1 block max-w-48 truncate font-mono text-[0.68rem] text-muted"
                                                         >
                                                             {event.actorUserId}
                                                         </span>
-                                                    </Tooltip>
+                                                    </CustomTooltip>
                                                 ) : null}
                                             </td>
                                             <td className="px-4 py-[0.85rem] align-middle text-xs font-extrabold text-ink-soft">

@@ -26,7 +26,6 @@
         "hidePassword": "Passwort verbergen",
         "actions": "Aktionen",
         "openActions": "Aktionen öffnen",
-        "profilePicture": "Profilbild von {{name}}",
         "backHome": "Zur Startseite",
         "openDomainInNewTab": "{{domain}} in einem neuen Tab öffnen",
         "moreDomains": "{{count}} weitere Domains anzeigen"

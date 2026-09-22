@@ -3,6 +3,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
+import { TOOLTIP_PROVIDER_PROPS } from '../config/tooltip.config'
 import { withLanguageRoot } from './Helpers/withTestLanguage'
 
 if (!GlobalRegistrator.isRegistered) {
@@ -16,7 +17,7 @@ const { default: ApplicationTopbar } =
     await import('../layout/Components/ApplicationShell/Components/ApplicationTopbar')
 const { default: useApplicationNavigationLogic } =
     await import('../layout/Components/ApplicationShell/Hooks/useApplicationNavigationLogic')
-const { TooltipProvider } = await import('../shared/Tooltip')
+const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 
 let activeRoot: Root | null = null
 
@@ -26,7 +27,7 @@ async function render(element: ReactElement): Promise<HTMLElement> {
     activeRoot = withLanguageRoot(createRoot(container))
 
     await act(async () => {
-        activeRoot?.render(<TooltipProvider>{element}</TooltipProvider>)
+        activeRoot?.render(<TooltipProvider {...TOOLTIP_PROVIDER_PROPS}>{element}</TooltipProvider>)
     })
 
     return container
@@ -77,9 +78,13 @@ describe('application topbar', () => {
             await Promise.resolve()
         })
 
-        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
-            'Collapse navigation',
-        )
+        const tooltip = document.querySelector('[role="tooltip"]')
+        expect(tooltip?.textContent).toContain('Collapse navigation')
+        expect(tooltip?.classList.contains('rentnerproxy-tooltip')).toBe(true)
+        expect(tooltip?.classList.contains('border-border')).toBe(true)
+        expect(tooltip?.classList.contains('bg-surface-raised')).toBe(true)
+        expect(tooltip?.classList.contains('text-ink')).toBe(true)
+        expect(TOOLTIP_PROVIDER_PROPS).toEqual({ delayDuration: 80, skipDelayDuration: 50 })
 
         await click(collapseButton!)
 

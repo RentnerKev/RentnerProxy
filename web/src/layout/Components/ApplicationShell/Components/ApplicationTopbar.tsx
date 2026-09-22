@@ -1,6 +1,7 @@
+import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 
-import { Tooltip } from '../../../../shared/Tooltip'
+import { TOOLTIP_DEFAULT_PROPS } from '../../../../config/tooltip.config'
 import {
     applicationShellClassNames,
     getApplicationTopbarClassName,
@@ -15,7 +16,7 @@ export default function ApplicationTopbar({
 }: ApplicationTopbarProps) {
     return (
         <header className={getApplicationTopbarClassName(isNavigationExpanded)}>
-            <Tooltip content={navigationToggleLabel} side="right">
+            <CustomTooltip {...TOOLTIP_DEFAULT_PROPS} content={navigationToggleLabel} side="right">
                 <button
                     type="button"
                     className={applicationShellClassNames.topbar.toggle}
@@ -35,7 +36,7 @@ export default function ApplicationTopbar({
                         strokeWidth={1.7}
                     />
                 </button>
-            </Tooltip>
+            </CustomTooltip>
             <div className={applicationShellClassNames.topbar.theme}>{themeControl}</div>
         </header>
     )

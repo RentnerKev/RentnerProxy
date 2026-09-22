@@ -28,7 +28,7 @@ const { createRoot } = await import('react-dom/client')
 const { renderToString } = await import('react-dom/server')
 const { default: PasswordInput } = await import('../shared/Forms/PasswordInput')
 const { default: SelectControl } = await import('../shared/Select')
-const { TooltipProvider } = await import('../shared/Tooltip')
+const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 let activeRoot: Root | null = null
 let currentStore: TranslationStore | null = null
 

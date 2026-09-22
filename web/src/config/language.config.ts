@@ -45,7 +45,6 @@ export const PUBLIC_ENGLISH: Record<string, string> = {
     'common.showPassword': 'Show password',
     'common.hidePassword': 'Hide password',
     'common.openActions': 'Open actions',
-    'common.profilePicture': "{{name}}'s profile picture",
     'common.retry': 'Try again',
     'common.backHome': 'Back to home',
     'shell.home': 'RentnerProxy home',

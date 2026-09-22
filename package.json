@@ -37,6 +37,7 @@
     "dependencies": {
         "@fontsource/lilita-one": "5.3.0",
         "@rentnerkev/toasts": "3.0.0",
+        "@rentnerkev/tooltips": "2.0.1",
         "@simplewebauthn/browser": "14.0.0",
         "@simplewebauthn/server": "14.0.2",
         "@tanstack/react-form": "1.33.5",

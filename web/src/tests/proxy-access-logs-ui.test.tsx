@@ -15,7 +15,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
-const { TooltipProvider } = await import('../shared/Tooltip')
+const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 
 const firstEntry = {
     timestamp: '2026-09-12T12:00:00.000Z',

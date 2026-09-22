@@ -17,11 +17,7 @@ const statusBadgeClassName =
 export function UserNameCell({ user }: UserNameCellProps) {
     return (
         <div className="flex min-w-[10rem] items-center gap-2.5">
-            <UserAvatar
-                displayName={user.displayName}
-                profileImageVersion={user.profileImageVersion}
-                userId={user.id}
-            />
+            <UserAvatar profileImageVersion={user.profileImageVersion} userId={user.id} />
             <span className="min-w-0 max-w-64 wrap-anywhere font-extrabold text-ink-soft">
                 {user.displayName}
             </span>

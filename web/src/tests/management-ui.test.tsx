@@ -44,7 +44,7 @@ const { ConfirmDialog } = await import('../shared/Modal/Components/ConfirmDialog
 const { default: DateRangeCalendar } = await import('../shared/Calendar')
 const { default: DataTable } = await import('../shared/Table')
 const { default: useClientTableLogic } = await import('../shared/Table/Hooks/useClientTableLogic')
-const { TooltipProvider } = await import('../shared/Tooltip')
+const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 const { ToastProvider } = await import('@rentnerkev/toasts')
 const { toast } = await import('@rentnerkev/toasts/toast')
 

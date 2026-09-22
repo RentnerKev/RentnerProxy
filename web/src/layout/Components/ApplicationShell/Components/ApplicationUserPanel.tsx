@@ -20,7 +20,6 @@ export default function ApplicationUserPanel({
         <div className={classNames.root}>
             <div className={classNames.identity}>
                 <UserAvatar
-                    displayName={user.displayName}
                     profileImageVersion={user.profileImageVersion}
                     size="sm"
                     userId={user.id}

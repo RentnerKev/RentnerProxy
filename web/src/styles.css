@@ -3,6 +3,7 @@
 @import 'country-flag-icons/3x2/flags.css';
 @import 'tailwindcss';
 @import '@rentnerkev/toasts/tailwind.css';
+@import '@rentnerkev/tooltips/tailwind.css';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 

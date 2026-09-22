@@ -210,7 +210,7 @@ describe('web architecture boundaries', () => {
         expect(stylesheet).not.toMatch(/^\s*\.[a-z][\w-]*/m)
     })
 
-    test('uses shared tooltips instead of native title attributes', async () => {
+    test('uses package tooltips instead of native title attributes', async () => {
         const files = (await Promise.all(renderingRoots.map(collectFiles)))
             .flat()
             .filter((path) => extname(path) === '.tsx')

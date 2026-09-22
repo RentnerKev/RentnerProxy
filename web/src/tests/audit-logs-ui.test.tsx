@@ -17,7 +17,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
-const { TooltipProvider } = await import('../shared/Tooltip')
+const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 
 const actorId = '018f2f52-7c1b-7cc0-9f3c-6a9952c54021'
 const secondActorId = '018f2f52-7c1b-7cc0-9f3c-6a9952c54025'

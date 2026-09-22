@@ -33,7 +33,7 @@ mock.module('@rentnerkev/toasts/toast', () => ({
 
 const useSetupLogic = (await import('../features/Auth/Setup/Hooks/useSetupLogic')).default
 const SetupForm = (await import('../features/Auth/Setup/Components/SetupForm')).default
-const { TooltipProvider } = await import('../shared/Tooltip')
+const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 type SetupState = ReturnType<typeof useSetupLogic>['state']
 
 let activeRoot: Root | null = null
