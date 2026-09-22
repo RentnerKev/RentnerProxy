@@ -87,10 +87,10 @@ describe('production smokes workflow execution contract', () => {
     test('runs the four existing smoke scripts as separate sequential steps', async () => {
         const source = await workflow()
         const commands = [
+            'bun --no-orphans scripts/production-smoke-ci.ts production',
             'bun --no-orphans scripts/production-smoke-ci.ts proxy',
             'bun --no-orphans scripts/production-smoke-ci.ts certificates',
             'bun --no-orphans scripts/production-smoke-ci.ts upstream-tls',
-            'bun --no-orphans scripts/production-smoke-ci.ts production',
         ]
         let previous = -1
 
@@ -113,7 +113,8 @@ describe('production smokes workflow execution contract', () => {
 
     test('maps each CI phase to the existing smoke implementation and builds production from checkout', async () => {
         const runner = await repositoryFile('scripts/production-smoke-ci.ts')
-        const productionSmoke = await repositoryFile('scripts/appliance-compose-smoke.ts')
+        const productionSmoke = await repositoryFile('tests/production/appliance-compose-smoke.ts')
+        const packageManifest = await repositoryFile('package.json')
 
         expect(runner).toContain("script: 'proxy:smoke'")
         expect(runner).toContain("source: 'proxy-smoke.ts'")
@@ -123,9 +124,11 @@ describe('production smokes workflow execution contract', () => {
         expect(runner).toContain("source: 'upstream-tls-smoke.ts'")
         expect(runner).toContain("script: 'production:smoke'")
         expect(runner).toContain("source: 'appliance-compose-smoke.ts'")
+        expect(packageManifest).toContain('tests/production/appliance-compose-smoke.ts')
+        expect(packageManifest).toContain('tests/production/proxy-smoke.ts')
         expect(runner).toContain('cwd: repositoryRoot')
         expect(productionSmoke).toContain(
-            "const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))",
+            "const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url))",
         )
         expect(productionSmoke).toContain(
             "const productionDockerfile = join(repositoryRoot, 'docker', 'production', 'Dockerfile')",

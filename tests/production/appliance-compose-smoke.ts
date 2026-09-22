@@ -9,19 +9,28 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { restoreSmokeDiagnostic, smokeCompose, smokeDockerArguments } from './smoke-resources'
-import { buildHttp3Client, requestHttp3Client, assertHttp3Response } from './http3-client'
-import { verifyAlpha1Upgrade, verifyAlpha3Upgrade } from './alpha1-upgrade-smoke'
+import {
+    restoreSmokeDiagnostic,
+    smokeCompose,
+    smokeDockerArguments,
+} from '../../scripts/smoke-resources'
+import {
+    buildHttp3Client,
+    requestHttp3Client,
+    assertHttp3Response,
+} from '../../scripts/http3-client'
+import { verifyAlpha1Upgrade, verifyAlpha3Upgrade } from '../../scripts/alpha1-upgrade-smoke'
 import {
     seedAlpha4PersistenceFixture,
     readAlpha4PersistenceSnapshot,
     assertAlpha4PersistenceFixture,
     assertAlpha4PersistenceRequestDecrypts,
-} from './alpha4-persistence-fixture'
+} from '../../scripts/alpha4-persistence-fixture'
 
-const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
+const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url))
 const rootComposeFile = join(repositoryRoot, 'docker-compose.yml')
 const productionDockerfile = join(repositoryRoot, 'docker', 'production', 'Dockerfile')
+const accessLogPath = '/var/lib/rentnerproxy/proxy/logs/access.log'
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const project = 'rentnerproxy-appliance-smoke-' + runId
 const publicOrigin = 'https://management.appliance-smoke.invalid'
@@ -232,21 +241,106 @@ async function controllerCall(
     ) as { status: number; body: string }
 }
 
+type CrowdSecMode = 'disabled' | 'managed'
+
+type CrowdSecRuntimeStatus = Readonly<{
+    mode: 'disabled' | 'managed' | 'external'
+    state: 'disabled' | 'starting' | 'connected' | 'degraded'
+    apiUrl?: string
+    credentialConfigured: boolean
+    enforcementActive: boolean
+    managedEngine: 'stopped' | 'starting' | 'ready' | 'restarting' | 'degraded' | 'unavailable'
+    failureBehavior: 'fail_open'
+    clientIpSource: 'caddy'
+}>
+
+function parseCrowdSecStatus(response: { status: number; body: string }): CrowdSecRuntimeStatus {
+    assert.equal(response.status, 200)
+    return JSON.parse(response.body) as CrowdSecRuntimeStatus
+}
+
+async function waitForCrowdSec(
+    id: string,
+    predicate: (status: CrowdSecRuntimeStatus) => boolean,
+    label: string,
+): Promise<CrowdSecRuntimeStatus> {
+    let observed: CrowdSecRuntimeStatus | undefined
+    await waitFor(async () => {
+        observed = parseCrowdSecStatus(
+            await controllerCall(id, '/internal/v1/crowdsec/status', 'GET'),
+        )
+        return predicate(observed)
+    }, label)
+    assert.ok(observed)
+    return observed
+}
+
+async function persistCrowdSecMode(id: string, mode: CrowdSecMode): Promise<void> {
+    const value = JSON.stringify({ version: 1, mode })
+    await command([
+        'docker',
+        'exec',
+        id,
+        'gosu',
+        'postgres',
+        'psql',
+        '--no-psqlrc',
+        '--no-password',
+        '--host=/var/run/postgresql',
+        '--username=postgres',
+        '--dbname=rentnerproxy',
+        '--command',
+        `INSERT INTO rentnerproxy.system_settings (key, value) VALUES ('crowdsec_configuration_v1', '${value}'::jsonb) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP;`,
+    ])
+}
+
+async function applyCrowdSecMode(id: string, mode: CrowdSecMode): Promise<CrowdSecRuntimeStatus> {
+    await persistCrowdSecMode(id, mode)
+    const applied = await controllerCall(id, '/internal/v1/crowdsec/config', 'PUT', { mode })
+    assert.equal(applied.status, 200)
+    return waitForCrowdSec(
+        id,
+        (status) =>
+            status.mode === mode &&
+            (mode === 'managed'
+                ? status.state === 'connected' && status.managedEngine === 'ready'
+                : status.state === 'disabled' && status.managedEngine === 'stopped'),
+        'CrowdSec ' + mode,
+    )
+}
+
+async function crowdSecEngineUids(id: string): Promise<string[]> {
+    const output = await command([
+        'docker',
+        'exec',
+        id,
+        'sh',
+        '-c',
+        'for status_file in /proc/[0-9]*/status; do if grep -q "^Name:[[:space:]]*crowdsec$" "$status_file"; then awk "/^Uid:/{print \\$2}" "$status_file"; fi; done',
+    ])
+    return output.split(/\r?\n/u).filter(Boolean)
+}
+
 function digest(value: string | Uint8Array): string {
     return createHash('sha256').update(value).digest('hex')
 }
 
-function assertLoopbackListeners(procNet: string, port: number): void {
+function listenerAddresses(procNet: string, port: number): string[] {
     const portHex = port.toString(16).toUpperCase().padStart(4, '0')
-    const listeners = procNet
+    return procNet
         .split(/\r?\n/u)
         .map((line) => line.trim().split(/\s+/u))
         .filter((fields) => fields.length >= 4 && fields[3] === '0A')
         .map((fields) => fields[1]!.split(':'))
         .filter(([, localPort]) => localPort === portHex)
+        .map(([address]) => address!)
+}
+
+function assertLoopbackListeners(procNet: string, port: number): void {
+    const listeners = listenerAddresses(procNet, port)
 
     assert.ok(listeners.length > 0, 'expected a listener on loopback port ' + port)
-    for (const [address] of listeners) {
+    for (const address of listeners) {
         assert.ok(
             address === '0100007F' ||
                 address === '0000000000000000FFFF00000100007F' ||
@@ -426,13 +520,73 @@ async function runSmoke(): Promise<void> {
             'every appliance volume must belong to this smoke; anonymous volumes cannot be recovered by run label',
         )
         passed('empty appliance volume builds and starts healthy')
+        const initialCrowdSecStatus = parseCrowdSecStatus(
+            await controllerCall(id, '/internal/v1/crowdsec/status', 'GET'),
+        )
+        assert.deepEqual(initialCrowdSecStatus, {
+            mode: 'disabled',
+            state: 'disabled',
+            credentialConfigured: false,
+            enforcementActive: false,
+            managedEngine: 'stopped',
+            failureBehavior: 'fail_open',
+            clientIpSource: 'caddy',
+        })
+        assert.equal(
+            await command(['docker', 'exec', id, 'cat', '/run/rentnerproxy/crowdsec/desired-mode']),
+            'stopped',
+        )
+        assert.deepEqual(await crowdSecEngineUids(id), [])
+        const initialProcNet = await command([
+            'docker',
+            'exec',
+            id,
+            'sh',
+            '-c',
+            'cat /proc/net/tcp /proc/net/tcp6',
+        ])
+        assert.deepEqual(listenerAddresses(initialProcNet, 18080), [])
+        assert.deepEqual(listenerAddresses(initialProcNet, 6060), [])
+        passed('CrowdSec defaults to disabled without starting its managed engine or LAPI')
+
+        const caddyModules = (
+            await command(['docker', 'exec', id, '/usr/bin/caddy', 'list-modules'])
+        )
+            .split(/\r?\n/u)
+            .filter(
+                (module) =>
+                    module === 'crowdsec' ||
+                    module === 'admin.api.crowdsec' ||
+                    module === 'http.handlers.crowdsec',
+            )
+            .toSorted()
+        assert.deepEqual(caddyModules, ['admin.api.crowdsec', 'crowdsec', 'http.handlers.crowdsec'])
+        assert.doesNotMatch(
+            await command(['docker', 'exec', id, '/usr/bin/caddy', 'list-modules']),
+            /(?:^|\.)appsec(?:$|\.)|(?:^|\.)layer4(?:$|\.)/mu,
+        )
+        assert.match(
+            await command(['docker', 'exec', id, '/usr/local/bin/crowdsec', '-version']),
+            /version: v1\.8\.1-909b5157/u,
+        )
         assert.equal(
             await command(['docker', 'exec', id, 'sha256sum', '/usr/share/licenses/caddy/LICENSE']),
 
             digest(await readFile(join(repositoryRoot, 'docker', 'licenses', 'Caddy-LICENSE'))) +
                 '  /usr/share/licenses/caddy/LICENSE',
         )
-        passed('redistributed Caddy binary includes the exact Apache-2.0 license')
+        assert.equal(
+            await command([
+                'docker',
+                'exec',
+                id,
+                'sha256sum',
+                '/usr/share/licenses/crowdsec/LICENSE',
+            ]),
+            digest(await readFile(join(repositoryRoot, 'docker', 'licenses', 'CrowdSec-LICENSE'))) +
+                '  /usr/share/licenses/crowdsec/LICENSE',
+        )
+        passed('pinned CrowdSec runtime, minimal Caddy modules, and redistributed licenses match')
         const roleState = await command([
             'docker',
             'exec',
@@ -752,6 +906,11 @@ async function runSmoke(): Promise<void> {
             'sha256sum',
             '/var/lib/rentnerproxy/appliance-smoke-marker',
         ])
+        await command(['docker', 'exec', id, 'chgrp', 'rentnerproxy', accessLogPath])
+        assert.equal(
+            await command(['docker', 'exec', id, 'stat', '-c', '%a:%u:%g', accessLogPath]),
+            '640:10001:10001',
+        )
         await command([...compose, 'up', '--force-recreate', '--detach'])
         const recreatedId = await containerId(compose)
         await waitForHealthy(recreatedId)
@@ -857,22 +1016,27 @@ async function runSmoke(): Promise<void> {
             httpSettings: {},
             trustedCas: [],
         }
-        const realConfigCanonical = JSON.stringify(realConfig)
-        const realConfigWithRevision = {
-            ...realConfig,
-            revision: 'sha256:' + digest(realConfigCanonical),
+        const applyRealConfiguration = async (
+            configuration: Record<string, unknown>,
+            label: string,
+        ): Promise<void> => {
+            const request = {
+                ...configuration,
+                revision: 'sha256:' + digest(JSON.stringify(configuration)),
+            }
+            const response = await controllerCall(
+                recreatedId,
+                '/internal/v1/proxy/config',
+                'PUT',
+                request,
+            )
+            assert.equal(response.status, 200)
+            await waitFor(async () => {
+                const status = await controllerCall(recreatedId, '/internal/v1/proxy/status', 'GET')
+                return status.status === 200 && status.body.includes(request.revision)
+            }, label)
         }
-        const realApply = await controllerCall(
-            recreatedId,
-            '/internal/v1/proxy/config',
-            'PUT',
-            realConfigWithRevision,
-        )
-        assert.equal(realApply.status, 200)
-        await waitFor(async () => {
-            const status = await controllerCall(recreatedId, '/internal/v1/proxy/status', 'GET')
-            return status.status === 200 && status.body.includes(realConfigWithRevision.revision)
-        }, 'managed certificate configuration apply')
+        await applyRealConfiguration(realConfig, 'managed certificate configuration apply')
         const assertRealTraffic = async (container: string, label: string): Promise<void> => {
             const httpBody = await command([
                 'docker',
@@ -931,14 +1095,396 @@ async function runSmoke(): Promise<void> {
         passed(
             'production appliance serves verified HTTP/3 through published UDP with the public Alt-Svc port',
         )
+
+        const internalHttpStatus = async (path = '/appliance-real-path'): Promise<number> =>
+            Number(
+                await command([
+                    'docker',
+                    'exec',
+                    recreatedId,
+                    'curl',
+                    '--silent',
+                    '--show-error',
+                    '--noproxy',
+                    '*',
+                    '--output',
+                    '/dev/null',
+                    '--write-out',
+                    '%{http_code}',
+                    '--header',
+                    'Host: ' + hostDomain,
+                    'http://127.0.0.1:8080' + path,
+                ]),
+            )
+        const requestPublishedProtocol = async (
+            protocol: '--http1.1' | '--http2' | '--http3-only',
+            expectedStatus: number,
+        ) => {
+            const response = await requestHttp3Client(http3Command, {
+                image: http3Image,
+                caFile: http3CaFile,
+                hostname: hostDomain,
+                port: httpsPort,
+                path: '/appliance-real-path',
+                protocol,
+            })
+            assert.equal(response.status, expectedStatus)
+            assert.equal(
+                response.protocol,
+                protocol === '--http1.1' ? '1.1' : protocol === '--http2' ? '2' : '3',
+            )
+            return response
+        }
+
+        const managedStatus = await applyCrowdSecMode(recreatedId, 'managed')
+        assert.deepEqual(managedStatus, {
+            mode: 'managed',
+            state: 'connected',
+            credentialConfigured: false,
+            enforcementActive: true,
+            managedEngine: 'ready',
+            failureBehavior: 'fail_open',
+            clientIpSource: 'caddy',
+        })
+        assert.deepEqual(await crowdSecEngineUids(recreatedId), ['10003'])
+        const managedProcNet = await command([
+            'docker',
+            'exec',
+            recreatedId,
+            'sh',
+            '-c',
+            'cat /proc/net/tcp /proc/net/tcp6',
+        ])
+        assertLoopbackListeners(managedProcNet, 18080)
+        assertLoopbackListeners(managedProcNet, 6060)
+        assert.equal(
+            await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'stat',
+                '-c',
+                '%a:%u:%g',
+                '/var/lib/rentnerproxy/proxy/logs',
+            ]),
+            '2750:10001:10003',
+        )
+        assert.equal(
+            await command(['docker', 'exec', recreatedId, 'stat', '-c', '%a:%u:%g', accessLogPath]),
+            '640:10001:10003',
+        )
+        await command([
+            'docker',
+            'exec',
+            '--user',
+            '10003:10003',
+            recreatedId,
+            'test',
+            '-r',
+            accessLogPath,
+        ])
+        assert.equal(
+            await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'stat',
+                '-c',
+                '%a:%U:%G',
+                '/var/lib/rentnerproxy/crowdsec/bouncer/caddy-bouncer-key',
+            ]),
+            '440:root:rentnerproxy',
+        )
+        assert.equal(
+            await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'stat',
+                '-c',
+                '%U:%G',
+                '/var/lib/rentnerproxy/crowdsec/data/crowdsec.db',
+            ]),
+            'crowdsec:crowdsec',
+        )
+        const acquisitionProbe = {
+            httpStatus: -1,
+            metricsReachable: false,
+            accessLogHits: 0,
+            allFileHits: 0,
+            caddyParserHits: 0,
+            allParserHits: 0,
+        }
+        try {
+            await waitFor(
+                async () => {
+                    acquisitionProbe.httpStatus = await internalHttpStatus()
+                    if (acquisitionProbe.httpStatus !== 200) return false
+                    acquisitionProbe.metricsReachable = false
+                    const metrics = await command([
+                        'docker',
+                        'exec',
+                        recreatedId,
+                        'curl',
+                        '--fail',
+                        '--silent',
+                        '--show-error',
+                        '--max-time',
+                        '2',
+                        'http://127.0.0.1:6060/metrics',
+                    ])
+                    acquisitionProbe.metricsReachable = true
+                    const fileHits =
+                        /^cs_filesource_hits_total\{[^}\n]*source="[^"]*\/var\/lib\/rentnerproxy\/proxy\/logs\/access\.log"[^}\n]*\}\s+(\d+(?:\.\d+)?)/mu.exec(
+                            metrics,
+                        )
+                    const parserHits =
+                        /^cs_node_hits_ok_total\{[^}\n]*name="crowdsecurity\/caddy-logs"[^}\n]*\}\s+(\d+(?:\.\d+)?)/mu.exec(
+                            metrics,
+                        )
+                    acquisitionProbe.accessLogHits = Number(fileHits?.[1] ?? 0)
+                    acquisitionProbe.caddyParserHits = Number(parserHits?.[1] ?? 0)
+                    acquisitionProbe.allFileHits = [
+                        ...metrics.matchAll(
+                            /^cs_filesource_hits_total\{[^}\n]*\}\s+(\d+(?:\.\d+)?)/gmu,
+                        ),
+                    ].reduce((total, match) => total + Number(match[1]), 0)
+                    acquisitionProbe.allParserHits = [
+                        ...metrics.matchAll(
+                            /^cs_node_hits_ok_total\{[^}\n]*\}\s+(\d+(?:\.\d+)?)/gmu,
+                        ),
+                    ].reduce((total, match) => total + Number(match[1]), 0)
+                    return (
+                        acquisitionProbe.accessLogHits > 0 && acquisitionProbe.caddyParserHits > 0
+                    )
+                },
+                'managed CrowdSec acquisition and Caddy parsing',
+                30_000,
+            )
+        } catch (error) {
+            const accessLogBytes = await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'stat',
+                '-c',
+                '%s',
+                accessLogPath,
+            ]).catch(() => '-1')
+            const accessLogMode = await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'stat',
+                '-c',
+                '%a:%u:%g',
+                accessLogPath,
+            ]).catch(() => 'unknown')
+            const accessLogReadable = !(await commandFails([
+                'docker',
+                'exec',
+                '--user',
+                '10003:10003',
+                recreatedId,
+                'test',
+                '-r',
+                accessLogPath,
+            ]))
+            console.error(
+                'Managed CrowdSec acquisition probe: ' +
+                    JSON.stringify({
+                        ...acquisitionProbe,
+                        accessLogBytes: Number(accessLogBytes),
+                        accessLogMode,
+                        accessLogReadable,
+                    }),
+            )
+            throw error
+        }
+        const bouncerKeyDigest = await command([
+            'docker',
+            'exec',
+            recreatedId,
+            'sha256sum',
+            '/var/lib/rentnerproxy/crowdsec/bouncer/caddy-bouncer-key',
+        ])
+        for (const protocol of ['--http1.1', '--http2', '--http3-only'] as const) {
+            const response = await requestPublishedProtocol(protocol, 200)
+            assert.ok(response.output.includes(trafficMarker))
+        }
+        passed(
+            'managed CrowdSec runs unprivileged, acquires Caddy logs, stays private, and allows HTTP/1.1, HTTP/2, and HTTP/3',
+        )
+
+        await command([
+            'docker',
+            'exec',
+            recreatedId,
+            'gosu',
+            'crowdsec',
+            'cscli',
+            '-c',
+            '/usr/share/rentnerproxy/crowdsec/config.yaml',
+            'decisions',
+            'add',
+            '--range',
+            '0.0.0.0/0',
+            '--duration',
+            '5m',
+            '--reason',
+            'rentnerproxy-appliance-smoke',
+        ])
+        await waitFor(
+            async () => (await internalHttpStatus()) === 403,
+            'managed CrowdSec decision propagation',
+        )
+        for (const protocol of ['--http1.1', '--http2', '--http3-only'] as const) {
+            await requestPublishedProtocol(protocol, 403)
+        }
+        assert.notEqual(await internalHttpStatus('/.well-known/acme-challenge/not-present'), 403)
+
+        const forceHttpsConfig = {
+            ...realConfig,
+            proxyHosts: realConfig.proxyHosts.map((host) => ({ ...host, forceHttps: true })),
+        }
+        await applyRealConfiguration(forceHttpsConfig, 'CrowdSec with Force HTTPS configuration')
+        assert.equal(await internalHttpStatus(), 403)
+        await command([
+            'docker',
+            'exec',
+            recreatedId,
+            'gosu',
+            'crowdsec',
+            'cscli',
+            '-c',
+            '/usr/share/rentnerproxy/crowdsec/config.yaml',
+            'decisions',
+            'delete',
+            '--all',
+        ])
+        await waitFor(
+            async () => (await internalHttpStatus()) === 308,
+            'Force HTTPS after CrowdSec decision removal',
+        )
+        await applyRealConfiguration(realConfig, 'restore non-redirecting real traffic')
+        await waitFor(async () => (await internalHttpStatus()) === 200, 'managed CrowdSec allow')
+        passed(
+            'real managed decisions deny every HTTP protocol before Force HTTPS while ACME remains reachable',
+        )
+
+        await command([
+            'docker',
+            'exec',
+            recreatedId,
+            'sh',
+            '-c',
+            'for status_file in /proc/[0-9]*/status; do if grep -q "^Name:[[:space:]]*crowdsec$" "$status_file"; then pid=${status_file#/proc/}; pid=${pid%/status}; kill -TERM "$pid"; fi; done',
+        ])
+        await waitFor(async () => {
+            const status = JSON.parse(
+                await command([
+                    'docker',
+                    'exec',
+                    recreatedId,
+                    'cat',
+                    '/run/rentnerproxy/crowdsec/status.json',
+                ]),
+            ) as { state?: string; restarts?: number }
+            return status.state !== 'ready' || (status.restarts ?? 0) > 0
+        }, 'managed CrowdSec restart state')
+        assert.equal(await internalHttpStatus(), 200)
+        await waitForCrowdSec(
+            recreatedId,
+            (status) =>
+                status.mode === 'managed' &&
+                status.state === 'connected' &&
+                status.managedEngine === 'ready',
+            'managed CrowdSec recovery',
+        )
+        const recoveredSupervisor = JSON.parse(
+            await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'cat',
+                '/run/rentnerproxy/crowdsec/status.json',
+            ]),
+        ) as { restarts?: number }
+        assert.ok((recoveredSupervisor.restarts ?? 0) >= 1)
+        assert.equal(
+            await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'sha256sum',
+                '/var/lib/rentnerproxy/crowdsec/bouncer/caddy-bouncer-key',
+            ]),
+            bouncerKeyDigest,
+        )
+        passed('managed LAPI failure stays fail-open and the supervised engine recovers')
+
+        await applyCrowdSecMode(recreatedId, 'disabled')
+        assert.deepEqual(await crowdSecEngineUids(recreatedId), [])
+        await command([
+            'docker',
+            'exec',
+            recreatedId,
+            'test',
+            '-s',
+            '/var/lib/rentnerproxy/crowdsec/data/crowdsec.db',
+        ])
+        assert.equal(
+            await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'sha256sum',
+                '/var/lib/rentnerproxy/crowdsec/bouncer/caddy-bouncer-key',
+            ]),
+            bouncerKeyDigest,
+        )
+        await applyCrowdSecMode(recreatedId, 'managed')
+        const reactivatedKeyDigest = await command([
+            'docker',
+            'exec',
+            recreatedId,
+            'sha256sum',
+            '/var/lib/rentnerproxy/crowdsec/bouncer/caddy-bouncer-key',
+        ])
+        assert.notEqual(reactivatedKeyDigest, bouncerKeyDigest)
+        passed('mode switches retain managed state and rotate the internal bouncer credential')
+
         await command([...compose, 'restart', 'rentnerproxy'])
         await waitForHealthy(recreatedId)
+        await waitForCrowdSec(
+            recreatedId,
+            (status) =>
+                status.mode === 'managed' &&
+                status.state === 'connected' &&
+                status.managedEngine === 'ready',
+            'managed CrowdSec after appliance restart',
+        )
+        assert.notEqual(
+            await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'sha256sum',
+                '/var/lib/rentnerproxy/crowdsec/bouncer/caddy-bouncer-key',
+            ]),
+            reactivatedKeyDigest,
+        )
         await assertRealTraffic(
             recreatedId,
             'real HTTP and HTTPS traffic survives appliance restart',
         )
         await assertPublishedQuic()
         passed('verified HTTP/3 survives production appliance restart')
+        await applyCrowdSecMode(recreatedId, 'disabled')
+        await assertRealTraffic(
+            recreatedId,
+            'disabling CrowdSec after restart leaves the proxy configuration untouched',
+        )
 
         const proxyBackupMarker = '/var/lib/rentnerproxy/proxy/appliance-backup-marker'
         await command([
@@ -1302,7 +1848,11 @@ try {
             : undefined
     if (locations) {
         for (const location of [...locations].slice(0, 6)) {
-            console.error('at scripts/' + location[1] + '.ts:' + location[2] + ':' + location[3])
+            const locationRoot =
+                location[1] === 'appliance-compose-smoke' ? 'tests/production' : 'scripts'
+            console.error(
+                'at ' + locationRoot + '/' + location[1] + '.ts:' + location[2] + ':' + location[3],
+            )
         }
     }
     process.exitCode = 1

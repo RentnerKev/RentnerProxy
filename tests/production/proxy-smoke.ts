@@ -2,15 +2,15 @@
 import assert from 'node:assert/strict'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { createConnection } from 'node:net'
+import { createConnection, isIP } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { SQL } from 'bun'
 
-import { startTestUpstream } from './proxy-test-upstream'
-import { smokeCompose, smokeDockerArguments } from './smoke-resources'
+import { startTestUpstream } from '../../scripts/proxy-test-upstream'
+import { smokeCompose, smokeDockerArguments } from '../../scripts/smoke-resources'
 
 function basicHeader(username: string, password: string): string {
     return 'Basic ' + Buffer.from(username + ':' + password).toString('base64')
@@ -18,12 +18,14 @@ function basicHeader(username: string, password: string): string {
 
 const POSTGRES_IMAGE =
     'postgres:18.6@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280'
-const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
+const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url))
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const project = 'rentnerproxy-smoke-' + runId
 const databaseContainer = project + '-postgres'
 const token = randomBytes(32).toString('hex')
 const databasePassword = randomBytes(24).toString('hex')
+const appEncryptionKey = randomBytes(32).toString('base64')
+const crowdSecBouncerKey = randomBytes(32).toString('hex')
 const temporaryComposeDirectory = await mkdtemp(join(tmpdir(), 'rentnerproxy-proxy-smoke-'))
 const temporaryComposeFile = join(temporaryComposeDirectory, 'docker-compose.yml')
 const environment: NodeJS.ProcessEnv = {
@@ -52,6 +54,8 @@ await writeFile(
                                 '${RENTNERPROXY_CONTROLLER_TOKEN:?Set a random server-only controller token}',
                             RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT:
                                 '${RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT:-443}',
+                            RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS:
+                                '${RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS:-}',
                             RUST_LOG: '${RUST_LOG:-info}',
                         },
                         ports: [
@@ -144,11 +148,75 @@ async function runSmoke(): Promise<void> {
     console.log('Starting isolated PostgreSQL and the real Caddy runtime.')
     let closeDatabase: (() => Promise<void>) | undefined
     let stopReconciliation: (() => Promise<void>) | undefined
+    let stopCrowdSecReconciliation: (() => Promise<void>) | undefined
     const upstreamHost =
         process.env.RENTNERPROXY_TEST_UPSTREAM_HOST ??
         (process.platform === 'linux' ? '0.0.0.0' : '127.0.0.1')
     const first = startTestUpstream({ hostname: upstreamHost, port: 0, message: 'upstream-one' })
     const second = startTestUpstream({ hostname: upstreamHost, port: 0, message: 'upstream-two' })
+    let crowdSecLapiAvailable = true
+    const crowdSecLapi = Bun.serve({
+        hostname: upstreamHost,
+        port: 0,
+        fetch(request) {
+            if (request.headers.get('x-api-key') !== crowdSecBouncerKey) {
+                return Response.json({ message: 'forbidden' }, { status: 403 })
+            }
+            if (!crowdSecLapiAvailable) {
+                return Response.json({ message: 'unavailable' }, { status: 503 })
+            }
+            const url = new URL(request.url)
+            const provider = url.pathname.split('/').find(Boolean)
+            if (provider === 'rejected') {
+                return Response.json({ message: 'rejected' }, { status: 403 })
+            }
+            const decisions =
+                provider === 'block'
+                    ? [
+                          {
+                              duration: '1h',
+                              id: 1,
+                              origin: 'rentnerproxy-smoke',
+                              scenario: 'rentnerproxy/smoke-block-all',
+                              scope: 'Range',
+                              type: 'ban',
+                              value: '0.0.0.0/0',
+                          },
+                      ]
+                    : provider === 'trusted'
+                      ? [
+                            {
+                                duration: '1h',
+                                id: 2,
+                                origin: 'rentnerproxy-smoke',
+                                scenario: 'rentnerproxy/smoke-trusted-ipv4',
+                                scope: 'Ip',
+                                type: 'ban',
+                                value: '198.51.100.45',
+                            },
+                            {
+                                duration: '1h',
+                                id: 3,
+                                origin: 'rentnerproxy-smoke',
+                                scenario: 'rentnerproxy/smoke-trusted-ipv6',
+                                scope: 'Ip',
+                                type: 'ban',
+                                value: '2001:db8::123',
+                            },
+                        ]
+                      : []
+            if (url.pathname.endsWith('/v1/decisions/stream')) {
+                return Response.json({
+                    deleted: null,
+                    new: decisions.length > 0 ? decisions : null,
+                })
+            }
+            if (url.pathname.endsWith('/v1/decisions')) {
+                return Response.json(decisions.length > 0 ? decisions : null)
+            }
+            return new Response(null, { status: 404 })
+        },
+    })
 
     try {
         await command(['docker', 'version', '--format', '{{.Server.Version}}'])
@@ -184,6 +252,7 @@ async function runSmoke(): Promise<void> {
         process.env.NODE_ENV = 'test'
         process.env.RENTNERPROXY_PUBLIC_ORIGIN = 'http://localhost:5173'
         process.env.RENTNERPROXY_CONTROLLER_TOKEN = token
+        process.env.APP_ENCRYPTION_KEY = appEncryptionKey
         environment.DATABASE_URL = databaseUrl
 
         const probeDatabase = new SQL(databaseUrl)
@@ -228,26 +297,32 @@ async function runSmoke(): Promise<void> {
             redirectServices,
             policyServices,
             basicAuthServices,
+            crowdSecServices,
             runtime,
             controller,
+            authorizationRegistry,
         ] = await Promise.all([
             import('drizzle-orm'),
             import('@tanstack/react-start/server'),
-            import('../web/src/config/auth.config'),
-            import('../web/src/config/permissions.config'),
-            import('../web/src/db/schema'),
-            import('../web/src/server/Auth/Core/database.server'),
-            import('../web/src/server/Auth/Access/sessions.service'),
-            import('../web/src/server/Admin/ProxyHostManagement/proxy-hosts.service'),
-            import('../web/src/server/Admin/RedirectHostManagement/redirect-hosts.service'),
-            import('../web/src/server/Admin/AccessPolicyManagement/access-policies.service'),
-            import('../web/src/server/Admin/AccessPolicyManagement/basic-auth.service'),
-            import('../web/src/server/ProxyRuntime/proxy-runtime.service'),
-            import('../web/src/server/Foundation/controller.server'),
+            import('../../web/src/config/auth.config'),
+            import('../../web/src/config/permissions.config'),
+            import('../../web/src/db/schema'),
+            import('../../web/src/server/Auth/Core/database.server'),
+            import('../../web/src/server/Auth/Access/sessions.service'),
+            import('../../web/src/server/Admin/ProxyHostManagement/proxy-hosts.service'),
+            import('../../web/src/server/Admin/RedirectHostManagement/redirect-hosts.service'),
+            import('../../web/src/server/Admin/AccessPolicyManagement/access-policies.service'),
+            import('../../web/src/server/Admin/AccessPolicyManagement/basic-auth.service'),
+            import('../../web/src/server/Admin/CrowdSec/crowdsec.service'),
+            import('../../web/src/server/ProxyRuntime/proxy-runtime.service'),
+            import('../../web/src/server/Foundation/controller.server'),
+            import('../../web/src/server/Auth/Access/registry.service'),
         ])
         const database = getAuthDatabase()
         closeDatabase = () => database.$client.close()
         stopReconciliation = runtime.stopProxyRuntimeReconciliation
+        stopCrowdSecReconciliation = crowdSecServices.stopCrowdSecReconciliation
+        await database.transaction(authorizationRegistry.ensureAuthorizationRegistryInTransaction)
 
         await waitFor(
             async () => (await controller.getProxyRuntimeStatus())?.running === true,
@@ -272,7 +347,11 @@ async function runSmoke(): Promise<void> {
             })
         }
 
-        async function expectProxyStatus(host: string, expected: number): Promise<void> {
+        async function expectProxyStatus(
+            host: string,
+            expected: number,
+            timeoutMs = 5_000,
+        ): Promise<void> {
             await waitFor(
                 async () => {
                     const response = await proxyRequest(host)
@@ -280,7 +359,7 @@ async function runSmoke(): Promise<void> {
                     return response.status === expected
                 },
                 'HTTP ' + expected + ' for ' + host,
-                5_000,
+                timeoutMs,
             )
         }
 
@@ -299,7 +378,11 @@ async function runSmoke(): Promise<void> {
             )
         }
 
-        async function expectWebSocketUpgrade(host: string, authorization?: string): Promise<void> {
+        async function expectWebSocketUpgrade(
+            host: string,
+            authorization?: string,
+            expectedStatus = 101,
+        ): Promise<void> {
             const proxyPort = Number(new URL(proxyUrl).port)
             await new Promise<void>((resolve, reject) => {
                 const socket = createConnection({ host: '127.0.0.1', port: proxyPort })
@@ -318,9 +401,14 @@ async function runSmoke(): Promise<void> {
                     response += chunk.toString('latin1')
                     if (!response.includes('\r\n\r\n')) return
                     try {
-                        assert.match(response, /^HTTP\/1\.1 101 Switching Protocols\r\n/iu)
-                        assert.match(response, /^upgrade: websocket\r\n/imu)
-                        assert.match(response, /^connection: Upgrade\r\n/imu)
+                        assert.match(
+                            response,
+                            new RegExp(`^HTTP\\/1\\.1 ${expectedStatus}\\b`, 'iu'),
+                        )
+                        if (expectedStatus === 101) {
+                            assert.match(response, /^upgrade: websocket\r\n/imu)
+                            assert.match(response, /^connection: Upgrade\r\n/imu)
+                        }
                         finish()
                     } catch (error) {
                         finish(error instanceof Error ? error : new Error(String(error)))
@@ -746,6 +834,189 @@ async function runSmoke(): Promise<void> {
             'Basic Auth enforces shared credentials, WebSockets, rotation and removal without exposing hashes',
         )
 
+        const crowdSecApiUrl = (provider: 'allow' | 'block' | 'rejected' | 'trusted') =>
+            `http://host.docker.internal:${crowdSecLapi.port}/${provider}/`
+        const initialCrowdSec = await authorized(() =>
+            crowdSecServices.getCrowdSecConfigurationService(),
+        )
+        assert.equal(initialCrowdSec.mode, 'disabled')
+        assert.equal(initialCrowdSec.runtime?.enforcementActive, false)
+        const initialCaddySource = await controller.getActiveProxyConfiguration()
+        assert.ok(initialCaddySource)
+        const initialCaddyConfiguration = JSON.parse(initialCaddySource.config) as {
+            apps?: { crowdsec?: unknown }
+        }
+        assert.equal(initialCaddyConfiguration.apps?.crowdsec, undefined)
+        passed('CrowdSec defaults to disabled without changing the existing request path')
+
+        const externalAllow = await authorized(() =>
+            crowdSecServices.updateCrowdSecConfigurationService({
+                mode: 'external',
+                apiUrl: crowdSecApiUrl('allow'),
+                apiKey: crowdSecBouncerKey,
+            }),
+        )
+        assert.equal(externalAllow.runtimeStatus, 'applied')
+        const externalConfiguration = await authorized(() =>
+            crowdSecServices.getCrowdSecConfigurationService(),
+        )
+        assert.equal(externalConfiguration.mode, 'external')
+        assert.equal(externalConfiguration.hasApiKey, true)
+        assert.equal(JSON.stringify(externalConfiguration).includes(crowdSecBouncerKey), false)
+        assert.equal(externalConfiguration.runtime?.state, 'connected')
+        const crowdSecCaddySource = await controller.getActiveProxyConfiguration()
+        assert.ok(crowdSecCaddySource)
+        assert.equal(crowdSecCaddySource.config.includes(crowdSecBouncerKey), false)
+        assert.equal(crowdSecCaddySource.config.includes('RENTNERPROXY_CROWDSEC_BOUNCER_KEY'), true)
+        await expectProxyMessage('demo.test', 'upstream-two')
+        await expectBasicAccess('policy.test', policyUsername, rotatedPassword, 200)
+        await expectWebSocketUpgrade('policy.test', basicHeader(policyUsername, rotatedPassword))
+        passed(
+            'external CrowdSec allows HTTP, Basic Auth, and WebSocket traffic without leaking keys',
+        )
+
+        for (const rejected of [
+            { apiUrl: crowdSecApiUrl('allow'), apiKey: 'invalid-credential-value' },
+            { apiUrl: crowdSecApiUrl('rejected'), apiKey: crowdSecBouncerKey },
+        ]) {
+            await assert.rejects(
+                authorized(() =>
+                    crowdSecServices.updateCrowdSecConfigurationService({
+                        mode: 'external',
+                        ...rejected,
+                    }),
+                ),
+                { code: 'connection_failed' },
+            )
+        }
+        assert.equal(
+            (await authorized(() => crowdSecServices.getCrowdSecConfigurationService()))
+                .externalApiUrl,
+            crowdSecApiUrl('allow'),
+        )
+        await expectProxyMessage('demo.test', 'upstream-two')
+        passed('invalid external endpoint and credentials preserve the last working provider')
+
+        crowdSecLapiAvailable = false
+        assert.equal((await controller.getCrowdSecRuntimeStatus())?.state, 'degraded')
+        await expectProxyMessage('demo.test', 'upstream-two')
+        crowdSecLapiAvailable = true
+        assert.equal((await controller.getCrowdSecRuntimeStatus())?.state, 'connected')
+        passed('temporary LAPI failure reports degraded and fails open without proxy downtime')
+
+        assert.equal(
+            (
+                await authorized(() =>
+                    crowdSecServices.updateCrowdSecConfigurationService({
+                        mode: 'external',
+                        apiUrl: crowdSecApiUrl('block'),
+                        apiKey: crowdSecBouncerKey,
+                    }),
+                )
+            ).runtimeStatus,
+            'applied',
+        )
+        await expectProxyStatus('demo.test', 403, 20_000)
+        await expectProxyStatus('policy.test', 403, 20_000)
+        await expectWebSocketUpgrade('demo.test', undefined, 403)
+        const acmeWhileBlocked = await proxyRequest(
+            'demo.test',
+            '/.well-known/acme-challenge/not-present',
+        )
+        assert.notEqual(acmeWhileBlocked.status, 403)
+        await acmeWhileBlocked.body?.cancel()
+        passed(
+            'real Caddy denies HTTP, Basic Auth, and WebSocket requests while ACME HTTP-01 remains outside enforcement',
+        )
+
+        assert.equal(
+            (
+                await authorized(() =>
+                    crowdSecServices.updateCrowdSecConfigurationService({ mode: 'disabled' }),
+                )
+            ).runtimeStatus,
+            'applied',
+        )
+        await expectBasicAccess('policy.test', policyUsername, rotatedPassword, 200)
+        passed('disabling CrowdSec removes enforcement and leaves existing Access Policies intact')
+
+        await authorized(() =>
+            crowdSecServices.updateCrowdSecConfigurationService({
+                mode: 'external',
+                apiUrl: crowdSecApiUrl('trusted'),
+                apiKey: crowdSecBouncerKey,
+            }),
+        )
+        const untrustedSpoof = await fetch(proxyUrl + '/trusted-client-ip', {
+            headers: {
+                host: 'demo.test',
+                connection: 'close',
+                'x-forwarded-for': '198.51.100.45',
+                'x-real-ip': '198.51.100.45',
+            },
+            signal: AbortSignal.timeout(5_000),
+        })
+        assert.equal(untrustedSpoof.status, 200)
+        await untrustedSpoof.body?.cancel()
+        passed('untrusted X-Forwarded-For and X-Real-IP cannot forge a CrowdSec client identity')
+
+        const runtimeContainerId = await command([...compose, 'ps', '-q', 'proxy-runtime'])
+        const dockerGateway = await command([
+            'docker',
+            'inspect',
+            '--format',
+            '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}',
+            runtimeContainerId,
+        ])
+        assert.equal(isIP(dockerGateway), 4)
+        environment.RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS = dockerGateway + '/32'
+        await command([...compose, 'up', '--detach', '--force-recreate'], {
+            inherit: true,
+            timeoutMs: 180_000,
+        })
+        await refreshRuntimeAddresses()
+        await waitFor(
+            async () => (await controller.getProxyRuntimeStatus())?.running === true,
+            'trusted-proxy controller restart',
+        )
+        assert.equal(await crowdSecServices.reconcileCrowdSecConfiguration(), 'applied')
+        for (const clientIp of ['198.51.100.45', '2001:db8::123']) {
+            await waitFor(
+                async () => {
+                    const blocked = await fetch(proxyUrl + '/trusted-client-ip', {
+                        headers: {
+                            host: 'demo.test',
+                            connection: 'close',
+                            'x-forwarded-for': clientIp,
+                        },
+                        signal: AbortSignal.timeout(5_000),
+                    })
+                    await blocked.body?.cancel()
+                    return blocked.status === 403
+                },
+                `trusted CrowdSec client IP ${clientIp}`,
+                20_000,
+            )
+        }
+        const ignoredRealIp = await fetch(proxyUrl + '/trusted-client-ip', {
+            headers: {
+                host: 'demo.test',
+                connection: 'close',
+                'x-forwarded-for': '203.0.113.10',
+                'x-real-ip': '198.51.100.45',
+            },
+            signal: AbortSignal.timeout(5_000),
+        })
+        assert.equal(ignoredRealIp.status, 200)
+        await ignoredRealIp.body?.cancel()
+        passed('trusted Caddy client-IP resolution enforces IPv4/IPv6 while ignoring X-Real-IP')
+
+        await authorized(() =>
+            crowdSecServices.updateCrowdSecConfigurationService({ mode: 'disabled' }),
+        )
+        await expectProxyMessage('demo.test', 'upstream-two')
+        passed('controller restart rehydrates the encrypted external provider before clean disable')
+
         const initialSnapshot = await runtime.getProxyRuntimeSnapshotService()
         assert.equal(initialSnapshot.version, 7)
         assert.equal(
@@ -1097,13 +1368,19 @@ try {
         ]).catch(() => '')
         if (logs)
             console.error(
-                logs.replaceAll(token, '[redacted]').replaceAll(databasePassword, '[redacted]'),
+                logs
+                    .replaceAll(token, '[redacted]')
+                    .replaceAll(databasePassword, '[redacted]')
+                    .replaceAll(appEncryptionKey, '[redacted]')
+                    .replaceAll(crowdSecBouncerKey, '[redacted]'),
             )
         throw error
     } finally {
+        if (stopCrowdSecReconciliation) await stopCrowdSecReconciliation().catch(() => undefined)
         if (stopReconciliation) await stopReconciliation().catch(() => undefined)
         await first.stop(true)
         await second.stop(true)
+        await crowdSecLapi.stop(true)
         if (closeDatabase) await closeDatabase().catch(() => undefined)
         // These names are generated above for this run; no existing dev volume/database is touched.
         await command([...compose, 'down', '--volumes', '--remove-orphans']).catch(() => undefined)

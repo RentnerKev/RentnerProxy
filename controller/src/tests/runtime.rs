@@ -260,6 +260,47 @@ async fn external_crowdsec_switch_is_validated_redacted_persisted_and_reversible
     std::fs::remove_dir_all(&settings.state_dir).unwrap();
 }
 
+#[tokio::test]
+async fn crowdsec_persistence_failure_restores_the_previous_proxy() {
+    const KEY: &str = "0123456789abcdef0123456789abcdef";
+    let (api_url, lapi) = crowdsec_lapi(KEY).await;
+    let engine = FakeCaddy::new();
+    let (runtime, settings) = runtime(Some(engine.clone()));
+    runtime.initialize().await;
+    std::fs::create_dir(
+        settings
+            .state_dir
+            .join("active-crowdsec-configuration.json"),
+    )
+    .unwrap();
+
+    assert_eq!(
+        runtime
+            .apply_crowdsec(CrowdSecConfigRequest {
+                mode: CrowdSecMode::External,
+                api_url: Some(api_url),
+                api_key: Some(SecretString::new(KEY.to_owned())),
+            })
+            .await,
+        Err(CrowdSecError::ApplyFailed)
+    );
+    let status = runtime.crowdsec_status().await;
+    assert_eq!(status.mode, CrowdSecMode::Disabled);
+    assert!(!status.enforcement_active);
+    assert!(
+        !engine
+            .configuration
+            .lock()
+            .await
+            .contains("RENTNERPROXY_CROWDSEC_BOUNCER_KEY")
+    );
+    assert!(runtime.status().await.running);
+
+    runtime.shutdown().await;
+    lapi.abort();
+    std::fs::remove_dir_all(&settings.state_dir).unwrap();
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn startup_rejects_dangling_access_log_symlink_before_starting_caddy() {

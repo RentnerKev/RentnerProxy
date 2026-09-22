@@ -69,25 +69,43 @@ export function smokeProgress(suite: Suite) {
             if (suite === 'production' && isRestoreSmokeDiagnostic(line)) {
                 diagnostic = line
             }
-            const location = line.match(/(?:scripts[/\\])([a-z0-9-]+\.ts):(\d+):(\d+)/u)
+            const acquisitionProbe =
+                suite === 'production'
+                    ? /^Managed CrowdSec acquisition probe: \{"httpStatus":(-?\d{1,3}),"metricsReachable":(true|false),"accessLogHits":(\d{1,10}),"allFileHits":(\d{1,10}),"caddyParserHits":(\d{1,10}),"allParserHits":(\d{1,10}),"accessLogBytes":(-?\d{1,12}),"accessLogMode":"(\d{3,4}:\d{1,6}:\d{1,6}|unknown)","accessLogReadable":(true|false)\}$/u.exec(
+                          line,
+                      )
+                    : null
+            if (acquisitionProbe) {
+                diagnostic =
+                    `Managed acquisition HTTP ${acquisitionProbe[1]}, metrics ${acquisitionProbe[2]}, ` +
+                    `access-log hits ${acquisitionProbe[3]}, all file hits ${acquisitionProbe[4]}, ` +
+                    `Caddy parser hits ${acquisitionProbe[5]}, all parser hits ${acquisitionProbe[6]}, ` +
+                    `access-log bytes ${acquisitionProbe[7]}, mode ${acquisitionProbe[8]}, ` +
+                    `readable ${acquisitionProbe[9]}`
+                return diagnostic
+            }
+            const location = line.match(
+                /((?:scripts|tests[/\\]production)[/\\])([a-z0-9-]+\.ts):(\d+):(\d+)/u,
+            )
             if (
                 location &&
-                (location[1] === specification.source ||
+                (location[2] === specification.source ||
                     (suite === 'production' &&
                         [
                             'alpha1-upgrade-smoke.ts',
                             'alpha1-upgrade-fixture.ts',
                             'restore-rollback-smoke.ts',
-                        ].includes(location[1]!)))
+                        ].includes(location[2]!)))
             ) {
                 diagnostic = (
                     diagnostic +
-                    ' at scripts/' +
+                    ' at ' +
                     location[1] +
-                    ':' +
                     location[2] +
                     ':' +
-                    location[3]
+                    location[3] +
+                    ':' +
+                    location[4]
                 ).slice(0, 300)
             }
             return undefined
