@@ -19,6 +19,9 @@ flowchart TD
     C --> D
     D --> X[Managed upstreams]
     C --> A[ACME and DNS providers]
+    C --> S[Managed CrowdSec engine]
+    D <--> S
+    D <--> E[External CrowdSec Local API]
 ```
 
 The production image and its pinned base components are assembled in
@@ -88,6 +91,28 @@ It sends a database-derived snapshot to the controller, requires the returned
 active revision to match, then checks the latest desired revision. A periodic drift
 check queues another apply when the controller does not match the desired snapshot.
 
+### CrowdSec control and enforcement
+
+PostgreSQL stores the desired CrowdSec mode and an encrypted external bouncer credential. The
+credential is write-only at the browser boundary. A dedicated reconciliation worker in
+[`web/src/server/Admin/CrowdSec/`](./web/src/server/Admin/CrowdSec/) restores that desired state
+after controller or web-process restarts. The controller validates a target before replacing the
+active provider, retains the prior provider on failure, and renders only a Caddy environment
+placeholder for the secret.
+
+Managed mode starts the pinned CrowdSec engine through
+[`docker/crowdsec/runtime/supervisor.sh`](./docker/crowdsec/runtime/supervisor.sh). It runs as UID
+10003, reads the shared Caddy access log through a dedicated group-readable, setgid log
+directory, and stores its database and credentials under
+`/var/lib/rentnerproxy/crowdsec`, exposes its Local API only at `127.0.0.1:18080`, and exposes
+acquisition metrics only on loopback `127.0.0.1:6060`. Each new
+managed activation rotates the internal bouncer key before Caddy starts using it; a supervised
+engine restart during an active session keeps that key. External mode does not proxy or redirect
+the configured endpoint. Both modes use the same Caddy HTTP
+bouncer and Caddy's native effective client address. The ACME HTTP-01 route precedes the bouncer;
+other public HTTP and HTTPS handlers follow it. The bouncer streams decisions with hard failures
+disabled, so a Local API outage is reported as degraded while proxy traffic remains available.
+
 ## Certificate and trust boundaries
 
 PostgreSQL is the web application's durable record of certificate metadata,
@@ -145,8 +170,8 @@ replaced, restored, or its replay window advanced.
 ## Persistence and appliance recovery
 
 The Compose `rentnerproxy` volume is mounted at `/var/lib/rentnerproxy`. It holds
-the PostgreSQL cluster, controller/Caddy state, certificate material, access-log
-files, and bootstrap runtime secret state. The entrypoint creates private directory
+the PostgreSQL cluster, controller/Caddy state, certificate material, managed CrowdSec
+state, access-log files, and bootstrap runtime secret state. The entrypoint creates private directory
 ownership and generates or restores validated runtime secrets in
 [`docker/web/bootstrap-secrets.mjs`](./docker/web/bootstrap-secrets.mjs). The
 application encryption key is used by the web service and copied to the controller
@@ -162,6 +187,9 @@ trusted proxy CIDRs, port mappings, SMTP settings, and Compose project/file, mus
 be retained by the operator alongside the backup. Restore and rollback are separate
 operations in [`scripts/production-restore.ts`](./scripts/production-restore.ts);
 the documented upgrade and recovery constraints are in [`README.md`](./README.md).
+The v3 controller archive currently covers the proxy state directory, not the sibling managed
+CrowdSec directory; [issue #71](https://github.com/RentnerKev/RentnerProxy/issues/71) owns that
+backup/restore expansion.
 
 ## Change and verification boundaries
 

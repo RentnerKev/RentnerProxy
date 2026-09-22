@@ -19,11 +19,14 @@ compatibility, and regression coverage rather than another runtime redesign.
 Completed Alpha 6 work is part of the current baseline and is not listed below as unfinished
 roadmap scope.
 
-## Planned Beta 1 features
+## Beta 1 features
 
-The following capabilities are planned, not currently available:
+CrowdSec integration is implemented on the Beta 1 development line through
+[issue #64](https://github.com/RentnerKev/RentnerProxy/issues/64). It keeps the single-appliance
+deployment and supports disabled, managed, and external Local API modes.
 
-- [CrowdSec integration](https://github.com/RentnerKev/RentnerProxy/issues/64).
+The following capabilities remain planned and are not currently available:
+
 - [Forward Auth access policies](https://github.com/RentnerKev/RentnerProxy/issues/65).
 - [Nginx Proxy Manager importer](https://github.com/RentnerKev/RentnerProxy/issues/66).
 
