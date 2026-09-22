@@ -67,21 +67,8 @@ export async function startCertificateDnsFixture(apiToken: string) {
     const zoneId = 'a'.repeat(32)
     const records: TxtRecord[] = []
     const addresses = new Map<string, string>()
-    const dns = createSocket('udp4')
-    dns.on('message', (query, remote) => {
-        const response = dnsFixtureResponse(query, records, addresses)
-        if (response) dns.send(response, remote.port, remote.address)
-    })
-    await new Promise<void>((resolve, reject) => {
-        dns.once('error', reject)
-        dns.bind(0, '0.0.0.0', () => {
-            dns.removeListener('error', reject)
-            resolve()
-        })
-    })
-
     const connections = new Set<Socket>()
-    const tcp = createServer((socket) => {
+    const onConnection = (socket: Socket) => {
         connections.add(socket)
         socket.on('close', () => connections.delete(socket))
         socket.on('error', () => socket.destroy())
@@ -111,19 +98,42 @@ export async function startCertificateDnsFixture(apiToken: string) {
                 socket.write(Buffer.concat([header, response]))
             }
         })
-    })
-    try {
+    }
+    const reserveDnsServers = async (
+        attempt = 0,
+    ): Promise<{ dns: ReturnType<typeof createSocket>; tcp: ReturnType<typeof createServer> }> => {
+        const candidateDns = createSocket('udp4')
+        candidateDns.on('message', (query, remote) => {
+            const response = dnsFixtureResponse(query, records, addresses)
+            if (response) candidateDns.send(response, remote.port, remote.address)
+        })
         await new Promise<void>((resolve, reject) => {
-            tcp.once('error', reject)
-            tcp.listen(dns.address().port, '0.0.0.0', () => {
-                tcp.removeListener('error', reject)
+            candidateDns.once('error', reject)
+            candidateDns.bind(0, '0.0.0.0', () => {
+                candidateDns.removeListener('error', reject)
                 resolve()
             })
         })
-    } catch (error) {
-        dns.close()
-        throw error
+
+        const candidateTcp = createServer(onConnection)
+        try {
+            await new Promise<void>((resolve, reject) => {
+                candidateTcp.once('error', reject)
+                candidateTcp.listen(candidateDns.address().port, '0.0.0.0', () => {
+                    candidateTcp.removeListener('error', reject)
+                    resolve()
+                })
+            })
+            return { dns: candidateDns, tcp: candidateTcp }
+        } catch (error) {
+            candidateDns.close()
+            // A free UDP port may still be occupied by another TCP listener.
+            if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE' && attempt < 9)
+                return reserveDnsServers(attempt + 1)
+            throw error
+        }
     }
+    const { dns, tcp } = await reserveDnsServers()
     let nextId = 1
     let failCleanup = false
     let maxSimultaneousTxt = 0
