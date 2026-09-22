@@ -1,3 +1,4 @@
+import { TextInput, Textarea } from '@rentnerkev/inputs'
 import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
@@ -38,8 +39,7 @@ export default function RoleFormFields({
                             >
                                 {t('admin.roles.form.key')}
                             </label>
-                            <input
-                                className={uiClassNames.form.control}
+                            <TextInput
                                 id={`${formId}-${field.name}`}
                                 name={field.name}
                                 maxLength={100}
@@ -72,8 +72,7 @@ export default function RoleFormFields({
                             >
                                 {t('admin.roles.form.name')}
                             </label>
-                            <input
-                                className={uiClassNames.form.control}
+                            <TextInput
                                 id={`${formId}-${field.name}`}
                                 name={field.name}
                                 maxLength={100}
@@ -104,8 +103,7 @@ export default function RoleFormFields({
                             >
                                 {t('admin.roles.form.description')}
                             </label>
-                            <textarea
-                                className={uiClassNames.form.textarea}
+                            <Textarea
                                 id={`${formId}-${field.name}`}
                                 name={field.name}
                                 maxLength={500}

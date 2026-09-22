@@ -1,3 +1,4 @@
+import { EmailInput } from '@rentnerkev/inputs'
 import FieldError from '../../../../shared/Forms/FieldError'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { ForgotPasswordFormProps } from '../Types/forgot-password-component-props.types'
@@ -25,8 +26,7 @@ export default function ForgotPasswordForm({ state }: ForgotPasswordFormProps) {
                         <label className={uiClassNames.form.label} htmlFor={field.name}>
                             Email address
                         </label>
-                        <input
-                            className={uiClassNames.form.control}
+                        <EmailInput
                             id={field.name}
                             name={field.name}
                             type="email"

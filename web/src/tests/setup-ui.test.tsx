@@ -34,6 +34,7 @@ mock.module('@rentnerkev/toasts/toast', () => ({
 const useSetupLogic = (await import('../features/Auth/Setup/Hooks/useSetupLogic')).default
 const SetupForm = (await import('../features/Auth/Setup/Components/SetupForm')).default
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
+const { InputProvider } = await import('@rentnerkev/inputs')
 type SetupState = ReturnType<typeof useSetupLogic>['state']
 
 let activeRoot: Root | null = null
@@ -45,7 +46,13 @@ function SetupHarness({ onReady }: { readonly onReady: (state: SetupState) => vo
         onReady(state)
     }, [onReady, state])
 
-    return createElement(TooltipProvider, null, createElement(SetupForm, { state }))
+    return (
+        <TooltipProvider>
+            <InputProvider locale="en">
+                <SetupForm state={state} />
+            </InputProvider>
+        </TooltipProvider>
+    )
 }
 
 async function renderSetup(): Promise<SetupState> {
@@ -116,6 +123,18 @@ afterEach(async () => {
 })
 
 describe('first-owner setup submission', () => {
+    test('shows a live strength indicator only for the new password', async () => {
+        const state = await renderSetup()
+        expect(document.body.textContent?.match(/Password strength/g)).toHaveLength(1)
+        expect(document.body.textContent).toContain('Empty')
+
+        await act(async () => {
+            await fillValidSetup(state)
+        })
+        expect(document.body.textContent?.match(/Password strength/g)).toHaveLength(1)
+        expect(document.body.textContent).not.toContain('Empty')
+    })
+
     test('does not render or submit a deployment origin field', async () => {
         const state = await renderSetup()
 

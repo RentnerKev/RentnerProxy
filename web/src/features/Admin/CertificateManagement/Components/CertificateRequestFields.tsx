@@ -1,3 +1,4 @@
+import { CheckboxInput, EmailInput, PasswordInput, TextInput, Textarea } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
@@ -26,10 +27,9 @@ export default function CertificateRequestFields({
                         >
                             {t('admin.certificates.form.name')}
                         </label>
-                        <input
+                        <TextInput
                             id="certificate-request-name"
                             name={field.name}
-                            className={uiClassNames.form.control}
                             value={field.state.value}
                             maxLength={120}
                             disabled={isPending}
@@ -53,10 +53,9 @@ export default function CertificateRequestFields({
                         >
                             {t('admin.certificates.form.domains')}
                         </label>
-                        <textarea
+                        <Textarea
                             id="certificate-request-domains"
                             name={field.name}
-                            className={uiClassNames.form.textarea}
                             value={field.state.value.join('\n')}
                             disabled={isPending}
                             readOnly={readOnlyDomains}
@@ -150,10 +149,9 @@ export default function CertificateRequestFields({
                                         >
                                             {t('admin.certificates.form.dnsZoneId')}
                                         </label>
-                                        <input
+                                        <TextInput
                                             id="certificate-request-dns-zone-id"
                                             name={field.name}
-                                            className={uiClassNames.form.control}
                                             value={field.state.value}
                                             maxLength={32}
                                             disabled={isPending}
@@ -182,11 +180,10 @@ export default function CertificateRequestFields({
                                         >
                                             {t('admin.certificates.form.dnsApiToken')}
                                         </label>
-                                        <input
+                                        <PasswordInput
                                             id="certificate-request-dns-api-token"
                                             name={field.name}
                                             type="password"
-                                            className={uiClassNames.form.control}
                                             value={field.state.value}
                                             maxLength={512}
                                             disabled={isPending}
@@ -268,11 +265,10 @@ export default function CertificateRequestFields({
                         >
                             {t('admin.certificates.form.contactEmail')}
                         </label>
-                        <input
+                        <EmailInput
                             id="certificate-request-contact"
                             name={field.name}
                             type="email"
-                            className={uiClassNames.form.control}
                             value={field.state.value ?? ''}
                             maxLength={254}
                             disabled={isPending}
@@ -298,11 +294,10 @@ export default function CertificateRequestFields({
                             htmlFor="certificate-request-terms"
                             aria-label={t('admin.certificates.form.acceptTerms')}
                         >
-                            <input
+                            <CheckboxInput
                                 id="certificate-request-terms"
                                 name={field.name}
                                 type="checkbox"
-                                className={uiClassNames.permission.checkbox}
                                 checked={field.state.value}
                                 disabled={isPending}
                                 onBlur={field.handleBlur}

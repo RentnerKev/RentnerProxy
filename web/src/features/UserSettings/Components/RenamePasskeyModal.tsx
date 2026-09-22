@@ -1,3 +1,4 @@
+import { TextInput } from '@rentnerkev/inputs'
 import { Modal } from '../../../shared/Modal'
 import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import useTranslationStore from '../../../language/useTranslationStore'
@@ -67,9 +68,8 @@ export default function RenamePasskeyModal({
         >
             <label className={uiClassNames.form.field} htmlFor="passkey-name">
                 <span className={uiClassNames.form.label}>{t('account.passkeys.name.label')}</span>
-                <input
+                <TextInput
                     id="passkey-name"
-                    className={uiClassNames.form.control}
                     autoComplete="off"
                     maxLength={100}
                     value={logic.state.name}

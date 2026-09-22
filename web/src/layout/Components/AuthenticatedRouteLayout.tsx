@@ -1,4 +1,5 @@
 import { ToastProvider } from '@rentnerkev/toasts'
+import { InputProvider } from '@rentnerkev/inputs'
 import { SelectProvider } from '@rentnerkev/select'
 import { Outlet } from '@tanstack/react-router'
 import { createPortal } from 'react-dom'
@@ -32,27 +33,29 @@ export default function AuthenticatedRouteLayout({ user }: AuthenticatedRouteLay
     return (
         <>
             <CertificateJobProgressObserver permissions={user.permissions} />
-            <SelectProvider
-                locale={language}
-                searchable={false}
-                {...(selectNonce ? { nonce: selectNonce } : {})}
-            >
-                <AuthenticatedShell
-                    user={user}
-                    isLoggingOut={state.isLoggingOut}
-                    onLogout={handler.handleLogout}
-                    themeMode={theme.state.themeMode}
-                    themeControl={
-                        <ThemeModeSwitch
-                            isSaving={theme.state.isSaving}
-                            onToggle={theme.handler.handleToggle}
-                            themeMode={theme.state.themeMode}
-                        />
-                    }
+            <InputProvider locale={language}>
+                <SelectProvider
+                    locale={language}
+                    searchable={false}
+                    {...(selectNonce ? { nonce: selectNonce } : {})}
                 >
-                    <Outlet />
-                </AuthenticatedShell>
-            </SelectProvider>
+                    <AuthenticatedShell
+                        user={user}
+                        isLoggingOut={state.isLoggingOut}
+                        onLogout={handler.handleLogout}
+                        themeMode={theme.state.themeMode}
+                        themeControl={
+                            <ThemeModeSwitch
+                                isSaving={theme.state.isSaving}
+                                onToggle={theme.handler.handleToggle}
+                                themeMode={theme.state.themeMode}
+                            />
+                        }
+                    >
+                        <Outlet />
+                    </AuthenticatedShell>
+                </SelectProvider>
+            </InputProvider>
             {typeof document === 'undefined'
                 ? null
                 : createPortal(

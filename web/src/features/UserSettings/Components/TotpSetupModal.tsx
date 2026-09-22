@@ -1,3 +1,4 @@
+import { TextInput } from '@rentnerkev/inputs'
 import { QRCodeSVG } from 'qrcode.react'
 import type { ChangeEvent } from 'react'
 
@@ -121,10 +122,9 @@ export default function TotpSetupModal({
                                 <label className={uiClassNames.form.label} htmlFor={field.name}>
                                     {t('account.twoFactor.setup.authenticatorCode')}
                                 </label>
-                                <input
+                                <TextInput
                                     id={field.name}
                                     name={field.name}
-                                    className={uiClassNames.form.control}
                                     inputMode="numeric"
                                     autoComplete="one-time-code"
                                     maxLength={6}

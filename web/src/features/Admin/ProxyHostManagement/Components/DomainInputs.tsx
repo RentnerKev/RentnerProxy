@@ -1,3 +1,4 @@
+import { TextInput } from '@rentnerkev/inputs'
 import { Plus, Trash2 } from 'lucide-react'
 
 import { MAX_PROXY_HOST_DOMAINS } from '../../../../config/proxy-hosts.config'
@@ -50,10 +51,9 @@ export default function DomainInputs({
                                                 })}
                                             </label>
                                             <div className="flex items-start gap-2">
-                                                <input
+                                                <TextInput
                                                     id={inputId}
                                                     name={field.name}
-                                                    className={`${uiClassNames.form.control} min-w-0`}
                                                     value={field.state.value}
                                                     maxLength={1_024}
                                                     disabled={isPending}

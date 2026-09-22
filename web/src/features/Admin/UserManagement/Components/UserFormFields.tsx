@@ -1,3 +1,4 @@
+import { EmailInput, TextInput } from '@rentnerkev/inputs'
 import { displayNameSchema, emailSchema } from '../../../Auth/Shared/validation'
 import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
 import useTranslationStore from '../../../../language/useTranslationStore'
@@ -43,8 +44,7 @@ export default function UserFormFields({
                                 {t('admin.users.form.displayName')}
                                 {isCreate ? ` (${t('admin.users.form.optional')})` : ''}
                             </label>
-                            <input
-                                className={uiClassNames.form.control}
+                            <TextInput
                                 id={`${formId}-${field.name}`}
                                 name={field.name}
                                 autoComplete={isCreate ? 'off' : 'name'}
@@ -74,8 +74,7 @@ export default function UserFormFields({
                             >
                                 {t('admin.users.form.email')}
                             </label>
-                            <input
-                                className={uiClassNames.form.control}
+                            <EmailInput
                                 id={`${formId}-${field.name}`}
                                 name={field.name}
                                 type="email"

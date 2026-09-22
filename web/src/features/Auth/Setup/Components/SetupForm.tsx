@@ -1,5 +1,5 @@
+import { EmailInput, PasswordInput, TextInput } from '@rentnerkev/inputs'
 import FieldError from '../../../../shared/Forms/FieldError'
-import PasswordInput from '../../../../shared/Forms/PasswordInput'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { ChangeEvent } from 'react'
 import type { SetupFormProps } from '../Types/setup-component-props.types'
@@ -33,8 +33,7 @@ export default function SetupForm({ state }: SetupFormProps) {
                         <label className={uiClassNames.form.label} htmlFor={field.name}>
                             Display name
                         </label>
-                        <input
-                            className={uiClassNames.form.control}
+                        <TextInput
                             id={field.name}
                             name={field.name}
                             autoComplete="name"
@@ -61,8 +60,7 @@ export default function SetupForm({ state }: SetupFormProps) {
                         <label className={uiClassNames.form.label} htmlFor={field.name}>
                             Email address
                         </label>
-                        <input
-                            className={uiClassNames.form.control}
+                        <EmailInput
                             id={field.name}
                             name={field.name}
                             type="email"
@@ -95,6 +93,7 @@ export default function SetupForm({ state }: SetupFormProps) {
                             id={field.name}
                             name={field.name}
                             autoComplete="new-password"
+                            showPasswordStrength
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}

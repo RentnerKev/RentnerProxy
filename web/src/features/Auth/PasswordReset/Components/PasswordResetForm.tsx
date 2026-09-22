@@ -1,5 +1,5 @@
+import { PasswordInput } from '@rentnerkev/inputs'
 import FieldError from '../../../../shared/Forms/FieldError'
-import PasswordInput from '../../../../shared/Forms/PasswordInput'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { ChangeEvent } from 'react'
 import type { PasswordResetFormProps } from '../Types/password-reset-component-props.types'
@@ -35,6 +35,7 @@ export default function PasswordResetForm({ state }: PasswordResetFormProps) {
                             id={field.name}
                             name={field.name}
                             autoComplete="new-password"
+                            showPasswordStrength
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}

@@ -1,3 +1,4 @@
+import { RangeInput } from '@rentnerkev/inputs'
 import { Check, RotateCcw, ZoomIn } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 
@@ -72,7 +73,7 @@ export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialog
                     >
                         <ZoomIn aria-hidden="true" className="size-4 text-brand-text" />
                         <span className="sr-only">{t('account.profileImage.crop.zoom')}</span>
-                        <input
+                        <RangeInput
                             id="profile-image-zoom"
                             type="range"
                             min="1"

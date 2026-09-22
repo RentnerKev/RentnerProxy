@@ -1,7 +1,7 @@
+import { EmailInput, PasswordInput } from '@rentnerkev/inputs'
 import { Link } from '@tanstack/react-router'
 import type { ChangeEvent } from 'react'
 import FieldError from '../../../../shared/Forms/FieldError'
-import PasswordInput from '../../../../shared/Forms/PasswordInput'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { LoginFormProps } from '../Types/login-component-props.types'
 import {
@@ -29,8 +29,7 @@ export default function LoginForm({ state, onPasskeyLogin }: LoginFormProps) {
                         <label className={uiClassNames.form.label} htmlFor={field.name}>
                             Email address
                         </label>
-                        <input
-                            className={uiClassNames.form.control}
+                        <EmailInput
                             id={field.name}
                             name={field.name}
                             type="email"

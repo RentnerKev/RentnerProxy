@@ -1,3 +1,4 @@
+import { TextInput } from '@rentnerkev/inputs'
 import { RangeCalendar } from '@rentnerkev/calendar/range-calendar'
 import { CustomSelect } from '@rentnerkev/select/select'
 import type { RowData } from '@tanstack/react-table'
@@ -9,9 +10,6 @@ import {
 } from '../Helpers/calendarFilterValue.helpers'
 import useCalendarPresentation from '../../Calendar/Hooks/useCalendarPresentation'
 import type { TableColumnFilterInputProps } from '../Types/table.types'
-
-const controlClassName =
-    'box-border h-12 min-w-0 w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm font-normal text-ink outline-hidden transition-[border-color,box-shadow] placeholder:text-muted-soft focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/15'
 
 export default function TableColumnFilterInput<TData extends RowData>({
     column,
@@ -63,7 +61,7 @@ export default function TableColumnFilterInput<TData extends RowData>({
                 aria-label={t('table.filterByDateRange')}
                 value={getRangeCalendarInputValue(column.getFilterValue())}
                 onChange={(value) => column.setFilterValue(getTableDateRangeFilterValue(value))}
-                className="h-12 w-full rounded-xl"
+                className="h-12 w-full rounded-xl text-left"
                 closeOnSelect
                 customDesign={CALENDAR_CUSTOM_DESIGN}
                 fastEdit={false}
@@ -77,14 +75,13 @@ export default function TableColumnFilterInput<TData extends RowData>({
     }
 
     return (
-        <input
+        <TextInput
             type="text"
             value={String(column.getFilterValue() ?? '')}
             maxLength={config.maxLength}
             aria-label={config.placeholder ?? t('table.filterColumn')}
             placeholder={config.placeholder ?? t('table.filterEllipsis')}
             onChange={(event) => column.setFilterValue(event.target.value || undefined)}
-            className={controlClassName}
         />
     )
 }

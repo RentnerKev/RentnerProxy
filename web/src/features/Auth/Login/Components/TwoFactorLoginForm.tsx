@@ -1,3 +1,4 @@
+import { TextInput } from '@rentnerkev/inputs'
 import { Link } from '@tanstack/react-router'
 import type { ChangeEvent } from 'react'
 
@@ -34,10 +35,9 @@ export default function TwoFactorLoginForm({
                                 <label className={uiClassNames.form.label} htmlFor={field.name}>
                                     {mode === 'totp' ? 'Authenticator code' : 'Recovery code'}
                                 </label>
-                                <input
+                                <TextInput
                                     id={field.name}
                                     name={field.name}
-                                    className={uiClassNames.form.control}
                                     autoComplete={mode === 'totp' ? 'one-time-code' : 'off'}
                                     inputMode={mode === 'totp' ? 'numeric' : 'text'}
                                     maxLength={mode === 'totp' ? 6 : 128}

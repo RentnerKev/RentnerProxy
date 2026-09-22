@@ -1,3 +1,4 @@
+import { NativeTimeInput } from '@rentnerkev/inputs'
 import { SingleCalendar } from '@rentnerkev/calendar/single-calendar'
 
 import { CALENDAR_CUSTOM_DESIGN } from '../../config/calendar.config'
@@ -23,7 +24,7 @@ export default function UtcDateTimeInput({
                 aria-invalid={invalid || undefined}
                 value={state.date}
                 onChange={handler.handleDateChange}
-                className={`h-12 w-full rounded-xl ${invalidClassName}`}
+                className={`h-12 w-full rounded-xl text-left ${invalidClassName}`}
                 closeOnSelect
                 customDesign={CALENDAR_CUSTOM_DESIGN}
                 disabled={disabled}
@@ -34,7 +35,7 @@ export default function UtcDateTimeInput({
                 placeholder={state.presentation.t('calendar.selectDate')}
                 weekStartsOn={1}
             />
-            <input
+            <NativeTimeInput
                 type="time"
                 step={60}
                 aria-label={`${ariaLabel} · ${state.presentation.t('calendar.time')}`}

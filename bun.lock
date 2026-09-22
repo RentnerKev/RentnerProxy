@@ -7,6 +7,7 @@
       "dependencies": {
         "@fontsource/lilita-one": "5.3.0",
         "@rentnerkev/calendar": "2.0.1",
+        "@rentnerkev/inputs": "2.1.1",
         "@rentnerkev/select": "3.1.0",
         "@rentnerkev/toasts": "3.0.0",
         "@rentnerkev/tooltips": "2.0.1",
@@ -415,6 +416,8 @@
     "@radix-ui/rect": ["@radix-ui/rect@1.1.3", "", {}, "sha512-JtyZR+mqgBibTo8xea3B6ZRmzZiM/YeVBtUkas6zMuXjAlfIFIW2FgqeM9eLyvEaYX66vr6DJMK+4U6LV0KhNw=="],
 
     "@rentnerkev/calendar": ["@rentnerkev/calendar@2.0.1", "", { "dependencies": { "@radix-ui/react-select": "^2.3.7", "@rentnerkev/tooltips": "^2.0.0", "lucide-react": "^1.47.0" }, "peerDependencies": { "react": "^19.0.0", "react-dom": "^19.0.0" } }, "sha512-39GCGylB5JKih80/UkElYdCqBrvTZCxbUV2i1LwSYlwo94jM9W2NJrdKXiiVZp/k62oAVIurr1L8lb/gxX9tSA=="],
+
+    "@rentnerkev/inputs": ["@rentnerkev/inputs@2.1.1", "", { "dependencies": { "@rentnerkev/tooltips": "^2.0.0", "lucide-react": "^1.47.0" }, "peerDependencies": { "react": "^19.0.0", "react-dom": "^19.0.0" } }, "sha512-bIbF7ZmnSyVLyMPBGW74KCpb8iPQBwJVEXwE1QCFwQwdIYTKwQvm6c+YkyDvcwfziCI1CJaIfTbdi6K4478J/Q=="],
 
     "@rentnerkev/select": ["@rentnerkev/select@3.1.0", "", { "dependencies": { "@radix-ui/react-select": "^2.3.7", "@rentnerkev/tooltips": "^2.0.0", "lucide-react": "^1.47.0" }, "peerDependencies": { "react": "^19.0.0", "react-dom": "^19.0.0" } }, "sha512-QlvwGNwLt74GCOgdX4DWWiFzaoLGjjKIzLwmD4v5oUXbDeAIZ7iU9GkGlYUkw8DMbvXiRPpbVHwVpV+PFVXqMg=="],
 

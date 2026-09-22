@@ -1,5 +1,5 @@
+import { PasswordInput } from '@rentnerkev/inputs'
 import FieldError from '../../../shared/Forms/FieldError'
-import PasswordInput from '../../../shared/Forms/PasswordInput'
 import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import useTranslationStore from '../../../language/useTranslationStore'
 import { getValidationIssue } from '../../../shared/Forms/Helpers/getFieldErrorMessage'
@@ -62,6 +62,7 @@ export default function ChangePasswordForm({ state }: ChangePasswordFormProps) {
                             id={field.name}
                             name={field.name}
                             autoComplete="new-password"
+                            showPasswordStrength
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}

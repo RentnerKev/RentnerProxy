@@ -6,6 +6,7 @@
 @import '@rentnerkev/tooltips/tailwind.css';
 @import '@rentnerkev/calendar/tailwind.css';
 @import '@rentnerkev/select/tailwind.css';
+@import '@rentnerkev/inputs/tailwind.css';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 

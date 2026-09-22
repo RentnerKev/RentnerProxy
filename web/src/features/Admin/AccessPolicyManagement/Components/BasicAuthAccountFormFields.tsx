@@ -1,3 +1,4 @@
+import { PasswordInput, TextInput } from '@rentnerkev/inputs'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { BasicAuthAccountFormFieldsProps } from '../Types/basic-auth.types'
@@ -21,10 +22,9 @@ export default function BasicAuthAccountFormFields({
                 <label className={uiClassNames.form.label} htmlFor={`${formId}-username`}>
                     {t('admin.accessPolicies.basicAuth.form.username')}
                 </label>
-                <input
+                <TextInput
                     id={`${formId}-username`}
                     name="username"
-                    className={uiClassNames.form.control}
                     value={values.username}
                     maxLength={64}
                     autoComplete="username"
@@ -46,12 +46,12 @@ export default function BasicAuthAccountFormFields({
                 <label className={uiClassNames.form.label} htmlFor={`${formId}-password`}>
                     {t('admin.accessPolicies.basicAuth.form.password')}
                 </label>
-                <input
+                <PasswordInput
                     id={`${formId}-password`}
                     name="password"
                     type="password"
-                    className={uiClassNames.form.control}
                     value={values.password}
+                    showPasswordStrength={mode === 'create' || values.password !== ''}
                     maxLength={256}
                     autoComplete="new-password"
                     disabled={isPending}

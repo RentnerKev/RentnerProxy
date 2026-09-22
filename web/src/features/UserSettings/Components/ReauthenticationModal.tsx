@@ -1,5 +1,5 @@
+import { PasswordInput } from '@rentnerkev/inputs'
 import { Modal } from '../../../shared/Modal'
-import PasswordInput from '../../../shared/Forms/PasswordInput'
 import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import useTranslationStore from '../../../language/useTranslationStore'
 

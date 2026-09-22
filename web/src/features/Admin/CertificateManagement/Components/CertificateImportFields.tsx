@@ -1,3 +1,4 @@
+import { TextInput, Textarea } from '@rentnerkev/inputs'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
@@ -28,10 +29,9 @@ export default function CertificateImportFields({
                         >
                             {t('admin.certificates.form.name')}
                         </label>
-                        <input
+                        <TextInput
                             id="certificate-import-name"
                             name={field.name}
-                            className={uiClassNames.form.control}
                             value={field.state.value}
                             maxLength={120}
                             disabled={isPending}
@@ -100,7 +100,7 @@ function PemField({
                             {label}
                             {required ? <span aria-hidden="true"> *</span> : null}
                         </label>
-                        <textarea
+                        <Textarea
                             id={id}
                             name={field.name}
                             className={`${uiClassNames.form.textarea} min-h-36 font-mono text-xs`}

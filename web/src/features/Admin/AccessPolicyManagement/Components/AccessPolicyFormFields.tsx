@@ -1,3 +1,4 @@
+import { CheckboxInput, RadioInput, TextInput, Textarea } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
@@ -65,10 +66,9 @@ export default function AccessPolicyFormFields({
                 <label className={uiClassNames.form.label} htmlFor={`${formId}-name`}>
                     {t('admin.accessPolicies.form.name')}
                 </label>
-                <input
+                <TextInput
                     id={`${formId}-name`}
                     name="name"
-                    className={uiClassNames.form.control}
                     value={values.name}
                     maxLength={120}
                     disabled={isPending}
@@ -117,11 +117,10 @@ export default function AccessPolicyFormFields({
                                 htmlFor={`${formId}-combination-${combination}`}
                                 key={combination}
                             >
-                                <input
+                                <RadioInput
                                     type="radio"
                                     id={`${formId}-combination-${combination}`}
                                     name="combination"
-                                    className={uiClassNames.permission.checkbox}
                                     checked={values.combination === combination}
                                     disabled={isPending}
                                     onChange={() => setCombination(combination)}
@@ -164,11 +163,10 @@ export default function AccessPolicyFormFields({
                         htmlFor={`${formId}-ip-rules-enabled`}
                         aria-label={t('admin.accessPolicies.form.ipRules.configure')}
                     >
-                        <input
+                        <CheckboxInput
                             type="checkbox"
                             id={`${formId}-ip-rules-enabled`}
                             name="ipRules.enabled"
-                            className={uiClassNames.permission.checkbox}
                             checked={values.ipRules !== null}
                             disabled={isPending}
                             onChange={(event) =>
@@ -233,10 +231,9 @@ export default function AccessPolicyFormFields({
                                 >
                                     {t('admin.accessPolicies.form.ipRules.allow')}
                                 </label>
-                                <textarea
+                                <Textarea
                                     id={`${formId}-ip-rules-allow`}
                                     name="ipRules.allow"
-                                    className={uiClassNames.form.textarea}
                                     value={values.ipRules.allow}
                                     disabled={isPending}
                                     rows={4}
@@ -256,10 +253,9 @@ export default function AccessPolicyFormFields({
                                 >
                                     {t('admin.accessPolicies.form.ipRules.deny')}
                                 </label>
-                                <textarea
+                                <Textarea
                                     id={`${formId}-ip-rules-deny`}
                                     name="ipRules.deny"
-                                    className={uiClassNames.form.textarea}
                                     value={values.ipRules.deny}
                                     disabled={isPending}
                                     rows={4}

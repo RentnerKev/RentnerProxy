@@ -26,7 +26,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { act, StrictMode, useContext, useEffect } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { renderToString } = await import('react-dom/server')
-const { default: PasswordInput } = await import('../shared/Forms/PasswordInput')
+const { PasswordInput } = await import('@rentnerkev/inputs')
 const { CustomSelect } = await import('@rentnerkev/select/select')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 let activeRoot: Root | null = null
@@ -238,7 +238,13 @@ describe('authenticated language UI', () => {
             const container = await render(
                 <TooltipProvider>
                     <>
-                        <PasswordInput id="public-password" aria-label="Password" />
+                        <PasswordInput
+                            id="public-password"
+                            aria-label="Password"
+                            locale="en"
+                            value=""
+                            onChange={() => {}}
+                        />
                         <FormMessage tone="info">Public English response</FormMessage>
                     </>
                 </TooltipProvider>,

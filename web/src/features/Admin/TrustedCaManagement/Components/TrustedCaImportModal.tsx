@@ -1,3 +1,4 @@
+import { TextInput, Textarea } from '@rentnerkev/inputs'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
 import { Modal } from '../../../../shared/Modal'
@@ -72,10 +73,9 @@ export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
                             <label className={uiClassNames.form.label} htmlFor={formId + '-name'}>
                                 {t('admin.trustedCas.form.name')}
                             </label>
-                            <input
+                            <TextInput
                                 id={formId + '-name'}
                                 name={field.name}
-                                className={uiClassNames.form.control}
                                 value={field.state.value}
                                 maxLength={120}
                                 disabled={isPending}
@@ -97,7 +97,7 @@ export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
                             <label className={uiClassNames.form.label} htmlFor={formId + '-pem'}>
                                 {t('admin.trustedCas.form.pem')}
                             </label>
-                            <textarea
+                            <Textarea
                                 id={formId + '-pem'}
                                 name={field.name}
                                 className={

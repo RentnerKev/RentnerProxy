@@ -1,3 +1,4 @@
+import { CheckboxInput, TextInput } from '@rentnerkev/inputs'
 import { Plus, Trash2 } from 'lucide-react'
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
@@ -52,10 +53,9 @@ export default function RedirectHostFormFields({
                                                     })}
                                                 </label>
                                                 <div className="flex items-start gap-2">
-                                                    <input
+                                                    <TextInput
                                                         id={inputId}
                                                         name={field.name}
-                                                        className={`${uiClassNames.form.control} min-w-0`}
                                                         value={field.state.value}
                                                         maxLength={1024}
                                                         disabled={isPending}
@@ -142,7 +142,7 @@ export default function RedirectHostFormFields({
                             <label className={uiClassNames.form.label} htmlFor={inputId}>
                                 {t('admin.redirectHosts.form.destination')}
                             </label>
-                            <input
+                            <TextInput
                                 id={inputId}
                                 name={field.name}
                                 className={`${uiClassNames.form.control} font-mono`}
@@ -288,11 +288,10 @@ export default function RedirectHostFormFields({
                             htmlFor={`${formId}-preserveRequestUri`}
                             aria-label={t('admin.redirectHosts.form.preserveRequestUri')}
                         >
-                            <input
+                            <CheckboxInput
                                 type="checkbox"
                                 id={`${formId}-preserveRequestUri`}
                                 name={field.name}
-                                className={uiClassNames.permission.checkbox}
                                 checked={field.state.value}
                                 disabled={isPending}
                                 onBlur={field.handleBlur}
@@ -318,11 +317,10 @@ export default function RedirectHostFormFields({
                             htmlFor={`${formId}-enabled`}
                             aria-label={t('admin.redirectHosts.status.enabled')}
                         >
-                            <input
+                            <CheckboxInput
                                 type="checkbox"
                                 id={`${formId}-enabled`}
                                 name={field.name}
-                                className={uiClassNames.permission.checkbox}
                                 checked={field.state.value}
                                 disabled={isPending || !canChangeEnabled}
                                 onBlur={field.handleBlur}

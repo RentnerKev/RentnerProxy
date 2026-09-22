@@ -1,3 +1,4 @@
+import { CheckboxInput } from '@rentnerkev/inputs'
 import FieldError from '../../../../shared/Forms/FieldError'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
@@ -49,8 +50,7 @@ export default function PermissionCheckboxes({
                                             permission: t(`permissions.${permission.key}`),
                                         })}
                                     >
-                                        <input
-                                            className={uiClassNames.permission.checkbox}
+                                        <CheckboxInput
                                             id={inputId}
                                             type="checkbox"
                                             name={field.name}

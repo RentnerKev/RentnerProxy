@@ -1,3 +1,4 @@
+import { SearchInput } from '@rentnerkev/inputs'
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { CustomSelect } from '@rentnerkev/select/select'
 import { Fragment } from 'react'
@@ -23,9 +24,6 @@ import {
 } from '../Helpers/proxyAccessLogs'
 import type { ProxyAccessLogsTableProps } from '../Types/proxy-access-logs.types'
 import ClientIpCountry from './ClientIpCountry'
-
-const tableControlClassName =
-    'h-12 min-w-0 w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink outline-hidden transition-[border-color,box-shadow] placeholder:text-muted-soft focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/20'
 
 function logEntryKey(entry: ProxyAccessLogEntry, index: number): string {
     return `${entry.timestamp}-${entry.host}-${index}`
@@ -191,7 +189,7 @@ export default function ProxyAccessLogsTable({
                                 <span className="text-xs font-extrabold text-muted">
                                     {t('admin.proxyAccessLogs.filters.search')}
                                 </span>
-                                <input
+                                <SearchInput
                                     type="search"
                                     value={filters.search}
                                     maxLength={200}
@@ -203,7 +201,6 @@ export default function ProxyAccessLogsTable({
                                     aria-describedby={
                                         filterErrors.search ? 'proxy-log-search-error' : undefined
                                     }
-                                    className={tableControlClassName}
                                 />
                                 {filterErrors.search ? (
                                     <span

@@ -1,5 +1,5 @@
+import { PasswordInput, TextInput } from '@rentnerkev/inputs'
 import FieldError from '../../../../shared/Forms/FieldError'
-import PasswordInput from '../../../../shared/Forms/PasswordInput'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { ChangeEvent } from 'react'
 import type { AcceptInviteFormProps } from '../Types/accept-invite-component-props.types'
@@ -32,8 +32,7 @@ export default function AcceptInviteForm({ state }: AcceptInviteFormProps) {
                         <label className={uiClassNames.form.label} htmlFor={field.name}>
                             Display name
                         </label>
-                        <input
-                            className={uiClassNames.form.control}
+                        <TextInput
                             id={field.name}
                             name={field.name}
                             autoComplete="name"
@@ -64,6 +63,7 @@ export default function AcceptInviteForm({ state }: AcceptInviteFormProps) {
                             id={field.name}
                             name={field.name}
                             autoComplete="new-password"
+                            showPasswordStrength
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}

@@ -1,3 +1,4 @@
+import { CheckboxInput, TextInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
@@ -56,11 +57,10 @@ export default function UpstreamTlsFields({
                                     htmlFor={formId + '-verifyUpstreamTls'}
                                     aria-label={t('admin.proxyHosts.upstreamTls.verify')}
                                 >
-                                    <input
+                                    <CheckboxInput
                                         id={formId + '-verifyUpstreamTls'}
                                         name={field.name}
                                         type="checkbox"
-                                        className={uiClassNames.permission.checkbox}
                                         checked={field.state.value !== false}
                                         disabled={isPending}
                                         onBlur={field.handleBlur}
@@ -98,10 +98,9 @@ export default function UpstreamTlsFields({
                                     >
                                         {t('admin.proxyHosts.upstreamTls.serverName')}
                                     </label>
-                                    <input
+                                    <TextInput
                                         id={formId + '-upstreamTlsServerName'}
                                         name={field.name}
-                                        className={uiClassNames.form.control}
                                         value={field.state.value ?? ''}
                                         maxLength={253}
                                         disabled={isPending}

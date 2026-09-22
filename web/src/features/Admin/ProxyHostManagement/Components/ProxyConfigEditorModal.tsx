@@ -1,3 +1,4 @@
+import { NumberInput } from '@rentnerkev/inputs'
 import { RotateCcw, Save } from 'lucide-react'
 
 import useTranslationStore, { type Translate } from '../../../../language/useTranslationStore'
@@ -191,13 +192,12 @@ function HostSettingField({
                 </span>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                <input
+                <NumberInput
                     id={inputId}
-                    className={uiClassNames.form.control}
                     type="number"
                     min={min}
                     max={max}
-                    value={value ?? ''}
+                    value={value === undefined ? '' : String(value)}
                     onChange={(event) =>
                         setSetting(
                             key,

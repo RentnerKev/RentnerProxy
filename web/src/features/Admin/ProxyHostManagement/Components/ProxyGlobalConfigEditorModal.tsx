@@ -1,3 +1,4 @@
+import { NumberInput } from '@rentnerkev/inputs'
 import { RotateCcw, Save } from 'lucide-react'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
@@ -101,12 +102,15 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                                     <label key={key} className="grid gap-1 text-sm text-ink-soft">
                                         {t(`admin.proxyHosts.config.${labelKey}`)}
                                         <span className="flex items-center gap-2">
-                                            <input
-                                                className={uiClassNames.form.control}
+                                            <NumberInput
                                                 type="number"
                                                 min={min}
                                                 max={max}
-                                                value={state.settings[key] ?? ''}
+                                                value={
+                                                    state.settings[key] === undefined
+                                                        ? ''
+                                                        : String(state.settings[key])
+                                                }
                                                 onChange={(event) =>
                                                     handler.setSetting(
                                                         key,

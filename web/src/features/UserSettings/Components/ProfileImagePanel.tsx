@@ -1,3 +1,4 @@
+import { FileInput } from '@rentnerkev/inputs'
 import { Camera, ImageUp } from 'lucide-react'
 
 import { UserAvatar } from '../../../shared/Avatar'
@@ -45,7 +46,7 @@ export default function ProfileImagePanel({ canUpdateProfileImage, user }: Profi
                     {user.profileImageVersion
                         ? t('account.profileImage.change')
                         : t('account.profileImage.choose')}
-                    <input
+                    <FileInput
                         type="file"
                         accept={PROFILE_IMAGE_ACCEPT}
                         className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"

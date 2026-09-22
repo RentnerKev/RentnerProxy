@@ -1,3 +1,4 @@
+import { CheckboxInput } from '@rentnerkev/inputs'
 import FieldError from '../../../../shared/Forms/FieldError'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
@@ -20,8 +21,7 @@ export default function RoleCheckboxes({ disabled, field, roles }: RoleCheckboxe
                             key={role.id}
                             htmlFor={inputId}
                         >
-                            <input
-                                className={uiClassNames.permission.checkbox}
+                            <CheckboxInput
                                 id={inputId}
                                 type="checkbox"
                                 name={field.name}

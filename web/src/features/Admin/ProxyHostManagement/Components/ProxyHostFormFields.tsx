@@ -1,3 +1,4 @@
+import { CheckboxInput, TextInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import { certificateCoversDomains } from '../../CertificateManagement/Helpers/certificateValidation'
@@ -108,10 +109,9 @@ export default function ProxyHostFormFields({
                             <label className={uiClassNames.form.label} htmlFor={inputId}>
                                 {t('admin.proxyHosts.form.forwardPort')}
                             </label>
-                            <input
+                            <TextInput
                                 id={inputId}
                                 name={field.name}
-                                className={uiClassNames.form.control}
                                 value={field.state.value}
                                 disabled={isPending}
                                 inputMode="numeric"
@@ -142,10 +142,9 @@ export default function ProxyHostFormFields({
                             <label className={uiClassNames.form.label} htmlFor={inputId}>
                                 {t('admin.proxyHosts.form.forwardHost')}
                             </label>
-                            <input
+                            <TextInput
                                 id={inputId}
                                 name={field.name}
-                                className={uiClassNames.form.control}
                                 value={field.state.value}
                                 maxLength={1_024}
                                 disabled={isPending}
@@ -395,11 +394,10 @@ export default function ProxyHostFormFields({
                                         htmlFor={`${formId}-forceHttps`}
                                         aria-label={t('admin.proxyHosts.form.forceHttps')}
                                     >
-                                        <input
+                                        <CheckboxInput
                                             type="checkbox"
                                             id={`${formId}-forceHttps`}
                                             name={field.name}
-                                            className={uiClassNames.permission.checkbox}
                                             checked={Boolean(field.state.value)}
                                             disabled={isPending || !usable}
                                             onBlur={field.handleBlur}
@@ -441,11 +439,10 @@ export default function ProxyHostFormFields({
                             htmlFor={`${formId}-enabled`}
                             aria-label={t('admin.proxyHosts.status.enabled')}
                         >
-                            <input
+                            <CheckboxInput
                                 type="checkbox"
                                 id={`${formId}-enabled`}
                                 name={field.name}
-                                className={uiClassNames.permission.checkbox}
                                 checked={field.state.value}
                                 disabled={isPending || !canChangeEnabled}
                                 onBlur={field.handleBlur}
