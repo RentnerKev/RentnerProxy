@@ -203,7 +203,12 @@ impl ProxyRuntime {
         }
         self.mark_unavailable().await;
         let _ = engine.shutdown().await;
-        if self.start_engine(engine, json, revision).await.is_ok() {
+        let environment = self.active_crowdsec_provider().await.environment();
+        if self
+            .start_engine(engine, json, revision, environment)
+            .await
+            .is_ok()
+        {
             self.state.lock().await.engine_available = true;
             info!(
                 stage = "recovery",

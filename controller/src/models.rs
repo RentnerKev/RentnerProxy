@@ -1,5 +1,77 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, PartialEq, Eq, Deserialize)]
+#[serde(transparent)]
+pub(crate) struct SecretString(String);
+
+impl SecretString {
+    pub(crate) fn new(value: String) -> Self {
+        Self(value)
+    }
+
+    pub(crate) fn expose(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for SecretString {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("SecretString(REDACTED)")
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum CrowdSecMode {
+    Disabled,
+    Managed,
+    External,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct CrowdSecConfigRequest {
+    pub(crate) mode: CrowdSecMode,
+    #[serde(default)]
+    pub(crate) api_url: Option<String>,
+    #[serde(default)]
+    pub(crate) api_key: Option<SecretString>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum CrowdSecHealth {
+    Disabled,
+    Starting,
+    Connected,
+    Degraded,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum CrowdSecManagedEngineState {
+    Stopped,
+    Starting,
+    Ready,
+    Restarting,
+    Degraded,
+    Unavailable,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CrowdSecRuntimeStatus {
+    pub(crate) mode: CrowdSecMode,
+    pub(crate) state: CrowdSecHealth,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) api_url: Option<String>,
+    pub(crate) credential_configured: bool,
+    pub(crate) enforcement_active: bool,
+    pub(crate) managed_engine: CrowdSecManagedEngineState,
+    pub(crate) failure_behavior: &'static str,
+    pub(crate) client_ip_source: &'static str,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub(crate) struct ProxyConfigRequest {

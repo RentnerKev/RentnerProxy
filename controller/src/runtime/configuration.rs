@@ -2,8 +2,9 @@ use super::{
     ACTIVE_CONFIGURATION_FILE, ProxyRuntime, RenderPurpose, RuntimeError, StagedCertificate,
     renderer::{
         MAX_RENDERED_PROXY_CONFIG_BYTES, MAX_RENDERED_PROXY_HOST_SOURCE_BYTES, RenderError,
-        TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings, render_config_with_tls,
-        render_host_config_for_runtime, render_host_sources_for_runtime,
+        TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings,
+        render_config_with_tls_and_crowdsec, render_host_config_for_runtime,
+        render_host_sources_for_runtime,
     },
     state::{atomic_write, open_absolute_regular_file, state_dir},
 };
@@ -130,6 +131,18 @@ impl ProxyRuntime {
         staged: Option<&StagedCertificate>,
         purpose: RenderPurpose,
     ) -> Result<String, RuntimeError> {
+        let provider = self.active_crowdsec_provider().await;
+        self.render_proxy_config_for_provider(configuration, staged, purpose, &provider)
+            .await
+    }
+
+    pub(super) async fn render_proxy_config_for_provider(
+        &self,
+        configuration: &ValidatedProxyConfig,
+        staged: Option<&StagedCertificate>,
+        purpose: RenderPurpose,
+        provider: &super::crowdsec::ActiveProvider,
+    ) -> Result<String, RuntimeError> {
         let mut materials = BTreeMap::new();
         let certificate_hosts = configuration
             .proxy_hosts
@@ -178,7 +191,8 @@ impl ProxyRuntime {
         }
         let upstream_tls =
             self.upstream_tls_render_settings(configuration, purpose != RenderPurpose::Preview)?;
-        let rendered = render_config_with_tls(
+        let crowdsec = provider.render_settings();
+        let rendered = render_config_with_tls_and_crowdsec(
             configuration,
             &self.settings.render_settings(),
             &TlsRenderSettings {
@@ -188,6 +202,7 @@ impl ProxyRuntime {
             },
             &materials,
             &upstream_tls,
+            crowdsec.as_ref(),
         )
         .map_err(|error| match error {
             RenderError::ConfigTooLarge => RuntimeError::ConfigTooLarge,

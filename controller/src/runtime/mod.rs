@@ -5,6 +5,7 @@ mod certificate_management;
 mod certificates;
 pub(crate) mod clock;
 mod configuration;
+mod crowdsec;
 mod dns;
 mod engine;
 mod lifecycle;
@@ -21,7 +22,8 @@ pub(crate) use certificates::{
     CertificateError, CertificateEventPage, CertificateImportRequest, CertificateIssueRequest,
     CertificateMetadata, CertificateOperationStage, CertificateStore, CertificateStoreReadiness,
 };
-pub(crate) use engine::{CaddyProcess, EngineError, EngineFuture, ProxyEngine};
+pub(crate) use crowdsec::CrowdSecError;
+pub(crate) use engine::{CaddyProcess, EngineEnvironment, EngineError, EngineFuture, ProxyEngine};
 use renderer::RenderSettings;
 use std::{
     collections::BTreeMap,
@@ -37,6 +39,7 @@ use trusted_cas::TrustedCaStore;
 
 const BASELINE_PROBE_REVISION: &str = "none";
 const ACTIVE_CONFIGURATION_FILE: &str = "active-proxy-snapshot.json";
+const ACTIVE_CROWDSEC_CONFIGURATION_FILE: &str = "active-crowdsec-configuration.json";
 const MAX_CANDIDATE_ACTIVATIONS_PER_TICK: usize = 4;
 
 #[derive(Clone, Debug)]
@@ -51,9 +54,13 @@ pub(crate) struct RuntimeSettings {
     pub(crate) stage_timeout: Duration,
     pub(crate) recovery_interval: Duration,
     pub(crate) system_ca_bundle: PathBuf,
+    pub(crate) crowdsec_control_dir: PathBuf,
+    pub(crate) crowdsec_state_dir: PathBuf,
+    pub(crate) crowdsec_start_timeout: Duration,
 }
 impl RuntimeSettings {
     pub(crate) fn new(state_dir: PathBuf, http_port: u16) -> Self {
+        let crowdsec_root = state_dir.join("crowdsec-test-runtime");
         Self {
             state_dir,
             http_port,
@@ -65,6 +72,9 @@ impl RuntimeSettings {
             stage_timeout: Duration::from_secs(15),
             recovery_interval: Duration::from_secs(5),
             system_ca_bundle: PathBuf::from("/etc/ssl/certs/ca-certificates.crt"),
+            crowdsec_control_dir: crowdsec_root.join("control"),
+            crowdsec_state_dir: crowdsec_root.join("state"),
+            crowdsec_start_timeout: Duration::from_secs(45),
         }
     }
     pub(crate) fn probe_socket(&self) -> Option<PathBuf> {
@@ -122,6 +132,7 @@ pub(crate) struct ProxyRuntime {
     recovery_task: Mutex<Option<JoinHandle<()>>>,
     candidate_cursor: AtomicUsize,
     dns_cleanup_cursor: AtomicUsize,
+    crowdsec: Mutex<crowdsec::CrowdSecState>,
 }
 
 impl ProxyRuntime {
@@ -160,6 +171,7 @@ impl ProxyRuntime {
             recovery_task: Mutex::new(None),
             candidate_cursor: AtomicUsize::new(0),
             dns_cleanup_cursor: AtomicUsize::new(0),
+            crowdsec: Mutex::new(crowdsec::CrowdSecState::default()),
         })
     }
 }

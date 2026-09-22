@@ -1,7 +1,7 @@
 use super::{
     BASELINE_PROBE_REVISION, CertificateStoreReadiness, EngineError, EngineFuture, ProxyEngine,
     ProxyRuntime, RenderPurpose, RuntimeError,
-    renderer::render_config,
+    renderer::render_config_with_crowdsec,
     state::{LAST_APPLY_FILE, prepare_state_dir, read_trimmed, state_dir},
 };
 use crate::models::ProxyRuntimeStatus;
@@ -80,8 +80,12 @@ impl ProxyRuntime {
         self.trusted_ca_store
             .initialize()
             .map_err(|_| RuntimeError::Unavailable)?;
-        let baseline = render_config(None, &self.settings.render_settings())
-            .map_err(|_| RuntimeError::ApplyFailed)?;
+        self.initialize_crowdsec_locked().await;
+        let provider = self.active_crowdsec_provider().await;
+        let crowdsec = provider.render_settings();
+        let baseline =
+            render_config_with_crowdsec(None, &self.settings.render_settings(), crowdsec.as_ref())
+                .map_err(|_| RuntimeError::ApplyFailed)?;
         let restored = self.restore_active_configuration();
         let restored = if let Some(configuration) = restored {
             self.render_proxy_config_for_apply(&configuration, None, RenderPurpose::Recovery)
@@ -100,14 +104,21 @@ impl ProxyRuntime {
         let Some(engine) = &self.engine else {
             return Err(RuntimeError::Unavailable);
         };
-        let started = self.start_engine(engine, &json, expected).await;
+        let started = self
+            .start_engine(engine, &json, expected, provider.environment())
+            .await;
         let (configuration, json) = if started.is_ok() {
             (configuration, json)
         } else {
             let _ = engine.shutdown().await;
-            self.start_engine(engine, &baseline, BASELINE_PROBE_REVISION)
-                .await
-                .map_err(|_| RuntimeError::Unavailable)?;
+            self.start_engine(
+                engine,
+                &baseline,
+                BASELINE_PROBE_REVISION,
+                provider.environment(),
+            )
+            .await
+            .map_err(|_| RuntimeError::Unavailable)?;
             (None, baseline)
         };
         let host_sources = configuration
@@ -199,7 +210,12 @@ impl ProxyRuntime {
             return Ok(());
         }
         let _ = engine.shutdown().await;
-        if self.start_engine(engine, &json, &revision).await.is_err() {
+        let environment = self.active_crowdsec_provider().await.environment();
+        if self
+            .start_engine(engine, &json, &revision, environment)
+            .await
+            .is_err()
+        {
             self.mark_unavailable().await;
             return Err(RuntimeError::Unavailable);
         }
@@ -281,7 +297,9 @@ impl ProxyRuntime {
         engine: &Arc<dyn ProxyEngine>,
         json: &str,
         revision: &str,
+        environment: super::EngineEnvironment,
     ) -> Result<(), EngineError> {
+        engine.set_environment(environment);
         let result = self.run_stage(engine.start(json, revision)).await;
         if result.is_err() {
             let _ = engine.shutdown().await;

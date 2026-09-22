@@ -11,8 +11,9 @@ use crate::{
     },
     proxy::revision_from_config,
     runtime::renderer::{
-        RenderSettings, TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings, render_config,
-        render_config_with_tls,
+        CrowdSecRenderSettings, RenderSettings, TlsMaterial, TlsRenderSettings,
+        UpstreamTlsRenderSettings, render_config, render_config_with_crowdsec,
+        render_config_with_tls, render_config_with_tls_and_crowdsec,
     },
 };
 
@@ -44,7 +45,7 @@ fn renders_typed_caddy_servers_and_probe() {
     let configuration = config();
     let rendered = render_config(Some(&configuration), &settings()).unwrap();
     let json: Value = serde_json::from_str(&rendered).unwrap();
-    assert_eq!(json["admin"]["config"]["persist"], true);
+    assert_eq!(json["admin"]["config"]["persist"], false);
     assert_eq!(json["storage"]["module"], "file_system");
     assert_eq!(
         json["apps"]["http"]["servers"]["rentnerproxy-http"]["protocols"],
@@ -58,6 +59,103 @@ fn renders_typed_caddy_servers_and_probe() {
     assert_eq!(
         revision_from_config(&rendered),
         Some(configuration.revision)
+    );
+}
+
+#[test]
+fn crowdsec_is_absent_when_disabled_and_wraps_only_public_listeners_when_enabled() {
+    let configuration = config();
+    let disabled = render_config(Some(&configuration), &settings()).unwrap();
+    let disabled_json: Value = serde_json::from_str(&disabled).unwrap();
+    assert!(disabled_json["apps"]["crowdsec"].is_null());
+    assert!(!disabled.contains("RENTNERPROXY_CROWDSEC_BOUNCER_KEY"));
+
+    let crowdsec = CrowdSecRenderSettings {
+        api_url: "http://127.0.0.1:18080/".to_owned(),
+    };
+    let rendered =
+        render_config_with_crowdsec(Some(&configuration), &settings(), Some(&crowdsec)).unwrap();
+    let json: Value = serde_json::from_str(&rendered).unwrap();
+
+    assert_eq!(
+        json["apps"]["crowdsec"]["api_url"],
+        "http://127.0.0.1:18080/"
+    );
+    assert_eq!(
+        json["apps"]["crowdsec"]["api_key"],
+        "{env.RENTNERPROXY_CROWDSEC_BOUNCER_KEY}"
+    );
+    assert_eq!(json["apps"]["crowdsec"]["enable_streaming"], true);
+    assert_eq!(json["apps"]["crowdsec"]["enable_hard_fails"], false);
+    let http_routes = json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"]
+        .as_array()
+        .unwrap();
+    assert_eq!(
+        http_routes[0]["match"][0]["path"][0],
+        "/.well-known/acme-challenge/*"
+    );
+    assert_eq!(http_routes[1]["handle"][0]["handler"], "crowdsec");
+    assert_eq!(http_routes[1]["terminal"], false);
+    let probe_routes = json["apps"]["http"]["servers"]["rentnerproxy-probe"]["routes"]
+        .as_array()
+        .unwrap();
+    assert!(
+        probe_routes
+            .iter()
+            .all(|route| route["handle"][0]["handler"] != "crowdsec")
+    );
+    assert_eq!(json["logging"]["logs"]["access"]["writer"]["mode"], "0640");
+    assert_eq!(
+        json["logging"]["logs"]["access"]["writer"]["dir_mode"],
+        "0750"
+    );
+}
+
+#[test]
+fn crowdsec_wraps_https_after_transport_headers_and_acme_bypass() {
+    let mut configuration = config();
+    let certificate_id = "018f4b4a-7d1f-7abc-8def-2123456789ab".to_owned();
+    configuration.proxy_hosts[0].certificate_id = Some(certificate_id.clone());
+    let materials = BTreeMap::from([(
+        certificate_id,
+        TlsMaterial {
+            fullchain_path: std::env::temp_dir().join("fullchain.pem"),
+            private_key_path: std::env::temp_dir().join("private-key.pem"),
+        },
+    )]);
+    let upstream = UpstreamTlsRenderSettings {
+        system_ca_bundle: std::env::temp_dir().join("ca-certificates.crt"),
+        trusted_ca_paths: BTreeMap::new(),
+    };
+    let rendered = render_config_with_tls_and_crowdsec(
+        &configuration,
+        &settings(),
+        &TlsRenderSettings {
+            https_port: 8443,
+            public_https_port: 443,
+            controller_port: 8081,
+        },
+        &materials,
+        &upstream,
+        Some(&CrowdSecRenderSettings {
+            api_url: "https://crowdsec.example.test/lapi/".to_owned(),
+        }),
+    )
+    .unwrap();
+    let json: Value = serde_json::from_str(&rendered).unwrap();
+    let routes = json["apps"]["http"]["servers"]["rentnerproxy-https"]["routes"]
+        .as_array()
+        .unwrap();
+    assert_eq!(routes[0]["handle"][0]["handler"], "headers");
+    assert_eq!(
+        routes[1]["match"][0]["path"][0],
+        "/.well-known/acme-challenge/*"
+    );
+    assert_eq!(routes[2]["handle"][0]["handler"], "crowdsec");
+    assert_eq!(routes[2]["terminal"], false);
+    assert!(
+        rendered.contains("{env.RENTNERPROXY_CROWDSEC_BOUNCER_KEY}")
+            && !rendered.contains("super-secret-bouncer-key")
     );
 }
 
@@ -769,7 +867,7 @@ fn redirect_handlers_keep_exact_destination_and_encoded_request_uri_semantics() 
 }
 
 #[test]
-fn access_logging_is_private_bounded_and_excludes_probe() {
+fn access_logging_is_runtime_group_private_bounded_and_excludes_probe() {
     let json: Value = serde_json::from_str(&render_config(None, &settings()).unwrap()).unwrap();
     let logs = &json["logging"]["logs"];
     assert!(
@@ -778,8 +876,8 @@ fn access_logging_is_private_bounded_and_excludes_probe() {
             .unwrap()
             .ends_with("/logs/access.log")
     );
-    assert_eq!(logs["access"]["writer"]["mode"], "0600");
-    assert_eq!(logs["access"]["writer"]["dir_mode"], "0700");
+    assert_eq!(logs["access"]["writer"]["mode"], "0640");
+    assert_eq!(logs["access"]["writer"]["dir_mode"], "0750");
     assert_eq!(logs["access"]["writer"]["roll_size_mb"], 4);
     assert_eq!(logs["access"]["writer"]["roll_keep"], 4);
     assert_eq!(logs["access"]["writer"]["roll_keep_days"], 7);

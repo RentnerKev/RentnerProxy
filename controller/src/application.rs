@@ -91,6 +91,8 @@ async fn serve() -> Result<(), Box<dyn Error + Send + Sync>> {
     settings.trusted_proxy_cidrs = config.proxy_trusted_proxy_cidrs;
     settings.system_ca_bundle = config.system_ca_bundle;
     settings.controller_port = local_addr.port();
+    settings.crowdsec_control_dir = "/run/rentnerproxy/crowdsec".into();
+    settings.crowdsec_state_dir = "/var/lib/rentnerproxy/crowdsec".into();
     let engine = config.caddy_bin.map(|binary| {
         Arc::new(CaddyProcess::new(binary, config.proxy_state_dir.clone())) as Arc<dyn ProxyEngine>
     });

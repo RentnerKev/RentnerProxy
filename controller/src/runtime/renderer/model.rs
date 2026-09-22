@@ -33,6 +33,19 @@ pub(super) struct Apps {
     pub(super) http: HttpApp,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) tls: Option<TlsApp>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) crowdsec: Option<CrowdSecApp>,
+}
+
+#[derive(Serialize)]
+pub(super) struct CrowdSecApp {
+    pub(super) api_url: String,
+    pub(super) api_key: String,
+    pub(super) ticker_interval: String,
+    pub(super) enable_streaming: bool,
+    pub(super) enable_hard_fails: bool,
+    pub(super) enable_caddy_error: bool,
+    pub(super) enable_caddy_metrics: bool,
 }
 
 #[derive(Serialize)]
@@ -146,9 +159,14 @@ pub(super) enum Handler {
     LogAppend(LogAppend),
     #[serde(rename = "headers")]
     Headers(Headers),
+    #[serde(rename = "crowdsec")]
+    CrowdSec(CrowdSecHandler),
     #[serde(rename = "static_response")]
     ErrorResponse(ErrorResponse),
 }
+
+#[derive(Serialize)]
+pub(super) struct CrowdSecHandler {}
 
 #[derive(Serialize)]
 pub(super) struct Headers {

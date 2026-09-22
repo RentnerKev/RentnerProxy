@@ -81,6 +81,20 @@ impl ApiError {
             error: "invalid_trusted_ca",
         }
     }
+
+    pub(super) fn invalid_crowdsec_configuration() -> Self {
+        Self {
+            status: StatusCode::UNPROCESSABLE_ENTITY,
+            error: "invalid_crowdsec_configuration",
+        }
+    }
+
+    pub(super) fn crowdsec_connection_failed() -> Self {
+        Self {
+            status: StatusCode::BAD_GATEWAY,
+            error: "crowdsec_connection_failed",
+        }
+    }
     pub(super) fn certificate(error: CertificateError) -> Self {
         let status = match error {
             CertificateError::InvalidCertificate

@@ -24,8 +24,12 @@ pub(super) fn http_routes(
     settings: &RenderSettings,
     public_https_port: u16,
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
+    crowdsec_enabled: bool,
 ) -> Result<Vec<Route>, RenderError> {
     let mut routes = vec![challenge_route(settings.controller_port, "http")];
+    if crowdsec_enabled {
+        routes.push(crowdsec_route());
+    }
     for host in &config.proxy_hosts {
         routes.extend(host_routes(
             host,
@@ -41,6 +45,14 @@ pub(super) fn http_routes(
     }
     routes.push(not_found_route());
     Ok(routes)
+}
+
+pub(super) fn crowdsec_route() -> Route {
+    Route {
+        matchers: Vec::new(),
+        handle: vec![Handler::CrowdSec(super::model::CrowdSecHandler {})],
+        terminal: false,
+    }
 }
 
 pub(super) fn challenge_route(controller_port: u16, forwarded_proto: &str) -> Route {
