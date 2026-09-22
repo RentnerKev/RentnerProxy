@@ -84,6 +84,11 @@ test('selects a package calendar day, edits UTC wall time and clears', async () 
             .querySelector<HTMLButtonElement>('button[aria-label="From (UTC)"]')
             ?.classList.contains('text-left'),
     ).toBe(true)
+    expect(
+        document
+            .querySelector<HTMLButtonElement>('button[aria-label="From (UTC)"]')
+            ?.classList.contains('[&>span]:text-ink'),
+    ).toBe(true)
     await click(document.querySelector<HTMLButtonElement>('button[aria-label="From (UTC)"]')!)
     await click(findCalendarDay('September 14, 2026'))
     expect(document.querySelector('output')?.textContent).toBe('2026-09-14T13:45')
@@ -102,6 +107,7 @@ test('left-aligns the calendar placeholder', async () => {
     await render('')
     const trigger = document.querySelector<HTMLButtonElement>('button[aria-label="From (UTC)"]')!
     expect(trigger.classList.contains('text-left')).toBe(true)
+    expect(trigger.classList.contains('[&>span]:text-ink')).toBe(true)
 })
 
 test('supports package date keyboard navigation and Escape', async () => {

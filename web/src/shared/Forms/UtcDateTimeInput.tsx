@@ -1,7 +1,7 @@
 import { NativeTimeInput } from '@rentnerkev/inputs'
 import { SingleCalendar } from '@rentnerkev/calendar/single-calendar'
 
-import { CALENDAR_CUSTOM_DESIGN } from '../../config/calendar.config'
+import { CALENDAR_CUSTOM_DESIGN, CALENDAR_TRIGGER_CLASS_NAME } from '../../config/calendar.config'
 import useUtcDateTimeInputLogic from '../Calendar/Hooks/useUtcDateTimeInputLogic'
 import type { UtcDateTimeInputProps } from './Types/utc-date-time-input.types'
 
@@ -24,7 +24,7 @@ export default function UtcDateTimeInput({
                 aria-invalid={invalid || undefined}
                 value={state.date}
                 onChange={handler.handleDateChange}
-                className={`h-12 w-full rounded-xl text-left ${invalidClassName}`}
+                className={`h-12 w-full rounded-xl ${CALENDAR_TRIGGER_CLASS_NAME} ${invalidClassName}`}
                 closeOnSelect
                 customDesign={CALENDAR_CUSTOM_DESIGN}
                 disabled={disabled}
@@ -44,6 +44,7 @@ export default function UtcDateTimeInput({
                 disabled={disabled || !state.hasValue}
                 value={state.time}
                 onChange={(event) => handler.handleTimeChange(event.currentTarget.value)}
+                style={{ paddingLeft: 8 }}
                 className={`h-12 min-w-0 rounded-xl border border-input-border bg-surface-raised px-2 text-sm text-ink outline-hidden transition-[border-color,box-shadow] focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-55 ${invalidClassName}`}
             />
         </div>

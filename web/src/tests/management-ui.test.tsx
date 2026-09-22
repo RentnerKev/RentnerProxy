@@ -459,6 +459,10 @@ describe('shared table preset', () => {
         expect(getDataRows()[0]?.textContent).toContain('Alpha')
 
         await click(getButton('Filters'))
+        expect(
+            document.querySelector<HTMLInputElement>('input[placeholder="Filter names…"]')?.style
+                .paddingLeft,
+        ).toBe('16px')
         await chooseSelectOption('All statuses', 'Disabled')
         expect(getDataRows().every((row) => row.textContent?.includes('disabled'))).toBeTrue()
 
@@ -506,6 +510,7 @@ describe('shared table preset', () => {
 
         const search = document.querySelector<HTMLInputElement>('input[type="search"]')
         expect(search).not.toBeNull()
+        expect(search?.style.paddingLeft).toBe('44px')
         await setControlValue(search!, 'not-a-record')
         await waitFor(
             () => document.body.textContent?.includes('No records match your filters') ?? false,

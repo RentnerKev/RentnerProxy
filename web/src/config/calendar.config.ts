@@ -1,5 +1,7 @@
 import type { CalendarCustomDesign } from '@rentnerkev/calendar/types'
 
+export const CALENDAR_TRIGGER_CLASS_NAME = 'text-left [&>span]:text-ink'
+
 export const CALENDAR_CUSTOM_DESIGN = {
     primaryColor: 'text-brand-text',
     primaryColorFocusWithin: 'group-focus-within:text-brand-text',

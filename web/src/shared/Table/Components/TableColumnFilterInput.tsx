@@ -3,7 +3,10 @@ import { RangeCalendar } from '@rentnerkev/calendar/range-calendar'
 import { CustomSelect } from '@rentnerkev/select/select'
 import type { RowData } from '@tanstack/react-table'
 
-import { CALENDAR_CUSTOM_DESIGN } from '../../../config/calendar.config'
+import {
+    CALENDAR_CUSTOM_DESIGN,
+    CALENDAR_TRIGGER_CLASS_NAME,
+} from '../../../config/calendar.config'
 import {
     getRangeCalendarInputValue,
     getTableDateRangeFilterValue,
@@ -61,7 +64,7 @@ export default function TableColumnFilterInput<TData extends RowData>({
                 aria-label={t('table.filterByDateRange')}
                 value={getRangeCalendarInputValue(column.getFilterValue())}
                 onChange={(value) => column.setFilterValue(getTableDateRangeFilterValue(value))}
-                className="h-12 w-full rounded-xl text-left"
+                className={`h-12 w-full rounded-xl ${CALENDAR_TRIGGER_CLASS_NAME}`}
                 closeOnSelect
                 customDesign={CALENDAR_CUSTOM_DESIGN}
                 fastEdit={false}

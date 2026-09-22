@@ -359,7 +359,9 @@ describe('certificate management UI', () => {
         expect(rows()[0]?.textContent).not.toContain('backup')
         await click(button('Reset filters'))
         await waitFor(() => rows().length === 3)
-        await click(button('Filter by date range'))
+        const dateFilter = button('Filter by date range')
+        expect(dateFilter.classList.contains('[&>span]:text-ink')).toBe(true)
+        await click(dateFilter)
         const getCalendarDay = () =>
             [...document.querySelectorAll<HTMLButtonElement>('[data-calendar-day]')].find((day) =>
                 day.getAttribute('aria-label')?.includes(calendarDayLabel),
