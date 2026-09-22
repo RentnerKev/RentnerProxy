@@ -103,6 +103,18 @@ async function choosePageSize(value: string): Promise<void> {
     })
 }
 
+async function checkTotals(totals: readonly number[], index = 0): Promise<void> {
+    const total = totals[index]
+    if (total === undefined) return
+    await render(<Harness total={total} />)
+    expect(document.body.textContent).toContain(`of ${total} records`)
+    expect(document.querySelector('[aria-current="page"]')?.textContent).toBe('1')
+    await act(async () => root?.unmount())
+    root = undefined
+    document.body.replaceChildren()
+    return checkTotals(totals, index + 1)
+}
+
 afterEach(async () => {
     await act(async () => root?.unmount())
     root = undefined
@@ -120,17 +132,6 @@ describe('shared table pagination', () => {
     })
 
     test('renders empty and boundary totals without invalid ranges', async () => {
-        const checkTotals = async (totals: readonly number[], index = 0): Promise<void> => {
-            const total = totals[index]
-            if (total === undefined) return
-            await render(<Harness total={total} />)
-            expect(document.body.textContent).toContain(`of ${total} records`)
-            expect(document.querySelector('[aria-current="page"]')?.textContent).toBe('1')
-            await act(async () => root?.unmount())
-            root = undefined
-            document.body.replaceChildren()
-            return checkTotals(totals, index + 1)
-        }
         await checkTotals([0, 1, 15, 16, 30, 31])
     })
 

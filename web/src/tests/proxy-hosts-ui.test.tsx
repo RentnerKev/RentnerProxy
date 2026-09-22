@@ -468,6 +468,10 @@ function getRows(): HTMLTableRowElement[] {
     return [...document.querySelectorAll<HTMLTableRowElement>('tbody tr')]
 }
 
+function domainOrder(): Array<string | undefined> {
+    return getRows().map((row) => row.querySelector('td')?.textContent?.trim())
+}
+
 function getLastButton(label: string): HTMLButtonElement {
     const buttons = [...document.querySelectorAll<HTMLButtonElement>('button')].filter(
         (candidate) => candidate.textContent?.trim().includes(label),
@@ -602,6 +606,33 @@ const certificateProgressPermissions = [
     PERMISSIONS.CERTIFICATES_VIEW,
     PERMISSIONS.CERTIFICATES_ISSUE,
 ] as const
+
+function PermissionHarness() {
+    const [permissions, setPermissions] = useState<
+        readonly (typeof PERMISSIONS)[keyof typeof PERMISSIONS][]
+    >(certificateProgressPermissions)
+    return (
+        <>
+            <button type="button" onClick={() => setPermissions([PERMISSIONS.PROXY_HOSTS_VIEW])}>
+                Remove certificate permissions
+            </button>
+            <CertificateJobProgressObserver permissions={permissions} />
+        </>
+    )
+}
+
+function NavigationHarness() {
+    const [route, setRoute] = useState<'hosts' | 'certificates'>('hosts')
+    return (
+        <>
+            <CertificateJobProgressObserver permissions={certificateProgressPermissions} />
+            <button type="button" onClick={() => setRoute('certificates')}>
+                Open certificates
+            </button>
+            <div data-testid="route-content">{route}</div>
+        </>
+    )
+}
 
 function getTaskToasts(): HTMLElement[] {
     return [...document.querySelectorAll<HTMLElement>('[data-toast-kind="task"]')]
@@ -745,23 +776,6 @@ describe('background certificate job progress', () => {
         })
         getCertificateJobProgressHandlerMock.mockResolvedValue([failed])
 
-        function PermissionHarness() {
-            const [permissions, setPermissions] = useState<
-                readonly (typeof PERMISSIONS)[keyof typeof PERMISSIONS][]
-            >(certificateProgressPermissions)
-            return (
-                <>
-                    <button
-                        type="button"
-                        onClick={() => setPermissions([PERMISSIONS.PROXY_HOSTS_VIEW])}
-                    >
-                        Remove certificate permissions
-                    </button>
-                    <CertificateJobProgressObserver permissions={permissions} />
-                </>
-            )
-        }
-
         await render(withQueryClient(<PermissionHarness />))
         await waitFor(() => getTaskToasts()[0]?.dataset.toastTone === 'error')
         expect(getButton('Retry')).toBeDefined()
@@ -777,19 +791,6 @@ describe('background certificate job progress', () => {
 
     test('keeps active progress visible while route content changes', async () => {
         getCertificateJobProgressHandlerMock.mockResolvedValue([certificateJobFixture()])
-
-        function NavigationHarness() {
-            const [route, setRoute] = useState<'hosts' | 'certificates'>('hosts')
-            return (
-                <>
-                    <CertificateJobProgressObserver permissions={certificateProgressPermissions} />
-                    <button type="button" onClick={() => setRoute('certificates')}>
-                        Open certificates
-                    </button>
-                    <div data-testid="route-content">{route}</div>
-                </>
-            )
-        }
 
         await render(withQueryClient(<NavigationHarness />))
         await waitFor(() => getTaskToasts().length === 1)
@@ -978,8 +979,6 @@ describe('ProxyHost management table', () => {
         await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW])
         await waitFor(() => getRows().length === 3)
 
-        const domainOrder = () =>
-            getRows().map((row) => row.querySelector('td')?.textContent?.trim())
         const createdSortButton = getButton('Sort by createdAt')
         const createdHeader = createdSortButton.closest('th')!
         expect(createdHeader.textContent).toContain('Created')

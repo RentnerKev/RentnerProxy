@@ -2,6 +2,38 @@ import type { ToastMessage, ToastOptions, ToastTone } from '../Types/toast.types
 
 const PERSISTENT_TOAST_DURATION_MS = 2_147_000_000
 
+function createToast(
+    id: string,
+    revision: number,
+    kind: ToastMessage['kind'],
+    message: string,
+    tone: ToastTone,
+    options: ToastOptions,
+): ToastMessage {
+    const title = options.title ?? `toast.titles.${tone}`
+    const persistent = options.persistent ?? false
+    const duration =
+        options.duration ??
+        (persistent ? PERSISTENT_TOAST_DURATION_MS : tone === 'error' ? 10000 : 6000)
+    return {
+        id,
+        revision,
+        kind,
+        message,
+        title,
+        tone,
+        duration: duration > 0 ? duration : 6000,
+        open: true,
+        actions: options.actions ?? [],
+        persistent,
+        dismissible: options.dismissible ?? true,
+        activity: options.activity ?? 'none',
+        ...(options.onDismiss ? { onDismiss: options.onDismiss } : {}),
+        ...(options.detail ? { detail: options.detail } : {}),
+        ...(options.context ? { context: options.context } : {}),
+    }
+}
+
 export function createToastStore() {
     const emptySnapshot: ReadonlyArray<ToastMessage> = []
     let toasts = emptySnapshot
@@ -40,38 +72,6 @@ export function createToastStore() {
         removalTimers.forEach(clearTimeout)
         removalTimers.clear()
         publish(emptySnapshot)
-    }
-
-    function createToast(
-        id: string,
-        revision: number,
-        kind: ToastMessage['kind'],
-        message: string,
-        tone: ToastTone,
-        options: ToastOptions,
-    ): ToastMessage {
-        const title = options.title ?? `toast.titles.${tone}`
-        const persistent = options.persistent ?? false
-        const duration =
-            options.duration ??
-            (persistent ? PERSISTENT_TOAST_DURATION_MS : tone === 'error' ? 10000 : 6000)
-        return {
-            id,
-            revision,
-            kind,
-            message,
-            title,
-            tone,
-            duration: duration > 0 ? duration : 6000,
-            open: true,
-            actions: options.actions ?? [],
-            persistent,
-            dismissible: options.dismissible ?? true,
-            activity: options.activity ?? 'none',
-            ...(options.onDismiss ? { onDismiss: options.onDismiss } : {}),
-            ...(options.detail ? { detail: options.detail } : {}),
-            ...(options.context ? { context: options.context } : {}),
-        }
     }
 
     function show(message: string, tone: ToastTone = 'success', options: ToastOptions = {}) {

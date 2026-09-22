@@ -184,20 +184,21 @@ function setSuspended(suspended: boolean): void {
     }
 }
 
+function resume(): void {
+    if (document.visibilityState === 'hidden') {
+        setSuspended(true)
+        return
+    }
+    const wasSuspended = isPageSuspended
+    isPageSuspended = false
+    if (wasSuspended) for (const listener of listeners.values()) listener.onResume?.()
+    reconnectDelay = MIN_RECONNECT_DELAY_MS
+    if (listeners.size > 0) void connect()
+}
+
 function setupLifecycleListeners(): void {
     if (lifecycleListenersRegistered || typeof window === 'undefined') return
     lifecycleListenersRegistered = true
-    const resume = () => {
-        if (document.visibilityState === 'hidden') {
-            setSuspended(true)
-            return
-        }
-        const wasSuspended = isPageSuspended
-        isPageSuspended = false
-        if (wasSuspended) for (const listener of listeners.values()) listener.onResume?.()
-        reconnectDelay = MIN_RECONNECT_DELAY_MS
-        if (listeners.size > 0) void connect()
-    }
     document.addEventListener('visibilitychange', resume)
     window.addEventListener('pagehide', () => setSuspended(true))
     window.addEventListener('pageshow', resume)

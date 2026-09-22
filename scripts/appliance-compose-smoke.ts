@@ -88,6 +88,10 @@ async function command(argumentsList: string[], timeoutMs = 120_000): Promise<st
     }
 }
 
+function http3Command(args: string[], options?: { readonly timeoutMs?: number }): Promise<string> {
+    return command(args, options?.timeoutMs)
+}
+
 async function commandWithEnvironment(
     argumentsList: string[],
     environment: NodeJS.ProcessEnv,
@@ -258,8 +262,6 @@ async function runSmoke(): Promise<void> {
     const temporaryComposeFile = join(temporaryRoot, 'docker-compose.yml')
     const imageTag = 'rentnerproxy-appliance-smoke:' + runId
     const http3Image = 'rentnerproxy-appliance-http3:' + runId
-    const http3Command = (args: string[], options?: { readonly timeoutMs?: number }) =>
-        command(args, options?.timeoutMs)
     const volumeName = project + '-data'
 
     const inheritedVolumeName = project + '-postgres-base'
