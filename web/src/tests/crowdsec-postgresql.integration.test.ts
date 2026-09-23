@@ -10,6 +10,7 @@ import { auditEvents, roles, systemSettings, userRoles, users } from '../db/sche
 import {
     getCrowdSecConfigurationService,
     reconcileCrowdSecConfiguration,
+    testCrowdSecConnectionService,
     updateCrowdSecConfigurationService,
 } from '../server/Admin/CrowdSec/crowdsec.service'
 import { ensureAuthorizationRegistryInTransaction } from '../server/Auth/Access/registry.service'
@@ -278,6 +279,7 @@ describe('CrowdSec configuration with PostgreSQL', () => {
             .from(auditEvents)
             .where(eq(auditEvents.actorUserId, owner))
         expect(events).toContainEqual({ action: 'update', resource: 'crowdsec' })
+        expect(events).not.toContainEqual({ action: 'rotate', resource: 'crowdsec' })
 
         await asUser(owner, () => updateCrowdSecConfigurationService({ mode: 'disabled' }))
         const restored = await asUser(owner, () =>
@@ -288,6 +290,28 @@ describe('CrowdSec configuration with PostgreSQL', () => {
         )
         expect(restored.runtimeStatus).toBe('applied')
         expect(controller?.applied.at(-1)).toMatchObject({ apiKey: EXTERNAL_KEY })
+
+        const replacementKey = 'replacement-bouncer-key-value'
+        await asUser(owner, () =>
+            updateCrowdSecConfigurationService({
+                mode: 'external',
+                apiUrl: 'https://crowdsec.example.test:8080/',
+                apiKey: replacementKey,
+            }),
+        )
+        const rotationEvents = await getAuthDatabase()
+            .select({
+                action: auditEvents.action,
+                resource: auditEvents.resource,
+                metadata: auditEvents.metadata,
+            })
+            .from(auditEvents)
+            .where(eq(auditEvents.actorUserId, owner))
+        expect(rotationEvents.filter((event) => event.action === 'rotate')).toEqual([
+            { action: 'rotate', resource: 'crowdsec', metadata: {} },
+        ])
+        expect(JSON.stringify(rotationEvents)).not.toContain(replacementKey)
+        expect(controller?.applied.at(-1)).toMatchObject({ apiKey: replacementKey })
     })
 
     integrationTest(
@@ -332,5 +356,26 @@ describe('CrowdSec configuration with PostgreSQL', () => {
             apiUrl: 'https://crowdsec.example.test/',
             apiKey: EXTERNAL_KEY,
         })
+    })
+
+    integrationTest('never reuses the stored key when testing a different endpoint', async () => {
+        const owner = await createUser(SYSTEM_ROLES.OWNER)
+        await asUser(owner, () =>
+            updateCrowdSecConfigurationService({
+                mode: 'external',
+                apiUrl: 'https://crowdsec.example.test/',
+                apiKey: EXTERNAL_KEY,
+            }),
+        )
+        await asUser(owner, () =>
+            testCrowdSecConnectionService({ apiUrl: 'https://crowdsec.example.test/' }),
+        )
+        expect(controller?.tested.at(-1)).toMatchObject({ apiKey: EXTERNAL_KEY })
+        await expect(
+            asUser(owner, () =>
+                testCrowdSecConnectionService({ apiUrl: 'https://other.example.test/' }),
+            ),
+        ).rejects.toMatchObject({ code: 'api_key_required' })
+        expect(controller?.tested).toHaveLength(2)
     })
 })

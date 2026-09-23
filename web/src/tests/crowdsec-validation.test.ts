@@ -63,7 +63,7 @@ describe('CrowdSec configuration validation', () => {
         expect(crowdSecApiKeySchema.safeParse('A'.repeat(16) + 'ü').success).toBeFalse()
     })
 
-    test('allows connection tests to reuse an existing write-only key', () => {
+    test('allows an omitted key so the service can reuse it only for the stored endpoint', () => {
         expect(
             testCrowdSecConnectionSchema.safeParse({
                 apiUrl: 'http://crowdsec.internal:8080/',

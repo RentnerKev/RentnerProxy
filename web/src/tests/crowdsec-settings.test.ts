@@ -84,6 +84,29 @@ describe('CrowdSec persisted configuration', () => {
         })
     })
 
+    test('requires a new key before sending credentials to a different endpoint', async () => {
+        const stored = await buildStoredCrowdSecConfiguration(DEFAULT_CROWDSEC_CONFIGURATION, {
+            mode: 'external',
+            apiUrl: 'https://crowdsec.example.test/',
+            apiKey: externalApiKey,
+        })
+        await expect(
+            buildStoredCrowdSecConfiguration(stored, {
+                mode: 'external',
+                apiUrl: 'https://other.example.test/',
+            }),
+        ).rejects.toMatchObject({ code: 'api_key_required' })
+        const replaced = await buildStoredCrowdSecConfiguration(stored, {
+            mode: 'external',
+            apiUrl: 'https://other.example.test/',
+            apiKey: 'replacement-bouncer-key',
+        })
+        expect(await crowdSecControllerRequestFromStored(replaced)).toMatchObject({
+            apiUrl: 'https://other.example.test/',
+            apiKey: 'replacement-bouncer-key',
+        })
+    })
+
     test('requires a first external key and fails closed after key rotation', async () => {
         await expect(
             buildStoredCrowdSecConfiguration(DEFAULT_CROWDSEC_CONFIGURATION, {

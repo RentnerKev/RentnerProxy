@@ -1851,7 +1851,7 @@
                 "apiKey": "Clave API del bouncer",
                 "apiKeyPlaceholder": "Introduce la clave del bouncer",
                 "apiKeyReplacePlaceholder": "Credencial guardada — introduce un reemplazo",
-                "apiKeyHint": "Déjalo vacío para conservar la clave cifrada. Un valor nuevo la reemplaza tras una prueba correcta."
+                "apiKeyHint": "Déjalo vacío para conservar la clave cifrada solo si no cambias el endpoint. Un endpoint nuevo requiere una clave nueva."
             },
             "actions": {
                 "test": "Probar conexión",
@@ -1888,7 +1888,7 @@
             },
             "errors": {
                 "invalidInput": "Revisa el endpoint y la credencial de CrowdSec.",
-                "apiKeyRequired": "Introduce una clave antes de activar CrowdSec externo.",
+                "apiKeyRequired": "Introduce una clave antes de activar CrowdSec externo o cambiar su endpoint.",
                 "connectionFailed": "CrowdSec rechazó el endpoint o la credencial. El modo activo no cambió.",
                 "controllerUnavailable": "El controlador no está disponible temporalmente. El modo activo no cambió.",
                 "configurationConflict": "La configuración cambió en otra sesión. Recarga e inténtalo de nuevo.",

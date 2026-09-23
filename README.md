@@ -178,6 +178,8 @@ not silently delete security state.
 Each new managed activation, including an appliance restart, rotates the internal bouncer key
 before Caddy uses it. A supervised engine restart while managed mode remains active keeps the
 current key so requests continue to authenticate during recovery.
+External key replacement creates a credential-free `rotate` event in the administration audit
+log. Managed activation records credential rotation in the appliance log without printing the key.
 
 Enforcement uses Caddy's resolved client address on both public HTTP and HTTPS listeners,
 including HTTP/2, HTTP/3, and WebSocket requests. ACME HTTP-01 is handled before CrowdSec;

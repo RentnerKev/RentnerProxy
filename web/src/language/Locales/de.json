@@ -1851,7 +1851,7 @@
                 "apiKey": "Bouncer-API-Key",
                 "apiKeyPlaceholder": "Bouncer-Key eingeben",
                 "apiKeyReplacePlaceholder": "Zugangsdaten gespeichert – Ersatz eingeben",
-                "apiKeyHint": "Leer lassen, um den verschlüsselten Key beizubehalten. Ein neuer Wert ersetzt ihn erst nach erfolgreichem Verbindungstest."
+                "apiKeyHint": "Nur bei unverändertem Endpunkt leer lassen, um den verschlüsselten Key beizubehalten. Ein neuer Endpunkt benötigt einen neuen Key."
             },
             "actions": {
                 "test": "Verbindung testen",
@@ -1888,7 +1888,7 @@
             },
             "errors": {
                 "invalidInput": "Prüfe den CrowdSec-Endpunkt und die Zugangsdaten.",
-                "apiKeyRequired": "Gib vor dem Aktivieren von externem CrowdSec einen Bouncer-Key ein.",
+                "apiKeyRequired": "Gib vor dem Aktivieren von externem CrowdSec oder dem Ändern des Endpunkts einen Bouncer-Key ein.",
                 "connectionFailed": "CrowdSec hat Endpunkt oder Zugangsdaten abgelehnt. Der aktive Modus wurde nicht geändert.",
                 "controllerUnavailable": "Der Proxy-Controller ist vorübergehend nicht verfügbar. Der aktive Modus wurde nicht geändert.",
                 "configurationConflict": "Die Konfiguration wurde in einer anderen Sitzung geändert. Lade neu und versuche es erneut.",

@@ -137,8 +137,12 @@ export async function testCrowdSecConnectionService(
         (transaction) => readStoredCrowdSecConfiguration(transaction),
         { isolationLevel: 'repeatable read', accessMode: 'read only' },
     )
+    const apiUrl = normalizeCrowdSecApiUrl(parsed.data.apiUrl)
+    if (!parsed.data.apiKey && stored.external?.apiUrl !== apiUrl) {
+        throw new CrowdSecDomainError('api_key_required')
+    }
     const apiKey = parsed.data.apiKey ?? (await externalApiKeyFromStored(stored))
-    await verifyExternalTarget(normalizeCrowdSecApiUrl(parsed.data.apiUrl), apiKey)
+    await verifyExternalTarget(apiUrl, apiKey)
 }
 
 async function persistCrowdSecConfiguration(
@@ -163,6 +167,21 @@ async function persistCrowdSecConfiguration(
             targetId: null,
             result: 'success',
         })
+        if (
+            baseline.external &&
+            next.external &&
+            (baseline.external.apiKey.ciphertext !== next.external.apiKey.ciphertext ||
+                baseline.external.apiKey.iv !== next.external.apiKey.iv)
+        ) {
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actorId,
+                actorKind: 'user',
+                action: 'rotate',
+                resource: 'crowdsec',
+                targetId: null,
+                result: 'success',
+            })
+        }
     })
 }
 

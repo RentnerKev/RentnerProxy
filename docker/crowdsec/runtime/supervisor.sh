@@ -165,6 +165,7 @@ while ! $stopping; do
             write_status degraded "$restarts"
             continue
         fi
+        log 'managed bouncer credential rotated'
         rotate_on_activation=false
     fi
 

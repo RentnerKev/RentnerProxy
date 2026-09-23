@@ -146,7 +146,12 @@ export async function buildStoredCrowdSecConfiguration(
 ): Promise<StoredCrowdSecConfiguration> {
     if (input.mode !== 'external') return { ...current, mode: input.mode }
     const apiUrl = normalizeCrowdSecApiUrl(input.apiUrl ?? '')
-    const apiKey = input.apiKey ? await encodeApiKey(input.apiKey) : current.external?.apiKey
+    // A write-only saved credential must never be forwarded to a newly selected endpoint.
+    const apiKey = input.apiKey
+        ? await encodeApiKey(input.apiKey)
+        : current.external?.apiUrl === apiUrl
+          ? current.external.apiKey
+          : undefined
     if (!apiKey) throw new CrowdSecDomainError('api_key_required')
     return { version: 1, mode: 'external', external: { apiUrl, apiKey } }
 }

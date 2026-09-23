@@ -1851,7 +1851,7 @@
                 "apiKey": "Clé API du bouncer",
                 "apiKeyPlaceholder": "Saisissez la clé du bouncer",
                 "apiKeyReplacePlaceholder": "Identifiant enregistré — saisissez un remplacement",
-                "apiKeyHint": "Laissez vide pour conserver la clé chiffrée. Une nouvelle valeur ne la remplace qu’après un test réussi."
+                "apiKeyHint": "Laissez vide pour conserver la clé chiffrée uniquement si le point de terminaison ne change pas. Un nouveau point de terminaison exige une nouvelle clé."
             },
             "actions": {
                 "test": "Tester la connexion",
@@ -1888,7 +1888,7 @@
             },
             "errors": {
                 "invalidInput": "Vérifiez le point de terminaison et l’identifiant CrowdSec.",
-                "apiKeyRequired": "Saisissez une clé bouncer avant d’activer CrowdSec externe.",
+                "apiKeyRequired": "Saisissez une clé bouncer avant d’activer CrowdSec externe ou de changer son point de terminaison.",
                 "connectionFailed": "CrowdSec a refusé le point de terminaison ou l’identifiant. Le mode actif n’a pas changé.",
                 "controllerUnavailable": "Le contrôleur proxy est temporairement indisponible. Le mode actif n’a pas changé.",
                 "configurationConflict": "La configuration a changé dans une autre session. Rechargez puis réessayez.",

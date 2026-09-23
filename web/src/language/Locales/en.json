@@ -1851,7 +1851,7 @@
                 "apiKey": "Bouncer API key",
                 "apiKeyPlaceholder": "Enter the bouncer key",
                 "apiKeyReplacePlaceholder": "Credential stored — enter a replacement",
-                "apiKeyHint": "Leave blank to keep the encrypted key. Entering a value replaces it after a successful connection test."
+                "apiKeyHint": "Leave blank to keep the encrypted key only if the endpoint is unchanged. A new endpoint requires a new key."
             },
             "actions": {
                 "test": "Test connection",
@@ -1888,7 +1888,7 @@
             },
             "errors": {
                 "invalidInput": "Review the CrowdSec endpoint and credential.",
-                "apiKeyRequired": "Enter a bouncer key before enabling external CrowdSec.",
+                "apiKeyRequired": "Enter a bouncer key before enabling external CrowdSec or changing its endpoint.",
                 "connectionFailed": "CrowdSec rejected the endpoint or credential. The active mode was not changed.",
                 "controllerUnavailable": "The proxy controller is temporarily unavailable. The active mode was not changed.",
                 "configurationConflict": "The configuration changed in another session. Reload and try again.",
