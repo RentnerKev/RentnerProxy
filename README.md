@@ -9,12 +9,6 @@
 </p>
 
 <p align="center">
-  RentnerProxy provides a web interface for proxy hosts, redirects, TLS certificates,
-  access policies, logs, users, and runtime configuration, backed by a Rust controller
-  and a Caddy data plane.
-</p>
-
-<p align="center">
   <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL status"></a>
   <a href="https://www.bestpractices.dev/projects/14354"><img src="https://www.bestpractices.dev/projects/14354/badge" alt="OpenSSF Best Practices badge"></a>
@@ -23,351 +17,99 @@
 </p>
 
 > [!IMPORTANT]
-> RentnerProxy is currently in **public alpha**. Breaking changes may still occur,
-> backups before upgrades are strongly recommended, and this is not yet a stable 1.0 release.
+> Public alpha: breaking changes are possible. Back up your data before upgrades.
 
-## Quick start
+## Features
 
-### Requirements
+- Proxy hosts and redirects with HTTP/2, HTTP/3, and WebSocket support.
+- Automatic TLS via ACME (HTTP-01 or Cloudflare DNS-01), wildcard and imported certificates.
+- Access policies with Basic Auth and IP allow/deny rules; verified HTTPS upstreams.
+- CrowdSec protection: managed or external Local API, with optional community intelligence and Console enrollment in the development image.
+- Users, roles, permissions, TOTP, passkeys, and audit logs.
+- Live status and access logs; English, German, Spanish, and French UI.
+- Single-container appliance with Caddy, PostgreSQL, Redis, and a Rust controller.
 
-- A `linux/amd64` host with Docker Engine and the Docker Compose plugin.
-- Free host ports `80/tcp`, `443/tcp`, and `443/udp`.
-- Inbound firewall access to those public traffic ports.
-- An HTTPS management origin and working SMTP account.
+## Installation
 
-The management UI is bound to `127.0.0.1:81` by default. PostgreSQL, Redis, the Rust
-controller, and Caddy are included in the appliance.
+Requirements:
 
-### Install
+- `linux/amd64` host with Docker Engine and Docker Compose.
+- Free ports `80/tcp`, `443/tcp`, and `443/udp`.
+- HTTPS management origin and SMTP credentials.
 
-Download [`docker-compose.yml`](./docker-compose.yml) and
-[`.env.production.example`](./.env.production.example) into an empty directory, then:
+Save this as `docker-compose.yml` (or use the [repository file](docker-compose.yml)):
 
-```bash
-cp .env.production.example .env
+```yaml
+services:
+    rentnerproxy:
+        image: ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6
+        environment:
+            RENTNERPROXY_PUBLIC_ORIGIN: ${RENTNERPROXY_PUBLIC_ORIGIN:?Set RENTNERPROXY_PUBLIC_ORIGIN}
+            RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS: ${RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS:-}
+            SMTP_FROM: ${SMTP_FROM:?Set SMTP_FROM}
+            SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST}
+            SMTP_PASSWORD: ${SMTP_PASSWORD:?Set SMTP_PASSWORD}
+            SMTP_PORT: ${SMTP_PORT:-587}
+            SMTP_SECURE: ${SMTP_SECURE:-false}
+            SMTP_USER: ${SMTP_USER:?Set SMTP_USER}
+        ports:
+            - '80:8080'
+            - '127.0.0.1:81:3000'
+            - '443:8443/tcp'
+            - '443:8443/udp'
+        restart: unless-stopped
+        volumes:
+            - rentnerproxy:/var/lib/rentnerproxy
+
+volumes:
+    rentnerproxy:
 ```
 
-Edit `.env` and set these required values:
+Create `.env` beside it (see also [`.env.production.example`](.env.production.example)):
 
-- `RENTNERPROXY_PUBLIC_ORIGIN` — the browser-facing HTTPS origin, for example
-  `https://proxy-admin.example.com`.
-- `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`.
-- `SMTP_PORT` and `SMTP_SECURE` if the supplied defaults do not match the SMTP server.
+```dotenv
+RENTNERPROXY_PUBLIC_ORIGIN=https://management.example.com
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=rentnerproxy@example.com
+SMTP_PASSWORD=replace-me
+SMTP_FROM=RentnerProxy <rentnerproxy@example.com>
 
-Validate and start the appliance:
+# Optional: only the direct IP/CIDR of a trusted proxy in front of RentnerProxy.
+# RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=192.0.2.10/32
+```
+
+Start the appliance:
 
 ```bash
 docker compose config
 docker compose up -d
 ```
 
-The checked-in Compose file pins the immutable
-`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6` image. Open
-[`http://localhost:81`](http://localhost:81) on the Docker host and complete first-owner
-setup. For a remote host, keep the management port private and use an SSH tunnel:
+- Complete first-owner setup at `http://localhost:81`. For a remote host, keep port 81 private and use `ssh -L 8181:127.0.0.1:81 user@server`.
+- Use the configured HTTPS `RENTNERPROXY_PUBLIC_ORIGIN` for normal access, email links, and passkeys.
+- Application data lives in the persistent `rentnerproxy` Docker volume.
 
-```bash
-ssh -L 8181:127.0.0.1:81 user@server
-```
+## Images and upgrades
 
-Then open `http://localhost:8181`. Normal browser use, links in email, and passkeys should use
-the configured `RENTNERPROXY_PUBLIC_ORIGIN`. Application state is stored in the persistent
-`rentnerproxy` Docker volume.
+- The Compose example pins `v1.0.0-alpha.6`. For upgrades, back up data, change the tag, then run `docker compose pull` and `docker compose up -d`.
+- Repository [backup](scripts/production-backup.ts) and [restore](scripts/production-restore.ts) tools require a checkout and Bun.
+- `:dev` is a moving **test image** built manually from `main` by the [Dev Image workflow](https://github.com/RentnerKev/RentnerProxy/actions/workflows/dev-image.yml); it is not a release.
+- CrowdSec is **not** in the pinned Alpha 6 image. To test the current implementation, use `ghcr.io/rentnerkev/rentnerproxy:dev` after triggering that workflow.
 
-### Release channel
+## CrowdSec (development image)
 
-For repeatable installs and upgrades, keep the exact version tag:
+- **Managed:** local detection and blocking work without a CrowdSec account; community intelligence and Console enrollment are separate opt-ins.
+- **External:** connect an existing CrowdSec Local API with a bouncer key.
+- **Disabled:** default; existing traffic behavior is unchanged.
+- Enforcement is fail-open when the selected Local API is unavailable.
+- Managed CrowdSec data is not yet in repository backups ([#71](https://github.com/RentnerKev/RentnerProxy/issues/71)); snapshot the Docker volume.
 
-```text
-ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6
-```
+## More information
 
-To follow the newest published alpha automatically, change the service image to the moving
-channel:
+- [Architecture](ARCHITECTURE.md) · [Security policy](SECURITY.md) · [Assurance case](ASSURANCE_CASE.md)
+- [Roadmap](ROADMAP.md) · [Release process](RELEASING.md) · [Contributing](CONTRIBUTING.md)
+- [Screenshots](docs/screenshots) · [Report a bug](https://github.com/RentnerKev/RentnerProxy/issues/new/choose)
 
-```text
-ghcr.io/rentnerkev/rentnerproxy:alpha
-```
-
-The `alpha` tag moves when a new alpha is published. Do not use `latest` before a stable
-release; the [release policy](RELEASING.md#trigger-and-channels) reserves it for stable
-versions.
-
-### Test image from main
-
-To build an image from the current `main` branch, run the
-[Dev Image workflow](https://github.com/RentnerKev/RentnerProxy/actions/workflows/dev-image.yml)
-manually with `main` selected. It publishes:
-
-```text
-ghcr.io/rentnerkev/rentnerproxy:dev
-```
-
-The `dev` tag moves to the latest manually built `main` commit. The workflow generates the
-build version and revision metadata automatically, but creates no GitHub release and never
-updates the `alpha`, `beta`, `latest`, or versioned release tags. Use `:dev` only for testing;
-the checked-in Compose file remains pinned to a released version.
-
-## Current features
-
-- **Proxying:** proxy hosts and redirect hosts through Caddy, with HTTP/1.1, HTTP/2,
-  HTTP/3, and WebSocket support.
-- **Certificates:** controller-managed ACME issuance and automatic renewal with HTTP-01 or
-  Cloudflare DNS-01, wildcard certificates, manual certificate import, and durable retry and
-  activation state.
-- **Upstream security:** HTTPS upstream verification and reusable custom trusted CAs.
-- **Access control:** reusable Access Policies with Basic Authentication and IPv4/IPv6
-  allow/deny rules.
-- **CrowdSec protection:** disabled, appliance-managed, or external Local API modes with
-  Caddy-native enforcement and health reporting.
-- **Administration:** users, roles, granular permissions, TOTP two-factor authentication,
-  passkeys, and a read-only audit log.
-- **Visibility:** recent proxy access logs, runtime status, certificate operation progress,
-  and live WebSocket updates for active administration pages.
-- **Operations:** persistent desired state, revision-checked Caddy reconciliation, and
-  repository-provided backup and restore tooling.
-- **Interface:** light and dark themes plus English, German, Spanish, and French
-  translations.
-
-## Screenshots
-
-| Secure sign-in                                             | Proxy host management                                                                                   |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| ![RentnerProxy secure sign-in](docs/screenshots/login.png) | ![RentnerProxy proxy hosts with internal forwarding targets censored](docs/screenshots/proxy-hosts.png) |
-
-| Certificate management                                                    | Account security                                                                                        |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| ![RentnerProxy certificate management](docs/screenshots/certificates.png) | ![RentnerProxy account security with the email address censored](docs/screenshots/account-security.png) |
-
-Email addresses and internal forwarding targets are marked `[CENSORED]` in public screenshots.
-
-## Architecture
-
-```mermaid
-flowchart TD
-    A[Web UI / API] --> B[(PostgreSQL desired state)]
-    B --> C[Rust controller]
-    C --> D[Validated, typed Caddy JSON]
-    D --> E[Caddy data plane]
-    E --> F[Managed upstreams]
-    C <--> G[ACME CA / DNS provider]
-    C --> H[Managed CrowdSec lifecycle]
-    E <--> H
-    E <--> I[External CrowdSec Local API]
-```
-
-The management service owns user-facing state and permissions. The controller validates the
-desired proxy model, renders Caddy JSON, applies it through a private admin socket, and confirms
-the active revision. Certificate private material and ACME lifecycle state remain
-controller-owned. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the complete service, trust, and
-persistence boundaries.
-
-## CrowdSec protection
-
-> [!NOTE]
-> CrowdSec is part of the upcoming `v1.0.0-beta.1` development line. It is not included in
-> the `v1.0.0-alpha.6` image pinned by the current quick-start example.
-
-Open **Security → CrowdSec** to select exactly one operating mode:
-
-- **Disabled** is the default for fresh installations and Alpha 6 upgrades. Caddy has no
-  CrowdSec handler in this mode, so existing traffic behavior is unchanged.
-- **Managed by RentnerProxy** is the recommended appliance experience. The pinned CrowdSec
-  engine, Caddy collection, Local API, and bouncer credential are provisioned inside the
-  existing container and `rentnerproxy` volume. No second Compose service, volume, socket,
-  public port, or mandatory environment variable is required. The Local API listens only on
-  `127.0.0.1:18080`, acquisition metrics stay on loopback `127.0.0.1:6060`, and the engine runs
-  as its own unprivileged user. On upgrade, the startup checks an existing regular Caddy access
-  log before granting the CrowdSec group read access. Only the proxy state root is traversable
-  by that group and only its `logs` child is group-readable; certificates and other state
-  remain private. The access log never becomes world-readable.
-- **External CrowdSec** connects directly to an existing Local API. Enter an absolute HTTP or
-  HTTPS endpoint and bouncer key. RentnerProxy rejects redirects, bounds connection attempts,
-  encrypts the key at rest, and treats it as write-only after saving. Prefer HTTPS unless the
-  endpoint is confined to a trusted private network.
-
-Managed mode works locally without a CrowdSec account. Its Caddy collection detects matching
-traffic from the appliance access log, the local engine produces decisions, and Caddy enforces
-them through its loopback Local API. Within managed mode you can optionally enable **CrowdSec
-community intelligence**. This registers the managed engine with the CrowdSec Central API,
-shares attack signals, and receives community decisions and any subscribed blocklists. It
-requires outbound connectivity, but no inbound port, additional container, or mandatory
-environment variable. The online credentials remain in the existing CrowdSec volume with
-CrowdSec-only file permissions. If registration or the Central API is unavailable, RentnerProxy
-keeps local detection and enforcement running and reports the community connection as degraded.
-Turning this option off stops online participation without deleting credentials or local data.
-
-Optionally link that online managed engine to **CrowdSec Console**: create an enrollment key in
-your Console account, paste it into Security → CrowdSec, then accept the pending engine in
-Console. The enrollment key is used once through the authenticated internal controller route and
-is not retained in application settings or logs. Console credentials and enrollment state are
-kept in the managed CrowdSec data directory. Console enrollment is a separate opt-in; it does
-not create a fourth protection mode or replace local enforcement. The UI distinguishes pending
-Console confirmation from an enrolled engine. CrowdSec may recommend restarting the engine after
-acceptance to synchronize metadata; this is not necessary for local blocking to continue.
-
-RentnerProxy validates the target before switching. A failed external test or managed startup
-leaves the last working mode active. Switching modes stops components that are no longer
-needed but retains managed engine data and the saved external provider so a later switch does
-not silently delete security state.
-Each new managed activation, including an appliance restart, rotates the internal bouncer key
-before Caddy uses it. A supervised engine restart while managed mode remains active keeps the
-current key so requests continue to authenticate during recovery.
-External key replacement creates a credential-free `rotate` event in the administration audit
-log. Managed activation records credential rotation in the appliance log without printing the key.
-
-Enforcement uses Caddy's resolved client address on both public HTTP and HTTPS listeners,
-including HTTP/2, HTTP/3, and WebSocket requests. ACME HTTP-01 is handled before CrowdSec;
-CrowdSec runs before Force HTTPS, redirects, Access Policies, Basic Authentication, and proxy
-forwarding. AppSec and Layer 4 modules are intentionally not bundled.
-
-By default, forwarded client-IP headers are untrusted. If RentnerProxy is behind another proxy,
-configure only that proxy's direct socket-peer networks with
-`RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS` as described below. Caddy then resolves the effective
-client IP before CrowdSec evaluates it; arbitrary `X-Forwarded-For` or `X-Real-IP` values from
-untrusted peers cannot select a different identity.
-
-CrowdSec enforcement is fail-open for availability: established proxy traffic continues if the
-selected Local API is temporarily unavailable, while the UI reports a degraded state and the
-managed supervisor retries a bounded number of times. This is an explicit availability tradeoff,
-not a guarantee that unavailable security intelligence can block requests.
-
-Managed CrowdSec files live under `/var/lib/rentnerproxy/crowdsec` in the existing appliance
-volume, including optional Central API and Console credentials. The current v3 repository backup format does not yet include that directory; complete
-appliance backup/restore compatibility is tracked by
-[issue #71](https://github.com/RentnerKev/RentnerProxy/issues/71). Until that work lands, preserve
-the Docker volume or a volume-level snapshot when managed CrowdSec history must survive disaster
-recovery.
-
-## Security and trust
-
-RentnerProxy uses typed proxy configuration rather than accepting arbitrary raw Caddy JSON.
-Management operations pass through authentication and role-based authorization; TOTP and
-passkeys are available for account protection. Controller-owned certificate storage,
-revision-probed configuration changes, strict trusted-proxy handling, security headers, and
-backup/restore verification provide additional layers.
-
-Repository automation includes CI, CodeQL, secret scanning, dependency review, and OpenSSF
-Scorecard analysis. These controls are evidence, not a security certification. Read the
-[security policy](SECURITY.md) and the repository-backed
-[assurance case](ASSURANCE_CASE.md) for supported versions, assumptions, and residual risks.
-Report vulnerabilities through the private process in `SECURITY.md`, never through a public
-issue.
-
-## Project status
-
-[`v1.0.0-alpha.6`](https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-alpha.6)
-is the current public alpha. RentnerProxy is usable for testing and non-critical deployments,
-but it has not reached its first stable release and should not be presented as production-ready
-for critical traffic.
-
-Before Beta 1, the project is focusing on security review, upgrade and migration compatibility,
-runtime reliability, backup/restore hardening, accessibility, and tester feedback. Back up the
-complete appliance state before every upgrade.
-
-## Planned for Beta 1
-
-The following are planned work, not current feature claims:
-
-- [Forward Auth access policies](https://github.com/RentnerKev/RentnerProxy/issues/65).
-- [Nginx Proxy Manager importer](https://github.com/RentnerKev/RentnerProxy/issues/66).
-- Broader upgrade, recovery, compatibility, reliability, scale, security, and accessibility
-  validation.
-
-There is no promised release date. The [roadmap](ROADMAP.md) and
-[Beta 1 release gate](https://github.com/RentnerKev/RentnerProxy/issues/75) track the current
-scope.
-
-## Help test RentnerProxy
-
-RentnerProxy is looking for testers before Beta 1. Particularly useful feedback covers:
-
-- Fresh installations and upgrades from earlier alphas.
-- Backup, restore, and rollback on disposable test data.
-- Different Docker hosts and upstream applications.
-- HTTP-01, Cloudflare DNS-01, wildcard, renewal, and imported-certificate flows.
-- IPv4, IPv6, HTTP/3, trusted-proxy, and TLS-terminating proxy setups.
-- UI, accessibility, translation, and general usability problems.
-
-Report reproducible bugs with the
-[GitHub issue forms](https://github.com/RentnerKev/RentnerProxy/issues/new/choose). Remove
-credentials, private domains, internal addresses, and unrelated sensitive data first. Report
-security vulnerabilities privately as described in [`SECURITY.md`](SECURITY.md).
-
-## Deployment notes
-
-### TLS termination in front of managed hosts
-
-When another proxy terminates public HTTPS and forwards HTTP to RentnerProxy, set
-`RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS` in the production `.env` to that proxy's direct
-socket-peer addresses:
-
-```dotenv
-RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=192.0.2.10/32,2001:db8::10/128
-```
-
-The setting is empty by default. Use only the narrowest stable addresses; all-address (`/0`)
-and IPv4-mapped IPv6 ranges are rejected. Configure the terminating proxy to overwrite
-`X-Forwarded-Proto` from the actual connection. This Caddy data-plane setting is separate from
-`RENTNERPROXY_TRUST_PROXY_HEADERS` for the management application. Preserve deployment
-settings alongside backups because they are not stored in PostgreSQL.
-
-### Upgrade
-
-Create a production backup, change the Compose image to the target exact release, then pull and
-recreate:
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-Check container health, the management UI, certificate state, and configured hosts after the
-upgrade.
-
-### Backup and restore
-
-The repository tools require Bun 1.4.2, Docker Compose, and a repository checkout. Run them with
-the installation's Compose file and project name:
-
-```bash
-export RENTNERPROXY_COMPOSE_FILE=/srv/rentnerproxy/docker-compose.yml
-bun --env-file=/srv/rentnerproxy/.env scripts/production-backup.ts \
-  --project rentnerproxy --output /srv/rentnerproxy-backups
-```
-
-Backup briefly stops and then restarts the appliance. Keep the entire backup directory,
-Compose file, and private `.env` outside the appliance volume. The backup contains PostgreSQL,
-controller and certificate state, and the application encryption key; Redis, proxy request
-logs, and deployment environment variables are excluded.
-
-For rollback, restore the pre-upgrade backup into fresh volumes with the previous exact image.
-Never run an older image against an upgraded database:
-
-```bash
-export RENTNERPROXY_COMPOSE_FILE=/srv/rentnerproxy-recovery/docker-compose.yml
-bun --env-file=/srv/rentnerproxy/.env scripts/production-restore.ts \
-  --project rentnerproxy-recovery \
-  --input /srv/rentnerproxy-backups/BACKUP_DIRECTORY --confirm-replace
-```
-
-Restore replaces the target project's data. Stop the original appliance before a recovery
-project reuses the same host ports, and retain its volumes until recovery is verified.
-
-## Contributing
-
-Contributions, reproducible bug reports, and testing feedback are welcome. Please read the
-[contribution guide](CONTRIBUTING.md), follow the [Code of Conduct](CODE_OF_CONDUCT.md), check
-the [roadmap](ROADMAP.md), and use the private process in [`SECURITY.md`](SECURITY.md) for
-vulnerabilities.
-
-## Project documentation
-
-- [Architecture](ARCHITECTURE.md)
-- [Security policy](SECURITY.md) and [security assurance case](ASSURANCE_CASE.md)
-- [Contributing](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), and
-  [governance](GOVERNANCE.md)
-- [Roadmap](ROADMAP.md)
-- [Release process](RELEASING.md)
-
-RentnerProxy is available under the [MIT License](LICENSE).
+Licensed under [MIT](LICENSE).
