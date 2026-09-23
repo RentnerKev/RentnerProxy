@@ -1,0 +1,151 @@
+name: Dev Image
+
+on:
+    workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+    group: dev-image
+    cancel-in-progress: false
+
+jobs:
+    build:
+        name: Build and publish :dev
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        permissions:
+            contents: read
+            packages: write
+        steps:
+            - name: Require main
+              shell: bash
+              run: |
+                  if [[ "$GITHUB_REF" != 'refs/heads/main' ]]; then
+                      echo '::error::The dev image can only be built from main.'
+                      exit 1
+                  fi
+
+            - name: Check out current main
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: source
+                  ref: refs/heads/main
+
+            - name: Verify source and generate dev identity
+              id: source
+              shell: bash
+              run: |
+                  set -Eeuo pipefail
+                  revision="$(git -C source rev-parse HEAD)"
+                  [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || {
+                      echo '::error::The main checkout has no valid commit.'
+                      exit 1
+                  }
+                  repository="${GITHUB_REPOSITORY,,}"
+                  [[ "$repository" =~ ^[a-z0-9][a-z0-9_.-]*/[a-z0-9][a-z0-9_.-]*$ ]] || {
+                      echo '::error::The repository name cannot be used as a GHCR image name.'
+                      exit 1
+                  }
+                  [[ -s source/docker/production/Dockerfile ]] || {
+                      echo '::error::The production Dockerfile is missing or empty.'
+                      exit 1
+                  }
+                  [[ -s source/docker/production/Dockerfile.dockerignore ]] || {
+                      echo '::error::The Docker ignore file is missing or empty.'
+                      exit 1
+                  }
+                  if ! grep -Fq '**/.env' source/docker/production/Dockerfile.dockerignore ||
+                      ! grep -Fq '**/*.key' source/docker/production/Dockerfile.dockerignore; then
+                      echo '::error::The Docker context does not exclude environment and key files.'
+                      exit 1
+                  fi
+                  {
+                      printf 'image=ghcr.io/%s\n' "$repository"
+                      printf 'revision=%s\n' "$revision"
+                      printf 'version=dev-%.12s\n' "$revision"
+                  } >> "$GITHUB_OUTPUT"
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+
+            - name: Log in to GitHub Container Registry
+              uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+              with:
+                  password: ${{ secrets.GITHUB_TOKEN }}
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+
+            - name: Generate image metadata
+              id: metadata
+              uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+              with:
+                  flavor: latest=false
+                  images: ${{ steps.source.outputs.image }}
+                  labels: |
+                      org.opencontainers.image.title=RentnerProxy Dev
+                      org.opencontainers.image.description=Test image built from the current main branch; not a release.
+                      org.opencontainers.image.source=https://github.com/${{ github.repository }}
+                      org.opencontainers.image.url=https://github.com/${{ github.repository }}
+                      org.opencontainers.image.version=${{ steps.source.outputs.version }}
+                      org.opencontainers.image.revision=${{ steps.source.outputs.revision }}
+                      org.opencontainers.image.licenses=MIT
+                  tags: |
+                      type=raw,value=dev
+
+            - name: Build and publish dev image
+              id: build
+              uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+              with:
+                  cache-from: type=gha,scope=dev
+                  cache-to: type=gha,mode=max,scope=dev
+                  build-args: RENTNERPROXY_BUILD_VERSION=${{ steps.source.outputs.version }}
+                  context: source
+                  file: source/docker/production/Dockerfile
+                  labels: ${{ steps.metadata.outputs.labels }}
+                  platforms: linux/amd64
+                  provenance: mode=max
+                  push: true
+                  sbom: true
+                  tags: ${{ steps.metadata.outputs.tags }}
+
+            - name: Verify published dev tag
+              env:
+                  EXPECTED_DIGEST: ${{ steps.build.outputs.digest }}
+                  IMAGE: ${{ steps.source.outputs.image }}
+              shell: bash
+              run: |
+                  set -Eeuo pipefail
+                  [[ "$EXPECTED_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+                      echo '::error::Docker build returned no valid image digest.'
+                      exit 1
+                  }
+                  for _ in {1..6}; do
+                      actual_digest="$(
+                          docker buildx imagetools inspect "$IMAGE:dev" \
+                              --format '{{.Manifest.Digest}}' 2>/dev/null || true
+                      )"
+                      if [[ "$actual_digest" == "$EXPECTED_DIGEST" ]]; then
+                          exit 0
+                      fi
+                      sleep 5
+                  done
+                  echo '::error::The published :dev tag does not resolve to the built digest.'
+                  exit 1
+
+            - name: Summarize dev image
+              env:
+                  DIGEST: ${{ steps.build.outputs.digest }}
+                  IMAGE: ${{ steps.source.outputs.image }}
+                  REVISION: ${{ steps.source.outputs.revision }}
+              shell: bash
+              run: |
+                  {
+                      echo '## Dev image'
+                      echo
+                      printf 'Image: `%s:dev`\n\n' "$IMAGE"
+                      printf 'Commit: `%s`\n\n' "$REVISION"
+                      printf 'Digest: `%s`\n\n' "$DIGEST"
+                      echo 'Test build from main. No release or release tags were created.'
+                  } >> "$GITHUB_STEP_SUMMARY"

@@ -93,6 +93,21 @@ The `alpha` tag moves when a new alpha is published. Do not use `latest` before 
 release; the [release policy](RELEASING.md#trigger-and-channels) reserves it for stable
 versions.
 
+### Test image from main
+
+To build an image from the current `main` branch, run the
+[Dev Image workflow](https://github.com/RentnerKev/RentnerProxy/actions/workflows/dev-image.yml)
+manually with `main` selected. It publishes:
+
+```text
+ghcr.io/rentnerkev/rentnerproxy:dev
+```
+
+The `dev` tag moves to the latest manually built `main` commit. The workflow generates the
+build version and revision metadata automatically, but creates no GitHub release and never
+updates the `alpha`, `beta`, `latest`, or versioned release tags. Use `:dev` only for testing;
+the checked-in Compose file remains pinned to a released version.
+
 ## Current features
 
 - **Proxying:** proxy hosts and redirect hosts through Caddy, with HTTP/1.1, HTTP/2,
