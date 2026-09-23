@@ -4,6 +4,7 @@ import {
     applyCrowdSecConfiguration,
     enrollCrowdSecConsole,
     getCrowdSecRuntimeStatus,
+    getCrowdSecDashboard,
     testCrowdSecControllerConnection,
 } from '../server/Foundation/controller.server'
 
@@ -45,6 +46,70 @@ function connectedExternalStatus() {
 }
 
 describe('CrowdSec controller client', () => {
+    test('loads a bounded dashboard snapshot through authenticated controller access', async () => {
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'http://127.0.0.1:8081'
+        process.env.RENTNERPROXY_CONTROLLER_TOKEN = controllerToken
+        const snapshot = {
+            collectedAt: 1_800_000_000,
+            metrics: {
+                blockedRequests: 12,
+                activeDecisions: 3,
+                blockedByOrigin: [{ origin: 'crowdsec', count: 12 }],
+                decisionsByOrigin: [{ origin: 'crowdsec', count: 3 }],
+            },
+            decisions: {
+                total: 1,
+                truncated: false,
+                entries: [
+                    {
+                        id: 1,
+                        scope: 'Ip' as const,
+                        value: '203.0.113.4',
+                        origin: 'crowdsec',
+                        scenario: 'http-bf',
+                        duration: '2h',
+                    },
+                ],
+            },
+        }
+        const fetchMock = spyOn(globalThis, 'fetch').mockImplementation((async (
+            input: Parameters<typeof fetch>[0],
+            init: Parameters<typeof fetch>[1],
+        ) => {
+            expect(String(input)).toEndWith('/internal/v1/crowdsec/dashboard')
+            expect(init?.headers).toMatchObject({ authorization: `Bearer ${controllerToken}` })
+            expect(init?.body).toBeUndefined()
+            return Response.json(snapshot)
+        }) as unknown as typeof fetch)
+        try {
+            expect(await getCrowdSecDashboard()).toEqual(snapshot)
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+        } finally {
+            fetchMock.mockRestore()
+        }
+    })
+
+    test('rejects malformed dashboard metrics instead of reporting zero', async () => {
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'http://127.0.0.1:8081'
+        process.env.RENTNERPROXY_CONTROLLER_TOKEN = controllerToken
+        const fetchMock = spyOn(globalThis, 'fetch').mockImplementation((async () =>
+            Response.json({
+                collectedAt: 1_800_000_000,
+                metrics: {
+                    blockedRequests: -1,
+                    activeDecisions: 0,
+                    blockedByOrigin: [],
+                    decisionsByOrigin: [],
+                },
+                decisions: null,
+            })) as unknown as typeof fetch)
+        try {
+            expect(await getCrowdSecDashboard()).toBeNull()
+        } finally {
+            fetchMock.mockRestore()
+        }
+    })
+
     test('never sends a Console enrollment key to a remote plaintext controller', async () => {
         process.env.RENTNERPROXY_CONTROLLER_URL = 'http://controller.example.test:8081'
         process.env.RENTNERPROXY_CONTROLLER_TOKEN = controllerToken

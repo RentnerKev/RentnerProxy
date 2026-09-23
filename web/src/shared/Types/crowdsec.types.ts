@@ -38,3 +38,30 @@ export interface CrowdSecConfiguration {
 export interface CrowdSecMutationResult {
     readonly runtimeStatus: ProxyRuntimeMutationStatus
 }
+
+export interface CrowdSecOriginCount {
+    readonly origin: string
+    readonly count: number
+}
+
+export interface CrowdSecDashboard {
+    readonly collectedAt: number
+    readonly metrics: {
+        readonly blockedRequests: number | null
+        readonly activeDecisions: number | null
+        readonly blockedByOrigin: readonly CrowdSecOriginCount[]
+        readonly decisionsByOrigin: readonly CrowdSecOriginCount[]
+    } | null
+    readonly decisions: {
+        readonly total: number
+        readonly truncated: boolean
+        readonly entries: readonly {
+            readonly id: number
+            readonly scope: 'Ip' | 'Range'
+            readonly value: string
+            readonly origin: string
+            readonly scenario: string
+            readonly duration: string
+        }[]
+    } | null
+}

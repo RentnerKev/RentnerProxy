@@ -4,6 +4,7 @@ import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/serv
 import { CrowdSecDomainError } from '../../../server/Admin/CrowdSec/crowdsec.errors'
 import {
     getCrowdSecConfigurationService,
+    getCrowdSecDashboardService,
     enrollCrowdSecConsoleService,
     testCrowdSecConnectionService,
     updateCrowdSecConfigurationService,
@@ -57,6 +58,15 @@ export const getCrowdSecConfigurationHandler = createServerFn({ method: 'GET' })
         }
     },
 )
+
+export const getCrowdSecDashboardHandler = createServerFn({ method: 'GET' }).handler(async () => {
+    noStore()
+    try {
+        return await getCrowdSecDashboardService()
+    } catch (error) {
+        throwLocalizedQueryError(error, 'admin.crowdSec.dashboard.unavailable')
+    }
+})
 
 export const testCrowdSecConnectionHandler = createServerFn({ method: 'POST' })
     .validator(testCrowdSecConnectionSchema)

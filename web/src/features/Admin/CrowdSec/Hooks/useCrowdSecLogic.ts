@@ -160,6 +160,7 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
             setApiKey('')
             setDraftCommunityEnabled(null)
             void queryClient.invalidateQueries({ queryKey: crowdSecQueryKeys.configuration })
+            void queryClient.resetQueries({ queryKey: crowdSecQueryKeys.dashboard })
             if (tracksProgress) {
                 setTransition((current) =>
                     current

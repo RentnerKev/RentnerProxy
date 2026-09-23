@@ -4,7 +4,7 @@ import '@tanstack/react-start/server-only'
 import { z } from 'zod'
 
 import type { ServiceHealth } from '../../shared/Types/health.types'
-import type { CrowdSecRuntimeStatus } from '../../shared/Types/crowdsec.types'
+import type { CrowdSecDashboard, CrowdSecRuntimeStatus } from '../../shared/Types/crowdsec.types'
 import type { CrowdSecMode } from '../../config/crowdsec.config'
 import type { ProxyConfigSource, ProxyRuntimeStatus } from '../../shared/Types/proxy-runtime.types'
 import type {
@@ -32,6 +32,7 @@ const STATUS_TIMEOUT_MS = 2_000
 export const CONTROLLER_APPLY_TIMEOUT_MS = 20_000
 export const CROWDSEC_APPLY_TIMEOUT_MS = 55_000
 const CROWDSEC_STATUS_TIMEOUT_MS = 5_000
+const CROWDSEC_DASHBOARD_TIMEOUT_MS = 7_000
 const MAX_RESPONSE_BYTES = 4_096
 const MAX_CONFIG_RESPONSE_BYTES = 32 * 1_024 * 1_024
 
@@ -76,6 +77,41 @@ const crowdSecStatusSchema = z.strictObject({
         .default('not_enrolled'),
     failureBehavior: z.literal('fail_open'),
     clientIpSource: z.literal('caddy'),
+})
+
+const crowdSecCountSchema = z.number().int().nonnegative().safe()
+const crowdSecOriginCountSchema = z.strictObject({
+    origin: z.string().max(80),
+    count: crowdSecCountSchema,
+})
+const crowdSecDashboardSchema = z.strictObject({
+    collectedAt: z.number().int().nonnegative(),
+    metrics: z
+        .strictObject({
+            blockedRequests: crowdSecCountSchema.nullable(),
+            activeDecisions: crowdSecCountSchema.nullable(),
+            blockedByOrigin: z.array(crowdSecOriginCountSchema).max(12),
+            decisionsByOrigin: z.array(crowdSecOriginCountSchema).max(12),
+        })
+        .nullable(),
+    decisions: z
+        .strictObject({
+            total: crowdSecCountSchema,
+            truncated: z.boolean(),
+            entries: z
+                .array(
+                    z.strictObject({
+                        id: crowdSecCountSchema,
+                        scope: z.enum(['Ip', 'Range']),
+                        value: z.string().max(64),
+                        origin: z.string().max(80),
+                        scenario: z.string().max(160),
+                        duration: z.string().max(80),
+                    }),
+                )
+                .max(50),
+        })
+        .nullable(),
 })
 
 interface ControllerRequestOptions {
@@ -125,6 +161,7 @@ export async function controllerRequest(
         | '/ready'
         | '/internal/v1/proxy/status'
         | '/internal/v1/crowdsec/status'
+        | '/internal/v1/crowdsec/dashboard'
         | '/internal/v1/crowdsec/config'
         | '/internal/v1/crowdsec/test'
         | '/internal/v1/crowdsec/console/enroll'
@@ -236,6 +273,16 @@ export async function getCrowdSecRuntimeStatus(): Promise<CrowdSecRuntimeStatus 
         privileged: true,
     })
     const result = crowdSecStatusSchema.safeParse(payload)
+    return result.success ? result.data : null
+}
+
+export async function getCrowdSecDashboard(): Promise<CrowdSecDashboard | null> {
+    const payload = await controllerRequest('/internal/v1/crowdsec/dashboard', {
+        timeoutMs: CROWDSEC_DASHBOARD_TIMEOUT_MS,
+        responseLimit: 32 * 1024,
+        privileged: true,
+    })
+    const result = crowdSecDashboardSchema.safeParse(payload)
     return result.success ? result.data : null
 }
 

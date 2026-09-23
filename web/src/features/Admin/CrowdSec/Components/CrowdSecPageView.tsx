@@ -13,6 +13,7 @@ import PageHeader from '../../../../shared/Management/PageHeader'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { CrowdSecPageViewProps } from '../Types/crowdsec.types'
 import CrowdSecStatusPanel from './CrowdSecStatusPanel'
+import CrowdSecDashboardPanel from './CrowdSecDashboardPanel'
 import CrowdSecManagedOnline from './CrowdSecManagedOnline'
 import CrowdSecTransitionModal from './CrowdSecTransitionModal'
 
@@ -103,6 +104,7 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
             ) : (
                 <>
                     <CrowdSecStatusPanel configuration={state.configuration} />
+                    <CrowdSecDashboardPanel configuration={state.configuration} />
                     <section className={uiClassNames.management.card}>
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>

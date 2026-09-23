@@ -10,6 +10,7 @@ import {
 } from '../../../features/Admin/CrowdSec/validation'
 import type {
     CrowdSecConfiguration,
+    CrowdSecDashboard,
     CrowdSecMutationResult,
     CrowdSecRuntimeStatus,
 } from '../../../shared/Types/crowdsec.types'
@@ -22,6 +23,7 @@ import {
     applyCrowdSecConfiguration,
     enrollCrowdSecConsole,
     getCrowdSecRuntimeStatus,
+    getCrowdSecDashboard,
     testCrowdSecControllerConnection,
     type CrowdSecControllerRequest,
 } from '../../Foundation/controller.server'
@@ -128,6 +130,13 @@ export async function getCrowdSecConfigurationService(): Promise<CrowdSecConfigu
         runtime,
         synchronized: runtimeMatches(stored, runtime),
     }
+}
+
+export async function getCrowdSecDashboardService(): Promise<CrowdSecDashboard> {
+    await requirePermissionService(PERMISSIONS.CROWDSEC_VIEW)
+    const dashboard = await getCrowdSecDashboard()
+    if (!dashboard) throw new CrowdSecDomainError('controller_unavailable')
+    return dashboard
 }
 
 export async function enrollCrowdSecConsoleService(input: {

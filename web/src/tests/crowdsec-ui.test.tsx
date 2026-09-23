@@ -4,7 +4,7 @@ import type { Root } from 'react-dom/client'
 
 import { PERMISSIONS } from '../config/permissions.config'
 import { TOAST_PROVIDER_PROPS } from '../config/toast.config'
-import type { CrowdSecConfiguration } from '../shared/Types/crowdsec.types'
+import type { CrowdSecConfiguration, CrowdSecDashboard } from '../shared/Types/crowdsec.types'
 import disableMotionAnimations from './Helpers/disableMotionAnimations'
 import withTestLanguage from './Helpers/withTestLanguage'
 
@@ -51,6 +51,12 @@ const getConfigurationMock = mock(async () => {
     if (configurationFetchFails) throw new Error('connection interrupted')
     return configuration
 })
+let dashboardSnapshot: CrowdSecDashboard = {
+    collectedAt: 1_800_000_000,
+    metrics: null,
+    decisions: null,
+}
+const getDashboardMock = mock(async () => dashboardSnapshot)
 const testConnectionMock = mock(async (_input: unknown) => ({
     success: true as const,
     message: 'admin.crowdSec.messages.connectionValid',
@@ -95,6 +101,7 @@ const updateConfigurationMock = mock(
 
 mock.module('../features/Admin/CrowdSec/server', () => ({
     getCrowdSecConfigurationHandler: getConfigurationMock,
+    getCrowdSecDashboardHandler: getDashboardMock,
     enrollCrowdSecConsoleHandler: enrollConsoleMock,
     testCrowdSecConnectionHandler: testConnectionMock,
     updateCrowdSecConfigurationHandler: updateConfigurationMock,
@@ -181,12 +188,14 @@ function button(container: HTMLElement, label: string): HTMLButtonElement {
 
 beforeEach(() => {
     configuration = disabledConfiguration()
+    dashboardSnapshot = { collectedAt: 1_800_000_000, metrics: null, decisions: null }
     configurationFetchFails = false
     loseSaveResponse = false
     saveFailure = false
     saveGate = null
     releaseSave = null
     getConfigurationMock.mockClear()
+    getDashboardMock.mockClear()
     testConnectionMock.mockClear()
     enrollConsoleMock.mockClear()
     updateConfigurationMock.mockClear()
@@ -202,6 +211,51 @@ afterEach(async () => {
 })
 
 describe('CrowdSec management UI', () => {
+    test('shows real dashboard counters and active bans without inventing history', async () => {
+        configuration = {
+            ...disabledConfiguration(),
+            mode: 'managed',
+            runtime: {
+                ...disabledConfiguration().runtime!,
+                mode: 'managed',
+                state: 'connected',
+                enforcementActive: true,
+                managedEngine: 'ready',
+            },
+        }
+        dashboardSnapshot = {
+            collectedAt: 1_800_000_000,
+            metrics: {
+                blockedRequests: 12,
+                activeDecisions: 3,
+                blockedByOrigin: [],
+                decisionsByOrigin: [],
+            },
+            decisions: {
+                total: 1,
+                truncated: false,
+                entries: [
+                    {
+                        id: 1,
+                        scope: 'Ip',
+                        value: '203.0.113.4',
+                        origin: 'crowdsec',
+                        scenario: 'http-bf',
+                        duration: '2h',
+                    },
+                ],
+            },
+        }
+        const container = await renderPage([PERMISSIONS.CROWDSEC_VIEW])
+        await waitFor(() => container.textContent?.includes('203.0.113.4') === true)
+        expect(getDashboardMock).toHaveBeenCalled()
+        expect(container.textContent).toContain('Blocked requests')
+        expect(container.textContent).toContain('12')
+        expect(container.textContent).toContain('2h')
+        expect(container.textContent).toContain('http-bf')
+        expect(container.textContent).not.toContain('Estimated attacks')
+    })
+
     test('keeps community opt-in within managed mode and enrolls Console separately', async () => {
         configuration = {
             ...disabledConfiguration(),
