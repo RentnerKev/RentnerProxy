@@ -6,6 +6,12 @@ import { APP_VERSION } from '../../../../config/version.config'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import useApplicationVersionLogic from '../../../../features/ApplicationVersion/Hooks/useApplicationVersionLogic'
 
+const versionWithoutPrefix = APP_VERSION.replace(/^v/, '')
+const displayVersion =
+    versionWithoutPrefix.startsWith('dev-') || versionWithoutPrefix.includes('-dev')
+        ? versionWithoutPrefix
+        : `v${versionWithoutPrefix}`
+
 export default function ApplicationVersion() {
     const { t } = useTranslationStore()
     const { data } = useApplicationVersionLogic()
@@ -14,10 +20,10 @@ export default function ApplicationVersion() {
     return (
         <div className="-mt-4 -ml-3 flex min-h-4 shrink-0 items-center justify-start gap-1.5 text-[0.65rem] leading-4 shell:-mt-5 shell:-ml-4 text-mist-400">
             <span
-                aria-label={t('shell.systemVersion', { version: APP_VERSION })}
+                aria-label={t('shell.systemVersion', { version: displayVersion })}
                 className="font-mono tabular-nums"
             >
-                {APP_VERSION.startsWith('v') ? APP_VERSION : `v${APP_VERSION}`}
+                {displayVersion}
             </span>
             {data?.latestVersion ? (
                 <CustomTooltip {...TOOLTIP_DEFAULT_PROPS} content={updateLabel}>
