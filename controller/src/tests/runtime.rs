@@ -196,6 +196,7 @@ async fn external_crowdsec_switch_is_validated_redacted_persisted_and_reversible
     let status = runtime
         .apply_crowdsec(CrowdSecConfigRequest {
             mode: CrowdSecMode::External,
+            community_enabled: false,
             api_url: Some(api_url.clone()),
             api_key: Some(SecretString::new(KEY.to_owned())),
         })
@@ -226,6 +227,7 @@ async fn external_crowdsec_switch_is_validated_redacted_persisted_and_reversible
         runtime
             .apply_crowdsec(CrowdSecConfigRequest {
                 mode: CrowdSecMode::External,
+                community_enabled: false,
                 api_url: Some(api_url.clone()),
                 api_key: Some(SecretString::new(
                     "fedcba9876543210fedcba9876543210".to_owned()
@@ -243,6 +245,7 @@ async fn external_crowdsec_switch_is_validated_redacted_persisted_and_reversible
     let disabled = runtime
         .apply_crowdsec(CrowdSecConfigRequest {
             mode: CrowdSecMode::Disabled,
+            community_enabled: false,
             api_url: None,
             api_key: None,
         })
@@ -278,6 +281,7 @@ async fn crowdsec_persistence_failure_restores_the_previous_proxy() {
         runtime
             .apply_crowdsec(CrowdSecConfigRequest {
                 mode: CrowdSecMode::External,
+                community_enabled: false,
                 api_url: Some(api_url),
                 api_key: Some(SecretString::new(KEY.to_owned())),
             })
@@ -318,6 +322,7 @@ async fn managed_crowdsec_preparation_failure_stops_a_new_supervisor_request() {
         runtime
             .apply_crowdsec(CrowdSecConfigRequest {
                 mode: CrowdSecMode::Managed,
+                community_enabled: false,
                 api_url: None,
                 api_key: None,
             })

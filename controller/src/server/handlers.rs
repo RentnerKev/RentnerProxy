@@ -13,8 +13,8 @@ use serde_json::Value;
 
 use crate::{
     models::{
-        ApplyOutcome, CrowdSecConfigRequest, ProxyConfigRequest, ProxyRuntimeStatus,
-        ValidatedProxyConfig,
+        ApplyOutcome, CrowdSecConfigRequest, CrowdSecConsoleEnrollRequest, ProxyConfigRequest,
+        ProxyRuntimeStatus, ValidatedProxyConfig,
     },
     proxy::{
         TrustedCaValidationRequest, is_canonical_domain, is_canonical_uuid, is_canonical_uuid_v7,
@@ -137,6 +137,24 @@ pub(super) async fn test_crowdsec_connection(
         .await
         .map_err(crowdsec_error)?;
     Ok(no_store_json(serde_json::json!({ "status": "connected" })))
+}
+
+pub(super) async fn enroll_crowdsec_console(
+    state: AppState,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let body = body.map_err(|_| ApiError::payload_too_large())?;
+    if body.len() > 1_024 {
+        return Err(ApiError::payload_too_large());
+    }
+    let request: CrowdSecConsoleEnrollRequest =
+        serde_json::from_slice(&body).map_err(|_| ApiError::invalid_crowdsec_configuration())?;
+    state
+        .runtime
+        .enroll_crowdsec_console(&request.enrollment_key)
+        .await
+        .map_err(crowdsec_error)?;
+    Ok(no_store_json(serde_json::json!({ "status": "pending" })))
 }
 
 fn crowdsec_request(

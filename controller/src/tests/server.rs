@@ -244,6 +244,27 @@ async fn proxy_endpoints_require_configured_authentication() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let token = Config::from_values(
+        None,
+        Some("0123456789abcdef0123456789abcdef"),
+        None,
+        None,
+        None,
+        false,
+    )
+    .unwrap()
+    .controller_token
+    .unwrap();
+    let response = test_app(Some(token))
+        .await
+        .oneshot(request_with_method(
+            "POST",
+            "/internal/v1/crowdsec/console/enroll",
+            Body::from(r#"{"enrollmentKey":"0123456789abcdef"}"#),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let response = test_app(Some(
         Config::from_values(
             None,

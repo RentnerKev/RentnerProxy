@@ -250,6 +250,9 @@ type CrowdSecRuntimeStatus = Readonly<{
     credentialConfigured: boolean
     enforcementActive: boolean
     managedEngine: 'stopped' | 'starting' | 'ready' | 'restarting' | 'degraded' | 'unavailable'
+    communityEnabled: boolean
+    communityState: 'disabled' | 'starting' | 'connected' | 'degraded'
+    consoleState: 'not_enrolled' | 'pending' | 'connected' | 'degraded'
     failureBehavior: 'fail_open'
     clientIpSource: 'caddy'
 }>
@@ -275,8 +278,16 @@ async function waitForCrowdSec(
     return observed
 }
 
-async function persistCrowdSecMode(id: string, mode: CrowdSecMode): Promise<void> {
-    const value = JSON.stringify({ version: 1, mode })
+async function persistCrowdSecMode(
+    id: string,
+    mode: CrowdSecMode,
+    communityEnabled = false,
+): Promise<void> {
+    const value = JSON.stringify({
+        version: 1,
+        mode,
+        ...(communityEnabled ? { communityEnabled } : {}),
+    })
     await command([
         'docker',
         'exec',
@@ -529,9 +540,20 @@ async function runSmoke(): Promise<void> {
             credentialConfigured: false,
             enforcementActive: false,
             managedEngine: 'stopped',
+            communityEnabled: false,
+            communityState: 'disabled',
+            consoleState: 'not_enrolled',
             failureBehavior: 'fail_open',
             clientIpSource: 'caddy',
         })
+        const disabledEnrollment = await controllerCall(
+            id,
+            '/internal/v1/crowdsec/console/enroll',
+            'POST',
+            { enrollmentKey: '0123456789abcdef' },
+        )
+        assert.equal(disabledEnrollment.status, 422)
+        assert.ok(!disabledEnrollment.body.includes('0123456789abcdef'))
         assert.equal(
             await command(['docker', 'exec', id, 'cat', '/run/rentnerproxy/crowdsec/desired-mode']),
             'stopped',
@@ -1143,9 +1165,49 @@ async function runSmoke(): Promise<void> {
             credentialConfigured: false,
             enforcementActive: true,
             managedEngine: 'ready',
+            communityEnabled: false,
+            communityState: 'disabled',
+            consoleState: 'not_enrolled',
             failureBehavior: 'fail_open',
             clientIpSource: 'caddy',
         })
+        await persistCrowdSecMode(recreatedId, 'managed', true)
+        const onlineOptIn = await controllerCall(
+            recreatedId,
+            '/internal/v1/crowdsec/config',
+            'PUT',
+            {
+                mode: 'managed',
+                communityEnabled: true,
+            },
+        )
+        assert.equal(onlineOptIn.status, 200)
+        await waitForCrowdSec(
+            recreatedId,
+            (status) =>
+                status.mode === 'managed' &&
+                status.communityEnabled &&
+                status.state === 'connected' &&
+                status.managedEngine === 'ready',
+            'managed CrowdSec local enforcement during community opt-in',
+        )
+        assert.equal(
+            await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'cat',
+                '/run/rentnerproxy/crowdsec/desired-mode',
+            ]),
+            'managed-online',
+        )
+        await applyCrowdSecMode(recreatedId, 'managed')
+        await waitForCrowdSec(
+            recreatedId,
+            (status) => status.communityState === 'disabled' && status.managedEngine === 'ready',
+            'managed CrowdSec offline after community opt-out',
+        )
+        passed('managed community opt-in and opt-out retain local enforcement')
         assert.deepEqual(await crowdSecEngineUids(recreatedId), ['10003'])
         const managedProcNet = await command([
             'docker',

@@ -1,0 +1,61 @@
+# Online counterpart of config.yaml. Keep the local acquisition, API and
+# privilege boundaries identical; only the opt-in Central API settings differ.
+common:
+    daemonize: false
+    log_media: stdout
+    log_level: info
+config_paths:
+    config_dir: /usr/share/rentnerproxy/crowdsec/config/
+    data_dir: /usr/share/rentnerproxy/crowdsec/data/
+    simulation_path: /usr/share/rentnerproxy/crowdsec/config/simulation.yaml
+    hub_dir: /usr/share/rentnerproxy/crowdsec/config/hub/
+    index_path: /usr/share/rentnerproxy/crowdsec/config/hub/.index.json
+    notification_dir: /usr/share/rentnerproxy/crowdsec/config/notifications/
+    plugin_dir: /usr/share/rentnerproxy/crowdsec/plugins/
+crowdsec_service:
+    acquisition_path: /usr/share/rentnerproxy/crowdsec/acquis.yaml
+    parser_routines: 1
+    buckets_routines: 1
+    output_routines: 1
+cscli:
+    output: json
+    color: 'no'
+    hub_branch: 435f7d81caf247241bd6068f0a778bafa8dfe975
+db_config:
+    log_level: info
+    type: sqlite
+    db_path: /var/lib/rentnerproxy/crowdsec/data/crowdsec.db
+    max_open_conns: 4
+    use_wal: true
+    flush:
+        max_items: 5000
+        max_age: 7d
+plugin_config:
+    user: crowdsec
+    group: crowdsec
+api:
+    client:
+        credentials_path: /var/lib/rentnerproxy/crowdsec/credentials/local_api_credentials.yaml
+        insecure_skip_verify: false
+        unregister_on_exit: false
+    server:
+        enable: true
+        listen_uri: 127.0.0.1:18080
+        profiles_path: /usr/share/rentnerproxy/crowdsec/config/profiles.yaml
+        console_path: /var/lib/rentnerproxy/crowdsec/credentials/console.yaml
+        online_client:
+            sharing: true
+            pull:
+                community: true
+                blocklists: true
+            credentials_path: /var/lib/rentnerproxy/crowdsec/credentials/online_api_credentials.yaml
+        trusted_ips:
+            - 127.0.0.1
+            - ::1
+        disable_remote_lapi_registration: true
+        disable_usage_metrics_export: true
+prometheus:
+    enabled: true
+    level: full
+    listen_addr: 127.0.0.1
+    listen_port: 6060

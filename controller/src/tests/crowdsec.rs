@@ -44,11 +44,37 @@ fn bouncer_keys_are_bounded_ascii_tokens_and_redacted_in_debug_output() {
 }
 
 #[test]
+fn console_enrollment_keys_are_bounded_and_redacted() {
+    let valid = SecretString::new("0123456789abcdef-XYZ_".to_owned());
+    assert_eq!(validate_enrollment_key(&valid), Ok(()));
+    assert_eq!(format!("{valid:?}"), "SecretString(REDACTED)");
+    for invalid in [
+        "short",
+        "0123456789abcde ",
+        "0123456789abcdef\n",
+        "0123456789abcdefé",
+    ] {
+        assert_eq!(
+            validate_enrollment_key(&SecretString::new(invalid.to_owned())),
+            Err(CrowdSecError::InvalidConfiguration)
+        );
+    }
+}
+
+#[test]
+fn offline_provider_snapshots_remain_compatible() {
+    let persisted: PersistedConfiguration =
+        serde_json::from_str(r#"{"version":1,"mode":"managed"}"#).unwrap();
+    assert!(!persisted.community_enabled);
+}
+
+#[test]
 fn persisted_provider_metadata_cannot_contain_a_bouncer_key() {
     let persisted = PersistedConfiguration {
         version: 1,
         mode: CrowdSecMode::External,
         api_url: Some("https://crowdsec.example.test/".to_owned()),
+        community_enabled: false,
     };
     let json = serde_json::to_string(&persisted).unwrap();
     assert_eq!(

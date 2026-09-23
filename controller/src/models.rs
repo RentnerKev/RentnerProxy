@@ -33,9 +33,17 @@ pub(crate) enum CrowdSecMode {
 pub(crate) struct CrowdSecConfigRequest {
     pub(crate) mode: CrowdSecMode,
     #[serde(default)]
+    pub(crate) community_enabled: bool,
+    #[serde(default)]
     pub(crate) api_url: Option<String>,
     #[serde(default)]
     pub(crate) api_key: Option<SecretString>,
+}
+
+#[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct CrowdSecConsoleEnrollRequest {
+    pub(crate) enrollment_key: SecretString,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
@@ -58,6 +66,24 @@ pub(crate) enum CrowdSecManagedEngineState {
     Unavailable,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum CrowdSecCommunityState {
+    Disabled,
+    Starting,
+    Connected,
+    Degraded,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum CrowdSecConsoleState {
+    NotEnrolled,
+    Pending,
+    Connected,
+    Degraded,
+}
+
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CrowdSecRuntimeStatus {
@@ -68,6 +94,9 @@ pub(crate) struct CrowdSecRuntimeStatus {
     pub(crate) credential_configured: bool,
     pub(crate) enforcement_active: bool,
     pub(crate) managed_engine: CrowdSecManagedEngineState,
+    pub(crate) community_enabled: bool,
+    pub(crate) community_state: CrowdSecCommunityState,
+    pub(crate) console_state: CrowdSecConsoleState,
     pub(crate) failure_behavior: &'static str,
     pub(crate) client_ip_source: &'static str,
 }

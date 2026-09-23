@@ -1,17 +1,19 @@
 use std::{
+    fs,
     io::Read,
     sync::{Arc, atomic::Ordering},
     time::Duration,
 };
 
 use reqwest::{StatusCode, Url, redirect::Policy};
+use ring::rand::{SecureRandom, SystemRandom};
 use serde::{Deserialize, Serialize};
 use tokio::time::{Instant, sleep, timeout};
 use tracing::{info, warn};
 
 use crate::models::{
-    CrowdSecConfigRequest, CrowdSecHealth, CrowdSecManagedEngineState, CrowdSecMode,
-    CrowdSecRuntimeStatus, SecretString,
+    CrowdSecCommunityState, CrowdSecConfigRequest, CrowdSecConsoleState, CrowdSecHealth,
+    CrowdSecManagedEngineState, CrowdSecMode, CrowdSecRuntimeStatus, SecretString,
 };
 
 use super::{
@@ -24,6 +26,8 @@ use super::{
 const MANAGED_API_URL: &str = "http://127.0.0.1:18080/";
 const DESIRED_MODE_FILE: &str = "desired-mode";
 const SUPERVISOR_STATUS_FILE: &str = "status.json";
+const CONSOLE_ENROLLMENT_REQUEST_FILE: &str = "console-enrollment-request";
+const CONSOLE_ENROLLMENT_RESULT_FILE: &str = "console-enrollment-result.json";
 const BOUNCER_KEY_PATH: &str = "bouncer/caddy-bouncer-key";
 const MAX_STATUS_BYTES: u64 = 4_096;
 const MAX_SECRET_BYTES: u64 = 1_024;
@@ -41,7 +45,7 @@ pub(crate) enum CrowdSecError {
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum DesiredProvider {
     Disabled,
-    Managed,
+    Managed { community_enabled: bool },
     External { api_url: String },
 }
 
@@ -49,7 +53,7 @@ impl DesiredProvider {
     fn mode(&self) -> CrowdSecMode {
         match self {
             Self::Disabled => CrowdSecMode::Disabled,
-            Self::Managed => CrowdSecMode::Managed,
+            Self::Managed { .. } => CrowdSecMode::Managed,
             Self::External { .. } => CrowdSecMode::External,
         }
     }
@@ -57,7 +61,28 @@ impl DesiredProvider {
     fn api_url(&self) -> Option<String> {
         match self {
             Self::External { api_url } => Some(api_url.clone()),
-            Self::Disabled | Self::Managed => None,
+            Self::Disabled | Self::Managed { .. } => None,
+        }
+    }
+
+    fn community_enabled(&self) -> bool {
+        matches!(
+            self,
+            Self::Managed {
+                community_enabled: true
+            }
+        )
+    }
+
+    fn supervisor_mode(&self) -> &'static str {
+        match self {
+            Self::Managed {
+                community_enabled: true,
+            } => "managed-online",
+            Self::Managed {
+                community_enabled: false,
+            } => "managed",
+            Self::Disabled | Self::External { .. } => "stopped",
         }
     }
 }
@@ -133,6 +158,12 @@ struct PersistedConfiguration {
     mode: CrowdSecMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     api_url: Option<String>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    community_enabled: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -140,6 +171,25 @@ struct PersistedConfiguration {
 struct SupervisorStatus {
     state: SupervisorState,
     restarts: u8,
+    #[serde(default = "disabled_community_state")]
+    community: CrowdSecCommunityState,
+    #[serde(default = "not_enrolled_console_state")]
+    console: CrowdSecConsoleState,
+}
+
+fn disabled_community_state() -> CrowdSecCommunityState {
+    CrowdSecCommunityState::Disabled
+}
+
+fn not_enrolled_console_state() -> CrowdSecConsoleState {
+    CrowdSecConsoleState::NotEnrolled
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ConsoleEnrollmentResult {
+    id: String,
+    state: String,
 }
 
 #[derive(Clone, Copy, Deserialize, PartialEq, Eq)]
@@ -186,10 +236,12 @@ impl ProxyRuntime {
                 (state.desired.clone(), state.active.clone())
             };
             let (desired, target) = runtime.validate_request(request)?;
-            let target = match runtime.prepare_provider(&target).await {
+            let target = match runtime.prepare_provider(&desired, &target).await {
                 Ok(target) => target,
                 Err(error) => {
-                    runtime.rollback_managed_start(&previous.1, &target).await;
+                    runtime
+                        .rollback_managed_start(&previous.0, &previous.1, &target)
+                        .await;
                     return Err(error);
                 }
             };
@@ -198,8 +250,22 @@ impl ProxyRuntime {
                 return Ok(runtime.crowdsec_status().await);
             }
 
+            // Changing only the managed online preference never restarts Caddy. The
+            // supervisor reconciles CrowdSec independently of the data plane.
+            if previous.1 == target {
+                if runtime.persist_crowdsec_configuration(&desired).is_err() {
+                    let _ = runtime.set_supervisor_mode(previous.0.supervisor_mode());
+                    return Err(CrowdSecError::ApplyFailed);
+                }
+                runtime.crowdsec.lock().await.desired = desired;
+                drop(guard);
+                return Ok(runtime.crowdsec_status().await);
+            }
+
             let Some(engine) = &runtime.engine else {
-                runtime.rollback_managed_start(&previous.1, &target).await;
+                runtime
+                    .rollback_managed_start(&previous.0, &previous.1, &target)
+                    .await;
                 return Err(CrowdSecError::RuntimeUnavailable);
             };
             let (configuration, previous_json, revision) = {
@@ -225,7 +291,9 @@ impl ProxyRuntime {
                 {
                     Ok(target_json) => target_json,
                     Err(_) => {
-                        runtime.rollback_managed_start(&previous.1, &target).await;
+                        runtime
+                            .rollback_managed_start(&previous.0, &previous.1, &target)
+                            .await;
                         return Err(CrowdSecError::ApplyFailed);
                     }
                 },
@@ -238,7 +306,9 @@ impl ProxyRuntime {
                     ) {
                         Ok(target_json) => target_json,
                         Err(_) => {
-                            runtime.rollback_managed_start(&previous.1, &target).await;
+                            runtime
+                                .rollback_managed_start(&previous.0, &previous.1, &target)
+                                .await;
                             return Err(CrowdSecError::ApplyFailed);
                         }
                     }
@@ -258,7 +328,9 @@ impl ProxyRuntime {
                 if !restored {
                     runtime.mark_unavailable().await;
                 }
-                runtime.rollback_managed_start(&previous.1, &target).await;
+                runtime
+                    .rollback_managed_start(&previous.0, &previous.1, &target)
+                    .await;
                 return Err(CrowdSecError::ApplyFailed);
             }
 
@@ -276,7 +348,9 @@ impl ProxyRuntime {
                 if !restored {
                     runtime.mark_unavailable().await;
                 }
-                runtime.rollback_managed_start(&previous.1, &target).await;
+                runtime
+                    .rollback_managed_start(&previous.0, &previous.1, &target)
+                    .await;
                 return Err(CrowdSecError::ApplyFailed);
             }
             {
@@ -314,6 +388,90 @@ impl ProxyRuntime {
         self.probe_lapi(api_url, api_key).await
     }
 
+    pub(crate) async fn enroll_crowdsec_console(
+        &self,
+        enrollment_key: &SecretString,
+    ) -> Result<(), CrowdSecError> {
+        validate_enrollment_key(enrollment_key)?;
+        let _guard = timeout(self.settings.lock_wait, self.apply_lock.lock())
+            .await
+            .map_err(|_| CrowdSecError::Busy)?;
+        if self.stopping.load(Ordering::SeqCst) {
+            return Err(CrowdSecError::RuntimeUnavailable);
+        }
+        let state = self.crowdsec.lock().await;
+        if !state.desired.community_enabled() || !state.active.is_managed() {
+            return Err(CrowdSecError::InvalidConfiguration);
+        }
+        drop(state);
+        let status = self.read_supervisor_status()?;
+        if status.state != SupervisorState::Ready
+            || status.community != CrowdSecCommunityState::Connected
+        {
+            return Err(CrowdSecError::InvalidConfiguration);
+        }
+        if status.console != CrowdSecConsoleState::NotEnrolled
+            && status.console != CrowdSecConsoleState::Degraded
+        {
+            return Err(CrowdSecError::InvalidConfiguration);
+        }
+
+        let mut nonce = [0u8; 16];
+        SystemRandom::new()
+            .fill(&mut nonce)
+            .map_err(|_| CrowdSecError::RuntimeUnavailable)?;
+        let id = nonce
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        let request_path = self
+            .settings
+            .crowdsec_control_dir
+            .join(CONSOLE_ENROLLMENT_REQUEST_FILE);
+        let result_path = self
+            .settings
+            .crowdsec_control_dir
+            .join(CONSOLE_ENROLLMENT_RESULT_FILE);
+        if request_path.exists() {
+            return Err(CrowdSecError::Busy);
+        }
+        if result_path.exists() {
+            fs::remove_file(&result_path).map_err(|_| CrowdSecError::RuntimeUnavailable)?;
+        }
+        atomic_write(
+            &request_path,
+            format!("{id}\n{}\n", enrollment_key.expose()).as_bytes(),
+        )
+        .map_err(|_| CrowdSecError::RuntimeUnavailable)?;
+
+        let deadline = Instant::now() + Duration::from_secs(60);
+        loop {
+            if let Ok(file) = open_absolute_regular_file(&result_path) {
+                let mut bytes = Vec::new();
+                file.take(MAX_STATUS_BYTES + 1)
+                    .read_to_end(&mut bytes)
+                    .map_err(|_| CrowdSecError::RuntimeUnavailable)?;
+                if bytes.len() as u64 > MAX_STATUS_BYTES {
+                    return Err(CrowdSecError::RuntimeUnavailable);
+                }
+                let result = serde_json::from_slice::<ConsoleEnrollmentResult>(&bytes)
+                    .map_err(|_| CrowdSecError::RuntimeUnavailable)?;
+                if result.id == id {
+                    return if result.state == "pending" {
+                        Ok(())
+                    } else {
+                        Err(CrowdSecError::ConnectionFailed)
+                    };
+                }
+            }
+            if Instant::now() >= deadline {
+                let _ = fs::remove_file(&request_path);
+                return Err(CrowdSecError::ConnectionFailed);
+            }
+            sleep(Duration::from_millis(200)).await;
+        }
+    }
+
     pub(crate) async fn crowdsec_status(&self) -> CrowdSecRuntimeStatus {
         let (desired, active) = {
             let state = self.crowdsec.lock().await;
@@ -326,19 +484,21 @@ impl ProxyRuntime {
         });
         let state = match &desired {
             DesiredProvider::Disabled => CrowdSecHealth::Disabled,
-            DesiredProvider::Managed => match (&active, supervisor.map(|status| status.state)) {
-                (ActiveProvider::Managed { api_key }, Some(SupervisorState::Ready)) => {
-                    if self.probe_lapi(MANAGED_API_URL, api_key).await.is_ok() {
-                        CrowdSecHealth::Connected
-                    } else {
-                        CrowdSecHealth::Degraded
+            DesiredProvider::Managed { .. } => {
+                match (&active, supervisor.map(|status| status.state)) {
+                    (ActiveProvider::Managed { api_key }, Some(SupervisorState::Ready)) => {
+                        if self.probe_lapi(MANAGED_API_URL, api_key).await.is_ok() {
+                            CrowdSecHealth::Connected
+                        } else {
+                            CrowdSecHealth::Degraded
+                        }
                     }
+                    (_, Some(SupervisorState::Starting | SupervisorState::Restarting)) => {
+                        CrowdSecHealth::Starting
+                    }
+                    _ => CrowdSecHealth::Degraded,
                 }
-                (_, Some(SupervisorState::Starting | SupervisorState::Restarting)) => {
-                    CrowdSecHealth::Starting
-                }
-                _ => CrowdSecHealth::Degraded,
-            },
+            }
             DesiredProvider::External { api_url } => match &active {
                 ActiveProvider::External {
                     api_url: active_url,
@@ -360,6 +520,11 @@ impl ProxyRuntime {
             credential_configured: matches!(active, ActiveProvider::External { .. }),
             enforcement_active: active.is_enabled(),
             managed_engine,
+            community_enabled: desired.community_enabled(),
+            community_state: supervisor
+                .map_or(CrowdSecCommunityState::Disabled, |status| status.community),
+            console_state: supervisor
+                .map_or(CrowdSecConsoleState::NotEnrolled, |status| status.console),
             failure_behavior: "fail_open",
             client_ip_source: "caddy",
         }
@@ -370,17 +535,19 @@ impl ProxyRuntime {
             .restore_crowdsec_configuration()
             .unwrap_or(DesiredProvider::Disabled);
         let active = match desired {
-            DesiredProvider::Managed => match self.prepare_managed_provider().await {
-                Ok(provider) => provider,
-                Err(error) => {
-                    warn!(
-                        ?error,
-                        stage = "crowdsec_startup",
-                        "Managed CrowdSec will retry through reconciliation"
-                    );
-                    ActiveProvider::Disabled
+            DesiredProvider::Managed { .. } => {
+                match self.prepare_managed_provider(&desired).await {
+                    Ok(provider) => provider,
+                    Err(error) => {
+                        warn!(
+                            ?error,
+                            stage = "crowdsec_startup",
+                            "Managed CrowdSec will retry through reconciliation"
+                        );
+                        ActiveProvider::Disabled
+                    }
                 }
-            },
+            }
             DesiredProvider::Disabled | DesiredProvider::External { .. } => {
                 self.stop_managed_best_effort().await;
                 ActiveProvider::Disabled
@@ -397,11 +564,12 @@ impl ProxyRuntime {
 
     async fn prepare_provider(
         &self,
+        desired: &DesiredProvider,
         provider: &ActiveProvider,
     ) -> Result<ActiveProvider, CrowdSecError> {
         match provider {
             ActiveProvider::Managed { .. } => {
-                let managed = self.prepare_managed_provider().await?;
+                let managed = self.prepare_managed_provider(desired).await?;
                 Ok(managed)
             }
             ActiveProvider::External { api_url, api_key } => {
@@ -417,18 +585,24 @@ impl ProxyRuntime {
         request: CrowdSecConfigRequest,
     ) -> Result<(DesiredProvider, ActiveProvider), CrowdSecError> {
         match request.mode {
-            CrowdSecMode::Disabled if request.api_url.is_none() && request.api_key.is_none() => {
+            CrowdSecMode::Disabled
+                if !request.community_enabled
+                    && request.api_url.is_none()
+                    && request.api_key.is_none() =>
+            {
                 Ok((DesiredProvider::Disabled, ActiveProvider::Disabled))
             }
             CrowdSecMode::Managed if request.api_url.is_none() && request.api_key.is_none() => {
                 Ok((
-                    DesiredProvider::Managed,
+                    DesiredProvider::Managed {
+                        community_enabled: request.community_enabled,
+                    },
                     ActiveProvider::Managed {
                         api_key: SecretString::new(String::new()),
                     },
                 ))
             }
-            CrowdSecMode::External => {
+            CrowdSecMode::External if !request.community_enabled => {
                 let api_url = normalize_api_url(
                     request
                         .api_url
@@ -444,14 +618,17 @@ impl ProxyRuntime {
                     ActiveProvider::External { api_url, api_key },
                 ))
             }
-            CrowdSecMode::Disabled | CrowdSecMode::Managed => {
+            CrowdSecMode::Disabled | CrowdSecMode::Managed | CrowdSecMode::External => {
                 Err(CrowdSecError::InvalidConfiguration)
             }
         }
     }
 
-    async fn prepare_managed_provider(&self) -> Result<ActiveProvider, CrowdSecError> {
-        self.set_supervisor_mode("managed")?;
+    async fn prepare_managed_provider(
+        &self,
+        desired: &DesiredProvider,
+    ) -> Result<ActiveProvider, CrowdSecError> {
+        self.set_supervisor_mode(desired.supervisor_mode())?;
         let deadline = Instant::now() + self.settings.crowdsec_start_timeout;
         loop {
             match self.read_supervisor_status() {
@@ -474,9 +651,24 @@ impl ProxyRuntime {
         Ok(ActiveProvider::Managed { api_key })
     }
 
-    async fn rollback_managed_start(&self, previous: &ActiveProvider, target: &ActiveProvider) {
+    async fn rollback_managed_start(
+        &self,
+        previous_desired: &DesiredProvider,
+        previous: &ActiveProvider,
+        target: &ActiveProvider,
+    ) {
         if !previous.is_managed() && target.is_managed() {
             self.stop_managed_best_effort().await;
+        } else if previous.is_managed()
+            && target.is_managed()
+            && self
+                .set_supervisor_mode(previous_desired.supervisor_mode())
+                .is_err()
+        {
+            warn!(
+                stage = "crowdsec_rollback",
+                "CrowdSec supervisor mode could not be restored"
+            );
         }
     }
 
@@ -511,7 +703,7 @@ impl ProxyRuntime {
     }
 
     fn set_supervisor_mode(&self, mode: &str) -> Result<(), CrowdSecError> {
-        if !matches!(mode, "managed" | "stopped") {
+        if !matches!(mode, "managed" | "managed-online" | "stopped") {
             return Err(CrowdSecError::InvalidConfiguration);
         }
         atomic_write(
@@ -606,6 +798,7 @@ impl ProxyRuntime {
             version: 1,
             mode: desired.mode(),
             api_url: desired.api_url(),
+            community_enabled: desired.community_enabled(),
         };
         let bytes = serde_json::to_vec(&persisted).map_err(|_| CrowdSecError::ApplyFailed)?;
         atomic_write(
@@ -628,14 +821,22 @@ impl ProxyRuntime {
             return None;
         }
         match persisted.mode {
-            CrowdSecMode::Disabled if persisted.api_url.is_none() => {
+            CrowdSecMode::Disabled
+                if persisted.api_url.is_none() && !persisted.community_enabled =>
+            {
                 Some(DesiredProvider::Disabled)
             }
-            CrowdSecMode::Managed if persisted.api_url.is_none() => Some(DesiredProvider::Managed),
-            CrowdSecMode::External => normalize_api_url(persisted.api_url.as_deref()?)
-                .ok()
-                .map(|api_url| DesiredProvider::External { api_url }),
-            CrowdSecMode::Disabled | CrowdSecMode::Managed => None,
+            CrowdSecMode::Managed if persisted.api_url.is_none() => {
+                Some(DesiredProvider::Managed {
+                    community_enabled: persisted.community_enabled,
+                })
+            }
+            CrowdSecMode::External if !persisted.community_enabled => {
+                normalize_api_url(persisted.api_url.as_deref()?)
+                    .ok()
+                    .map(|api_url| DesiredProvider::External { api_url })
+            }
+            CrowdSecMode::Disabled | CrowdSecMode::Managed | CrowdSecMode::External => None,
         }
     }
 }
@@ -668,6 +869,18 @@ fn validate_api_key(value: &SecretString) -> Result<(), CrowdSecError> {
         || value
             .bytes()
             .any(|byte| byte.is_ascii_control() || byte.is_ascii_whitespace())
+    {
+        return Err(CrowdSecError::InvalidConfiguration);
+    }
+    Ok(())
+}
+
+fn validate_enrollment_key(value: &SecretString) -> Result<(), CrowdSecError> {
+    let value = value.expose();
+    if !(16..=256).contains(&value.len())
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
     {
         return Err(CrowdSecError::InvalidConfiguration);
     }

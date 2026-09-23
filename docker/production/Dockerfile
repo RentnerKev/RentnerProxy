@@ -135,6 +135,7 @@ COPY --from=crowdsec-assets /usr/local/bin/cscli /usr/local/bin/cscli
 COPY --from=crowdsec-assets /opt/rentnerproxy/crowdsec-config /usr/share/rentnerproxy/crowdsec/config
 COPY --from=crowdsec-assets /var/lib/crowdsec/data /usr/share/rentnerproxy/crowdsec/data
 COPY docker/crowdsec/runtime/config.yaml /usr/share/rentnerproxy/crowdsec/config.yaml
+COPY docker/crowdsec/runtime/config-online.yaml /usr/share/rentnerproxy/crowdsec/config-online.yaml
 COPY docker/crowdsec/runtime/acquis.yaml /usr/share/rentnerproxy/crowdsec/acquis.yaml
 COPY docker/licenses/Caddy-LICENSE /usr/share/licenses/caddy/LICENSE
 COPY docker/licenses/Caddy-LICENSE /usr/share/licenses/caddy-crowdsec-bouncer/LICENSE
