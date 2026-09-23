@@ -6,6 +6,7 @@ mod certificates;
 pub(crate) mod clock;
 mod configuration;
 mod crowdsec;
+mod crowdsec_dashboard;
 mod dns;
 mod engine;
 mod lifecycle;
@@ -133,6 +134,7 @@ pub(crate) struct ProxyRuntime {
     candidate_cursor: AtomicUsize,
     dns_cleanup_cursor: AtomicUsize,
     crowdsec: Mutex<crowdsec::CrowdSecState>,
+    crowdsec_dashboard_cache: Mutex<Option<crowdsec_dashboard::CrowdSecDashboardCache>>,
 }
 
 impl ProxyRuntime {
@@ -172,6 +174,7 @@ impl ProxyRuntime {
             candidate_cursor: AtomicUsize::new(0),
             dns_cleanup_cursor: AtomicUsize::new(0),
             crowdsec: Mutex::new(crowdsec::CrowdSecState::default()),
+            crowdsec_dashboard_cache: Mutex::new(None),
         })
     }
 }

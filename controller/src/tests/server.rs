@@ -641,6 +641,46 @@ async fn status_is_private_and_does_not_expose_configuration() {
 }
 
 #[tokio::test]
+async fn crowdsec_dashboard_requires_internal_auth_and_never_caches() {
+    let token_text = "0123456789abcdef0123456789abcdef";
+    let token = Config::from_values(None, Some(token_text), None, None, None, false)
+        .unwrap()
+        .controller_token
+        .unwrap();
+    let router = test_app(Some(token)).await;
+    let unauthorized = router
+        .clone()
+        .oneshot(request_with_method(
+            "GET",
+            "/internal/v1/crowdsec/dashboard",
+            Body::empty(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/internal/v1/crowdsec/dashboard")
+                .header("authorization", format!("Bearer {token_text}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()["cache-control"], "no-store");
+    let body = axum::body::to_bytes(response.into_body(), 4096)
+        .await
+        .unwrap();
+    let dashboard: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(dashboard["collectedAt"].as_i64().is_some());
+    assert!(dashboard["metrics"].is_null());
+    assert!(dashboard["decisions"].is_null());
+}
+
+#[tokio::test]
 async fn oversized_proxy_configuration_returns_a_safe_bounded_error() {
     let response = test_app(None)
         .await

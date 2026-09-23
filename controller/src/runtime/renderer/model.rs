@@ -42,6 +42,7 @@ pub(super) struct CrowdSecApp {
     pub(super) api_url: String,
     pub(super) api_key: String,
     pub(super) ticker_interval: String,
+    pub(super) metrics_interval: String,
     pub(super) enable_streaming: bool,
     pub(super) enable_hard_fails: bool,
     pub(super) enable_caddy_error: bool,

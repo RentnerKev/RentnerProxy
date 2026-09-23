@@ -87,6 +87,8 @@ fn crowdsec_is_absent_when_disabled_and_wraps_only_public_listeners_when_enabled
     );
     assert_eq!(json["apps"]["crowdsec"]["enable_streaming"], true);
     assert_eq!(json["apps"]["crowdsec"]["enable_hard_fails"], false);
+    assert_eq!(json["apps"]["crowdsec"]["enable_caddy_metrics"], true);
+    assert_eq!(json["apps"]["crowdsec"]["metrics_interval"], "15m");
     let http_routes = json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"]
         .as_array()
         .unwrap();

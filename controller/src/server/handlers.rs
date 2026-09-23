@@ -113,6 +113,10 @@ pub(super) async fn crowdsec_status(state: AppState) -> Response {
     no_store_json(state.runtime.crowdsec_status().await)
 }
 
+pub(super) async fn crowdsec_dashboard(state: AppState) -> Response {
+    no_store_json(state.runtime.crowdsec_dashboard().await)
+}
+
 pub(super) async fn apply_crowdsec_config(
     state: AppState,
     body: Result<Bytes, BytesRejection>,

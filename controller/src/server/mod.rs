@@ -17,10 +17,10 @@ use challenges::ChallengeStore;
 use auth::{authorize_certificate_request, authorize_internal_request};
 use handlers::{
     access_logs, apply_crowdsec_config, apply_proxy_config, certificate_events,
-    certificate_store_status, challenge_response, crowdsec_status, delete_certificate,
-    enroll_crowdsec_console, get_certificate, health, import_certificate, issue_certificate,
-    list_certificates, preview_proxy_config, preview_proxy_host_config, proxy_status,
-    read_proxy_config, read_proxy_host_config, readiness, renew_certificate,
+    certificate_store_status, challenge_response, crowdsec_dashboard, crowdsec_status,
+    delete_certificate, enroll_crowdsec_console, get_certificate, health, import_certificate,
+    issue_certificate, list_certificates, preview_proxy_config, preview_proxy_host_config,
+    proxy_status, read_proxy_config, read_proxy_host_config, readiness, renew_certificate,
     test_crowdsec_connection, validate_trusted_ca,
 };
 
@@ -117,6 +117,13 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             authorize_certificate_request,
         ));
     let internal = Router::new()
+        .route(
+            "/internal/v1/crowdsec/dashboard",
+            get({
+                let state = state.clone();
+                move || crowdsec_dashboard(state.clone())
+            }),
+        )
         .route(
             "/internal/v1/crowdsec/status",
             get({

@@ -20,6 +20,7 @@ const API_TIMEOUT: Duration = Duration::from_secs(10);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_CONTROL_RESPONSE_BYTES: usize = 4_096;
+const MAX_METRICS_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
 
 pub(crate) type EngineFuture<'a> =
     Pin<Box<dyn Future<Output = Result<(), EngineError>> + Send + 'a>>;
@@ -56,6 +57,11 @@ pub(crate) trait ProxyEngine: Send + Sync {
     fn probe<'a>(&'a self, expected_revision: &'a str) -> EngineFuture<'a>;
     fn shutdown<'a>(&'a self) -> EngineFuture<'a>;
     fn is_running<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>>;
+    fn metrics<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = Result<Bytes, EngineError>> + Send + 'a>> {
+        Box::pin(async { Err(EngineError::Unavailable) })
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -107,6 +113,26 @@ impl CaddyProcess {
         path: &'static str,
         body: &str,
     ) -> Result<ControlResponse, EngineError> {
+        self.request_bounded(
+            socket,
+            fallback_port,
+            method,
+            path,
+            body,
+            MAX_CONTROL_RESPONSE_BYTES,
+        )
+        .await
+    }
+
+    async fn request_bounded(
+        &self,
+        socket: &Path,
+        fallback_port: u16,
+        method: &'static str,
+        path: &'static str,
+        body: &str,
+        response_limit: usize,
+    ) -> Result<ControlResponse, EngineError> {
         let operation = async {
             #[cfg(unix)]
             {
@@ -114,7 +140,7 @@ impl CaddyProcess {
                 let stream = tokio::net::UnixStream::connect(socket)
                     .await
                     .map_err(|_| EngineError::Unavailable)?;
-                exchange(stream, "localhost", method, path, body).await
+                exchange_bounded(stream, "localhost", method, path, body, response_limit).await
             }
             #[cfg(not(unix))]
             {
@@ -123,12 +149,13 @@ impl CaddyProcess {
                     tokio::net::TcpStream::connect((std::net::Ipv4Addr::LOCALHOST, fallback_port))
                         .await
                         .map_err(|_| EngineError::Unavailable)?;
-                exchange(
+                exchange_bounded(
                     stream,
                     &format!("127.0.0.1:{fallback_port}"),
                     method,
                     path,
                     body,
+                    response_limit,
                 )
                 .await
             }
@@ -292,6 +319,29 @@ impl ProxyEngine for CaddyProcess {
     fn is_running<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
         Box::pin(self.child_running())
     }
+    fn metrics<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = Result<Bytes, EngineError>> + Send + 'a>> {
+        Box::pin(async move {
+            if !self.child_running().await {
+                return Err(EngineError::Unavailable);
+            }
+            let response = self
+                .request_bounded(
+                    &self.admin_socket,
+                    2_019,
+                    "GET",
+                    "/metrics",
+                    "",
+                    MAX_METRICS_RESPONSE_BYTES,
+                )
+                .await?;
+            if response.status != 200 {
+                return Err(EngineError::InvalidResponse);
+            }
+            Ok(response.body)
+        })
+    }
 }
 
 struct ControlResponse {
@@ -310,12 +360,27 @@ impl Drop for ConnectionTask {
     }
 }
 
+#[cfg(test)]
 async fn exchange<S>(
     stream: S,
     host: &str,
     method: &'static str,
     path: &'static str,
     body: &str,
+) -> Result<ControlResponse, EngineError>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    exchange_bounded(stream, host, method, path, body, MAX_CONTROL_RESPONSE_BYTES).await
+}
+
+async fn exchange_bounded<S>(
+    stream: S,
+    host: &str,
+    method: &'static str,
+    path: &'static str,
+    body: &str,
+    response_limit: usize,
 ) -> Result<ControlResponse, EngineError>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -339,7 +404,7 @@ where
         .await
         .map_err(|_| EngineError::InvalidResponse)?;
     let status = response.status().as_u16();
-    let body = Limited::new(response.into_body(), MAX_CONTROL_RESPONSE_BYTES)
+    let body = Limited::new(response.into_body(), response_limit)
         .collect()
         .await
         .map_err(|_| EngineError::InvalidResponse)?

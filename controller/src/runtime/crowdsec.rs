@@ -108,7 +108,7 @@ impl ActiveProvider {
         matches!(self, Self::Managed { .. })
     }
 
-    fn api_url(&self) -> Option<&str> {
+    pub(super) fn api_url(&self) -> Option<&str> {
         match self {
             Self::Disabled => None,
             Self::Managed { .. } => Some(MANAGED_API_URL),
@@ -116,7 +116,7 @@ impl ActiveProvider {
         }
     }
 
-    fn api_key(&self) -> Option<&SecretString> {
+    pub(super) fn api_key(&self) -> Option<&SecretString> {
         match self {
             Self::Disabled => None,
             Self::Managed { api_key } | Self::External { api_key, .. } => Some(api_key),

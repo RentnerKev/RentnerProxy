@@ -219,10 +219,11 @@ pub(super) fn render_config_inner(
                 api_url: settings.api_url.clone(),
                 api_key: CROWSEC_BOUNCER_KEY_PLACEHOLDER.to_owned(),
                 ticker_interval: "15s".to_owned(),
+                metrics_interval: "15m".to_owned(),
                 enable_streaming: true,
                 enable_hard_fails: false,
                 enable_caddy_error: false,
-                enable_caddy_metrics: false,
+                enable_caddy_metrics: true,
             }),
         },
     })
