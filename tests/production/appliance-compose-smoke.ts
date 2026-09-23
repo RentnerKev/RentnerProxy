@@ -546,14 +546,15 @@ async function runSmoke(): Promise<void> {
             failureBehavior: 'fail_open',
             clientIpSource: 'caddy',
         })
+        const syntheticEnrollmentKey = 'a'.repeat(16)
         const disabledEnrollment = await controllerCall(
             id,
             '/internal/v1/crowdsec/console/enroll',
             'POST',
-            { enrollmentKey: '0123456789abcdef' },
+            { enrollmentKey: syntheticEnrollmentKey },
         )
         assert.equal(disabledEnrollment.status, 422)
-        assert.ok(!disabledEnrollment.body.includes('0123456789abcdef'))
+        assert.ok(!disabledEnrollment.body.includes(syntheticEnrollmentKey))
         assert.equal(
             await command(['docker', 'exec', id, 'cat', '/run/rentnerproxy/crowdsec/desired-mode']),
             'stopped',

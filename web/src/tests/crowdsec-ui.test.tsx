@@ -242,11 +242,12 @@ describe('CrowdSec management UI', () => {
             '[name="crowdsec-enrollment-key"]',
         )!
         expect(keyInput).not.toBeNull()
-        await setInputValue(keyInput, '0123456789abcdef')
+        const syntheticEnrollmentKey = 'a'.repeat(16)
+        await setInputValue(keyInput, syntheticEnrollmentKey)
         await click(button(container, 'Connect Console'))
         await waitFor(() => enrollConsoleMock.mock.calls.length === 1)
         expect(enrollConsoleMock.mock.calls[0]?.[0]).toEqual({
-            data: { enrollmentKey: '0123456789abcdef' },
+            data: { enrollmentKey: syntheticEnrollmentKey },
         })
         await waitFor(() => keyInput.value === '')
     })

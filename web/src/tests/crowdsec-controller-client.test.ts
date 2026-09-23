@@ -14,6 +14,7 @@ const controllerEnvironment = [
 ] as const
 const controllerToken = 'C'.repeat(32)
 const externalApiKey = 'external-bouncer-key-value'
+const syntheticEnrollmentKey = 'a'.repeat(16)
 
 for (const variable of controllerEnvironment) {
     originalEnvironment.set(variable, process.env[variable])
@@ -51,7 +52,7 @@ describe('CrowdSec controller client', () => {
             new Error('Key must stay private.'),
         )
         try {
-            expect(await enrollCrowdSecConsole('0123456789abcdef')).toBe('unavailable')
+            expect(await enrollCrowdSecConsole(syntheticEnrollmentKey)).toBe('unavailable')
             expect(fetchMock).not.toHaveBeenCalled()
         } finally {
             fetchMock.mockRestore()
@@ -69,11 +70,13 @@ describe('CrowdSec controller client', () => {
             expect(init?.method).toBe('POST')
             expect(init?.redirect).toBe('error')
             expect(init?.headers).toMatchObject({ authorization: `Bearer ${controllerToken}` })
-            expect(JSON.parse(String(init?.body))).toEqual({ enrollmentKey: '0123456789abcdef' })
+            expect(JSON.parse(String(init?.body))).toEqual({
+                enrollmentKey: syntheticEnrollmentKey,
+            })
             return Response.json({ status: 'pending' })
         }) as unknown as typeof fetch)
         try {
-            expect(await enrollCrowdSecConsole('0123456789abcdef')).toBe('pending')
+            expect(await enrollCrowdSecConsole(syntheticEnrollmentKey)).toBe('pending')
             expect(fetchMock).toHaveBeenCalledTimes(1)
         } finally {
             fetchMock.mockRestore()

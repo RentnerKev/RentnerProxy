@@ -260,7 +260,7 @@ async fn proxy_endpoints_require_configured_authentication() {
         .oneshot(request_with_method(
             "POST",
             "/internal/v1/crowdsec/console/enroll",
-            Body::from(r#"{"enrollmentKey":"0123456789abcdef"}"#),
+            Body::from(format!(r#"{{"enrollmentKey":"{}"}}"#, "a".repeat(16))),
         ))
         .await
         .unwrap();
