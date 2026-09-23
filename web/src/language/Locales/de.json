@@ -1832,7 +1832,7 @@
                 },
                 "external": {
                     "title": "Externes CrowdSec",
-                    "description": "Verwendet einen vorhandenen Local-API-Endpunkt mit schreibgeschütztem Bouncer-Key."
+                    "description": "Verwendet einen vorhandenen Local-API-Endpunkt mit einem Bouncer-Key. Der Bouncer-Key wird nach dem Speichern nicht mehr angezeigt."
                 }
             },
             "configuration": {

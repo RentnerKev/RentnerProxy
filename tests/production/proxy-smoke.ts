@@ -155,6 +155,7 @@ async function runSmoke(): Promise<void> {
     const first = startTestUpstream({ hostname: upstreamHost, port: 0, message: 'upstream-one' })
     const second = startTestUpstream({ hostname: upstreamHost, port: 0, message: 'upstream-two' })
     let crowdSecLapiAvailable = true
+    let crowdSecDecisionStreamProvider: string | undefined
     const crowdSecLapi = Bun.serve({
         hostname: upstreamHost,
         port: 0,
@@ -206,6 +207,7 @@ async function runSmoke(): Promise<void> {
                         ]
                       : []
             if (url.pathname.endsWith('/v1/decisions/stream')) {
+                crowdSecDecisionStreamProvider = provider
                 return Response.json({
                     deleted: null,
                     new: decisions.length > 0 ? decisions : null,
@@ -940,12 +942,17 @@ async function runSmoke(): Promise<void> {
         await expectBasicAccess('policy.test', policyUsername, rotatedPassword, 200)
         passed('disabling CrowdSec removes enforcement and leaves existing Access Policies intact')
 
+        crowdSecDecisionStreamProvider = undefined
         await authorized(() =>
             crowdSecServices.updateCrowdSecConfigurationService({
                 mode: 'external',
                 apiUrl: crowdSecApiUrl('trusted'),
                 apiKey: crowdSecBouncerKey,
             }),
+        )
+        await waitFor(
+            async () => crowdSecDecisionStreamProvider === 'trusted',
+            'trusted CrowdSec decisions',
         )
         const untrustedSpoof = await fetch(proxyUrl + '/trusted-client-ip', {
             headers: {

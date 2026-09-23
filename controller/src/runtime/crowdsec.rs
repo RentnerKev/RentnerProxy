@@ -181,10 +181,17 @@ impl ProxyRuntime {
                 return Err(CrowdSecError::RuntimeUnavailable);
             }
 
-            let (desired, target) = runtime.prepare_provider(request).await?;
             let previous = {
                 let state = runtime.crowdsec.lock().await;
                 (state.desired.clone(), state.active.clone())
+            };
+            let (desired, target) = runtime.validate_request(request)?;
+            let target = match runtime.prepare_provider(&target).await {
+                Ok(target) => target,
+                Err(error) => {
+                    runtime.rollback_managed_start(&previous.1, &target).await;
+                    return Err(error);
+                }
             };
             if previous.0 == desired && previous.1 == target {
                 drop(guard);
@@ -207,7 +214,7 @@ impl ProxyRuntime {
                 )
             };
             let target_json = match configuration.as_ref() {
-                Some(configuration) => runtime
+                Some(configuration) => match runtime
                     .render_proxy_config_for_provider(
                         configuration,
                         None,
@@ -215,15 +222,26 @@ impl ProxyRuntime {
                         &target,
                     )
                     .await
-                    .map_err(|_| CrowdSecError::ApplyFailed)?,
+                {
+                    Ok(target_json) => target_json,
+                    Err(_) => {
+                        runtime.rollback_managed_start(&previous.1, &target).await;
+                        return Err(CrowdSecError::ApplyFailed);
+                    }
+                },
                 None => {
                     let render_settings = target.render_settings();
-                    render_config_with_crowdsec(
+                    match render_config_with_crowdsec(
                         None,
                         &runtime.settings.render_settings(),
                         render_settings.as_ref(),
-                    )
-                    .map_err(|_| CrowdSecError::ApplyFailed)?
+                    ) {
+                        Ok(target_json) => target_json,
+                        Err(_) => {
+                            runtime.rollback_managed_start(&previous.1, &target).await;
+                            return Err(CrowdSecError::ApplyFailed);
+                        }
+                    }
                 }
             };
 
@@ -379,22 +397,18 @@ impl ProxyRuntime {
 
     async fn prepare_provider(
         &self,
-        request: CrowdSecConfigRequest,
-    ) -> Result<(DesiredProvider, ActiveProvider), CrowdSecError> {
-        let (desired, provider) = self.validate_request(request)?;
+        provider: &ActiveProvider,
+    ) -> Result<ActiveProvider, CrowdSecError> {
         match provider {
             ActiveProvider::Managed { .. } => {
                 let managed = self.prepare_managed_provider().await?;
-                Ok((desired, managed))
+                Ok(managed)
             }
-            ActiveProvider::External {
-                ref api_url,
-                ref api_key,
-            } => {
+            ActiveProvider::External { api_url, api_key } => {
                 self.probe_lapi(api_url, api_key).await?;
-                Ok((desired, provider))
+                Ok(provider.clone())
             }
-            ActiveProvider::Disabled => Ok((desired, provider)),
+            ActiveProvider::Disabled => Ok(provider.clone()),
         }
     }
 

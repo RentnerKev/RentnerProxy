@@ -4,15 +4,17 @@ set -Eeuo pipefail
 
 readonly config_file=/usr/share/rentnerproxy/crowdsec/config.yaml
 readonly control_directory=/run/rentnerproxy/crowdsec
+readonly status_staging_directory=/run/rentnerproxy/crowdsec-supervisor
 readonly desired_mode_file="$control_directory/desired-mode"
 readonly status_file="$control_directory/status.json"
 readonly state_directory=/var/lib/rentnerproxy/crowdsec
-readonly credentials_directory="$state_directory/credentials"
+readonly bouncer_staging_directory=/var/lib/rentnerproxy/crowdsec-supervisor
 readonly bouncer_key_file="$state_directory/bouncer/caddy-bouncer-key"
 readonly bouncer_name=rentnerproxy-caddy
 readonly machine_name=rentnerproxy-managed
 readonly lapi_health_url=http://127.0.0.1:18080/health
 readonly max_restarts=5
+readonly stable_ready_seconds=60
 
 engine_pid=''
 stopping=false
@@ -25,11 +27,11 @@ write_status() {
     local state=$1
     local restarts=$2
     local temporary
-    temporary=$(mktemp "$control_directory/.status.XXXXXX")
+    temporary=$(mktemp "$status_staging_directory/status.XXXXXX")
     printf '{"state":"%s","restarts":%d}\n' "$state" "$restarts" > "$temporary"
     chown root:rentnerproxy "$temporary"
     chmod 0440 "$temporary"
-    mv -f -- "$temporary" "$status_file"
+    mv -fT -- "$temporary" "$status_file"
 }
 
 desired_mode() {
@@ -73,11 +75,14 @@ generate_bouncer_key() {
         [[ $(<"$bouncer_key_file") =~ ^[a-f0-9]{64}$ ]] || return 1
         return 0
     fi
-    temporary=$(mktemp "$credentials_directory/.bouncer-key.XXXXXX")
-    openssl rand -hex 32 > "$temporary"
-    chown root:rentnerproxy "$temporary"
-    chmod 0440 "$temporary"
-    mv -- "$temporary" "$bouncer_key_file"
+    temporary=$(mktemp "$bouncer_staging_directory/bouncer-key.XXXXXX")
+    if ! openssl rand -hex 32 > "$temporary" \
+        || ! chown root:rentnerproxy "$temporary" \
+        || ! chmod 0440 "$temporary" \
+        || ! mv -fT -- "$temporary" "$bouncer_key_file"; then
+        rm -f -- "$temporary"
+        return 1
+    fi
 }
 
 rotate_bouncer_key() {
@@ -87,11 +92,11 @@ rotate_bouncer_key() {
         return
     fi
     generate_bouncer_key || return 1
-    temporary=$(mktemp "$credentials_directory/.bouncer-key.XXXXXX")
+    temporary=$(mktemp "$bouncer_staging_directory/bouncer-key.XXXXXX")
     if ! openssl rand -hex 32 > "$temporary" \
         || ! chown root:rentnerproxy "$temporary" \
         || ! chmod 0440 "$temporary" \
-        || ! mv -f -- "$temporary" "$bouncer_key_file"; then
+        || ! mv -fT -- "$temporary" "$bouncer_key_file"; then
         rm -f -- "$temporary"
         return 1
     fi
@@ -193,6 +198,7 @@ while ! $stopping; do
     fi
 
     write_status ready "$restarts"
+    ready_since=$SECONDS
     while [[ $(desired_mode) == managed ]] && kill -0 "$engine_pid" 2>/dev/null; do
         sleep 1
     done
@@ -202,6 +208,9 @@ while ! $stopping; do
     fi
     wait "$engine_pid" 2>/dev/null || true
     engine_pid=''
+    if ((SECONDS - ready_since >= stable_ready_seconds)); then
+        restarts=0
+    fi
     restarts=$((restarts + 1))
     if ((restarts >= max_restarts)); then
         log 'managed engine restart budget exhausted'

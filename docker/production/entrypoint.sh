@@ -9,6 +9,8 @@ readonly proxy_directory="$data_directory/proxy"
 readonly access_log_file="$proxy_directory/logs/access.log"
 readonly crowdsec_directory="$data_directory/crowdsec"
 readonly crowdsec_control_directory=/run/rentnerproxy/crowdsec
+readonly crowdsec_status_staging_directory=/run/rentnerproxy/crowdsec-supervisor
+readonly crowdsec_bouncer_staging_directory="$data_directory/crowdsec-supervisor"
 readonly bootstrap_directory="$data_directory/bootstrap"
 readonly app_key_file=/run/rentnerproxy/app-key/value
 readonly controller_app_key_file=/run/rentnerproxy/controller-app-key/value
@@ -120,7 +122,14 @@ initialize_layout() {
     install -d -m 0700 -o crowdsec -g crowdsec "$crowdsec_directory/credentials"
     install -d -m 0700 -o crowdsec -g crowdsec "$crowdsec_directory/data"
     install -d -m 0710 -o root -g rentnerproxy "$crowdsec_directory/bouncer"
+    install -d -m 0700 -o root -g root "$crowdsec_bouncer_staging_directory"
+    rm -rf -- "$crowdsec_control_directory"
     install -d -m 0700 -o rentnerproxy -g rentnerproxy "$crowdsec_control_directory"
+    install -d -m 0700 -o root -g root "$crowdsec_status_staging_directory"
+    [[ $(stat -c '%d' -- "$crowdsec_bouncer_staging_directory") == $(stat -c '%d' -- "$crowdsec_directory/bouncer") ]] \
+        || fatal 'the CrowdSec bouncer staging directory must share its destination filesystem'
+    [[ $(stat -c '%d' -- "$crowdsec_status_staging_directory") == $(stat -c '%d' -- "$crowdsec_control_directory") ]] \
+        || fatal 'the CrowdSec status staging directory must share its destination filesystem'
     printf '%s\n' stopped > "$crowdsec_control_directory/desired-mode"
     chown rentnerproxy:rentnerproxy "$crowdsec_control_directory/desired-mode"
     chmod 0600 "$crowdsec_control_directory/desired-mode"

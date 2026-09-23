@@ -301,6 +301,40 @@ async fn crowdsec_persistence_failure_restores_the_previous_proxy() {
     std::fs::remove_dir_all(&settings.state_dir).unwrap();
 }
 
+#[tokio::test]
+async fn managed_crowdsec_preparation_failure_stops_a_new_supervisor_request() {
+    let engine = FakeCaddy::new();
+    let (runtime, settings) = runtime(Some(engine.clone()));
+    runtime.initialize().await;
+    let start_count = engine.start_count.load(Ordering::SeqCst);
+    std::fs::create_dir_all(&settings.crowdsec_control_dir).unwrap();
+    std::fs::write(
+        settings.crowdsec_control_dir.join("status.json"),
+        r#"{"state":"degraded","restarts":5}"#,
+    )
+    .unwrap();
+
+    assert_eq!(
+        runtime
+            .apply_crowdsec(CrowdSecConfigRequest {
+                mode: CrowdSecMode::Managed,
+                api_url: None,
+                api_key: None,
+            })
+            .await,
+        Err(CrowdSecError::ConnectionFailed)
+    );
+    assert_eq!(
+        std::fs::read_to_string(settings.crowdsec_control_dir.join("desired-mode")).unwrap(),
+        "stopped\n"
+    );
+    assert_eq!(runtime.crowdsec_status().await.mode, CrowdSecMode::Disabled);
+    assert_eq!(engine.start_count.load(Ordering::SeqCst), start_count);
+
+    runtime.shutdown().await;
+    std::fs::remove_dir_all(&settings.state_dir).unwrap();
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn startup_rejects_dangling_access_log_symlink_before_starting_caddy() {
