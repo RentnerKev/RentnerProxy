@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use axum::http::StatusCode;
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde_json::json;
 use tokio::sync::Mutex;
 
@@ -60,6 +61,26 @@ fn encrypt_decrypt_uses_aad_and_never_persists_plaintext() {
     assert_eq!(
         decrypt_with_key(&tampered, "certificate-1", &key),
         Err(CertificateError::DnsCredentialsUnavailable)
+    );
+}
+
+#[test]
+fn decrypts_persisted_ring_ciphertext_after_provider_switch() {
+    let config = config();
+    assert_eq!(
+        serde_json::to_vec(&config).unwrap(),
+        br#"{"type":"cloudflare","zoneId":"0123456789abcdef0123456789abcdef","apiToken":"token-without-whitespace"}"#
+    );
+    let encrypted = EncryptedDnsConfig {
+        version: 1,
+        nonce: vec![9; 12],
+        ciphertext: STANDARD
+            .decode("XKfw7c6V41uCAadXk47Fs7XCBtEYzI2vAcsPwvdOI0ri19T312QdKEbSx3UgUYXkTWatoCeimXZcDmP0MnMcrEBd6X7gcoPIvY7rTp2d6554h+ZhwnOs0gjLe/E37nkHcAG18Kx/9mLC+is/UMn6UjHZDsNZw/Y=")
+            .unwrap(),
+    };
+    assert_eq!(
+        decrypt_with_key(&encrypted, "certificate-1", &[7; 32]),
+        Ok(config)
     );
 }
 

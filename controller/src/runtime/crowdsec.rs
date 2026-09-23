@@ -5,8 +5,8 @@ use std::{
     time::Duration,
 };
 
+use aws_lc_rs::rand::{SecureRandom, SystemRandom};
 use reqwest::{StatusCode, Url, redirect::Policy};
-use ring::rand::{SecureRandom, SystemRandom};
 use serde::{Deserialize, Serialize};
 use tokio::time::{Instant, sleep, timeout};
 use tracing::{info, warn};
@@ -749,7 +749,7 @@ impl ProxyRuntime {
     }
 
     async fn probe_lapi(&self, api_url: &str, api_key: &SecretString) -> Result<(), CrowdSecError> {
-        let _ = rustls::crypto::ring::default_provider().install_default();
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
         let endpoint = Url::parse(api_url)
             .and_then(|url| url.join("v1/decisions?ip=192.0.2.1"))
             .map_err(|_| CrowdSecError::InvalidConfiguration)?;

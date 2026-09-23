@@ -1,10 +1,10 @@
 use std::{env, fs, io::Read, path::PathBuf};
 
-use base64::{Engine as _, engine::general_purpose::STANDARD};
-use ring::{
+use aws_lc_rs::{
     aead,
     rand::{SecureRandom, SystemRandom},
 };
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 use crate::runtime::certificates::CertificateError;
 

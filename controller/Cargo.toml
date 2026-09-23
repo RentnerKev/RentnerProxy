@@ -6,6 +6,7 @@ rust-version = "1.88"
 license = "MIT"
 
 [dependencies]
+aws-lc-rs = "1.16.3"
 axum = { version = "0.8.9", default-features = false, features = [
     "json",
     "tokio",
@@ -21,7 +22,7 @@ httpdate = "1.0.3"
 ipnet = "2.12.2"
 instant-acme = { version = "0.8.5", default-features = false, features = [
     "hyper-rustls",
-    "ring",
+    "aws-lc-rs",
     "rcgen",
 ] }
 libc = "0.2.189"
@@ -29,8 +30,7 @@ reqwest = { version = "0.13.5", default-features = false, features = [
     "rustls-no-provider",
     "json",
 ] }
-ring = "0.17.14"
-rustls = { version = "0.23.44", default-features = false, features = ["ring", "std", "tls12"] }
+rustls = { version = "0.23.44", default-features = false, features = ["aws_lc_rs", "std", "tls12"] }
 time = { version = "0.3.55", default-features = false, features = ["formatting", "parsing", "std"] }
 x509-parser = "0.18.1"
 serde = { version = "1.0.229", features = ["derive"] }
@@ -55,5 +55,5 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
 ] }
 
 [dev-dependencies]
-rcgen = "0.14.10"
+rcgen = { version = "0.14.10", default-features = false, features = ["aws_lc_rs", "pem"] }
 tower = { version = "0.5.3", features = ["util"] }

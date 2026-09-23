@@ -5,8 +5,8 @@ use std::{
     time::{Duration as StdDuration, Instant},
 };
 
+use aws_lc_rs::rand::{SecureRandom, SystemRandom};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use ring::rand::{SecureRandom, SystemRandom};
 use time::{Duration, OffsetDateTime, format_description::well_known::Rfc3339};
 
 use super::reader::{CapturedLogs, ReadError};
