@@ -1,8 +1,9 @@
 use super::fixtures::{host, request};
 use crate::{
     models::{
-        AccessPolicy, AccessPolicyMode, ApplyOutcome, BasicAuth, BasicAuthAccount, IpDefaultAction,
-        IpRules, ProxyConfigRequest, ProxyHttpSettings, TrustedCa, UpstreamTls,
+        AccessPolicy, AccessPolicyMode, ApplyOutcome, BasicAuth, BasicAuthAccount,
+        CrowdSecConfigRequest, CrowdSecHealth, CrowdSecMode, IpDefaultAction, IpRules,
+        ProxyConfigRequest, ProxyHttpSettings, SecretString, TrustedCa, UpstreamTls,
         ValidatedProxyConfig,
     },
     proxy::{
@@ -11,8 +12,8 @@ use crate::{
     },
     runtime::{
         CertificateEnvironment, CertificateError, CertificateImportRequest,
-        CertificateIssueRequest, CertificateStore, EngineError, EngineFuture, ProxyEngine,
-        ProxyRuntime, RuntimeError, RuntimeSettings,
+        CertificateIssueRequest, CertificateStore, CrowdSecError, EngineError, EngineFuture,
+        ProxyEngine, ProxyRuntime, RuntimeError, RuntimeSettings,
         clock::{civil_from_days, utc_now},
     },
 };
@@ -144,6 +145,194 @@ fn configuration(port: u16) -> ValidatedProxyConfig {
         port,
     )]))
     .unwrap()
+}
+
+async fn crowdsec_lapi(expected_key: &'static str) -> (String, tokio::task::JoinHandle<()>) {
+    use axum::{
+        Json, Router,
+        extract::State,
+        http::{HeaderMap, StatusCode},
+        response::IntoResponse,
+        routing::get,
+    };
+
+    async fn decisions(
+        State(expected_key): State<&'static str>,
+        headers: HeaderMap,
+    ) -> axum::response::Response {
+        if headers
+            .get("X-Api-Key")
+            .and_then(|value| value.to_str().ok())
+            != Some(expected_key)
+        {
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
+        Json(serde_json::json!([])).into_response()
+    }
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let task = tokio::spawn(async move {
+        axum::serve(
+            listener,
+            Router::new()
+                .route("/v1/decisions", get(decisions))
+                .with_state(expected_key),
+        )
+        .await
+        .unwrap();
+    });
+    (format!("http://{address}/"), task)
+}
+
+#[tokio::test]
+async fn external_crowdsec_switch_is_validated_redacted_persisted_and_reversible() {
+    const KEY: &str = "0123456789abcdef0123456789abcdef";
+    let (api_url, lapi) = crowdsec_lapi(KEY).await;
+    let engine = FakeCaddy::new();
+    let (runtime, settings) = runtime(Some(engine.clone()));
+    runtime.initialize().await;
+
+    let status = runtime
+        .apply_crowdsec(CrowdSecConfigRequest {
+            mode: CrowdSecMode::External,
+            api_url: Some(api_url.clone()),
+            api_key: Some(SecretString::new(KEY.to_owned())),
+        })
+        .await
+        .unwrap();
+    assert_eq!(status.mode, CrowdSecMode::External);
+    assert_eq!(status.state, CrowdSecHealth::Connected);
+    assert!(status.credential_configured);
+    assert!(status.enforcement_active);
+    assert_eq!(status.api_url.as_deref(), Some(api_url.as_str()));
+
+    let caddy_json = engine.configuration.lock().await.clone();
+    assert!(caddy_json.contains("{env.RENTNERPROXY_CROWDSEC_BOUNCER_KEY}"));
+    assert!(!caddy_json.contains(KEY));
+    let persisted = std::fs::read_to_string(
+        settings
+            .state_dir
+            .join("active-crowdsec-configuration.json"),
+    )
+    .unwrap();
+    assert!(persisted.contains("\"mode\":\"external\""));
+    assert!(persisted.contains(&api_url));
+    assert!(!persisted.contains(KEY));
+    assert!(!persisted.contains("apiKey"));
+
+    let start_count = engine.start_count.load(Ordering::SeqCst);
+    assert_eq!(
+        runtime
+            .apply_crowdsec(CrowdSecConfigRequest {
+                mode: CrowdSecMode::External,
+                api_url: Some(api_url.clone()),
+                api_key: Some(SecretString::new(
+                    "fedcba9876543210fedcba9876543210".to_owned()
+                )),
+            })
+            .await,
+        Err(CrowdSecError::ConnectionFailed)
+    );
+    assert_eq!(engine.start_count.load(Ordering::SeqCst), start_count);
+    assert_eq!(
+        runtime.crowdsec_status().await.state,
+        CrowdSecHealth::Connected
+    );
+
+    let disabled = runtime
+        .apply_crowdsec(CrowdSecConfigRequest {
+            mode: CrowdSecMode::Disabled,
+            api_url: None,
+            api_key: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(disabled.mode, CrowdSecMode::Disabled);
+    assert_eq!(disabled.state, CrowdSecHealth::Disabled);
+    assert!(!disabled.credential_configured);
+    assert!(!disabled.enforcement_active);
+    let caddy_json = engine.configuration.lock().await.clone();
+    assert!(!caddy_json.contains("RENTNERPROXY_CROWDSEC_BOUNCER_KEY"));
+
+    runtime.shutdown().await;
+    lapi.abort();
+    std::fs::remove_dir_all(&settings.state_dir).unwrap();
+}
+
+#[tokio::test]
+async fn crowdsec_persistence_failure_restores_the_previous_proxy() {
+    const KEY: &str = "0123456789abcdef0123456789abcdef";
+    let (api_url, lapi) = crowdsec_lapi(KEY).await;
+    let engine = FakeCaddy::new();
+    let (runtime, settings) = runtime(Some(engine.clone()));
+    runtime.initialize().await;
+    std::fs::create_dir(
+        settings
+            .state_dir
+            .join("active-crowdsec-configuration.json"),
+    )
+    .unwrap();
+
+    assert_eq!(
+        runtime
+            .apply_crowdsec(CrowdSecConfigRequest {
+                mode: CrowdSecMode::External,
+                api_url: Some(api_url),
+                api_key: Some(SecretString::new(KEY.to_owned())),
+            })
+            .await,
+        Err(CrowdSecError::ApplyFailed)
+    );
+    let status = runtime.crowdsec_status().await;
+    assert_eq!(status.mode, CrowdSecMode::Disabled);
+    assert!(!status.enforcement_active);
+    assert!(
+        !engine
+            .configuration
+            .lock()
+            .await
+            .contains("RENTNERPROXY_CROWDSEC_BOUNCER_KEY")
+    );
+    assert!(runtime.status().await.running);
+
+    runtime.shutdown().await;
+    lapi.abort();
+    std::fs::remove_dir_all(&settings.state_dir).unwrap();
+}
+
+#[tokio::test]
+async fn managed_crowdsec_preparation_failure_stops_a_new_supervisor_request() {
+    let engine = FakeCaddy::new();
+    let (runtime, settings) = runtime(Some(engine.clone()));
+    runtime.initialize().await;
+    let start_count = engine.start_count.load(Ordering::SeqCst);
+    std::fs::create_dir_all(&settings.crowdsec_control_dir).unwrap();
+    std::fs::write(
+        settings.crowdsec_control_dir.join("status.json"),
+        r#"{"state":"degraded","restarts":5}"#,
+    )
+    .unwrap();
+
+    assert_eq!(
+        runtime
+            .apply_crowdsec(CrowdSecConfigRequest {
+                mode: CrowdSecMode::Managed,
+                api_url: None,
+                api_key: None,
+            })
+            .await,
+        Err(CrowdSecError::ConnectionFailed)
+    );
+    assert_eq!(
+        std::fs::read_to_string(settings.crowdsec_control_dir.join("desired-mode")).unwrap(),
+        "stopped\n"
+    );
+    assert_eq!(runtime.crowdsec_status().await.mode, CrowdSecMode::Disabled);
+    assert_eq!(engine.start_count.load(Ordering::SeqCst), start_count);
+
+    runtime.shutdown().await;
+    std::fs::remove_dir_all(&settings.state_dir).unwrap();
 }
 
 #[cfg(unix)]

@@ -48,6 +48,7 @@
         "certificates": "Zertifikate",
         "accessPolicies": "Zugriffsrichtlinien",
         "proxyAccessLogs": "Zugriffsprotokolle",
+        "crowdSec": "CrowdSec",
         "auditLogs": "Audit-Protokoll",
         "systemVersion": "Systemversion {{version}}",
         "updateAvailable": "Update verfügbar auf Version {{version}}"
@@ -1747,7 +1748,8 @@
                     "trusted-ca": "Vertrauenswürdige CA",
                     "proxy-runtime-settings": "Proxy-Laufzeiteinstellungen",
                     "proxy-host-settings": "Proxy-Host-Einstellungen",
-                    "proxy-runtime": "Proxy-Laufzeit"
+                    "proxy-runtime": "Proxy-Laufzeit",
+                    "crowdsec": "CrowdSec"
                 }
             },
             "metadata": {
@@ -1783,6 +1785,122 @@
             },
             "errors": {
                 "loadFailed": "Die Audit-Ereignisse konnten nicht geladen werden."
+            }
+        },
+        "crowdSec": {
+            "page": {
+                "eyebrow": "Sicherheit",
+                "title": "CrowdSec",
+                "description": "Lege fest, wie RentnerProxy schädliche Clients blockiert. Der Schutz bleibt in der bestehenden Appliance und nutzt dieselben Trusted-Proxy-Regeln wie alle Proxy-Hosts."
+            },
+            "status": {
+                "eyebrow": "Schutzstatus",
+                "description": "Ein gemeinsamer Durchsetzungspfad schützt öffentlichen HTTP- und HTTPS-Verkehr; Status und Zugangsdaten bleiben innerhalb der Appliance.",
+                "synchronized": "Gewünschter Modus ist aktiv",
+                "pending": "Der vorherige funktionierende Modus bleibt während weiterer Abgleichversuche aktiv",
+                "details": {
+                    "enforcement": "Durchsetzung",
+                    "active": "Aktiv",
+                    "inactive": "Inaktiv",
+                    "localApi": "Local-API-Zustand",
+                    "managedEngine": "Verwaltete Engine"
+                }
+            },
+            "states": {
+                "disabled": "Deaktiviert",
+                "starting": "Wird gestartet",
+                "connected": "Verbunden",
+                "degraded": "Beeinträchtigt",
+                "unavailable": "Controller nicht verfügbar"
+            },
+            "managedStates": {
+                "stopped": "Gestoppt",
+                "starting": "Startet",
+                "ready": "Bereit",
+                "restarting": "Startet neu",
+                "degraded": "Beeinträchtigt",
+                "unavailable": "Nicht verfügbar"
+            },
+            "modes": {
+                "disabled": {
+                    "title": "Deaktiviert",
+                    "description": "Standard nach dem Update. CrowdSec-Entscheidungen werden nicht auf den Verkehr angewendet."
+                },
+                "managed": {
+                    "title": "Von RentnerProxy verwaltet",
+                    "description": "Verwendet die gebündelte lokale CrowdSec-Engine mit der kuratierten Caddy-Collection."
+                },
+                "external": {
+                    "title": "Externes CrowdSec",
+                    "description": "Verwendet einen vorhandenen Local-API-Endpunkt mit einem Bouncer-Key. Der Bouncer-Key wird nach dem Speichern nicht mehr angezeigt."
+                }
+            },
+            "configuration": {
+                "eyebrow": "Betriebsmodus",
+                "title": "Schutzquelle",
+                "description": "Das Ziel wird vor dem Umschalten von Caddy geprüft. Bei einem Fehler bleibt die vorherige verifizierte Konfiguration aktiv.",
+                "refreshing": "Status wird aktualisiert",
+                "modeLabel": "CrowdSec-Betriebsmodus",
+                "retention": "Beim Moduswechsel bleiben Daten der verwalteten Engine und gespeicherte externe Zugangsdaten erhalten. Nichts wird automatisch gelöscht."
+            },
+            "external": {
+                "title": "Externe Local API",
+                "description": "Die Appliance verbindet sich direkt mit dem Endpunkt. Weiterleitungen werden abgelehnt und der Schlüssel nie an den Browser zurückgegeben.",
+                "apiUrl": "Local-API-URL",
+                "apiUrlPlaceholder": "https://crowdsec.example.test/",
+                "apiKey": "Bouncer-API-Key",
+                "apiKeyPlaceholder": "Bouncer-Key eingeben",
+                "apiKeyReplacePlaceholder": "Zugangsdaten gespeichert – Ersatz eingeben",
+                "apiKeyHint": "Nur bei unverändertem Endpunkt leer lassen, um den verschlüsselten Key beizubehalten. Ein neuer Endpunkt benötigt einen neuen Key."
+            },
+            "actions": {
+                "test": "Verbindung testen",
+                "testing": "Verbindung wird getestet…",
+                "save": "Speichern und anwenden",
+                "saving": "Wird gespeichert und angewendet…"
+            },
+            "facts": {
+                "clientIp": {
+                    "label": "Client-IP",
+                    "value": "Native Caddy-Auflösung",
+                    "description": "Trusted-Proxy-CIDRs werden ausgewertet, bevor CrowdSec die effektive Client-Adresse erhält."
+                },
+                "failure": {
+                    "label": "Fehlerverhalten",
+                    "value": "Fail-open",
+                    "description": "Proxy-Verkehr läuft weiter, wenn die gewählte CrowdSec-API vorübergehend nicht erreichbar ist."
+                },
+                "deployment": {
+                    "label": "Bereitstellung",
+                    "value": "Eine Appliance",
+                    "description": "Kein zusätzlicher Dienst, Datenträger, Socket, öffentlicher Port oder Pflicht-Umgebungswert."
+                }
+            },
+            "statesPage": {
+                "loadingTitle": "CrowdSec wird geladen",
+                "loadingDescription": "Gewünschter Modus und aktueller Schutzstatus werden gelesen.",
+                "unavailableTitle": "CrowdSec-Konfiguration nicht verfügbar",
+                "unavailableDescription": "Die Konfiguration konnte nicht geladen werden. Der bestehende Laufzeitstatus wurde nicht verändert."
+            },
+            "validation": {
+                "apiUrl": "Gib eine absolute HTTP- oder HTTPS-URL ohne Zugangsdaten, Parameter oder Fragment ein.",
+                "apiKey": "Gib einen druckbaren ASCII-Bouncer-Key mit 16–512 Zeichen ohne Leerzeichen ein."
+            },
+            "errors": {
+                "invalidInput": "Prüfe den CrowdSec-Endpunkt und die Zugangsdaten.",
+                "apiKeyRequired": "Gib vor dem Aktivieren von externem CrowdSec oder dem Ändern des Endpunkts einen Bouncer-Key ein.",
+                "connectionFailed": "CrowdSec hat Endpunkt oder Zugangsdaten abgelehnt. Der aktive Modus wurde nicht geändert.",
+                "controllerUnavailable": "Der Proxy-Controller ist vorübergehend nicht verfügbar. Der aktive Modus wurde nicht geändert.",
+                "configurationConflict": "Die Konfiguration wurde in einer anderen Sitzung geändert. Lade neu und versuche es erneut.",
+                "configurationUnavailable": "Die verschlüsselte CrowdSec-Konfiguration konnte nicht gelesen werden.",
+                "saveFailed": "Die CrowdSec-Konfiguration konnte nicht gespeichert werden.",
+                "loadFailed": "Die CrowdSec-Konfiguration konnte nicht geladen werden.",
+                "testFailed": "Der Verbindungstest konnte nicht abgeschlossen werden."
+            },
+            "messages": {
+                "connectionValid": "CrowdSec-Verbindung erfolgreich geprüft.",
+                "saved": "CrowdSec-Konfiguration gespeichert und aktiviert.",
+                "savedPending": "CrowdSec-Konfiguration gespeichert. Der vorherige funktionierende Modus bleibt während weiterer Abgleichversuche aktiv."
             }
         },
         "trustedCas": {
@@ -1877,6 +1995,7 @@
             "trusted_cas": "Vertrauenswürdige CAs",
             "access_policies": "Zugriffsrichtlinien",
             "proxy-access-logs": "Proxy-Zugriffsprotokolle",
+            "crowdsec": "CrowdSec",
             "audit-logs": "Audit-Protokoll"
         },
         "app": {
@@ -1936,6 +2055,10 @@
             "apply": "Zugriffsrichtlinien-Konfiguration anwenden"
         },
         "proxy-access-logs:view": "Proxy-Zugriffsprotokolle anzeigen",
+        "crowdsec": {
+            "view": "CrowdSec-Konfiguration anzeigen",
+            "update": "CrowdSec-Konfiguration aktualisieren"
+        },
         "audit-logs:view": "Audit-Protokoll anzeigen",
         "trusted_cas": {
             "view": "Vertrauenswürdige CAs anzeigen",

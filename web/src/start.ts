@@ -41,6 +41,23 @@ const startProxyRuntimeLifecycle = createServerOnlyFn(async () => {
 
 if (typeof window === 'undefined') void startProxyRuntimeLifecycle()
 
+const startCrowdSecRuntimeLifecycle = createServerOnlyFn(async () => {
+    let stop: (() => Promise<void>) | null = null
+    const initializing = import('./server/Admin/CrowdSec/crowdsec.service').then(
+        ({ startCrowdSecReconciliation, stopCrowdSecReconciliation }) => {
+            stop = stopCrowdSecReconciliation
+            startCrowdSecReconciliation()
+        },
+    )
+
+    process.once('rentnerproxy:shutdown', (pending: Array<Promise<void>>) => {
+        pending.push(initializing.then(() => stop?.()).then(() => undefined))
+    })
+    await initializing
+})
+
+if (typeof window === 'undefined') void startCrowdSecRuntimeLifecycle()
+
 const startCertificateEventsLifecycle = createServerOnlyFn(async () => {
     let stop: (() => Promise<void>) | null = null
     const initializing =

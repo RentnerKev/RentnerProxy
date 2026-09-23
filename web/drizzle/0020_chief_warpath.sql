@@ -1,0 +1,1 @@
+ALTER TYPE "rentnerproxy"."audit_resource" ADD VALUE 'crowdsec';

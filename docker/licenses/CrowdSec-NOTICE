@@ -1,0 +1,14 @@
+CrowdSec Security Engine
+Version: v1.8.1 (commit 909b5157986a2b2c2163300fdaef5ed01289f7d2)
+Source: https://github.com/crowdsecurity/crowdsec
+License: MIT (see LICENSE)
+
+CrowdSec Hub content
+Snapshot: 435f7d81caf247241bd6068f0a778bafa8dfe975
+Source: https://github.com/crowdsecurity/hub
+License: MIT
+
+RentnerProxy installs the official crowdsecurity/caddy collection and its
+transitive HTTP parser/scenario dependencies at image build time. Downloaded
+Hub data files are accepted only when every SHA-256 digest matches the
+repository manifest.

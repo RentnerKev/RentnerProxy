@@ -48,6 +48,7 @@
         "certificates": "Certificados",
         "accessPolicies": "Políticas de acceso",
         "proxyAccessLogs": "Registros de acceso",
+        "crowdSec": "CrowdSec",
         "auditLogs": "Registro de auditoría",
         "systemVersion": "Versión del sistema {{version}}",
         "updateAvailable": "Actualización disponible a la versión {{version}}"
@@ -1747,7 +1748,8 @@
                     "trusted-ca": "CA de confianza",
                     "proxy-runtime-settings": "Configuración de ejecución del proxy",
                     "proxy-host-settings": "Configuración del host proxy",
-                    "proxy-runtime": "Ejecución del proxy"
+                    "proxy-runtime": "Ejecución del proxy",
+                    "crowdsec": "CrowdSec"
                 }
             },
             "metadata": {
@@ -1783,6 +1785,122 @@
             },
             "errors": {
                 "loadFailed": "No se pudieron cargar los eventos de auditoría."
+            }
+        },
+        "crowdSec": {
+            "page": {
+                "eyebrow": "Seguridad",
+                "title": "CrowdSec",
+                "description": "Elige cómo RentnerProxy bloquea clientes maliciosos. La protección permanece en el dispositivo y usa las mismas reglas de proxy de confianza que todos los hosts."
+            },
+            "status": {
+                "eyebrow": "Estado de protección",
+                "description": "Una única ruta protege el tráfico HTTP y HTTPS público; el estado y las credenciales permanecen privados.",
+                "synchronized": "El modo deseado está activo",
+                "pending": "El modo anterior sigue activo mientras se reintenta la sincronización",
+                "details": {
+                    "enforcement": "Aplicación",
+                    "active": "Activa",
+                    "inactive": "Inactiva",
+                    "localApi": "Estado de Local API",
+                    "managedEngine": "Motor gestionado"
+                }
+            },
+            "states": {
+                "disabled": "Desactivado",
+                "starting": "Iniciando",
+                "connected": "Conectado",
+                "degraded": "Degradado",
+                "unavailable": "Controlador no disponible"
+            },
+            "managedStates": {
+                "stopped": "Detenido",
+                "starting": "Iniciando",
+                "ready": "Listo",
+                "restarting": "Reiniciando",
+                "degraded": "Degradado",
+                "unavailable": "No disponible"
+            },
+            "modes": {
+                "disabled": {
+                    "title": "Desactivado",
+                    "description": "Valor predeterminado tras actualizar. No se aplican decisiones de CrowdSec al tráfico."
+                },
+                "managed": {
+                    "title": "Gestionado por RentnerProxy",
+                    "description": "Ejecuta localmente el motor CrowdSec incluido con la colección de Caddy seleccionada."
+                },
+                "external": {
+                    "title": "CrowdSec externo",
+                    "description": "Usa una Local API existente con una clave de bouncer de solo escritura."
+                }
+            },
+            "configuration": {
+                "eyebrow": "Modo operativo",
+                "title": "Origen de protección",
+                "description": "El destino se verifica antes de cambiar Caddy. Si falla, permanece activa la configuración verificada anterior.",
+                "refreshing": "Actualizando estado",
+                "modeLabel": "Modo operativo de CrowdSec",
+                "retention": "Cambiar de modo conserva los datos gestionados y las credenciales externas guardadas. Nada se elimina automáticamente."
+            },
+            "external": {
+                "title": "Local API externa",
+                "description": "El dispositivo conecta directamente con el endpoint. Se rechazan redirecciones y la credencial nunca vuelve al navegador.",
+                "apiUrl": "URL de Local API",
+                "apiUrlPlaceholder": "https://crowdsec.example.test/",
+                "apiKey": "Clave API del bouncer",
+                "apiKeyPlaceholder": "Introduce la clave del bouncer",
+                "apiKeyReplacePlaceholder": "Credencial guardada — introduce un reemplazo",
+                "apiKeyHint": "Déjalo vacío para conservar la clave cifrada solo si no cambias el endpoint. Un endpoint nuevo requiere una clave nueva."
+            },
+            "actions": {
+                "test": "Probar conexión",
+                "testing": "Probando conexión…",
+                "save": "Guardar y aplicar",
+                "saving": "Guardando y aplicando…"
+            },
+            "facts": {
+                "clientIp": {
+                    "label": "IP del cliente",
+                    "value": "Resolución nativa de Caddy",
+                    "description": "Los CIDR de proxies de confianza se evalúan antes de que CrowdSec reciba la dirección efectiva."
+                },
+                "failure": {
+                    "label": "Comportamiento ante fallos",
+                    "value": "Fail-open",
+                    "description": "El tráfico continúa si la API de CrowdSec no está disponible temporalmente."
+                },
+                "deployment": {
+                    "label": "Despliegue",
+                    "value": "Un solo dispositivo",
+                    "description": "Sin servicio, volumen, socket, puerto público ni variable obligatoria adicionales."
+                }
+            },
+            "statesPage": {
+                "loadingTitle": "Cargando CrowdSec",
+                "loadingDescription": "Leyendo el modo deseado y el estado de protección actual.",
+                "unavailableTitle": "Configuración de CrowdSec no disponible",
+                "unavailableDescription": "No se pudo cargar la configuración. El estado actual no se ha modificado."
+            },
+            "validation": {
+                "apiUrl": "Introduce una URL HTTP o HTTPS absoluta sin credenciales, parámetros ni fragmento.",
+                "apiKey": "Introduce una clave ASCII imprimible de 16–512 caracteres sin espacios."
+            },
+            "errors": {
+                "invalidInput": "Revisa el endpoint y la credencial de CrowdSec.",
+                "apiKeyRequired": "Introduce una clave antes de activar CrowdSec externo o cambiar su endpoint.",
+                "connectionFailed": "CrowdSec rechazó el endpoint o la credencial. El modo activo no cambió.",
+                "controllerUnavailable": "El controlador no está disponible temporalmente. El modo activo no cambió.",
+                "configurationConflict": "La configuración cambió en otra sesión. Recarga e inténtalo de nuevo.",
+                "configurationUnavailable": "No se pudo leer la configuración cifrada de CrowdSec.",
+                "saveFailed": "No se pudo guardar la configuración de CrowdSec.",
+                "loadFailed": "No se pudo cargar la configuración de CrowdSec.",
+                "testFailed": "No se pudo completar la prueba de conexión."
+            },
+            "messages": {
+                "connectionValid": "Conexión con CrowdSec verificada.",
+                "saved": "Configuración de CrowdSec guardada y activada.",
+                "savedPending": "Configuración guardada. El modo anterior sigue activo mientras se reintenta la sincronización."
             }
         },
         "trustedCas": {
@@ -1877,6 +1995,7 @@
             "trusted_cas": "CA de confianza",
             "access_policies": "Políticas de acceso",
             "proxy-access-logs": "Registros de acceso del proxy",
+            "crowdsec": "CrowdSec",
             "audit-logs": "Registro de auditoría"
         },
         "app": {
@@ -1936,6 +2055,10 @@
             "apply": "Aplicar la configuración de políticas de acceso"
         },
         "proxy-access-logs:view": "Ver registros de acceso del proxy",
+        "crowdsec": {
+            "view": "Ver la configuración de CrowdSec",
+            "update": "Actualizar la configuración de CrowdSec"
+        },
         "audit-logs:view": "Ver el registro de auditoría",
         "trusted_cas": {
             "view": "Ver CA de confianza",

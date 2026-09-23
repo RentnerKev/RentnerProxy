@@ -1,0 +1,6 @@
+source: file
+filename: /var/lib/rentnerproxy/proxy/logs/access.log
+force_inotify: true
+max_buffer_size: 131072
+labels:
+    type: caddy

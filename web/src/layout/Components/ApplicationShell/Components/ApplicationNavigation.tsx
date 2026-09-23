@@ -7,6 +7,7 @@ import {
     LayoutDashboard,
     Network,
     ScrollText,
+    Shield,
     ShieldCheck,
     UsersRound,
 } from 'lucide-react'
@@ -74,6 +75,8 @@ export default function ApplicationNavigation({ items }: ApplicationNavigationPr
                             className="size-4 shrink-0"
                             strokeWidth={1.8}
                         />
+                    ) : item.to === '/crowdsec' ? (
+                        <Shield aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.8} />
                     ) : item.to === '/roles' ? (
                         <ShieldCheck
                             aria-hidden="true"

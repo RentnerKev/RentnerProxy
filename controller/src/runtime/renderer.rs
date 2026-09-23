@@ -38,6 +38,11 @@ pub(crate) struct UpstreamTlsRenderSettings {
     pub(crate) trusted_ca_paths: BTreeMap<String, PathBuf>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct CrowdSecRenderSettings {
+    pub(crate) api_url: String,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RenderError {
     InvalidProbeSocket,
@@ -48,13 +53,23 @@ pub(crate) enum RenderError {
     ConfigTooLarge,
 }
 
+#[cfg(test)]
 pub(crate) fn render_config(
     config: Option<&crate::models::ValidatedProxyConfig>,
     settings: &RenderSettings,
 ) -> Result<String, RenderError> {
-    config::render_config_inner(config, settings, None, None, None)
+    config::render_config_inner(config, settings, None, None, None, None)
 }
 
+pub(crate) fn render_config_with_crowdsec(
+    config: Option<&crate::models::ValidatedProxyConfig>,
+    settings: &RenderSettings,
+    crowdsec: Option<&CrowdSecRenderSettings>,
+) -> Result<String, RenderError> {
+    config::render_config_inner(config, settings, None, None, None, crowdsec)
+}
+
+#[cfg(test)]
 pub(crate) fn render_config_with_tls(
     config: &crate::models::ValidatedProxyConfig,
     settings: &RenderSettings,
@@ -62,12 +77,24 @@ pub(crate) fn render_config_with_tls(
     materials: &BTreeMap<String, TlsMaterial>,
     upstream_tls: &UpstreamTlsRenderSettings,
 ) -> Result<String, RenderError> {
+    render_config_with_tls_and_crowdsec(config, settings, tls, materials, upstream_tls, None)
+}
+
+pub(crate) fn render_config_with_tls_and_crowdsec(
+    config: &crate::models::ValidatedProxyConfig,
+    settings: &RenderSettings,
+    tls: &TlsRenderSettings,
+    materials: &BTreeMap<String, TlsMaterial>,
+    upstream_tls: &UpstreamTlsRenderSettings,
+    crowdsec: Option<&CrowdSecRenderSettings>,
+) -> Result<String, RenderError> {
     config::render_config_inner(
         Some(config),
         settings,
         Some(tls),
         Some(materials),
         Some(upstream_tls),
+        crowdsec,
     )
 }
 

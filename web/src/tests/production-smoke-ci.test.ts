@@ -93,6 +93,27 @@ describe('production smoke CI output boundary', () => {
         expect(progress.result(1).diagnostic).toBe('Readiness polling timed out')
     })
 
+    test('reports test-folder smoke locations without exposing unrelated stack frames', () => {
+        const progress = smokeProgress('production')
+        progress.consume('error: Timed out waiting for managed CrowdSec acquisition')
+        progress.consume('at tests/production/appliance-compose-smoke.ts:1184:20')
+        progress.consume('at tests/production/private-value.ts:2:4')
+        expect(progress.result(1).diagnostic).toBe(
+            'Readiness polling timed out at tests/production/appliance-compose-smoke.ts:1184:20',
+        )
+    })
+
+    test('allows only bounded numeric CrowdSec diagnostics through the output boundary', () => {
+        const progress = smokeProgress('production')
+        const line =
+            'Managed CrowdSec acquisition probe: {"httpStatus":200,"metricsReachable":true,"accessLogHits":0,"allFileHits":0,"caddyParserHits":0,"allParserHits":0,"accessLogBytes":4521,"accessLogMode":"640:10001:10003","accessLogReadable":true}'
+        expect(progress.consume(line)).toBe(
+            'Managed acquisition HTTP 200, metrics true, access-log hits 0, all file hits 0, Caddy parser hits 0, all parser hits 0, access-log bytes 4521, mode 640:10001:10003, readable true',
+        )
+        expect(progress.consume(line + ' private-value')).toBeUndefined()
+        expect(progress.result(1).diagnostic).not.toContain('private-value')
+    })
+
     test('retains allowlisted certificate errors without printing unknown diagnostics', () => {
         const progress = smokeProgress('certificates')
         progress.consume('error: Certificate operation failed: acme_failed')

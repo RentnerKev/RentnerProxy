@@ -24,7 +24,33 @@ const MAX_CONTROL_RESPONSE_BYTES: usize = 4_096;
 pub(crate) type EngineFuture<'a> =
     Pin<Box<dyn Future<Output = Result<(), EngineError>> + Send + 'a>>;
 
+#[derive(Clone, Default, PartialEq, Eq)]
+pub(crate) struct EngineEnvironment {
+    crowdsec_bouncer_key: Option<String>,
+}
+
+impl EngineEnvironment {
+    pub(crate) fn with_crowdsec_bouncer_key(value: String) -> Self {
+        Self {
+            crowdsec_bouncer_key: Some(value),
+        }
+    }
+}
+
+impl std::fmt::Debug for EngineEnvironment {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("EngineEnvironment")
+            .field(
+                "crowdsec_bouncer_key",
+                &self.crowdsec_bouncer_key.as_ref().map(|_| "[redacted]"),
+            )
+            .finish()
+    }
+}
+
 pub(crate) trait ProxyEngine: Send + Sync {
+    fn set_environment(&self, _environment: EngineEnvironment) {}
     fn start<'a>(&'a self, configuration: &'a str, expected_revision: &'a str) -> EngineFuture<'a>;
     fn load<'a>(&'a self, configuration: &'a str) -> EngineFuture<'a>;
     fn probe<'a>(&'a self, expected_revision: &'a str) -> EngineFuture<'a>;
@@ -46,6 +72,7 @@ pub(crate) struct CaddyProcess {
     state_dir: PathBuf,
     admin_socket: PathBuf,
     probe_socket: PathBuf,
+    environment: std::sync::Mutex<EngineEnvironment>,
     child: Mutex<Option<Child>>,
 }
 
@@ -56,6 +83,7 @@ impl CaddyProcess {
             admin_socket: state_dir.join("caddy-admin.sock"),
             probe_socket: state_dir.join("runtime-probe.sock"),
             state_dir,
+            environment: std::sync::Mutex::new(EngineEnvironment::default()),
             child: Mutex::new(None),
         }
     }
@@ -154,6 +182,15 @@ impl CaddyProcess {
             .stdout(Stdio::null())
             .stderr(Stdio::inherit())
             .kill_on_drop(true);
+        if let Some(key) = self
+            .environment
+            .lock()
+            .map_err(|_| EngineError::CommandFailed)?
+            .crowdsec_bouncer_key
+            .clone()
+        {
+            command.env("RENTNERPROXY_CROWDSEC_BOUNCER_KEY", key);
+        }
         #[cfg(unix)]
         command.process_group(0);
         #[cfg(windows)]
@@ -200,6 +237,12 @@ impl CaddyProcess {
 }
 
 impl ProxyEngine for CaddyProcess {
+    fn set_environment(&self, environment: EngineEnvironment) {
+        if let Ok(mut current) = self.environment.lock() {
+            *current = environment;
+        }
+    }
+
     fn start<'a>(&'a self, configuration: &'a str, revision: &'a str) -> EngineFuture<'a> {
         Box::pin(self.start_owned(configuration, revision))
     }

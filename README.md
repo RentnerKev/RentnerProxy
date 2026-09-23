@@ -103,6 +103,8 @@ versions.
 - **Upstream security:** HTTPS upstream verification and reusable custom trusted CAs.
 - **Access control:** reusable Access Policies with Basic Authentication and IPv4/IPv6
   allow/deny rules.
+- **CrowdSec protection:** disabled, appliance-managed, or external Local API modes with
+  Caddy-native enforcement and health reporting.
 - **Administration:** users, roles, granular permissions, TOTP two-factor authentication,
   passkeys, and a read-only audit log.
 - **Visibility:** recent proxy access logs, runtime status, certificate operation progress,
@@ -134,6 +136,9 @@ flowchart TD
     D --> E[Caddy data plane]
     E --> F[Managed upstreams]
     C <--> G[ACME CA / DNS provider]
+    C --> H[Managed CrowdSec lifecycle]
+    E <--> H
+    E <--> I[External CrowdSec Local API]
 ```
 
 The management service owns user-facing state and permissions. The controller validates the
@@ -141,6 +146,63 @@ desired proxy model, renders Caddy JSON, applies it through a private admin sock
 the active revision. Certificate private material and ACME lifecycle state remain
 controller-owned. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the complete service, trust, and
 persistence boundaries.
+
+## CrowdSec protection
+
+> [!NOTE]
+> CrowdSec is part of the upcoming `v1.0.0-beta.1` development line. It is not included in
+> the `v1.0.0-alpha.6` image pinned by the current quick-start example.
+
+Open **Security → CrowdSec** to select exactly one operating mode:
+
+- **Disabled** is the default for fresh installations and Alpha 6 upgrades. Caddy has no
+  CrowdSec handler in this mode, so existing traffic behavior is unchanged.
+- **Managed by RentnerProxy** is the recommended appliance experience. The pinned CrowdSec
+  engine, Caddy collection, Local API, and bouncer credential are provisioned inside the
+  existing container and `rentnerproxy` volume. No second Compose service, volume, socket,
+  public port, or mandatory environment variable is required. The Local API listens only on
+  `127.0.0.1:18080`, acquisition metrics stay on loopback `127.0.0.1:6060`, and the engine runs
+  as its own unprivileged user. On upgrade, the startup checks an existing regular Caddy access
+  log before granting the CrowdSec group read access. Only the proxy state root is traversable
+  by that group and only its `logs` child is group-readable; certificates and other state
+  remain private. The access log never becomes world-readable.
+- **External CrowdSec** connects directly to an existing Local API. Enter an absolute HTTP or
+  HTTPS endpoint and bouncer key. RentnerProxy rejects redirects, bounds connection attempts,
+  encrypts the key at rest, and treats it as write-only after saving. Prefer HTTPS unless the
+  endpoint is confined to a trusted private network.
+
+RentnerProxy validates the target before switching. A failed external test or managed startup
+leaves the last working mode active. Switching modes stops components that are no longer
+needed but retains managed engine data and the saved external provider so a later switch does
+not silently delete security state.
+Each new managed activation, including an appliance restart, rotates the internal bouncer key
+before Caddy uses it. A supervised engine restart while managed mode remains active keeps the
+current key so requests continue to authenticate during recovery.
+External key replacement creates a credential-free `rotate` event in the administration audit
+log. Managed activation records credential rotation in the appliance log without printing the key.
+
+Enforcement uses Caddy's resolved client address on both public HTTP and HTTPS listeners,
+including HTTP/2, HTTP/3, and WebSocket requests. ACME HTTP-01 is handled before CrowdSec;
+CrowdSec runs before Force HTTPS, redirects, Access Policies, Basic Authentication, and proxy
+forwarding. AppSec and Layer 4 modules are intentionally not bundled.
+
+By default, forwarded client-IP headers are untrusted. If RentnerProxy is behind another proxy,
+configure only that proxy's direct socket-peer networks with
+`RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS` as described below. Caddy then resolves the effective
+client IP before CrowdSec evaluates it; arbitrary `X-Forwarded-For` or `X-Real-IP` values from
+untrusted peers cannot select a different identity.
+
+CrowdSec enforcement is fail-open for availability: established proxy traffic continues if the
+selected Local API is temporarily unavailable, while the UI reports a degraded state and the
+managed supervisor retries a bounded number of times. This is an explicit availability tradeoff,
+not a guarantee that unavailable security intelligence can block requests.
+
+Managed CrowdSec files live under `/var/lib/rentnerproxy/crowdsec` in the existing appliance
+volume. The current v3 repository backup format does not yet include that directory; complete
+appliance backup/restore compatibility is tracked by
+[issue #71](https://github.com/RentnerKev/RentnerProxy/issues/71). Until that work lands, preserve
+the Docker volume or a volume-level snapshot when managed CrowdSec history must survive disaster
+recovery.
 
 ## Security and trust
 
@@ -172,7 +234,6 @@ complete appliance state before every upgrade.
 
 The following are planned work, not current feature claims:
 
-- [CrowdSec integration](https://github.com/RentnerKev/RentnerProxy/issues/64).
 - [Forward Auth access policies](https://github.com/RentnerKev/RentnerProxy/issues/65).
 - [Nginx Proxy Manager importer](https://github.com/RentnerKev/RentnerProxy/issues/66).
 - Broader upgrade, recovery, compatibility, reliability, scale, security, and accessibility

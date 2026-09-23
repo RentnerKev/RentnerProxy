@@ -12,14 +12,17 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    models::{ApplyOutcome, ProxyConfigRequest, ProxyRuntimeStatus, ValidatedProxyConfig},
+    models::{
+        ApplyOutcome, CrowdSecConfigRequest, ProxyConfigRequest, ProxyRuntimeStatus,
+        ValidatedProxyConfig,
+    },
     proxy::{
         TrustedCaValidationRequest, is_canonical_domain, is_canonical_uuid, is_canonical_uuid_v7,
         validate_proxy_config, validate_trusted_ca_pem,
     },
     runtime::{
         CertificateError, CertificateImportRequest, CertificateIssueRequest, CertificateMetadata,
-        RuntimeError, access_logs::AccessLogQuery,
+        CrowdSecError, RuntimeError, access_logs::AccessLogQuery,
     },
 };
 
@@ -104,6 +107,56 @@ fn is_challenge_token(value: &str) -> bool {
 
 pub(super) async fn proxy_status(state: AppState) -> Result<Json<ProxyRuntimeStatus>, ApiError> {
     Ok(Json(state.runtime.status().await))
+}
+
+pub(super) async fn crowdsec_status(state: AppState) -> Response {
+    no_store_json(state.runtime.crowdsec_status().await)
+}
+
+pub(super) async fn apply_crowdsec_config(
+    state: AppState,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let request = crowdsec_request(body)?;
+    state
+        .runtime
+        .apply_crowdsec(request)
+        .await
+        .map(no_store_json)
+        .map_err(crowdsec_error)
+}
+
+pub(super) async fn test_crowdsec_connection(
+    state: AppState,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let request = crowdsec_request(body)?;
+    state
+        .runtime
+        .test_crowdsec_connection(request)
+        .await
+        .map_err(crowdsec_error)?;
+    Ok(no_store_json(serde_json::json!({ "status": "connected" })))
+}
+
+fn crowdsec_request(
+    body: Result<Bytes, BytesRejection>,
+) -> Result<CrowdSecConfigRequest, ApiError> {
+    let body = body.map_err(|_| ApiError::payload_too_large())?;
+    if body.len() > 8 * 1_024 {
+        return Err(ApiError::payload_too_large());
+    }
+    serde_json::from_slice(&body).map_err(|_| ApiError::invalid_crowdsec_configuration())
+}
+
+fn crowdsec_error(error: CrowdSecError) -> ApiError {
+    match error {
+        CrowdSecError::Busy => ApiError::busy(),
+        CrowdSecError::InvalidConfiguration => ApiError::invalid_crowdsec_configuration(),
+        CrowdSecError::ConnectionFailed => ApiError::crowdsec_connection_failed(),
+        CrowdSecError::RuntimeUnavailable => ApiError::runtime_unavailable(),
+        CrowdSecError::ApplyFailed => ApiError::apply_failed(),
+    }
 }
 
 pub(super) async fn access_logs(request: Request, state: AppState) -> Result<Response, ApiError> {

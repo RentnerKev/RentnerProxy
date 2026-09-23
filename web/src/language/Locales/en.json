@@ -48,6 +48,7 @@
         "certificates": "Certificates",
         "accessPolicies": "Access policies",
         "proxyAccessLogs": "Access logs",
+        "crowdSec": "CrowdSec",
         "auditLogs": "Audit log",
         "systemVersion": "System version {{version}}",
         "updateAvailable": "Update available to version {{version}}"
@@ -1747,7 +1748,8 @@
                     "trusted-ca": "Trusted CA",
                     "proxy-runtime-settings": "Proxy runtime settings",
                     "proxy-host-settings": "Proxy host settings",
-                    "proxy-runtime": "Proxy runtime"
+                    "proxy-runtime": "Proxy runtime",
+                    "crowdsec": "CrowdSec"
                 }
             },
             "metadata": {
@@ -1783,6 +1785,122 @@
             },
             "errors": {
                 "loadFailed": "Audit events could not be loaded."
+            }
+        },
+        "crowdSec": {
+            "page": {
+                "eyebrow": "Security",
+                "title": "CrowdSec",
+                "description": "Choose how RentnerProxy blocks malicious clients. Protection stays inside the existing appliance and uses the same trusted-proxy client IP rules as every proxy host."
+            },
+            "status": {
+                "eyebrow": "Protection status",
+                "description": "One enforcement path protects public HTTP and HTTPS traffic while health and credentials remain private to the appliance.",
+                "synchronized": "Desired mode is active",
+                "pending": "Previous working mode remains active while synchronization retries",
+                "details": {
+                    "enforcement": "Enforcement",
+                    "active": "Active",
+                    "inactive": "Inactive",
+                    "localApi": "Local API health",
+                    "managedEngine": "Managed engine"
+                }
+            },
+            "states": {
+                "disabled": "Disabled",
+                "starting": "Starting",
+                "connected": "Connected",
+                "degraded": "Degraded",
+                "unavailable": "Controller unavailable"
+            },
+            "managedStates": {
+                "stopped": "Stopped",
+                "starting": "Starting",
+                "ready": "Ready",
+                "restarting": "Restarting",
+                "degraded": "Degraded",
+                "unavailable": "Unavailable"
+            },
+            "modes": {
+                "disabled": {
+                    "title": "Disabled",
+                    "description": "Default after upgrading. No CrowdSec decision is applied to traffic."
+                },
+                "managed": {
+                    "title": "Managed by RentnerProxy",
+                    "description": "Run the bundled CrowdSec engine locally with the curated Caddy collection."
+                },
+                "external": {
+                    "title": "External CrowdSec",
+                    "description": "Use an existing Local API endpoint with a write-only bouncer key."
+                }
+            },
+            "configuration": {
+                "eyebrow": "Operating mode",
+                "title": "Protection source",
+                "description": "The target is verified before Caddy switches. A failed change leaves the previous verified configuration active.",
+                "refreshing": "Refreshing health",
+                "modeLabel": "CrowdSec operating mode",
+                "retention": "Switching modes preserves managed engine data and saved external credentials. Nothing is automatically deleted."
+            },
+            "external": {
+                "title": "External Local API",
+                "description": "The endpoint is contacted directly from the appliance. Redirects are rejected and the credential is never returned to the browser.",
+                "apiUrl": "Local API URL",
+                "apiUrlPlaceholder": "https://crowdsec.example.test/",
+                "apiKey": "Bouncer API key",
+                "apiKeyPlaceholder": "Enter the bouncer key",
+                "apiKeyReplacePlaceholder": "Credential stored — enter a replacement",
+                "apiKeyHint": "Leave blank to keep the encrypted key only if the endpoint is unchanged. A new endpoint requires a new key."
+            },
+            "actions": {
+                "test": "Test connection",
+                "testing": "Testing connection…",
+                "save": "Save and apply",
+                "saving": "Saving and applying…"
+            },
+            "facts": {
+                "clientIp": {
+                    "label": "Client IP",
+                    "value": "Caddy-native resolution",
+                    "description": "Trusted proxy CIDRs are evaluated before CrowdSec sees the effective client address."
+                },
+                "failure": {
+                    "label": "Failure behavior",
+                    "value": "Fail open",
+                    "description": "Proxy traffic continues if the selected CrowdSec API is temporarily unavailable."
+                },
+                "deployment": {
+                    "label": "Deployment",
+                    "value": "Single appliance",
+                    "description": "No extra service, volume, socket, public port, or mandatory environment variable."
+                }
+            },
+            "statesPage": {
+                "loadingTitle": "Loading CrowdSec",
+                "loadingDescription": "Reading the desired mode and current enforcement health.",
+                "unavailableTitle": "CrowdSec configuration unavailable",
+                "unavailableDescription": "The configuration could not be loaded. The existing runtime state has not been changed."
+            },
+            "validation": {
+                "apiUrl": "Enter an absolute HTTP or HTTPS URL without credentials, query parameters, or a fragment.",
+                "apiKey": "Enter a 16–512 character printable ASCII bouncer key without spaces."
+            },
+            "errors": {
+                "invalidInput": "Review the CrowdSec endpoint and credential.",
+                "apiKeyRequired": "Enter a bouncer key before enabling external CrowdSec or changing its endpoint.",
+                "connectionFailed": "CrowdSec rejected the endpoint or credential. The active mode was not changed.",
+                "controllerUnavailable": "The proxy controller is temporarily unavailable. The active mode was not changed.",
+                "configurationConflict": "The configuration changed in another session. Reload and try again.",
+                "configurationUnavailable": "The encrypted CrowdSec configuration could not be read.",
+                "saveFailed": "The CrowdSec configuration could not be saved.",
+                "loadFailed": "The CrowdSec configuration could not be loaded.",
+                "testFailed": "The connection test could not be completed."
+            },
+            "messages": {
+                "connectionValid": "CrowdSec connection verified.",
+                "saved": "CrowdSec configuration saved and activated.",
+                "savedPending": "CrowdSec configuration saved. The previous working mode remains active while synchronization retries."
             }
         },
         "trustedCas": {
@@ -1877,6 +1995,7 @@
             "trusted_cas": "Trusted CAs",
             "access_policies": "Access policies",
             "proxy-access-logs": "Proxy access logs",
+            "crowdsec": "CrowdSec",
             "audit-logs": "Audit log"
         },
         "app": {
@@ -1936,6 +2055,10 @@
             "apply": "Apply access policy configuration"
         },
         "proxy-access-logs:view": "View proxy access logs",
+        "crowdsec": {
+            "view": "View CrowdSec configuration",
+            "update": "Update CrowdSec configuration"
+        },
         "audit-logs:view": "View audit log",
         "trusted_cas": {
             "view": "View trusted CAs",

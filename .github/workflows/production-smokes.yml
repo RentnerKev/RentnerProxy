@@ -40,6 +40,9 @@ jobs:
             - name: Install dependencies
               run: bun install --frozen-lockfile
 
+            - name: Production appliance, backup and restore
+              run: bun --no-orphans scripts/production-smoke-ci.ts production
+
             - name: Proxy runtime
               run: bun --no-orphans scripts/production-smoke-ci.ts proxy
 
@@ -48,9 +51,6 @@ jobs:
 
             - name: Upstream TLS
               run: bun --no-orphans scripts/production-smoke-ci.ts upstream-tls
-
-            - name: Production appliance, backup and restore
-              run: bun --no-orphans scripts/production-smoke-ci.ts production
 
             - name: Clean up this run and summarize
               if: always() && steps.bun.outcome == 'success'

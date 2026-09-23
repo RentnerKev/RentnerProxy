@@ -5,17 +5,21 @@ use serde_json::{Value, json};
 use crate::models::{ProxyHttpSettings, ValidatedProxyConfig};
 
 use super::{
-    MAX_RENDERED_PROXY_CONFIG_BYTES, RenderError, RenderSettings, TlsMaterial, TlsRenderSettings,
-    UpstreamTlsRenderSettings,
+    CrowdSecRenderSettings, MAX_RENDERED_PROXY_CONFIG_BYTES, RenderError, RenderSettings,
+    TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings,
     model::{
         Admin, AdminConfig, Apps, AutoHttps, CaddyConfig, CertificateFile, CertificateLoaders,
-        CertificateSelection, ErrorConfig, ErrorResponse, ErrorStatus, Handler, Headers, HttpApp,
-        HttpServer, MatcherSet, ResponseHeaders, Route, ServerLogs, StaticResponse, Storage,
-        TlsApp, TlsConnectionPolicy, TlsMatcher,
+        CertificateSelection, CrowdSecApp, ErrorConfig, ErrorResponse, ErrorStatus, Handler,
+        Headers, HttpApp, HttpServer, MatcherSet, ResponseHeaders, Route, ServerLogs,
+        StaticResponse, Storage, TlsApp, TlsConnectionPolicy, TlsMatcher,
     },
     proxy::{admin_listen, certificate_path, path_string, probe_listen, seconds, trusted_proxies},
-    routes::{challenge_route, host_routes, http_routes, not_found_route, redirect_route},
+    routes::{
+        challenge_route, crowdsec_route, host_routes, http_routes, not_found_route, redirect_route,
+    },
 };
+
+const CROWSEC_BOUNCER_KEY_PLACEHOLDER: &str = "{env.RENTNERPROXY_CROWDSEC_BOUNCER_KEY}";
 
 pub(super) fn render_config_inner(
     config: Option<&ValidatedProxyConfig>,
@@ -23,6 +27,7 @@ pub(super) fn render_config_inner(
     tls: Option<&TlsRenderSettings>,
     materials: Option<&BTreeMap<String, TlsMaterial>>,
     upstream_tls: Option<&UpstreamTlsRenderSettings>,
+    crowdsec: Option<&CrowdSecRenderSettings>,
 ) -> Result<String, RenderError> {
     let config = config.cloned().unwrap_or_else(empty_config);
     let revision = if config.revision.is_empty() {
@@ -42,6 +47,7 @@ pub(super) fn render_config_inner(
                 settings,
                 tls.map_or(443, |v| v.public_https_port),
                 upstream_tls,
+                crowdsec.is_some(),
             )?,
             automatic_https: AutoHttps { disable: true },
             protocols: vec!["h1".to_owned(), "h2".to_owned()],
@@ -107,6 +113,9 @@ pub(super) fn render_config_inner(
             alt_svc_route(tls.public_https_port),
             challenge_route(settings.controller_port, "https"),
         ];
+        if crowdsec.is_some() {
+            https_routes.push(crowdsec_route());
+        }
         for host in &config.proxy_hosts {
             let Some(certificate_id) = host.certificate_id.as_ref() else {
                 continue;
@@ -196,7 +205,7 @@ pub(super) fn render_config_inner(
     let output = serde_json::to_string(&CaddyConfig {
         admin: Admin {
             listen: admin_listen,
-            config: AdminConfig { persist: true },
+            config: AdminConfig { persist: false },
         },
         storage: Storage {
             module: "file_system".to_owned(),
@@ -206,6 +215,15 @@ pub(super) fn render_config_inner(
         apps: Apps {
             http: HttpApp { servers },
             tls: tls_app,
+            crowdsec: crowdsec.map(|settings| CrowdSecApp {
+                api_url: settings.api_url.clone(),
+                api_key: CROWSEC_BOUNCER_KEY_PLACEHOLDER.to_owned(),
+                ticker_interval: "15s".to_owned(),
+                enable_streaming: true,
+                enable_hard_fails: false,
+                enable_caddy_error: false,
+                enable_caddy_metrics: false,
+            }),
         },
     })
     .map_err(|_| RenderError::ConfigTooLarge)?;
@@ -239,8 +257,8 @@ fn logging_config(state_root: &str) -> Value {
     let file = json!({
         "output": "file",
         "filename": format!("{state_root}/logs/access.log"),
-        "mode": "0600",
-        "dir_mode": "0700",
+        "mode": "0640",
+        "dir_mode": "0750",
         "roll_size_mb": 4,
         "roll_keep": 4,
         "roll_keep_days": 7,

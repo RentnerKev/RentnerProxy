@@ -4,6 +4,8 @@ import '@tanstack/react-start/server-only'
 import { z } from 'zod'
 
 import type { ServiceHealth } from '../../shared/Types/health.types'
+import type { CrowdSecRuntimeStatus } from '../../shared/Types/crowdsec.types'
+import type { CrowdSecMode } from '../../config/crowdsec.config'
 import type { ProxyConfigSource, ProxyRuntimeStatus } from '../../shared/Types/proxy-runtime.types'
 import type {
     ProxyAccessLogsQuery,
@@ -28,6 +30,8 @@ import {
 const HEALTH_TIMEOUT_MS = 1_200
 const STATUS_TIMEOUT_MS = 2_000
 export const CONTROLLER_APPLY_TIMEOUT_MS = 20_000
+export const CROWDSEC_APPLY_TIMEOUT_MS = 55_000
+const CROWDSEC_STATUS_TIMEOUT_MS = 5_000
 const MAX_RESPONSE_BYTES = 4_096
 const MAX_CONFIG_RESPONSE_BYTES = 32 * 1_024 * 1_024
 
@@ -50,6 +54,23 @@ const applySchema = z.object({
     status: z.enum(['applied', 'unchanged']),
     activeRevision: revisionSchema,
     lastApplyAt: timestampSchema,
+})
+const crowdSecStatusSchema = z.strictObject({
+    mode: z.enum(['disabled', 'managed', 'external']),
+    state: z.enum(['disabled', 'starting', 'connected', 'degraded']),
+    apiUrl: z.string().url().max(2_048).optional(),
+    credentialConfigured: z.boolean(),
+    enforcementActive: z.boolean(),
+    managedEngine: z.enum([
+        'stopped',
+        'starting',
+        'ready',
+        'restarting',
+        'degraded',
+        'unavailable',
+    ]),
+    failureBehavior: z.literal('fail_open'),
+    clientIpSource: z.literal('caddy'),
 })
 
 interface ControllerRequestOptions {
@@ -98,6 +119,9 @@ export async function controllerRequest(
         | '/health'
         | '/ready'
         | '/internal/v1/proxy/status'
+        | '/internal/v1/crowdsec/status'
+        | '/internal/v1/crowdsec/config'
+        | '/internal/v1/crowdsec/test'
         | `/internal/v1/proxy/access-logs${string}`
         | '/internal/v1/proxy/config'
         | '/internal/v1/proxy/config/preview'
@@ -170,6 +194,54 @@ export async function controllerRequest(
     } finally {
         clearTimeout(timeout)
     }
+}
+
+export interface CrowdSecControllerRequest {
+    readonly mode: CrowdSecMode
+    readonly apiUrl?: string
+    readonly apiKey?: string
+}
+
+export async function getCrowdSecRuntimeStatus(): Promise<CrowdSecRuntimeStatus | null> {
+    const payload = await controllerRequest('/internal/v1/crowdsec/status', {
+        timeoutMs: CROWDSEC_STATUS_TIMEOUT_MS,
+        privileged: true,
+    })
+    const result = crowdSecStatusSchema.safeParse(payload)
+    return result.success ? result.data : null
+}
+
+export async function applyCrowdSecConfiguration(
+    request: CrowdSecControllerRequest,
+): Promise<CrowdSecRuntimeStatus | null> {
+    const payload = await controllerRequest('/internal/v1/crowdsec/config', {
+        timeoutMs: CROWDSEC_APPLY_TIMEOUT_MS,
+        privileged: true,
+        confidential: request.mode === 'external',
+        body: JSON.stringify(request),
+    })
+    const result = crowdSecStatusSchema.safeParse(payload)
+    return result.success ? result.data : null
+}
+
+export async function testCrowdSecControllerConnection(input: {
+    readonly apiUrl: string
+    readonly apiKey: string
+}): Promise<'connected' | 'connection_failed' | 'unavailable'> {
+    const payload = await controllerRequest('/internal/v1/crowdsec/test', {
+        timeoutMs: CROWDSEC_STATUS_TIMEOUT_MS,
+        privileged: true,
+        confidential: true,
+        method: 'POST',
+        body: JSON.stringify({ mode: 'external', ...input }),
+        acceptErrorResponse: true,
+    })
+    const success = z.strictObject({ status: z.literal('connected') }).safeParse(payload)
+    if (success.success) return 'connected'
+    const failure = z.strictObject({ error: z.string() }).safeParse(payload)
+    return failure.success && failure.data.error === 'crowdsec_connection_failed'
+        ? 'connection_failed'
+        : 'unavailable'
 }
 
 const PROXY_ACCESS_LOGS_TIMEOUT_MS = 5_000
