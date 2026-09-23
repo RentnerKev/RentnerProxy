@@ -248,6 +248,7 @@ start_crowdsec_supervisor() {
 start_controller() {
     start_child controller env \
         APP_ENCRYPTION_KEY_FILE="$controller_app_key_file" \
+        RENTNERPROXY_INTERNAL_SHARED_CROWDSEC_LOGS=1 \
         RENTNERPROXY_CONTROLLER_LISTEN_ADDR=127.0.0.1:8081 \
         RENTNERPROXY_CONTROLLER_TOKEN_FILE="$controller_token_file" \
         RENTNERPROXY_CADDY_BIN=/usr/bin/caddy \

@@ -163,7 +163,9 @@ Open **Security → CrowdSec** to select exactly one operating mode:
   public port, or mandatory environment variable is required. The Local API listens only on
   `127.0.0.1:18080`, acquisition metrics stay on loopback `127.0.0.1:6060`, and the engine runs
   as its own unprivileged user. On upgrade, the startup checks an existing regular Caddy access
-  log before granting the CrowdSec group read access; the log never becomes world-readable.
+  log before granting the CrowdSec group read access. Only the proxy state root is traversable
+  by that group and only its `logs` child is group-readable; certificates and other state
+  remain private. The access log never becomes world-readable.
 - **External CrowdSec** connects directly to an existing Local API. Enter an absolute HTTP or
   HTTPS endpoint and bouncer key. RentnerProxy rejects redirects, bounds connection attempts,
   encrypts the key at rest, and treats it as write-only after saving. Prefer HTTPS unless the

@@ -1165,9 +1165,33 @@ async function runSmoke(): Promise<void> {
                 'stat',
                 '-c',
                 '%a:%u:%g',
+                '/var/lib/rentnerproxy/proxy',
+            ]),
+            '710:10001:10003',
+        )
+        assert.equal(
+            await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'stat',
+                '-c',
+                '%a:%u:%g',
                 '/var/lib/rentnerproxy/proxy/logs',
             ]),
             '2750:10001:10003',
+        )
+        assert.equal(
+            await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'stat',
+                '-c',
+                '%a:%u',
+                '/var/lib/rentnerproxy/proxy/caddy',
+            ]),
+            '700:10001',
         )
         assert.equal(
             await command(['docker', 'exec', recreatedId, 'stat', '-c', '%a:%u:%g', accessLogPath]),
