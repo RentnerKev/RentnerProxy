@@ -38,6 +38,9 @@ type RuntimeStatus = Readonly<{
     credentialConfigured: boolean
     enforcementActive: boolean
     managedEngine: 'stopped' | 'ready'
+    communityEnabled: boolean
+    communityState: 'disabled' | 'connected'
+    consoleState: 'not_enrolled'
     failureBehavior: 'fail_open'
     clientIpSource: 'caddy'
 }>
@@ -49,6 +52,9 @@ function disabledRuntime(): RuntimeStatus {
         credentialConfigured: false,
         enforcementActive: false,
         managedEngine: 'stopped',
+        communityEnabled: false,
+        communityState: 'disabled',
+        consoleState: 'not_enrolled',
         failureBehavior: 'fail_open',
         clientIpSource: 'caddy',
     }
@@ -81,6 +87,7 @@ function fakeController() {
             if (path === '/internal/v1/crowdsec/config' && request.method === 'PUT') {
                 const body = (await request.json()) as {
                     mode: 'disabled' | 'managed' | 'external'
+                    communityEnabled?: boolean
                     apiUrl?: string
                     apiKey?: string
                 }
@@ -95,6 +102,9 @@ function fakeController() {
                                 credentialConfigured: false,
                                 enforcementActive: true,
                                 managedEngine: 'ready',
+                                communityEnabled: body.communityEnabled ?? false,
+                                communityState: body.communityEnabled ? 'connected' : 'disabled',
+                                consoleState: 'not_enrolled',
                                 failureBehavior: 'fail_open',
                                 clientIpSource: 'caddy',
                             }
@@ -105,6 +115,9 @@ function fakeController() {
                                 credentialConfigured: true,
                                 enforcementActive: true,
                                 managedEngine: 'stopped',
+                                communityEnabled: false,
+                                communityState: 'disabled',
+                                consoleState: 'not_enrolled',
                                 failureBehavior: 'fail_open',
                                 clientIpSource: 'caddy',
                             }
@@ -237,6 +250,26 @@ describe('CrowdSec configuration with PostgreSQL', () => {
         expect(controller?.applied).toHaveLength(0)
     })
 
+    integrationTest('persists community opt-in only within managed mode', async () => {
+        const owner = await createUser(SYSTEM_ROLES.OWNER)
+        const enabledResult = await asUser(owner, () =>
+            updateCrowdSecConfigurationService({ mode: 'managed', communityEnabled: true }),
+        )
+        expect(enabledResult.runtimeStatus).toBe('applied')
+        expect(await asUser(owner, getCrowdSecConfigurationService)).toMatchObject({
+            mode: 'managed',
+            communityEnabled: true,
+            synchronized: true,
+        })
+        expect(controller?.applied[0]).toEqual({ mode: 'managed', communityEnabled: true })
+
+        const disabledResult = await asUser(owner, () =>
+            updateCrowdSecConfigurationService({ mode: 'managed', communityEnabled: false }),
+        )
+        expect(disabledResult.runtimeStatus).toBe('applied')
+        expect(controller?.applied[1]).toEqual({ mode: 'managed', communityEnabled: false })
+    })
+
     integrationTest('encrypts, audits, applies, and retains an external provider', async () => {
         const owner = await createUser(SYSTEM_ROLES.OWNER)
         const result = await asUser(owner, () =>
@@ -335,7 +368,7 @@ describe('CrowdSec configuration with PostgreSQL', () => {
                 synchronized: true,
             })
             expect(controller?.applied).toHaveLength(1)
-            expect(controller?.applied[0]).toEqual({ mode: 'managed' })
+            expect(controller?.applied[0]).toEqual({ mode: 'managed', communityEnabled: false })
         },
     )
 
