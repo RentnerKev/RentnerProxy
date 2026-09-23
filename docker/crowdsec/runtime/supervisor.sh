@@ -336,6 +336,13 @@ while ! $stopping; do
     mode_switch=false
     while [[ $(desired_mode) != stopped ]] && kill -0 "$engine_pid" 2>/dev/null; do
         desired=$(desired_mode)
+        if [[ $running_mode == managed && $desired == managed && $community_state != disabled ]]; then
+            community_state=disabled
+            console_state=not_enrolled
+            next_online_attempt=0
+            online_suspended_until=0
+            write_status ready "$restarts"
+        fi
         if [[ $running_mode == managed-online && $desired == managed ]]; then
             stop_engine
             mode_switch=true
