@@ -144,8 +144,8 @@ jobs:
                   {
                       echo '## Dev image'
                       echo
-                      printf 'Image: `%s:dev`\n\n' "$IMAGE"
-                      printf 'Commit: `%s`\n\n' "$REVISION"
-                      printf 'Digest: `%s`\n\n' "$DIGEST"
+                      printf 'Image: %s:dev\n\n' "$IMAGE"
+                      printf 'Commit: %s\n\n' "$REVISION"
+                      printf 'Digest: %s\n\n' "$DIGEST"
                       echo 'Test build from main. No release or release tags were created.'
                   } >> "$GITHUB_STEP_SUMMARY"
