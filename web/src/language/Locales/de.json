@@ -1870,6 +1870,39 @@
                 "save": "Speichern und anwenden",
                 "saving": "Wird gespeichert und angewendet…"
             },
+            "progress": {
+                "description": "Der Balken zeigt bestätigte Statuspunkte statt einer geschätzten Restzeit. Beim Umschalten des Proxys kann die Verbindung kurz aussetzen.",
+                "confirmedSteps": "Bestätigter Fortschritt",
+                "progressLabel": "Fortschritt der CrowdSec-Umstellung",
+                "stepsLabel": "Schritte der Umstellung",
+                "inProgress": "Die Umstellung läuft. Der aktive Zustand wird auf dieser Seite automatisch geprüft.",
+                "connectionInterrupted": "Die Verbindung wurde unterbrochen. Gespeicherte Konfiguration und aktiver Zustand werden weiter geprüft.",
+                "degraded": "Die CrowdSec-Engine meldet ein Problem. Der aktive Zustand wird während der erneuten Versuche geprüft.",
+                "retrying": "Die Änderung wurde gespeichert, ist aber noch nicht angewendet. Der Controller versucht es automatisch erneut.",
+                "delayed": "Die Umstellung dauert länger als üblich. Automatische Versuche laufen weiter. Du kannst dieses Fenster schließen und den Schutzstatus hier prüfen.",
+                "continueInBackground": "Im Hintergrund fortsetzen",
+                "done": "Fertig",
+                "managed": {
+                    "title": "Verwaltetes CrowdSec aktivieren",
+                    "complete": "Verwaltetes CrowdSec ist aktiv und der Schutz wurde geprüft.",
+                    "steps": {
+                        "save": "Gewünschten Modus speichern",
+                        "startEngine": "Lokale CrowdSec-Engine starten",
+                        "switchProxy": "Proxy-Schutz umstellen",
+                        "verify": "Aktiven Schutz prüfen"
+                    }
+                },
+                "disabled": {
+                    "title": "Verwaltetes CrowdSec deaktivieren",
+                    "complete": "Der CrowdSec-Schutz ist deaktiviert und die lokale Engine wurde gestoppt.",
+                    "steps": {
+                        "save": "Gewünschten Modus speichern",
+                        "switchProxy": "CrowdSec aus dem Proxy entfernen",
+                        "stopEngine": "Lokale CrowdSec-Engine stoppen",
+                        "verify": "Deaktivierten Zustand prüfen"
+                    }
+                }
+            },
             "facts": {
                 "title": "So funktioniert der Schutz",
                 "clientIp": {
@@ -1892,7 +1925,7 @@
                 "loadingTitle": "CrowdSec wird geladen",
                 "loadingDescription": "Gewünschter Modus und aktueller Schutzstatus werden gelesen.",
                 "unavailableTitle": "CrowdSec-Konfiguration nicht verfügbar",
-                "unavailableDescription": "Die Konfiguration konnte nicht geladen werden. Der bestehende Laufzeitstatus wurde nicht verändert."
+                "unavailableDescription": "Die Konfiguration konnte nicht geladen werden. Der aktuelle Schutzstatus kann nicht bestätigt werden."
             },
             "validation": {
                 "apiUrl": "Gib eine absolute HTTP- oder HTTPS-URL ohne Zugangsdaten, Parameter oder Fragment ein.",

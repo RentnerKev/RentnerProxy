@@ -38,7 +38,15 @@ function disabledConfiguration(): CrowdSecConfiguration {
 }
 
 let configuration = disabledConfiguration()
-const getConfigurationMock = mock(async () => configuration)
+let configurationFetchFails = false
+let loseSaveResponse = false
+let saveFailure = false
+let saveGate: Promise<void> | null = null
+let releaseSave: (() => void) | null = null
+const getConfigurationMock = mock(async () => {
+    if (configurationFetchFails) throw new Error('connection interrupted')
+    return configuration
+})
 const testConnectionMock = mock(async (_input: unknown) => ({
     success: true as const,
     message: 'admin.crowdSec.messages.connectionValid',
@@ -53,6 +61,12 @@ const updateConfigurationMock = mock(
             apiKey?: string
         }
     }) => {
+        if (saveGate) await saveGate
+        if (saveFailure)
+            return {
+                success: false as const,
+                message: 'admin.crowdSec.errors.configurationConflict',
+            }
         configuration = {
             ...configuration,
             mode: data.mode,
@@ -60,6 +74,7 @@ const updateConfigurationMock = mock(
             hasApiKey: data.mode === 'external' || configuration.hasApiKey,
             synchronized: false,
         }
+        if (loseSaveResponse) throw new Error('connection interrupted')
         return {
             success: true as const,
             message: 'admin.crowdSec.messages.savedPending',
@@ -133,6 +148,18 @@ async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<voi
     }
 }
 
+async function refreshConfiguration(): Promise<void> {
+    await act(async () => {
+        await activeQueryClient?.invalidateQueries({ queryKey: ['crowdsec', 'configuration'] })
+    })
+}
+
+function progressValue(): number {
+    const progress = document.querySelector<HTMLProgressElement>('progress')
+    if (!progress) throw new Error('CrowdSec progress bar not found')
+    return progress.value
+}
+
 function button(container: HTMLElement, label: string): HTMLButtonElement {
     const match = [...container.querySelectorAll<HTMLButtonElement>('button')].find((candidate) =>
         candidate.textContent?.includes(label),
@@ -143,6 +170,11 @@ function button(container: HTMLElement, label: string): HTMLButtonElement {
 
 beforeEach(() => {
     configuration = disabledConfiguration()
+    configurationFetchFails = false
+    loseSaveResponse = false
+    saveFailure = false
+    saveGate = null
+    releaseSave = null
     getConfigurationMock.mockClear()
     testConnectionMock.mockClear()
     updateConfigurationMock.mockClear()
@@ -254,5 +286,129 @@ describe('CrowdSec management UI', () => {
                 container.querySelector<HTMLInputElement>('[name="crowdsec-api-key"]')?.value ===
                 '',
         )
+    })
+
+    test('shows confirmed managed activation milestones and keeps the page during a failed refresh', async () => {
+        saveGate = new Promise<void>((resolve) => {
+            releaseSave = resolve
+        })
+        const container = await renderPage([PERMISSIONS.CROWDSEC_VIEW, PERMISSIONS.CROWDSEC_UPDATE])
+
+        await click(container.querySelector<HTMLInputElement>('#crowdsec-mode-managed')!)
+        await click(button(container, 'Save and apply'))
+
+        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+            'Enable managed CrowdSec',
+        )
+        expect(progressValue()).toBe(0)
+
+        releaseSave?.()
+        await waitFor(() => progressValue() === 30)
+
+        configurationFetchFails = true
+        await refreshConfiguration()
+        expect(container.textContent).not.toContain('CrowdSec configuration unavailable')
+        expect(document.querySelector('[role="dialog"]')).not.toBeNull()
+
+        configurationFetchFails = false
+        configuration = {
+            ...configuration,
+            runtime: { ...configuration.runtime!, managedEngine: 'starting' },
+        }
+        await refreshConfiguration()
+        await waitFor(() => progressValue() === 50)
+
+        configuration = {
+            ...configuration,
+            runtime: { ...configuration.runtime!, managedEngine: 'ready' },
+        }
+        await refreshConfiguration()
+        await waitFor(() => progressValue() === 70)
+
+        configuration = {
+            ...configuration,
+            synchronized: true,
+            runtime: {
+                ...configuration.runtime!,
+                mode: 'managed',
+                state: 'connected',
+                enforcementActive: true,
+            },
+        }
+        await refreshConfiguration()
+        await waitFor(() => progressValue() === 100)
+        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+            'Managed CrowdSec is active',
+        )
+    })
+
+    test('checks the disabled runtime after the save response is lost', async () => {
+        configuration = {
+            ...disabledConfiguration(),
+            mode: 'managed',
+            runtime: {
+                ...disabledConfiguration().runtime!,
+                mode: 'managed',
+                state: 'connected',
+                enforcementActive: true,
+                managedEngine: 'ready',
+            },
+        }
+        loseSaveResponse = true
+        const container = await renderPage([PERMISSIONS.CROWDSEC_VIEW, PERMISSIONS.CROWDSEC_UPDATE])
+
+        await click(container.querySelector<HTMLInputElement>('#crowdsec-mode-disabled')!)
+        await click(button(container, 'Save and apply'))
+        await waitFor(
+            () =>
+                document.querySelector('[role="dialog"]')?.textContent?.includes('interrupted') ===
+                true,
+        )
+        await refreshConfiguration()
+        await waitFor(() => progressValue() === 30)
+
+        configuration = {
+            ...configuration,
+            runtime: {
+                ...configuration.runtime!,
+                mode: 'disabled',
+                state: 'disabled',
+                enforcementActive: false,
+            },
+        }
+        await refreshConfiguration()
+        await waitFor(() => progressValue() === 75)
+
+        configuration = {
+            ...configuration,
+            synchronized: true,
+            runtime: { ...configuration.runtime!, managedEngine: 'stopped' },
+        }
+        await refreshConfiguration()
+        await waitFor(() => progressValue() === 100)
+        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+            'protection is disabled',
+        )
+        expect(container.textContent).not.toContain('CrowdSec configuration unavailable')
+    })
+
+    test('shows a rejected mode change without reporting completion', async () => {
+        saveFailure = true
+        const container = await renderPage([PERMISSIONS.CROWDSEC_VIEW, PERMISSIONS.CROWDSEC_UPDATE])
+
+        await click(container.querySelector<HTMLInputElement>('#crowdsec-mode-managed')!)
+        await click(button(container, 'Save and apply'))
+        await waitFor(
+            () =>
+                document
+                    .querySelector('[role="dialog"]')
+                    ?.textContent?.includes('changed in another session') === true,
+        )
+
+        expect(progressValue()).toBe(0)
+        expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain(
+            'Managed CrowdSec is active',
+        )
+        expect(configuration.mode).toBe('disabled')
     })
 })

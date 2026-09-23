@@ -1870,6 +1870,39 @@
                 "save": "Save and apply",
                 "saving": "Saving and applying…"
             },
+            "progress": {
+                "description": "The bar shows confirmed status milestones, not an estimate of time remaining. The connection may pause briefly while the proxy switches.",
+                "confirmedSteps": "Confirmed progress",
+                "progressLabel": "CrowdSec change progress",
+                "stepsLabel": "Change steps",
+                "inProgress": "The change is in progress. This page checks the active state automatically.",
+                "connectionInterrupted": "The connection was interrupted. The saved configuration and active state are still being checked.",
+                "degraded": "The CrowdSec engine reports a problem. The active state is being checked while the controller retries.",
+                "retrying": "The change was saved, but applying it is still pending. The controller retries automatically.",
+                "delayed": "This is taking longer than usual. Automatic retries continue. You can close this window and check the protection status here.",
+                "continueInBackground": "Continue in background",
+                "done": "Done",
+                "managed": {
+                    "title": "Enable managed CrowdSec",
+                    "complete": "Managed CrowdSec is active and its protection has been verified.",
+                    "steps": {
+                        "save": "Save the desired mode",
+                        "startEngine": "Start the local CrowdSec engine",
+                        "switchProxy": "Switch proxy protection",
+                        "verify": "Verify active protection"
+                    }
+                },
+                "disabled": {
+                    "title": "Disable managed CrowdSec",
+                    "complete": "CrowdSec protection is disabled and the local engine is stopped.",
+                    "steps": {
+                        "save": "Save the desired mode",
+                        "switchProxy": "Remove CrowdSec from the proxy",
+                        "stopEngine": "Stop the local CrowdSec engine",
+                        "verify": "Verify the disabled state"
+                    }
+                }
+            },
             "facts": {
                 "title": "How protection works",
                 "clientIp": {
@@ -1892,7 +1925,7 @@
                 "loadingTitle": "Loading CrowdSec",
                 "loadingDescription": "Reading the desired mode and current enforcement health.",
                 "unavailableTitle": "CrowdSec configuration unavailable",
-                "unavailableDescription": "The configuration could not be loaded. The existing runtime state has not been changed."
+                "unavailableDescription": "The configuration could not be loaded. The current protection state cannot be confirmed."
             },
             "validation": {
                 "apiUrl": "Enter an absolute HTTP or HTTPS URL without credentials, query parameters, or a fragment.",

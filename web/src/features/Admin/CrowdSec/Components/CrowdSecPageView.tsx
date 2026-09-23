@@ -13,6 +13,7 @@ import PageHeader from '../../../../shared/Management/PageHeader'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { CrowdSecPageViewProps } from '../Types/crowdsec.types'
 import CrowdSecStatusPanel from './CrowdSecStatusPanel'
+import CrowdSecTransitionModal from './CrowdSecTransitionModal'
 
 function ModeOption({
     mode,
@@ -297,6 +298,13 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                     </section>
                 </>
             )}
+            {state.transition && state.transitionProgress ? (
+                <CrowdSecTransitionModal
+                    transition={state.transition}
+                    progress={state.transitionProgress}
+                    onClose={handler.closeTransition}
+                />
+            ) : null}
         </>
     )
 }

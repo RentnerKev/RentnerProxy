@@ -21,6 +21,26 @@ export interface CrowdSecPageState {
     readonly isRefreshing: boolean
     readonly isSaving: boolean
     readonly isTesting: boolean
+    readonly transition: CrowdSecTransition | null
+    readonly transitionProgress: CrowdSecTransitionProgress | null
+}
+
+export type CrowdSecTransitionMode = 'managed' | 'disabled'
+
+export interface CrowdSecTransition {
+    readonly targetMode: CrowdSecTransitionMode
+    readonly startedAt: number
+    readonly phase: 'running' | 'delayed' | 'complete' | 'error'
+    readonly connectionInterrupted: boolean
+    readonly runtimePending: boolean
+    readonly errorMessage: string | null
+}
+
+export interface CrowdSecTransitionProgress {
+    readonly percent: number
+    readonly activeStep: number
+    readonly complete: boolean
+    readonly healthDegraded: boolean
 }
 
 export interface CrowdSecPageLogic {
@@ -32,6 +52,7 @@ export interface CrowdSecPageLogic {
         readonly setApiKey: (value: string) => void
         readonly testConnection: () => void
         readonly save: () => void
+        readonly closeTransition: () => void
     }
 }
 

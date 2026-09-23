@@ -1870,6 +1870,39 @@
                 "save": "Guardar y aplicar",
                 "saving": "Guardando y aplicando…"
             },
+            "progress": {
+                "description": "La barra muestra los hitos confirmados, no una estimación del tiempo restante. La conexión puede interrumpirse brevemente al cambiar el proxy.",
+                "confirmedSteps": "Progreso confirmado",
+                "progressLabel": "Progreso del cambio de CrowdSec",
+                "stepsLabel": "Pasos del cambio",
+                "inProgress": "El cambio está en curso. Esta página comprueba automáticamente el estado activo.",
+                "connectionInterrupted": "La conexión se ha interrumpido. Se siguen comprobando la configuración guardada y el estado activo.",
+                "degraded": "El motor CrowdSec informa de un problema. Se comprueba el estado activo mientras el controlador vuelve a intentarlo.",
+                "retrying": "El cambio se ha guardado, pero su aplicación sigue pendiente. El controlador vuelve a intentarlo automáticamente.",
+                "delayed": "El cambio está tardando más de lo habitual. Los reintentos automáticos continúan. Puedes cerrar esta ventana y comprobar aquí el estado de la protección.",
+                "continueInBackground": "Continuar en segundo plano",
+                "done": "Listo",
+                "managed": {
+                    "title": "Activar CrowdSec gestionado",
+                    "complete": "CrowdSec gestionado está activo y se ha comprobado su protección.",
+                    "steps": {
+                        "save": "Guardar el modo deseado",
+                        "startEngine": "Iniciar el motor CrowdSec local",
+                        "switchProxy": "Cambiar la protección del proxy",
+                        "verify": "Comprobar la protección activa"
+                    }
+                },
+                "disabled": {
+                    "title": "Desactivar CrowdSec gestionado",
+                    "complete": "La protección de CrowdSec está desactivada y el motor local está detenido.",
+                    "steps": {
+                        "save": "Guardar el modo deseado",
+                        "switchProxy": "Retirar CrowdSec del proxy",
+                        "stopEngine": "Detener el motor CrowdSec local",
+                        "verify": "Comprobar la desactivación"
+                    }
+                }
+            },
             "facts": {
                 "title": "Cómo funciona la protección",
                 "clientIp": {
@@ -1892,7 +1925,7 @@
                 "loadingTitle": "Cargando CrowdSec",
                 "loadingDescription": "Leyendo el modo deseado y el estado de protección actual.",
                 "unavailableTitle": "Configuración de CrowdSec no disponible",
-                "unavailableDescription": "No se pudo cargar la configuración. El estado actual no se ha modificado."
+                "unavailableDescription": "No se pudo cargar la configuración. No se puede confirmar el estado actual de la protección."
             },
             "validation": {
                 "apiUrl": "Introduce una URL HTTP o HTTPS absoluta sin credenciales, parámetros ni fragmento.",
