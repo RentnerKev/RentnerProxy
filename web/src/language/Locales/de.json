@@ -215,6 +215,15 @@
         "connectionMap": "Verbindungsübersicht",
         "summary": "Fünf Dienste. Eine Verwaltung.",
         "refreshDescription": "Der Dienststatus wird serverseitig geprüft und live aktualisiert, solange diese Seite geöffnet ist.",
+        "crowdSec": {
+            "eyebrow": "Verkehrsschutz",
+            "description": "CrowdSec-Schutzstatus für öffentlichen HTTP- und HTTPS-Verkehr.",
+            "manage": "CrowdSec verwalten",
+            "checking": "CrowdSec-Schutz wird geprüft…",
+            "loadError": "Der CrowdSec-Status konnte nicht geladen werden. Der aktive Schutzstatus ist unbekannt.",
+            "desiredMode": "Gewünschter Modus",
+            "runtime": "Laufzeitstatus"
+        },
         "web": "Web",
         "services": {
             "web": {
@@ -1798,10 +1807,12 @@
                 "description": "Ein gemeinsamer Durchsetzungspfad schützt öffentlichen HTTP- und HTTPS-Verkehr; Status und Zugangsdaten bleiben innerhalb der Appliance.",
                 "synchronized": "Gewünschter Modus ist aktiv",
                 "pending": "Der vorherige funktionierende Modus bleibt während weiterer Abgleichversuche aktiv",
+                "runtimeUnavailable": "Der Laufzeitstatus ist nicht verfügbar; der aktive Schutz kann nicht bestätigt werden.",
                 "details": {
                     "enforcement": "Durchsetzung",
                     "active": "Aktiv",
                     "inactive": "Inaktiv",
+                    "activeMode": "Aktiver Modus",
                     "localApi": "Local-API-Zustand",
                     "managedEngine": "Verwaltete Engine"
                 }
@@ -1860,6 +1871,7 @@
                 "saving": "Wird gespeichert und angewendet…"
             },
             "facts": {
+                "title": "So funktioniert der Schutz",
                 "clientIp": {
                     "label": "Client-IP",
                     "value": "Native Caddy-Auflösung",

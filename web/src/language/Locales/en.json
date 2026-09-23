@@ -215,6 +215,15 @@
         "connectionMap": "Connection map",
         "summary": "Five services. One control path.",
         "refreshDescription": "Service status is verified through the server boundary, with live updates while this page is open.",
+        "crowdSec": {
+            "eyebrow": "Traffic protection",
+            "description": "CrowdSec protection state for public HTTP and HTTPS traffic.",
+            "manage": "Manage CrowdSec",
+            "checking": "Checking CrowdSec protection…",
+            "loadError": "CrowdSec status could not be loaded. The active protection state is unknown.",
+            "desiredMode": "Desired mode",
+            "runtime": "Runtime status"
+        },
         "web": "Web",
         "services": {
             "web": {
@@ -1798,10 +1807,12 @@
                 "description": "One enforcement path protects public HTTP and HTTPS traffic while health and credentials remain private to the appliance.",
                 "synchronized": "Desired mode is active",
                 "pending": "Previous working mode remains active while synchronization retries",
+                "runtimeUnavailable": "Runtime status is unavailable; the active protection state cannot be confirmed.",
                 "details": {
                     "enforcement": "Enforcement",
                     "active": "Active",
                     "inactive": "Inactive",
+                    "activeMode": "Active mode",
                     "localApi": "Local API health",
                     "managedEngine": "Managed engine"
                 }
@@ -1860,6 +1871,7 @@
                 "saving": "Saving and applying…"
             },
             "facts": {
+                "title": "How protection works",
                 "clientIp": {
                     "label": "Client IP",
                     "value": "Caddy-native resolution",

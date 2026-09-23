@@ -162,10 +162,10 @@ describe('CrowdSec management UI', () => {
         const container = await renderPage([PERMISSIONS.CROWDSEC_VIEW])
 
         expect(container.textContent).toContain('Default after upgrading')
-        expect(container.textContent).toContain('Local API health')
-        expect(container.textContent).toContain('Managed engine')
+        expect(container.textContent).not.toContain('Local API health')
+        expect(container.textContent).not.toContain('Managed engine')
         expect(container.textContent).toContain('Inactive')
-        expect(container.textContent).toContain('Stopped')
+        expect(container.querySelector('[data-state="disabled"]')).not.toBeNull()
         expect(
             container.querySelector<HTMLInputElement>('#crowdsec-mode-managed')?.disabled,
         ).toBeTrue()
@@ -174,6 +174,39 @@ describe('CrowdSec management UI', () => {
         ).toBeTrue()
         expect(button(container, 'Save and apply').disabled).toBeTrue()
         expect(container.querySelector('[name="crowdsec-api-key"]')).toBeNull()
+    })
+
+    test('distinguishes the desired mode from the active mode while synchronization is pending', async () => {
+        configuration = {
+            ...disabledConfiguration(),
+            synchronized: false,
+            runtime: {
+                ...disabledConfiguration().runtime!,
+                mode: 'managed',
+                state: 'connected',
+                enforcementActive: true,
+                managedEngine: 'ready',
+            },
+        }
+        const container = await renderPage([PERMISSIONS.CROWDSEC_VIEW])
+        const statusPanel = container.querySelector('[data-state="connected"]')?.closest('section')
+
+        expect(statusPanel?.textContent).toContain('Active mode')
+        expect(statusPanel?.textContent).toContain('Managed by RentnerProxy')
+        expect(statusPanel?.textContent).toContain('Previous working mode remains active')
+        expect(statusPanel?.textContent).toContain('Active')
+    })
+
+    test('does not claim protection is inactive when runtime health is unavailable', async () => {
+        configuration = { ...disabledConfiguration(), runtime: null, synchronized: false }
+        const container = await renderPage([PERMISSIONS.CROWDSEC_VIEW])
+        const statusPanel = container
+            .querySelector('[data-state="unavailable"]')
+            ?.closest('section')
+
+        expect(statusPanel?.textContent).toContain('Controller unavailable')
+        expect(statusPanel?.textContent).not.toContain('Inactive')
+        expect(statusPanel?.textContent).toContain('active protection state cannot be confirmed')
     })
 
     test('tests and saves an external provider without reading its stored key', async () => {
@@ -187,6 +220,10 @@ describe('CrowdSec management UI', () => {
         await click(container.querySelector<HTMLInputElement>('#crowdsec-mode-external')!)
         const apiUrl = container.querySelector<HTMLInputElement>('[name="crowdsec-api-url"]')
         const apiKey = container.querySelector<HTMLInputElement>('[name="crowdsec-api-key"]')
+        expect(apiUrl?.closest('.grid.items-start')).toBe(apiKey?.closest('.grid.items-start'))
+        expect(button(container, 'Test connection').parentElement).toBe(
+            button(container, 'Save and apply').parentElement,
+        )
         expect(apiUrl?.value).toBe('https://old-crowdsec.example.test/')
         expect(apiKey?.value).toBe('')
         expect(apiKey?.placeholder).toContain('Credential stored')

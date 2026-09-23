@@ -1,12 +1,4 @@
-import {
-    CloudCog,
-    KeyRound,
-    LockKeyhole,
-    Network,
-    RefreshCw,
-    ServerCog,
-    ShieldOff,
-} from 'lucide-react'
+import { LockKeyhole, Network, RefreshCw } from 'lucide-react'
 import { PasswordInput, TextInput } from '@rentnerkev/inputs'
 
 import {
@@ -22,13 +14,7 @@ import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { CrowdSecPageViewProps } from '../Types/crowdsec.types'
 import CrowdSecStatusPanel from './CrowdSecStatusPanel'
 
-const MODE_ICONS = {
-    disabled: ShieldOff,
-    managed: ServerCog,
-    external: CloudCog,
-} as const
-
-function ModeCard({
+function ModeOption({
     mode,
     selected,
     disabled,
@@ -40,7 +26,6 @@ function ModeCard({
     readonly onSelect: (mode: CrowdSecMode) => void
 }) {
     const { t } = useTranslationStore()
-    const Icon = MODE_ICONS[mode]
     return (
         <div className="min-w-0">
             <input
@@ -55,26 +40,29 @@ function ModeCard({
             />
             <label
                 htmlFor={`crowdsec-mode-${mode}`}
-                className={`group block min-w-0 rounded-2xl border p-4 text-left transition-[border-color,background-color,transform] duration-150 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-500 motion-reduce:transition-none ${
+                className={`flex min-w-0 items-start gap-3 rounded-xl border p-4 text-left transition-[border-color,background-color] duration-150 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-500 motion-reduce:transition-none ${
                     disabled
                         ? 'cursor-not-allowed opacity-65'
-                        : 'cursor-pointer hover:-translate-y-0.5 hover:border-brand-500/30'
+                        : 'cursor-pointer hover:border-brand-500/35'
                 } ${
                     selected
-                        ? 'border-brand-500/55 bg-brand-500/10 shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-brand-500)_18%,transparent)]'
+                        ? 'border-brand-500/45 bg-brand-500/[0.06]'
                         : 'border-border bg-surface-raised'
                 }`}
             >
                 <span
-                    className={`mb-4 grid size-10 place-items-center rounded-xl ${selected ? 'bg-brand-500 text-navy-950' : 'bg-code text-muted'}`}
+                    className={`mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border ${selected ? 'border-brand-500' : 'border-border-strong'}`}
+                    aria-hidden="true"
                 >
-                    <Icon aria-hidden="true" className="size-5" strokeWidth={1.8} />
+                    {selected ? <span className="size-2 rounded-full bg-brand-500" /> : null}
                 </span>
-                <span className="block text-sm font-extrabold text-ink">
-                    {t(`admin.crowdSec.modes.${mode}.title`)}
-                </span>
-                <span className="mt-1.5 block text-xs leading-relaxed text-muted">
-                    {t(`admin.crowdSec.modes.${mode}.description`)}
+                <span className="grid gap-1">
+                    <span className="text-sm font-bold text-ink-soft">
+                        {t(`admin.crowdSec.modes.${mode}.title`)}
+                    </span>
+                    <span className="text-xs leading-relaxed text-muted">
+                        {t(`admin.crowdSec.modes.${mode}.description`)}
+                    </span>
                 </span>
             </label>
         </div>
@@ -137,13 +125,12 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                             ) : null}
                         </div>
 
-                        <div
-                            className="mt-6 grid gap-3 md:grid-cols-3"
-                            role="radiogroup"
-                            aria-label={t('admin.crowdSec.configuration.modeLabel')}
-                        >
+                        <fieldset className="mt-6 grid min-w-0 gap-2 border-0 p-0">
+                            <legend className="sr-only">
+                                {t('admin.crowdSec.configuration.modeLabel')}
+                            </legend>
                             {(['disabled', 'managed', 'external'] as const).map((mode) => (
-                                <ModeCard
+                                <ModeOption
                                     key={mode}
                                     mode={mode}
                                     selected={state.mode === mode}
@@ -151,24 +138,19 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                                     onSelect={handler.setMode}
                                 />
                             ))}
-                        </div>
+                        </fieldset>
 
                         {state.mode === 'external' ? (
-                            <div className="mt-6 rounded-2xl border border-border bg-surface-raised p-5">
-                                <div className="mb-5 flex items-start gap-3">
-                                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-code text-brand-text">
-                                        <KeyRound aria-hidden="true" className="size-4.5" />
-                                    </span>
-                                    <div>
-                                        <h3 className="text-sm font-extrabold text-ink">
-                                            {t('admin.crowdSec.external.title')}
-                                        </h3>
-                                        <p className="mt-1 text-xs leading-relaxed text-muted">
-                                            {t('admin.crowdSec.external.description')}
-                                        </p>
-                                    </div>
+                            <div className="mt-6 border-t border-border pt-5">
+                                <div className="mb-5">
+                                    <h3 className="text-sm font-bold text-ink-soft">
+                                        {t('admin.crowdSec.external.title')}
+                                    </h3>
+                                    <p className="mt-1 text-xs leading-relaxed text-muted">
+                                        {t('admin.crowdSec.external.description')}
+                                    </p>
                                 </div>
-                                <div className="grid gap-4 md:grid-cols-2">
+                                <div className="grid items-start gap-4 md:grid-cols-2">
                                     <div className={uiClassNames.form.field}>
                                         <label
                                             className={uiClassNames.form.label}
@@ -248,19 +230,6 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                                         </p>
                                     </div>
                                 </div>
-                                <button
-                                    type="button"
-                                    className={`${uiClassNames.button.secondary} mt-5`}
-                                    disabled={!state.canUpdate || busy || state.apiUrl.length === 0}
-                                    onClick={handler.testConnection}
-                                >
-                                    <Network aria-hidden="true" className="size-4" />
-                                    {t(
-                                        state.isTesting
-                                            ? 'admin.crowdSec.actions.testing'
-                                            : 'admin.crowdSec.actions.test',
-                                    )}
-                                </button>
                             </div>
                         ) : null}
 
@@ -268,40 +237,64 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                             <p className="m-0 max-w-xl text-xs leading-relaxed text-muted">
                                 {t('admin.crowdSec.configuration.retention')}
                             </p>
-                            <button
-                                type="button"
-                                className={uiClassNames.button.primary}
-                                disabled={!state.canUpdate || !state.isDirty || busy}
-                                onClick={handler.save}
-                            >
-                                <LockKeyhole aria-hidden="true" className="size-4" />
-                                {t(
-                                    state.isSaving
-                                        ? 'admin.crowdSec.actions.saving'
-                                        : 'admin.crowdSec.actions.save',
-                                )}
-                            </button>
+                            <div className="flex flex-wrap items-center gap-3">
+                                {state.mode === 'external' ? (
+                                    <button
+                                        type="button"
+                                        className={uiClassNames.button.secondary}
+                                        disabled={
+                                            !state.canUpdate || busy || state.apiUrl.length === 0
+                                        }
+                                        onClick={handler.testConnection}
+                                    >
+                                        <Network aria-hidden="true" className="size-4" />
+                                        {t(
+                                            state.isTesting
+                                                ? 'admin.crowdSec.actions.testing'
+                                                : 'admin.crowdSec.actions.test',
+                                        )}
+                                    </button>
+                                ) : null}
+                                <button
+                                    type="button"
+                                    className={uiClassNames.button.primary}
+                                    disabled={!state.canUpdate || !state.isDirty || busy}
+                                    onClick={handler.save}
+                                >
+                                    <LockKeyhole aria-hidden="true" className="size-4" />
+                                    {t(
+                                        state.isSaving
+                                            ? 'admin.crowdSec.actions.saving'
+                                            : 'admin.crowdSec.actions.save',
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </section>
 
-                    <div className="mt-4 grid gap-4 md:grid-cols-3">
-                        {(['clientIp', 'failure', 'deployment'] as const).map((item) => (
-                            <section
-                                key={item}
-                                className="rounded-2xl border border-border bg-surface-raised p-4"
-                            >
-                                <p className={uiClassNames.themedTechnicalLabel}>
-                                    {t(`admin.crowdSec.facts.${item}.label`)}
-                                </p>
-                                <p className="mt-2 text-sm font-extrabold text-ink">
-                                    {t(`admin.crowdSec.facts.${item}.value`)}
-                                </p>
-                                <p className="mt-1.5 text-xs leading-relaxed text-muted">
-                                    {t(`admin.crowdSec.facts.${item}.description`)}
-                                </p>
-                            </section>
-                        ))}
-                    </div>
+                    <section
+                        className={`${uiClassNames.management.card} mt-4`}
+                        aria-label={t('admin.crowdSec.facts.title')}
+                    >
+                        <p className={uiClassNames.themedTechnicalLabel}>
+                            {t('admin.crowdSec.facts.title')}
+                        </p>
+                        <div className="mt-4 grid gap-5 md:grid-cols-3">
+                            {(['clientIp', 'failure', 'deployment'] as const).map((item) => (
+                                <div key={item}>
+                                    <p className="text-[0.68rem] font-bold tracking-[0.12em] text-muted uppercase">
+                                        {t(`admin.crowdSec.facts.${item}.label`)}
+                                    </p>
+                                    <p className="mt-1.5 text-sm font-bold text-ink-soft">
+                                        {t(`admin.crowdSec.facts.${item}.value`)}
+                                    </p>
+                                    <p className="mt-1.5 text-xs leading-relaxed text-muted">
+                                        {t(`admin.crowdSec.facts.${item}.description`)}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
                 </>
             )}
         </>

@@ -215,6 +215,15 @@
         "connectionMap": "Carte des connexions",
         "summary": "Cinq services. Un point de contrôle.",
         "refreshDescription": "L’état des services est vérifié côté serveur et mis à jour en direct tant que cette page est ouverte.",
+        "crowdSec": {
+            "eyebrow": "Protection du trafic",
+            "description": "État de la protection CrowdSec pour le trafic HTTP et HTTPS public.",
+            "manage": "Gérer CrowdSec",
+            "checking": "Vérification de la protection CrowdSec…",
+            "loadError": "L’état CrowdSec n’a pas pu être chargé. L’état de la protection active est inconnu.",
+            "desiredMode": "Mode souhaité",
+            "runtime": "État d’exécution"
+        },
         "web": "Web",
         "services": {
             "web": {
@@ -1798,10 +1807,12 @@
                 "description": "Un chemin d’application unique protège le trafic HTTP et HTTPS public, tandis que l’état et les identifiants restent privés.",
                 "synchronized": "Le mode souhaité est actif",
                 "pending": "Le mode fonctionnel précédent reste actif pendant les nouvelles tentatives",
+                "runtimeUnavailable": "L’état d’exécution est indisponible ; la protection active ne peut pas être confirmée.",
                 "details": {
                     "enforcement": "Application",
                     "active": "Active",
                     "inactive": "Inactive",
+                    "activeMode": "Mode actif",
                     "localApi": "État de la Local API",
                     "managedEngine": "Moteur géré"
                 }
@@ -1860,6 +1871,7 @@
                 "saving": "Enregistrement et application…"
             },
             "facts": {
+                "title": "Fonctionnement de la protection",
                 "clientIp": {
                     "label": "IP du client",
                     "value": "Résolution native de Caddy",
