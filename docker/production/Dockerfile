@@ -49,7 +49,7 @@ RUN cargo build --locked --release
 
 FROM caddy:2.11.4@sha256:14a9c00d4e833ebc2b65d36515b37bde3b73f0b323a2663aaafc88953d8c4e3f AS caddy-runtime
 
-FROM redis:8.10.1-trixie@sha256:8a1efc5f479551822b47424ccae982026b633f28818eab0387348120a61e10e2 AS redis-runtime
+FROM redis:8.10.2-trixie@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3 AS redis-runtime
 
 FROM postgres:18.6@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae AS runtime
 
