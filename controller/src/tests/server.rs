@@ -642,8 +642,8 @@ async fn status_is_private_and_does_not_expose_configuration() {
 
 #[tokio::test]
 async fn crowdsec_dashboard_requires_internal_auth_and_never_caches() {
-    let token_text = "0123456789abcdef0123456789abcdef";
-    let token = Config::from_values(None, Some(token_text), None, None, None, false)
+    let token_text = "synthetic-controller-token-".repeat(2);
+    let token = Config::from_values(None, Some(&token_text), None, None, None, false)
         .unwrap()
         .controller_token
         .unwrap();
