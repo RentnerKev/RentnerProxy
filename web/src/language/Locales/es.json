@@ -1864,6 +1864,36 @@
                 "apiKeyReplacePlaceholder": "Credencial guardada — introduce un reemplazo",
                 "apiKeyHint": "Déjalo vacío para conservar la clave cifrada solo si no cambias el endpoint. Un endpoint nuevo requiere una clave nueva."
             },
+            "online": {
+                "title": "Inteligencia comunitaria y Console",
+                "description": "Opciones del motor gestionado. La detección y el bloqueo locales funcionan sin estas conexiones.",
+                "communityLabel": "Conectar con la comunidad de CrowdSec",
+                "communityHint": "Comparte señales de ataques y descarga decisiones comunitarias y listas de bloqueo suscritas. Requiere acceso saliente a la Central API de CrowdSec.",
+                "communityStatus": "Conexión comunitaria",
+                "communityStates": {
+                    "disabled": "Desactivada",
+                    "starting": "Conectando",
+                    "connected": "Conectada",
+                    "degraded": "No disponible — la protección local continúa"
+                },
+                "consoleTitle": "CrowdSec Console (opcional)",
+                "consoleDescription": "Vincula este motor gestionado con tu cuenta de CrowdSec Console para verlo a distancia. La fuente de protección no cambia.",
+                "openConsole": "Abrir CrowdSec Console",
+                "consoleStatus": "Registro en Console",
+                "consoleStates": {
+                    "not_enrolled": "Sin registrar",
+                    "pending": "Pendiente de confirmación en Console",
+                    "connected": "Registrado",
+                    "degraded": "Estado no disponible"
+                },
+                "acceptEnrollment": "Confirma el motor pendiente en CrowdSec Console para completar el registro.",
+                "enrollmentKey": "Clave de registro de Console",
+                "enrollmentPlaceholder": "Pega la clave de registro",
+                "enrolling": "Conectando…",
+                "enroll": "Conectar Console",
+                "enrollmentHint": "Crea una clave de registro en CrowdSec Console. Se usa una sola vez y no se guarda en la configuración de RentnerProxy.",
+                "enableFirst": "Activa y guarda primero la conexión comunitaria."
+            },
             "actions": {
                 "test": "Probar conexión",
                 "testing": "Probando conexión…",
@@ -1929,7 +1959,8 @@
             },
             "validation": {
                 "apiUrl": "Introduce una URL HTTP o HTTPS absoluta sin credenciales, parámetros ni fragmento.",
-                "apiKey": "Introduce una clave ASCII imprimible de 16–512 caracteres sin espacios."
+                "apiKey": "Introduce una clave ASCII imprimible de 16–512 caracteres sin espacios.",
+                "enrollmentKey": "Introduce una clave de registro válida de CrowdSec Console de 16–256 caracteres."
             },
             "errors": {
                 "invalidInput": "Revisa el endpoint y la credencial de CrowdSec.",
@@ -1940,12 +1971,15 @@
                 "configurationUnavailable": "No se pudo leer la configuración cifrada de CrowdSec.",
                 "saveFailed": "No se pudo guardar la configuración de CrowdSec.",
                 "loadFailed": "No se pudo cargar la configuración de CrowdSec.",
-                "testFailed": "No se pudo completar la prueba de conexión."
+                "testFailed": "No se pudo completar la prueba de conexión.",
+                "communityNotReady": "La conexión comunitaria aún no está lista. La protección local sigue activa.",
+                "enrollmentFailed": "No se pudo iniciar el registro en Console. Comprueba la clave e inténtalo de nuevo."
             },
             "messages": {
                 "connectionValid": "Conexión con CrowdSec verificada.",
                 "saved": "Configuración de CrowdSec guardada y activada.",
-                "savedPending": "Configuración guardada. El modo anterior sigue activo mientras se reintenta la sincronización."
+                "savedPending": "Configuración guardada. El modo anterior sigue activo mientras se reintenta la sincronización.",
+                "enrollmentPending": "Registro solicitado. Confirma el motor en CrowdSec Console."
             }
         },
         "trustedCas": {

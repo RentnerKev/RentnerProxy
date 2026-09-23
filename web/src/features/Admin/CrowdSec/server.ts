@@ -4,11 +4,16 @@ import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/serv
 import { CrowdSecDomainError } from '../../../server/Admin/CrowdSec/crowdsec.errors'
 import {
     getCrowdSecConfigurationService,
+    enrollCrowdSecConsoleService,
     testCrowdSecConnectionService,
     updateCrowdSecConfigurationService,
 } from '../../../server/Admin/CrowdSec/crowdsec.service'
 import { localizedActionFailure, throwLocalizedQueryError } from '../../Auth/serverHelpers'
-import { testCrowdSecConnectionSchema, updateCrowdSecConfigurationSchema } from './validation'
+import {
+    crowdSecConsoleEnrollmentSchema,
+    testCrowdSecConnectionSchema,
+    updateCrowdSecConfigurationSchema,
+} from './validation'
 
 function noStore(): void {
     setResponseHeader('Cache-Control', 'private, no-store')
@@ -21,6 +26,8 @@ const errorMessages = {
     controller_unavailable: 'admin.crowdSec.errors.controllerUnavailable',
     configuration_conflict: 'admin.crowdSec.errors.configurationConflict',
     configuration_unavailable: 'admin.crowdSec.errors.configurationUnavailable',
+    community_not_ready: 'admin.crowdSec.errors.communityNotReady',
+    enrollment_failed: 'admin.crowdSec.errors.enrollmentFailed',
 } as const
 
 function crowdSecActionFailure(error: unknown) {
@@ -31,7 +38,7 @@ function crowdSecActionFailure(error: unknown) {
                 : error.code === 'controller_unavailable' ||
                     error.code === 'configuration_unavailable'
                   ? 503
-                  : error.code === 'connection_failed'
+                  : error.code === 'connection_failed' || error.code === 'enrollment_failed'
                     ? 502
                     : 422,
         )
@@ -77,6 +84,18 @@ export const updateCrowdSecConfigurationHandler = createServerFn({ method: 'POST
                         : 'admin.crowdSec.messages.saved',
                 ...result,
             }
+        } catch (error) {
+            return crowdSecActionFailure(error)
+        }
+    })
+
+export const enrollCrowdSecConsoleHandler = createServerFn({ method: 'POST' })
+    .validator(crowdSecConsoleEnrollmentSchema)
+    .handler(async ({ data }) => {
+        noStore()
+        try {
+            await enrollCrowdSecConsoleService(data)
+            return { success: true as const, message: 'admin.crowdSec.messages.enrollmentPending' }
         } catch (error) {
             return crowdSecActionFailure(error)
         }

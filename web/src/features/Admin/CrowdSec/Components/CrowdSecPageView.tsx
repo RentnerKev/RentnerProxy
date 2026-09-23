@@ -13,6 +13,7 @@ import PageHeader from '../../../../shared/Management/PageHeader'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { CrowdSecPageViewProps } from '../Types/crowdsec.types'
 import CrowdSecStatusPanel from './CrowdSecStatusPanel'
+import CrowdSecManagedOnline from './CrowdSecManagedOnline'
 import CrowdSecTransitionModal from './CrowdSecTransitionModal'
 
 function ModeOption({
@@ -72,7 +73,7 @@ function ModeOption({
 
 export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSecPageViewProps) {
     const { t } = useTranslationStore()
-    const busy = state.isSaving || state.isTesting
+    const busy = state.isSaving || state.isTesting || state.isEnrolling
     return (
         <>
             <PageHeader
@@ -140,6 +141,10 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                                 />
                             ))}
                         </fieldset>
+
+                        {state.mode === 'managed' ? (
+                            <CrowdSecManagedOnline state={state} handler={handler} />
+                        ) : null}
 
                         {state.mode === 'external' ? (
                             <div className="mt-6 border-t border-border pt-5">

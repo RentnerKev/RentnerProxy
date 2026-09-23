@@ -9,6 +9,8 @@ export type CrowdSecManagedEngineState =
     | 'restarting'
     | 'degraded'
     | 'unavailable'
+export type CrowdSecCommunityState = 'disabled' | 'starting' | 'connected' | 'degraded'
+export type CrowdSecConsoleState = 'not_enrolled' | 'pending' | 'connected' | 'degraded'
 
 export interface CrowdSecRuntimeStatus {
     readonly mode: CrowdSecMode
@@ -17,12 +19,16 @@ export interface CrowdSecRuntimeStatus {
     readonly credentialConfigured: boolean
     readonly enforcementActive: boolean
     readonly managedEngine: CrowdSecManagedEngineState
+    readonly communityEnabled: boolean
+    readonly communityState: CrowdSecCommunityState
+    readonly consoleState: CrowdSecConsoleState
     readonly failureBehavior: 'fail_open'
     readonly clientIpSource: 'caddy'
 }
 
 export interface CrowdSecConfiguration {
     readonly mode: CrowdSecMode
+    readonly communityEnabled: boolean
     readonly externalApiUrl: string | null
     readonly hasApiKey: boolean
     readonly runtime: CrowdSecRuntimeStatus | null

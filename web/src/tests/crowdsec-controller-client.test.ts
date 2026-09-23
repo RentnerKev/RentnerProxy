@@ -2,6 +2,7 @@ import { afterEach, describe, expect, spyOn, test } from 'bun:test'
 
 import {
     applyCrowdSecConfiguration,
+    enrollCrowdSecConsole,
     getCrowdSecRuntimeStatus,
     testCrowdSecControllerConnection,
 } from '../server/Foundation/controller.server'
@@ -34,12 +35,51 @@ function connectedExternalStatus() {
         credentialConfigured: true,
         enforcementActive: true,
         managedEngine: 'stopped',
+        communityEnabled: false,
+        communityState: 'disabled',
+        consoleState: 'not_enrolled',
         failureBehavior: 'fail_open',
         clientIpSource: 'caddy',
     } as const
 }
 
 describe('CrowdSec controller client', () => {
+    test('never sends a Console enrollment key to a remote plaintext controller', async () => {
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'http://controller.example.test:8081'
+        process.env.RENTNERPROXY_CONTROLLER_TOKEN = controllerToken
+        const fetchMock = spyOn(globalThis, 'fetch').mockRejectedValue(
+            new Error('Key must stay private.'),
+        )
+        try {
+            expect(await enrollCrowdSecConsole('0123456789abcdef')).toBe('unavailable')
+            expect(fetchMock).not.toHaveBeenCalled()
+        } finally {
+            fetchMock.mockRestore()
+        }
+    })
+
+    test('posts the Console key through an authenticated confidential request', async () => {
+        process.env.RENTNERPROXY_CONTROLLER_URL = 'https://controller.example.test:8443'
+        process.env.RENTNERPROXY_CONTROLLER_TOKEN = controllerToken
+        const fetchMock = spyOn(globalThis, 'fetch').mockImplementation((async (
+            input: Parameters<typeof fetch>[0],
+            init: Parameters<typeof fetch>[1],
+        ) => {
+            expect(String(input).endsWith('/internal/v1/crowdsec/console/enroll')).toBeTrue()
+            expect(init?.method).toBe('POST')
+            expect(init?.redirect).toBe('error')
+            expect(init?.headers).toMatchObject({ authorization: `Bearer ${controllerToken}` })
+            expect(JSON.parse(String(init?.body))).toEqual({ enrollmentKey: '0123456789abcdef' })
+            return Response.json({ status: 'pending' })
+        }) as unknown as typeof fetch)
+        try {
+            expect(await enrollCrowdSecConsole('0123456789abcdef')).toBe('pending')
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+        } finally {
+            fetchMock.mockRestore()
+        }
+    })
+
     test('refuses to send external credentials over remote plaintext HTTP', async () => {
         process.env.RENTNERPROXY_CONTROLLER_URL = 'http://controller.example.test:8081'
         process.env.RENTNERPROXY_CONTROLLER_TOKEN = controllerToken

@@ -93,7 +93,7 @@ check queues another apply when the controller does not match the desired snapsh
 
 ### CrowdSec control and enforcement
 
-PostgreSQL stores the desired CrowdSec mode and an encrypted external bouncer credential. The
+PostgreSQL stores the desired CrowdSec mode, managed community opt-in, and an encrypted external bouncer credential. The
 credential is write-only at the browser boundary. A dedicated reconciliation worker in
 [`web/src/server/Admin/CrowdSec/`](./web/src/server/Admin/CrowdSec/) restores that desired state
 after controller or web-process restarts. The controller validates a target before replacing the
@@ -112,6 +112,18 @@ the configured endpoint. Both modes use the same Caddy HTTP
 bouncer and Caddy's native effective client address. The ACME HTTP-01 route precedes the bouncer;
 other public HTTP and HTTPS handlers follow it. The bouncer streams decisions with hard failures
 disabled, so a Local API outage is reported as degraded while proxy traffic remains available.
+
+Managed community participation is a supervisor submode, not another Caddy provider. The
+supervisor registers the engine with the CrowdSec Central API only after an explicit opt-in,
+persists its online credentials under the existing CrowdSec data directory, and switches the
+engine from its offline configuration only when online credentials and Central API access are
+verified. Failed registration leaves local protection active and is retried with a bounded
+interval. Changing this preference does not restart Caddy. Console enrollment is another,
+separate explicit action available only while the managed community connection is healthy. A
+short-lived, permission-restricted request file hands the one-time key from the controller to
+the root supervisor; the supervisor invokes `cscli`, removes the request, and publishes only a
+redacted pending/failure result. No key is stored in PostgreSQL or returned in status responses.
+The CLI-derived Console state distinguishes pending acceptance from enrollment.
 
 ## Certificate and trust boundaries
 

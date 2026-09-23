@@ -8,6 +8,8 @@ export type CrowdSecErrorCode =
     | 'controller_unavailable'
     | 'configuration_conflict'
     | 'configuration_unavailable'
+    | 'community_not_ready'
+    | 'enrollment_failed'
 
 export class CrowdSecDomainError extends Error {
     constructor(readonly code: CrowdSecErrorCode) {

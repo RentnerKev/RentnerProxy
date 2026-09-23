@@ -22,6 +22,7 @@ const { toast } = await import('@rentnerkev/toasts/toast')
 function disabledConfiguration(): CrowdSecConfiguration {
     return {
         mode: 'disabled',
+        communityEnabled: false,
         externalApiUrl: null,
         hasApiKey: false,
         synchronized: true,
@@ -31,6 +32,9 @@ function disabledConfiguration(): CrowdSecConfiguration {
             credentialConfigured: false,
             enforcementActive: false,
             managedEngine: 'stopped',
+            communityEnabled: false,
+            communityState: 'disabled',
+            consoleState: 'not_enrolled',
             failureBehavior: 'fail_open',
             clientIpSource: 'caddy',
         },
@@ -51,12 +55,17 @@ const testConnectionMock = mock(async (_input: unknown) => ({
     success: true as const,
     message: 'admin.crowdSec.messages.connectionValid',
 }))
+const enrollConsoleMock = mock(async (_input: unknown) => ({
+    success: true as const,
+    message: 'admin.crowdSec.messages.enrollmentPending',
+}))
 const updateConfigurationMock = mock(
     async ({
         data,
     }: {
         readonly data: {
             mode: 'disabled' | 'managed' | 'external'
+            communityEnabled?: boolean
             apiUrl?: string
             apiKey?: string
         }
@@ -70,6 +79,7 @@ const updateConfigurationMock = mock(
         configuration = {
             ...configuration,
             mode: data.mode,
+            communityEnabled: data.communityEnabled ?? configuration.communityEnabled,
             externalApiUrl: data.apiUrl ?? configuration.externalApiUrl,
             hasApiKey: data.mode === 'external' || configuration.hasApiKey,
             synchronized: false,
@@ -85,6 +95,7 @@ const updateConfigurationMock = mock(
 
 mock.module('../features/Admin/CrowdSec/server', () => ({
     getCrowdSecConfigurationHandler: getConfigurationMock,
+    enrollCrowdSecConsoleHandler: enrollConsoleMock,
     testCrowdSecConnectionHandler: testConnectionMock,
     updateCrowdSecConfigurationHandler: updateConfigurationMock,
 }))
@@ -177,6 +188,7 @@ beforeEach(() => {
     releaseSave = null
     getConfigurationMock.mockClear()
     testConnectionMock.mockClear()
+    enrollConsoleMock.mockClear()
     updateConfigurationMock.mockClear()
 })
 
@@ -190,6 +202,55 @@ afterEach(async () => {
 })
 
 describe('CrowdSec management UI', () => {
+    test('keeps community opt-in within managed mode and enrolls Console separately', async () => {
+        configuration = {
+            ...disabledConfiguration(),
+            mode: 'managed',
+            runtime: {
+                ...disabledConfiguration().runtime!,
+                mode: 'managed',
+                state: 'connected',
+                enforcementActive: true,
+                managedEngine: 'ready',
+            },
+        }
+        const container = await renderPage([PERMISSIONS.CROWDSEC_VIEW, PERMISSIONS.CROWDSEC_UPDATE])
+        const checkbox = container.querySelector<HTMLInputElement>('#crowdsec-community-enabled')!
+        expect(checkbox.checked).toBeFalse()
+        expect(container.querySelector('[name="crowdsec-enrollment-key"]')).toBeNull()
+
+        await click(checkbox)
+        expect(checkbox.checked).toBeTrue()
+        await click(button(container, 'Save and apply'))
+        await waitFor(() => updateConfigurationMock.mock.calls.length === 1)
+        expect(updateConfigurationMock.mock.calls[0]?.[0]).toEqual({
+            data: { mode: 'managed', communityEnabled: true },
+        })
+
+        configuration = {
+            ...configuration,
+            synchronized: true,
+            runtime: {
+                ...configuration.runtime!,
+                communityEnabled: true,
+                communityState: 'connected',
+            },
+        }
+        await refreshConfiguration()
+        await waitFor(() => container.querySelector('[name="crowdsec-enrollment-key"]') !== null)
+        const keyInput = container.querySelector<HTMLInputElement>(
+            '[name="crowdsec-enrollment-key"]',
+        )!
+        expect(keyInput).not.toBeNull()
+        await setInputValue(keyInput, '0123456789abcdef')
+        await click(button(container, 'Connect Console'))
+        await waitFor(() => enrollConsoleMock.mock.calls.length === 1)
+        expect(enrollConsoleMock.mock.calls[0]?.[0]).toEqual({
+            data: { enrollmentKey: '0123456789abcdef' },
+        })
+        await waitFor(() => keyInput.value === '')
+    })
+
     test('keeps configuration read-only for a viewer', async () => {
         const container = await renderPage([PERMISSIONS.CROWDSEC_VIEW])
 

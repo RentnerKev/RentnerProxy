@@ -33,6 +33,7 @@ const storedCrowdSecConfigurationSchema = z
     .strictObject({
         version: z.literal(1),
         mode: crowdSecModeSchema,
+        communityEnabled: z.boolean().optional(),
         external: externalConfigurationSchema.optional(),
     })
     .superRefine((value, context) => {
@@ -46,6 +47,7 @@ export type StoredCrowdSecConfiguration = z.infer<typeof storedCrowdSecConfigura
 export const DEFAULT_CROWDSEC_CONFIGURATION: StoredCrowdSecConfiguration = {
     version: 1,
     mode: 'disabled',
+    communityEnabled: false,
 }
 
 function jsonbValue(value: unknown) {
@@ -144,7 +146,15 @@ export async function buildStoredCrowdSecConfiguration(
     current: StoredCrowdSecConfiguration,
     input: UpdateCrowdSecConfigurationInput,
 ): Promise<StoredCrowdSecConfiguration> {
-    if (input.mode !== 'external') return { ...current, mode: input.mode }
+    if (input.mode !== 'external')
+        return {
+            ...current,
+            mode: input.mode,
+            communityEnabled:
+                input.mode === 'managed'
+                    ? (input.communityEnabled ?? false)
+                    : (current.communityEnabled ?? false),
+        }
     const apiUrl = normalizeCrowdSecApiUrl(input.apiUrl ?? '')
     // A write-only saved credential must never be forwarded to a newly selected endpoint.
     const apiKey = input.apiKey
@@ -153,13 +163,20 @@ export async function buildStoredCrowdSecConfiguration(
           ? current.external.apiKey
           : undefined
     if (!apiKey) throw new CrowdSecDomainError('api_key_required')
-    return { version: 1, mode: 'external', external: { apiUrl, apiKey } }
+    return {
+        version: 1,
+        mode: 'external',
+        communityEnabled: current.communityEnabled ?? false,
+        external: { apiUrl, apiKey },
+    }
 }
 
 export async function crowdSecControllerRequestFromStored(
     stored: StoredCrowdSecConfiguration,
 ): Promise<CrowdSecControllerRequest> {
-    if (stored.mode === 'disabled' || stored.mode === 'managed') return { mode: stored.mode }
+    if (stored.mode === 'disabled') return { mode: 'disabled' }
+    if (stored.mode === 'managed')
+        return { mode: 'managed', communityEnabled: stored.communityEnabled ?? false }
     if (!stored.external) throw new CrowdSecDomainError('configuration_unavailable')
     return {
         mode: 'external',

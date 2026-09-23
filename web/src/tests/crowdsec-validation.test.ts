@@ -4,6 +4,7 @@ import { CROWDSEC_API_KEY_MAX_LENGTH, CROWDSEC_API_KEY_MIN_LENGTH } from '../con
 import {
     crowdSecApiKeySchema,
     crowdSecApiUrlSchema,
+    crowdSecConsoleEnrollmentSchema,
     testCrowdSecConnectionSchema,
     updateCrowdSecConfigurationSchema,
 } from '../features/Admin/CrowdSec/validation'
@@ -69,5 +70,39 @@ describe('CrowdSec configuration validation', () => {
                 apiUrl: 'http://crowdsec.internal:8080/',
             }).success,
         ).toBeTrue()
+    })
+
+    test('community intelligence is only a managed option', () => {
+        expect(
+            updateCrowdSecConfigurationSchema.parse({ mode: 'managed', communityEnabled: true }),
+        ).toEqual({ mode: 'managed', communityEnabled: true })
+        expect(
+            updateCrowdSecConfigurationSchema.safeParse({
+                mode: 'disabled',
+                communityEnabled: true,
+            }).success,
+        ).toBeFalse()
+        expect(
+            updateCrowdSecConfigurationSchema.safeParse({
+                mode: 'external',
+                communityEnabled: true,
+                apiUrl: 'https://crowdsec.example.test/',
+            }).success,
+        ).toBeFalse()
+    })
+
+    test('bounds Console enrollment keys without accepting whitespace or control characters', () => {
+        expect(
+            crowdSecConsoleEnrollmentSchema.safeParse({ enrollmentKey: 'a'.repeat(16) }).success,
+        ).toBeTrue()
+        for (const enrollmentKey of [
+            'short',
+            'a'.repeat(257),
+            'a'.repeat(16) + '\n',
+            'a b c d e f g h i',
+            'a'.repeat(16) + 'ü',
+        ]) {
+            expect(crowdSecConsoleEnrollmentSchema.safeParse({ enrollmentKey }).success).toBeFalse()
+        }
     })
 })

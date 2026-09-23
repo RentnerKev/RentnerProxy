@@ -41,6 +41,7 @@ mock.module('../features/FoundationStatus/server', () => ({
 
 const disabledCrowdSec: CrowdSecConfiguration = {
     mode: 'disabled',
+    communityEnabled: false,
     externalApiUrl: null,
     hasApiKey: false,
     synchronized: true,
@@ -50,6 +51,9 @@ const disabledCrowdSec: CrowdSecConfiguration = {
         credentialConfigured: false,
         enforcementActive: false,
         managedEngine: 'stopped',
+        communityEnabled: false,
+        communityState: 'disabled',
+        consoleState: 'not_enrolled',
         failureBehavior: 'fail_open',
         clientIpSource: 'caddy',
     },

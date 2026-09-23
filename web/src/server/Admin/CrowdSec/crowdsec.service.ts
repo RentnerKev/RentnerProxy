@@ -4,6 +4,7 @@ import { PERMISSIONS } from '../../../config/permissions.config'
 import {
     testCrowdSecConnectionSchema,
     updateCrowdSecConfigurationSchema,
+    crowdSecConsoleEnrollmentSchema,
     type TestCrowdSecConnectionInput,
     type UpdateCrowdSecConfigurationInput,
 } from '../../../features/Admin/CrowdSec/validation'
@@ -19,6 +20,7 @@ import { getAuthDatabase } from '../../Auth/Core/database.server'
 import { appendAuditEventInTransaction } from '../../Audit/audit.service'
 import {
     applyCrowdSecConfiguration,
+    enrollCrowdSecConsole,
     getCrowdSecRuntimeStatus,
     testCrowdSecControllerConnection,
     type CrowdSecControllerRequest,
@@ -50,7 +52,11 @@ function runtimeMatches(
     if (!runtime || runtime.mode !== stored.mode) return false
     if (stored.mode === 'disabled') return !runtime.enforcementActive
     if (!runtime.enforcementActive || runtime.state !== 'connected') return false
-    if (stored.mode === 'managed') return runtime.credentialConfigured === false
+    if (stored.mode === 'managed')
+        return (
+            runtime.credentialConfigured === false &&
+            runtime.communityEnabled === (stored.communityEnabled ?? false)
+        )
     return runtime.credentialConfigured && runtime.apiUrl === stored.external?.apiUrl
 }
 
@@ -73,7 +79,8 @@ function controllerResponseMatches(
     if (request.mode === 'disabled') return !runtime.enforcementActive
     if (!runtime.enforcementActive || runtime.state !== 'connected') return false
     return request.mode === 'managed'
-        ? !runtime.credentialConfigured
+        ? !runtime.credentialConfigured &&
+              runtime.communityEnabled === (request.communityEnabled ?? false)
         : runtime.credentialConfigured && runtime.apiUrl === request.apiUrl
 }
 
@@ -91,7 +98,8 @@ export const reconcileCrowdSecConfiguration = createCrowdSecReconciler({
         if (!runtime.enforcementActive || runtime.state !== 'connected') return true
         return snapshot.request.mode === 'external'
             ? !runtime.credentialConfigured || runtime.apiUrl !== snapshot.request.apiUrl
-            : runtime.credentialConfigured
+            : runtime.credentialConfigured ||
+                  runtime.communityEnabled !== (snapshot.request.communityEnabled ?? false)
     },
 })
 
@@ -114,10 +122,60 @@ export async function getCrowdSecConfigurationService(): Promise<CrowdSecConfigu
     ])
     return {
         mode: stored.mode,
+        communityEnabled: stored.communityEnabled ?? false,
         externalApiUrl: stored.external?.apiUrl ?? null,
         hasApiKey: stored.external !== undefined,
         runtime,
         synchronized: runtimeMatches(stored, runtime),
+    }
+}
+
+export async function enrollCrowdSecConsoleService(input: {
+    enrollmentKey: string
+}): Promise<void> {
+    const actor = await requirePermissionService(PERMISSIONS.CROWDSEC_UPDATE)
+    const parsed = crowdSecConsoleEnrollmentSchema.safeParse(input)
+    if (!parsed.success) throw new CrowdSecDomainError('invalid_input')
+    const stored = await getAuthDatabase().transaction(
+        async (transaction) => {
+            await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.CROWDSEC_UPDATE)
+            return readStoredCrowdSecConfiguration(transaction)
+        },
+        { isolationLevel: 'repeatable read', accessMode: 'read only' },
+    )
+    if (stored.mode !== 'managed' || !stored.communityEnabled) {
+        throw new CrowdSecDomainError('community_not_ready')
+    }
+    try {
+        const result = await enrollCrowdSecConsole(parsed.data.enrollmentKey)
+        if (result === 'not_ready') throw new CrowdSecDomainError('community_not_ready')
+        if (result === 'connection_failed') throw new CrowdSecDomainError('enrollment_failed')
+        if (result !== 'pending') throw new CrowdSecDomainError('controller_unavailable')
+    } catch (error) {
+        await recordMutationFailureBestEffort({
+            actorId: actor.id,
+            action: 'request',
+            resource: 'crowdsec',
+            targetId: null,
+            error,
+        })
+        throw error
+    }
+    try {
+        await getAuthDatabase().transaction((transaction) =>
+            appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'request',
+                resource: 'crowdsec',
+                targetId: null,
+                result: 'success',
+            }),
+        )
+    } catch {
+        // Enrollment already reached CrowdSec. An audit write failure must not
+        // be reported to the user as a failed connection or trigger a retry.
+        console.error('[crowdsec] Console enrollment audit write failed')
     }
 }
 

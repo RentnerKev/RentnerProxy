@@ -24,6 +24,20 @@ const {
 } = await import('../server/Admin/CrowdSec/crowdsec-settings')
 
 describe('CrowdSec persisted configuration', () => {
+    test('keeps the online preference for managed mode without creating another mode', async () => {
+        const managed = await buildStoredCrowdSecConfiguration(DEFAULT_CROWDSEC_CONFIGURATION, {
+            mode: 'managed',
+            communityEnabled: true,
+        })
+        expect(await crowdSecControllerRequestFromStored(managed)).toEqual({
+            mode: 'managed',
+            communityEnabled: true,
+        })
+        const disabled = await buildStoredCrowdSecConfiguration(managed, { mode: 'disabled' })
+        expect(disabled.communityEnabled).toBeTrue()
+        expect(await crowdSecControllerRequestFromStored(disabled)).toEqual({ mode: 'disabled' })
+    })
+
     test('normalizes endpoints without changing an explicit base path', () => {
         expect(normalizeCrowdSecApiUrl('https://crowdsec.example.test:8080')).toBe(
             'https://crowdsec.example.test:8080/',

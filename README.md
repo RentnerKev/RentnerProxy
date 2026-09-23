@@ -186,6 +186,26 @@ Open **Security → CrowdSec** to select exactly one operating mode:
   encrypts the key at rest, and treats it as write-only after saving. Prefer HTTPS unless the
   endpoint is confined to a trusted private network.
 
+Managed mode works locally without a CrowdSec account. Its Caddy collection detects matching
+traffic from the appliance access log, the local engine produces decisions, and Caddy enforces
+them through its loopback Local API. Within managed mode you can optionally enable **CrowdSec
+community intelligence**. This registers the managed engine with the CrowdSec Central API,
+shares attack signals, and receives community decisions and any subscribed blocklists. It
+requires outbound connectivity, but no inbound port, additional container, or mandatory
+environment variable. The online credentials remain in the existing CrowdSec volume with
+CrowdSec-only file permissions. If registration or the Central API is unavailable, RentnerProxy
+keeps local detection and enforcement running and reports the community connection as degraded.
+Turning this option off stops online participation without deleting credentials or local data.
+
+Optionally link that online managed engine to **CrowdSec Console**: create an enrollment key in
+your Console account, paste it into Security → CrowdSec, then accept the pending engine in
+Console. The enrollment key is used once through the authenticated internal controller route and
+is not retained in application settings or logs. Console credentials and enrollment state are
+kept in the managed CrowdSec data directory. Console enrollment is a separate opt-in; it does
+not create a fourth protection mode or replace local enforcement. The UI distinguishes pending
+Console confirmation from an enrolled engine. CrowdSec may recommend restarting the engine after
+acceptance to synchronize metadata; this is not necessary for local blocking to continue.
+
 RentnerProxy validates the target before switching. A failed external test or managed startup
 leaves the last working mode active. Switching modes stops components that are no longer
 needed but retains managed engine data and the saved external provider so a later switch does
@@ -213,7 +233,7 @@ managed supervisor retries a bounded number of times. This is an explicit availa
 not a guarantee that unavailable security intelligence can block requests.
 
 Managed CrowdSec files live under `/var/lib/rentnerproxy/crowdsec` in the existing appliance
-volume. The current v3 repository backup format does not yet include that directory; complete
+volume, including optional Central API and Console credentials. The current v3 repository backup format does not yet include that directory; complete
 appliance backup/restore compatibility is tracked by
 [issue #71](https://github.com/RentnerKev/RentnerProxy/issues/71). Until that work lands, preserve
 the Docker volume or a volume-level snapshot when managed CrowdSec history must survive disaster

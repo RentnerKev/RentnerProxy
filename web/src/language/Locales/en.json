@@ -1864,6 +1864,36 @@
                 "apiKeyReplacePlaceholder": "Credential stored — enter a replacement",
                 "apiKeyHint": "Leave blank to keep the encrypted key only if the endpoint is unchanged. A new endpoint requires a new key."
             },
+            "online": {
+                "title": "Community intelligence and Console",
+                "description": "Optional additions to the managed engine. Local detection and blocking work without either connection.",
+                "communityLabel": "Connect to CrowdSec community intelligence",
+                "communityHint": "Shares attack signals and downloads community decisions and subscribed blocklists. Requires outbound access to CrowdSec Central API.",
+                "communityStatus": "Community connection",
+                "communityStates": {
+                    "disabled": "Off",
+                    "starting": "Connecting",
+                    "connected": "Connected",
+                    "degraded": "Unavailable — local protection continues"
+                },
+                "consoleTitle": "CrowdSec Console (optional)",
+                "consoleDescription": "Link this managed engine to your CrowdSec Console account for remote visibility. This does not change the protection source.",
+                "openConsole": "Open CrowdSec Console",
+                "consoleStatus": "Console enrollment",
+                "consoleStates": {
+                    "not_enrolled": "Not enrolled",
+                    "pending": "Awaiting confirmation in Console",
+                    "connected": "Enrolled",
+                    "degraded": "Status unavailable"
+                },
+                "acceptEnrollment": "Confirm the pending engine in CrowdSec Console to complete enrollment.",
+                "enrollmentKey": "Console enrollment key",
+                "enrollmentPlaceholder": "Paste the enrollment key",
+                "enrolling": "Connecting…",
+                "enroll": "Connect Console",
+                "enrollmentHint": "Create an enrollment key in CrowdSec Console. It is used once and not kept in RentnerProxy settings.",
+                "enableFirst": "Enable and save the community connection before linking Console."
+            },
             "actions": {
                 "test": "Test connection",
                 "testing": "Testing connection…",
@@ -1929,7 +1959,8 @@
             },
             "validation": {
                 "apiUrl": "Enter an absolute HTTP or HTTPS URL without credentials, query parameters, or a fragment.",
-                "apiKey": "Enter a 16–512 character printable ASCII bouncer key without spaces."
+                "apiKey": "Enter a 16–512 character printable ASCII bouncer key without spaces.",
+                "enrollmentKey": "Enter a valid 16–256 character CrowdSec Console enrollment key."
             },
             "errors": {
                 "invalidInput": "Review the CrowdSec endpoint and credential.",
@@ -1940,12 +1971,15 @@
                 "configurationUnavailable": "The encrypted CrowdSec configuration could not be read.",
                 "saveFailed": "The CrowdSec configuration could not be saved.",
                 "loadFailed": "The CrowdSec configuration could not be loaded.",
-                "testFailed": "The connection test could not be completed."
+                "testFailed": "The connection test could not be completed.",
+                "communityNotReady": "Community intelligence is not connected yet. Local protection remains active.",
+                "enrollmentFailed": "Console enrollment could not be started. Check the key and try again."
             },
             "messages": {
                 "connectionValid": "CrowdSec connection verified.",
                 "saved": "CrowdSec configuration saved and activated.",
-                "savedPending": "CrowdSec configuration saved. The previous working mode remains active while synchronization retries."
+                "savedPending": "CrowdSec configuration saved. The previous working mode remains active while synchronization retries.",
+                "enrollmentPending": "Enrollment requested. Confirm the engine in CrowdSec Console."
             }
         },
         "trustedCas": {

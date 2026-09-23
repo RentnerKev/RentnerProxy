@@ -11,9 +11,12 @@ export interface CrowdSecPageState {
     readonly mode: CrowdSecMode
     readonly apiUrl: string
     readonly apiKey: string
+    readonly communityEnabled: boolean
+    readonly enrollmentKey: string
     readonly fieldErrors: {
         readonly apiUrl?: string
         readonly apiKey?: string
+        readonly enrollmentKey?: string
     }
     readonly isDirty: boolean
     readonly isError: boolean
@@ -21,6 +24,7 @@ export interface CrowdSecPageState {
     readonly isRefreshing: boolean
     readonly isSaving: boolean
     readonly isTesting: boolean
+    readonly isEnrolling: boolean
     readonly transition: CrowdSecTransition | null
     readonly transitionProgress: CrowdSecTransitionProgress | null
 }
@@ -50,6 +54,9 @@ export interface CrowdSecPageLogic {
         readonly setMode: (mode: CrowdSecMode) => void
         readonly setApiUrl: (value: string) => void
         readonly setApiKey: (value: string) => void
+        readonly setCommunityEnabled: (value: boolean) => void
+        readonly setEnrollmentKey: (value: string) => void
+        readonly enrollConsole: () => void
         readonly testConnection: () => void
         readonly save: () => void
         readonly closeTransition: () => void

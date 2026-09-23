@@ -69,6 +69,11 @@ const crowdSecStatusSchema = z.strictObject({
         'degraded',
         'unavailable',
     ]),
+    communityEnabled: z.boolean().default(false),
+    communityState: z.enum(['disabled', 'starting', 'connected', 'degraded']).default('disabled'),
+    consoleState: z
+        .enum(['not_enrolled', 'pending', 'connected', 'degraded'])
+        .default('not_enrolled'),
     failureBehavior: z.literal('fail_open'),
     clientIpSource: z.literal('caddy'),
 })
@@ -122,6 +127,7 @@ export async function controllerRequest(
         | '/internal/v1/crowdsec/status'
         | '/internal/v1/crowdsec/config'
         | '/internal/v1/crowdsec/test'
+        | '/internal/v1/crowdsec/console/enroll'
         | `/internal/v1/proxy/access-logs${string}`
         | '/internal/v1/proxy/config'
         | '/internal/v1/proxy/config/preview'
@@ -198,8 +204,30 @@ export async function controllerRequest(
 
 export interface CrowdSecControllerRequest {
     readonly mode: CrowdSecMode
+    readonly communityEnabled?: boolean
     readonly apiUrl?: string
     readonly apiKey?: string
+}
+
+export async function enrollCrowdSecConsole(
+    enrollmentKey: string,
+): Promise<'pending' | 'connection_failed' | 'not_ready' | 'unavailable'> {
+    const payload = await controllerRequest('/internal/v1/crowdsec/console/enroll', {
+        timeoutMs: 65_000,
+        privileged: true,
+        confidential: true,
+        method: 'POST',
+        body: JSON.stringify({ enrollmentKey }),
+        acceptErrorResponse: true,
+    })
+    if (z.strictObject({ status: z.literal('pending') }).safeParse(payload).success)
+        return 'pending'
+    const failure = z.strictObject({ error: z.string() }).safeParse(payload)
+    if (!failure.success) return 'unavailable'
+    if (failure.data.error === 'crowdsec_connection_failed') return 'connection_failed'
+    if (failure.data.error === 'invalid_crowdsec_configuration' || failure.data.error === 'busy')
+        return 'not_ready'
+    return 'unavailable'
 }
 
 export async function getCrowdSecRuntimeStatus(): Promise<CrowdSecRuntimeStatus | null> {

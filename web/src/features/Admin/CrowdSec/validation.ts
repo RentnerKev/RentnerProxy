@@ -4,6 +4,7 @@ import {
     CROWDSEC_API_KEY_MAX_LENGTH,
     CROWDSEC_API_KEY_MIN_LENGTH,
     CROWDSEC_API_URL_MAX_LENGTH,
+    CROWDSEC_ENROLLMENT_KEY_MAX_LENGTH,
     CROWDSEC_MODES,
 } from '../../../config/crowdsec.config'
 
@@ -39,11 +40,19 @@ export const crowdSecApiKeySchema = z
 export const updateCrowdSecConfigurationSchema = z
     .strictObject({
         mode: crowdSecModeSchema,
+        communityEnabled: z.boolean().optional(),
         apiUrl: crowdSecApiUrlSchema.optional(),
         apiKey: crowdSecApiKeySchema.optional(),
     })
     .superRefine((value, context) => {
         if (value.mode === 'external') {
+            if (value.communityEnabled !== undefined) {
+                context.addIssue({
+                    code: 'custom',
+                    path: ['communityEnabled'],
+                    message: 'unexpected_managed_configuration',
+                })
+            }
             if (value.apiUrl === undefined) {
                 context.addIssue({ code: 'custom', path: ['apiUrl'], message: 'required' })
             }
@@ -52,7 +61,22 @@ export const updateCrowdSecConfigurationSchema = z
         if (value.apiUrl !== undefined || value.apiKey !== undefined) {
             context.addIssue({ code: 'custom', message: 'unexpected_external_configuration' })
         }
+        if (value.mode !== 'managed' && value.communityEnabled !== undefined) {
+            context.addIssue({
+                code: 'custom',
+                path: ['communityEnabled'],
+                message: 'unexpected_managed_configuration',
+            })
+        }
     })
+
+export const crowdSecConsoleEnrollmentSchema = z.strictObject({
+    enrollmentKey: z
+        .string()
+        .min(16)
+        .max(CROWDSEC_ENROLLMENT_KEY_MAX_LENGTH)
+        .regex(/^[A-Za-z0-9_-]+$/u),
+})
 
 export const testCrowdSecConnectionSchema = z.strictObject({
     apiUrl: crowdSecApiUrlSchema,

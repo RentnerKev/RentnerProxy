@@ -9,6 +9,7 @@ import { getCrowdSecTransitionProgress } from '../progress'
 import { crowdSecQueryKeys } from '../queryKeys'
 import {
     getCrowdSecConfigurationHandler,
+    enrollCrowdSecConsoleHandler,
     testCrowdSecConnectionHandler,
     updateCrowdSecConfigurationHandler,
 } from '../server'
@@ -18,7 +19,11 @@ import type {
     CrowdSecTransition,
     CrowdSecTransitionMode,
 } from '../Types/crowdsec.types'
-import { testCrowdSecConnectionSchema, updateCrowdSecConfigurationSchema } from '../validation'
+import {
+    crowdSecConsoleEnrollmentSchema,
+    testCrowdSecConnectionSchema,
+    updateCrowdSecConfigurationSchema,
+} from '../validation'
 
 type FieldErrors = CrowdSecPageLogic['state']['fieldErrors']
 const TRANSITION_POLL_INTERVAL_MS = 1_500
@@ -35,6 +40,9 @@ function validationErrors(error: {
         ...(error.issues.some((issue) => issue.path[0] === 'apiKey')
             ? { apiKey: 'admin.crowdSec.validation.apiKey' }
             : {}),
+        ...(error.issues.some((issue) => issue.path[0] === 'enrollmentKey')
+            ? { enrollmentKey: 'admin.crowdSec.validation.enrollmentKey' }
+            : {}),
     }
 }
 
@@ -45,6 +53,8 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
     const [draftMode, setDraftMode] = useState<CrowdSecMode | null>(null)
     const [draftApiUrl, setDraftApiUrl] = useState<string | null>(null)
     const [apiKey, setApiKey] = useState('')
+    const [draftCommunityEnabled, setDraftCommunityEnabled] = useState<boolean | null>(null)
+    const [enrollmentKey, setEnrollmentKey] = useState('')
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
     const [transition, setTransition] = useState<CrowdSecTransition | null>(null)
     const transitionActive = transition?.phase === 'running' || transition?.phase === 'delayed'
@@ -56,6 +66,7 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
     const configuration = query.data
     const mode = draftMode ?? configuration?.mode ?? 'disabled'
     const apiUrl = draftApiUrl ?? configuration?.externalApiUrl ?? ''
+    const communityEnabled = draftCommunityEnabled ?? configuration?.communityEnabled ?? false
     const transitionProgress = transition
         ? getCrowdSecTransitionProgress(
               transition.targetMode,
@@ -91,6 +102,7 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
             setDraftMode(null)
             setDraftApiUrl(null)
             setApiKey('')
+            setDraftCommunityEnabled(null)
             setTransition(null)
         }, COMPLETION_VISIBLE_MS)
         return () => clearTimeout(timer)
@@ -146,6 +158,7 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
             setDraftMode(null)
             setDraftApiUrl(null)
             setApiKey('')
+            setDraftCommunityEnabled(null)
             void queryClient.invalidateQueries({ queryKey: crowdSecQueryKeys.configuration })
             if (tracksProgress) {
                 setTransition((current) =>
@@ -173,11 +186,29 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
         },
     })
 
+    const enrollMutation = useMutation({
+        mutationFn: (key: string) => enrollCrowdSecConsoleHandler({ data: { enrollmentKey: key } }),
+        onSuccess: (result) => {
+            setEnrollmentKey('')
+            toast[result.success ? 'success' : 'error'](t(result.message), {
+                title: t(`toast.titles.${result.success ? 'success' : 'error'}`),
+            })
+            void queryClient.invalidateQueries({ queryKey: crowdSecQueryKeys.configuration })
+        },
+        onError: () => {
+            setEnrollmentKey('')
+            toast.error(t('admin.crowdSec.errors.enrollmentFailed'), {
+                title: t('toast.titles.error'),
+            })
+        },
+    })
+
     const isDirty =
         configuration !== undefined &&
         (mode !== configuration.mode ||
             apiUrl !== (configuration.externalApiUrl ?? '') ||
-            apiKey.length > 0)
+            apiKey.length > 0 ||
+            (mode === 'managed' && communityEnabled !== configuration.communityEnabled))
 
     return {
         state: {
@@ -186,6 +217,8 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
             mode,
             apiUrl,
             apiKey,
+            communityEnabled,
+            enrollmentKey,
             fieldErrors,
             isDirty,
             isError: query.isError && configuration === undefined,
@@ -193,6 +226,7 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
             isRefreshing: query.isFetching,
             isSaving: saveMutation.isPending || (transitionActive && !transitionProgress?.complete),
             isTesting: testMutation.isPending,
+            isEnrolling: enrollMutation.isPending,
             transition: displayedTransition,
             transitionProgress,
         },
@@ -213,6 +247,31 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
                 setApiKey(value)
                 setFieldErrors(({ apiKey: _apiKey, ...current }) => current)
             },
+            setCommunityEnabled: (value) => {
+                if (!canUpdate) return
+                setDraftCommunityEnabled(value)
+            },
+            setEnrollmentKey: (value) => {
+                if (!canUpdate) return
+                setEnrollmentKey(value)
+                setFieldErrors(({ enrollmentKey: _enrollmentKey, ...current }) => current)
+            },
+            enrollConsole: () => {
+                if (
+                    !canUpdate ||
+                    enrollMutation.isPending ||
+                    saveMutation.isPending ||
+                    transitionActive
+                )
+                    return
+                const parsed = crowdSecConsoleEnrollmentSchema.safeParse({ enrollmentKey })
+                if (!parsed.success) {
+                    setFieldErrors(validationErrors(parsed.error))
+                    return
+                }
+                setFieldErrors({})
+                enrollMutation.mutate(parsed.data.enrollmentKey)
+            },
             testConnection: () => {
                 if (canUpdate && mode === 'external' && !testMutation.isPending)
                     testMutation.mutate()
@@ -222,7 +281,9 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
                 const candidate =
                     mode === 'external'
                         ? { mode, apiUrl, ...(apiKey.length > 0 ? { apiKey } : {}) }
-                        : { mode }
+                        : mode === 'managed'
+                          ? { mode, communityEnabled }
+                          : { mode }
                 const parsed = updateCrowdSecConfigurationSchema.safeParse(candidate)
                 if (!parsed.success) {
                     setFieldErrors(validationErrors(parsed.error))
@@ -253,6 +314,7 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
                     setDraftMode(null)
                     setDraftApiUrl(null)
                     setApiKey('')
+                    setDraftCommunityEnabled(null)
                 }
                 setTransition(null)
             },

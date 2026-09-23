@@ -1864,6 +1864,36 @@
                 "apiKeyReplacePlaceholder": "Zugangsdaten gespeichert – Ersatz eingeben",
                 "apiKeyHint": "Nur bei unverändertem Endpunkt leer lassen, um den verschlüsselten Key beizubehalten. Ein neuer Endpunkt benötigt einen neuen Key."
             },
+            "online": {
+                "title": "Community-Informationen und Console",
+                "description": "Optionale Ergänzungen zur verwalteten Engine. Lokale Erkennung und Sperrung funktionieren auch ohne diese Verbindungen.",
+                "communityLabel": "Mit der CrowdSec-Community verbinden",
+                "communityHint": "Teilt Angriffssignale und lädt Community-Entscheidungen sowie abonnierte Blocklisten. Benötigt ausgehenden Zugriff auf die CrowdSec Central API.",
+                "communityStatus": "Community-Verbindung",
+                "communityStates": {
+                    "disabled": "Aus",
+                    "starting": "Verbindung wird hergestellt",
+                    "connected": "Verbunden",
+                    "degraded": "Nicht verfügbar – lokaler Schutz läuft weiter"
+                },
+                "consoleTitle": "CrowdSec Console (optional)",
+                "consoleDescription": "Verbinde diese verwaltete Engine zur Fernübersicht mit deinem CrowdSec-Console-Konto. Die Schutzquelle bleibt unverändert.",
+                "openConsole": "CrowdSec Console öffnen",
+                "consoleStatus": "Console-Registrierung",
+                "consoleStates": {
+                    "not_enrolled": "Nicht registriert",
+                    "pending": "Bestätigung in der Console ausstehend",
+                    "connected": "Registriert",
+                    "degraded": "Status nicht verfügbar"
+                },
+                "acceptEnrollment": "Bestätige die ausstehende Engine in der CrowdSec Console, um die Registrierung abzuschließen.",
+                "enrollmentKey": "Console-Registrierungsschlüssel",
+                "enrollmentPlaceholder": "Registrierungsschlüssel einfügen",
+                "enrolling": "Wird verbunden…",
+                "enroll": "Console verbinden",
+                "enrollmentHint": "Erstelle einen Registrierungsschlüssel in der CrowdSec Console. Er wird einmalig verwendet und nicht in den RentnerProxy-Einstellungen gespeichert.",
+                "enableFirst": "Aktiviere und speichere zuerst die Community-Verbindung."
+            },
             "actions": {
                 "test": "Verbindung testen",
                 "testing": "Verbindung wird getestet…",
@@ -1929,7 +1959,8 @@
             },
             "validation": {
                 "apiUrl": "Gib eine absolute HTTP- oder HTTPS-URL ohne Zugangsdaten, Parameter oder Fragment ein.",
-                "apiKey": "Gib einen druckbaren ASCII-Bouncer-Key mit 16–512 Zeichen ohne Leerzeichen ein."
+                "apiKey": "Gib einen druckbaren ASCII-Bouncer-Key mit 16–512 Zeichen ohne Leerzeichen ein.",
+                "enrollmentKey": "Gib einen gültigen CrowdSec-Console-Registrierungsschlüssel mit 16–256 Zeichen ein."
             },
             "errors": {
                 "invalidInput": "Prüfe den CrowdSec-Endpunkt und die Zugangsdaten.",
@@ -1940,12 +1971,15 @@
                 "configurationUnavailable": "Die verschlüsselte CrowdSec-Konfiguration konnte nicht gelesen werden.",
                 "saveFailed": "Die CrowdSec-Konfiguration konnte nicht gespeichert werden.",
                 "loadFailed": "Die CrowdSec-Konfiguration konnte nicht geladen werden.",
-                "testFailed": "Der Verbindungstest konnte nicht abgeschlossen werden."
+                "testFailed": "Der Verbindungstest konnte nicht abgeschlossen werden.",
+                "communityNotReady": "Die Community-Verbindung ist noch nicht bereit. Der lokale Schutz bleibt aktiv.",
+                "enrollmentFailed": "Die Console-Registrierung konnte nicht gestartet werden. Prüfe den Schlüssel und versuche es erneut."
             },
             "messages": {
                 "connectionValid": "CrowdSec-Verbindung erfolgreich geprüft.",
                 "saved": "CrowdSec-Konfiguration gespeichert und aktiviert.",
-                "savedPending": "CrowdSec-Konfiguration gespeichert. Der vorherige funktionierende Modus bleibt während weiterer Abgleichversuche aktiv."
+                "savedPending": "CrowdSec-Konfiguration gespeichert. Der vorherige funktionierende Modus bleibt während weiterer Abgleichversuche aktiv.",
+                "enrollmentPending": "Registrierung angefordert. Bestätige die Engine in der CrowdSec Console."
             }
         },
         "trustedCas": {
