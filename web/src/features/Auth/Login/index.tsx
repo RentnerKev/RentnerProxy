@@ -15,7 +15,7 @@ export default function LoginPage() {
                 </>
             }
         >
-            <LoginForm state={state} onPasskeyLogin={handler.handlePasskeyLogin} />
+            <LoginForm state={state} onPasskeyLogin={() => void handler.handlePasskeyLogin()} />
         </AuthShell>
     )
 }

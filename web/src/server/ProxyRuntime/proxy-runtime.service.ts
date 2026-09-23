@@ -65,11 +65,19 @@ export async function getProxyRuntimeStatusService(
     return compareProxyRuntimeStatus(snapshot.revision, runtime)
 }
 
+export function getRedirectRuntimeStatusService(): Promise<ProxyRuntimeSyncStatus> {
+    return getProxyRuntimeStatusService(PERMISSIONS.REDIRECT_HOSTS_VIEW)
+}
+
 export async function applyProxyConfigurationService(
     permission: RuntimeApplyPermission = PERMISSIONS.PROXY_HOSTS_APPLY,
 ) {
     const actor = await requirePermissionService(permission)
     return reconcileProxyConfigurationWithAudit(actor.id)
+}
+
+export function applyRedirectConfigurationService(): Promise<ProxyRuntimeMutationStatus> {
+    return applyProxyConfigurationService(PERMISSIONS.REDIRECT_HOSTS_APPLY)
 }
 
 export async function reconcileProxyConfigurationWithAudit(

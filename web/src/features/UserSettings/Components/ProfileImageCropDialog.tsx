@@ -31,7 +31,7 @@ export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialog
                     <button
                         type="button"
                         className={uiClassNames.button.primary}
-                        onClick={logic.handler.handleSave}
+                        onClick={() => void logic.handler.handleSave()}
                         disabled={!logic.state.canSave}
                     >
                         <Check aria-hidden="true" className="size-4" />

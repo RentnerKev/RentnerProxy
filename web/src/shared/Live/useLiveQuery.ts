@@ -19,7 +19,7 @@ export default function useLiveQuery<T>({
     topic: LiveTopic
     query: object
     enabled: boolean
-    onData: (data: T) => void
+    onData: (data: T) => void | Promise<void>
     onUnauthorized?: () => void
     onResume?: () => void
 }): LiveStatus {

@@ -16,8 +16,8 @@ import {
     updateRedirectHostService,
 } from '../../../server/Admin/RedirectHostManagement/redirect-hosts.service'
 import {
-    applyProxyConfigurationService,
-    getProxyRuntimeStatusService,
+    applyRedirectConfigurationService,
+    getRedirectRuntimeStatusService,
 } from '../../../server/ProxyRuntime/proxy-runtime.service'
 import type { RedirectHostActionResult } from '../../../shared/Types/redirect-hosts.types'
 import {
@@ -68,8 +68,7 @@ export const getRedirectHostsHandler = createServerFn({ method: 'GET' }).handler
 export const getRedirectRuntimeStatusHandler = createServerFn({ method: 'GET' }).handler(
     async () => {
         try {
-            await requirePermissionService(PERMISSIONS.REDIRECT_HOSTS_VIEW)
-            return await getProxyRuntimeStatusService(PERMISSIONS.REDIRECT_HOSTS_VIEW)
+            return await getRedirectRuntimeStatusService()
         } catch (error) {
             throwLocalizedQueryError(error, 'admin.redirectHosts.runtime.unavailable')
         }
@@ -79,8 +78,7 @@ export const getRedirectRuntimeStatusHandler = createServerFn({ method: 'GET' })
 export const applyRedirectConfigurationHandler = createServerFn({ method: 'POST' }).handler(
     async (): Promise<RedirectHostActionResult> => {
         try {
-            await requirePermissionService(PERMISSIONS.REDIRECT_HOSTS_APPLY)
-            const status = await applyProxyConfigurationService(PERMISSIONS.REDIRECT_HOSTS_APPLY)
+            const status = await applyRedirectConfigurationService()
             return status === 'applied'
                 ? {
                       success: true,

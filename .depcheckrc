@@ -2,6 +2,8 @@ ignores:
     # CSS imports in web/src/styles.css are not detected by depcheck.
     - '@fontsource/lilita-one'
     - tailwindcss
+    # Oxlint loads this binary for the type-aware lint pass.
+    - oxlint-tsgolint
     # Built into the Bun runtime; these are not npm dependencies.
     - bun
     - 'bun:test'

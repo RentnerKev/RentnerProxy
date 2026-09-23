@@ -66,9 +66,9 @@ migration SQL and run `bun run db:check` before opening the pull request.
 ## Dependency auditing
 
 Run `npx depcheck@1.4.7` from the repository root to check dependency declarations.
-The `.depcheckrc` exclusions cover CSS imports from `web/src/styles.css` and Bun runtime
-modules. Keep directly imported test packages in `devDependencies`, even when they are
-already installed transitively.
+The `.depcheckrc` exclusions cover CSS imports from `web/src/styles.css`, Oxlint's type-aware
+binary, and Bun runtime modules. Keep directly imported test packages in `devDependencies`,
+even when they are already installed transitively.
 
 The custom server entry in `web/src/server.ts` handles request cancellation without patching
 TanStack. It forwards cancellation with an empty 499 `Response` as the signal reason so H3
@@ -92,9 +92,10 @@ the tooling.
 Contributions must follow the repository's coding standards:
 
 - TypeScript, TSX, and JavaScript use the project style defined in
-  [.oxfmtrc.json](.oxfmtrc.json) and [.oxlintrc.json](.oxlintrc.json): four-space indentation,
-  single quotes, no semicolons, a 100-column formatting target, and the enabled correctness,
-  suspicious-code, performance, React, and accessibility rules. Type checking uses
+  [.oxfmtrc.json](.oxfmtrc.json), [.oxlintrc.json](.oxlintrc.json), and
+  [.oxlintrc.type-aware.json](.oxlintrc.type-aware.json): four-space indentation, single quotes,
+  no semicolons, a 100-column formatting target, and the enabled correctness, suspicious-code,
+  performance, React, accessibility, and type-aware Promise rules. Type checking uses
   [web/tsconfig.json](web/tsconfig.json) and [scripts/tsconfig.json](scripts/tsconfig.json).
 - Rust follows the [Rust Style Guide](https://doc.rust-lang.org/style-guide/), enforced with
   `cargo fmt`, and the repository's Clippy gate with warnings denied.

@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto'
 
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { requestHandler } from '@tanstack/react-start/server'
-import { runWithStartContext } from '@tanstack/start-storage-context'
 import { eq, inArray, like, notLike } from 'drizzle-orm'
 
 import { SESSION_COOKIE_NAME } from '../config/auth.config'
@@ -27,7 +26,9 @@ import {
     users,
 } from '../db/schema'
 import {
+    applyRedirectConfigurationService,
     applyProxyConfigurationService,
+    getRedirectRuntimeStatusService,
     getProxyRuntimeStatusService,
 } from '../server/ProxyRuntime/proxy-runtime.service'
 import {
@@ -246,46 +247,6 @@ async function runWithSessionToken<T>(token: string, operation: () => Promise<T>
 async function runAsUser<T>(userId: string, operation: () => Promise<T>): Promise<T> {
     const session = await createSessionService(userId)
     return runWithSessionToken(session.token, operation)
-}
-
-async function runRedirectServerFunctionAsUser<T>(
-    userId: string,
-    serverFunction: () => Promise<T>,
-): Promise<T> {
-    const session = await createSessionService(userId)
-    const request = new Request('http://localhost/', {
-        headers: { cookie: `${SESSION_COOKIE_NAME}=${session.token}` },
-    })
-    let failed = false
-    let failure: unknown
-    let result: T | undefined
-    const handler = requestHandler(async () => {
-        try {
-            result = await runWithStartContext(
-                {
-                    request,
-                    getRouter: () => ({}) as never,
-                    startOptions: { functionMiddleware: [] },
-                    contextAfterGlobalMiddlewares: {},
-                    executedRequestMiddlewares: new Set(),
-                    handlerType: 'serverFn',
-                },
-                serverFunction,
-            )
-        } catch (error) {
-            failed = true
-            failure = error
-        }
-
-        return new Response(null, { status: failed ? 500 : 204 })
-    })
-    await handler(request, {})
-
-    if (failed) {
-        throw failure
-    }
-
-    return result as T
 }
 
 async function cleanTestRows(): Promise<void> {
@@ -1436,10 +1397,7 @@ describe('manual runtime apply permissions', () => {
 
                 expect(getRedirectRuntimeStatusHandler.method).toBe('GET')
                 const statusRequestCount = controller.requests.length
-                await runRedirectServerFunctionAsUser(
-                    redirectActor.id,
-                    getRedirectRuntimeStatusHandler,
-                )
+                await runAsUser(redirectActor.id, getRedirectRuntimeStatusService)
                 expect(controller.requests.slice(statusRequestCount)).toContainEqual({
                     method: 'GET',
                     path: '/internal/v1/proxy/status',
@@ -1448,10 +1406,7 @@ describe('manual runtime apply permissions', () => {
 
                 expect(applyRedirectConfigurationHandler.method).toBe('POST')
                 const applyCount = controller.applyRevisions.length
-                await runRedirectServerFunctionAsUser(
-                    redirectActor.id,
-                    applyRedirectConfigurationHandler,
-                )
+                await runAsUser(redirectActor.id, applyRedirectConfigurationService)
                 expect(controller.applyRevisions.length).toBeGreaterThan(applyCount)
             } finally {
                 await controller.server.stop(true)

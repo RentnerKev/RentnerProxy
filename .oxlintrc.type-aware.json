@@ -1,0 +1,17 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "plugins": ["typescript"],
+    "categories": {
+        "correctness": "off",
+        "suspicious": "off",
+        "perf": "off"
+    },
+    "rules": {
+        "typescript/no-for-in-array": "error",
+        "typescript/no-misused-promises": "error"
+    },
+    "options": {
+        "typeAware": true
+    },
+    "ignorePatterns": ["**/routeTree.gen.ts"]
+}

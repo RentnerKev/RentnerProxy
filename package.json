@@ -18,7 +18,8 @@
         "build:web": "bun --bun vite build --config web/vite.config.ts && tsc --noEmit -p web/tsconfig.json",
         "build:controller": "cargo build --release --manifest-path controller/Cargo.toml",
         "typecheck": "tsc --noEmit -p web/tsconfig.json && tsc --noEmit -p scripts/tsconfig.json",
-        "lint": "oxlint .",
+        "lint": "oxlint . && bun run lint:types",
+        "lint:types": "oxlint --config .oxlintrc.type-aware.json .",
         "format": "oxfmt . && cargo fmt --manifest-path controller/Cargo.toml",
         "format:check": "oxfmt --check . && cargo fmt --manifest-path controller/Cargo.toml -- --check",
         "test": "bun run test:ts && bun run rust:test",
@@ -66,9 +67,7 @@
     "devDependencies": {
         "@happy-dom/global-registrator": "20.14.5",
         "@tailwindcss/vite": "4.3.3",
-        "@tanstack/start-storage-context": "1.167.34",
         "@types/bun": "1.4.2",
-        "@types/node": "26.6.2",
         "@types/react": "19.3.0",
         "@types/react-dom": "19.3.0",
         "@vitejs/plugin-react": "6.1.1",
@@ -77,6 +76,7 @@
         "happy-dom": "20.14.5",
         "oxfmt": "0.70.0",
         "oxlint": "1.85.0",
+        "oxlint-tsgolint": "7.0.2002",
         "tailwindcss": "4.3.3",
         "typescript": "7.0.2",
         "vite": "8.3.0"

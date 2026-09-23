@@ -50,7 +50,7 @@ export default function ProfileImagePanel({ canUpdateProfileImage, user }: Profi
                         type="file"
                         accept={PROFILE_IMAGE_ACCEPT}
                         className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                        onChange={logic.handler.handleFileChange}
+                        onChange={(event) => void logic.handler.handleFileChange(event)}
                         disabled={!canUpdateProfileImage || logic.state.isPending}
                         aria-label={t('account.profileImage.inputLabel')}
                     />

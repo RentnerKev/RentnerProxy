@@ -77,7 +77,7 @@ export default function SecuritySettingsPanel() {
                 mode={state.nameRequest?.kind ?? 'add'}
                 initialName={state.nameRequest?.initialName ?? t('account.passkeys.defaultName')}
                 isPending={state.isPending}
-                onConfirm={handler.confirmPasskeyName}
+                onConfirm={(name) => void handler.confirmPasskeyName(name)}
                 onClose={handler.closePasskeyName}
             />
             <ReauthenticationModal
@@ -85,8 +85,8 @@ export default function SecuritySettingsPanel() {
                 isPending={state.reauthentication.state.isPending || state.isPending}
                 value={state.reauthentication.state.credential}
                 onChange={state.reauthentication.handler.setCredential}
-                onConfirm={handler.confirmReauthentication}
-                onPasskey={handler.reauthenticateWithPasskey}
+                onConfirm={() => void handler.confirmReauthentication()}
+                onPasskey={() => void handler.reauthenticateWithPasskey()}
                 onClose={handler.closeReauthentication}
             />
             <ConfirmDialog

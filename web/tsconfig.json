@@ -24,6 +24,6 @@
         "isolatedModules": true,
         "forceConsistentCasingInFileNames": true,
         "skipLibCheck": true,
-        "types": ["bun", "node"]
+        "types": ["bun"]
     }
 }
