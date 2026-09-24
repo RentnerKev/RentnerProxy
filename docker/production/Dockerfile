@@ -69,6 +69,15 @@ RUN wget -qO /tmp/caddy-crowdsec-bouncer.tar.gz \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec \
     && ! /usr/bin/caddy list-modules | grep -Eq '(^|\.)layer4($|\.)|^http\.handlers\.appsec$'
 
+FROM caddy:2.11.4-builder@sha256:401121e61853cb9c7df83cba43e532e49a68e30f32921c7bdcb7a4912168c067 AS geoip-assets
+RUN set -eux; \
+    wget -qO /tmp/user-country.mmdb \
+        https://github.com/sapics/ip-location-db/releases/download/latest/user-country.mmdb; \
+    wget -qO /tmp/user-country.mmdb.sha256 \
+        https://github.com/sapics/ip-location-db/releases/download/checksum/user-country.mmdb.sha256; \
+    cd /tmp; \
+    sha256sum -c user-country.mmdb.sha256
+
 FROM ghcr.io/crowdsecurity/crowdsec:v1.8.1-debian@sha256:ab1bdb61a072154d478ad6c625b8e62c7f79a727b2740209d2128dd51d69d58d AS crowdsec-assets
 
 COPY docker/crowdsec/hub/data.sha256 /tmp/rentnerproxy-crowdsec-hub-data.sha256
@@ -134,6 +143,7 @@ COPY --from=crowdsec-assets /usr/local/bin/crowdsec /usr/local/bin/crowdsec
 COPY --from=crowdsec-assets /usr/local/bin/cscli /usr/local/bin/cscli
 COPY --from=crowdsec-assets /opt/rentnerproxy/crowdsec-config /usr/share/rentnerproxy/crowdsec/config
 COPY --from=crowdsec-assets /var/lib/crowdsec/data /usr/share/rentnerproxy/crowdsec/data
+COPY --from=geoip-assets /tmp/user-country.mmdb /usr/share/rentnerproxy/geoip/user-country.mmdb
 COPY docker/crowdsec/runtime/config.yaml /usr/share/rentnerproxy/crowdsec/config.yaml
 COPY docker/crowdsec/runtime/config-online.yaml /usr/share/rentnerproxy/crowdsec/config-online.yaml
 COPY docker/crowdsec/runtime/acquis.yaml /usr/share/rentnerproxy/crowdsec/acquis.yaml
@@ -142,6 +152,7 @@ COPY docker/licenses/Caddy-LICENSE /usr/share/licenses/caddy-crowdsec-bouncer/LI
 COPY docker/licenses/CaddyCrowdSecBouncer-NOTICE /usr/share/licenses/caddy-crowdsec-bouncer/NOTICE
 COPY docker/licenses/CrowdSec-LICENSE /usr/share/licenses/crowdsec/LICENSE
 COPY docker/licenses/CrowdSec-NOTICE /usr/share/licenses/crowdsec/NOTICE
+COPY docker/licenses/GeoIP-NOTICE /usr/share/licenses/rentnerproxy-geoip/NOTICE
 COPY --from=redis-runtime /usr/local/bin/redis-server /usr/local/bin/redis-cli /opt/rentnerproxy/redis/bin/
 COPY docker/production/entrypoint.sh /usr/local/bin/rentnerproxy-production
 COPY docker/crowdsec/runtime/supervisor.sh /usr/local/bin/rentnerproxy-crowdsec-supervisor

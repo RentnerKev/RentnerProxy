@@ -8,7 +8,7 @@ interface TableFiltersProps {
     readonly contentId: string
     readonly expanded: boolean
     readonly activeCount?: number
-    readonly onReset: () => void
+    readonly onReset?: () => void
 }
 
 export default function TableFilters({
@@ -23,7 +23,7 @@ export default function TableFilters({
         <div id={contentId} hidden={!expanded}>
             <div className="border-b border-border px-[1.15rem] py-4">
                 {children(
-                    activeCount > 0 ? (
+                    activeCount > 0 && onReset ? (
                         <button
                             type="button"
                             onClick={onReset}

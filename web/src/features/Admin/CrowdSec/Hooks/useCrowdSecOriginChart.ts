@@ -1,4 +1,4 @@
-import { barX, defineChart } from '@tanstack/charts'
+import { barY, defineChart } from '@tanstack/charts'
 import { scaleBand } from '@tanstack/charts/scales/band'
 import { scaleLinear } from '@tanstack/charts/scales/linear'
 import { tooltip } from '@tanstack/charts/tooltip'
@@ -20,25 +20,32 @@ export default function useCrowdSecOriginChart(
             maximumFractionDigits: 1,
         })
         const exact = new Intl.NumberFormat(locale)
+        const hasValues = rows.some((row) => row.count > 0)
         return defineChart({
             marks: [
-                barX(rows, {
-                    x: 'count',
-                    y: 'origin',
+                barY(rows, {
+                    x: 'origin',
+                    y: 'count',
                     fill: color,
                     radius: { end: 4 },
                 }),
             ],
             scales: {
-                x: {
-                    scale: scaleLinear,
+                x: { scale: () => scaleBand().padding(0.35) },
+                y: {
+                    scale: () =>
+                        scaleLinear().domain([0, Math.max(1, ...rows.map((row) => row.count))]),
                     nice: true,
                     grid: true,
-                    axis: { ticks: { format: (value) => String(value) } },
+                    axis: {
+                        ticks: {
+                            ...(hasValues ? {} : { values: [0, 1] }),
+                            format: (value) => compact.format(Number(value)),
+                        },
+                    },
                 },
-                y: { scale: () => scaleBand().padding(0.4) },
             },
-            margin: { left: 94, right: 24, top: 18, bottom: 32 },
+            margin: { left: 50, right: 18, top: 20, bottom: 38 },
             tooltip: {
                 use: tooltip,
                 items: [

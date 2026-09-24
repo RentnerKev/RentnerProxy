@@ -144,6 +144,20 @@ test('shows the shared table, country flag and scenario explanation control', as
     expect(container.textContent).toContain('1–15 of 24')
 })
 
+test('shows All defaults in both filter controls without a reset action', async () => {
+    const container = await renderDashboard()
+    const toggle = container.querySelector<HTMLButtonElement>('button[aria-controls]')
+    expect(toggle).not.toBeNull()
+    await act(async () => toggle?.click())
+    const panel = document.getElementById(toggle!.getAttribute('aria-controls')!)
+    expect(panel).not.toBeNull()
+    const selects = panel!.querySelectorAll('[role="combobox"]')
+    expect(selects).toHaveLength(2)
+    expect(selects[0]?.textContent).toContain('All origins')
+    expect(selects[1]?.textContent).toContain('All types')
+    expect(panel!.textContent).not.toContain('Reset filters')
+})
+
 test('searches and paginates all decisions through the server request', async () => {
     const container = await renderDashboard()
     const next = [...container.querySelectorAll<HTMLButtonElement>('button')].find(

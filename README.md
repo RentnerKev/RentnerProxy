@@ -103,6 +103,7 @@ docker compose up -d
 - **Managed:** local detection and blocking work without a CrowdSec account; community intelligence and Console enrollment are separate opt-ins.
 - **External:** connect an existing CrowdSec Local API with a bouncer key.
 - **Disabled:** default; existing traffic behavior is unchanged.
+- Flags use a bundled country-only MMDB. A mounted GeoLite2 Country file can be selected with the optional `RENTNERPROXY_GEOIP_COUNTRY_DB_PATH` (absolute path; maintain its license and updates).
 - Enforcement is fail-open when the selected Local API is unavailable.
 - Managed CrowdSec data is not yet in repository backups ([#71](https://github.com/RentnerKev/RentnerProxy/issues/71)); snapshot the Docker volume.
 

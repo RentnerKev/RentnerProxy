@@ -26,6 +26,7 @@
 !docker/licenses/CaddyCrowdSecBouncer-NOTICE
 !docker/licenses/CrowdSec-LICENSE
 !docker/licenses/CrowdSec-NOTICE
+!docker/licenses/GeoIP-NOTICE
 
 !scripts/
 !scripts/**

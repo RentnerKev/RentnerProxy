@@ -35,7 +35,6 @@ interface Props {
     readonly onScopeChange: (value: CrowdSecDashboardQuery['scope']) => void
     readonly onPageChange: (page: number) => void
     readonly onPageSizeChange: (size: number) => void
-    readonly onReset: () => void
 }
 
 export default function CrowdSecBansTable({
@@ -48,7 +47,6 @@ export default function CrowdSecBansTable({
     onScopeChange,
     onPageChange,
     onPageSizeChange,
-    onReset,
 }: Props) {
     const { t } = useTranslationStore()
     const filterPanel = useTableFilters()
@@ -89,15 +87,15 @@ export default function CrowdSecBansTable({
                     contentId={filterPanel.contentId}
                     expanded={filterPanel.open}
                     activeCount={activeFilterCount}
-                    onReset={onReset}
                 >
-                    {(resetButton) => (
-                        <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                    {() => (
+                        <div className="grid items-end gap-4 sm:grid-cols-2">
                             <label className="grid min-w-0 gap-1.5 text-xs font-extrabold text-muted">
                                 {t('admin.crowdSec.dashboard.origin')}
                                 <CustomSelect
                                     aria-label={t('admin.crowdSec.dashboard.origin')}
                                     value={filters.origin}
+                                    placeholder={t('admin.crowdSec.dashboard.allOrigins')}
                                     options={[
                                         {
                                             value: '',
@@ -117,6 +115,7 @@ export default function CrowdSecBansTable({
                                 <CustomSelect
                                     aria-label={t('admin.crowdSec.dashboard.scope')}
                                     value={filters.scope}
+                                    placeholder={t('admin.crowdSec.dashboard.allScopes')}
                                     options={[
                                         {
                                             value: '',
@@ -139,7 +138,6 @@ export default function CrowdSecBansTable({
                                     searchable={false}
                                 />
                             </label>
-                            <div>{resetButton}</div>
                         </div>
                     )}
                 </TableFilters>

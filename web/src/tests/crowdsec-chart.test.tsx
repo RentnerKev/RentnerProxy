@@ -43,6 +43,29 @@ test('renders CrowdSec origin counts with TanStack Charts and an accessible labe
     expect(container.innerHTML).toContain('focus-visible')
 })
 
+test('renders a zero-valued column chart instead of an empty plot', async () => {
+    const container = document.createElement('div')
+    document.body.append(container)
+    root = createRoot(container)
+    await act(async () => {
+        root?.render(
+            withTestLanguage(
+                <CrowdSecOriginChart
+                    rows={[
+                        { origin: 'crowdsec', count: 0 },
+                        { origin: 'CAPI', count: 0 },
+                    ]}
+                    label="Blocked requests by origin"
+                    color="var(--color-brand-500)"
+                />,
+            ),
+        )
+    })
+    expect(container.querySelector('svg')).not.toBeNull()
+    expect(container.textContent).toContain('crowdsec')
+    expect(container.textContent).toContain('CAPI')
+})
+
 test('renders a separate donut composition with compact and exact totals', async () => {
     const container = document.createElement('div')
     document.body.append(container)

@@ -55,6 +55,7 @@
         "i18next": "26.4.2",
         "i18next-resources-to-backend": "1.2.3",
         "lucide-react": "1.47.0",
+        "maxmind": "5.0.7",
         "motion": "13.4.0",
         "nodemailer": "10.0.10",
         "otpauth": "9.5.2",

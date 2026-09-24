@@ -31,6 +31,8 @@ import {
 } from '../../Foundation/controller.server'
 import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
 import { CrowdSecDomainError } from './crowdsec.errors'
+import { getLocalDemoDashboard } from './crowdsec-demo.server'
+import { enrichCrowdSecCountryCodes } from './crowdsec-geoip.server'
 import { createCrowdSecReconciler } from './crowdsec-reconcile'
 import {
     buildStoredCrowdSecConfiguration,
@@ -140,9 +142,11 @@ export async function getCrowdSecDashboardService(
     await requirePermissionService(PERMISSIONS.CROWDSEC_VIEW)
     const parsed = crowdSecDashboardQuerySchema.safeParse(query)
     if (!parsed.success) throw new CrowdSecDomainError('invalid_input')
+    const demoDashboard = await getLocalDemoDashboard(parsed.data)
+    if (demoDashboard) return demoDashboard
     const dashboard = await getCrowdSecDashboard(parsed.data)
     if (!dashboard) throw new CrowdSecDomainError('controller_unavailable')
-    return dashboard
+    return enrichCrowdSecCountryCodes(dashboard)
 }
 
 export async function enrollCrowdSecConsoleService(input: {

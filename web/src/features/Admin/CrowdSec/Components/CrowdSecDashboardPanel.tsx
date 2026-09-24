@@ -9,6 +9,10 @@ import CrowdSecBansTable from './CrowdSecBansTable'
 
 const CrowdSecOriginChart = lazy(() => import('./CrowdSecOriginChart'))
 const CrowdSecDecisionChart = lazy(() => import('./CrowdSecDecisionChart'))
+const ZERO_BLOCKED_ROWS = [
+    { origin: 'crowdsec', count: 0 },
+    { origin: 'CAPI', count: 0 },
+] as const
 
 function Metric({
     label,
@@ -45,10 +49,11 @@ function OriginPanel({
     readonly kind: 'blocked' | 'decisions'
 }) {
     const { t } = useTranslationStore()
+    const hasValues = rows?.some((row) => row.count > 0) ?? false
     return (
         <div className="min-w-0 rounded-xl border border-border bg-surface-raised p-4">
             <h3 className="text-sm font-bold text-ink-soft">{label}</h3>
-            {rows && rows.some((row) => row.count > 0) ? (
+            {kind === 'blocked' || hasValues ? (
                 <Suspense
                     fallback={
                         <p className="mt-4 text-xs text-muted">
@@ -57,13 +62,32 @@ function OriginPanel({
                     }
                 >
                     {kind === 'blocked' ? (
-                        <CrowdSecOriginChart
-                            rows={rows}
-                            label={label}
-                            color="var(--color-brand-500)"
-                        />
+                        <>
+                            {!hasValues ? (
+                                <output className="mt-2 block text-xs text-muted">
+                                    {rows
+                                        ? t('admin.crowdSec.dashboard.noOriginData')
+                                        : t('admin.crowdSec.dashboard.unavailable')}
+                                </output>
+                            ) : null}
+                            <CrowdSecOriginChart
+                                rows={hasValues && rows ? rows : ZERO_BLOCKED_ROWS}
+                                label={label}
+                                color="var(--color-brand-500)"
+                            />
+                            {!hasValues ? (
+                                <div className="flex justify-around border-t border-border pt-2 text-xs text-muted tabular-nums">
+                                    {ZERO_BLOCKED_ROWS.map((row) => (
+                                        <span key={row.origin}>
+                                            {row.origin}{' '}
+                                            <strong className="text-ink-soft">0</strong>
+                                        </span>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </>
                     ) : (
-                        <CrowdSecDecisionChart rows={rows} label={label} />
+                        <CrowdSecDecisionChart rows={rows ?? []} label={label} />
                     )}
                 </Suspense>
             ) : (
@@ -113,18 +137,25 @@ export default function CrowdSecDashboardPanel({
                         {t('admin.crowdSec.dashboard.disabled')}
                     </p>
                 ) : !snapshot ? (
-                    <p
-                        className="mt-6 rounded-xl border border-border bg-surface-raised px-4 py-5 text-sm text-muted"
-                        role={query.isError ? 'alert' : 'status'}
-                    >
-                        {t(
-                            query.isError
-                                ? 'admin.crowdSec.dashboard.unavailable'
-                                : 'admin.crowdSec.dashboard.loading',
-                        )}
-                    </p>
+                    query.isError ? (
+                        <p
+                            className="mt-6 rounded-xl border border-border bg-surface-raised px-4 py-5 text-sm text-muted"
+                            role="alert"
+                        >
+                            {t('admin.crowdSec.dashboard.unavailable')}
+                        </p>
+                    ) : (
+                        <output className="mt-6 block rounded-xl border border-border bg-surface-raised px-4 py-5 text-sm text-muted">
+                            {t('admin.crowdSec.dashboard.loading')}
+                        </output>
+                    )
                 ) : (
                     <>
+                        {snapshot.demo ? (
+                            <output className="mt-5 block rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs font-bold text-warning-text">
+                                {t('admin.crowdSec.dashboard.demoNotice')}
+                            </output>
+                        ) : null}
                         {query.isError ? (
                             <p className="mt-5 text-xs text-warning-text" role="alert">
                                 {t('admin.crowdSec.dashboard.stale')}
@@ -134,17 +165,29 @@ export default function CrowdSecDashboardPanel({
                             <Metric
                                 label={t('admin.crowdSec.dashboard.blockedRequests')}
                                 value={snapshot.metrics?.blockedRequests ?? null}
-                                hint={t('admin.crowdSec.dashboard.blockedHint')}
+                                hint={t(
+                                    snapshot.demo
+                                        ? 'admin.crowdSec.dashboard.demoMetricHint'
+                                        : 'admin.crowdSec.dashboard.blockedHint',
+                                )}
                             />
                             <Metric
                                 label={t('admin.crowdSec.dashboard.activeDecisions')}
                                 value={snapshot.metrics?.activeDecisions ?? null}
-                                hint={t('admin.crowdSec.dashboard.activeHint')}
+                                hint={t(
+                                    snapshot.demo
+                                        ? 'admin.crowdSec.dashboard.demoMetricHint'
+                                        : 'admin.crowdSec.dashboard.activeHint',
+                                )}
                             />
                             <Metric
                                 label={t('admin.crowdSec.dashboard.ipBans')}
                                 value={snapshot.decisions?.total ?? null}
-                                hint={t('admin.crowdSec.dashboard.ipBansHint')}
+                                hint={t(
+                                    snapshot.demo
+                                        ? 'admin.crowdSec.dashboard.demoMetricHint'
+                                        : 'admin.crowdSec.dashboard.ipBansHint',
+                                )}
                             />
                         </dl>
                         <p className="mt-3 flex items-center gap-2 text-xs text-muted">
@@ -189,7 +232,6 @@ export default function CrowdSecDashboardPanel({
                     onScopeChange={actions.setScope}
                     onPageChange={actions.setPageIndex}
                     onPageSizeChange={actions.setPageSize}
-                    onReset={actions.resetFilters}
                 />
             ) : null}
         </div>

@@ -63,6 +63,7 @@ export interface CrowdSecDecision {
 }
 
 export interface CrowdSecDashboard {
+    readonly demo?: boolean
     readonly collectedAt: number
     readonly metrics: {
         readonly blockedRequests: number | null

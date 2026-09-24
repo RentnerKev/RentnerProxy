@@ -88,7 +88,7 @@ const crowdSecOriginCountSchema = z.strictObject({
     origin: z.string().max(80),
     count: crowdSecCountSchema,
 })
-const crowdSecDashboardSchema = z.strictObject({
+export const crowdSecDashboardSchema = z.strictObject({
     collectedAt: z.number().int().nonnegative(),
     metrics: z
         .strictObject({

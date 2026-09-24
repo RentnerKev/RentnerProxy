@@ -1,0 +1,5 @@
+The bundled IP-to-country database is user-country.mmdb from
+https://github.com/sapics/ip-location-db (sapics/ip-location-db).
+Dataset license: Open Data Commons Public Domain Dedication and License 1.0.
+The database is used locally for display only; no IP address is sent to a
+third-party geolocation service. Country is approximate and may be unknown.

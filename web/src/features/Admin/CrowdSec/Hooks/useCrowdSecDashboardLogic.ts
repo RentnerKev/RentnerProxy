@@ -7,7 +7,9 @@ import { crowdSecQueryKeys } from '../queryKeys'
 import { getCrowdSecDashboardHandler } from '../server'
 
 export default function useCrowdSecDashboardLogic(configuration: CrowdSecConfiguration) {
-    const enabled = configuration.runtime?.enforcementActive === true
+    const enabled =
+        configuration.runtime?.enforcementActive === true ||
+        (import.meta.env.DEV && configuration.mode !== 'disabled')
     const [searchInput, setSearchInput] = useState('')
     const [search, setSearch] = useState('')
     const [origin, setOrigin] = useState('')
@@ -67,13 +69,6 @@ export default function useCrowdSecDashboardLogic(configuration: CrowdSecConfigu
             setPageIndex,
             setPageSize: (value: number) => {
                 setPageSize(value)
-                setPageIndex(0)
-            },
-            resetFilters: () => {
-                setSearchInput('')
-                setSearch('')
-                setOrigin('')
-                setScope('')
                 setPageIndex(0)
             },
         },

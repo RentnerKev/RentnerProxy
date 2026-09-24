@@ -7,4 +7,5 @@ export const CROWDSEC_API_KEY_MAX_LENGTH = 512
 export const CROWDSEC_ENROLLMENT_KEY_MAX_LENGTH = 256
 
 export const CROWDSEC_SETTINGS_KEY = 'crowdsec_configuration_v1'
+export const CROWDSEC_DASHBOARD_DEMO_KEY = 'crowdsec_dashboard_local_demo_v1'
 export const CROWDSEC_SECRET_CONTEXT = 'crowdsec_configuration_v1:external_api_key'
