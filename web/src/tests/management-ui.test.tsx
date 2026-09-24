@@ -669,6 +669,42 @@ const rolesTableProps = {
     onEdit: () => undefined,
 }
 
+describe('user creation action', () => {
+    test('uses the package disabled trigger for an unavailable action', async () => {
+        const onCreate = mock(() => undefined)
+        await render(
+            <UsersTable
+                {...usersTableProps}
+                canCreate
+                createDisabled
+                onCreate={onCreate}
+                users={[user]}
+            />,
+        )
+
+        const button = getButton('Add user')
+        const trigger = button.closest<HTMLElement>('[data-tooltip-disabled-trigger]')
+        expect(button.disabled).toBeTrue()
+        expect(trigger?.getAttribute('aria-disabled')).toBe('true')
+        expect(trigger?.tabIndex).toBe(0)
+        await act(async () => button.click())
+        expect(onCreate).not.toHaveBeenCalled()
+    })
+
+    test('keeps the available action directly clickable', async () => {
+        const onCreate = mock(() => undefined)
+        await render(
+            <UsersTable {...usersTableProps} canCreate onCreate={onCreate} users={[user]} />,
+        )
+
+        const button = getButton('Add user')
+        expect(button.disabled).toBeFalse()
+        expect(button.closest('[data-tooltip-disabled-trigger]')).toBeNull()
+        await click(button)
+        expect(onCreate).toHaveBeenCalledTimes(1)
+    })
+})
+
 describe('localized management filters', () => {
     test('finds German status and system-role labels globally and keeps role values stable', async () => {
         await render(

@@ -14,13 +14,9 @@ export default function UsersTable(props: UsersTableProps) {
     const createButton = (
         <button
             type="button"
-            className={`${uiClassNames.button.add}${
-                createDisabled
-                    ? ' cursor-not-allowed opacity-[0.55] hover:translate-y-0! hover:bg-brand-500!'
-                    : ''
-            }`}
-            aria-disabled={createDisabled}
-            onClick={createDisabled ? undefined : onCreate}
+            className={uiClassNames.button.add}
+            disabled={createDisabled}
+            onClick={onCreate}
         >
             {t('admin.users.actions.add')}
         </button>
@@ -30,6 +26,7 @@ export default function UsersTable(props: UsersTableProps) {
             <CustomTooltip
                 {...TOOLTIP_DEFAULT_PROPS}
                 content={t('admin.users.messages.rolesNotReady')}
+                disabledTrigger
             >
                 {createButton}
             </CustomTooltip>

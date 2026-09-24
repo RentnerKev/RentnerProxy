@@ -15,7 +15,9 @@ import useTranslationStore, {
     TranslationContext,
     type TranslationStore,
 } from '../language/useTranslationStore'
-import { getValidationIssue } from '../shared/Forms/Helpers/getFieldErrorMessage'
+import getFieldErrorMessage, {
+    getValidationIssue,
+} from '../shared/Forms/Helpers/getFieldErrorMessage'
 import FieldError from '../shared/Forms/FieldError'
 import FormMessage from '../shared/Forms/FormMessage'
 import withTestLanguage, { bootstraps } from './Helpers/withTestLanguage'
@@ -68,6 +70,19 @@ function PickerProbe() {
             onValueChange={(value) => {
                 if (isAppLanguage(value)) void setLanguage?.(value)
             }}
+        />
+    )
+}
+
+function NativeErrorProbe() {
+    const { t } = useTranslationStore()
+    return (
+        <PasswordInput
+            id="native-error"
+            aria-label="Password"
+            value=""
+            onChange={() => undefined}
+            error={getFieldErrorMessage([getValidationIssue(emailSchema, '')], t)}
         />
     )
 }
@@ -164,6 +179,7 @@ describe('authenticated language UI', () => {
                         id="confirmation-error"
                         errors={['account.validation.passwordsDoNotMatch']}
                     />
+                    <NativeErrorProbe />
                     <FormMessage tone="error">errors.permission_denied</FormMessage>
                 </>,
             ),
@@ -176,6 +192,13 @@ describe('authenticated language UI', () => {
             'Dieses Feld ist erforderlich.',
         )
         expect(container.querySelector('#confirmation-error')?.textContent).toContain('Passwörter')
+        expect(container.querySelector('#native-error-error')?.textContent).toBe(
+            'Dieses Feld ist erforderlich.',
+        )
+        expect(container.querySelector('#native-error')?.getAttribute('aria-invalid')).toBe('true')
+        expect(
+            container.querySelector('#native-error')?.getAttribute('aria-describedby'),
+        ).toContain('native-error-error')
         expect(container.querySelector('[role="alert"]')?.textContent).toBe(
             'Du hast keine Berechtigung für diese Änderung.',
         )

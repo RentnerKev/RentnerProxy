@@ -1,8 +1,9 @@
 import { PasswordInput } from '@rentnerkev/inputs'
-import FieldError from '../../../shared/Forms/FieldError'
 import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import useTranslationStore from '../../../language/useTranslationStore'
-import { getValidationIssue } from '../../../shared/Forms/Helpers/getFieldErrorMessage'
+import getFieldErrorMessage, {
+    getValidationIssue,
+} from '../../../shared/Forms/Helpers/getFieldErrorMessage'
 import type { ChangeEvent } from 'react'
 import type { ChangePasswordFormProps } from '../Types/user-settings-component-props.types'
 import { credentialPasswordSchema, newPasswordSchema } from '../../Auth/Shared/validation'
@@ -41,9 +42,8 @@ export default function ChangePasswordForm({ state }: ChangePasswordFormProps) {
                             onChange={(event: ChangeEvent<HTMLInputElement>) =>
                                 field.handleChange(event.target.value)
                             }
-                            aria-describedby={`${field.name}-error`}
+                            error={getFieldErrorMessage(field.state.meta.errors, t)}
                         />
-                        <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
                 )}
             </state.form.Field>
@@ -69,9 +69,8 @@ export default function ChangePasswordForm({ state }: ChangePasswordFormProps) {
                             onChange={(event: ChangeEvent<HTMLInputElement>) =>
                                 field.handleChange(event.target.value)
                             }
-                            aria-describedby={`${field.name}-error`}
+                            error={getFieldErrorMessage(field.state.meta.errors, t)}
                         />
-                        <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
                 )}
             </state.form.Field>
@@ -101,9 +100,8 @@ export default function ChangePasswordForm({ state }: ChangePasswordFormProps) {
                             onChange={(event: ChangeEvent<HTMLInputElement>) =>
                                 field.handleChange(event.target.value)
                             }
-                            aria-describedby={`${field.name}-error`}
+                            error={getFieldErrorMessage(field.state.meta.errors, t)}
                         />
-                        <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
                 )}
             </state.form.Field>
