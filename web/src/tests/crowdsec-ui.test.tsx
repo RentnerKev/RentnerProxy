@@ -211,7 +211,7 @@ afterEach(async () => {
 })
 
 describe('CrowdSec management UI', () => {
-    test('shows real dashboard counters and active bans without inventing history', async () => {
+    test('keeps protection telemetry off the CrowdSec configuration page', async () => {
         configuration = {
             ...disabledConfiguration(),
             mode: 'managed',
@@ -233,7 +233,10 @@ describe('CrowdSec management UI', () => {
             },
             decisions: {
                 total: 1,
-                truncated: false,
+                filteredTotal: 1,
+                offset: 0,
+                limit: 15,
+                availableOrigins: ['crowdsec'],
                 entries: [
                     {
                         id: 1,
@@ -242,18 +245,15 @@ describe('CrowdSec management UI', () => {
                         origin: 'crowdsec',
                         scenario: 'http-bf',
                         duration: '2h',
+                        countryCode: null,
                     },
                 ],
             },
         }
         const container = await renderPage([PERMISSIONS.CROWDSEC_VIEW])
-        await waitFor(() => container.textContent?.includes('203.0.113.4') === true)
-        expect(getDashboardMock).toHaveBeenCalled()
-        expect(container.textContent).toContain('Blocked requests')
-        expect(container.textContent).toContain('12')
-        expect(container.textContent).toContain('2h')
-        expect(container.textContent).toContain('http-bf')
-        expect(container.textContent).not.toContain('Estimated attacks')
+        expect(getDashboardMock).not.toHaveBeenCalled()
+        expect(container.textContent).not.toContain('203.0.113.4')
+        expect(container.textContent).not.toContain('Blocked requests by origin')
     })
 
     test('keeps community opt-in within managed mode and enrolls Console separately', async () => {

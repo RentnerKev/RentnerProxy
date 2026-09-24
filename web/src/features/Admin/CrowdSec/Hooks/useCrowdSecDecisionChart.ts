@@ -1,20 +1,32 @@
-import { barX, defineChart } from '@tanstack/charts'
-import { scaleBand } from '@tanstack/charts/scales/band'
-import { scaleLinear } from '@tanstack/charts/scales/linear'
+import { defineChart } from '@tanstack/charts'
+import { pie, polar, radialArc } from '@tanstack/charts/polar'
 import { tooltip } from '@tanstack/charts/tooltip'
 import { useMemo } from 'react'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
 import type { CrowdSecOriginCount } from '../../../../shared/Types/crowdsec.types'
 
-export default function useCrowdSecOriginChart(
-    rows: readonly CrowdSecOriginCount[],
-    color: string,
-) {
+export const decisionPalette = [
+    'var(--color-brand-500)',
+    '#82b7ff',
+    '#f3b968',
+    '#bf9cff',
+    '#f18b9c',
+    '#78d9c5',
+    '#e9df82',
+    '#91a4b8',
+    '#d5a1c8',
+    '#b1db7c',
+    '#df9d79',
+    '#a7a7e6',
+] as const
+
+export default function useCrowdSecDecisionChart(rows: readonly CrowdSecOriginCount[]) {
     const { locale, t } = useTranslationStore()
     const originLabel = t('admin.crowdSec.dashboard.origin')
-    const countLabel = t('admin.crowdSec.dashboard.blockedRequests')
+    const countLabel = t('admin.crowdSec.dashboard.activeDecisions')
     return useMemo(() => {
+        const visible = rows.filter((row) => row.count > 0)
         const compact = new Intl.NumberFormat(locale, {
             notation: 'compact',
             maximumFractionDigits: 1,
@@ -22,23 +34,25 @@ export default function useCrowdSecOriginChart(
         const exact = new Intl.NumberFormat(locale)
         return defineChart({
             marks: [
-                barX(rows, {
-                    x: 'count',
-                    y: 'origin',
-                    fill: color,
-                    radius: { end: 4 },
+                polar({
+                    inset: 8,
+                    radiusRatio: 0.9,
+                    marks: [
+                        radialArc(pie(visible, { value: 'count' }), {
+                            innerRadius: ({ radius }) => radius * 0.62,
+                            cornerRadius: 3,
+                            color: 'origin',
+                            key: 'origin',
+                        }),
+                    ],
+                    scales: { angle: null, radius: null },
                 }),
             ],
-            scales: {
-                x: {
-                    scale: scaleLinear,
-                    nice: true,
-                    grid: true,
-                    axis: { ticks: { format: (value) => String(value) } },
-                },
-                y: { scale: () => scaleBand().padding(0.4) },
+            scales: { x: null, y: null },
+            color: {
+                domain: visible.map((row) => row.origin),
+                range: [...decisionPalette],
             },
-            margin: { left: 94, right: 24, top: 18, bottom: 32 },
             tooltip: {
                 use: tooltip,
                 items: [
@@ -63,5 +77,5 @@ export default function useCrowdSecOriginChart(
                 background: 'transparent',
             },
         })
-    }, [rows, color, locale, originLabel, countLabel])
+    }, [rows, locale, originLabel, countLabel])
 }

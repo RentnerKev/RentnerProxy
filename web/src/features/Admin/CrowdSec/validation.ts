@@ -83,5 +83,26 @@ export const testCrowdSecConnectionSchema = z.strictObject({
     apiKey: crowdSecApiKeySchema.optional(),
 })
 
+export const crowdSecDashboardQuerySchema = z.strictObject({
+    offset: z.number().int().min(0).max(1_000_000),
+    limit: z.number().int().min(1).max(100),
+    search: z
+        .string()
+        .max(200)
+        .refine((value) => !hasControlCharacters(value)),
+    origin: z
+        .string()
+        .max(80)
+        .refine((value) => !hasControlCharacters(value)),
+    scope: z.enum(['', 'Ip', 'Range']),
+})
+
+function hasControlCharacters(value: string): boolean {
+    return Array.from(value).some((character) => {
+        const code = character.charCodeAt(0)
+        return code < 32 || code === 127
+    })
+}
+
 export type UpdateCrowdSecConfigurationInput = z.infer<typeof updateCrowdSecConfigurationSchema>
 export type TestCrowdSecConnectionInput = z.infer<typeof testCrowdSecConnectionSchema>

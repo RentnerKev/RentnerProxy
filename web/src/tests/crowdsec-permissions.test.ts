@@ -6,8 +6,25 @@ import {
     SYSTEM_ROLE_REGISTRY,
     SYSTEM_ROLES,
 } from '../config/permissions.config'
+import getApplicationShellViewModel from '../layout/Components/ApplicationShell/Helpers/getApplicationShellViewModel'
+import type { Translate } from '../language/useTranslationStore'
 
 describe('CrowdSec permissions', () => {
+    test('shows the separate security and configuration navigation only to viewers', () => {
+        const user = {
+            id: 'viewer',
+            displayName: 'Viewer',
+            email: 'viewer@example.test',
+            profileImageVersion: null,
+            permissions: [PERMISSIONS.CROWDSEC_VIEW],
+        }
+        const translate = ((key: string) => key) as Translate
+        const visible = getApplicationShellViewModel(user, translate)
+        expect(visible.navigationItems.map((item) => item.to)).toContain('/security')
+        expect(visible.navigationItems.map((item) => item.to)).toContain('/crowdsec')
+        const hidden = getApplicationShellViewModel({ ...user, permissions: [] }, translate)
+        expect(hidden.navigationItems.map((item) => item.to)).not.toContain('/security')
+    })
     test('registers view and update permissions exactly once', () => {
         expect(
             PERMISSION_REGISTRY.filter(({ key }) => key === PERMISSIONS.CROWDSEC_VIEW),

@@ -4,7 +4,11 @@ import '@tanstack/react-start/server-only'
 import { z } from 'zod'
 
 import type { ServiceHealth } from '../../shared/Types/health.types'
-import type { CrowdSecDashboard, CrowdSecRuntimeStatus } from '../../shared/Types/crowdsec.types'
+import type {
+    CrowdSecDashboard,
+    CrowdSecDashboardQuery,
+    CrowdSecRuntimeStatus,
+} from '../../shared/Types/crowdsec.types'
 import type { CrowdSecMode } from '../../config/crowdsec.config'
 import type { ProxyConfigSource, ProxyRuntimeStatus } from '../../shared/Types/proxy-runtime.types'
 import type {
@@ -97,7 +101,10 @@ const crowdSecDashboardSchema = z.strictObject({
     decisions: z
         .strictObject({
             total: crowdSecCountSchema,
-            truncated: z.boolean(),
+            filteredTotal: crowdSecCountSchema,
+            offset: crowdSecCountSchema,
+            limit: z.number().int().min(1).max(100),
+            availableOrigins: z.array(z.string().max(80)).max(100),
             entries: z
                 .array(
                     z.strictObject({
@@ -107,9 +114,13 @@ const crowdSecDashboardSchema = z.strictObject({
                         origin: z.string().max(80),
                         scenario: z.string().max(160),
                         duration: z.string().max(80),
+                        countryCode: z
+                            .string()
+                            .regex(/^[A-Z]{2}$/u)
+                            .nullable(),
                     }),
                 )
-                .max(50),
+                .max(100),
         })
         .nullable(),
 })
@@ -161,7 +172,7 @@ export async function controllerRequest(
         | '/ready'
         | '/internal/v1/proxy/status'
         | '/internal/v1/crowdsec/status'
-        | '/internal/v1/crowdsec/dashboard'
+        | `/internal/v1/crowdsec/dashboard${string}`
         | '/internal/v1/crowdsec/config'
         | '/internal/v1/crowdsec/test'
         | '/internal/v1/crowdsec/console/enroll'
@@ -276,10 +287,19 @@ export async function getCrowdSecRuntimeStatus(): Promise<CrowdSecRuntimeStatus 
     return result.success ? result.data : null
 }
 
-export async function getCrowdSecDashboard(): Promise<CrowdSecDashboard | null> {
-    const payload = await controllerRequest('/internal/v1/crowdsec/dashboard', {
+export async function getCrowdSecDashboard(
+    query: CrowdSecDashboardQuery,
+): Promise<CrowdSecDashboard | null> {
+    const params = new URLSearchParams({
+        offset: String(query.offset),
+        limit: String(query.limit),
+        search: query.search,
+        origin: query.origin,
+        scope: query.scope,
+    })
+    const payload = await controllerRequest(`/internal/v1/crowdsec/dashboard?${params}`, {
         timeoutMs: CROWDSEC_DASHBOARD_TIMEOUT_MS,
-        responseLimit: 32 * 1024,
+        responseLimit: 128 * 1024,
         privileged: true,
     })
     const result = crowdSecDashboardSchema.safeParse(payload)

@@ -6,7 +6,7 @@ mod certificates;
 pub(crate) mod clock;
 mod configuration;
 mod crowdsec;
-mod crowdsec_dashboard;
+pub(crate) mod crowdsec_dashboard;
 mod dns;
 mod engine;
 mod lifecycle;

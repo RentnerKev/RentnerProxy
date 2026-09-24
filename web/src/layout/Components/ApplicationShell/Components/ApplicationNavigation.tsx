@@ -8,6 +8,7 @@ import {
     Network,
     ScrollText,
     Shield,
+    ShieldAlert,
     ShieldCheck,
     UsersRound,
 } from 'lucide-react'
@@ -71,6 +72,12 @@ export default function ApplicationNavigation({ items }: ApplicationNavigationPr
                         />
                     ) : item.to === '/audit-logs' ? (
                         <ClipboardList
+                            aria-hidden="true"
+                            className="size-4 shrink-0"
+                            strokeWidth={1.8}
+                        />
+                    ) : item.to === '/security' ? (
+                        <ShieldAlert
                             aria-hidden="true"
                             className="size-4 shrink-0"
                             strokeWidth={1.8}

@@ -24,7 +24,7 @@
 - Proxy hosts and redirects with HTTP/2, HTTP/3, and WebSocket support.
 - Automatic TLS via ACME (HTTP-01 or Cloudflare DNS-01), wildcard and imported certificates.
 - Access policies with Basic Auth and IP allow/deny rules; verified HTTPS upstreams.
-- CrowdSec protection: managed or external Local API, optional community/Console connection, and a live security dashboard in the development image.
+- CrowdSec protection: managed or external Local API, optional community/Console connection, and a dedicated security dashboard in the development image.
 - Users, roles, permissions, TOTP, passkeys, and audit logs.
 - Live status and access logs; English, German, Spanish, and French UI.
 - Single-container appliance with Caddy, PostgreSQL, Redis, and a Rust controller.

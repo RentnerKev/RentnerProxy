@@ -121,7 +121,7 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             "/internal/v1/crowdsec/dashboard",
             get({
                 let state = state.clone();
-                move || crowdsec_dashboard(state.clone())
+                move |request| crowdsec_dashboard(request, state.clone())
             }),
         )
         .route(

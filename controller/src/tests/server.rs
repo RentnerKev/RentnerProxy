@@ -659,6 +659,19 @@ async fn crowdsec_dashboard_requires_internal_auth_and_never_caches() {
         .unwrap();
     assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
 
+    let invalid_query = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/internal/v1/crowdsec/dashboard?limit=101&scope=Country")
+                .header("authorization", format!("Bearer {token_text}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(invalid_query.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
     let response = router
         .oneshot(
             Request::builder()

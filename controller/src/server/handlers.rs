@@ -23,6 +23,7 @@ use crate::{
     runtime::{
         CertificateError, CertificateImportRequest, CertificateIssueRequest, CertificateMetadata,
         CrowdSecError, RuntimeError, access_logs::AccessLogQuery,
+        crowdsec_dashboard::CrowdSecDashboardQuery,
     },
 };
 
@@ -113,8 +114,25 @@ pub(super) async fn crowdsec_status(state: AppState) -> Response {
     no_store_json(state.runtime.crowdsec_status().await)
 }
 
-pub(super) async fn crowdsec_dashboard(state: AppState) -> Response {
-    no_store_json(state.runtime.crowdsec_dashboard().await)
+pub(super) async fn crowdsec_dashboard(
+    request: Request,
+    state: AppState,
+) -> Result<Response, ApiError> {
+    if request
+        .uri()
+        .query()
+        .is_some_and(|query| query.len() > 2048)
+    {
+        return Err(ApiError::validation_failed());
+    }
+    let Query(query) = Query::<CrowdSecDashboardQuery>::try_from_uri(request.uri())
+        .map_err(|_| ApiError::validation_failed())?;
+    if !query.validate() {
+        return Err(ApiError::validation_failed());
+    }
+    Ok(no_store_json(
+        state.runtime.crowdsec_dashboard(&query).await,
+    ))
 }
 
 pub(super) async fn apply_crowdsec_config(

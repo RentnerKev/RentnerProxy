@@ -59,7 +59,10 @@ describe('CrowdSec controller client', () => {
             },
             decisions: {
                 total: 1,
-                truncated: false,
+                filteredTotal: 1,
+                offset: 0,
+                limit: 15,
+                availableOrigins: ['crowdsec'],
                 entries: [
                     {
                         id: 1,
@@ -68,6 +71,7 @@ describe('CrowdSec controller client', () => {
                         origin: 'crowdsec',
                         scenario: 'http-bf',
                         duration: '2h',
+                        countryCode: null,
                     },
                 ],
             },
@@ -76,13 +80,22 @@ describe('CrowdSec controller client', () => {
             input: Parameters<typeof fetch>[0],
             init: Parameters<typeof fetch>[1],
         ) => {
-            expect(String(input)).toEndWith('/internal/v1/crowdsec/dashboard')
+            expect(String(input)).toContain('/internal/v1/crowdsec/dashboard?')
+            expect(String(input)).toContain('limit=15')
             expect(init?.headers).toMatchObject({ authorization: `Bearer ${controllerToken}` })
             expect(init?.body).toBeUndefined()
             return Response.json(snapshot)
         }) as unknown as typeof fetch)
         try {
-            expect(await getCrowdSecDashboard()).toEqual(snapshot)
+            expect(
+                await getCrowdSecDashboard({
+                    offset: 0,
+                    limit: 15,
+                    search: '',
+                    origin: '',
+                    scope: '',
+                }),
+            ).toEqual(snapshot)
             expect(fetchMock).toHaveBeenCalledTimes(1)
         } finally {
             fetchMock.mockRestore()
@@ -104,7 +117,15 @@ describe('CrowdSec controller client', () => {
                 decisions: null,
             })) as unknown as typeof fetch)
         try {
-            expect(await getCrowdSecDashboard()).toBeNull()
+            expect(
+                await getCrowdSecDashboard({
+                    offset: 0,
+                    limit: 15,
+                    search: '',
+                    origin: '',
+                    scope: '',
+                }),
+            ).toBeNull()
         } finally {
             fetchMock.mockRestore()
         }

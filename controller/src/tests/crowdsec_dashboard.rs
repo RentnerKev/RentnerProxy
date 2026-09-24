@@ -1,4 +1,7 @@
-use super::{metric_sample, parse_decisions, parse_metrics};
+use super::{
+    CrowdSecDashboardQuery, DashboardData, metric_sample, parse_decisions, parse_metrics,
+    snapshot_for,
+};
 
 #[test]
 fn parses_real_bouncer_counter_and_decision_gauge_without_other_metrics() {
@@ -39,32 +42,31 @@ fn lists_only_active_ip_and_network_bans_with_bounded_metadata() {
       {"id":5,"type":"ban","scope":"Ip","value":"not-an-ip","origin":"crowdsec","scenario":"http-bf","duration":"1h"}
     ]"#;
     let decisions = parse_decisions(body).expect("valid LAPI response");
-    assert_eq!(decisions.total, 2);
-    assert!(!decisions.truncated);
-    assert_eq!(decisions.entries[0].id, 3);
-    assert_eq!(decisions.entries[0].scope, "Range");
-    assert_eq!(decisions.entries[0].value, "2001:db8::/64");
-    assert_eq!(decisions.entries[1].duration, "2h15m");
+    assert_eq!(decisions.len(), 2);
+    assert_eq!(decisions[0].id, 3);
+    assert_eq!(decisions[0].scope, "Range");
+    assert_eq!(decisions[0].value, "2001:db8::/64");
+    assert_eq!(decisions[1].duration, "2h15m");
 }
 
 #[test]
 fn empty_lapi_response_is_zero_but_malformed_is_unavailable() {
-    assert_eq!(parse_decisions(b"null").unwrap().total, 0);
-    assert_eq!(parse_decisions(b"[]").unwrap().total, 0);
+    assert_eq!(parse_decisions(b"null").unwrap().len(), 0);
+    assert_eq!(parse_decisions(b"[]").unwrap().len(), 0);
     assert!(parse_decisions(b"{}").is_none());
     assert!(parse_decisions(b"not json").is_none());
 }
 
 #[test]
-fn bounds_the_visible_ban_list_without_undercounting() {
+fn pages_and_filters_all_active_bans_without_undercounting() {
     let rows = (1..=55)
         .map(|id| {
             serde_json::json!({
                 "id": id,
                 "type": "ban",
                 "scope": "Ip",
-                "value": "203.0.113.4",
-                "origin": "crowdsec",
+                "value": format!("203.0.113.{id}"),
+                "origin": if id % 2 == 0 { "CAPI" } else { "crowdsec" },
                 "scenario": "http-bf",
                 "duration": "2h"
             })
@@ -72,10 +74,61 @@ fn bounds_the_visible_ban_list_without_undercounting() {
         .collect::<Vec<_>>();
     let body = serde_json::to_vec(&rows).unwrap();
     let decisions = parse_decisions(&body).unwrap();
-    assert_eq!(decisions.total, 55);
-    assert!(decisions.truncated);
-    assert_eq!(decisions.entries.len(), 50);
-    assert_eq!(decisions.entries[0].id, 55);
+    let data = DashboardData {
+        collected_at: 1,
+        metrics: None,
+        decisions: Some(decisions),
+    };
+    let query = CrowdSecDashboardQuery {
+        offset: 15,
+        limit: 15,
+        search: String::new(),
+        origin: String::new(),
+        scope: String::new(),
+    };
+    let page = snapshot_for(&data, &query).decisions.unwrap();
+    assert_eq!(page.total, 55);
+    assert_eq!(page.filtered_total, 55);
+    assert_eq!(page.entries.len(), 15);
+    assert_eq!(page.entries[0].id, 40);
+
+    let filtered = snapshot_for(
+        &data,
+        &CrowdSecDashboardQuery {
+            offset: 0,
+            limit: 15,
+            search: "203.0.113.24".to_owned(),
+            origin: "capi".to_owned(),
+            scope: "Ip".to_owned(),
+        },
+    )
+    .decisions
+    .unwrap();
+    assert_eq!(filtered.total, 55);
+    assert_eq!(filtered.filtered_total, 1);
+    assert_eq!(filtered.entries[0].id, 24);
+}
+
+#[test]
+fn validates_bounded_dashboard_queries() {
+    let mut query = CrowdSecDashboardQuery::default();
+    assert!(query.validate());
+    query.limit = 101;
+    assert!(!query.validate());
+    query.limit = 15;
+    query.search = "bad\nquery".to_owned();
+    assert!(!query.validate());
+}
+
+#[test]
+fn accepts_only_valid_optional_country_codes() {
+    let body = br#"[
+      {"id":1,"type":"ban","scope":"Ip","value":"203.0.113.4","origin":"crowdsec","scenario":"http-bf","duration":"2h","country":"de"},
+      {"id":2,"type":"ban","scope":"Ip","value":"203.0.113.5","origin":"crowdsec","scenario":"http-bf","duration":"2h","country_code":"../DE"}
+    ]"#;
+    let decisions = parse_decisions(body).unwrap();
+    assert_eq!(decisions[0].country_code, None);
+    assert_eq!(decisions[1].country_code.as_deref(), Some("DE"));
 }
 
 #[test]

@@ -12,6 +12,7 @@ import {
 import { localizedActionFailure, throwLocalizedQueryError } from '../../Auth/serverHelpers'
 import {
     crowdSecConsoleEnrollmentSchema,
+    crowdSecDashboardQuerySchema,
     testCrowdSecConnectionSchema,
     updateCrowdSecConfigurationSchema,
 } from './validation'
@@ -59,14 +60,16 @@ export const getCrowdSecConfigurationHandler = createServerFn({ method: 'GET' })
     },
 )
 
-export const getCrowdSecDashboardHandler = createServerFn({ method: 'GET' }).handler(async () => {
-    noStore()
-    try {
-        return await getCrowdSecDashboardService()
-    } catch (error) {
-        throwLocalizedQueryError(error, 'admin.crowdSec.dashboard.unavailable')
-    }
-})
+export const getCrowdSecDashboardHandler = createServerFn({ method: 'GET' })
+    .validator(crowdSecDashboardQuerySchema)
+    .handler(async ({ data }) => {
+        noStore()
+        try {
+            return await getCrowdSecDashboardService(data)
+        } catch (error) {
+            throwLocalizedQueryError(error, 'admin.crowdSec.dashboard.unavailable')
+        }
+    })
 
 export const testCrowdSecConnectionHandler = createServerFn({ method: 'POST' })
     .validator(testCrowdSecConnectionSchema)

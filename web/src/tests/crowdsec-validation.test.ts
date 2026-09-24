@@ -5,11 +5,24 @@ import {
     crowdSecApiKeySchema,
     crowdSecApiUrlSchema,
     crowdSecConsoleEnrollmentSchema,
+    crowdSecDashboardQuerySchema,
     testCrowdSecConnectionSchema,
     updateCrowdSecConfigurationSchema,
 } from '../features/Admin/CrowdSec/validation'
 
 describe('CrowdSec configuration validation', () => {
+    test('bounds dashboard pagination and rejects control characters in filters', () => {
+        const query = { offset: 15, limit: 15, search: '203.0.113', origin: 'CAPI', scope: 'Ip' }
+        expect(crowdSecDashboardQuerySchema.safeParse(query).success).toBeTrue()
+        expect(crowdSecDashboardQuerySchema.safeParse({ ...query, limit: 101 }).success).toBeFalse()
+        expect(crowdSecDashboardQuerySchema.safeParse({ ...query, offset: -1 }).success).toBeFalse()
+        expect(
+            crowdSecDashboardQuerySchema.safeParse({ ...query, search: 'ip\n' }).success,
+        ).toBeFalse()
+        expect(
+            crowdSecDashboardQuerySchema.safeParse({ ...query, scope: 'Country' }).success,
+        ).toBeFalse()
+    })
     test('accepts exactly the three supported mode payloads', () => {
         expect(updateCrowdSecConfigurationSchema.parse({ mode: 'disabled' })).toEqual({
             mode: 'disabled',

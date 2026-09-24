@@ -5,12 +5,14 @@ import {
     testCrowdSecConnectionSchema,
     updateCrowdSecConfigurationSchema,
     crowdSecConsoleEnrollmentSchema,
+    crowdSecDashboardQuerySchema,
     type TestCrowdSecConnectionInput,
     type UpdateCrowdSecConfigurationInput,
 } from '../../../features/Admin/CrowdSec/validation'
 import type {
     CrowdSecConfiguration,
     CrowdSecDashboard,
+    CrowdSecDashboardQuery,
     CrowdSecMutationResult,
     CrowdSecRuntimeStatus,
 } from '../../../shared/Types/crowdsec.types'
@@ -132,9 +134,13 @@ export async function getCrowdSecConfigurationService(): Promise<CrowdSecConfigu
     }
 }
 
-export async function getCrowdSecDashboardService(): Promise<CrowdSecDashboard> {
+export async function getCrowdSecDashboardService(
+    query: CrowdSecDashboardQuery,
+): Promise<CrowdSecDashboard> {
     await requirePermissionService(PERMISSIONS.CROWDSEC_VIEW)
-    const dashboard = await getCrowdSecDashboard()
+    const parsed = crowdSecDashboardQuerySchema.safeParse(query)
+    if (!parsed.success) throw new CrowdSecDomainError('invalid_input')
+    const dashboard = await getCrowdSecDashboard(parsed.data)
     if (!dashboard) throw new CrowdSecDomainError('controller_unavailable')
     return dashboard
 }

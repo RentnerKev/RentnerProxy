@@ -29,7 +29,10 @@ export default function getApplicationShellViewModel(
             ? ([{ to: '/proxy-access-logs', label: t('shell.proxyAccessLogs') }] as const)
             : []),
         ...(permissionSet.has(PERMISSIONS.CROWDSEC_VIEW)
-            ? ([{ to: '/crowdsec', label: t('shell.crowdSec') }] as const)
+            ? ([
+                  { to: '/security', label: t('shell.security') },
+                  { to: '/crowdsec', label: t('shell.crowdSec') },
+              ] as const)
             : []),
         ...(permissionSet.has(PERMISSIONS.AUDIT_LOGS_VIEW)
             ? ([{ to: '/audit-logs', label: t('shell.auditLogs') }] as const)

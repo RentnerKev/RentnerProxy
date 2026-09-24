@@ -38,6 +38,7 @@ export interface ApplicationNavigationItem {
         | '/access-policies'
         | '/proxy-access-logs'
         | '/crowdsec'
+        | '/security'
         | '/audit-logs'
         | '/roles'
         | '/users'

@@ -1,8 +1,13 @@
-use std::{collections::BTreeMap, net::IpAddr, str::FromStr, time::Duration};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    net::IpAddr,
+    str::FromStr,
+    time::Duration,
+};
 
 use ipnet::IpNet;
 use reqwest::{StatusCode, Url, redirect::Policy};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::models::SecretString;
@@ -10,14 +15,59 @@ use crate::models::SecretString;
 use super::{ProxyRuntime, crowdsec::ActiveProvider};
 
 const MAX_DECISIONS_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
-const MAX_VISIBLE_DECISIONS: usize = 50;
+const MAX_PAGE_SIZE: usize = 100;
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 const DASHBOARD_CACHE_TTL: Duration = Duration::from_secs(15);
 
 pub(super) struct CrowdSecDashboardCache {
     fetched_at: tokio::time::Instant,
     provider: ActiveProvider,
-    snapshot: CrowdSecDashboardSnapshot,
+    data: DashboardData,
+}
+
+#[derive(Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub(crate) struct CrowdSecDashboardQuery {
+    pub(crate) offset: usize,
+    #[serde(default = "default_page_size")]
+    pub(crate) limit: usize,
+    pub(crate) search: String,
+    pub(crate) origin: String,
+    pub(crate) scope: String,
+}
+
+impl Default for CrowdSecDashboardQuery {
+    fn default() -> Self {
+        Self {
+            offset: 0,
+            limit: default_page_size(),
+            search: String::new(),
+            origin: String::new(),
+            scope: String::new(),
+        }
+    }
+}
+
+fn default_page_size() -> usize {
+    15
+}
+
+impl CrowdSecDashboardQuery {
+    pub(crate) fn validate(&self) -> bool {
+        self.limit > 0
+            && self.limit <= MAX_PAGE_SIZE
+            && self.offset <= 1_000_000
+            && self.search.chars().count() <= 200
+            && !self.search.chars().any(char::is_control)
+            && safe_label(&self.origin, 80).is_some()
+            && matches!(self.scope.as_str(), "" | "Ip" | "Range")
+    }
+}
+
+struct DashboardData {
+    collected_at: i64,
+    metrics: Option<DashboardMetrics>,
+    decisions: Option<Vec<DecisionEntry>>,
 }
 
 #[derive(Clone, Serialize)]
@@ -47,11 +97,15 @@ struct OriginCount {
 #[serde(rename_all = "camelCase")]
 struct DashboardDecisions {
     total: usize,
-    truncated: bool,
+    filtered_total: usize,
+    offset: usize,
+    limit: usize,
+    available_origins: Vec<String>,
     entries: Vec<DecisionEntry>,
 }
 
 #[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct DecisionEntry {
     id: u64,
     scope: &'static str,
@@ -59,10 +113,14 @@ struct DecisionEntry {
     origin: String,
     scenario: String,
     duration: String,
+    country_code: Option<String>,
 }
 
 impl ProxyRuntime {
-    pub(crate) async fn crowdsec_dashboard(&self) -> CrowdSecDashboardSnapshot {
+    pub(crate) async fn crowdsec_dashboard(
+        &self,
+        query: &CrowdSecDashboardQuery,
+    ) -> CrowdSecDashboardSnapshot {
         let collected_at = time::OffsetDateTime::now_utc().unix_timestamp();
         let provider = self.active_crowdsec_provider().await;
         let (Some(api_url), Some(api_key)) = (provider.api_url(), provider.api_key()) else {
@@ -78,7 +136,7 @@ impl ProxyRuntime {
             && previous.provider == provider
             && previous.fetched_at.elapsed() < DASHBOARD_CACHE_TTL
         {
-            return previous.snapshot.clone();
+            return snapshot_for(&previous.data, query);
         }
 
         let metrics_request = async {
@@ -91,7 +149,7 @@ impl ProxyRuntime {
         };
         let decisions_request = fetch_decisions(api_url, api_key);
         let (metrics, decisions) = tokio::join!(metrics_request, decisions_request);
-        let snapshot = CrowdSecDashboardSnapshot {
+        let data = DashboardData {
             collected_at,
             metrics,
             decisions,
@@ -103,12 +161,54 @@ impl ProxyRuntime {
                 decisions: None,
             };
         }
+        let snapshot = snapshot_for(&data, query);
         *cache = Some(CrowdSecDashboardCache {
             fetched_at: tokio::time::Instant::now(),
             provider,
-            snapshot: snapshot.clone(),
+            data,
         });
         snapshot
+    }
+}
+
+fn snapshot_for(data: &DashboardData, query: &CrowdSecDashboardQuery) -> CrowdSecDashboardSnapshot {
+    let decisions = data.decisions.as_ref().map(|entries| {
+        let search = query.search.to_ascii_lowercase();
+        let matching = entries
+            .iter()
+            .filter(|entry| {
+                (query.origin.is_empty() || entry.origin.eq_ignore_ascii_case(&query.origin))
+                    && (query.scope.is_empty() || entry.scope == query.scope)
+                    && (search.is_empty()
+                        || entry.value.to_ascii_lowercase().contains(&search)
+                        || entry.origin.to_ascii_lowercase().contains(&search)
+                        || entry.scenario.to_ascii_lowercase().contains(&search))
+            })
+            .collect::<Vec<_>>();
+        DashboardDecisions {
+            total: entries.len(),
+            filtered_total: matching.len(),
+            offset: query.offset,
+            limit: query.limit,
+            available_origins: entries
+                .iter()
+                .map(|entry| entry.origin.clone())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .take(100)
+                .collect(),
+            entries: matching
+                .into_iter()
+                .skip(query.offset)
+                .take(query.limit)
+                .cloned()
+                .collect(),
+        }
+    });
+    CrowdSecDashboardSnapshot {
+        collected_at: data.collected_at,
+        metrics: data.metrics.clone(),
+        decisions,
     }
 }
 
@@ -222,7 +322,7 @@ fn safe_label(value: &str, max_len: usize) -> Option<String> {
     (value.len() <= max_len && !value.chars().any(char::is_control)).then(|| value.to_owned())
 }
 
-async fn fetch_decisions(api_url: &str, api_key: &SecretString) -> Option<DashboardDecisions> {
+async fn fetch_decisions(api_url: &str, api_key: &SecretString) -> Option<Vec<DecisionEntry>> {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     let endpoint = Url::parse(api_url).ok()?.join("v1/decisions").ok()?;
     let client = reqwest::Client::builder()
@@ -256,19 +356,13 @@ async fn fetch_decisions(api_url: &str, api_key: &SecretString) -> Option<Dashbo
     parse_decisions(&body)
 }
 
-fn parse_decisions(body: &[u8]) -> Option<DashboardDecisions> {
+fn parse_decisions(body: &[u8]) -> Option<Vec<DecisionEntry>> {
     let rows = serde_json::from_slice::<Option<Vec<Value>>>(body)
         .ok()?
         .unwrap_or_default();
     let mut entries = rows.iter().filter_map(parse_decision).collect::<Vec<_>>();
-    let total = entries.len();
     entries.sort_by_key(|entry| std::cmp::Reverse(entry.id));
-    entries.truncate(MAX_VISIBLE_DECISIONS);
-    Some(DashboardDecisions {
-        total,
-        truncated: total > MAX_VISIBLE_DECISIONS,
-        entries,
-    })
+    Some(entries)
 }
 
 fn parse_decision(value: &Value) -> Option<DecisionEntry> {
@@ -298,6 +392,14 @@ fn parse_decision(value: &Value) -> Option<DecisionEntry> {
         origin: safe_label(value.get("origin")?.as_str()?, 80)?,
         scenario: safe_label(value.get("scenario")?.as_str()?, 160)?,
         duration: safe_label(value.get("duration")?.as_str()?, 80)?,
+        country_code: value
+            .get("country_code")
+            .or_else(|| value.get("country"))
+            .and_then(Value::as_str)
+            .and_then(|code| {
+                (code.len() == 2 && code.bytes().all(|byte| byte.is_ascii_alphabetic()))
+                    .then(|| code.to_ascii_uppercase())
+            }),
     })
 }
 

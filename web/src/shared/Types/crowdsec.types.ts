@@ -44,6 +44,24 @@ export interface CrowdSecOriginCount {
     readonly count: number
 }
 
+export interface CrowdSecDashboardQuery {
+    readonly offset: number
+    readonly limit: number
+    readonly search: string
+    readonly origin: string
+    readonly scope: '' | 'Ip' | 'Range'
+}
+
+export interface CrowdSecDecision {
+    readonly id: number
+    readonly scope: 'Ip' | 'Range'
+    readonly value: string
+    readonly origin: string
+    readonly scenario: string
+    readonly duration: string
+    readonly countryCode: string | null
+}
+
 export interface CrowdSecDashboard {
     readonly collectedAt: number
     readonly metrics: {
@@ -54,14 +72,10 @@ export interface CrowdSecDashboard {
     } | null
     readonly decisions: {
         readonly total: number
-        readonly truncated: boolean
-        readonly entries: readonly {
-            readonly id: number
-            readonly scope: 'Ip' | 'Range'
-            readonly value: string
-            readonly origin: string
-            readonly scenario: string
-            readonly duration: string
-        }[]
+        readonly filteredTotal: number
+        readonly offset: number
+        readonly limit: number
+        readonly availableOrigins: readonly string[]
+        readonly entries: readonly CrowdSecDecision[]
     } | null
 }

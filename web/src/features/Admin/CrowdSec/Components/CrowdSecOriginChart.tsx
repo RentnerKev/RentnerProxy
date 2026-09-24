@@ -17,8 +17,9 @@ export default function CrowdSecOriginChart({
     return (
         <Chart
             definition={definition}
-            height={Math.max(180, rows.length * 38 + 68)}
+            height={260}
             ariaLabel={label}
+            className="[&_svg:focus:not(:focus-visible)]:outline-none [&_svg:focus-visible]:outline-2 [&_svg:focus-visible]:outline-brand-500"
         />
     )
 }
