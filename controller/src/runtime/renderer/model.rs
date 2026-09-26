@@ -160,6 +160,8 @@ pub(super) enum Handler {
     LogAppend(LogAppend),
     #[serde(rename = "headers")]
     Headers(Headers),
+    #[serde(rename = "vars")]
+    Vars(EmptyVars),
     #[serde(rename = "crowdsec")]
     CrowdSec(CrowdSecHandler),
     #[serde(rename = "static_response")]
@@ -170,8 +172,14 @@ pub(super) enum Handler {
 pub(super) struct CrowdSecHandler {}
 
 #[derive(Serialize)]
+pub(super) struct EmptyVars {}
+
+#[derive(Serialize)]
 pub(super) struct Headers {
-    pub(super) response: ResponseHeaders,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) request: Option<HeaderOps>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) response: Option<ResponseHeaders>,
 }
 
 #[derive(Serialize)]
@@ -250,6 +258,28 @@ pub(super) struct ReverseProxy {
     pub(super) headers: RequestHeaders,
     pub(super) transport: HttpTransport,
     pub(super) stream_close_delay: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) rewrite: Option<ProxyRewrite>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub(super) handle_response: Vec<ProxyResponseHandler>,
+}
+
+#[derive(Serialize)]
+pub(super) struct ProxyRewrite {
+    pub(super) method: String,
+    pub(super) uri: String,
+}
+
+#[derive(Serialize)]
+pub(super) struct ProxyResponseHandler {
+    #[serde(rename = "match")]
+    pub(super) matcher: ProxyResponseMatcher,
+    pub(super) routes: Vec<Route>,
+}
+
+#[derive(Serialize)]
+pub(super) struct ProxyResponseMatcher {
+    pub(super) status_code: Vec<u16>,
 }
 
 #[derive(Serialize)]

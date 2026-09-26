@@ -23,7 +23,7 @@
 
 - Proxy hosts and redirects with HTTP/2, HTTP/3, and WebSocket support.
 - Automatic TLS via ACME (HTTP-01 or Cloudflare DNS-01), wildcard and imported certificates.
-- Access policies with Basic Auth and IP allow/deny rules; verified HTTPS upstreams.
+- Access policies with Basic Auth, Forward Auth, and IP allow/deny rules; verified HTTPS upstreams.
 - CrowdSec protection: managed or external Local API, optional community/Console connection, and a dedicated security dashboard in the development image.
 - Users, roles, permissions, TOTP, passkeys, and audit logs.
 - Live status and access logs; English, German, Spanish, and French UI.
@@ -96,7 +96,7 @@ docker compose up -d
 - The Compose example pins `v1.0.0-alpha.6`. For upgrades, back up data, change the tag, then run `docker compose pull` and `docker compose up -d`.
 - Repository [backup](scripts/production-backup.ts) and [restore](scripts/production-restore.ts) tools require a checkout and Bun.
 - `:dev` is a moving **test image** built manually from `main` by the [Dev Image workflow](https://github.com/RentnerKev/RentnerProxy/actions/workflows/dev-image.yml); it is not a release.
-- CrowdSec is **not** in the pinned Alpha 6 image. To test the current implementation, use `ghcr.io/rentnerkev/rentnerproxy:dev` after triggering that workflow.
+- CrowdSec and Forward Auth are **not** in the pinned Alpha 6 image. To test the current implementation, use `ghcr.io/rentnerkev/rentnerproxy:dev` after triggering that workflow.
 
 ## CrowdSec (development image)
 
@@ -106,6 +106,12 @@ docker compose up -d
 - Flags use a bundled country-only MMDB. A mounted GeoLite2 Country file can be selected with the optional `RENTNERPROXY_GEOIP_COUNTRY_DB_PATH` (absolute path; maintain its license and updates).
 - Enforcement is fail-open when the selected Local API is unavailable.
 - Managed CrowdSec data is not yet in repository backups ([#71](https://github.com/RentnerKev/RentnerProxy/issues/71)); snapshot the Docker volume.
+
+## Forward Auth (development image)
+
+Forward Auth is configured inside an existing Access Policy. Choose a provider preset, enter its full HTTP or HTTPS check endpoint, and select the request credentials and identity response headers needed by that provider. Basic Auth and Forward Auth are mutually exclusive in one policy. An IP rule can be combined with Forward Auth only when **all** checks must pass. The auth check is fail closed: a denied response or unreachable gateway never grants access to the protected upstream. HTTPS auth gateways use normal certificate verification; the endpoint cannot contain credentials or a query string.
+
+The [Forward Auth guide](docs/forward-auth.md) describes the request order, Authentik and Authelia setup, the narrower oauth2-proxy behavior, trusted proxy settings, and operational limits. Provider reachability is not measured by the Security Dashboard; it reports configured policy counts and settings only.
 
 ## More information
 

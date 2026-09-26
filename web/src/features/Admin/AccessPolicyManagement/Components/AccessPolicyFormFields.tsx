@@ -2,6 +2,10 @@ import { CheckboxInput, RadioInput, TextInput, Textarea } from '@rentnerkev/inpu
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
+import {
+    FORWARD_AUTH_PROVIDERS,
+    isCanonicalForwardAuthEndpoint,
+} from '../../../../shared/Helpers/forwardAuth'
 import { getAccessPolicyAvailability } from '../Helpers/basicAuthPolicyState'
 import {
     defaultAccessPolicyIpRules,
@@ -11,6 +15,7 @@ import {
 import type { AccessPolicyFormFieldsProps } from '../Types/access-policy-form.types'
 
 const modes = ['public', 'authenticated', 'ip-restricted', 'combined'] as const
+const requestHeaderOptions = ['Cookie', 'Authorization'] as const
 
 function hasIpRulesSection(mode: AccessPolicyFormFieldsProps['values']['mode']): boolean {
     return mode === 'ip-restricted' || mode === 'combined'
@@ -28,6 +33,13 @@ export default function AccessPolicyFormFields({
     setIpRuleDeny,
     setMode,
     setName,
+    setAuthMethod,
+    setForwardAuthProvider,
+    setForwardAuthEndpoint,
+    setForwardAuthGatewayPathPrefix,
+    setForwardAuthTimeout,
+    setForwardAuthRequestHeader,
+    setForwardAuthResponseHeaders,
     values,
 }: AccessPolicyFormFieldsProps) {
     const { t } = useTranslationStore()
@@ -35,6 +47,7 @@ export default function AccessPolicyFormFields({
     const combinationErrorId = `${formId}-combination-error`
     const ipRulesErrorId = `${formId}-ip-rules-error`
     const ipRulesSectionVisible = hasIpRulesSection(values.mode)
+    const authenticationModeVisible = values.mode === 'authenticated' || values.mode === 'combined'
     const parsedIpRules = values.ipRules
         ? parseAccessPolicyIpRulesDraft(values.ipRules)
         : { rules: null }
@@ -53,10 +66,16 @@ export default function AccessPolicyFormFields({
         basicAuthAccountCount,
         availabilityIpRules,
     )
+    const availabilityKey =
+        authenticationModeVisible && values.authMethod === 'forwardAuth'
+            ? isCanonicalForwardAuthEndpoint(values.forwardAuth.endpoint)
+                ? 'forwardAuthConfigured'
+                : 'forwardAuthMissing'
+            : availability
     const availabilityClassName =
-        availability === 'publicIgnored'
+        availabilityKey === 'publicIgnored'
             ? 'border-border bg-surface-subtle'
-            : availability.includes('Missing') || availability.includes('BlocksAll')
+            : availabilityKey.includes('Missing') || availability.includes('BlocksAll')
               ? 'border-amber-500/35 bg-amber-500/10'
               : 'border-brand-600/25 bg-success-bg'
 
@@ -104,13 +123,223 @@ export default function AccessPolicyFormFields({
                     {t('admin.accessPolicies.form.modeHint')}
                 </p>
             </div>
+            {authenticationModeVisible ? (
+                <fieldset
+                    className={`${uiClassNames.permission.fieldset} ${uiClassNames.form.wide}`}
+                >
+                    <legend>{t('admin.accessPolicies.form.authenticationMethod')}</legend>
+                    <div className="grid gap-2">
+                        {(['basicAuth', 'forwardAuth'] as const).map((method) => (
+                            <label
+                                className={uiClassNames.permission.option}
+                                htmlFor={`${formId}-authentication-${method}`}
+                                key={method}
+                            >
+                                <RadioInput
+                                    type="radio"
+                                    id={`${formId}-authentication-${method}`}
+                                    name="authenticationMethod"
+                                    checked={values.authMethod === method}
+                                    disabled={isPending}
+                                    onChange={() => setAuthMethod(method)}
+                                />
+                                <span className={uiClassNames.permission.copy}>
+                                    <span className={uiClassNames.permission.title}>
+                                        {t(
+                                            method === 'forwardAuth'
+                                                ? 'admin.accessPolicies.form.forwardAuth.title'
+                                                : 'admin.accessPolicies.form.basicAuth',
+                                        )}
+                                    </span>
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                </fieldset>
+            ) : null}
+            {authenticationModeVisible && values.authMethod === 'forwardAuth' ? (
+                <fieldset
+                    className={`${uiClassNames.permission.fieldset} ${uiClassNames.form.wide} grid gap-3`}
+                >
+                    <legend>{t('admin.accessPolicies.form.forwardAuth.title')}</legend>
+                    <p className={uiClassNames.form.hint}>
+                        {t('admin.accessPolicies.form.forwardAuth.description')}
+                    </p>
+                    <div className={uiClassNames.form.field}>
+                        <label
+                            className={uiClassNames.form.label}
+                            htmlFor={`${formId}-forwardAuth-provider`}
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.provider')}
+                        </label>
+                        <CustomSelect
+                            id={`${formId}-forwardAuth-provider`}
+                            name="forwardAuth.provider"
+                            required
+                            aria-label={t('admin.accessPolicies.form.forwardAuth.provider')}
+                            disabled={isPending}
+                            options={FORWARD_AUTH_PROVIDERS.map((provider) => ({
+                                value: provider,
+                                label: t(
+                                    `admin.accessPolicies.form.forwardAuth.providers.${provider}`,
+                                ),
+                            }))}
+                            value={values.forwardAuth.provider}
+                            onValueChange={setForwardAuthProvider}
+                        />
+                    </div>
+                    <div className={uiClassNames.form.field}>
+                        <label
+                            className={uiClassNames.form.label}
+                            htmlFor={`${formId}-forwardAuth-gatewayPathPrefix`}
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.gatewayPathPrefix')}
+                        </label>
+                        <TextInput
+                            id={`${formId}-forwardAuth-gatewayPathPrefix`}
+                            name="forwardAuth.gatewayPathPrefix"
+                            value={values.forwardAuth.gatewayPathPrefix}
+                            disabled={isPending}
+                            aria-invalid={errors.forwardAuth !== undefined}
+                            aria-describedby={`${formId}-forwardAuth-gatewayPathPrefix-hint ${formId}-forwardAuth-error`}
+                            onChange={(event) =>
+                                setForwardAuthGatewayPathPrefix(event.target.value)
+                            }
+                        />
+                        <p
+                            id={`${formId}-forwardAuth-gatewayPathPrefix-hint`}
+                            className={uiClassNames.form.hint}
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.gatewayPathPrefixHint')}
+                        </p>
+                    </div>
+                    <div className={uiClassNames.form.field}>
+                        <label
+                            className={uiClassNames.form.label}
+                            htmlFor={`${formId}-forwardAuth-endpoint`}
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.endpoint')}
+                        </label>
+                        <TextInput
+                            id={`${formId}-forwardAuth-endpoint`}
+                            name="forwardAuth.endpoint"
+                            inputMode="url"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            value={values.forwardAuth.endpoint}
+                            disabled={isPending}
+                            aria-invalid={errors.forwardAuth !== undefined}
+                            aria-describedby={`${formId}-forwardAuth-endpoint-hint ${formId}-forwardAuth-error`}
+                            onChange={(event) => setForwardAuthEndpoint(event.target.value)}
+                        />
+                        <p
+                            id={`${formId}-forwardAuth-endpoint-hint`}
+                            className={uiClassNames.form.hint}
+                        >
+                            {t(
+                                `admin.accessPolicies.form.forwardAuth.endpointHint.${values.forwardAuth.provider}`,
+                            )}
+                        </p>
+                    </div>
+                    <div className={uiClassNames.form.field}>
+                        <label
+                            className={uiClassNames.form.label}
+                            htmlFor={`${formId}-forwardAuth-timeout`}
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.timeout')}
+                        </label>
+                        <TextInput
+                            id={`${formId}-forwardAuth-timeout`}
+                            name="forwardAuth.timeoutSeconds"
+                            inputMode="numeric"
+                            min={1}
+                            max={30}
+                            step={1}
+                            value={values.forwardAuth.timeoutSeconds}
+                            disabled={isPending}
+                            aria-invalid={errors.forwardAuth !== undefined}
+                            aria-describedby={`${formId}-forwardAuth-error`}
+                            onChange={(event) => setForwardAuthTimeout(event.target.value)}
+                        />
+                    </div>
+                    <div className={uiClassNames.form.field}>
+                        <span className={uiClassNames.form.label}>
+                            {t('admin.accessPolicies.form.forwardAuth.requestHeaders')}
+                        </span>
+                        {requestHeaderOptions.map((header) => (
+                            <label
+                                className={uiClassNames.permission.option}
+                                htmlFor={`${formId}-forwardAuth-request-${header}`}
+                                key={header}
+                            >
+                                <CheckboxInput
+                                    type="checkbox"
+                                    id={`${formId}-forwardAuth-request-${header}`}
+                                    name={`forwardAuth.requestHeaders.${header}`}
+                                    checked={values.forwardAuth.requestHeaders.includes(header)}
+                                    disabled={isPending}
+                                    onChange={(event) =>
+                                        setForwardAuthRequestHeader(header, event.target.checked)
+                                    }
+                                />
+                                <span className={uiClassNames.permission.copy}>
+                                    <span className={uiClassNames.permission.title}>{header}</span>
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                    <div className={uiClassNames.form.field}>
+                        <label
+                            className={uiClassNames.form.label}
+                            htmlFor={`${formId}-forwardAuth-responseHeaders`}
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.responseHeaders')}
+                        </label>
+                        <Textarea
+                            id={`${formId}-forwardAuth-responseHeaders`}
+                            name="forwardAuth.responseHeaders"
+                            value={values.forwardAuth.responseHeaders}
+                            disabled={isPending}
+                            rows={4}
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            aria-invalid={errors.forwardAuth !== undefined}
+                            aria-describedby={`${formId}-forwardAuth-responseHeaders-hint ${formId}-forwardAuth-error`}
+                            placeholder={t(
+                                'admin.accessPolicies.form.forwardAuth.responseHeadersHint',
+                            )}
+                            onChange={(event) => setForwardAuthResponseHeaders(event.target.value)}
+                        />
+                        <p
+                            id={`${formId}-forwardAuth-responseHeaders-hint`}
+                            className={uiClassNames.form.hint}
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.responseHeadersDescription')}
+                        </p>
+                    </div>
+                    {errors.forwardAuth ? (
+                        <p
+                            id={`${formId}-forwardAuth-error`}
+                            className="m-0 text-sm text-danger-text"
+                            role="alert"
+                        >
+                            {t(errors.forwardAuth)}
+                        </p>
+                    ) : null}
+                </fieldset>
+            ) : null}
             {values.mode === 'combined' ? (
                 <fieldset
                     className={`${uiClassNames.permission.fieldset} ${uiClassNames.form.wide}`}
                 >
                     <legend>{t('admin.accessPolicies.form.combination')}</legend>
                     <div className="grid gap-2">
-                        {(['all', 'any'] as const).map((combination) => (
+                        {(values.authMethod === 'forwardAuth'
+                            ? (['all'] as const)
+                            : (['all', 'any'] as const)
+                        ).map((combination) => (
                             <label
                                 className={uiClassNames.permission.option}
                                 aria-label={t(`admin.accessPolicies.combination.${combination}`)}
@@ -289,7 +518,7 @@ export default function AccessPolicyFormFields({
                     {t('admin.accessPolicies.form.availabilityTitle')}
                 </p>
                 <p className="mt-1 mb-0">
-                    {t(`admin.accessPolicies.availability.${availability}`)}
+                    {t(`admin.accessPolicies.availability.${availabilityKey}`)}
                 </p>
             </aside>
         </>

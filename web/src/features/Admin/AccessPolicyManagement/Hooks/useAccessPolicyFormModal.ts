@@ -49,6 +49,13 @@ export default function useAccessPolicyFormModal(props: AccessPolicyFormModalPro
             setIpRuleDeny: form.handler.setIpRuleDeny,
             setMode: form.handler.setMode,
             setName: form.handler.setName,
+            setAuthMethod: form.handler.setAuthMethod,
+            setForwardAuthProvider: form.handler.setForwardAuthProvider,
+            setForwardAuthEndpoint: form.handler.setForwardAuthEndpoint,
+            setForwardAuthGatewayPathPrefix: form.handler.setForwardAuthGatewayPathPrefix,
+            setForwardAuthTimeout: form.handler.setForwardAuthTimeout,
+            setForwardAuthRequestHeader: form.handler.setForwardAuthRequestHeader,
+            setForwardAuthResponseHeaders: form.handler.setForwardAuthResponseHeaders,
         },
     }
 }

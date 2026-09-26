@@ -21,13 +21,15 @@ roadmap scope.
 
 ## Beta 1 features
 
-CrowdSec integration is implemented on the Beta 1 development line through
-[issue #64](https://github.com/RentnerKev/RentnerProxy/issues/64). It keeps the single-appliance
-deployment and supports disabled, managed, and external Local API modes.
+CrowdSec and Forward Auth access policies are implemented on the Beta 1 development line through
+[issue #64](https://github.com/RentnerKev/RentnerProxy/issues/64) and
+[issue #65](https://github.com/RentnerKev/RentnerProxy/issues/65). CrowdSec keeps the
+single-appliance deployment and supports disabled, managed, and external Local API modes.
+Forward Auth connects an Access Policy to an administrator-chosen external auth gateway; the
+provider deployment and live integration remain operator responsibilities.
 
 The following capabilities remain planned and are not currently available:
 
-- [Forward Auth access policies](https://github.com/RentnerKev/RentnerProxy/issues/65).
 - [Nginx Proxy Manager importer](https://github.com/RentnerKev/RentnerProxy/issues/66).
 
 Each feature must fit the existing Caddy and desired-state/controller architecture. The Beta 1

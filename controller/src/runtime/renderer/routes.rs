@@ -11,7 +11,8 @@ use super::{
     MAX_RENDERED_PROXY_HOST_SOURCE_BYTES, RenderError, RenderSettings, UpstreamTlsRenderSettings,
     model::{Handler, MatcherSet, RemoteIpMatcher, Route, StaticResponse, Subroute},
     policy::{
-        combined_all_routes, combined_any_routes, denied_host_route, ip_only_routes, proxy_route,
+        combined_all_routes, combined_any_routes, denied_host_route, gateway_route, ip_only_routes,
+        proxy_route,
     },
     proxy::{
         force_https_headers, force_https_location, location_headers, redirect_location,
@@ -150,17 +151,21 @@ fn host_routes_for_listener(
             defaults,
             MatcherSet::host(&host.domains),
             None,
+            None,
             forwarded_proto,
         )?]);
     };
 
     let configured = match policy.mode {
         AccessPolicyMode::Public => true,
-        AccessPolicyMode::Authenticated => policy.basic_auth.is_some(),
+        AccessPolicyMode::Authenticated => {
+            policy.basic_auth.is_some() || policy.forward_auth.is_some()
+        }
         AccessPolicyMode::IpRestricted => policy.ip_rules.is_some(),
         AccessPolicyMode::Combined => match policy.combination {
             Some(AccessPolicyCombination::All) => {
-                policy.basic_auth.is_some() && policy.ip_rules.is_some()
+                (policy.basic_auth.is_some() || policy.forward_auth.is_some())
+                    && policy.ip_rules.is_some()
             }
             Some(AccessPolicyCombination::Any) => {
                 policy.basic_auth.is_some() || policy.ip_rules.is_some()
@@ -177,12 +182,13 @@ fn host_routes_for_listener(
             public_https_port,
         )]);
     }
-    let routes = match policy.mode {
+    let mut routes = match policy.mode {
         AccessPolicyMode::Public => Ok(vec![proxy_route(
             host,
             upstream_tls,
             defaults,
             MatcherSet::host(&host.domains),
+            None,
             None,
             forwarded_proto,
         )?]),
@@ -192,6 +198,7 @@ fn host_routes_for_listener(
             defaults,
             MatcherSet::host(&host.domains),
             policy.basic_auth.as_ref(),
+            policy.forward_auth.as_ref(),
             forwarded_proto,
         )?]),
         AccessPolicyMode::IpRestricted => ip_only_routes(
@@ -211,6 +218,11 @@ fn host_routes_for_listener(
             None => Ok(vec![denied_host_route(&host.domains)]),
         },
     }?;
+    if let Some(auth) = policy.forward_auth.as_ref()
+        && let Some(route) = gateway_route(host, auth, forwarded_proto)?
+    {
+        routes.insert(0, route);
+    }
     Ok(routes)
 }
 

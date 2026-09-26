@@ -28,6 +28,10 @@ import {
     type UpdateAccessPolicyInput,
 } from '../../../features/Admin/AccessPolicyManagement/validation'
 import { AccessPolicyDomainError } from './access-policies.errors'
+import {
+    forwardAuthInputSchema,
+    type ForwardAuthConfiguration,
+} from '../../../shared/Helpers/forwardAuth'
 
 export type AccessPolicyMutationResult = AccessPolicySummary & {
     readonly accessPolicyId: string
@@ -57,6 +61,7 @@ function parseId(accessPolicyId: string): string {
 function assertPolicyShape(
     mode: AccessPolicyMode,
     combination: AccessPolicyCombination | null,
+    forwardAuth: ForwardAuthConfiguration | null,
 ): void {
     if (!(ACCESS_POLICY_MODES as readonly string[]).includes(mode)) {
         throw new AccessPolicyDomainError('invalid_input')
@@ -70,6 +75,21 @@ function assertPolicyShape(
     ) {
         throw new AccessPolicyDomainError('invalid_input')
     }
+    if (
+        forwardAuth !== null &&
+        (mode === 'public' ||
+            mode === 'ip-restricted' ||
+            (mode === 'combined' && combination !== 'all'))
+    ) {
+        throw new AccessPolicyDomainError('invalid_input')
+    }
+}
+
+function parseForwardAuth(value: unknown): ForwardAuthConfiguration | null {
+    if (value === null || value === undefined) return null
+    const parsed = forwardAuthInputSchema.safeParse(value)
+    if (!parsed.success) throw new AccessPolicyDomainError('invalid_input')
+    return parsed.data
 }
 
 function toSummary(
@@ -84,6 +104,7 @@ function toSummary(
         mode: row.mode,
         combination: row.combination,
         ipRules: row.ipRules,
+        forwardAuth: parseForwardAuth(row.forwardAuth),
         assignedHostCount,
         basicAuthAccountCount,
         createdAt: row.createdAt,
@@ -169,7 +190,7 @@ export async function createAccessPolicyService(
 ): Promise<AccessPolicyMutationResult> {
     const actor = await requirePermissionService(PERMISSIONS.ACCESS_POLICIES_CREATE)
     const parsed = parseCreate(input)
-    assertPolicyShape(parsed.mode, parsed.combination)
+    assertPolicyShape(parsed.mode, parsed.combination, parsed.forwardAuth)
     let row: AccessPolicyRow
     try {
         row = await getAuthDatabase().transaction(async (transaction) => {
@@ -242,7 +263,16 @@ export async function updateAccessPolicyService(
                     : mode === 'combined'
                       ? current.combination
                       : null
-            assertPolicyShape(mode, combination)
+            const currentForwardAuth = parseForwardAuth(current.forwardAuth)
+            const forwardAuth =
+                mode === 'public' || mode === 'ip-restricted'
+                    ? null
+                    : parsed.forwardAuth !== undefined
+                      ? parsed.forwardAuth
+                      : currentForwardAuth
+            assertPolicyShape(mode, combination, forwardAuth)
+            const forwardAuthChanged =
+                JSON.stringify(forwardAuth) !== JSON.stringify(currentForwardAuth)
             const rows = await transaction
                 .update(accessPolicies)
                 .set({
@@ -251,6 +281,7 @@ export async function updateAccessPolicyService(
                         ? {}
                         : { description: parsed.description }),
                     ...(parsed.ipRules === undefined ? {} : { ipRules: parsed.ipRules }),
+                    forwardAuth,
                     mode,
                     combination,
                     updatedAt: new Date(),
@@ -277,6 +308,7 @@ export async function updateAccessPolicyService(
                         ...(parsed.mode === undefined ? [] : (['mode'] as const)),
                         ...(parsed.combination === undefined ? [] : (['combination'] as const)),
                         ...(parsed.ipRules === undefined ? [] : (['ipRules'] as const)),
+                        ...(forwardAuthChanged ? (['forwardAuth'] as const) : []),
                     ],
                 },
             })

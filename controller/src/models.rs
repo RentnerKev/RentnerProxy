@@ -168,7 +168,20 @@ pub(crate) struct AccessPolicy {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) basic_auth: Option<BasicAuth>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) forward_auth: Option<ForwardAuth>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) ip_rules: Option<IpRules>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub(crate) struct ForwardAuth {
+    pub(crate) endpoint: String,
+    pub(crate) timeout_seconds: u32,
+    pub(crate) request_headers: Vec<String>,
+    pub(crate) response_headers: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) gateway_path_prefix: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

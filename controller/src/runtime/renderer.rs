@@ -50,6 +50,7 @@ pub(crate) enum RenderError {
     MissingCertificate,
     MissingTrustedCa,
     MissingUpstreamTlsPolicy,
+    InvalidForwardAuthEndpoint,
     ConfigTooLarge,
 }
 

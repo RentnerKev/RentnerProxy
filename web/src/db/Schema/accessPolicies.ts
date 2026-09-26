@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import { check, index, jsonb, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 
 import type { AccessPolicyIpRules } from '../../shared/Helpers/ipAccessRules'
+import type { ForwardAuthConfiguration } from '../../shared/Helpers/forwardAuth'
 import { rentnerProxySchema } from './base'
 
 export const accessPolicyMode = rentnerProxySchema.enum('access_policy_mode', [
@@ -28,6 +29,9 @@ export const accessPolicies = rentnerProxySchema.table(
         combination: accessPolicyCombination('combination'),
         ipRules: jsonb('ip_rules')
             .$type<AccessPolicyIpRules | null>()
+            .default(sql`null`),
+        forwardAuth: jsonb('forward_auth')
+            .$type<ForwardAuthConfiguration | null>()
             .default(sql`null`),
         createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
             .notNull()

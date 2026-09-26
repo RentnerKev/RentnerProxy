@@ -210,6 +210,7 @@ impl ProxyRuntime {
             | RenderError::InvalidCertificatePath
             | RenderError::MissingCertificate
             | RenderError::MissingTrustedCa
+            | RenderError::InvalidForwardAuthEndpoint
             | RenderError::MissingUpstreamTlsPolicy => RuntimeError::ApplyFailed,
         })?;
         if revision_from_config(&rendered).as_deref() != Some(configuration.revision.as_str()) {

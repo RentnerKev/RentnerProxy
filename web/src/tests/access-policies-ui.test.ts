@@ -10,6 +10,7 @@ const policy: AccessPolicySummary = {
     mode: 'combined',
     combination: 'all',
     ipRules: null,
+    forwardAuth: null,
     assignedHostCount: 0,
     basicAuthAccountCount: 0,
     createdAt: new Date('2026-01-01T00:00:00Z'),

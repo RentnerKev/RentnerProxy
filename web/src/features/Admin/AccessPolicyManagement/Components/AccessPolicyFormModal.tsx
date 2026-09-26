@@ -59,6 +59,13 @@ export default function AccessPolicyFormModal(props: AccessPolicyFormModalProps)
                     setIpRuleDeny={handler.setIpRuleDeny}
                     setMode={handler.setMode}
                     setName={handler.setName}
+                    setAuthMethod={handler.setAuthMethod}
+                    setForwardAuthProvider={handler.setForwardAuthProvider}
+                    setForwardAuthEndpoint={handler.setForwardAuthEndpoint}
+                    setForwardAuthGatewayPathPrefix={handler.setForwardAuthGatewayPathPrefix}
+                    setForwardAuthTimeout={handler.setForwardAuthTimeout}
+                    setForwardAuthRequestHeader={handler.setForwardAuthRequestHeader}
+                    setForwardAuthResponseHeaders={handler.setForwardAuthResponseHeaders}
                     values={state.values}
                 />
             </form>

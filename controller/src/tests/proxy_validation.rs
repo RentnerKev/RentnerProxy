@@ -72,6 +72,7 @@ fn request_with_ip_rules(rules: IpRules) -> ProxyConfigRequest {
         mode: AccessPolicyMode::IpRestricted,
         combination: None,
         basic_auth: None,
+        forward_auth: None,
         ip_rules: Some(rules),
     });
     request.revision = revision_for_configuration(&request.proxy_hosts, &request.http_settings);

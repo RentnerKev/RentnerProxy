@@ -1,5 +1,6 @@
 import type { AccessPolicyCombination, AccessPolicyMode } from '../../config/access-policies.config'
 import type { AccessPolicyIpRules } from '../Helpers/ipAccessRules'
+import type { ForwardAuthConfiguration } from '../Helpers/forwardAuth'
 
 export type { AccessPolicyIpRuleAction, AccessPolicyIpRules } from '../Helpers/ipAccessRules'
 
@@ -19,6 +20,7 @@ export interface AccessPolicySummary {
     readonly mode: AccessPolicyMode
     readonly combination: AccessPolicyCombination | null
     readonly ipRules: AccessPolicyIpRules | null
+    readonly forwardAuth: ForwardAuthConfiguration | null
     readonly assignedHostCount: number
     readonly basicAuthAccountCount: number
     readonly createdAt: Date

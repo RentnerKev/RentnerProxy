@@ -156,6 +156,50 @@ async function runSmoke(): Promise<void> {
     const second = startTestUpstream({ hostname: upstreamHost, port: 0, message: 'upstream-two' })
     let crowdSecLapiAvailable = true
     let crowdSecDecisionStreamProvider: string | undefined
+    let forwardAuthMode: 'allow' | 'deny' | 'redirect' | 'unavailable' | 'slow' = 'allow'
+    let forwardAuthLastRequest: { method: string; headers: Headers } | undefined
+    let forwardAuthApplicationRequests = 0
+    const forwardAuthService = Bun.serve({
+        hostname: upstreamHost,
+        port: 0,
+        async fetch(request) {
+            const url = new URL(request.url)
+            if (url.pathname.startsWith('/outpost/')) {
+                return Response.json({ message: 'auth-gateway', path: url.pathname + url.search })
+            }
+            forwardAuthLastRequest = {
+                method: request.method,
+                headers: new Headers(request.headers),
+            }
+            if (forwardAuthMode === 'slow') await Bun.sleep(4_000)
+            if (forwardAuthMode === 'deny') return new Response('denied', { status: 403 })
+            if (forwardAuthMode === 'redirect')
+                return new Response(null, { status: 302, headers: { location: '/login' } })
+            if (forwardAuthMode === 'unavailable')
+                return new Response('auth service unavailable', { status: 503 })
+            return new Response(null, {
+                status: 200,
+                headers: { 'remote-email': 'trusted@example.test', 'remote-user': 'trusted-user' },
+            })
+        },
+    })
+    const forwardAuthApplication = Bun.serve({
+        hostname: upstreamHost,
+        port: 0,
+        async fetch(request) {
+            forwardAuthApplicationRequests += 1
+            return Response.json({
+                message: 'forward-auth-app',
+                method: request.method,
+                path: new URL(request.url).pathname + new URL(request.url).search,
+                remoteUser: request.headers.get('remote-user'),
+                remoteEmail: request.headers.get('remote-email'),
+                authentikUsername: request.headers.get('x-authentik-username'),
+                hasAuthorization: request.headers.has('authorization'),
+                hasCookie: request.headers.has('cookie'),
+            })
+        },
+    })
     const crowdSecLapi = Bun.serve({
         hostname: upstreamHost,
         port: 0,
@@ -836,6 +880,142 @@ async function runSmoke(): Promise<void> {
             'Basic Auth enforces shared credentials, WebSockets, rotation and removal without exposing hashes',
         )
 
+        const forwardAuthPolicy = await authorized(() =>
+            policyServices.createAccessPolicyService({
+                name: 'Forward Auth smoke policy',
+                mode: 'public',
+                combination: null,
+            }),
+        )
+        const forwardAuthHost = await authorized(() =>
+            services.createProxyHostService({
+                ...hostInput,
+                domains: ['forward-auth.test'],
+                forwardHost: 'host.docker.internal',
+                forwardPort: forwardAuthApplication.port,
+                accessPolicyId: forwardAuthPolicy.accessPolicyId,
+            }),
+        )
+        assert.equal(forwardAuthHost.runtimeStatus, 'applied')
+        const forwardAuthEndpoint = `http://host.docker.internal:${forwardAuthService.port}/check`
+        const forwardAuthUpdate = await authorized(() =>
+            policyServices.updateAccessPolicyService({
+                accessPolicyId: forwardAuthPolicy.accessPolicyId,
+                name: 'Forward Auth smoke policy',
+                mode: 'authenticated',
+                combination: null,
+                forwardAuth: {
+                    provider: 'authentik',
+                    endpoint: forwardAuthEndpoint,
+                    timeoutSeconds: 2,
+                    gatewayPathPrefix: '/outpost.goauthentik.io/',
+                    requestHeaders: ['Authorization', 'Cookie'],
+                    responseHeaders: ['Remote-Email', 'Remote-User'],
+                },
+            }),
+        )
+        assert.equal(forwardAuthUpdate.runtimeStatus, 'applied')
+        const appCountBeforeGateway = forwardAuthApplicationRequests
+        const gatewayResponse = await fetch(
+            proxyUrl + '/outpost.goauthentik.io/start?next=%2Fprivate',
+            {
+                headers: { host: 'forward-auth.test', connection: 'close' },
+                signal: AbortSignal.timeout(5_000),
+            },
+        )
+        assert.equal(gatewayResponse.status, 200)
+        assert.deepEqual(await gatewayResponse.json(), {
+            message: 'auth-gateway',
+            path: '/outpost.goauthentik.io/start?next=%2Fprivate',
+        })
+        assert.equal(forwardAuthApplicationRequests, appCountBeforeGateway)
+        passed('Authentik gateway prefix reaches only the auth gateway and preserves its query')
+
+        const denied = await fetch(proxyUrl + '/private', {
+            headers: { host: 'forward-auth.test', connection: 'close' },
+            signal: AbortSignal.timeout(5_000),
+        })
+        assert.equal(denied.status, 403)
+        await denied.body?.cancel()
+        assert.equal(forwardAuthApplicationRequests, appCountBeforeGateway)
+        passed('paths outside the gateway prefix still require Forward Auth')
+
+        forwardAuthMode = 'allow'
+        const forwardAuthRequest = await fetch(proxyUrl + '/private?tab=one', {
+            method: 'POST',
+            body: 'forward-auth-smoke',
+            headers: {
+                host: 'forward-auth.test',
+                connection: 'close',
+                authorization: 'Bearer smoke-token',
+                cookie: 'session=smoke-cookie',
+                'remote-user': 'forged-user',
+                'remote-email': 'forged@example.test',
+                'x-authentik-username': 'admin',
+                'x-forwarded-for': '203.0.113.99',
+            },
+            signal: AbortSignal.timeout(5_000),
+        })
+        assert.equal(forwardAuthRequest.status, 200)
+        assert.equal(forwardAuthRequest.headers.get('remote-user'), 'trusted-user')
+        assert.equal(forwardAuthRequest.headers.get('remote-email'), 'trusted@example.test')
+        assert.deepEqual(await forwardAuthRequest.json(), {
+            message: 'forward-auth-app',
+            method: 'POST',
+            path: '/private?tab=one',
+            remoteUser: 'trusted-user',
+            remoteEmail: 'trusted@example.test',
+            authentikUsername: null,
+            hasAuthorization: false,
+            hasCookie: true,
+        })
+        assert.ok(forwardAuthLastRequest)
+        assert.equal(forwardAuthLastRequest.method, 'GET')
+        assert.equal(forwardAuthLastRequest.headers.get('x-forwarded-method'), 'POST')
+        assert.equal(forwardAuthLastRequest.headers.get('x-forwarded-uri'), '/private?tab=one')
+        assert.equal(forwardAuthLastRequest.headers.get('x-forwarded-host'), 'forward-auth.test')
+        assert.equal(forwardAuthLastRequest.headers.get('x-forwarded-proto'), 'http')
+        assert.equal(forwardAuthLastRequest.headers.get('authorization'), 'Bearer smoke-token')
+        assert.equal(forwardAuthLastRequest.headers.get('cookie'), 'session=smoke-cookie')
+        assert.notEqual(forwardAuthLastRequest.headers.get('x-forwarded-for'), '203.0.113.99')
+        assert.notEqual(forwardAuthLastRequest.headers.get('remote-user'), 'forged-user')
+        assert.notEqual(forwardAuthLastRequest.headers.get('x-authentik-username'), 'admin')
+        passed(
+            'Forward Auth uses a sanitized GET precheck and trusts only returned identity headers',
+        )
+
+        forwardAuthMode = 'redirect'
+        const authRedirect = await fetch(proxyUrl + '/private', {
+            headers: { host: 'forward-auth.test', connection: 'close' },
+            redirect: 'manual',
+            signal: AbortSignal.timeout(5_000),
+        })
+        assert.equal(authRedirect.status, 302)
+        assert.equal(authRedirect.headers.get('location'), '/login')
+        await authRedirect.body?.cancel()
+        assert.equal(forwardAuthApplicationRequests, appCountBeforeGateway + 1)
+        forwardAuthMode = 'unavailable'
+        const authUnavailable = await fetch(proxyUrl + '/private', {
+            headers: { host: 'forward-auth.test', connection: 'close' },
+            signal: AbortSignal.timeout(5_000),
+        })
+        assert.equal(authUnavailable.status, 503)
+        await authUnavailable.body?.cancel()
+        assert.equal(forwardAuthApplicationRequests, appCountBeforeGateway + 1)
+        passed('Forward Auth deny, redirect and unavailable responses never reach the app')
+
+        forwardAuthMode = 'slow'
+        const beforeTimeout = forwardAuthApplicationRequests
+        const authTimeout = await fetch(proxyUrl + '/private', {
+            headers: { host: 'forward-auth.test', connection: 'close' },
+            signal: AbortSignal.timeout(7_000),
+        })
+        assert.ok(authTimeout.status >= 500)
+        await authTimeout.body?.cancel()
+        assert.equal(forwardAuthApplicationRequests, beforeTimeout)
+        forwardAuthMode = 'allow'
+        passed('Forward Auth timeout fails closed before the application proxy')
+
         const crowdSecApiUrl = (provider: 'allow' | 'block' | 'rejected' | 'trusted') =>
             `http://host.docker.internal:${crowdSecLapi.port}/${provider}/`
         const initialCrowdSec = await authorized(() =>
@@ -1388,6 +1568,8 @@ try {
         await first.stop(true)
         await second.stop(true)
         await crowdSecLapi.stop(true)
+        await forwardAuthService.stop(true)
+        await forwardAuthApplication.stop(true)
         if (closeDatabase) await closeDatabase().catch(() => undefined)
         // These names are generated above for this run; no existing dev volume/database is touched.
         await command([...compose, 'down', '--volumes', '--remove-orphans']).catch(() => undefined)

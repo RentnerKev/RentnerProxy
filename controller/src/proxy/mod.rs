@@ -1,3 +1,4 @@
+mod forward_auth;
 mod revision;
 mod trusted_ca;
 
@@ -13,6 +14,8 @@ use crate::models::{
     AccessPolicy, IpRules, ProxyConfigRequest, ProxyHttpSettings, TrustedCa, ValidatedProxyConfig,
 };
 
+use forward_auth::has_valid_forward_auth;
+pub(crate) use forward_auth::parse_forward_auth_endpoint;
 #[cfg(test)]
 pub(crate) use revision::revision_for_configuration;
 #[cfg(test)]
@@ -220,6 +223,21 @@ fn has_valid_access_policy_shape(policy: &AccessPolicy) -> bool {
     combination_valid
         && policy.basic_auth.as_ref().is_none_or(has_valid_basic_auth)
         && policy.ip_rules.as_ref().is_none_or(has_valid_ip_rules)
+        && policy
+            .forward_auth
+            .as_ref()
+            .is_none_or(has_valid_forward_auth)
+        && policy.forward_auth.as_ref().is_none_or(|_| {
+            policy.basic_auth.is_none()
+                && matches!(
+                    (policy.mode, policy.combination),
+                    (crate::models::AccessPolicyMode::Authenticated, None)
+                        | (
+                            crate::models::AccessPolicyMode::Combined,
+                            Some(crate::models::AccessPolicyCombination::All)
+                        )
+                )
+        })
 }
 
 fn has_valid_ip_rules(rules: &IpRules) -> bool {

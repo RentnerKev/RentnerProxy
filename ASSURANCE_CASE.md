@@ -79,6 +79,19 @@ which forfeits upstream identity protection. Plain HTTP upstreams and the loopba
 listener do not themselves provide transport confidentiality. Use the deployment guidance in
 [README.md](README.md) and protect remote management with an appropriate secure transport.
 
+Forward Auth is a separate, fail-closed data-plane trust boundary. Its [typed policy
+validation](web/src/shared/Helpers/forwardAuth.ts) and [controller
+validation](controller/src/proxy/forward_auth.rs) constrain destinations, timeouts, and header
+names. The [Caddy renderer](controller/src/runtime/renderer/policy.rs) rebuilds the auth request
+headers, strips incoming identity headers, copies only selected 2xx identity headers, and cannot
+continue to the application after a deny or transport error. [Renderer
+tests](controller/src/tests/renderer.rs) and the [production proxy
+smoke](tests/production/proxy-smoke.ts) exercise the contract; the latter uses a local auth
+fixture with real Caddy, not a full provider deployment. The administrator must trust the auth
+service, its configured network destination, and the selected identity headers. An optional
+public gateway path is intentionally outside the check and must be narrowly configured. See
+the [Forward Auth guide](docs/forward-auth.md) for provider and trusted-proxy assumptions.
+
 ## Secure design principles and countermeasures
 
 | Principle                             | Applied design                                                                                                                                                                                 | Common weakness countered                                                                                            | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                       |

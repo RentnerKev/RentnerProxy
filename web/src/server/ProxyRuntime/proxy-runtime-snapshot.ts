@@ -40,6 +40,7 @@ import type {
     RedirectRuntimeHost,
 } from './Types/proxy-runtime.types'
 import { createTrustedCaInputSchema } from '../../features/Admin/TrustedCaManagement/validation'
+import { forwardAuthRuntimeSchema } from '../../shared/Helpers/forwardAuth'
 
 export const MAX_RUNTIME_PROXY_HOSTS = 1_000
 export const MAX_RUNTIME_DOMAINS = 50_000
@@ -105,6 +106,7 @@ const runtimeAccessPolicySchema = z
                     .max(MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY),
             })
             .optional(),
+        forwardAuth: forwardAuthRuntimeSchema.optional(),
         ipRules: runtimeIpRulesSchema.optional(),
     })
     .superRefine((policy, context) => {
@@ -122,6 +124,26 @@ const runtimeAccessPolicySchema = z
                     })
                 }
                 usernames.add(account.username)
+            }
+        }
+        if (policy.forwardAuth !== undefined) {
+            if (policy.basicAuth !== undefined) {
+                context.addIssue({
+                    code: 'custom',
+                    path: ['forwardAuth'],
+                    message: 'Forward Auth runtime configuration cannot include Basic Auth.',
+                })
+            }
+            if (
+                policy.mode !== 'authenticated' &&
+                !(policy.mode === 'combined' && policy.combination === 'all')
+            ) {
+                context.addIssue({
+                    code: 'custom',
+                    path: ['forwardAuth'],
+                    message:
+                        'Forward Auth requires authenticated mode or combined mode with all providers.',
+                })
             }
         }
     })

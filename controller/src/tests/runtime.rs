@@ -368,6 +368,7 @@ fn basic_auth_configuration(port: u16, password_hash: &str) -> ValidatedProxyCon
                 password_hash: password_hash.to_owned(),
             }],
         }),
+        forward_auth: None,
         ip_rules: None,
     });
     configuration.revision =
@@ -474,6 +475,7 @@ async fn rejected_apply_keeps_the_last_known_protected_configuration() {
         mode: AccessPolicyMode::IpRestricted,
         combination: None,
         basic_auth: None,
+        forward_auth: None,
         ip_rules: Some(IpRules {
             default_action: IpDefaultAction::Deny,
             allow: vec!["192.0.2.0/24".to_owned()],
@@ -515,6 +517,7 @@ async fn restart_restores_verified_ip_rules_routes() {
         mode: AccessPolicyMode::IpRestricted,
         combination: None,
         basic_auth: None,
+        forward_auth: None,
         ip_rules: Some(IpRules {
             default_action: IpDefaultAction::Allow,
             allow: Vec::new(),
@@ -606,6 +609,7 @@ async fn basic_auth_rotation_is_transactional_and_removal_closes_the_host() {
         mode: AccessPolicyMode::Authenticated,
         combination: None,
         basic_auth: None,
+        forward_auth: None,
         ip_rules: None,
     });
     removed.revision = revision_for_configuration(&removed.proxy_hosts, &removed.http_settings);

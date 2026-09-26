@@ -97,6 +97,7 @@ export const AUDIT_CHANGED_FIELDS = [
     'mode',
     'combination',
     'ipRules',
+    'forwardAuth',
     'basicAuth',
     'domains',
     'upstream',

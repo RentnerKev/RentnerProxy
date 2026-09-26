@@ -294,13 +294,14 @@ fn alt_svc_route(public_https_port: u16) -> Route {
 
 fn alt_svc_handler(public_https_port: u16, deferred: bool) -> Handler {
     Handler::Headers(Headers {
-        response: ResponseHeaders {
+        request: None,
+        response: Some(ResponseHeaders {
             set: BTreeMap::from([(
                 "Alt-Svc".to_owned(),
                 vec![format!("h3=\":{public_https_port}\"; ma=2592000")],
             )]),
             deferred,
-        },
+        }),
     })
 }
 

@@ -20,6 +20,10 @@ import type {
     ProxyRuntimeTrustedCa,
     RedirectRuntimeHost,
 } from './Types/proxy-runtime.types'
+import {
+    forwardAuthInputSchema,
+    toForwardAuthRuntimeConfiguration,
+} from '../../shared/Helpers/forwardAuth'
 
 async function readBasicAuthAccounts(
     transaction: AuthTransaction,
@@ -95,6 +99,7 @@ export async function readProxyRuntimeSnapshot(
             accessPolicyMode: accessPolicies.mode,
             accessPolicyCombination: accessPolicies.combination,
             accessPolicyIpRules: accessPolicies.ipRules,
+            accessPolicyForwardAuth: accessPolicies.forwardAuth,
         })
         .from(proxyHosts)
         .leftJoin(hostDomains, eq(hostDomains.proxyHostId, proxyHosts.id))
@@ -117,6 +122,10 @@ export async function readProxyRuntimeSnapshot(
         if (!host) {
             const accounts =
                 row.accessPolicyId === null ? [] : (basicAuthAccounts.get(row.accessPolicyId) ?? [])
+            const forwardAuth =
+                row.accessPolicyForwardAuth === null
+                    ? null
+                    : forwardAuthInputSchema.parse(row.accessPolicyForwardAuth)
             host = {
                 id: row.id,
                 domains: [],
@@ -146,9 +155,16 @@ export async function readProxyRuntimeSnapshot(
                                 id: row.accessPolicyId,
                                 mode: row.accessPolicyMode,
                                 combination: row.accessPolicyCombination,
+                                ...(forwardAuth === null
+                                    ? {}
+                                    : {
+                                          forwardAuth:
+                                              toForwardAuthRuntimeConfiguration(forwardAuth),
+                                      }),
                                 ...((row.accessPolicyMode === 'authenticated' ||
                                     row.accessPolicyMode === 'combined') &&
-                                accounts.length > 0
+                                accounts.length > 0 &&
+                                forwardAuth === null
                                     ? { basicAuth: { accounts } }
                                     : {}),
                                 ...((row.accessPolicyMode === 'ip-restricted' ||
@@ -231,6 +247,7 @@ export async function readProxyRuntimeHost(
             accessPolicyMode: accessPolicies.mode,
             accessPolicyCombination: accessPolicies.combination,
             accessPolicyIpRules: accessPolicies.ipRules,
+            accessPolicyForwardAuth: accessPolicies.forwardAuth,
             enabled: proxyHosts.enabled,
         })
         .from(proxyHosts)
@@ -276,13 +293,21 @@ export async function readProxyRuntimeHost(
                       combination: first.accessPolicyCombination,
                       ...((first.accessPolicyMode === 'authenticated' ||
                           first.accessPolicyMode === 'combined') &&
-                      accounts.length > 0
+                      accounts.length > 0 &&
+                      first.accessPolicyForwardAuth === null
                           ? { basicAuth: { accounts } }
                           : {}),
                       ...((first.accessPolicyMode === 'ip-restricted' ||
                           first.accessPolicyMode === 'combined') &&
                       first.accessPolicyIpRules !== null
                           ? { ipRules: first.accessPolicyIpRules }
+                          : {}),
+                      ...(first.accessPolicyForwardAuth !== null
+                          ? {
+                                forwardAuth: toForwardAuthRuntimeConfiguration(
+                                    forwardAuthInputSchema.parse(first.accessPolicyForwardAuth),
+                                ),
+                            }
                           : {}),
                   },
               }),

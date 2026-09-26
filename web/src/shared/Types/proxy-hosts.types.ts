@@ -1,6 +1,7 @@
 import type { ProxyHostForwardScheme } from '../../config/proxy-hosts.config'
 import type { AccessPolicyCombination, AccessPolicyMode } from '../../config/access-policies.config'
 import type { AccessPolicyBasicAuthRuntime, AccessPolicyIpRules } from './access-policies.types'
+import type { ForwardAuthRuntimeConfiguration } from '../Helpers/forwardAuth'
 import type { CertificateJobSummary } from './certificate-jobs.types'
 
 export interface ProxyHostAccessPolicy {
@@ -9,6 +10,7 @@ export interface ProxyHostAccessPolicy {
     readonly combination: AccessPolicyCombination | null
     readonly basicAuth?: AccessPolicyBasicAuthRuntime | undefined
     readonly ipRules?: AccessPolicyIpRules | undefined
+    readonly forwardAuth?: ForwardAuthRuntimeConfiguration | undefined
 }
 
 export interface ProxyHostSummary {

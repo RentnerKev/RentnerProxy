@@ -24,6 +24,7 @@ import {
     getAccessPoliciesService,
     updateAccessPolicyService,
 } from '../server/Admin/AccessPolicyManagement/access-policies.service'
+import { createBasicAuthAccountService } from '../server/Admin/AccessPolicyManagement/basic-auth.service'
 import { AuthDomainError } from '../server/Auth/Core/errors.server'
 import { ensureAuthorizationRegistryInTransaction } from '../server/Auth/Access/registry.service'
 import { createSessionService } from '../server/Auth/Access/sessions.service'
@@ -399,6 +400,81 @@ describe('Access policy management with PostgreSQL', () => {
                     (entry) => entry.id === host.id,
                 )?.accessPolicy,
             ).toEqual({ id: policy.id, mode: 'ip-restricted', combination: null })
+        },
+    )
+
+    integrationTest(
+        'persists Forward Auth and emits only its public runtime configuration',
+        async () => {
+            const owner = await createTestUser([SYSTEM_ROLES.OWNER])
+            const policy = await runAsUser(owner.id, () =>
+                createAccessPolicyService({
+                    name: `${TEST_POLICY_PREFIX}forward-auth-${randomUUID()}`,
+                    mode: 'authenticated',
+                    forwardAuth: {
+                        provider: 'authentik',
+                        endpoint: 'https://auth.example.test/outpost.goauthentik.io/auth/caddy',
+                        gatewayPathPrefix: '/outpost.goauthentik.io/',
+                        responseHeaders: ['x-authentik-username', 'remote-user'],
+                    },
+                }),
+            )
+            await runAsUser(owner.id, () =>
+                createBasicAuthAccountService({
+                    accessPolicyId: policy.id,
+                    username: 'legacy-user',
+                    password: 'stored-but-not-emitted',
+                }),
+            )
+            const host = await runAsUser(owner.id, () =>
+                createProxyHostService({ ...proxyHostInput(), accessPolicyId: policy.id }),
+            )
+            expect(policy.forwardAuth).toMatchObject({
+                provider: 'authentik',
+                timeoutSeconds: 5,
+                requestHeaders: ['Cookie'],
+                responseHeaders: ['Remote-User', 'X-Authentik-Username'],
+            })
+            const stored = requireFirstRow(
+                await getAuthDatabase()
+                    .select({ forwardAuth: accessPolicies.forwardAuth })
+                    .from(accessPolicies)
+                    .where(eq(accessPolicies.id, policy.id)),
+                'Forward Auth policy was not stored.',
+            )
+            expect(stored.forwardAuth).toEqual(policy.forwardAuth)
+            const runtimePolicy = (await getProxyRuntimeSnapshotService()).proxyHosts.find(
+                (entry) => entry.id === host.id,
+            )?.accessPolicy
+            expect(runtimePolicy).toEqual({
+                id: policy.id,
+                mode: 'authenticated',
+                combination: null,
+                forwardAuth: {
+                    endpoint: 'https://auth.example.test/outpost.goauthentik.io/auth/caddy',
+                    timeoutSeconds: 5,
+                    gatewayPathPrefix: '/outpost.goauthentik.io/',
+                    requestHeaders: ['Cookie'],
+                    responseHeaders: ['Remote-User', 'X-Authentik-Username'],
+                },
+            })
+
+            await runAsUser(owner.id, () =>
+                updateAccessPolicyService({ accessPolicyId: policy.id, mode: 'public' }),
+            )
+            const cleared = requireFirstRow(
+                await getAuthDatabase()
+                    .select({ forwardAuth: accessPolicies.forwardAuth })
+                    .from(accessPolicies)
+                    .where(eq(accessPolicies.id, policy.id)),
+                'Updated policy was not found.',
+            )
+            expect(cleared.forwardAuth).toBeNull()
+            expect(
+                (await getProxyRuntimeSnapshotService()).proxyHosts.find(
+                    (entry) => entry.id === host.id,
+                )?.accessPolicy,
+            ).toEqual({ id: policy.id, mode: 'public', combination: null })
         },
     )
 

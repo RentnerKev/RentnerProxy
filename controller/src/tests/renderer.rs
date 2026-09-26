@@ -6,8 +6,8 @@ use serde_json::Value;
 use super::fixtures::{host, request};
 use crate::{
     models::{
-        AccessPolicy, AccessPolicyMode, BasicAuth, BasicAuthAccount, IpDefaultAction, IpRules,
-        ProxyHttpSettings, ValidatedProxyConfig,
+        AccessPolicy, AccessPolicyMode, BasicAuth, BasicAuthAccount, ForwardAuth, IpDefaultAction,
+        IpRules, ProxyHttpSettings, ValidatedProxyConfig,
     },
     proxy::revision_from_config,
     runtime::renderer::{
@@ -267,6 +267,7 @@ fn protected_host_routes_are_terminal_403s_on_http_and_https() {
         mode: AccessPolicyMode::Authenticated,
         combination: None,
         basic_auth: None,
+        forward_auth: None,
         ip_rules: None,
     });
     let http: Value =
@@ -324,6 +325,7 @@ fn basic_auth_is_before_body_and_proxy_and_uses_fixed_caddy_settings() {
                 password_hash: "$argon2id$v=19$m=47104,t=1,p=1$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y".into(),
             }],
         }),
+        forward_auth: None,
         ip_rules: None,
     });
     configuration.proxy_hosts[0]
@@ -357,6 +359,197 @@ fn basic_auth_is_before_body_and_proxy_and_uses_fixed_caddy_settings() {
             .unwrap()
             .contains(&serde_json::json!("Authorization"))
     );
+}
+
+#[test]
+fn forward_auth_precheck_is_get_only_strips_forged_identity_and_copies_success_headers() {
+    let mut configuration = config();
+    configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+        basic_auth: None,
+        forward_auth: Some(ForwardAuth {
+            endpoint: "http://auth.example.test/outpost/auth/caddy".into(),
+            timeout_seconds: 4,
+            request_headers: vec!["Authorization".into(), "Cookie".into()],
+            response_headers: vec!["Remote-Email".into(), "Remote-User".into()],
+            gateway_path_prefix: None,
+        }),
+        ip_rules: None,
+    });
+    configuration.revision = crate::proxy::revision_for_configuration(
+        &configuration.proxy_hosts,
+        &configuration.http_settings,
+    );
+    let json: Value =
+        serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
+    let route = &json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"][1];
+    let handle = route["handle"].as_array().unwrap();
+    assert_eq!(handle[0]["handler"], "headers");
+    assert!(
+        handle[0]["request"]["delete"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v == "X-Forwarded-User")
+    );
+    assert_eq!(handle[1]["handler"], "reverse_proxy");
+    assert_eq!(handle[1]["rewrite"]["method"], "GET");
+    assert_eq!(handle[1]["rewrite"]["uri"], "/outpost/auth/caddy?");
+    assert_eq!(handle[1]["transport"]["response_header_timeout"], "4s");
+    assert_eq!(
+        handle[1]["headers"]["request"]["set"]["X-Forwarded-Uri"],
+        serde_json::json!(["{http.request.uri}"])
+    );
+    assert_eq!(
+        handle[1]["headers"]["request"]["set"]["Authorization"],
+        serde_json::json!(["{http.request.header.Authorization}"])
+    );
+    assert_eq!(
+        handle[1]["headers"]["request"]["delete"],
+        serde_json::json!(["*"])
+    );
+    assert_eq!(
+        handle[1]["handle_response"][0]["match"]["status_code"],
+        serde_json::json!([2])
+    );
+    assert_eq!(
+        handle[1]["handle_response"][0]["routes"][3]["handle"][0]["request"]["set"]["Remote-User"],
+        serde_json::json!(["{http.reverse_proxy.header.Remote-User}"])
+    );
+    assert_eq!(
+        handle[1]["handle_response"][0]["routes"][2]["handle"][0]["request"]["delete"],
+        serde_json::json!(["Remote-User"])
+    );
+    assert_eq!(handle.last().unwrap()["handler"], "reverse_proxy");
+    assert!(
+        handle.last().unwrap()["headers"]["request"]["delete"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v == "Authorization")
+    );
+}
+
+#[test]
+fn forward_auth_without_identity_headers_still_continues_after_success() {
+    let mut configuration = config();
+    configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+        basic_auth: None,
+        forward_auth: Some(ForwardAuth {
+            endpoint: "http://auth.example.test/check".into(),
+            timeout_seconds: 5,
+            request_headers: vec!["Cookie".into()],
+            response_headers: vec![],
+            gateway_path_prefix: None,
+        }),
+        ip_rules: None,
+    });
+    configuration.revision = crate::proxy::revision_for_configuration(
+        &configuration.proxy_hosts,
+        &configuration.http_settings,
+    );
+    let json: Value =
+        serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
+    let route = &json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"][1];
+    assert_eq!(
+        route["handle"][1]["handle_response"][0]["routes"][0]["handle"][0]["handler"],
+        "vars"
+    );
+    assert_eq!(
+        route["handle"].as_array().unwrap().last().unwrap()["handler"],
+        "reverse_proxy"
+    );
+}
+
+#[test]
+fn https_forward_auth_verifies_gateway_name_and_uses_its_virtual_host() {
+    let mut configuration = config();
+    configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+        basic_auth: None,
+        forward_auth: Some(ForwardAuth {
+            endpoint: "https://auth.example.test/check".into(),
+            timeout_seconds: 5,
+            request_headers: vec!["Cookie".into()],
+            response_headers: vec!["Remote-User".into()],
+            gateway_path_prefix: Some("/outpost/".into()),
+        }),
+        ip_rules: None,
+    });
+    configuration.revision = crate::proxy::revision_for_configuration(
+        &configuration.proxy_hosts,
+        &configuration.http_settings,
+    );
+    let json: Value =
+        serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
+    let routes = &json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"];
+    let gateway = &routes[1]["handle"][0];
+    let check = &routes[2]["handle"][1];
+    for proxy in [gateway, check] {
+        assert_eq!(
+            proxy["headers"]["request"]["set"]["Host"],
+            serde_json::json!(["auth.example.test"])
+        );
+        assert_eq!(
+            proxy["transport"]["tls"]["server_name"],
+            "auth.example.test"
+        );
+        assert!(proxy["transport"]["tls"]["insecure_skip_verify"].is_null());
+    }
+    assert_eq!(
+        check["headers"]["request"]["set"]["X-Forwarded-Host"],
+        serde_json::json!(["{http.request.host}"])
+    );
+}
+
+#[test]
+fn forward_auth_gateway_prefix_matches_only_its_host_path_before_auth() {
+    let mut configuration = config();
+    configuration.proxy_hosts[0].access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+        basic_auth: None,
+        forward_auth: Some(ForwardAuth {
+            endpoint: "http://auth.example.test/outpost/auth/caddy".into(),
+            timeout_seconds: 4,
+            request_headers: vec![],
+            response_headers: vec!["Remote-User".into()],
+            gateway_path_prefix: Some("/outpost.goauthentik.io/".into()),
+        }),
+        ip_rules: None,
+    });
+    configuration.revision = crate::proxy::revision_for_configuration(
+        &configuration.proxy_hosts,
+        &configuration.http_settings,
+    );
+    let json: Value =
+        serde_json::from_str(&render_config(Some(&configuration), &settings()).unwrap()).unwrap();
+    let routes = json["apps"]["http"]["servers"]["rentnerproxy-http"]["routes"]
+        .as_array()
+        .unwrap();
+    let gateway = &routes[1];
+    let matcher = &gateway["match"][0];
+    assert_eq!(matcher["host"], serde_json::json!(["a.example"]));
+    assert_eq!(
+        matcher["path"],
+        serde_json::json!(["/outpost.goauthentik.io/*"])
+    );
+    assert_eq!(gateway["terminal"], true);
+    assert_eq!(gateway["handle"][0]["handler"], "reverse_proxy");
+    assert_eq!(
+        gateway["handle"][0]["upstreams"][0]["dial"],
+        "auth.example.test:80"
+    );
+    assert_eq!(routes[2]["handle"][1]["handler"], "reverse_proxy");
+    assert_eq!(routes[2]["handle"][1]["rewrite"]["method"], "GET");
 }
 
 #[test]
@@ -441,6 +634,7 @@ fn force_https_basic_auth_can_pass_only_through_trusted_termination() {
                 password_hash: "$argon2id$v=19$m=47104,t=1,p=1$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y".into(),
             }],
         }),
+        forward_auth: None,
         ip_rules: None,
     });
     let mut settings = settings();
@@ -463,6 +657,7 @@ fn ip_restricted_routes_deny_before_allow_and_expand_ipv4_mapped_peers() {
         mode: AccessPolicyMode::IpRestricted,
         combination: None,
         basic_auth: None,
+        forward_auth: None,
         ip_rules: Some(IpRules {
             default_action: IpDefaultAction::Deny,
             allow: vec!["192.0.2.0/24".into()],
@@ -528,6 +723,7 @@ fn ipv6_matchers_exclude_unlisted_mapped_peers_and_append_deny() {
         mode: AccessPolicyMode::IpRestricted,
         combination: None,
         basic_auth: None,
+        forward_auth: None,
         ip_rules: Some(IpRules {
             default_action: IpDefaultAction::Deny,
             allow: vec!["192.0.2.0/24".into(), "2001:db8::/32".into()],
@@ -582,6 +778,7 @@ fn combined_any_uses_ip_without_auth_then_basic_auth_as_fallback() {
                 password_hash: "$argon2id$v=19$m=47104,t=1,p=1$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y".into(),
             }],
         }),
+        forward_auth: None,
         ip_rules: Some(IpRules {
             default_action: IpDefaultAction::Deny,
             allow: vec!["192.0.2.0/24".into()],

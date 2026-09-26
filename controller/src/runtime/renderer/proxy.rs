@@ -133,6 +133,8 @@ pub(super) fn reverse_proxy(
         },
         transport,
         stream_close_delay: "5m".to_owned(),
+        rewrite: None,
+        handle_response: Vec::new(),
     })
 }
 

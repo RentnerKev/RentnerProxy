@@ -80,6 +80,37 @@ describe('proxy runtime snapshots', () => {
         })
     })
 
+    test('matches the Rust Forward Auth revision with IP rules and a gateway path', () => {
+        const result = createProxyRuntimeSnapshot([
+            inputHost({
+                id: '018f4b4a-7d1f-7abc-8def-0123456789ab',
+                domains: ['a.example'],
+                forwardHost: '127.0.0.1',
+                forwardPort: 8080,
+                accessPolicy: {
+                    id: '0198d98a-0000-7000-8000-000000000001',
+                    mode: 'combined',
+                    combination: 'all',
+                    forwardAuth: {
+                        endpoint: 'http://auth.example.test/check',
+                        timeoutSeconds: 5,
+                        requestHeaders: ['Cookie'],
+                        responseHeaders: ['Remote-User'],
+                        gatewayPathPrefix: '/outpost/',
+                    },
+                    ipRules: {
+                        defaultAction: 'deny',
+                        allow: ['192.0.2.0/24'],
+                        deny: [],
+                    },
+                },
+            }),
+        ])
+        expect(result.revision).toBe(
+            'sha256:32b018cab495353f71733a5f7d85a17141cd6c09b8e94ca3d6ef94f67af77dac',
+        )
+    })
+
     test('filters disabled hosts and sorts hosts and domains deterministically', () => {
         const enabledSecond = inputHost({
             id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54020',

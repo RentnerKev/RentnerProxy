@@ -6,6 +6,12 @@ import {
     updateAccessPolicyInputSchema,
 } from '../features/Admin/AccessPolicyManagement/validation'
 import { accessPolicyIpRulesInputSchema, canonicalIpNetwork } from '../shared/Helpers/ipAccessRules'
+import {
+    forwardAuthInputSchema,
+    forwardAuthRuntimeSchema,
+    isCanonicalForwardAuthEndpoint,
+    isValidForwardAuthGatewayPathPrefix,
+} from '../shared/Helpers/forwardAuth'
 
 const POLICY_ID = '0192b7d4-4e59-7c6d-8a1b-2c3d4e5f6071'
 
@@ -129,6 +135,130 @@ describe('access policy validation', () => {
                 combination: null,
             }).success,
         ).toBe(true)
+    })
+
+    test('validates and canonicalizes Forward Auth configuration', () => {
+        expect(
+            forwardAuthInputSchema.parse({
+                provider: 'authentik',
+                endpoint: 'https://auth.example.test/outpost.goauthentik.io/auth/caddy',
+                responseHeaders: ['x-authentik-username', 'remote-user'],
+            }),
+        ).toEqual({
+            provider: 'authentik',
+            endpoint: 'https://auth.example.test/outpost.goauthentik.io/auth/caddy',
+            timeoutSeconds: 5,
+            gatewayPathPrefix: null,
+            requestHeaders: ['Cookie'],
+            responseHeaders: ['Remote-User', 'X-Authentik-Username'],
+        })
+        expect(
+            forwardAuthRuntimeSchema.safeParse({
+                endpoint: 'https://auth.example.test/authz',
+                timeoutSeconds: 5,
+                gatewayPathPrefix: '/outpost.goauthentik.io/',
+                requestHeaders: ['Cookie'],
+                responseHeaders: ['X-Authentik-Username'],
+            }).success,
+        ).toBe(true)
+        expect(
+            forwardAuthRuntimeSchema.safeParse({
+                provider: 'authentik',
+                endpoint: 'https://auth.example.test/authz',
+                timeoutSeconds: 5,
+                requestHeaders: ['Cookie'],
+                responseHeaders: [],
+            }).success,
+        ).toBe(false)
+    })
+
+    test('rejects unsafe Forward Auth endpoints, headers, and gateway prefixes', () => {
+        for (const endpoint of [
+            'https://user:secret@auth.example.test/authz',
+            'https://auth.example.test/authz?next=/admin',
+            'https://auth.example.test/authz#fragment',
+            'https://auth.example.test/{http.request.host}',
+            'https://auth.example.test/%2Fauthz',
+            'https://auth.example.test\\authz',
+            'https://auth.example.test:0/authz',
+            `https://auth.example.test/${'a'.repeat(2_048)}`,
+        ]) {
+            expect(isCanonicalForwardAuthEndpoint(endpoint)).toBe(false)
+        }
+        expect(isCanonicalForwardAuthEndpoint('https://auth.example.test/authz')).toBe(true)
+        for (const responseHeader of [
+            'Host',
+            'authorization',
+            'Cookie',
+            'Set-Cookie',
+            'Forwarded',
+            'X-Forwarded-User',
+            'X-Real-IP',
+            'Connection',
+            'Transfer-Encoding',
+            'Content-Length',
+            'Content-Type',
+            'Location',
+            'Via',
+            'Sec-Example',
+            'X--Invalid',
+            'A'.repeat(65),
+        ]) {
+            expect(
+                forwardAuthInputSchema.safeParse({
+                    provider: 'generic',
+                    endpoint: 'http://auth.example.test/authz',
+                    responseHeaders: [responseHeader],
+                }).success,
+            ).toBe(false)
+        }
+        for (const prefix of ['/', '/a', '//', '/a//b/', '/./', '/../', '/a/../']) {
+            expect(isValidForwardAuthGatewayPathPrefix(prefix)).toBe(false)
+        }
+        expect(isValidForwardAuthGatewayPathPrefix('/outpost.goauthentik.io/')).toBe(true)
+    })
+
+    test('allows Forward Auth only on authenticated or combined-all policies', () => {
+        const forwardAuth = {
+            provider: 'generic',
+            endpoint: 'https://auth.example.test/authz',
+        }
+        expect(
+            createAccessPolicyInputSchema.safeParse({
+                name: 'Authenticated',
+                mode: 'authenticated',
+                forwardAuth,
+            }).success,
+        ).toBe(true)
+        expect(
+            createAccessPolicyInputSchema.safeParse({
+                name: 'Combined all',
+                mode: 'combined',
+                combination: 'all',
+                forwardAuth,
+            }).success,
+        ).toBe(true)
+        for (const [mode, combination] of [
+            ['public', null],
+            ['ip-restricted', null],
+            ['combined', 'any'],
+        ] as const) {
+            expect(
+                createAccessPolicyInputSchema.safeParse({
+                    name: `Invalid ${mode}`,
+                    mode,
+                    combination,
+                    forwardAuth,
+                }).success,
+            ).toBe(false)
+        }
+        expect(
+            updateAccessPolicyInputSchema.safeParse({
+                accessPolicyId: POLICY_ID,
+                combination: 'any',
+                forwardAuth,
+            }).success,
+        ).toBe(false)
     })
 
     test('canonicalizes IPv4 and IPv6 hosts and networks, masks host bits, sorts, and deduplicates', () => {

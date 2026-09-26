@@ -2,7 +2,7 @@ use super::fixtures::{host, request, request_with_settings};
 use crate::{
     models::{
         AccessPolicy, AccessPolicyCombination, AccessPolicyMode, BasicAuth, BasicAuthAccount,
-        IpDefaultAction, IpRules, ProxyHttpSettings, UpstreamTls,
+        ForwardAuth, IpDefaultAction, IpRules, ProxyHttpSettings, UpstreamTls,
     },
     proxy::{
         ProxyValidationError, revision_for_configuration,
@@ -62,6 +62,7 @@ fn v7_revision_matches_the_typescript_ip_rules_known_vector() {
         mode: AccessPolicyMode::IpRestricted,
         combination: None,
         basic_auth: None,
+        forward_auth: None,
         ip_rules: Some(IpRules {
             default_action: IpDefaultAction::Deny,
             allow: vec!["192.0.2.0/24".into(), "2001:db8::/32".into()],
@@ -183,6 +184,7 @@ fn access_policy_changes_the_v7_revision_and_requires_explicit_combination_shape
         mode: AccessPolicyMode::Authenticated,
         combination: None,
         basic_auth: None,
+        forward_auth: None,
         ip_rules: None,
     });
     let protected_revision =
@@ -251,6 +253,7 @@ fn access_policy_identity_must_have_one_canonical_definition() {
         mode: AccessPolicyMode::Authenticated,
         combination: None,
         basic_auth: None,
+        forward_auth: None,
         ip_rules: None,
     });
     let mut second = host(
@@ -265,6 +268,7 @@ fn access_policy_identity_must_have_one_canonical_definition() {
         mode: AccessPolicyMode::IpRestricted,
         combination: None,
         basic_auth: None,
+        forward_auth: None,
         ip_rules: None,
     });
     assert!(
@@ -307,6 +311,151 @@ fn access_policy_rejects_provider_fields_until_their_contract_exists() {
 }
 
 #[test]
+fn v7_revision_matches_the_typescript_forward_auth_known_vector() {
+    let mut proxy_host = host(
+        "018f4b4a-7d1f-7abc-8def-0123456789ab",
+        &["a.example"],
+        "http",
+        "127.0.0.1",
+        8080,
+    );
+    proxy_host.access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::Combined,
+        combination: Some(AccessPolicyCombination::All),
+        basic_auth: None,
+        forward_auth: Some(ForwardAuth {
+            endpoint: "http://auth.example.test/check".into(),
+            timeout_seconds: 5,
+            request_headers: vec!["Cookie".into()],
+            response_headers: vec!["Remote-User".into()],
+            gateway_path_prefix: Some("/outpost/".into()),
+        }),
+        ip_rules: Some(IpRules {
+            default_action: IpDefaultAction::Deny,
+            allow: vec!["192.0.2.0/24".into()],
+            deny: vec![],
+        }),
+    });
+    assert_eq!(
+        revision_for_configuration(&[proxy_host], &ProxyHttpSettings::default()),
+        "sha256:32b018cab495353f71733a5f7d85a17141cd6c09b8e94ca3d6ef94f67af77dac"
+    );
+}
+
+#[test]
+fn forward_auth_is_limited_to_authenticated_or_combined_all_policies() {
+    let mut proxy_host = host(
+        "018f4b4a-7d1f-7abc-8def-0123456789ab",
+        &["a.example"],
+        "http",
+        "127.0.0.1",
+        8080,
+    );
+    let forward_auth = ForwardAuth {
+        endpoint: "http://auth.example.test/check".into(),
+        timeout_seconds: 3,
+        request_headers: vec!["Authorization".into(), "Cookie".into()],
+        response_headers: vec!["Remote-Email".into(), "Remote-User".into()],
+        gateway_path_prefix: Some("/outpost.goauthentik.io/".into()),
+    };
+    proxy_host.access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+        basic_auth: None,
+        forward_auth: Some(forward_auth.clone()),
+        ip_rules: None,
+    });
+    let valid_revision = revision_for_configuration(
+        std::slice::from_ref(&proxy_host),
+        &ProxyHttpSettings::default(),
+    );
+    let request_with = |proxy_host: crate::models::ProxyHost| crate::models::ProxyConfigRequest {
+        version: 7,
+        revision: revision_for_configuration(
+            std::slice::from_ref(&proxy_host),
+            &ProxyHttpSettings::default(),
+        ),
+        proxy_hosts: vec![proxy_host],
+        redirect_hosts: vec![],
+        http_settings: ProxyHttpSettings::default(),
+        trusted_cas: vec![],
+    };
+    assert!(validate_proxy_config(request_with(proxy_host.clone())).is_ok());
+
+    proxy_host.access_policy.as_mut().unwrap().mode = AccessPolicyMode::Public;
+    assert!(validate_proxy_config(request_with(proxy_host.clone())).is_err());
+    proxy_host.access_policy.as_mut().unwrap().mode = AccessPolicyMode::IpRestricted;
+    assert!(validate_proxy_config(request_with(proxy_host.clone())).is_err());
+    proxy_host.access_policy.as_mut().unwrap().mode = AccessPolicyMode::Combined;
+    proxy_host.access_policy.as_mut().unwrap().combination = Some(AccessPolicyCombination::Any);
+    assert!(validate_proxy_config(request_with(proxy_host.clone())).is_err());
+    proxy_host.access_policy.as_mut().unwrap().combination = Some(AccessPolicyCombination::All);
+    proxy_host.access_policy.as_mut().unwrap().ip_rules = Some(IpRules {
+        default_action: IpDefaultAction::Deny,
+        allow: vec!["192.0.2.1/32".into()],
+        deny: vec![],
+    });
+    assert!(validate_proxy_config(request_with(proxy_host.clone())).is_ok());
+
+    proxy_host.access_policy.as_mut().unwrap().basic_auth = Some(BasicAuth {
+        accounts: vec![BasicAuthAccount {
+            username: "alice".into(),
+            password_hash: "$argon2id$v=19$m=47104,t=1,p=1$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA$MrQeoLQVkaRjr94luEbHZECFRREjHzNciGTu9rBCN+Y".into(),
+        }],
+    });
+    assert!(validate_proxy_config(request_with(proxy_host.clone())).is_err());
+    proxy_host.access_policy.as_mut().unwrap().basic_auth = None;
+    proxy_host
+        .access_policy
+        .as_mut()
+        .unwrap()
+        .forward_auth
+        .as_mut()
+        .unwrap()
+        .response_headers = vec!["Authorization".into()];
+    assert!(validate_proxy_config(request_with(proxy_host.clone())).is_err());
+    proxy_host
+        .access_policy
+        .as_mut()
+        .unwrap()
+        .forward_auth
+        .as_mut()
+        .unwrap()
+        .response_headers = vec!["Remote-User".into()];
+    proxy_host
+        .access_policy
+        .as_mut()
+        .unwrap()
+        .forward_auth
+        .as_mut()
+        .unwrap()
+        .gateway_path_prefix = Some("/../admin/".into());
+    assert!(validate_proxy_config(request_with(proxy_host)).is_err());
+
+    let mut changed = host(
+        "018f4b4a-7d1f-7abc-8def-0123456789ab",
+        &["a.example"],
+        "http",
+        "127.0.0.1",
+        8080,
+    );
+    changed.access_policy = Some(AccessPolicy {
+        id: "0198d98a-0000-7000-8000-000000000001".into(),
+        mode: AccessPolicyMode::Authenticated,
+        combination: None,
+        basic_auth: None,
+        forward_auth: None,
+        ip_rules: None,
+    });
+    assert_ne!(
+        valid_revision,
+        revision_for_configuration(&[changed], &ProxyHttpSettings::default())
+    );
+}
+
+#[test]
 fn basic_auth_accounts_require_bounded_sorted_exact_argon2id_phc() {
     let mut protected = host(
         "018f4b4a-7d1f-7abc-8def-0123456789ab",
@@ -326,6 +475,7 @@ fn basic_auth_accounts_require_bounded_sorted_exact_argon2id_phc() {
                 password_hash: hash.into(),
             }],
         }),
+        forward_auth: None,
         ip_rules: None,
     });
     let valid = crate::models::ProxyConfigRequest {

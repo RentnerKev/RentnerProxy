@@ -7,6 +7,7 @@ import PageHeader from '../../../../shared/Management/PageHeader'
 import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import useSecurityDashboardPageLogic from '../Hooks/useSecurityDashboardPageLogic'
 import CrowdSecDashboardPanel from './CrowdSecDashboardPanel'
+import ForwardAuthSummaryPanel from './ForwardAuthSummaryPanel'
 
 export default function SecurityDashboardPage() {
     const { t } = useTranslationStore()
@@ -24,6 +25,7 @@ export default function SecurityDashboardPage() {
                     </Link>
                 }
             />
+            <ForwardAuthSummaryPanel />
             {!configuration.data ? (
                 <ContentState
                     title={t(

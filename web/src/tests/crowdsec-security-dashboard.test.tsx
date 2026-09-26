@@ -8,6 +8,8 @@ import type {
     CrowdSecDashboardQuery,
     CrowdSecDecision,
 } from '../shared/Types/crowdsec.types'
+import type { AccessPolicySummary } from '../shared/Types/access-policies.types'
+import type { ProxyRuntimeSyncStatus } from '../shared/Types/proxy-runtime.types'
 import { scenarioDescriptionKey } from '../features/Admin/CrowdSec/Helpers/scenarioDescription'
 import withTestLanguage from './Helpers/withTestLanguage'
 
@@ -81,11 +83,63 @@ const dashboardMock = mock(
     },
 )
 
+const accessPolicies: AccessPolicySummary[] = [
+    {
+        id: '0192b7d4-4e59-7c6d-8a1b-2c3d4e5f6071',
+        name: 'Staff SSO',
+        description: '',
+        mode: 'authenticated',
+        combination: null,
+        ipRules: null,
+        forwardAuth: {
+            provider: 'authelia',
+            endpoint: 'http://auth.internal/api/authz/forward-auth',
+            timeoutSeconds: 5,
+            gatewayPathPrefix: null,
+            requestHeaders: ['Cookie'],
+            responseHeaders: ['Remote-Email', 'Remote-User'],
+        },
+        assignedHostCount: 3,
+        basicAuthAccountCount: 0,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+    },
+    {
+        id: '0192b7d4-4e59-7c6d-8a1b-2c3d4e5f6072',
+        name: 'Office IP',
+        description: '',
+        mode: 'ip-restricted',
+        combination: null,
+        ipRules: null,
+        forwardAuth: null,
+        assignedHostCount: 1,
+        basicAuthAccountCount: 0,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+    },
+]
+const getAccessPoliciesMock = mock(async () => accessPolicies)
+const getAccessPolicyRuntimeStatusMock = mock(async (): Promise<ProxyRuntimeSyncStatus> => ({
+    available: true,
+    running: true,
+    activeRevision: 'sha256:active',
+    desiredRevision: 'sha256:active',
+    lastApplyAt: '2026-01-02T12:00:00.000Z',
+    state: 'synced',
+}))
+
+mock.module('../features/Admin/AccessPolicyManagement/server', () => ({
+    getAccessPoliciesHandler: getAccessPoliciesMock,
+    getAccessPolicyRuntimeStatusHandler: getAccessPolicyRuntimeStatusMock,
+}))
+
 mock.module('../features/Admin/CrowdSec/server', () => ({
     getCrowdSecDashboardHandler: dashboardMock,
 }))
 const { default: CrowdSecDashboardPanel } =
     await import('../features/Admin/CrowdSec/Components/CrowdSecDashboardPanel')
+const { default: ForwardAuthSummaryPanel } =
+    await import('../features/Admin/CrowdSec/Components/ForwardAuthSummaryPanel')
 
 let root: Root | null = null
 let queryClient: InstanceType<typeof QueryClient> | null = null
@@ -111,6 +165,7 @@ async function renderDashboard(): Promise<HTMLElement> {
             withTestLanguage(
                 <TooltipProvider>
                     <QueryClientProvider client={queryClient!}>
+                        <ForwardAuthSummaryPanel />
                         <CrowdSecDashboardPanel configuration={configuration} />
                     </QueryClientProvider>
                 </TooltipProvider>,
@@ -121,7 +176,11 @@ async function renderDashboard(): Promise<HTMLElement> {
     return container
 }
 
-beforeEach(() => dashboardMock.mockClear())
+beforeEach(() => {
+    dashboardMock.mockClear()
+    getAccessPoliciesMock.mockClear()
+    getAccessPolicyRuntimeStatusMock.mockClear()
+})
 afterEach(async () => {
     await act(async () => root?.unmount())
     root = null
@@ -142,6 +201,24 @@ test('shows the shared table, country flag and scenario explanation control', as
         ),
     ).not.toBeNull()
     expect(container.textContent).toContain('1–15 of 24')
+})
+
+test('reports saved Forward Auth assignments and runtime synchronization without probing provider health', async () => {
+    const container = await renderDashboard()
+    await waitFor(
+        () => container.textContent?.includes('Access policy runtime synchronized') === true,
+    )
+    const summary = container.querySelector<HTMLElement>(
+        'section[aria-label="Forward Auth policies"]',
+    )
+    expect(summary).not.toBeNull()
+    expect([...summary!.querySelectorAll('dd')].map((value) => value.textContent?.trim())).toEqual([
+        '1',
+        '3',
+        'Access policy runtime synchronized',
+    ])
+    expect(summary?.textContent).not.toContain('http://auth.internal')
+    expect(summary?.textContent).not.toContain('healthy')
 })
 
 test('shows All defaults in both filter controls without a reset action', async () => {

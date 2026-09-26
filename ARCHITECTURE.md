@@ -125,6 +125,14 @@ the root supervisor; the supervisor invokes `cscli`, removes the request, and pu
 redacted pending/failure result. No key is stored in PostgreSQL or returned in status responses.
 The CLI-derived Console state distinguishes pending acceptance from enrollment.
 
+### Forward Auth access policies
+
+An Access Policy may hold a validated Forward Auth configuration alongside its existing IP rules. The web service stores the configuration in PostgreSQL, projects only runtime fields into the desired proxy snapshot, and the controller validates the same shape before rendering typed Caddy JSON. Provider selection is UI metadata; the Caddy path is provider independent. No authentication credential is stored for the gateway. See the [operator guide](./docs/forward-auth.md).
+
+On a protected host, the effective order is ACME challenge, optional CrowdSec, HTTPS enforcement, the explicitly configured public auth-gateway path, IP rules when combined with `all`, Forward Auth or Basic Auth, body limit, then the application reverse proxy. Basic Auth and Forward Auth are mutually exclusive. `combined/any` remains available for Basic Auth and IP rules, but is rejected for Forward Auth so an IP match cannot bypass it. The gateway path is proxied only to the configured auth service and must be chosen narrowly by the administrator.
+
+The auth precheck is a bounded GET using Caddy's reverse proxy response interception. It sends a rebuilt header set with the original host in `X-Forwarded-Host`, method, URI, effective client IP, trusted original scheme, and only selected Cookie or Authorization credentials. An HTTPS gateway uses its own DNS name for HTTP Host and TLS server name. Configured identity response headers are copied to the original request only on 2xx. The renderer strips incoming identity headers before checking and removes Authorization before the protected application. Other auth responses return to the client; transport errors cannot continue to the application. HTTPS gateway connections verify their certificate against system trust. The endpoint intentionally permits an administrator to name an internal HTTP service; protecting that network remains a deployment responsibility.
+
 ## Certificate and trust boundaries
 
 PostgreSQL is the web application's durable record of certificate metadata,

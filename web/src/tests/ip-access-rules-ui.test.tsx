@@ -57,6 +57,7 @@ const policy = {
         allow: ['192.0.2.0/24'],
         deny: ['192.0.2.128/25'],
     },
+    forwardAuth: null,
     assignedHostCount: 0,
     basicAuthAccountCount: 0,
     createdAt: new Date('2026-01-01T00:00:00Z'),
@@ -262,6 +263,7 @@ describe('IP access policy UI', () => {
                 name: 'Office',
                 mode: 'ip-restricted',
                 combination: null,
+                forwardAuth: null,
                 ipRules: {
                     defaultAction: 'deny',
                     allow: ['192.0.2.0/24'],

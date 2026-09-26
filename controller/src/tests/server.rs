@@ -113,6 +113,7 @@ fn basic_auth_payload() -> Vec<u8> {
                 password_hash: BASIC_AUTH_HASH.to_owned(),
             }],
         }),
+        forward_auth: None,
         ip_rules: None,
     });
     configuration.revision =
