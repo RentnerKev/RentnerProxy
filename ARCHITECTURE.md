@@ -127,7 +127,7 @@ The CLI-derived Console state distinguishes pending acceptance from enrollment.
 
 ### Forward Auth access policies
 
-An Access Policy may hold a validated Forward Auth configuration alongside its existing IP rules. The web service stores the configuration in PostgreSQL, projects only runtime fields into the desired proxy snapshot, and the controller validates the same shape before rendering typed Caddy JSON. Provider selection is UI metadata; the Caddy path is provider independent. No authentication credential is stored for the gateway. See the [operator guide](./docs/forward-auth.md).
+An Access Policy may hold a validated Forward Auth configuration alongside its existing IP rules. The web service stores the configuration in PostgreSQL, projects only runtime fields into the desired proxy snapshot, and the controller validates the same shape before rendering typed Caddy JSON. Provider selection is UI metadata; the Caddy path is provider independent. No authentication credential is stored for the gateway.
 
 On a protected host, the effective order is ACME challenge, optional CrowdSec, HTTPS enforcement, the explicitly configured public auth-gateway path, IP rules when combined with `all`, Forward Auth or Basic Auth, body limit, then the application reverse proxy. Basic Auth and Forward Auth are mutually exclusive. `combined/any` remains available for Basic Auth and IP rules, but is rejected for Forward Auth so an IP match cannot bypass it. The gateway path is proxied only to the configured auth service and must be chosen narrowly by the administrator.
 

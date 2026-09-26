@@ -89,8 +89,7 @@ tests](controller/src/tests/renderer.rs) and the [production proxy
 smoke](tests/production/proxy-smoke.ts) exercise the contract; the latter uses a local auth
 fixture with real Caddy, not a full provider deployment. The administrator must trust the auth
 service, its configured network destination, and the selected identity headers. An optional
-public gateway path is intentionally outside the check and must be narrowly configured. See
-the [Forward Auth guide](docs/forward-auth.md) for provider and trusted-proxy assumptions.
+public gateway path is intentionally outside the check and must be narrowly configured.
 
 ## Secure design principles and countermeasures
 

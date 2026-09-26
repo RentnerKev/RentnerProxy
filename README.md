@@ -111,7 +111,7 @@ docker compose up -d
 
 Forward Auth is configured inside an existing Access Policy. Choose a provider preset, enter its full HTTP or HTTPS check endpoint, and select the request credentials and identity response headers needed by that provider. Basic Auth and Forward Auth are mutually exclusive in one policy. An IP rule can be combined with Forward Auth only when **all** checks must pass. The auth check is fail closed: a denied response or unreachable gateway never grants access to the protected upstream. HTTPS auth gateways use normal certificate verification; the endpoint cannot contain credentials or a query string.
 
-The [Forward Auth guide](docs/forward-auth.md) describes the request order, Authentik and Authelia setup, the narrower oauth2-proxy behavior, trusted proxy settings, and operational limits. Provider reachability is not measured by the Security Dashboard; it reports configured policy counts and settings only.
+Provider reachability is not measured by the Security Dashboard; it reports configured policy counts and settings only.
 
 ## More information
 
