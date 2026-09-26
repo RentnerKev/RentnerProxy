@@ -40,11 +40,11 @@ jobs:
             - name: Install dependencies
               run: bun install --frozen-lockfile
 
-            - name: Production appliance, backup and restore
-              run: bun --no-orphans scripts/production-smoke-ci.ts production
-
             - name: Proxy runtime
               run: bun --no-orphans scripts/production-smoke-ci.ts proxy
+
+            - name: Production appliance, backup and restore
+              run: bun --no-orphans scripts/production-smoke-ci.ts production
 
             - name: Certificates and ACME
               run: bun --no-orphans scripts/production-smoke-ci.ts certificates

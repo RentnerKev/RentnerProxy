@@ -83,7 +83,11 @@ let assertions = 0
 
 async function command(
     args: string[],
-    options: { readonly inherit?: boolean; readonly timeoutMs?: number } = {},
+    options: {
+        readonly inherit?: boolean
+        readonly timeoutMs?: number
+        readonly startupDiagnostic?: boolean
+    } = {},
 ): Promise<string> {
     const child = Bun.spawn({
         cmd: smokeDockerArguments(args),
@@ -106,6 +110,18 @@ async function command(
     try {
         const [exitCode, output, errors] = await Promise.all([child.exited, stdout, stderr])
         if (exitCode !== 0) {
+            if (options.startupDiagnostic) {
+                const marker = errors.match(
+                    /^SMOKE_SAFE startup-reconcile running=(?:true|false) activeKnown=(?:true|false) activeAdvanced=(?:true|false) desiredStable=(?:true|false)$/mu,
+                )
+                const retries = (errors.match(/\[proxy-runtime\] reconcile unavailable/gu) ?? [])
+                    .length
+                console.error(
+                    (marker?.[0] ?? 'SMOKE_SAFE startup-reconcile worker-exit') +
+                        ' retries=' +
+                        retries,
+                )
+            }
             throw new Error('Smoke command failed: ' + args.slice(0, 2).join(' '))
         }
 
@@ -300,6 +316,9 @@ async function runSmoke(): Promise<void> {
         process.env.RENTNERPROXY_CONTROLLER_TOKEN = token
         process.env.APP_ENCRYPTION_KEY = appEncryptionKey
         environment.DATABASE_URL = databaseUrl
+        environment.NODE_ENV = 'test'
+        environment.RENTNERPROXY_PUBLIC_ORIGIN = 'http://localhost:5173'
+        environment.APP_ENCRYPTION_KEY = appEncryptionKey
 
         const probeDatabase = new SQL(databaseUrl)
         try {
@@ -1526,6 +1545,10 @@ async function runSmoke(): Promise<void> {
             `const runtime = await import(${JSON.stringify(serviceUrl)});
 const controller = await import(${JSON.stringify(controllerClientUrl)});
 const { getAuthDatabase } = await import(${JSON.stringify(databaseModuleUrl)});
+const initialActiveRevision = (await controller.getProxyRuntimeStatus())?.activeRevision;
+let firstDesiredRevision = null;
+let latestDesiredRevision = null;
+let latestActive = null;
 runtime.startProxyRuntimeReconciliation();
 try {
     const deadline = Date.now() + 75000;
@@ -1533,17 +1556,29 @@ try {
     while (Date.now() < deadline) {
         const desired = await runtime.getProxyRuntimeSnapshotService();
         const active = await controller.getProxyRuntimeStatus();
+        firstDesiredRevision ??= desired.revision;
+        latestDesiredRevision = desired.revision;
+        latestActive = active;
         if (active?.running && active.activeRevision === desired.revision) { synced = true; break; }
         await Bun.sleep(150);
     }
-    if (!synced) throw new Error('Startup reconciliation did not converge.');
+    if (!synced) {
+        console.error('SMOKE_SAFE startup-reconcile running=' + String(latestActive?.running === true) +
+            ' activeKnown=' + String(latestActive?.activeRevision != null) +
+            ' activeAdvanced=' + String(latestActive?.activeRevision !== initialActiveRevision) +
+            ' desiredStable=' + String(firstDesiredRevision === latestDesiredRevision));
+        throw new Error('Startup reconciliation did not converge.');
+    }
 } finally {
     await runtime.stopProxyRuntimeReconciliation();
     await getAuthDatabase().$client.close();
 }
 `,
         )
-        await command([process.execPath, restartWorker], { timeoutMs: 90_000 })
+        await command([process.execPath, restartWorker], {
+            timeoutMs: 90_000,
+            startupDiagnostic: true,
+        })
         await expectProxyStatus('startup.test', 200)
         passed(
             'a new Web worker process heals persisted pending state at startup without an apply request',

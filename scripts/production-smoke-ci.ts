@@ -58,6 +58,15 @@ export function smokeProgress(suite: Suite) {
             if (suite === 'certificates' && certificateFailure) {
                 diagnostic = 'Certificate operation failed: ' + certificateFailure
             }
+            if (
+                suite === 'proxy' &&
+                /^SMOKE_SAFE startup-reconcile (?:running=(?:true|false) activeKnown=(?:true|false) activeAdvanced=(?:true|false) desiredStable=(?:true|false)|worker-exit) retries=\d{1,3}$/u.test(
+                    line,
+                )
+            ) {
+                diagnostic = line.replace('SMOKE_SAFE', 'Proxy runtime diagnostic:')
+                return diagnostic
+            }
             if (/\b[Ss]moke command failed: docker (build|compose|run|exec)\b/u.test(line)) {
                 const operation = /docker (build|compose|run|exec)\b/u.exec(line)?.[1]
                 diagnostic = 'Docker ' + operation + ' failed'

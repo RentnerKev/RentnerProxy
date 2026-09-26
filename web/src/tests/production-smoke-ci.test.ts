@@ -93,6 +93,17 @@ describe('production smoke CI output boundary', () => {
         expect(progress.result(1).diagnostic).toBe('Readiness polling timed out')
     })
 
+    test('reports only allowlisted startup reconciliation state', () => {
+        const progress = smokeProgress('proxy')
+        const safe =
+            'SMOKE_SAFE startup-reconcile running=true activeKnown=true activeAdvanced=false desiredStable=true retries=4'
+        expect(progress.consume(safe)).toBe(
+            'Proxy runtime diagnostic: startup-reconcile running=true activeKnown=true activeAdvanced=false desiredStable=true retries=4',
+        )
+        expect(progress.consume(safe + ' secret-value')).toBeUndefined()
+        expect(progress.result(1).diagnostic).not.toContain('secret-value')
+    })
+
     test('reports test-folder smoke locations without exposing unrelated stack frames', () => {
         const progress = smokeProgress('production')
         progress.consume('error: Timed out waiting for managed CrowdSec acquisition')

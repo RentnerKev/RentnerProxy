@@ -87,8 +87,8 @@ describe('production smokes workflow execution contract', () => {
     test('runs the four existing smoke scripts as separate sequential steps', async () => {
         const source = await workflow()
         const commands = [
-            'bun --no-orphans scripts/production-smoke-ci.ts production',
             'bun --no-orphans scripts/production-smoke-ci.ts proxy',
+            'bun --no-orphans scripts/production-smoke-ci.ts production',
             'bun --no-orphans scripts/production-smoke-ci.ts certificates',
             'bun --no-orphans scripts/production-smoke-ci.ts upstream-tls',
         ]
