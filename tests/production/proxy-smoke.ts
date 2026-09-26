@@ -1231,11 +1231,18 @@ async function runSmoke(): Promise<void> {
         await expectProxyMessage('demo.test', 'upstream-two')
         passed('injection rejected without changing the working proxy')
 
+        // The synthetic public policy must not retain authentication settings.
         const unresolvableHosts = snapshot.proxyHosts.map((host) => ({
             ...host,
             forwardHost: runId + '.upstream.invalid',
             ...(host.accessPolicy
-                ? { accessPolicy: { ...host.accessPolicy, mode: 'public', combination: null } }
+                ? {
+                      accessPolicy: {
+                          id: host.accessPolicy.id,
+                          mode: 'public' as const,
+                          combination: null,
+                      },
+                  }
                 : {}),
         }))
         const unresolvableCanonical = JSON.stringify({
