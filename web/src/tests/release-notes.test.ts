@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 
-import { generateReleaseNotes, GitHubReleaseClient } from '../../../scripts/generate-release-notes'
+import {
+    generateReleaseNotes,
+    GitHubReleaseClient,
+} from '../../../.github/scripts/generate-release-notes'
 import {
     filterIssues,
     findMatchingMilestone,
@@ -8,8 +11,12 @@ import {
     deriveReleaseChannel,
     renderReleaseNotes,
     validateReleaseTag,
-} from '../../../scripts/release-notes'
-import type { GitHubIssue, GitHubRelease, ReleaseNotesConfig } from '../../../scripts/release-notes'
+} from '../../../.github/scripts/release-notes'
+import type {
+    GitHubIssue,
+    GitHubRelease,
+    ReleaseNotesConfig,
+} from '../../../.github/scripts/release-notes'
 
 const config: ReleaseNotesConfig = {
     excludedLabels: ['duplicate', 'invalid', 'wontfix', 'no-changelog', 'not-planned'],

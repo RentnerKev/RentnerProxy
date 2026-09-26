@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { smokeProgress } from '../../../scripts/production-smoke-ci'
+import { smokeProgress } from '../../../.github/scripts/production-smoke-ci'
 import {
     SMOKE_RUN_LABEL,
     restoreSmokeDiagnostic,

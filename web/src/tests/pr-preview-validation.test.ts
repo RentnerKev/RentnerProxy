@@ -21,8 +21,8 @@ import {
     renderPreviewComment,
     selectPreviewComment,
     validateFullSha,
-} from '../../../scripts/pr-preview'
-import type { PreviewArtifactMetadata } from '../../../scripts/pr-preview'
+} from '../../../.github/scripts/pr-preview'
+import type { PreviewArtifactMetadata } from '../../../.github/scripts/pr-preview'
 
 const headSha = '1'.repeat(40)
 const baseSha = '2'.repeat(40)

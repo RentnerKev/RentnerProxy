@@ -117,6 +117,6 @@ The [Forward Auth guide](docs/forward-auth.md) describes the request order, Auth
 
 - [Architecture](ARCHITECTURE.md) · [Security policy](SECURITY.md) · [Assurance case](ASSURANCE_CASE.md)
 - [Roadmap](ROADMAP.md) · [Release process](RELEASING.md) · [Contributing](CONTRIBUTING.md)
-- [Screenshots](docs/screenshots) · [Report a bug](https://github.com/RentnerKev/RentnerProxy/issues/new/choose)
+- [Screenshots](screenshots) · [Report a bug](https://github.com/RentnerKev/RentnerProxy/issues/new/choose)
 
 Licensed under [MIT](LICENSE).

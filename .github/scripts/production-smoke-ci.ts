@@ -4,10 +4,14 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { isRestoreSmokeDiagnostic, SMOKE_RUN_LABEL, smokeRunScope } from './smoke-resources'
-import { CERTIFICATE_ERROR_CODES } from '../web/src/config/certificates.config'
+import {
+    isRestoreSmokeDiagnostic,
+    SMOKE_RUN_LABEL,
+    smokeRunScope,
+} from '../../scripts/smoke-resources'
+import { CERTIFICATE_ERROR_CODES } from '../../web/src/config/certificates.config'
 
-const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
+const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url))
 export const smokeSuites = {
     proxy: {
         label: 'Proxy runtime',

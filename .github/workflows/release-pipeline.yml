@@ -238,7 +238,7 @@ jobs:
               shell: bash
               run: |
                   set -Eeuo pipefail
-                  bun automation/scripts/generate-release-notes.ts \
+                  bun automation/.github/scripts/generate-release-notes.ts \
                       --config automation/.github/release-notes.json \
                       --output-dir "$RUNNER_TEMP/rentnerproxy-release"
 

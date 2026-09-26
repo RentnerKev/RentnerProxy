@@ -62,7 +62,7 @@ jobs:
                   GITHUB_TOKEN: ${{ github.token }}
                   REPOSITORY: ${{ github.repository }}
                   SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-              run: bun trusted/scripts/pr-preview.ts preflight
+              run: bun trusted/.github/scripts/pr-preview.ts preflight
 
             - name: Download exact handoff artifact for resolution
               uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -80,14 +80,14 @@ jobs:
                   GITHUB_TOKEN: ${{ github.token }}
                   REPOSITORY: ${{ github.repository }}
                   SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-              run: bun trusted/scripts/pr-preview.ts artifact-identity
+              run: bun trusted/.github/scripts/pr-preview.ts artifact-identity
 
             - name: Verify PR trigger and SHA-proof artifact envelope
               env:
                   GITHUB_TOKEN: ${{ github.token }}
                   REPOSITORY: ${{ github.repository }}
                   SOURCE_RUN_ID: ${{ steps.handoff.outputs.trigger_run_id }}
-              run: bun trusted/scripts/pr-preview.ts trigger-preflight
+              run: bun trusted/.github/scripts/pr-preview.ts trigger-preflight
 
             - name: Download exact tested merge SHA
               uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -106,7 +106,7 @@ jobs:
                   REPOSITORY: ${{ github.repository }}
                   SOURCE_PROOF_DIRECTORY: ${{ runner.temp }}/pr-preview-source
                   SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-              run: bun trusted/scripts/pr-preview.ts resolve
+              run: bun trusted/.github/scripts/pr-preview.ts resolve
 
     publish:
         name: PR Preview / Publish image
@@ -175,7 +175,7 @@ jobs:
               run: |
                   set -Eeuo pipefail
                   oci_archive="$ARTIFACT_DIRECTORY/preview-image.tar"
-                  bun trusted/scripts/pr-preview.ts validate-artifact
+                  bun trusted/.github/scripts/pr-preview.ts validate-artifact
 
                   raw_manifest="$(skopeo inspect --raw "oci-archive:$oci_archive")"
                   media_type="$(jq --raw-output '.mediaType // empty' <<< "$raw_manifest")"
@@ -252,7 +252,7 @@ jobs:
                   oci_archive="$ARTIFACT_DIRECTORY/preview-image.tar"
                   install -d -m 0700 "$auth_directory"
 
-                  bun trusted/scripts/pr-preview.ts revalidate
+                  bun trusted/.github/scripts/pr-preview.ts revalidate
                   printf '%s' "$GHCR_TOKEN" | skopeo login \
                       --authfile "$auth_file" \
                       --password-stdin \
@@ -296,7 +296,7 @@ jobs:
                       'manifest unknown|name unknown|not found' "$inspect_error"; then
                       # Recheck immediately before the first registry write. The PR can close
                       # while the immutable tag inspection is in progress.
-                      bun trusted/scripts/pr-preview.ts revalidate
+                      bun trusted/.github/scripts/pr-preview.ts revalidate
                       skopeo copy --preserve-digests \
                           --authfile "$auth_file" \
                           "oci-archive:$oci_archive" \
@@ -316,9 +316,9 @@ jobs:
                       exit 1
                   }
                   IMMUTABLE_IMAGE_DIGEST="$immutable_digest" \
-                      bun trusted/scripts/pr-preview.ts validate-digests
+                      bun trusted/.github/scripts/pr-preview.ts validate-digests
 
-                  bun trusted/scripts/pr-preview.ts revalidate
+                  bun trusted/.github/scripts/pr-preview.ts revalidate
                   skopeo copy --preserve-digests \
                       --authfile "$auth_file" \
                       "docker://$IMAGE@$immutable_digest" \
@@ -333,8 +333,8 @@ jobs:
                   )"
                   IMMUTABLE_IMAGE_DIGEST="$final_immutable_digest" \
                       MOVING_IMAGE_DIGEST="$moving_digest" \
-                      bun trusted/scripts/pr-preview.ts validate-digests
-                  bun trusted/scripts/pr-preview.ts revalidate
+                      bun trusted/.github/scripts/pr-preview.ts validate-digests
+                  bun trusted/.github/scripts/pr-preview.ts revalidate
                   printf 'digest=%s\n' "$final_immutable_digest" >> "$GITHUB_OUTPUT"
 
             - name: Remove registry credentials
@@ -387,4 +387,4 @@ jobs:
                   PR_NUMBER: ${{ needs.resolve.outputs.pr_number }}
                   REPOSITORY: ${{ needs.resolve.outputs.repository }}
                   TESTED_SHA: ${{ needs.resolve.outputs.tested_sha }}
-              run: bun trusted/scripts/pr-preview.ts comment
+              run: bun trusted/.github/scripts/pr-preview.ts comment

@@ -7,6 +7,10 @@
 !.github/
 !.github/scripts/
 !.github/scripts/duplicate-triage.ts
+!.github/scripts/generate-release-notes.ts
+!.github/scripts/pr-preview.ts
+!.github/scripts/production-smoke-ci.ts
+!.github/scripts/release-notes.ts
 
 !docker/
 !docker/web/

@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 
 import { describe, expect, test } from 'bun:test'
 
-import { parseReleaseNotesConfig } from '../../../scripts/generate-release-notes'
+import { parseReleaseNotesConfig } from '../../../.github/scripts/generate-release-notes'
 
 const repositoryRoot = resolve(import.meta.dir, '../../..')
 const workflowDirectory = resolve(repositoryRoot, '.github/workflows')
@@ -187,6 +187,7 @@ describe('shared release pipeline', () => {
         expect(publishJobPosition).toBeGreaterThan(verifyPosition)
         expect(uploadPosition).toBeGreaterThan(publishJobPosition)
         expect(editPosition).toBeGreaterThan(uploadPosition)
+        expect(pipeline).toContain('bun automation/.github/scripts/generate-release-notes.ts')
         expect(pipeline).toContain('--clobber')
         expect(pipeline).toContain('--notes-file')
         expect(pipeline.match(/repos\/\$GITHUB_REPOSITORY\/releases\/\$RELEASE_ID/g)).toHaveLength(

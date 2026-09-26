@@ -3,7 +3,7 @@
 The maintainer coordinates releases under [GOVERNANCE.md](GOVERNANCE.md). This document describes
 [release.yml](.github/workflows/release.yml), the reusable
 [release pipeline](.github/workflows/release-pipeline.yml), and
-[release-notes.ts](scripts/release-notes.ts). It does not initiate a release.
+[release-notes.ts](.github/scripts/release-notes.ts). It does not initiate a release.
 
 ## Before publication
 

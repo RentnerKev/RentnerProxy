@@ -87,10 +87,10 @@ describe('production smokes workflow execution contract', () => {
     test('runs the four existing smoke scripts as separate sequential steps', async () => {
         const source = await workflow()
         const commands = [
-            'bun --no-orphans scripts/production-smoke-ci.ts proxy',
-            'bun --no-orphans scripts/production-smoke-ci.ts production',
-            'bun --no-orphans scripts/production-smoke-ci.ts certificates',
-            'bun --no-orphans scripts/production-smoke-ci.ts upstream-tls',
+            'bun --no-orphans .github/scripts/production-smoke-ci.ts proxy',
+            'bun --no-orphans .github/scripts/production-smoke-ci.ts production',
+            'bun --no-orphans .github/scripts/production-smoke-ci.ts certificates',
+            'bun --no-orphans .github/scripts/production-smoke-ci.ts upstream-tls',
         ]
         let previous = -1
 
@@ -108,11 +108,11 @@ describe('production smokes workflow execution contract', () => {
         const source = await workflow()
 
         expect(source).toContain("if: always() && steps.bun.outcome == 'success'")
-        expect(source).toContain('bun scripts/production-smoke-ci.ts cleanup')
+        expect(source).toContain('bun .github/scripts/production-smoke-ci.ts cleanup')
     })
 
     test('maps each CI phase to the existing smoke implementation and builds production from checkout', async () => {
-        const runner = await repositoryFile('scripts/production-smoke-ci.ts')
+        const runner = await repositoryFile('.github/scripts/production-smoke-ci.ts')
         const productionSmoke = await repositoryFile('tests/production/appliance-compose-smoke.ts')
         const packageManifest = await repositoryFile('package.json')
 
@@ -145,12 +145,12 @@ describe('production smokes workflow execution contract', () => {
 
 describe('production smokes resource safety', () => {
     test('uses a dedicated temporary root and an exact run-scope label for cleanup', async () => {
-        const runner = await repositoryFile('scripts/production-smoke-ci.ts')
+        const runner = await repositoryFile('.github/scripts/production-smoke-ci.ts')
         const resources = await repositoryFile('scripts/smoke-resources.ts')
 
         expect(runner).toContain('tmpdir()')
         expect(runner).toContain('rentnerproxy-smokes-')
-        expect(runner).toContain("from './smoke-resources'")
+        expect(runner).toContain("from '../../scripts/smoke-resources'")
         expect(runner).toContain('SMOKE_RUN_LABEL')
         expect(runner).toContain('--filter')
         expect(runner).toContain("'label=' + SMOKE_RUN_LABEL + '=' + scope")
@@ -161,7 +161,7 @@ describe('production smokes resource safety', () => {
     })
 
     test('keeps cleanup and diagnostics free of credential and broad-volume inspection', async () => {
-        const runner = await repositoryFile('scripts/production-smoke-ci.ts')
+        const runner = await repositoryFile('.github/scripts/production-smoke-ci.ts')
 
         expect(runner).not.toContain('secrets.')
         expect(runner).not.toMatch(/docker\s+inspect\b/u)
