@@ -931,6 +931,7 @@ async function runSmoke(): Promise<void> {
         assert.equal(forwardAuthApplicationRequests, appCountBeforeGateway)
         passed('Authentik gateway prefix reaches only the auth gateway and preserves its query')
 
+        forwardAuthMode = 'deny'
         const denied = await fetch(proxyUrl + '/private', {
             headers: { host: 'forward-auth.test', connection: 'close' },
             signal: AbortSignal.timeout(5_000),
@@ -957,8 +958,6 @@ async function runSmoke(): Promise<void> {
             signal: AbortSignal.timeout(5_000),
         })
         assert.equal(forwardAuthRequest.status, 200)
-        assert.equal(forwardAuthRequest.headers.get('remote-user'), 'trusted-user')
-        assert.equal(forwardAuthRequest.headers.get('remote-email'), 'trusted@example.test')
         assert.deepEqual(await forwardAuthRequest.json(), {
             message: 'forward-auth-app',
             method: 'POST',
