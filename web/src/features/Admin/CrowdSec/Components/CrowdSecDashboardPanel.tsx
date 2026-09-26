@@ -9,11 +9,6 @@ import CrowdSecBansTable from './CrowdSecBansTable'
 
 const CrowdSecOriginChart = lazy(() => import('./CrowdSecOriginChart'))
 const CrowdSecDecisionChart = lazy(() => import('./CrowdSecDecisionChart'))
-const ZERO_BLOCKED_ROWS = [
-    { origin: 'crowdsec', count: 0 },
-    { origin: 'CAPI', count: 0 },
-] as const
-
 function Metric({
     label,
     value,
@@ -53,7 +48,7 @@ function OriginPanel({
     return (
         <div className="min-w-0 rounded-xl border border-border bg-surface-raised p-4">
             <h3 className="text-sm font-bold text-ink-soft">{label}</h3>
-            {kind === 'blocked' || hasValues ? (
+            {hasValues && rows ? (
                 <Suspense
                     fallback={
                         <p className="mt-4 text-xs text-muted">
@@ -62,32 +57,13 @@ function OriginPanel({
                     }
                 >
                     {kind === 'blocked' ? (
-                        <>
-                            {!hasValues ? (
-                                <output className="mt-2 block text-xs text-muted">
-                                    {rows
-                                        ? t('admin.crowdSec.dashboard.noOriginData')
-                                        : t('admin.crowdSec.dashboard.unavailable')}
-                                </output>
-                            ) : null}
-                            <CrowdSecOriginChart
-                                rows={hasValues && rows ? rows : ZERO_BLOCKED_ROWS}
-                                label={label}
-                                color="var(--color-brand-500)"
-                            />
-                            {!hasValues ? (
-                                <div className="flex justify-around border-t border-border pt-2 text-xs text-muted tabular-nums">
-                                    {ZERO_BLOCKED_ROWS.map((row) => (
-                                        <span key={row.origin}>
-                                            {row.origin}{' '}
-                                            <strong className="text-ink-soft">0</strong>
-                                        </span>
-                                    ))}
-                                </div>
-                            ) : null}
-                        </>
+                        <CrowdSecOriginChart
+                            rows={rows}
+                            label={label}
+                            color="var(--color-brand-500)"
+                        />
                     ) : (
-                        <CrowdSecDecisionChart rows={rows ?? []} label={label} />
+                        <CrowdSecDecisionChart rows={rows} label={label} />
                     )}
                 </Suspense>
             ) : (

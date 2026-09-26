@@ -51,6 +51,7 @@ const configuration: CrowdSecConfiguration = {
     },
 }
 
+let blockedMetricsAvailable = true
 const dashboardMock = mock(
     async ({ data }: { data: CrowdSecDashboardQuery }): Promise<CrowdSecDashboard> => {
         const search = data.search.toLowerCase()
@@ -66,9 +67,11 @@ const dashboardMock = mock(
         return {
             collectedAt: 1_800_000_000,
             metrics: {
-                blockedRequests: 1_256,
+                blockedRequests: blockedMetricsAvailable ? 1_256 : null,
                 activeDecisions: 15_004,
-                blockedByOrigin: [{ origin: 'crowdsec', count: 1_256 }],
+                blockedByOrigin: blockedMetricsAvailable
+                    ? [{ origin: 'crowdsec', count: 1_256 }]
+                    : [],
                 decisionsByOrigin: [{ origin: 'CAPI', count: 15_004 }],
             },
             decisions: {
@@ -177,6 +180,7 @@ async function renderDashboard(): Promise<HTMLElement> {
 }
 
 beforeEach(() => {
+    blockedMetricsAvailable = true
     dashboardMock.mockClear()
     getAccessPoliciesMock.mockClear()
     getAccessPolicyRuntimeStatusMock.mockClear()
@@ -201,6 +205,19 @@ test('shows the shared table, country flag and scenario explanation control', as
         ),
     ).not.toBeNull()
     expect(container.textContent).toContain('1–15 of 24')
+})
+
+test('does not invent blocked-origin zeros when the blocked metric is unavailable', async () => {
+    blockedMetricsAvailable = false
+    const container = await renderDashboard()
+    const heading = [...container.querySelectorAll('h3')].find(
+        (node) => node.textContent === 'Blocked requests by origin',
+    )
+    const panel = heading?.parentElement
+    await waitFor(() => panel?.textContent?.includes('Data unavailable') === true)
+    expect(panel?.textContent).not.toContain('crowdsec 0')
+    expect(panel?.textContent).not.toContain('CAPI 0')
+    expect(panel?.querySelector('svg')).toBeNull()
 })
 
 test('reports saved Forward Auth assignments and runtime synchronization without probing provider health', async () => {

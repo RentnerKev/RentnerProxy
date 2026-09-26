@@ -262,7 +262,11 @@ fn parse_metrics(body: &[u8]) -> Option<DashboardMetrics> {
         return None;
     }
     Some(DashboardMetrics {
-        blocked_requests: blocked_seen.then(|| total_count(&blocked)).flatten(),
+        // The bouncer's CounterVec has no exported series until its first blocked request.
+        // An active-decision gauge from the same registry confirms the collector is available.
+        blocked_requests: (blocked_seen || decisions_seen)
+            .then(|| total_count(&blocked))
+            .flatten(),
         active_decisions: decisions_seen.then(|| total_count(&decisions)).flatten(),
         blocked_by_origin: ranked_origins(blocked),
         decisions_by_origin: ranked_origins(decisions),

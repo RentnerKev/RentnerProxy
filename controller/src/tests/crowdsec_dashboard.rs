@@ -33,6 +33,16 @@ fn absent_metrics_are_unknown_not_zero() {
 }
 
 #[test]
+fn missing_blocked_counter_is_zero_when_bouncer_gauge_is_available() {
+    let metrics =
+        parse_metrics(b"crowdsec_decisions_active{origin=\"CAPI\",ip_type=\"ipv4\"} 15002\n")
+            .expect("active bouncer gauge should parse");
+    assert_eq!(metrics.blocked_requests, Some(0));
+    assert!(metrics.blocked_by_origin.is_empty());
+    assert_eq!(metrics.active_decisions, Some(15_002));
+}
+
+#[test]
 fn lists_only_active_ip_and_network_bans_with_bounded_metadata() {
     let body = br#"[
       {"id":1,"type":"ban","scope":"Ip","value":"203.0.113.4","origin":"crowdsec","scenario":"http-bf","duration":"2h15m"},
