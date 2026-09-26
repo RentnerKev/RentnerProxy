@@ -99,7 +99,7 @@ RUN set -eux; \
 
 FROM redis:8.10.2-trixie@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3 AS redis-runtime
 
-FROM postgres:18.6@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae AS runtime
+FROM postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/RentnerKev/RentnerProxy" \
     org.opencontainers.image.description="Modern self-hosted reverse proxy manager powered by Caddy."
