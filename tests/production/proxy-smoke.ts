@@ -164,7 +164,7 @@ async function runSmoke(): Promise<void> {
         port: 0,
         async fetch(request) {
             const url = new URL(request.url)
-            if (url.pathname.startsWith('/outpost/')) {
+            if (url.pathname.startsWith('/outpost.goauthentik.io/')) {
                 return Response.json({ message: 'auth-gateway', path: url.pathname + url.search })
             }
             forwardAuthLastRequest = {
