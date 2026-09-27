@@ -91,7 +91,7 @@ export default function ApplicationNavigation({ items }: ApplicationNavigationPr
                             className="size-4 shrink-0"
                             strokeWidth={1.8}
                         />
-                    ) : item.to === '/npm-import' ? (
+                    ) : item.to === '/npm-import' || item.to === '/migration' ? (
                         <Import aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.8} />
                     ) : null}
                     {item.label}

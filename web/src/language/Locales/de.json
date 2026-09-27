@@ -48,6 +48,7 @@
         "certificates": "Zertifikate",
         "accessPolicies": "Zugriffsrichtlinien",
         "npmImport": "Systemimport",
+        "migration": "Import / Export",
         "proxyAccessLogs": "Zugriffsprotokolle",
         "crowdSec": "CrowdSec",
         "security": "Security-Dashboard",
@@ -439,6 +440,40 @@
         }
     },
     "admin": {
+        "migration": {
+            "eyebrow": "System / Migration",
+            "title": "Konfiguration übertragen",
+            "description": "Konfiguration aus RentnerProxy, Nginx Proxy Manager oder Zoraxy übernehmen und eine portable RentnerProxy-Datei exportieren.",
+            "exportTitle": "RentnerProxy exportieren",
+            "exportHelp": "Portables JSON mit Proxy-Hosts, Weiterleitungen und Richtlinien ohne Zugangsdaten. Zertifikate, private Schlüssel, Benutzer, Passwörter und vollständige Sicherungsdaten sind nicht enthalten. Hosts mit fehlenden TLS- oder CA-Daten werden beim Import deaktiviert angelegt.",
+            "exportButton": "Konfiguration als JSON herunterladen",
+            "importTitle": "Konfiguration importieren",
+            "sourceLabel": "Quellsystem",
+            "fileLabel": "Exportdatei auswählen",
+            "source": {
+                "rentnerproxy": "RentnerProxy",
+                "npm": "Nginx Proxy Manager",
+                "zoraxy": "Zoraxy"
+            },
+            "sourceHelp": {
+                "rentnerproxy": "Eine portable RentnerProxy-JSON-Datei (Version 1, maximal 4 MiB) wählen. Das ist keine vollständige System- oder Zertifikatssicherung.",
+                "npm": "Eine konsistente NPM-2.16-SQLite-Kopie wählen (maximal 32 MiB). NPM vor dem Kopieren stoppen oder ein SQLite-Backup erstellen.",
+                "zoraxy": "Das offizielle Zoraxy-Konfigurations-ZIP aus Version 3 wählen (maximal 32 MiB). Nur einfache Proxy- und Domain-Weiterleitungsregeln werden übernommen; Zertifikate, Zugangsdaten, Streams und erweiterte Regeln bleiben manuell."
+            },
+            "previewHelp": "Noch wurde nichts geändert. Konflikte und Warnungen prüfen. Objekte mit offenen TLS- oder Sicherheitsfragen werden deaktiviert angelegt.",
+            "errors": {
+                "invalid_request": "Ungültige Upload-Anfrage.",
+                "authentication_required": "Bitte anmelden und erneut versuchen.",
+                "permission_denied": "Keine Berechtigung für die Migration.",
+                "source_limit": "Die Datei oder die Zahl der Objekte überschreitet das Limit.",
+                "invalid_source": "Die Datei ist ungültig oder nicht lesbar.",
+                "unsupported_schema": "Nicht unterstütztes Dateiformat oder Versionsschema.",
+                "fingerprint_mismatch": "Die Datei hat sich seit der Vorschau geändert. Erneut analysieren.",
+                "preview_changed": "Der RentnerProxy-Stand hat sich seit der Vorschau geändert. Erneut analysieren.",
+                "import_failed": "Import fehlgeschlagen; Änderungen wurden zurückgerollt. Audit-Log prüfen.",
+                "export_failed": "Export fehlgeschlagen. Erneut versuchen oder Audit-Log prüfen."
+            }
+        },
         "npmImport": {
             "eyebrow": "System / Import",
             "title": "Nginx Proxy Manager importieren",
@@ -508,7 +543,18 @@
                 "unreferenced_access_list": "Kein importierbarer Host nutzt diese Zugriffsliste",
                 "certificate_material_unavailable": "SQLite enthält nur Metadaten; Zertifikat und privaten Schlüssel manuell migrieren",
                 "dead_hosts_manual": "404-Hosts manuell migrieren",
-                "streams_manual": "Streams manuell migrieren"
+                "streams_manual": "Streams manuell migrieren",
+                "trusted_ca_manual": "Vertrauenswürdige CA fehlt; Host wird deaktiviert importiert",
+                "auth_policy_manual": "Authentifizierungsrichtlinie ohne Zugangsdaten manuell migrieren",
+                "duplicate_source_id": "Objektkennung kommt in der Quelle mehrfach vor",
+                "zoraxy_unsupported_rule": "Zoraxy-Regel nutzt nicht übertragbare Funktionen",
+                "zoraxy_unsupported_redirect": "Zoraxy-Weiterleitung nutzt Pfad-, Geräte- oder andere nicht übertragbare Regeln",
+                "zoraxy_tls_review": "Zoraxy-TLS-Konfiguration prüfen; Host wird deaktiviert importiert",
+                "upstream_tls_verification_review": "Deaktivierte Upstream-Zertifikatsprüfung vor Aktivierung kontrollieren",
+                "zoraxy_streams_manual": "Zoraxy-Streams manuell migrieren",
+                "zoraxy_access_manual": "Zoraxy-Zugriffsregeln manuell migrieren",
+                "zoraxy_certificates_manual": "Zoraxy-Zertifikate und Schlüssel manuell einrichten",
+                "zoraxy_path_rules_manual": "Zoraxy-Pfadregeln manuell migrieren"
             },
             "errors": {
                 "invalid_request": "Ungültige Upload-Anfrage.",
@@ -1878,7 +1924,10 @@
                     "proxy-runtime-settings": "Proxy-Laufzeiteinstellungen",
                     "proxy-host-settings": "Proxy-Host-Einstellungen",
                     "proxy-runtime": "Proxy-Laufzeit",
-                    "crowdsec": "CrowdSec"
+                    "crowdsec": "CrowdSec",
+                    "npm-import": "NPM-Import",
+                    "config-import": "Konfigurationsimport",
+                    "config-export": "Konfigurationsexport"
                 }
             },
             "metadata": {
@@ -2317,7 +2366,8 @@
         },
         "audit-logs:view": "Audit-Protokoll anzeigen",
         "system": {
-            "npm_import": "Aus Nginx Proxy Manager importieren"
+            "npm_import": "Aus Nginx Proxy Manager importieren",
+            "migration": "Konfiguration importieren und exportieren"
         },
         "trusted_cas": {
             "view": "Vertrauenswürdige CAs anzeigen",

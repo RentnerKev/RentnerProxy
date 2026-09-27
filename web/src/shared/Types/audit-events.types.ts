@@ -59,6 +59,8 @@ export const AUDIT_RESOURCES = [
     'proxy-runtime',
     'crowdsec',
     'npm-import',
+    'config-import',
+    'config-export',
 ] as const
 export type AuditResource = (typeof AUDIT_RESOURCES)[number]
 

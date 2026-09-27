@@ -169,6 +169,13 @@
             "when": 1790500936062,
             "tag": "0023_smooth_rocket_racer",
             "breakpoints": true
+        },
+        {
+            "idx": 24,
+            "version": "7",
+            "when": 1790505471913,
+            "tag": "0024_lethal_zodiak",
+            "breakpoints": true
         }
     ]
 }

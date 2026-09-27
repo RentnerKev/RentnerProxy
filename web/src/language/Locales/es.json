@@ -48,6 +48,7 @@
         "certificates": "Certificados",
         "accessPolicies": "Políticas de acceso",
         "npmImport": "Importación del sistema",
+        "migration": "Importar / Exportar",
         "proxyAccessLogs": "Registros de acceso",
         "crowdSec": "CrowdSec",
         "security": "Panel de seguridad",
@@ -439,6 +440,40 @@
         }
     },
     "admin": {
+        "migration": {
+            "eyebrow": "Sistema / Migración",
+            "title": "Transferir configuración",
+            "description": "Importa desde RentnerProxy, Nginx Proxy Manager o Zoraxy y exporta un archivo portátil de RentnerProxy.",
+            "exportTitle": "Exportar RentnerProxy",
+            "exportHelp": "JSON portátil con hosts proxy, redirecciones y políticas sin credenciales. No incluye certificados, claves privadas, usuarios, contraseñas ni una copia de seguridad completa. Los hosts que necesiten datos TLS o CA se importan desactivados.",
+            "exportButton": "Descargar configuración JSON",
+            "importTitle": "Importar configuración",
+            "sourceLabel": "Sistema de origen",
+            "fileLabel": "Seleccionar archivo exportado",
+            "source": {
+                "rentnerproxy": "RentnerProxy",
+                "npm": "Nginx Proxy Manager",
+                "zoraxy": "Zoraxy"
+            },
+            "sourceHelp": {
+                "rentnerproxy": "Selecciona un JSON portátil de RentnerProxy (versión 1, hasta 4 MiB). No es una copia de seguridad completa del sistema ni de certificados.",
+                "npm": "Selecciona una copia SQLite coherente de NPM 2.16 (hasta 32 MiB). Detén NPM antes de copiar o crea una copia de seguridad SQLite.",
+                "zoraxy": "Selecciona el ZIP oficial de configuración de Zoraxy versión 3 (hasta 32 MiB). Solo se importan reglas sencillas de proxy y redirección de dominio. Certificados, credenciales, streams y reglas avanzadas requieren migración manual."
+            },
+            "previewHelp": "Todavía no se ha cambiado nada. Revisa conflictos y avisos. Los objetos que requieran revisar TLS o seguridad se crean desactivados.",
+            "errors": {
+                "invalid_request": "Solicitud de carga no válida.",
+                "authentication_required": "Inicia sesión e inténtalo de nuevo.",
+                "permission_denied": "No tienes permiso para migrar la configuración.",
+                "source_limit": "El archivo o la cantidad de objetos supera el límite.",
+                "invalid_source": "El archivo no es válido o no se puede leer.",
+                "unsupported_schema": "Formato de archivo o versión de esquema no compatible.",
+                "fingerprint_mismatch": "El archivo cambió desde la vista previa. Analízalo otra vez.",
+                "preview_changed": "RentnerProxy cambió desde la vista previa. Analízalo otra vez.",
+                "import_failed": "La importación falló; se revirtieron los cambios. Revisa la auditoría.",
+                "export_failed": "La exportación falló. Inténtalo otra vez o revisa la auditoría."
+            }
+        },
         "npmImport": {
             "eyebrow": "Sistema / Importación",
             "title": "Importar Nginx Proxy Manager",
@@ -508,7 +543,18 @@
                 "unreferenced_access_list": "Ningún host importable usa esta lista de acceso",
                 "certificate_material_unavailable": "SQLite solo contiene metadatos; migra manualmente certificado y clave privada",
                 "dead_hosts_manual": "Los hosts 404 requieren migración manual",
-                "streams_manual": "Los flujos requieren migración manual"
+                "streams_manual": "Los flujos requieren migración manual",
+                "trusted_ca_manual": "Falta la CA de confianza; el host se importará desactivado",
+                "auth_policy_manual": "Migra manualmente la política de autenticación y las credenciales",
+                "duplicate_source_id": "El ID del objeto aparece varias veces en el origen",
+                "zoraxy_unsupported_rule": "La regla de Zoraxy usa funciones que no se pueden transferir",
+                "zoraxy_unsupported_redirect": "La redirección de Zoraxy usa rutas, dispositivos u otras reglas no compatibles",
+                "zoraxy_tls_review": "Revisa TLS de Zoraxy; el host se importará desactivado",
+                "upstream_tls_verification_review": "Revisa la verificación desactivada del certificado upstream antes de habilitar",
+                "zoraxy_streams_manual": "Migra manualmente los streams de Zoraxy",
+                "zoraxy_access_manual": "Migra manualmente las reglas de acceso de Zoraxy",
+                "zoraxy_certificates_manual": "Configura manualmente los certificados y claves de Zoraxy",
+                "zoraxy_path_rules_manual": "Migra manualmente las reglas de ruta de Zoraxy"
             },
             "errors": {
                 "invalid_request": "Solicitud de carga inválida.",
@@ -1878,7 +1924,10 @@
                     "proxy-runtime-settings": "Configuración de ejecución del proxy",
                     "proxy-host-settings": "Configuración del host proxy",
                     "proxy-runtime": "Ejecución del proxy",
-                    "crowdsec": "CrowdSec"
+                    "crowdsec": "CrowdSec",
+                    "npm-import": "Importación de NPM",
+                    "config-import": "Importación de configuración",
+                    "config-export": "Exportación de configuración"
                 }
             },
             "metadata": {
@@ -2317,7 +2366,8 @@
         },
         "audit-logs:view": "Ver el registro de auditoría",
         "system": {
-            "npm_import": "Importar desde Nginx Proxy Manager"
+            "npm_import": "Importar desde Nginx Proxy Manager",
+            "migration": "Importar y exportar configuración"
         },
         "trusted_cas": {
             "view": "Ver CA de confianza",

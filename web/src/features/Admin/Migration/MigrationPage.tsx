@@ -1,0 +1,254 @@
+import useTranslationStore from '../../../language/useTranslationStore'
+import PageHeader from '../../../shared/Management/PageHeader'
+import { uiClassNames } from '../../../shared/Styles/uiClassNames'
+import { useMigration, type MigrationSource } from './Hooks/useMigration'
+import type { NpmImportResultItem, NpmPreviewItem } from '../NpmImport/Types/npm-import.types'
+
+function reasonText(reason: string, t: (key: string) => string): string {
+    const [code, detail] = reason.split(':', 2)
+    const translated = t(`admin.npmImport.reasons.${code}`)
+    return detail ? `${translated} (${detail})` : translated
+}
+
+function itemDetails(item: NpmPreviewItem | NpmImportResultItem, t: (key: string) => string) {
+    return (
+        <li
+            key={`${item.kind}:${item.sourceId}`}
+            className="border-b border-border py-3 last:border-0"
+        >
+            <div className="flex flex-wrap items-center gap-2">
+                <strong className="text-ink">{item.label}</strong>
+                <span className="text-xs text-muted">{t(`admin.npmImport.kind.${item.kind}`)}</span>
+                <span className="rounded-full border border-border px-2 py-0.5 text-xs font-bold text-ink-soft">
+                    {t(`admin.npmImport.status.${item.status}`)}
+                </span>
+                {'outcome' in item ? (
+                    <span className="text-xs font-bold text-ink-soft">
+                        {t(`admin.npmImport.${item.outcome}`)}
+                    </span>
+                ) : null}
+            </div>
+            {item.reasons.length > 0 ? (
+                <ul className="mt-1 list-disc pl-5 text-sm text-ink-soft">
+                    {item.reasons.map((reason) => (
+                        <li key={reason}>{reasonText(reason, t)}</li>
+                    ))}
+                </ul>
+            ) : null}
+        </li>
+    )
+}
+
+export default function MigrationPage() {
+    const { t } = useTranslationStore()
+    const {
+        source,
+        selectSource,
+        exporting,
+        downloadExport,
+        file,
+        preview,
+        result,
+        history,
+        busy,
+        error,
+        selectFile,
+        discardPreview,
+        previewSource,
+        applySource,
+    } = useMigration()
+
+    return (
+        <div className="grid gap-5">
+            <PageHeader
+                eyebrow={t('admin.migration.eyebrow')}
+                title={t('admin.migration.title')}
+                description={t('admin.migration.description')}
+            />
+            <section
+                className={uiClassNames.management.card}
+                aria-labelledby="migration-export-title"
+            >
+                <h2 id="migration-export-title" className="text-lg font-extrabold text-ink">
+                    {t('admin.migration.exportTitle')}
+                </h2>
+                <p className="mt-2 text-sm text-ink-soft">{t('admin.migration.exportHelp')}</p>
+                <button
+                    type="button"
+                    className={`${uiClassNames.button.secondary} mt-5`}
+                    disabled={exporting}
+                    onClick={() => void downloadExport()}
+                >
+                    {exporting ? t('common.working') : t('admin.migration.exportButton')}
+                </button>
+                {error === 'export_failed' ? (
+                    <p role="alert" className="mt-4 text-sm text-danger-text">
+                        {t('admin.migration.errors.export_failed')}
+                    </p>
+                ) : null}
+            </section>
+            <section
+                className={uiClassNames.management.card}
+                aria-labelledby="migration-source-title"
+            >
+                <h2 id="migration-source-title" className="text-lg font-extrabold text-ink">
+                    {t('admin.migration.importTitle')}
+                </h2>
+                <label className="mt-5 grid gap-2 text-sm font-bold text-ink-soft">
+                    {t('admin.migration.sourceLabel')}
+                    <select
+                        className={uiClassNames.form.control}
+                        value={source}
+                        disabled={busy !== null}
+                        onChange={(event) =>
+                            selectSource(event.currentTarget.value as MigrationSource)
+                        }
+                    >
+                        <option value="rentnerproxy">
+                            {t('admin.migration.source.rentnerproxy')}
+                        </option>
+                        <option value="npm">{t('admin.migration.source.npm')}</option>
+                        <option value="zoraxy">{t('admin.migration.source.zoraxy')}</option>
+                    </select>
+                </label>
+                <p className="mt-3 text-sm text-ink-soft">
+                    {t(`admin.migration.sourceHelp.${source}`)}
+                </p>
+                <label className="mt-5 grid gap-2 text-sm font-bold text-ink-soft">
+                    {t('admin.migration.fileLabel')}
+                    <input
+                        key={source}
+                        type="file"
+                        accept={
+                            source === 'npm'
+                                ? '.sqlite,.db,application/vnd.sqlite3'
+                                : source === 'zoraxy'
+                                  ? '.zip,application/zip'
+                                  : '.json,application/json'
+                        }
+                        className={uiClassNames.form.control}
+                        disabled={busy !== null}
+                        onChange={(event) => {
+                            selectFile(event.currentTarget.files?.[0] ?? null)
+                        }}
+                    />
+                </label>
+                <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                        type="button"
+                        className={uiClassNames.button.primary}
+                        disabled={!file || busy !== null}
+                        onClick={() => void previewSource()}
+                    >
+                        {busy === 'preview' ? t('common.working') : t('admin.npmImport.preview')}
+                    </button>
+                </div>
+                {error && error !== 'export_failed' ? (
+                    <p role="alert" className="mt-4 text-sm text-danger-text">
+                        {t(`admin.migration.errors.${error}`)}
+                    </p>
+                ) : null}
+            </section>
+            {preview ? (
+                <section
+                    className={uiClassNames.management.card}
+                    aria-labelledby="npm-preview-title"
+                >
+                    <h2 id="npm-preview-title" className="text-lg font-extrabold text-ink">
+                        {t('admin.npmImport.previewTitle')}
+                    </h2>
+                    <p className="mt-2 text-sm text-ink-soft">{t('admin.migration.previewHelp')}</p>
+                    <div className="mt-4 flex flex-wrap gap-2" aria-live="polite">
+                        {Object.entries(preview.counts).map(([status, count]) => (
+                            <span key={status} className={uiClassNames.chip.item}>
+                                {count} {t(`admin.npmImport.status.${status}`)}
+                            </span>
+                        ))}
+                    </div>
+                    <details className="mt-5" open>
+                        <summary className="cursor-pointer font-bold text-ink">
+                            {t('admin.npmImport.details')}
+                        </summary>
+                        <ul className="mt-2 max-h-[32rem] overflow-y-auto">
+                            {preview.items.map((item) => itemDetails(item, t))}
+                        </ul>
+                    </details>
+                    <div className="mt-5 flex flex-wrap gap-3">
+                        <button
+                            type="button"
+                            className={uiClassNames.button.primary}
+                            disabled={
+                                busy !== null || preview.counts.ready + preview.counts.partial === 0
+                            }
+                            onClick={() => void applySource()}
+                        >
+                            {busy === 'apply' ? t('common.working') : t('admin.npmImport.apply')}
+                        </button>
+                        <button
+                            type="button"
+                            className={uiClassNames.button.secondary}
+                            disabled={busy !== null}
+                            onClick={discardPreview}
+                        >
+                            {t('common.cancel')}
+                        </button>
+                    </div>
+                </section>
+            ) : null}
+            {result ? (
+                <section className={uiClassNames.management.card} aria-live="polite">
+                    <h2 className="text-lg font-extrabold text-ink">
+                        {t('admin.npmImport.resultTitle')}
+                    </h2>
+                    <p className="mt-2 text-sm text-ink-soft">
+                        {t(`admin.migration.source.${source}`)}:{' '}
+                        {t('admin.npmImport.resultSummary', {
+                            imported: result.imported,
+                            skipped: result.skipped,
+                            failed: result.failed,
+                            runtime: t(`admin.npmImport.runtime.${result.runtimeStatus}`),
+                        })}
+                    </p>
+                    <details className="mt-4">
+                        <summary className="cursor-pointer font-bold text-ink">
+                            {t('admin.npmImport.details')}
+                        </summary>
+                        <ul className="mt-2">{result.items.map((item) => itemDetails(item, t))}</ul>
+                    </details>
+                </section>
+            ) : null}
+            {history.length > 0 ? (
+                <section className={uiClassNames.management.card}>
+                    <h2 className="text-lg font-extrabold text-ink">
+                        {t('admin.npmImport.history')}
+                    </h2>
+                    <ul className="mt-3 grid gap-2 text-sm text-ink-soft">
+                        {history.map((entry) => (
+                            <li key={entry.runId}>
+                                <details>
+                                    <summary className="cursor-pointer">
+                                        {entry.sourceSchema.startsWith('npm')
+                                            ? t('admin.migration.source.npm')
+                                            : entry.sourceSchema.startsWith('zoraxy')
+                                              ? t('admin.migration.source.zoraxy')
+                                              : entry.sourceSchema.startsWith('rentnerproxy')
+                                                ? t('admin.migration.source.rentnerproxy')
+                                                : entry.sourceSchema}{' '}
+                                        · {entry.imported} {t('admin.npmImport.imported')},{' '}
+                                        {entry.skipped} {t('admin.npmImport.skipped')},{' '}
+                                        {entry.failed} {t('admin.npmImport.failed')}
+                                        {' · '}
+                                        {t(`admin.npmImport.runtime.${entry.runtimeStatus}`)}
+                                    </summary>
+                                    <ul className="mt-2 pl-4">
+                                        {entry.items.map((item) => itemDetails(item, t))}
+                                    </ul>
+                                </details>
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            ) : null}
+        </div>
+    )
+}

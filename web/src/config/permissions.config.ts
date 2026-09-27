@@ -46,6 +46,7 @@ export const PERMISSIONS = {
     CROWDSEC_UPDATE: 'crowdsec.update',
     AUDIT_LOGS_VIEW: 'audit-logs:view',
     NPM_IMPORT: 'system.npm_import',
+    MIGRATION: 'system.migration',
     ACCOUNT_VIEW: 'account.view',
     ACCOUNT_UPDATE: 'account.update',
 } as const
@@ -103,6 +104,7 @@ export const PERMISSION_REGISTRY = [
     { key: PERMISSIONS.CROWDSEC_UPDATE, name: 'Update CrowdSec configuration' },
     { key: PERMISSIONS.AUDIT_LOGS_VIEW, name: 'View audit log' },
     { key: PERMISSIONS.NPM_IMPORT, name: 'Import from Nginx Proxy Manager' },
+    { key: PERMISSIONS.MIGRATION, name: 'Import and export configuration' },
     { key: PERMISSIONS.ACCOUNT_VIEW, name: 'View own account' },
     { key: PERMISSIONS.ACCOUNT_UPDATE, name: 'Update own account' },
 ] as const satisfies ReadonlyArray<{ key: PermissionKey; name: string }>
@@ -176,6 +178,7 @@ export const SYSTEM_ROLE_REGISTRY = [
             PERMISSIONS.CROWDSEC_UPDATE,
             PERMISSIONS.AUDIT_LOGS_VIEW,
             PERMISSIONS.NPM_IMPORT,
+            PERMISSIONS.MIGRATION,
             PERMISSIONS.ACCOUNT_VIEW,
             PERMISSIONS.ACCOUNT_UPDATE,
         ],

@@ -41,6 +41,7 @@ export interface ApplicationNavigationItem {
         | '/security'
         | '/audit-logs'
         | '/npm-import'
+        | '/migration'
         | '/roles'
         | '/users'
 }

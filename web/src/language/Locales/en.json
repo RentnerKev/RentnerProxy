@@ -48,6 +48,7 @@
         "certificates": "Certificates",
         "accessPolicies": "Access policies",
         "npmImport": "System import",
+        "migration": "Import / Export",
         "proxyAccessLogs": "Access logs",
         "crowdSec": "CrowdSec",
         "security": "Security dashboard",
@@ -439,6 +440,40 @@
         }
     },
     "admin": {
+        "migration": {
+            "eyebrow": "System / Migration",
+            "title": "Transfer configuration",
+            "description": "Import configuration from RentnerProxy, Nginx Proxy Manager, or Zoraxy and export a portable RentnerProxy file.",
+            "exportTitle": "Export RentnerProxy",
+            "exportHelp": "Portable JSON with proxy hosts, redirects, and policies without credentials. Certificates, private keys, users, passwords, and full backup data are excluded. Hosts needing TLS or CA data are imported disabled.",
+            "exportButton": "Download configuration JSON",
+            "importTitle": "Import configuration",
+            "sourceLabel": "Source system",
+            "fileLabel": "Choose export file",
+            "source": {
+                "rentnerproxy": "RentnerProxy",
+                "npm": "Nginx Proxy Manager",
+                "zoraxy": "Zoraxy"
+            },
+            "sourceHelp": {
+                "rentnerproxy": "Choose a portable RentnerProxy JSON file (version 1, up to 4 MiB). This is not a full system or certificate backup.",
+                "npm": "Choose a consistent NPM 2.16 SQLite copy (up to 32 MiB). Stop NPM before copying or create a SQLite backup.",
+                "zoraxy": "Choose the official Zoraxy version 3 configuration ZIP (up to 32 MiB). Only simple proxy and domain redirect rules are imported. Certificates, credentials, streams, and advanced rules need manual migration."
+            },
+            "previewHelp": "Nothing has changed yet. Review conflicts and warnings. Objects needing TLS or security review are created disabled.",
+            "errors": {
+                "invalid_request": "Invalid upload request.",
+                "authentication_required": "Sign in and try again.",
+                "permission_denied": "You cannot use configuration migration.",
+                "source_limit": "The file or object count exceeds the limit.",
+                "invalid_source": "The file is invalid or unreadable.",
+                "unsupported_schema": "Unsupported file format or schema version.",
+                "fingerprint_mismatch": "The file changed since preview. Analyze it again.",
+                "preview_changed": "RentnerProxy changed since preview. Analyze it again.",
+                "import_failed": "Import failed; changes were rolled back. Check the audit log.",
+                "export_failed": "Export failed. Try again or check the audit log."
+            }
+        },
         "npmImport": {
             "eyebrow": "System / Import",
             "title": "Nginx Proxy Manager import",
@@ -508,7 +543,18 @@
                 "unreferenced_access_list": "No importable host uses this access list",
                 "certificate_material_unavailable": "SQLite has metadata only; migrate certificate and private key manually",
                 "dead_hosts_manual": "404 hosts require manual migration",
-                "streams_manual": "Streams require manual migration"
+                "streams_manual": "Streams require manual migration",
+                "trusted_ca_manual": "Trusted CA is missing; host will be imported disabled",
+                "auth_policy_manual": "Migrate authentication policy and credentials manually",
+                "duplicate_source_id": "Object ID occurs more than once in the source",
+                "zoraxy_unsupported_rule": "Zoraxy rule uses features that cannot be transferred",
+                "zoraxy_unsupported_redirect": "Zoraxy redirect uses path, device, or other unsupported rules",
+                "zoraxy_tls_review": "Review Zoraxy TLS settings; host will be imported disabled",
+                "upstream_tls_verification_review": "Review disabled upstream certificate verification before enabling",
+                "zoraxy_streams_manual": "Migrate Zoraxy streams manually",
+                "zoraxy_access_manual": "Migrate Zoraxy access rules manually",
+                "zoraxy_certificates_manual": "Set up Zoraxy certificates and keys manually",
+                "zoraxy_path_rules_manual": "Migrate Zoraxy path rules manually"
             },
             "errors": {
                 "invalid_request": "Invalid upload request.",
@@ -1878,7 +1924,10 @@
                     "proxy-runtime-settings": "Proxy runtime settings",
                     "proxy-host-settings": "Proxy host settings",
                     "proxy-runtime": "Proxy runtime",
-                    "crowdsec": "CrowdSec"
+                    "crowdsec": "CrowdSec",
+                    "npm-import": "NPM import",
+                    "config-import": "Configuration import",
+                    "config-export": "Configuration export"
                 }
             },
             "metadata": {
@@ -2317,7 +2366,8 @@
         },
         "audit-logs:view": "View audit log",
         "system": {
-            "npm_import": "Import from Nginx Proxy Manager"
+            "npm_import": "Import from Nginx Proxy Manager",
+            "migration": "Import and export configuration"
         },
         "trusted_cas": {
             "view": "View trusted CAs",

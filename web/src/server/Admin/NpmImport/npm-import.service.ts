@@ -24,6 +24,10 @@ import { createProxyHostInTransaction } from '../ProxyHostManagement/proxy-hosts
 import { createRedirectHostInTransaction } from '../RedirectHostManagement/redirect-hosts.service'
 import { buildNpmImportPlan, publicNpmPreview, type NpmImportPlan } from './npm-plan'
 import { readNpmSqliteSource } from './npm-source'
+import { buildPortablePlan, readPortableSource } from '../Migration/portable'
+import { buildZoraxyPlan, readZoraxySource } from '../Migration/zoraxy'
+
+export type ImportSource = 'npm' | 'rentnerproxy' | 'zoraxy'
 
 export class NpmImportError extends Error {
     constructor(readonly code: 'fingerprint_mismatch' | 'preview_changed') {
@@ -53,30 +57,43 @@ async function planInTransaction(
     transaction: AuthTransaction,
     path: string,
     fingerprint: string,
+    source: ImportSource,
 ): Promise<NpmImportPlan> {
-    const source = readNpmSqliteSource(path)
-    return buildNpmImportPlan(source, fingerprint, await existingDomainMap(transaction))
+    const domains = await existingDomainMap(transaction)
+    if (source === 'npm') {
+        return buildNpmImportPlan(readNpmSqliteSource(path), fingerprint, domains)
+    }
+    if (source === 'rentnerproxy') {
+        return buildPortablePlan(await readPortableSource(path), fingerprint, domains)
+    }
+    return buildZoraxyPlan(await readZoraxySource(path), fingerprint, domains)
 }
 
-export async function previewNpmImportService(
+export async function previewImportService(
     path: string,
     fingerprint: string,
+    source: ImportSource,
+    permission: typeof PERMISSIONS.NPM_IMPORT | typeof PERMISSIONS.MIGRATION,
 ): Promise<NpmImportPreview> {
-    await requirePermissionService(PERMISSIONS.NPM_IMPORT)
+    await requirePermissionService(permission)
     const plan = await getAuthDatabase().transaction(
-        (transaction) => planInTransaction(transaction, path, fingerprint),
+        (transaction) => planInTransaction(transaction, path, fingerprint, source),
         { isolationLevel: 'repeatable read', accessMode: 'read only' },
     )
     return publicNpmPreview(plan)
 }
 
-export async function applyNpmImportService(
+export async function applyImportService(
     path: string,
     fingerprint: string,
     expectedFingerprint: string,
     expectedPlanFingerprint: string,
+    source: ImportSource,
+    permission: typeof PERMISSIONS.NPM_IMPORT | typeof PERMISSIONS.MIGRATION,
 ): Promise<NpmImportResult> {
-    const actor = await requirePermissionService(PERMISSIONS.NPM_IMPORT)
+    const actor = await requirePermissionService(permission)
+    const auditResource =
+        source === 'npm' && permission === PERMISSIONS.NPM_IMPORT ? 'npm-import' : 'config-import'
     if (fingerprint !== expectedFingerprint || !/^[a-f0-9]{64}$/u.test(expectedFingerprint)) {
         throw new NpmImportError('fingerprint_mismatch')
     }
@@ -84,7 +101,7 @@ export async function applyNpmImportService(
         actorUserId: actor.id,
         actorKind: 'user',
         action: 'started',
-        resource: 'npm-import',
+        resource: auditResource,
         targetId: null,
         result: 'success',
     })
@@ -96,8 +113,8 @@ export async function applyNpmImportService(
     try {
         committed = await getAuthDatabase().transaction(async (transaction) => {
             await lockProxyRuntimeSettings(transaction)
-            await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.NPM_IMPORT)
-            const plan = await planInTransaction(transaction, path, fingerprint)
+            await requirePermissionInTransaction(transaction, actor.id, permission)
+            const plan = await planInTransaction(transaction, path, fingerprint, source)
             attempt.plan = plan
             if (publicNpmPreview(plan).planFingerprint !== expectedPlanFingerprint) {
                 throw new NpmImportError('preview_changed')
@@ -125,7 +142,7 @@ export async function applyNpmImportService(
                         ? policies.get(item.accessListId)
                         : null
                     if (item.accessListId && !accessPolicyId) {
-                        throw new Error('NPM import plan lost a required access policy.')
+                        throw new Error('Import plan lost a required access policy.')
                     }
                     // oxlint-disable-next-line eslint/no-await-in-loop -- Host writes share one transaction and lock.
                     const created = await createProxyHostInTransaction(transaction, actor.id, {
@@ -168,12 +185,12 @@ export async function applyNpmImportService(
                 })
                 .returning({ id: npmImportRuns.id })
             const runId = rows.at(0)?.id
-            if (!runId) throw new Error('NPM import result could not be saved.')
+            if (!runId) throw new Error('Import result could not be saved.')
             await appendAuditEventInTransaction(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'import',
-                resource: 'npm-import',
+                resource: auditResource,
                 targetId: runId,
                 result: 'success',
                 metadata: { count: imported },
@@ -223,14 +240,14 @@ export async function applyNpmImportService(
                     .returning({ id: npmImportRuns.id })
                 const runId = rows.at(0)?.id
                 if (!runId)
-                    throw new Error('NPM import failure result could not be saved.', {
+                    throw new Error('Import failure result could not be saved.', {
                         cause: error,
                     })
                 await appendAuditEventInTransaction(transaction, {
                     actorUserId: actor.id,
                     actorKind: 'user',
                     action: 'failed',
-                    resource: 'npm-import',
+                    resource: auditResource,
                     targetId: runId,
                     result: 'failure',
                     metadata: { failureCode, count: failed },
@@ -245,7 +262,7 @@ export async function applyNpmImportService(
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'failed',
-                resource: 'npm-import',
+                resource: auditResource,
                 targetId: null,
                 result: 'failure',
                 metadata: { failureCode, count: failed },
@@ -266,11 +283,18 @@ export async function applyNpmImportService(
     return { ...committed, runtimeStatus }
 }
 
-export async function getNpmImportRunsService(): Promise<readonly NpmImportResult[]> {
-    await requirePermissionService(PERMISSIONS.NPM_IMPORT)
+export async function getImportRunsService(
+    permission: typeof PERMISSIONS.NPM_IMPORT | typeof PERMISSIONS.MIGRATION,
+): Promise<readonly NpmImportResult[]> {
+    await requirePermissionService(permission)
     const rows = await getAuthDatabase()
         .select()
         .from(npmImportRuns)
+        .where(
+            permission === PERMISSIONS.NPM_IMPORT
+                ? eq(npmImportRuns.sourceSchema, 'npm-2.16-schema')
+                : undefined,
+        )
         .orderBy(desc(npmImportRuns.createdAt))
         .limit(20)
     return rows.map((row) => {
@@ -299,3 +323,23 @@ export async function getNpmImportRunsService(): Promise<readonly NpmImportResul
         }
     })
 }
+
+export const previewNpmImportService = (path: string, fingerprint: string) =>
+    previewImportService(path, fingerprint, 'npm', PERMISSIONS.NPM_IMPORT)
+
+export const applyNpmImportService = (
+    path: string,
+    fingerprint: string,
+    expectedFingerprint: string,
+    expectedPlanFingerprint: string,
+) =>
+    applyImportService(
+        path,
+        fingerprint,
+        expectedFingerprint,
+        expectedPlanFingerprint,
+        'npm',
+        PERMISSIONS.NPM_IMPORT,
+    )
+
+export const getNpmImportRunsService = () => getImportRunsService(PERMISSIONS.NPM_IMPORT)
