@@ -1,13 +1,14 @@
 // oxlint-disable no-await-in-loop -- Readiness probes must wait for the previous attempt and bounded backoff.
 import assert from 'node:assert/strict'
-import { randomBytes, randomUUID } from 'node:crypto'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createConnection, isIP } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { SQL } from 'bun'
+import { Database } from 'bun:sqlite'
 
 import { startTestUpstream } from '../../scripts/proxy-test-upstream'
 import { smokeCompose, smokeDockerArguments } from '../../scripts/smoke-resources'
@@ -362,6 +363,8 @@ async function runSmoke(): Promise<void> {
             redirectServices,
             policyServices,
             basicAuthServices,
+            npmImportServices,
+            { NPM_216_MIGRATIONS },
             crowdSecServices,
             runtime,
             controller,
@@ -378,6 +381,8 @@ async function runSmoke(): Promise<void> {
             import('../../web/src/server/Admin/RedirectHostManagement/redirect-hosts.service'),
             import('../../web/src/server/Admin/AccessPolicyManagement/access-policies.service'),
             import('../../web/src/server/Admin/AccessPolicyManagement/basic-auth.service'),
+            import('../../web/src/server/Admin/NpmImport/npm-import.service'),
+            import('../../web/src/server/Admin/NpmImport/npm-source'),
             import('../../web/src/server/Admin/CrowdSec/crowdsec.service'),
             import('../../web/src/server/ProxyRuntime/proxy-runtime.service'),
             import('../../web/src/server/Foundation/controller.server'),
@@ -594,6 +599,85 @@ async function runSmoke(): Promise<void> {
         passed('WebSocket upgrade traverses Caddy and reaches the real Bun backend')
         await expectProxyMessage(longDomain, 'upstream-one')
         passed('maximum-length 253-character domain routes through real Caddy')
+
+        const npmSourcePath = join(temporaryComposeDirectory, 'npm-source.sqlite')
+        const npmProxyDomain = `npm-import-${runId}.test`
+        const npmRedirectDomain = `npm-redirect-${runId}.test`
+        const npmDb = new Database(npmSourcePath, { create: true })
+        try {
+            npmDb.exec(`
+                create table knex_migrations (id integer primary key, name text not null);
+                create table proxy_host (id integer primary key, is_deleted integer default 0,
+                    domain_names text, forward_scheme text, forward_host text, forward_port integer,
+                    access_list_id integer default 0, certificate_id integer default 0,
+                    ssl_forced integer default 0, caching_enabled integer default 0,
+                    block_exploits integer default 0, advanced_config text default '',
+                    allow_websocket_upgrade integer default 1, http2_support integer default 0,
+                    enabled integer default 1, locations text, hsts_enabled integer default 0,
+                    hsts_subdomains integer default 0, trust_forwarded_proto integer default 0);
+                create table redirection_host (id integer primary key, is_deleted integer default 0,
+                    domain_names text, forward_domain_name text, forward_scheme text,
+                    forward_http_code integer, preserve_path integer,
+                    certificate_id integer default 0, ssl_forced integer default 0,
+                    block_exploits integer default 0, advanced_config text default '',
+                    http2_support integer default 0, enabled integer default 1,
+                    hsts_enabled integer default 0, hsts_subdomains integer default 0);
+                create table access_list (id integer primary key, is_deleted integer default 0,
+                    name text, satisfy_any integer default 0, pass_auth integer default 1);
+                create table access_list_auth (id integer primary key, access_list_id integer);
+                create table access_list_client (id integer primary key, access_list_id integer,
+                    address text, directive text);
+                create table certificate (id integer primary key, is_deleted integer default 0,
+                    provider text, nice_name text, domain_names text);
+                create table dead_host (id integer primary key, is_deleted integer default 0,
+                    domain_names text default '[]');
+                create table stream (id integer primary key, is_deleted integer default 0,
+                    incoming_port integer default 0);
+            `)
+            const insertMigration = npmDb.query('insert into knex_migrations (name) values (?)')
+            for (const name of NPM_216_MIGRATIONS) insertMigration.run(name)
+            npmDb
+                .query(`insert into proxy_host (id, domain_names, forward_scheme,
+                forward_host, forward_port) values (1, ?, 'http', 'host.docker.internal', ?)`)
+                .run(JSON.stringify([npmProxyDomain]), first.port!)
+            npmDb
+                .query(`insert into redirection_host (id, domain_names, forward_domain_name,
+                forward_scheme, forward_http_code, preserve_path)
+                values (2, ?, 'demo.test', 'http', 302, 1)`)
+                .run(JSON.stringify([npmRedirectDomain]))
+        } finally {
+            npmDb.close()
+        }
+        const npmFingerprint = createHash('sha256')
+            .update(await readFile(npmSourcePath))
+            .digest('hex')
+        const npmPreview = await authorized(() =>
+            npmImportServices.previewNpmImportService(npmSourcePath, npmFingerprint),
+        )
+        assert.equal(npmPreview.counts.ready, 2)
+        const npmResult = await authorized(() =>
+            npmImportServices.applyNpmImportService(
+                npmSourcePath,
+                npmFingerprint,
+                npmPreview.fingerprint,
+                npmPreview.planFingerprint,
+            ),
+        )
+        assert.equal(npmResult.imported, 2)
+        assert.equal(npmResult.runtimeStatus, 'applied')
+        await expectProxyMessage(npmProxyDomain, 'upstream-one')
+        await expectRedirect(
+            npmRedirectDomain,
+            '/from-npm?check=1',
+            302,
+            'http://demo.test/from-npm?check=1',
+        )
+        const npmRetryPreview = await authorized(() =>
+            npmImportServices.previewNpmImportService(npmSourcePath, npmFingerprint),
+        )
+        assert.equal(npmRetryPreview.counts.conflict, 2)
+        await rm(npmSourcePath, { force: true })
+        passed('NPM SQLite import reconciles proxy and redirect hosts through real Caddy')
 
         const path = '/api/test?hello=world&second=a%2Fb'
         const forwarded = await (await proxyRequest('demo.test', path)).json()
