@@ -46,8 +46,8 @@ permissions:
     contents: read
 
 concurrency:
-    group: release-compatibility-${{ github.event.pull_request.number || github.ref }}
-    cancel-in-progress: true
+    group: release-compatibility-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
     BUN_VERSION: 1.4.2
