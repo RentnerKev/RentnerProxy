@@ -23,6 +23,13 @@ export function buildSeedStatements(
         readonly identityDigest: string
         readonly request: Alpha4CertificateRequest
         readonly requestContext: string
+        readonly candidate: {
+            readonly fingerprint: string
+            readonly issuedAt: string
+            readonly expiresAt: string
+            readonly lastErrorCode: 'runtime_apply_failed'
+            readonly nextAttemptAt: string
+        } | null
         readonly cursorStatement: string
     },
 ): string[] {
@@ -75,7 +82,9 @@ export function buildSeedStatements(
             sqlQuote(`Alpha 4 persistence ${input.runId}`) +
             ", 'acme', 'staging', 'valid', 'renewing', " +
             sqlJson(operation) +
-            ", 'http-01', " +
+            ', ' +
+            sqlQuote(values.request.challengeType) +
+            ', ' +
             sqlTimestamp(values.issuedAt) +
             ', ' +
             sqlTimestamp(values.expiresAt) +
@@ -83,7 +92,9 @@ export function buildSeedStatements(
             sqlQuote('Alpha 4 Fixture CA') +
             ', ' +
             sqlQuote(certificateFingerprint) +
-            ', null, false, ' +
+            ', ' +
+            (values.candidate === null ? 'null' : sqlJson(values.candidate)) +
+            ', false, ' +
             sqlQuote('acme_failed') +
             ', ' +
             sqlTimestamp(values.lastSuccessAt) +

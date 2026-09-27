@@ -4,7 +4,12 @@ export interface Alpha4CertificateRequest {
     readonly name: string
     readonly domains: readonly string[]
     readonly environment: 'staging'
-    readonly challengeType: 'http-01'
+    readonly challengeType: 'http-01' | 'dns-01'
+    readonly dnsProvider?: {
+        readonly type: 'cloudflare'
+        readonly zoneId: string
+        readonly apiToken: string
+    }
     readonly contactEmail: ''
     readonly acceptTerms: true
 }
@@ -44,6 +49,8 @@ export interface Alpha4PersistenceCommandInput {
 
 export interface SeedAlpha4PersistenceFixtureInput extends Alpha4PersistenceCommandInput {
     readonly runId: string
+    readonly withDnsCredential?: boolean
+    readonly withCandidate?: boolean
 }
 
 export interface AssertAlpha4PersistenceFixtureInput extends Alpha4PersistenceCommandInput {

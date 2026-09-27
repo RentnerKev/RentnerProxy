@@ -38,6 +38,8 @@ export async function seedAlpha4PersistenceFixture(input: {
     readonly command: Command
     readonly containerId: string
     readonly runId: string
+    readonly withDnsCredential?: boolean
+    readonly withCandidate?: boolean
 }): Promise<Alpha4PersistenceFixture> {
     validateCommandInput(input.containerId)
     validateRunId(input.runId)
@@ -61,11 +63,29 @@ export async function seedAlpha4PersistenceFixture(input: {
         name: `Alpha 4 persistence ${input.runId}`,
         domains: [domain],
         environment: 'staging',
-        challengeType: 'http-01',
+        challengeType: input.withDnsCredential ? 'dns-01' : 'http-01',
+        ...(input.withDnsCredential
+            ? {
+                  dnsProvider: {
+                      type: 'cloudflare' as const,
+                      zoneId: 'a'.repeat(32),
+                      apiToken: `compat-fixture-token-${input.runId}`,
+                  },
+              }
+            : {}),
         contactEmail: '',
         acceptTerms: true,
     }
     const requestContext = `certificate-binding-job:${ids.jobId}`
+    const candidate = input.withCandidate
+        ? {
+              fingerprint: `sha256:${digest({ runId: input.runId, candidate: true })}`,
+              issuedAt: issuedAt.toISOString(),
+              expiresAt: expiresAt.toISOString(),
+              lastErrorCode: 'runtime_apply_failed' as const,
+              nextAttemptAt: '2099-01-01T00:00:00.000Z',
+          }
+        : null
     const cursor = await readOrCreateCursor(input.command, input.containerId, now)
     const statements = buildSeedStatements(
         ids,
@@ -85,6 +105,7 @@ export async function seedAlpha4PersistenceFixture(input: {
             identityDigest,
             request,
             requestContext,
+            candidate,
             cursorStatement: cursor.statement,
         },
     )
