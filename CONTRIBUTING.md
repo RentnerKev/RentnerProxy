@@ -4,7 +4,7 @@ Thank you for contributing to RentnerProxy. The project is in public alpha, so f
 and clear discussion are especially valuable.
 
 Project decisions follow [GOVERNANCE.md](GOVERNANCE.md), and participation follows the
-[Code of Conduct](CODE_OF_CONDUCT.md). Consult the [roadmap](ROADMAP.md),
+[Code of Conduct](CODE_OF_CONDUCT.md). Consult the
 [architecture](ARCHITECTURE.md), [security assurance case](ASSURANCE_CASE.md), and
 [release process](RELEASING.md) when a contribution affects those areas.
 

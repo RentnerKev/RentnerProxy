@@ -116,7 +116,7 @@ Provider reachability is not measured by the Security Dashboard; it reports conf
 ## More information
 
 - [Architecture](ARCHITECTURE.md) · [Security policy](SECURITY.md) · [Assurance case](ASSURANCE_CASE.md)
-- [Roadmap](ROADMAP.md) · [Release process](RELEASING.md) · [Contributing](CONTRIBUTING.md)
+- [Release process](RELEASING.md) · [Contributing](CONTRIBUTING.md)
 - [Screenshots](screenshots) · [Report a bug](https://github.com/RentnerKev/RentnerProxy/issues/new/choose)
 
 Licensed under [MIT](LICENSE).

@@ -245,7 +245,7 @@ only as current as the last successful stream.
   [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 [RELEASING.md](RELEASING.md) records the release-signing and reproducibility gaps. Planned review
-work in [ROADMAP.md](ROADMAP.md) must not be treated as completed security validation.
+work must not be treated as completed security validation.
 
 ## Review procedure
 

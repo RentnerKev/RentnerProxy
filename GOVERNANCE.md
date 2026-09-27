@@ -7,7 +7,7 @@ current project lead and maintainer and makes final project decisions.
 
 - The maintainer sets priorities, reviews contributions, accepts or rejects changes, maintains
   repository automation, coordinates security reports and releases, and moderates project spaces.
-  The maintainer must keep project policies and the public roadmap consistent with decisions.
+  The maintainer must keep project policies consistent with decisions.
 - Contributors propose focused changes, provide tests and documentation where appropriate,
   follow [CONTRIBUTING.md](CONTRIBUTING.md), and address review feedback.
 - Users and testers report reproducible problems and feedback through
@@ -23,7 +23,7 @@ changes. Dependency automation and reviewers inform decisions but do not set pro
 
 Discuss larger features and architectural changes in an issue before implementation. Describe the
 problem, alternatives, compatibility and security consequences, and how the change fits the
-[roadmap](ROADMAP.md) and [architecture](ARCHITECTURE.md). Record the resulting decision and its
+[architecture](ARCHITECTURE.md). Record the resulting decision and its
 reason in the issue or pull request. There is no formal voting body or quorum.
 
 Resolve technical disagreements in the relevant issue or pull request using concrete evidence and
