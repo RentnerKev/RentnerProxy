@@ -452,13 +452,15 @@
             "details": "Voir les détails",
             "apply": "Confirmer l’import",
             "resultTitle": "Résultat de l’import",
-            "resultSummary": "{{imported}} importés, {{skipped}} ignorés. État du runtime : {{runtime}}.",
+            "resultSummary": "{{imported}} importés, {{skipped}} ignorés, {{failed}} échoués. État du runtime : {{runtime}}.",
             "history": "Imports récents",
             "imported": "importés",
             "skipped": "ignorés",
+            "failed": "échoués",
             "runtime": {
                 "applied": "appliqué",
-                "pending": "en attente"
+                "pending": "en attente",
+                "not_applicable": "non appliqué"
             },
             "status": {
                 "ready": "Prêt",
@@ -500,6 +502,7 @@
                 "ordered_ip_rules_manual": "Les règles allow/deny ordonnées exigent une migration manuelle",
                 "invalid_ip_rules": "Règles IP invalides ou au-delà des limites",
                 "source_duplicate_domain": "Domaine répété dans la source NPM",
+                "import_rolled_back": "L’import a échoué ; toutes les modifications prévues ont été annulées",
                 "existing_domain": "Domaine déjà géré par RentnerProxy",
                 "unreferenced_access_list": "Aucun hôte importable n’utilise cette liste d’accès",
                 "certificate_material_unavailable": "SQLite ne contient que les métadonnées ; migrez manuellement certificat et clé privée",

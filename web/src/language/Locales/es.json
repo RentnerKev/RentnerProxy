@@ -452,13 +452,15 @@
             "details": "Revisar detalles",
             "apply": "Confirmar importación",
             "resultTitle": "Resultado de la importación",
-            "resultSummary": "{{imported}} importados, {{skipped}} omitidos. Estado del runtime: {{runtime}}.",
+            "resultSummary": "{{imported}} importados, {{skipped}} omitidos, {{failed}} fallidos. Estado del runtime: {{runtime}}.",
             "history": "Importaciones recientes",
             "imported": "importados",
             "skipped": "omitidos",
+            "failed": "fallidos",
             "runtime": {
                 "applied": "aplicado",
-                "pending": "pendiente"
+                "pending": "pendiente",
+                "not_applicable": "no aplicado"
             },
             "status": {
                 "ready": "Listo",
@@ -500,6 +502,7 @@
                 "ordered_ip_rules_manual": "Las reglas allow/deny ordenadas requieren migración manual",
                 "invalid_ip_rules": "Reglas IP inválidas o fuera de los límites",
                 "source_duplicate_domain": "El dominio aparece más de una vez en la fuente NPM",
+                "import_rolled_back": "La importación falló; se revirtieron todos los cambios previstos",
                 "existing_domain": "RentnerProxy ya administra el dominio",
                 "unreferenced_access_list": "Ningún host importable usa esta lista de acceso",
                 "certificate_material_unavailable": "SQLite solo contiene metadatos; migra manualmente certificado y clave privada",

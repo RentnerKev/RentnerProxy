@@ -26,16 +26,18 @@ export interface NpmImportPreview {
 }
 
 export interface NpmImportResultItem extends NpmPreviewItem {
-    readonly outcome: 'imported' | 'skipped'
+    readonly outcome: 'imported' | 'skipped' | 'failed'
     readonly targetId?: string
 }
 
 export interface NpmImportResult {
     readonly runId: string
+    readonly status: 'completed' | 'failed'
     readonly fingerprint: string
     readonly sourceSchema: string
     readonly items: readonly NpmImportResultItem[]
     readonly imported: number
     readonly skipped: number
-    readonly runtimeStatus: 'applied' | 'pending'
+    readonly failed: number
+    readonly runtimeStatus: 'applied' | 'pending' | 'not_applicable'
 }

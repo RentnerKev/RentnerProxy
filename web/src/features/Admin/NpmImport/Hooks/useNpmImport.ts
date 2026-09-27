@@ -4,6 +4,11 @@ import type { NpmImportPreview, NpmImportResult } from '../Types/npm-import.type
 
 const MAX_FILE_BYTES = 32 * 1024 * 1024
 
+async function loadHistory(): Promise<NpmImportResult[]> {
+    const response = await fetch('/api/npm-import', { credentials: 'same-origin' })
+    return response.ok ? (response.json() as Promise<NpmImportResult[]>) : []
+}
+
 async function upload(
     file: File,
     mode: 'preview' | 'apply',
@@ -39,10 +44,7 @@ export function useNpmImport() {
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        void fetch('/api/npm-import', { credentials: 'same-origin' })
-            .then((response) =>
-                response.ok ? (response.json() as Promise<NpmImportResult[]>) : [],
-            )
+        void loadHistory()
             .then(setHistory)
             .catch(() => undefined)
     }, [])
@@ -75,7 +77,12 @@ export function useNpmImport() {
             }
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : 'import_failed')
-            if (mode === 'apply') setPreview(null)
+            if (mode === 'apply') {
+                setPreview(null)
+                void loadHistory()
+                    .then(setHistory)
+                    .catch(() => undefined)
+            }
         } finally {
             setBusy(null)
         }

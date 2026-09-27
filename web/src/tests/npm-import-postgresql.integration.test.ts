@@ -251,6 +251,8 @@ describe('NPM import with PostgreSQL', () => {
             )
             expect(result.imported).toBe(2)
             expect(result.skipped).toBe(0)
+            expect(result.failed).toBe(0)
+            expect(result.status).toBe('completed')
             expect(
                 await getAuthDatabase()
                     .select()
@@ -313,12 +315,18 @@ describe('NPM import with PostgreSQL', () => {
                     .from(hostDomains)
                     .where(eq(hostDomains.domain, fixture.domain)),
             ).toHaveLength(0)
-            expect(
-                await getAuthDatabase()
-                    .select()
-                    .from(npmImportRuns)
-                    .where(eq(npmImportRuns.actorUserId, actor)),
-            ).toHaveLength(0)
+            const failedRuns = await getAuthDatabase()
+                .select()
+                .from(npmImportRuns)
+                .where(eq(npmImportRuns.actorUserId, actor))
+            expect(failedRuns).toHaveLength(1)
+            expect(failedRuns[0]?.runtimeStatus).toBe('not_applicable')
+            expect(failedRuns[0]?.result).toMatchObject({
+                status: 'failed',
+                imported: 0,
+                skipped: 0,
+                failed: 2,
+            })
         },
     )
 

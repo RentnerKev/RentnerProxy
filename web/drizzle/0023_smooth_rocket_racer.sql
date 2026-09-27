@@ -1,0 +1,2 @@
+ALTER TABLE "rentnerproxy"."npm_import_runs" DROP CONSTRAINT "npm_import_runs_runtime_status_check";--> statement-breakpoint
+ALTER TABLE "rentnerproxy"."npm_import_runs" ADD CONSTRAINT "npm_import_runs_runtime_status_check" CHECK ("rentnerproxy"."npm_import_runs"."runtime_status" in ('applied', 'pending', 'not_applicable'));

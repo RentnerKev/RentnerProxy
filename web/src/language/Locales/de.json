@@ -452,13 +452,15 @@
             "details": "Details prüfen",
             "apply": "Import bestätigen",
             "resultTitle": "Importergebnis",
-            "resultSummary": "{{imported}} importiert, {{skipped}} übersprungen. Laufzeitstatus: {{runtime}}.",
+            "resultSummary": "{{imported}} importiert, {{skipped}} übersprungen, {{failed}} fehlgeschlagen. Laufzeitstatus: {{runtime}}.",
             "history": "Letzte Importe",
             "imported": "importiert",
             "skipped": "übersprungen",
+            "failed": "fehlgeschlagen",
             "runtime": {
                 "applied": "angewendet",
-                "pending": "ausstehend"
+                "pending": "ausstehend",
+                "not_applicable": "nicht angewendet"
             },
             "status": {
                 "ready": "Bereit",
@@ -500,6 +502,7 @@
                 "ordered_ip_rules_manual": "Geordnete Allow/Deny-Regeln manuell migrieren",
                 "invalid_ip_rules": "IP-Regeln sind ungültig oder überschreiten Limits",
                 "source_duplicate_domain": "Domain kommt in der NPM-Quelle mehrfach vor",
+                "import_rolled_back": "Import fehlgeschlagen; alle geplanten Änderungen wurden zurückgerollt",
                 "existing_domain": "Domain wird bereits von RentnerProxy verwaltet",
                 "unreferenced_access_list": "Kein importierbarer Host nutzt diese Zugriffsliste",
                 "certificate_material_unavailable": "SQLite enthält nur Metadaten; Zertifikat und privaten Schlüssel manuell migrieren",

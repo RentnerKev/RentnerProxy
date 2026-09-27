@@ -89,11 +89,13 @@ export async function applyNpmImportService(
         result: 'success',
     })
     let committed: Omit<NpmImportResult, 'runtimeStatus'>
+    const attempt: { plan: NpmImportPlan | null } = { plan: null }
     try {
         committed = await getAuthDatabase().transaction(async (transaction) => {
             await lockProxyRuntimeSettings(transaction)
             await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.NPM_IMPORT)
             const plan = await planInTransaction(transaction, path, fingerprint)
+            attempt.plan = plan
             if (publicNpmPreview(plan).planFingerprint !== expectedPlanFingerprint) {
                 throw new NpmImportError('preview_changed')
             }
@@ -158,7 +160,7 @@ export async function applyNpmImportService(
                     actorUserId: actor.id,
                     sourceFingerprint: fingerprint,
                     sourceSchema: plan.sourceSchema,
-                    result: { items, imported, skipped },
+                    result: { status: 'completed', items, imported, skipped, failed: 0 },
                 })
                 .returning({ id: npmImportRuns.id })
             const runId = rows.at(0)?.id
@@ -172,20 +174,76 @@ export async function applyNpmImportService(
                 result: 'success',
                 metadata: { count: imported },
             })
-            return { runId, fingerprint, sourceSchema: plan.sourceSchema, items, imported, skipped }
+            return {
+                runId,
+                status: 'completed' as const,
+                fingerprint,
+                sourceSchema: plan.sourceSchema,
+                items,
+                imported,
+                skipped,
+                failed: 0,
+            }
         })
     } catch (error) {
-        await recordAuditEventBestEffort({
-            actorUserId: actor.id,
-            actorKind: 'user',
-            action: 'failed',
-            resource: 'npm-import',
-            targetId: null,
-            result: 'failure',
-            metadata: {
-                failureCode: error instanceof NpmImportError ? 'conflict' : 'service_unavailable',
-            },
+        const failureCode = error instanceof NpmImportError ? 'conflict' : 'service_unavailable'
+        const items: NpmImportResultItem[] = (attempt.plan?.items ?? []).map((item) => {
+            const failed = item.status === 'ready' || item.status === 'partial'
+            return {
+                kind: item.kind,
+                sourceId: item.sourceId,
+                label: item.label,
+                domains: item.domains,
+                status: item.status,
+                reasons: failed ? [...item.reasons, 'import_rolled_back'] : item.reasons,
+                outcome: failed ? 'failed' : 'skipped',
+            }
         })
+        const failed = items.filter((item) => item.outcome === 'failed').length
+        const skipped = items.length - failed
+        let recorded = false
+        try {
+            await getAuthDatabase().transaction(async (transaction) => {
+                const rows = await transaction
+                    .insert(npmImportRuns)
+                    .values({
+                        actorUserId: actor.id,
+                        sourceFingerprint: fingerprint,
+                        sourceSchema: attempt.plan?.sourceSchema ?? 'unknown',
+                        runtimeStatus: 'not_applicable',
+                        result: { status: 'failed', items, imported: 0, skipped, failed },
+                    })
+                    .returning({ id: npmImportRuns.id })
+                const runId = rows.at(0)?.id
+                if (!runId)
+                    throw new Error('NPM import failure result could not be saved.', {
+                        cause: error,
+                    })
+                await appendAuditEventInTransaction(transaction, {
+                    actorUserId: actor.id,
+                    actorKind: 'user',
+                    action: 'failed',
+                    resource: 'npm-import',
+                    targetId: runId,
+                    result: 'failure',
+                    metadata: { failureCode, count: failed },
+                })
+            })
+            recorded = true
+        } catch {
+            // The source transaction has already rolled back; audit remains best effort if storage is unavailable.
+        }
+        if (!recorded) {
+            await recordAuditEventBestEffort({
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'failed',
+                resource: 'npm-import',
+                targetId: null,
+                result: 'failure',
+                metadata: { failureCode, count: failed },
+            })
+        }
         throw error
     }
     const runtimeStatus =
@@ -210,18 +268,27 @@ export async function getNpmImportRunsService(): Promise<readonly NpmImportResul
         .limit(20)
     return rows.map((row) => {
         const result = row.result as {
+            status?: 'completed' | 'failed'
             items: NpmImportResultItem[]
             imported: number
             skipped: number
+            failed?: number
         }
         return {
             runId: row.id,
+            status: result.status === 'failed' ? 'failed' : 'completed',
             fingerprint: row.sourceFingerprint,
             sourceSchema: row.sourceSchema,
             items: result.items,
             imported: result.imported,
             skipped: result.skipped,
-            runtimeStatus: row.runtimeStatus === 'applied' ? 'applied' : 'pending',
+            failed: result.failed ?? 0,
+            runtimeStatus:
+                row.runtimeStatus === 'applied'
+                    ? 'applied'
+                    : row.runtimeStatus === 'not_applicable'
+                      ? 'not_applicable'
+                      : 'pending',
         }
     })
 }

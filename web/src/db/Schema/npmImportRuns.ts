@@ -28,7 +28,7 @@ export const npmImportRuns = rentnerProxySchema.table(
         ),
         check(
             'npm_import_runs_runtime_status_check',
-            sql`${table.runtimeStatus} in ('applied', 'pending')`,
+            sql`${table.runtimeStatus} in ('applied', 'pending', 'not_applicable')`,
         ),
     ],
 )

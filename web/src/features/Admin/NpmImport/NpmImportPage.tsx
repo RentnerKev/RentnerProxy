@@ -149,6 +149,7 @@ export default function NpmImportPage() {
                         {t('admin.npmImport.resultSummary', {
                             imported: result.imported,
                             skipped: result.skipped,
+                            failed: result.failed,
                             runtime: t(`admin.npmImport.runtime.${result.runtimeStatus}`),
                         })}
                     </p>
@@ -168,10 +169,18 @@ export default function NpmImportPage() {
                     <ul className="mt-3 grid gap-2 text-sm text-ink-soft">
                         {history.map((entry) => (
                             <li key={entry.runId}>
-                                {entry.imported} {t('admin.npmImport.imported')}, {entry.skipped}{' '}
-                                {t('admin.npmImport.skipped')}
-                                {' · '}
-                                {t(`admin.npmImport.runtime.${entry.runtimeStatus}`)}
+                                <details>
+                                    <summary className="cursor-pointer">
+                                        {entry.imported} {t('admin.npmImport.imported')},{' '}
+                                        {entry.skipped} {t('admin.npmImport.skipped')},{' '}
+                                        {entry.failed} {t('admin.npmImport.failed')}
+                                        {' · '}
+                                        {t(`admin.npmImport.runtime.${entry.runtimeStatus}`)}
+                                    </summary>
+                                    <ul className="mt-2 pl-4">
+                                        {entry.items.map((item) => itemDetails(item, t))}
+                                    </ul>
+                                </details>
                             </li>
                         ))}
                     </ul>

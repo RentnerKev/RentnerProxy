@@ -452,13 +452,15 @@
             "details": "Review details",
             "apply": "Confirm import",
             "resultTitle": "Import result",
-            "resultSummary": "{{imported}} imported, {{skipped}} skipped. Runtime: {{runtime}}.",
+            "resultSummary": "{{imported}} imported, {{skipped}} skipped, {{failed}} failed. Runtime: {{runtime}}.",
             "history": "Recent imports",
             "imported": "imported",
             "skipped": "skipped",
+            "failed": "failed",
             "runtime": {
                 "applied": "applied",
-                "pending": "pending"
+                "pending": "pending",
+                "not_applicable": "not applied"
             },
             "status": {
                 "ready": "Ready",
@@ -500,6 +502,7 @@
                 "ordered_ip_rules_manual": "Ordered allow/deny rules require manual migration",
                 "invalid_ip_rules": "IP rules are invalid or exceed RentnerProxy limits",
                 "source_duplicate_domain": "Domain appears more than once in this NPM source",
+                "import_rolled_back": "Import failed; all planned changes were rolled back",
                 "existing_domain": "Domain is already managed by RentnerProxy",
                 "unreferenced_access_list": "No importable host uses this access list",
                 "certificate_material_unavailable": "SQLite has metadata only; migrate certificate and private key manually",
