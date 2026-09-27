@@ -40,6 +40,7 @@ export interface ApplicationNavigationItem {
         | '/crowdsec'
         | '/security'
         | '/audit-logs'
+        | '/npm-import'
         | '/roles'
         | '/users'
 }

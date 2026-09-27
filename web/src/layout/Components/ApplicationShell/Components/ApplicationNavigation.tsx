@@ -6,6 +6,7 @@ import {
     KeyRound,
     LayoutDashboard,
     Network,
+    Import,
     ScrollText,
     Shield,
     ShieldAlert,
@@ -90,6 +91,8 @@ export default function ApplicationNavigation({ items }: ApplicationNavigationPr
                             className="size-4 shrink-0"
                             strokeWidth={1.8}
                         />
+                    ) : item.to === '/npm-import' ? (
+                        <Import aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.8} />
                     ) : null}
                     {item.label}
                 </Link>

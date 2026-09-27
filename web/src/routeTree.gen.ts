@@ -17,6 +17,7 @@ import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAuditLogsRouteImport } from './routes/_authenticated/audit-logs'
 import { Route as AuthenticatedCertificatesRouteImport } from './routes/_authenticated/certificates'
 import { Route as AuthenticatedCrowdsecRouteImport } from './routes/_authenticated/crowdsec'
+import { Route as AuthenticatedNpmImportRouteImport } from './routes/_authenticated/npm-import'
 import { Route as AuthenticatedProxyAccessLogsRouteImport } from './routes/_authenticated/proxy-access-logs'
 import { Route as AuthenticatedProxyHostsRouteImport } from './routes/_authenticated/proxy-hosts'
 import { Route as AuthenticatedRedirectHostsRouteImport } from './routes/_authenticated/redirect-hosts'
@@ -29,6 +30,7 @@ import { Route as PublicLoginRouteImport } from './routes/_public/login'
 import { Route as PublicResetPasswordRouteImport } from './routes/_public/reset-password'
 import { Route as PublicSetupRouteImport } from './routes/_public/setup'
 import { Route as ApiLiveSnapshotRouteImport } from './routes/api/live-snapshot'
+import { Route as ApiNpmImportRouteImport } from './routes/api/npm-import'
 import { Route as HealthLiveRouteImport } from './routes/health/live'
 import { Route as HealthReadyRouteImport } from './routes/health/ready'
 import { Route as PublicLoginIndexRouteImport } from './routes/_public/login.index'
@@ -73,6 +75,11 @@ const AuthenticatedCertificatesRoute =
 const AuthenticatedCrowdsecRoute = AuthenticatedCrowdsecRouteImport.update({
   id: '/crowdsec',
   path: '/crowdsec',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedNpmImportRoute = AuthenticatedNpmImportRouteImport.update({
+  id: '/npm-import',
+  path: '/npm-import',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProxyAccessLogsRoute =
@@ -137,6 +144,11 @@ const ApiLiveSnapshotRoute = ApiLiveSnapshotRouteImport.update({
   path: '/api/live-snapshot',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiNpmImportRoute = ApiNpmImportRouteImport.update({
+  id: '/api/npm-import',
+  path: '/api/npm-import',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HealthLiveRoute = HealthLiveRouteImport.update({
   id: '/health/live',
   path: '/health/live',
@@ -170,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/audit-logs': typeof AuthenticatedAuditLogsRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/crowdsec': typeof AuthenticatedCrowdsecRoute
+  '/npm-import': typeof AuthenticatedNpmImportRoute
   '/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
   '/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
@@ -182,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof PublicResetPasswordRoute
   '/setup': typeof PublicSetupRoute
   '/api/live-snapshot': typeof ApiLiveSnapshotRoute
+  '/api/npm-import': typeof ApiNpmImportRoute
   '/health/live': typeof HealthLiveRoute
   '/health/ready': typeof HealthReadyRoute
   '/login/two-factor': typeof PublicLoginTwoFactorRoute
@@ -195,6 +209,7 @@ export interface FileRoutesByTo {
   '/audit-logs': typeof AuthenticatedAuditLogsRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/crowdsec': typeof AuthenticatedCrowdsecRoute
+  '/npm-import': typeof AuthenticatedNpmImportRoute
   '/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
   '/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
@@ -206,6 +221,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof PublicResetPasswordRoute
   '/setup': typeof PublicSetupRoute
   '/api/live-snapshot': typeof ApiLiveSnapshotRoute
+  '/api/npm-import': typeof ApiNpmImportRoute
   '/health/live': typeof HealthLiveRoute
   '/health/ready': typeof HealthReadyRoute
   '/login/two-factor': typeof PublicLoginTwoFactorRoute
@@ -221,6 +237,7 @@ export interface FileRoutesById {
   '/_authenticated/audit-logs': typeof AuthenticatedAuditLogsRoute
   '/_authenticated/certificates': typeof AuthenticatedCertificatesRoute
   '/_authenticated/crowdsec': typeof AuthenticatedCrowdsecRoute
+  '/_authenticated/npm-import': typeof AuthenticatedNpmImportRoute
   '/_authenticated/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/_authenticated/proxy-hosts': typeof AuthenticatedProxyHostsRoute
   '/_authenticated/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
@@ -233,6 +250,7 @@ export interface FileRoutesById {
   '/_public/reset-password': typeof PublicResetPasswordRoute
   '/_public/setup': typeof PublicSetupRoute
   '/api/live-snapshot': typeof ApiLiveSnapshotRoute
+  '/api/npm-import': typeof ApiNpmImportRoute
   '/health/live': typeof HealthLiveRoute
   '/health/ready': typeof HealthReadyRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -249,6 +267,7 @@ export interface FileRouteTypes {
     | '/audit-logs'
     | '/certificates'
     | '/crowdsec'
+    | '/npm-import'
     | '/proxy-access-logs'
     | '/proxy-hosts'
     | '/redirect-hosts'
@@ -261,6 +280,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/setup'
     | '/api/live-snapshot'
+    | '/api/npm-import'
     | '/health/live'
     | '/health/ready'
     | '/login/two-factor'
@@ -274,6 +294,7 @@ export interface FileRouteTypes {
     | '/audit-logs'
     | '/certificates'
     | '/crowdsec'
+    | '/npm-import'
     | '/proxy-access-logs'
     | '/proxy-hosts'
     | '/redirect-hosts'
@@ -285,6 +306,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/setup'
     | '/api/live-snapshot'
+    | '/api/npm-import'
     | '/health/live'
     | '/health/ready'
     | '/login/two-factor'
@@ -299,6 +321,7 @@ export interface FileRouteTypes {
     | '/_authenticated/audit-logs'
     | '/_authenticated/certificates'
     | '/_authenticated/crowdsec'
+    | '/_authenticated/npm-import'
     | '/_authenticated/proxy-access-logs'
     | '/_authenticated/proxy-hosts'
     | '/_authenticated/redirect-hosts'
@@ -311,6 +334,7 @@ export interface FileRouteTypes {
     | '/_public/reset-password'
     | '/_public/setup'
     | '/api/live-snapshot'
+    | '/api/npm-import'
     | '/health/live'
     | '/health/ready'
     | '/_authenticated/'
@@ -323,6 +347,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   PublicRouteRoute: typeof PublicRouteRouteWithChildren
   ApiLiveSnapshotRoute: typeof ApiLiveSnapshotRoute
+  ApiNpmImportRoute: typeof ApiNpmImportRoute
   HealthLiveRoute: typeof HealthLiveRoute
   HealthReadyRoute: typeof HealthReadyRoute
   MediaAvatarsUserIdRoute: typeof MediaAvatarsUserIdRoute
@@ -384,6 +409,13 @@ declare module '@tanstack/react-router' {
       path: '/crowdsec'
       fullPath: '/crowdsec'
       preLoaderRoute: typeof AuthenticatedCrowdsecRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/npm-import': {
+      id: '/_authenticated/npm-import'
+      path: '/npm-import'
+      fullPath: '/npm-import'
+      preLoaderRoute: typeof AuthenticatedNpmImportRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/proxy-access-logs': {
@@ -470,6 +502,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLiveSnapshotRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/npm-import': {
+      id: '/api/npm-import'
+      path: '/api/npm-import'
+      fullPath: '/api/npm-import'
+      preLoaderRoute: typeof ApiNpmImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/health/live': {
       id: '/health/live'
       path: '/health/live'
@@ -514,6 +553,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAuditLogsRoute: typeof AuthenticatedAuditLogsRoute
   AuthenticatedCertificatesRoute: typeof AuthenticatedCertificatesRoute
   AuthenticatedCrowdsecRoute: typeof AuthenticatedCrowdsecRoute
+  AuthenticatedNpmImportRoute: typeof AuthenticatedNpmImportRoute
   AuthenticatedProxyAccessLogsRoute: typeof AuthenticatedProxyAccessLogsRoute
   AuthenticatedProxyHostsRoute: typeof AuthenticatedProxyHostsRoute
   AuthenticatedRedirectHostsRoute: typeof AuthenticatedRedirectHostsRoute
@@ -529,6 +569,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAuditLogsRoute: AuthenticatedAuditLogsRoute,
   AuthenticatedCertificatesRoute: AuthenticatedCertificatesRoute,
   AuthenticatedCrowdsecRoute: AuthenticatedCrowdsecRoute,
+  AuthenticatedNpmImportRoute: AuthenticatedNpmImportRoute,
   AuthenticatedProxyAccessLogsRoute: AuthenticatedProxyAccessLogsRoute,
   AuthenticatedProxyHostsRoute: AuthenticatedProxyHostsRoute,
   AuthenticatedRedirectHostsRoute: AuthenticatedRedirectHostsRoute,
@@ -579,6 +620,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   PublicRouteRoute: PublicRouteRouteWithChildren,
   ApiLiveSnapshotRoute: ApiLiveSnapshotRoute,
+  ApiNpmImportRoute: ApiNpmImportRoute,
   HealthLiveRoute: HealthLiveRoute,
   HealthReadyRoute: HealthReadyRoute,
   MediaAvatarsUserIdRoute: MediaAvatarsUserIdRoute,

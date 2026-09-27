@@ -47,6 +47,7 @@
         "redirectHosts": "Redirect hosts",
         "certificates": "Certificates",
         "accessPolicies": "Access policies",
+        "npmImport": "System import",
         "proxyAccessLogs": "Access logs",
         "crowdSec": "CrowdSec",
         "security": "Security dashboard",
@@ -438,6 +439,86 @@
         }
     },
     "admin": {
+        "npmImport": {
+            "eyebrow": "System / Import",
+            "title": "Nginx Proxy Manager import",
+            "description": "Review a real NPM SQLite snapshot before any hosts are created.",
+            "sourceTitle": "Choose the NPM database",
+            "sourceHelp": "NPM 2.16 SQLite only. Stop NPM before copying /data/database.sqlite, or create a consistent SQLite backup. Select the copy here (max 32 MiB). Database dumps and archives are unsupported. Certificates and secrets are not imported.",
+            "fileLabel": "SQLite database copy",
+            "preview": "Analyze and preview",
+            "previewTitle": "Import preview",
+            "previewHelp": "Nothing has changed yet. Review every warning and conflict. Hosts requiring TLS or WebSocket review will be created disabled.",
+            "details": "Review details",
+            "apply": "Confirm import",
+            "resultTitle": "Import result",
+            "resultSummary": "{{imported}} imported, {{skipped}} skipped. Runtime: {{runtime}}.",
+            "history": "Recent imports",
+            "imported": "imported",
+            "skipped": "skipped",
+            "runtime": {
+                "applied": "applied",
+                "pending": "pending"
+            },
+            "status": {
+                "ready": "Ready",
+                "partial": "Needs review",
+                "manual": "Manual migration",
+                "conflict": "Conflict"
+            },
+            "kind": {
+                "proxy-host": "Proxy host",
+                "redirect-host": "Redirect host",
+                "access-policy": "Access list",
+                "certificate": "Certificate",
+                "dead-host": "404 host",
+                "stream": "Stream"
+            },
+            "reasons": {
+                "invalid_domains": "Invalid or unsupported domains; migrate manually",
+                "advanced_config_manual": "Custom nginx Advanced Configuration requires manual migration",
+                "custom_locations_manual": "Custom locations require manual migration",
+                "caching_manual": "NPM caching has no typed equivalent",
+                "block_exploits_manual": "NPM exploit blocking has no typed equivalent",
+                "hsts_manual": "NPM HSTS settings require manual migration",
+                "access_list_missing": "Access list reference is missing or invalid",
+                "access_list_manual": "Attached access list requires manual migration",
+                "invalid_host_settings": "Host settings are invalid or unsupported",
+                "certificate_manual": "Certificate and renewal must be set up manually; host imports disabled",
+                "force_https_manual": "Restore Force HTTPS after setting up the certificate",
+                "http2_behavior_review": "Review HTTP/2 behavior before enabling this host",
+                "forwarded_proto_review": "Review trusted forwarded-proto behavior before enabling this host",
+                "websocket_behavior_review": "WebSocket behavior differs; host imports disabled for review",
+                "upstream_tls_review": "Review upstream TLS verification; host imports disabled",
+                "ip_policy_review": "Verify client IP and trusted-proxy settings before enabling this host",
+                "invalid_upstream": "Upstream target is invalid or unsupported",
+                "redirect_auto_scheme_manual": "Automatic redirect scheme has no fixed-target equivalent",
+                "invalid_redirect": "Redirect target or status is invalid or unsupported",
+                "invalid_access_list": "Access list name or identifier is invalid",
+                "basic_auth_manual": "Basic Auth and authorization forwarding require manual migration",
+                "empty_access_list": "Empty access list has no restrictions to import",
+                "ordered_ip_rules_manual": "Ordered allow/deny rules require manual migration",
+                "invalid_ip_rules": "IP rules are invalid or exceed RentnerProxy limits",
+                "source_duplicate_domain": "Domain appears more than once in this NPM source",
+                "existing_domain": "Domain is already managed by RentnerProxy",
+                "unreferenced_access_list": "No importable host uses this access list",
+                "certificate_material_unavailable": "SQLite has metadata only; migrate certificate and private key manually",
+                "dead_hosts_manual": "404 hosts require manual migration",
+                "streams_manual": "Streams require manual migration"
+            },
+            "errors": {
+                "invalid_request": "Invalid upload request.",
+                "authentication_required": "Sign in and try again.",
+                "permission_denied": "You do not have permission to import.",
+                "source_limit": "The source exceeds the 32 MiB or record limit.",
+                "invalid_source": "This is not a readable NPM SQLite database.",
+                "unsupported_schema": "Unsupported NPM schema. Only the verified v2.16.0 schema is accepted.",
+                "fingerprint_mismatch": "The source changed after preview. Analyze it again.",
+                "preview_changed": "RentnerProxy state changed after preview. Analyze again before importing.",
+                "nothing_to_import": "Nothing remains eligible to import. Analyze the latest state again.",
+                "import_failed": "Import failed and its database transaction was rolled back. Check the audit log."
+            }
+        },
         "users": {
             "page": {
                 "eyebrow": "Access directory",
@@ -2166,7 +2247,8 @@
             "access_policies": "Access policies",
             "proxy-access-logs": "Proxy access logs",
             "crowdsec": "CrowdSec",
-            "audit-logs": "Audit log"
+            "audit-logs": "Audit log",
+            "system": "System"
         },
         "app": {
             "access": "Application access"
@@ -2230,6 +2312,9 @@
             "update": "Update CrowdSec configuration"
         },
         "audit-logs:view": "View audit log",
+        "system": {
+            "npm_import": "Import from Nginx Proxy Manager"
+        },
         "trusted_cas": {
             "view": "View trusted CAs",
             "create": "Import trusted CAs",

@@ -47,6 +47,7 @@
         "redirectHosts": "Weiterleitungs-Hosts",
         "certificates": "Zertifikate",
         "accessPolicies": "Zugriffsrichtlinien",
+        "npmImport": "Systemimport",
         "proxyAccessLogs": "Zugriffsprotokolle",
         "crowdSec": "CrowdSec",
         "security": "Security-Dashboard",
@@ -438,6 +439,86 @@
         }
     },
     "admin": {
+        "npmImport": {
+            "eyebrow": "System / Import",
+            "title": "Nginx Proxy Manager importieren",
+            "description": "Eine echte NPM-SQLite-Kopie prüfen, bevor Hosts angelegt werden.",
+            "sourceTitle": "NPM-Datenbank auswählen",
+            "sourceHelp": "Nur NPM-2.16-SQLite. NPM vor dem Kopieren von /data/database.sqlite stoppen oder ein konsistentes SQLite-Backup erstellen. Hier die Kopie auswählen (maximal 32 MiB). Datenbank-Dumps und Archive werden nicht unterstützt. Zertifikate und Geheimnisse werden nicht importiert.",
+            "fileLabel": "SQLite-Datenbankkopie",
+            "preview": "Analysieren und Vorschau anzeigen",
+            "previewTitle": "Importvorschau",
+            "previewHelp": "Noch wurde nichts geändert. Alle Warnungen und Konflikte prüfen. Hosts mit offenem TLS- oder WebSocket-Prüfbedarf werden deaktiviert angelegt.",
+            "details": "Details prüfen",
+            "apply": "Import bestätigen",
+            "resultTitle": "Importergebnis",
+            "resultSummary": "{{imported}} importiert, {{skipped}} übersprungen. Laufzeitstatus: {{runtime}}.",
+            "history": "Letzte Importe",
+            "imported": "importiert",
+            "skipped": "übersprungen",
+            "runtime": {
+                "applied": "angewendet",
+                "pending": "ausstehend"
+            },
+            "status": {
+                "ready": "Bereit",
+                "partial": "Prüfung nötig",
+                "manual": "Manuell migrieren",
+                "conflict": "Konflikt"
+            },
+            "kind": {
+                "proxy-host": "Proxy-Host",
+                "redirect-host": "Weiterleitungs-Host",
+                "access-policy": "Zugriffsliste",
+                "certificate": "Zertifikat",
+                "dead-host": "404-Host",
+                "stream": "Stream"
+            },
+            "reasons": {
+                "invalid_domains": "Ungültige oder nicht unterstützte Domains; manuell migrieren",
+                "advanced_config_manual": "Eigene nginx-Konfiguration muss manuell migriert werden",
+                "custom_locations_manual": "Eigene Pfadregeln müssen manuell migriert werden",
+                "caching_manual": "Für NPM-Caching gibt es kein eindeutiges Gegenstück",
+                "block_exploits_manual": "Für NPM-Exploit-Sperren gibt es kein eindeutiges Gegenstück",
+                "hsts_manual": "NPM-HSTS muss manuell migriert werden",
+                "access_list_missing": "Referenz auf Zugriffsliste fehlt oder ist ungültig",
+                "access_list_manual": "Zugeordnete Zugriffsliste muss manuell migriert werden",
+                "invalid_host_settings": "Host-Einstellungen sind ungültig oder nicht unterstützt",
+                "certificate_manual": "Zertifikat und Erneuerung manuell einrichten; Host wird deaktiviert importiert",
+                "force_https_manual": "Force HTTPS nach Einrichtung des Zertifikats wieder aktivieren",
+                "http2_behavior_review": "HTTP/2-Verhalten vor dem Aktivieren dieses Hosts prüfen",
+                "forwarded_proto_review": "Vertrauen in Forwarded-Proto vor dem Aktivieren dieses Hosts prüfen",
+                "websocket_behavior_review": "WebSocket-Verhalten weicht ab; Host wird zur Prüfung deaktiviert importiert",
+                "upstream_tls_review": "Upstream-TLS-Prüfung kontrollieren; Host wird deaktiviert importiert",
+                "ip_policy_review": "Client-IP und Trusted-Proxy-Einstellungen vor dem Aktivieren prüfen",
+                "invalid_upstream": "Upstream-Ziel ist ungültig oder nicht unterstützt",
+                "redirect_auto_scheme_manual": "Automatisches Weiterleitungsschema hat kein festes Gegenstück",
+                "invalid_redirect": "Weiterleitungsziel oder Status ist ungültig oder nicht unterstützt",
+                "invalid_access_list": "Name oder Kennung der Zugriffsliste ist ungültig",
+                "basic_auth_manual": "Basic Auth und Weitergabe der Autorisierung manuell migrieren",
+                "empty_access_list": "Leere Zugriffsliste enthält keine übernehmbaren Regeln",
+                "ordered_ip_rules_manual": "Geordnete Allow/Deny-Regeln manuell migrieren",
+                "invalid_ip_rules": "IP-Regeln sind ungültig oder überschreiten Limits",
+                "source_duplicate_domain": "Domain kommt in der NPM-Quelle mehrfach vor",
+                "existing_domain": "Domain wird bereits von RentnerProxy verwaltet",
+                "unreferenced_access_list": "Kein importierbarer Host nutzt diese Zugriffsliste",
+                "certificate_material_unavailable": "SQLite enthält nur Metadaten; Zertifikat und privaten Schlüssel manuell migrieren",
+                "dead_hosts_manual": "404-Hosts manuell migrieren",
+                "streams_manual": "Streams manuell migrieren"
+            },
+            "errors": {
+                "invalid_request": "Ungültige Upload-Anfrage.",
+                "authentication_required": "Bitte anmelden und erneut versuchen.",
+                "permission_denied": "Keine Berechtigung für den Import.",
+                "source_limit": "Quelle überschreitet 32 MiB oder das Objektlimit.",
+                "invalid_source": "Keine lesbare NPM-SQLite-Datenbank.",
+                "unsupported_schema": "Nicht unterstütztes NPM-Schema. Nur das geprüfte v2.16.0-Schema wird akzeptiert.",
+                "fingerprint_mismatch": "Die Quelle hat sich seit der Vorschau geändert. Erneut analysieren.",
+                "preview_changed": "Der RentnerProxy-Stand hat sich seit der Vorschau geändert. Vor dem Import erneut analysieren.",
+                "nothing_to_import": "Keine geeigneten Objekte mehr vorhanden. Den aktuellen Stand erneut analysieren.",
+                "import_failed": "Import fehlgeschlagen; die Datenbanktransaktion wurde zurückgerollt. Audit-Log prüfen."
+            }
+        },
         "users": {
             "validation": {
                 "rolesRequired": "Wähle mindestens eine Rolle aus."
@@ -2166,7 +2247,8 @@
             "access_policies": "Zugriffsrichtlinien",
             "proxy-access-logs": "Proxy-Zugriffsprotokolle",
             "crowdsec": "CrowdSec",
-            "audit-logs": "Audit-Protokoll"
+            "audit-logs": "Audit-Protokoll",
+            "system": "System"
         },
         "app": {
             "access": "Anwendungszugriff"
@@ -2230,6 +2312,9 @@
             "update": "CrowdSec-Konfiguration aktualisieren"
         },
         "audit-logs:view": "Audit-Protokoll anzeigen",
+        "system": {
+            "npm_import": "Aus Nginx Proxy Manager importieren"
+        },
         "trusted_cas": {
             "view": "Vertrauenswürdige CAs anzeigen",
             "create": "Vertrauenswürdige CAs importieren",

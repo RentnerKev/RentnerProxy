@@ -1,0 +1,182 @@
+import useTranslationStore from '../../../language/useTranslationStore'
+import PageHeader from '../../../shared/Management/PageHeader'
+import { uiClassNames } from '../../../shared/Styles/uiClassNames'
+import { useNpmImport } from './Hooks/useNpmImport'
+import type { NpmImportResultItem, NpmPreviewItem } from './Types/npm-import.types'
+
+function reasonText(reason: string, t: (key: string) => string): string {
+    const [code, detail] = reason.split(':', 2)
+    const translated = t(`admin.npmImport.reasons.${code}`)
+    return detail ? `${translated} (${detail})` : translated
+}
+
+function itemDetails(item: NpmPreviewItem | NpmImportResultItem, t: (key: string) => string) {
+    return (
+        <li
+            key={`${item.kind}:${item.sourceId}`}
+            className="border-b border-border py-3 last:border-0"
+        >
+            <div className="flex flex-wrap items-center gap-2">
+                <strong className="text-ink">{item.label}</strong>
+                <span className="text-xs text-muted">{t(`admin.npmImport.kind.${item.kind}`)}</span>
+                <span className="rounded-full border border-border px-2 py-0.5 text-xs font-bold text-ink-soft">
+                    {t(`admin.npmImport.status.${item.status}`)}
+                </span>
+                {'outcome' in item ? (
+                    <span className="text-xs font-bold text-ink-soft">
+                        {t(`admin.npmImport.${item.outcome}`)}
+                    </span>
+                ) : null}
+            </div>
+            {item.reasons.length > 0 ? (
+                <ul className="mt-1 list-disc pl-5 text-sm text-ink-soft">
+                    {item.reasons.map((reason) => (
+                        <li key={reason}>{reasonText(reason, t)}</li>
+                    ))}
+                </ul>
+            ) : null}
+        </li>
+    )
+}
+
+export default function NpmImportPage() {
+    const { t } = useTranslationStore()
+    const {
+        file,
+        preview,
+        result,
+        history,
+        busy,
+        error,
+        selectFile,
+        discardPreview,
+        previewSource,
+        applySource,
+    } = useNpmImport()
+
+    return (
+        <div className="grid gap-5">
+            <PageHeader
+                eyebrow={t('admin.npmImport.eyebrow')}
+                title={t('admin.npmImport.title')}
+                description={t('admin.npmImport.description')}
+            />
+            <section className={uiClassNames.management.card} aria-labelledby="npm-source-title">
+                <h2 id="npm-source-title" className="text-lg font-extrabold text-ink">
+                    {t('admin.npmImport.sourceTitle')}
+                </h2>
+                <p className="mt-2 text-sm text-ink-soft">{t('admin.npmImport.sourceHelp')}</p>
+                <label className="mt-5 grid gap-2 text-sm font-bold text-ink-soft">
+                    {t('admin.npmImport.fileLabel')}
+                    <input
+                        type="file"
+                        accept=".sqlite,.db,application/vnd.sqlite3"
+                        className={uiClassNames.form.control}
+                        disabled={busy !== null}
+                        onChange={(event) => {
+                            selectFile(event.currentTarget.files?.[0] ?? null)
+                        }}
+                    />
+                </label>
+                <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                        type="button"
+                        className={uiClassNames.button.primary}
+                        disabled={!file || busy !== null}
+                        onClick={() => void previewSource()}
+                    >
+                        {busy === 'preview' ? t('common.working') : t('admin.npmImport.preview')}
+                    </button>
+                </div>
+                {error ? (
+                    <p role="alert" className="mt-4 text-sm text-danger-text">
+                        {t(`admin.npmImport.errors.${error}`)}
+                    </p>
+                ) : null}
+            </section>
+            {preview ? (
+                <section
+                    className={uiClassNames.management.card}
+                    aria-labelledby="npm-preview-title"
+                >
+                    <h2 id="npm-preview-title" className="text-lg font-extrabold text-ink">
+                        {t('admin.npmImport.previewTitle')}
+                    </h2>
+                    <p className="mt-2 text-sm text-ink-soft">{t('admin.npmImport.previewHelp')}</p>
+                    <div className="mt-4 flex flex-wrap gap-2" aria-live="polite">
+                        {Object.entries(preview.counts).map(([status, count]) => (
+                            <span key={status} className={uiClassNames.chip.item}>
+                                {count} {t(`admin.npmImport.status.${status}`)}
+                            </span>
+                        ))}
+                    </div>
+                    <details className="mt-5" open>
+                        <summary className="cursor-pointer font-bold text-ink">
+                            {t('admin.npmImport.details')}
+                        </summary>
+                        <ul className="mt-2 max-h-[32rem] overflow-y-auto">
+                            {preview.items.map((item) => itemDetails(item, t))}
+                        </ul>
+                    </details>
+                    <div className="mt-5 flex flex-wrap gap-3">
+                        <button
+                            type="button"
+                            className={uiClassNames.button.primary}
+                            disabled={
+                                busy !== null || preview.counts.ready + preview.counts.partial === 0
+                            }
+                            onClick={() => void applySource()}
+                        >
+                            {busy === 'apply' ? t('common.working') : t('admin.npmImport.apply')}
+                        </button>
+                        <button
+                            type="button"
+                            className={uiClassNames.button.secondary}
+                            disabled={busy !== null}
+                            onClick={discardPreview}
+                        >
+                            {t('common.cancel')}
+                        </button>
+                    </div>
+                </section>
+            ) : null}
+            {result ? (
+                <section className={uiClassNames.management.card} aria-live="polite">
+                    <h2 className="text-lg font-extrabold text-ink">
+                        {t('admin.npmImport.resultTitle')}
+                    </h2>
+                    <p className="mt-2 text-sm text-ink-soft">
+                        {t('admin.npmImport.resultSummary', {
+                            imported: result.imported,
+                            skipped: result.skipped,
+                            runtime: t(`admin.npmImport.runtime.${result.runtimeStatus}`),
+                        })}
+                    </p>
+                    <details className="mt-4">
+                        <summary className="cursor-pointer font-bold text-ink">
+                            {t('admin.npmImport.details')}
+                        </summary>
+                        <ul className="mt-2">{result.items.map((item) => itemDetails(item, t))}</ul>
+                    </details>
+                </section>
+            ) : null}
+            {history.length > 0 ? (
+                <section className={uiClassNames.management.card}>
+                    <h2 className="text-lg font-extrabold text-ink">
+                        {t('admin.npmImport.history')}
+                    </h2>
+                    <ul className="mt-3 grid gap-2 text-sm text-ink-soft">
+                        {history.map((entry) => (
+                            <li key={entry.runId}>
+                                {entry.imported} {t('admin.npmImport.imported')}, {entry.skipped}{' '}
+                                {t('admin.npmImport.skipped')}
+                                {' · '}
+                                {t(`admin.npmImport.runtime.${entry.runtimeStatus}`)}
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            ) : null}
+        </div>
+    )
+}

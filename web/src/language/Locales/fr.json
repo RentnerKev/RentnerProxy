@@ -47,6 +47,7 @@
         "redirectHosts": "Hôtes de redirection",
         "certificates": "Certificats",
         "accessPolicies": "Politiques d’accès",
+        "npmImport": "Import système",
         "proxyAccessLogs": "Journaux d’accès",
         "crowdSec": "CrowdSec",
         "security": "Tableau de bord de sécurité",
@@ -438,6 +439,86 @@
         }
     },
     "admin": {
+        "npmImport": {
+            "eyebrow": "Système / Import",
+            "title": "Importer Nginx Proxy Manager",
+            "description": "Examiner une copie SQLite réelle de NPM avant de créer des hôtes.",
+            "sourceTitle": "Choisir la base NPM",
+            "sourceHelp": "SQLite NPM 2.16 uniquement. Arrêtez NPM avant de copier /data/database.sqlite, ou créez une sauvegarde SQLite cohérente. Sélectionnez la copie ici (32 Mio maximum). Les dumps et archives ne sont pas pris en charge. Les certificats et secrets ne sont pas importés.",
+            "fileLabel": "Copie de la base SQLite",
+            "preview": "Analyser et prévisualiser",
+            "previewTitle": "Aperçu de l’import",
+            "previewHelp": "Rien n’a encore changé. Examinez tous les avertissements et conflits. Les hôtes nécessitant une vérification TLS ou WebSocket seront créés désactivés.",
+            "details": "Voir les détails",
+            "apply": "Confirmer l’import",
+            "resultTitle": "Résultat de l’import",
+            "resultSummary": "{{imported}} importés, {{skipped}} ignorés. État du runtime : {{runtime}}.",
+            "history": "Imports récents",
+            "imported": "importés",
+            "skipped": "ignorés",
+            "runtime": {
+                "applied": "appliqué",
+                "pending": "en attente"
+            },
+            "status": {
+                "ready": "Prêt",
+                "partial": "À vérifier",
+                "manual": "Migration manuelle",
+                "conflict": "Conflit"
+            },
+            "kind": {
+                "proxy-host": "Hôte proxy",
+                "redirect-host": "Hôte de redirection",
+                "access-policy": "Liste d’accès",
+                "certificate": "Certificat",
+                "dead-host": "Hôte 404",
+                "stream": "Flux"
+            },
+            "reasons": {
+                "invalid_domains": "Domaines invalides ou non pris en charge ; migration manuelle",
+                "advanced_config_manual": "La configuration nginx personnalisée exige une migration manuelle",
+                "custom_locations_manual": "Les chemins personnalisés exigent une migration manuelle",
+                "caching_manual": "Le cache NPM n’a pas d’équivalent typé",
+                "block_exploits_manual": "Le blocage des attaques NPM n’a pas d’équivalent typé",
+                "hsts_manual": "Les réglages HSTS de NPM exigent une migration manuelle",
+                "access_list_missing": "Référence de liste d’accès absente ou invalide",
+                "access_list_manual": "La liste d’accès associée exige une migration manuelle",
+                "invalid_host_settings": "Réglages d’hôte invalides ou non pris en charge",
+                "certificate_manual": "Configurez manuellement le certificat et son renouvellement ; l’hôte est importé désactivé",
+                "force_https_manual": "Rétablissez Force HTTPS après avoir configuré le certificat",
+                "http2_behavior_review": "Vérifiez le comportement HTTP/2 avant d’activer cet hôte",
+                "forwarded_proto_review": "Vérifiez la confiance accordée à Forwarded-Proto avant d’activer cet hôte",
+                "websocket_behavior_review": "Comportement WebSocket différent ; l’hôte est importé désactivé",
+                "upstream_tls_review": "Vérifiez le TLS vers l’amont ; l’hôte est importé désactivé",
+                "ip_policy_review": "Vérifiez l’IP du client et les proxys de confiance avant d’activer l’hôte",
+                "invalid_upstream": "Cible amont invalide ou non prise en charge",
+                "redirect_auto_scheme_manual": "Le schéma automatique ne correspond pas à une cible fixe",
+                "invalid_redirect": "Cible ou code de redirection invalide ou non pris en charge",
+                "invalid_access_list": "Nom ou identifiant de liste d’accès invalide",
+                "basic_auth_manual": "Basic Auth et transfert de l’autorisation exigent une migration manuelle",
+                "empty_access_list": "La liste vide ne contient aucune règle à importer",
+                "ordered_ip_rules_manual": "Les règles allow/deny ordonnées exigent une migration manuelle",
+                "invalid_ip_rules": "Règles IP invalides ou au-delà des limites",
+                "source_duplicate_domain": "Domaine répété dans la source NPM",
+                "existing_domain": "Domaine déjà géré par RentnerProxy",
+                "unreferenced_access_list": "Aucun hôte importable n’utilise cette liste d’accès",
+                "certificate_material_unavailable": "SQLite ne contient que les métadonnées ; migrez manuellement certificat et clé privée",
+                "dead_hosts_manual": "Les hôtes 404 exigent une migration manuelle",
+                "streams_manual": "Les flux exigent une migration manuelle"
+            },
+            "errors": {
+                "invalid_request": "Requête d’envoi invalide.",
+                "authentication_required": "Connectez-vous et réessayez.",
+                "permission_denied": "Vous n’avez pas le droit d’importer.",
+                "source_limit": "La source dépasse 32 Mio ou la limite d’objets.",
+                "invalid_source": "Ce n’est pas une base SQLite NPM lisible.",
+                "unsupported_schema": "Schéma NPM non pris en charge. Seul le schéma v2.16.0 vérifié est accepté.",
+                "fingerprint_mismatch": "La source a changé depuis l’aperçu. Analysez-la de nouveau.",
+                "preview_changed": "L’état de RentnerProxy a changé depuis l’aperçu. Analysez de nouveau.",
+                "nothing_to_import": "Aucun objet admissible ne reste à importer. Analysez de nouveau.",
+                "import_failed": "Import échoué ; la transaction a été annulée. Consultez le journal d’audit."
+            }
+        },
         "users": {
             "validation": {
                 "rolesRequired": "Sélectionnez au moins un rôle."
@@ -2166,7 +2247,8 @@
             "access_policies": "Politiques d’accès",
             "proxy-access-logs": "Journaux d’accès du proxy",
             "crowdsec": "CrowdSec",
-            "audit-logs": "Journal d’audit"
+            "audit-logs": "Journal d’audit",
+            "system": "Système"
         },
         "app": {
             "access": "Accès à l’application"
@@ -2230,6 +2312,9 @@
             "update": "Modifier la configuration CrowdSec"
         },
         "audit-logs:view": "Afficher le journal d’audit",
+        "system": {
+            "npm_import": "Importer depuis Nginx Proxy Manager"
+        },
         "trusted_cas": {
             "view": "Afficher les AC de confiance",
             "create": "Importer des AC de confiance",
