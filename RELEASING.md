@@ -11,6 +11,13 @@ Choose the intended commit and check its CI, security analysis, and Production S
 Follow the [contribution checks](CONTRIBUTING.md#testing-policy) and the applicable release-gate
 issue; the [Beta 1 gate](https://github.com/RentnerKev/RentnerProxy/issues/75) is still planned work.
 Review installation, upgrade, recovery, and known limitations for the chosen version.
+For Beta 1, run [Release Compatibility](.github/workflows/release-compatibility.yml) manually
+with `source=all` on the intended release ref before publication. Verify that fresh installation
+and all six published Alpha image upgrades pass, that the logged target SHA is the intended
+release commit, and that each source digest matches the pinned
+[matrix](scripts/release-compatibility/published-alphas.ts). Keep the run URL with the release
+evidence. The path-filtered pull request run checks fresh installation and Alpha 6; the weekly
+historical run does not replace this exact-commit release gate.
 
 The release workflow validates release identity and builds the tagged source. It does not itself
 run the complete CI suite or verify that every release-gate issue is closed. Checking readiness
@@ -60,7 +67,7 @@ and image tags on a rerun, so an exact version tag is not a cryptographic immuta
 Download from the project's [GitHub Releases](https://github.com/RentnerKev/RentnerProxy/releases)
 and GHCR repository. For deployment, retain the resolved image digest with the version and backup
 records; a digest identifies content but does not authenticate a release signer. Follow
-[README.md](README.md#upgrade) for upgrades and rollback rather than running an old image against
+[README.md](README.md#images-and-upgrades) for upgrades and rollback rather than running an old image against
 an upgraded database.
 
 The current workflow does not cryptographically sign release images or assets, require signed

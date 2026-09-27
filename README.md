@@ -93,10 +93,23 @@ docker compose up -d
 
 ## Images and upgrades
 
-- The Compose example pins `v1.0.0-alpha.6`. For upgrades, back up data, change the tag, then run `docker compose pull` and `docker compose up -d`.
-- Repository [backup](scripts/production-backup.ts) and [restore](scripts/production-restore.ts) tools require a checkout and Bun.
+- The Compose example pins `v1.0.0-alpha.6`. `v1.0.0-beta.1` has not been published. The current Beta 1 target is a build of the intended code, and its final release commit must pass the [full release compatibility matrix](https://github.com/RentnerKev/RentnerProxy/actions/workflows/release-compatibility.yml) before publication.
+- The tested direct source contract for that target is:
+
+| Published source image                           | Direct path to Beta 1 target             |
+| ------------------------------------------------ | ---------------------------------------- |
+| `ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.1` | Supported direct                         |
+| `ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.2` | Supported direct                         |
+| `ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.3` | Supported direct                         |
+| `ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.4` | Supported direct                         |
+| `ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.5` | Supported direct                         |
+| `ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6` | Supported direct; mandatory release gate |
+
+- No staged path is needed for these tested sources. Unlisted or moving images such as `:dev` are unsupported upgrade sources, as are downgrades. The [matrix](scripts/release-compatibility/published-alphas.ts) pins the published image digests.
+- Before upgrading, create and retain a pre-upgrade backup outside the appliance volume and record the exact source image tag and digest. Repository [backup](scripts/production-backup.ts) and [restore](scripts/production-restore.ts) tools require a checkout and Bun. Then change to the released target tag, run `docker compose pull`, and run `docker compose up -d`.
+- Never start an older image with a database already migrated by a newer image. Rollback means stopping the target, restoring the **pre-upgrade** backup into a fresh volume, and starting the previous **exact** image. Backup and restore hardening remains in [#71](https://github.com/RentnerKev/RentnerProxy/issues/71).
 - `:dev` is a moving **test image** built manually from `main` by the [Dev Image workflow](https://github.com/RentnerKev/RentnerProxy/actions/workflows/dev-image.yml); it is not a release.
-- CrowdSec and Forward Auth are **not** in the pinned Alpha 6 image. To test the current implementation, use `ghcr.io/rentnerkev/rentnerproxy:dev` after triggering that workflow.
+- CrowdSec, Forward Auth, and the NPM importer are **not** in the pinned Alpha 6 image. To test the current implementation, use `ghcr.io/rentnerkev/rentnerproxy:dev` after triggering that workflow.
 
 ## CrowdSec (development image)
 
