@@ -1,0 +1,227 @@
+import '@tanstack/react-start/server-only'
+
+import { desc, eq } from 'drizzle-orm'
+
+import { PERMISSIONS } from '../../../config/permissions.config'
+import { hostDomains, npmImportRuns } from '../../../db/schema'
+import { requirePermissionService } from '../../Auth/Access/authorization.service'
+import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
+import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
+import {
+    recordAuditEventBestEffort,
+    appendAuditEventInTransaction,
+} from '../../Audit/audit.service'
+import { reconcileProxyConfigurationWithAudit } from '../../ProxyRuntime/proxy-runtime.service'
+import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
+import { publishApplicationChange } from '../../../websockets/Helpers/publishFunctions'
+import type {
+    NpmImportPreview,
+    NpmImportResult,
+    NpmImportResultItem,
+} from '../../../features/Admin/NpmImport/Types/npm-import.types'
+import { createAccessPolicyInTransaction } from '../AccessPolicyManagement/access-policies.service'
+import { createProxyHostInTransaction } from '../ProxyHostManagement/proxy-hosts.mutations.server'
+import { createRedirectHostInTransaction } from '../RedirectHostManagement/redirect-hosts.service'
+import { buildNpmImportPlan, publicNpmPreview, type NpmImportPlan } from './npm-plan'
+import { readNpmSqliteSource } from './npm-source'
+
+export class NpmImportError extends Error {
+    constructor(readonly code: 'fingerprint_mismatch' | 'preview_changed') {
+        super(code)
+    }
+}
+
+async function existingDomainMap(transaction: AuthTransaction): Promise<Map<string, string>> {
+    const rows = await transaction
+        .select({
+            domain: hostDomains.domain,
+            proxyHostId: hostDomains.proxyHostId,
+            redirectHostId: hostDomains.redirectHostId,
+        })
+        .from(hostDomains)
+    return new Map(
+        rows.map((row) => [
+            row.domain,
+            row.proxyHostId
+                ? `proxy-host:${row.proxyHostId}`
+                : `redirect-host:${row.redirectHostId}`,
+        ]),
+    )
+}
+
+async function planInTransaction(
+    transaction: AuthTransaction,
+    path: string,
+    fingerprint: string,
+): Promise<NpmImportPlan> {
+    const source = readNpmSqliteSource(path)
+    return buildNpmImportPlan(source, fingerprint, await existingDomainMap(transaction))
+}
+
+export async function previewNpmImportService(
+    path: string,
+    fingerprint: string,
+): Promise<NpmImportPreview> {
+    await requirePermissionService(PERMISSIONS.NPM_IMPORT)
+    const plan = await getAuthDatabase().transaction(
+        (transaction) => planInTransaction(transaction, path, fingerprint),
+        { isolationLevel: 'repeatable read', accessMode: 'read only' },
+    )
+    return publicNpmPreview(plan)
+}
+
+export async function applyNpmImportService(
+    path: string,
+    fingerprint: string,
+    expectedFingerprint: string,
+    expectedPlanFingerprint: string,
+): Promise<NpmImportResult> {
+    const actor = await requirePermissionService(PERMISSIONS.NPM_IMPORT)
+    if (fingerprint !== expectedFingerprint || !/^[a-f0-9]{64}$/u.test(expectedFingerprint)) {
+        throw new NpmImportError('fingerprint_mismatch')
+    }
+    await recordAuditEventBestEffort({
+        actorUserId: actor.id,
+        actorKind: 'user',
+        action: 'started',
+        resource: 'npm-import',
+        targetId: null,
+        result: 'success',
+    })
+    let committed: Omit<NpmImportResult, 'runtimeStatus'>
+    try {
+        committed = await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
+            await requirePermissionInTransaction(transaction, actor.id, PERMISSIONS.NPM_IMPORT)
+            const plan = await planInTransaction(transaction, path, fingerprint)
+            if (publicNpmPreview(plan).planFingerprint !== expectedPlanFingerprint) {
+                throw new NpmImportError('preview_changed')
+            }
+            const importable = plan.items.filter(
+                (item) => item.status === 'ready' || item.status === 'partial',
+            )
+            const targets = new Map<string, string>()
+            const policies = new Map<number, string>()
+            for (const item of importable) {
+                if (!item.policyInput) continue
+                // oxlint-disable-next-line eslint/no-await-in-loop -- One transaction must serialize policy creation.
+                const created = await createAccessPolicyInTransaction(
+                    transaction,
+                    actor.id,
+                    item.policyInput,
+                )
+                policies.set(item.sourceId, created.id)
+                targets.set(`${item.kind}:${item.sourceId}`, created.id)
+            }
+            for (const item of importable) {
+                if (item.proxyInput) {
+                    const accessPolicyId = item.accessListId
+                        ? policies.get(item.accessListId)
+                        : null
+                    if (item.accessListId && !accessPolicyId) {
+                        throw new Error('NPM import plan lost a required access policy.')
+                    }
+                    // oxlint-disable-next-line eslint/no-await-in-loop -- Host writes share one transaction and lock.
+                    const created = await createProxyHostInTransaction(transaction, actor.id, {
+                        ...item.proxyInput,
+                        accessPolicyId,
+                    })
+                    targets.set(`${item.kind}:${item.sourceId}`, created.id)
+                } else if (item.redirectInput) {
+                    // oxlint-disable-next-line eslint/no-await-in-loop -- Host writes share one transaction and lock.
+                    const created = await createRedirectHostInTransaction(
+                        transaction,
+                        actor.id,
+                        item.redirectInput,
+                    )
+                    targets.set(`${item.kind}:${item.sourceId}`, created.id)
+                }
+            }
+            const items: NpmImportResultItem[] = plan.items.map((item) => {
+                const targetId = targets.get(`${item.kind}:${item.sourceId}`)
+                return {
+                    kind: item.kind,
+                    sourceId: item.sourceId,
+                    label: item.label,
+                    domains: item.domains,
+                    status: item.status,
+                    reasons: item.reasons,
+                    outcome: targetId ? 'imported' : 'skipped',
+                    ...(targetId ? { targetId } : {}),
+                }
+            })
+            const imported = items.filter((item) => item.outcome === 'imported').length
+            const skipped = items.length - imported
+            const rows = await transaction
+                .insert(npmImportRuns)
+                .values({
+                    actorUserId: actor.id,
+                    sourceFingerprint: fingerprint,
+                    sourceSchema: plan.sourceSchema,
+                    result: { items, imported, skipped },
+                })
+                .returning({ id: npmImportRuns.id })
+            const runId = rows.at(0)?.id
+            if (!runId) throw new Error('NPM import result could not be saved.')
+            await appendAuditEventInTransaction(transaction, {
+                actorUserId: actor.id,
+                actorKind: 'user',
+                action: 'import',
+                resource: 'npm-import',
+                targetId: runId,
+                result: 'success',
+                metadata: { count: imported },
+            })
+            return { runId, fingerprint, sourceSchema: plan.sourceSchema, items, imported, skipped }
+        })
+    } catch (error) {
+        await recordAuditEventBestEffort({
+            actorUserId: actor.id,
+            actorKind: 'user',
+            action: 'failed',
+            resource: 'npm-import',
+            targetId: null,
+            result: 'failure',
+            metadata: {
+                failureCode: error instanceof NpmImportError ? 'conflict' : 'service_unavailable',
+            },
+        })
+        throw error
+    }
+    const runtimeStatus =
+        committed.imported > 0
+            ? await reconcileProxyConfigurationWithAudit(actor.id).catch(() => 'pending' as const)
+            : ('applied' as const)
+    await getAuthDatabase()
+        .update(npmImportRuns)
+        .set({ runtimeStatus })
+        .where(eq(npmImportRuns.id, committed.runId))
+        .catch(() => undefined)
+    if (committed.imported > 0) publishApplicationChange()
+    return { ...committed, runtimeStatus }
+}
+
+export async function getNpmImportRunsService(): Promise<readonly NpmImportResult[]> {
+    await requirePermissionService(PERMISSIONS.NPM_IMPORT)
+    const rows = await getAuthDatabase()
+        .select()
+        .from(npmImportRuns)
+        .orderBy(desc(npmImportRuns.createdAt))
+        .limit(20)
+    return rows.map((row) => {
+        const result = row.result as {
+            items: NpmImportResultItem[]
+            imported: number
+            skipped: number
+        }
+        return {
+            runId: row.id,
+            fingerprint: row.sourceFingerprint,
+            sourceSchema: row.sourceSchema,
+            items: result.items,
+            imported: result.imported,
+            skipped: result.skipped,
+            runtimeStatus: row.runtimeStatus === 'applied' ? 'applied' : 'pending',
+        }
+    })
+}

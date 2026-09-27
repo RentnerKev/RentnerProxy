@@ -189,36 +189,11 @@ export async function createAccessPolicyService(
     input: CreateAccessPolicyInput,
 ): Promise<AccessPolicyMutationResult> {
     const actor = await requirePermissionService(PERMISSIONS.ACCESS_POLICIES_CREATE)
-    const parsed = parseCreate(input)
-    assertPolicyShape(parsed.mode, parsed.combination, parsed.forwardAuth)
     let row: AccessPolicyRow
     try {
-        row = await getAuthDatabase().transaction(async (transaction) => {
-            await lockProxyRuntimeSettings(transaction)
-            await requirePermissionInTransaction(
-                transaction,
-                actor.id,
-                PERMISSIONS.ACCESS_POLICIES_CREATE,
-            )
-            const existing = await transaction
-                .select({ id: accessPolicies.id })
-                .from(accessPolicies)
-            if (existing.length >= MAX_ACCESS_POLICIES) {
-                throw new AccessPolicyDomainError('invalid_input')
-            }
-            const rows = await transaction.insert(accessPolicies).values(parsed).returning()
-            const created = rows.at(0)
-            if (!created) throw new AccessPolicyDomainError('controller_unavailable')
-            await appendAuditEventInTransaction(transaction, {
-                actorUserId: actor.id,
-                actorKind: 'user',
-                action: 'create',
-                resource: 'access-policy',
-                targetId: created.id,
-                result: 'success',
-            })
-            return created
-        })
+        row = await getAuthDatabase().transaction((transaction) =>
+            createAccessPolicyInTransaction(transaction, actor.id, input),
+        )
     } catch (error) {
         await recordMutationFailureBestEffort({
             actorId: actor.id,
@@ -234,6 +209,33 @@ export async function createAccessPolicyService(
         accessPolicyId: row.id,
         runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id),
     }
+}
+
+export async function createAccessPolicyInTransaction(
+    transaction: AuthTransaction,
+    actorId: string,
+    input: CreateAccessPolicyInput,
+): Promise<AccessPolicyRow> {
+    const parsed = parseCreate(input)
+    assertPolicyShape(parsed.mode, parsed.combination, parsed.forwardAuth)
+    await lockProxyRuntimeSettings(transaction)
+    await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.ACCESS_POLICIES_CREATE)
+    const existing = await transaction.select({ id: accessPolicies.id }).from(accessPolicies)
+    if (existing.length >= MAX_ACCESS_POLICIES) {
+        throw new AccessPolicyDomainError('invalid_input')
+    }
+    const rows = await transaction.insert(accessPolicies).values(parsed).returning()
+    const created = rows.at(0)
+    if (!created) throw new AccessPolicyDomainError('controller_unavailable')
+    await appendAuditEventInTransaction(transaction, {
+        actorUserId: actorId,
+        actorKind: 'user',
+        action: 'create',
+        resource: 'access-policy',
+        targetId: created.id,
+        result: 'success',
+    })
+    return created
 }
 
 export async function updateAccessPolicyService(

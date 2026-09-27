@@ -93,6 +93,20 @@ const startCertificateJobsLifecycle = createServerOnlyFn(async () => {
 
 if (typeof window === 'undefined') void startCertificateJobsLifecycle()
 
+const startNpmImportTempCleanup = createServerOnlyFn(async () => {
+    const { pruneStaleNpmImports } = await import('./server/Admin/NpmImport/npm-temp')
+    await pruneStaleNpmImports().catch(() => undefined)
+    const timer = setInterval(
+        () => {
+            void pruneStaleNpmImports().catch(() => undefined)
+        },
+        60 * 60 * 1_000,
+    )
+    timer.unref()
+    process.once('rentnerproxy:shutdown', () => clearInterval(timer))
+})
+if (typeof window === 'undefined') void startNpmImportTempCleanup()
+
 const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => {
     const nonce = createCspNonce()
     const securityHeaders = getAdminUiSecurityHeaders(

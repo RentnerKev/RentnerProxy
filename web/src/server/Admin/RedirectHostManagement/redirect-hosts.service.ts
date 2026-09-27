@@ -208,56 +208,13 @@ export async function getRedirectHostsService(): Promise<Array<RedirectHostSumma
 export async function createRedirectHostService(
     input: CreateRedirectHostInput,
 ): Promise<RedirectHostMutationSummary> {
-    const parsedInput = parseCreateInput(input)
-    const domains = parsedInput.domains.toSorted()
     const actor = await requirePermissionService(PERMISSIONS.REDIRECT_HOSTS_CREATE)
 
     let saved: RedirectHostSummary
     try {
-        saved = await getAuthDatabase().transaction(async (transaction) => {
-            await lockProxyRuntimeSettings(transaction)
-            await requirePermissionInTransaction(
-                transaction,
-                actor.id,
-                PERMISSIONS.REDIRECT_HOSTS_CREATE,
-            )
-            await assertDomainsAvailableInTransaction(transaction, domains)
-            const certificateId = parsedInput.certificateId?.toLowerCase() ?? null
-            await validateCertificateAssignmentInTransaction(
-                transaction,
-                certificateId,
-                false,
-                domains,
-            )
-            const rows = await transaction
-                .insert(redirectHosts)
-                .values({
-                    destination: parsedInput.destination,
-                    statusCode: parsedInput.statusCode,
-                    preserveRequestUri: parsedInput.preserveRequestUri,
-                    enabled: parsedInput.enabled,
-                    certificateId,
-                })
-                .returning()
-            const redirectHost = rows.at(0)
-            if (!redirectHost)
-                throw new RedirectHostDomainError(
-                    'invalid_input',
-                    'Redirect host could not be created.',
-                )
-            await transaction
-                .insert(hostDomains)
-                .values(domains.map((domain) => ({ domain, redirectHostId: redirectHost.id })))
-            await appendAuditEventInTransaction(transaction, {
-                actorUserId: actor.id,
-                actorKind: 'user',
-                action: 'create',
-                resource: 'redirect-host',
-                targetId: redirectHost.id,
-                result: 'success',
-            })
-            return toRedirectHostSummary(redirectHost, domains)
-        })
+        saved = await getAuthDatabase().transaction((transaction) =>
+            createRedirectHostInTransaction(transaction, actor.id, input),
+        )
     } catch (error) {
         await recordMutationFailureBestEffort({
             actorId: actor.id,
@@ -271,6 +228,46 @@ export async function createRedirectHostService(
         throw error
     }
     return { ...saved, runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
+}
+
+export async function createRedirectHostInTransaction(
+    transaction: AuthTransaction,
+    actorId: string,
+    input: CreateRedirectHostInput,
+): Promise<RedirectHostSummary> {
+    const parsedInput = parseCreateInput(input)
+    const domains = parsedInput.domains.toSorted()
+    await lockProxyRuntimeSettings(transaction)
+    await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.REDIRECT_HOSTS_CREATE)
+    await assertDomainsAvailableInTransaction(transaction, domains)
+    const certificateId = parsedInput.certificateId?.toLowerCase() ?? null
+    await validateCertificateAssignmentInTransaction(transaction, certificateId, false, domains)
+    const rows = await transaction
+        .insert(redirectHosts)
+        .values({
+            destination: parsedInput.destination,
+            statusCode: parsedInput.statusCode,
+            preserveRequestUri: parsedInput.preserveRequestUri,
+            enabled: parsedInput.enabled,
+            certificateId,
+        })
+        .returning()
+    const redirectHost = rows.at(0)
+    if (!redirectHost) {
+        throw new RedirectHostDomainError('invalid_input', 'Redirect host could not be created.')
+    }
+    await transaction
+        .insert(hostDomains)
+        .values(domains.map((domain) => ({ domain, redirectHostId: redirectHost.id })))
+    await appendAuditEventInTransaction(transaction, {
+        actorUserId: actorId,
+        actorKind: 'user',
+        action: 'create',
+        resource: 'redirect-host',
+        targetId: redirectHost.id,
+        result: 'success',
+    })
+    return toRedirectHostSummary(redirectHost, domains)
 }
 
 export async function updateRedirectHostService(
