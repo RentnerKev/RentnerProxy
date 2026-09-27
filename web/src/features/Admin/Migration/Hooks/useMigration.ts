@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { toast } from '@rentnerkev/toasts/toast'
 
+import useTranslationStore from '../../../../language/useTranslationStore'
 import type { NpmImportPreview, NpmImportResult } from '../../NpmImport/Types/npm-import.types'
 
 export type MigrationSource = 'rentnerproxy' | 'npm' | 'zoraxy'
@@ -40,6 +42,7 @@ async function upload(
 }
 
 export function useMigration() {
+    const { t } = useTranslationStore()
     const [source, setSource] = useState<MigrationSource>('rentnerproxy')
     const [file, setFile] = useState<File | null>(null)
     const [preview, setPreview] = useState<NpmImportPreview | null>(null)
@@ -83,8 +86,14 @@ export function useMigration() {
             link.click()
             link.remove()
             setTimeout(() => URL.revokeObjectURL(href), 60_000)
+            toast.success(t('admin.migration.exportCompleted'), {
+                title: t('toast.titles.success'),
+            })
         } catch {
             setError('export_failed')
+            toast.error(t('admin.migration.errors.export_failed'), {
+                title: t('toast.titles.error'),
+            })
         } finally {
             setExporting(false)
         }
@@ -95,6 +104,9 @@ export function useMigration() {
         setError(null)
         if (file.size > (source === 'rentnerproxy' ? 4 * 1024 * 1024 : MAX_FILE_BYTES)) {
             setError('source_limit')
+            toast.error(t('admin.migration.errors.source_limit'), {
+                title: t('toast.titles.error'),
+            })
             return
         }
         setBusy(mode)
@@ -108,9 +120,24 @@ export function useMigration() {
                 setResult(next)
                 setPreview(null)
                 setHistory((current) => [next, ...current].slice(0, 20))
+                const summary = t('admin.npmImport.resultSummary', {
+                    imported: next.imported,
+                    skipped: next.skipped,
+                    failed: next.failed,
+                    runtime: t(`admin.npmImport.runtime.${next.runtimeStatus}`),
+                })
+                if (next.failed > 0) {
+                    toast.warning(summary, { title: t('toast.titles.warning') })
+                } else {
+                    toast.success(summary, { title: t('toast.titles.success') })
+                }
             }
         } catch (caught) {
-            setError(caught instanceof Error ? caught.message : 'import_failed')
+            const code = caught instanceof Error ? caught.message : 'import_failed'
+            setError(code)
+            toast.error(t(`admin.migration.errors.${code}`), {
+                title: t('toast.titles.error'),
+            })
             if (mode === 'apply') {
                 setPreview(null)
                 void loadHistory()

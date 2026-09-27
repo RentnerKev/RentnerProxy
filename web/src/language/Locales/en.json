@@ -447,6 +447,7 @@
             "exportTitle": "Export RentnerProxy",
             "exportHelp": "Portable JSON with proxy hosts, redirects, and policies without credentials. Certificates, private keys, users, passwords, and full backup data are excluded. Hosts needing TLS or CA data are imported disabled.",
             "exportButton": "Download configuration JSON",
+            "exportCompleted": "RentnerProxy configuration downloaded.",
             "importTitle": "Import configuration",
             "sourceLabel": "Source system",
             "fileLabel": "Choose export file",

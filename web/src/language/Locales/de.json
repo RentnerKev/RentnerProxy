@@ -447,6 +447,7 @@
             "exportTitle": "RentnerProxy exportieren",
             "exportHelp": "Portables JSON mit Proxy-Hosts, Weiterleitungen und Richtlinien ohne Zugangsdaten. Zertifikate, private Schlüssel, Benutzer, Passwörter und vollständige Sicherungsdaten sind nicht enthalten. Hosts mit fehlenden TLS- oder CA-Daten werden beim Import deaktiviert angelegt.",
             "exportButton": "Konfiguration als JSON herunterladen",
+            "exportCompleted": "RentnerProxy-Konfiguration wurde heruntergeladen.",
             "importTitle": "Konfiguration importieren",
             "sourceLabel": "Quellsystem",
             "fileLabel": "Exportdatei auswählen",

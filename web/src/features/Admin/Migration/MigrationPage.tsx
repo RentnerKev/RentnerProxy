@@ -1,3 +1,8 @@
+import { FileInput } from '@rentnerkev/inputs'
+import { CustomSelect } from '@rentnerkev/select/select'
+import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
+
+import { TOOLTIP_DEFAULT_PROPS } from '../../../config/tooltip.config'
 import useTranslationStore from '../../../language/useTranslationStore'
 import PageHeader from '../../../shared/Management/PageHeader'
 import { uiClassNames } from '../../../shared/Styles/uiClassNames'
@@ -73,14 +78,21 @@ export default function MigrationPage() {
                     {t('admin.migration.exportTitle')}
                 </h2>
                 <p className="mt-2 text-sm text-ink-soft">{t('admin.migration.exportHelp')}</p>
-                <button
-                    type="button"
-                    className={`${uiClassNames.button.secondary} mt-5`}
-                    disabled={exporting}
-                    onClick={() => void downloadExport()}
-                >
-                    {exporting ? t('common.working') : t('admin.migration.exportButton')}
-                </button>
+                <div className="mt-5">
+                    <CustomTooltip
+                        {...TOOLTIP_DEFAULT_PROPS}
+                        content={t('admin.migration.exportHelp')}
+                    >
+                        <button
+                            type="button"
+                            className={uiClassNames.button.secondary}
+                            disabled={exporting}
+                            onClick={() => void downloadExport()}
+                        >
+                            {exporting ? t('common.working') : t('admin.migration.exportButton')}
+                        </button>
+                    </CustomTooltip>
+                </div>
                 {error === 'export_failed' ? (
                     <p role="alert" className="mt-4 text-sm text-danger-text">
                         {t('admin.migration.errors.export_failed')}
@@ -94,30 +106,38 @@ export default function MigrationPage() {
                 <h2 id="migration-source-title" className="text-lg font-extrabold text-ink">
                     {t('admin.migration.importTitle')}
                 </h2>
-                <label className="mt-5 grid gap-2 text-sm font-bold text-ink-soft">
-                    {t('admin.migration.sourceLabel')}
-                    <select
-                        className={uiClassNames.form.control}
+                <div className="mt-5 grid gap-2">
+                    <label className={uiClassNames.form.label} htmlFor="migration-source">
+                        {t('admin.migration.sourceLabel')}
+                    </label>
+                    <CustomSelect<MigrationSource>
+                        id="migration-source"
+                        aria-label={t('admin.migration.sourceLabel')}
+                        aria-describedby="migration-source-help"
                         value={source}
                         disabled={busy !== null}
-                        onChange={(event) =>
-                            selectSource(event.currentTarget.value as MigrationSource)
-                        }
-                    >
-                        <option value="rentnerproxy">
-                            {t('admin.migration.source.rentnerproxy')}
-                        </option>
-                        <option value="npm">{t('admin.migration.source.npm')}</option>
-                        <option value="zoraxy">{t('admin.migration.source.zoraxy')}</option>
-                    </select>
-                </label>
-                <p className="mt-3 text-sm text-ink-soft">
+                        onValueChange={selectSource}
+                        options={[
+                            {
+                                value: 'rentnerproxy',
+                                label: t('admin.migration.source.rentnerproxy'),
+                            },
+                            { value: 'npm', label: t('admin.migration.source.npm') },
+                            { value: 'zoraxy', label: t('admin.migration.source.zoraxy') },
+                        ]}
+                    />
+                </div>
+                <p id="migration-source-help" className="mt-3 text-sm text-ink-soft">
                     {t(`admin.migration.sourceHelp.${source}`)}
                 </p>
-                <label className="mt-5 grid gap-2 text-sm font-bold text-ink-soft">
-                    {t('admin.migration.fileLabel')}
-                    <input
+                <div className="mt-5 grid gap-2">
+                    <label className={uiClassNames.form.label} htmlFor="migration-file">
+                        {t('admin.migration.fileLabel')}
+                    </label>
+                    <FileInput
                         key={source}
+                        id="migration-file"
+                        aria-describedby="migration-source-help"
                         type="file"
                         accept={
                             source === 'npm'
@@ -126,13 +146,12 @@ export default function MigrationPage() {
                                   ? '.zip,application/zip'
                                   : '.json,application/json'
                         }
-                        className={uiClassNames.form.control}
                         disabled={busy !== null}
                         onChange={(event) => {
                             selectFile(event.currentTarget.files?.[0] ?? null)
                         }}
                     />
-                </label>
+                </div>
                 <div className="mt-5 flex flex-wrap gap-3">
                     <button
                         type="button"
