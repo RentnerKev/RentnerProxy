@@ -503,6 +503,7 @@
                 "invalid_ip_rules": "IP rules are invalid or exceed RentnerProxy limits",
                 "source_duplicate_domain": "Domain appears more than once in this NPM source",
                 "import_rolled_back": "Import failed; all planned changes were rolled back",
+                "preview_changed": "Preview is outdated; analyze again before importing",
                 "existing_domain": "Domain is already managed by RentnerProxy",
                 "unreferenced_access_list": "No importable host uses this access list",
                 "certificate_material_unavailable": "SQLite has metadata only; migrate certificate and private key manually",

@@ -503,6 +503,7 @@
                 "invalid_ip_rules": "IP-Regeln sind ungültig oder überschreiten Limits",
                 "source_duplicate_domain": "Domain kommt in der NPM-Quelle mehrfach vor",
                 "import_rolled_back": "Import fehlgeschlagen; alle geplanten Änderungen wurden zurückgerollt",
+                "preview_changed": "Vorschau ist veraltet; vor dem Import erneut prüfen",
                 "existing_domain": "Domain wird bereits von RentnerProxy verwaltet",
                 "unreferenced_access_list": "Kein importierbarer Host nutzt diese Zugriffsliste",
                 "certificate_material_unavailable": "SQLite enthält nur Metadaten; Zertifikat und privaten Schlüssel manuell migrieren",

@@ -89,7 +89,10 @@ export async function applyNpmImportService(
         result: 'success',
     })
     let committed: Omit<NpmImportResult, 'runtimeStatus'>
-    const attempt: { plan: NpmImportPlan | null } = { plan: null }
+    const attempt: { plan: NpmImportPlan | null; confirmed: boolean } = {
+        plan: null,
+        confirmed: false,
+    }
     try {
         committed = await getAuthDatabase().transaction(async (transaction) => {
             await lockProxyRuntimeSettings(transaction)
@@ -99,6 +102,7 @@ export async function applyNpmImportService(
             if (publicNpmPreview(plan).planFingerprint !== expectedPlanFingerprint) {
                 throw new NpmImportError('preview_changed')
             }
+            attempt.confirmed = true
             const importable = plan.items.filter(
                 (item) => item.status === 'ready' || item.status === 'partial',
             )
@@ -188,14 +192,17 @@ export async function applyNpmImportService(
     } catch (error) {
         const failureCode = error instanceof NpmImportError ? 'conflict' : 'service_unavailable'
         const items: NpmImportResultItem[] = (attempt.plan?.items ?? []).map((item) => {
-            const failed = item.status === 'ready' || item.status === 'partial'
+            const importable = item.status === 'ready' || item.status === 'partial'
+            const failed = attempt.confirmed && importable
             return {
                 kind: item.kind,
                 sourceId: item.sourceId,
                 label: item.label,
                 domains: item.domains,
                 status: item.status,
-                reasons: failed ? [...item.reasons, 'import_rolled_back'] : item.reasons,
+                reasons: importable
+                    ? [...item.reasons, failed ? 'import_rolled_back' : 'preview_changed']
+                    : item.reasons,
                 outcome: failed ? 'failed' : 'skipped',
             }
         })

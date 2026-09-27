@@ -361,5 +361,18 @@ describe('NPM import with PostgreSQL', () => {
                 .from(hostDomains)
                 .where(eq(hostDomains.domain, fixture.redirectDomain)),
         ).toHaveLength(0)
+        const failedRuns = await getAuthDatabase()
+            .select()
+            .from(npmImportRuns)
+            .where(eq(npmImportRuns.actorUserId, owner))
+        expect(failedRuns).toHaveLength(1)
+        expect(failedRuns[0]?.result).toMatchObject({
+            status: 'failed',
+            imported: 0,
+            skipped: 2,
+            failed: 0,
+        })
+        expect(failedRuns[0]?.result).toHaveProperty('items')
+        expect(JSON.stringify(failedRuns[0]?.result)).toContain('preview_changed')
     })
 })
