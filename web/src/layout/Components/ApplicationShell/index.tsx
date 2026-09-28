@@ -28,7 +28,7 @@ export default function AuthenticatedShell({
 
     return (
         <div
-            className={`grid min-h-screen min-w-0 bg-canvas text-ink transition-[grid-template-columns,background-color,color] duration-[180ms] motion-reduce:transition-none ${
+            className={`grid min-h-screen min-w-0 bg-canvas text-ink transition-[grid-template-columns,background-color,color] duration-180 motion-reduce:transition-none ${
                 navigation.state.isNavigationExpanded
                     ? 'shell:grid-cols-[19rem_minmax(0,1fr)]'
                     : 'shell:grid-cols-[0_minmax(0,1fr)]'
@@ -38,7 +38,7 @@ export default function AuthenticatedShell({
             <aside
                 ref={sidebarRef}
                 id="application-navigation"
-                className={`relative z-30 isolate hidden min-w-0 flex-col overflow-hidden text-white opacity-100 transition-opacity duration-[180ms] motion-reduce:transition-none shell:fixed shell:inset-y-0 shell:left-0 shell:w-[19rem] shell:box-border ${
+                className={`relative z-30 isolate hidden min-w-0 flex-col overflow-hidden text-white opacity-100 transition-opacity duration-180 motion-reduce:transition-none shell:fixed shell:inset-y-0 shell:left-0 shell:w-76 shell:box-border ${
                     navigation.state.isNavigationExpanded
                         ? 'shell:flex'
                         : 'shell:pointer-events-none shell:flex shell:opacity-0'
@@ -47,10 +47,10 @@ export default function AuthenticatedShell({
                 inert={!navigation.state.isNavigationExpanded}
             >
                 <ApplicationSidebarSurface />
-                <div className="relative z-20 flex h-full min-h-0 flex-1 flex-col gap-6 overflow-hidden pt-7 pr-[2.75rem] pb-1 pl-[1.35rem] shell:[-webkit-mask-image:linear-gradient(#fff,#fff),url('/application-sidebar-surface-desktop.svg')] shell:[-webkit-mask-position:left,right] shell:[-webkit-mask-repeat:no-repeat,no-repeat] shell:[-webkit-mask-size:calc(100%_-_5rem)_100%,5rem_100%] shell:[mask-image:linear-gradient(#fff,#fff),url('/application-sidebar-surface-desktop.svg')] shell:[mask-position:left,right] shell:[mask-repeat:no-repeat,no-repeat] shell:[mask-size:calc(100%_-_5rem)_100%,5rem_100%]">
+                <div className="relative z-20 flex h-full min-h-0 flex-1 flex-col gap-6 overflow-hidden pt-7 pr-11 pb-1 pl-[1.35rem] shell:[-webkit-mask-image:linear-gradient(#fff,#fff),url('/application-sidebar-surface-desktop.svg')] shell:[-webkit-mask-position:left,right] shell:[-webkit-mask-repeat:no-repeat,no-repeat] shell:[-webkit-mask-size:calc(100%-5rem)_100%,5rem_100%] shell:mask-[linear-gradient(#fff,#fff),url('/application-sidebar-surface-desktop.svg')] shell:mask-position-[left,right] shell:[mask-repeat:no-repeat,no-repeat] shell:mask-size-[calc(100%-5rem)_100%,5rem_100%]">
                     <Link
                         to="/"
-                        className="block w-fit max-w-[14rem] shrink-0 cursor-pointer rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400"
+                        className="block w-fit max-w-56 shrink-0 cursor-pointer rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400"
                         aria-label={t('shell.overviewLink')}
                     >
                         <img
@@ -62,7 +62,7 @@ export default function AuthenticatedShell({
                         />
                     </Link>
                     <div
-                        className="mr-5 h-px shrink-0 bg-gradient-to-r from-brand-500 via-brand-500/65 to-transparent"
+                        className="mr-5 h-px shrink-0 bg-linear-to-r from-brand-500 via-brand-500/65 to-transparent"
                         aria-hidden="true"
                     />
                     <div
@@ -128,7 +128,7 @@ export default function AuthenticatedShell({
                         ) : null}
                     </div>
                 </div>
-                <main className="mx-auto box-border w-full max-w-[90rem] px-[clamp(1.25rem,4vw,3.5rem)] py-[clamp(1.25rem,4vw,3.5rem)]">
+                <main className="mx-auto box-border w-full max-w-360 px-[clamp(1.25rem,4vw,3.5rem)] py-[clamp(1.25rem,4vw,3.5rem)]">
                     {children}
                 </main>
             </div>

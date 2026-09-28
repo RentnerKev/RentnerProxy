@@ -47,7 +47,7 @@ export function RedirectHostDestinationCell({
     const { t } = useTranslationStore()
     return (
         <div className="grid justify-items-start gap-2">
-            <span className="max-w-[28rem] truncate font-mono text-[0.72rem] text-muted">
+            <span className="max-w-112 truncate font-mono text-[0.72rem] text-muted">
                 {destination}
             </span>
             <span className="text-xs text-muted">

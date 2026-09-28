@@ -17,7 +17,7 @@ export default function ContentState({
                 aria-hidden="true"
             />
             <h2 className="mt-[0.65rem] text-[1.15rem] text-ink-soft">{title}</h2>
-            <p className="m-0 max-w-[30rem] leading-[1.55] text-muted">{description}</p>
+            <p className="m-0 max-w-120 leading-[1.55] text-muted">{description}</p>
             {action ? <div>{action}</div> : null}
         </div>
     )

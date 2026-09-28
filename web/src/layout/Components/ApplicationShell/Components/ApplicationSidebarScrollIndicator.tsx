@@ -36,7 +36,7 @@ export default function ApplicationSidebarScrollIndicator({
             className={`group absolute top-0 left-0 z-30 hidden w-[1.625rem] cursor-pointer touch-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-300 shell:block motion-reduce:transition-none ${
                 isDragging
                     ? 'cursor-grabbing transition-none'
-                    : 'transition-transform duration-[360ms] ease-[cubic-bezier(0.18,0.7,0.22,1)]'
+                    : 'transition-transform duration-360 ease-[cubic-bezier(0.18,0.7,0.22,1)]'
             }`}
             style={{
                 height: position.height,

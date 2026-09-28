@@ -15,7 +15,7 @@ export default function CompactFoundationStatus({ services }: FoundationStatusVi
                 <h2 className="mt-[0.6rem] text-[clamp(1.3rem,3vw,1.8rem)] tracking-[-0.025em] text-ink-soft">
                     {t('foundation.summary')}
                 </h2>
-                <p className="mt-[0.65rem] max-w-[40rem] leading-[1.55] text-muted">
+                <p className="mt-[0.65rem] max-w-160 leading-[1.55] text-muted">
                     {t('foundation.refreshDescription')}
                 </p>
             </div>

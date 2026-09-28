@@ -58,7 +58,7 @@ export default function SystemStatePage({
                         alt=""
                         width={960}
                         height={960}
-                        className="relative h-auto w-full max-w-[30rem] object-contain"
+                        className="relative h-auto w-full max-w-120 object-contain"
                     />
                 </div>
             </section>

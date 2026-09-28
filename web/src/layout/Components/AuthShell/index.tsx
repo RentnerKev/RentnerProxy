@@ -27,11 +27,11 @@ export default function AuthShell({
                     height={640}
                     className="h-auto w-[min(15rem,58vw)] self-center object-contain drop-shadow-[0_18px_30px_rgb(0_0_0_/_32%)] sm:w-72 shell:w-[clamp(16rem,22vw,20rem)] shell:self-start"
                 />
-                <div className="max-w-[34rem] py-10 pb-6">
+                <div className="max-w-136 py-10 pb-6">
                     <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-400 uppercase">
                         Secure control plane
                     </p>
-                    <p className="mt-3 mb-0 max-w-[30rem] font-display text-[clamp(2rem,5vw,4rem)] leading-[0.96] tracking-[-0.045em] text-white">
+                    <p className="mt-3 mb-0 max-w-120 font-display text-[clamp(2rem,5vw,4rem)] leading-[0.96] tracking-[-0.045em] text-white">
                         Your infrastructure stays yours. Access starts here.
                     </p>
                 </div>
