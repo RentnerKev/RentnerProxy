@@ -18,7 +18,7 @@ export default function ApplicationVersion() {
     const updateLabel = t('shell.updateAvailable', { version: data?.latestVersion })
 
     return (
-        <div className="-mt-4 -ml-3 flex min-h-4 shrink-0 items-center justify-start gap-1.5 text-[0.65rem] leading-4 shell:-mt-5 shell:-ml-4 text-mist-400">
+        <div className="flex min-h-4 shrink-0 items-center justify-start gap-1.5 text-[0.65rem] leading-4 text-mist-400 shell:-mt-5 shell:-ml-4">
             <span
                 aria-label={t('shell.systemVersion', { version: displayVersion })}
                 className="font-mono tabular-nums"

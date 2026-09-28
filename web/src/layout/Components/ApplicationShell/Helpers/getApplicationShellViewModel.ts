@@ -25,29 +25,29 @@ export default function getApplicationShellViewModel(
         ...(permissionSet.has(PERMISSIONS.ACCESS_POLICIES_VIEW)
             ? ([{ to: '/access-policies', label: t('shell.accessPolicies') }] as const)
             : []),
-        ...(permissionSet.has(PERMISSIONS.PROXY_ACCESS_LOGS_VIEW)
-            ? ([{ to: '/proxy-access-logs', label: t('shell.proxyAccessLogs') }] as const)
-            : []),
         ...(permissionSet.has(PERMISSIONS.CROWDSEC_VIEW)
             ? ([
                   { to: '/security', label: t('shell.security') },
                   { to: '/crowdsec', label: t('shell.crowdSec') },
               ] as const)
             : []),
-        ...(permissionSet.has(PERMISSIONS.AUDIT_LOGS_VIEW)
-            ? ([{ to: '/audit-logs', label: t('shell.auditLogs') }] as const)
-            : []),
-        ...(permissionSet.has(PERMISSIONS.MIGRATION)
-            ? ([{ to: '/migration', label: t('shell.migration') }] as const)
-            : permissionSet.has(PERMISSIONS.NPM_IMPORT)
-              ? ([{ to: '/npm-import', label: t('shell.npmImport') }] as const)
-              : []),
         ...(permissionSet.has(PERMISSIONS.USERS_VIEW)
             ? ([{ to: '/users', label: t('shell.users') }] as const)
             : []),
         ...(permissionSet.has(PERMISSIONS.ROLES_VIEW)
             ? ([{ to: '/roles', label: t('shell.roles') }] as const)
             : []),
+        ...(permissionSet.has(PERMISSIONS.AUDIT_LOGS_VIEW)
+            ? ([{ to: '/audit-logs', label: t('shell.auditLogs') }] as const)
+            : []),
+        ...(permissionSet.has(PERMISSIONS.PROXY_ACCESS_LOGS_VIEW)
+            ? ([{ to: '/proxy-access-logs', label: t('shell.proxyAccessLogs') }] as const)
+            : []),
+        ...(permissionSet.has(PERMISSIONS.MIGRATION)
+            ? ([{ to: '/migration', label: t('shell.migration') }] as const)
+            : permissionSet.has(PERMISSIONS.NPM_IMPORT)
+              ? ([{ to: '/npm-import', label: t('shell.npmImport') }] as const)
+              : []),
     ]
 
     return {

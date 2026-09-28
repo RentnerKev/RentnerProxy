@@ -48,18 +48,23 @@ export interface ApplicationNavigationItem {
 
 export interface ApplicationNavigationProps {
     readonly items: readonly ApplicationNavigationItem[]
+    readonly onNavigate?: () => void
 }
 
 export interface ApplicationUserPanelProps {
     readonly canViewAccount: boolean
     readonly isLoggingOut: boolean
     readonly onLogout: () => void
+    readonly onNavigate?: () => void
     readonly user: ApplicationUserSummary
 }
 
 export interface ApplicationTopbarProps {
+    readonly isMobileNavigationOpen: boolean
     readonly isNavigationExpanded: boolean
+    readonly mobileNavigationToggleLabel: string
     readonly navigationToggleLabel: string
+    readonly onToggleMobileNavigation: () => void
     readonly onToggleNavigation: () => void
     readonly themeControl: ReactNode
 }
