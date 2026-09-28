@@ -39,10 +39,10 @@ export default function ApplicationNavigation({ items, onNavigate }: Application
                             aria-controls={panelId}
                             aria-expanded={isExpanded}
                             onClick={() => toggleGroup(group.id)}
-                            className={`group flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-r-lg border-l-2 px-3 py-2 text-left font-mono text-[0.67rem] font-bold tracking-[0.09em] uppercase transition-[background-color,border-color,color] duration-180 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-300 motion-reduce:transition-none ${
+                            className={`group flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 border-y border-transparent px-3.5 py-2 text-left font-mono text-[0.67rem] font-bold tracking-[0.09em] uppercase transition-[background-color,border-color,color] duration-180 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-300 shell:-ml-[1.35rem] shell:w-[calc(100%+4.125rem)] shell:pr-14 shell:pl-[2.2rem] motion-reduce:transition-none ${
                                 isActive
-                                    ? 'border-brand-400 bg-brand-500/[0.09] text-brand-300'
-                                    : 'border-white/15 bg-white/[0.025] text-mist-300 hover:border-brand-500/60 hover:bg-white/[0.055] hover:text-white'
+                                    ? 'border-brand-500/20 bg-brand-500/12 text-brand-300'
+                                    : 'bg-white/[0.025] text-mist-300 hover:border-white/10 hover:bg-white/[0.055] hover:text-white'
                             }`}
                         >
                             <span className="flex min-w-0 items-center gap-2.5">
