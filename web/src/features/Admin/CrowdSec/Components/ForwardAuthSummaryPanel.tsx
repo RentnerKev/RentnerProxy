@@ -1,5 +1,4 @@
 import useTranslationStore from '../../../../language/useTranslationStore'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import useForwardAuthSummary from '../Hooks/useForwardAuthSummary'
 
 export default function ForwardAuthSummaryPanel() {
@@ -9,12 +8,12 @@ export default function ForwardAuthSummaryPanel() {
 
     return (
         <section
-            className={`${uiClassNames.management.card} mb-4`}
+            className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface mb-4"
             aria-live="polite"
             aria-label={t('admin.crowdSec.dashboard.forwardAuthTitle')}
         >
             <div>
-                <p className={uiClassNames.themedTechnicalLabel}>
+                <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
                     {t('admin.crowdSec.dashboard.forwardAuthEyebrow')}
                 </p>
                 <h2 className="mt-2 text-xl font-extrabold text-ink">

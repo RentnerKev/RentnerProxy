@@ -2,7 +2,6 @@ import { CheckboxInput, TextInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { normalizeForwardHost } from '../Helpers/proxyHostValidation'
 import type { ProxyHostFormFieldsProps } from '../Types/proxy-host-form.types'
 
@@ -43,7 +42,7 @@ export default function UpstreamTlsFields({
                 return (
                     <fieldset
                         className={
-                            uiClassNames.form.wide +
+                            'shell:col-span-full' +
                             ' m-0 grid min-w-0 gap-4 rounded-2xl border border-border bg-surface-subtle p-4'
                         }
                     >
@@ -53,7 +52,7 @@ export default function UpstreamTlsFields({
                         <form.Field name="verifyUpstreamTls">
                             {(field) => (
                                 <label
-                                    className={uiClassNames.permission.option}
+                                    className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
                                     htmlFor={formId + '-verifyUpstreamTls'}
                                     aria-label={t('admin.proxyHosts.upstreamTls.verify')}
                                 >
@@ -70,11 +69,11 @@ export default function UpstreamTlsFields({
                                                 form.setFieldValue('trustedCaId', null)
                                         }}
                                     />
-                                    <span className={uiClassNames.permission.copy}>
-                                        <span className={uiClassNames.permission.title}>
+                                    <span className="grid gap-[0.12rem]">
+                                        <span className="text-[0.78rem] text-ink-soft">
                                             {t('admin.proxyHosts.upstreamTls.verify')}
                                         </span>
-                                        <span className={uiClassNames.form.hint}>
+                                        <span className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                             {t('admin.proxyHosts.upstreamTls.verifyHint')}
                                         </span>
                                     </span>
@@ -91,9 +90,9 @@ export default function UpstreamTlsFields({
                         ) : null}
                         <form.Field name="upstreamTlsServerName">
                             {(field) => (
-                                <div className={uiClassNames.form.field}>
+                                <div className="grid gap-[0.45rem]">
                                     <label
-                                        className={uiClassNames.form.label}
+                                        className="text-[0.82rem] font-[750] text-ink-soft"
                                         htmlFor={formId + '-upstreamTlsServerName'}
                                     >
                                         {t('admin.proxyHosts.upstreamTls.serverName')}
@@ -132,7 +131,7 @@ export default function UpstreamTlsFields({
                                     />
                                     <p
                                         id={formId + '-upstreamTlsServerName-hint'}
-                                        className={uiClassNames.form.hint}
+                                        className="m-0 text-[0.76rem] leading-[1.45] text-muted"
                                     >
                                         {t(
                                             isIp
@@ -161,9 +160,9 @@ export default function UpstreamTlsFields({
                                             (ca) => ca.id === field.state.value,
                                         )
                                     return (
-                                        <div className={uiClassNames.form.field}>
+                                        <div className="grid gap-[0.45rem]">
                                             <label
-                                                className={uiClassNames.form.label}
+                                                className="text-[0.82rem] font-[750] text-ink-soft"
                                                 htmlFor={formId + '-trustedCaId'}
                                             >
                                                 {t('admin.proxyHosts.upstreamTls.trustedCa')}
@@ -220,7 +219,7 @@ export default function UpstreamTlsFields({
                                             />
                                             <p
                                                 id={formId + '-trustedCaId-hint'}
-                                                className={uiClassNames.form.hint}
+                                                className="m-0 text-[0.76rem] leading-[1.45] text-muted"
                                             >
                                                 {t('admin.proxyHosts.upstreamTls.trustHint')}
                                             </p>

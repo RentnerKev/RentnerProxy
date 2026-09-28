@@ -2,7 +2,6 @@ import { TextInput, Textarea } from '@rentnerkev/inputs'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
 import { Modal } from '../../../../shared/Modal'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import useTrustedCaImportLogic from '../Hooks/useTrustedCaImportLogic'
 import type { TrustedCaImportModalProps } from '../Types/trusted-ca-management.types'
 
@@ -28,7 +27,7 @@ export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
                 <>
                     <button
                         type="button"
-                        className={uiClassNames.button.secondary}
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                         disabled={isPending}
                         onClick={() => props.onOpenChange(false)}
                     >
@@ -41,7 +40,7 @@ export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
                             <button
                                 type="submit"
                                 form={formId}
-                                className={uiClassNames.button.primary}
+                                className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
                                 disabled={!canSubmit || isSubmitting || isPending}
                             >
                                 {t(
@@ -69,8 +68,11 @@ export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
             >
                 <form.Field name="name">
                     {(field) => (
-                        <div className={uiClassNames.form.field}>
-                            <label className={uiClassNames.form.label} htmlFor={formId + '-name'}>
+                        <div className="grid gap-[0.45rem]">
+                            <label
+                                className="text-[0.82rem] font-[750] text-ink-soft"
+                                htmlFor={formId + '-name'}
+                            >
                                 {t('admin.trustedCas.form.name')}
                             </label>
                             <TextInput
@@ -93,15 +95,19 @@ export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
                 </form.Field>
                 <form.Field name="pem">
                     {(field) => (
-                        <div className={uiClassNames.form.field}>
-                            <label className={uiClassNames.form.label} htmlFor={formId + '-pem'}>
+                        <div className="grid gap-[0.45rem]">
+                            <label
+                                className="text-[0.82rem] font-[750] text-ink-soft"
+                                htmlFor={formId + '-pem'}
+                            >
                                 {t('admin.trustedCas.form.pem')}
                             </label>
                             <Textarea
                                 id={formId + '-pem'}
                                 name={field.name}
                                 className={
-                                    uiClassNames.form.textarea + ' min-h-52 font-mono text-xs'
+                                    'box-border w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink transition-[border-color,box-shadow] duration-150 placeholder:text-muted-soft aria-invalid:border-red-500 disabled:cursor-not-allowed disabled:opacity-[0.55] focus:border-brand-600 focus:outline-hidden focus:ring-[3px] focus:ring-brand-500/20 motion-reduce:transition-none min-h-26 resize-y py-3' +
+                                    ' min-h-52 font-mono text-xs'
                                 }
                                 value={field.state.value}
                                 maxLength={256 * 1024}
@@ -114,7 +120,10 @@ export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
                                 aria-invalid={field.state.meta.errors.length > 0}
                                 aria-describedby={formId + '-pem-hint ' + formId + '-pem-error'}
                             />
-                            <p id={formId + '-pem-hint'} className={uiClassNames.form.hint}>
+                            <p
+                                id={formId + '-pem-hint'}
+                                className="m-0 text-[0.76rem] leading-[1.45] text-muted"
+                            >
                                 {t('admin.trustedCas.form.pemHint')}
                             </p>
                             <FieldError

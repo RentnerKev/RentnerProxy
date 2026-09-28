@@ -3,7 +3,6 @@ import { Link } from '@tanstack/react-router'
 import type { ChangeEvent } from 'react'
 
 import FieldError from '../../../../shared/Forms/FieldError'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { TwoFactorLoginFormProps } from '../Types/login-component-props.types'
 
 export default function TwoFactorLoginForm({
@@ -14,7 +13,7 @@ export default function TwoFactorLoginForm({
 }: TwoFactorLoginFormProps) {
     return (
         <form
-            className={uiClassNames.form.stack}
+            className="mt-7 grid gap-[1.1rem]"
             noValidate
             onSubmit={(event) => {
                 event.preventDefault()
@@ -31,8 +30,11 @@ export default function TwoFactorLoginForm({
                         }}
                     >
                         {(field) => (
-                            <div className={uiClassNames.form.field}>
-                                <label className={uiClassNames.form.label} htmlFor={field.name}>
+                            <div className="grid gap-[0.45rem]">
+                                <label
+                                    className="text-[0.82rem] font-[750] text-ink-soft"
+                                    htmlFor={field.name}
+                                >
                                     {mode === 'totp' ? 'Authenticator code' : 'Recovery code'}
                                 </label>
                                 <TextInput
@@ -68,7 +70,7 @@ export default function TwoFactorLoginForm({
                     <>
                         <button
                             type="submit"
-                            className={uiClassNames.button.primary}
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
                             disabled={!canSubmit || isSubmitting || state.isPending}
                         >
                             {isSubmitting || state.isPending ? 'Verifying…' : 'Verify'}
@@ -76,7 +78,7 @@ export default function TwoFactorLoginForm({
                         {mode === 'recovery' || state.methods.includes('recovery') ? (
                             <button
                                 type="button"
-                                className={uiClassNames.button.quiet}
+                                className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                                 disabled={isSubmitting || state.isPending}
                                 onClick={onToggleMode}
                             >

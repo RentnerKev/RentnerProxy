@@ -1,4 +1,3 @@
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { useDateFormatter } from '../../../../language/useTranslationStore'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import { formatRoleCreatedAt } from '../Helpers/roleTableCells'
@@ -20,7 +19,7 @@ export function RoleNameCell({ name, roleKey, isSystem }: RoleNameCellProps) {
             <span className="block max-w-64 wrap-anywhere font-extrabold text-ink-soft">
                 {isSystem ? t(`systemRoles.${roleKey}.name`) : name}
             </span>
-            <code className={`${uiClassNames.table.code} block w-fit max-w-64 wrap-anywhere`}>
+            <code className="rounded-[0.3rem] bg-code px-[0.35rem] py-[0.18rem] text-[0.7rem] text-ink-soft block w-fit max-w-64 wrap-anywhere">
                 {roleKey}
             </code>
         </div>

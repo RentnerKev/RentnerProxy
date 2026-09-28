@@ -4,7 +4,6 @@ import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
 import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { MAX_REDIRECT_HOST_DOMAINS } from '../../../../config/redirect-hosts.config'
 import { certificateCoversDomains } from '../../CertificateManagement/Helpers/certificateValidation'
 import { redirectDestinationSchema, redirectDomainSchema } from '../validation'
@@ -28,9 +27,7 @@ export default function RedirectHostFormFields({
         <>
             <form.Field name="domains" mode="array">
                 {(domainsField) => (
-                    <fieldset
-                        className={`${uiClassNames.permission.fieldset} ${uiClassNames.form.wide}`}
-                    >
+                    <fieldset className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft shell:col-span-full">
                         <legend>{t('admin.redirectHosts.form.domains')}</legend>
                         <div className="grid gap-3">
                             {domainsField.state.value.map((_domain, index) => (
@@ -46,7 +43,7 @@ export default function RedirectHostFormFields({
                                         const inputId = `${formId}-domain-${index}`
                                         const errorId = `${inputId}-error`
                                         return (
-                                            <div className={uiClassNames.form.field}>
+                                            <div className="grid gap-[0.45rem]">
                                                 <label className="sr-only" htmlFor={inputId}>
                                                     {t('admin.redirectHosts.form.domainLabel', {
                                                         number: index + 1,
@@ -76,7 +73,7 @@ export default function RedirectHostFormFields({
                                                     />
                                                     <button
                                                         type="button"
-                                                        className={`${uiClassNames.button.quiet} mt-1 shrink-0 px-2`}
+                                                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-brand-600 enabled:hover:text-brand-text mt-1 shrink-0 px-2"
                                                         aria-label={t(
                                                             'admin.redirectHosts.form.removeDomain',
                                                             { number: index + 1 },
@@ -105,7 +102,7 @@ export default function RedirectHostFormFields({
                         </div>
                         <button
                             type="button"
-                            className={`${uiClassNames.button.secondary} mt-3 text-sm`}
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text mt-3 text-sm"
                             disabled={
                                 isPending ||
                                 domainsField.state.value.length >= MAX_REDIRECT_HOST_DOMAINS
@@ -117,7 +114,7 @@ export default function RedirectHostFormFields({
                         </button>
                         <p
                             id={`${formId}-domains-hint`}
-                            className={`${uiClassNames.form.hint} mt-2`}
+                            className="m-0 text-[0.76rem] leading-[1.45] text-muted mt-2"
                         >
                             {t('admin.redirectHosts.form.domainsHint')}
                         </p>
@@ -138,14 +135,17 @@ export default function RedirectHostFormFields({
                     const inputId = `${formId}-destination`
                     const errorId = `${inputId}-error`
                     return (
-                        <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
-                            <label className={uiClassNames.form.label} htmlFor={inputId}>
+                        <div className="grid gap-[0.45rem] shell:col-span-full">
+                            <label
+                                className="text-[0.82rem] font-[750] text-ink-soft"
+                                htmlFor={inputId}
+                            >
                                 {t('admin.redirectHosts.form.destination')}
                             </label>
                             <TextInput
                                 id={inputId}
                                 name={field.name}
-                                className={`${uiClassNames.form.control} font-mono`}
+                                className="box-border w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink transition-[border-color,box-shadow] duration-150 placeholder:text-muted-soft aria-invalid:border-red-500 disabled:cursor-not-allowed disabled:opacity-[0.55] focus:border-brand-600 focus:outline-hidden focus:ring-[3px] focus:ring-brand-500/20 motion-reduce:transition-none h-12 font-mono"
                                 value={field.state.value}
                                 maxLength={2048}
                                 disabled={isPending}
@@ -158,7 +158,10 @@ export default function RedirectHostFormFields({
                                 aria-invalid={field.state.meta.errors.length > 0}
                                 aria-describedby={`${inputId}-hint ${errorId}`}
                             />
-                            <p id={`${inputId}-hint`} className={uiClassNames.form.hint}>
+                            <p
+                                id={`${inputId}-hint`}
+                                className="m-0 text-[0.76rem] leading-[1.45] text-muted"
+                            >
                                 {t('admin.redirectHosts.form.destinationHint')}
                             </p>
                             <FieldError id={errorId} errors={field.state.meta.errors} />
@@ -168,8 +171,11 @@ export default function RedirectHostFormFields({
             </form.Field>
             <form.Field name="statusCode">
                 {(field) => (
-                    <div className={uiClassNames.form.field}>
-                        <label className={uiClassNames.form.label} htmlFor={`${formId}-statusCode`}>
+                    <div className="grid gap-[0.45rem]">
+                        <label
+                            className="text-[0.82rem] font-[750] text-ink-soft"
+                            htmlFor={`${formId}-statusCode`}
+                        >
                             {t('admin.redirectHosts.form.statusCode')}
                         </label>
                         <CustomSelect
@@ -200,9 +206,9 @@ export default function RedirectHostFormFields({
             <form.Field name="certificateId">
                 {(field) =>
                     canAssignCertificates ? (
-                        <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
+                        <div className="grid gap-[0.45rem] shell:col-span-full">
                             <label
-                                className={uiClassNames.form.label}
+                                className="text-[0.82rem] font-[750] text-ink-soft"
                                 htmlFor={`${formId}-certificateId`}
                             >
                                 {t('admin.redirectHosts.form.certificate')}
@@ -249,12 +255,12 @@ export default function RedirectHostFormFields({
                             />
                             <p
                                 id={`${formId}-certificateId-hint`}
-                                className={uiClassNames.form.hint}
+                                className="m-0 text-[0.76rem] leading-[1.45] text-muted"
                             >
                                 {t('admin.redirectHosts.form.certificateHint')}
                             </p>
                             {assignableCertificatesLoading ? (
-                                <output className={uiClassNames.form.hint}>
+                                <output className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                     {t('common.loading')}
                                 </output>
                             ) : assignableCertificatesLoadFailed ? (
@@ -264,7 +270,7 @@ export default function RedirectHostFormFields({
                                     </p>
                                     <button
                                         type="button"
-                                        className={uiClassNames.button.quiet}
+                                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                                         onClick={retryAssignableCertificates}
                                         disabled={isPending}
                                     >
@@ -282,9 +288,9 @@ export default function RedirectHostFormFields({
             </form.Field>
             <form.Field name="preserveRequestUri">
                 {(field) => (
-                    <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
+                    <div className="grid gap-[0.45rem] shell:col-span-full">
                         <label
-                            className={uiClassNames.permission.option}
+                            className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
                             htmlFor={`${formId}-preserveRequestUri`}
                             aria-label={t('admin.redirectHosts.form.preserveRequestUri')}
                         >
@@ -297,11 +303,11 @@ export default function RedirectHostFormFields({
                                 onBlur={field.handleBlur}
                                 onChange={(event) => field.handleChange(event.target.checked)}
                             />
-                            <span className={uiClassNames.permission.copy}>
-                                <span className={uiClassNames.permission.title}>
+                            <span className="grid gap-[0.12rem]">
+                                <span className="text-[0.78rem] text-ink-soft">
                                     {t('admin.redirectHosts.form.preserveRequestUri')}
                                 </span>
-                                <span className={uiClassNames.form.hint}>
+                                <span className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                     {t('admin.redirectHosts.form.preserveRequestUriHint')}
                                 </span>
                             </span>
@@ -311,9 +317,9 @@ export default function RedirectHostFormFields({
             </form.Field>
             <form.Field name="enabled">
                 {(field) => (
-                    <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
+                    <div className="grid gap-[0.45rem] shell:col-span-full">
                         <label
-                            className={uiClassNames.permission.option}
+                            className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
                             htmlFor={`${formId}-enabled`}
                             aria-label={t('admin.redirectHosts.status.enabled')}
                         >
@@ -326,17 +332,17 @@ export default function RedirectHostFormFields({
                                 onBlur={field.handleBlur}
                                 onChange={(event) => field.handleChange(event.target.checked)}
                             />
-                            <span className={uiClassNames.permission.copy}>
-                                <span className={uiClassNames.permission.title}>
+                            <span className="grid gap-[0.12rem]">
+                                <span className="text-[0.78rem] text-ink-soft">
                                     {t('admin.redirectHosts.status.enabled')}
                                 </span>
-                                <span className={uiClassNames.form.hint}>
+                                <span className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                     {t('admin.redirectHosts.form.enabledHint')}
                                 </span>
                             </span>
                         </label>
                         {!canChangeEnabled ? (
-                            <p className={uiClassNames.form.hint}>
+                            <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                 {t('admin.redirectHosts.form.statusReadOnly')}
                             </p>
                         ) : null}

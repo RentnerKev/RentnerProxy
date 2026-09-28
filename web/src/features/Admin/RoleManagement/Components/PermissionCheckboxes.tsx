@@ -1,7 +1,6 @@
 import { CheckboxInput } from '@rentnerkev/inputs'
 import FieldError from '../../../../shared/Forms/FieldError'
 import useTranslationStore from '../../../../language/useTranslationStore'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import {
     getAvailablePermissionGroups,
     getNextSelectedPermissionKeys,
@@ -18,7 +17,10 @@ export default function PermissionCheckboxes({
     const permissionGroups = getAvailablePermissionGroups(availablePermissionKeys)
 
     return (
-        <fieldset className={uiClassNames.permission.fieldset} disabled={disabled}>
+        <fieldset
+            className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft"
+            disabled={disabled}
+        >
             <legend>{t('admin.roles.form.permissions')}</legend>
             <div className="grid gap-3 shell:grid-cols-2">
                 {permissionGroups.map((group) => (
@@ -33,7 +35,7 @@ export default function PermissionCheckboxes({
                         >
                             {t(group.label)}
                         </h3>
-                        <div className={uiClassNames.permission.options}>
+                        <div className="grid gap-[0.45rem]">
                             {group.permissions.map((permission) => {
                                 const checked = field.state.value.includes(permission.key)
                                 const inputId = getPermissionCheckboxInputId(
@@ -43,7 +45,7 @@ export default function PermissionCheckboxes({
 
                                 return (
                                     <label
-                                        className={uiClassNames.permission.option}
+                                        className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
                                         key={permission.key}
                                         htmlFor={inputId}
                                         aria-label={t('admin.roles.permissions.toggle', {
@@ -65,11 +67,11 @@ export default function PermissionCheckboxes({
                                                 )
                                             }
                                         />
-                                        <span className={uiClassNames.permission.copy}>
-                                            <strong className={uiClassNames.permission.title}>
+                                        <span className="grid gap-[0.12rem]">
+                                            <strong className="text-[0.78rem] text-ink-soft">
                                                 {t(`permissions.${permission.key}`)}
                                             </strong>
-                                            <small className={uiClassNames.permission.description}>
+                                            <small className="font-mono text-[0.62rem] text-muted">
                                                 {permission.key}
                                             </small>
                                         </span>

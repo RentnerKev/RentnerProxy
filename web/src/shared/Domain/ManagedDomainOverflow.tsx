@@ -1,7 +1,6 @@
 import * as Popover from 'radix-ui/popover'
 import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react'
 
-import { uiClassNames } from '../Styles/uiClassNames'
 import ManagedDomainLink from './ManagedDomainLink'
 
 interface ManagedDomainOverflowProps {
@@ -42,10 +41,13 @@ export default function ManagedDomainOverflow({ ariaLabel, domains }: ManagedDom
                     onKeyDown={stopPropagation}
                     onPointerDown={stopPropagation}
                 >
-                    <div className={uiClassNames.chip.row}>
+                    <div className="flex flex-wrap gap-[0.45rem]">
                         {domains.map((domain) => (
                             <ManagedDomainLink
-                                className={uiClassNames.chip.item + ' max-w-64 wrap-anywhere'}
+                                className={
+                                    'inline-flex items-center rounded-full border border-brand-600/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text' +
+                                    ' max-w-64 wrap-anywhere'
+                                }
                                 domain={domain}
                                 key={domain}
                             />

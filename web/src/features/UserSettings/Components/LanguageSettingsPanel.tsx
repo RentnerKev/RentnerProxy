@@ -3,7 +3,6 @@ import { CustomSelect } from '@rentnerkev/select/select'
 
 import useTranslationStore from '../../../language/useTranslationStore'
 import { LANGUAGE_COUNTRY_CODES } from '../../../config/language.config'
-import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import useLanguageSettingsLogic from '../Hooks/useLanguageSettingsLogic'
 
 function LanguageOptionLabel({
@@ -30,7 +29,7 @@ export default function LanguageSettingsPanel() {
 
     return (
         <section
-            className={uiClassNames.management.card}
+            className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
             aria-labelledby="account-language-heading"
         >
             <div className="flex items-start gap-3">
@@ -55,8 +54,10 @@ export default function LanguageSettingsPanel() {
                     handler.handleSave()
                 }}
             >
-                <div className={uiClassNames.form.field}>
-                    <span className={uiClassNames.form.label}>{t('language.label')}</span>
+                <div className="grid gap-[0.45rem]">
+                    <span className="text-[0.82rem] font-[750] text-ink-soft">
+                        {t('language.label')}
+                    </span>
                     <CustomSelect
                         aria-label={t('language.label')}
                         className="sm:max-w-xs"
@@ -80,13 +81,16 @@ export default function LanguageSettingsPanel() {
                         }}
                         value={state.selectedLanguage}
                     />
-                    <output className={uiClassNames.form.hint} aria-live="polite">
+                    <output
+                        className="m-0 text-[0.76rem] leading-[1.45] text-muted"
+                        aria-live="polite"
+                    >
                         {t(state.isSaving ? 'language.saving' : 'language.hint')}
                     </output>
                 </div>
                 <button
                     type="submit"
-                    className={`${uiClassNames.button.primary} justify-self-start`}
+                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300 justify-self-start"
                     disabled={!state.isDirty || state.isSaving}
                     aria-busy={state.isSaving}
                 >

@@ -2,7 +2,6 @@ import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 
 import { TOOLTIP_DEFAULT_PROPS } from '../../../../config/tooltip.config'
 import useTranslationStore from '../../../../language/useTranslationStore'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import DataTable from '../../../../shared/Table'
 import useUsersTableLogic from '../Hooks/useUsersTableLogic'
 import type { UsersTableProps } from '../Types/user-management-component-props.types'
@@ -14,7 +13,7 @@ export default function UsersTable(props: UsersTableProps) {
     const createButton = (
         <button
             type="button"
-            className={uiClassNames.button.add}
+            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300 min-w-[8.5rem] whitespace-nowrap"
             disabled={createDisabled}
             onClick={onCreate}
         >

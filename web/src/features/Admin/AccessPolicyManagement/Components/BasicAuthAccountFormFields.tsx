@@ -1,6 +1,5 @@
 import { PasswordInput, TextInput } from '@rentnerkev/inputs'
 import useTranslationStore from '../../../../language/useTranslationStore'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { BasicAuthAccountFormFieldsProps } from '../Types/basic-auth.types'
 
 export default function BasicAuthAccountFormFields({
@@ -18,8 +17,11 @@ export default function BasicAuthAccountFormFields({
 
     return (
         <>
-            <div className={uiClassNames.form.field}>
-                <label className={uiClassNames.form.label} htmlFor={`${formId}-username`}>
+            <div className="grid gap-[0.45rem]">
+                <label
+                    className="text-[0.82rem] font-[750] text-ink-soft"
+                    htmlFor={`${formId}-username`}
+                >
                     {t('admin.accessPolicies.basicAuth.form.username')}
                 </label>
                 <TextInput
@@ -33,7 +35,7 @@ export default function BasicAuthAccountFormFields({
                     aria-invalid={errors.username !== undefined}
                     aria-describedby={usernameErrorId}
                 />
-                <p className={uiClassNames.form.hint}>
+                <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                     {t('admin.accessPolicies.basicAuth.form.usernameHint')}
                 </p>
                 {errors.username ? (
@@ -42,8 +44,11 @@ export default function BasicAuthAccountFormFields({
                     </p>
                 ) : null}
             </div>
-            <div className={uiClassNames.form.field}>
-                <label className={uiClassNames.form.label} htmlFor={`${formId}-password`}>
+            <div className="grid gap-[0.45rem]">
+                <label
+                    className="text-[0.82rem] font-[750] text-ink-soft"
+                    htmlFor={`${formId}-password`}
+                >
                     {t('admin.accessPolicies.basicAuth.form.password')}
                 </label>
                 <PasswordInput
@@ -59,7 +64,7 @@ export default function BasicAuthAccountFormFields({
                     aria-invalid={errors.password !== undefined}
                     aria-describedby={passwordErrorId}
                 />
-                <p className={uiClassNames.form.hint}>
+                <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                     {t(
                         mode === 'edit'
                             ? 'admin.accessPolicies.basicAuth.form.passwordEditHint'

@@ -2,7 +2,6 @@ import { EmailInput, PasswordInput } from '@rentnerkev/inputs'
 import { Link } from '@tanstack/react-router'
 import type { ChangeEvent } from 'react'
 import FieldError from '../../../../shared/Forms/FieldError'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { LoginFormProps } from '../Types/login-component-props.types'
 import {
     credentialPasswordSchema,
@@ -12,7 +11,7 @@ import {
 export default function LoginForm({ state, onPasskeyLogin }: LoginFormProps) {
     return (
         <form
-            className={uiClassNames.form.stack}
+            className="mt-7 grid gap-[1.1rem]"
             noValidate
             onSubmit={(event) => {
                 event.preventDefault()
@@ -25,8 +24,11 @@ export default function LoginForm({ state, onPasskeyLogin }: LoginFormProps) {
                 validators={{ onBlur: ({ value }) => getValidationMessage(emailSchema, value) }}
             >
                 {(field) => (
-                    <div className={uiClassNames.form.field}>
-                        <label className={uiClassNames.form.label} htmlFor={field.name}>
+                    <div className="grid gap-[0.45rem]">
+                        <label
+                            className="text-[0.82rem] font-[750] text-ink-soft"
+                            htmlFor={field.name}
+                        >
                             Email address
                         </label>
                         <EmailInput
@@ -54,9 +56,12 @@ export default function LoginForm({ state, onPasskeyLogin }: LoginFormProps) {
                 }}
             >
                 {(field) => (
-                    <div className={uiClassNames.form.field}>
-                        <div className={uiClassNames.form.labelRow}>
-                            <label className={uiClassNames.form.label} htmlFor={field.name}>
+                    <div className="grid gap-[0.45rem]">
+                        <div className="flex items-center justify-between gap-4 text-[0.82rem] font-[750] text-ink-soft [&_a]:text-[0.76rem]">
+                            <label
+                                className="text-[0.82rem] font-[750] text-ink-soft"
+                                htmlFor={field.name}
+                            >
                                 Password
                             </label>
                             <Link to="/forgot-password">Forgot password?</Link>
@@ -83,7 +88,7 @@ export default function LoginForm({ state, onPasskeyLogin }: LoginFormProps) {
                 {([canSubmit, isSubmitting]) => (
                     <button
                         type="submit"
-                        className={uiClassNames.button.primary}
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
                         disabled={
                             !canSubmit || isSubmitting || state.isPending || state.isPasskeyPending
                         }
@@ -94,7 +99,7 @@ export default function LoginForm({ state, onPasskeyLogin }: LoginFormProps) {
             </state.form.Subscribe>
             <button
                 type="button"
-                className={uiClassNames.button.secondary}
+                className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                 onClick={onPasskeyLogin}
                 disabled={state.isPending || state.isPasskeyPending}
             >

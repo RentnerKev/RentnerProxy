@@ -1,7 +1,6 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 
 import { TOOLTIP_DEFAULT_PROPS } from '../../../../config/tooltip.config'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { ManagedDomainLink, ManagedDomainOverflow } from '../../../../shared/Domain'
 import { useDateFormatter } from '../../../../language/useTranslationStore'
 import useTranslationStore from '../../../../language/useTranslationStore'
@@ -17,7 +16,9 @@ const statusBadgeClassName =
     'inline-flex rounded-full px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold data-[status=enabled]:bg-success-bg data-[status=enabled]:text-success-text data-[status=disabled]:bg-danger-bg data-[status=disabled]:text-danger-text'
 
 function DomainChip({ domain }: { readonly domain: string }) {
-    const chipClassName = uiClassNames.chip.item + ' inline-block max-w-56 truncate align-bottom'
+    const chipClassName =
+        'inline-flex items-center rounded-full border border-brand-600/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text' +
+        ' inline-block max-w-56 truncate align-bottom'
     const isLong = domain.length > 28
     const chip = <ManagedDomainLink className={chipClassName} domain={domain} />
 
@@ -40,7 +41,7 @@ export function ProxyHostDomainsCell({ domains }: ProxyHostDomainsCellProps) {
     }
 
     return (
-        <div className={uiClassNames.chip.row}>
+        <div className="flex flex-wrap gap-[0.45rem]">
             {visibleDomains.map((domain) => (
                 <DomainChip domain={domain} key={domain} />
             ))}

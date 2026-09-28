@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 
 import useTranslationStore from '../../../language/useTranslationStore'
-import { uiClassNames } from '../../Styles/uiClassNames'
 
 interface TableFiltersProps {
     readonly children: (resetButton: ReactNode) => ReactNode
@@ -27,7 +26,7 @@ export default function TableFilters({
                         <button
                             type="button"
                             onClick={onReset}
-                            className={`${uiClassNames.button.quiet} justify-self-start self-end whitespace-nowrap`}
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-brand-600 enabled:hover:text-brand-text justify-self-start self-end whitespace-nowrap"
                         >
                             {t('table.resetFilters')}
                         </button>

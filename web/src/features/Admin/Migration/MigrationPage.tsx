@@ -5,7 +5,6 @@ import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { TOOLTIP_DEFAULT_PROPS } from '../../../config/tooltip.config'
 import useTranslationStore from '../../../language/useTranslationStore'
 import PageHeader from '../../../shared/Management/PageHeader'
-import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import { useMigration, type MigrationSource } from './Hooks/useMigration'
 import type { NpmImportResultItem, NpmPreviewItem } from '../NpmImport/Types/npm-import.types'
 
@@ -71,7 +70,7 @@ export default function MigrationPage() {
                 description={t('admin.migration.description')}
             />
             <section
-                className={uiClassNames.management.card}
+                className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
                 aria-labelledby="migration-export-title"
             >
                 <h2 id="migration-export-title" className="text-lg font-extrabold text-ink">
@@ -85,7 +84,7 @@ export default function MigrationPage() {
                     >
                         <button
                             type="button"
-                            className={uiClassNames.button.secondary}
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                             disabled={exporting}
                             onClick={() => void downloadExport()}
                         >
@@ -100,14 +99,17 @@ export default function MigrationPage() {
                 ) : null}
             </section>
             <section
-                className={uiClassNames.management.card}
+                className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
                 aria-labelledby="migration-source-title"
             >
                 <h2 id="migration-source-title" className="text-lg font-extrabold text-ink">
                     {t('admin.migration.importTitle')}
                 </h2>
                 <div className="mt-5 grid gap-2">
-                    <label className={uiClassNames.form.label} htmlFor="migration-source">
+                    <label
+                        className="text-[0.82rem] font-[750] text-ink-soft"
+                        htmlFor="migration-source"
+                    >
                         {t('admin.migration.sourceLabel')}
                     </label>
                     <CustomSelect<MigrationSource>
@@ -131,7 +133,10 @@ export default function MigrationPage() {
                     {t(`admin.migration.sourceHelp.${source}`)}
                 </p>
                 <div className="mt-5 grid gap-2">
-                    <label className={uiClassNames.form.label} htmlFor="migration-file">
+                    <label
+                        className="text-[0.82rem] font-[750] text-ink-soft"
+                        htmlFor="migration-file"
+                    >
                         {t('admin.migration.fileLabel')}
                     </label>
                     <FileInput
@@ -155,7 +160,7 @@ export default function MigrationPage() {
                 <div className="mt-5 flex flex-wrap gap-3">
                     <button
                         type="button"
-                        className={uiClassNames.button.primary}
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
                         disabled={!file || busy !== null}
                         onClick={() => void previewSource()}
                     >
@@ -170,7 +175,7 @@ export default function MigrationPage() {
             </section>
             {preview ? (
                 <section
-                    className={uiClassNames.management.card}
+                    className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
                     aria-labelledby="npm-preview-title"
                 >
                     <h2 id="npm-preview-title" className="text-lg font-extrabold text-ink">
@@ -179,7 +184,10 @@ export default function MigrationPage() {
                     <p className="mt-2 text-sm text-ink-soft">{t('admin.migration.previewHelp')}</p>
                     <div className="mt-4 flex flex-wrap gap-2" aria-live="polite">
                         {Object.entries(preview.counts).map(([status, count]) => (
-                            <span key={status} className={uiClassNames.chip.item}>
+                            <span
+                                key={status}
+                                className="inline-flex items-center rounded-full border border-brand-600/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
+                            >
                                 {count} {t(`admin.npmImport.status.${status}`)}
                             </span>
                         ))}
@@ -195,7 +203,7 @@ export default function MigrationPage() {
                     <div className="mt-5 flex flex-wrap gap-3">
                         <button
                             type="button"
-                            className={uiClassNames.button.primary}
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
                             disabled={
                                 busy !== null || preview.counts.ready + preview.counts.partial === 0
                             }
@@ -205,7 +213,7 @@ export default function MigrationPage() {
                         </button>
                         <button
                             type="button"
-                            className={uiClassNames.button.secondary}
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                             disabled={busy !== null}
                             onClick={discardPreview}
                         >
@@ -215,7 +223,10 @@ export default function MigrationPage() {
                 </section>
             ) : null}
             {result ? (
-                <section className={uiClassNames.management.card} aria-live="polite">
+                <section
+                    className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
+                    aria-live="polite"
+                >
                     <h2 className="text-lg font-extrabold text-ink">
                         {t('admin.npmImport.resultTitle')}
                     </h2>
@@ -237,7 +248,7 @@ export default function MigrationPage() {
                 </section>
             ) : null}
             {history.length > 0 ? (
-                <section className={uiClassNames.management.card}>
+                <section className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface">
                     <h2 className="text-lg font-extrabold text-ink">
                         {t('admin.npmImport.history')}
                     </h2>

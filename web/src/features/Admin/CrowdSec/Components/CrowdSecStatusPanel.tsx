@@ -1,6 +1,5 @@
 import useTranslationStore from '../../../../language/useTranslationStore'
 import type { CrowdSecConfiguration } from '../../../../shared/Types/crowdsec.types'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 
 const stateStyles = {
     disabled: 'border-border-strong bg-surface-raised text-muted',
@@ -20,10 +19,13 @@ export default function CrowdSecStatusPanel({
     const managedEngine = configuration.runtime?.managedEngine ?? 'unavailable'
 
     return (
-        <section className={`${uiClassNames.management.card} mb-4`} aria-live="polite">
+        <section
+            className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface mb-4"
+            aria-live="polite"
+        >
             <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <p className={uiClassNames.themedTechnicalLabel}>
+                    <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
                         {t('admin.crowdSec.status.eyebrow')}
                     </p>
                     <h2 className="mt-2 text-xl font-extrabold text-ink">

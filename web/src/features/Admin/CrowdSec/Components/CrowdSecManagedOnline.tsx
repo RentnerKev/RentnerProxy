@@ -4,7 +4,6 @@ import { ExternalLink, Link2 } from 'lucide-react'
 import { CROWDSEC_ENROLLMENT_KEY_MAX_LENGTH } from '../../../../config/crowdsec.config'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { CrowdSecPageLogic } from '../Types/crowdsec.types'
 
 export default function CrowdSecManagedOnline({
@@ -41,7 +40,7 @@ export default function CrowdSecManagedOnline({
                 {t('admin.crowdSec.online.description')}
             </p>
             <label
-                className={`${uiClassNames.permission.option} mt-4`}
+                className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem] mt-4"
                 htmlFor="crowdsec-community-enabled"
             >
                 <CheckboxInput
@@ -52,11 +51,11 @@ export default function CrowdSecManagedOnline({
                     disabled={!state.canUpdate || busy}
                     onChange={(event) => handler.setCommunityEnabled(event.target.checked)}
                 />
-                <span className={uiClassNames.permission.copy}>
-                    <span className={uiClassNames.permission.title}>
+                <span className="grid gap-[0.12rem]">
+                    <span className="text-[0.78rem] text-ink-soft">
                         {t('admin.crowdSec.online.communityLabel')}
                     </span>
-                    <span className={uiClassNames.form.hint}>
+                    <span className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                         {t('admin.crowdSec.online.communityHint')}
                     </span>
                 </span>
@@ -107,9 +106,9 @@ export default function CrowdSecManagedOnline({
                 ) : null}
                 {canEnroll ? (
                     <div className="mt-4 flex flex-wrap items-end gap-3">
-                        <div className={`${uiClassNames.form.field} min-w-56 flex-1`}>
+                        <div className="grid gap-[0.45rem] min-w-56 flex-1">
                             <label
-                                className={uiClassNames.form.label}
+                                className="text-[0.82rem] font-[750] text-ink-soft"
                                 htmlFor="crowdsec-enrollment-key"
                             >
                                 {t('admin.crowdSec.online.enrollmentKey')}
@@ -138,7 +137,7 @@ export default function CrowdSecManagedOnline({
                         </div>
                         <button
                             type="button"
-                            className={uiClassNames.button.secondary}
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                             disabled={!state.canUpdate || busy || state.enrollmentKey.length === 0}
                             onClick={handler.enrollConsole}
                         >

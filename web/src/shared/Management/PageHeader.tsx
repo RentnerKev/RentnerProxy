@@ -1,11 +1,12 @@
-import { uiClassNames } from '../Styles/uiClassNames'
 import type { PageHeaderProps } from './Types/management-component-props.types'
 
 export default function PageHeader({ action, description, eyebrow, title }: PageHeaderProps) {
     return (
         <header className="mb-8 flex flex-wrap items-end justify-between gap-6">
             <div>
-                <p className={uiClassNames.themedTechnicalLabel}>{eyebrow}</p>
+                <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
+                    {eyebrow}
+                </p>
                 <h1 className="mt-[0.55rem] font-display text-[clamp(2rem,5vw,3.4rem)] leading-none tracking-[-0.045em] text-ink">
                     {title}
                 </h1>

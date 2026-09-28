@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react'
 
-import { uiClassNames } from '../../Styles/uiClassNames'
-
 interface TableLayoutProps {
     readonly titleId: string
     readonly title: string
@@ -26,10 +24,15 @@ export default function TableLayout({
     children,
 }: TableLayoutProps) {
     return (
-        <section aria-labelledby={titleId} className={uiClassNames.table.panel}>
+        <section
+            aria-labelledby={titleId}
+            className="min-w-0 overflow-hidden rounded-2xl border border-border bg-surface shadow-surface"
+        >
             <header className="flex flex-col gap-4 border-b border-border px-[1.15rem] py-4 xl:flex-row xl:items-end xl:justify-between">
                 <div className="min-w-0">
-                    <p className={uiClassNames.themedTechnicalLabel}>{eyebrow}</p>
+                    <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
+                        {eyebrow}
+                    </p>
                     <h2 id={titleId} className="mt-[0.4rem] text-xl text-ink-soft">
                         {title}
                     </h2>

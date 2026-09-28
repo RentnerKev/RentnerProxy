@@ -1,6 +1,5 @@
 import useTranslationStore from '../../language/useTranslationStore'
 import PageHeader from '../../shared/Management/PageHeader'
-import { uiClassNames } from '../../shared/Styles/uiClassNames'
 import AccountIdentity from './Components/AccountIdentity'
 import ChangePasswordPanel from './Components/ChangePasswordPanel'
 import LanguageSettingsPanel from './Components/LanguageSettingsPanel'
@@ -20,8 +19,8 @@ export default function UserSettingsPage({ user }: UserSettingsPageProps) {
                 title={t('account.page.title')}
                 description={t('account.page.description')}
             />
-            <div className={uiClassNames.management.grid}>
-                <div className={uiClassNames.management.accountGrid}>
+            <div className="grid gap-4">
+                <div className="grid gap-4 shell:grid-cols-[minmax(16rem,0.7fr)_minmax(24rem,1.3fr)] shell:items-start">
                     <div className="grid gap-4">
                         <AccountIdentity user={user} />
                         <ProfileImagePanel

@@ -2,7 +2,6 @@ import { ArrowUpRight } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 
 import useTranslationStore from '../../../language/useTranslationStore'
-import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import type useCrowdSecOverviewLogic from '../Hooks/useCrowdSecOverviewLogic'
 
 const stateStyles = {
@@ -24,12 +23,12 @@ export default function CrowdSecOverview({
 
     return (
         <section
-            className={`${uiClassNames.management.card} mt-4`}
+            className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface mt-4"
             aria-label={t('admin.crowdSec.page.title')}
         >
             <div className="flex flex-wrap items-start justify-between gap-5">
                 <div>
-                    <p className={uiClassNames.themedTechnicalLabel}>
+                    <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
                         {t('foundation.crowdSec.eyebrow')}
                     </p>
                     <h2 className="mt-2 text-xl font-extrabold text-ink">
@@ -39,7 +38,10 @@ export default function CrowdSecOverview({
                         {t('foundation.crowdSec.description')}
                     </p>
                 </div>
-                <Link to="/crowdsec" className={uiClassNames.button.secondary}>
+                <Link
+                    to="/crowdsec"
+                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
+                >
                     {t('foundation.crowdSec.manage')}
                     <ArrowUpRight aria-hidden="true" className="size-4" />
                 </Link>
@@ -56,7 +58,7 @@ export default function CrowdSecOverview({
                     </p>
                     <button
                         type="button"
-                        className={uiClassNames.button.secondary}
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                         onClick={handler.retry}
                     >
                         {t('common.retry')}

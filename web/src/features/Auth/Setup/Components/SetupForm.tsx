@@ -1,6 +1,5 @@
 import { EmailInput, PasswordInput, TextInput } from '@rentnerkev/inputs'
 import FieldError from '../../../../shared/Forms/FieldError'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { ChangeEvent } from 'react'
 import type { SetupFormProps } from '../Types/setup-component-props.types'
 import {
@@ -14,7 +13,7 @@ import {
 export default function SetupForm({ state }: SetupFormProps) {
     return (
         <form
-            className={uiClassNames.form.stack}
+            className="mt-7 grid gap-[1.1rem]"
             noValidate
             onSubmit={(event) => {
                 event.preventDefault()
@@ -29,8 +28,11 @@ export default function SetupForm({ state }: SetupFormProps) {
                 }}
             >
                 {(field) => (
-                    <div className={uiClassNames.form.field}>
-                        <label className={uiClassNames.form.label} htmlFor={field.name}>
+                    <div className="grid gap-[0.45rem]">
+                        <label
+                            className="text-[0.82rem] font-[750] text-ink-soft"
+                            htmlFor={field.name}
+                        >
                             Display name
                         </label>
                         <TextInput
@@ -56,8 +58,11 @@ export default function SetupForm({ state }: SetupFormProps) {
                 }}
             >
                 {(field) => (
-                    <div className={uiClassNames.form.field}>
-                        <label className={uiClassNames.form.label} htmlFor={field.name}>
+                    <div className="grid gap-[0.45rem]">
+                        <label
+                            className="text-[0.82rem] font-[750] text-ink-soft"
+                            htmlFor={field.name}
+                        >
                             Email address
                         </label>
                         <EmailInput
@@ -85,8 +90,11 @@ export default function SetupForm({ state }: SetupFormProps) {
                 }}
             >
                 {(field) => (
-                    <div className={uiClassNames.form.field}>
-                        <label className={uiClassNames.form.label} htmlFor={field.name}>
+                    <div className="grid gap-[0.45rem]">
+                        <label
+                            className="text-[0.82rem] font-[750] text-ink-soft"
+                            htmlFor={field.name}
+                        >
                             Password
                         </label>
                         <PasswordInput
@@ -117,8 +125,11 @@ export default function SetupForm({ state }: SetupFormProps) {
                 }}
             >
                 {(field) => (
-                    <div className={uiClassNames.form.field}>
-                        <label className={uiClassNames.form.label} htmlFor={field.name}>
+                    <div className="grid gap-[0.45rem]">
+                        <label
+                            className="text-[0.82rem] font-[750] text-ink-soft"
+                            htmlFor={field.name}
+                        >
                             Confirm password
                         </label>
                         <PasswordInput
@@ -143,7 +154,7 @@ export default function SetupForm({ state }: SetupFormProps) {
                 {([canSubmit, isSubmitting]) => (
                     <button
                         type="submit"
-                        className={uiClassNames.button.primary}
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
                         disabled={!canSubmit || isSubmitting || state.isPending}
                     >
                         {isSubmitting || state.isPending ? 'Creating owner…' : 'Create owner'}

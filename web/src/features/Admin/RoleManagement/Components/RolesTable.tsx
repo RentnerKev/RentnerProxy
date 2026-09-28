@@ -1,4 +1,3 @@
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import DataTable from '../../../../shared/Table'
 import useRolesTableLogic from '../Hooks/useRolesTableLogic'
 import useTranslationStore from '../../../../language/useTranslationStore'
@@ -9,7 +8,11 @@ export default function RolesTable(props: RolesTableProps) {
     const { canCreate, isLoading, onCreate, roles } = props
     const { state, handler } = useRolesTableLogic(props)
     const createAction = canCreate ? (
-        <button type="button" className={uiClassNames.button.add} onClick={onCreate}>
+        <button
+            type="button"
+            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300 min-w-[8.5rem] whitespace-nowrap"
+            onClick={onCreate}
+        >
             {t('admin.roles.actions.add')}
         </button>
     ) : undefined

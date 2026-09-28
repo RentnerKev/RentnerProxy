@@ -1,4 +1,3 @@
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { UserAvatar } from '../../../../shared/Avatar'
 import { formatUserCreatedAt, getVisibleRoleKeys } from '../Helpers/userTableCells'
 import type {
@@ -43,9 +42,12 @@ export function UserRolesCell({ roleKeys }: UserRolesCellProps) {
     const visibleRoleKeys = getVisibleRoleKeys(roleKeys)
 
     return (
-        <div className={uiClassNames.chip.row}>
+        <div className="flex flex-wrap gap-[0.45rem]">
             {visibleRoleKeys.map((roleKey) => (
-                <span className={uiClassNames.chip.item} key={roleKey}>
+                <span
+                    className="inline-flex items-center rounded-full border border-brand-600/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
+                    key={roleKey}
+                >
                     {['owner', 'admin', 'viewer'].includes(roleKey)
                         ? t(`systemRoles.${roleKey}.name`)
                         : roleKey}

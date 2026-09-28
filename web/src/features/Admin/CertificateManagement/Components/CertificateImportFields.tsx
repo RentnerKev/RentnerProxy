@@ -1,7 +1,6 @@
 import { TextInput, Textarea } from '@rentnerkev/inputs'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type useCertificateImportLogic from '../Hooks/useCertificateImportLogic'
 
 export default function CertificateImportFields({
@@ -22,9 +21,9 @@ export default function CertificateImportFields({
                 }}
             >
                 {(field) => (
-                    <div className={uiClassNames.form.field}>
+                    <div className="grid gap-[0.45rem]">
                         <label
-                            className={uiClassNames.form.label}
+                            className="text-[0.82rem] font-[750] text-ink-soft"
                             htmlFor="certificate-import-name"
                         >
                             {t('admin.certificates.form.name')}
@@ -95,15 +94,15 @@ function PemField({
                 const errorId = `${id}-error`
                 const hintId = `${id}-hint`
                 return (
-                    <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
-                        <label className={uiClassNames.form.label} htmlFor={id}>
+                    <div className="grid gap-[0.45rem] shell:col-span-full">
+                        <label className="text-[0.82rem] font-[750] text-ink-soft" htmlFor={id}>
                             {label}
                             {required ? <span aria-hidden="true"> *</span> : null}
                         </label>
                         <Textarea
                             id={id}
                             name={field.name}
-                            className={`${uiClassNames.form.textarea} min-h-36 font-mono text-xs`}
+                            className="box-border w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink transition-[border-color,box-shadow] duration-150 placeholder:text-muted-soft aria-invalid:border-red-500 disabled:cursor-not-allowed disabled:opacity-[0.55] focus:border-brand-600 focus:outline-hidden focus:ring-[3px] focus:ring-brand-500/20 motion-reduce:transition-none min-h-26 resize-y py-3 min-h-36 font-mono text-xs"
                             value={field.state.value ?? ''}
                             disabled={isPending}
                             maxLength={field.name === 'privateKeyPem' ? 64 * 1024 : 256 * 1024}
@@ -114,7 +113,7 @@ function PemField({
                             spellCheck={false}
                             aria-describedby={`${hintId} ${errorId}`}
                         />
-                        <p id={hintId} className={uiClassNames.form.hint}>
+                        <p id={hintId} className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                             {hint}
                         </p>
                         <FieldError id={errorId} errors={field.state.meta.errors} />

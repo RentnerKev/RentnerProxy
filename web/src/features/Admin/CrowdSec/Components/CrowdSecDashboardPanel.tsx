@@ -3,7 +3,6 @@ import { lazy, Suspense } from 'react'
 
 import useTranslationStore from '../../../../language/useTranslationStore'
 import type { CrowdSecConfiguration } from '../../../../shared/Types/crowdsec.types'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import useCrowdSecDashboardLogic from '../Hooks/useCrowdSecDashboardLogic'
 import CrowdSecBansTable from './CrowdSecBansTable'
 
@@ -88,14 +87,14 @@ export default function CrowdSecDashboardPanel({
     return (
         <div className="space-y-4">
             <section
-                className={uiClassNames.management.card}
+                className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
                 aria-label={t('admin.crowdSec.dashboard.title')}
             >
                 {enabled ? (
                     <div className="flex justify-end">
                         <button
                             type="button"
-                            className={uiClassNames.button.secondary}
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                             disabled={query.isFetching}
                             onClick={() => void query.refetch()}
                         >

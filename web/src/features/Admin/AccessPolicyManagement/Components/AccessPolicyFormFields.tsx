@@ -1,7 +1,6 @@
 import { CheckboxInput, RadioInput, TextInput, Textarea } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import {
     FORWARD_AUTH_PROVIDERS,
     isCanonicalForwardAuthEndpoint,
@@ -81,8 +80,11 @@ export default function AccessPolicyFormFields({
 
     return (
         <>
-            <div className={uiClassNames.form.field}>
-                <label className={uiClassNames.form.label} htmlFor={`${formId}-name`}>
+            <div className="grid gap-[0.45rem]">
+                <label
+                    className="text-[0.82rem] font-[750] text-ink-soft"
+                    htmlFor={`${formId}-name`}
+                >
                     {t('admin.accessPolicies.form.name')}
                 </label>
                 <TextInput
@@ -101,8 +103,11 @@ export default function AccessPolicyFormFields({
                     </p>
                 ) : null}
             </div>
-            <div className={uiClassNames.form.field}>
-                <label className={uiClassNames.form.label} htmlFor={`${formId}-mode`}>
+            <div className="grid gap-[0.45rem]">
+                <label
+                    className="text-[0.82rem] font-[750] text-ink-soft"
+                    htmlFor={`${formId}-mode`}
+                >
                     {t('admin.accessPolicies.form.mode')}
                 </label>
                 <CustomSelect
@@ -119,19 +124,20 @@ export default function AccessPolicyFormFields({
                     value={values.mode}
                     onValueChange={setMode}
                 />
-                <p id={`${formId}-mode-hint`} className={uiClassNames.form.hint}>
+                <p
+                    id={`${formId}-mode-hint`}
+                    className="m-0 text-[0.76rem] leading-[1.45] text-muted"
+                >
                     {t('admin.accessPolicies.form.modeHint')}
                 </p>
             </div>
             {authenticationModeVisible ? (
-                <fieldset
-                    className={`${uiClassNames.permission.fieldset} ${uiClassNames.form.wide}`}
-                >
+                <fieldset className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft shell:col-span-full">
                     <legend>{t('admin.accessPolicies.form.authenticationMethod')}</legend>
                     <div className="grid gap-2">
                         {(['basicAuth', 'forwardAuth'] as const).map((method) => (
                             <label
-                                className={uiClassNames.permission.option}
+                                className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
                                 htmlFor={`${formId}-authentication-${method}`}
                                 key={method}
                             >
@@ -143,8 +149,8 @@ export default function AccessPolicyFormFields({
                                     disabled={isPending}
                                     onChange={() => setAuthMethod(method)}
                                 />
-                                <span className={uiClassNames.permission.copy}>
-                                    <span className={uiClassNames.permission.title}>
+                                <span className="grid gap-[0.12rem]">
+                                    <span className="text-[0.78rem] text-ink-soft">
                                         {t(
                                             method === 'forwardAuth'
                                                 ? 'admin.accessPolicies.form.forwardAuth.title'
@@ -158,16 +164,14 @@ export default function AccessPolicyFormFields({
                 </fieldset>
             ) : null}
             {authenticationModeVisible && values.authMethod === 'forwardAuth' ? (
-                <fieldset
-                    className={`${uiClassNames.permission.fieldset} ${uiClassNames.form.wide} grid gap-3`}
-                >
+                <fieldset className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft shell:col-span-full grid gap-3">
                     <legend>{t('admin.accessPolicies.form.forwardAuth.title')}</legend>
-                    <p className={uiClassNames.form.hint}>
+                    <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                         {t('admin.accessPolicies.form.forwardAuth.description')}
                     </p>
-                    <div className={uiClassNames.form.field}>
+                    <div className="grid gap-[0.45rem]">
                         <label
-                            className={uiClassNames.form.label}
+                            className="text-[0.82rem] font-[750] text-ink-soft"
                             htmlFor={`${formId}-forwardAuth-provider`}
                         >
                             {t('admin.accessPolicies.form.forwardAuth.provider')}
@@ -188,9 +192,9 @@ export default function AccessPolicyFormFields({
                             onValueChange={setForwardAuthProvider}
                         />
                     </div>
-                    <div className={uiClassNames.form.field}>
+                    <div className="grid gap-[0.45rem]">
                         <label
-                            className={uiClassNames.form.label}
+                            className="text-[0.82rem] font-[750] text-ink-soft"
                             htmlFor={`${formId}-forwardAuth-gatewayPathPrefix`}
                         >
                             {t('admin.accessPolicies.form.forwardAuth.gatewayPathPrefix')}
@@ -208,14 +212,14 @@ export default function AccessPolicyFormFields({
                         />
                         <p
                             id={`${formId}-forwardAuth-gatewayPathPrefix-hint`}
-                            className={uiClassNames.form.hint}
+                            className="m-0 text-[0.76rem] leading-[1.45] text-muted"
                         >
                             {t('admin.accessPolicies.form.forwardAuth.gatewayPathPrefixHint')}
                         </p>
                     </div>
-                    <div className={uiClassNames.form.field}>
+                    <div className="grid gap-[0.45rem]">
                         <label
-                            className={uiClassNames.form.label}
+                            className="text-[0.82rem] font-[750] text-ink-soft"
                             htmlFor={`${formId}-forwardAuth-endpoint`}
                         >
                             {t('admin.accessPolicies.form.forwardAuth.endpoint')}
@@ -235,16 +239,16 @@ export default function AccessPolicyFormFields({
                         />
                         <p
                             id={`${formId}-forwardAuth-endpoint-hint`}
-                            className={uiClassNames.form.hint}
+                            className="m-0 text-[0.76rem] leading-[1.45] text-muted"
                         >
                             {t(
                                 `admin.accessPolicies.form.forwardAuth.endpointHint.${values.forwardAuth.provider}`,
                             )}
                         </p>
                     </div>
-                    <div className={uiClassNames.form.field}>
+                    <div className="grid gap-[0.45rem]">
                         <label
-                            className={uiClassNames.form.label}
+                            className="text-[0.82rem] font-[750] text-ink-soft"
                             htmlFor={`${formId}-forwardAuth-timeout`}
                         >
                             {t('admin.accessPolicies.form.forwardAuth.timeout')}
@@ -263,13 +267,13 @@ export default function AccessPolicyFormFields({
                             onChange={(event) => setForwardAuthTimeout(event.target.value)}
                         />
                     </div>
-                    <div className={uiClassNames.form.field}>
-                        <span className={uiClassNames.form.label}>
+                    <div className="grid gap-[0.45rem]">
+                        <span className="text-[0.82rem] font-[750] text-ink-soft">
                             {t('admin.accessPolicies.form.forwardAuth.requestHeaders')}
                         </span>
                         {requestHeaderOptions.map((header) => (
                             <label
-                                className={uiClassNames.permission.option}
+                                className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
                                 htmlFor={`${formId}-forwardAuth-request-${header}`}
                                 key={header}
                             >
@@ -283,15 +287,15 @@ export default function AccessPolicyFormFields({
                                         setForwardAuthRequestHeader(header, event.target.checked)
                                     }
                                 />
-                                <span className={uiClassNames.permission.copy}>
-                                    <span className={uiClassNames.permission.title}>{header}</span>
+                                <span className="grid gap-[0.12rem]">
+                                    <span className="text-[0.78rem] text-ink-soft">{header}</span>
                                 </span>
                             </label>
                         ))}
                     </div>
-                    <div className={uiClassNames.form.field}>
+                    <div className="grid gap-[0.45rem]">
                         <label
-                            className={uiClassNames.form.label}
+                            className="text-[0.82rem] font-[750] text-ink-soft"
                             htmlFor={`${formId}-forwardAuth-responseHeaders`}
                         >
                             {t('admin.accessPolicies.form.forwardAuth.responseHeaders')}
@@ -314,7 +318,7 @@ export default function AccessPolicyFormFields({
                         />
                         <p
                             id={`${formId}-forwardAuth-responseHeaders-hint`}
-                            className={uiClassNames.form.hint}
+                            className="m-0 text-[0.76rem] leading-[1.45] text-muted"
                         >
                             {t('admin.accessPolicies.form.forwardAuth.responseHeadersDescription')}
                         </p>
@@ -331,9 +335,7 @@ export default function AccessPolicyFormFields({
                 </fieldset>
             ) : null}
             {values.mode === 'combined' ? (
-                <fieldset
-                    className={`${uiClassNames.permission.fieldset} ${uiClassNames.form.wide}`}
-                >
+                <fieldset className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft shell:col-span-full">
                     <legend>{t('admin.accessPolicies.form.combination')}</legend>
                     <div className="grid gap-2">
                         {(values.authMethod === 'forwardAuth'
@@ -341,7 +343,7 @@ export default function AccessPolicyFormFields({
                             : (['all', 'any'] as const)
                         ).map((combination) => (
                             <label
-                                className={uiClassNames.permission.option}
+                                className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
                                 aria-label={t(`admin.accessPolicies.combination.${combination}`)}
                                 htmlFor={`${formId}-combination-${combination}`}
                                 key={combination}
@@ -354,11 +356,11 @@ export default function AccessPolicyFormFields({
                                     disabled={isPending}
                                     onChange={() => setCombination(combination)}
                                 />
-                                <span className={uiClassNames.permission.copy}>
-                                    <span className={uiClassNames.permission.title}>
+                                <span className="grid gap-[0.12rem]">
+                                    <span className="text-[0.78rem] text-ink-soft">
                                         {t(`admin.accessPolicies.combination.${combination}`)}
                                     </span>
-                                    <span className={uiClassNames.form.hint}>
+                                    <span className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                         {t(
                                             `admin.accessPolicies.combinationDescription.${combination}`,
                                         )}
@@ -380,15 +382,15 @@ export default function AccessPolicyFormFields({
             ) : null}
             {ipRulesSectionVisible ? (
                 <fieldset
-                    className={`${uiClassNames.permission.fieldset} ${uiClassNames.form.wide} grid gap-3`}
+                    className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft shell:col-span-full grid gap-3"
                     aria-describedby={ipRulesErrorId}
                 >
                     <legend>{t('admin.accessPolicies.form.ipRules.title')}</legend>
-                    <p className={uiClassNames.form.hint}>
+                    <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                         {t('admin.accessPolicies.form.ipRules.description')}
                     </p>
                     <label
-                        className={uiClassNames.permission.option}
+                        className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
                         htmlFor={`${formId}-ip-rules-enabled`}
                         aria-label={t('admin.accessPolicies.form.ipRules.configure')}
                     >
@@ -404,20 +406,20 @@ export default function AccessPolicyFormFields({
                                 )
                             }
                         />
-                        <span className={uiClassNames.permission.copy}>
-                            <span className={uiClassNames.permission.title}>
+                        <span className="grid gap-[0.12rem]">
+                            <span className="text-[0.78rem] text-ink-soft">
                                 {t('admin.accessPolicies.form.ipRules.configure')}
                             </span>
-                            <span className={uiClassNames.form.hint}>
+                            <span className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                 {t('admin.accessPolicies.form.ipRules.configureHint')}
                             </span>
                         </span>
                     </label>
                     {values.ipRules ? (
                         <>
-                            <div className={uiClassNames.form.field}>
+                            <div className="grid gap-[0.45rem]">
                                 <label
-                                    className={uiClassNames.form.label}
+                                    className="text-[0.82rem] font-[750] text-ink-soft"
                                     htmlFor={`${formId}-ip-rules-default-action`}
                                 >
                                     {t('admin.accessPolicies.form.ipRules.defaultAction')}
@@ -448,14 +450,14 @@ export default function AccessPolicyFormFields({
                                 />
                                 <p
                                     id={`${formId}-ip-rules-default-action-hint`}
-                                    className={uiClassNames.form.hint}
+                                    className="m-0 text-[0.76rem] leading-[1.45] text-muted"
                                 >
                                     {t('admin.accessPolicies.form.ipRules.defaultActionHint')}
                                 </p>
                             </div>
-                            <div className={uiClassNames.form.field}>
+                            <div className="grid gap-[0.45rem]">
                                 <label
-                                    className={uiClassNames.form.label}
+                                    className="text-[0.82rem] font-[750] text-ink-soft"
                                     htmlFor={`${formId}-ip-rules-allow`}
                                 >
                                     {t('admin.accessPolicies.form.ipRules.allow')}
@@ -475,9 +477,9 @@ export default function AccessPolicyFormFields({
                                     onChange={(event) => setIpRuleAllow(event.target.value)}
                                 />
                             </div>
-                            <div className={uiClassNames.form.field}>
+                            <div className="grid gap-[0.45rem]">
                                 <label
-                                    className={uiClassNames.form.label}
+                                    className="text-[0.82rem] font-[750] text-ink-soft"
                                     htmlFor={`${formId}-ip-rules-deny`}
                                 >
                                     {t('admin.accessPolicies.form.ipRules.deny')}
@@ -511,7 +513,7 @@ export default function AccessPolicyFormFields({
                 </fieldset>
             ) : null}
             <aside
-                className={`${uiClassNames.form.wide} rounded-xl border p-3 text-sm leading-relaxed text-ink-soft ${availabilityClassName}`}
+                className={`shell:col-span-full rounded-xl border p-3 text-sm leading-relaxed text-ink-soft ${availabilityClassName}`}
                 role={availability === 'publicIgnored' ? undefined : 'status'}
             >
                 <p className="m-0 font-extrabold">

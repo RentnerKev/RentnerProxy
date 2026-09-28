@@ -3,7 +3,6 @@ import { Camera, ImageUp } from 'lucide-react'
 
 import { UserAvatar } from '../../../shared/Avatar'
 import FormMessage from '../../../shared/Forms/FormMessage'
-import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import { PROFILE_IMAGE_ACCEPT } from '../../../config/profile-image.config'
 import useTranslationStore from '../../../language/useTranslationStore'
 import useProfileImageLogic from '../Hooks/useProfileImageLogic'
@@ -15,8 +14,11 @@ export default function ProfileImagePanel({ canUpdateProfileImage, user }: Profi
     const { t } = useTranslationStore()
 
     return (
-        <section className={uiClassNames.management.card} aria-labelledby="profile-image-title">
-            <p className={uiClassNames.themedTechnicalLabel}>
+        <section
+            className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
+            aria-labelledby="profile-image-title"
+        >
+            <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
                 {t('account.profileImage.sectionEyebrow')}
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-4">
@@ -35,9 +37,7 @@ export default function ProfileImagePanel({ canUpdateProfileImage, user }: Profi
                 </div>
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-3">
-                <label
-                    className={`${uiClassNames.button.secondary} relative overflow-hidden has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-[0.55]`}
-                >
+                <label className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text relative overflow-hidden has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-[0.55]">
                     {user.profileImageVersion ? (
                         <Camera aria-hidden="true" className="size-4" />
                     ) : (

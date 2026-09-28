@@ -1,6 +1,5 @@
 import useTranslationStore from '../../../../language/useTranslationStore'
 import { Modal } from '../../../../shared/Modal'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import useBasicAuthAccountFormLogic from '../Hooks/useBasicAuthAccountFormLogic'
 import type { BasicAuthAccountFormModalProps } from '../Types/basic-auth.types'
 import BasicAuthAccountFormFields from './BasicAuthAccountFormFields'
@@ -26,7 +25,7 @@ export default function BasicAuthAccountFormModal(props: BasicAuthAccountFormMod
                 <>
                     <button
                         type="button"
-                        className={uiClassNames.button.secondary}
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                         disabled={state.isPending}
                         onClick={() => handler.handleOpenChange(false)}
                     >
@@ -35,7 +34,7 @@ export default function BasicAuthAccountFormModal(props: BasicAuthAccountFormMod
                     <button
                         type="submit"
                         form={state.formId}
-                        className={uiClassNames.button.primary}
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
                         disabled={state.isPending}
                     >
                         {state.isPending

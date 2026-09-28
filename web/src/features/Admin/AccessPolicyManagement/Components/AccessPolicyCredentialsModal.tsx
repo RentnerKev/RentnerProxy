@@ -2,7 +2,6 @@ import useTranslationStore from '../../../../language/useTranslationStore'
 import ContentState from '../../../../shared/Management/ContentState'
 import { ConfirmDialog } from '../../../../shared/Modal/Components/ConfirmDialog'
 import { Modal } from '../../../../shared/Modal'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY } from '../../../../config/access-policies.config'
 import useBasicAuthAccountsLogic from '../Hooks/useBasicAuthAccountsLogic'
 import type { BasicAuthAccountsModalProps } from '../Types/basic-auth.types'
@@ -26,7 +25,7 @@ export default function AccessPolicyCredentialsModal(props: BasicAuthAccountsMod
                 footer={
                     <button
                         type="button"
-                        className={uiClassNames.button.secondary}
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                         disabled={state.isDeleting}
                         onClick={() => handler.handleOpenChange(false)}
                     >
@@ -38,10 +37,10 @@ export default function AccessPolicyCredentialsModal(props: BasicAuthAccountsMod
                     <div className="rounded-xl border border-info-text/20 bg-info-bg p-3 text-sm leading-relaxed text-info-text">
                         {t('admin.accessPolicies.basicAuth.form.transportHint')}
                     </div>
-                    <section className={uiClassNames.management.card}>
+                    <section className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
-                                <p className={uiClassNames.technicalLabel}>
+                                <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-400 uppercase">
                                     {t('admin.accessPolicies.basicAuth.table.eyebrow')}
                                 </p>
                                 <h2 className="mt-1 text-xl font-extrabold text-ink-soft">
@@ -56,7 +55,7 @@ export default function AccessPolicyCredentialsModal(props: BasicAuthAccountsMod
                             {props.canUpdate ? (
                                 <button
                                     type="button"
-                                    className={uiClassNames.button.primary}
+                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
                                     disabled={state.isMutating || accountLimitReached}
                                     onClick={handler.openCreate}
                                 >
@@ -79,7 +78,7 @@ export default function AccessPolicyCredentialsModal(props: BasicAuthAccountsMod
                             action={
                                 <button
                                     type="button"
-                                    className={uiClassNames.button.secondary}
+                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                                     onClick={handler.retry}
                                 >
                                     {t('common.retry')}

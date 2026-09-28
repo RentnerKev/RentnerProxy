@@ -1,7 +1,6 @@
 import useTranslationStore from '../../../../language/useTranslationStore'
 import ContentState from '../../../../shared/Management/ContentState'
 import PageHeader from '../../../../shared/Management/PageHeader'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { AuditLogsPageViewProps } from '../Types/audit-logs.types'
 import AuditLogsTable from './AuditLogsTable'
 
@@ -31,7 +30,7 @@ export default function AuditLogsPageView({ logic: { state, handler } }: AuditLo
                     action={
                         <button
                             type="button"
-                            className={uiClassNames.button.secondary}
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                             onClick={handler.retry}
                         >
                             {t('common.retry')}

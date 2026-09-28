@@ -1,5 +1,4 @@
 import useTranslationStore from '../../../language/useTranslationStore'
-import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import type { FoundationStatusViewProps } from '../Types/foundation-status.types'
 
 export default function CompactFoundationStatus({ services }: FoundationStatusViewProps) {
@@ -10,7 +9,9 @@ export default function CompactFoundationStatus({ services }: FoundationStatusVi
             aria-label={t('foundation.serviceStatus')}
         >
             <div>
-                <p className={uiClassNames.technicalLabel}>{t('foundation.connectionMap')}</p>
+                <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-400 uppercase">
+                    {t('foundation.connectionMap')}
+                </p>
                 <h2 className="mt-[0.6rem] text-[clamp(1.3rem,3vw,1.8rem)] tracking-[-0.025em] text-ink-soft">
                     {t('foundation.summary')}
                 </h2>

@@ -4,7 +4,6 @@ import useTranslationStore from '../../../../language/useTranslationStore'
 import { certificateCoversDomains } from '../../CertificateManagement/Helpers/certificateValidation'
 import FieldError from '../../../../shared/Forms/FieldError'
 import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import {
     getAccessPolicyAvailability,
     getBasicAuthAccountCount,
@@ -55,9 +54,9 @@ export default function ProxyHostFormFields({
             />
             <form.Field name="forwardScheme">
                 {(field) => (
-                    <div className={uiClassNames.form.field}>
+                    <div className="grid gap-[0.45rem]">
                         <label
-                            className={uiClassNames.form.label}
+                            className="text-[0.82rem] font-[750] text-ink-soft"
                             htmlFor={`${formId}-forwardScheme`}
                         >
                             {t('admin.proxyHosts.form.forwardScheme')}
@@ -105,8 +104,11 @@ export default function ProxyHostFormFields({
                     const errorId = `${inputId}-error`
 
                     return (
-                        <div className={uiClassNames.form.field}>
-                            <label className={uiClassNames.form.label} htmlFor={inputId}>
+                        <div className="grid gap-[0.45rem]">
+                            <label
+                                className="text-[0.82rem] font-[750] text-ink-soft"
+                                htmlFor={inputId}
+                            >
                                 {t('admin.proxyHosts.form.forwardPort')}
                             </label>
                             <TextInput
@@ -138,8 +140,11 @@ export default function ProxyHostFormFields({
                     const hintId = `${inputId}-hint`
 
                     return (
-                        <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
-                            <label className={uiClassNames.form.label} htmlFor={inputId}>
+                        <div className="grid gap-[0.45rem] shell:col-span-full">
+                            <label
+                                className="text-[0.82rem] font-[750] text-ink-soft"
+                                htmlFor={inputId}
+                            >
                                 {t('admin.proxyHosts.form.forwardHost')}
                             </label>
                             <TextInput
@@ -157,7 +162,7 @@ export default function ProxyHostFormFields({
                                 aria-invalid={field.state.meta.errors.length > 0}
                                 aria-describedby={`${hintId} ${errorId}`}
                             />
-                            <p id={hintId} className={uiClassNames.form.hint}>
+                            <p id={hintId} className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                 {t('admin.proxyHosts.form.forwardHostHint')}
                             </p>
                             <FieldError id={errorId} errors={field.state.meta.errors} />
@@ -184,9 +189,9 @@ export default function ProxyHostFormFields({
                             ),
                     )
                     return canAssignCertificates || canRequestCertificate ? (
-                        <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
+                        <div className="grid gap-[0.45rem] shell:col-span-full">
                             <label
-                                className={uiClassNames.form.label}
+                                className="text-[0.82rem] font-[750] text-ink-soft"
                                 htmlFor={`${formId}-certificateId`}
                             >
                                 {t('admin.proxyHosts.form.certificate')}
@@ -244,12 +249,12 @@ export default function ProxyHostFormFields({
                             />
                             <p
                                 id={`${formId}-certificateId-hint`}
-                                className={uiClassNames.form.hint}
+                                className="m-0 text-[0.76rem] leading-[1.45] text-muted"
                             >
                                 {t('admin.proxyHosts.form.certificateHint')}
                             </p>
                             {assignableCertificatesLoading ? (
-                                <output className={uiClassNames.form.hint}>
+                                <output className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                     {t('common.loading')}
                                 </output>
                             ) : assignableCertificatesLoadFailed ? (
@@ -259,7 +264,7 @@ export default function ProxyHostFormFields({
                                     </p>
                                     <button
                                         type="button"
-                                        className={uiClassNames.button.quiet}
+                                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                                         onClick={retryAssignableCertificates}
                                         disabled={isPending}
                                     >
@@ -276,9 +281,7 @@ export default function ProxyHostFormFields({
                 }}
             </form.Field>
             {requestNewCertificate ? (
-                <div
-                    className={`${uiClassNames.form.wide} grid gap-4 rounded-xl border border-info-text/20 bg-info-bg p-3`}
-                >
+                <div className="shell:col-span-full grid gap-4 rounded-xl border border-info-text/20 bg-info-bg p-3">
                     <p className="m-0 text-sm leading-relaxed text-info-text">
                         {t('admin.certificates.form.domainsHint')}
                     </p>
@@ -303,9 +306,9 @@ export default function ProxyHostFormFields({
                           )
                         : null
                     return canAssignPolicies ? (
-                        <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
+                        <div className="grid gap-[0.45rem] shell:col-span-full">
                             <label
-                                className={uiClassNames.form.label}
+                                className="text-[0.82rem] font-[750] text-ink-soft"
                                 htmlFor={`${formId}-accessPolicyId`}
                             >
                                 {t('admin.proxyHosts.form.accessPolicy')}
@@ -337,18 +340,18 @@ export default function ProxyHostFormFields({
                                 onValueChange={(value) => field.handleChange(value || null)}
                             />
                             {availability ? (
-                                <p className={uiClassNames.form.hint}>
+                                <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                     {t(`admin.accessPolicies.availability.${availability}`)}
                                 </p>
                             ) : null}
                             <p
                                 id={`${formId}-accessPolicyId-hint`}
-                                className={uiClassNames.form.hint}
+                                className="m-0 text-[0.76rem] leading-[1.45] text-muted"
                             >
                                 {t('admin.proxyHosts.form.accessPolicyHint')}
                             </p>
                             {assignableAccessPoliciesLoading ? (
-                                <output className={uiClassNames.form.hint}>
+                                <output className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                     {t('common.loading')}
                                 </output>
                             ) : assignableAccessPoliciesLoadFailed ? (
@@ -358,7 +361,7 @@ export default function ProxyHostFormFields({
                                     </p>
                                     <button
                                         type="button"
-                                        className={uiClassNames.button.quiet}
+                                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                                         onClick={retryAssignableAccessPolicies}
                                         disabled={isPending}
                                     >
@@ -386,11 +389,9 @@ export default function ProxyHostFormFields({
                                         selected.status === 'expiring') &&
                                     certificateCoversDomains(selected.domains, domains))
                             return canAssignCertificates ? (
-                                <div
-                                    className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}
-                                >
+                                <div className="grid gap-[0.45rem] shell:col-span-full">
                                     <label
-                                        className={uiClassNames.permission.option}
+                                        className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
                                         htmlFor={`${formId}-forceHttps`}
                                         aria-label={t('admin.proxyHosts.form.forceHttps')}
                                     >
@@ -405,17 +406,17 @@ export default function ProxyHostFormFields({
                                                 field.handleChange(event.target.checked)
                                             }
                                         />
-                                        <span className={uiClassNames.permission.copy}>
-                                            <span className={uiClassNames.permission.title}>
+                                        <span className="grid gap-[0.12rem]">
+                                            <span className="text-[0.78rem] text-ink-soft">
                                                 {t('admin.proxyHosts.form.forceHttps')}
                                             </span>
-                                            <span className={uiClassNames.form.hint}>
+                                            <span className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                                 {t('admin.proxyHosts.form.forceHttpsHint')}
                                             </span>
                                         </span>
                                     </label>
                                     {!usable ? (
-                                        <p className={uiClassNames.form.hint}>
+                                        <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                             {t(
                                                 'admin.proxyHosts.form.forceHttpsRequiresCertificate',
                                             )}
@@ -433,9 +434,9 @@ export default function ProxyHostFormFields({
             </form.Subscribe>
             <form.Field name="enabled">
                 {(field) => (
-                    <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
+                    <div className="grid gap-[0.45rem] shell:col-span-full">
                         <label
-                            className={uiClassNames.permission.option}
+                            className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
                             htmlFor={`${formId}-enabled`}
                             aria-label={t('admin.proxyHosts.status.enabled')}
                         >
@@ -448,17 +449,17 @@ export default function ProxyHostFormFields({
                                 onBlur={field.handleBlur}
                                 onChange={(event) => field.handleChange(event.target.checked)}
                             />
-                            <span className={uiClassNames.permission.copy}>
-                                <span className={uiClassNames.permission.title}>
+                            <span className="grid gap-[0.12rem]">
+                                <span className="text-[0.78rem] text-ink-soft">
                                     {t('admin.proxyHosts.status.enabled')}
                                 </span>
-                                <span className={uiClassNames.form.hint}>
+                                <span className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                     {t('admin.proxyHosts.form.enabledHint')}
                                 </span>
                             </span>
                         </label>
                         {!canChangeEnabled ? (
-                            <p className={uiClassNames.form.hint}>
+                            <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                 {t('admin.proxyHosts.form.statusReadOnly')}
                             </p>
                         ) : null}

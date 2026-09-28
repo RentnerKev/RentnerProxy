@@ -1,4 +1,3 @@
-import { useRef } from 'react'
 import { Link } from '@tanstack/react-router'
 
 import useTranslationStore from '../../../language/useTranslationStore'
@@ -11,6 +10,7 @@ import ApplicationUserPanel from './Components/ApplicationUserPanel'
 import ApplicationVersion from './Components/ApplicationVersion'
 import getApplicationShellViewModel from './Helpers/getApplicationShellViewModel'
 import useApplicationNavigationLogic from './Hooks/useApplicationNavigationLogic'
+import useApplicationSidebarRefs from './Hooks/useApplicationSidebarRefs'
 import type { AuthenticatedShellProps } from './Types/application-shell.types'
 
 export default function AuthenticatedShell({
@@ -22,8 +22,7 @@ export default function AuthenticatedShell({
     user,
 }: AuthenticatedShellProps) {
     const { t } = useTranslationStore()
-    const sidebarRef = useRef<HTMLElement>(null)
-    const sidebarScrollRef = useRef<HTMLDivElement>(null)
+    const { sidebarRef, sidebarScrollRef } = useApplicationSidebarRefs()
     const navigation = useApplicationNavigationLogic()
     const viewModel = getApplicationShellViewModel(user, t)
 

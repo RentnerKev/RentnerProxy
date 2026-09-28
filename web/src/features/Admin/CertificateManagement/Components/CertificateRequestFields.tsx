@@ -2,7 +2,6 @@ import { CheckboxInput, EmailInput, PasswordInput, TextInput, Textarea } from '@
 import { CustomSelect } from '@rentnerkev/select/select'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type useCertificateRequestLogic from '../Hooks/useCertificateRequestLogic'
 
 /** Renders the ACME certificate request fields and environment-specific guidance. */
@@ -20,9 +19,9 @@ export default function CertificateRequestFields({
         <div className="grid gap-4">
             <form.Field name="name">
                 {(field) => (
-                    <div className={uiClassNames.form.field}>
+                    <div className="grid gap-[0.45rem]">
                         <label
-                            className={uiClassNames.form.label}
+                            className="text-[0.82rem] font-[750] text-ink-soft"
                             htmlFor="certificate-request-name"
                         >
                             {t('admin.certificates.form.name')}
@@ -46,9 +45,9 @@ export default function CertificateRequestFields({
             </form.Field>
             <form.Field name="domains">
                 {(field) => (
-                    <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
+                    <div className="grid gap-[0.45rem] shell:col-span-full">
                         <label
-                            className={uiClassNames.form.label}
+                            className="text-[0.82rem] font-[750] text-ink-soft"
                             htmlFor="certificate-request-domains"
                         >
                             {t('admin.certificates.form.domains')}
@@ -74,7 +73,10 @@ export default function CertificateRequestFields({
                             spellCheck={false}
                             aria-describedby="certificate-request-domains-hint certificate-request-domains-error"
                         />
-                        <p id="certificate-request-domains-hint" className={uiClassNames.form.hint}>
+                        <p
+                            id="certificate-request-domains-hint"
+                            className="m-0 text-[0.76rem] leading-[1.45] text-muted"
+                        >
                             {t('admin.certificates.form.domainsHint')}
                         </p>
                         <FieldError
@@ -86,9 +88,9 @@ export default function CertificateRequestFields({
             </form.Field>
             <form.Field name="challengeType">
                 {(field) => (
-                    <div className={uiClassNames.form.field}>
+                    <div className="grid gap-[0.45rem]">
                         <label
-                            className={uiClassNames.form.label}
+                            className="text-[0.82rem] font-[750] text-ink-soft"
                             htmlFor="certificate-request-challengeType"
                         >
                             {t('admin.certificates.form.challengeType')}
@@ -120,7 +122,7 @@ export default function CertificateRequestFields({
                         />
                         <p
                             id="certificate-request-challengeType-hint"
-                            className={uiClassNames.form.hint}
+                            className="m-0 text-[0.76rem] leading-[1.45] text-muted"
                         >
                             {field.state.value === 'dns-01'
                                 ? t('admin.certificates.form.dnsWildcardHint')
@@ -142,9 +144,9 @@ export default function CertificateRequestFields({
                             </p>
                             <form.Field name="dnsZoneId">
                                 {(field) => (
-                                    <div className={uiClassNames.form.field}>
+                                    <div className="grid gap-[0.45rem]">
                                         <label
-                                            className={uiClassNames.form.label}
+                                            className="text-[0.82rem] font-[750] text-ink-soft"
                                             htmlFor="certificate-request-dns-zone-id"
                                         >
                                             {t('admin.certificates.form.dnsZoneId')}
@@ -173,9 +175,9 @@ export default function CertificateRequestFields({
                             </form.Field>
                             <form.Field name="dnsApiToken">
                                 {(field) => (
-                                    <div className={uiClassNames.form.field}>
+                                    <div className="grid gap-[0.45rem]">
                                         <label
-                                            className={uiClassNames.form.label}
+                                            className="text-[0.82rem] font-[750] text-ink-soft"
                                             htmlFor="certificate-request-dns-api-token"
                                         >
                                             {t('admin.certificates.form.dnsApiToken')}
@@ -207,9 +209,9 @@ export default function CertificateRequestFields({
             </form.Subscribe>
             <form.Field name="environment">
                 {(field) => (
-                    <div className={uiClassNames.form.field}>
+                    <div className="grid gap-[0.45rem]">
                         <label
-                            className={uiClassNames.form.label}
+                            className="text-[0.82rem] font-[750] text-ink-soft"
                             htmlFor="certificate-request-environment"
                         >
                             {t('admin.certificates.form.environment')}
@@ -241,7 +243,7 @@ export default function CertificateRequestFields({
                         />
                         <p
                             id="certificate-request-environment-hint"
-                            className={uiClassNames.form.hint}
+                            className="m-0 text-[0.76rem] leading-[1.45] text-muted"
                         >
                             {t(
                                 field.state.value === 'staging'
@@ -258,9 +260,9 @@ export default function CertificateRequestFields({
             </form.Field>
             <form.Field name="contactEmail">
                 {(field) => (
-                    <div className={uiClassNames.form.field}>
+                    <div className="grid gap-[0.45rem]">
                         <label
-                            className={uiClassNames.form.label}
+                            className="text-[0.82rem] font-[750] text-ink-soft"
                             htmlFor="certificate-request-contact"
                         >
                             {t('admin.certificates.form.contactEmail')}
@@ -276,7 +278,10 @@ export default function CertificateRequestFields({
                             onChange={(event) => field.handleChange(event.target.value)}
                             aria-describedby="certificate-request-contact-hint certificate-request-contact-error"
                         />
-                        <p id="certificate-request-contact-hint" className={uiClassNames.form.hint}>
+                        <p
+                            id="certificate-request-contact-hint"
+                            className="m-0 text-[0.76rem] leading-[1.45] text-muted"
+                        >
                             {t('admin.certificates.form.contactHint')}
                         </p>
                         <FieldError
@@ -288,9 +293,9 @@ export default function CertificateRequestFields({
             </form.Field>
             <form.Field name="acceptTerms">
                 {(field) => (
-                    <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
+                    <div className="grid gap-[0.45rem] shell:col-span-full">
                         <label
-                            className={uiClassNames.permission.option}
+                            className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
                             htmlFor="certificate-request-terms"
                             aria-label={t('admin.certificates.form.acceptTerms')}
                         >
@@ -303,11 +308,11 @@ export default function CertificateRequestFields({
                                 onBlur={field.handleBlur}
                                 onChange={(event) => field.handleChange(event.target.checked)}
                             />
-                            <span className={uiClassNames.permission.copy}>
-                                <span className={uiClassNames.permission.title}>
+                            <span className="grid gap-[0.12rem]">
+                                <span className="text-[0.78rem] text-ink-soft">
                                     {t('admin.certificates.form.acceptTerms')}
                                 </span>
-                                <span className={uiClassNames.form.hint}>
+                                <span className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                     {t('admin.certificates.form.termsHint')}
                                 </span>
                             </span>

@@ -1,5 +1,4 @@
 import useTranslationStore from '../../../../language/useTranslationStore'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { ProxyRuntimeState, ProxyRuntimeStatus } from '../Types/proxy-host-management.types'
 
 interface ProxyRuntimeStatusPanelProps {
@@ -62,7 +61,7 @@ export default function ProxyRuntimeStatusPanel({
             {isError && onRetry ? (
                 <button
                     type="button"
-                    className={uiClassNames.button.secondary}
+                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                     onClick={onRetry}
                     disabled={isRetrying}
                 >
@@ -71,7 +70,7 @@ export default function ProxyRuntimeStatusPanel({
             ) : showApply ? (
                 <button
                     type="button"
-                    className={uiClassNames.button.primary}
+                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
                     onClick={onApply}
                     disabled={isApplying}
                 >

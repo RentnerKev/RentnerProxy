@@ -3,7 +3,6 @@ import { displayNameSchema, emailSchema } from '../../../Auth/Shared/validation'
 import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { roleKeysSchema } from '../validation'
 import type { UserFormFieldsProps } from '../Types/user-form-modal.types'
 import RoleCheckboxes from './RoleCheckboxes'
@@ -36,9 +35,9 @@ export default function UserFormFields({
                     const errorId = `${formId}-${field.name}-error`
 
                     return (
-                        <div className={uiClassNames.form.field}>
+                        <div className="grid gap-[0.45rem]">
                             <label
-                                className={uiClassNames.form.label}
+                                className="text-[0.82rem] font-[750] text-ink-soft"
                                 htmlFor={`${formId}-${field.name}`}
                             >
                                 {t('admin.users.form.displayName')}
@@ -67,9 +66,9 @@ export default function UserFormFields({
                     const errorId = `${formId}-${field.name}-error`
 
                     return (
-                        <div className={uiClassNames.form.field}>
+                        <div className="grid gap-[0.45rem]">
                             <label
-                                className={uiClassNames.form.label}
+                                className="text-[0.82rem] font-[750] text-ink-soft"
                                 htmlFor={`${formId}-${field.name}`}
                             >
                                 {t('admin.users.form.email')}
@@ -92,21 +91,23 @@ export default function UserFormFields({
                 }}
             </form.Field>
 
-            <div className={uiClassNames.form.field}>
-                <span className={uiClassNames.form.label}>{t('admin.users.form.status')}</span>
+            <div className="grid gap-[0.45rem]">
+                <span className="text-[0.82rem] font-[750] text-ink-soft">
+                    {t('admin.users.form.status')}
+                </span>
                 <div className="flex min-h-12 items-center rounded-xl border border-input-border bg-surface-raised px-[0.85rem]">
                     <span className={statusBadgeClassName} data-status={status}>
                         {t(`admin.users.status.${status}`)}
                     </span>
                 </div>
-                <p className={uiClassNames.form.hint}>
+                <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                     {isCreate
                         ? t('admin.users.form.pendingHint')
                         : t('admin.users.form.disabledHint')}
                 </p>
             </div>
 
-            <div className={uiClassNames.form.wide}>
+            <div className="shell:col-span-full">
                 {canEditRoles ? (
                     <form.Field
                         name="roleKeys"
@@ -118,18 +119,21 @@ export default function UserFormFields({
                         {(field) => <RoleCheckboxes field={field} roles={roles} disabled={false} />}
                     </form.Field>
                 ) : (
-                    <fieldset className={uiClassNames.permission.fieldset}>
+                    <fieldset className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft">
                         <legend>{t('admin.users.form.roles')}</legend>
-                        <div className={uiClassNames.chip.row}>
+                        <div className="flex flex-wrap gap-[0.45rem]">
                             {(user?.roleKeys ?? []).map((role) => (
-                                <span className={uiClassNames.chip.item} key={role}>
+                                <span
+                                    className="inline-flex items-center rounded-full border border-brand-600/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
+                                    key={role}
+                                >
                                     {['owner', 'admin', 'viewer'].includes(role)
                                         ? t(`systemRoles.${role}.name`)
                                         : role}
                                 </span>
                             ))}
                         </div>
-                        <p className={`${uiClassNames.form.hint} mt-2`}>
+                        <p className="m-0 text-[0.76rem] leading-[1.45] text-muted mt-2">
                             {t('admin.users.form.rolesReadOnly')}
                         </p>
                     </fieldset>

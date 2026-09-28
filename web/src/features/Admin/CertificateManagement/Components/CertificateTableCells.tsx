@@ -1,4 +1,3 @@
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { ManagedDomainLink, ManagedDomainOverflow } from '../../../../shared/Domain'
 import useTranslationStore, { useDateFormatter } from '../../../../language/useTranslationStore'
 import type { CertificateSource, CertificateStatus } from '../../../../config/certificates.config'
@@ -21,10 +20,13 @@ export function CertificateDomainsCell({ domains }: { readonly domains: Readonly
     const extra = domains.slice(2)
     if (visible.length === 0) return <span className="text-muted">—</span>
     return (
-        <div className={uiClassNames.chip.row}>
+        <div className="flex flex-wrap gap-[0.45rem]">
             {visible.map((domain) => (
                 <ManagedDomainLink
-                    className={uiClassNames.chip.item + ' max-w-56 wrap-anywhere'}
+                    className={
+                        'inline-flex items-center rounded-full border border-brand-600/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text' +
+                        ' max-w-56 wrap-anywhere'
+                    }
                     domain={domain}
                     key={domain}
                 />

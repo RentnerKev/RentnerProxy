@@ -1,5 +1,4 @@
 import useTranslationStore from '../../language/useTranslationStore'
-import { uiClassNames } from '../Styles/uiClassNames'
 import getFieldErrorMessage from './Helpers/getFieldErrorMessage'
 import type { FieldErrorProps } from './Types/form-component-props.types'
 
@@ -12,7 +11,7 @@ export default function FieldError({ errors, id }: FieldErrorProps) {
     }
 
     return (
-        <p id={id} className={`${uiClassNames.form.hint} text-danger-text`}>
+        <p id={id} className="m-0 text-[0.76rem] leading-[1.45] text-muted text-danger-text">
             {message}
         </p>
     )

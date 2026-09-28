@@ -1,23 +1,25 @@
 import { CheckboxInput } from '@rentnerkev/inputs'
 import FieldError from '../../../../shared/Forms/FieldError'
 import useTranslationStore from '../../../../language/useTranslationStore'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { getNextSelectedRoleKeys, getRoleCheckboxInputId } from '../Helpers/roleCheckboxes'
 import type { RoleCheckboxesProps } from '../Types/user-management-component-props.types'
 
 export default function RoleCheckboxes({ disabled, field, roles }: RoleCheckboxesProps) {
     const { t } = useTranslationStore()
     return (
-        <fieldset className={uiClassNames.permission.fieldset} disabled={disabled}>
+        <fieldset
+            className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft"
+            disabled={disabled}
+        >
             <legend>{t('admin.users.form.roles')}</legend>
-            <div className={uiClassNames.permission.options}>
+            <div className="grid gap-[0.45rem]">
                 {roles.map((role) => {
                     const checked = field.state.value.includes(role.key)
                     const inputId = getRoleCheckboxInputId(field.name, role.id)
 
                     return (
                         <label
-                            className={uiClassNames.permission.option}
+                            className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
                             key={role.id}
                             htmlFor={inputId}
                         >
@@ -38,11 +40,11 @@ export default function RoleCheckboxes({ disabled, field, roles }: RoleCheckboxe
                                     )
                                 }
                             />
-                            <span className={uiClassNames.permission.copy}>
-                                <strong className={uiClassNames.permission.title}>
+                            <span className="grid gap-[0.12rem]">
+                                <strong className="text-[0.78rem] text-ink-soft">
                                     {role.isSystem ? t(`systemRoles.${role.key}.name`) : role.name}
                                 </strong>
-                                <small className={uiClassNames.permission.description}>
+                                <small className="font-mono text-[0.62rem] text-muted">
                                     {role.key}
                                 </small>
                             </span>

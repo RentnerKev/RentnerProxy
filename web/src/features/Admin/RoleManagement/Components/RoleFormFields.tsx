@@ -2,7 +2,6 @@ import { TextInput, Textarea } from '@rentnerkev/inputs'
 import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { RoleFormFieldsProps } from '../Types/role-form-modal.types'
 import {
     permissionKeysSchema,
@@ -32,9 +31,9 @@ export default function RoleFormFields({
                     const errorId = `${formId}-${field.name}-error`
 
                     return (
-                        <div className={uiClassNames.form.field}>
+                        <div className="grid gap-[0.45rem]">
                             <label
-                                className={uiClassNames.form.label}
+                                className="text-[0.82rem] font-[750] text-ink-soft"
                                 htmlFor={`${formId}-${field.name}`}
                             >
                                 {t('admin.roles.form.key')}
@@ -49,7 +48,7 @@ export default function RoleFormFields({
                                 onChange={(event) => field.handleChange(event.target.value)}
                                 aria-describedby={`${hintId} ${errorId}`}
                             />
-                            <p id={hintId} className={uiClassNames.form.hint}>
+                            <p id={hintId} className="m-0 text-[0.76rem] leading-[1.45] text-muted">
                                 {t('admin.roles.form.keyHint')}
                             </p>
                             <FieldError id={errorId} errors={field.state.meta.errors} />
@@ -65,9 +64,9 @@ export default function RoleFormFields({
                     const errorId = `${formId}-${field.name}-error`
 
                     return (
-                        <div className={uiClassNames.form.field}>
+                        <div className="grid gap-[0.45rem]">
                             <label
-                                className={uiClassNames.form.label}
+                                className="text-[0.82rem] font-[750] text-ink-soft"
                                 htmlFor={`${formId}-${field.name}`}
                             >
                                 {t('admin.roles.form.name')}
@@ -96,9 +95,9 @@ export default function RoleFormFields({
                     const errorId = `${formId}-${field.name}-error`
 
                     return (
-                        <div className={`${uiClassNames.form.field} ${uiClassNames.form.wide}`}>
+                        <div className="grid gap-[0.45rem] shell:col-span-full">
                             <label
-                                className={uiClassNames.form.label}
+                                className="text-[0.82rem] font-[750] text-ink-soft"
                                 htmlFor={`${formId}-${field.name}`}
                             >
                                 {t('admin.roles.form.description')}
@@ -118,7 +117,7 @@ export default function RoleFormFields({
                 }}
             </form.Field>
 
-            <div className={uiClassNames.form.wide}>
+            <div className="shell:col-span-full">
                 {canEditPermissions ? (
                     <form.Field
                         name="permissionKeys"
@@ -137,16 +136,19 @@ export default function RoleFormFields({
                         )}
                     </form.Field>
                 ) : (
-                    <fieldset className={uiClassNames.permission.fieldset}>
+                    <fieldset className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft">
                         <legend>{t('admin.roles.form.permissions')}</legend>
-                        <div className={uiClassNames.chip.row}>
+                        <div className="flex flex-wrap gap-[0.45rem]">
                             {(role?.permissionKeys ?? []).map((permission) => (
-                                <span className={uiClassNames.chip.item} key={permission}>
+                                <span
+                                    className="inline-flex items-center rounded-full border border-brand-600/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
+                                    key={permission}
+                                >
                                     {t(`permissions.${permission}`)}
                                 </span>
                             ))}
                         </div>
-                        <p className={`${uiClassNames.form.hint} mt-2`}>
+                        <p className="m-0 text-[0.76rem] leading-[1.45] text-muted mt-2">
                             {t('admin.roles.form.permissionsReadOnly')}
                         </p>
                     </fieldset>

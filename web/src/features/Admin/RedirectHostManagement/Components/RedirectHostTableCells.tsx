@@ -1,4 +1,3 @@
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import { ManagedDomainLink, ManagedDomainOverflow } from '../../../../shared/Domain'
 import {
     useDateFormatter,
@@ -17,10 +16,13 @@ const badge =
 export function RedirectHostDomainsCell({ domains }: RedirectHostDomainsCellProps) {
     const { t } = useTranslationStore()
     return domains.length ? (
-        <div className={uiClassNames.chip.row}>
+        <div className="flex flex-wrap gap-[0.45rem]">
             {domains.slice(0, 2).map((domain) => (
                 <ManagedDomainLink
-                    className={uiClassNames.chip.item + ' inline-block max-w-56 truncate'}
+                    className={
+                        'inline-flex items-center rounded-full border border-brand-600/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text' +
+                        ' inline-block max-w-56 truncate'
+                    }
                     domain={domain}
                     key={domain}
                 />

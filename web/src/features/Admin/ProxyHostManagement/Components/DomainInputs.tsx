@@ -5,7 +5,6 @@ import { MAX_PROXY_HOST_DOMAINS } from '../../../../config/proxy-hosts.config'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
 import { getValidationIssue } from '../../../../shared/Forms/Helpers/getFieldErrorMessage'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { ProxyHostFormFieldsProps } from '../Types/proxy-host-form.types'
 import { proxyDomainSchema } from '../validation'
 
@@ -25,9 +24,7 @@ export default function DomainInputs({
     return (
         <form.Field name="domains" mode="array">
             {(domainsField) => (
-                <fieldset
-                    className={`${uiClassNames.permission.fieldset} ${uiClassNames.form.wide}`}
-                >
+                <fieldset className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft shell:col-span-full">
                     <legend>{t('admin.proxyHosts.form.domains')}</legend>
                     <div className="grid gap-3">
                         {domainsField.state.value.map((_domain, index) => (
@@ -44,7 +41,7 @@ export default function DomainInputs({
                                     const errorId = `${inputId}-error`
 
                                     return (
-                                        <div className={uiClassNames.form.field}>
+                                        <div className="grid gap-[0.45rem]">
                                             <label className="sr-only" htmlFor={inputId}>
                                                 {t('admin.proxyHosts.form.domainLabel', {
                                                     number: index + 1,
@@ -74,7 +71,7 @@ export default function DomainInputs({
                                                 />
                                                 <button
                                                     type="button"
-                                                    className={`${uiClassNames.button.quiet} mt-1 shrink-0 px-2`}
+                                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-brand-600 enabled:hover:text-brand-text mt-1 shrink-0 px-2"
                                                     aria-label={t(
                                                         'admin.proxyHosts.form.removeDomain',
                                                         { number: index + 1 },
@@ -100,7 +97,7 @@ export default function DomainInputs({
                     </div>
                     <button
                         type="button"
-                        className={`${uiClassNames.button.secondary} mt-3 text-sm`}
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text mt-3 text-sm"
                         disabled={
                             isPending || domainsField.state.value.length >= MAX_PROXY_HOST_DOMAINS
                         }
@@ -109,7 +106,10 @@ export default function DomainInputs({
                         <Plus aria-hidden="true" className="size-4" />
                         {t('admin.proxyHosts.form.addDomain')}
                     </button>
-                    <p id={`${formId}-domains-hint`} className={`${uiClassNames.form.hint} mt-2`}>
+                    <p
+                        id={`${formId}-domains-hint`}
+                        className="m-0 text-[0.76rem] leading-[1.45] text-muted mt-2"
+                    >
                         {t('admin.proxyHosts.form.domainsHint')}
                     </p>
                     <FieldError

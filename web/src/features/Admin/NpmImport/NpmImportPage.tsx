@@ -1,6 +1,5 @@
 import useTranslationStore from '../../../language/useTranslationStore'
 import PageHeader from '../../../shared/Management/PageHeader'
-import { uiClassNames } from '../../../shared/Styles/uiClassNames'
 import { useNpmImport } from './Hooks/useNpmImport'
 import type { NpmImportResultItem, NpmPreviewItem } from './Types/npm-import.types'
 
@@ -61,7 +60,10 @@ export default function NpmImportPage() {
                 title={t('admin.npmImport.title')}
                 description={t('admin.npmImport.description')}
             />
-            <section className={uiClassNames.management.card} aria-labelledby="npm-source-title">
+            <section
+                className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
+                aria-labelledby="npm-source-title"
+            >
                 <h2 id="npm-source-title" className="text-lg font-extrabold text-ink">
                     {t('admin.npmImport.sourceTitle')}
                 </h2>
@@ -71,7 +73,7 @@ export default function NpmImportPage() {
                     <input
                         type="file"
                         accept=".sqlite,.db,application/vnd.sqlite3"
-                        className={uiClassNames.form.control}
+                        className="box-border w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink transition-[border-color,box-shadow] duration-150 placeholder:text-muted-soft aria-invalid:border-red-500 disabled:cursor-not-allowed disabled:opacity-[0.55] focus:border-brand-600 focus:outline-hidden focus:ring-[3px] focus:ring-brand-500/20 motion-reduce:transition-none h-12"
                         disabled={busy !== null}
                         onChange={(event) => {
                             selectFile(event.currentTarget.files?.[0] ?? null)
@@ -81,7 +83,7 @@ export default function NpmImportPage() {
                 <div className="mt-5 flex flex-wrap gap-3">
                     <button
                         type="button"
-                        className={uiClassNames.button.primary}
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
                         disabled={!file || busy !== null}
                         onClick={() => void previewSource()}
                     >
@@ -96,7 +98,7 @@ export default function NpmImportPage() {
             </section>
             {preview ? (
                 <section
-                    className={uiClassNames.management.card}
+                    className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
                     aria-labelledby="npm-preview-title"
                 >
                     <h2 id="npm-preview-title" className="text-lg font-extrabold text-ink">
@@ -105,7 +107,10 @@ export default function NpmImportPage() {
                     <p className="mt-2 text-sm text-ink-soft">{t('admin.npmImport.previewHelp')}</p>
                     <div className="mt-4 flex flex-wrap gap-2" aria-live="polite">
                         {Object.entries(preview.counts).map(([status, count]) => (
-                            <span key={status} className={uiClassNames.chip.item}>
+                            <span
+                                key={status}
+                                className="inline-flex items-center rounded-full border border-brand-600/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
+                            >
                                 {count} {t(`admin.npmImport.status.${status}`)}
                             </span>
                         ))}
@@ -121,7 +126,7 @@ export default function NpmImportPage() {
                     <div className="mt-5 flex flex-wrap gap-3">
                         <button
                             type="button"
-                            className={uiClassNames.button.primary}
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
                             disabled={
                                 busy !== null || preview.counts.ready + preview.counts.partial === 0
                             }
@@ -131,7 +136,7 @@ export default function NpmImportPage() {
                         </button>
                         <button
                             type="button"
-                            className={uiClassNames.button.secondary}
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                             disabled={busy !== null}
                             onClick={discardPreview}
                         >
@@ -141,7 +146,10 @@ export default function NpmImportPage() {
                 </section>
             ) : null}
             {result ? (
-                <section className={uiClassNames.management.card} aria-live="polite">
+                <section
+                    className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
+                    aria-live="polite"
+                >
                     <h2 className="text-lg font-extrabold text-ink">
                         {t('admin.npmImport.resultTitle')}
                     </h2>
@@ -162,7 +170,7 @@ export default function NpmImportPage() {
                 </section>
             ) : null}
             {history.length > 0 ? (
-                <section className={uiClassNames.management.card}>
+                <section className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface">
                     <h2 className="text-lg font-extrabold text-ink">
                         {t('admin.npmImport.history')}
                     </h2>

@@ -4,7 +4,6 @@ import { RotateCcw, Save } from 'lucide-react'
 import useTranslationStore from '../../../../language/useTranslationStore'
 import { Modal } from '../../../../shared/Modal'
 import { ConfirmDialog } from '../../../../shared/Modal/Components/ConfirmDialog'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import CaddyConfigCodeBlock from './CaddyConfigCodeBlock'
 import useProxyGlobalConfigEditorLogic from '../Hooks/useProxyGlobalConfigEditorLogic'
 import type { ProxyGlobalConfigEditorModalProps } from '../Types/proxy-config-editor.types'
@@ -36,7 +35,7 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                     <>
                         <button
                             type="button"
-                            className={uiClassNames.button.secondary}
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                             onClick={() => props.onOpenChange(false)}
                             disabled={busy}
                         >
@@ -46,7 +45,7 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                             <>
                                 <button
                                     type="button"
-                                    className={uiClassNames.button.danger}
+                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-red-700/25 bg-danger-bg text-danger-text enabled:hover:border-red-500/45 enabled:hover:bg-red-700/20"
                                     onClick={handler.reset}
                                     disabled={busy || !state.data}
                                 >
@@ -55,7 +54,7 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                                 </button>
                                 <button
                                     type="button"
-                                    className={uiClassNames.button.primary}
+                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
                                     onClick={handler.save}
                                     disabled={busy || !state.data}
                                 >
@@ -82,7 +81,7 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                                 <button
                                     key={tab}
                                     type="button"
-                                    className={uiClassNames.button.quiet}
+                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                                     onClick={() => handler.setActiveTab(tab)}
                                     aria-pressed={state.activeTab === tab}
                                     disabled={busy}

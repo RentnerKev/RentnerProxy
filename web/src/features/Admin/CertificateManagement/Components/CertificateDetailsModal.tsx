@@ -5,7 +5,6 @@ import useTranslationStore, {
     useDateTimeFormatter,
 } from '../../../../language/useTranslationStore'
 import { Modal } from '../../../../shared/Modal'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { CertificateSummary } from '../../../../shared/Types/certificates.types'
 import type { CertificateDetailsModalProps } from '../Types/certificate-management.types'
 import {
@@ -34,7 +33,7 @@ function MetadataField({
 }) {
     return (
         <div className={className}>
-            <dt className={uiClassNames.form.label}>{label}</dt>
+            <dt className="text-[0.82rem] font-[750] text-ink-soft">{label}</dt>
             <dd className="mt-1 break-words text-muted">{value}</dd>
         </div>
     )
@@ -97,7 +96,7 @@ export default function CertificateDetailsModal({
                     </p>
                 ) : null}
                 <section
-                    className={uiClassNames.management.card}
+                    className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
                     aria-labelledby="certificate-details-metadata"
                 >
                     <h2
@@ -165,7 +164,10 @@ export default function CertificateDetailsModal({
                                 <div className="flex flex-wrap gap-2">
                                     {certificate.domains.length > 0 ? (
                                         certificate.domains.map((domain) => (
-                                            <span className={uiClassNames.chip.item} key={domain}>
+                                            <span
+                                                className="inline-flex items-center rounded-full border border-brand-600/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
+                                                key={domain}
+                                            >
                                                 {domain}
                                             </span>
                                         ))
@@ -255,7 +257,7 @@ export default function CertificateDetailsModal({
                 </section>
                 {certificate.currentOperation ? (
                     <section
-                        className={uiClassNames.management.card}
+                        className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
                         aria-labelledby="certificate-details-operation"
                     >
                         <h2
@@ -307,7 +309,10 @@ export default function CertificateDetailsModal({
                         className="rounded-xl border border-info-text/20 bg-info-bg p-4"
                         aria-labelledby="certificate-details-candidate"
                     >
-                        <h2 id="certificate-details-candidate" className={uiClassNames.form.label}>
+                        <h2
+                            id="certificate-details-candidate"
+                            className="text-[0.82rem] font-[750] text-ink-soft"
+                        >
                             {t('admin.certificates.details.candidate')}
                         </h2>
                         <dl className="mt-2 grid gap-3 shell:grid-cols-2">

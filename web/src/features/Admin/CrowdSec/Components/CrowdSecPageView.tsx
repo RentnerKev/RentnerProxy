@@ -10,7 +10,6 @@ import useTranslationStore from '../../../../language/useTranslationStore'
 import FieldError from '../../../../shared/Forms/FieldError'
 import ContentState from '../../../../shared/Management/ContentState'
 import PageHeader from '../../../../shared/Management/PageHeader'
-import { uiClassNames } from '../../../../shared/Styles/uiClassNames'
 import type { CrowdSecPageViewProps } from '../Types/crowdsec.types'
 import CrowdSecStatusPanel from './CrowdSecStatusPanel'
 import CrowdSecManagedOnline from './CrowdSecManagedOnline'
@@ -88,7 +87,7 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                     action={
                         <button
                             type="button"
-                            className={uiClassNames.button.secondary}
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                             onClick={handler.retry}
                         >
                             {t('common.retry')}
@@ -103,10 +102,10 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
             ) : (
                 <>
                     <CrowdSecStatusPanel configuration={state.configuration} />
-                    <section className={uiClassNames.management.card}>
+                    <section className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
-                                <p className={uiClassNames.themedTechnicalLabel}>
+                                <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
                                     {t('admin.crowdSec.configuration.eyebrow')}
                                 </p>
                                 <h2 className="mt-2 text-xl font-extrabold text-ink">
@@ -157,9 +156,9 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                                     </p>
                                 </div>
                                 <div className="grid items-start gap-4 md:grid-cols-2">
-                                    <div className={uiClassNames.form.field}>
+                                    <div className="grid gap-[0.45rem]">
                                         <label
-                                            className={uiClassNames.form.label}
+                                            className="text-[0.82rem] font-[750] text-ink-soft"
                                             htmlFor="crowdsec-api-url"
                                         >
                                             {t('admin.crowdSec.external.apiUrl')}
@@ -192,9 +191,9 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                                             }
                                         />
                                     </div>
-                                    <div className={uiClassNames.form.field}>
+                                    <div className="grid gap-[0.45rem]">
                                         <label
-                                            className={uiClassNames.form.label}
+                                            className="text-[0.82rem] font-[750] text-ink-soft"
                                             htmlFor="crowdsec-api-key"
                                         >
                                             {t('admin.crowdSec.external.apiKey')}
@@ -230,7 +229,7 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                                         />
                                         <p
                                             id="crowdsec-api-key-hint"
-                                            className={uiClassNames.form.hint}
+                                            className="m-0 text-[0.76rem] leading-[1.45] text-muted"
                                         >
                                             {t('admin.crowdSec.external.apiKeyHint')}
                                         </p>
@@ -247,7 +246,7 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                                 {state.mode === 'external' ? (
                                     <button
                                         type="button"
-                                        className={uiClassNames.button.secondary}
+                                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
                                         disabled={
                                             !state.canUpdate || busy || state.apiUrl.length === 0
                                         }
@@ -263,7 +262,7 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                                 ) : null}
                                 <button
                                     type="button"
-                                    className={uiClassNames.button.primary}
+                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
                                     disabled={!state.canUpdate || !state.isDirty || busy}
                                     onClick={handler.save}
                                 >
@@ -279,10 +278,10 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                     </section>
 
                     <section
-                        className={`${uiClassNames.management.card} mt-4`}
+                        className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface mt-4"
                         aria-label={t('admin.crowdSec.facts.title')}
                     >
-                        <p className={uiClassNames.themedTechnicalLabel}>
+                        <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
                             {t('admin.crowdSec.facts.title')}
                         </p>
                         <div className="mt-4 grid gap-5 md:grid-cols-3">

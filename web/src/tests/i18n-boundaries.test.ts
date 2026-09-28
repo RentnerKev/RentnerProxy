@@ -113,7 +113,8 @@ describe('language boundaries', () => {
         ).flat()
         const literalAttribute =
             /\b(?:aria-label|placeholder|alt|title|description|eyebrow|label|confirmLabel|cancelLabel|pendingLabel|loadingLabel|searchLabel|searchPlaceholder|itemLabel)\s*=\s*["']([^"']+)["']/gu
-        const literalChild = /<[A-Za-z][\w.]*(?:\s+[^<>]*?)?(?<!\/)>([^<>{]*\p{L}[^<>{}]*)</gu
+        const literalChild =
+            /(?<![\w.$])<[A-Za-z][\w.]*(?:\s+[^<>]*?)?(?<!\/)>([^<>{]*\p{L}[^<>{}]*)</gu
         const violations: string[] = []
         const sources = await Promise.all(
             files
