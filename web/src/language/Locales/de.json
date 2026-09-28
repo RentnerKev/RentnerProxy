@@ -41,6 +41,12 @@
         "signingOut": "Wird abgemeldet…",
         "navigation": "Anwendungsnavigation",
         "controlPlane": "Verwaltung",
+        "navigationGroups": {
+            "operations": "Betrieb",
+            "security": "Sicherheit",
+            "administration": "Benutzer & Rollen",
+            "records": "Protokolle & Daten"
+        },
         "collapseNavigation": "Navigation einklappen",
         "expandNavigation": "Navigation ausklappen",
         "proxyHosts": "Proxy-Hosts",

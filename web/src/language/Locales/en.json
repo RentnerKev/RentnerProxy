@@ -41,6 +41,12 @@
         "signingOut": "Signing out…",
         "navigation": "Application navigation",
         "controlPlane": "Control plane",
+        "navigationGroups": {
+            "operations": "Operations",
+            "security": "Security",
+            "administration": "Users & roles",
+            "records": "Logs & data"
+        },
         "collapseNavigation": "Collapse navigation",
         "expandNavigation": "Expand navigation",
         "proxyHosts": "Proxy hosts",

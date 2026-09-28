@@ -41,6 +41,12 @@
         "signingOut": "Déconnexion…",
         "navigation": "Navigation de l’application",
         "controlPlane": "Administration",
+        "navigationGroups": {
+            "operations": "Exploitation",
+            "security": "Sécurité",
+            "administration": "Utilisateurs et rôles",
+            "records": "Journaux et données"
+        },
         "collapseNavigation": "Réduire la navigation",
         "expandNavigation": "Développer la navigation",
         "proxyHosts": "Hôtes proxy",

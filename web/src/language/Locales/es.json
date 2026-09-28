@@ -41,6 +41,12 @@
         "signingOut": "Cerrando sesión…",
         "navigation": "Navegación de la aplicación",
         "controlPlane": "Administración",
+        "navigationGroups": {
+            "operations": "Operaciones",
+            "security": "Seguridad",
+            "administration": "Usuarios y roles",
+            "records": "Registros y datos"
+        },
         "collapseNavigation": "Contraer navegación",
         "expandNavigation": "Expandir navegación",
         "proxyHosts": "Hosts proxy",

@@ -13,13 +13,35 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
+const { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterContextProvider } =
+    await import('@tanstack/react-router')
 const { default: ApplicationTopbar } =
     await import('../layout/Components/ApplicationShell/Components/ApplicationTopbar')
+const { default: ApplicationNavigation } =
+    await import('../layout/Components/ApplicationShell/Components/ApplicationNavigation')
 const { default: ApplicationSidebarScrollIndicator } =
     await import('../layout/Components/ApplicationShell/Components/ApplicationSidebarScrollIndicator')
 const { default: useApplicationNavigationLogic } =
     await import('../layout/Components/ApplicationShell/Hooks/useApplicationNavigationLogic')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
+
+function navigationRouter(path: string) {
+    const rootRoute = createRootRoute()
+    const routes = [
+        '/',
+        '/proxy-hosts',
+        '/access-policies',
+        '/users',
+        '/audit-logs',
+        '/proxy-access-logs',
+        '/migration',
+    ].map((routePath) => createRoute({ getParentRoute: () => rootRoute, path: routePath }))
+
+    return createRouter({
+        routeTree: rootRoute.addChildren(routes),
+        history: createMemoryHistory({ initialEntries: [path] }),
+    })
+}
 
 let activeRoot: Root | null = null
 
@@ -133,6 +155,69 @@ describe('application topbar', () => {
 
         expect(mobileButton?.getAttribute('aria-expanded')).toBe('true')
         expect(desktopButton?.getAttribute('aria-expanded')).toBe('true')
+    })
+})
+
+describe('application navigation groups', () => {
+    test('shows the current section, keeps the final log order, and expands the next active section', async () => {
+        const router = navigationRouter('/audit-logs')
+        const container = await render(
+            <RouterContextProvider router={router}>
+                <ApplicationNavigation
+                    items={[
+                        { to: '/', label: 'Overview', exact: true },
+                        { to: '/proxy-hosts', label: 'Proxy hosts' },
+                        { to: '/access-policies', label: 'Access policies' },
+                        { to: '/users', label: 'Users' },
+                        { to: '/audit-logs', label: 'Audit log' },
+                        { to: '/proxy-access-logs', label: 'Access logs' },
+                        { to: '/migration', label: 'Import / Export' },
+                    ]}
+                />
+            </RouterContextProvider>,
+        )
+        const buttons = [...container.querySelectorAll<HTMLButtonElement>('nav section > button')]
+        expect(buttons).toHaveLength(4)
+        expect(buttons.map((button) => button.textContent)).toEqual([
+            'Operations2',
+            'Security1',
+            'Users & roles1',
+            'Logs & data3',
+        ])
+
+        const operationsPanel = document.getElementById(buttons[0]!.getAttribute('aria-controls')!)!
+        const recordsPanel = document.getElementById(buttons[3]!.getAttribute('aria-controls')!)!
+        expect(buttons[0]!.getAttribute('aria-expanded')).toBe('false')
+        expect(operationsPanel.hidden).toBe(true)
+        expect(buttons[3]!.getAttribute('aria-expanded')).toBe('true')
+        expect([...recordsPanel.querySelectorAll('a')].map((link) => link.textContent)).toEqual([
+            'Audit log',
+            'Access logs',
+            'Import / Export',
+        ])
+
+        await click(buttons[3]!)
+        expect(recordsPanel.hidden).toBe(true)
+        await click(buttons[3]!)
+        expect(recordsPanel.hidden).toBe(false)
+
+        await act(async () => {
+            await router.navigate({ to: '/proxy-hosts' })
+        })
+        expect(buttons[0]!.getAttribute('aria-expanded')).toBe('true')
+        expect(operationsPanel.hidden).toBe(false)
+    })
+
+    test('omits sections without visible destinations', async () => {
+        const router = navigationRouter('/')
+        const container = await render(
+            <RouterContextProvider router={router}>
+                <ApplicationNavigation items={[{ to: '/', label: 'Overview', exact: true }]} />
+            </RouterContextProvider>,
+        )
+
+        expect(container.querySelectorAll('nav section > button')).toHaveLength(1)
+        expect(container.querySelector('nav section > button')?.textContent).toBe('Operations1')
     })
 })
 
