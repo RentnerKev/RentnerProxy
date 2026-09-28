@@ -47,7 +47,7 @@ export default function ApplicationNavigation({ items, onNavigate }: Application
                         >
                             <span
                                 aria-hidden="true"
-                                className={`absolute top-1/2 left-0 h-5 w-0.5 -translate-y-1/2 rounded-full transition-colors duration-180 shell:left-[1.35rem] motion-reduce:transition-none ${isActive ? 'bg-brand-400' : 'bg-white/20 group-hover:bg-brand-500/60'}`}
+                                className={`absolute top-1/2 left-1 h-5 w-0.5 -translate-y-1/2 rounded-full transition-colors duration-180 motion-reduce:transition-none ${isActive ? 'bg-brand-400' : 'bg-white/20 group-hover:bg-brand-500/60'}`}
                             />
                             <span className="flex min-w-0 items-center gap-2.5">
                                 <span
