@@ -183,9 +183,12 @@ function parseApplicationEncryptionKey(bytes: Uint8Array): Buffer {
 
 const postgresRestoreCommand = [
     'restore_phase=archive',
-    'dump_path=$(mktemp /tmp/rentnerproxy-restore-dump.XXXXXX)',
-    'rendered_sql_path=$(mktemp /tmp/rentnerproxy-restore-sql.XXXXXX)',
-    'restore_sql_path=$(mktemp /tmp/rentnerproxy-restore-final-sql.XXXXXX)',
+    'restore_directory=$(mktemp -d /tmp/rentnerproxy-restore.XXXXXX)',
+    'chown postgres:postgres "$restore_directory"',
+    'dump_path="$restore_directory/postgres.dump"',
+    'rendered_sql_path="$restore_directory/rendered.sql"',
+    'restore_sql_path="$restore_directory/restore.sql"',
+    'touch "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
     'cat > "$dump_path"',
     'chown postgres:postgres "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
     'chmod 0600 "$dump_path" "$rendered_sql_path" "$restore_sql_path"',
@@ -203,7 +206,7 @@ function postgresCommand(validateOnly: boolean): string {
         'umask 077',
         'restore_phase=initialize',
         'trap \'status=$?; printf "RESTORE_PHASE=%s\\n" "$restore_phase" >&2; exit "$status"\' ERR',
-        'dump_path=""; rendered_sql_path=""; restore_sql_path=""',
+        'restore_directory=""; dump_path=""; rendered_sql_path=""; restore_sql_path=""',
         validateOnly
             ? 'data_directory=/tmp/backup-postgres; socket_directory=/tmp/backup-postgres-socket'
             : 'data_directory=/var/lib/rentnerproxy/postgres-data; socket_directory=/var/run/postgresql',
@@ -217,7 +220,7 @@ function postgresCommand(validateOnly: boolean): string {
         'gosu postgres postgres -D "$data_directory" -c listen_addresses=' +
             (validateOnly ? '127.0.0.1' : '') +
             ' -c unix_socket_directories="$socket_directory" >&2 & postgres_pid=$!',
-        'cleanup() { rm -f -- "$dump_path" "$rendered_sql_path" "$restore_sql_path"; kill -TERM "$postgres_pid" 2>/dev/null || true; wait "$postgres_pid" 2>/dev/null || true; }',
+        'cleanup() { rm -f -- "$dump_path" "$rendered_sql_path" "$restore_sql_path"; rmdir -- "$restore_directory" 2>/dev/null || true; kill -TERM "$postgres_pid" 2>/dev/null || true; wait "$postgres_pid" 2>/dev/null || true; }',
         'trap cleanup EXIT',
         'ready=false',
         'for attempt in $(seq 1 60); do if gosu postgres pg_isready --host="$socket_directory" --username=postgres >/dev/null 2>&1; then ready=true; break; fi; kill -0 "$postgres_pid" 2>/dev/null || exit 1; sleep 1; done',

@@ -24,7 +24,7 @@ import {
 } from '../alpha4-persistence-fixture'
 import { psql } from '../alpha4-persistence/storage'
 import { assertHttp3Response, buildHttp3Client, requestHttp3Client } from '../http3-client'
-import { smokeCompose, smokeDockerArguments } from '../smoke-resources'
+import { restoreSmokeDiagnostic, smokeCompose, smokeDockerArguments } from '../smoke-resources'
 import { PUBLISHED_ALPHAS, publishedAlpha, type PublishedAlphaKey } from './published-alphas'
 import { assertAuthFixture, seedAuthFixture, type AuthFixture } from './auth-state'
 import { assertAuditFixture, seedAuditFixture, type AuditFixture } from './audit-state'
@@ -94,7 +94,8 @@ async function command(
         ])
         if (code !== 0) {
             // Docker, SQL and application output can contain private fixture material.
-            void err
+            const diagnostic = restoreSmokeDiagnostic(err)
+            if (diagnostic) console.error(diagnostic)
             throw new Error(`command failed: ${args[0]} ${args[1] ?? ''} (exit ${code})`)
         }
         // docker logs keeps the container's stdout and stderr in separate streams.
