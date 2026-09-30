@@ -2307,6 +2307,7 @@
             "access_policies": "Politiques d’accès",
             "proxy-access-logs": "Journaux d’accès du proxy",
             "crowdsec": "CrowdSec",
+            "system_appearance": "Apparence du système",
             "audit-logs": "Journal d’audit",
             "system": "Système"
         },
@@ -2370,6 +2371,9 @@
         "crowdsec": {
             "view": "Afficher la configuration CrowdSec",
             "update": "Modifier la configuration CrowdSec"
+        },
+        "system_appearance": {
+            "update": "Modifier l’apparence du système"
         },
         "audit-logs:view": "Afficher le journal d’audit",
         "system": {
@@ -2453,5 +2457,35 @@
         },
         "hours": "Heures",
         "minutes": "Minutes"
+    },
+    "systemAppearance": {
+        "title": "Apparence du système",
+        "description": "Personnalisez l’interface avec la couleur d’accent de votre choix.",
+        "current": "Couleur d’accent actuelle",
+        "default": "Couleur par défaut",
+        "label": "Couleur d’accent",
+        "hint": "Choisissez une couleur d’accent pour les boutons, les éléments mis en évidence et les commandes.",
+        "preview": "Aperçu",
+        "previewButton": "Bouton d’aperçu",
+        "reset": "Rétablir la couleur par défaut",
+        "adminOnly": "Seuls les administrateurs peuvent modifier la couleur d’accent du système.",
+        "saved": "Couleur d’accent enregistrée.",
+        "errors": {
+            "invalidColor": "Saisissez une couleur valide.",
+            "saveFailed": "Impossible d’enregistrer la couleur d’accent.",
+            "loadFailed": "Impossible de charger la couleur d’accent."
+        },
+        "picker": {
+            "required": "Choisissez une couleur.",
+            "invalidColor": "Saisissez une couleur valide.",
+            "eyeDropper": "Prélever une couleur à l’écran",
+            "closePicker": "Fermer le sélecteur de couleur",
+            "colorArea": "Saturation et luminosité de la couleur",
+            "colorAreaInstructions": "Utilisez les flèches du clavier pour régler la saturation et la luminosité.",
+            "colorAreaValue": "Saturation {{saturation}} %, luminosité {{value}} %",
+            "hue": "Teinte",
+            "selectColor": "Sélectionner une couleur",
+            "presetColor": "Utiliser {{color}}"
+        }
     }
 }

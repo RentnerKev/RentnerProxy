@@ -2307,6 +2307,7 @@
             "access_policies": "Políticas de acceso",
             "proxy-access-logs": "Registros de acceso del proxy",
             "crowdsec": "CrowdSec",
+            "system_appearance": "Apariencia del sistema",
             "audit-logs": "Registro de auditoría",
             "system": "Sistema"
         },
@@ -2370,6 +2371,9 @@
         "crowdsec": {
             "view": "Ver la configuración de CrowdSec",
             "update": "Actualizar la configuración de CrowdSec"
+        },
+        "system_appearance": {
+            "update": "Modificar la apariencia del sistema"
         },
         "audit-logs:view": "Ver el registro de auditoría",
         "system": {
@@ -2453,5 +2457,35 @@
         },
         "hours": "Horas",
         "minutes": "Minutos"
+    },
+    "systemAppearance": {
+        "title": "Apariencia del sistema",
+        "description": "Personaliza la interfaz con tu color de acento preferido.",
+        "current": "Color de acento actual",
+        "default": "Color predeterminado",
+        "label": "Color de acento",
+        "hint": "Elige un color de acento para los botones, los resaltados y los controles.",
+        "preview": "Vista previa",
+        "previewButton": "Botón de ejemplo",
+        "reset": "Restablecer valor predeterminado",
+        "adminOnly": "Solo los administradores pueden cambiar el color de acento del sistema.",
+        "saved": "Color de acento guardado.",
+        "errors": {
+            "invalidColor": "Introduce un color válido.",
+            "saveFailed": "No se pudo guardar el color de acento.",
+            "loadFailed": "No se pudo cargar el color de acento."
+        },
+        "picker": {
+            "required": "Elige un color.",
+            "invalidColor": "Introduce un color válido.",
+            "eyeDropper": "Tomar un color de la pantalla",
+            "closePicker": "Cerrar selector de color",
+            "colorArea": "Saturación y brillo del color",
+            "colorAreaInstructions": "Usa las teclas de flecha para ajustar la saturación y el brillo.",
+            "colorAreaValue": "Saturación {{saturation}} %, brillo {{value}} %",
+            "hue": "Tono",
+            "selectColor": "Seleccionar color",
+            "presetColor": "Usar {{color}}"
+        }
     }
 }

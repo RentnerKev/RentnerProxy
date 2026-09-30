@@ -51,7 +51,7 @@ export default function GlobalErrorPage({ error, reset }: ErrorComponentProps) {
         >
             <button
                 type="button"
-                className="inline-flex h-12 cursor-pointer items-center justify-center rounded-xl bg-brand-500 px-5 py-0 text-sm font-bold text-navy-950 transition-colors hover:bg-brand-400 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400 motion-reduce:transition-none"
+                className="inline-flex h-12 cursor-pointer items-center justify-center rounded-xl bg-accent px-5 py-0 text-sm font-bold text-accent-foreground transition-colors hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400 motion-reduce:transition-none"
                 onClick={retry}
             >
                 {t('common.retry')}

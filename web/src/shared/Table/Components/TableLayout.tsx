@@ -30,7 +30,7 @@ export default function TableLayout({
         >
             <header className="flex flex-col gap-4 border-b border-border px-[1.15rem] py-4 xl:flex-row xl:items-end xl:justify-between">
                 <div className="min-w-0">
-                    <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
+                    <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
                         {eyebrow}
                     </p>
                     <h2 id={titleId} className="mt-[0.4rem] text-xl text-ink-soft">

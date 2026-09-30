@@ -7,6 +7,7 @@
 @import '@rentnerkev/calendar/tailwind.css';
 @import '@rentnerkev/select/tailwind.css';
 @import '@rentnerkev/inputs/tailwind.css';
+@import '@rentnerkev/picker/tailwind.css';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
@@ -21,11 +22,11 @@
 
     --breakpoint-shell: 56.25rem;
 
-    --color-brand-300: #65f586;
-    --color-brand-400: #4ee99a;
-    --color-brand-500: #30ee61;
-    --color-brand-600: #0fb33a;
-    --color-brand-700: #0d8a31;
+    --color-brand-300: var(--accent-300);
+    --color-brand-400: var(--accent-400);
+    --color-brand-500: var(--accent-500);
+    --color-brand-600: var(--accent-600);
+    --color-brand-700: var(--accent-700);
     --color-navy-900: #06120f;
     --color-navy-950: #020a0b;
     --color-mist-300: #c1d2c9;
@@ -34,8 +35,15 @@
 }
 
 @theme inline {
-    --color-primary: var(--color-brand-500);
-    --color-primary-hover: var(--color-brand-600);
+    --color-primary: var(--accent-ring);
+    --color-primary-hover: var(--accent-hover);
+    --color-accent: var(--accent);
+    --color-accent-hover: var(--accent-hover);
+    --color-accent-active: var(--accent-active);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent-muted: var(--accent-muted);
+    --color-accent-border: var(--accent-border);
+    --color-accent-ring: var(--accent-ring);
     --color-background-dark: var(--theme-canvas);
     --color-surface-dark: var(--theme-surface-raised);
     --color-input-dark: var(--theme-surface-raised);
@@ -49,7 +57,7 @@
     --color-select-border-strong: var(--theme-border-strong);
     --color-select-foreground: var(--theme-ink);
     --color-select-muted: var(--theme-muted);
-    --color-select-accent: var(--color-brand-600);
+    --color-select-accent: var(--accent-ring);
     --color-canvas: var(--theme-canvas);
     --color-surface: var(--theme-surface);
     --color-surface-raised: var(--theme-surface-raised);
@@ -77,6 +85,21 @@
     --shadow-panel: 0 20px 50px var(--theme-shadow);
 }
 
+:root {
+    --accent: #30ee61;
+    --accent-300: #65f586;
+    --accent-400: #4ee99a;
+    --accent-500: #30ee61;
+    --accent-600: #0fb33a;
+    --accent-700: #0d8a31;
+    --accent-foreground: #020a0b;
+    --accent-hover: #65f586;
+    --accent-active: #0fb33a;
+    --accent-text-light: #0d8a31;
+    --accent-text-dark: #65f586;
+    --accent-rgb: 48 238 97;
+}
+
 :root,
 [data-theme='light'] {
     --theme-canvas: #eef4f0;
@@ -94,7 +117,11 @@
     --theme-topbar: rgb(247 250 248 / 92%);
     --theme-code: #eef4f0;
     --theme-neutral: #eef2f0;
-    --theme-brand-text: #0d8a31;
+    --theme-brand-text: var(--accent-text-light);
+    --accent-muted: color-mix(in srgb, var(--accent) 12%, var(--theme-surface));
+    --accent-border: color-mix(in srgb, var(--accent) 40%, var(--theme-border));
+    --accent-ring: var(--accent-text-light);
+    --accent-glow: rgb(var(--accent-rgb) / 24%);
     --theme-success-bg: #effcf2;
     --theme-success-text: #086c27;
     --theme-danger-bg: #fff3f3;
@@ -123,7 +150,11 @@
     --theme-topbar: rgb(7 8 10 / 92%);
     --theme-code: #111419;
     --theme-neutral: #181b21;
-    --theme-brand-text: #65f586;
+    --theme-brand-text: var(--accent-text-dark);
+    --accent-muted: color-mix(in srgb, var(--accent) 16%, var(--theme-surface));
+    --accent-border: color-mix(in srgb, var(--accent) 45%, var(--theme-border));
+    --accent-ring: var(--accent-text-dark);
+    --accent-glow: rgb(var(--accent-rgb) / 24%);
     --theme-success-bg: #102419;
     --theme-success-text: #76f895;
     --theme-danger-bg: #331719;

@@ -75,7 +75,7 @@ function HostConfigurationOverview({
             </h3>
             <dl className="m-0 grid min-w-0 gap-3 sm:grid-cols-2">
                 <div className="grid min-w-0 gap-1">
-                    <dt className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-400 uppercase">
+                    <dt className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
                         {t('admin.proxyHosts.columns.domains')}
                     </dt>
                     <dd className="m-0">
@@ -92,7 +92,7 @@ function HostConfigurationOverview({
                     </dd>
                 </div>
                 <div className="grid min-w-0 gap-1">
-                    <dt className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-400 uppercase">
+                    <dt className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
                         {t('admin.proxyHosts.columns.forward')}
                     </dt>
                     <dd className="m-0 wrap-anywhere font-mono text-xs text-ink-soft">
@@ -104,7 +104,7 @@ function HostConfigurationOverview({
                     </dd>
                 </div>
                 <div className="grid min-w-0 gap-1">
-                    <dt className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-400 uppercase">
+                    <dt className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
                         {t('admin.proxyHosts.config.clientTransport')}
                     </dt>
                     <dd className="m-0 text-sm font-semibold text-ink-soft">
@@ -112,7 +112,7 @@ function HostConfigurationOverview({
                     </dd>
                 </div>
                 <div className="grid min-w-0 gap-1">
-                    <dt className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-400 uppercase">
+                    <dt className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
                         {t('admin.proxyHosts.upstreamTls.title')}
                     </dt>
                     <dd className="m-0 grid min-w-0 gap-0.5 text-sm font-semibold text-ink-soft">
@@ -126,7 +126,7 @@ function HostConfigurationOverview({
                     </dd>
                 </div>
                 <div className="grid min-w-0 gap-1">
-                    <dt className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-400 uppercase">
+                    <dt className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
                         {t('admin.proxyHosts.columns.status')}
                     </dt>
                     <dd className="m-0">
@@ -136,7 +136,7 @@ function HostConfigurationOverview({
                     </dd>
                 </div>
                 <div className="grid min-w-0 gap-1">
-                    <dt className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-400 uppercase">
+                    <dt className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
                         {t('admin.proxyHosts.config.currentConfiguration')}
                     </dt>
                     <dd className="m-0">
@@ -247,7 +247,7 @@ export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProp
                     <>
                         <button
                             type="button"
-                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"
                             onClick={() => props.onOpenChange(false)}
                             disabled={busy}
                         >
@@ -257,7 +257,7 @@ export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProp
                             <>
                                 <button
                                     type="button"
-                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-red-700/25 bg-danger-bg text-danger-text enabled:hover:border-red-500/45 enabled:hover:bg-red-700/20"
+                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-red-700/25 bg-danger-bg text-danger-text enabled:hover:border-red-500/45 enabled:hover:bg-red-700/20"
                                     onClick={handler.reset}
                                     disabled={busy || !state.data}
                                 >
@@ -266,7 +266,7 @@ export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProp
                                 </button>
                                 <button
                                     type="button"
-                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
+                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
                                     onClick={handler.save}
                                     disabled={busy || !state.data}
                                 >
@@ -309,7 +309,7 @@ export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProp
                                 <button
                                     key={tab}
                                     type="button"
-                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-brand-600 enabled:hover:text-brand-text"
+                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-accent-border enabled:hover:text-accent-ring"
                                     onClick={() => handler.setActiveTab(tab)}
                                     aria-pressed={state.activeTab === tab}
                                     disabled={busy}

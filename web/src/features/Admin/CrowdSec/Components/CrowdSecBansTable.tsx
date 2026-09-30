@@ -248,7 +248,7 @@ export default function CrowdSecBansTable({
                                             >
                                                 <button
                                                     type="button"
-                                                    className="rounded text-muted hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                                    className="rounded text-muted hover:text-accent-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring"
                                                     aria-label={t(
                                                         'admin.crowdSec.dashboard.scenarioInfo',
                                                         { scenario: decision.scenario },

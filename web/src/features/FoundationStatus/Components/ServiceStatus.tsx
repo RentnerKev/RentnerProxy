@@ -3,9 +3,9 @@ import type { ServiceStatusProps } from '../Types/foundation-status.types'
 export default function ServiceStatus({ detail, label, tone, value }: ServiceStatusProps) {
     const valueClassName =
         tone === 'positive'
-            ? 'border-brand-400/20 bg-brand-400/10 text-brand-400'
+            ? 'border-success-text/20 bg-success-bg text-success-text'
             : 'border-amber-300/20 bg-amber-300/10 text-amber-300'
-    const dotClassName = tone === 'positive' ? 'bg-brand-400' : 'bg-amber-300'
+    const dotClassName = tone === 'positive' ? 'bg-success-text' : 'bg-amber-300'
 
     return (
         <div className="flex flex-col gap-3 border-b border-white/10 py-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-5">

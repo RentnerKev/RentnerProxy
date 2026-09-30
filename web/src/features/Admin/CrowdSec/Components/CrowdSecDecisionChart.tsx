@@ -26,7 +26,7 @@ export default function CrowdSecDecisionChart({
                     definition={definition}
                     height={260}
                     ariaLabel={label}
-                    className="[&_svg:focus:not(:focus-visible)]:outline-none [&_svg:focus-visible]:outline-2 [&_svg:focus-visible]:outline-brand-500"
+                    className="[&_svg:focus:not(:focus-visible)]:outline-none [&_svg:focus-visible]:outline-2 [&_svg:focus-visible]:outline-accent-ring"
                 />
                 <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                     <span

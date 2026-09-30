@@ -4,6 +4,7 @@ import AccountIdentity from './Components/AccountIdentity'
 import ChangePasswordPanel from './Components/ChangePasswordPanel'
 import LanguageSettingsPanel from './Components/LanguageSettingsPanel'
 import ProfileImagePanel from './Components/ProfileImagePanel'
+import SystemAppearancePanel from './Components/SystemAppearancePanel'
 import SecuritySettingsPanel from './Components/SecuritySettingsPanel'
 import { getUserSettingsPageViewModel } from './Helpers/userSettingsPage'
 import type { UserSettingsPageProps } from './Types/user-settings-component-props.types'
@@ -28,6 +29,7 @@ export default function UserSettingsPage({ user }: UserSettingsPageProps) {
                             user={user}
                         />
                         <LanguageSettingsPanel />
+                        <SystemAppearancePanel canUpdate={viewModel.canUpdateSystemAppearance} />
                     </div>
                     <div className="flex-row gap-4">
                         <ChangePasswordPanel />

@@ -9,7 +9,7 @@ export default function CompactFoundationStatus({ services }: FoundationStatusVi
             aria-label={t('foundation.serviceStatus')}
         >
             <div>
-                <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-400 uppercase">
+                <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
                     {t('foundation.connectionMap')}
                 </p>
                 <h2 className="mt-[0.6rem] text-[clamp(1.3rem,3vw,1.8rem)] tracking-[-0.025em] text-ink-soft">
@@ -28,7 +28,7 @@ export default function CompactFoundationStatus({ services }: FoundationStatusVi
                         <div className="flex items-center justify-between font-mono text-[0.65rem] text-muted-soft">
                             <span>{String(index + 1).padStart(2, '0')}</span>
                             <i
-                                className={`size-[0.55rem] rounded-full ${service.tone === 'positive' ? 'bg-brand-500 shadow-[0_0_0_4px_rgb(48_238_97_/_14%)]' : 'bg-amber-500 shadow-[0_0_0_4px_rgb(245_158_11_/_12%)]'}`}
+                                className={`size-[0.55rem] rounded-full ${service.tone === 'positive' ? 'bg-success-text shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-success-text)_14%,transparent)]' : 'bg-amber-500 shadow-[0_0_0_4px_rgb(245_158_11_/_12%)]'}`}
                                 data-tone={service.tone}
                                 aria-hidden="true"
                             />
@@ -38,7 +38,7 @@ export default function CompactFoundationStatus({ services }: FoundationStatusVi
                             {service.detail}
                         </p>
                         <strong
-                            className={`mt-auto text-[0.76rem] ${service.tone === 'positive' ? 'text-brand-text' : 'text-warning-text'}`}
+                            className={`mt-auto text-[0.76rem] ${service.tone === 'positive' ? 'text-success-text' : 'text-warning-text'}`}
                             data-tone={service.tone}
                         >
                             {service.value}

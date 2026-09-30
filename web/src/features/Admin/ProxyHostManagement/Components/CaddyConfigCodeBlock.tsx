@@ -16,7 +16,7 @@ export interface CaddyConfigToken {
 }
 
 const TOKEN_CLASS_NAMES: Record<CaddyConfigTokenKind, string> = {
-    key: 'text-brand-text',
+    key: 'text-accent-ring',
     string: 'text-info-text',
     number: 'text-warning-text',
     boolean: 'text-success-text',

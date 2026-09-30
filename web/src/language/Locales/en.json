@@ -2307,6 +2307,7 @@
             "access_policies": "Access policies",
             "proxy-access-logs": "Proxy access logs",
             "crowdsec": "CrowdSec",
+            "system_appearance": "System appearance",
             "audit-logs": "Audit log",
             "system": "System"
         },
@@ -2370,6 +2371,9 @@
         "crowdsec": {
             "view": "View CrowdSec configuration",
             "update": "Update CrowdSec configuration"
+        },
+        "system_appearance": {
+            "update": "Update system appearance"
         },
         "audit-logs:view": "View audit log",
         "system": {
@@ -2453,5 +2457,35 @@
         },
         "hours": "Hours",
         "minutes": "Minutes"
+    },
+    "systemAppearance": {
+        "title": "System appearance",
+        "description": "Personalize the interface with your preferred accent color.",
+        "current": "Current accent color",
+        "default": "Default color",
+        "label": "Accent color",
+        "hint": "Choose an accent color for buttons, highlights, and controls.",
+        "preview": "Preview",
+        "previewButton": "Preview button",
+        "reset": "Reset to default",
+        "adminOnly": "Only administrators can change the system accent color.",
+        "saved": "Accent color saved.",
+        "errors": {
+            "invalidColor": "Enter a valid color.",
+            "saveFailed": "Could not save the accent color.",
+            "loadFailed": "Could not load the accent color."
+        },
+        "picker": {
+            "required": "Choose a color.",
+            "invalidColor": "Enter a valid color.",
+            "eyeDropper": "Pick a color from your screen",
+            "closePicker": "Close color picker",
+            "colorArea": "Color saturation and brightness",
+            "colorAreaInstructions": "Use the arrow keys to adjust saturation and brightness.",
+            "colorAreaValue": "Saturation {{saturation}}%, brightness {{value}}%",
+            "hue": "Hue",
+            "selectColor": "Select color",
+            "presetColor": "Use {{color}}"
+        }
     }
 }

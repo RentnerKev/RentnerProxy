@@ -165,7 +165,7 @@ export default function CertificateDetailsModal({
                                     {certificate.domains.length > 0 ? (
                                         certificate.domains.map((domain) => (
                                             <span
-                                                className="inline-flex items-center rounded-full border border-brand-600/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
+                                                className="inline-flex items-center rounded-full border border-success-text/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
                                                 key={domain}
                                             >
                                                 {domain}

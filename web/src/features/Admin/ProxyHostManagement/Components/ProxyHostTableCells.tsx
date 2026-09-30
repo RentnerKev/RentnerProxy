@@ -17,7 +17,7 @@ const statusBadgeClassName =
 
 function DomainChip({ domain }: { readonly domain: string }) {
     const chipClassName =
-        'inline-flex items-center rounded-full border border-brand-600/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text' +
+        'inline-flex items-center rounded-full border border-success-text/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text' +
         ' inline-block max-w-56 truncate align-bottom'
     const isLong = domain.length > 28
     const chip = <ManagedDomainLink className={chipClassName} domain={domain} />

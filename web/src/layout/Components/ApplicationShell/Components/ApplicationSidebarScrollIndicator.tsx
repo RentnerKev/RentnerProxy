@@ -48,7 +48,13 @@ export default function ApplicationSidebarScrollIndicator({
             onPointerCancel={handlePointerEnd}
             onKeyDown={handleKeyDown}
         >
-            <span className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-[0.65rem] border border-brand-400/60 bg-[linear-gradient(110deg,#075522,#0c8130_52%,#06461d)] shadow-[0_0_0_1px_#020a0b,0_4px_12px_#0008] transition-transform duration-200 group-hover:scale-110 group-focus-visible:scale-110 motion-reduce:transition-none">
+            <span
+                className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-[0.65rem] border border-brand-400/60 bg-[#020a0b] shadow-[0_0_0_1px_#020a0b,0_4px_12px_#0008] transition-transform duration-200 group-hover:scale-110 group-focus-visible:scale-110 motion-reduce:transition-none"
+                style={{
+                    backgroundImage:
+                        'linear-gradient(110deg, rgb(var(--accent-rgb) / 35%), rgb(var(--accent-rgb) / 72%) 52%, rgb(var(--accent-rgb) / 25%))',
+                }}
+            >
                 <span className="h-px w-2.5 bg-brand-300/80" aria-hidden="true" />
                 <span className="h-px w-2.5 bg-brand-300/80" aria-hidden="true" />
             </span>

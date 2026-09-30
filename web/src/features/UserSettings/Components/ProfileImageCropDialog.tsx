@@ -21,7 +21,7 @@ export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialog
                 <>
                     <button
                         type="button"
-                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"
                         onClick={() => logic.handler.handleOpenChange(false)}
                         disabled={logic.state.isPending}
                     >
@@ -29,7 +29,7 @@ export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialog
                     </button>
                     <button
                         type="button"
-                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-brand-500 text-navy-950 enabled:hover:bg-brand-300"
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
                         onClick={() => void logic.handler.handleSave()}
                         disabled={!logic.state.canSave}
                     >
@@ -70,7 +70,7 @@ export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialog
                         className="flex min-w-52 flex-1 items-center gap-3 text-sm font-bold text-ink-soft"
                         htmlFor="profile-image-zoom"
                     >
-                        <ZoomIn aria-hidden="true" className="size-4 text-brand-text" />
+                        <ZoomIn aria-hidden="true" className="size-4 text-accent-ring" />
                         <span className="sr-only">{t('account.profileImage.crop.zoom')}</span>
                         <RangeInput
                             id="profile-image-zoom"
@@ -80,13 +80,13 @@ export default function ProfileImageCropDialog({ logic }: ProfileImageCropDialog
                             step="0.01"
                             value={logic.state.zoom}
                             onChange={logic.handler.handleZoomInput}
-                            className="h-2 flex-1 cursor-pointer accent-brand-500"
+                            className="h-2 flex-1 cursor-pointer accent-accent"
                             aria-label={t('account.profileImage.crop.zoomLabel')}
                         />
                     </label>
                     <button
                         type="button"
-                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-brand-600 enabled:hover:text-brand-text"
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-accent-border enabled:hover:text-accent-ring"
                         onClick={logic.handler.handleResetCrop}
                         disabled={logic.state.isPending}
                     >

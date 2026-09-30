@@ -7,7 +7,7 @@ import type { TablePaginationControlsProps } from '../Types/table.types'
 export type TablePaginationItem = number | 'ellipsis'
 
 const paginationButtonClassName =
-    'inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised px-2 text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-brand-600 hover:text-brand-text aria-[current=page]:border-brand-600 aria-[current=page]:bg-success-bg aria-[current=page]:text-success-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none'
+    'inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-strong bg-surface-raised px-2 text-sm font-extrabold text-muted transition-[background-color,border-color,color] hover:border-accent-border hover:text-accent-ring aria-[current=page]:border-accent-border aria-[current=page]:bg-accent-muted aria-[current=page]:text-accent-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none'
 
 const pageSizeClassName = 'w-18!'
 const maxVisiblePageItems = 7

@@ -25,7 +25,7 @@ export const TOAST_CUSTOM_DESIGN = {
     titleText: 'text-ink',
     contentText: 'text-muted',
     linkText:
-        'pointer-events-auto inline-block cursor-pointer font-extrabold text-brand-text underline decoration-2 underline-offset-2 transition-opacity hover:opacity-80 motion-reduce:transition-none',
+        'pointer-events-auto inline-block cursor-pointer font-extrabold text-accent-ring underline decoration-2 underline-offset-2 transition-opacity hover:opacity-80 motion-reduce:transition-none',
     closeButton: 'text-muted group-hover:text-ink',
     copyButton: 'text-muted group-hover:text-ink',
 } satisfies ToastCustomDesign

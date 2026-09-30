@@ -16,7 +16,7 @@ export default function UserAvatar({ profileImageVersion, size = 'md', userId }:
 
     return (
         <span
-            className={`relative grid shrink-0 place-items-center overflow-hidden rounded-full border border-brand-500/30 bg-brand-500/10 text-brand-300 shadow-[0_0_0_3px_rgb(15_179_58_/_6%)] ${sizeClassNames[size]}`}
+            className={`relative grid shrink-0 place-items-center overflow-hidden rounded-full border border-brand-500/30 bg-brand-500/10 text-brand-300 shadow-[0_0_0_3px_rgb(var(--accent-rgb)_/_6%)] ${sizeClassNames[size]}`}
             aria-hidden="true"
         >
             <span className="absolute inset-0 grid place-items-center">
