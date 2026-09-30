@@ -35,7 +35,7 @@
 }
 
 @theme inline {
-    --color-primary: var(--accent);
+    --color-primary: var(--accent-ring);
     --color-primary-hover: var(--accent-hover);
     --color-accent: var(--accent);
     --color-accent-hover: var(--accent-hover);

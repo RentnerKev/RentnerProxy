@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Generate grayscale-alpha masks for the green portions of branded raster art.
 
-Uses only the Python standard library. The mask files are white RGBA PNGs whose
+PNG sources use only the Python standard library. WebP sources are decoded with
+optional Pillow during generation; the mask files are white RGBA PNGs whose
 alpha channel contains the feathered green selection and source alpha coverage.
 """
 
@@ -18,7 +19,19 @@ ASSETS = (
     "rentnerproxy-logo.png",
     "rentnerproxy-logo-long.png",
     "login-panel-background-v1.png",
+    "system-error-v1-960.webp",
+    "system-not-found-v1-960.webp",
 )
+PROTECTED_CIRCLES = {
+    # Preserve the green server status LEDs and their immediate glow. The
+    # chassis is already excluded naturally by its blue/navy hue.
+    "system-error-v1-960.webp": (
+        (735, 406, 22, 30),
+        (735, 539, 22, 30),
+        (735, 606, 22, 30),
+        (735, 673, 22, 30),
+    ),
+}
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
@@ -109,12 +122,35 @@ def read_rgba(path: Path) -> tuple[int, int, bytes]:
     return width, height, bytes(rgba)
 
 
+def read_webp_rgba(path: Path) -> tuple[int, int, bytes]:
+    try:
+        from PIL import Image
+    except ImportError as error:
+        raise RuntimeError(
+            "Pillow is required only to generate masks from WebP source art. "
+            "Install Pillow in the development environment and rerun this script."
+        ) from error
+
+    with Image.open(path) as image:
+        rgba = image.convert("RGBA")
+        return rgba.width, rgba.height, rgba.tobytes()
+
+
+def read_asset_rgba(path: Path) -> tuple[int, int, bytes]:
+    if path.suffix.lower() == ".webp":
+        return read_webp_rgba(path)
+    return read_rgba(path)
+
+
 def smoothstep(edge0: float, edge1: float, value: float) -> float:
     amount = max(0.0, min(1.0, (value - edge0) / (edge1 - edge0)))
     return amount * amount * (3.0 - 2.0 * amount)
 
 
 def green_coverage(red: int, green: int, blue: int, alpha: int) -> int:
+    if alpha < 16:
+        return 0
+
     maximum = max(red, green, blue) / 255.0
     minimum = min(red, green, blue)
     chroma = max(red, green, blue) - minimum
@@ -145,12 +181,27 @@ def png_chunk(kind: bytes, payload: bytes) -> bytes:
 
 
 def write_mask(source: Path, destination: Path) -> tuple[int, int]:
-    width, height, pixels = read_rgba(source)
+    width, height, pixels = read_asset_rgba(source)
     mask = bytearray(width * height * 4)
+    protected_circles = PROTECTED_CIRCLES.get(source.name, ())
     for offset in range(0, len(pixels), 4):
         red, green, blue, alpha = pixels[offset : offset + 4]
+        pixel = offset // 4
+        x = pixel % width
+        y = pixel // width
         mask[offset : offset + 3] = b"\xff\xff\xff"
-        mask[offset + 3] = green_coverage(red, green, blue, alpha)
+        coverage = green_coverage(red, green, blue, alpha)
+        if coverage and protected_circles:
+            protection = 1.0
+            for center_x, center_y, radius, feather_end in protected_circles:
+                distance_squared = (x - center_x) ** 2 + (y - center_y) ** 2
+                if distance_squared < feather_end**2:
+                    distance = distance_squared**0.5
+                    protection = min(
+                        protection, smoothstep(radius, feather_end, distance)
+                    )
+            coverage = round(coverage * protection)
+        mask[offset + 3] = coverage
 
     stride = width * 4
     filtered = b"".join(
@@ -170,7 +221,7 @@ def write_mask(source: Path, destination: Path) -> tuple[int, int]:
 def main() -> None:
     for asset in ASSETS:
         source = PUBLIC / asset
-        destination = PUBLIC / f"{asset.removesuffix('.png')}-accent-mask.png"
+        destination = PUBLIC / f"{source.stem}-accent-mask.png"
         width, height = write_mask(source, destination)
         print(f"{destination.relative_to(ROOT)} ({width}x{height}, {destination.stat().st_size:,} bytes)")
 

@@ -1,10 +1,30 @@
-import { CustomColorPicker } from '@rentnerkev/picker'
+import { CustomColorPicker, type CustomColorPickerDesign } from '@rentnerkev/picker'
 import { Palette } from 'lucide-react'
 import { type CSSProperties } from 'react'
 
 import { DEFAULT_ACCENT_COLOR } from '../../../config/appearance.config'
 import { accentCssVariables } from '../../../theme/accentPalette'
 import { useSystemAppearancePanel } from '../Hooks/useSystemAppearancePanel'
+
+const pickerDesign: CustomColorPickerDesign = {
+    bg: 'bg-surface-raised',
+    border: 'border-input-border',
+    text: 'text-ink',
+    placeholder: 'placeholder:text-muted-soft',
+    focusRing: 'focus-within:ring-accent-ring/30',
+    focusBorder: 'focus-within:border-accent-ring',
+    errorBorder: 'border-danger-text',
+    errorRing: 'focus-within:ring-danger-text/40',
+    errorText: 'text-danger-text',
+    labelText: 'text-ink-soft',
+    descriptionText: 'text-muted',
+    iconColor: 'text-muted',
+    iconFocus: 'group-focus-within:text-brand-text',
+    hoverText: 'hover:text-brand-text',
+    previewBorder: 'border-border-strong',
+    presetBorder: 'border-border-strong',
+    presetActiveBorder: 'ring-accent-ring border-accent-ring',
+}
 
 export default function SystemAppearancePanel({ canUpdate }: { readonly canUpdate: boolean }) {
     const {
@@ -81,6 +101,7 @@ export default function SystemAppearancePanel({ canUpdate }: { readonly canUpdat
                         onValidityChange={setIsValid}
                         locale={language === 'de' ? 'de' : 'en'}
                         messages={pickerMessages}
+                        customDesign={pickerDesign}
                         disabled={isSaving}
                         required
                     />

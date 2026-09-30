@@ -3,6 +3,11 @@ import ApplicationFooter from '../../ApplicationShell/Components/ApplicationFoot
 import ApplicationHeader from '../../ApplicationShell/Components/ApplicationHeader'
 import type { SystemStatePageProps } from '../Types/system-state-page.types'
 
+const imageAccentMasks: Readonly<Record<string, string>> = {
+    '/system-error-v1-960.webp': '/system-error-v1-960-accent-mask.png',
+    '/system-not-found-v1-960.webp': '/system-not-found-v1-960-accent-mask.png',
+}
+
 export default function SystemStatePage({
     announce = false,
     children,
@@ -14,6 +19,8 @@ export default function SystemStatePage({
     title,
 }: SystemStatePageProps) {
     const { t } = useTranslationStore()
+    const accentMaskSrc = imageAccentMasks[imageSrc]
+
     return (
         <main className="relative isolate grid min-h-screen grid-rows-[auto_1fr_auto] overflow-x-hidden bg-navy-950 text-white">
             <div
@@ -57,13 +64,25 @@ export default function SystemStatePage({
                         className="absolute inset-x-12 bottom-8 h-24 rounded-full bg-brand-500/10 blur-3xl"
                         aria-hidden="true"
                     />
-                    <img
-                        src={imageSrc}
-                        alt=""
-                        width={960}
-                        height={960}
-                        className="relative h-auto w-full max-w-120 object-contain"
-                    />
+                    <span className="relative isolate block aspect-square w-full max-w-120">
+                        <img
+                            src={imageSrc}
+                            alt=""
+                            width={960}
+                            height={960}
+                            className="relative z-0 block size-full object-contain"
+                        />
+                        {accentMaskSrc ? (
+                            <span
+                                className="pointer-events-none absolute inset-0 z-10 bg-[var(--accent)] opacity-0 mix-blend-color group-data-[accent-custom=true]:opacity-100 [-webkit-mask-position:center] [mask-position:center] [-webkit-mask-repeat:no-repeat] [mask-repeat:no-repeat] [-webkit-mask-size:100%_100%] [mask-size:100%_100%]"
+                                style={{
+                                    maskImage: `url('${accentMaskSrc}')`,
+                                    WebkitMaskImage: `url('${accentMaskSrc}')`,
+                                }}
+                                aria-hidden="true"
+                            />
+                        ) : null}
+                    </span>
                 </div>
             </section>
 

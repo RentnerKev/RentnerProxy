@@ -71,6 +71,7 @@ describe('system appearance settings UI', () => {
             expect(panel?.querySelector('[data-theme="light"]')).not.toBeNull()
             expect(panel?.querySelector('[data-theme="dark"]')).not.toBeNull()
             expect(panel?.querySelector('input')).not.toBeNull()
+            expect(panel?.querySelector('input[placeholder]')?.className).toContain('text-ink')
             expect(panel?.querySelector('button[type="submit"]')).not.toBeNull()
             expect(panel?.textContent).toContain('Reset to default')
         } finally {
