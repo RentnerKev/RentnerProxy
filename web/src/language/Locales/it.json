@@ -1,0 +1,2541 @@
+{
+    "toast": {
+        "notification": "Notifica",
+        "dismiss": "Ignora notifica",
+        "copyError": "Copia messaggio di errore",
+        "copied": "Copiato",
+        "titles": {
+            "success": "Operazione riuscita",
+            "error": "Operazione non riuscita",
+            "info": "Informazione",
+            "warning": "Attenzione"
+        }
+    },
+    "common": {
+        "appName": "RentnerProxy",
+        "cancel": "Annulla",
+        "save": "Salva modifiche",
+        "saving": "Salvataggio…",
+        "retry": "Riprova",
+        "loading": "Caricamento…",
+        "requestFailed": "I dati richiesti non sono temporaneamente disponibili. Riprova.",
+        "confirm": "Conferma",
+        "working": "Operazione in corso…",
+        "closeDialog": "Chiudi finestra di dialogo",
+        "showPassword": "Mostra password",
+        "hidePassword": "Nascondi password",
+        "actions": "Azioni",
+        "openActions": "Apri azioni",
+        "backHome": "Torna alla home",
+        "openDomainInNewTab": "Apri {{domain}} in una nuova scheda",
+        "moreDomains": "Mostra altri {{count}} domini"
+    },
+    "inputs": {
+        "invalidPhone": "Inserisci un numero di telefono valido.",
+        "onlyNumbers": "Sono ammessi solo numeri.",
+        "onlyMoneyCharacters": "Inserisci un importo valido.",
+        "passwordStrength": "Sicurezza della password",
+        "passwordStrengthEmpty": "Nessuna password inserita",
+        "passwordStrengthVeryWeak": "Molto debole",
+        "passwordStrengthWeak": "Debole",
+        "passwordStrengthOkay": "Discreta",
+        "passwordStrengthStrong": "Forte",
+        "passwordStrengthVeryStrong": "Molto forte",
+        "hourSelect": "Seleziona ora",
+        "hourPlaceholder": "Ora",
+        "minuteSelect": "Seleziona i minuti",
+        "minutePlaceholder": "Minuti"
+    },
+    "shell": {
+        "home": "Home di RentnerProxy",
+        "overviewLink": "Panoramica di RentnerProxy",
+        "overview": "Panoramica",
+        "users": "Utenti",
+        "roles": "Ruoli",
+        "account": "Account",
+        "logout": "Esci",
+        "signingOut": "Disconnessione…",
+        "navigation": "Navigazione dell’applicazione",
+        "controlPlane": "Piano di controllo",
+        "navigationGroups": {
+            "operations": "Operazioni",
+            "security": "Sicurezza",
+            "administration": "Utenti e ruoli",
+            "records": "Registri e dati"
+        },
+        "collapseNavigation": "Comprimi navigazione",
+        "expandNavigation": "Espandi navigazione",
+        "proxyHosts": "Host proxy",
+        "redirectHosts": "Host di reindirizzamento",
+        "certificates": "Certificati",
+        "accessPolicies": "Politiche di accesso",
+        "npmImport": "Importazione di sistema",
+        "migration": "Importazione / esportazione",
+        "proxyAccessLogs": "Registri degli accessi",
+        "crowdSec": "CrowdSec",
+        "security": "Dashboard di sicurezza",
+        "auditLogs": "Registro di audit",
+        "systemVersion": "Versione del sistema {{version}}",
+        "updateAvailable": "Aggiornamento disponibile alla versione {{version}}"
+    },
+    "language": {
+        "title": "Lingua",
+        "description": "Scegli la lingua del tuo account.",
+        "label": "Lingua di visualizzazione",
+        "hint": "Seleziona una lingua e salva le modifiche per applicarla al tuo account. Le pagine pubbliche sono sempre in inglese.",
+        "saving": "Salvataggio della lingua…",
+        "saved": "La lingua è stata salvata.",
+        "saveFailed": "Impossibile salvare la lingua. Riprova.",
+        "loadFailed": "Impossibile caricare questa lingua. La lingua attuale non è stata modificata. Riprova.",
+        "names": {
+            "en": "Inglese",
+            "de": "Tedesco",
+            "es": "Spagnolo",
+            "fr": "Francese",
+            "it": "Italiano",
+            "pt": "Portoghese",
+            "nl": "Olandese",
+            "pl": "Polacco"
+        }
+    },
+    "theme": {
+        "saved": "Tema salvato.",
+        "light": "Chiaro",
+        "dark": "Scuro",
+        "switchToLight": "Passa alla modalità chiara",
+        "switchToDark": "Passa alla modalità scura",
+        "saveFailed": "Impossibile salvare il tema."
+    },
+    "validation": {
+        "required": "Questo campo è obbligatorio.",
+        "minLength": "Inserisci almeno {{count}} caratteri.",
+        "maxLength": "Inserisci al massimo {{count}} caratteri.",
+        "minItems": "Seleziona almeno {{count}} elementi.",
+        "maxItems": "Seleziona al massimo {{count}} elementi.",
+        "numberMin": "Inserisci un valore pari o superiore a {{count}}.",
+        "numberMax": "Inserisci un valore non superiore a {{count}}.",
+        "emailInvalid": "Inserisci un indirizzo email valido.",
+        "totpInvalid": "Inserisci il codice di autenticazione a sei cifre.",
+        "invalidValue": "Controlla questo valore e riprova.",
+        "selectOption": "Seleziona un’opzione disponibile.",
+        "passwordMismatch": "Le password non corrispondono."
+    },
+    "errors": {
+        "rateLimited": "Troppe richieste. Riprova più tardi.",
+        "authUnavailable": "Il servizio di autenticazione non è temporaneamente disponibile.",
+        "authentication_required": "La sessione è scaduta. Accedi di nuovo.",
+        "reauthentication_required": "Conferma la tua identità per continuare.",
+        "email_conflict": "Questo indirizzo email è già in uso.",
+        "last_active_owner": "L’ultimo proprietario attivo non può essere disattivato o modificato.",
+        "owner_required": "Solo un proprietario può apportare questa modifica.",
+        "permission_denied": "Non hai l’autorizzazione per apportare questa modifica.",
+        "role_in_use": "Questo ruolo è ancora assegnato a un utente.",
+        "role_not_found": "Il ruolo non esiste più.",
+        "system_role_immutable": "I ruoli di sistema non possono essere modificati o eliminati.",
+        "unknown_permission": "Una o più autorizzazioni selezionate non sono più disponibili.",
+        "unknown_role": "Uno o più ruoli selezionati non sono più disponibili.",
+        "user_not_found": "L’utente non esiste più.",
+        "invalid_email": "Controlla l’indirizzo email e riprova.",
+        "invalid_input": "Controlla i valori inseriti e riprova.",
+        "password_policy": "Controlla la password e riprova.",
+        "service_unavailable": "Il servizio non è temporaneamente disponibile. Riprova.",
+        "user_not_active": "Questo account non è attivo."
+    },
+    "system": {
+        "response": "Risposta del sistema",
+        "recovery": "Ripristino del percorso sicuro",
+        "error": {
+            "eyebrow": "Interruzione imprevista",
+            "title": "Si è verificato un problema.",
+            "description": "Un errore imprevisto ha interrotto questa pagina. Riprova oppure torna alla pagina iniziale per riprendere da un percorso sicuro.",
+            "nextStep": "Cosa fare adesso",
+            "command": "Comando per l’amministratore",
+            "code": "Codice di errore",
+            "reference": "Riferimento dell’errore",
+            "causes": {
+                "databaseSchema": {
+                    "title": "Aggiornamento del database necessario",
+                    "description": "L’applicazione e lo schema del database non corrispondono. Manca una tabella o un campo necessario.",
+                    "nextStep": "Un amministratore deve applicare le migrazioni del database in sospeso dalla directory del progetto e poi riprovare."
+                },
+                "databaseBusy": {
+                    "title": "Limite di connessioni al database raggiunto",
+                    "description": "Al momento il database non può accettare un’altra connessione.",
+                    "nextStep": "Riprova tra poco. Se il problema persiste, un amministratore dovrebbe controllare il pool di connessioni al database dell’applicazione."
+                },
+                "databaseUnavailable": {
+                    "title": "Database non disponibile",
+                    "description": "RentnerProxy non riesce a connettersi al database configurato.",
+                    "nextStep": "Un amministratore dovrebbe verificare che PostgreSQL sia in esecuzione e che le impostazioni di connessione al database siano corrette."
+                },
+                "databaseAuthentication": {
+                    "title": "Accesso al database rifiutato",
+                    "description": "Il database ha rifiutato le credenziali di accesso configurate per l’applicazione.",
+                    "nextStep": "Un amministratore dovrebbe controllare l’account del database configurato, la password e le autorizzazioni di accesso."
+                },
+                "sessionExpired": {
+                    "title": "Accesso necessario",
+                    "description": "La sessione non è più valida oppure questa pagina richiede un nuovo accesso.",
+                    "nextStep": "Torna alla pagina iniziale, accedi di nuovo e riapri questa pagina."
+                },
+                "accessDenied": {
+                    "title": "Accesso negato",
+                    "description": "Il tuo account non è autorizzato ad accedere a questa pagina o ai relativi dati.",
+                    "nextStep": "Torna alla pagina iniziale. Se hai bisogno di accedere, chiedi a un amministratore di controllare le autorizzazioni del tuo account."
+                },
+                "notFound": {
+                    "title": "Dati richiesti non trovati",
+                    "description": "I dati richiesti non esistono più o non sono più disponibili.",
+                    "nextStep": "Torna alla pagina iniziale e riapri l’elemento dall’elenco aggiornato."
+                },
+                "rateLimited": {
+                    "title": "Troppe richieste",
+                    "description": "Il limite temporaneo di richieste è stato raggiunto.",
+                    "nextStep": "Attendi qualche istante prima di riprovare. Evita di aggiornare ripetutamente la pagina."
+                },
+                "serviceUnavailable": {
+                    "title": "Un servizio necessario non è disponibile",
+                    "description": "Un servizio necessario per caricare questa pagina non è temporaneamente disponibile.",
+                    "nextStep": "Riprova tra poco. Se il problema persiste, invia il codice e il riferimento dell’errore a un amministratore affinché controlli i registri del server."
+                },
+                "network": {
+                    "title": "Connessione interrotta",
+                    "description": "Non è stato possibile completare la connessione all’applicazione.",
+                    "nextStep": "Controlla la connessione di rete e riprova. Se le altre pagine funzionano, un amministratore dovrebbe controllare il server dell’applicazione."
+                },
+                "assetLoad": {
+                    "title": "Impossibile caricare i file dell’applicazione",
+                    "description": "Non è stato possibile scaricare un file necessario dell’applicazione o della lingua.",
+                    "nextStep": "Riprova a ricaricare la pagina. Se il problema persiste, controlla la connessione e chiedi a un amministratore di verificare la distribuzione."
+                },
+                "unexpected": {
+                    "title": "Impossibile caricare la pagina",
+                    "description": "Si è verificato un errore imprevisto. L’applicazione non è riuscita a determinarne una causa più specifica.",
+                    "nextStep": "Riprova. Se il problema persiste, invia il codice e l’eventuale riferimento dell’errore a un amministratore affinché controlli i registri del browser e del server."
+                }
+            }
+        },
+        "notFound": {
+            "eyebrow": "Percorso non disponibile",
+            "title": "Pagina non trovata.",
+            "description": "La pagina che stai cercando non esiste o potrebbe essere stata spostata. La base di RentnerProxy è ancora in esecuzione."
+        }
+    },
+    "foundation": {
+        "description": "Un controllo rapido della connessione per ogni servizio che supporta questa istanza di RentnerProxy.",
+        "loading": {
+            "title": "Verifica delle connessioni",
+            "description": "RentnerProxy sta verificando il controller, PostgreSQL e Redis."
+        },
+        "error": {
+            "title": "Controllo dello stato non disponibile",
+            "description": "L’applicazione è in esecuzione, ma non è stato possibile aggiornare lo stato dei servizi."
+        },
+        "running": "In esecuzione",
+        "connected": "Connesso",
+        "connecting": "Connessione in corso",
+        "unavailable": "Non disponibile",
+        "local": "Foundation · Locale",
+        "status": "Stato di Foundation",
+        "environment": "Ambiente di sviluppo",
+        "environmentDescription": "Disponibilità dei servizi locali, verificata tramite il server.",
+        "serviceStatus": "Stato dei servizi di Foundation",
+        "footer": "Stato di Foundation · Stato della connessione verificato dal server",
+        "connectionMap": "Mappa delle connessioni",
+        "summary": "Cinque servizi. Un unico percorso di controllo.",
+        "refreshDescription": "Lo stato dei servizi viene verificato tramite il server e aggiornato in tempo reale mentre questa pagina è aperta.",
+        "crowdSec": {
+            "eyebrow": "Protezione del traffico",
+            "description": "Stato della protezione CrowdSec per il traffico HTTP e HTTPS pubblico.",
+            "manage": "Gestisci CrowdSec",
+            "checking": "Verifica della protezione CrowdSec…",
+            "loadError": "Impossibile caricare lo stato di CrowdSec. Lo stato di protezione attivo è sconosciuto.",
+            "desiredMode": "Modalità desiderata",
+            "runtime": "Stato runtime"
+        },
+        "web": "Web",
+        "services": {
+            "web": {
+                "label": "Applicazione web",
+                "detail": "Visualizza questa schermata di Foundation"
+            },
+            "controller": {
+                "label": "Controller",
+                "detail": "Controllo dello stato lato server"
+            },
+            "database": {
+                "label": "Database",
+                "detail": "Controllo dello stato di PostgreSQL lato server"
+            },
+            "redis": {
+                "label": "Redis",
+                "detail": "Controllo dello stato di Redis lato server"
+            },
+            "websocket": {
+                "label": "Server WebSocket",
+                "detail": "Server WebSocket nativo Bun"
+            }
+        }
+    },
+    "account": {
+        "navigation": {
+            "label": "Navigazione delle impostazioni utente",
+            "groups": {
+                "profile": "Profilo",
+                "signIn": "Accesso",
+                "system": "Sistema"
+            },
+            "profile": "Il mio profilo",
+            "language": "Lingua",
+            "password": "Password",
+            "twoFactor": "Autenticazione a due fattori",
+            "passkeys": "Passkey",
+            "appearance": "Aspetto",
+            "admin": "Amministrazione"
+        },
+        "page": {
+            "eyebrow": "Il tuo account",
+            "title": "Impostazioni utente",
+            "description": "Gestisci il tuo profilo, la lingua e le impostazioni di accesso."
+        },
+        "identity": {
+            "signedInAs": "Accesso effettuato come"
+        },
+        "password": {
+            "sectionEyebrow": "Credenziali",
+            "title": "Cambia password",
+            "currentPassword": "Password attuale",
+            "newPassword": "Nuova password",
+            "confirmNewPassword": "Conferma la nuova password",
+            "changing": "Modifica della password…",
+            "change": "Cambia password",
+            "success": {
+                "changed": "Password modificata. Le altre sessioni sono state revocate."
+            },
+            "error": {
+                "update": "Impossibile modificare la password.",
+                "incorrectCurrentPassword": "La password attuale non è corretta."
+            }
+        },
+        "profileImage": {
+            "sectionEyebrow": "Immagine personale",
+            "title": "Immagine del profilo",
+            "description": "Scegli un’immagine JPEG, PNG o WebP. Puoi posizionarla in un ritaglio circolare prima di salvarla.",
+            "change": "Cambia immagine",
+            "choose": "Scegli immagine",
+            "inputLabel": "Scegli immagine del profilo",
+            "maximumSize": "Massimo 8 MB",
+            "noPermission": "Non hai l’autorizzazione per aggiornare questa immagine del profilo.",
+            "crop": {
+                "title": "Ritaglia immagine del profilo",
+                "description": "Sposta e ingrandisci l’immagine finché l’anteprima circolare non è corretta.",
+                "areaLabel": "Area di ritaglio dell’immagine del profilo",
+                "zoom": "Zoom",
+                "zoomLabel": "Ingrandisci immagine del profilo",
+                "reset": "Reimposta posizione",
+                "saving": "Salvataggio dell’immagine…",
+                "save": "Salva immagine"
+            },
+            "success": {
+                "updated": "Immagine del profilo aggiornata."
+            },
+            "error": {
+                "update": "Impossibile aggiornare l’immagine del profilo.",
+                "open": "Impossibile aprire l’immagine selezionata.",
+                "unreadable": "Il file selezionato non è un’immagine leggibile.",
+                "cropCreation": "Impossibile creare il ritaglio selezionato.",
+                "cropRead": "Impossibile leggere il ritaglio selezionato.",
+                "invalidCrop": "Sposta o ingrandisci l’immagine per scegliere un ritaglio valido.",
+                "unsupportedType": "Scegli un’immagine JPEG, PNG o WebP.",
+                "fileTooLarge": "Scegli un’immagine inferiore a 8 MB.",
+                "invalidDimensions": "Scegli un’immagine con dimensioni comprese tra 64 px e 40 megapixel.",
+                "unsupportedBrowser": "Questo browser non supporta la modifica delle immagini."
+            }
+        },
+        "security": {
+            "sectionEyebrow": "Protezione dell’account",
+            "title": "Sicurezza",
+            "loading": "Caricamento delle impostazioni di sicurezza",
+            "error": {
+                "unavailable": "Le impostazioni di sicurezza non sono temporaneamente disponibili.",
+                "change": "Impossibile completare la modifica di sicurezza. Riprova."
+            }
+        },
+        "twoFactor": {
+            "title": "Autenticazione a due fattori",
+            "description": "Proteggi gli accessi con un’app di autenticazione.",
+            "enabled": "Attivata",
+            "disabled": "Disattivata",
+            "enable": "Attiva l’autenticazione a due fattori",
+            "disable": "Disattiva l’autenticazione a due fattori",
+            "regenerateRecoveryCodes": "Rigenera i codici di recupero",
+            "recoveryCodesAvailable": "Codici di recupero disponibili: {{count}}",
+            "setup": {
+                "title": "Configura l’app di autenticazione",
+                "description": "Scansiona il codice QR o inserisci la chiave di configurazione nell’app di autenticazione.",
+                "verifyTitle": "Verifica l’app di autenticazione",
+                "verifyDescription": "Inserisci il codice a sei cifre generato dall’app di autenticazione.",
+                "step": "Passaggio {{current}} di 2",
+                "back": "Indietro",
+                "verifying": "Verifica in corso…",
+                "verifyAndEnable": "Verifica e attiva",
+                "continue": "Continua",
+                "authenticatorCode": "Codice di autenticazione",
+                "qrCode": "Codice QR di configurazione dell’autenticazione",
+                "manualKey": "Non riesci a scansionare il codice QR? Inserisci manualmente questa chiave di configurazione:",
+                "keepOpen": "Tieni aperta questa finestra di dialogo finché l’app di autenticazione non ha salvato l’account."
+            },
+            "success": {
+                "setupStarted": "Configurazione dell’autenticazione a due fattori avviata.",
+                "enabled": "Autenticazione a due fattori attivata.",
+                "disabled": "Autenticazione a due fattori disattivata.",
+                "recoveryCodesRegenerated": "Codici di recupero rigenerati."
+            },
+            "error": {
+                "setupStart": "Impossibile avviare la configurazione dell’autenticazione a due fattori.",
+                "invalidCode": "Il codice di autenticazione non è valido o è scaduto.",
+                "verify": "Impossibile verificare il codice di autenticazione.",
+                "notEnabled": "L’autenticazione a due fattori non è attivata.",
+                "disable": "Impossibile disattivare l’autenticazione a due fattori.",
+                "recoveryCodes": "Impossibile rigenerare i codici di recupero.",
+                "setupUnavailable": "La configurazione dell’autenticazione a due fattori non è più disponibile."
+            }
+        },
+        "passkeys": {
+            "title": "Passkey",
+            "description": "Usa Windows Hello, Touch ID, chiavi di sicurezza o gestori di password.",
+            "listTitle": "Le tue passkey",
+            "hint": "Puoi aggiungere più passkey per dispositivi diversi.",
+            "add": "Aggiungi passkey",
+            "empty": "Non hai ancora aggiunto passkey.",
+            "addedAt": "Aggiunta il {{date}}",
+            "lastUsedAt": "Ultimo utilizzo: {{date}}",
+            "unknownDate": "Data sconosciuta",
+            "rename": "Rinomina",
+            "remove": "Rimuovi",
+            "defaultName": "Passkey",
+            "name": {
+                "addTitle": "Assegna un nome a questa passkey",
+                "addDescription": "Scegli un nome riconoscibile prima che l’app di autenticazione crei la passkey.",
+                "renameTitle": "Rinomina passkey",
+                "renameDescription": "Scegli un nome che ti aiuti a riconoscere questa app di autenticazione.",
+                "label": "Nome della passkey",
+                "continue": "Continua",
+                "save": "Salva nome"
+            },
+            "success": {
+                "registrationStarted": "Registrazione della passkey avviata.",
+                "added": "Passkey aggiunta.",
+                "renamed": "Passkey rinominata.",
+                "removed": "Passkey rimossa."
+            },
+            "error": {
+                "registrationStart": "Impossibile avviare la registrazione della passkey.",
+                "registrationVerification": "Impossibile verificare la registrazione della passkey.",
+                "registrationComplete": "Impossibile completare la registrazione della passkey.",
+                "registrationFailed": "Registrazione della passkey non riuscita.",
+                "invalidDomain": "Non è possibile registrare passkey usando un indirizzo IP. Per lo sviluppo locale, apri l’app su localhost oppure usa il relativo dominio HTTPS.",
+                "invalidRpId": "Questo indirizzo non corrisponde al dominio configurato per le passkey. Apri l’app all’indirizzo RENTNERPROXY_PUBLIC_ORIGIN configurato e riprova.",
+                "notFound": "La passkey non esiste più.",
+                "rename": "Impossibile salvare il nome della passkey.",
+                "remove": "Impossibile rimuovere la passkey."
+            }
+        },
+        "reauthentication": {
+            "title": "Conferma questa modifica di sicurezza",
+            "description": "Esegui nuovamente l’autenticazione per continuare. La sessione attuale non è sufficiente.",
+            "currentPassword": "Password attuale",
+            "confirm": "Conferma",
+            "usePasskey": "Usa una passkey",
+            "success": {
+                "confirmed": "Identità confermata.",
+                "passkeyStarted": "Verifica della passkey avviata."
+            },
+            "error": {
+                "failed": "Nuova autenticazione non riuscita.",
+                "incorrectPassword": "La password non è corretta.",
+                "passkeyStart": "Impossibile avviare la nuova autenticazione con passkey.",
+                "passkeyVerification": "Verifica della passkey non riuscita."
+            }
+        },
+        "recoveryCodes": {
+            "title": "Salva i codici di recupero",
+            "description": "Questi codici vengono mostrati una sola volta. Ogni codice può essere usato una sola volta.",
+            "copied": "Copiato",
+            "copyAll": "Copia tutto",
+            "saved": "Ho salvato i codici di recupero"
+        },
+        "confirmation": {
+            "removePasskeyTitle": "Rimuovere questa passkey?",
+            "removePasskeyDescription": "“{{name}}” non sarà più disponibile per accedere al tuo account.",
+            "disableTwoFactorTitle": "Disattivare l’autenticazione a due fattori?",
+            "disableTwoFactorDescription": "Gli accessi con password non richiederanno più un codice di autenticazione.",
+            "regenerateRecoveryCodesTitle": "Rigenerare i codici di recupero?",
+            "regenerateRecoveryCodesDescription": "I codici di recupero attuali smetteranno subito di funzionare.",
+            "removePasskey": "Rimuovi passkey",
+            "disableTwoFactor": "Disattiva autenticazione a due fattori",
+            "regenerateRecoveryCodes": "Rigenera i codici",
+            "applying": "Applicazione…"
+        },
+        "validation": {
+            "passwordsDoNotMatch": "Le password non corrispondono.",
+            "authenticatorCode": "Inserisci il codice a sei cifre dell’app di autenticazione."
+        }
+    },
+    "admin": {
+        "migration": {
+            "eyebrow": "Sistema / Migrazione",
+            "title": "Trasferisci configurazione",
+            "description": "Importa configurazioni da RentnerProxy, Nginx Proxy Manager o Zoraxy ed esporta un file RentnerProxy portatile.",
+            "exportTitle": "Esporta RentnerProxy",
+            "exportHelp": "JSON portatile con host proxy, reindirizzamenti e politiche, senza credenziali. Certificati, chiavi private, utenti, password e dati completi di backup sono esclusi. Gli host che richiedono TLS o dati CA vengono importati come disattivati.",
+            "exportButton": "Scarica JSON di configurazione",
+            "exportCompleted": "Configurazione di RentnerProxy scaricata.",
+            "importTitle": "Importa configurazione",
+            "sourceLabel": "Sistema di origine",
+            "fileLabel": "Scegli file di esportazione",
+            "source": {
+                "rentnerproxy": "RentnerProxy",
+                "npm": "Nginx Proxy Manager",
+                "zoraxy": "Zoraxy"
+            },
+            "sourceHelp": {
+                "rentnerproxy": "Scegli un file JSON portatile di RentnerProxy (versione 1, fino a 4 MiB). Non è un backup completo del sistema o dei certificati.",
+                "npm": "Scegli una copia SQLite coerente di NPM 2.16 (fino a 32 MiB). Arresta NPM prima di copiarla oppure crea un backup SQLite.",
+                "zoraxy": "Scegli il file ZIP ufficiale della configurazione Zoraxy versione 3 (fino a 32 MiB). Vengono importate solo regole semplici di proxy e reindirizzamento dei domini. Certificati, credenziali, stream e regole avanzate richiedono una migrazione manuale."
+            },
+            "previewHelp": "Non è ancora stata apportata alcuna modifica. Esamina conflitti e avvisi. Gli oggetti che richiedono TLS o una verifica di sicurezza vengono creati come disattivati.",
+            "errors": {
+                "invalid_request": "Richiesta di caricamento non valida.",
+                "authentication_required": "Accedi e riprova.",
+                "permission_denied": "Non puoi usare la migrazione della configurazione.",
+                "source_limit": "Il file o il numero di oggetti supera il limite.",
+                "invalid_source": "Il file non è valido o non è leggibile.",
+                "unsupported_schema": "Formato del file o versione dello schema non supportati.",
+                "fingerprint_mismatch": "Il file è cambiato dopo l’anteprima. Analizzalo di nuovo.",
+                "preview_changed": "RentnerProxy è cambiato dopo l’anteprima. Analizzalo di nuovo.",
+                "import_failed": "Importazione non riuscita; le modifiche sono state annullate. Controlla il registro di audit.",
+                "export_failed": "Esportazione non riuscita. Riprova o controlla il registro di audit."
+            }
+        },
+        "npmImport": {
+            "eyebrow": "Sistema / Importazione",
+            "title": "Importazione da Nginx Proxy Manager",
+            "description": "Esamina uno snapshot SQLite reale di NPM prima di creare qualsiasi host.",
+            "sourceTitle": "Scegli il database NPM",
+            "sourceHelp": "Solo SQLite di NPM 2.16. Arresta NPM prima di copiare /data/database.sqlite oppure crea un backup SQLite coerente. Seleziona qui la copia (max 32 MiB). Dump e archivi del database non sono supportati. Certificati e segreti non vengono importati.",
+            "fileLabel": "Copia del database SQLite",
+            "preview": "Analizza e visualizza anteprima",
+            "previewTitle": "Anteprima importazione",
+            "previewHelp": "Non è ancora stata apportata alcuna modifica. Esamina tutti gli avvisi e i conflitti. Gli host che richiedono una verifica TLS o WebSocket vengono creati come disattivati.",
+            "details": "Esamina dettagli",
+            "apply": "Conferma importazione",
+            "resultTitle": "Risultato importazione",
+            "resultSummary": "{{imported}} importati, {{skipped}} ignorati, {{failed}} non riusciti. Runtime: {{runtime}}.",
+            "history": "Importazioni recenti",
+            "imported": "importati",
+            "skipped": "ignorati",
+            "failed": "non riusciti",
+            "runtime": {
+                "applied": "applicato",
+                "pending": "in sospeso",
+                "not_applicable": "non applicato"
+            },
+            "status": {
+                "ready": "Pronto",
+                "partial": "Richiede verifica",
+                "manual": "Migrazione manuale",
+                "conflict": "Conflitto"
+            },
+            "kind": {
+                "proxy-host": "Host proxy",
+                "redirect-host": "Host di reindirizzamento",
+                "access-policy": "Elenco di accesso",
+                "certificate": "Certificato",
+                "dead-host": "Host 404",
+                "stream": "Stream"
+            },
+            "reasons": {
+                "invalid_domains": "Domini non validi o non supportati; migrazione manuale necessaria",
+                "advanced_config_manual": "La configurazione avanzata personalizzata di nginx richiede una migrazione manuale",
+                "custom_locations_manual": "Le posizioni personalizzate richiedono una migrazione manuale",
+                "caching_manual": "La cache di NPM non ha un equivalente tipizzato",
+                "block_exploits_manual": "Il blocco degli exploit di NPM non ha un equivalente tipizzato",
+                "hsts_manual": "Le impostazioni HSTS di NPM richiedono una migrazione manuale",
+                "access_list_missing": "Riferimento all’elenco di accesso mancante o non valido",
+                "access_list_manual": "L’elenco di accesso collegato richiede una migrazione manuale",
+                "invalid_host_settings": "Impostazioni dell’host non valide o non supportate",
+                "certificate_manual": "Certificato e rinnovo devono essere configurati manualmente; host importati disattivati",
+                "force_https_manual": "Ripristina Forza HTTPS dopo aver configurato il certificato",
+                "http2_behavior_review": "Esamina il comportamento HTTP/2 prima di attivare questo host",
+                "forwarded_proto_review": "Esamina il comportamento di forwarded-proto attendibile prima di attivare questo host",
+                "websocket_behavior_review": "Il comportamento WebSocket è diverso; host importati disattivati in attesa di verifica",
+                "upstream_tls_review": "Esamina la verifica TLS upstream; host importati disattivati",
+                "ip_policy_review": "Verifica l’IP client e le impostazioni del proxy attendibile prima di attivare questo host",
+                "invalid_upstream": "Destinazione upstream non valida o non supportata",
+                "redirect_auto_scheme_manual": "Lo schema di reindirizzamento automatico non ha un equivalente a destinazione fissa",
+                "invalid_redirect": "Destinazione o codice di stato del reindirizzamento non valido o non supportato",
+                "invalid_access_list": "Nome o identificatore dell’elenco di accesso non valido",
+                "basic_auth_manual": "Basic Auth e l’inoltro dell’autorizzazione richiedono una migrazione manuale",
+                "empty_access_list": "L’elenco di accesso vuoto non contiene restrizioni da importare",
+                "ordered_ip_rules_manual": "Le regole IP ordinate di consenti/nega richiedono una migrazione manuale",
+                "invalid_ip_rules": "Le regole IP non sono valide o superano i limiti di RentnerProxy",
+                "source_duplicate_domain": "Il dominio compare più di una volta in questa origine NPM",
+                "import_rolled_back": "Importazione non riuscita; tutte le modifiche pianificate sono state annullate",
+                "preview_changed": "L’anteprima non è aggiornata; analizza di nuovo prima di importare",
+                "existing_domain": "Il dominio è già gestito da RentnerProxy",
+                "unreferenced_access_list": "Nessun host importabile usa questo elenco di accesso",
+                "certificate_material_unavailable": "SQLite contiene solo metadati; migra manualmente certificato e chiave privata",
+                "dead_hosts_manual": "Gli host 404 richiedono una migrazione manuale",
+                "streams_manual": "Gli stream richiedono una migrazione manuale",
+                "trusted_ca_manual": "Manca la CA attendibile; l’host verrà importato come disattivato",
+                "auth_policy_manual": "Migra manualmente la politica di autenticazione e le credenziali",
+                "duplicate_source_id": "L’ID oggetto compare più di una volta nell’origine",
+                "zoraxy_unsupported_rule": "La regola Zoraxy usa funzionalità non trasferibili",
+                "zoraxy_unsupported_redirect": "Il reindirizzamento Zoraxy usa percorso, dispositivo o altre regole non supportate",
+                "zoraxy_tls_review": "Esamina le impostazioni TLS di Zoraxy; l’host verrà importato come disattivato",
+                "upstream_tls_verification_review": "Esamina la verifica del certificato upstream disattivata prima di procedere all’attivazione",
+                "zoraxy_streams_manual": "Migra manualmente gli stream di Zoraxy",
+                "zoraxy_access_manual": "Migra manualmente le regole di accesso di Zoraxy",
+                "zoraxy_certificates_manual": "Configura manualmente i certificati e le chiavi di Zoraxy",
+                "zoraxy_path_rules_manual": "Migra manualmente le regole di percorso di Zoraxy"
+            },
+            "errors": {
+                "invalid_request": "Richiesta di caricamento non valida.",
+                "authentication_required": "Accedi e riprova.",
+                "permission_denied": "Non hai l’autorizzazione per importare.",
+                "source_limit": "L’origine supera il limite di 32 MiB o di record.",
+                "invalid_source": "Non è un database SQLite NPM leggibile.",
+                "unsupported_schema": "Schema NPM non supportato. È accettato solo lo schema verificato v2.16.0.",
+                "fingerprint_mismatch": "L’origine è cambiata dopo l’anteprima. Analizzala di nuovo.",
+                "preview_changed": "Lo stato di RentnerProxy è cambiato dopo l’anteprima. Analizzalo di nuovo prima di importare.",
+                "nothing_to_import": "Non resta nulla di idoneo per l’importazione. Analizza di nuovo lo stato più recente.",
+                "import_failed": "Importazione non riuscita e transazione del database annullata. Controlla il registro di audit."
+            }
+        },
+        "users": {
+            "page": {
+                "eyebrow": "Directory degli accessi",
+                "title": "Utenti",
+                "description": "Invita persone, assegna ruoli e revoca tutte le sessioni attive quando l’accesso deve terminare."
+            },
+            "messages": {
+                "rolesUnavailable": "Le opzioni dei ruoli non sono disponibili. Puoi comunque modificare il profilo utente.",
+                "rolesNotReady": "Le opzioni dei ruoli non sono ancora disponibili.",
+                "created": "Utente creato e invito inviato.",
+                "updated": "Utente aggiornato.",
+                "disabled": "Utente disattivato e sessioni revocate.",
+                "enabled": "Utente attivato correttamente."
+            },
+            "states": {
+                "unavailableTitle": "Utenti non disponibili",
+                "unavailableDescription": "Impossibile caricare la directory degli accessi per questa sessione."
+            },
+            "actions": {
+                "add": "Aggiungi utente",
+                "create": "Crea utente",
+                "edit": "Modifica",
+                "disable": "Disattiva",
+                "disabling": "Disattivazione utente…",
+                "enable": "Attiva",
+                "enabling": "Attivazione utente…",
+                "retryRoles": "Riprova a caricare i ruoli",
+                "open": "Apri le azioni per {{name}}",
+                "none": "Nessuna azione disponibile",
+                "ownerEdit": "Solo un proprietario può modificare questo account.",
+                "ownerDisable": "Solo un proprietario può disattivare questo account.",
+                "ownerEnable": "Solo un proprietario può attivare questo account.",
+                "selfDisable": "Non puoi disattivare il tuo account.",
+                "disableDescription": "Revoca le sessioni e blocca l’accesso.",
+                "enableDescription": "Consente nuovamente l’accesso a questo account."
+            },
+            "confirm": {
+                "disableTitle": "Disattivare utente?",
+                "disableDescription": "{{name}} non potrà più accedere.",
+                "disableSessions": "Tutte le sessioni attive e i token di accesso in sospeso verranno revocati."
+            },
+            "form": {
+                "displayName": "Nome visualizzato",
+                "optional": "facoltativo",
+                "email": "Indirizzo email",
+                "status": "Stato",
+                "pendingHint": "I nuovi account restano in sospeso finché l’invito non viene accettato.",
+                "disabledHint": "Disattiva l’accesso dal menu delle azioni dell’utente.",
+                "roles": "Ruoli",
+                "rolesReadOnly": "Puoi modificare i dati del profilo, ma non i ruoli assegnati a questo utente.",
+                "createDescription": "Crea l’account, assegna l’accesso iniziale e invia un invito.",
+                "editDescription": "Aggiorna le informazioni dell’account e i ruoli assegnati.",
+                "creating": "Creazione utente…",
+                "editTitle": "Modifica {{name}}"
+            },
+            "roles": {
+                "assign": "Assegna il ruolo {{role}}"
+            },
+            "status": {
+                "active": "Attivo",
+                "pending": "In sospeso",
+                "disabled": "Disattivato"
+            },
+            "columns": {
+                "name": "Nome",
+                "email": "Email",
+                "status": "Stato",
+                "roles": "Ruoli",
+                "created": "Creato",
+                "actions": "Azioni"
+            },
+            "filters": {
+                "names": "Filtra per nome…",
+                "email": "Filtra per email…",
+                "allStatuses": "Tutti gli stati",
+                "allRoles": "Tutti i ruoli",
+                "createdFrom": "Creato dal",
+                "createdTo": "Creato al"
+            },
+            "table": {
+                "eyebrow": "Directory",
+                "count_one": "{{count}} utente",
+                "count_other": "{{count}} utenti",
+                "description": "Cerca nella directory, filtra le singole colonne e gestisci gli accessi da un’unica vista coerente.",
+                "searchLabel": "Cerca utenti",
+                "searchPlaceholder": "Cerca per nome, email, stato o ruolo…",
+                "loading": "Caricamento utenti",
+                "emptyTitle": "Non ci sono ancora utenti",
+                "emptyDescription": "Crea il primo utente per iniziare a configurare la directory degli accessi.",
+                "filteredEmptyTitle": "Nessun utente corrisponde ai filtri",
+                "filteredEmptyDescription": "Modifica la ricerca o reimposta i filtri attivi per visualizzare altri utenti.",
+                "itemLabel": "utenti",
+                "count_many": "{{count}} utenti"
+            },
+            "errors": {
+                "loadFailed": "Impossibile caricare i dati degli utenti.",
+                "inviteFailed": "Impossibile invitare l’utente.",
+                "updateFailed": "Impossibile aggiornare l’utente.",
+                "disableFailed": "Impossibile disattivare l’utente.",
+                "enableFailed": "Impossibile attivare l’utente.",
+                "saveFailed": "Impossibile salvare l’utente.",
+                "editableRequired": "È necessario un utente modificabile."
+            },
+            "validation": {
+                "rolesRequired": "Seleziona almeno un ruolo."
+            },
+            "item": "utente"
+        },
+        "roles": {
+            "page": {
+                "eyebrow": "Autorizzazione",
+                "title": "Ruoli",
+                "description": "Crea insiemi di autorizzazioni personalizzati mantenendo protetti i ruoli di sistema proprietario, amministratore e visualizzatore."
+            },
+            "states": {
+                "unavailableTitle": "Ruoli non disponibili",
+                "unavailableDescription": "Impossibile caricare le definizioni dei ruoli per questa sessione."
+            },
+            "messages": {
+                "created": "Ruolo creato.",
+                "updated": "Ruolo aggiornato.",
+                "deleted": "Ruolo eliminato."
+            },
+            "actions": {
+                "add": "Aggiungi ruolo",
+                "create": "Crea ruolo",
+                "edit": "Modifica",
+                "delete": "Elimina",
+                "deleting": "Eliminazione ruolo…",
+                "protected": "Protetto",
+                "open": "Apri le azioni per {{name}}",
+                "none": "Nessuna azione disponibile",
+                "assignedTo_one": "Assegnato a {{count}} utente.",
+                "assignedTo_other": "Assegnato a {{count}} utenti.",
+                "removeDescription": "Rimuovi definitivamente questo ruolo personalizzato.",
+                "assignedTo_many": "Assegnato a {{count}} utenti."
+            },
+            "confirm": {
+                "deleteTitle": "Eliminare ruolo?",
+                "deleteDescription": "Vuoi davvero eliminare “{{name}}”?",
+                "deleteWarning": "Questa operazione non può essere annullata."
+            },
+            "form": {
+                "key": "Chiave",
+                "keyHint": "Identificatore stabile in minuscolo, ad esempio support.readonly.",
+                "name": "Nome",
+                "description": "Descrizione",
+                "permissions": "Autorizzazioni",
+                "permissionsReadOnly": "Puoi modificare i dettagli del ruolo, ma non questo insieme di autorizzazioni.",
+                "createDescription": "Crea un ruolo riutilizzabile e scegli quali autorizzazioni concede.",
+                "editDescription": "Aggiorna la definizione del ruolo personalizzato e il relativo insieme di autorizzazioni.",
+                "creating": "Creazione ruolo…",
+                "editTitle": "Modifica {{name}}"
+            },
+            "columns": {
+                "name": "Nome",
+                "description": "Descrizione",
+                "type": "Tipo",
+                "permissions": "Autorizzazioni",
+                "users": "Utenti",
+                "created": "Creato",
+                "actions": "Azioni"
+            },
+            "filters": {
+                "nameOrKey": "Filtra per nome o chiave…",
+                "descriptions": "Filtra descrizioni…",
+                "allTypes": "Tutti i tipi",
+                "createdFrom": "Creato dal",
+                "createdTo": "Creato al"
+            },
+            "type": {
+                "system": "Sistema",
+                "custom": "Personalizzato"
+            },
+            "table": {
+                "eyebrow": "Registro",
+                "count_one": "{{count}} ruolo",
+                "count_other": "{{count}} ruoli",
+                "description": "Esamina le politiche di sistema e gestisci gli insiemi di autorizzazioni personalizzati con un’unica tabella condivisa.",
+                "searchLabel": "Cerca ruoli",
+                "searchPlaceholder": "Cerca per nome, chiave, descrizione o autorizzazione…",
+                "loading": "Caricamento ruoli",
+                "emptyTitle": "Non ci sono ancora ruoli",
+                "emptyDescription": "Crea il primo ruolo personalizzato per definire una politica di accesso riutilizzabile.",
+                "filteredEmptyTitle": "Nessun ruolo corrisponde ai filtri",
+                "filteredEmptyDescription": "Modifica la ricerca o reimposta i filtri attivi per visualizzare altri ruoli.",
+                "itemLabel": "ruoli",
+                "count_many": "{{count}} ruoli"
+            },
+            "cells": {
+                "permissionsAssigned_one": "{{count}} assegnata",
+                "permissionsAssigned_other": "{{count}} assegnate",
+                "permissionsAssigned_many": "{{count}} assegnate"
+            },
+            "permissions": {
+                "toggle": "Attiva o disattiva l’autorizzazione {{permission}}"
+            },
+            "errors": {
+                "loadFailed": "Impossibile caricare i dati dei ruoli.",
+                "createFailed": "Impossibile creare il ruolo.",
+                "updateFailed": "Impossibile aggiornare il ruolo.",
+                "deleteFailed": "Impossibile eliminare il ruolo.",
+                "saveFailed": "Impossibile salvare il ruolo.",
+                "editableRequired": "È necessario un ruolo modificabile."
+            },
+            "validation": {
+                "keyMin": "La chiave del ruolo deve contenere almeno 2 caratteri.",
+                "keyMax": "La chiave del ruolo deve contenere al massimo 100 caratteri.",
+                "keyPattern": "Usa lettere minuscole, numeri, punti, trattini o trattini bassi.",
+                "nameRequired": "Inserisci un nome per il ruolo.",
+                "nameMax": "Il nome del ruolo deve contenere al massimo 100 caratteri.",
+                "descriptionMax": "La descrizione deve contenere al massimo 500 caratteri."
+            },
+            "item": "ruolo"
+        },
+        "certificates": {
+            "page": {
+                "eyebrow": "Gestione TLS",
+                "title": "Certificati",
+                "description": "Gestisci i certificati importati e il rilascio ACME per gli host proxy e di reindirizzamento."
+            },
+            "table": {
+                "eyebrow": "Archivio certificati",
+                "count_one": "{{count}} certificato",
+                "count_other": "{{count}} certificati",
+                "description": "Esamina la copertura dei certificati, lo stato del ciclo di vita e gli host assegnati.",
+                "searchLabel": "Cerca certificati",
+                "searchPlaceholder": "Cerca per nome, dominio, origine, stato o operazione...",
+                "loading": "Caricamento certificati",
+                "emptyTitle": "Non ci sono ancora certificati",
+                "emptyDescription": "Importa un certificato o richiedine uno tramite ACME.",
+                "filteredEmptyTitle": "Nessun certificato corrisponde ai filtri",
+                "filteredEmptyDescription": "Modifica la ricerca o reimposta i filtri attivi.",
+                "itemLabel": "certificati",
+                "count_many": "{{count}} certificati"
+            },
+            "columns": {
+                "name": "Nome",
+                "domains": "Domini",
+                "source": "Origine",
+                "status": "Stato",
+                "operation": "Operazione",
+                "expires": "Scadenza",
+                "actions": "Azioni"
+            },
+            "source": {
+                "manual": "Manuale",
+                "acme": "ACME"
+            },
+            "status": {
+                "pending": "In sospeso",
+                "valid": "Valido",
+                "expiring": "In scadenza",
+                "expired": "Scaduto",
+                "failed": "Non riuscito",
+                "candidate": "In attesa di attivazione"
+            },
+            "operation": {
+                "idle": "Nessuna operazione in corso",
+                "operationId": "ID operazione"
+            },
+            "operationKinds": {
+                "issue": "Rilascio",
+                "renew": "Rinnovo",
+                "import": "Importazione"
+            },
+            "operationStages": {
+                "queued": "In coda",
+                "creating_order": "Creazione ordine ACME",
+                "preparing_challenge": "Preparazione della challenge",
+                "waiting_for_validation": "In attesa della convalida",
+                "finalizing": "Finalizzazione del certificato",
+                "certificate_ready": "Certificato pronto",
+                "applying": "Applicazione del certificato",
+                "applied": "Applicato",
+                "retry_scheduled": "Nuovo tentativo pianificato",
+                "failed": "Non riuscito",
+                "needs_attention": "Richiede attenzione"
+            },
+            "cells": {
+                "moreDomains": "Mostra altri {{count}} domini"
+            },
+            "stagingWarning": "Ambiente di test: i certificati non sono considerati attendibili dai browser comuni.",
+            "actions": {
+                "import": "Importa certificato",
+                "request": "Richiedi tramite ACME",
+                "requestForHost": "Richiedi un certificato per questo host",
+                "details": "Dettagli",
+                "renew": "Rinnova",
+                "retry": "Riprova attivazione",
+                "replace": "Sostituisci",
+                "delete": "Elimina",
+                "saving": "Salvataggio...",
+                "requesting": "Richiesta in corso...",
+                "renewing": "Rinnovo in corso...",
+                "deleting": "Eliminazione in corso...",
+                "open": "Apri le azioni per il certificato {{name}}"
+            },
+            "details": {
+                "title": "Certificato: {{name}}",
+                "description": "Metadati e informazioni sulle assegnazioni attuali.",
+                "metadata": "Metadati del certificato",
+                "validUntil": "Valido fino al",
+                "autoRenew": "Rinnovo automatico",
+                "autoRenewAcme": "ACME attivo",
+                "autoRenewManual": "Importazione manuale",
+                "environment": "Ambiente",
+                "challengeType": "Tipo di challenge",
+                "san": "Nomi alternativi del soggetto (SAN)",
+                "issuer": "Emittente",
+                "issuedAt": "Data di emissione",
+                "fingerprint": "Impronta digitale",
+                "assignedHosts": "Host assegnati",
+                "attemptCount": "Numero di tentativi",
+                "retryStatus": "Stato dei nuovi tentativi",
+                "retryScheduled": "Nuovo tentativo pianificato",
+                "retryFailed": "Ultimo tentativo non riuscito",
+                "retryNone": "Nessun nuovo tentativo pianificato",
+                "nextRenewalAt": "Prossimo rinnovo",
+                "nextAttemptAt": "Prossimo tentativo",
+                "lastAttemptAt": "Ultimo tentativo",
+                "lastSuccessAt": "Ultima operazione riuscita",
+                "lastActivatedAt": "Ultima attivazione",
+                "lastErrorAt": "Ultimo errore",
+                "operationStatus": "Stato dell’operazione",
+                "currentOperation": "Operazione attuale",
+                "operationId": "ID operazione",
+                "operationKind": "Tipo di operazione",
+                "operationStage": "Fase dell’operazione",
+                "operationStartedAt": "Avvio dell’operazione",
+                "operationUpdatedAt": "Aggiornamento dell’operazione",
+                "candidate": "Certificato candidato rilasciato, in attesa di attivazione",
+                "candidateIssuedAt": "Data di rilascio del candidato",
+                "candidateExpiresAt": "Scadenza del candidato",
+                "candidateFingerprint": "Impronta digitale del candidato",
+                "candidateNextAttemptAt": "Prossimo tentativo di attivazione",
+                "dnsCleanupPending": "La pulizia DNS è ancora in sospeso. Non è possibile avviare un altro tentativo ACME."
+            },
+            "import": {
+                "title": "Importa certificato",
+                "description": "Fornisci un certificato e la relativa chiave privata. I valori PEM vengono inviati solo per questa operazione."
+            },
+            "replace": {
+                "title": "Sostituisci certificato",
+                "description": "Sostituisci il materiale archiviato mantenendo l’assegnazione del certificato."
+            },
+            "form": {
+                "name": "Nome",
+                "certificatePem": "Certificato PEM",
+                "certificatePemHint": "Incolla la catena di certificati PEM senza modificarne il contenuto.",
+                "privateKeyPem": "Chiave privata PEM",
+                "privateKeyPemHint": "La chiave viene inviata solo per questa richiesta e non viene mai salvata nella cache del browser.",
+                "chainPem": "Catena PEM (facoltativa)",
+                "chainPemHint": "Aggiungi la catena dell’emittente se non è inclusa nel certificato.",
+                "domains": "Domini",
+                "domainsHint": "Inserisci un nome DNS pubblico per riga.",
+                "challengeType": "Challenge ACME",
+                "httpChallengeHint": "HTTP-01 convalida ogni nome tramite la porta 80 raggiungibile. I nomi wildcard richiedono DNS-01.",
+                "dnsWildcardHint": "DNS-01 supporta insieme nomi wildcard e ordinari. Tutti i nomi devono appartenere alla stessa zona Cloudflare.",
+                "dnsProviderHint": "Le credenziali DNS di Cloudflare vengono usate solo durante la convalida e non vengono mai restituite nei metadati del certificato.",
+                "dnsZoneId": "ID zona Cloudflare",
+                "dnsApiToken": "Token API Cloudflare",
+                "environment": "Ambiente ACME",
+                "productionHint": "L’ambiente di produzione rilascia un certificato considerato attendibile pubblicamente per il normale utilizzo.",
+                "stagingHint": "L’ambiente di test non rilascia certificati considerati attendibili dai browser comuni.",
+                "contactEmail": "Email di contatto (facoltativa)",
+                "contactHint": "Usata per le comunicazioni ACME, se supportate dall’emittente.",
+                "acceptTerms": "Accetto i termini di servizio ACME",
+                "termsHint": "Per le richieste di produzione è necessario accettare esplicitamente i termini."
+            },
+            "environment": {
+                "staging": "Test",
+                "production": "Produzione"
+            },
+            "challenge": {
+                "http01": "HTTP-01",
+                "dns01": "DNS-01 (Cloudflare)"
+            },
+            "request": {
+                "title": "Richiedi certificato ACME",
+                "description": "Richiedi un certificato per domini pubblici tramite l’ambiente ACME selezionato.",
+                "networkHint": "La convalida ACME richiede DNS pubblico. HTTP-01 richiede anche che la porta 80 sia raggiungibile per ogni dominio."
+            },
+            "confirm": {
+                "renewTitle": "Rinnovare {{name}}?",
+                "renewDescription": "Avvia un nuovo ordine ACME per questo certificato.",
+                "retryTitle": "Riprovare l’attivazione di {{name}}?",
+                "retryDescription": "Riprova ad attivare il certificato candidato rilasciato.",
+                "deleteTitle": "Eliminare {{name}}?",
+                "deleteDescription": "Il certificato inutilizzato verrà eliminato definitivamente.",
+                "deleteAssignedDescription_one": "Questo certificato è attualmente usato da {{count}} host. La sua eliminazione rimuove HTTPS da quell’host e disattiva Forza HTTPS, se necessario. L’host e il relativo instradamento HTTP restano disponibili.",
+                "deleteAssignedDescription_other": "Questo certificato è attualmente usato da {{count}} host. La sua eliminazione rimuove HTTPS da questi host e disattiva Forza HTTPS, se necessario. Gli host e il relativo instradamento HTTP restano disponibili.",
+                "deleteAssignedDescription_many": "Questo certificato è attualmente usato da {{count}} host. La sua eliminazione rimuove HTTPS da questi host e disattiva Forza HTTPS, se necessario. Gli host e il relativo instradamento HTTP restano disponibili."
+            },
+            "states": {
+                "unavailableTitle": "Certificati non disponibili",
+                "unavailableDescription": "Impossibile caricare l’elenco dei certificati. Riprova."
+            },
+            "filters": {
+                "allSources": "Tutte le origini",
+                "allStatuses": "Tutti gli stati"
+            },
+            "messages": {
+                "imported": "Certificato importato.",
+                "replaced": "Certificato sostituito.",
+                "requested": "Richiesta del certificato avviata.",
+                "renewing": "Rinnovo del certificato avviato.",
+                "deleted": "Certificato eliminato.",
+                "deletePending": "La sincronizzazione runtime è ancora in sospeso. Il certificato è stato mantenuto e potrà essere eliminato dopo la sincronizzazione."
+            },
+            "errors": {
+                "loadFailed": "Impossibile caricare i certificati.",
+                "actionFailed": "Impossibile completare l’operazione sul certificato.",
+                "importFailed": "Impossibile importare il certificato.",
+                "requestFailed": "Impossibile avviare la richiesta ACME.",
+                "renewFailed": "Impossibile rinnovare il certificato.",
+                "deleteFailed": "Impossibile eliminare il certificato.",
+                "invalid_input": "Controlla i valori del certificato inseriti.",
+                "invalid_certificate": "Il certificato non è valido.",
+                "key_mismatch": "La chiave privata non corrisponde al certificato.",
+                "certificate_expired": "Il certificato è scaduto.",
+                "domain_mismatch": "Il certificato non copre tutti i domini degli host.",
+                "certificate_not_found": "Il certificato non esiste più.",
+                "certificate_in_use": "Il certificato è ancora assegnato a un host proxy o di reindirizzamento.",
+                "operation_in_progress": "È già in corso un’altra operazione sul certificato.",
+                "acme_terms_required": "Accetta i termini ACME prima di richiedere un certificato.",
+                "acme_domain_invalid": "ACME richiede domini DNS pubblici.",
+                "acme_failed": "L’ordine ACME non è riuscito.",
+                "acme_dns_required": "DNS-01 richiede un provider DNS.",
+                "dns_provider_invalid": "La configurazione del provider DNS non è valida.",
+                "dns_provider_unavailable": "Impossibile raggiungere il provider DNS.",
+                "dns_provider_unauthorized": "Il provider DNS ha rifiutato le credenziali.",
+                "dns_cleanup_failed": "Pulizia della challenge DNS non riuscita.",
+                "dns_credentials_unavailable": "Le credenziali DNS non sono disponibili.",
+                "runtime_apply_failed": "Il certificato è stato salvato, ma non è stato possibile applicarlo al runtime proxy.",
+                "certificate_store_unavailable": "L’archivio certificati non è disponibile.",
+                "controller_unavailable": "Il controller proxy non è disponibile."
+            },
+            "validation": {
+                "name": "Inserisci un nome per il certificato.",
+                "certificatePem": "Inserisci un certificato PEM.",
+                "privateKeyPem": "Inserisci una chiave privata PEM.",
+                "pemLimit": "Questo valore PEM è troppo grande.",
+                "publicDomain": "Usa un dominio DNS pubblico.",
+                "wildcardRequiresDns01": "I nomi wildcard richiedono la challenge DNS-01.",
+                "duplicateDomain": "Ogni dominio può comparire una sola volta.",
+                "dnsProviderRequired": "Fornisci un provider DNS Cloudflare per DNS-01.",
+                "dnsProviderHttp": "HTTP-01 non accetta credenziali del provider DNS.",
+                "dnsZoneId": "Inserisci un ID zona Cloudflare di 32 caratteri minuscoli.",
+                "dnsApiToken": "Inserisci un token API Cloudflare valido senza spazi.",
+                "email": "Inserisci un indirizzo email valido.",
+                "terms": "Accetta i termini ACME."
+            },
+            "tabs": {
+                "label": "Tipo di certificato",
+                "server": "Certificati del server",
+                "trusted": "CA attendibili"
+            }
+        },
+        "proxyHosts": {
+            "page": {
+                "eyebrow": "Gestione proxy",
+                "title": "Host proxy",
+                "description": "Gestisci i domini, le destinazioni di inoltro e la configurazione runtime del proxy."
+            },
+            "runtime": {
+                "title": "Runtime proxy",
+                "synced": "Runtime proxy sincronizzato",
+                "syncedDescription": "La configurazione proxy attiva corrisponde a quella salvata.",
+                "pending": "Le modifiche salvate sono in attesa di applicazione.",
+                "pendingDescription": "La configurazione applicata con successo più di recente resta attiva finché non vengono applicate le modifiche salvate.",
+                "unavailable": "Runtime proxy non disponibile.",
+                "unavailableDescription": "Al momento non è possibile raggiungere il runtime proxy. Le modifiche salvate restano in coda per una successiva applicazione.",
+                "apply": "Applica modifiche",
+                "applying": "Applicazione in corso…",
+                "applied": "Runtime proxy aggiornato correttamente.",
+                "applyFailed": "Impossibile aggiornare il runtime proxy. Le modifiche salvate potranno essere applicate in seguito.",
+                "savedPending": "Le modifiche salvate sono in attesa di applicazione."
+            },
+            "messages": {
+                "created": "Host proxy creato correttamente.",
+                "updated": "Host proxy aggiornato correttamente.",
+                "deleted": "Host proxy eliminato correttamente.",
+                "enabled": "Host proxy attivato correttamente.",
+                "disabled": "Host proxy disattivato correttamente."
+            },
+            "certificateJob": {
+                "background": {
+                    "title": "Richiesta del certificato",
+                    "success": "Certificato assegnato correttamente.",
+                    "failure": "La richiesta del certificato richiede attenzione.",
+                    "retry": "Riprova",
+                    "viewCertificate": "Visualizza certificato"
+                },
+                "messages": {
+                    "queued": "Richiesta del certificato inserita in coda.",
+                    "retried": "Nuovo tentativo del certificato inserito in coda."
+                },
+                "errors": {
+                    "host_changed": "L’host proxy è cambiato. Controlla i domini e riprova.",
+                    "host_deleted": "L’host proxy non esiste più.",
+                    "permission_revoked": "La tua autorizzazione per i certificati è stata revocata.",
+                    "certificate_deleted": "I dati del processo del certificato sono stati eliminati.",
+                    "certificate_used_elsewhere": "Il certificato è già assegnato a un altro host.",
+                    "idempotency_conflict": "Questa chiave di richiesta è già stata usata per un’altra richiesta.",
+                    "job_not_found": "Impossibile trovare il processo del certificato.",
+                    "actionFailed": "Operazione sul processo del certificato non riuscita.",
+                    "loadFailed": "Impossibile caricare lo stato del processo del certificato."
+                }
+            },
+            "states": {
+                "unavailableTitle": "Host proxy non disponibili",
+                "unavailableDescription": "Impossibile caricare gli host proxy salvati. Riprova."
+            },
+            "actions": {
+                "add": "Aggiungi host proxy",
+                "create": "Crea host proxy",
+                "edit": "Modifica",
+                "enable": "Attiva",
+                "disable": "Disattiva",
+                "delete": "Elimina",
+                "deleting": "Eliminazione…",
+                "disabling": "Disattivazione…",
+                "open": "Apri le azioni per {{name}}",
+                "none": "Nessuna azione disponibile",
+                "disableDescription": "Salva questo host proxy come disattivato.",
+                "enableDescription": "Salva questo host proxy come attivato.",
+                "deleteDescription": "Rimuovi definitivamente “{{name}}”.",
+                "config": "Configurazione"
+            },
+            "confirm": {
+                "deleteTitle": "Eliminare host proxy?",
+                "deleteDescription": "L’host proxy per “{{name}}” e tutte le assegnazioni dei relativi domini verranno rimossi.",
+                "deleteWarning": "Questa operazione non può essere annullata.",
+                "deleteLabel": "Elimina host proxy",
+                "disableTitle": "Disattivare host proxy?",
+                "disableDescription": "L’host proxy verrà salvato come disattivato e rimosso dalla prossima configurazione runtime del proxy.",
+                "disableLabel": "Disattiva host proxy",
+                "saveDisabled": "Salva e disattiva"
+            },
+            "form": {
+                "description": "Salva i domini e una destinazione di inoltro per la configurazione runtime del proxy.",
+                "editTitle": "Modifica host proxy",
+                "creating": "Creazione…",
+                "domains": "Domini",
+                "domainLabel": "Dominio {{number}}",
+                "domainPlaceholder": "example.com",
+                "removeDomain": "Rimuovi dominio {{number}}",
+                "addDomain": "Aggiungi dominio",
+                "domainsHint": "Aggiungi da 1 a 50 nomi DNS. I nomi internazionali vengono salvati in formato ASCII/Punycode. Qui non sono supportati wildcard e indirizzi IP.",
+                "forwardScheme": "Schema di inoltro",
+                "forwardHost": "Host di destinazione",
+                "forwardPort": "Porta di destinazione",
+                "forwardHostPlaceholder": "192.168.1.50",
+                "forwardHostHint": "Inserisci un nome host o un indirizzo IPv4 o IPv6 senza schema, percorso o porta.",
+                "enabledHint": "Gli host attivi vengono inclusi nella prossima configurazione runtime del proxy.",
+                "statusReadOnly": "Non hai l’autorizzazione per modificare lo stato salvato di questo host proxy.",
+                "certificate": "Certificato TLS",
+                "noCertificate": "Nessun certificato",
+                "certificateHint": "Assegna un certificato valido che copra tutti i domini dell’host.",
+                "accessPolicy": "Politica di accesso",
+                "noAccessPolicy": "Nessuna politica di accesso",
+                "accessPolicyHint": "Gli host pubblici o senza assegnazione consentono le richieste. Le modalità con restrizioni negano tutte le richieste finché i relativi provider non sono configurati.",
+                "forceHttps": "Forza HTTPS",
+                "forceHttpsHint": "Reindirizza le richieste HTTP a HTTPS per questo host.",
+                "forceHttpsRequiresCertificate": "Assegna prima un certificato valido che copra tutti i domini."
+            },
+            "status": {
+                "enabled": "Attivato",
+                "disabled": "Disattivato"
+            },
+            "scheme": {
+                "http": "HTTP",
+                "https": "HTTPS"
+            },
+            "columns": {
+                "domains": "Domini",
+                "forward": "Destinazione di inoltro",
+                "status": "Stato",
+                "created": "Creato",
+                "actions": "Azioni"
+            },
+            "filters": {
+                "domains": "Filtra domini…",
+                "allSchemes": "Tutti gli schemi",
+                "allStatuses": "Tutti gli stati",
+                "createdFrom": "Creato dal",
+                "createdTo": "Creato al"
+            },
+            "cells": {
+                "moreDomains": "Mostra altri {{count}} domini",
+                "showDomain": "Mostra dominio {{domain}}"
+            },
+            "table": {
+                "eyebrow": "Configurazione salvata",
+                "count_one": "{{count}} host proxy",
+                "count_other": "{{count}} host proxy",
+                "description": "Esamina i domini salvati, le destinazioni di inoltro e lo stato desiderato.",
+                "searchLabel": "Cerca host proxy",
+                "searchPlaceholder": "Cerca domini, destinazione, schema, porta o stato…",
+                "loading": "Caricamento host proxy",
+                "emptyTitle": "Non ci sono ancora host proxy",
+                "emptyDescription": "Aggiungi un host proxy per salvare domini e una destinazione di inoltro.",
+                "filteredEmptyTitle": "Nessun host proxy corrisponde ai filtri",
+                "filteredEmptyDescription": "Modifica la ricerca o reimposta i filtri attivi per visualizzare altri host proxy.",
+                "itemLabel": "host proxy",
+                "count_many": "{{count}} host proxy"
+            },
+            "errors": {
+                "loadFailed": "Impossibile caricare gli host proxy.",
+                "saveFailed": "Impossibile salvare l’host proxy.",
+                "deleteFailed": "Impossibile eliminare l’host proxy.",
+                "enableFailed": "Impossibile attivare l’host proxy.",
+                "disableFailed": "Impossibile disattivare l’host proxy.",
+                "domain_conflict": "Questo dominio è già assegnato a un altro host proxy.",
+                "proxy_host_not_found": "L’host proxy non esiste più.",
+                "invalid_status_transition": "L’host proxy è già in questo stato. Aggiorna l’elenco e riprova.",
+                "invalid_input": "Controlla i valori dell’host proxy e riprova."
+            },
+            "validation": {
+                "domain": "Inserisci un nome DNS valido, senza URL, indirizzi IP o wildcard.",
+                "domainsRequired": "Aggiungi almeno un dominio.",
+                "domainsLimit": "Un host proxy può avere al massimo 50 domini.",
+                "duplicateDomain": "Questo dominio è elencato più di una volta.",
+                "forwardHost": "Inserisci un nome host o un indirizzo IPv4 o IPv6 valido, senza schema, percorso o porta.",
+                "port": "Inserisci un numero intero di porta compreso tra 1 e 65535.",
+                "upstreamTlsServerName": "Inserisci un nome DNS del server senza URL, porta, indirizzo IP o wildcard.",
+                "trustedCaRequiresVerification": "Le CA attendibili personalizzate richiedono la verifica del certificato upstream.",
+                "upstreamTlsIpNameRequired": "Inserisci il nome DNS riportato sul certificato upstream quando ti connetti a un indirizzo IP."
+            },
+            "config": {
+                "open": "Configurazione Caddy",
+                "title": "Configurazione Caddy",
+                "description": "Esamina la configurazione attiva e modifica in sicurezza le impostazioni HTTP.",
+                "settings": "Impostazioni HTTP",
+                "fieldClientMaxBodySizeBytes": "Dimensione massima del corpo della richiesta",
+                "fieldProxyConnectTimeoutSeconds": "Timeout di connessione upstream",
+                "fieldProxyReadTimeoutSeconds": "Timeout di risposta upstream",
+                "fieldProxySendTimeoutSeconds": "Timeout della richiesta upstream",
+                "fieldSendTimeoutSeconds": "Tempo massimo di risposta",
+                "fieldKeepaliveTimeoutSeconds": "Timeout di inattività della connessione",
+                "bytes": "byte",
+                "seconds": "secondi",
+                "active": "Configurazione attiva",
+                "defaults": "Valori predefiniti generati",
+                "preview": "Anteprima",
+                "previewing": "Preparazione dell’anteprima…",
+                "previewDescription": "Solo anteprima. Questa configurazione non è stata attivata.",
+                "sourceDescription": "Il file host attivo è di sola lettura. Il salvataggio delle modifiche convalida e ricarica l’intera configurazione proxy.",
+                "readOnly": "Puoi visualizzare la configurazione. Per modificarla servono le autorizzazioni di aggiornamento e applicazione.",
+                "help": "Usa le impostazioni HTTP numeriche supportate da Caddy. Le impostazioni vuote usano i valori predefiniti di Caddy.",
+                "examples": "Campi supportati",
+                "empty": "Nessuna impostazione HTTP personalizzata. Sono in uso i valori predefiniti generati.",
+                "unavailable": "La sorgente della configurazione non è attualmente disponibile. Controlla il controller e ricarica.",
+                "invalidLine": "Impostazione HTTP non valida. Usa un campo e un valore supportati.",
+                "loading": "Caricamento configurazione…",
+                "reload": "Ricarica",
+                "save": "Salva e applica",
+                "saving": "Salvataggio e applicazione…",
+                "resetButton": "Ripristina valori predefiniti",
+                "resetTitle": "Ripristinare i valori predefiniti generati?",
+                "resetDescription": "Rimuove le impostazioni HTTP personalizzate e applica la configurazione generata dagli host proxy salvati. Gli host e le relative destinazioni di inoltro restano invariati.",
+                "resetConfirm": "Ripristina e applica",
+                "resetting": "Ripristino…",
+                "saved": "Impostazioni HTTP salvate e applicate.",
+                "reset": "Valori predefiniti generati ripristinati.",
+                "errors": {
+                    "loadFailed": "Impossibile caricare la configurazione.",
+                    "saveFailed": "Impossibile salvare le impostazioni HTTP.",
+                    "previewFailed": "L’anteprima della configurazione non è disponibile.",
+                    "configuration_conflict": "La configurazione salvata è cambiata mentre questo editor era aperto. Ricaricala prima di salvare; la bozza è stata mantenuta.",
+                    "runtime_unavailable": "Il controller proxy non è disponibile. Le impostazioni salvate potranno essere applicate in seguito.",
+                    "invalidSettings": "Queste impostazioni HTTP non sono valide. Sono accettati solo i campi e i valori elencati.",
+                    "host_not_found": "Questo host proxy non esiste più. Chiudi l’editor e ricarica l’elenco degli host.",
+                    "host_settings_unsupported": "I timeout personalizzati di scrittura e inattività per host sono conservati nell’archivio di migrazione e non possono essere impostati per nuovi host Caddy."
+                },
+                "readOnlyLabel": "Sola lettura",
+                "reloadTitle": "Ricaricare la configurazione salvata?",
+                "reloadDescription": "La bozza non salvata e l’anteprima verranno eliminate. Verranno caricate le impostazioni salvate più recenti.",
+                "reloadConfirm": "Scarta la bozza e ricarica",
+                "hostTitle": "Configurazione · {{name}}",
+                "globalTitle": "Impostazioni HTTP globali di Caddy",
+                "globalDescription": "Modifica le impostazioni HTTP condivise ed esamina la configurazione Caddy nativa attiva.",
+                "hostDescription": "Questo proxy ha una configurazione propria. Le impostazioni dell’host prevalgono sui valori predefiniti condivisi.",
+                "hostOverview": "Configurazione host",
+                "clientTransport": "HTTP / HTTPS client",
+                "currentConfiguration": "Configurazione attuale",
+                "currentConfigurationStates": {
+                    "active": "Configurazione attiva caricata",
+                    "saved": "Salvata per la prossima attivazione",
+                    "unavailable": "Configurazione attiva non disponibile"
+                },
+                "httpOnly": "Solo HTTP",
+                "httpAndHttps": "HTTP e HTTPS",
+                "httpsRedirect": "HTTPS · reindirizzamenti HTTP attivati",
+                "upstreamHttp": "HTTP · senza TLS upstream",
+                "upstreamTlsSystemTrust": "HTTPS · verificato con le CA di sistema",
+                "upstreamTlsCustomTrust": "HTTPS · verificato con CA personalizzata",
+                "sources": {
+                    "inherited": "Ereditato",
+                    "override": "Sostituzione"
+                },
+                "effectiveValue": "Effettivo: {{value}} {{unit}}",
+                "effectiveCaddyDefault": "Valore predefinito effettivo di Caddy",
+                "hostActiveUnavailable": "Non è disponibile una configurazione attiva per questo host.",
+                "editTab": "Modifica configurazione",
+                "views": "Vista configurazione",
+                "sourceEditorLabel": "Configurazione Caddy dell’host proxy",
+                "managedHelp": "Usa i campi numerici supportati qui sopra. Gestisci domini, destinazioni di inoltro e stato tramite Modifica.",
+                "offlineHelp": "Il controller non è disponibile. Sono mostrate solo le impostazioni HTTP salvate per questo host. Lasciale vuote per ereditare i valori predefiniti condivisi; la configurazione completa dell’host tornerà disponibile quando il controller sarà raggiungibile.",
+                "inheritsDefaults": "I valori non impostati ereditano le impostazioni HTTP condivise. Se non è impostato alcun valore condiviso, Caddy usa il proprio valore predefinito integrato. Il ripristino rimuove solo le sostituzioni di questo host.",
+                "sharedDefaults": "Valori predefiniti condivisi",
+                "caddyDefaults": "Nessuna impostazione HTTP condivisa personalizzata. Si applicano i valori predefiniti integrati di Caddy.",
+                "disabledHost": "Questo proxy è salvato come disattivato. La configurazione viene conservata per la prossima attivazione. Le modifiche in sospeso richiedono comunque un’applicazione riuscita.",
+                "saveDisabled": "Salva per dopo",
+                "hostSaved": "Configurazione host salvata e applicata.",
+                "hostReset": "Questo host usa ora i valori predefiniti condivisi.",
+                "hostSavedDisabled": "Configurazione salvata per questo host disattivato. Verrà applicata quando l’host sarà attivato.",
+                "hostResetTitle": "Ripristinare i valori predefiniti di questo host?",
+                "hostResetDescription": "Rimuove solo le impostazioni personalizzate di “{{name}}”. Gli altri host e i valori predefiniti condivisi restano invariati. Gli host e le relative destinazioni di inoltro vengono conservati.",
+                "colorPreset": "Colori dell’editor",
+                "colors": {
+                    "system": "Sistema",
+                    "midnight": "Mezzanotte",
+                    "paper": "Carta"
+                }
+            },
+            "upstreamTls": {
+                "title": "TLS upstream",
+                "verify": "Verifica il certificato upstream",
+                "verifyHint": "Verifica la catena di certificati e l’identità upstream prevista.",
+                "serverName": "Nome server TLS",
+                "serverNamePlaceholder": "backend.internal.example",
+                "automatic": "Automatico: {{name}}",
+                "serverNameHint": "Nome del certificato previsto e SNI. Lascia vuoto per usare l’host di inoltro. Questo non modifica l’intestazione HTTP Host.",
+                "ipHint": "Per le destinazioni IP, questo runtime richiede un nome DNS del certificato anche se è presente un IP SAN. La connessione TCP usa comunque l’IP configurato.",
+                "ipNameRequired": "Inserisci il nome DNS del certificato upstream da verificare per questa destinazione IP.",
+                "trustedCa": "CA attendibile",
+                "systemTrust": "Archivio di CA di sistema",
+                "trustHint": "La fiducia di sistema usa il bundle di CA del runtime. Una CA personalizzata sostituisce la fiducia di sistema per questo host.",
+                "insecureWarning": "La verifica del certificato upstream è disattivata. La connessione è cifrata, ma RentnerProxy non può verificare l’identità del server upstream.",
+                "verificationDisabled": "Verifica del certificato disattivata",
+                "caUnavailable": "CA selezionata non disponibile",
+                "caLoadFailed": "Impossibile caricare le CA attendibili. La selezione attuale è stata mantenuta."
+            }
+        },
+        "redirectHosts": {
+            "page": {
+                "eyebrow": "Gestione reindirizzamenti",
+                "title": "Host di reindirizzamento",
+                "description": "Gestisci i domini che reindirizzano le richieste a un altro indirizzo web."
+            },
+            "runtime": {
+                "title": "Runtime proxy",
+                "synced": "Runtime proxy sincronizzato",
+                "syncedDescription": "La configurazione attiva dei reindirizzamenti corrisponde a quella salvata.",
+                "pending": "Le modifiche salvate sono in attesa di applicazione.",
+                "pendingDescription": "La configurazione attiva resta in uso finché non vengono applicate le modifiche salvate.",
+                "unavailable": "Runtime proxy non disponibile.",
+                "unavailableDescription": "Le modifiche salvate ai reindirizzamenti restano in coda per una successiva applicazione.",
+                "apply": "Applica modifiche",
+                "applying": "Applicazione in corso…",
+                "applied": "Runtime proxy aggiornato correttamente.",
+                "applyFailed": "Impossibile aggiornare il runtime proxy.",
+                "savedPending": "Le modifiche salvate sono in attesa di applicazione."
+            },
+            "messages": {
+                "created": "Host di reindirizzamento creato correttamente.",
+                "updated": "Host di reindirizzamento aggiornato correttamente.",
+                "deleted": "Host di reindirizzamento eliminato correttamente.",
+                "enabled": "Host di reindirizzamento attivato correttamente.",
+                "disabled": "Host di reindirizzamento disattivato correttamente."
+            },
+            "states": {
+                "unavailableTitle": "Host di reindirizzamento non disponibili",
+                "unavailableDescription": "Impossibile caricare gli host di reindirizzamento salvati. Riprova."
+            },
+            "actions": {
+                "add": "Aggiungi host di reindirizzamento",
+                "create": "Crea host di reindirizzamento",
+                "edit": "Modifica",
+                "enable": "Attiva",
+                "disable": "Disattiva",
+                "delete": "Elimina",
+                "deleting": "Eliminazione…",
+                "disabling": "Disattivazione…",
+                "open": "Apri le azioni per {{name}}",
+                "none": "Nessuna azione disponibile",
+                "disableDescription": "Salva questo host di reindirizzamento come disattivato.",
+                "enableDescription": "Salva questo host di reindirizzamento come attivato.",
+                "deleteDescription": "Rimuovi definitivamente “{{name}}”."
+            },
+            "confirm": {
+                "deleteTitle": "Eliminare host di reindirizzamento?",
+                "deleteDescription": "L’host di reindirizzamento per “{{name}}” e tutte le assegnazioni dei relativi domini verranno rimossi.",
+                "deleteWarning": "Questa operazione non può essere annullata.",
+                "deleteLabel": "Elimina host di reindirizzamento",
+                "disableTitle": "Disattivare host di reindirizzamento?",
+                "disableDescription": "L’host di reindirizzamento verrà salvato come disattivato e rimosso dalla prossima configurazione runtime del proxy.",
+                "disableLabel": "Disattiva host di reindirizzamento",
+                "saveDisabled": "Salva e disattiva"
+            },
+            "form": {
+                "description": "Salva i domini e una destinazione per la configurazione runtime del proxy.",
+                "editTitle": "Modifica host di reindirizzamento",
+                "creating": "Creazione…",
+                "domains": "Domini",
+                "domainLabel": "Dominio {{number}}",
+                "domainPlaceholder": "example.com",
+                "removeDomain": "Rimuovi dominio {{number}}",
+                "addDomain": "Aggiungi dominio",
+                "domainsHint": "Aggiungi da 1 a 50 nomi DNS. Qui non sono supportati wildcard e indirizzi IP.",
+                "destination": "URL di destinazione",
+                "destinationPlaceholder": "https://example.com/new-path",
+                "destinationHint": "Usa un URL HTTP o HTTPS assoluto. Se mantieni l’URI della richiesta, non sono ammesse stringhe di query.",
+                "statusCode": "Codice di stato del reindirizzamento",
+                "certificate": "Certificato TLS",
+                "noCertificate": "Nessun certificato",
+                "certificateHint": "Assegna un certificato valido per fornire HTTPS a questo host di reindirizzamento.",
+                "preserveRequestUri": "Mantieni URI della richiesta",
+                "preserveRequestUriHint": "Aggiunge il percorso e la stringa di query in ingresso all’URL di destinazione.",
+                "replaceRequestUri": "Sostituisci URI della richiesta",
+                "enabledHint": "Gli host attivi vengono inclusi nella prossima configurazione runtime del proxy.",
+                "statusReadOnly": "Non hai l’autorizzazione per modificare lo stato salvato di questo host di reindirizzamento."
+            },
+            "status": {
+                "enabled": "Attivato",
+                "disabled": "Disattivato"
+            },
+            "statusCodes": {
+                "301": "301 · Permanente",
+                "302": "302 · Trovato",
+                "307": "307 · Temporaneo",
+                "308": "308 · Permanente"
+            },
+            "columns": {
+                "domains": "Domini",
+                "destination": "Destinazione",
+                "statusCode": "Codice di stato",
+                "certificate": "Certificato/HTTPS",
+                "status": "Stato",
+                "created": "Creato",
+                "actions": "Azioni"
+            },
+            "filters": {
+                "domains": "Filtra domini…",
+                "allStatusCodes": "Tutti i codici di stato",
+                "allStatuses": "Tutti gli stati",
+                "createdFrom": "Creato dal",
+                "createdTo": "Creato al"
+            },
+            "cells": {
+                "https": "Certificato HTTPS",
+                "http": "HTTP"
+            },
+            "table": {
+                "eyebrow": "Configurazione salvata",
+                "count_one": "{{count}} host di reindirizzamento",
+                "count_other": "{{count}} host di reindirizzamento",
+                "description": "Esamina i domini e le destinazioni salvati e il comportamento dei reindirizzamenti.",
+                "searchLabel": "Cerca host di reindirizzamento",
+                "searchPlaceholder": "Cerca domini, destinazione, codice di stato o stato…",
+                "loading": "Caricamento host di reindirizzamento",
+                "emptyTitle": "Non ci sono ancora host di reindirizzamento",
+                "emptyDescription": "Aggiungi un host di reindirizzamento per salvare una destinazione.",
+                "filteredEmptyTitle": "Nessun host di reindirizzamento corrisponde ai filtri",
+                "filteredEmptyDescription": "Modifica la ricerca o reimposta i filtri attivi per visualizzare altri host di reindirizzamento.",
+                "itemLabel": "host di reindirizzamento",
+                "count_many": "{{count}} host di reindirizzamento"
+            },
+            "errors": {
+                "loadFailed": "Impossibile caricare gli host di reindirizzamento.",
+                "saveFailed": "Impossibile salvare l’host di reindirizzamento.",
+                "deleteFailed": "Impossibile eliminare l’host di reindirizzamento.",
+                "enableFailed": "Impossibile attivare l’host di reindirizzamento.",
+                "disableFailed": "Impossibile disattivare l’host di reindirizzamento.",
+                "certificatesLoadFailed": "Impossibile caricare i certificati.",
+                "host_not_found": "L’host di reindirizzamento non esiste più.",
+                "domain_conflict": "Questo dominio è già assegnato a un altro host.",
+                "invalid_status_transition": "L’host di reindirizzamento è già in questo stato. Aggiorna l’elenco e riprova.",
+                "invalid_input": "Controlla i valori dell’host di reindirizzamento e riprova."
+            },
+            "validation": {
+                "domain": "Inserisci un nome DNS valido, senza URL, indirizzi IP o wildcard.",
+                "domainsRequired": "Aggiungi almeno un dominio.",
+                "domainsLimit": "Un host di reindirizzamento può avere al massimo 50 domini.",
+                "duplicateDomain": "Questo dominio è elencato più di una volta.",
+                "destination": "Inserisci un URL HTTP o HTTPS assoluto valido, senza credenziali o sequenze di escape non valide."
+            }
+        },
+        "accessPolicies": {
+            "page": {
+                "eyebrow": "Controllo degli accessi",
+                "title": "Politiche di accesso",
+                "description": "Definisci politiche riutilizzabili e assegnale agli host proxy."
+            },
+            "runtime": {
+                "title": "Runtime delle politiche di accesso",
+                "synced": "Runtime delle politiche di accesso sincronizzato",
+                "syncedDescription": "La configurazione attiva delle politiche di accesso corrisponde a quella salvata.",
+                "pending": "Le modifiche salvate alle politiche di accesso sono in attesa di applicazione.",
+                "pendingDescription": "La configurazione precedente delle politiche di accesso resta attiva finché non vengono applicate le modifiche salvate.",
+                "unavailable": "Runtime delle politiche di accesso non disponibile.",
+                "unavailableDescription": "Al momento non è possibile raggiungere il runtime. Le modifiche salvate alle politiche di accesso restano in coda per una successiva applicazione.",
+                "apply": "Applica modifiche alle politiche di accesso",
+                "applying": "Applicazione in corso…",
+                "applyFailed": "Impossibile applicare la configurazione delle politiche di accesso.",
+                "savedPending": "Le modifiche salvate alle politiche di accesso sono in attesa di applicazione."
+            },
+            "messages": {
+                "created": "Politica di accesso creata correttamente.",
+                "updated": "Politica di accesso aggiornata correttamente.",
+                "deleted": "Politica di accesso eliminata correttamente.",
+                "savedPending": "Politica di accesso salvata. Le modifiche sono in attesa di applicazione.",
+                "applied": "Configurazione delle politiche di accesso applicata correttamente."
+            },
+            "states": {
+                "unavailableTitle": "Politiche di accesso non disponibili",
+                "unavailableDescription": "Impossibile caricare l’elenco delle politiche di accesso. Riprova."
+            },
+            "actions": {
+                "add": "Aggiungi politica di accesso",
+                "create": "Crea politica di accesso",
+                "edit": "Modifica",
+                "delete": "Elimina",
+                "deleting": "Eliminazione…",
+                "open": "Apri le azioni per {{name}}",
+                "none": "Nessuna azione disponibile",
+                "deleteDescription": "Rimuovi definitivamente “{{name}}”.",
+                "deleteAssigned": "Assegnata a host proxy: rimuovi prima queste assegnazioni."
+            },
+            "confirm": {
+                "deleteTitle": "Eliminare politica di accesso?",
+                "deleteDescription": "La politica di accesso “{{name}}” verrà rimossa.",
+                "deleteWarning": "Questa operazione non può essere annullata."
+            },
+            "form": {
+                "description": "Scegli come questa politica gestisce le richieste dopo la sua applicazione.",
+                "editTitle": "Modifica politica di accesso",
+                "creating": "Creazione…",
+                "name": "Nome della politica",
+                "mode": "Modalità di protezione",
+                "modeHint": "La modalità pubblica consente le richieste senza verificarne l’accesso. Le politiche autenticate usano Basic Auth o Forward Auth; i controlli IP richiedono il relativo provider.",
+                "authenticationMethod": "Metodo di autenticazione",
+                "basicAuth": "Account Basic Auth",
+                "forwardAuth": {
+                    "title": "Forward Auth",
+                    "description": "Invia le richieste corrispondenti a un servizio di autenticazione esterno. Questa dashboard mostra la configurazione salvata e la sincronizzazione runtime, ma non verifica lo stato del provider.",
+                    "provider": "Configurazione predefinita del provider",
+                    "providers": {
+                        "generic": "Generico",
+                        "authentik": "Authentik",
+                        "authelia": "Authelia",
+                        "oauth2-proxy": "oauth2-proxy"
+                    },
+                    "endpoint": "URL dell’endpoint di autenticazione",
+                    "endpointHint": {
+                        "generic": "Inserisci l’URL dell’endpoint di autenticazione specifico del provider.",
+                        "authentik": "Percorso consigliato: /outpost.goauthentik.io/auth/caddy",
+                        "authelia": "Percorso consigliato: /api/authz/forward-auth",
+                        "oauth2-proxy": "Percorso consigliato: /oauth2/auth"
+                    },
+                    "gatewayPathPrefix": "Prefisso del percorso pubblico del gateway di autenticazione",
+                    "gatewayPathPrefixHint": "Le richieste corrispondenti su questo host vengono inviate direttamente al servizio di autenticazione prima del controllo. Lascia vuoto se non serve un percorso gateway pubblico.",
+                    "timeout": "Timeout della richiesta (secondi)",
+                    "requestHeaders": "Inoltra queste intestazioni della richiesta",
+                    "responseHeaders": "Intestazioni di risposta dell’identità",
+                    "responseHeadersHint": "Un nome di intestazione per riga",
+                    "responseHeadersDescription": "Sono consentite fino a 16 intestazioni di identità. La configurazione predefinita del provider inserisce le comuni intestazioni utente ed email; modificale se necessario."
+                },
+                "combination": "Regola combinata della politica",
+                "availabilityTitle": "Basic Auth e disponibilità delle richieste",
+                "warningTitle": "I metodi di protezione non sono configurati",
+                "warningDescription": "Finché i provider necessari non saranno disponibili, l’applicazione di questa modalità nega tutte le richieste. Controlla il runtime prima di assegnarla a un host attivo.",
+                "ipRules": {
+                    "title": "Regole di accesso IP",
+                    "description": "Usa solo l’indirizzo del peer socket. X-Forwarded-For viene ignorato; dietro un proxy viene valutato l’indirizzo del proxy.",
+                    "configure": "Configura accesso IP",
+                    "configureHint": "Lascia questa opzione disattivata per mantenere disattivato il provider IP. Si consiglia Nega come azione predefinita.",
+                    "defaultAction": "Azione predefinita",
+                    "defaultActionHint": "Si consiglia Nega. Se un indirizzo corrisponde a entrambe le liste, prevale una voce di rifiuto.",
+                    "allow": "Elenco consentiti",
+                    "allowHint": "Un indirizzo IP o una rete CIDR per riga.",
+                    "deny": "Elenco bloccati",
+                    "denyHint": "Un indirizzo IP o una rete CIDR per riga. Se corrisponde a entrambe le liste, prevale il blocco.",
+                    "denyRecommended": "Nega (consigliato)"
+                }
+            },
+            "availability": {
+                "publicIgnored": "Politica pubblica: autenticazione e regole IP vengono ignorate.",
+                "authenticatedAvailable": "Basic Auth è configurato e può consentire le richieste.",
+                "authenticatedMissing": "Nessun account Basic Auth: le richieste vengono negate.",
+                "ipRestrictedAvailable": "L’accesso IP è configurato e può consentire le richieste corrispondenti.",
+                "ipRestrictedMissing": "L’accesso IP non è configurato: le richieste vengono negate.",
+                "ipRestrictedBlocksAll": "L’accesso IP è configurato per negare tutte le richieste.",
+                "combinedAllAvailable": "AND: Basic Auth e accesso IP sono entrambi configurati.",
+                "combinedAllMissingAuth": "AND: mancano gli account Basic Auth; le richieste vengono negate.",
+                "combinedAllMissingIp": "AND: l’accesso IP non è configurato; le richieste vengono negate.",
+                "combinedAllMissingBoth": "AND: mancano gli account Basic Auth e l’accesso IP; le richieste vengono negate.",
+                "combinedAllIpBlocksAll": "AND: l’accesso IP è configurato per negare tutte le richieste.",
+                "combinedAnyAvailableAuth": "OR: Basic Auth può consentire le richieste anche quando un controllo IP le nega.",
+                "combinedAnyAvailableIp": "OR: l’accesso IP può consentire le richieste corrispondenti se configurato.",
+                "combinedAnyAvailableBoth": "OR: Basic Auth o l’accesso IP possono consentire le richieste.",
+                "combinedAnyIpBlocksAll": "OR: l’accesso IP è configurato per negare tutte le richieste.",
+                "combinedAnyMissing": "OR: non è configurato alcun metodo di accesso; le richieste vengono negate.",
+                "forwardAuthConfigured": "Forward Auth è configurato. La disponibilità del provider non viene verificata qui.",
+                "forwardAuthMissing": "Manca l’endpoint Forward Auth: le richieste vengono negate."
+            },
+            "mode": {
+                "public": "Pubblica",
+                "authenticated": "Autenticata",
+                "ip-restricted": "Con restrizioni IP",
+                "combined": "Combinata",
+                "unconfigured": "Non configurata: tutte le richieste vengono negate"
+            },
+            "combination": {
+                "all": "Tutti i controlli devono essere superati",
+                "any": "È sufficiente superare un controllo"
+            },
+            "combinationDescription": {
+                "all": "L’autenticazione e i controlli IP devono avere entrambi esito positivo.",
+                "any": "È sufficiente che abbia esito positivo il controllo di autenticazione o quello IP."
+            },
+            "columns": {
+                "name": "Nome",
+                "mode": "Modalità",
+                "combination": "Combinazione",
+                "basicAuth": "Basic Auth",
+                "ipRules": "Accesso IP",
+                "assigned": "Host assegnati",
+                "created": "Creato",
+                "actions": "Azioni"
+            },
+            "cells": {
+                "assignedHosts_one": "{{count}} host",
+                "assignedHosts_other": "{{count}} host",
+                "assignedHosts_many": "{{count}} host"
+            },
+            "ipRules": {
+                "defaultAction": {
+                    "allow": "Consenti per impostazione predefinita",
+                    "deny": "Nega per impostazione predefinita"
+                },
+                "cells": {
+                    "summary": "{{action}}; {{count}} regole (consenti: {{allow}}, nega: {{deny}})",
+                    "notConfigured": "Non configurato"
+                }
+            },
+            "filters": {
+                "name": "Filtra nomi…",
+                "allModes": "Tutte le modalità",
+                "createdFrom": "Creato dal",
+                "createdTo": "Creato al"
+            },
+            "table": {
+                "eyebrow": "Politiche salvate",
+                "count_one": "{{count}} politica di accesso",
+                "count_other": "{{count}} politiche di accesso",
+                "description": "Cerca politiche, modalità di protezione e assegnazioni agli host.",
+                "searchLabel": "Cerca politiche di accesso",
+                "searchPlaceholder": "Cerca per nome, modalità o assegnazione…",
+                "loading": "Caricamento politiche di accesso",
+                "emptyTitle": "Non ci sono ancora politiche di accesso",
+                "emptyDescription": "Aggiungi una politica per definire comportamenti di accesso riutilizzabili per gli host proxy.",
+                "filteredEmptyTitle": "Nessuna politica di accesso corrisponde ai filtri",
+                "filteredEmptyDescription": "Modifica la ricerca o reimposta i filtri attivi per visualizzare altre politiche.",
+                "itemLabel": "politiche di accesso",
+                "count_many": "{{count}} politiche di accesso"
+            },
+            "basicAuth": {
+                "title": "Credenziali Basic Auth per {{name}}",
+                "description": "Gestisci nomi utente e password per questa politica. Le password non vengono mai visualizzate né restituite.",
+                "status": {
+                    "available": "Basic Auth disponibile",
+                    "combinedAnyAvailable": "Basic Auth può consentire le richieste",
+                    "combinedAnyMissing": "Nessun account Basic Auth: le richieste vengono negate",
+                    "ipProviderRequired": "Chiuso finché l’accesso IP non è configurato",
+                    "publicIgnored": "Ignorato dalla politica pubblica"
+                },
+                "form": {
+                    "createTitle": "Aggiungi account Basic Auth",
+                    "editTitle": "Modifica account Basic Auth",
+                    "description": "Salva un nome utente e una password per questa politica di accesso.",
+                    "username": "Nome utente",
+                    "usernameHint": "Usa al massimo 64 caratteri ASCII tra lettere, numeri, ., _, @ o -; inizia con una lettera o un numero.",
+                    "password": "Password",
+                    "passwordCreateHint": "Usa una password da 1 a 256 caratteri.",
+                    "passwordEditHint": "Lascia vuoto per mantenere la password attuale. Inserisci una nuova password per cambiarla.",
+                    "transportHint": "Usa HTTPS per gli host assegnati a questa politica. Il trasporto resta controllato dall’impostazione Forza HTTPS di ciascun host."
+                },
+                "actions": {
+                    "credentials": "Credenziali",
+                    "addAccount": "Aggiungi account",
+                    "editAccount": "Modifica",
+                    "deleteAccount": "Elimina",
+                    "deleting": "Eliminazione…",
+                    "saving": "Salvataggio…",
+                    "create": "Crea account",
+                    "save": "Salva account",
+                    "open": "Gestisci le credenziali Basic Auth per {{name}}"
+                },
+                "columns": {
+                    "username": "Nome utente",
+                    "created": "Creato",
+                    "updated": "Aggiornato",
+                    "actions": "Azioni"
+                },
+                "cells": {
+                    "accountCount_one": "{{count}} account",
+                    "accountCount_other": "{{count}} account",
+                    "accountCount_many": "{{count}} account"
+                },
+                "table": {
+                    "eyebrow": "Account Basic Auth",
+                    "count_one": "{{count}} account Basic Auth",
+                    "count_other": "{{count}} account Basic Auth",
+                    "description": "Le credenziali sono archiviate come hash delle password e non vengono mai mostrate qui.",
+                    "caption": "Account Basic Auth",
+                    "loading": "Caricamento account Basic Auth",
+                    "emptyDescription": "Non è configurato alcun account Basic Auth. Le richieste che usano questa politica verranno negate finché non viene aggiunto un account.",
+                    "limit": "Questa politica ha raggiunto il limite di 32 account.",
+                    "count_many": "{{count}} account Basic Auth"
+                },
+                "confirm": {
+                    "deleteTitle": "Eliminare account Basic Auth?",
+                    "deleteDescription": "L’account Basic Auth “{{username}}” verrà rimosso.",
+                    "deleteWarning": "Questa operazione non può essere annullata."
+                },
+                "validation": {
+                    "usernameRequired": "Inserisci un nome utente.",
+                    "usernameTooLong": "I nomi utente non possono superare 64 caratteri.",
+                    "usernameInvalid": "Usa da 1 a 64 caratteri ASCII tra lettere, numeri, ., _, @ o -; il primo carattere deve essere una lettera o un numero.",
+                    "passwordRequired": "Inserisci una password.",
+                    "passwordTooLong": "Le password non possono superare 256 caratteri.",
+                    "username": "Inserisci un nome utente valido.",
+                    "password": "Inserisci una password valida.",
+                    "changes": "Inserisci un nome utente o una nuova password."
+                },
+                "errors": {
+                    "loadFailed": "Impossibile caricare gli account Basic Auth.",
+                    "saveFailed": "Impossibile salvare l’account Basic Auth.",
+                    "deleteFailed": "Impossibile eliminare l’account Basic Auth.",
+                    "accountNotFound": "L’account Basic Auth non esiste più.",
+                    "basic_auth_account_not_found": "L’account Basic Auth non esiste più.",
+                    "basic_auth_username_conflict": "Questo nome utente è già usato da questa politica.",
+                    "basic_auth_account_limit": "Questa politica ha già raggiunto il numero massimo di account Basic Auth.",
+                    "invalid_input": "Controlla i valori dell’account Basic Auth e riprova.",
+                    "controller_unavailable": "Il controller proxy non è disponibile. Riprova più tardi."
+                },
+                "messages": {
+                    "created": "Account Basic Auth creato correttamente.",
+                    "updated": "Account Basic Auth aggiornato correttamente.",
+                    "deleted": "Account Basic Auth eliminato correttamente.",
+                    "savedPending": "Account Basic Auth salvato. Le modifiche sono in attesa di applicazione."
+                },
+                "states": {
+                    "unavailableTitle": "Account Basic Auth non disponibili",
+                    "unavailableDescription": "Impossibile caricare l’elenco degli account Basic Auth. Riprova."
+                }
+            },
+            "validation": {
+                "nameRequired": "Inserisci un nome per la politica di accesso.",
+                "nameTooLong": "I nomi delle politiche di accesso non possono superare 120 caratteri.",
+                "nameMax": "I nomi delle politiche di accesso non possono superare 120 caratteri.",
+                "nameInvalid": "Usa caratteri stampabili nel nome della politica di accesso.",
+                "forwardAuthEndpoint": "Inserisci un URL HTTP o HTTPS canonico senza credenziali, query o frammento.",
+                "forwardAuthTimeout": "Scegli un numero intero di secondi compreso tra 1 e 30.",
+                "forwardAuthHeaders": "Usa al massimo 16 nomi di intestazione di identità consentiti e univoci, uno per riga.",
+                "forwardAuthGatewayPath": "Usa un prefisso di percorso pulito che inizi e termini con una barra.",
+                "descriptionMax": "Le descrizioni non possono superare 1.000 caratteri.",
+                "descriptionInvalid": "Usa caratteri stampabili nella descrizione.",
+                "combinationRequired": "Scegli come valutare i controlli combinati.",
+                "combination": "Le politiche combinate richiedono esattamente una regola di combinazione.",
+                "ipRulesInvalid": "Inserisci solo indirizzi IP o reti CIDR validi, uno per riga.",
+                "ipRulesTooMany": "Ogni elenco IP può contenere al massimo 128 voci.",
+                "changes": "Inserisci almeno una modifica."
+            },
+            "errors": {
+                "loadFailed": "Impossibile caricare i dati delle politiche di accesso.",
+                "runtimeUnavailable": "Lo stato runtime delle politiche di accesso non è disponibile.",
+                "saveFailed": "Impossibile salvare la politica di accesso.",
+                "deleteFailed": "Impossibile eliminare la politica di accesso.",
+                "policyNotFound": "La politica di accesso non esiste più.",
+                "access_policy_not_found": "La politica di accesso non esiste più.",
+                "access_policy_in_use": "Questa politica di accesso è assegnata a un host proxy.",
+                "invalid_input": "Controlla i valori della politica di accesso e riprova.",
+                "controller_unavailable": "Il controller proxy non è disponibile.",
+                "applyFailed": "Impossibile applicare la configurazione della politica di accesso."
+            }
+        },
+        "proxyAccessLogs": {
+            "page": {
+                "eyebrow": "Osservabilità proxy",
+                "title": "Registri degli accessi",
+                "description": "Esamina le richieste recenti gestite dal proxy.",
+                "retention": "Le richieste recenti vengono conservate per un massimo di 7 giorni; le voci più vecchie possono essere eliminate."
+            },
+            "states": {
+                "unavailableTitle": "Registri degli accessi non disponibili",
+                "unavailableDescription": "Impossibile caricare la cronologia delle richieste recenti. Riprova.",
+                "forbiddenTitle": "Accesso ai registri limitato",
+                "forbiddenDescription": "Il tuo account non è autorizzato a visualizzare i registri degli accessi proxy."
+            },
+            "table": {
+                "eyebrow": "Richieste recenti",
+                "title": "Registri degli accessi proxy",
+                "description": "Esamina tempi ed esiti delle richieste senza esporre intestazioni, contenuti o stringhe di query.",
+                "emptyTitle": "Nessuna richiesta recente",
+                "emptyDescription": "Non sono disponibili richieste nell’intervallo di conservazione.",
+                "filteredEmptyDescription": "Nessuna richiesta corrisponde a questi filtri."
+            },
+            "filters": {
+                "host": "Host",
+                "hostPlaceholder": "Tutti gli host",
+                "status": "Stato",
+                "statusPlaceholder": "404",
+                "search": "Cerca",
+                "searchPlaceholder": "Cerca host, metodo o percorso…",
+                "allHosts": "Tutti gli host",
+                "hostSearchPlaceholder": "Cerca host…",
+                "noHosts": "Nessun host corrispondente",
+                "allStatuses": "Tutti gli stati"
+            },
+            "actions": {
+                "refresh": "Aggiorna",
+                "configuration": "Impostazioni CrowdSec",
+                "showDetails": "Mostra dettagli della richiesta",
+                "hideDetails": "Nascondi dettagli della richiesta"
+            },
+            "columns": {
+                "time": "Ora (UTC)",
+                "host": "Host",
+                "method": "Metodo",
+                "path": "Percorso",
+                "status": "Stato",
+                "duration": "Durata",
+                "clientIp": "IP client",
+                "bytes": "Byte",
+                "upstream": "Upstream",
+                "protocol": "Protocollo"
+            },
+            "pagination": {
+                "range": "{{from}}–{{to}} di {{count}} richieste",
+                "itemLabel": "richieste",
+                "truncated": "L’intervallo recente è limitato.",
+                "snapshotReset": "Lo snapshot precedente è scaduto o non è più disponibile. Viene mostrata la prima pagina dei registri più recenti.",
+                "label": "Paginazione dei registri degli accessi",
+                "page": "Pagina {{page}} di {{count}}",
+                "previous": "Pagina precedente",
+                "next": "Pagina successiva"
+            },
+            "validation": {
+                "host": "Inserisci un nome host valido.",
+                "status": "Inserisci un codice di stato compreso tra 100 e 599.",
+                "search": "Il testo di ricerca è troppo lungo o contiene caratteri non supportati.",
+                "limit": "La dimensione della pagina non è valida.",
+                "offset": "L’offset della pagina non è valido."
+            },
+            "errors": {
+                "loadFailed": "Impossibile caricare i registri degli accessi."
+            }
+        },
+        "auditLogs": {
+            "page": {
+                "eyebrow": "Responsabilità",
+                "title": "Registro di audit",
+                "description": "Esamina gli eventi di sicurezza e amministrazione registrati da RentnerProxy.",
+                "retention": "Il registro di audit conserva gli eventi recenti per un massimo di 90 giorni e ha un limite per proteggere le risorse di sistema."
+            },
+            "states": {
+                "unavailableTitle": "Registro di audit non disponibile",
+                "unavailableDescription": "Impossibile caricare la cronologia di audit. Riprova.",
+                "forbiddenTitle": "Accesso al registro di audit limitato",
+                "forbiddenDescription": "Il tuo account non è autorizzato a visualizzare il registro di audit."
+            },
+            "table": {
+                "eyebrow": "Eventi registrati",
+                "title": "Eventi di audit",
+                "description": "Esamina chi ha modificato cosa e se ogni operazione è riuscita, non è riuscita o è stata negata.",
+                "emptyTitle": "Nessun evento di audit",
+                "emptyDescription": "Nessun evento corrisponde al periodo e ai filtri selezionati.",
+                "filteredEmptyDescription": "Nessun evento di audit corrisponde a questi filtri."
+            },
+            "filters": {
+                "actor": "Autore",
+                "actorPlaceholder": "Tutti gli utenti",
+                "action": "Azione",
+                "allActions": "Tutte le azioni",
+                "resource": "Risorsa",
+                "allResources": "Tutte le risorse",
+                "from": "Da (UTC)",
+                "to": "A (UTC)"
+            },
+            "actions": {
+                "refresh": "Aggiorna",
+                "showDetails": "Mostra dettagli dell’evento",
+                "hideDetails": "Nascondi dettagli dell’evento"
+            },
+            "columns": {
+                "time": "Ora (UTC)",
+                "actor": "Autore",
+                "action": "Azione",
+                "resource": "Risorsa",
+                "target": "Destinazione",
+                "result": "Esito",
+                "details": "Dettagli",
+                "actorKind": "Tipo di autore",
+                "eventId": "ID evento",
+                "metadata": "Metadati sicuri"
+            },
+            "values": {
+                "actorKinds": {
+                    "user": "Utente",
+                    "anonymous": "Anonimo",
+                    "system": "Sistema"
+                },
+                "results": {
+                    "success": "Riuscito",
+                    "failure": "Non riuscito",
+                    "denied": "Negato"
+                },
+                "actions": {
+                    "login": "Accesso",
+                    "logout": "Disconnessione",
+                    "create": "Creazione",
+                    "update": "Modifica",
+                    "delete": "Eliminazione",
+                    "enable": "Attivazione",
+                    "disable": "Disattivazione",
+                    "rotate": "Rotazione",
+                    "reset": "Ripristino",
+                    "accept": "Accettazione",
+                    "reauthenticate": "Nuova autenticazione",
+                    "import": "Importazione",
+                    "replace": "Sostituzione",
+                    "request": "Richiesta",
+                    "renew": "Rinnovo",
+                    "save": "Salvataggio",
+                    "apply": "Applicazione",
+                    "accepted": "Accettato",
+                    "started": "Avviato",
+                    "issued": "Rilasciato",
+                    "activated": "Attivato",
+                    "renewed": "Rinnovato",
+                    "retry_scheduled": "Nuovo tentativo pianificato",
+                    "failed": "Non riuscito"
+                },
+                "resources": {
+                    "session": "Sessione",
+                    "password": "Password",
+                    "totp": "TOTP",
+                    "recovery-codes": "Codici di recupero",
+                    "passkey": "Passkey",
+                    "invite": "Invito",
+                    "setup": "Configurazione",
+                    "security-settings": "Impostazioni di sicurezza",
+                    "user": "Utente",
+                    "role": "Ruolo",
+                    "proxy-host": "Host proxy",
+                    "redirect-host": "Host di reindirizzamento",
+                    "access-policy": "Politica di accesso",
+                    "basic-auth-account": "Account Basic Auth",
+                    "certificate": "Certificato",
+                    "trusted-ca": "CA attendibile",
+                    "proxy-runtime-settings": "Impostazioni runtime proxy",
+                    "proxy-host-settings": "Impostazioni host proxy",
+                    "proxy-runtime": "Runtime proxy",
+                    "crowdsec": "CrowdSec",
+                    "npm-import": "Importazione NPM",
+                    "config-import": "Importazione configurazione",
+                    "config-export": "Esportazione configurazione"
+                }
+            },
+            "metadata": {
+                "authenticationMethod": "Metodo di autenticazione",
+                "reason": "Motivo",
+                "failureCode": "Codice di errore",
+                "changedFields": "Campi modificati",
+                "assigned": "Assegnato",
+                "previousId": "ID precedente",
+                "nextId": "ID successivo",
+                "runtimeStatus": "Stato runtime",
+                "count": "Conteggio",
+                "operationId": "ID operazione",
+                "eventId": "ID evento",
+                "certificateStage": "Fase del certificato",
+                "occurredAt": "Data e ora dell’evento",
+                "certificateErrorCode": "Codice di errore del certificato"
+            },
+            "details": {
+                "noMetadata": "Nessun altro metadato sicuro."
+            },
+            "pagination": {
+                "pageSummary": "{{count}} eventi in questa pagina",
+                "label": "Paginazione del registro di audit",
+                "page": "Pagina {{page}}",
+                "previous": "Pagina precedente",
+                "next": "Pagina successiva"
+            },
+            "validation": {
+                "actorUserId": "Inserisci un UUID valido per l’autore.",
+                "dateTime": "Inserisci una data e ora UTC valide.",
+                "dateRange": "La data iniziale deve essere uguale o precedente a quella finale."
+            },
+            "errors": {
+                "loadFailed": "Impossibile caricare gli eventi di audit."
+            }
+        },
+        "crowdSec": {
+            "page": {
+                "eyebrow": "Sicurezza",
+                "title": "CrowdSec",
+                "description": "Scegli come RentnerProxy blocca i client malevoli. La protezione resta all’interno dell’appliance esistente e usa le stesse regole IP per proxy attendibili di tutti gli host proxy."
+            },
+            "status": {
+                "eyebrow": "Stato della protezione",
+                "description": "Un unico percorso di applicazione protegge il traffico HTTP e HTTPS pubblico, mentre stato di salute e credenziali restano privati nell’appliance.",
+                "synchronized": "Modalità desiderata attiva",
+                "pending": "La modalità funzionante precedente resta attiva mentre si ripetono i tentativi di sincronizzazione",
+                "runtimeUnavailable": "Stato runtime non disponibile; non è possibile confermare lo stato della protezione attiva.",
+                "details": {
+                    "enforcement": "Applicazione",
+                    "active": "Attiva",
+                    "inactive": "Inattiva",
+                    "activeMode": "Modalità attiva",
+                    "localApi": "Stato API locale",
+                    "managedEngine": "Motore gestito"
+                }
+            },
+            "dashboard": {
+                "eyebrow": "Protezione in tempo reale",
+                "title": "Dashboard di sicurezza",
+                "description": "Risultati effettivi del bouncer e decisioni CrowdSec attuali. I conteggi sono istantanee, non stime della cronologia degli attacchi.",
+                "configuration": "Impostazioni CrowdSec",
+                "forwardAuthEyebrow": "Runtime delle politiche di accesso",
+                "forwardAuthTitle": "Politiche Forward Auth",
+                "forwardAuthDescription": "I conteggi derivano dalle politiche di accesso salvate e dalle assegnazioni agli host. Lo stato runtime indica solo la sincronizzazione della configurazione, non lo stato del servizio di autenticazione.",
+                "forwardAuthPolicies": "Politiche configurate",
+                "forwardAuthHosts": "Host proxy assegnati",
+                "forwardAuthRuntime": "Configurazione runtime",
+                "refresh": "Aggiorna",
+                "disabled": "Attiva una modalità CrowdSec per visualizzare qui l’attività di protezione.",
+                "loading": "Caricamento attività di protezione…",
+                "unavailable": "Dati non disponibili",
+                "stale": "L’ultimo aggiornamento non è riuscito. I dati seguenti potrebbero non essere aggiornati.",
+                "demoNotice": "Dati demo locali · solo decisioni sintetiche. Questa anteprima non blocca alcun IP.",
+                "demoMetricHint": "Valore sintetico di anteprima; non applicato al traffico",
+                "blockedRequests": "Richieste bloccate",
+                "blockedHint": "Richieste HTTP bloccate dall’avvio del proxy",
+                "activeDecisions": "Decisioni attive del bouncer",
+                "activeHint": "Le decisioni attuali in Caddy possono includere la blocklist community CAPI; questo non è un conteggio degli attacchi ricevuti",
+                "ipBans": "Blocchi IP / rete",
+                "ipBansHint": "Blocchi IP e di rete attuali nell’API locale; il conteggio è distinto da quello del bouncer",
+                "lastUpdated": "Istantanea alle {{time}} · aggiornamento ogni minuto",
+                "blockedByOrigin": "Richieste bloccate per origine",
+                "decisionsByOrigin": "Decisioni attive per origine",
+                "noOriginData": "Nessun dato sull’origine",
+                "banList": "Blocchi IP e di rete attivi",
+                "bansEyebrow": "Decisioni in tempo reale",
+                "banListHint": "La durata residua proviene dall’API locale. Le bandiere usano i dati locali dei Paesi, quando disponibili; le località sono approssimative.",
+                "noBans": "Nessun blocco IP o di rete attivo",
+                "filteredEmpty": "Nessun blocco corrisponde alla ricerca e ai filtri attuali.",
+                "search": "Cerca blocchi attivi",
+                "searchPlaceholder": "Cerca IP, origine o scenario",
+                "allOrigins": "Tutte le origini",
+                "scope": "Tipo",
+                "allScopes": "Tutti i tipi",
+                "ipScope": "Indirizzo IP",
+                "rangeScope": "Intervallo di rete",
+                "banItem": "blocchi",
+                "sources": "{{count}} origini",
+                "scenarioInfo": "Informazioni sullo scenario {{scenario}}",
+                "scenarioDescriptions": {
+                    "bruteForce": "Tentativi ripetuti di indovinare credenziali o accedere a un endpoint protetto.",
+                    "scanning": "Richieste automatizzate che esaminano percorsi o servizi per individuare obiettivi esposti.",
+                    "crawling": "Scansione automatizzata corrispondente a questa regola di rilevamento CrowdSec.",
+                    "flooding": "Picco di richieste o tentativi di connessione corrispondente a una regola anti-flood.",
+                    "exploit": "Richieste corrispondenti a una regola nota di rilevamento di exploit o vulnerabilità.",
+                    "generic": "CrowdSec ha rilevato un’attività corrispondente a questo scenario. L’API locale non fornisce una descrizione più dettagliata della regola."
+                },
+                "address": "IP / rete",
+                "remaining": "Durata residua",
+                "origin": "Origine",
+                "scenario": "Scenario"
+            },
+            "states": {
+                "disabled": "Disattivato",
+                "starting": "Avvio in corso",
+                "connected": "Connesso",
+                "degraded": "Degradato",
+                "unavailable": "Controller non disponibile"
+            },
+            "managedStates": {
+                "stopped": "Arrestato",
+                "starting": "Avvio in corso",
+                "ready": "Pronto",
+                "restarting": "Riavvio in corso",
+                "degraded": "Degradato",
+                "unavailable": "Non disponibile"
+            },
+            "modes": {
+                "disabled": {
+                    "title": "Disattivato",
+                    "description": "Valore predefinito dopo un aggiornamento. Nessuna decisione CrowdSec viene applicata al traffico."
+                },
+                "managed": {
+                    "title": "Gestito da RentnerProxy",
+                    "description": "Esegui localmente il motore CrowdSec incluso, con la raccolta Caddy selezionata."
+                },
+                "external": {
+                    "title": "CrowdSec esterno",
+                    "description": "Usa un endpoint API locale esistente con una chiave bouncer di sola scrittura."
+                }
+            },
+            "configuration": {
+                "eyebrow": "Modalità operativa",
+                "title": "Origine della protezione",
+                "description": "La destinazione viene verificata prima che Caddy effettui il passaggio. Se la modifica non riesce, resta attiva la configurazione verificata precedente.",
+                "refreshing": "Aggiornamento stato di salute",
+                "modeLabel": "Modalità operativa CrowdSec",
+                "retention": "Il passaggio tra modalità conserva i dati del motore gestito e le credenziali esterne salvate. Non viene eliminato nulla automaticamente."
+            },
+            "external": {
+                "title": "API locale esterna",
+                "description": "L’appliance contatta direttamente l’endpoint. I reindirizzamenti vengono rifiutati e la credenziale non viene mai restituita al browser.",
+                "apiUrl": "URL dell’API locale",
+                "apiUrlPlaceholder": "https://crowdsec.example.test/",
+                "apiKey": "Chiave API del bouncer",
+                "apiKeyPlaceholder": "Inserisci la chiave del bouncer",
+                "apiKeyReplacePlaceholder": "Credenziale salvata: inserisci una sostituzione",
+                "apiKeyHint": "Lascia vuoto per mantenere la chiave cifrata, solo se l’endpoint non cambia. Un nuovo endpoint richiede una nuova chiave."
+            },
+            "online": {
+                "title": "Intelligence comunitaria e Console",
+                "description": "Componenti aggiuntivi facoltativi per il motore gestito. Il rilevamento e il blocco locali funzionano anche senza entrambe le connessioni.",
+                "communityLabel": "Connetti all’intelligence comunitaria di CrowdSec",
+                "communityHint": "Condivide segnali di attacco e scarica decisioni della community e blocklist sottoscritte. Richiede accesso in uscita alla CrowdSec Central API.",
+                "communityStatus": "Connessione alla community",
+                "communityStates": {
+                    "disabled": "Disattivata",
+                    "starting": "Connessione in corso",
+                    "connected": "Connessa",
+                    "degraded": "Non disponibile: la protezione locale continua"
+                },
+                "consoleTitle": "CrowdSec Console (facoltativa)",
+                "consoleDescription": "Collega questo motore gestito al tuo account CrowdSec Console per il monitoraggio remoto. L’origine della protezione non cambia.",
+                "openConsole": "Apri CrowdSec Console",
+                "consoleStatus": "Registrazione alla Console",
+                "consoleStates": {
+                    "not_enrolled": "Non registrato",
+                    "pending": "In attesa di conferma nella Console",
+                    "connected": "Registrato",
+                    "degraded": "Stato non disponibile"
+                },
+                "acceptEnrollment": "Conferma il motore in sospeso nella CrowdSec Console per completare la registrazione.",
+                "enrollmentKey": "Chiave di registrazione alla Console",
+                "enrollmentPlaceholder": "Incolla la chiave di registrazione",
+                "enrolling": "Connessione in corso…",
+                "enroll": "Connetti alla Console",
+                "enrollmentHint": "Crea una chiave di registrazione nella CrowdSec Console. Viene usata una sola volta e non viene conservata nelle impostazioni di RentnerProxy.",
+                "enableFirst": "Attiva e salva la connessione alla community prima di collegare la Console."
+            },
+            "actions": {
+                "test": "Verifica connessione",
+                "testing": "Verifica della connessione…",
+                "save": "Salva e applica",
+                "saving": "Salvataggio e applicazione…"
+            },
+            "progress": {
+                "description": "La barra mostra le fasi di stato confermate, non una stima del tempo residuo. La connessione potrebbe interrompersi brevemente durante il passaggio del proxy.",
+                "confirmedSteps": "Avanzamento confermato",
+                "progressLabel": "Avanzamento della modifica CrowdSec",
+                "stepsLabel": "Fasi della modifica",
+                "inProgress": "La modifica è in corso. Questa pagina controlla automaticamente lo stato attivo.",
+                "connectionInterrupted": "La connessione è stata interrotta. La configurazione salvata e lo stato attivo sono ancora in fase di verifica.",
+                "degraded": "Il motore CrowdSec segnala un problema. Lo stato attivo viene verificato mentre il controller riprova.",
+                "retrying": "La modifica è stata salvata, ma è ancora in attesa di applicazione. Il controller riprova automaticamente.",
+                "delayed": "L’operazione sta richiedendo più tempo del solito. I tentativi automatici continuano. Puoi chiudere questa finestra e controllare qui lo stato della protezione.",
+                "continueInBackground": "Continua in background",
+                "done": "Fatto",
+                "managed": {
+                    "title": "Attiva CrowdSec gestito",
+                    "complete": "CrowdSec gestito è attivo e la protezione è stata verificata.",
+                    "steps": {
+                        "save": "Salva la modalità desiderata",
+                        "startEngine": "Avvia il motore CrowdSec locale",
+                        "switchProxy": "Attiva la protezione sul proxy",
+                        "verify": "Verifica la protezione attiva"
+                    }
+                },
+                "disabled": {
+                    "title": "Disattiva CrowdSec gestito",
+                    "complete": "La protezione CrowdSec è disattivata e il motore locale è arrestato.",
+                    "steps": {
+                        "save": "Salva la modalità desiderata",
+                        "switchProxy": "Rimuovi CrowdSec dal proxy",
+                        "stopEngine": "Arresta il motore CrowdSec locale",
+                        "verify": "Verifica lo stato disattivato"
+                    }
+                }
+            },
+            "facts": {
+                "title": "Come funziona la protezione",
+                "clientIp": {
+                    "label": "IP client",
+                    "value": "Risoluzione nativa di Caddy",
+                    "description": "I CIDR dei proxy attendibili vengono valutati prima che CrowdSec riceva l’indirizzo effettivo del client."
+                },
+                "failure": {
+                    "label": "Comportamento in caso di errore",
+                    "value": "Consenti in caso di errore",
+                    "description": "Il traffico proxy continua se l’API CrowdSec selezionata non è temporaneamente disponibile."
+                },
+                "deployment": {
+                    "label": "Distribuzione",
+                    "value": "Appliance singola",
+                    "description": "Nessun servizio, volume, socket, porta pubblica o variabile d’ambiente obbligatori aggiuntivi."
+                }
+            },
+            "statesPage": {
+                "loadingTitle": "Caricamento CrowdSec",
+                "loadingDescription": "Lettura della modalità desiderata e dello stato attuale di salute delle regole di protezione.",
+                "unavailableTitle": "Configurazione CrowdSec non disponibile",
+                "unavailableDescription": "Impossibile caricare la configurazione. Non è possibile confermare lo stato attuale della protezione."
+            },
+            "validation": {
+                "apiUrl": "Inserisci un URL HTTP o HTTPS assoluto senza credenziali, parametri di query o frammenti.",
+                "apiKey": "Inserisci una chiave bouncer ASCII stampabile da 16 a 512 caratteri, senza spazi.",
+                "enrollmentKey": "Inserisci una chiave di registrazione CrowdSec Console valida, da 16 a 256 caratteri."
+            },
+            "errors": {
+                "invalidInput": "Controlla l’endpoint CrowdSec e la credenziale.",
+                "apiKeyRequired": "Inserisci una chiave bouncer prima di attivare CrowdSec esterno o cambiare il relativo endpoint.",
+                "connectionFailed": "CrowdSec ha rifiutato l’endpoint o la credenziale. La modalità attiva non è stata modificata.",
+                "controllerUnavailable": "Il controller proxy non è temporaneamente disponibile. La modalità attiva non è stata modificata.",
+                "configurationConflict": "La configurazione è cambiata in un’altra sessione. Ricarica e riprova.",
+                "configurationUnavailable": "Impossibile leggere la configurazione CrowdSec cifrata.",
+                "saveFailed": "Impossibile salvare la configurazione CrowdSec.",
+                "loadFailed": "Impossibile caricare la configurazione CrowdSec.",
+                "testFailed": "Impossibile completare il test di connessione.",
+                "communityNotReady": "L’intelligence comunitaria non è ancora connessa. La protezione locale resta attiva.",
+                "enrollmentFailed": "Impossibile avviare la registrazione alla Console. Controlla la chiave e riprova."
+            },
+            "messages": {
+                "connectionValid": "Connessione a CrowdSec verificata.",
+                "saved": "Configurazione CrowdSec salvata e attivata.",
+                "savedPending": "Configurazione CrowdSec salvata. La modalità funzionante precedente resta attiva mentre si ripetono i tentativi di sincronizzazione.",
+                "enrollmentPending": "Registrazione richiesta. Conferma il motore nella CrowdSec Console."
+            }
+        },
+        "trustedCas": {
+            "page": {
+                "eyebrow": "Certificati",
+                "title": "CA attendibili",
+                "description": "Certificati di CA pubbliche usati per verificare gli upstream HTTPS. Non contengono chiavi private e sono distinti dai certificati del server."
+            },
+            "table": {
+                "eyebrow": "Attendibilità upstream",
+                "count_one": "{{count}} CA attendibile",
+                "count_other": "{{count}} CA attendibili",
+                "description": "Gestisci le autorità di certificazione considerate attendibili dagli upstream HTTPS.",
+                "searchLabel": "Cerca CA attendibili",
+                "searchPlaceholder": "Nome, soggetto, emittente o impronta digitale",
+                "loading": "Caricamento CA attendibili…",
+                "emptyTitle": "Nessuna CA attendibile personalizzata",
+                "emptyDescription": "Gli upstream HTTPS usano l’archivio di CA di sistema, a meno che tu non selezioni una CA personalizzata.",
+                "filteredEmptyTitle": "Nessuna CA attendibile corrispondente",
+                "filteredEmptyDescription": "Prova un’altra ricerca o cancella i filtri.",
+                "itemLabel": "CA attendibili",
+                "count_many": "{{count}} CA attendibili"
+            },
+            "columns": {
+                "name": "Nome",
+                "subject": "Soggetto",
+                "issuer": "Emittente",
+                "fingerprint": "Impronta SHA-256",
+                "expires": "Scadenza",
+                "actions": "Azioni"
+            },
+            "actions": {
+                "import": "Importa CA attendibile",
+                "replace": "Sostituisci bundle di CA",
+                "delete": "Elimina CA attendibile",
+                "deleteInUse": "Assegnata a host proxy: impossibile eliminarla",
+                "deleting": "Eliminazione CA attendibile…",
+                "open": "Azioni per {{name}}"
+            },
+            "import": {
+                "title": "Importa CA attendibile",
+                "description": "Importa un certificato di CA pubblica o un bundle PEM contenente solo certificati CA."
+            },
+            "replace": {
+                "title": "Sostituisci CA attendibile",
+                "description": "Tutti gli host proxy che usano questa CA riceveranno il nuovo bundle tramite la normale procedura di applicazione della configurazione."
+            },
+            "form": {
+                "name": "Nome",
+                "pem": "Certificato / bundle CA",
+                "pemHint": "Solo certificati PEM, fino a 256 KiB. Ogni certificato deve essere una CA. Le chiavi private non sono accettate."
+            },
+            "confirm": {
+                "deleteTitle": "Eliminare “{{name}}”?",
+                "deleteDescription": "È possibile eliminare solo le CA non utilizzate. Prima, rimuovi le CA assegnate dai relativi host proxy."
+            },
+            "states": {
+                "unavailableTitle": "CA attendibili non disponibili",
+                "unavailableDescription": "Impossibile caricare l’elenco delle CA attendibili. Riprova tra poco."
+            },
+            "validation": {
+                "name": "Inserisci un nome da 1 a 120 caratteri.",
+                "pem": "Fornisci un bundle PEM valido contenente solo certificati, di dimensione massima 256 KiB.",
+                "pemLimit": "Il bundle CA non può superare 256 KiB."
+            },
+            "errors": {
+                "invalidInput": "Il bundle CA non è valido. Controlla il formato PEM, la validità e i requisiti della CA.",
+                "notFound": "Questa CA attendibile non esiste più.",
+                "duplicate": "Questo bundle CA è già stato importato.",
+                "inUse": "Questa CA è assegnata a un host proxy e non può essere eliminata.",
+                "controllerUnavailable": "La convalida della CA non è temporaneamente disponibile. Non è stato salvato materiale non convalidato.",
+                "saveFailed": "Impossibile salvare la CA attendibile.",
+                "deleteFailed": "Impossibile eliminare la CA attendibile.",
+                "loadFailed": "Impossibile caricare l’elenco delle CA attendibili. Riprova tra poco."
+            },
+            "messages": {
+                "created": "CA attendibile importata.",
+                "replaced": "CA attendibile sostituita.",
+                "deleted": "CA attendibile eliminata.",
+                "savedPending": "CA attendibile salvata. La configurazione è in sospeso; resta attiva la configurazione precedente funzionante."
+            }
+        }
+    },
+    "permissions": {
+        "group": {
+            "app": "Applicazione",
+            "users": "Utenti",
+            "roles": "Ruoli",
+            "account": "Account",
+            "proxy_hosts": "Host proxy",
+            "redirect_hosts": "Host di reindirizzamento",
+            "certificates": "Certificati",
+            "trusted_cas": "CA attendibili",
+            "access_policies": "Politiche di accesso",
+            "proxy-access-logs": "Registri degli accessi proxy",
+            "crowdsec": "CrowdSec",
+            "system_appearance": "Aspetto del sistema",
+            "audit-logs": "Registro di audit",
+            "system": "Sistema"
+        },
+        "app": {
+            "access": "Accesso all’applicazione"
+        },
+        "users": {
+            "view": "Visualizzare gli utenti",
+            "create": "Creare utenti",
+            "update": "Modificare utenti",
+            "disable": "Disattivare utenti",
+            "enable": "Attivare utenti",
+            "assign_roles": "Assegnare ruoli agli utenti"
+        },
+        "roles": {
+            "view": "Visualizzare i ruoli",
+            "create": "Creare ruoli",
+            "update": "Modificare ruoli",
+            "delete": "Eliminare ruoli",
+            "assign_permissions": "Assegnare autorizzazioni ai ruoli"
+        },
+        "account": {
+            "view": "Visualizzare il proprio account",
+            "update": "Modificare il proprio account"
+        },
+        "proxy_hosts": {
+            "view": "Visualizzare gli host proxy",
+            "create": "Creare host proxy",
+            "update": "Modificare host proxy",
+            "delete": "Eliminare host proxy",
+            "enable": "Attivare host proxy",
+            "disable": "Disattivare host proxy",
+            "apply": "Applicare la configurazione proxy"
+        },
+        "redirect_hosts": {
+            "view": "Visualizzare gli host di reindirizzamento",
+            "create": "Creare host di reindirizzamento",
+            "update": "Modificare host di reindirizzamento",
+            "delete": "Eliminare host di reindirizzamento",
+            "enable": "Attivare host di reindirizzamento",
+            "disable": "Disattivare host di reindirizzamento",
+            "apply": "Applicare la configurazione dei reindirizzamenti"
+        },
+        "certificates": {
+            "view": "Visualizzare i certificati",
+            "create": "Importare certificati",
+            "update": "Sostituire certificati manuali",
+            "delete": "Eliminare certificati inutilizzati",
+            "issue": "Richiedere certificati ACME",
+            "renew": "Rinnovare certificati ACME"
+        },
+        "access_policies": {
+            "view": "Visualizzare le politiche di accesso",
+            "create": "Creare politiche di accesso",
+            "update": "Modificare politiche di accesso",
+            "delete": "Eliminare politiche di accesso",
+            "assign": "Assegnare politiche di accesso",
+            "apply": "Applicare la configurazione delle politiche di accesso"
+        },
+        "proxy-access-logs:view": "Visualizzare i registri degli accessi proxy",
+        "crowdsec": {
+            "view": "Visualizzare la configurazione di CrowdSec",
+            "update": "Modificare la configurazione di CrowdSec"
+        },
+        "system_appearance": {
+            "update": "Modificare l’aspetto del sistema"
+        },
+        "audit-logs:view": "Visualizzare il registro di audit",
+        "system": {
+            "npm_import": "Importare da Nginx Proxy Manager",
+            "migration": "Importare ed esportare la configurazione"
+        },
+        "trusted_cas": {
+            "view": "Visualizzare le CA attendibili",
+            "create": "Importare CA attendibili",
+            "update": "Sostituire i bundle di CA attendibili",
+            "delete": "Eliminare CA attendibili inutilizzate"
+        }
+    },
+    "systemRoles": {
+        "owner": {
+            "name": "Proprietario",
+            "description": "Ruolo integrato con tutte le autorizzazioni registrate."
+        },
+        "admin": {
+            "name": "Amministratore",
+            "description": "Ruolo integrato per gestire utenti e ruoli personalizzati, senza i poteri del proprietario."
+        },
+        "viewer": {
+            "name": "Visualizzatore",
+            "description": "Ruolo integrato per l’accesso di base all’applicazione e al proprio account."
+        }
+    },
+    "table": {
+        "filterColumn": "Filtra colonna",
+        "all": "Tutti",
+        "filterEllipsis": "Filtra…",
+        "noResults": "Nessuna opzione corrispondente",
+        "filterByDateRange": "Filtra per intervallo di date",
+        "filterColumnPlaceholder": "Filtra {{column}}…",
+        "cell": "Cella {{column}}",
+        "sortBy": "Ordina per {{column}}",
+        "loadingColumn": "{{label}}, colonna {{column}}",
+        "filters": "Filtri",
+        "resetFilters": "Reimposta filtri",
+        "pagination": {
+            "range": "{{from}}–{{to}} di {{count}} {{item}}",
+            "rowsPerPage": "Righe per pagina",
+            "label": "Paginazione della tabella",
+            "page": "Pagina {{page}} di {{count}}",
+            "goToPage": "Vai alla pagina {{page}}",
+            "first": "Vai alla prima pagina",
+            "previous": "Vai alla pagina precedente",
+            "next": "Vai alla pagina successiva",
+            "last": "Vai all’ultima pagina"
+        }
+    },
+    "calendar": {
+        "required": "Seleziona una data.",
+        "apply": "Applica",
+        "open": "Apri calendario",
+        "close": "Chiudi calendario",
+        "previousMonth": "Mostra il mese precedente",
+        "nextMonth": "Mostra il mese successivo",
+        "clear": "Cancella",
+        "day": "Giorno",
+        "rangeMode": "Intervallo",
+        "from": "Da",
+        "to": "A",
+        "time": "Ora (UTC)",
+        "month": "Mese",
+        "year": "Anno",
+        "searchOptions": "Cerca opzioni",
+        "searchPlaceholder": "Cerca…",
+        "noResults": "Nessun risultato",
+        "noOptions": "Nessuna opzione",
+        "anyDate": "Qualsiasi data",
+        "selectDate": "Seleziona data",
+        "weekdays": {
+            "mon": "Lun",
+            "tue": "Mar",
+            "wed": "Mer",
+            "thu": "Gio",
+            "fri": "Ven",
+            "sat": "Sab",
+            "sun": "Dom"
+        },
+        "hours": "Ore",
+        "minutes": "Minuti"
+    },
+    "systemAppearance": {
+        "title": "Aspetto del sistema",
+        "description": "Personalizza l’interfaccia con il colore di accento che preferisci.",
+        "current": "Colore di accento attuale",
+        "default": "Colore predefinito",
+        "label": "Colore di accento",
+        "hint": "Scegli un colore di accento per pulsanti, evidenziazioni e controlli.",
+        "preview": "Anteprima",
+        "previewButton": "Pulsante di anteprima",
+        "reset": "Ripristina colore predefinito",
+        "adminOnly": "Solo gli amministratori possono modificare il colore di accento del sistema.",
+        "saved": "Colore di accento salvato.",
+        "errors": {
+            "invalidColor": "Inserisci un colore valido.",
+            "saveFailed": "Impossibile salvare il colore di accento.",
+            "loadFailed": "Impossibile caricare il colore di accento."
+        },
+        "picker": {
+            "required": "Scegli un colore.",
+            "invalidColor": "Inserisci un colore valido.",
+            "eyeDropper": "Preleva un colore dallo schermo",
+            "closePicker": "Chiudi selettore colore",
+            "colorArea": "Saturazione e luminosità del colore",
+            "colorAreaInstructions": "Usa i tasti freccia per regolare saturazione e luminosità.",
+            "colorAreaValue": "Saturazione {{saturation}}%, luminosità {{value}}%",
+            "hue": "Tonalità",
+            "selectColor": "Seleziona colore",
+            "presetColor": "Usa {{color}}"
+        }
+    }
+}

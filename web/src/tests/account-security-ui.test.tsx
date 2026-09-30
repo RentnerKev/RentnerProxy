@@ -12,8 +12,10 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
-const { default: SecuritySection } =
-    await import('../features/UserSettings/Components/SecuritySection')
+const { default: TwoFactorSection } =
+    await import('../features/UserSettings/Components/TwoFactorSection')
+const { default: PasskeysSection } =
+    await import('../features/UserSettings/Components/PasskeysSection')
 
 let activeRoot: Root | null = null
 
@@ -52,7 +54,7 @@ describe('account security section', () => {
     test('shows enable controls when TOTP is disabled', async () => {
         const onEnableTotp = mock(() => {})
         const container = await render(
-            <SecuritySection
+            <TwoFactorSection
                 status={{
                     totpEnabled: false,
                     recoveryCodesRemaining: 0,
@@ -62,17 +64,15 @@ describe('account security section', () => {
                 isLoading={false}
                 isPending={false}
                 onEnableTotp={onEnableTotp}
-                onAddPasskey={() => {}}
                 onDisableTotp={() => {}}
                 onRegenerateCodes={() => {}}
-                onRenamePasskey={() => {}}
-                onRemovePasskey={() => {}}
             />,
         )
 
         expect(container.textContent).toContain('Disabled')
         expect(container.textContent).toContain('Enable two-factor authentication')
         expect(container.textContent).not.toContain('Regenerate recovery codes')
+        expect(container.textContent).not.toContain('Passkeys')
 
         await click(
             Array.from(container.querySelectorAll('button')).find(
@@ -86,7 +86,7 @@ describe('account security section', () => {
         const onRenamePasskey = mock((_id: string) => {})
         const onRemovePasskey = mock((_id: string) => {})
         const container = await render(
-            <SecuritySection
+            <PasskeysSection
                 status={{
                     totpEnabled: true,
                     recoveryCodesRemaining: 8,
@@ -102,17 +102,15 @@ describe('account security section', () => {
                 }}
                 isLoading={false}
                 isPending={false}
-                onEnableTotp={() => {}}
                 onAddPasskey={() => {}}
-                onDisableTotp={() => {}}
-                onRegenerateCodes={() => {}}
                 onRenamePasskey={onRenamePasskey}
                 onRemovePasskey={onRemovePasskey}
             />,
         )
 
         expect(container.textContent).toContain('Office laptop')
-        expect(container.textContent).toContain('Recovery codes available: 8')
+        expect(container.textContent).not.toContain('Recovery codes available')
+        expect(container.textContent).not.toContain('Two-factor authentication')
 
         const buttons = Array.from(container.querySelectorAll('button'))
         await click(buttons.find((button) => button.textContent === 'Rename')!)

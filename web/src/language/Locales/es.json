@@ -30,6 +30,22 @@
         "openDomainInNewTab": "Abrir {{domain}} en una pestaña nueva",
         "moreDomains": "Mostrar {{count}} dominios más"
     },
+    "inputs": {
+        "invalidPhone": "Introduce un número de teléfono válido.",
+        "onlyNumbers": "Solo se permiten números.",
+        "onlyMoneyCharacters": "Introduce un importe válido.",
+        "passwordStrength": "Seguridad de la contraseña",
+        "passwordStrengthEmpty": "No se ha introducido una contraseña",
+        "passwordStrengthVeryWeak": "Muy débil",
+        "passwordStrengthWeak": "Débil",
+        "passwordStrengthOkay": "Aceptable",
+        "passwordStrengthStrong": "Fuerte",
+        "passwordStrengthVeryStrong": "Muy fuerte",
+        "hourSelect": "Seleccionar hora",
+        "hourPlaceholder": "Hora",
+        "minuteSelect": "Seleccionar minuto",
+        "minutePlaceholder": "Minuto"
+    },
     "shell": {
         "home": "Inicio de RentnerProxy",
         "overviewLink": "Resumen de RentnerProxy",
@@ -75,7 +91,11 @@
             "en": "Inglés",
             "de": "Alemán",
             "es": "Español",
-            "fr": "Francés"
+            "fr": "Francés",
+            "it": "Italiano",
+            "pt": "Portugués",
+            "nl": "Neerlandés",
+            "pl": "Polaco"
         }
     },
     "theme": {
@@ -258,10 +278,25 @@
         }
     },
     "account": {
+        "navigation": {
+            "label": "Configuración de usuario",
+            "groups": {
+                "profile": "Perfil",
+                "signIn": "Inicio de sesión",
+                "system": "Sistema"
+            },
+            "profile": "Mi perfil",
+            "language": "Idioma",
+            "password": "Contraseña",
+            "twoFactor": "Dos factores",
+            "passkeys": "Claves de acceso",
+            "appearance": "Apariencia",
+            "admin": "Admin"
+        },
         "page": {
-            "eyebrow": "Acceso personal",
-            "title": "Cuenta",
-            "description": "Gestiona tu foto de perfil, credenciales, idioma y seguridad de esta cuenta de RentnerProxy."
+            "eyebrow": "Tu cuenta",
+            "title": "Configuración de usuario",
+            "description": "Gestiona tu perfil, idioma y opciones de inicio de sesión."
         },
         "identity": {
             "signedInAs": "Sesión iniciada como"
@@ -369,6 +404,8 @@
         "passkeys": {
             "title": "Claves de acceso",
             "description": "Usa Windows Hello, Touch ID, llaves de seguridad o gestores de contraseñas.",
+            "listTitle": "Tus claves de acceso",
+            "hint": "Puedes añadir varias claves de acceso para distintos dispositivos.",
             "add": "Añadir clave de acceso",
             "empty": "Aún no se han añadido claves de acceso.",
             "addedAt": "Añadida el {{date}}",

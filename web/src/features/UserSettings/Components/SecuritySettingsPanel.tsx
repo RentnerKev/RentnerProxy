@@ -4,11 +4,17 @@ import { ConfirmDialog } from '../../../shared/Modal/Components/ConfirmDialog'
 import ReauthenticationModal from './ReauthenticationModal'
 import RecoveryCodesModal from './RecoveryCodesModal'
 import RenamePasskeyModal from './RenamePasskeyModal'
-import SecuritySection from './SecuritySection'
+import PasskeysSection from './PasskeysSection'
+import TwoFactorSection from './TwoFactorSection'
 import TotpSetupModal from './TotpSetupModal'
 import useSecurityPageLogic from '../Hooks/useSecurityPageLogic'
+import type { SecuritySettingsSection } from '../Types/user-settings-section.types'
 
-export default function SecuritySettingsPanel() {
+export default function SecuritySettingsPanel({
+    section,
+}: {
+    readonly section: SecuritySettingsSection
+}) {
     const { t } = useTranslationStore()
     const security = useSecurityPageLogic()
     const { state, handler } = security
@@ -42,19 +48,27 @@ export default function SecuritySettingsPanel() {
             {state.error ? (
                 <FormMessage tone="error">account.security.error.unavailable</FormMessage>
             ) : null}
-            <SecuritySection
-                status={state.status}
-                isLoading={state.isLoading}
-                isPending={state.isPending}
-                onEnableTotp={handler.requestEnableTotp}
-                onAddPasskey={handler.requestAddPasskey}
-                onDisableTotp={() => handler.requestDestructiveAction('disable')}
-                onRegenerateCodes={() => handler.requestDestructiveAction('regenerate')}
-                onRenamePasskey={handler.requestRename}
-                onRemovePasskey={(passkeyId) =>
-                    handler.requestDestructiveAction('remove', passkeyId)
-                }
-            />
+            {section === 'two-factor' ? (
+                <TwoFactorSection
+                    status={state.status}
+                    isLoading={state.isLoading}
+                    isPending={state.isPending}
+                    onEnableTotp={handler.requestEnableTotp}
+                    onDisableTotp={() => handler.requestDestructiveAction('disable')}
+                    onRegenerateCodes={() => handler.requestDestructiveAction('regenerate')}
+                />
+            ) : (
+                <PasskeysSection
+                    status={state.status}
+                    isLoading={state.isLoading}
+                    isPending={state.isPending}
+                    onAddPasskey={handler.requestAddPasskey}
+                    onRenamePasskey={handler.requestRename}
+                    onRemovePasskey={(passkeyId) =>
+                        handler.requestDestructiveAction('remove', passkeyId)
+                    }
+                />
+            )}
             <TotpSetupModal
                 key={`totp-${state.setup?.challengeId ?? 'closed'}`}
                 setup={state.setup}

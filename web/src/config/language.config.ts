@@ -1,13 +1,28 @@
 import type { AppLanguage } from '../language/useTranslationStore'
 
 export const FALLBACK_LANGUAGE: AppLanguage = 'en'
-export const AVAILABLE_LANGUAGES = ['en', 'de', 'es', 'fr'] as const
+export const AVAILABLE_LANGUAGES = ['en', 'de', 'es', 'fr', 'it', 'pt', 'nl', 'pl'] as const
+
+export const LANGUAGE_NATIVE_NAMES: Record<AppLanguage, string> = {
+    en: 'English',
+    de: 'Deutsch',
+    es: 'Español',
+    fr: 'Français',
+    it: 'Italiano',
+    pt: 'Português',
+    nl: 'Nederlands',
+    pl: 'Polski',
+}
 
 export const LANGUAGE_RESOURCE_LOADERS = {
     en: () => import('../language/Locales/en.json').then((module) => module.default),
     de: () => import('../language/Locales/de.json').then((module) => module.default),
     es: () => import('../language/Locales/es.json').then((module) => module.default),
     fr: () => import('../language/Locales/fr.json').then((module) => module.default),
+    it: () => import('../language/Locales/it.json').then((module) => module.default),
+    pt: () => import('../language/Locales/pt.json').then((module) => module.default),
+    nl: () => import('../language/Locales/nl.json').then((module) => module.default),
+    pl: () => import('../language/Locales/pl.json').then((module) => module.default),
 } as const
 
 export function isAppLanguage(value: unknown): value is AppLanguage {
@@ -19,6 +34,10 @@ export const LANGUAGE_LOCALES: Record<AppLanguage, string> = {
     de: 'de-DE',
     es: 'es-ES',
     fr: 'fr-FR',
+    it: 'it-IT',
+    pt: 'pt-PT',
+    nl: 'nl-NL',
+    pl: 'pl-PL',
 }
 
 export const LANGUAGE_COUNTRY_CODES: Record<AppLanguage, string> = {
@@ -26,6 +45,10 @@ export const LANGUAGE_COUNTRY_CODES: Record<AppLanguage, string> = {
     de: 'DE',
     es: 'ES',
     fr: 'FR',
+    it: 'IT',
+    pt: 'PT',
+    nl: 'NL',
+    pl: 'PL',
 }
 
 export const PUBLIC_ENGLISH: Record<string, string> = {

@@ -1,0 +1,2528 @@
+{
+    "toast": {
+        "notification": "Melding",
+        "dismiss": "Melding sluiten",
+        "copyError": "Foutmelding kopiëren",
+        "copied": "Gekopieerd",
+        "titles": {
+            "success": "Geslaagd",
+            "error": "Actie mislukt",
+            "info": "Informatie",
+            "warning": "Let op"
+        }
+    },
+    "common": {
+        "appName": "RentnerProxy",
+        "cancel": "Annuleren",
+        "save": "Wijzigingen opslaan",
+        "saving": "Opslaan…",
+        "retry": "Opnieuw proberen",
+        "loading": "Laden…",
+        "requestFailed": "De gevraagde gegevens zijn tijdelijk niet beschikbaar. Probeer het opnieuw.",
+        "confirm": "Bevestigen",
+        "working": "Bezig…",
+        "closeDialog": "Dialoogvenster sluiten",
+        "showPassword": "Wachtwoord tonen",
+        "hidePassword": "Wachtwoord verbergen",
+        "actions": "Acties",
+        "openActions": "Acties openen",
+        "backHome": "Terug naar de startpagina",
+        "openDomainInNewTab": "{{domain}} openen in een nieuw tabblad",
+        "moreDomains": "Nog {{count}} domeinen tonen"
+    },
+    "shell": {
+        "home": "RentnerProxy-startpagina",
+        "overviewLink": "RentnerProxy-overzicht",
+        "overview": "Overzicht",
+        "users": "Gebruikers",
+        "roles": "Rollen",
+        "account": "Account",
+        "logout": "Uitloggen",
+        "signingOut": "Uitloggen…",
+        "navigation": "Applicatienavigatie",
+        "controlPlane": "Beheeromgeving",
+        "navigationGroups": {
+            "operations": "Beheer",
+            "security": "Beveiliging",
+            "administration": "Gebruikers en rollen",
+            "records": "Logboeken en gegevens"
+        },
+        "collapseNavigation": "Navigatie inklappen",
+        "expandNavigation": "Navigatie uitklappen",
+        "proxyHosts": "Proxyhosts",
+        "redirectHosts": "Omleidingshosts",
+        "certificates": "Certificaten",
+        "accessPolicies": "Toegangsbeleid",
+        "npmImport": "Systeemimport",
+        "migration": "Importeren / Exporteren",
+        "proxyAccessLogs": "Toegangslogboeken",
+        "crowdSec": "CrowdSec",
+        "security": "Beveiligingsdashboard",
+        "auditLogs": "Auditlogboek",
+        "systemVersion": "Systeemversie {{version}}",
+        "updateAvailable": "Update naar versie {{version}} beschikbaar"
+    },
+    "language": {
+        "title": "Taal",
+        "description": "Kies de taal voor je account.",
+        "label": "Weergavetaal",
+        "hint": "Kies een taal en sla je wijzigingen op om deze op je account toe te passen. Openbare pagina’s gebruiken altijd Engels.",
+        "saving": "Je taal wordt opgeslagen…",
+        "saved": "Je taal is opgeslagen.",
+        "saveFailed": "Je taal kon niet worden opgeslagen. Probeer het opnieuw.",
+        "loadFailed": "Deze taal kon niet worden geladen. Je huidige taal is niet gewijzigd. Probeer het opnieuw.",
+        "names": {
+            "en": "Engels",
+            "de": "Duits",
+            "es": "Spaans",
+            "fr": "Frans",
+            "it": "Italiaans",
+            "pt": "Portugees",
+            "nl": "Nederlands",
+            "pl": "Pools"
+        }
+    },
+    "theme": {
+        "saved": "Thema opgeslagen.",
+        "light": "Licht",
+        "dark": "Donker",
+        "switchToLight": "Overschakelen naar de lichte modus",
+        "switchToDark": "Overschakelen naar de donkere modus",
+        "saveFailed": "Het thema kon niet worden opgeslagen."
+    },
+    "validation": {
+        "required": "Dit veld is verplicht.",
+        "minLength": "Voer minstens {{count}} tekens in.",
+        "maxLength": "Voer niet meer dan {{count}} tekens in.",
+        "minItems": "Kies minstens {{count}}.",
+        "maxItems": "Kies niet meer dan {{count}}.",
+        "numberMin": "Voer een waarde van minstens {{count}} in.",
+        "numberMax": "Voer een waarde van maximaal {{count}} in.",
+        "emailInvalid": "Voer een geldig e-mailadres in.",
+        "totpInvalid": "Voer de zescijferige code uit je authenticator in.",
+        "invalidValue": "Controleer deze waarde en probeer het opnieuw.",
+        "selectOption": "Kies een beschikbare optie.",
+        "passwordMismatch": "De wachtwoorden komen niet overeen."
+    },
+    "errors": {
+        "rateLimited": "Te veel verzoeken. Probeer het later opnieuw.",
+        "authUnavailable": "De authenticatiedienst is tijdelijk niet beschikbaar.",
+        "authentication_required": "Je sessie is verlopen. Log opnieuw in.",
+        "reauthentication_required": "Bevestig je identiteit om door te gaan.",
+        "email_conflict": "Dit e-mailadres is al in gebruik.",
+        "last_active_owner": "De laatste actieve eigenaar kan niet worden uitgeschakeld of gewijzigd.",
+        "owner_required": "Alleen een eigenaar kan deze wijziging uitvoeren.",
+        "permission_denied": "Je hebt geen toestemming om deze wijziging uit te voeren.",
+        "role_in_use": "Deze rol is nog aan een gebruiker toegewezen.",
+        "role_not_found": "De rol bestaat niet meer.",
+        "system_role_immutable": "Systeemrollen kunnen niet worden gewijzigd of verwijderd.",
+        "unknown_permission": "Een of meer gekozen rechten zijn niet meer beschikbaar.",
+        "unknown_role": "Een of meer gekozen rollen zijn niet meer beschikbaar.",
+        "user_not_found": "De gebruiker bestaat niet meer.",
+        "invalid_email": "Controleer het e-mailadres en probeer het opnieuw.",
+        "invalid_input": "Controleer de ingediende waarden en probeer het opnieuw.",
+        "password_policy": "Controleer het wachtwoord en probeer het opnieuw.",
+        "service_unavailable": "De dienst is tijdelijk niet beschikbaar. Probeer het opnieuw.",
+        "user_not_active": "Dit account is niet actief."
+    },
+    "system": {
+        "response": "Systeemantwoord",
+        "recovery": "Veilig herstel van de route",
+        "error": {
+            "eyebrow": "Onverwachte onderbreking",
+            "title": "Er is iets misgegaan.",
+            "description": "Een onverwachte fout heeft deze pagina onderbroken. Probeer het opnieuw of ga terug naar de startpagina om vanaf een veilige route verder te gaan.",
+            "nextStep": "Volgende stap",
+            "command": "Opdracht voor de beheerder",
+            "code": "Foutcode",
+            "reference": "Foutreferentie",
+            "causes": {
+                "databaseSchema": {
+                    "title": "Database-update vereist",
+                    "description": "De applicatie en het databaseschema komen niet overeen. Een vereiste tabel of een vereist veld ontbreekt.",
+                    "nextStep": "Een beheerder moet de nog niet uitgevoerde databasemigraties vanuit de projectmap toepassen en het vervolgens opnieuw proberen."
+                },
+                "databaseBusy": {
+                    "title": "Verbindingslimiet van de database bereikt",
+                    "description": "De database kan momenteel geen nieuwe verbinding aannemen.",
+                    "nextStep": "Probeer het binnenkort opnieuw. Als dit aanhoudt, moet een beheerder de databaseverbindingspool van de applicatie controleren."
+                },
+                "databaseUnavailable": {
+                    "title": "Database niet beschikbaar",
+                    "description": "RentnerProxy kan geen verbinding maken met de ingestelde database.",
+                    "nextStep": "Een beheerder moet controleren of PostgreSQL draait en of de instellingen voor de databaseverbinding correct zijn."
+                },
+                "databaseAuthentication": {
+                    "title": "Databasetoegang geweigerd",
+                    "description": "De database heeft de ingestelde inloggegevens van de applicatie geweigerd.",
+                    "nextStep": "Een beheerder moet het ingestelde databaseaccount, wachtwoord en de toegangsrechten controleren."
+                },
+                "sessionExpired": {
+                    "title": "Inloggen vereist",
+                    "description": "Je sessie is niet meer geldig of deze pagina vereist dat je opnieuw inlogt.",
+                    "nextStep": "Ga terug naar de startpagina, log opnieuw in en open deze pagina opnieuw."
+                },
+                "accessDenied": {
+                    "title": "Toegang geweigerd",
+                    "description": "Je account heeft geen toestemming om deze pagina of de bijbehorende gegevens te bekijken.",
+                    "nextStep": "Ga terug naar de startpagina. Als je toegang nodig hebt, vraag dan een beheerder om de rechten van je account te controleren."
+                },
+                "notFound": {
+                    "title": "Gevraagde gegevens niet gevonden",
+                    "description": "De gevraagde gegevens bestaan niet meer of zijn niet meer beschikbaar.",
+                    "nextStep": "Ga terug naar de startpagina en open het item opnieuw vanuit de huidige lijst."
+                },
+                "rateLimited": {
+                    "title": "Te veel verzoeken",
+                    "description": "De verzoeklimiet is tijdelijk bereikt.",
+                    "nextStep": "Wacht even voordat je het opnieuw probeert. Vernieuw de pagina niet steeds opnieuw."
+                },
+                "serviceUnavailable": {
+                    "title": "Een vereiste dienst is niet beschikbaar",
+                    "description": "Een dienst die nodig is om deze pagina te laden, is tijdelijk niet beschikbaar.",
+                    "nextStep": "Probeer het binnenkort opnieuw. Als dit aanhoudt, stuur dan de foutcode en referentie naar een beheerder zodat deze de serverlogboeken kan controleren."
+                },
+                "network": {
+                    "title": "Verbinding onderbroken",
+                    "description": "De verbinding met de applicatie kon niet worden voltooid.",
+                    "nextStep": "Controleer je netwerkverbinding en probeer het opnieuw. Als andere pagina’s werken, moet een beheerder de applicatieserver controleren."
+                },
+                "assetLoad": {
+                    "title": "Applicatiebestanden konden niet worden geladen",
+                    "description": "Een vereist applicatie- of taalbestand kon niet worden gedownload.",
+                    "nextStep": "Probeer het opnieuw om de pagina te herladen. Als dit aanhoudt, controleer dan je verbinding en vraag een beheerder om de uitrol te controleren."
+                },
+                "unexpected": {
+                    "title": "De pagina kon niet worden geladen",
+                    "description": "Er is een onverwachte fout opgetreden. De applicatie kon geen specifiekere oorzaak vaststellen.",
+                    "nextStep": "Probeer het opnieuw. Als dit aanhoudt, stuur dan de foutcode en een eventuele referentie naar een beheerder zodat deze de browser- en serverlogboeken kan controleren."
+                }
+            }
+        },
+        "notFound": {
+            "eyebrow": "Route niet beschikbaar",
+            "title": "Pagina niet gevonden.",
+            "description": "De pagina die je zoekt bestaat niet of is mogelijk verplaatst. De basisdiensten van RentnerProxy blijven actief."
+        }
+    },
+    "foundation": {
+        "description": "Een compacte verbindingscontrole voor elke dienst die deze RentnerProxy-instantie ondersteunt.",
+        "loading": {
+            "title": "Verbindingen controleren",
+            "description": "RentnerProxy controleert de controller, PostgreSQL en Redis."
+        },
+        "error": {
+            "title": "Statuscontrole niet beschikbaar",
+            "description": "De applicatie draait, maar de dienststatus kon niet worden vernieuwd."
+        },
+        "running": "Actief",
+        "connected": "Verbonden",
+        "connecting": "Verbinden",
+        "unavailable": "Niet beschikbaar",
+        "local": "Basisdiensten · Lokaal",
+        "status": "Status van basisdiensten",
+        "environment": "Ontwikkelomgeving",
+        "environmentDescription": "Beschikbaarheid van lokale diensten, gecontroleerd via de server.",
+        "serviceStatus": "Status van de basisdiensten",
+        "footer": "Status van basisdiensten · Verbindingsstatus gecontroleerd door de server",
+        "connectionMap": "Verbindingsoverzicht",
+        "summary": "Vijf diensten. Eén beheerpad.",
+        "refreshDescription": "De dienststatus wordt via de server gecontroleerd en live bijgewerkt zolang deze pagina open is.",
+        "crowdSec": {
+            "eyebrow": "Verkeersbeveiliging",
+            "description": "CrowdSec-beveiligingsstatus voor openbaar HTTP- en HTTPS-verkeer.",
+            "manage": "CrowdSec beheren",
+            "checking": "CrowdSec-beveiliging controleren…",
+            "loadError": "De CrowdSec-status kon niet worden geladen. De actieve beveiligingsstatus is onbekend.",
+            "desiredMode": "Gewenste modus",
+            "runtime": "Uitvoeringsstatus"
+        },
+        "web": "Web",
+        "services": {
+            "web": {
+                "label": "Webapplicatie",
+                "detail": "Levert dit scherm met basisdiensten"
+            },
+            "controller": {
+                "label": "Controller",
+                "detail": "Statuscontrole via de server"
+            },
+            "database": {
+                "label": "Database",
+                "detail": "PostgreSQL-statuscontrole via de server"
+            },
+            "redis": {
+                "label": "Redis",
+                "detail": "Redis-statuscontrole via de server"
+            },
+            "websocket": {
+                "label": "WebSocket-server",
+                "detail": "Native Bun WebSocket-server"
+            }
+        }
+    },
+    "account": {
+        "navigation": {
+            "label": "Navigatie van gebruikersinstellingen",
+            "groups": {
+                "profile": "Profiel",
+                "signIn": "Inloggen",
+                "system": "Systeem"
+            },
+            "profile": "Mijn profiel",
+            "language": "Taal",
+            "password": "Wachtwoord",
+            "twoFactor": "Twee factoren",
+            "passkeys": "Passkeys",
+            "appearance": "Weergave",
+            "admin": "Beheerder"
+        },
+        "page": {
+            "eyebrow": "Je account",
+            "title": "Gebruikersinstellingen",
+            "description": "Beheer je profiel, taal en inloginstellingen."
+        },
+        "identity": {
+            "signedInAs": "Ingelogd als"
+        },
+        "password": {
+            "sectionEyebrow": "Inloggegevens",
+            "title": "Wachtwoord wijzigen",
+            "currentPassword": "Huidig wachtwoord",
+            "newPassword": "Nieuw wachtwoord",
+            "confirmNewPassword": "Nieuw wachtwoord bevestigen",
+            "changing": "Wachtwoord wijzigen…",
+            "change": "Wachtwoord wijzigen",
+            "success": {
+                "changed": "Wachtwoord gewijzigd. Andere sessies zijn ingetrokken."
+            },
+            "error": {
+                "update": "Het wachtwoord kon niet worden gewijzigd.",
+                "incorrectCurrentPassword": "Het huidige wachtwoord is onjuist."
+            }
+        },
+        "profileImage": {
+            "sectionEyebrow": "Persoonlijke afbeelding",
+            "title": "Profielfoto",
+            "description": "Kies een JPEG-, PNG- of WebP-afbeelding. Je kunt deze vóór het opslaan binnen een ronde uitsnede positioneren.",
+            "change": "Foto wijzigen",
+            "choose": "Foto kiezen",
+            "inputLabel": "Profielfoto kiezen",
+            "maximumSize": "Maximaal 8 MB",
+            "noPermission": "Je hebt geen toestemming om deze profielfoto bij te werken.",
+            "crop": {
+                "title": "Profielfoto bijsnijden",
+                "description": "Verplaats de afbeelding en zoom totdat het ronde voorbeeld er goed uitziet.",
+                "areaLabel": "Uitsnede van de profielfoto",
+                "zoom": "Zoom",
+                "zoomLabel": "Profielfoto zoomen",
+                "reset": "Positie herstellen",
+                "saving": "Foto opslaan…",
+                "save": "Foto opslaan"
+            },
+            "success": {
+                "updated": "Profielfoto bijgewerkt."
+            },
+            "error": {
+                "update": "De profielfoto kon niet worden bijgewerkt.",
+                "open": "De gekozen afbeelding kon niet worden geopend.",
+                "unreadable": "Het gekozen bestand is geen leesbare afbeelding.",
+                "cropCreation": "De gekozen uitsnede kon niet worden gemaakt.",
+                "cropRead": "De gekozen uitsnede kon niet worden gelezen.",
+                "invalidCrop": "Verplaats de afbeelding of zoom om een geldige uitsnede te kiezen.",
+                "unsupportedType": "Kies een JPEG-, PNG- of WebP-afbeelding.",
+                "fileTooLarge": "Kies een afbeelding kleiner dan 8 MB.",
+                "invalidDimensions": "Kies een afbeelding tussen 64 px en 40 megapixels.",
+                "unsupportedBrowser": "Deze browser ondersteunt het bewerken van afbeeldingen niet."
+            }
+        },
+        "security": {
+            "sectionEyebrow": "Accountbeveiliging",
+            "title": "Beveiliging",
+            "loading": "Beveiligingsinstellingen laden",
+            "error": {
+                "unavailable": "Beveiligingsinstellingen zijn tijdelijk niet beschikbaar.",
+                "change": "De beveiligingswijziging kon niet worden voltooid. Probeer het opnieuw."
+            }
+        },
+        "twoFactor": {
+            "title": "Tweefactorauthenticatie",
+            "description": "Bescherm het inloggen met een authenticator-app.",
+            "enabled": "Ingeschakeld",
+            "disabled": "Uitgeschakeld",
+            "enable": "Tweefactorauthenticatie inschakelen",
+            "disable": "2FA uitschakelen",
+            "regenerateRecoveryCodes": "Herstelcodes opnieuw genereren",
+            "recoveryCodesAvailable": "Beschikbare herstelcodes: {{count}}",
+            "setup": {
+                "title": "Authenticator-app instellen",
+                "description": "Scan de QR-code of voer de instelsleutel in je authenticator-app in.",
+                "verifyTitle": "Authenticator verifiëren",
+                "verifyDescription": "Voer de zescijferige code uit je authenticator-app in.",
+                "step": "Stap {{current}} van 2",
+                "back": "Terug",
+                "verifying": "Verifiëren…",
+                "verifyAndEnable": "Verifiëren en inschakelen",
+                "continue": "Doorgaan",
+                "authenticatorCode": "Authenticatorcode",
+                "qrCode": "QR-code voor het instellen van de authenticator",
+                "manualKey": "Kun je de QR-code niet scannen? Voer deze instelsleutel handmatig in:",
+                "keepOpen": "Houd dit dialoogvenster open totdat je authenticator het account heeft opgeslagen."
+            },
+            "success": {
+                "setupStarted": "Instellen van tweefactorauthenticatie gestart.",
+                "enabled": "Tweefactorauthenticatie ingeschakeld.",
+                "disabled": "Tweefactorauthenticatie uitgeschakeld.",
+                "recoveryCodesRegenerated": "Herstelcodes opnieuw gegenereerd."
+            },
+            "error": {
+                "setupStart": "Tweefactorauthenticatie kon niet worden gestart.",
+                "invalidCode": "De authenticatorcode is ongeldig of verlopen.",
+                "verify": "De authenticatorcode kon niet worden geverifieerd.",
+                "notEnabled": "Tweefactorauthenticatie is niet ingeschakeld.",
+                "disable": "Tweefactorauthenticatie kon niet worden uitgeschakeld.",
+                "recoveryCodes": "Herstelcodes konden niet opnieuw worden gegenereerd.",
+                "setupUnavailable": "Het instellen van tweefactorauthenticatie is niet meer beschikbaar."
+            }
+        },
+        "passkeys": {
+            "title": "Passkeys",
+            "description": "Gebruik Windows Hello, Touch ID, beveiligingssleutels of wachtwoordbeheerders.",
+            "listTitle": "Je passkeys",
+            "hint": "Je kunt meerdere passkeys voor verschillende apparaten toevoegen.",
+            "add": "Passkey toevoegen",
+            "empty": "Er zijn nog geen passkeys toegevoegd.",
+            "addedAt": "Toegevoegd op {{date}}",
+            "lastUsedAt": "Laatst gebruikt op {{date}}",
+            "unknownDate": "Onbekende datum",
+            "rename": "Naam wijzigen",
+            "remove": "Verwijderen",
+            "defaultName": "Passkey",
+            "name": {
+                "addTitle": "Geef deze passkey een naam",
+                "addDescription": "Kies een herkenbare naam voordat je authenticator de passkey maakt.",
+                "renameTitle": "Naam van passkey wijzigen",
+                "renameDescription": "Kies een naam waaraan je deze authenticator kunt herkennen.",
+                "label": "Naam van de passkey",
+                "continue": "Doorgaan",
+                "save": "Naam opslaan"
+            },
+            "success": {
+                "registrationStarted": "Registratie van passkey gestart.",
+                "added": "Passkey toegevoegd.",
+                "renamed": "Naam van passkey gewijzigd.",
+                "removed": "Passkey verwijderd."
+            },
+            "error": {
+                "registrationStart": "Registratie van passkey kon niet worden gestart.",
+                "registrationVerification": "Registratie van passkey kon niet worden geverifieerd.",
+                "registrationComplete": "Registratie van passkey kon niet worden voltooid.",
+                "registrationFailed": "Registratie van passkey mislukt.",
+                "invalidDomain": "Passkeys kunnen niet worden geregistreerd via een IP-adres. Open de app op localhost voor lokale ontwikkeling of gebruik het HTTPS-domein.",
+                "invalidRpId": "Dit adres komt niet overeen met het ingestelde passkeydomein. Open de app via de ingestelde RENTNERPROXY_PUBLIC_ORIGIN en probeer het opnieuw.",
+                "notFound": "De passkey bestaat niet meer.",
+                "rename": "De naam van de passkey kon niet worden opgeslagen.",
+                "remove": "De passkey kon niet worden verwijderd."
+            }
+        },
+        "reauthentication": {
+            "title": "Bevestig deze beveiligingswijziging",
+            "description": "Authenticeer opnieuw om door te gaan. Alleen je bestaande sessie is niet voldoende.",
+            "currentPassword": "Huidig wachtwoord",
+            "confirm": "Bevestigen",
+            "usePasskey": "Een passkey gebruiken",
+            "success": {
+                "confirmed": "Identiteit bevestigd.",
+                "passkeyStarted": "Verificatie van passkey gestart."
+            },
+            "error": {
+                "failed": "Opnieuw authenticeren mislukt.",
+                "incorrectPassword": "Het wachtwoord is onjuist.",
+                "passkeyStart": "Opnieuw authenticeren met passkey kon niet worden gestart.",
+                "passkeyVerification": "Verificatie van passkey mislukt."
+            }
+        },
+        "recoveryCodes": {
+            "title": "Bewaar je herstelcodes",
+            "description": "Deze codes worden slechts één keer getoond. Elke code kan één keer worden gebruikt.",
+            "copied": "Gekopieerd",
+            "copyAll": "Alles kopiëren",
+            "saved": "Ik heb mijn herstelcodes bewaard"
+        },
+        "confirmation": {
+            "removePasskeyTitle": "Deze passkey verwijderen?",
+            "removePasskeyDescription": "‘{{name}}’ zal niet meer beschikbaar zijn om op je account in te loggen.",
+            "disableTwoFactorTitle": "Tweefactorauthenticatie uitschakelen?",
+            "disableTwoFactorDescription": "Bij inloggen met een wachtwoord is geen authenticatorcode meer nodig.",
+            "regenerateRecoveryCodesTitle": "Herstelcodes opnieuw genereren?",
+            "regenerateRecoveryCodesDescription": "Je bestaande herstelcodes werken onmiddellijk niet meer.",
+            "removePasskey": "Passkey verwijderen",
+            "disableTwoFactor": "2FA uitschakelen",
+            "regenerateRecoveryCodes": "Codes opnieuw genereren",
+            "applying": "Toepassen…"
+        },
+        "validation": {
+            "passwordsDoNotMatch": "Wachtwoorden komen niet overeen.",
+            "authenticatorCode": "Voer de zescijferige code uit je authenticator-app in."
+        }
+    },
+    "admin": {
+        "migration": {
+            "eyebrow": "Systeem / Migratie",
+            "title": "Configuratie overzetten",
+            "description": "Importeer een configuratie uit RentnerProxy, Nginx Proxy Manager of Zoraxy en exporteer een draagbaar RentnerProxy-bestand.",
+            "exportTitle": "RentnerProxy exporteren",
+            "exportHelp": "Draagbare JSON met proxyhosts, omleidingen en beleid, zonder inloggegevens. Certificaten, privésleutels, gebruikers, wachtwoorden en volledige back-upgegevens zijn uitgesloten. Hosts waarvoor TLS- of CA-gegevens nodig zijn, worden uitgeschakeld geïmporteerd.",
+            "exportButton": "Configuratie-JSON downloaden",
+            "exportCompleted": "RentnerProxy-configuratie gedownload.",
+            "importTitle": "Configuratie importeren",
+            "sourceLabel": "Bronsysteem",
+            "fileLabel": "Exportbestand kiezen",
+            "source": {
+                "rentnerproxy": "RentnerProxy",
+                "npm": "Nginx Proxy Manager",
+                "zoraxy": "Zoraxy"
+            },
+            "sourceHelp": {
+                "rentnerproxy": "Kies een draagbaar RentnerProxy-JSON-bestand (versie 1, maximaal 4 MiB). Dit is geen volledige systeem- of certificaatback-up.",
+                "npm": "Kies een consistente SQLite-kopie van NPM 2.16 (maximaal 32 MiB). Stop NPM voordat je kopieert of maak een SQLite-back-up.",
+                "zoraxy": "Kies het officiële configuratie-ZIP-bestand van Zoraxy versie 3 (maximaal 32 MiB). Alleen eenvoudige proxy- en domeinomleidingsregels worden geïmporteerd. Certificaten, inloggegevens, streams en geavanceerde regels vereisen handmatige migratie."
+            },
+            "previewHelp": "Er is nog niets gewijzigd. Controleer conflicten en waarschuwingen. Objecten die TLS of een beveiligingscontrole vereisen, worden uitgeschakeld aangemaakt.",
+            "errors": {
+                "invalid_request": "Ongeldig uploadverzoek.",
+                "authentication_required": "Meld je aan en probeer het opnieuw.",
+                "permission_denied": "Je mag configuratiemigratie niet gebruiken.",
+                "source_limit": "Het bestand of aantal objecten overschrijdt de limiet.",
+                "invalid_source": "Het bestand is ongeldig of onleesbaar.",
+                "unsupported_schema": "Bestandsindeling of schemaversie wordt niet ondersteund.",
+                "fingerprint_mismatch": "Het bestand is gewijzigd sinds de preview. Analyseer het opnieuw.",
+                "preview_changed": "RentnerProxy is gewijzigd sinds de preview. Analyseer het opnieuw.",
+                "import_failed": "Importeren is mislukt; de wijzigingen zijn teruggedraaid. Controleer het auditlogboek.",
+                "export_failed": "Exporteren is mislukt. Probeer het opnieuw of controleer het auditlogboek."
+            }
+        },
+        "npmImport": {
+            "eyebrow": "Systeem / Importeren",
+            "title": "Nginx Proxy Manager importeren",
+            "description": "Controleer een echte NPM SQLite-snapshot voordat hosts worden aangemaakt.",
+            "sourceTitle": "NPM-database kiezen",
+            "sourceHelp": "Alleen NPM 2.16 SQLite. Stop NPM voordat je /data/database.sqlite kopieert of maak een consistente SQLite-back-up. Selecteer hier de kopie (maximaal 32 MiB). Databasedumps en archieven worden niet ondersteund. Certificaten en geheimen worden niet geïmporteerd.",
+            "fileLabel": "SQLite-databasekopie",
+            "preview": "Analyseren en previewen",
+            "previewTitle": "Importpreview",
+            "previewHelp": "Er is nog niets gewijzigd. Controleer alle waarschuwingen en conflicten. Hosts waarvoor een TLS- of WebSocket-controle nodig is, worden uitgeschakeld aangemaakt.",
+            "details": "Details bekijken",
+            "apply": "Importeren bevestigen",
+            "resultTitle": "Importresultaat",
+            "resultSummary": "{{imported}} geïmporteerd, {{skipped}} overgeslagen, {{failed}} mislukt. Runtime: {{runtime}}.",
+            "history": "Recente imports",
+            "imported": "geïmporteerd",
+            "skipped": "overgeslagen",
+            "failed": "mislukt",
+            "runtime": {
+                "applied": "toegepast",
+                "pending": "in behandeling",
+                "not_applicable": "niet toegepast"
+            },
+            "status": {
+                "ready": "Klaar",
+                "partial": "Controle nodig",
+                "manual": "Handmatige migratie",
+                "conflict": "Conflict"
+            },
+            "kind": {
+                "proxy-host": "Proxyhost",
+                "redirect-host": "Omleidingshost",
+                "access-policy": "Toegangslijst",
+                "certificate": "Certificaat",
+                "dead-host": "404-host",
+                "stream": "Stream"
+            },
+            "reasons": {
+                "invalid_domains": "Ongeldige of niet-ondersteunde domeinen; handmatige migratie vereist",
+                "advanced_config_manual": "Aangepaste geavanceerde nginx-configuratie vereist handmatige migratie",
+                "custom_locations_manual": "Aangepaste locaties vereisen handmatige migratie",
+                "caching_manual": "NPM-caching heeft geen overeenkomstig getypeerd alternatief",
+                "block_exploits_manual": "Exploitblokkering van NPM heeft geen overeenkomstig getypeerd alternatief",
+                "hsts_manual": "HSTS-instellingen van NPM vereisen handmatige migratie",
+                "access_list_missing": "Verwijzing naar toegangslijst ontbreekt of is ongeldig",
+                "access_list_manual": "De gekoppelde toegangslijst vereist handmatige migratie",
+                "invalid_host_settings": "Hostinstellingen zijn ongeldig of worden niet ondersteund",
+                "certificate_manual": "Certificaat en vernieuwing moeten handmatig worden ingesteld; geïmporteerde hosts zijn uitgeschakeld",
+                "force_https_manual": "Schakel Force HTTPS opnieuw in nadat je het certificaat hebt ingesteld",
+                "http2_behavior_review": "Controleer het HTTP/2-gedrag voordat je deze host inschakelt",
+                "forwarded_proto_review": "Controleer het gedrag van de vertrouwde forwarded-proto voordat je deze host inschakelt",
+                "websocket_behavior_review": "WebSocket-gedrag wijkt af; geïmporteerde hosts zijn uitgeschakeld voor controle",
+                "upstream_tls_review": "Controleer de TLS-verificatie van de upstream; geïmporteerde hosts zijn uitgeschakeld",
+                "ip_policy_review": "Controleer het client-IP-adres en de instellingen voor vertrouwde proxy’s voordat je deze host inschakelt",
+                "invalid_upstream": "Upstreamdoel is ongeldig of wordt niet ondersteund",
+                "redirect_auto_scheme_manual": "Automatisch omleidingsschema heeft geen equivalent met een vast doel",
+                "invalid_redirect": "Omleidingsdoel of status is ongeldig of wordt niet ondersteund",
+                "invalid_access_list": "Naam of identificatie van de toegangslijst is ongeldig",
+                "basic_auth_manual": "Basic Auth en het doorsturen van autorisatie vereisen handmatige migratie",
+                "empty_access_list": "Lege toegangslijst bevat geen beperkingen om te importeren",
+                "ordered_ip_rules_manual": "Geordende toestaan-/weigeren-IP-regels vereisen handmatige migratie",
+                "invalid_ip_rules": "IP-regels zijn ongeldig of overschrijden de limieten van RentnerProxy",
+                "source_duplicate_domain": "Domein komt meer dan één keer voor in deze NPM-bron",
+                "import_rolled_back": "Importeren is mislukt; alle geplande wijzigingen zijn teruggedraaid",
+                "preview_changed": "Preview is verouderd; analyseer opnieuw voordat je importeert",
+                "existing_domain": "Domein wordt al beheerd door RentnerProxy",
+                "unreferenced_access_list": "Geen importeerbare host gebruikt deze toegangslijst",
+                "certificate_material_unavailable": "SQLite bevat alleen metagegevens; migreer certificaat en privésleutel handmatig",
+                "dead_hosts_manual": "404-hosts vereisen handmatige migratie",
+                "streams_manual": "Streams vereisen handmatige migratie",
+                "trusted_ca_manual": "Vertrouwde CA ontbreekt; host wordt uitgeschakeld geïmporteerd",
+                "auth_policy_manual": "Migreer authenticatiebeleid en inloggegevens handmatig",
+                "duplicate_source_id": "Object-ID komt meer dan één keer voor in de bron",
+                "zoraxy_unsupported_rule": "Zoraxy-regel gebruikt functies die niet kunnen worden overgedragen",
+                "zoraxy_unsupported_redirect": "Zoraxy-omleiding gebruikt een pad-, apparaat- of andere niet-ondersteunde regel",
+                "zoraxy_tls_review": "Controleer de TLS-instellingen van Zoraxy; host wordt uitgeschakeld geïmporteerd",
+                "upstream_tls_verification_review": "Controleer de uitgeschakelde verificatie van het upstreamcertificaat voordat je de host inschakelt",
+                "zoraxy_streams_manual": "Migreer Zoraxy-streams handmatig",
+                "zoraxy_access_manual": "Migreer Zoraxy-toegangsregels handmatig",
+                "zoraxy_certificates_manual": "Stel Zoraxy-certificaten en -sleutels handmatig in",
+                "zoraxy_path_rules_manual": "Migreer Zoraxy-padregels handmatig"
+            },
+            "errors": {
+                "invalid_request": "Ongeldig uploadverzoek.",
+                "authentication_required": "Meld je aan en probeer het opnieuw.",
+                "permission_denied": "Je hebt geen rechten om te importeren.",
+                "source_limit": "De bron overschrijdt de limiet van 32 MiB of het maximumaantal records.",
+                "invalid_source": "Dit is geen leesbare NPM SQLite-database.",
+                "unsupported_schema": "NPM-schema wordt niet ondersteund. Alleen het geverifieerde schema v2.16.0 wordt geaccepteerd.",
+                "fingerprint_mismatch": "De bron is gewijzigd na de preview. Analyseer deze opnieuw.",
+                "preview_changed": "De RentnerProxy-status is gewijzigd na de preview. Analyseer opnieuw voordat je importeert.",
+                "nothing_to_import": "Er is niets meer dat kan worden geïmporteerd. Analyseer de nieuwste status opnieuw.",
+                "import_failed": "Importeren is mislukt en de databasetransactie is teruggedraaid. Controleer het auditlogboek."
+            }
+        },
+        "users": {
+            "page": {
+                "eyebrow": "Toegangsregister",
+                "title": "Gebruikers",
+                "description": "Nodig mensen uit, wijs rollen toe en trek alle actieve sessies in wanneer de toegang moet eindigen."
+            },
+            "messages": {
+                "rolesUnavailable": "Rolopties zijn niet beschikbaar. Gebruikersprofielen kunnen nog wel worden bewerkt.",
+                "rolesNotReady": "Rolopties zijn nog niet beschikbaar.",
+                "created": "Gebruiker aangemaakt en uitnodiging verstuurd.",
+                "updated": "Gebruiker bijgewerkt.",
+                "disabled": "Gebruiker uitgeschakeld en sessies ingetrokken.",
+                "enabled": "Gebruiker ingeschakeld."
+            },
+            "states": {
+                "unavailableTitle": "Gebruikers niet beschikbaar",
+                "unavailableDescription": "Het toegangsregister kon niet voor deze sessie worden geladen."
+            },
+            "actions": {
+                "add": "Gebruiker toevoegen",
+                "create": "Gebruiker aanmaken",
+                "edit": "Bewerken",
+                "disable": "Uitschakelen",
+                "disabling": "Gebruiker uitschakelen…",
+                "enable": "Inschakelen",
+                "enabling": "Gebruiker inschakelen…",
+                "retryRoles": "Rollen opnieuw laden",
+                "open": "Acties voor {{name}} openen",
+                "none": "Geen acties beschikbaar",
+                "ownerEdit": "Alleen een eigenaar kan dit account bewerken.",
+                "ownerDisable": "Alleen een eigenaar kan dit account uitschakelen.",
+                "ownerEnable": "Alleen een eigenaar kan dit account inschakelen.",
+                "selfDisable": "Je kunt je eigen account niet uitschakelen.",
+                "disableDescription": "Sessies intrekken en inloggen blokkeren.",
+                "enableDescription": "Dit account weer laten inloggen."
+            },
+            "confirm": {
+                "disableTitle": "Gebruiker uitschakelen?",
+                "disableDescription": "{{name}} kan niet meer inloggen.",
+                "disableSessions": "Alle actieve sessies en nog niet gebruikte toegangstokens worden ingetrokken."
+            },
+            "form": {
+                "displayName": "Weergavenaam",
+                "optional": "optioneel",
+                "email": "E-mailadres",
+                "status": "Status",
+                "pendingHint": "Nieuwe accounts blijven in afwachting totdat de uitnodiging is geaccepteerd.",
+                "disabledHint": "Schakel toegang uit via het actiemenu van de gebruiker.",
+                "roles": "Rollen",
+                "rolesReadOnly": "Je kunt profielgegevens bijwerken, maar de roltoewijzingen van deze gebruiker niet wijzigen.",
+                "createDescription": "Maak het account aan, wijs de eerste toegangsrechten toe en verstuur een uitnodiging.",
+                "editDescription": "Werk accountgegevens en toegewezen rollen bij.",
+                "creating": "Gebruiker aanmaken…",
+                "editTitle": "{{name}} bewerken"
+            },
+            "roles": {
+                "assign": "Rol {{role}} toewijzen"
+            },
+            "status": {
+                "active": "Actief",
+                "pending": "In afwachting",
+                "disabled": "Uitgeschakeld"
+            },
+            "columns": {
+                "name": "Naam",
+                "email": "E-mail",
+                "status": "Status",
+                "roles": "Rollen",
+                "created": "Aangemaakt",
+                "actions": "Acties"
+            },
+            "filters": {
+                "names": "Namen filteren…",
+                "email": "E-mail filteren…",
+                "allStatuses": "Alle statussen",
+                "allRoles": "Alle rollen",
+                "createdFrom": "Aangemaakt vanaf",
+                "createdTo": "Aangemaakt tot"
+            },
+            "table": {
+                "eyebrow": "Register",
+                "count_one": "{{count}} gebruiker",
+                "count_other": "{{count}} gebruikers",
+                "description": "Doorzoek het register, verfijn afzonderlijke kolommen en beheer toegang vanuit één overzicht.",
+                "searchLabel": "Gebruikers zoeken",
+                "searchPlaceholder": "Zoeken op naam, e-mail, status of rol…",
+                "loading": "Gebruikers laden",
+                "emptyTitle": "Nog geen gebruikers",
+                "emptyDescription": "Maak de eerste gebruiker aan om het toegangsregister op te bouwen.",
+                "filteredEmptyTitle": "Geen gebruikers voldoen aan je filters",
+                "filteredEmptyDescription": "Pas de zoekopdracht aan of herstel de actieve filters om meer gebruikers te zien.",
+                "itemLabel": "gebruikers"
+            },
+            "errors": {
+                "loadFailed": "Gebruikersgegevens konden niet worden geladen.",
+                "inviteFailed": "De gebruiker kon niet worden uitgenodigd.",
+                "updateFailed": "De gebruiker kon niet worden bijgewerkt.",
+                "disableFailed": "De gebruiker kon niet worden uitgeschakeld.",
+                "enableFailed": "De gebruiker kon niet worden ingeschakeld.",
+                "saveFailed": "De gebruiker kon niet worden opgeslagen.",
+                "editableRequired": "Een bewerkbare gebruiker is vereist."
+            },
+            "validation": {
+                "rolesRequired": "Kies minstens één rol."
+            },
+            "item": "gebruiker"
+        },
+        "roles": {
+            "page": {
+                "eyebrow": "Autorisatie",
+                "title": "Rollen",
+                "description": "Stel aangepaste rechtensets samen terwijl de systeemrollen voor eigenaar, beheerder en lezer beschermd blijven."
+            },
+            "states": {
+                "unavailableTitle": "Rollen niet beschikbaar",
+                "unavailableDescription": "Roldefinities konden niet voor deze sessie worden geladen."
+            },
+            "messages": {
+                "created": "Rol aangemaakt.",
+                "updated": "Rol bijgewerkt.",
+                "deleted": "Rol verwijderd."
+            },
+            "actions": {
+                "add": "Rol toevoegen",
+                "create": "Rol aanmaken",
+                "edit": "Bewerken",
+                "delete": "Verwijderen",
+                "deleting": "Rol verwijderen…",
+                "protected": "Beschermd",
+                "open": "Acties voor {{name}} openen",
+                "none": "Geen acties beschikbaar",
+                "assignedTo_one": "Toegewezen aan {{count}} gebruiker.",
+                "assignedTo_other": "Toegewezen aan {{count}} gebruikers.",
+                "removeDescription": "Deze aangepaste rol definitief verwijderen."
+            },
+            "confirm": {
+                "deleteTitle": "Rol verwijderen?",
+                "deleteDescription": "Weet je zeker dat je ‘{{name}}’ wilt verwijderen?",
+                "deleteWarning": "Deze actie kan niet ongedaan worden gemaakt."
+            },
+            "form": {
+                "key": "Sleutel",
+                "keyHint": "Vaste identificatie met kleine letters, bijvoorbeeld support.readonly.",
+                "name": "Naam",
+                "description": "Beschrijving",
+                "permissions": "Rechten",
+                "permissionsReadOnly": "Je kunt rolgegevens bijwerken, maar deze rechtenset niet wijzigen.",
+                "createDescription": "Maak een herbruikbare rol aan en kies de rechten die deze verleent.",
+                "editDescription": "Werk de aangepaste roldefinitie en de rechtenset bij.",
+                "creating": "Rol aanmaken…",
+                "editTitle": "{{name}} bewerken"
+            },
+            "columns": {
+                "name": "Naam",
+                "description": "Beschrijving",
+                "type": "Type",
+                "permissions": "Rechten",
+                "users": "Gebruikers",
+                "created": "Aangemaakt",
+                "actions": "Acties"
+            },
+            "filters": {
+                "nameOrKey": "Naam of sleutel filteren…",
+                "descriptions": "Beschrijvingen filteren…",
+                "allTypes": "Alle typen",
+                "createdFrom": "Aangemaakt vanaf",
+                "createdTo": "Aangemaakt tot"
+            },
+            "type": {
+                "system": "Systeem",
+                "custom": "Aangepast"
+            },
+            "table": {
+                "eyebrow": "Register",
+                "count_one": "{{count}} rol",
+                "count_other": "{{count}} rollen",
+                "description": "Bekijk systeembeleid en beheer aangepaste rechtensets via één gedeelde tabel.",
+                "searchLabel": "Rollen zoeken",
+                "searchPlaceholder": "Zoeken op naam, sleutel, beschrijving of recht…",
+                "loading": "Rollen laden",
+                "emptyTitle": "Nog geen rollen",
+                "emptyDescription": "Maak de eerste aangepaste rol aan om een herbruikbaar toegangsbeleid te definiëren.",
+                "filteredEmptyTitle": "Geen rollen voldoen aan je filters",
+                "filteredEmptyDescription": "Pas de zoekopdracht aan of herstel de actieve filters om meer rollen te zien.",
+                "itemLabel": "rollen"
+            },
+            "cells": {
+                "permissionsAssigned_one": "{{count}} toegewezen",
+                "permissionsAssigned_other": "{{count}} toegewezen"
+            },
+            "permissions": {
+                "toggle": "Recht {{permission}} omschakelen"
+            },
+            "errors": {
+                "loadFailed": "Rolgegevens konden niet worden geladen.",
+                "createFailed": "De rol kon niet worden aangemaakt.",
+                "updateFailed": "De rol kon niet worden bijgewerkt.",
+                "deleteFailed": "De rol kon niet worden verwijderd.",
+                "saveFailed": "De rol kon niet worden opgeslagen.",
+                "editableRequired": "Een bewerkbare rol is vereist."
+            },
+            "validation": {
+                "keyMin": "De rolsleutel moet minstens 2 tekens bevatten.",
+                "keyMax": "De rolsleutel mag maximaal 100 tekens bevatten.",
+                "keyPattern": "Gebruik kleine letters, cijfers, punten, streepjes of onderstrepingstekens.",
+                "nameRequired": "Voer een rolnaam in.",
+                "nameMax": "De rolnaam mag maximaal 100 tekens bevatten.",
+                "descriptionMax": "De beschrijving mag maximaal 500 tekens bevatten."
+            },
+            "item": "rol"
+        },
+        "certificates": {
+            "page": {
+                "eyebrow": "TLS-beheer",
+                "title": "Certificaten",
+                "description": "Beheer geïmporteerde certificaten en ACME-uitgifte voor proxy- en omleidingshosts."
+            },
+            "table": {
+                "eyebrow": "Certificaatopslag",
+                "count_one": "{{count}} certificaat",
+                "count_other": "{{count}} certificaten",
+                "description": "Bekijk domeindekking, levenscyclusstatus en hosttoewijzingen van certificaten.",
+                "searchLabel": "Certificaten zoeken",
+                "searchPlaceholder": "Zoeken op naam, domein, bron, status of bewerking…",
+                "loading": "Certificaten laden",
+                "emptyTitle": "Nog geen certificaten",
+                "emptyDescription": "Importeer een certificaat of vraag er een aan via ACME.",
+                "filteredEmptyTitle": "Geen certificaten voldoen aan je filters",
+                "filteredEmptyDescription": "Pas de zoekopdracht aan of herstel de actieve filters.",
+                "itemLabel": "certificaten"
+            },
+            "columns": {
+                "name": "Naam",
+                "domains": "Domeinen",
+                "source": "Bron",
+                "status": "Status",
+                "operation": "Bewerking",
+                "expires": "Verloopt",
+                "actions": "Acties"
+            },
+            "source": {
+                "manual": "Handmatig",
+                "acme": "ACME"
+            },
+            "status": {
+                "pending": "In afwachting",
+                "valid": "Geldig",
+                "expiring": "Verloopt binnenkort",
+                "expired": "Verlopen",
+                "failed": "Mislukt",
+                "candidate": "Wacht op activering"
+            },
+            "operation": {
+                "idle": "Geen bewerking actief",
+                "operationId": "Bewerkings-ID"
+            },
+            "operationKinds": {
+                "issue": "Uitgifte",
+                "renew": "Vernieuwing",
+                "import": "Importeren"
+            },
+            "operationStages": {
+                "queued": "In de wachtrij",
+                "creating_order": "ACME-bestelling aanmaken",
+                "preparing_challenge": "Verificatie voorbereiden",
+                "waiting_for_validation": "Wachten op validatie",
+                "finalizing": "Certificaat afronden",
+                "certificate_ready": "Certificaat gereed",
+                "applying": "Certificaat toepassen",
+                "applied": "Toegepast",
+                "retry_scheduled": "Nieuwe poging gepland",
+                "failed": "Mislukt",
+                "needs_attention": "Aandacht vereist"
+            },
+            "cells": {
+                "moreDomains": "Nog {{count}} domeinen tonen"
+            },
+            "stagingWarning": "Testomgeving – certificaten worden niet vertrouwd door normale browsers.",
+            "actions": {
+                "import": "Certificaat importeren",
+                "request": "Aanvragen via ACME",
+                "requestForHost": "Certificaat voor deze host aanvragen",
+                "details": "Details",
+                "renew": "Vernieuwen",
+                "retry": "Activering opnieuw proberen",
+                "replace": "Vervangen",
+                "delete": "Verwijderen",
+                "saving": "Opslaan…",
+                "requesting": "Aanvragen…",
+                "renewing": "Vernieuwen…",
+                "deleting": "Verwijderen…",
+                "open": "Certificaatacties voor {{name}} openen"
+            },
+            "details": {
+                "title": "Certificaat: {{name}}",
+                "description": "Metagegevens en huidige toewijzingen.",
+                "metadata": "Certificaatmetagegevens",
+                "validUntil": "Geldig tot",
+                "autoRenew": "Automatische vernieuwing",
+                "autoRenewAcme": "ACME actief",
+                "autoRenewManual": "Handmatige import",
+                "environment": "Omgeving",
+                "challengeType": "Verificatietype",
+                "san": "Alternatieve onderwerpnamen (SAN)",
+                "issuer": "Uitgever",
+                "issuedAt": "Uitgegeven",
+                "fingerprint": "Vingerafdruk",
+                "assignedHosts": "Toegewezen hosts",
+                "attemptCount": "Aantal pogingen",
+                "retryStatus": "Status van nieuwe poging",
+                "retryScheduled": "Nieuwe poging gepland",
+                "retryFailed": "Laatste poging mislukt",
+                "retryNone": "Geen nieuwe poging gepland",
+                "nextRenewalAt": "Volgende vernieuwing",
+                "nextAttemptAt": "Volgende poging",
+                "lastAttemptAt": "Laatste poging",
+                "lastSuccessAt": "Laatste succes",
+                "lastActivatedAt": "Laatste activering",
+                "lastErrorAt": "Laatste fout",
+                "operationStatus": "Bewerkingsstatus",
+                "currentOperation": "Huidige bewerking",
+                "operationId": "Bewerkings-ID",
+                "operationKind": "Bewerkingstype",
+                "operationStage": "Bewerkingsfase",
+                "operationStartedAt": "Bewerking gestart",
+                "operationUpdatedAt": "Bewerking bijgewerkt",
+                "candidate": "Uitgegeven kandidaat wacht op activering",
+                "candidateIssuedAt": "Kandidaat uitgegeven",
+                "candidateExpiresAt": "Kandidaat verloopt",
+                "candidateFingerprint": "Vingerafdruk van kandidaat",
+                "candidateNextAttemptAt": "Volgende activeringspoging",
+                "dnsCleanupPending": "De DNS-opruiming moet nog worden voltooid voordat een nieuwe ACME-poging kan starten."
+            },
+            "import": {
+                "title": "Certificaat importeren",
+                "description": "Lever een certificaat en de bijbehorende privésleutel aan. PEM-waarden worden alleen voor deze actie verstuurd."
+            },
+            "replace": {
+                "title": "Certificaat vervangen",
+                "description": "Vervang het opgeslagen materiaal en behoud de toewijzing van dit certificaat."
+            },
+            "form": {
+                "name": "Naam",
+                "certificatePem": "Certificaat-PEM",
+                "certificatePemHint": "Plak de PEM-certificaatketen zonder de inhoud te wijzigen.",
+                "privateKeyPem": "Privésleutel-PEM",
+                "privateKeyPemHint": "De sleutel wordt alleen voor dit verzoek verstuurd en wordt nooit in de browsercache opgeslagen.",
+                "chainPem": "Keten-PEM (optioneel)",
+                "chainPemHint": "Voeg de uitgeversketen toe als deze niet in het certificaat is opgenomen.",
+                "domains": "Domeinen",
+                "domainsHint": "Voer één openbare DNS-naam per regel in.",
+                "challengeType": "ACME-verificatie",
+                "httpChallengeHint": "HTTP-01 valideert elke naam via de bereikbare poort 80. Namen met een wildcard vereisen DNS-01.",
+                "dnsWildcardHint": "DNS-01 ondersteunt wildcardnamen en gewone namen samen. Alle namen moeten tot dezelfde Cloudflare-zone behoren.",
+                "dnsProviderHint": "Cloudflare DNS-inloggegevens worden alleen tijdens de validatie gebruikt en worden nooit met certificaatmetagegevens teruggestuurd.",
+                "dnsZoneId": "Cloudflare-zone-ID",
+                "dnsApiToken": "Cloudflare-API-token",
+                "environment": "ACME-omgeving",
+                "productionHint": "De productieomgeving geeft een openbaar vertrouwd certificaat uit voor normaal gebruik.",
+                "stagingHint": "Staging is een testomgeving; certificaten worden niet vertrouwd door normale browsers.",
+                "contactEmail": "Contact-e-mail (optioneel)",
+                "contactHint": "Wordt voor ACME-meldingen gebruikt als de uitgever dit ondersteunt.",
+                "acceptTerms": "Ik accepteer de ACME-servicevoorwaarden",
+                "termsHint": "Productieaanvragen vereisen uitdrukkelijke acceptatie."
+            },
+            "environment": {
+                "staging": "Testomgeving",
+                "production": "Productie"
+            },
+            "challenge": {
+                "http01": "HTTP-01",
+                "dns01": "DNS-01 (Cloudflare)"
+            },
+            "request": {
+                "title": "ACME-certificaat aanvragen",
+                "description": "Vraag een certificaat voor openbare domeinen aan via de gekozen ACME-omgeving.",
+                "networkHint": "ACME-validatie vereist openbare DNS. HTTP-01 vereist ook een bereikbare poort 80 voor elk domein."
+            },
+            "confirm": {
+                "renewTitle": "{{name}} vernieuwen?",
+                "renewDescription": "Start een nieuwe ACME-bestelling voor dit certificaat.",
+                "retryTitle": "Activering voor {{name}} opnieuw proberen?",
+                "retryDescription": "Probeer de uitgegeven certificaatkandidaat opnieuw te activeren.",
+                "deleteTitle": "{{name}} verwijderen?",
+                "deleteDescription": "Dit verwijdert het ongebruikte certificaat definitief.",
+                "deleteAssignedDescription_one": "Dit certificaat wordt momenteel door {{count}} host gebruikt. Verwijderen schakelt HTTPS voor die host uit en schakelt waar nodig HTTPS afdwingen uit. De host en de HTTP-routering blijven beschikbaar.",
+                "deleteAssignedDescription_other": "Dit certificaat wordt momenteel door {{count}} hosts gebruikt. Verwijderen schakelt HTTPS voor deze hosts uit en schakelt waar nodig HTTPS afdwingen uit. De hosts en hun HTTP-routering blijven beschikbaar."
+            },
+            "states": {
+                "unavailableTitle": "Certificaten zijn niet beschikbaar",
+                "unavailableDescription": "De certificaatlijst kon niet worden geladen. Probeer het opnieuw."
+            },
+            "filters": {
+                "allSources": "Alle bronnen",
+                "allStatuses": "Alle statussen"
+            },
+            "messages": {
+                "imported": "Certificaat geïmporteerd.",
+                "replaced": "Certificaat vervangen.",
+                "requested": "Certificaataanvraag gestart.",
+                "renewing": "Certificaatvernieuwing gestart.",
+                "deleted": "Certificaat verwijderd.",
+                "deletePending": "Synchronisatie met de actieve proxy is nog niet voltooid. Het certificaat is behouden en kan na synchronisatie worden verwijderd."
+            },
+            "errors": {
+                "loadFailed": "Certificaten konden niet worden geladen.",
+                "actionFailed": "De certificaatactie kon niet worden voltooid.",
+                "importFailed": "Het certificaat kon niet worden geïmporteerd.",
+                "requestFailed": "De ACME-aanvraag kon niet worden gestart.",
+                "renewFailed": "Het certificaat kon niet worden vernieuwd.",
+                "deleteFailed": "Het certificaat kon niet worden verwijderd.",
+                "invalid_input": "Controleer de ingediende certificaatwaarden.",
+                "invalid_certificate": "Het certificaat is ongeldig.",
+                "key_mismatch": "De privésleutel komt niet overeen met het certificaat.",
+                "certificate_expired": "Het certificaat is verlopen.",
+                "domain_mismatch": "Het certificaat dekt niet alle hostdomeinen.",
+                "certificate_not_found": "Het certificaat bestaat niet meer.",
+                "certificate_in_use": "Het certificaat is nog toegewezen aan een proxy- of omleidingshost.",
+                "operation_in_progress": "Er is al een andere certificaatbewerking actief.",
+                "acme_terms_required": "Accepteer de ACME-voorwaarden voordat je een certificaat aanvraagt.",
+                "acme_domain_invalid": "ACME vereist openbare DNS-domeinen.",
+                "acme_failed": "De ACME-bestelling is mislukt.",
+                "acme_dns_required": "DNS-01 vereist een DNS-provider.",
+                "dns_provider_invalid": "De DNS-providerconfiguratie is ongeldig.",
+                "dns_provider_unavailable": "De DNS-provider kon niet worden bereikt.",
+                "dns_provider_unauthorized": "De DNS-provider heeft de inloggegevens geweigerd.",
+                "dns_cleanup_failed": "Het opruimen van de DNS-verificatie is mislukt.",
+                "dns_credentials_unavailable": "DNS-inloggegevens zijn niet beschikbaar.",
+                "runtime_apply_failed": "Het certificaat is opgeslagen, maar kon niet op de actieve proxy worden toegepast.",
+                "certificate_store_unavailable": "De certificaatopslag is niet beschikbaar.",
+                "controller_unavailable": "De proxycontroller is niet beschikbaar."
+            },
+            "validation": {
+                "name": "Voer een certificaatnaam in.",
+                "certificatePem": "Voer een certificaat-PEM in.",
+                "privateKeyPem": "Voer een privésleutel-PEM in.",
+                "pemLimit": "Deze PEM-waarde is te groot.",
+                "publicDomain": "Gebruik een openbaar DNS-domein.",
+                "wildcardRequiresDns01": "Wildcardnamen vereisen DNS-01-verificatie.",
+                "duplicateDomain": "Elk domein mag maar één keer voorkomen.",
+                "dnsProviderRequired": "Geef een Cloudflare DNS-provider op voor DNS-01.",
+                "dnsProviderHttp": "HTTP-01 accepteert geen DNS-providerinloggegevens.",
+                "dnsZoneId": "Voer een Cloudflare-zone-ID van 32 kleine letters en cijfers in.",
+                "dnsApiToken": "Voer een geldig Cloudflare-API-token zonder witruimte in.",
+                "email": "Voer een geldig e-mailadres in.",
+                "terms": "Accepteer de ACME-voorwaarden."
+            },
+            "tabs": {
+                "label": "Certificaattype",
+                "server": "Servercertificaten",
+                "trusted": "Vertrouwde CA’s"
+            }
+        },
+        "proxyHosts": {
+            "page": {
+                "eyebrow": "Proxybeheer",
+                "title": "Proxyhosts",
+                "description": "Beheer domeinen, doorstuurdoelen en de configuratie van de actieve proxy."
+            },
+            "runtime": {
+                "title": "Actieve proxy",
+                "synced": "Actieve proxy gesynchroniseerd",
+                "syncedDescription": "De actieve proxyconfiguratie komt overeen met de opgeslagen configuratie.",
+                "pending": "Opgeslagen wijzigingen wachten op toepassing.",
+                "pendingDescription": "De laatst succesvol toegepaste configuratie blijft actief totdat de opgeslagen wijzigingen worden toegepast.",
+                "unavailable": "Actieve proxy niet beschikbaar.",
+                "unavailableDescription": "De actieve proxy kan momenteel niet worden bereikt. Opgeslagen wijzigingen blijven in de wachtrij om later te worden toegepast.",
+                "apply": "Wijzigingen toepassen",
+                "applying": "Toepassen…",
+                "applied": "Actieve proxy bijgewerkt.",
+                "applyFailed": "De actieve proxy kon niet worden bijgewerkt. Opgeslagen wijzigingen blijven beschikbaar om later toe te passen.",
+                "savedPending": "Opgeslagen wijzigingen wachten op toepassing."
+            },
+            "messages": {
+                "created": "Proxyhost aangemaakt.",
+                "updated": "Proxyhost bijgewerkt.",
+                "deleted": "Proxyhost verwijderd.",
+                "enabled": "Proxyhost ingeschakeld.",
+                "disabled": "Proxyhost uitgeschakeld."
+            },
+            "certificateJob": {
+                "background": {
+                    "title": "Certificaataanvraag",
+                    "success": "Certificaat toegewezen.",
+                    "failure": "De certificaataanvraag vereist aandacht.",
+                    "retry": "Opnieuw proberen",
+                    "viewCertificate": "Certificaat bekijken"
+                },
+                "messages": {
+                    "queued": "Certificaataanvraag in de wachtrij geplaatst.",
+                    "retried": "Nieuwe certificaatpoging in de wachtrij geplaatst."
+                },
+                "errors": {
+                    "host_changed": "De proxyhost is gewijzigd. Controleer de domeinen en probeer het opnieuw.",
+                    "host_deleted": "De proxyhost bestaat niet meer.",
+                    "permission_revoked": "Je certificaatrechten zijn ingetrokken.",
+                    "certificate_deleted": "Het materiaal van de certificaattaak is verwijderd.",
+                    "certificate_used_elsewhere": "Het certificaat is al ergens anders toegewezen.",
+                    "idempotency_conflict": "Deze verzoeksleutel is al voor een ander verzoek gebruikt.",
+                    "job_not_found": "De certificaattaak kon niet worden gevonden.",
+                    "actionFailed": "De actie voor de certificaattaak is mislukt.",
+                    "loadFailed": "De status van de certificaattaak kon niet worden geladen."
+                }
+            },
+            "states": {
+                "unavailableTitle": "Proxyhosts zijn niet beschikbaar",
+                "unavailableDescription": "De opgeslagen proxyhosts konden niet worden geladen. Probeer het opnieuw."
+            },
+            "actions": {
+                "add": "Proxyhost toevoegen",
+                "create": "Proxyhost aanmaken",
+                "edit": "Bewerken",
+                "enable": "Inschakelen",
+                "disable": "Uitschakelen",
+                "delete": "Verwijderen",
+                "deleting": "Verwijderen…",
+                "disabling": "Uitschakelen…",
+                "open": "Acties voor {{name}} openen",
+                "none": "Geen acties beschikbaar",
+                "disableDescription": "Deze proxyhost als uitgeschakeld opslaan.",
+                "enableDescription": "Deze proxyhost als ingeschakeld opslaan.",
+                "deleteDescription": "‘{{name}}’ definitief verwijderen.",
+                "config": "Configuratie"
+            },
+            "confirm": {
+                "deleteTitle": "Proxyhost verwijderen?",
+                "deleteDescription": "De proxyhost voor ‘{{name}}’ en alle bijbehorende domeintoewijzingen worden verwijderd.",
+                "deleteWarning": "Deze actie kan niet ongedaan worden gemaakt.",
+                "deleteLabel": "Proxyhost verwijderen",
+                "disableTitle": "Proxyhost uitschakelen?",
+                "disableDescription": "Hiermee wordt de proxyhost als uitgeschakeld opgeslagen en uit de volgende actieve proxyconfiguratie verwijderd.",
+                "disableLabel": "Proxyhost uitschakelen",
+                "saveDisabled": "Opslaan en uitschakelen"
+            },
+            "form": {
+                "description": "Sla domeinen en een doorstuurdoel op voor de actieve proxyconfiguratie.",
+                "editTitle": "Proxyhost bewerken",
+                "creating": "Aanmaken…",
+                "domains": "Domeinen",
+                "domainLabel": "Domein {{number}}",
+                "domainPlaceholder": "example.com",
+                "removeDomain": "Domein {{number}} verwijderen",
+                "addDomain": "Domein toevoegen",
+                "domainsHint": "Voeg 1–50 DNS-namen toe. Internationale namen worden als ASCII/Punycode opgeslagen. Wildcards en IP-adressen worden hier niet ondersteund.",
+                "forwardScheme": "Doorstuurprotocol",
+                "forwardHost": "Doorstuurhost",
+                "forwardPort": "Doorstuurpoort",
+                "forwardHostPlaceholder": "192.168.1.50",
+                "forwardHostHint": "Voer een hostnaam, IPv4- of IPv6-adres in zonder protocol, pad of poort.",
+                "enabledHint": "Ingeschakelde hosts worden in de volgende actieve proxyconfiguratie opgenomen.",
+                "statusReadOnly": "Je hebt geen toestemming om de opgeslagen status van deze proxyhost te wijzigen.",
+                "certificate": "TLS-certificaat",
+                "noCertificate": "Geen certificaat",
+                "certificateHint": "Wijs een bruikbaar certificaat toe dat alle hostdomeinen dekt.",
+                "accessPolicy": "Toegangsbeleid",
+                "noAccessPolicy": "Geen toegangsbeleid",
+                "accessPolicyHint": "Openbare hosts of hosts zonder toewijzing staan verzoeken toe. Beperkte modi weigeren momenteel alle verzoeken totdat hun providers zijn ingesteld.",
+                "forceHttps": "HTTPS afdwingen",
+                "forceHttpsHint": "Leid HTTP-verzoeken voor deze host om naar HTTPS.",
+                "forceHttpsRequiresCertificate": "Wijs eerst een bruikbaar certificaat toe dat alle domeinen dekt."
+            },
+            "status": {
+                "enabled": "Ingeschakeld",
+                "disabled": "Uitgeschakeld"
+            },
+            "scheme": {
+                "http": "HTTP",
+                "https": "HTTPS"
+            },
+            "columns": {
+                "domains": "Domeinen",
+                "forward": "Doorstuurdoel",
+                "status": "Status",
+                "created": "Aangemaakt",
+                "actions": "Acties"
+            },
+            "filters": {
+                "domains": "Domeinen filteren…",
+                "allSchemes": "Alle protocollen",
+                "allStatuses": "Alle statussen",
+                "createdFrom": "Aangemaakt vanaf",
+                "createdTo": "Aangemaakt tot"
+            },
+            "cells": {
+                "moreDomains": "Nog {{count}} domeinen tonen",
+                "showDomain": "Domein {{domain}} tonen"
+            },
+            "table": {
+                "eyebrow": "Opgeslagen configuratie",
+                "count_one": "{{count}} proxyhost",
+                "count_other": "{{count}} proxyhosts",
+                "description": "Bekijk opgeslagen domeinen, doorstuurdoelen en de gewenste status.",
+                "searchLabel": "Proxyhosts zoeken",
+                "searchPlaceholder": "Zoeken op domein, doel, protocol, poort of status…",
+                "loading": "Proxyhosts laden",
+                "emptyTitle": "Nog geen proxyhosts",
+                "emptyDescription": "Voeg een proxyhost toe om domeinen en een doorstuurdoel op te slaan.",
+                "filteredEmptyTitle": "Geen proxyhosts voldoen aan je filters",
+                "filteredEmptyDescription": "Pas de zoekopdracht aan of herstel de actieve filters om meer proxyhosts te zien.",
+                "itemLabel": "proxyhosts"
+            },
+            "errors": {
+                "loadFailed": "Proxyhosts konden niet worden geladen.",
+                "saveFailed": "De proxyhost kon niet worden opgeslagen.",
+                "deleteFailed": "De proxyhost kon niet worden verwijderd.",
+                "enableFailed": "De proxyhost kon niet worden ingeschakeld.",
+                "disableFailed": "De proxyhost kon niet worden uitgeschakeld.",
+                "domain_conflict": "Dit domein is al aan een andere proxyhost toegewezen.",
+                "proxy_host_not_found": "De proxyhost bestaat niet meer.",
+                "invalid_status_transition": "De proxyhost heeft die status al. Vernieuw de lijst en probeer het opnieuw.",
+                "invalid_input": "Controleer de proxyhostwaarden en probeer het opnieuw."
+            },
+            "validation": {
+                "domain": "Voer een geldige DNS-naam in zonder URL, IP-adres of wildcard.",
+                "domainsRequired": "Voeg minstens één domein toe.",
+                "domainsLimit": "Een proxyhost mag maximaal 50 domeinen hebben.",
+                "duplicateDomain": "Dit domein staat meer dan één keer in de lijst.",
+                "forwardHost": "Voer een geldige hostnaam, IPv4- of IPv6-adres in zonder protocol, pad of poort.",
+                "port": "Voer een geheel poortnummer van 1 tot 65535 in.",
+                "upstreamTlsServerName": "Voer een DNS-servernaam in zonder URL, poort, IP-adres of wildcard.",
+                "trustedCaRequiresVerification": "Aangepaste vertrouwde CA’s vereisen certificaatverificatie van de upstreamserver.",
+                "upstreamTlsIpNameRequired": "Voer de DNS-naam op het upstreamcertificaat in als je verbinding maakt met een IP-adres."
+            },
+            "config": {
+                "open": "Caddy-configuratie",
+                "title": "Caddy-configuratie",
+                "description": "Bekijk de actieve configuratie en pas HTTP-instellingen veilig aan.",
+                "settings": "HTTP-instellingen",
+                "fieldClientMaxBodySizeBytes": "Maximale verzoekinhoud",
+                "fieldProxyConnectTimeoutSeconds": "Verbindingstime-out voor upstream",
+                "fieldProxyReadTimeoutSeconds": "Antwoordtime-out voor upstream",
+                "fieldProxySendTimeoutSeconds": "Verzoektime-out voor upstream",
+                "fieldSendTimeoutSeconds": "Antwoordtermijn",
+                "fieldKeepaliveTimeoutSeconds": "Time-out voor inactieve verbindingen",
+                "bytes": "bytes",
+                "seconds": "seconden",
+                "active": "Actieve configuratie",
+                "defaults": "Gegenereerde standaardwaarden",
+                "preview": "Voorbeeld",
+                "previewing": "Voorbeeld opbouwen…",
+                "previewDescription": "Alleen een voorbeeld. Deze configuratie is niet geactiveerd.",
+                "sourceDescription": "Het actieve hostbestand is alleen-lezen. Bij het opslaan van wijzigingen wordt de volledige proxyconfiguratie gevalideerd en opnieuw geladen.",
+                "readOnly": "Je kunt de configuratie bekijken. Bewerken vereist zowel bijwerk- als toepassingsrechten.",
+                "help": "Gebruik de numerieke HTTP-instellingen die Caddy ondersteunt. Lege instellingen gebruiken de standaardwaarden van Caddy.",
+                "examples": "Ondersteunde velden",
+                "empty": "Geen aangepaste HTTP-instellingen. Gegenereerde standaardwaarden zijn in gebruik.",
+                "unavailable": "De configuratiebron is momenteel niet beschikbaar. Controleer de controller en laad opnieuw.",
+                "invalidLine": "Ongeldige HTTP-instelling. Gebruik een ondersteund veld en een ondersteunde waarde.",
+                "loading": "Configuratie laden…",
+                "reload": "Opnieuw laden",
+                "save": "Opslaan en toepassen",
+                "saving": "Opslaan en toepassen…",
+                "resetButton": "Standaardwaarden herstellen",
+                "resetTitle": "Gegenereerde standaardwaarden herstellen?",
+                "resetDescription": "Verwijdert aangepaste HTTP-instellingen en past de configuratie toe die uit je opgeslagen proxyhosts is gegenereerd. Je hosts en doorstuurdoelen blijven behouden.",
+                "resetConfirm": "Herstellen en toepassen",
+                "resetting": "Herstellen…",
+                "saved": "HTTP-instellingen opgeslagen en toegepast.",
+                "reset": "Gegenereerde standaardwaarden hersteld.",
+                "errors": {
+                    "loadFailed": "De configuratie kon niet worden geladen.",
+                    "saveFailed": "De HTTP-instellingen konden niet worden opgeslagen.",
+                    "previewFailed": "Het configuratievoorbeeld is niet beschikbaar.",
+                    "configuration_conflict": "De opgeslagen configuratie is gewijzigd terwijl deze editor open was. Laad deze opnieuw voordat je opslaat; je concept is behouden.",
+                    "runtime_unavailable": "De proxycontroller is niet beschikbaar. Opgeslagen instellingen blijven beschikbaar om later toe te passen.",
+                    "invalidSettings": "Deze HTTP-instellingen zijn ongeldig. Alleen de vermelde velden en waarden worden geaccepteerd.",
+                    "host_not_found": "Deze proxyhost bestaat niet meer. Sluit de editor en laad de hostlijst opnieuw.",
+                    "host_settings_unsupported": "Schrijf- en inactiviteitstime-outs per host blijven bewaard in het migratiearchief en kunnen niet voor nieuwe Caddy-hosts worden ingesteld."
+                },
+                "readOnlyLabel": "Alleen-lezen",
+                "reloadTitle": "Opgeslagen configuratie opnieuw laden?",
+                "reloadDescription": "Je niet-opgeslagen concept en voorbeeld worden verwijderd. De laatst opgeslagen instellingen worden geladen.",
+                "reloadConfirm": "Concept verwijderen en opnieuw laden",
+                "hostTitle": "Configuratie · {{name}}",
+                "globalTitle": "Globale Caddy HTTP-instellingen",
+                "globalDescription": "Pas gedeelde HTTP-instellingen aan en bekijk de actieve native Caddy-configuratie.",
+                "hostDescription": "Deze proxy heeft een eigen configuratie. Hostinstellingen overschrijven de gedeelde standaardwaarden.",
+                "hostOverview": "Hostconfiguratie",
+                "clientTransport": "Client HTTP / HTTPS",
+                "currentConfiguration": "Huidige configuratie",
+                "currentConfigurationStates": {
+                    "active": "Actieve configuratie geladen",
+                    "saved": "Opgeslagen voor de volgende activering",
+                    "unavailable": "Actieve configuratie niet beschikbaar"
+                },
+                "httpOnly": "Alleen HTTP",
+                "httpAndHttps": "HTTP en HTTPS",
+                "httpsRedirect": "HTTPS · HTTP-omleidingen ingeschakeld",
+                "upstreamHttp": "HTTP · geen upstream-TLS",
+                "upstreamTlsSystemTrust": "HTTPS · geverifieerd met systeemvertrouwen",
+                "upstreamTlsCustomTrust": "HTTPS · geverifieerd met aangepaste CA",
+                "sources": {
+                    "inherited": "Overgenomen",
+                    "override": "Overschrijving"
+                },
+                "effectiveValue": "Effectief: {{value}} {{unit}}",
+                "effectiveCaddyDefault": "Effectief: Caddy-standaardwaarde",
+                "hostActiveUnavailable": "Er is geen actieve configuratie beschikbaar voor deze host.",
+                "editTab": "Configuratie bewerken",
+                "views": "Configuratieweergave",
+                "sourceEditorLabel": "Caddy-configuratie van proxyhost",
+                "managedHelp": "Gebruik de ondersteunde numerieke velden hierboven. Beheer domeinen, doorstuurdoelen en status via Bewerken.",
+                "offlineHelp": "De controller is niet beschikbaar. Alleen de opgeslagen HTTP-instellingen van deze host worden getoond. Laat ze leeg om gedeelde standaardwaarden over te nemen; de volledige hostconfiguratie keert terug zodra de controller beschikbaar is.",
+                "inheritsDefaults": "Niet-ingestelde waarden nemen de gedeelde HTTP-instellingen over. Als er geen gedeelde waarde is ingesteld, gebruikt Caddy de ingebouwde standaardwaarde. Bij het herstellen van deze host worden alleen de eigen overschrijvingen verwijderd.",
+                "sharedDefaults": "Gedeelde standaardwaarden",
+                "caddyDefaults": "Geen aangepaste gedeelde HTTP-instellingen. De ingebouwde standaardwaarden van Caddy zijn van toepassing.",
+                "disabledHost": "Deze proxy is als uitgeschakeld opgeslagen. De configuratie blijft behouden voor de volgende activering. Openstaande wijzigingen moeten nog succesvol worden toegepast.",
+                "saveDisabled": "Opslaan voor later",
+                "hostSaved": "Hostconfiguratie opgeslagen en toegepast.",
+                "hostReset": "Deze host gebruikt nu de gedeelde standaardwaarden.",
+                "hostSavedDisabled": "Configuratie opgeslagen voor deze uitgeschakelde host. Deze wordt toegepast zodra de host wordt ingeschakeld.",
+                "hostResetTitle": "Standaardwaarden voor deze host herstellen?",
+                "hostResetDescription": "Verwijdert alleen de aangepaste instellingen voor ‘{{name}}’. Andere hosts en gedeelde standaardwaarden blijven ongewijzigd. Je hosts en doorstuurdoelen blijven behouden.",
+                "colorPreset": "Editorkleuren",
+                "colors": {
+                    "system": "Systeem",
+                    "midnight": "Middernacht",
+                    "paper": "Papier"
+                }
+            },
+            "upstreamTls": {
+                "title": "Upstream-TLS",
+                "verify": "Upstreamcertificaat verifiëren",
+                "verifyHint": "Verifieer de certificaatketen en de verwachte identiteit van de upstreamserver.",
+                "serverName": "TLS-servernaam",
+                "serverNamePlaceholder": "backend.internal.example",
+                "automatic": "Automatisch: {{name}}",
+                "serverNameHint": "De verwachte certificaatnaam en SNI. Laat leeg om de doorstuurhost te gebruiken. Dit wijzigt de HTTP Host-header niet.",
+                "ipHint": "Voor IP-doelen vereist deze proxy een DNS-certificaatnaam, ook bij een IP-SAN. De TCP-verbinding gebruikt nog steeds het ingestelde IP-adres.",
+                "ipNameRequired": "Voer de DNS-naam uit het upstreamcertificaat in om dit IP-doel te verifiëren.",
+                "trustedCa": "Vertrouwde CA",
+                "systemTrust": "Systeemvertrouwensopslag",
+                "trustHint": "Systeemvertrouwen gebruikt de CA-bundel van de proxy. Een aangepaste CA vervangt het systeemvertrouwen voor deze host.",
+                "insecureWarning": "Verificatie van het upstreamcertificaat is uitgeschakeld. De verbinding is versleuteld, maar RentnerProxy kan de identiteit van de upstreamserver niet verifiëren.",
+                "verificationDisabled": "Certificaatverificatie uitgeschakeld",
+                "caUnavailable": "Gekozen CA niet beschikbaar",
+                "caLoadFailed": "Vertrouwde CA’s konden niet worden geladen. De huidige keuze blijft behouden."
+            }
+        },
+        "redirectHosts": {
+            "page": {
+                "eyebrow": "Omleidingsbeheer",
+                "title": "Omleidingshosts",
+                "description": "Beheer domeinen die verzoeken naar een ander webadres omleiden."
+            },
+            "runtime": {
+                "title": "Actieve proxy",
+                "synced": "Actieve proxy gesynchroniseerd",
+                "syncedDescription": "De actieve omleidingsconfiguratie komt overeen met de opgeslagen configuratie.",
+                "pending": "Opgeslagen wijzigingen wachten op toepassing.",
+                "pendingDescription": "De actieve configuratie blijft in gebruik totdat opgeslagen wijzigingen worden toegepast.",
+                "unavailable": "Actieve proxy niet beschikbaar.",
+                "unavailableDescription": "Opgeslagen omleidingswijzigingen blijven in de wachtrij om later toe te passen.",
+                "apply": "Wijzigingen toepassen",
+                "applying": "Toepassen…",
+                "applied": "Actieve proxy bijgewerkt.",
+                "applyFailed": "De actieve proxy kon niet worden bijgewerkt.",
+                "savedPending": "Opgeslagen wijzigingen wachten op toepassing."
+            },
+            "messages": {
+                "created": "Omleidingshost aangemaakt.",
+                "updated": "Omleidingshost bijgewerkt.",
+                "deleted": "Omleidingshost verwijderd.",
+                "enabled": "Omleidingshost ingeschakeld.",
+                "disabled": "Omleidingshost uitgeschakeld."
+            },
+            "states": {
+                "unavailableTitle": "Omleidingshosts zijn niet beschikbaar",
+                "unavailableDescription": "De opgeslagen omleidingshosts konden niet worden geladen. Probeer het opnieuw."
+            },
+            "actions": {
+                "add": "Omleidingshost toevoegen",
+                "create": "Omleidingshost aanmaken",
+                "edit": "Bewerken",
+                "enable": "Inschakelen",
+                "disable": "Uitschakelen",
+                "delete": "Verwijderen",
+                "deleting": "Verwijderen…",
+                "disabling": "Uitschakelen…",
+                "open": "Acties voor {{name}} openen",
+                "none": "Geen acties beschikbaar",
+                "disableDescription": "Deze omleidingshost als uitgeschakeld opslaan.",
+                "enableDescription": "Deze omleidingshost als ingeschakeld opslaan.",
+                "deleteDescription": "‘{{name}}’ definitief verwijderen."
+            },
+            "confirm": {
+                "deleteTitle": "Omleidingshost verwijderen?",
+                "deleteDescription": "De omleidingshost voor ‘{{name}}’ en alle bijbehorende domeintoewijzingen worden verwijderd.",
+                "deleteWarning": "Deze actie kan niet ongedaan worden gemaakt.",
+                "deleteLabel": "Omleidingshost verwijderen",
+                "disableTitle": "Omleidingshost uitschakelen?",
+                "disableDescription": "Hiermee wordt de omleidingshost als uitgeschakeld opgeslagen en uit de volgende actieve proxyconfiguratie verwijderd.",
+                "disableLabel": "Omleidingshost uitschakelen",
+                "saveDisabled": "Opslaan en uitschakelen"
+            },
+            "form": {
+                "description": "Sla domeinen en een bestemming op voor de actieve proxyconfiguratie.",
+                "editTitle": "Omleidingshost bewerken",
+                "creating": "Aanmaken…",
+                "domains": "Domeinen",
+                "domainLabel": "Domein {{number}}",
+                "domainPlaceholder": "example.com",
+                "removeDomain": "Domein {{number}} verwijderen",
+                "addDomain": "Domein toevoegen",
+                "domainsHint": "Voeg 1–50 DNS-namen toe. Wildcards en IP-adressen worden hier niet ondersteund.",
+                "destination": "Bestemmings-URL",
+                "destinationPlaceholder": "https://example.com/new-path",
+                "destinationHint": "Gebruik een absolute HTTP- of HTTPS-URL. Querystrings zijn niet toegestaan bij het behouden van de verzoek-URI.",
+                "statusCode": "Omleidingsstatus",
+                "certificate": "TLS-certificaat",
+                "noCertificate": "Geen certificaat",
+                "certificateHint": "Wijs een bruikbaar certificaat toe om HTTPS voor deze omleidingshost aan te bieden.",
+                "preserveRequestUri": "Verzoek-URI behouden",
+                "preserveRequestUriHint": "Voeg het binnenkomende pad en de querystring toe aan de basisbestemming.",
+                "replaceRequestUri": "Verzoek-URI vervangen",
+                "enabledHint": "Ingeschakelde hosts worden in de volgende actieve proxyconfiguratie opgenomen.",
+                "statusReadOnly": "Je hebt geen toestemming om de opgeslagen status van deze omleidingshost te wijzigen."
+            },
+            "status": {
+                "enabled": "Ingeschakeld",
+                "disabled": "Uitgeschakeld"
+            },
+            "statusCodes": {
+                "301": "301 · Permanent",
+                "302": "302 · Gevonden",
+                "307": "307 · Tijdelijk",
+                "308": "308 · Permanent"
+            },
+            "columns": {
+                "domains": "Domeinen",
+                "destination": "Bestemming",
+                "statusCode": "Statuscode",
+                "certificate": "Certificaat/HTTPS",
+                "status": "Status",
+                "created": "Aangemaakt",
+                "actions": "Acties"
+            },
+            "filters": {
+                "domains": "Domeinen filteren…",
+                "allStatusCodes": "Alle statuscodes",
+                "allStatuses": "Alle statussen",
+                "createdFrom": "Aangemaakt vanaf",
+                "createdTo": "Aangemaakt tot"
+            },
+            "cells": {
+                "https": "HTTPS-certificaat",
+                "http": "HTTP"
+            },
+            "table": {
+                "eyebrow": "Opgeslagen configuratie",
+                "count_one": "{{count}} omleidingshost",
+                "count_other": "{{count}} omleidingshosts",
+                "description": "Bekijk opgeslagen domeinen, bestemmingen en het omleidingsgedrag.",
+                "searchLabel": "Omleidingshosts zoeken",
+                "searchPlaceholder": "Zoeken op domein, bestemming, statuscode of status…",
+                "loading": "Omleidingshosts laden",
+                "emptyTitle": "Nog geen omleidingshosts",
+                "emptyDescription": "Voeg een omleidingshost toe om een bestemming op te slaan.",
+                "filteredEmptyTitle": "Geen omleidingshosts voldoen aan je filters",
+                "filteredEmptyDescription": "Pas de zoekopdracht aan of herstel de actieve filters om meer omleidingshosts te zien.",
+                "itemLabel": "omleidingshosts"
+            },
+            "errors": {
+                "loadFailed": "Omleidingshosts konden niet worden geladen.",
+                "saveFailed": "De omleidingshost kon niet worden opgeslagen.",
+                "deleteFailed": "De omleidingshost kon niet worden verwijderd.",
+                "enableFailed": "De omleidingshost kon niet worden ingeschakeld.",
+                "disableFailed": "De omleidingshost kon niet worden uitgeschakeld.",
+                "certificatesLoadFailed": "Certificaten konden niet worden geladen.",
+                "host_not_found": "De omleidingshost bestaat niet meer.",
+                "domain_conflict": "Dit domein is al aan een andere host toegewezen.",
+                "invalid_status_transition": "De omleidingshost heeft die status al. Vernieuw de lijst en probeer het opnieuw.",
+                "invalid_input": "Controleer de omleidingshostwaarden en probeer het opnieuw."
+            },
+            "validation": {
+                "domain": "Voer een geldige DNS-naam in zonder URL, IP-adres of wildcard.",
+                "domainsRequired": "Voeg minstens één domein toe.",
+                "domainsLimit": "Een omleidingshost mag maximaal 50 domeinen hebben.",
+                "duplicateDomain": "Dit domein staat meer dan één keer in de lijst.",
+                "destination": "Voer een geldige absolute HTTP- of HTTPS-URL in zonder inloggegevens of een ongeldige escape."
+            }
+        },
+        "accessPolicies": {
+            "page": {
+                "eyebrow": "Toegangsbeheer",
+                "title": "Toegangsbeleid",
+                "description": "Definieer herbruikbaar beleid en wijs dit aan proxyhosts toe."
+            },
+            "runtime": {
+                "title": "Actief toegangsbeleid",
+                "synced": "Actief toegangsbeleid gesynchroniseerd",
+                "syncedDescription": "De actieve toegangsbeleidsconfiguratie komt overeen met de opgeslagen configuratie.",
+                "pending": "Opgeslagen toegangsbeleidswijzigingen wachten op toepassing.",
+                "pendingDescription": "De vorige toegangsbeleidsconfiguratie blijft actief totdat de opgeslagen wijzigingen worden toegepast.",
+                "unavailable": "Actief toegangsbeleid niet beschikbaar.",
+                "unavailableDescription": "De actieve proxy kan momenteel niet worden bereikt. Opgeslagen toegangsbeleidswijzigingen blijven in de wachtrij om later toe te passen.",
+                "apply": "Toegangsbeleidswijzigingen toepassen",
+                "applying": "Toepassen…",
+                "applyFailed": "De toegangsbeleidsconfiguratie kon niet worden toegepast.",
+                "savedPending": "Opgeslagen toegangsbeleidswijzigingen wachten op toepassing."
+            },
+            "messages": {
+                "created": "Toegangsbeleid aangemaakt.",
+                "updated": "Toegangsbeleid bijgewerkt.",
+                "deleted": "Toegangsbeleid verwijderd.",
+                "savedPending": "Toegangsbeleid opgeslagen. Wijzigingen wachten op toepassing.",
+                "applied": "Toegangsbeleidsconfiguratie toegepast."
+            },
+            "states": {
+                "unavailableTitle": "Toegangsbeleid niet beschikbaar",
+                "unavailableDescription": "De toegangsbeleidslijst kon niet worden geladen. Probeer het opnieuw."
+            },
+            "actions": {
+                "add": "Toegangsbeleid toevoegen",
+                "create": "Toegangsbeleid aanmaken",
+                "edit": "Bewerken",
+                "delete": "Verwijderen",
+                "deleting": "Verwijderen…",
+                "open": "Acties voor {{name}} openen",
+                "none": "Geen acties beschikbaar",
+                "deleteDescription": "‘{{name}}’ definitief verwijderen.",
+                "deleteAssigned": "Toegewezen aan proxyhosts — verwijder eerst deze toewijzingen."
+            },
+            "confirm": {
+                "deleteTitle": "Toegangsbeleid verwijderen?",
+                "deleteDescription": "Het toegangsbeleid ‘{{name}}’ wordt verwijderd.",
+                "deleteWarning": "Deze actie kan niet ongedaan worden gemaakt."
+            },
+            "form": {
+                "description": "Kies hoe dit beleid verzoeken behandelt zodra het is toegepast.",
+                "editTitle": "Toegangsbeleid bewerken",
+                "creating": "Aanmaken…",
+                "name": "Beleidsnaam",
+                "mode": "Beveiligingsmodus",
+                "modeHint": "Openbaar staat verzoeken zonder toegangscontrole toe. Beleid met authenticatie gebruikt Basic Auth of Forward Auth; IP-controles vereisen een ingestelde provider.",
+                "authenticationMethod": "Authenticatiemethode",
+                "basicAuth": "Basic Auth-accounts",
+                "forwardAuth": {
+                    "title": "Forward Auth",
+                    "description": "Stuur overeenkomende verzoeken naar een externe authenticatiedienst. Dit dashboard toont de opgeslagen configuratie en synchronisatie met de actieve proxy; het controleert de beschikbaarheid van de provider niet.",
+                    "provider": "Providervoorinstelling",
+                    "providers": {
+                        "generic": "Algemeen",
+                        "authentik": "Authentik",
+                        "authelia": "Authelia",
+                        "oauth2-proxy": "oauth2-proxy"
+                    },
+                    "endpoint": "URL van het authenticatie-eindpunt",
+                    "endpointHint": {
+                        "generic": "Voer de URL van het providerspecifieke authenticatie-eindpunt in.",
+                        "authentik": "Voorgesteld pad: /outpost.goauthentik.io/auth/caddy",
+                        "authelia": "Voorgesteld pad: /api/authz/forward-auth",
+                        "oauth2-proxy": "Voorgesteld pad: /oauth2/auth"
+                    },
+                    "gatewayPathPrefix": "Pad van de openbare authenticatiegateway",
+                    "gatewayPathPrefixHint": "Overeenkomende verzoeken op deze host worden vóór de authenticatiecontrole direct naar de authenticatiedienst gestuurd. Laat leeg als er geen openbaar gatewaypad nodig is.",
+                    "timeout": "Verzoektime-out (seconden)",
+                    "requestHeaders": "Deze verzoekheaders doorsturen",
+                    "responseHeaders": "Identiteitsheaders in het antwoord",
+                    "responseHeadersHint": "Eén headernaam per regel",
+                    "responseHeadersDescription": "Maximaal 16 toegestane identiteitsheaders. De providervoorinstelling vult de gebruikelijke gebruikers- en e-mailheaders in; pas deze naar behoefte aan."
+                },
+                "combination": "Regel voor gecombineerd beleid",
+                "availabilityTitle": "Basic Auth en beschikbaarheid van verzoeken",
+                "warningTitle": "Beveiligingsmethoden zijn niet ingesteld",
+                "warningDescription": "Totdat de vereiste providers beschikbaar zijn, weigert deze modus na toepassing elk verzoek. Controleer de actieve configuratie voordat je deze aan een actieve host toewijst.",
+                "ipRules": {
+                    "title": "IP-toegangsregels",
+                    "description": "Gebruik alleen het adres van de socketpeer. X-Forwarded-For wordt genegeerd; achter een proxy wordt het proxyadres beoordeeld.",
+                    "configure": "IP-toegang instellen",
+                    "configureHint": "Laat dit uitgeschakeld om de IP-provider uitgeschakeld te houden. Weigeren wordt als standaard aanbevolen.",
+                    "defaultAction": "Standaardactie",
+                    "defaultActionHint": "Weigeren wordt aanbevolen. Een weigervermelding krijgt voorrang als een adres met beide lijsten overeenkomt.",
+                    "allow": "Toestaanlijst",
+                    "allowHint": "Eén IP-adres of CIDR-netwerk per regel.",
+                    "deny": "Weigerlijst",
+                    "denyHint": "Eén IP-adres of CIDR-netwerk per regel. Weigeren krijgt voorrang als beide lijsten overeenkomen.",
+                    "denyRecommended": "Weigeren (aanbevolen)"
+                }
+            },
+            "availability": {
+                "publicIgnored": "Openbaar beleid — authenticatie en IP-regels worden genegeerd.",
+                "authenticatedAvailable": "Basic Auth is ingesteld en kan verzoeken toestaan.",
+                "authenticatedMissing": "Geen Basic Auth-accounts — verzoeken worden geweigerd.",
+                "ipRestrictedAvailable": "IP-toegang is ingesteld en kan overeenkomende verzoeken toestaan.",
+                "ipRestrictedMissing": "IP-toegang is niet ingesteld — verzoeken worden geweigerd.",
+                "ipRestrictedBlocksAll": "IP-toegang is ingesteld om alle verzoeken te weigeren.",
+                "combinedAllAvailable": "EN: Basic Auth en IP-toegang zijn beide ingesteld.",
+                "combinedAllMissingAuth": "EN: Basic Auth-accounts ontbreken — verzoeken worden geweigerd.",
+                "combinedAllMissingIp": "EN: IP-toegang is niet ingesteld — verzoeken worden geweigerd.",
+                "combinedAllMissingBoth": "EN: Basic Auth-accounts en IP-toegang ontbreken — verzoeken worden geweigerd.",
+                "combinedAllIpBlocksAll": "EN: IP-toegang is ingesteld om alle verzoeken te weigeren.",
+                "combinedAnyAvailableAuth": "OF: Basic Auth kan verzoeken toestaan, ook wanneer een IP-controle deze weigert.",
+                "combinedAnyAvailableIp": "OF: IP-toegang kan overeenkomende verzoeken toestaan wanneer deze is ingesteld.",
+                "combinedAnyAvailableBoth": "OF: Basic Auth of IP-toegang kan verzoeken toestaan.",
+                "combinedAnyIpBlocksAll": "OF: IP-toegang is ingesteld om alle verzoeken te weigeren.",
+                "combinedAnyMissing": "OF: geen toegangsmethode is ingesteld — verzoeken worden geweigerd.",
+                "forwardAuthConfigured": "Forward Auth is ingesteld. De beschikbaarheid van de provider wordt hier niet gecontroleerd.",
+                "forwardAuthMissing": "Het Forward Auth-eindpunt ontbreekt — verzoeken worden geweigerd."
+            },
+            "mode": {
+                "public": "Openbaar",
+                "authenticated": "Met authenticatie",
+                "ip-restricted": "Beperkt op IP",
+                "combined": "Gecombineerd",
+                "unconfigured": "Niet ingesteld — weigert alle verzoeken"
+            },
+            "combination": {
+                "all": "Alle controles moeten slagen",
+                "any": "Eén geslaagde controle is voldoende"
+            },
+            "combinationDescription": {
+                "all": "Authenticatie en IP-controle moeten beide slagen.",
+                "any": "Een geslaagde authenticatie of IP-controle is voldoende."
+            },
+            "columns": {
+                "name": "Naam",
+                "mode": "Modus",
+                "combination": "Combinatie",
+                "basicAuth": "Basic Auth",
+                "ipRules": "IP-toegang",
+                "assigned": "Toegewezen hosts",
+                "created": "Aangemaakt",
+                "actions": "Acties"
+            },
+            "cells": {
+                "assignedHosts_one": "{{count}} host",
+                "assignedHosts_other": "{{count}} hosts"
+            },
+            "ipRules": {
+                "defaultAction": {
+                    "allow": "Standaard toestaan",
+                    "deny": "Standaard weigeren"
+                },
+                "cells": {
+                    "summary": "{{action}}; {{count}} regels (toestaan: {{allow}}, weigeren: {{deny}})",
+                    "notConfigured": "Niet ingesteld"
+                }
+            },
+            "filters": {
+                "name": "Namen filteren…",
+                "allModes": "Alle modi",
+                "createdFrom": "Aangemaakt vanaf",
+                "createdTo": "Aangemaakt tot"
+            },
+            "table": {
+                "eyebrow": "Opgeslagen beleid",
+                "count_one": "{{count}} toegangsbeleid",
+                "count_other": "{{count}} toegangsbeleidsregels",
+                "description": "Doorzoek beleid, beveiligingsmodi en hosttoewijzingen.",
+                "searchLabel": "Toegangsbeleid zoeken",
+                "searchPlaceholder": "Zoeken op naam, modus of toewijzing…",
+                "loading": "Toegangsbeleid laden",
+                "emptyTitle": "Nog geen toegangsbeleid",
+                "emptyDescription": "Voeg beleid toe om herbruikbaar toegangsgedrag voor proxyhosts te definiëren.",
+                "filteredEmptyTitle": "Geen toegangsbeleid voldoet aan je filters",
+                "filteredEmptyDescription": "Pas de zoekopdracht aan of herstel de actieve filters om meer beleid te zien.",
+                "itemLabel": "toegangsbeleidsregels"
+            },
+            "basicAuth": {
+                "title": "Basic Auth-inloggegevens voor {{name}}",
+                "description": "Beheer gebruikersnamen en wachtwoorden voor dit beleid. Wachtwoorden worden nooit getoond of teruggestuurd.",
+                "status": {
+                    "available": "Basic Auth beschikbaar",
+                    "combinedAnyAvailable": "Basic Auth kan verzoeken toestaan",
+                    "combinedAnyMissing": "Geen Basic Auth-accounts — verzoeken worden geweigerd",
+                    "ipProviderRequired": "Gesloten totdat IP-toegang is ingesteld",
+                    "publicIgnored": "Genegeerd door het openbare beleid"
+                },
+                "form": {
+                    "createTitle": "Basic Auth-account toevoegen",
+                    "editTitle": "Basic Auth-account bewerken",
+                    "description": "Sla een gebruikersnaam en wachtwoord voor dit toegangsbeleid op.",
+                    "username": "Gebruikersnaam",
+                    "usernameHint": "Gebruik maximaal 64 ASCII-letters, cijfers, ., _, @ of -; begin met een letter of cijfer.",
+                    "password": "Wachtwoord",
+                    "passwordCreateHint": "Gebruik een wachtwoord van 1–256 tekens.",
+                    "passwordEditHint": "Laat leeg om het bestaande wachtwoord te behouden. Voer een nieuw wachtwoord in om het te vervangen.",
+                    "transportHint": "Gebruik HTTPS voor hosts die aan dit beleid zijn toegewezen. Het transport blijft bepaald door de instelling HTTPS afdwingen van elke host."
+                },
+                "actions": {
+                    "credentials": "Inloggegevens",
+                    "addAccount": "Account toevoegen",
+                    "editAccount": "Bewerken",
+                    "deleteAccount": "Verwijderen",
+                    "deleting": "Verwijderen…",
+                    "saving": "Opslaan…",
+                    "create": "Account aanmaken",
+                    "save": "Account opslaan",
+                    "open": "Basic Auth-inloggegevens voor {{name}} beheren"
+                },
+                "columns": {
+                    "username": "Gebruikersnaam",
+                    "created": "Aangemaakt",
+                    "updated": "Bijgewerkt",
+                    "actions": "Acties"
+                },
+                "cells": {
+                    "accountCount_one": "{{count}} account",
+                    "accountCount_other": "{{count}} accounts"
+                },
+                "table": {
+                    "eyebrow": "Basic Auth-accounts",
+                    "count_one": "{{count}} Basic Auth-account",
+                    "count_other": "{{count}} Basic Auth-accounts",
+                    "description": "Inloggegevens worden als wachtwoordhashes opgeslagen en worden hier nooit getoond.",
+                    "caption": "Basic Auth-accounts",
+                    "loading": "Basic Auth-accounts laden",
+                    "emptyDescription": "Er zijn geen Basic Auth-accounts ingesteld. Verzoeken die dit beleid gebruiken, worden geweigerd totdat een account is toegevoegd.",
+                    "limit": "Dit beleid heeft de limiet van 32 accounts bereikt."
+                },
+                "confirm": {
+                    "deleteTitle": "Basic Auth-account verwijderen?",
+                    "deleteDescription": "Het Basic Auth-account ‘{{username}}’ wordt verwijderd.",
+                    "deleteWarning": "Deze actie kan niet ongedaan worden gemaakt."
+                },
+                "validation": {
+                    "usernameRequired": "Voer een gebruikersnaam in.",
+                    "usernameTooLong": "Gebruikersnamen mogen maximaal 64 tekens bevatten.",
+                    "usernameInvalid": "Gebruik 1–64 ASCII-letters, cijfers, ., _, @ of -; het eerste teken moet een letter of cijfer zijn.",
+                    "passwordRequired": "Voer een wachtwoord in.",
+                    "passwordTooLong": "Wachtwoorden mogen maximaal 256 tekens bevatten.",
+                    "username": "Voer een geldige gebruikersnaam in.",
+                    "password": "Voer een geldig wachtwoord in.",
+                    "changes": "Geef een gebruikersnaam of een nieuw wachtwoord op."
+                },
+                "errors": {
+                    "loadFailed": "Basic Auth-accounts konden niet worden geladen.",
+                    "saveFailed": "Het Basic Auth-account kon niet worden opgeslagen.",
+                    "deleteFailed": "Het Basic Auth-account kon niet worden verwijderd.",
+                    "accountNotFound": "Het Basic Auth-account bestaat niet meer.",
+                    "basic_auth_account_not_found": "Het Basic Auth-account bestaat niet meer.",
+                    "basic_auth_username_conflict": "Die gebruikersnaam wordt al door dit beleid gebruikt.",
+                    "basic_auth_account_limit": "Dit beleid heeft al het maximale aantal Basic Auth-accounts.",
+                    "invalid_input": "Controleer de Basic Auth-accountwaarden en probeer het opnieuw.",
+                    "controller_unavailable": "De proxycontroller is niet beschikbaar. Probeer het later opnieuw."
+                },
+                "messages": {
+                    "created": "Basic Auth-account aangemaakt.",
+                    "updated": "Basic Auth-account bijgewerkt.",
+                    "deleted": "Basic Auth-account verwijderd.",
+                    "savedPending": "Basic Auth-account opgeslagen. Wijzigingen wachten op toepassing."
+                },
+                "states": {
+                    "unavailableTitle": "Basic Auth-accounts niet beschikbaar",
+                    "unavailableDescription": "De Basic Auth-accountlijst kon niet worden geladen. Probeer het opnieuw."
+                }
+            },
+            "validation": {
+                "nameRequired": "Voer een naam voor het toegangsbeleid in.",
+                "nameTooLong": "Namen van toegangsbeleid mogen maximaal 120 tekens bevatten.",
+                "nameMax": "Namen van toegangsbeleid mogen maximaal 120 tekens bevatten.",
+                "nameInvalid": "Gebruik afdrukbare tekens in de naam van het toegangsbeleid.",
+                "forwardAuthEndpoint": "Voer een canonieke HTTP- of HTTPS-URL in zonder inloggegevens, query of fragment.",
+                "forwardAuthTimeout": "Kies een geheel aantal seconden van 1 tot 30.",
+                "forwardAuthHeaders": "Gebruik maximaal 16 toegestane, unieke identiteitsheadernamen, één per regel.",
+                "forwardAuthGatewayPath": "Gebruik een geldig padvoorvoegsel dat begint en eindigt met een schuine streep.",
+                "descriptionMax": "Beschrijvingen mogen maximaal 1.000 tekens bevatten.",
+                "descriptionInvalid": "Gebruik afdrukbare tekens in de beschrijving.",
+                "combinationRequired": "Kies hoe de gecombineerde controles worden beoordeeld.",
+                "combination": "Gecombineerd beleid vereist precies één combinatieregel.",
+                "ipRulesInvalid": "Voer alleen geldige IP-adressen of CIDR-netwerken in, één per regel.",
+                "ipRulesTooMany": "Elke IP-lijst mag maximaal 128 vermeldingen bevatten.",
+                "changes": "Geef minstens één wijziging op."
+            },
+            "errors": {
+                "loadFailed": "Toegangsbeleidsgegevens konden niet worden geladen.",
+                "runtimeUnavailable": "De actieve status van het toegangsbeleid is niet beschikbaar.",
+                "saveFailed": "Het toegangsbeleid kon niet worden opgeslagen.",
+                "deleteFailed": "Het toegangsbeleid kon niet worden verwijderd.",
+                "policyNotFound": "Het toegangsbeleid bestaat niet meer.",
+                "access_policy_not_found": "Het toegangsbeleid bestaat niet meer.",
+                "access_policy_in_use": "Dit toegangsbeleid is aan een proxyhost toegewezen.",
+                "invalid_input": "Controleer de toegangsbeleidswaarden en probeer het opnieuw.",
+                "controller_unavailable": "De proxycontroller is niet beschikbaar.",
+                "applyFailed": "De toegangsbeleidsconfiguratie kon niet worden toegepast."
+            }
+        },
+        "proxyAccessLogs": {
+            "page": {
+                "eyebrow": "Proxy-observatie",
+                "title": "Toegangslogboeken",
+                "description": "Bekijk recente verzoeken die door je proxy zijn verwerkt.",
+                "retention": "Recente verzoeken worden maximaal 7 dagen bewaard; oudere vermeldingen kunnen worden verwijderd."
+            },
+            "states": {
+                "unavailableTitle": "Toegangslogboeken niet beschikbaar",
+                "unavailableDescription": "De recente verzoekgeschiedenis kon niet worden geladen. Probeer het opnieuw.",
+                "forbiddenTitle": "Toegang tot logboeken beperkt",
+                "forbiddenDescription": "Je account heeft geen rechten om de proxytoegangslogboeken te bekijken."
+            },
+            "table": {
+                "eyebrow": "Recente verzoeken",
+                "title": "Proxytoegangslogboeken",
+                "description": "Bekijk de timing en resultaten van verzoeken zonder headers, inhoud of querystrings zichtbaar te maken.",
+                "emptyTitle": "Geen recente verzoeken",
+                "emptyDescription": "Er zijn geen verzoeken beschikbaar binnen de bewaartermijn.",
+                "filteredEmptyDescription": "Geen verzoeken voldoen aan deze filters."
+            },
+            "filters": {
+                "host": "Host",
+                "hostPlaceholder": "Alle hosts",
+                "status": "Status",
+                "statusPlaceholder": "404",
+                "search": "Zoeken",
+                "searchPlaceholder": "Zoeken op host, methode of pad…",
+                "allHosts": "Alle hosts",
+                "hostSearchPlaceholder": "Hosts zoeken…",
+                "noHosts": "Geen overeenkomende hosts",
+                "allStatuses": "Alle statussen"
+            },
+            "actions": {
+                "refresh": "Vernieuwen",
+                "configuration": "CrowdSec-instellingen",
+                "showDetails": "Verzoekdetails tonen",
+                "hideDetails": "Verzoekdetails verbergen"
+            },
+            "columns": {
+                "time": "Tijd (UTC)",
+                "host": "Host",
+                "method": "Methode",
+                "path": "Pad",
+                "status": "Status",
+                "duration": "Duur",
+                "clientIp": "Client-IP",
+                "bytes": "Bytes",
+                "upstream": "Upstream",
+                "protocol": "Protocol"
+            },
+            "pagination": {
+                "range": "{{from}}–{{to}} van {{count}} verzoeken",
+                "itemLabel": "verzoeken",
+                "truncated": "De recente periode is begrensd.",
+                "snapshotReset": "De vorige snapshot is verlopen of niet meer beschikbaar. De eerste pagina van de nieuwste logboeken wordt getoond.",
+                "label": "Paginering van toegangslogboeken",
+                "page": "Pagina {{page}} van {{count}}",
+                "previous": "Vorige pagina",
+                "next": "Volgende pagina"
+            },
+            "validation": {
+                "host": "Voer een geldige hostnaam in.",
+                "status": "Voer een statuscode van 100 tot en met 599 in.",
+                "search": "De zoektekst is te lang of bevat niet-ondersteunde tekens.",
+                "limit": "Het paginaformaat is ongeldig.",
+                "offset": "De pagina-offset is ongeldig."
+            },
+            "errors": {
+                "loadFailed": "De toegangslogboeken konden niet worden geladen."
+            }
+        },
+        "auditLogs": {
+            "page": {
+                "eyebrow": "Verantwoording",
+                "title": "Auditlogboek",
+                "description": "Bekijk beveiligings- en beheergebeurtenissen die door RentnerProxy zijn vastgelegd.",
+                "retention": "Het auditlogboek bewaart recente gebeurtenissen maximaal 90 dagen en is begrensd om systeembronnen te beschermen."
+            },
+            "states": {
+                "unavailableTitle": "Auditlogboek niet beschikbaar",
+                "unavailableDescription": "De audithistorie kon niet worden geladen. Probeer het opnieuw.",
+                "forbiddenTitle": "Toegang tot auditlogboek beperkt",
+                "forbiddenDescription": "Je account heeft geen rechten om het auditlogboek te bekijken."
+            },
+            "table": {
+                "eyebrow": "Vastgelegde gebeurtenissen",
+                "title": "Auditgebeurtenissen",
+                "description": "Bekijk wie wat heeft gewijzigd en of elke bewerking is geslaagd, mislukt of geweigerd.",
+                "emptyTitle": "Geen auditgebeurtenissen",
+                "emptyDescription": "Er komen geen gebeurtenissen overeen met de geselecteerde periode en filters.",
+                "filteredEmptyDescription": "Geen auditgebeurtenissen voldoen aan deze filters."
+            },
+            "filters": {
+                "actor": "Uitvoerder",
+                "actorPlaceholder": "Alle gebruikers",
+                "action": "Actie",
+                "allActions": "Alle acties",
+                "resource": "Bron",
+                "allResources": "Alle bronnen",
+                "from": "Van (UTC)",
+                "to": "Tot (UTC)"
+            },
+            "actions": {
+                "refresh": "Vernieuwen",
+                "showDetails": "Gebeurtenisdetails tonen",
+                "hideDetails": "Gebeurtenisdetails verbergen"
+            },
+            "columns": {
+                "time": "Tijd (UTC)",
+                "actor": "Uitvoerder",
+                "action": "Actie",
+                "resource": "Bron",
+                "target": "Doel",
+                "result": "Resultaat",
+                "details": "Details",
+                "actorKind": "Type uitvoerder",
+                "eventId": "Gebeurtenis-ID",
+                "metadata": "Veilige metagegevens"
+            },
+            "values": {
+                "actorKinds": {
+                    "user": "Gebruiker",
+                    "anonymous": "Anoniem",
+                    "system": "Systeem"
+                },
+                "results": {
+                    "success": "Geslaagd",
+                    "failure": "Mislukt",
+                    "denied": "Geweigerd"
+                },
+                "actions": {
+                    "login": "Aanmelden",
+                    "logout": "Afmelden",
+                    "create": "Aanmaken",
+                    "update": "Bijwerken",
+                    "delete": "Verwijderen",
+                    "enable": "Inschakelen",
+                    "disable": "Uitschakelen",
+                    "rotate": "Roteren",
+                    "reset": "Herstellen",
+                    "accept": "Accepteren",
+                    "reauthenticate": "Opnieuw verifiëren",
+                    "import": "Importeren",
+                    "replace": "Vervangen",
+                    "request": "Aanvragen",
+                    "renew": "Vernieuwen",
+                    "save": "Opslaan",
+                    "apply": "Toepassen",
+                    "accepted": "Geaccepteerd",
+                    "started": "Gestart",
+                    "issued": "Uitgegeven",
+                    "activated": "Geactiveerd",
+                    "renewed": "Vernieuwd",
+                    "retry_scheduled": "Nieuwe poging gepland",
+                    "failed": "Mislukt"
+                },
+                "resources": {
+                    "session": "Sessie",
+                    "password": "Wachtwoord",
+                    "totp": "TOTP",
+                    "recovery-codes": "Herstelcodes",
+                    "passkey": "Passkey",
+                    "invite": "Uitnodiging",
+                    "setup": "Instelling",
+                    "security-settings": "Beveiligingsinstellingen",
+                    "user": "Gebruiker",
+                    "role": "Rol",
+                    "proxy-host": "Proxyhost",
+                    "redirect-host": "Omleidingshost",
+                    "access-policy": "Toegangsbeleid",
+                    "basic-auth-account": "Basic Auth-account",
+                    "certificate": "Certificaat",
+                    "trusted-ca": "Vertrouwde CA",
+                    "proxy-runtime-settings": "Proxy-runtime-instellingen",
+                    "proxy-host-settings": "Proxyhostinstellingen",
+                    "proxy-runtime": "Proxy-runtime",
+                    "crowdsec": "CrowdSec",
+                    "npm-import": "NPM-import",
+                    "config-import": "Configuratie importeren",
+                    "config-export": "Configuratie exporteren"
+                }
+            },
+            "metadata": {
+                "authenticationMethod": "Authenticatiemethode",
+                "reason": "Reden",
+                "failureCode": "Foutcode",
+                "changedFields": "Gewijzigde velden",
+                "assigned": "Toegewezen",
+                "previousId": "Vorige ID",
+                "nextId": "Volgende ID",
+                "runtimeStatus": "Runtime-status",
+                "count": "Aantal",
+                "operationId": "Bewerking-ID",
+                "eventId": "Gebeurtenis-ID",
+                "certificateStage": "Certificaatfase",
+                "occurredAt": "Tijdstip",
+                "certificateErrorCode": "Certificaatfoutcode"
+            },
+            "details": {
+                "noMetadata": "Geen aanvullende veilige metagegevens."
+            },
+            "pagination": {
+                "pageSummary": "{{count}} gebeurtenissen op deze pagina",
+                "label": "Paginering van auditlogboek",
+                "page": "Pagina {{page}}",
+                "previous": "Vorige pagina",
+                "next": "Volgende pagina"
+            },
+            "validation": {
+                "actorUserId": "Voer een geldige UUID van de uitvoerder in.",
+                "dateTime": "Voer een geldige UTC-datum en -tijd in.",
+                "dateRange": "De startdatum moet gelijk zijn aan of vóór de einddatum liggen."
+            },
+            "errors": {
+                "loadFailed": "De auditgebeurtenissen konden niet worden geladen."
+            }
+        },
+        "crowdSec": {
+            "page": {
+                "eyebrow": "Beveiliging",
+                "title": "CrowdSec",
+                "description": "Kies hoe RentnerProxy kwaadwillende clients blokkeert. De bescherming blijft binnen het bestaande apparaat en gebruikt dezelfde IP-regels voor vertrouwde proxy’s als alle proxyhosts."
+            },
+            "status": {
+                "eyebrow": "Beschermingsstatus",
+                "description": "Eén handhavingsroute beschermt openbaar HTTP- en HTTPS-verkeer, terwijl statusinformatie en inloggegevens privé blijven op het apparaat.",
+                "synchronized": "Gewenste modus is actief",
+                "pending": "De vorige werkende modus blijft actief terwijl synchronisatie opnieuw wordt geprobeerd",
+                "runtimeUnavailable": "Runtimestatus is niet beschikbaar; de actieve beschermingsstatus kan niet worden bevestigd.",
+                "details": {
+                    "enforcement": "Handhaving",
+                    "active": "Actief",
+                    "inactive": "Inactief",
+                    "activeMode": "Actieve modus",
+                    "localApi": "Status lokale API",
+                    "managedEngine": "Beheerde engine"
+                }
+            },
+            "dashboard": {
+                "eyebrow": "Livebescherming",
+                "title": "Beveiligingsdashboard",
+                "description": "Werkelijke bouncerresultaten en huidige CrowdSec-beslissingen. De aantallen zijn momentopnamen en geen schatting van eerdere aanvallen.",
+                "configuration": "CrowdSec-instellingen",
+                "forwardAuthEyebrow": "Runtime van toegangsbeleid",
+                "forwardAuthTitle": "Forward Auth-beleid",
+                "forwardAuthDescription": "De aantallen zijn gebaseerd op opgeslagen toegangsbeleid en de toewijzingen aan hosts. De runtimestatus geeft alleen configuratiesynchronisatie weer, niet de status van de authenticatieservice.",
+                "forwardAuthPolicies": "Geconfigureerd beleid",
+                "forwardAuthHosts": "Toegewezen proxyhosts",
+                "forwardAuthRuntime": "Runtimeconfiguratie",
+                "refresh": "Vernieuwen",
+                "disabled": "Schakel een CrowdSec-modus in om hier beschermingsactiviteit te zien.",
+                "loading": "Beschermingsactiviteit laden…",
+                "unavailable": "Gegevens niet beschikbaar",
+                "stale": "De laatste vernieuwing is mislukt. De cijfers hieronder zijn mogelijk verouderd.",
+                "demoNotice": "Lokale demogegevens · alleen synthetische beslissingen. Deze preview blokkeert geen IP-adressen.",
+                "demoMetricHint": "Synthetische previewwaarde; niet toegepast op verkeer",
+                "blockedRequests": "Geblokkeerde verzoeken",
+                "blockedHint": "HTTP-verzoeken die sinds het starten van de proxy zijn geblokkeerd",
+                "activeDecisions": "Actieve bouncerbeslissingen",
+                "activeHint": "Huidige beslissingen in Caddy kunnen de CAPI-communityblocklist bevatten; dit is geen telling van aanvallen op deze installatie",
+                "ipBans": "IP- en netwerkblokkeringen",
+                "ipBansHint": "Huidige IP- en netwerkblokkeringen in de lokale API; dit is een ander aantal dan dat van de bouncer",
+                "lastUpdated": "Snapshot om {{time}} · wordt elke minuut vernieuwd",
+                "blockedByOrigin": "Geblokkeerde verzoeken per oorsprong",
+                "decisionsByOrigin": "Actieve beslissingen per oorsprong",
+                "noOriginData": "Nog geen gegevens over de oorsprong",
+                "banList": "Actieve IP- en netwerkblokkeringen",
+                "bansEyebrow": "Livebeslissingen",
+                "banListHint": "De resterende duur is afkomstig van de lokale API. Vlaggen gebruiken lokale landgegevens als die beschikbaar zijn; locaties zijn bij benadering.",
+                "noBans": "Geen actieve IP- of netwerkblokkeringen",
+                "filteredEmpty": "Geen blokkeringen voldoen aan de huidige zoekopdracht en filters.",
+                "search": "Actieve blokkeringen zoeken",
+                "searchPlaceholder": "Zoeken op IP, oorsprong of scenario",
+                "allOrigins": "Alle oorsprongen",
+                "scope": "Type",
+                "allScopes": "Alle typen",
+                "ipScope": "IP-adres",
+                "rangeScope": "Netwerkbereik",
+                "banItem": "blokkeringen",
+                "sources": "{{count}} bronnen",
+                "scenarioInfo": "Over scenario {{scenario}}",
+                "scenarioDescriptions": {
+                    "bruteForce": "Herhaalde pogingen om inloggegevens te raden of toegang te krijgen tot een beveiligd endpoint.",
+                    "scanning": "Geautomatiseerde verzoeken die paden of services onderzoeken op blootgestelde doelen.",
+                    "crawling": "Geautomatiseerde verkenning die overeenkomt met deze CrowdSec-detectieregel.",
+                    "flooding": "Een piek in verzoeken of verbindingspogingen die overeenkomt met een floodregel.",
+                    "exploit": "Verzoeken die overeenkomen met een bekende detectieregel voor een exploit of kwetsbaarheid.",
+                    "generic": "CrowdSec heeft activiteit vastgesteld die overeenkomt met dit scenario. De lokale API biedt geen uitgebreidere beschrijving van de regel."
+                },
+                "address": "IP / netwerk",
+                "remaining": "Resterende duur",
+                "origin": "Oorsprong",
+                "scenario": "Scenario"
+            },
+            "states": {
+                "disabled": "Uitgeschakeld",
+                "starting": "Wordt gestart",
+                "connected": "Verbonden",
+                "degraded": "Gedegradeerd",
+                "unavailable": "Controller niet beschikbaar"
+            },
+            "managedStates": {
+                "stopped": "Gestopt",
+                "starting": "Wordt gestart",
+                "ready": "Gereed",
+                "restarting": "Wordt opnieuw gestart",
+                "degraded": "Gedegradeerd",
+                "unavailable": "Niet beschikbaar"
+            },
+            "modes": {
+                "disabled": {
+                    "title": "Uitgeschakeld",
+                    "description": "Standaard na een upgrade. Er wordt geen CrowdSec-beslissing op het verkeer toegepast."
+                },
+                "managed": {
+                    "title": "Beheerd door RentnerProxy",
+                    "description": "Voer de meegeleverde CrowdSec-engine lokaal uit met de geselecteerde Caddy-collectie."
+                },
+                "external": {
+                    "title": "Externe CrowdSec",
+                    "description": "Gebruik een bestaand lokaal API-endpoint met een bouncer-sleutel die alleen kan schrijven."
+                }
+            },
+            "configuration": {
+                "eyebrow": "Bedrijfsmodus",
+                "title": "Beschermingsbron",
+                "description": "Het doel wordt gecontroleerd voordat Caddy overschakelt. Bij een mislukte wijziging blijft de vorige gecontroleerde configuratie actief.",
+                "refreshing": "Status wordt vernieuwd",
+                "modeLabel": "CrowdSec-bedrijfsmodus",
+                "retention": "Bij het wisselen van modus blijven de gegevens van de beheerde engine en opgeslagen externe inloggegevens behouden. Er wordt niets automatisch verwijderd."
+            },
+            "external": {
+                "title": "Externe lokale API",
+                "description": "Het apparaat maakt rechtstreeks verbinding met het endpoint. Omleidingen worden geweigerd en de inloggegevens worden nooit aan de browser teruggegeven.",
+                "apiUrl": "URL van lokale API",
+                "apiUrlPlaceholder": "https://crowdsec.example.test/",
+                "apiKey": "Bouncer-API-sleutel",
+                "apiKeyPlaceholder": "Voer de bouncer-sleutel in",
+                "apiKeyReplacePlaceholder": "Inloggegevens opgeslagen — voer een vervanging in",
+                "apiKeyHint": "Laat leeg om de versleutelde sleutel te behouden, maar alleen als het endpoint ongewijzigd blijft. Voor een nieuw endpoint is een nieuwe sleutel nodig."
+            },
+            "online": {
+                "title": "Community-informatie en Console",
+                "description": "Optionele aanvullingen op de beheerde engine. Lokale detectie en blokkering werken ook zonder een van beide verbindingen.",
+                "communityLabel": "Verbinden met de CrowdSec-community-informatie",
+                "communityHint": "Deelt aanvalssignalen en downloadt communitybeslissingen en geabonneerde blocklists. Uitgaande toegang tot de CrowdSec Central API is vereist.",
+                "communityStatus": "Communityverbinding",
+                "communityStates": {
+                    "disabled": "Uit",
+                    "starting": "Verbinding maken",
+                    "connected": "Verbonden",
+                    "degraded": "Niet beschikbaar — lokale bescherming blijft actief"
+                },
+                "consoleTitle": "CrowdSec Console (optioneel)",
+                "consoleDescription": "Koppel deze beheerde engine aan je CrowdSec Console-account voor inzicht op afstand. Dit wijzigt de beschermingsbron niet.",
+                "openConsole": "CrowdSec Console openen",
+                "consoleStatus": "Registratie bij Console",
+                "consoleStates": {
+                    "not_enrolled": "Niet geregistreerd",
+                    "pending": "Wacht op bevestiging in Console",
+                    "connected": "Geregistreerd",
+                    "degraded": "Status niet beschikbaar"
+                },
+                "acceptEnrollment": "Bevestig de wachtende engine in CrowdSec Console om de registratie af te ronden.",
+                "enrollmentKey": "Registratiesleutel voor Console",
+                "enrollmentPlaceholder": "Plak de registratiesleutel",
+                "enrolling": "Verbinding maken…",
+                "enroll": "Console verbinden",
+                "enrollmentHint": "Maak een registratiesleutel aan in CrowdSec Console. Deze wordt één keer gebruikt en niet bewaard in de instellingen van RentnerProxy.",
+                "enableFirst": "Schakel de communityverbinding in en sla deze op voordat je Console koppelt."
+            },
+            "actions": {
+                "test": "Verbinding testen",
+                "testing": "Verbinding testen…",
+                "save": "Opslaan en toepassen",
+                "saving": "Opslaan en toepassen…"
+            },
+            "progress": {
+                "description": "De balk toont bevestigde statusstappen, geen schatting van de resterende tijd. De verbinding kan kort worden onderbroken terwijl de proxy overschakelt.",
+                "confirmedSteps": "Bevestigde voortgang",
+                "progressLabel": "Voortgang van CrowdSec-wijziging",
+                "stepsLabel": "Wijzigingsstappen",
+                "inProgress": "De wijziging wordt uitgevoerd. Deze pagina controleert automatisch de actieve status.",
+                "connectionInterrupted": "De verbinding is onderbroken. De opgeslagen configuratie en actieve status worden nog gecontroleerd.",
+                "degraded": "De CrowdSec-engine meldt een probleem. De actieve status wordt gecontroleerd terwijl de controller opnieuw probeert.",
+                "retrying": "De wijziging is opgeslagen, maar wacht nog op toepassing. De controller probeert het automatisch opnieuw.",
+                "delayed": "Dit duurt langer dan gebruikelijk. Automatische nieuwe pogingen gaan door. Je kunt dit venster sluiten en de beschermingsstatus hier controleren.",
+                "continueInBackground": "Op de achtergrond doorgaan",
+                "done": "Gereed",
+                "managed": {
+                    "title": "Beheerde CrowdSec inschakelen",
+                    "complete": "Beheerde CrowdSec is actief en de bescherming is gecontroleerd.",
+                    "steps": {
+                        "save": "Gewenste modus opslaan",
+                        "startEngine": "Lokale CrowdSec-engine starten",
+                        "switchProxy": "Proxybescherming omschakelen",
+                        "verify": "Actieve bescherming controleren"
+                    }
+                },
+                "disabled": {
+                    "title": "Beheerde CrowdSec uitschakelen",
+                    "complete": "CrowdSec-bescherming is uitgeschakeld en de lokale engine is gestopt.",
+                    "steps": {
+                        "save": "Gewenste modus opslaan",
+                        "switchProxy": "CrowdSec uit de proxy verwijderen",
+                        "stopEngine": "Lokale CrowdSec-engine stoppen",
+                        "verify": "Uitschakeling controleren"
+                    }
+                }
+            },
+            "facts": {
+                "title": "Hoe bescherming werkt",
+                "clientIp": {
+                    "label": "Client-IP",
+                    "value": "Caddy-native resolutie",
+                    "description": "CIDR-bereiken van vertrouwde proxy’s worden beoordeeld voordat CrowdSec het effectieve clientadres ziet."
+                },
+                "failure": {
+                    "label": "Gedrag bij storing",
+                    "value": "Fail-open",
+                    "description": "Proxyverkeer gaat door als de geselecteerde CrowdSec-API tijdelijk niet beschikbaar is."
+                },
+                "deployment": {
+                    "label": "Implementatie",
+                    "value": "Eén apparaat",
+                    "description": "Geen extra service, volume, socket, openbare poort of verplichte omgevingsvariabele."
+                }
+            },
+            "statesPage": {
+                "loadingTitle": "CrowdSec laden",
+                "loadingDescription": "De gewenste modus en de huidige status van de handhaving worden gelezen.",
+                "unavailableTitle": "CrowdSec-configuratie niet beschikbaar",
+                "unavailableDescription": "De configuratie kon niet worden geladen. De huidige beschermingsstatus kan niet worden bevestigd."
+            },
+            "validation": {
+                "apiUrl": "Voer een absolute HTTP- of HTTPS-URL in zonder inloggegevens, queryparameters of fragment.",
+                "apiKey": "Voer een bouncer-sleutel van 16–512 afdrukbare ASCII-tekens in, zonder spaties.",
+                "enrollmentKey": "Voer een geldige CrowdSec Console-registratiesleutel van 16–256 tekens in."
+            },
+            "errors": {
+                "invalidInput": "Controleer het CrowdSec-endpoint en de inloggegevens.",
+                "apiKeyRequired": "Voer een bouncer-sleutel in voordat je externe CrowdSec inschakelt of het endpoint wijzigt.",
+                "connectionFailed": "CrowdSec heeft het endpoint of de inloggegevens geweigerd. De actieve modus is niet gewijzigd.",
+                "controllerUnavailable": "De proxycontroller is tijdelijk niet beschikbaar. De actieve modus is niet gewijzigd.",
+                "configurationConflict": "De configuratie is gewijzigd in een andere sessie. Laad opnieuw en probeer het nogmaals.",
+                "configurationUnavailable": "De versleutelde CrowdSec-configuratie kon niet worden gelezen.",
+                "saveFailed": "De CrowdSec-configuratie kon niet worden opgeslagen.",
+                "loadFailed": "De CrowdSec-configuratie kon niet worden geladen.",
+                "testFailed": "De verbindingstest kon niet worden voltooid.",
+                "communityNotReady": "De community-informatie is nog niet verbonden. Lokale bescherming blijft actief.",
+                "enrollmentFailed": "Console-registratie kon niet worden gestart. Controleer de sleutel en probeer het opnieuw."
+            },
+            "messages": {
+                "connectionValid": "CrowdSec-verbinding gecontroleerd.",
+                "saved": "CrowdSec-configuratie opgeslagen en geactiveerd.",
+                "savedPending": "CrowdSec-configuratie opgeslagen. De vorige werkende modus blijft actief terwijl synchronisatie opnieuw wordt geprobeerd.",
+                "enrollmentPending": "Registratie aangevraagd. Bevestig de engine in CrowdSec Console."
+            }
+        },
+        "trustedCas": {
+            "page": {
+                "eyebrow": "Certificaten",
+                "title": "Vertrouwde CA’s",
+                "description": "Openbare CA-certificaten voor het verifiëren van HTTPS-upstreamservers. Deze bevatten geen privésleutels en staan los van servercertificaten."
+            },
+            "table": {
+                "eyebrow": "Upstreamvertrouwen",
+                "count_one": "{{count}} vertrouwde CA",
+                "count_other": "{{count}} vertrouwde CA’s",
+                "description": "Beheer de certificaatautoriteiten die door je HTTPS-upstreamservers worden vertrouwd.",
+                "searchLabel": "Vertrouwde CA’s zoeken",
+                "searchPlaceholder": "Naam, onderwerp, uitgever of vingerafdruk",
+                "loading": "Vertrouwde CA’s laden…",
+                "emptyTitle": "Geen aangepaste vertrouwde CA’s",
+                "emptyDescription": "HTTPS-upstreamservers gebruiken de systeemvertrouwensopslag tenzij je een aangepaste CA kiest.",
+                "filteredEmptyTitle": "Geen overeenkomende vertrouwde CA’s",
+                "filteredEmptyDescription": "Probeer een andere zoekopdracht of wis de filters.",
+                "itemLabel": "vertrouwde CA’s"
+            },
+            "columns": {
+                "name": "Naam",
+                "subject": "Onderwerp",
+                "issuer": "Uitgever",
+                "fingerprint": "SHA-256-vingerafdruk",
+                "expires": "Verloopt",
+                "actions": "Acties"
+            },
+            "actions": {
+                "import": "Vertrouwde CA importeren",
+                "replace": "CA-bundel vervangen",
+                "delete": "Vertrouwde CA verwijderen",
+                "deleteInUse": "Toegewezen aan proxyhosts — kan niet worden verwijderd",
+                "deleting": "Vertrouwde CA verwijderen…",
+                "open": "Acties voor {{name}}"
+            },
+            "import": {
+                "title": "Vertrouwde CA importeren",
+                "description": "Importeer een openbaar CA-certificaat of een PEM-bundel die alleen CA-certificaten bevat."
+            },
+            "replace": {
+                "title": "Vertrouwde CA vervangen",
+                "description": "Alle proxyhosts die deze CA gebruiken, ontvangen de nieuwe bundel via het normale proces voor het toepassen van configuratie."
+            },
+            "form": {
+                "name": "Naam",
+                "pem": "CA-certificaat / bundel",
+                "pemHint": "Alleen PEM-certificaten, maximaal 256 KiB. Elk certificaat moet een CA-certificaat zijn. Privésleutels worden niet geaccepteerd."
+            },
+            "confirm": {
+                "deleteTitle": "‘{{name}}’ verwijderen?",
+                "deleteDescription": "Alleen ongebruikte CA’s kunnen worden verwijderd. Toegewezen CA’s moeten eerst van hun proxyhosts worden verwijderd."
+            },
+            "states": {
+                "unavailableTitle": "Vertrouwde CA’s niet beschikbaar",
+                "unavailableDescription": "De lijst met vertrouwde CA’s kon niet worden geladen. Probeer het binnenkort opnieuw."
+            },
+            "validation": {
+                "name": "Voer een naam van 1–120 tekens in.",
+                "pem": "Lever een geldige PEM-bundel van maximaal 256 KiB aan die alleen certificaten bevat.",
+                "pemLimit": "De CA-bundel mag niet groter zijn dan 256 KiB."
+            },
+            "errors": {
+                "invalidInput": "De CA-bundel is ongeldig. Controleer het PEM-formaat, de geldigheid en de CA-beperkingen.",
+                "notFound": "Deze vertrouwde CA bestaat niet meer.",
+                "duplicate": "Deze CA-bundel is al geïmporteerd.",
+                "inUse": "Deze CA is aan een proxyhost toegewezen en kan niet worden verwijderd.",
+                "controllerUnavailable": "CA-validatie is tijdelijk niet beschikbaar. Er is geen ongevalideerd materiaal opgeslagen.",
+                "saveFailed": "De vertrouwde CA kon niet worden opgeslagen.",
+                "deleteFailed": "De vertrouwde CA kon niet worden verwijderd.",
+                "loadFailed": "De lijst met vertrouwde CA’s kon niet worden geladen. Probeer het binnenkort opnieuw."
+            },
+            "messages": {
+                "created": "Vertrouwde CA geïmporteerd.",
+                "replaced": "Vertrouwde CA vervangen.",
+                "deleted": "Vertrouwde CA verwijderd.",
+                "savedPending": "Vertrouwde CA opgeslagen. De configuratie wacht op toepassing; de vorige werkende configuratie blijft actief."
+            }
+        }
+    },
+    "permissions": {
+        "group": {
+            "app": "Applicatie",
+            "users": "Gebruikers",
+            "roles": "Rollen",
+            "account": "Account",
+            "proxy_hosts": "Proxyhosts",
+            "redirect_hosts": "Omleidingshosts",
+            "certificates": "Certificaten",
+            "trusted_cas": "Vertrouwde CA’s",
+            "access_policies": "Toegangsbeleid",
+            "proxy-access-logs": "Proxytoegangslogboeken",
+            "crowdsec": "CrowdSec",
+            "system_appearance": "Systeemweergave",
+            "audit-logs": "Auditlogboek",
+            "system": "Systeem"
+        },
+        "app": {
+            "access": "Toegang tot de applicatie"
+        },
+        "users": {
+            "view": "Gebruikers bekijken",
+            "create": "Gebruikers aanmaken",
+            "update": "Gebruikers bijwerken",
+            "disable": "Gebruikers uitschakelen",
+            "enable": "Gebruikers inschakelen",
+            "assign_roles": "Gebruikersrollen toewijzen"
+        },
+        "roles": {
+            "view": "Rollen bekijken",
+            "create": "Rollen aanmaken",
+            "update": "Rollen bijwerken",
+            "delete": "Rollen verwijderen",
+            "assign_permissions": "Rolrechten toewijzen"
+        },
+        "account": {
+            "view": "Eigen account bekijken",
+            "update": "Eigen account bijwerken"
+        },
+        "proxy_hosts": {
+            "view": "Proxyhosts bekijken",
+            "create": "Proxyhosts aanmaken",
+            "update": "Proxyhosts bijwerken",
+            "delete": "Proxyhosts verwijderen",
+            "enable": "Proxyhosts inschakelen",
+            "disable": "Proxyhosts uitschakelen",
+            "apply": "Proxyconfiguratie toepassen"
+        },
+        "redirect_hosts": {
+            "view": "Omleidingshosts bekijken",
+            "create": "Omleidingshosts aanmaken",
+            "update": "Omleidingshosts bijwerken",
+            "delete": "Omleidingshosts verwijderen",
+            "enable": "Omleidingshosts inschakelen",
+            "disable": "Omleidingshosts uitschakelen",
+            "apply": "Omleidingsconfiguratie toepassen"
+        },
+        "certificates": {
+            "view": "Certificaten bekijken",
+            "create": "Certificaten importeren",
+            "update": "Handmatige certificaten vervangen",
+            "delete": "Ongebruikte certificaten verwijderen",
+            "issue": "ACME-certificaten aanvragen",
+            "renew": "ACME-certificaten vernieuwen"
+        },
+        "access_policies": {
+            "view": "Toegangsbeleid bekijken",
+            "create": "Toegangsbeleid aanmaken",
+            "update": "Toegangsbeleid bijwerken",
+            "delete": "Toegangsbeleid verwijderen",
+            "assign": "Toegangsbeleid toewijzen",
+            "apply": "Toegangsbeleidsconfiguratie toepassen"
+        },
+        "proxy-access-logs:view": "Proxytoegangslogboeken bekijken",
+        "crowdsec": {
+            "view": "CrowdSec-configuratie bekijken",
+            "update": "CrowdSec-configuratie bijwerken"
+        },
+        "system_appearance": {
+            "update": "Systeemweergave bijwerken"
+        },
+        "audit-logs:view": "Auditlogboek bekijken",
+        "system": {
+            "npm_import": "Importeren uit Nginx Proxy Manager",
+            "migration": "Configuratie importeren en exporteren"
+        },
+        "trusted_cas": {
+            "view": "Vertrouwde CA’s bekijken",
+            "create": "Vertrouwde CA’s importeren",
+            "update": "Bundels met vertrouwde CA’s vervangen",
+            "delete": "Ongebruikte vertrouwde CA’s verwijderen"
+        }
+    },
+    "systemRoles": {
+        "owner": {
+            "name": "Eigenaar",
+            "description": "Ingebouwde rol met alle geregistreerde rechten."
+        },
+        "admin": {
+            "name": "Beheerder",
+            "description": "Ingebouwde rol voor het beheren van gebruikers en aangepaste rollen, zonder eigenaarsrechten."
+        },
+        "viewer": {
+            "name": "Lezer",
+            "description": "Ingebouwde rol voor basistoegang tot de applicatie en het account."
+        }
+    },
+    "table": {
+        "filterColumn": "Kolom filteren",
+        "all": "Alle",
+        "filterEllipsis": "Filteren…",
+        "noResults": "Geen overeenkomende opties",
+        "filterByDateRange": "Filteren op datumbereik",
+        "filterColumnPlaceholder": "{{column}} filteren…",
+        "cell": "Cel {{column}}",
+        "sortBy": "Sorteren op {{column}}",
+        "loadingColumn": "{{label}}, kolom {{column}}",
+        "filters": "Filters",
+        "resetFilters": "Filters herstellen",
+        "pagination": {
+            "range": "{{from}}–{{to}} van {{count}} {{item}}",
+            "rowsPerPage": "Rijen per pagina",
+            "label": "Paginering van tabel",
+            "page": "Pagina {{page}} van {{count}}",
+            "goToPage": "Naar pagina {{page}}",
+            "first": "Naar de eerste pagina",
+            "previous": "Naar de vorige pagina",
+            "next": "Naar de volgende pagina",
+            "last": "Naar de laatste pagina"
+        }
+    },
+    "calendar": {
+        "required": "Kies een datum.",
+        "apply": "Toepassen",
+        "open": "Kalender openen",
+        "close": "Kalender sluiten",
+        "previousMonth": "Vorige maand tonen",
+        "nextMonth": "Volgende maand tonen",
+        "clear": "Wissen",
+        "day": "Dag",
+        "rangeMode": "Bereik",
+        "from": "Van",
+        "to": "Tot",
+        "time": "Tijd (UTC)",
+        "month": "Maand",
+        "year": "Jaar",
+        "searchOptions": "Opties zoeken",
+        "searchPlaceholder": "Zoeken…",
+        "noResults": "Geen resultaten",
+        "noOptions": "Geen opties",
+        "anyDate": "Elke datum",
+        "selectDate": "Datum kiezen",
+        "weekdays": {
+            "mon": "Ma",
+            "tue": "Di",
+            "wed": "Wo",
+            "thu": "Do",
+            "fri": "Vr",
+            "sat": "Za",
+            "sun": "Zo"
+        },
+        "hours": "Uren",
+        "minutes": "Minuten"
+    },
+    "systemAppearance": {
+        "title": "Systeemweergave",
+        "description": "Personaliseer de interface met je favoriete accentkleur.",
+        "current": "Huidige accentkleur",
+        "default": "Standaardkleur",
+        "label": "Accentkleur",
+        "hint": "Kies een accentkleur voor knoppen, markeringen en bedieningselementen.",
+        "preview": "Voorbeeld",
+        "previewButton": "Voorbeeldknop",
+        "reset": "Standaard herstellen",
+        "adminOnly": "Alleen beheerders kunnen de accentkleur van het systeem wijzigen.",
+        "saved": "Accentkleur opgeslagen.",
+        "errors": {
+            "invalidColor": "Voer een geldige kleur in.",
+            "saveFailed": "De accentkleur kon niet worden opgeslagen.",
+            "loadFailed": "De accentkleur kon niet worden geladen."
+        },
+        "picker": {
+            "required": "Kies een kleur.",
+            "invalidColor": "Voer een geldige kleur in.",
+            "eyeDropper": "Kies een kleur van je scherm",
+            "closePicker": "Kleurkiezer sluiten",
+            "colorArea": "Kleurverzadiging en helderheid",
+            "colorAreaInstructions": "Gebruik de pijltoetsen om verzadiging en helderheid aan te passen.",
+            "colorAreaValue": "Verzadiging {{saturation}}%, helderheid {{value}}%",
+            "hue": "Tint",
+            "selectColor": "Kleur kiezen",
+            "presetColor": "{{color}} gebruiken"
+        }
+    },
+    "inputs": {
+        "invalidPhone": "Voer een geldig telefoonnummer in.",
+        "onlyNumbers": "Alleen cijfers zijn toegestaan.",
+        "onlyMoneyCharacters": "Voer een geldig bedrag in.",
+        "passwordStrength": "Wachtwoordsterkte",
+        "passwordStrengthEmpty": "Geen wachtwoord ingevoerd",
+        "passwordStrengthVeryWeak": "Zeer zwak",
+        "passwordStrengthWeak": "Zwak",
+        "passwordStrengthOkay": "Redelijk",
+        "passwordStrengthStrong": "Sterk",
+        "passwordStrengthVeryStrong": "Zeer sterk",
+        "hourSelect": "Uur kiezen",
+        "hourPlaceholder": "Uur",
+        "minuteSelect": "Minuut kiezen",
+        "minutePlaceholder": "Minuut"
+    }
+}

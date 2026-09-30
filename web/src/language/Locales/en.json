@@ -30,6 +30,22 @@
         "openDomainInNewTab": "Open {{domain}} in a new tab",
         "moreDomains": "Show {{count}} more domains"
     },
+    "inputs": {
+        "invalidPhone": "Enter a valid phone number.",
+        "onlyNumbers": "Only numbers are allowed.",
+        "onlyMoneyCharacters": "Enter a valid amount.",
+        "passwordStrength": "Password strength",
+        "passwordStrengthEmpty": "No password entered",
+        "passwordStrengthVeryWeak": "Very weak",
+        "passwordStrengthWeak": "Weak",
+        "passwordStrengthOkay": "Fair",
+        "passwordStrengthStrong": "Strong",
+        "passwordStrengthVeryStrong": "Very strong",
+        "hourSelect": "Select hour",
+        "hourPlaceholder": "Hour",
+        "minuteSelect": "Select minute",
+        "minutePlaceholder": "Minute"
+    },
     "shell": {
         "home": "RentnerProxy home",
         "overviewLink": "RentnerProxy overview",
@@ -75,7 +91,11 @@
             "en": "English",
             "de": "German",
             "es": "Spanish",
-            "fr": "French"
+            "fr": "French",
+            "it": "Italian",
+            "pt": "Portuguese",
+            "nl": "Dutch",
+            "pl": "Polish"
         }
     },
     "theme": {
@@ -258,10 +278,25 @@
         }
     },
     "account": {
+        "navigation": {
+            "label": "User settings navigation",
+            "groups": {
+                "profile": "Profile",
+                "signIn": "Sign-in",
+                "system": "System"
+            },
+            "profile": "My profile",
+            "language": "Language",
+            "password": "Password",
+            "twoFactor": "Two-factor",
+            "passkeys": "Passkeys",
+            "appearance": "Appearance",
+            "admin": "Admin"
+        },
         "page": {
-            "eyebrow": "Personal access",
-            "title": "Account",
-            "description": "Manage your profile picture, credentials, language, and security for this RentnerProxy account."
+            "eyebrow": "Your account",
+            "title": "User settings",
+            "description": "Manage your profile, language, and sign-in settings."
         },
         "identity": {
             "signedInAs": "Signed in as"
@@ -369,6 +404,8 @@
         "passkeys": {
             "title": "Passkeys",
             "description": "Use Windows Hello, Touch ID, security keys, or password managers.",
+            "listTitle": "Your passkeys",
+            "hint": "You can add multiple passkeys for different devices.",
             "add": "Add passkey",
             "empty": "No passkeys have been added yet.",
             "addedAt": "Added {{date}}",

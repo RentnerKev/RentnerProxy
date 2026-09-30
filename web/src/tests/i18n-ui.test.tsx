@@ -20,7 +20,8 @@ import getFieldErrorMessage, {
 } from '../shared/Forms/Helpers/getFieldErrorMessage'
 import FieldError from '../shared/Forms/FieldError'
 import FormMessage from '../shared/Forms/FormMessage'
-import withTestLanguage, { bootstraps } from './Helpers/withTestLanguage'
+import withTestLanguage, { bootstraps, catalogs } from './Helpers/withTestLanguage'
+import useControlLocalization from '../layout/Hooks/useControlLocalization'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -28,7 +29,8 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { act, StrictMode, useContext, useEffect } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { renderToString } = await import('react-dom/server')
-const { PasswordInput } = await import('@rentnerkev/inputs')
+const { PasswordInput, InputProvider } = await import('@rentnerkev/inputs')
+const { SelectProvider } = await import('@rentnerkev/select')
 const { CustomSelect } = await import('@rentnerkev/select/select')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 let activeRoot: Root | null = null
@@ -87,6 +89,24 @@ function NativeErrorProbe() {
     )
 }
 
+function LocalizedControlsProbe() {
+    const { language, t, inputMessages, selectMessages } = useControlLocalization()
+    return (
+        <InputProvider locale={language} messages={inputMessages}>
+            <SelectProvider locale="en" messages={selectMessages}>
+                <PasswordInput aria-label="Test password" value="" onChange={() => undefined} />
+                <CustomSelect<string>
+                    aria-label="Test selection"
+                    placeholder={t('validation.selectOption')}
+                    value=""
+                    options={[]}
+                    onValueChange={() => undefined}
+                />
+            </SelectProvider>
+        </InputProvider>
+    )
+}
+
 async function render(element: ReactElement) {
     const container = document.createElement('div')
     document.body.append(container)
@@ -119,6 +139,41 @@ afterEach(async () => {
 })
 
 describe('authenticated language UI', () => {
+    test.each(['it', 'pt', 'nl', 'pl'] as const)(
+        'localizes password controls and empty select messages in %s',
+        async (language) => {
+            const container = await render(
+                withTestLanguage(
+                    <TooltipProvider>
+                        <LocalizedControlsProbe />
+                    </TooltipProvider>,
+                    language,
+                ),
+            )
+            expect(
+                container.querySelector(
+                    `button[aria-label="${catalogs[language].common.showPassword}"]`,
+                ),
+            ).not.toBeNull()
+            const trigger = container.querySelector<HTMLButtonElement>('[role="combobox"]')!
+            await act(async () => {
+                trigger.dispatchEvent(
+                    new PointerEvent('pointerdown', {
+                        bubbles: true,
+                        button: 0,
+                        cancelable: true,
+                        pointerType: 'mouse',
+                    }),
+                )
+            })
+            await waitFor(() => document.querySelector('[role="listbox"]') !== null)
+            expect(document.querySelector('[role="listbox"]')?.textContent).toContain(
+                catalogs[language].calendar.noOptions,
+            )
+            expect(document.documentElement.lang).toBe(language)
+        },
+    )
+
     test('renders the selected language on the server without cross-request language state', () => {
         const german = renderToString(withTestLanguage(<LanguageProbe />, 'de'))
         const french = renderToString(withTestLanguage(<LanguageProbe />, 'fr'))
@@ -205,7 +260,7 @@ describe('authenticated language UI', () => {
         expect(container.textContent).not.toContain('This field is required.')
     })
 
-    test('shows all four flags in the dropdown and keeps the selected flag after switching', async () => {
+    test('shows every supported flag and keeps the selected flag after switching', async () => {
         const container = await render(withTestLanguage(<PickerProbe />))
         const trigger = container.querySelector<HTMLButtonElement>('[role="combobox"]')!
         expect(trigger.querySelector('[class*="flag:GB"]')).not.toBeNull()
@@ -221,7 +276,7 @@ describe('authenticated language UI', () => {
         })
         await waitFor(() => document.querySelector('[role="listbox"]') !== null)
         const options = [...document.querySelectorAll<HTMLElement>('[role="option"]')]
-        expect(options.length).toBe(4)
+        expect(options.length).toBe(AVAILABLE_LANGUAGES.length)
         for (const language of AVAILABLE_LANGUAGES) {
             expect(
                 options.some((option) =>

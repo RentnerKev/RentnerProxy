@@ -4,6 +4,7 @@ import { PERMISSION_REGISTRY } from '../config/permissions.config'
 import { AVAILABLE_LANGUAGES } from '../config/language.config'
 import { getAvailablePermissionGroups } from '../features/Admin/RoleManagement/Helpers/permissionCheckboxes'
 import { catalogs } from './Helpers/withTestLanguage'
+import type { AppLanguage } from '../language/useTranslationStore'
 
 function getCatalogValue(catalog: unknown, path: string): unknown {
     return path.split('.').reduce<unknown>((value, key) => {
@@ -60,17 +61,20 @@ describe('role permission groups', () => {
     })
 
     test('keeps the browser-facing proxy apply label translated', () => {
-        const expected = {
+        const expected: Partial<Record<AppLanguage, string>> = {
             en: 'Apply proxy configuration',
             de: 'Proxy-Konfiguration anwenden',
             es: 'Aplicar la configuración del proxy',
             fr: 'Appliquer la configuration du proxy',
-        } as const
+        }
 
         for (const language of AVAILABLE_LANGUAGES) {
-            expect(getCatalogValue(catalogs[language], 'permissions.proxy_hosts.apply')).toBe(
-                expected[language],
-            )
+            const label = getCatalogValue(catalogs[language], 'permissions.proxy_hosts.apply')
+            if (expected[language]) {
+                expect(label).toBe(expected[language])
+            } else {
+                expect(label).not.toBe(expected.en)
+            }
         }
     })
 })

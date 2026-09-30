@@ -26,7 +26,7 @@
 - Access policies with Basic Auth, Forward Auth, and IP allow/deny rules; verified HTTPS upstreams.
 - CrowdSec protection: managed or external Local API, optional community/Console connection, and a dedicated security dashboard in the development image.
 - Users, roles, permissions, TOTP, passkeys, and audit logs.
-- Live status and access logs; English, German, Spanish, and French UI.
+- Live status and access logs; English, German, Spanish, French, Italian, Portuguese, Dutch, and Polish UI.
 - Single-container appliance with Caddy, PostgreSQL, Redis, and a Rust controller.
 
 ## Installation

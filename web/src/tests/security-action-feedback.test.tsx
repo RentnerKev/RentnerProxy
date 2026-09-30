@@ -113,7 +113,7 @@ async function render(): Promise<HTMLElement> {
             withTestLanguage(
                 <TooltipProvider>
                     <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
-                        <SecuritySettingsPanel />
+                        <SecuritySettingsPanel section="passkeys" />
                     </ToastProvider>
                 </TooltipProvider>,
             ),

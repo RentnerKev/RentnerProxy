@@ -23,22 +23,73 @@ function placeholders(value: string): string[] {
 }
 
 describe('authenticated language resources', () => {
-    test('has four complete catalogs with matching keys and interpolation variables', () => {
+    test('has complete catalogs with matching keys and interpolation variables', () => {
         const english = flatten(catalogs.en)
         expect(Object.keys(english).length).toBeGreaterThan(250)
 
         for (const language of AVAILABLE_LANGUAGES) {
             const entries = flatten(catalogs[language])
-            expect(Object.keys(entries).toSorted()).toEqual(Object.keys(english).toSorted())
+            expect(
+                Object.keys(entries)
+                    .filter((key) => key in english)
+                    .toSorted(),
+            ).toEqual(Object.keys(english).toSorted())
+            const pluralCategories = new Intl.PluralRules(language).resolvedOptions()
+                .pluralCategories
             for (const [key, value] of Object.entries(entries)) {
+                const plural = /_(zero|one|two|few|many|other)$/u.exec(key)
+                const fallbackKey = plural ? key.replace(/_[^_]+$/u, '_other') : key
+                const sourceKey = key in english ? key : fallbackKey
+                expect(english[sourceKey], `${language}:${key}`).toBeDefined()
+                if (!(key in english)) {
+                    expect(plural, `${language}:${key}`).not.toBeNull()
+                    expect(
+                        plural![1] === 'zero' ||
+                            pluralCategories.includes(plural![1] as Intl.LDMLPluralRule),
+                        `${language}:${key}`,
+                    ).toBe(true)
+                }
                 expect(value.trim(), `${language}:${key}`).not.toBe('')
                 expect(value, `${language}:${key}`).not.toBe(key)
                 expect(placeholders(value), `${language}:${key}`).toEqual(
-                    placeholders(english[key]!),
+                    placeholders(english[sourceKey]!),
                 )
             }
         }
     })
+
+    test.each(['it', 'pt', 'nl', 'pl'] as const)(
+        'uses the %s plural forms for zero, one, several, and large counts',
+        async (language) => {
+            const entries = flatten(catalogs[language])
+            const english = flatten(catalogs.en)
+            const rules = new Intl.PluralRules(language)
+            const t = createTranslationStore(await loadLanguageBootstrap(language)).getTranslate(
+                language,
+            )
+            const families = Object.keys(english).filter((key) => key.endsWith('_other'))
+
+            for (const key of families) {
+                const base = key.slice(0, -'_other'.length)
+                for (const category of rules.resolvedOptions().pluralCategories) {
+                    expect(
+                        entries[`${base}_${category}`],
+                        `${language}:${base}_${category}`,
+                    ).toBeDefined()
+                }
+                for (const count of [0, 1, 2, 5, 1_000_000]) {
+                    const category =
+                        count === 0 && `${base}_zero` in entries ? 'zero' : rules.select(count)
+                    expect(t(base, { count }), `${language}:${base}:${count}`).toBe(
+                        entries[`${base}_${category}`]!.replace(
+                            /\{\{\s*count\s*\}\}/gu,
+                            String(count),
+                        ),
+                    )
+                }
+            }
+        },
+    )
 
     test('loads only the selected language and the English fallback', async () => {
         const bootstraps = await Promise.all(AVAILABLE_LANGUAGES.map(loadLanguageBootstrap))
@@ -54,7 +105,7 @@ describe('authenticated language resources', () => {
 
     test('uses English for unsupported preferences instead of importing arbitrary paths', async () => {
         const bootstraps = await Promise.all(
-            [undefined, null, 'DE', 'it', '../secret', 'constructor'].map(loadLanguageBootstrap),
+            [undefined, null, 'DE', 'ja', '../secret', 'constructor'].map(loadLanguageBootstrap),
         )
         for (const bootstrap of bootstraps) {
             expect(bootstrap.language).toBe('en')

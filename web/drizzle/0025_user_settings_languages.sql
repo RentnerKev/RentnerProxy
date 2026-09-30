@@ -1,0 +1,2 @@
+ALTER TABLE "rentnerproxy"."user_settings" DROP CONSTRAINT "user_settings_language_check";--> statement-breakpoint
+ALTER TABLE "rentnerproxy"."user_settings" ADD CONSTRAINT "user_settings_language_check" CHECK ("rentnerproxy"."user_settings"."language" in ('en', 'de', 'es', 'fr', 'it', 'pt', 'nl', 'pl'));

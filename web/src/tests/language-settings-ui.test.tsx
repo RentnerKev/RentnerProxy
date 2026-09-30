@@ -4,6 +4,7 @@ import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
 import { TOAST_PROVIDER_PROPS } from '../config/toast.config'
+import { LANGUAGE_COUNTRY_CODES, LANGUAGE_NATIVE_NAMES } from '../config/language.config'
 import disableMotionAnimations from './Helpers/disableMotionAnimations'
 
 import type { LanguageUpdateResult as LanguageResult } from '../features/UserSettings/Types/language-server-result.types'
@@ -42,7 +43,7 @@ afterAll(() => {
     invalidate.mockRestore()
 })
 
-const { default: withTestLanguage } = await import('./Helpers/withTestLanguage')
+const { default: withTestLanguage, catalogs } = await import('./Helpers/withTestLanguage')
 const { default: LanguageSettingsPanel } =
     await import('../features/UserSettings/Components/LanguageSettingsPanel')
 const { default: useTranslationStore } = await import('../language/useTranslationStore')
@@ -107,39 +108,15 @@ function getToastMessages(container: HTMLElement, tone?: string): Array<string> 
 }
 
 async function chooseLanguage(container: HTMLElement, label: string): Promise<void> {
-    const trigger = container.querySelector<HTMLButtonElement>('[role="combobox"]')
-    expect(trigger).not.toBeNull()
-
-    await act(async () => {
-        trigger?.dispatchEvent(
-            new PointerEvent('pointerdown', {
-                bubbles: true,
-                button: 0,
-                cancelable: true,
-                pointerType: 'mouse',
-            }),
-        )
-        await Promise.resolve()
-    })
-    await waitFor(() => document.querySelector('[role="listbox"]') !== null)
-
-    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
-        (candidate) => candidate.textContent?.trim() === label,
+    const option = [...container.querySelectorAll<HTMLInputElement>('input[type="radio"]')].find(
+        (candidate) => candidate.getAttribute('aria-label') === label,
     )
     expect(option).toBeDefined()
     await act(async () => {
-        option?.dispatchEvent(
-            new PointerEvent('pointerup', {
-                bubbles: true,
-                button: 0,
-                cancelable: true,
-                pointerType: 'mouse',
-            }),
-        )
-        option?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+        option?.click()
         await Promise.resolve()
     })
-    await waitFor(() => document.querySelector('[role="listbox"]') === null)
+    expect(option?.checked).toBe(true)
 }
 
 async function click(element: Element): Promise<void> {
@@ -169,6 +146,53 @@ afterEach(async () => {
 })
 
 describe('language settings panel', () => {
+    test.each(['it', 'pt', 'nl', 'pl'] as const)(
+        'saves the new %s language card and activates its catalog',
+        async (language) => {
+            updateLanguageHandler.mockResolvedValue({
+                success: true,
+                language,
+                message: 'language.saved',
+            })
+            const container = await render(
+                <>
+                    <LanguageSettingsPanel />
+                    <LanguageProbe />
+                </>,
+            )
+            const radio = container.querySelector<HTMLInputElement>(`input[value="${language}"]`)!
+            const card = radio.closest('label')!
+            expect(card.textContent).toContain(LANGUAGE_NATIVE_NAMES[language])
+            expect(
+                card.querySelector(`[class*="flag:${LANGUAGE_COUNTRY_CODES[language]}"]`),
+            ).not.toBeNull()
+
+            await chooseLanguage(container, radio.getAttribute('aria-label')!)
+            expect(updateLanguageHandler).not.toHaveBeenCalled()
+            await click(container.querySelector('button[type="submit"]')!)
+            await waitFor(
+                () =>
+                    document.documentElement.lang === language &&
+                    container.querySelector('button[type="submit"]')?.getAttribute('aria-busy') ===
+                        'false',
+            )
+
+            expect(updateLanguageHandler).toHaveBeenCalledWith({ data: { language } })
+            expect(container.querySelector('[data-testid="language-probe"]')?.textContent).toBe(
+                catalogs[language].shell.account,
+            )
+            expect(container.querySelector('#account-language-heading')?.textContent).toBe(
+                catalogs[language].language.title,
+            )
+            expect(container.querySelector('#account-language-heading')?.textContent).not.toBe(
+                'Language',
+            )
+            expect(
+                container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled,
+            ).toBe(true)
+        },
+    )
+
     test('keeps selection local until Save and prevents another selection while saving', async () => {
         let resolveSave!: (result: LanguageResult) => void
         updateLanguageHandler.mockReturnValue(
@@ -184,6 +208,8 @@ describe('language settings panel', () => {
         )
         const save = container.querySelector<HTMLButtonElement>('button[type="submit"]')!
         expect(save.disabled).toBe(true)
+        expect(container.querySelectorAll('input[type="radio"]')).toHaveLength(8)
+        expect(container.querySelector('[role="combobox"]')).toBeNull()
 
         await chooseLanguage(container, 'German')
         expect(updateLanguageHandler).toHaveBeenCalledTimes(0)
@@ -200,20 +226,17 @@ describe('language settings panel', () => {
         await click(save)
         await waitFor(() => updateLanguageHandler.mock.calls.length === 1 && save.disabled)
         expect(save.disabled).toBe(true)
-        expect(container.querySelector<HTMLButtonElement>('[role="combobox"]')?.disabled).toBe(true)
+        expect(
+            [...container.querySelectorAll<HTMLInputElement>('input[type="radio"]')].every(
+                (option) => option.disabled,
+            ),
+        ).toBe(true)
 
         await act(async () => {
-            container.querySelector<HTMLButtonElement>('[role="combobox"]')?.dispatchEvent(
-                new PointerEvent('pointerdown', {
-                    bubbles: true,
-                    button: 0,
-                    cancelable: true,
-                    pointerType: 'mouse',
-                }),
-            )
+            container.querySelector<HTMLInputElement>('input[value="fr"]')?.click()
             await Promise.resolve()
         })
-        expect(document.querySelector('[role="listbox"]')).toBeNull()
+        expect(container.querySelector<HTMLInputElement>('input[value="de"]')?.checked).toBe(true)
         await act(async () => {
             container
                 .querySelector('form')
@@ -373,7 +396,7 @@ describe('language settings panel', () => {
                 text.includes('Your language could not be saved.'),
             ),
         )
-        expect(container.querySelector('[role="combobox"]')?.textContent).toContain('German')
+        expect(container.querySelector<HTMLInputElement>('input[value="de"]')?.checked).toBe(true)
         expect(document.documentElement.lang).toBe('en')
         expect(save.disabled).toBe(false)
 

@@ -10,7 +10,7 @@ import useThemeModeLogic from './Theme/Hooks/useThemeModeLogic'
 import { TOAST_PROVIDER_PROPS } from '../../config/toast.config'
 import useLogoutLogic from '../../features/Auth/Session/Hooks/useLogoutLogic'
 import CertificateJobProgressObserver from '../../features/Admin/ProxyHostManagement/CertificateJobs/CertificateJobProgressObserver'
-import useTranslationStore from '../../language/useTranslationStore'
+import useControlLocalization from '../Hooks/useControlLocalization'
 import useClearNotificationsOnLayoutExit from '../Hooks/useClearNotificationsOnLayoutExit'
 import useApplicationLiveSync from '../../shared/Live/useApplicationLiveSync'
 import { getClientCspNonce } from '../../shared/Helpers/cspNonce'
@@ -20,7 +20,7 @@ export default function AuthenticatedRouteLayout({ user }: AuthenticatedRouteLay
     useApplicationLiveSync()
     const { handler, state } = useLogoutLogic()
     const theme = useThemeModeLogic(user.themeMode)
-    const { language, t } = useTranslationStore()
+    const { language, t, inputMessages, selectMessages } = useControlLocalization()
     const selectNonce = getClientCspNonce()
     useClearNotificationsOnLayoutExit()
     const messages = {
@@ -33,9 +33,10 @@ export default function AuthenticatedRouteLayout({ user }: AuthenticatedRouteLay
     return (
         <>
             <CertificateJobProgressObserver permissions={user.permissions} />
-            <InputProvider locale={language}>
+            <InputProvider locale={language} messages={inputMessages}>
                 <SelectProvider
-                    locale={language}
+                    locale="en"
+                    messages={selectMessages}
                     searchable={false}
                     {...(selectNonce ? { nonce: selectNonce } : {})}
                 >

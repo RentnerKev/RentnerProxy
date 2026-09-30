@@ -176,6 +176,13 @@
             "when": 1790505471913,
             "tag": "0024_lethal_zodiak",
             "breakpoints": true
+        },
+        {
+            "idx": 25,
+            "version": "7",
+            "when": 1790779541192,
+            "tag": "0025_user_settings_languages",
+            "breakpoints": true
         }
     ]
 }

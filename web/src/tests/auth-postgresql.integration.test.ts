@@ -6,6 +6,7 @@ import { and, eq, gte, inArray, like, notLike } from 'drizzle-orm'
 import * as OTPAuth from 'otpauth'
 
 import { SESSION_COOKIE_NAME } from '../config/auth.config'
+import { AVAILABLE_LANGUAGES } from '../config/language.config'
 
 import {
     TOTP_ALGORITHM,
@@ -590,6 +591,23 @@ describe('sessions with PostgreSQL', () => {
 })
 
 describe('RBAC with PostgreSQL', () => {
+    integrationTest('persists every supported language without changing the theme', async () => {
+        const user = await createTestUser({ roleKeys: [SYSTEM_ROLES.VIEWER] })
+        await getAuthDatabase().insert(userSettings).values({ userId: user.id, themeMode: 'dark' })
+
+        for (const language of AVAILABLE_LANGUAGES) {
+            // oxlint-disable-next-line no-await-in-loop -- Verify each persisted preference for one account.
+            await getAuthDatabase()
+                .insert(userSettings)
+                .values({ language, userId: user.id })
+                .onConflictDoUpdate({ target: userSettings.userId, set: { language } })
+            // oxlint-disable-next-line no-await-in-loop -- Read the preference before replacing it.
+            const access = await loadActiveAccess(user.id)
+            expect(access.language).toBe(language)
+            expect(access.themeMode).toBe('dark')
+        }
+    })
+
     integrationTest(
         "loads each user's persisted settings independently and preserves sibling values on upsert",
         async () => {

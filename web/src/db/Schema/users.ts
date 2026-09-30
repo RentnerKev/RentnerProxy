@@ -57,6 +57,9 @@ export const userSettings = rentnerProxySchema.table(
     },
     (table) => [
         check('user_settings_theme_mode_check', sql`${table.themeMode} in ('light', 'dark')`),
-        check('user_settings_language_check', sql`${table.language} in ('en', 'de', 'es', 'fr')`),
+        check(
+            'user_settings_language_check',
+            sql`${table.language} in ('en', 'de', 'es', 'fr', 'it', 'pt', 'nl', 'pl')`,
+        ),
     ],
 )

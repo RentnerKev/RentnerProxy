@@ -30,6 +30,22 @@
         "openDomainInNewTab": "Ouvrir {{domain}} dans un nouvel onglet",
         "moreDomains": "Afficher {{count}} domaines supplémentaires"
     },
+    "inputs": {
+        "invalidPhone": "Saisissez un numéro de téléphone valide.",
+        "onlyNumbers": "Seuls les nombres sont autorisés.",
+        "onlyMoneyCharacters": "Saisissez un montant valide.",
+        "passwordStrength": "Robustesse du mot de passe",
+        "passwordStrengthEmpty": "Aucun mot de passe saisi",
+        "passwordStrengthVeryWeak": "Très faible",
+        "passwordStrengthWeak": "Faible",
+        "passwordStrengthOkay": "Moyenne",
+        "passwordStrengthStrong": "Forte",
+        "passwordStrengthVeryStrong": "Très forte",
+        "hourSelect": "Choisir l’heure",
+        "hourPlaceholder": "Heure",
+        "minuteSelect": "Choisir la minute",
+        "minutePlaceholder": "Minute"
+    },
     "shell": {
         "home": "Accueil de RentnerProxy",
         "overviewLink": "Vue d’ensemble de RentnerProxy",
@@ -75,7 +91,11 @@
             "en": "Anglais",
             "de": "Allemand",
             "es": "Espagnol",
-            "fr": "Français"
+            "fr": "Français",
+            "it": "Italien",
+            "pt": "Portugais",
+            "nl": "Néerlandais",
+            "pl": "Polonais"
         }
     },
     "theme": {
@@ -258,10 +278,25 @@
         }
     },
     "account": {
+        "navigation": {
+            "label": "Paramètres utilisateur",
+            "groups": {
+                "profile": "Profil",
+                "signIn": "Connexion",
+                "system": "Système"
+            },
+            "profile": "Mon profil",
+            "language": "Langue",
+            "password": "Mot de passe",
+            "twoFactor": "2FA",
+            "passkeys": "Clés d’accès",
+            "appearance": "Apparence",
+            "admin": "Admin"
+        },
         "page": {
-            "eyebrow": "Accès personnel",
-            "title": "Compte",
-            "description": "Gérez votre photo de profil, vos identifiants, votre langue et la sécurité de ce compte RentnerProxy."
+            "eyebrow": "Votre compte",
+            "title": "Paramètres utilisateur",
+            "description": "Gérez votre profil, votre langue et vos paramètres de connexion."
         },
         "identity": {
             "signedInAs": "Connecté en tant que"
@@ -369,6 +404,8 @@
         "passkeys": {
             "title": "Clés d’accès",
             "description": "Utilisez Windows Hello, Touch ID, des clés de sécurité ou des gestionnaires de mots de passe.",
+            "listTitle": "Vos clés d’accès",
+            "hint": "Vous pouvez ajouter plusieurs clés d’accès pour différents appareils.",
             "add": "Ajouter une clé d’accès",
             "empty": "Aucune clé d’accès n’a encore été ajoutée.",
             "addedAt": "Ajoutée le {{date}}",
