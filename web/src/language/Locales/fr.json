@@ -57,6 +57,7 @@
         "signingOut": "Déconnexion…",
         "navigation": "Navigation de l’application",
         "controlPlane": "Administration",
+        "navigationSaveFailed": "La disposition de la navigation n’a pas pu être enregistrée. Réessayez.",
         "navigationGroups": {
             "operations": "Exploitation",
             "security": "Sécurité",

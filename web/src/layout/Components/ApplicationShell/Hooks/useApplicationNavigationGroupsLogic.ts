@@ -1,7 +1,16 @@
 import { useRouterState } from '@tanstack/react-router'
 import { useId, useState } from 'react'
 
-import type { ApplicationNavigationItem } from '../Types/application-shell.types'
+import {
+    NAVIGATION_GROUP_IDS,
+    parseStoredNavigationGroupPreferences,
+} from '../../../../config/navigation.config'
+import type { NavigationGroupId } from '../../../../config/navigation.config'
+
+import type {
+    ApplicationNavigationItem,
+    ApplicationNavigationProps,
+} from '../Types/application-shell.types'
 
 const navigationGroups = [
     {
@@ -21,14 +30,14 @@ const navigationGroups = [
         paths: ['/audit-logs', '/proxy-access-logs', '/migration', '/npm-import'],
     },
 ] as const satisfies readonly {
-    readonly id: string
+    readonly id: NavigationGroupId
     readonly paths: readonly ApplicationNavigationItem['to'][]
 }[]
 
-type NavigationGroupId = (typeof navigationGroups)[number]['id']
-
 export default function useApplicationNavigationGroupsLogic(
     items: readonly ApplicationNavigationItem[],
+    groupPreferences: ApplicationNavigationProps['groupPreferences'] = {},
+    onGroupChange?: ApplicationNavigationProps['onGroupChange'],
 ) {
     const pathname = useRouterState({ select: (state) => state.location.pathname })
     const instanceId = useId()
@@ -51,10 +60,16 @@ export default function useApplicationNavigationGroupsLogic(
         readonly pathname: string
         readonly ids: ReadonlySet<NavigationGroupId>
     }>(() => ({ pathname, ids: new Set([activeGroupId ?? 'operations']) }))
-    const expandedGroupIds =
+    const defaultExpandedGroupIds =
         expandedState.pathname === pathname || !activeGroupId
             ? expandedState.ids
             : new Set([...expandedState.ids, activeGroupId])
+    const preferences = parseStoredNavigationGroupPreferences(groupPreferences)
+    const expandedGroupIds = new Set(defaultExpandedGroupIds)
+    for (const groupId of NAVIGATION_GROUP_IDS) {
+        if (preferences[groupId] === true) expandedGroupIds.add(groupId)
+        else if (preferences[groupId] === false) expandedGroupIds.delete(groupId)
+    }
 
     return {
         groups,
@@ -62,6 +77,10 @@ export default function useApplicationNavigationGroupsLogic(
         expandedGroupIds,
         instanceId,
         toggleGroup(id: NavigationGroupId) {
+            if (onGroupChange) {
+                onGroupChange({ groupId: id, expanded: !expandedGroupIds.has(id) })
+                return
+            }
             setExpandedState((current) => {
                 const next = new Set(current.ids)
                 if (current.pathname !== pathname && activeGroupId) next.add(activeGroupId)

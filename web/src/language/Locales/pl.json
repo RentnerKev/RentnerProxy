@@ -57,6 +57,7 @@
         "signingOut": "Wylogowywanie…",
         "navigation": "Nawigacja aplikacji",
         "controlPlane": "Płaszczyzna sterowania",
+        "navigationSaveFailed": "Nie udało się zapisać układu nawigacji. Spróbuj ponownie.",
         "navigationGroups": {
             "operations": "Operacje",
             "security": "Bezpieczeństwo",

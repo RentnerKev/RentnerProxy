@@ -57,6 +57,7 @@
         "signingOut": "Signing out…",
         "navigation": "Application navigation",
         "controlPlane": "Control plane",
+        "navigationSaveFailed": "Your navigation layout could not be saved. Try again.",
         "navigationGroups": {
             "operations": "Operations",
             "security": "Security",

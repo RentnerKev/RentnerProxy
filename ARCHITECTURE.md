@@ -50,6 +50,18 @@ uses Drizzle over Bun SQL for PostgreSQL, as shown by
 advisory lock and synchronize the authorization registry in
 [`web/src/db/migrate.ts`](./web/src/db/migrate.ts).
 
+Language, theme, and navigation-group expansion are per-user preferences in the existing
+`user_settings` row. Navigation stores explicit expanded/collapsed booleans under stable group
+IDs. Session resolution restores them without an extra preference request. Missing values keep
+the current active-section default; explicit choices take precedence on route changes. Unknown
+or malformed values are ignored when reading, and permissions only control group visibility:
+hiding a group retains its preference. Desktop and mobile menus share optimistic updates.
+Each intentional toggle saves one idempotent group change; an atomic JSONB merge preserves
+other groups and sibling settings, including concurrent changes from another tab. The mutation
+requires application access and rejects a request queued for a different signed-in user. Failed
+saves restore the last confirmed value and show a localized error. Rendering, route navigation,
+and localization changes do not save preferences. These controls do not affect server-side RBAC.
+
 Redis is a local connection used for rate limiting, authentication challenges,
 and cross-process application-change notifications. The client and its reconnect
 behavior are in [`web/src/server/redis/client.server.ts`](./web/src/server/redis/client.server.ts);

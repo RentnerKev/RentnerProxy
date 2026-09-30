@@ -20,10 +20,15 @@ import useTranslationStore from '../../../../language/useTranslationStore'
 import useApplicationNavigationGroupsLogic from '../Hooks/useApplicationNavigationGroupsLogic'
 import type { ApplicationNavigationProps } from '../Types/application-shell.types'
 
-export default function ApplicationNavigation({ items, onNavigate }: ApplicationNavigationProps) {
+export default function ApplicationNavigation({
+    items,
+    onNavigate,
+    groupPreferences,
+    onGroupChange,
+}: ApplicationNavigationProps) {
     const { t } = useTranslationStore()
     const { groups, activeGroupId, expandedGroupIds, instanceId, toggleGroup } =
-        useApplicationNavigationGroupsLogic(items)
+        useApplicationNavigationGroupsLogic(items, groupPreferences, onGroupChange)
 
     return (
         <nav aria-label={t('shell.navigation')} className="grid content-start gap-2.5">

@@ -17,6 +17,8 @@ import type { AuthenticatedShellProps } from './Types/application-shell.types'
 export default function AuthenticatedShell({
     children,
     isLoggingOut,
+    navigationGroupPreferences,
+    onNavigationGroupChange,
     onLogout,
     themeControl,
     themeMode,
@@ -71,7 +73,11 @@ export default function AuthenticatedShell({
                         ref={sidebarScrollRef}
                         className="-mr-11 ml-[-1.35rem] min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-11 pl-[1.35rem] scrollbar-none [&::-webkit-scrollbar]:hidden"
                     >
-                        <ApplicationNavigation items={viewModel.navigationItems} />
+                        <ApplicationNavigation
+                            items={viewModel.navigationItems}
+                            groupPreferences={navigationGroupPreferences}
+                            onGroupChange={onNavigationGroupChange}
+                        />
                     </div>
                     <ApplicationUserPanel
                         canViewAccount={viewModel.canViewAccount}
@@ -113,6 +119,8 @@ export default function AuthenticatedShell({
                                     <ApplicationNavigation
                                         items={viewModel.navigationItems}
                                         onNavigate={navigation.handler.closeMobileNavigation}
+                                        groupPreferences={navigationGroupPreferences}
+                                        onGroupChange={onNavigationGroupChange}
                                     />
                                 </div>
                                 <ApplicationUserPanel

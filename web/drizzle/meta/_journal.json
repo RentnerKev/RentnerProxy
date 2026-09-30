@@ -183,6 +183,13 @@
             "when": 1790779541192,
             "tag": "0025_user_settings_languages",
             "breakpoints": true
+        },
+        {
+            "idx": 26,
+            "version": "7",
+            "when": 1790787640465,
+            "tag": "0026_navigation_group_preferences",
+            "breakpoints": true
         }
     ]
 }

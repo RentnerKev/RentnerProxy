@@ -35,6 +35,7 @@ import {
 } from '../../server/Auth/TwoFactor/two-factor.service'
 import { updateCurrentUserLanguageService } from '../../server/UserSettings/language.service'
 import { updateCurrentUserThemeModeService } from '../../server/UserSettings/theme.service'
+import { updateCurrentUserNavigationGroupService } from '../../server/UserSettings/navigation.service'
 import {
     enforceSensitiveLimit,
     localizedActionFailure,
@@ -43,6 +44,7 @@ import {
 } from '../Auth/serverHelpers'
 import type { LanguageUpdateResult } from './Types/language-server-result.types'
 import type { ThemeModeUpdateResult } from './Types/theme-server-result.types'
+import type { NavigationGroupUpdateResult } from './Types/navigation-server-result.types'
 import {
     beginPasskeyReauthenticationInputSchema,
     changePasswordInputSchema,
@@ -57,6 +59,7 @@ import {
     updateLanguageInputSchema,
     updateProfileImageInputSchema,
     updateThemeModeInputSchema,
+    updateNavigationGroupInputSchema,
 } from './validation'
 
 export const updateCurrentUserLanguageHandler = createServerFn({ method: 'POST' })
@@ -80,6 +83,17 @@ export const updateCurrentUserThemeModeHandler = createServerFn({ method: 'POST'
             return { success: true, themeMode }
         } catch (error) {
             return localizedActionFailure(error, 'theme.saveFailed')
+        }
+    })
+
+export const updateCurrentUserNavigationGroupHandler = createServerFn({ method: 'POST' })
+    .validator(updateNavigationGroupInputSchema)
+    .handler(async ({ data }): Promise<NavigationGroupUpdateResult> => {
+        try {
+            const change = await updateCurrentUserNavigationGroupService(data)
+            return { success: true, ...change }
+        } catch (error) {
+            return localizedActionFailure(error, 'shell.navigationSaveFailed')
         }
     })
 

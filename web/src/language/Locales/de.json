@@ -57,6 +57,7 @@
         "signingOut": "Wird abgemeldet…",
         "navigation": "Anwendungsnavigation",
         "controlPlane": "Verwaltung",
+        "navigationSaveFailed": "Deine Navigation konnte nicht gespeichert werden. Versuche es erneut.",
         "navigationGroups": {
             "operations": "Betrieb",
             "security": "Sicherheit",

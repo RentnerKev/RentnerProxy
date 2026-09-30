@@ -1,0 +1,1 @@
+ALTER TABLE "rentnerproxy"."user_settings" ADD COLUMN "navigation_group_preferences" jsonb DEFAULT '{}'::jsonb NOT NULL;

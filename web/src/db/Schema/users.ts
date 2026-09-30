@@ -3,6 +3,7 @@ import {
     check,
     index,
     integer,
+    jsonb,
     text,
     timestamp,
     uniqueIndex,
@@ -13,6 +14,7 @@ import {
 import { USER_STATUSES } from '../../config/auth.config'
 import { FALLBACK_LANGUAGE } from '../../config/language.config'
 import { DEFAULT_USER_THEME_MODE } from '../../config/theme.config'
+import type { NavigationGroupPreferences } from '../../config/navigation.config'
 import { rentnerProxySchema } from './base'
 import { bytea } from './columns'
 
@@ -54,6 +56,10 @@ export const userSettings = rentnerProxySchema.table(
             .references(() => users.id, { onDelete: 'cascade' }),
         language: varchar('language', { length: 2 }).notNull().default(FALLBACK_LANGUAGE),
         themeMode: varchar('theme_mode', { length: 20 }).notNull().default(DEFAULT_USER_THEME_MODE),
+        navigationGroupPreferences: jsonb('navigation_group_preferences')
+            .$type<NavigationGroupPreferences>()
+            .notNull()
+            .default({}),
     },
     (table) => [
         check('user_settings_theme_mode_check', sql`${table.themeMode} in ('light', 'dark')`),

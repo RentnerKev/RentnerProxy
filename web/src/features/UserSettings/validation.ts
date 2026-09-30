@@ -3,12 +3,15 @@ import { z } from 'zod'
 import { AVAILABLE_LANGUAGES } from '../../config/language.config'
 import { PROFILE_IMAGE_MAX_DATA_URL_LENGTH } from '../../config/profile-image.config'
 import { USER_THEME_MODES } from '../../config/theme.config'
+import { navigationGroupPreferenceInputSchema } from '../../config/navigation.config'
 import { credentialPasswordSchema, newPasswordSchema } from '../Auth/Shared/validation'
 import {
     authenticationResponseSchema,
     opaqueAuthChallengeSchema,
     registrationResponseSchema,
 } from '../Auth/Shared/webauthn.validation'
+
+export const updateNavigationGroupInputSchema = navigationGroupPreferenceInputSchema
 
 export const updateLanguageInputSchema = z.object({
     language: z.enum(AVAILABLE_LANGUAGES),

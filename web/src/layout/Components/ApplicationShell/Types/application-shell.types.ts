@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react'
 
 import type { UserThemeMode } from '../../../../config/theme.config'
+import type {
+    NavigationGroupChange,
+    NavigationGroupPreferences,
+} from '../../../../config/navigation.config'
 
 export interface ApplicationFooterProps {
     readonly label: string
@@ -24,6 +28,8 @@ export interface AuthenticatedShellProps {
     readonly onLogout: () => void
     readonly themeControl: ReactNode
     readonly themeMode: UserThemeMode
+    readonly navigationGroupPreferences?: NavigationGroupPreferences
+    readonly onNavigationGroupChange?: (change: NavigationGroupChange) => void
     readonly user: ApplicationUserSummary
 }
 
@@ -48,6 +54,8 @@ export interface ApplicationNavigationItem {
 
 export interface ApplicationNavigationProps {
     readonly items: readonly ApplicationNavigationItem[]
+    readonly groupPreferences?: NavigationGroupPreferences | undefined
+    readonly onGroupChange?: ((change: NavigationGroupChange) => void) | undefined
     readonly onNavigate?: () => void
 }
 

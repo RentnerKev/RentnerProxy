@@ -8,6 +8,7 @@ import {
     type PermissionKey,
 } from '../../../config/permissions.config'
 import { FALLBACK_LANGUAGE } from '../../../config/language.config'
+import { parseStoredNavigationGroupPreferences } from '../../../config/navigation.config'
 import { DEFAULT_USER_THEME_MODE, isUserThemeMode } from '../../../config/theme.config'
 import {
     permissions,
@@ -81,6 +82,7 @@ export async function resolveActiveUserAccessInTransaction(
             status: users.status,
             language: userSettings.language,
             themeMode: userSettings.themeMode,
+            navigationGroupPreferences: userSettings.navigationGroupPreferences,
         })
         .from(users)
         .leftJoin(userSettings, eq(userSettings.userId, users.id))
@@ -104,6 +106,9 @@ export async function resolveActiveUserAccessInTransaction(
         permissions: permissionKeys,
         language: isAppLanguage(user.language) ? user.language : FALLBACK_LANGUAGE,
         themeMode: isUserThemeMode(user.themeMode) ? user.themeMode : DEFAULT_USER_THEME_MODE,
+        navigationGroupPreferences: parseStoredNavigationGroupPreferences(
+            user.navigationGroupPreferences,
+        ),
     }
 }
 

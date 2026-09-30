@@ -57,6 +57,7 @@
         "signingOut": "Disconnessione…",
         "navigation": "Navigazione dell’applicazione",
         "controlPlane": "Piano di controllo",
+        "navigationSaveFailed": "Non è stato possibile salvare la navigazione. Riprova.",
         "navigationGroups": {
             "operations": "Operazioni",
             "security": "Sicurezza",

@@ -41,6 +41,7 @@
         "signingOut": "Uitloggen…",
         "navigation": "Applicatienavigatie",
         "controlPlane": "Beheeromgeving",
+        "navigationSaveFailed": "Je navigatie kon niet worden opgeslagen. Probeer het opnieuw.",
         "navigationGroups": {
             "operations": "Beheer",
             "security": "Beveiliging",

@@ -2,11 +2,13 @@ import { randomUUID } from 'node:crypto'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { requestHandler } from '@tanstack/react-start/server'
-import { and, eq, gte, inArray, like, notLike } from 'drizzle-orm'
+import { and, eq, gte, inArray, like, notLike, sql } from 'drizzle-orm'
 import * as OTPAuth from 'otpauth'
 
 import { SESSION_COOKIE_NAME } from '../config/auth.config'
 import { AVAILABLE_LANGUAGES } from '../config/language.config'
+import { NAVIGATION_GROUP_IDS } from '../config/navigation.config'
+import { updateCurrentUserNavigationGroupService } from '../server/UserSettings/navigation.service'
 
 import {
     TOTP_ALGORITHM,
@@ -588,6 +590,185 @@ describe('sessions with PostgreSQL', () => {
 
         expect(await getSessionByTokenService(session.token)).toBeNull()
     })
+})
+
+describe('navigation preferences with PostgreSQL', () => {
+    integrationTest(
+        'survives logout/login, preserves sibling settings, and isolates users',
+        async () => {
+            const first = await createTestUser()
+            const second = await createTestUser()
+            expect((await loadActiveAccess(first.id)).navigationGroupPreferences).toEqual({})
+            await getAuthDatabase().insert(userSettings).values({
+                userId: first.id,
+                language: 'de',
+                themeMode: 'dark',
+            })
+            const session = await createSessionService(first.id)
+            await runWithSessionToken(session.token, () =>
+                updateCurrentUserNavigationGroupService({
+                    expectedUserId: first.id,
+                    groupId: 'security',
+                    expanded: true,
+                }),
+            )
+            await runWithSessionToken(session.token, () =>
+                updateCurrentUserNavigationGroupService({
+                    expectedUserId: first.id,
+                    groupId: 'operations',
+                    expanded: false,
+                }),
+            )
+            await revokeSessionByTokenService(session.token)
+            const nextSession = await createSessionService(first.id)
+            const restored = await getSessionByTokenService(nextSession.token)
+            expect(restored?.user).toMatchObject({
+                navigationGroupPreferences: { operations: false, security: true },
+                language: 'de',
+                themeMode: 'dark',
+            })
+            expect((await loadActiveAccess(second.id)).navigationGroupPreferences).toEqual({})
+            await runAsUser(second.id, () =>
+                updateCurrentUserNavigationGroupService({
+                    expectedUserId: second.id,
+                    groupId: 'security',
+                    expanded: false,
+                }),
+            )
+            expect((await loadActiveAccess(first.id)).navigationGroupPreferences).toEqual({
+                operations: false,
+                security: true,
+            })
+            expect((await loadActiveAccess(second.id)).navigationGroupPreferences).toEqual({
+                security: false,
+            })
+            await expect(
+                runAsUser(second.id, () =>
+                    updateCurrentUserNavigationGroupService({
+                        expectedUserId: first.id,
+                        groupId: 'security',
+                        expanded: false,
+                    }),
+                ),
+            ).rejects.toMatchObject({ code: 'authentication_required' })
+        },
+    )
+
+    integrationTest(
+        'atomically preserves concurrent group changes, including the first settings upsert',
+        async () => {
+            const user = await createTestUser()
+            const session = await createSessionService(user.id)
+            await Promise.all(
+                NAVIGATION_GROUP_IDS.map((groupId) =>
+                    runWithSessionToken(session.token, () =>
+                        updateCurrentUserNavigationGroupService({
+                            expectedUserId: user.id,
+                            groupId,
+                            expanded: true,
+                        }),
+                    ),
+                ),
+            )
+            expect((await loadActiveAccess(user.id)).navigationGroupPreferences).toEqual({
+                operations: true,
+                security: true,
+                administration: true,
+                records: true,
+            })
+            await Promise.all(
+                NAVIGATION_GROUP_IDS.map((groupId) =>
+                    runWithSessionToken(session.token, () =>
+                        updateCurrentUserNavigationGroupService({
+                            expectedUserId: user.id,
+                            groupId,
+                            expanded: false,
+                        }),
+                    ),
+                ),
+            )
+            expect((await loadActiveAccess(user.id)).navigationGroupPreferences).toEqual({
+                operations: false,
+                security: false,
+                administration: false,
+                records: false,
+            })
+            await getAuthDatabase()
+                .insert(userSettings)
+                .values({ userId: user.id, themeMode: 'dark' })
+                .onConflictDoUpdate({ target: userSettings.userId, set: { themeMode: 'dark' } })
+            expect((await loadActiveAccess(user.id)).navigationGroupPreferences).toEqual({
+                operations: false,
+                security: false,
+                administration: false,
+                records: false,
+            })
+        },
+    )
+
+    integrationTest(
+        'ignores stale entries and safely repairs a malformed stored container on a toggle',
+        async () => {
+            const user = await createTestUser()
+            await getAuthDatabase()
+                .insert(userSettings)
+                .values({
+                    userId: user.id,
+                    navigationGroupPreferences: sql`'{"operations":false,"security":"invalid","retired":true}'::jsonb`,
+                })
+            expect((await loadActiveAccess(user.id)).navigationGroupPreferences).toEqual({
+                operations: false,
+            })
+            await runAsUser(user.id, () =>
+                updateCurrentUserNavigationGroupService({
+                    expectedUserId: user.id,
+                    groupId: 'records',
+                    expanded: true,
+                }),
+            )
+            expect((await loadActiveAccess(user.id)).navigationGroupPreferences).toEqual({
+                operations: false,
+                records: true,
+            })
+            await getAuthDatabase()
+                .update(userSettings)
+                .set({ navigationGroupPreferences: sql`'[]'::jsonb` })
+                .where(eq(userSettings.userId, user.id))
+            expect((await loadActiveAccess(user.id)).navigationGroupPreferences).toEqual({})
+            await runAsUser(user.id, () =>
+                updateCurrentUserNavigationGroupService({
+                    expectedUserId: user.id,
+                    groupId: 'security',
+                    expanded: false,
+                }),
+            )
+            expect((await loadActiveAccess(user.id)).navigationGroupPreferences).toEqual({
+                security: false,
+            })
+        },
+    )
+
+    integrationTest(
+        'keeps authorization authoritative after navigation preference changes',
+        async () => {
+            const user = await createTestUser()
+            const before = await loadActiveAccess(user.id)
+            await runAsUser(user.id, () =>
+                updateCurrentUserNavigationGroupService({
+                    expectedUserId: user.id,
+                    groupId: 'administration',
+                    expanded: true,
+                }),
+            )
+            const after = await loadActiveAccess(user.id)
+            expect(after.permissions).toEqual(before.permissions)
+            await expect(
+                getAuthDatabase().transaction((transaction) =>
+                    requirePermissionInTransaction(transaction, user.id, PERMISSIONS.USERS_VIEW),
+                ),
+            ).rejects.toMatchObject({ code: 'permission_denied' })
+        },
+    )
 })
 
 describe('RBAC with PostgreSQL', () => {

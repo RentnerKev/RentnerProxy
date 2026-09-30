@@ -57,6 +57,7 @@
         "signingOut": "Cerrando sesión…",
         "navigation": "Navegación de la aplicación",
         "controlPlane": "Administración",
+        "navigationSaveFailed": "No se pudo guardar la navegación. Inténtalo de nuevo.",
         "navigationGroups": {
             "operations": "Operaciones",
             "security": "Seguridad",

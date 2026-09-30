@@ -1,6 +1,7 @@
 import type { PermissionKey } from '../../config/permissions.config'
 import type { USER_STATUSES } from '../../config/auth.config'
 import type { UserThemeMode } from '../../config/theme.config'
+import type { NavigationGroupPreferences } from '../../config/navigation.config'
 import type { AppLanguage } from '../../language/useTranslationStore'
 
 export type UserStatus = (typeof USER_STATUSES)[number]
@@ -14,6 +15,7 @@ export interface AuthenticatedUser {
     readonly permissions: ReadonlyArray<PermissionKey>
     readonly language: AppLanguage
     readonly themeMode: UserThemeMode
+    readonly navigationGroupPreferences?: NavigationGroupPreferences
 }
 
 export interface UserSummary {

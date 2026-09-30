@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom'
 import AuthenticatedShell from './ApplicationShell'
 import ThemeModeSwitch from './Theme'
 import useThemeModeLogic from './Theme/Hooks/useThemeModeLogic'
+import useNavigationGroupPreferencesLogic from './ApplicationShell/Hooks/useNavigationGroupPreferencesLogic'
 import { TOAST_PROVIDER_PROPS } from '../../config/toast.config'
 import useLogoutLogic from '../../features/Auth/Session/Hooks/useLogoutLogic'
 import CertificateJobProgressObserver from '../../features/Admin/ProxyHostManagement/CertificateJobs/CertificateJobProgressObserver'
@@ -20,6 +21,7 @@ export default function AuthenticatedRouteLayout({ user }: AuthenticatedRouteLay
     useApplicationLiveSync()
     const { handler, state } = useLogoutLogic()
     const theme = useThemeModeLogic(user.themeMode)
+    const navigationGroups = useNavigationGroupPreferencesLogic(user)
     const { language, t, inputMessages, selectMessages } = useControlLocalization()
     const selectNonce = getClientCspNonce()
     useClearNotificationsOnLayoutExit()
@@ -41,7 +43,10 @@ export default function AuthenticatedRouteLayout({ user }: AuthenticatedRouteLay
                     {...(selectNonce ? { nonce: selectNonce } : {})}
                 >
                     <AuthenticatedShell
+                        key={user.id}
                         user={user}
+                        navigationGroupPreferences={navigationGroups.preferences}
+                        onNavigationGroupChange={navigationGroups.updateGroup}
                         isLoggingOut={state.isLoggingOut}
                         onLogout={handler.handleLogout}
                         themeMode={theme.state.themeMode}
