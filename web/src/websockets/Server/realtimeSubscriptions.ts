@@ -4,9 +4,9 @@ import {
     LIVE_INTERVALS,
     LIVE_MAX_SUBSCRIPTIONS,
     type LiveTopic,
-} from '../Helpers/realtimeConstants'
-import { comparisonKey, snapshotMessage } from '../Helpers/snapshot'
-import type { LiveSocketData } from '../Types/bun'
+} from '../Helpers/realtimeConstants.ts'
+import { comparisonKey, snapshotMessage } from '../Helpers/snapshot.ts'
+import type { LiveSocketData } from '../Types/bun.ts'
 
 export interface LiveConnectionData {
     readonly requestUrl: string

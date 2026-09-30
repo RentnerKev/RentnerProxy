@@ -1,4 +1,4 @@
-import { subscribeToApplicationChanges } from '../Helpers/publishFunctions'
+import { subscribeToApplicationChanges } from '../Helpers/publishFunctions.ts'
 import {
     LIVE_IDLE_TIMEOUT_SECONDS,
     LIVE_MAX_CONNECTIONS,
@@ -7,23 +7,23 @@ import {
     LIVE_SNAPSHOT_PATH,
     LIVE_SNAPSHOT_TIMEOUT_MS,
     REALTIME_WS_PATH,
-} from '../Helpers/realtimeConstants'
+} from '../Helpers/realtimeConstants.ts'
 import {
     isWebSocketUpgrade,
     normalizeOrigin,
     snapshotUrl,
     statusResponse,
-} from '../Helpers/snapshot'
-import { readLiveHandshake, readSubscriptionSnapshot } from '../Helpers/liveReader'
+} from '../Helpers/snapshot.ts'
+import { readLiveHandshake, readSubscriptionSnapshot } from '../Helpers/liveReader.ts'
 import type {
     LiveSocketData,
     LiveUpgradeResult,
     LiveWebSocketRuntime,
     LiveWebSocketRuntimeOptions,
-} from '../Types/bun'
-import { createSubscriptionManager, type LiveConnectionData } from './realtimeSubscriptions'
-import { createRealtimeLifecycle } from './realtimeLifecycle'
-import { createRealtimeHandler } from './realtimeHandler'
+} from '../Types/bun.ts'
+import { createSubscriptionManager, type LiveConnectionData } from './realtimeSubscriptions.ts'
+import { createRealtimeLifecycle } from './realtimeLifecycle.ts'
+import { createRealtimeHandler } from './realtimeHandler.ts'
 
 export function createLiveWebSocketRuntime(
     options: LiveWebSocketRuntimeOptions,

@@ -1,7 +1,7 @@
-import { LIVE_MAX_PAYLOAD_BYTES, type LiveTopic } from './realtimeConstants'
-import { readBoundedJson, snapshotUrl } from './snapshot'
-import type { LiveConnectionData, LiveTopicSubscription } from '../Server/realtimeSubscriptions'
-import type { LiveSnapshotReader } from '../Types/bun'
+import { LIVE_MAX_PAYLOAD_BYTES, type LiveTopic } from './realtimeConstants.ts'
+import { readBoundedJson, snapshotUrl } from './snapshot.ts'
+import type { LiveConnectionData, LiveTopicSubscription } from '../Server/realtimeSubscriptions.ts'
+import type { LiveSnapshotReader } from '../Types/bun.ts'
 
 export interface LiveReadResult {
     readonly kind: 'success' | 'failure'

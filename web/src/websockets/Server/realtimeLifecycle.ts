@@ -1,5 +1,5 @@
-import type { LiveConnectionData } from './realtimeSubscriptions'
-import type { LiveSubscriptionManager } from './realtimeSubscriptions'
+import type { LiveConnectionData } from './realtimeSubscriptions.ts'
+import type { LiveSubscriptionManager } from './realtimeSubscriptions.ts'
 
 interface RealtimeLifecycleOptions {
     readonly manager: LiveSubscriptionManager

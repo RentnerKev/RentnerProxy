@@ -1,6 +1,6 @@
-import { LIVE_SNAPSHOT_PATH } from './src/websockets/Helpers/realtimeConstants'
-import { createLiveWebSocketRuntime } from './src/websockets/Server/realtimeWebSocket'
-import type { LiveSocketData } from './src/websockets/Types/bun'
+import { LIVE_SNAPSHOT_PATH } from './src/websockets/Helpers/realtimeConstants.ts'
+import { createLiveWebSocketRuntime } from './src/websockets/Server/realtimeWebSocket.ts'
+import type { LiveSocketData } from './src/websockets/Types/bun.ts'
 import type { Plugin, UserConfig, ViteDevServer } from 'vite'
 
 const LIVE_PROXY_PATH = '/api/live'

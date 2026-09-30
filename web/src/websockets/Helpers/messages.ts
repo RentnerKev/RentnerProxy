@@ -1,5 +1,5 @@
-import { LIVE_MAX_MESSAGE_BYTES } from './realtimeConstants'
-import { byteLength, isRecord } from './snapshot'
+import { LIVE_MAX_MESSAGE_BYTES } from './realtimeConstants.ts'
+import { byteLength, isRecord } from './snapshot.ts'
 
 export interface ParsedLiveMessage {
     readonly type: unknown

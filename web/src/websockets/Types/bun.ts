@@ -1,6 +1,6 @@
 import type { ServerWebSocket } from 'bun'
 
-import type { LiveTopic } from '../Helpers/realtimeConstants'
+import type { LiveTopic } from '../Helpers/realtimeConstants.ts'
 
 export type MaybePromise<T> = T | Promise<T>
 

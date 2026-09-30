@@ -1,4 +1,4 @@
-import type { ApplicationChangedEvent } from '../Types/events'
+import type { ApplicationChangedEvent } from '../Types/events.ts'
 
 type ChangeListener = () => void
 type ChangePublisher = (event: ApplicationChangedEvent) => Promise<unknown>

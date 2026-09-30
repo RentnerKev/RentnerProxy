@@ -4,7 +4,7 @@ import {
     LIVE_SNAPSHOT_PATH,
     LIVE_TOPICS,
     type LiveTopic,
-} from './realtimeConstants'
+} from './realtimeConstants.ts'
 
 export class LivePayloadError extends Error {
     constructor() {

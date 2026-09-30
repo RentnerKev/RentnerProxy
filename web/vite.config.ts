@@ -7,7 +7,7 @@ import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-import { createLiveVitePlugin } from './vite-live'
+import { createLiveVitePlugin } from './vite-live.ts'
 
 const webRoot = fileURLToPath(new URL('.', import.meta.url))
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))

@@ -11,6 +11,7 @@
         "target": "ES2024",
         "module": "ESNext",
         "moduleResolution": "Bundler",
+        "allowImportingTsExtensions": true,
         "lib": ["DOM", "DOM.Iterable", "ES2024"],
         "jsx": "react-jsx",
         "strict": true,
