@@ -2453,5 +2453,35 @@
         },
         "hours": "Stunden",
         "minutes": "Minuten"
+    },
+    "systemAppearance": {
+        "title": "Systemdarstellung",
+        "description": "Passen Sie die Oberfläche mit Ihrer bevorzugten Akzentfarbe an.",
+        "current": "Aktuelle Akzentfarbe",
+        "default": "Standardfarbe",
+        "label": "Akzentfarbe",
+        "hint": "Wählen Sie eine Akzentfarbe für Schaltflächen, Hervorhebungen und Bedienelemente.",
+        "preview": "Vorschau",
+        "previewButton": "Vorschau-Schaltfläche",
+        "reset": "Auf Standard zurücksetzen",
+        "adminOnly": "Nur Administratoren können die Systemakzentfarbe ändern.",
+        "saved": "Akzentfarbe gespeichert.",
+        "errors": {
+            "invalidColor": "Geben Sie eine gültige Farbe ein.",
+            "saveFailed": "Die Akzentfarbe konnte nicht gespeichert werden.",
+            "loadFailed": "Die Akzentfarbe konnte nicht geladen werden."
+        },
+        "picker": {
+            "required": "Bitte wählen Sie eine Farbe.",
+            "invalidColor": "Geben Sie eine gültige Farbe ein.",
+            "eyeDropper": "Farbe auf dem Bildschirm aufnehmen",
+            "closePicker": "Farbauswahl schließen",
+            "colorArea": "Farbsättigung und Helligkeit",
+            "colorAreaInstructions": "Passen Sie Sättigung und Helligkeit mit den Pfeiltasten an.",
+            "colorAreaValue": "Sättigung {{saturation}} %, Helligkeit {{value}} %",
+            "hue": "Farbton",
+            "selectColor": "Farbe auswählen",
+            "presetColor": "{{color}} verwenden"
+        }
     }
 }
