@@ -41,21 +41,21 @@ function ModeOption({
             />
             <label
                 htmlFor={`crowdsec-mode-${mode}`}
-                className={`flex min-w-0 items-start gap-3 rounded-xl border p-4 text-left transition-[border-color,background-color] duration-150 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-500 motion-reduce:transition-none ${
+                className={`flex min-w-0 items-start gap-3 rounded-xl border p-4 text-left transition-[border-color,background-color] duration-150 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent-ring motion-reduce:transition-none ${
                     disabled
                         ? 'cursor-not-allowed opacity-65'
-                        : 'cursor-pointer hover:border-brand-500/35'
+                        : 'cursor-pointer hover:border-accent-border'
                 } ${
                     selected
-                        ? 'border-brand-500/45 bg-brand-500/[0.06]'
+                        ? 'border-accent-border bg-accent-muted'
                         : 'border-border bg-surface-raised'
                 }`}
             >
                 <span
-                    className={`mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border ${selected ? 'border-brand-500' : 'border-border-strong'}`}
+                    className={`mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border ${selected ? 'border-accent-border' : 'border-border-strong'}`}
                     aria-hidden="true"
                 >
-                    {selected ? <span className="size-2 rounded-full bg-brand-500" /> : null}
+                    {selected ? <span className="size-2 rounded-full bg-accent" /> : null}
                 </span>
                 <span className="grid gap-1">
                     <span className="text-sm font-bold text-ink-soft">
@@ -87,7 +87,7 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                     action={
                         <button
                             type="button"
-                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
+                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"
                             onClick={handler.retry}
                         >
                             {t('common.retry')}
@@ -105,7 +105,7 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                     <section className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
-                                <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
+                                <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
                                     {t('admin.crowdSec.configuration.eyebrow')}
                                 </p>
                                 <h2 className="mt-2 text-xl font-extrabold text-ink">
@@ -246,7 +246,7 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                                 {state.mode === 'external' ? (
                                     <button
                                         type="button"
-                                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-brand-600 enabled:hover:text-brand-text"
+                                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"
                                         disabled={
                                             !state.canUpdate || busy || state.apiUrl.length === 0
                                         }
@@ -262,7 +262,7 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                                 ) : null}
                                 <button
                                     type="button"
-                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
+                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
                                     disabled={!state.canUpdate || !state.isDirty || busy}
                                     onClick={handler.save}
                                 >
@@ -281,7 +281,7 @@ export default function CrowdSecPageView({ logic: { state, handler } }: CrowdSec
                         className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface mt-4"
                         aria-label={t('admin.crowdSec.facts.title')}
                     >
-                        <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
+                        <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
                             {t('admin.crowdSec.facts.title')}
                         </p>
                         <div className="mt-4 grid gap-5 md:grid-cols-3">

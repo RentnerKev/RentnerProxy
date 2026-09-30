@@ -17,7 +17,11 @@ export default function SystemStatePage({
     return (
         <main className="relative isolate grid min-h-screen grid-rows-[auto_1fr_auto] overflow-x-hidden bg-navy-950 text-white">
             <div
-                className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_72%_42%,rgba(36,209,125,0.1),transparent_34rem)]"
+                className="pointer-events-none absolute inset-0 -z-10"
+                style={{
+                    background:
+                        'radial-gradient(circle at 72% 42%, rgb(var(--accent-rgb) / 10%), transparent 34rem)',
+                }}
                 aria-hidden="true"
             />
 

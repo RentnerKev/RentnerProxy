@@ -52,7 +52,7 @@ export default function ApplicationNavigation({ items, onNavigate }: Application
                             <span className="flex min-w-0 items-center gap-2.5">
                                 <span
                                     aria-hidden="true"
-                                    className={`size-1.5 shrink-0 rounded-full ${isActive ? 'bg-brand-400 shadow-[0_0_8px_#25d65d]' : 'bg-mist-400/70'}`}
+                                    className={`size-1.5 shrink-0 rounded-full ${isActive ? 'bg-brand-400 shadow-[0_0_8px_var(--color-accent)]' : 'bg-mist-400/70'}`}
                                 />
                                 <span className="truncate">
                                     {t(`shell.navigationGroups.${group.id}`)}

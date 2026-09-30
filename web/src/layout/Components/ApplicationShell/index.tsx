@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 
 import useTranslationStore from '../../../language/useTranslationStore'
+import BrandRasterImage from '../../../shared/Branding/BrandRasterImage'
 
 import ApplicationNavigation from './Components/ApplicationNavigation'
 import ApplicationSidebarScrollIndicator from './Components/ApplicationSidebarScrollIndicator'
@@ -50,15 +51,15 @@ export default function AuthenticatedShell({
                 <div className="relative z-20 flex h-full min-h-0 flex-1 flex-col gap-6 overflow-hidden pt-7 pr-11 pb-1 pl-[1.35rem] shell:[-webkit-mask-image:linear-gradient(#fff,#fff),url('/application-sidebar-surface-desktop.svg')] shell:[-webkit-mask-position:left,right] shell:[-webkit-mask-repeat:no-repeat,no-repeat] shell:[-webkit-mask-size:calc(100%-5rem)_100%,5rem_100%] shell:mask-[linear-gradient(#fff,#fff),url('/application-sidebar-surface-desktop.svg')] shell:mask-position-[left,right] shell:[mask-repeat:no-repeat,no-repeat] shell:mask-size-[calc(100%-5rem)_100%,5rem_100%]">
                     <Link
                         to="/"
-                        className="block w-fit max-w-56 shrink-0 cursor-pointer rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400"
+                        className="block w-full max-w-56 shrink-0 cursor-pointer rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-400"
                         aria-label={t('shell.overviewLink')}
                     >
-                        <img
-                            src="/rentnerproxy-logo-long.png"
+                        <BrandRasterImage
+                            asset="logo-long"
                             alt=""
                             width={220}
                             height={80}
-                            className="block h-auto w-full"
+                            wrapperClassName="block w-full"
                         />
                     </Link>
                     <div

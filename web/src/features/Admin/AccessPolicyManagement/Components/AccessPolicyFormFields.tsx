@@ -76,7 +76,7 @@ export default function AccessPolicyFormFields({
             ? 'border-border bg-surface-subtle'
             : availabilityKey.includes('Missing') || availability.includes('BlocksAll')
               ? 'border-amber-500/35 bg-amber-500/10'
-              : 'border-brand-600/25 bg-success-bg'
+              : 'border-success-text/25 bg-success-bg'
 
     return (
         <>

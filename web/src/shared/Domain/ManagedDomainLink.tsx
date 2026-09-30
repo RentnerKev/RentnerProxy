@@ -32,7 +32,7 @@ const ManagedDomainLink = forwardRef<HTMLAnchorElement, ManagedDomainLinkProps>(
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={t('common.openDomainInNewTab', { domain })}
-                className={`${className} cursor-pointer decoration-brand-500/70 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500`}
+                className={`${className} cursor-pointer decoration-brand-500/70 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring`}
                 onClick={(event) => {
                     stopPropagation(event)
                     onClick?.(event)

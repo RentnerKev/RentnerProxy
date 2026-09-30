@@ -45,7 +45,7 @@ export function UserRolesCell({ roleKeys }: UserRolesCellProps) {
         <div className="flex flex-wrap gap-[0.45rem]">
             {visibleRoleKeys.map((roleKey) => (
                 <span
-                    className="inline-flex items-center rounded-full border border-brand-600/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
+                    className="inline-flex items-center rounded-full border border-success-text/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
                     key={roleKey}
                 >
                     {['owner', 'admin', 'viewer'].includes(roleKey)

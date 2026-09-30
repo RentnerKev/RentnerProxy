@@ -1,11 +1,12 @@
 import { HeadContent, Scripts, useRouterState } from '@tanstack/react-router'
-import { useMemo, useState, type CSSProperties } from 'react'
+import { type CSSProperties } from 'react'
 
 import { DEFAULT_ACCENT_COLOR } from '../../config/appearance.config'
 import { useDocumentLanguage } from '../../language/useTranslationStore'
 import { getClientCspNonce, isCspNonce, setClientCspNonce } from '../../shared/Helpers/cspNonce'
 import { accentCssVariables } from '../../theme/accentPalette'
 import { SystemAccentContext } from '../../theme/systemAccentContext'
+import { useDocumentAccent } from '../../theme/useDocumentAccent'
 import type { RootDocumentProps } from '../Types/root-document.types'
 
 export default function RootDocument({ children }: RootDocumentProps) {
@@ -17,17 +18,7 @@ export default function RootDocument({ children }: RootDocumentProps) {
             return isCspNonce(nonce) ? nonce : undefined
         },
     })
-    const routeAccentColor = useRouterState({
-        select: (state) => {
-            const rootMatch = state.matches.find((match) => match.routeId === '__root__')
-            const accentColor = (rootMatch?.context as { accentColor?: unknown } | undefined)
-                ?.accentColor
-            return typeof accentColor === 'string' ? accentColor : DEFAULT_ACCENT_COLOR
-        },
-    })
-    const [overrideAccentColor, setAccentColor] = useState<string | null>(null)
-    const accentColor = overrideAccentColor ?? routeAccentColor
-    const accentContext = useMemo(() => ({ accentColor, setAccentColor }), [accentColor])
+    const { accentColor, accentContext } = useDocumentAccent()
 
     const nonce = getClientCspNonce() ?? routeNonce
     setClientCspNonce(nonce)
@@ -36,7 +27,8 @@ export default function RootDocument({ children }: RootDocumentProps) {
         <SystemAccentContext.Provider value={accentContext}>
             <html
                 lang={language}
-                className="min-h-full min-w-80 [font-synthesis:none] [scrollbar-gutter:stable] [text-rendering:optimizeLegibility]"
+                className="group min-h-full min-w-80 [font-synthesis:none] [scrollbar-gutter:stable] [text-rendering:optimizeLegibility]"
+                data-accent-custom={accentColor.toLowerCase() !== DEFAULT_ACCENT_COLOR}
                 style={accentCssVariables(accentColor) as CSSProperties}
             >
                 <head>

@@ -13,7 +13,11 @@ export default function FullFoundationStatus({
     return (
         <main className="relative isolate grid min-h-screen grid-rows-[auto_1fr_auto] overflow-x-hidden bg-navy-950 text-white">
             <div
-                className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,rgba(36,209,125,0.12),transparent_32rem)]"
+                className="pointer-events-none absolute inset-0 -z-10"
+                style={{
+                    background:
+                        'radial-gradient(circle at top right, rgb(var(--accent-rgb) / 12%), transparent 32rem)',
+                }}
                 aria-hidden="true"
             />
 

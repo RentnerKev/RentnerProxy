@@ -6,7 +6,7 @@ export default function TableBodyState({ columnCount, state }: TableBodyStatePro
             <td colSpan={columnCount} className="px-5 py-14">
                 <div className="mx-auto flex max-w-md flex-col items-center text-center">
                     <span
-                        className="mb-4 size-2.5 rounded-full bg-brand-500 shadow-[0_0_0_6px_rgb(48_238_97_/_12%)]"
+                        className="mb-4 size-2.5 rounded-full bg-brand-500 shadow-[0_0_0_6px_rgb(var(--accent-rgb)_/_12%)]"
                         aria-hidden="true"
                     />
                     <h3 className="text-base font-extrabold text-ink-soft">{state.title}</h3>

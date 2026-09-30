@@ -49,7 +49,7 @@ export function Modal({
                             type="button"
                             disabled={closeDisabled}
                             aria-label={t('common.closeDialog')}
-                            className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-transparent text-xl leading-none text-muted transition-colors hover:border-border-strong hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
+                            className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-transparent text-xl leading-none text-muted transition-colors hover:border-border-strong hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
                         >
                             <X aria-hidden="true" className="size-5" strokeWidth={1.8} />
                         </Dialog.Close>

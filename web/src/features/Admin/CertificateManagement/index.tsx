@@ -46,7 +46,7 @@ export default function CertificateManagementPage(props: CertificateManagementPa
                             type="button"
                             aria-pressed={active === tab.value}
                             className={
-                                'rounded-lg px-4 py-2 text-sm font-bold outline-offset-2 focus-visible:outline-2 focus-visible:outline-brand-500 ' +
+                                'rounded-lg px-4 py-2 text-sm font-bold outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent-ring ' +
                                 (active === tab.value
                                     ? 'bg-success-bg text-success-text'
                                     : 'text-muted hover:bg-surface-hover')

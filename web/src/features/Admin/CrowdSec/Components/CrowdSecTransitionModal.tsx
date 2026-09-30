@@ -51,7 +51,7 @@ export default function CrowdSecTransitionModal({
                 closable ? (
                     <button
                         type="button"
-                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
+                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
                         onClick={onClose}
                     >
                         {t(
@@ -77,7 +77,7 @@ export default function CrowdSecTransitionModal({
                         aria-label={t('admin.crowdSec.progress.progressLabel')}
                         max={100}
                         value={progress.percent}
-                        className="h-2.5 w-full overflow-hidden rounded-full bg-surface-raised accent-brand-500 [&::-webkit-progress-bar]:bg-surface-raised [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-brand-500 [&::-moz-progress-bar]:bg-brand-500"
+                        className="h-2.5 w-full overflow-hidden rounded-full bg-surface-raised accent-accent [&::-webkit-progress-bar]:bg-surface-raised [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-accent [&::-moz-progress-bar]:bg-accent"
                     />
                 </div>
 
@@ -93,7 +93,7 @@ export default function CrowdSecTransitionModal({
                             >
                                 <span
                                     aria-hidden="true"
-                                    className={`grid size-7 shrink-0 place-items-center rounded-full border text-xs font-bold ${complete ? 'border-brand-500/40 bg-brand-500/10 text-brand-500' : active ? 'border-brand-500 text-brand-500' : 'border-border text-muted'}`}
+                                    className={`grid size-7 shrink-0 place-items-center rounded-full border text-xs font-bold ${complete ? 'border-success-text/40 bg-success-bg text-success-text' : active ? 'border-accent-border text-accent-ring' : 'border-border text-muted'}`}
                                 >
                                     {complete ? (
                                         <Check className="size-4" />

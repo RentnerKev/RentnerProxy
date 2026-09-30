@@ -1,70 +1,27 @@
-import { CustomColorPicker, type PickerMessages } from '@rentnerkev/picker'
-import { toast } from '@rentnerkev/toasts/toast'
-import { useMutation } from '@tanstack/react-query'
-import { useRouter } from '@tanstack/react-router'
+import { CustomColorPicker } from '@rentnerkev/picker'
 import { Palette } from 'lucide-react'
-import { useRef, useState, type CSSProperties } from 'react'
+import { type CSSProperties } from 'react'
 
 import { DEFAULT_ACCENT_COLOR } from '../../../config/appearance.config'
-import { updateSystemAccentColorHandler } from '../../SystemAppearance/server'
-import useTranslationStore from '../../../language/useTranslationStore'
 import { accentCssVariables } from '../../../theme/accentPalette'
-import { useSystemAccent } from '../../../theme/systemAccentContext'
+import { useSystemAppearancePanel } from '../Hooks/useSystemAppearancePanel'
 
 export default function SystemAppearancePanel({ canUpdate }: { readonly canUpdate: boolean }) {
-    const router = useRouter()
-    const { language, t } = useTranslationStore()
-    const { accentColor, setAccentColor } = useSystemAccent()
-    const [draftColor, setDraftColor] = useState(accentColor)
-    const [isValid, setIsValid] = useState(true)
-    const saveInFlight = useRef(false)
-
-    const mutation = useMutation({
-        mutationFn: (nextColor: string | null) =>
-            updateSystemAccentColorHandler({ data: { accentColor: nextColor } }),
-        onSuccess: (result) => {
-            if (result.success) {
-                setAccentColor(result.accentColor)
-                setDraftColor(result.accentColor)
-                toast.success(t('systemAppearance.saved'), { title: t('toast.titles.success') })
-                void router.invalidate()
-            } else {
-                toast.error(t(result.message), { title: t('toast.titles.error') })
-            }
-        },
-        onError: () => {
-            toast.error(t('systemAppearance.errors.saveFailed'), {
-                title: t('toast.titles.error'),
-            })
-        },
-        onSettled: () => {
-            saveInFlight.current = false
-        },
-    })
-
-    const pickerMessages: Partial<PickerMessages> = {
-        required: t('systemAppearance.picker.required'),
-        invalidColor: t('systemAppearance.picker.invalidColor'),
-        eyeDropper: t('systemAppearance.picker.eyeDropper'),
-        closePicker: t('systemAppearance.picker.closePicker'),
-        colorArea: t('systemAppearance.picker.colorArea'),
-        colorAreaInstructions: t('systemAppearance.picker.colorAreaInstructions'),
-        colorAreaValue: (saturation, value) =>
-            t('systemAppearance.picker.colorAreaValue', { saturation, value }),
-        hue: t('systemAppearance.picker.hue'),
-        selectColor: t('systemAppearance.picker.selectColor'),
-        presetColor: (color) => t('systemAppearance.picker.presetColor', { color }),
-    }
-    const previewColor = isValid && draftColor ? draftColor : accentColor
-    const isSaving = mutation.isPending
-    const isDirty = draftColor !== accentColor
-    const canSave = canUpdate && isValid && !!draftColor && isDirty && !isSaving
-
-    function save(nextColor: string | null) {
-        if (!canUpdate || saveInFlight.current || isSaving) return
-        saveInFlight.current = true
-        mutation.mutate(nextColor)
-    }
+    const {
+        accentColor,
+        canSave,
+        draftColor,
+        isSaving,
+        language,
+        pickerMessages,
+        previewColor,
+        resetDisabled,
+        reset,
+        saveDraft,
+        setDraftColor,
+        setIsValid,
+        t,
+    } = useSystemAppearancePanel(canUpdate)
 
     return (
         <section
@@ -111,7 +68,7 @@ export default function SystemAppearancePanel({ canUpdate }: { readonly canUpdat
                     className="mt-5 grid gap-4"
                     onSubmit={(event) => {
                         event.preventDefault()
-                        if (canSave) save(draftColor)
+                        saveDraft()
                     }}
                 >
                     <CustomColorPicker
@@ -163,10 +120,8 @@ export default function SystemAppearancePanel({ canUpdate }: { readonly canUpdat
                         <button
                             type="button"
                             className="inline-flex h-12 items-center justify-center rounded-xl border border-border-strong bg-surface-raised px-4 text-sm font-bold text-ink-soft transition-colors enabled:hover:border-accent-border enabled:hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring disabled:opacity-55"
-                            disabled={
-                                isSaving || (accentColor === DEFAULT_ACCENT_COLOR && !isDirty)
-                            }
-                            onClick={() => save(null)}
+                            disabled={resetDisabled}
+                            onClick={reset}
                         >
                             {t('systemAppearance.reset')}
                         </button>

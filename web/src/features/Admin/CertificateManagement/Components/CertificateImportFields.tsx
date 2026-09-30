@@ -102,7 +102,7 @@ function PemField({
                         <Textarea
                             id={id}
                             name={field.name}
-                            className="box-border w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink transition-[border-color,box-shadow] duration-150 placeholder:text-muted-soft aria-invalid:border-red-500 disabled:cursor-not-allowed disabled:opacity-[0.55] focus:border-brand-600 focus:outline-hidden focus:ring-[3px] focus:ring-brand-500/20 motion-reduce:transition-none min-h-26 resize-y py-3 min-h-36 font-mono text-xs"
+                            className="box-border w-full rounded-xl border border-input-border bg-surface-raised px-3 text-sm text-ink transition-[border-color,box-shadow] duration-150 placeholder:text-muted-soft aria-invalid:border-red-500 disabled:cursor-not-allowed disabled:opacity-[0.55] focus:border-accent-border focus:outline-hidden focus:ring-[3px] focus:ring-accent-ring/20 motion-reduce:transition-none min-h-26 resize-y py-3 min-h-36 font-mono text-xs"
                             value={field.state.value ?? ''}
                             disabled={isPending}
                             maxLength={field.name === 'privateKeyPem' ? 64 * 1024 : 256 * 1024}

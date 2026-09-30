@@ -2307,6 +2307,7 @@
             "access_policies": "Zugriffsrichtlinien",
             "proxy-access-logs": "Proxy-Zugriffsprotokolle",
             "crowdsec": "CrowdSec",
+            "system_appearance": "Systemdarstellung",
             "audit-logs": "Audit-Protokoll",
             "system": "System"
         },
@@ -2370,6 +2371,9 @@
         "crowdsec": {
             "view": "CrowdSec-Konfiguration anzeigen",
             "update": "CrowdSec-Konfiguration aktualisieren"
+        },
+        "system_appearance": {
+            "update": "Systemdarstellung ändern"
         },
         "audit-logs:view": "Audit-Protokoll anzeigen",
         "system": {

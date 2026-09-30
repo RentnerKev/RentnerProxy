@@ -11,7 +11,7 @@ export default function ChangePasswordPanel() {
             className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
             aria-labelledby="password-title"
         >
-            <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
+            <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
                 {t('account.password.sectionEyebrow')}
             </p>
             <h2 id="password-title" className="mt-[0.6rem] text-xl text-ink-soft">

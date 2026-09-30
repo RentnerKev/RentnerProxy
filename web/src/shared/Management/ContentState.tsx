@@ -13,7 +13,7 @@ export default function ContentState({
             aria-live="polite"
         >
             <span
-                className={`size-3 rounded-full bg-brand-500 shadow-[0_0_0_6px_rgb(48_238_97_/_15%)] motion-reduce:animate-none ${busy ? 'animate-pulse' : ''}`}
+                className={`size-3 rounded-full bg-brand-500 shadow-[0_0_0_6px_rgb(var(--accent-rgb)_/_15%)] motion-reduce:animate-none ${busy ? 'animate-pulse' : ''}`}
                 aria-hidden="true"
             />
             <h2 className="mt-[0.65rem] text-[1.15rem] text-ink-soft">{title}</h2>

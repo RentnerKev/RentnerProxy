@@ -33,7 +33,7 @@ export default function LanguageSettingsPanel() {
             aria-labelledby="account-language-heading"
         >
             <div className="flex items-start gap-3">
-                <Languages aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-brand-text" />
+                <Languages aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-accent-ring" />
                 <div>
                     <h2
                         id="account-language-heading"
@@ -90,7 +90,7 @@ export default function LanguageSettingsPanel() {
                 </div>
                 <button
                     type="submit"
-                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover justify-self-start"
+                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover justify-self-start"
                     disabled={!state.isDirty || state.isSaving}
                     aria-busy={state.isSaving}
                 >

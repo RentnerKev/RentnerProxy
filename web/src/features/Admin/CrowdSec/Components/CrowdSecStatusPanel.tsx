@@ -25,7 +25,7 @@ export default function CrowdSecStatusPanel({
         >
             <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
+                    <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
                         {t('admin.crowdSec.status.eyebrow')}
                     </p>
                     <h2 className="mt-2 text-xl font-extrabold text-ink">

@@ -13,7 +13,7 @@ export default function ForwardAuthSummaryPanel() {
             aria-label={t('admin.crowdSec.dashboard.forwardAuthTitle')}
         >
             <div>
-                <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-brand-text uppercase">
+                <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
                     {t('admin.crowdSec.dashboard.forwardAuthEyebrow')}
                 </p>
                 <h2 className="mt-2 text-xl font-extrabold text-ink">

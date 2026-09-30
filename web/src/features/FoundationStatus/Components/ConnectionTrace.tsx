@@ -7,13 +7,13 @@ import type { ConnectionTraceProps } from '../Types/foundation-status.types'
 export default function ConnectionTrace({ connected }: ConnectionTraceProps) {
     const { t } = useTranslationStore()
     const controllerNodeClassName = connected
-        ? 'bg-brand-400 ring-brand-400/10'
+        ? 'bg-success-text ring-success-text/10'
         : 'bg-amber-300 ring-amber-300/10'
 
     return (
         <div className="relative mx-auto h-24 w-full max-w-sm xl:h-72 xl:w-32" aria-hidden="true">
             <span className="absolute top-1/2 right-10 left-10 h-px -translate-y-1/2 bg-white/15 xl:top-12 xl:bottom-12 xl:left-1/2 xl:h-auto xl:w-px xl:-translate-x-1/2 xl:translate-y-0" />
-            <span className="absolute top-1/2 left-8 size-4 -translate-y-1/2 rounded-full border-[3px] border-navy-900 bg-brand-400 ring-8 ring-brand-400/10 xl:top-10 xl:left-1/2 xl:-translate-x-1/2 xl:translate-y-0" />
+            <span className="absolute top-1/2 left-8 size-4 -translate-y-1/2 rounded-full border-[3px] border-navy-900 bg-success-text ring-8 ring-success-text/10 xl:top-10 xl:left-1/2 xl:-translate-x-1/2 xl:translate-y-0" />
             <span
                 className={`absolute top-1/2 right-8 size-4 -translate-y-1/2 rounded-full border-[3px] border-navy-900 ring-8 xl:top-auto xl:right-auto xl:bottom-10 xl:left-1/2 xl:-translate-x-1/2 xl:translate-y-0 ${controllerNodeClassName}`}
             />

@@ -36,7 +36,7 @@ export default function ApplicationUserPanel({
                 {canViewAccount ? (
                     <Link
                         to="/account"
-                        className="inline-flex h-12 min-w-0 cursor-pointer items-center justify-center gap-[0.45rem] rounded-xl border border-white/10 bg-white/[0.04] px-[0.7rem] py-0 text-sm font-extrabold text-mist-300 no-underline transition-[background-color,color,border-color] duration-150 hover:border-brand-500/35 hover:bg-brand-500/12 hover:text-[#eaffef] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-300 motion-reduce:transition-none [&>svg]:size-4 [&>svg]:shrink-0"
+                        className="inline-flex h-12 min-w-0 cursor-pointer items-center justify-center gap-[0.45rem] rounded-xl border border-white/10 bg-white/[0.04] px-[0.7rem] py-0 text-sm font-extrabold text-mist-300 no-underline transition-[background-color,color,border-color] duration-150 hover:border-brand-500/35 hover:bg-brand-500/12 hover:text-brand-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-300 motion-reduce:transition-none [&>svg]:size-4 [&>svg]:shrink-0"
                         onClick={onNavigate}
                     >
                         <UserRound aria-hidden="true" />

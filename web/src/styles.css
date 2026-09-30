@@ -57,7 +57,7 @@
     --color-select-border-strong: var(--theme-border-strong);
     --color-select-foreground: var(--theme-ink);
     --color-select-muted: var(--theme-muted);
-    --color-select-accent: var(--accent-600);
+    --color-select-accent: var(--accent-ring);
     --color-canvas: var(--theme-canvas);
     --color-surface: var(--theme-surface);
     --color-surface-raised: var(--theme-surface-raised);

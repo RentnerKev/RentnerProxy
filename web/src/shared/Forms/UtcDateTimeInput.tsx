@@ -45,7 +45,7 @@ export default function UtcDateTimeInput({
                 value={state.time}
                 onChange={(event) => handler.handleTimeChange(event.currentTarget.value)}
                 style={{ paddingLeft: 8 }}
-                className={`h-12 min-w-0 rounded-xl border border-input-border bg-surface-raised px-2 text-sm text-ink outline-hidden transition-[border-color,box-shadow] focus:border-brand-600 focus:ring-[3px] focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-55 ${invalidClassName}`}
+                className={`h-12 min-w-0 rounded-xl border border-input-border bg-surface-raised px-2 text-sm text-ink outline-hidden transition-[border-color,box-shadow] focus:border-accent-border focus:ring-[3px] focus:ring-accent-ring/20 disabled:cursor-not-allowed disabled:opacity-55 ${invalidClassName}`}
             />
         </div>
     )

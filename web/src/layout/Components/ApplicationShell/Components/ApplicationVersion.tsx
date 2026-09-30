@@ -32,7 +32,7 @@ export default function ApplicationVersion() {
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={updateLabel}
-                        className="inline-flex size-4 items-center justify-center rounded text-brand-500 hover:bg-brand-500/15 focus-visible:outline-2 focus-visible:outline-brand-500"
+                        className="inline-flex size-4 items-center justify-center rounded text-brand-400 hover:bg-brand-400/15 focus-visible:outline-2 focus-visible:outline-brand-400"
                     >
                         <ArrowUp className="size-3.5" aria-hidden="true" />
                     </a>

@@ -14,7 +14,7 @@ export default function ThemeModeSwitch({ isSaving, onToggle, themeMode }: Theme
             <button
                 type="button"
                 role="switch"
-                className="group relative grid h-12 w-24 grid-cols-2 items-center rounded-full border border-border-strong bg-surface-raised p-1 text-muted transition-[border-color,background-color] duration-180 hover:border-brand-500 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-brand-500 disabled:cursor-wait disabled:opacity-[0.68] motion-reduce:transition-none"
+                className="group relative grid h-12 w-24 grid-cols-2 items-center rounded-full border border-border-strong bg-surface-raised p-1 text-muted transition-[border-color,background-color] duration-180 hover:border-accent-border focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-accent-ring disabled:cursor-wait disabled:opacity-[0.68] motion-reduce:transition-none"
                 aria-busy={isSaving}
                 aria-checked={viewModel.isDark}
                 aria-label={t(viewModel.isDark ? 'theme.switchToLight' : 'theme.switchToDark')}
@@ -22,13 +22,13 @@ export default function ThemeModeSwitch({ isSaving, onToggle, themeMode }: Theme
                 onClick={onToggle}
             >
                 <span
-                    className={`z-[2] grid place-items-center [&>svg]:size-4 [&>svg]:stroke-[1.65] [&>svg]:[stroke-linecap:round] [&>svg]:[stroke-linejoin:round] ${viewModel.isDark ? 'text-muted' : 'text-navy-950'}`}
+                    className={`z-[2] grid place-items-center [&>svg]:size-4 [&>svg]:stroke-[1.65] [&>svg]:[stroke-linecap:round] [&>svg]:[stroke-linejoin:round] ${viewModel.isDark ? 'text-muted' : 'text-accent-foreground'}`}
                     aria-hidden="true"
                 >
                     <Sun aria-hidden="true" />
                 </span>
                 <span
-                    className={`z-[2] grid place-items-center [&>svg]:size-4 [&>svg]:stroke-[1.65] [&>svg]:[stroke-linecap:round] [&>svg]:[stroke-linejoin:round] ${viewModel.isDark ? 'text-navy-950' : 'text-muted'}`}
+                    className={`z-[2] grid place-items-center [&>svg]:size-4 [&>svg]:stroke-[1.65] [&>svg]:[stroke-linecap:round] [&>svg]:[stroke-linejoin:round] ${viewModel.isDark ? 'text-accent-foreground' : 'text-muted'}`}
                     aria-hidden="true"
                 >
                     <Moon aria-hidden="true" />

@@ -42,7 +42,7 @@ export default function TableHead<TData extends RowData>({ table }: TableHeadPro
                                                 <button
                                                     type="button"
                                                     onClick={header.column.getToggleSortingHandler()}
-                                                    className="inline-flex h-12 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left text-inherit outline-hidden transition-colors hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                                    className="inline-flex h-12 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left text-inherit outline-hidden transition-colors hover:text-accent-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring"
                                                     aria-label={t('table.sortBy', {
                                                         column: header.column.id,
                                                     })}
@@ -50,7 +50,7 @@ export default function TableHead<TData extends RowData>({ table }: TableHeadPro
                                                     <table.FlexRender header={header} />
                                                     <span
                                                         aria-hidden="true"
-                                                        className="text-brand-text"
+                                                        className="text-accent-ring"
                                                     >
                                                         {sortDirection === 'asc' ? (
                                                             <ArrowUp className="size-3.5" />
