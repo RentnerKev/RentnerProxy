@@ -23,6 +23,15 @@ on:
             - 'web/vite.config.ts'
             - 'package.json'
             - 'bun.lock'
+    push:
+        branches:
+            - main
+        paths:
+            - 'scripts/production-backup*'
+            - 'scripts/production-restore.ts'
+            - 'scripts/release-compatibility/**'
+            - 'docker/web/bootstrap-secrets.mjs'
+            - 'docker/web/validate-backup.mjs'
     schedule:
         - cron: '17 3 * * 1'
     workflow_dispatch:
@@ -65,7 +74,9 @@ jobs:
                   EVENT_NAME: ${{ github.event_name }}
                   REQUESTED_SOURCE: ${{ inputs.source }}
               run: |
-                  if [ "$EVENT_NAME" = pull_request ]; then
+                  if [ "$EVENT_NAME" = push ]; then
+                    sources='["alpha.4","alpha.5","alpha.6"]'
+                  elif [ "$EVENT_NAME" = pull_request ]; then
                     sources='["fresh","alpha.6"]'
                   elif [ "$EVENT_NAME" = schedule ] || [ "$REQUESTED_SOURCE" = all ]; then
                     sources='["fresh","alpha.1","alpha.2","alpha.3","alpha.4","alpha.5","alpha.6"]'
@@ -81,7 +92,7 @@ jobs:
             max-parallel: 3
             matrix:
                 source: ${{ fromJSON(needs.select-sources.outputs.sources) }}
-        name: ${{ matrix.source }} to PR target
+        name: ${{ matrix.source }} to target
         runs-on: ubuntu-latest
         timeout-minutes: 90
         steps:
@@ -89,6 +100,7 @@ jobs:
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
+                  fetch-depth: 0
                   ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
             - name: Set up Bun

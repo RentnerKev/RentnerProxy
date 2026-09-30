@@ -29,7 +29,7 @@ export interface PublishedUpgradeBaseline {
     readonly version: string
     readonly revision: string
     readonly migrationCount: number
-    readonly targetName: 'Alpha 4'
+    readonly targetName: 'current'
     readonly directoryName: string
 }
 
@@ -39,7 +39,7 @@ export const ALPHA1_BASELINE: PublishedUpgradeBaseline = {
     version: 'v1.0.0-alpha.1',
     revision: ALPHA1_REVISION,
     migrationCount: ALPHA1_MIGRATION_COUNT,
-    targetName: 'Alpha 4',
+    targetName: 'current',
     directoryName: 'alpha1-upgrade',
 }
 
@@ -49,7 +49,7 @@ export const ALPHA3_BASELINE: PublishedUpgradeBaseline = {
     version: 'v1.0.0-alpha.3',
     revision: ALPHA3_REVISION,
     migrationCount: ALPHA3_MIGRATION_COUNT,
-    targetName: 'Alpha 4',
+    targetName: 'current',
     directoryName: 'alpha3-upgrade',
 }
 
@@ -298,22 +298,6 @@ export async function verifyPublishedUpgrade(
                 ' image starts with real users, roles, hosts, certificates and desired state',
         )
 
-        const backupRoot = join(directory, 'backups')
-        await options.commandWithEnvironment(
-            [
-                process.execPath,
-                'scripts/production-backup.ts',
-                '--project',
-                project,
-                '--output',
-                backupRoot,
-            ],
-            { ...options.environment, RENTNERPROXY_COMPOSE_FILE: oldComposeFile },
-            900_000,
-        )
-        const backups = await readdir(backupRoot)
-        assert.equal(backups.length, 1)
-        const backupPath = join(backupRoot, backups[0]!)
         await command([...oldCompose, 'down', '--remove-orphans'], 180_000)
         await command([...nextCompose, 'up', '--detach'], 240_000)
         id = await containerId(nextCompose)
@@ -345,6 +329,22 @@ export async function verifyPublishedUpgrade(
         await traffic(id, fixture)
         assert.equal(await activeRevision(id), originalRevision)
         passed('repeated startup after ' + baseline.name + ' upgrade is idempotent')
+        const backupRoot = join(directory, 'backups')
+        await options.commandWithEnvironment(
+            [
+                process.execPath,
+                'scripts/production-backup.ts',
+                '--project',
+                project,
+                '--output',
+                backupRoot,
+            ],
+            { ...options.environment, RENTNERPROXY_COMPOSE_FILE: newComposeFile },
+            900_000,
+        )
+        const backups = await readdir(backupRoot)
+        assert.equal(backups.length, 1)
+        const backupPath = join(backupRoot, backups[0]!)
         await command([...nextCompose, 'down', '--remove-orphans'], 180_000)
 
         await options.commandWithEnvironment(
@@ -372,8 +372,9 @@ export async function verifyPublishedUpgrade(
         await traffic(restoredId, fixture)
         assert.equal(await activeRevision(restoredId), originalRevision)
         passed(
-            baseline.name +
-                ' database and controller backup restores into a fresh ' +
+            'current backup after ' +
+                baseline.name +
+                ' upgrade restores database and controller state into a fresh ' +
                 baseline.targetName +
                 ' appliance',
         )
@@ -397,7 +398,7 @@ export async function verifyPublishedUpgrade(
         })
         await traffic(restoredId, fixture)
         assert.equal(await activeRevision(restoredId), originalRevision)
-        passed('failed SQL restore rolls back and restarts the unchanged appliance')
+        passed('invalid SQL backup is rejected before replacing the running appliance')
     } finally {
         await command([...nextCompose, 'down', '--volumes', '--remove-orphans'], 180_000).catch(
             () => undefined,

@@ -107,7 +107,7 @@ docker compose up -d
 
 - No staged path is needed for these tested sources. Unlisted or moving images such as `:dev` are unsupported upgrade sources, as are downgrades. The [matrix](scripts/release-compatibility/published-alphas.ts) pins the published image digests.
 - Before upgrading, create and retain a pre-upgrade backup outside the appliance volume and record the exact source image tag and digest. Repository [backup](scripts/production-backup.ts) and [restore](scripts/production-restore.ts) tools require a checkout and Bun. Then change to the released target tag, run `docker compose pull`, and run `docker compose up -d`.
-- Never start an older image with a database already migrated by a newer image. Rollback means stopping the target, restoring the **pre-upgrade** backup into a fresh volume, and starting the previous **exact** image. Backup and restore hardening remains in [#71](https://github.com/RentnerKev/RentnerProxy/issues/71).
+- Never start an older image with a database already migrated by a newer image. Rollback means stopping the target, restoring the **pre-upgrade** backup into a fresh volume, and starting the previous **exact** image. Use the tools from that source release for the rollback; current restore tools deliberately reject a newer database on an older target.
 - `:dev` is a moving **test image** built manually from `main` by the [Dev Image workflow](https://github.com/RentnerKev/RentnerProxy/actions/workflows/dev-image.yml); it is not a release.
 - CrowdSec, Forward Auth, and the NPM importer are **not** in the pinned Alpha 6 image. To test the current implementation, use `ghcr.io/rentnerkev/rentnerproxy:dev` after triggering that workflow.
 
@@ -118,7 +118,7 @@ docker compose up -d
 - **Disabled:** default; existing traffic behavior is unchanged.
 - Flags use a bundled country-only MMDB. A mounted GeoLite2 Country file can be selected with the optional `RENTNERPROXY_GEOIP_COUNTRY_DB_PATH` (absolute path; maintain its license and updates).
 - Enforcement is fail-open when the selected Local API is unavailable.
-- Managed CrowdSec data is not yet in repository backups ([#71](https://github.com/RentnerKev/RentnerProxy/issues/71)); snapshot the Docker volume.
+- Repository backup v4 includes the managed CrowdSec SQLite database, decisions, local API registration, optional Central API/Console credentials and managed bouncer key. External CrowdSec configuration and its encrypted credential are in PostgreSQL; the external LAPI remains operator owned.
 
 ## Forward Auth (development image)
 
@@ -133,3 +133,17 @@ Provider reachability is not measured by the Security Dashboard; it reports conf
 - [Screenshots](screenshots) · [Report a bug](https://github.com/RentnerKev/RentnerProxy/issues/new/choose)
 
 Licensed under [MIT](LICENSE).
+
+## Backup and recovery
+
+Run `bun run backup:production -- --project <project> --output <directory>` with the current checkout and the deployment's Compose environment. The appliance is stopped while PostgreSQL, controller/certificate state, the application encryption key and managed CrowdSec state are captured together, then restarted. Keep the completed backup directory outside the appliance volume. Its manifest records SHA-256 checksums, the source image identity, public origin and trusted proxy CIDRs; the directory is private (0700) and its files are 0600 on Linux. Checksums detect corruption, so retain backups in trusted storage.
+
+Restore with `bun run restore:production -- --project <project> --input <backup> --confirm-replace`. Restore validates the complete manifest and immutable copies of every artifact before stopping the target. It rejects unsafe archive members, incompatible migration history, corrupted databases and application keys that cannot decrypt persisted secrets. Archive extraction uses private staging directories and repairs ownership before startup. The restored desired configuration is reconciled by the controller; verify the appliance health and actual proxy traffic before accepting recovery.
+
+Supported restore sources are current v4 backups into the same current database version, and authentic v3 backups from the pinned published Alpha 4, Alpha 5 and Alpha 6 images into the current target. The [release compatibility matrix](scripts/release-compatibility/run.ts) creates each source backup with that release's own tools, verifies fresh-volume restores and exact-source fresh-volume rollback. Format v1/v2, other releases and downgrades are unsupported; changing a manifest version does not make a backup compatible. Alpha v3 archives predate managed CrowdSec. They initialize CrowdSec on a fresh target and leave any existing CrowdSec directory in place; they cannot recover lost decisions.
+
+Keep the Compose file, image tag/digest, port mappings and deployment environment alongside the backup, including SMTP credentials, canonical public origin and trusted proxy CIDRs. Environment secrets are deliberately absent from the manifest. A v4 restore checks the origin and CIDRs against the target; legacy v3 restores require explicit deployment review with `--allow-deployment-change`. Use that option for an intentional environment change only after reviewing authentication, forwarded-client trust and external integration reachability.
+
+Redis sessions/challenges, request logs, sockets, PID files, locks, temporary files and supervisor status/staging are excluded. Redis-backed flows restart after restore; durable users, sessions, roles, permissions, policies, Basic Auth, Forward Auth, importer history, hosts, redirects, CAs, certificate jobs/events/retries, candidates, ACME accounts and encrypted DNS credentials remain in PostgreSQL/controller state. CrowdSec's SQLite WAL is retained when present, while its shared-memory file is regenerated. Managed startup re-registers the bouncer with a private key and preserves detections and registrations; the LAPI remains bound to loopback.
+
+If restore is interrupted after replacement begins, the persistent journal prevents startup with partially restored state. Stop the appliance if it was manually started and rerun the same backup with `--resume --confirm-replace`. Resume validates that backup again and repeats all replacement steps. Another backup is rejected while the journal is pending. A failure before replacement leaves the running target intact; no automatic destructive retry is attempted. For rollback, use a fresh volume, the pre-upgrade source backup, that source release's restore tools and its exact image digest.

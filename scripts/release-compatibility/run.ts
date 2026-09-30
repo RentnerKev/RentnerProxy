@@ -1,10 +1,10 @@
 // oxlint-disable no-await-in-loop -- Appliance phases and bounded readiness probes run in order.
 import assert from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
 
@@ -162,6 +162,91 @@ function composeFile(image: string, upstreamPort: number): string {
             },
             volumes: { data: {}, 'postgres-base': {} },
         }),
+    )
+}
+
+async function materializePinnedScript(
+    revision: string,
+    release: string,
+    repositoryPath: string,
+): Promise<{ readonly path: string; readonly sha256: string }> {
+    const contents = await command(['git', 'show', `${revision}:${repositoryPath}`])
+    const path = join(temporaryRoot, 'historical-tools', release, repositoryPath)
+    await mkdir(dirname(path), { recursive: true })
+    await writeFile(path, contents, { mode: 0o600 })
+    return { path, sha256: createHash('sha256').update(contents).digest('hex') }
+}
+
+async function createPinnedSourceBackup(backupRoot: string): Promise<string> {
+    if (!source) throw new Error('source release missing')
+    const release = source.version
+    const backupScript = await materializePinnedScript(
+        source.revision,
+        release,
+        'scripts/production-backup.ts',
+    )
+    await materializePinnedScript(source.revision, release, 'scripts/controller-state-archive.ts')
+    await command(
+        [process.execPath, backupScript.path, '--project', project, '--output', backupRoot],
+        900_000,
+        { RENTNERPROXY_COMPOSE_FILE: join(temporaryRoot, 'source.compose.json') },
+    )
+    const backups = await readdir(backupRoot)
+    assert.equal(backups.length, 1)
+    const backupPath = join(backupRoot, backups[0]!)
+    const metadata = JSON.parse(await readFile(join(backupPath, 'metadata.json'), 'utf8')) as {
+        readonly format?: string
+        readonly version?: number
+    }
+    assert.equal(metadata.format, 'rentnerproxy-production-backup')
+    assert.equal(metadata.version, 3)
+    console.log(
+        `source_backup_version=${metadata.version} source_backup_script_sha256=${backupScript.sha256} source_revision=${source.revision}`,
+    )
+    return backupPath
+}
+
+async function restorePinnedSourceBackup(inputPath: string, composePath: string): Promise<void> {
+    if (!source) throw new Error('source release missing')
+    const release = source.version
+    const restoreScript = await materializePinnedScript(
+        source.revision,
+        release,
+        'scripts/production-restore.ts',
+    )
+    await materializePinnedScript(source.revision, release, 'scripts/controller-state-archive.ts')
+    await command(
+        [
+            process.execPath,
+            restoreScript.path,
+            '--input',
+            inputPath,
+            '--project',
+            project,
+            '--confirm-replace',
+        ],
+        1_200_000,
+        { RENTNERPROXY_COMPOSE_FILE: composePath },
+    )
+    console.log(
+        `source_restore_script_sha256=${restoreScript.sha256} source_revision=${source.revision}`,
+    )
+}
+
+async function restoreCurrentTargetBackup(inputPath: string, composePath: string): Promise<void> {
+    await command(
+        [
+            process.execPath,
+            'scripts/production-restore.ts',
+            '--input',
+            inputPath,
+            '--project',
+            project,
+            '--confirm-replace',
+            '--allow-deployment-change',
+        ],
+        1_200_000,
+        { RENTNERPROXY_COMPOSE_FILE: composePath },
     )
 }
 
@@ -741,24 +826,17 @@ async function run(): Promise<void> {
             target: false,
         })
         let preUpgradeDurableSnapshot = durableSnapshot
-        if (source.version === 'v1.0.0-alpha.6') {
+        const backupEligible =
+            source.version === 'v1.0.0-alpha.4' ||
+            source.version === 'v1.0.0-alpha.5' ||
+            source.version === 'v1.0.0-alpha.6'
+        const backupRoot = join(temporaryRoot, 'release-backup')
+        let backupPath = ''
+        if (backupEligible) {
             stage = 'pre-upgrade-backup'
-            const backupRoot = join(temporaryRoot, 'backup')
-            await command(
-                [
-                    process.execPath,
-                    'scripts/production-backup.ts',
-                    '--project',
-                    project,
-                    '--output',
-                    backupRoot,
-                ],
-                900_000,
-                { RENTNERPROXY_COMPOSE_FILE: sourceFile },
-            )
-            assert.equal((await readdir(backupRoot)).length, 1)
+            backupPath = await createPinnedSourceBackup(backupRoot)
             await start(sourceFile)
-            if (durable) {
+            if (source.version === 'v1.0.0-alpha.6' && durable) {
                 preUpgradeDurableSnapshot = await readAlpha4PersistenceSnapshot({
                     containerId: container,
                     command,
@@ -836,10 +914,63 @@ async function run(): Promise<void> {
         if (source.version === 'v1.0.0-alpha.6') {
             stage = 'target-restart-http3'
             await verifyHttp3(base)
+            await assertCorruptJournalFailsClosed(targetFile, base)
         }
         console.log(`PASS ${source.version} restart remains idempotent`)
-        if (source.version === 'v1.0.0-alpha.6')
-            await assertCorruptJournalFailsClosed(targetFile, base)
+
+        if (backupEligible) {
+            stage = 'target-fresh-volume-restore'
+            await command(
+                [...compose(targetFile), 'down', '--volumes', '--remove-orphans'],
+                180_000,
+            )
+            await restoreCurrentTargetBackup(backupPath, targetFile)
+            await start(targetFile)
+            assert.equal(await migrationCount(), CURRENT_MIGRATION_COUNT)
+            const restoredRevision = await verifyState({
+                base,
+                auth,
+                ...(audit ? { audit } : {}),
+                ...(policy ? { policy } : {}),
+                ...(durable && preUpgradeDurableSnapshot
+                    ? { durable, durableSnapshot: preUpgradeDurableSnapshot }
+                    : {}),
+                ...(acmeAccount ? { acmeAccount } : {}),
+                target: true,
+            })
+            assert.equal(restoredRevision, sourceRevision)
+            assert.equal(await appKeyDigest(), originalAppKeyDigest)
+            await verifyLogin(base, 1)
+            if (source.version === 'v1.0.0-alpha.6') await verifyHttp3(base)
+            console.log(`PASS ${source.version} release backup restores into fresh current volumes`)
+
+            stage = 'source-fresh-volume-rollback'
+            await command(
+                [...compose(targetFile), 'down', '--volumes', '--remove-orphans'],
+                180_000,
+            )
+            await restorePinnedSourceBackup(backupPath, sourceFile)
+            await start(sourceFile)
+            assert.equal(await migrationCount(), source.migrationCount)
+            const rollbackRevision = await verifyState({
+                base,
+                auth,
+                ...(audit ? { audit } : {}),
+                ...(policy ? { policy } : {}),
+                ...(durable && preUpgradeDurableSnapshot
+                    ? { durable, durableSnapshot: preUpgradeDurableSnapshot }
+                    : {}),
+                ...(acmeAccount ? { acmeAccount } : {}),
+                target: false,
+            })
+            assert.equal(rollbackRevision, sourceRevision)
+            assert.equal(await appKeyDigest(), originalAppKeyDigest)
+            await verifyLogin(base, 1)
+            if (source.version === 'v1.0.0-alpha.6') await verifyHttp3(base)
+            console.log(
+                `PASS ${source.version} release backup restores into fresh exact-source volumes`,
+            )
+        }
     } else {
         stage = 'fresh-startup'
         await start(targetFile)

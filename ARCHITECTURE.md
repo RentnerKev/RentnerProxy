@@ -211,7 +211,7 @@ for encrypted controller state; losing it makes encrypted records unrecoverable.
 
 [`scripts/production-backup.ts`](./scripts/production-backup.ts) quiesces the
 appliance and captures a PostgreSQL dump, the controller state archive, and the
-application encryption key. The archive filters in
+application encryption key, and a separate managed CrowdSec archive. Backup v4 records the source image identity and the public origin/trusted proxy CIDRs. The archive filters in
 [`scripts/controller-state-archive.ts`](./scripts/controller-state-archive.ts)
 remove sockets, transient runtime files, caches, and logs. Redis and proxy request
 logs are excluded. The deployment environment, including the public origin,
@@ -219,9 +219,23 @@ trusted proxy CIDRs, port mappings, SMTP settings, and Compose project/file, mus
 be retained by the operator alongside the backup. Restore and rollback are separate
 operations in [`scripts/production-restore.ts`](./scripts/production-restore.ts);
 the documented upgrade and recovery constraints are in [`README.md`](./README.md).
-The v3 controller archive currently covers the proxy state directory, not the sibling managed
-CrowdSec directory; [issue #71](https://github.com/RentnerKev/RentnerProxy/issues/71) owns that
-backup/restore expansion.
+Current restore validates artifact checksums, archive paths/types, database integrity,
+the migration prefix against the target image and encrypted application/controller records
+before replacement. It operates from private verified artifact copies. Controller and CrowdSec
+archives are extracted into private staging directories with explicit UID/mode repair.
+A durable restore journal blocks startup until the database, both state directories and the
+application key have been restored. Interrupted restores require the same manifest identity and
+an explicit resume; complete replay recovers a partial directory replacement.
+
+The CrowdSec archive includes the SQLite database and WAL, local/online/Console credentials
+and managed bouncer key; SQLite shared memory and supervisor control/status/staging regenerate.
+Managed startup repairs bouncer registration with the private key while retaining detections.
+External credentials remain encrypted in PostgreSQL; external LAPI data is operator owned.
+Only current v4 and genuine published Alpha 4/5/6 v3 backups are supported. The pinned release
+matrix tests upgrade, fresh-volume restore and exact-source fresh-volume rollback using each
+release's historical backup tools. Legacy v3 has no CrowdSec archive or deployment metadata and
+requires explicit deployment review. Formats v1/v2 and incompatible migration histories fail
+before target replacement.
 
 ## Change and verification boundaries
 

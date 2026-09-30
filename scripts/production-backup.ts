@@ -1,6 +1,23 @@
 import { stateArchiveExclusions } from './controller-state-archive'
+import {
+    crowdSecArchiveExclusions,
+    deploymentSchema,
+    parseBackupMetadata,
+    validateStateArchive,
+    type BackupMetadata,
+} from './production-backup-format'
 import { createHash, randomUUID } from 'node:crypto'
-import { chmod, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import {
+    chmod,
+    mkdir,
+    mkdtemp,
+    open,
+    readFile,
+    rename,
+    rm,
+    stat,
+    writeFile,
+} from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -16,30 +33,6 @@ const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.mjs'
 
 type CommandOptions = Readonly<{
     timeoutMs?: number
-}>
-
-type BackupMetadata = Readonly<{
-    applicationEncryptionKey: Readonly<{
-        bytes: number
-        file: 'app-encryption-key'
-        sha256: string
-    }>
-    controllerState: Readonly<{
-        archive: 'controller-state.tar'
-        bytes: number
-        sha256: string
-    }>
-    createdAt: string
-    format: 'rentnerproxy-production-backup'
-    postgres: Readonly<{
-        bytes: number
-        database: 'rentnerproxy'
-        dump: 'postgres.dump'
-        sha256: string
-        user: 'rentnerproxy'
-    }>
-    redis: 'excluded'
-    version: 3
 }>
 
 function optionValue(argumentsList: string[], name: string): string | undefined {
@@ -151,6 +144,45 @@ async function backup(): Promise<void> {
     await stat(composeFile)
     await mkdir(outputRoot, { recursive: true })
 
+    const config = JSON.parse(
+        await runCommand([...compose, 'config', '--format=json'], 'inspect deployment'),
+    ) as {
+        services: { rentnerproxy: { image: string; environment: Record<string, string> } }
+    }
+    const service = config.services.rentnerproxy
+    const deployment = deploymentSchema.parse({
+        publicOrigin: service.environment.RENTNERPROXY_PUBLIC_ORIGIN,
+        trustedProxyCidrs: service.environment.RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS ?? '',
+    })
+    const image = JSON.parse(
+        await runCommand(
+            ['docker', 'image', 'inspect', '--format={{json .}}', service.image],
+            'inspect source image',
+        ),
+    ) as {
+        Id: string
+        Config: { Labels?: Record<string, string> }
+    }
+    const source = {
+        imageId: image.Id,
+        revision: image.Config.Labels?.['org.opencontainers.image.revision'] ?? null,
+        version: image.Config.Labels?.['org.opencontainers.image.version'] ?? null,
+    }
+    const sourceContainer = await runCommand(
+        [...compose, 'ps', '--all', '--quiet', applianceService],
+        'inspect source appliance',
+    )
+    if (!sourceContainer || sourceContainer.includes('\n'))
+        throw new Error('backup requires one initialized appliance')
+    const runningImage = await runCommand(
+        ['docker', 'inspect', '--format={{.Image}}', sourceContainer],
+        'inspect appliance image',
+    )
+    if (runningImage !== image.Id)
+        throw new Error(
+            'Compose image differs from the initialized appliance; use its exact source image before backup',
+        )
+
     const finalName =
         'rentnerproxy-' +
         new Date()
@@ -164,6 +196,8 @@ async function backup(): Promise<void> {
     const appEncryptionKeyPath = join(stagingPath, 'app-encryption-key')
     const dumpPath = join(stagingPath, 'postgres.dump')
     const stateArchivePath = join(stagingPath, stateArchiveName)
+    const crowdSecArchivePath = join(stagingPath, 'crowdsec-state.tar')
+    await chmod(stagingPath, 0o700)
     let restartAppliance = false
 
     try {
@@ -250,9 +284,32 @@ async function backup(): Promise<void> {
             'archive controller state',
             { timeoutMs: 180_000 },
         )
+        validateStateArchive(stateArchiveBytes, 'controller')
         await writeFile(stateArchivePath, stateArchiveBytes, { mode: 0o600 })
         await chmod(stateArchivePath, 0o600)
 
+        const crowdSecBytes = await runCommandBytes(
+            [
+                ...compose,
+                'run',
+                '--no-TTY',
+                '--rm',
+                '--no-deps',
+                '--entrypoint',
+                'tar',
+                applianceService,
+                '--create',
+                '--file=-',
+                '--directory=/var/lib/rentnerproxy/crowdsec',
+                ...crowdSecArchiveExclusions.map((entry) => '--exclude=' + entry),
+                '.',
+            ],
+            'archive managed CrowdSec state',
+            { timeoutMs: 180_000 },
+        )
+        validateStateArchive(crowdSecBytes, 'crowdsec')
+        await writeFile(crowdSecArchivePath, crowdSecBytes, { mode: 0o600 })
+        await chmod(crowdSecArchivePath, 0o600)
         const stateArchive = await stat(stateArchivePath)
         const appEncryptionKeyFile = await stat(appEncryptionKeyPath)
         const metadata: BackupMetadata = {
@@ -266,6 +323,13 @@ async function backup(): Promise<void> {
                 bytes: stateArchive.size,
                 sha256: await sha256(stateArchivePath),
             },
+            crowdSecState: {
+                archive: 'crowdsec-state.tar',
+                bytes: crowdSecBytes.byteLength,
+                sha256: await sha256(crowdSecArchivePath),
+            },
+            deployment,
+            source,
             createdAt: new Date().toISOString(),
             format: 'rentnerproxy-production-backup',
             postgres: {
@@ -276,8 +340,9 @@ async function backup(): Promise<void> {
                 user: databaseUser,
             },
             redis: 'excluded',
-            version: 3,
+            version: 4,
         }
+        parseBackupMetadata(metadata)
         const metadataPath = join(stagingPath, 'metadata.json')
         await writeFile(metadataPath, JSON.stringify(metadata, null, 2) + '\n', {
             encoding: 'utf8',
@@ -285,7 +350,39 @@ async function backup(): Promise<void> {
         })
         await chmod(metadataPath, 0o600)
         await chmod(stagingPath, 0o700)
+        await Promise.all(
+            [
+                appEncryptionKeyPath,
+                dumpPath,
+                stateArchivePath,
+                crowdSecArchivePath,
+                metadataPath,
+            ].map(async (path) => {
+                const handle = await open(path, 'r+')
+                try {
+                    await handle.sync()
+                } finally {
+                    await handle.close()
+                }
+            }),
+        )
+        if (process.platform !== 'win32') {
+            const directory = await open(stagingPath, 'r')
+            try {
+                await directory.sync()
+            } finally {
+                await directory.close()
+            }
+        }
         await rename(stagingPath, finalPath)
+        if (process.platform !== 'win32') {
+            const directory = await open(outputRoot, 'r')
+            try {
+                await directory.sync()
+            } finally {
+                await directory.close()
+            }
+        }
     } catch (error) {
         await rm(stagingPath, { force: true, recursive: true })
         throw error
@@ -296,8 +393,9 @@ async function backup(): Promise<void> {
                     timeoutMs: 180_000,
                 })
             } catch {
+                process.exitCode = 1
                 process.stderr.write(
-                    'The RentnerProxy appliance could not be restarted automatically.\n',
+                    'Backup captured, but the RentnerProxy appliance could not be restarted automatically.\n',
                 )
             }
         }

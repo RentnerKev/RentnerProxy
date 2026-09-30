@@ -34,6 +34,7 @@ COPY --from=web-build /app/web/dist ./web/dist
 COPY --from=web-build /app/web/drizzle ./web/drizzle
 COPY --from=web-build /build/migrate.js ./migrate.js
 COPY --from=web-build /app/docker/web/bootstrap-secrets.mjs ./docker/web/bootstrap-secrets.mjs
+COPY --from=web-build /app/docker/web/validate-backup.mjs ./docker/web/validate-backup.mjs
 COPY --from=web-build /app/docker/web/request-context.ts ./docker/web/request-context.ts
 COPY --from=web-build /app/docker/web/static-assets.ts ./docker/web/static-assets.ts
 COPY --from=web-build /app/web/src/websockets ./web/src/websockets

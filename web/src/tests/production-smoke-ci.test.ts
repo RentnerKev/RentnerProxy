@@ -10,6 +10,22 @@ import {
 } from '../../../scripts/smoke-resources'
 
 describe('production smoke CI output boundary', () => {
+    test('keeps only fixed backup validation codes in CI diagnostics', () => {
+        const output =
+            'production restore operation failed: restore PostgreSQL. Backup validation: application_key; Restore database phase: execute.'
+        const safe = restoreSmokeDiagnostic(output)
+        expect(safe).toBe(
+            'Restore failed: restore PostgreSQL (execute) [validation: application_key]',
+        )
+        const progress = smokeProgress('production')
+        progress.consume(safe!)
+        progress.consume('Restore failed: restore PostgreSQL [validation: private-value]')
+        expect(progress.result(1).diagnostic).toBe(safe!)
+        expect(
+            restoreSmokeDiagnostic(output.replace('application_key', 'private-value')),
+        ).not.toContain('private-value')
+    })
+
     test('keeps restore phases and upgrade locations without forwarding raw errors', () => {
         const raw =
             'Production restore failed: production restore operation failed: restore PostgreSQL. No automatic destructive retry was attempted.\nprivate-value'

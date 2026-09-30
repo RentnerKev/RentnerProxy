@@ -10,7 +10,15 @@ export const RESTORE_SMOKE_OPERATIONS = [
     'restore controller state',
     'complete application encryption key restore',
     'start restored appliance',
+    'stage production restore',
+    'inspect pending restore',
+    'restore managed CrowdSec state',
+    'flush restored state',
+    'complete production restore',
 ] as const
+
+const restoreValidationPattern =
+    /Backup validation: (database_version|migration_history|application_key|crowdsec_archive|crowdsec_database|crowdsec_credentials|runtime_validation)(?:;|\.)/u
 
 const restoreDatabaseDetailsPattern =
     /Restore database phase: (initialize|archive|render|assemble|execute)(?:; SQLSTATE: (23514|42P01|3F000|42501|42601|42710|2BP01|25P02))?\./u
@@ -22,14 +30,24 @@ export function restoreSmokeDiagnostic(output: string): string | undefined {
     if (operation === undefined) return undefined
     const details =
         operation === 'restore PostgreSQL' ? output.match(restoreDatabaseDetailsPattern) : null
+    const validation =
+        operation === 'restore PostgreSQL' ? output.match(restoreValidationPattern)?.[1] : undefined
     return (
         'Restore failed: ' +
         operation +
-        (details ? ' (' + details[1] + (details[2] ? '; SQLSTATE: ' + details[2] : '') + ')' : '')
+        (details ? ' (' + details[1] + (details[2] ? '; SQLSTATE: ' + details[2] : '') + ')' : '') +
+        (validation ? ' [validation: ' + validation + ']' : '')
     )
 }
 
 export function isRestoreSmokeDiagnostic(line: string): boolean {
+    if (line.includes(' [validation: ')) {
+        const match =
+            /^(.*?) \[validation: (database_version|migration_history|application_key|crowdsec_archive|crowdsec_database|crowdsec_credentials|runtime_validation)\]$/u.exec(
+                line,
+            )
+        return match !== null && isRestoreSmokeDiagnostic(match[1]!)
+    }
     return (
         RESTORE_SMOKE_OPERATIONS.some((name) => line === 'Restore failed: ' + name) ||
         /^Restore failed: restore PostgreSQL \((initialize|archive|render|assemble|execute)(?:; SQLSTATE: (23514|42P01|3F000|42501|42601|42710|2BP01|25P02))?\)$/u.test(

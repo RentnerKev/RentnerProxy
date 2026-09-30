@@ -1,17 +1,7 @@
 // oxlint-disable no-await-in-loop -- Secret materialization retries a bounded compare-and-swap sequence.
 
 import { randomBytes, randomUUID } from 'node:crypto'
-import {
-    chmod,
-    link,
-    lstat,
-    mkdir,
-    readFile,
-    readdir,
-    rename,
-    rm,
-    writeFile,
-} from 'node:fs/promises'
+import { link, lstat, mkdir, open, readFile, readdir, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -20,6 +10,7 @@ const maximumLegacyEnvironmentBytes = 65_536
 const stateDirectory = '/var/lib/rentnerproxy/bootstrap'
 const statePath = join(stateDirectory, 'secrets-v1.json')
 const pendingAppKeyRestorePath = join(stateDirectory, 'app-key-restore-v1.json')
+const productionRestorePath = join(stateDirectory, 'production-restore-v1.json')
 const postgresDataDirectory = '/var/lib/rentnerproxy/postgres-data'
 const legacyEnvironmentPath = '/var/lib/rentnerproxy/legacy-source/.env'
 const backupAppKeyPath = '/backup/app-encryption-key'
@@ -177,14 +168,82 @@ async function ensureNoPendingAppKeyRestore() {
     }
 }
 
+async function readProductionRestore() {
+    const contents = await readOptionalRegularFile(productionRestorePath)
+    if (contents === null) return null
+    try {
+        const value = JSON.parse(contents)
+        if (
+            value.version !== 1 ||
+            Object.keys(value).toSorted().join(',') !== 'backupId,version' ||
+            !/^[a-f0-9]{64}$/u.test(value.backupId)
+        )
+            throw new Error('invalid journal')
+        return value
+    } catch {
+        throw new Error('Pending production restore journal is invalid.')
+    }
+}
+
+async function ensureNoProductionRestore() {
+    if (await readProductionRestore())
+        throw new Error('An interrupted production restore requires --resume with the same backup.')
+}
+
+async function beginProductionRestore() {
+    const backupId = process.env.RENTNERPROXY_RESTORE_BACKUP_ID
+    if (!/^[a-f0-9]{64}$/u.test(backupId ?? '')) throw new Error('Invalid restore backup identity.')
+    const pending = await readProductionRestore()
+    if (pending) {
+        if (process.env.RENTNERPROXY_RESTORE_RESUME !== 'true' || pending.backupId !== backupId) {
+            throw new Error('Pending production restore requires the same backup and --resume.')
+        }
+        return
+    }
+    if (process.env.RENTNERPROXY_RESTORE_RESUME === 'true')
+        throw new Error('No production restore is pending.')
+    await writeAtomic(
+        productionRestorePath,
+        JSON.stringify({ backupId, version: 1 }),
+        0o400,
+        false,
+        true,
+    )
+}
+
+async function completeProductionRestore() {
+    const pending = await readProductionRestore()
+    if (!pending || pending.backupId !== process.env.RENTNERPROXY_RESTORE_BACKUP_ID)
+        throw new Error('Pending production restore identity mismatch.')
+    await ensureNoPendingAppKeyRestore()
+    await rm(productionRestorePath)
+    await syncDirectory(stateDirectory)
+}
+
+async function syncDirectory(directory) {
+    if (process.platform === 'win32') return
+    const handle = await open(directory, 'r')
+    try {
+        await handle.sync()
+    } finally {
+        await handle.close()
+    }
+}
+
 async function writeAtomic(path, value, mode, replace, exclusive = false) {
     const directory = dirname(path)
     await mkdir(directory, { recursive: true, mode: 0o700 })
     const temporaryPath = join(directory, `.bootstrap-${randomUUID()}`)
 
     try {
-        await writeFile(temporaryPath, value, { encoding: 'utf8', flag: 'wx', mode })
-        await chmod(temporaryPath, mode)
+        const handle = await open(temporaryPath, 'wx', mode)
+        try {
+            await handle.writeFile(value, 'utf8')
+            await handle.chmod(mode)
+            await handle.sync()
+        } finally {
+            await handle.close()
+        }
         if (exclusive) {
             await link(temporaryPath, path)
         } else {
@@ -193,6 +252,7 @@ async function writeAtomic(path, value, mode, replace, exclusive = false) {
             }
             await rename(temporaryPath, path)
         }
+        await syncDirectory(directory)
     } finally {
         await rm(temporaryPath, { force: true })
     }
@@ -335,6 +395,7 @@ async function materializeCurrentState(initialState) {
 }
 
 async function initializeSecrets() {
+    await ensureNoProductionRestore()
     await ensureNoPendingAppKeyRestore()
     let state = await readState()
     if (!state) {
@@ -365,6 +426,7 @@ async function initializeSecrets() {
 }
 
 async function exportAppEncryptionKey() {
+    await ensureNoProductionRestore()
     await ensureNoPendingAppKeyRestore()
     const state = await readState()
     if (!state) throw new Error('Persistent runtime secret state is missing.')
@@ -382,16 +444,28 @@ async function rollbackPendingAppKeyRestore(pendingRestore) {
     await writeAtomic(statePath, JSON.stringify(rolledBackState), 0o400, true)
     await materializeCurrentState(rolledBackState)
     await rm(pendingAppKeyRestorePath)
+    await syncDirectory(stateDirectory)
 }
 
 async function beginAppEncryptionKeyRestore() {
-    await ensureNoPendingAppKeyRestore()
     const nextAppEncryptionKey = await readRegularFile(restoreAppKeyPath)
     if (!validateAppEncryptionKey(nextAppEncryptionKey)) {
         throw new Error('Backup application encryption key is invalid.')
     }
     const state = await readState()
     if (!state) throw new Error('Persistent runtime secret state is missing.')
+    const existing = await readPendingAppKeyRestore()
+    if (existing) {
+        if (
+            !(await readProductionRestore()) ||
+            existing.nextAppEncryptionKey !== nextAppEncryptionKey
+        )
+            throw new Error('Pending application key restore mismatch.')
+        const resumedState = { ...state, appEncryptionKey: nextAppEncryptionKey }
+        await writeAtomic(statePath, JSON.stringify(resumedState), 0o400, true)
+        await materializeCurrentState(resumedState)
+        return
+    }
     const pendingRestore = {
         nextAppEncryptionKey,
         previousAppEncryptionKey: state.appEncryptionKey,
@@ -423,6 +497,7 @@ async function completeAppEncryptionKeyRestore() {
     }
     await materializeCurrentState(state)
     await rm(pendingAppKeyRestorePath)
+    await syncDirectory(stateDirectory)
     console.log('Application encryption key restore was completed.')
 }
 
@@ -437,6 +512,10 @@ try {
     const operation = process.argv[2] ?? 'initialize'
     if (operation === 'initialize') await initializeSecrets()
     else if (operation === 'export-app-key') await exportAppEncryptionKey()
+    else if (operation === 'inspect-production-restore')
+        console.log((await readProductionRestore())?.backupId ?? '')
+    else if (operation === 'begin-production-restore') await beginProductionRestore()
+    else if (operation === 'complete-production-restore') await completeProductionRestore()
     else if (operation === 'begin-app-key-restore') await beginAppEncryptionKeyRestore()
     else if (operation === 'complete-app-key-restore') await completeAppEncryptionKeyRestore()
     else if (operation === 'rollback-app-key-restore') await rollbackAppEncryptionKeyRestore()

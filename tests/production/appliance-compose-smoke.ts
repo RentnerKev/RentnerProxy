@@ -1,7 +1,7 @@
 // oxlint-disable no-await-in-loop -- Readiness probes deliberately poll in a bounded sequence.
 
 import assert from 'node:assert/strict'
-import { createHash, randomUUID } from 'node:crypto'
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto'
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { request as httpRequest } from 'node:http'
@@ -20,6 +20,7 @@ import {
     assertHttp3Response,
 } from '../../scripts/http3-client'
 import { verifyAlpha1Upgrade, verifyAlpha3Upgrade } from '../../scripts/alpha1-upgrade-smoke'
+import { seedBetaBackupState, assertBetaBackupState } from '../../scripts/beta-backup-state-smoke'
 import {
     seedAlpha4PersistenceFixture,
     readAlpha4PersistenceSnapshot,
@@ -336,6 +337,41 @@ function digest(value: string | Uint8Array): string {
     return createHash('sha256').update(value).digest('hex')
 }
 
+function encryptCrowdSecApiKey(
+    apiKey: string,
+    applicationKey: string,
+): {
+    ciphertext: string
+    iv: string
+} {
+    const iv = randomBytes(12)
+    const cipher = createCipheriv('aes-256-gcm', Buffer.from(applicationKey, 'base64'), iv)
+    cipher.setAAD(Buffer.from('crowdsec_configuration_v1:external_api_key'))
+    const ciphertext = Buffer.concat([
+        cipher.update(apiKey, 'utf8'),
+        cipher.final(),
+        cipher.getAuthTag(),
+    ])
+    return { ciphertext: ciphertext.toString('base64url'), iv: iv.toString('base64url') }
+}
+
+function decryptCrowdSecApiKey(
+    encrypted: { readonly ciphertext: string; readonly iv: string },
+    applicationKey: string,
+): string {
+    const ciphertext = Buffer.from(encrypted.ciphertext, 'base64url')
+    const decipher = createDecipheriv(
+        'aes-256-gcm',
+        Buffer.from(applicationKey, 'base64'),
+        Buffer.from(encrypted.iv, 'base64url'),
+    )
+    decipher.setAAD(Buffer.from('crowdsec_configuration_v1:external_api_key'))
+    decipher.setAuthTag(ciphertext.subarray(-16))
+    return Buffer.concat([decipher.update(ciphertext.subarray(0, -16)), decipher.final()]).toString(
+        'utf8',
+    )
+}
+
 function listenerAddresses(procNet: string, port: number): string[] {
     const portHex = port.toString(16).toUpperCase().padStart(4, '0')
     return procNet
@@ -429,9 +465,11 @@ async function runSmoke(): Promise<void> {
     const compose = composeCommand(envFile, temporaryComposeFile)
     const restoreProject = project + '-restore'
     const restoreCompose = composeCommand(envFile, temporaryComposeFile, restoreProject)
-    const legacyProjects = [project + '-legacy-v2', project + '-legacy-v1']
-    const legacyComposes = legacyProjects.map((name) =>
-        composeCommand(envFile, temporaryComposeFile, name),
+    const deploymentChangeProject = project + '-deployment-change'
+    const deploymentChangeCompose = composeCommand(
+        envFile,
+        temporaryComposeFile,
+        deploymentChangeProject,
     )
     let backend: ReturnType<typeof Bun.serve> | undefined
     const scriptEnvironment: NodeJS.ProcessEnv = {
@@ -1567,10 +1605,82 @@ async function runSmoke(): Promise<void> {
         )
         await assertPublishedQuic()
         passed('verified HTTP/3 survives production appliance restart')
-        await applyCrowdSecMode(recreatedId, 'disabled')
+
+        const crowdSecBackupDecision = '192.0.2.71'
+        await command([
+            'docker',
+            'exec',
+            recreatedId,
+            'gosu',
+            'crowdsec',
+            'cscli',
+            '-c',
+            '/usr/share/rentnerproxy/crowdsec/config.yaml',
+            'decisions',
+            'add',
+            '--ip',
+            crowdSecBackupDecision,
+            '--duration',
+            '24h',
+            '--reason',
+            'rentnerproxy-backup-restore-smoke',
+        ])
+        const crowdSecBackupDecisionList = await command([
+            'docker',
+            'exec',
+            recreatedId,
+            'gosu',
+            'crowdsec',
+            'cscli',
+            '-c',
+            '/usr/share/rentnerproxy/crowdsec/config.yaml',
+            'decisions',
+            'list',
+            '--ip',
+            crowdSecBackupDecision,
+            '-o',
+            'json',
+        ])
+        assert.match(crowdSecBackupDecisionList, new RegExp(crowdSecBackupDecision, 'u'))
+        passed('managed CrowdSec has a durable reserved-IP decision before backup')
+
+        const crowdSecStateDirectory = '/var/lib/rentnerproxy/crowdsec'
+        const communityCredentialFixture =
+            'url: https://fixture.crowdsec.invalid\nlogin: smoke-' +
+            runId +
+            '\npassword: fixture-only\n'
+        const consoleCredentialFixture =
+            'url: https://console.crowdsec.invalid\ntoken: fixture-only-' + runId + '\n'
+        for (const [name, contents] of [
+            ['online_api_credentials.yaml', communityCredentialFixture],
+            ['console.yaml', consoleCredentialFixture],
+        ] as const) {
+            const encoded = Buffer.from(contents).toString('base64')
+            await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'sh',
+                '-c',
+                `printf '%s' '${encoded}' | base64 -d > '${crowdSecStateDirectory}/credentials/${name}' && chown crowdsec:crowdsec '${crowdSecStateDirectory}/credentials/${name}' && chmod 0600 '${crowdSecStateDirectory}/credentials/${name}'`,
+            ])
+        }
+        const durableCrowdSecFileDigests = new Map<string, string>()
+        for (const name of [
+            'credentials/local_api_credentials.yaml',
+            'credentials/online_api_credentials.yaml',
+            'credentials/console.yaml',
+            'bouncer/caddy-bouncer-key',
+        ]) {
+            const path = crowdSecStateDirectory + '/' + name
+            durableCrowdSecFileDigests.set(
+                name,
+                await command(['docker', 'exec', recreatedId, 'sha256sum', path]),
+            )
+        }
         await assertRealTraffic(
             recreatedId,
-            'disabling CrowdSec after restart leaves the proxy configuration untouched',
+            'managed CrowdSec remains active while the persistent decision is prepared for backup',
         )
 
         const proxyBackupMarker = '/var/lib/rentnerproxy/proxy/appliance-backup-marker'
@@ -1617,6 +1727,68 @@ async function runSmoke(): Promise<void> {
         passed(
             'durable binding jobs, renewal retry metadata and event receipts are present before backup',
         )
+        const savedExternalApiKey = 'appliance-smoke-crowdsec-key-' + runId
+        const encryptedSavedExternalApiKey = encryptCrowdSecApiKey(
+            savedExternalApiKey,
+            generatedSecrets.appEncryptionKey!,
+        )
+        const managedWithSavedExternalConfig = {
+            version: 1,
+            mode: 'managed',
+            communityEnabled: false,
+            external: {
+                apiUrl: 'https://saved-external.crowdsec.invalid/',
+                apiKey: encryptedSavedExternalApiKey,
+            },
+        }
+        const savedExternalConfigSql = JSON.stringify(managedWithSavedExternalConfig)
+        await command([
+            'docker',
+            'exec',
+            recreatedId,
+            'gosu',
+            'postgres',
+            'psql',
+            '--no-psqlrc',
+            '--no-password',
+            '--host=/var/run/postgresql',
+            '--username=postgres',
+            '--dbname=rentnerproxy',
+            '--command',
+            `INSERT INTO rentnerproxy.system_settings (key, value) VALUES ('crowdsec_configuration_v1', '${savedExternalConfigSql}'::jsonb) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP;`,
+        ])
+        const savedExternalConfig = JSON.parse(
+            await command([
+                'docker',
+                'exec',
+                recreatedId,
+                'gosu',
+                'postgres',
+                'psql',
+                '--no-psqlrc',
+                '--no-password',
+                '--tuples-only',
+                '--no-align',
+                '--host=/var/run/postgresql',
+                '--username=postgres',
+                '--dbname=rentnerproxy',
+                '--command',
+                "SELECT value::text FROM rentnerproxy.system_settings WHERE key='crowdsec_configuration_v1';",
+            ]),
+        ) as typeof managedWithSavedExternalConfig
+        assert.equal(
+            decryptCrowdSecApiKey(
+                savedExternalConfig.external.apiKey,
+                generatedSecrets.appEncryptionKey!,
+            ),
+            savedExternalApiKey,
+        )
+        const betaBackupState = await seedBetaBackupState({
+            command,
+            containerId: recreatedId,
+            runId,
+        })
+        await assertBetaBackupState({ command, containerId: recreatedId, fixture: betaBackupState })
         const backupRoot = join(temporaryRoot, 'backups')
         await commandWithEnvironment(
             [
@@ -1648,11 +1820,37 @@ async function runSmoke(): Promise<void> {
         ])
         assert.doesNotMatch(archivedStateFiles, /(?:^|\n)\.\/logs(?:\/|$)/u)
         passed('production backups exclude the request logs from real proxy traffic')
+        const archivedCrowdSecFiles = await command([
+            'docker',
+            'run',
+            '--rm',
+            '--entrypoint',
+            'tar',
+            '--volume',
+            backupPath + ':/backup:ro',
+            imageTag,
+            '--list',
+            '--file=/backup/crowdsec-state.tar',
+        ])
+        for (const entry of [
+            'data/crowdsec.db',
+            'credentials/local_api_credentials.yaml',
+            'credentials/online_api_credentials.yaml',
+            'credentials/console.yaml',
+            'bouncer/caddy-bouncer-key',
+        ]) {
+            assert.ok(archivedCrowdSecFiles.includes(entry), 'CrowdSec archive omitted ' + entry)
+        }
+        assert.doesNotMatch(archivedCrowdSecFiles, /(?:^|\n).*\.db-shm\s*$/u)
+        passed(
+            'production backups archive CrowdSec database, registrations and managed bouncer key',
+        )
         if (process.platform !== 'win32') {
             assert.equal((await stat(backupPath)).mode & 0o777, 0o700)
             for (const name of [
                 'app-encryption-key',
                 'controller-state.tar',
+                'crowdsec-state.tar',
                 'metadata.json',
                 'postgres.dump',
             ]) {
@@ -1666,13 +1864,28 @@ async function runSmoke(): Promise<void> {
         ) as {
             applicationEncryptionKey?: { file?: string }
             controllerState?: { archive?: string }
+            crowdSecState?: { archive?: string; bytes?: number; sha256?: string }
+            deployment?: { publicOrigin?: string; trustedProxyCidrs?: string }
             redis?: string
             version?: number
         }
-        assert.equal(backupMetadata.version, 3)
+        assert.equal(backupMetadata.version, 4)
         assert.equal(backupMetadata.redis, 'excluded')
         assert.equal(backupMetadata.applicationEncryptionKey?.file, 'app-encryption-key')
         assert.equal(backupMetadata.controllerState?.archive, 'controller-state.tar')
+        assert.equal(backupMetadata.crowdSecState?.archive, 'crowdsec-state.tar')
+        assert.equal(
+            backupMetadata.crowdSecState?.bytes,
+            (await stat(join(backupPath, 'crowdsec-state.tar'))).size,
+        )
+        assert.equal(
+            backupMetadata.crowdSecState?.sha256,
+            digest(await readFile(join(backupPath, 'crowdsec-state.tar'))),
+        )
+        assert.deepEqual(backupMetadata.deployment, {
+            publicOrigin,
+            trustedProxyCidrs,
+        })
         assert.equal(
             (await readFile(join(backupPath, 'app-encryption-key'), 'utf8')).trim(),
             generatedSecrets.appEncryptionKey,
@@ -1694,6 +1907,111 @@ async function runSmoke(): Promise<void> {
         )
         const restoredId = await containerId(restoreCompose)
         await waitForHealthy(restoredId)
+        const restoredCrowdSec = await waitForCrowdSec(
+            restoredId,
+            (status) =>
+                status.mode === 'managed' &&
+                status.state === 'connected' &&
+                status.managedEngine === 'ready',
+            'restored managed CrowdSec state',
+        )
+        assert.equal(restoredCrowdSec.enforcementActive, true)
+        const restoredDecisionList = await command([
+            'docker',
+            'exec',
+            restoredId,
+            'gosu',
+            'crowdsec',
+            'cscli',
+            '-c',
+            '/usr/share/rentnerproxy/crowdsec/config.yaml',
+            'decisions',
+            'list',
+            '--ip',
+            crowdSecBackupDecision,
+            '-o',
+            'json',
+        ])
+        assert.match(restoredDecisionList, new RegExp(crowdSecBackupDecision, 'u'))
+        const restoredBouncers = await command([
+            'docker',
+            'exec',
+            restoredId,
+            'gosu',
+            'crowdsec',
+            'cscli',
+            '-c',
+            '/usr/share/rentnerproxy/crowdsec/config.yaml',
+            'bouncers',
+            'list',
+        ])
+        assert.match(restoredBouncers, /rentnerproxy-caddy/u)
+        await command([
+            'docker',
+            'exec',
+            restoredId,
+            'sh',
+            '-c',
+            'key=$(cat /var/lib/rentnerproxy/crowdsec/bouncer/caddy-bouncer-key); status=$(curl --silent --show-error --max-time 5 --output /dev/null --write-out "%{http_code}" --header "X-Api-Key: $key" "http://127.0.0.1:18080/v1/decisions/stream?startup=true"); test "$status" = 200',
+        ])
+        for (const [name, expected] of [
+            ['data', '700:10003:10003'],
+            ['credentials', '700:10003:10003'],
+            ['data/crowdsec.db', '640:10003:10003'],
+            ['credentials/local_api_credentials.yaml', '600:10003:10003'],
+            ['credentials/online_api_credentials.yaml', '600:10003:10003'],
+            ['credentials/console.yaml', '600:10003:10003'],
+            ['bouncer', '710:0:10001'],
+            ['bouncer/caddy-bouncer-key', '440:0:10001'],
+        ] as const) {
+            assert.equal(
+                await command([
+                    'docker',
+                    'exec',
+                    restoredId,
+                    'stat',
+                    '-c',
+                    '%a:%u:%g',
+                    crowdSecStateDirectory + '/' + name,
+                ]),
+                expected,
+                'unexpected restored CrowdSec ownership/mode: ' + name,
+            )
+        }
+        for (const name of [
+            'credentials/local_api_credentials.yaml',
+            'credentials/online_api_credentials.yaml',
+            'credentials/console.yaml',
+        ]) {
+            assert.equal(
+                await command([
+                    'docker',
+                    'exec',
+                    restoredId,
+                    'sha256sum',
+                    crowdSecStateDirectory + '/' + name,
+                ]),
+                durableCrowdSecFileDigests.get(name),
+                'restored CrowdSec credential changed: ' + name,
+            )
+        }
+        const restoredBouncerKey = await command([
+            'docker',
+            'exec',
+            restoredId,
+            'cat',
+            crowdSecStateDirectory + '/bouncer/caddy-bouncer-key',
+        ])
+        assert.match(restoredBouncerKey, /^[a-f0-9]{64}$/u)
+        await assertRealTraffic(
+            restoredId,
+            'managed CrowdSec decision, bouncer authorization and proxy traffic survive restore',
+        )
+        passed(
+            'backup restores CrowdSec decisions, credentials and a ready authorized Caddy bouncer',
+        )
+        await assertBetaBackupState({ command, containerId: restoredId, fixture: betaBackupState })
+        passed('backup restores saved Forward Auth configuration and exact NPM importer history')
         const restoredEnvironment = JSON.parse(
             await inspect(restoredId, '{{json .Config.Env}}'),
         ) as string[]
@@ -1702,6 +2020,36 @@ async function runSmoke(): Promise<void> {
             restoredEnvironment.includes(
                 'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=' + trustedProxyCidrs,
             ),
+        )
+        const restoredSavedExternalConfig = JSON.parse(
+            await command([
+                'docker',
+                'exec',
+                restoredId,
+                'gosu',
+                'postgres',
+                'psql',
+                '--no-psqlrc',
+                '--no-password',
+                '--tuples-only',
+                '--no-align',
+                '--host=/var/run/postgresql',
+                '--username=postgres',
+                '--dbname=rentnerproxy',
+                '--command',
+                "SELECT value::text FROM rentnerproxy.system_settings WHERE key='crowdsec_configuration_v1';",
+            ]),
+        ) as typeof savedExternalConfig
+        assert.deepEqual(
+            restoredSavedExternalConfig.external.apiKey,
+            savedExternalConfig.external.apiKey,
+        )
+        assert.equal(
+            decryptCrowdSecApiKey(
+                restoredSavedExternalConfig.external.apiKey,
+                generatedSecrets.appEncryptionKey!,
+            ),
+            savedExternalApiKey,
         )
         await assertAlpha4PersistenceFixture({
             command,
@@ -1754,9 +2102,205 @@ async function runSmoke(): Promise<void> {
         passed(
             'backup restores PostgreSQL, controller state, and application identity to a fresh appliance',
         )
+        const preflightSecretsDigest = await command([
+            'docker',
+            'exec',
+            restoredId,
+            'sha256sum',
+            '/var/lib/rentnerproxy/bootstrap/secrets-v1.json',
+        ])
+        const preflightBouncerKeyDigest = await command([
+            'docker',
+            'exec',
+            restoredId,
+            'sha256sum',
+            crowdSecStateDirectory + '/bouncer/caddy-bouncer-key',
+        ])
+        const preflightDatabaseMarker = await command([
+            'docker',
+            'exec',
+            restoredId,
+            'sh',
+            '-c',
+            `PGPASSWORD="$(cat /run/rentnerproxy/postgres/value)" gosu postgres psql --host=127.0.0.1 --username=rentnerproxy --dbname=rentnerproxy --tuples-only --no-align --command="SELECT marker FROM appliance_compose_smoke WHERE marker = '${marker}';"`,
+        ])
+        async function assertRestorePreflightFailure(
+            fixture: string,
+            label: string,
+            preflightEnvironment = scriptEnvironment,
+        ): Promise<void> {
+            let rejected = false
+            try {
+                await commandWithEnvironment(
+                    [
+                        process.execPath,
+                        'scripts/production-restore.ts',
+                        '--project',
+                        restoreProject,
+                        '--input',
+                        fixture,
+                        '--confirm-replace',
+                    ],
+                    preflightEnvironment,
+                    900_000,
+                )
+            } catch {
+                rejected = true
+            }
+            assert.equal(rejected, true, label + ' unexpectedly passed restore preflight')
+            assert.equal(await containerId(restoreCompose), restoredId)
+            await waitForHealthy(restoredId)
+            assert.equal(
+                await command([
+                    'docker',
+                    'exec',
+                    restoredId,
+                    'sh',
+                    '-c',
+                    `PGPASSWORD="$(cat /run/rentnerproxy/postgres/value)" gosu postgres psql --host=127.0.0.1 --username=rentnerproxy --dbname=rentnerproxy --tuples-only --no-align --command="SELECT marker FROM appliance_compose_smoke WHERE marker = '${marker}';"`,
+                ]),
+                preflightDatabaseMarker,
+                label + ' changed the target database',
+            )
+            assert.equal(
+                await command([
+                    'docker',
+                    'exec',
+                    restoredId,
+                    'sha256sum',
+                    '/var/lib/rentnerproxy/bootstrap/secrets-v1.json',
+                ]),
+                preflightSecretsDigest,
+                label + ' changed the target secrets',
+            )
+            assert.equal(
+                await command([
+                    'docker',
+                    'exec',
+                    restoredId,
+                    'sha256sum',
+                    crowdSecStateDirectory + '/bouncer/caddy-bouncer-key',
+                ]),
+                preflightBouncerKeyDigest,
+                label + ' changed the target CrowdSec state',
+            )
+        }
+        const corruptMetadataFixture = join(temporaryRoot, 'backup-corrupt-metadata')
+        await cp(backupPath, corruptMetadataFixture, { recursive: true })
+        await writeFile(join(corruptMetadataFixture, 'metadata.json'), '{\n', 'utf8')
+        await assertRestorePreflightFailure(corruptMetadataFixture, 'corrupt metadata')
+
+        const corruptArchiveFixture = join(temporaryRoot, 'backup-corrupt-crowdsec-archive')
+        await cp(backupPath, corruptArchiveFixture, { recursive: true })
+        const corruptCrowdSecArchive = await readFile(
+            join(corruptArchiveFixture, 'crowdsec-state.tar'),
+        )
+        corruptCrowdSecArchive[corruptCrowdSecArchive.length - 1] ^= 1
+        await writeFile(join(corruptArchiveFixture, 'crowdsec-state.tar'), corruptCrowdSecArchive)
+        await assertRestorePreflightFailure(corruptArchiveFixture, 'corrupt CrowdSec archive')
+
+        const missingArchiveFixture = join(temporaryRoot, 'backup-missing-crowdsec-archive')
+        await cp(backupPath, missingArchiveFixture, { recursive: true })
+        await rm(join(missingArchiveFixture, 'crowdsec-state.tar'))
+        await assertRestorePreflightFailure(missingArchiveFixture, 'missing CrowdSec archive')
+
+        const wrongKeyFixture = join(temporaryRoot, 'backup-wrong-application-key')
+        await cp(backupPath, wrongKeyFixture, { recursive: true })
+        const wrongApplicationKey = randomBytes(32).toString('base64')
+        const wrongApplicationKeyBytes = Buffer.from(wrongApplicationKey)
+        await writeFile(join(wrongKeyFixture, 'app-encryption-key'), wrongApplicationKeyBytes)
+        const wrongKeyMetadataPath = join(wrongKeyFixture, 'metadata.json')
+        const wrongKeyMetadata = JSON.parse(
+            await readFile(wrongKeyMetadataPath, 'utf8'),
+        ) as typeof backupMetadata & {
+            applicationEncryptionKey: { bytes: number; file: string; sha256: string }
+        }
+        wrongKeyMetadata.applicationEncryptionKey = {
+            bytes: wrongApplicationKeyBytes.byteLength,
+            file: 'app-encryption-key',
+            sha256: digest(wrongApplicationKeyBytes),
+        }
+        await writeFile(wrongKeyMetadataPath, JSON.stringify(wrongKeyMetadata, null, 2) + '\n')
+        await assertRestorePreflightFailure(wrongKeyFixture, 'wrong application encryption key')
+        for (const version of [1, 2] as const) {
+            const unsupportedFixture = join(temporaryRoot, 'backup-unsupported-v' + version)
+            await cp(backupPath, unsupportedFixture, { recursive: true })
+            const unsupportedMetadataPath = join(unsupportedFixture, 'metadata.json')
+            const unsupportedMetadata = JSON.parse(
+                await readFile(unsupportedMetadataPath, 'utf8'),
+            ) as typeof backupMetadata
+            unsupportedMetadata.version = version
+            await writeFile(
+                unsupportedMetadataPath,
+                JSON.stringify(unsupportedMetadata, null, 2) + '\n',
+            )
+            await assertRestorePreflightFailure(
+                unsupportedFixture,
+                'unsupported synthetic v' + version + ' metadata',
+            )
+        }
+        passed(
+            'invalid backups leave the running target database, secrets and CrowdSec state untouched',
+        )
+
+        const changedPublicOrigin = 'https://changed.appliance-smoke.invalid'
+        const changedTrustedProxyCidrs = '192.0.2.0/24'
+        const changedDeploymentEnvironment: NodeJS.ProcessEnv = {
+            ...scriptEnvironment,
+            RENTNERPROXY_PUBLIC_ORIGIN: changedPublicOrigin,
+            RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS: changedTrustedProxyCidrs,
+        }
+        await assertRestorePreflightFailure(
+            backupPath,
+            'deployment mismatch',
+            changedDeploymentEnvironment,
+        )
+        passed('restore rejects a deployment mismatch before stopping or replacing the target')
+        await command([...restoreCompose, 'stop', '--timeout', '30', 'rentnerproxy'], 180_000)
+        await commandWithEnvironment(
+            [
+                process.execPath,
+                'scripts/production-restore.ts',
+                '--project',
+                deploymentChangeProject,
+                '--input',
+                backupPath,
+                '--confirm-replace',
+                '--allow-deployment-change',
+            ],
+            changedDeploymentEnvironment,
+            900_000,
+        )
+        const deploymentChangeId = await containerId(deploymentChangeCompose)
+        await waitForHealthy(deploymentChangeId)
+        const deploymentChangeRuntime = JSON.parse(
+            await inspect(deploymentChangeId, '{{json .Config.Env}}'),
+        ) as string[]
+        assert.ok(
+            deploymentChangeRuntime.includes('RENTNERPROXY_PUBLIC_ORIGIN=' + changedPublicOrigin),
+        )
+        assert.ok(
+            deploymentChangeRuntime.includes(
+                'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=' + changedTrustedProxyCidrs,
+            ),
+        )
+        await assertRealTraffic(
+            deploymentChangeId,
+            'an explicitly allowed deployment change preserves real traffic',
+        )
+        await command(
+            [...deploymentChangeCompose, 'down', '--volumes', '--remove-orphans'],
+            180_000,
+        )
+        passed(
+            'an explicit deployment-change option permits restoring to the new deployment settings',
+        )
+        await command([...restoreCompose, 'start', 'rentnerproxy'], 180_000)
+        await waitForHealthy(restoredId)
+
         await assertRealTraffic(
             restoredId,
-            'v3 restore heals Caddy from desired DB and preserves HTTP/HTTPS traffic',
+            'v4 restore heals Caddy from desired DB and preserves HTTP/HTTPS traffic',
         )
         await assertPublishedQuic()
         passed(
@@ -1779,119 +2323,157 @@ async function runSmoke(): Promise<void> {
         passed('removing bootstrap state while PostgreSQL data remains fails closed')
         await commandFails([...restoreCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
 
-        async function makeLegacyFixture(version: 1 | 2): Promise<string> {
-            const fixture = join(temporaryRoot, 'backup-v' + version)
-            await cp(backupPath, fixture, { recursive: true })
-            const legacyDirectory = join(temporaryRoot, 'legacy-files-v' + version)
-            await mkdir(join(legacyDirectory, 'host-configs'), { recursive: true })
-            await writeFile(join(legacyDirectory, 'active.conf'), 'legacy active runtime\n')
-            await writeFile(join(legacyDirectory, 'candidate.conf'), 'legacy candidate runtime\n')
-            await writeFile(join(legacyDirectory, 'last-known-good.conf'), 'legacy last good\n')
-            await writeFile(join(legacyDirectory, 'last-good.conf'), 'legacy last good alias\n')
-            await writeFile(join(legacyDirectory, 'engine.pid'), '12345\n')
+        if (process.platform === 'linux') {
+            const dockerExecutable = await command(['which', 'docker'])
+            const dockerShimDirectory = join(temporaryRoot, 'restore-docker-shim')
+            await mkdir(dockerShimDirectory, { recursive: true })
+            const dockerShim = join(dockerShimDirectory, 'docker')
             await writeFile(
-                join(legacyDirectory, 'host-configs', 'sidecar.conf'),
-                'legacy sidecar\n',
+                dockerShim,
+                `#!/bin/sh\ncase " $* " in\n  *"RENTNERPROXY_RESTORE_PHASE=database"*)\n    "${dockerExecutable}" "$@"\n    status=$?\n    if [ "$status" -eq 0 ]; then exit 143; fi\n    exit "$status"\n    ;;\nesac\nexec "${dockerExecutable}" "$@"\n`,
+                { mode: 0o700 },
             )
-            await writeFile(
-                join(legacyDirectory, 'active-proxy-snapshot.json'),
-                JSON.stringify({ version: 6, legacy: true }) + '\n',
+            const interruptedEnvironment: NodeJS.ProcessEnv = {
+                ...scriptEnvironment,
+                PATH: dockerShimDirectory + ':' + (scriptEnvironment.PATH ?? ''),
+            }
+            let interrupted = false
+            try {
+                await commandWithEnvironment(
+                    [
+                        process.execPath,
+                        'scripts/production-restore.ts',
+                        '--project',
+                        restoreProject,
+                        '--input',
+                        backupPath,
+                        '--confirm-replace',
+                    ],
+                    interruptedEnvironment,
+                    900_000,
+                )
+            } catch {
+                interrupted = true
+            }
+            assert.equal(interrupted, true, 'restore phase shim did not interrupt after PostgreSQL')
+            assert.equal(
+                await command([...restoreCompose, 'ps', '--status', 'running', '--quiet']),
+                '',
+            )
+            const restoreJournalPath = '/var/lib/rentnerproxy/bootstrap/production-restore-v1.json'
+            const restoreJournal = JSON.parse(
+                await command([
+                    ...restoreCompose,
+                    'run',
+                    '--no-TTY',
+                    '--rm',
+                    '--no-deps',
+                    '--entrypoint',
+                    'cat',
+                    'rentnerproxy',
+                    restoreJournalPath,
+                ]),
+            ) as { backupId?: string; version?: number }
+            assert.deepEqual(restoreJournal, {
+                version: 1,
+                backupId: digest(await readFile(join(backupPath, 'metadata.json'))),
+            })
+            let resumeRequired = false
+            try {
+                await commandWithEnvironment(
+                    [
+                        process.execPath,
+                        'scripts/production-restore.ts',
+                        '--project',
+                        restoreProject,
+                        '--input',
+                        backupPath,
+                        '--confirm-replace',
+                    ],
+                    scriptEnvironment,
+                    900_000,
+                )
+            } catch {
+                resumeRequired = true
+            }
+            assert.equal(
+                resumeRequired,
+                true,
+                'restore without --resume ignored the pending journal',
+            )
+            assert.deepEqual(
+                JSON.parse(
+                    await command([
+                        ...restoreCompose,
+                        'run',
+                        '--no-TTY',
+                        '--rm',
+                        '--no-deps',
+                        '--entrypoint',
+                        'cat',
+                        'rentnerproxy',
+                        restoreJournalPath,
+                    ]),
+                ),
+                restoreJournal,
+            )
+            await commandWithEnvironment(
+                [
+                    process.execPath,
+                    'scripts/production-restore.ts',
+                    '--project',
+                    restoreProject,
+                    '--input',
+                    backupPath,
+                    '--confirm-replace',
+                    '--resume',
+                ],
+                scriptEnvironment,
+                900_000,
+            )
+            const resumedRestoreId = await containerId(restoreCompose)
+            await waitForHealthy(resumedRestoreId)
+            await waitForCrowdSec(
+                resumedRestoreId,
+                (status) =>
+                    status.mode === 'managed' &&
+                    status.state === 'connected' &&
+                    status.managedEngine === 'ready',
+                'resumed managed CrowdSec restore',
+            )
+            const resumedDecisionList = await command([
+                'docker',
+                'exec',
+                resumedRestoreId,
+                'gosu',
+                'crowdsec',
+                'cscli',
+                '-c',
+                '/usr/share/rentnerproxy/crowdsec/config.yaml',
+                'decisions',
+                'list',
+                '--ip',
+                crowdSecBackupDecision,
+                '-o',
+                'json',
+            ])
+            assert.match(resumedDecisionList, new RegExp(crowdSecBackupDecision, 'u'))
+            await assertRealTraffic(
+                resumedRestoreId,
+                'an interrupted restore resumes from its journal and restores CrowdSec enforcement',
             )
             await command([
                 'docker',
-                'run',
-                '--rm',
-                '--entrypoint',
-                'tar',
-                '--volume',
-                fixture + ':/backup',
-                '--volume',
-                legacyDirectory + ':/legacy:ro',
-                imageTag,
-                '--append',
-                '--file=/backup/controller-state.tar',
-                '--directory=/legacy',
-                'active.conf',
-                'candidate.conf',
-                'last-known-good.conf',
-                'last-good.conf',
-                'engine.pid',
-                'host-configs',
-                'active-proxy-snapshot.json',
+                'exec',
+                resumedRestoreId,
+                'test',
+                '!',
+                '-e',
+                restoreJournalPath,
             ])
-            const archivePath = join(fixture, 'controller-state.tar')
-            const archiveBytes = await stat(archivePath)
-            const metadataPath = join(fixture, 'metadata.json')
-            const metadata = JSON.parse(await readFile(metadataPath, 'utf8')) as {
-                controllerState: { bytes: number; sha256: string }
-                version: number
-            }
-            metadata.version = version
-            metadata.controllerState.bytes = archiveBytes.size
-            metadata.controllerState.sha256 = digest(await readFile(archivePath))
-            await writeFile(metadataPath, JSON.stringify(metadata, null, 2) + '\n', 'utf8')
-            return fixture
+            passed('database-phase interruption requires and completes same-backup restore resume')
         }
 
-        async function restoreLegacyFixture(
-            fixture: string,
-            legacyCompose: string[],
-            legacyProject: string,
-            version: 1 | 2,
-        ): Promise<void> {
-            await commandFails([...legacyCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
-            const restoreArguments = [
-                process.execPath,
-                'scripts/production-restore.ts',
-                '--project',
-                legacyProject,
-                '--input',
-                fixture,
-                '--confirm-replace',
-            ]
-            if (version === 1)
-                restoreArguments.push('--app-key-file', join(fixture, 'app-encryption-key'))
-            await commandWithEnvironment(restoreArguments, scriptEnvironment, 900_000)
-            const legacyId = await containerId(legacyCompose)
-            await waitForHealthy(legacyId)
-            await assertRealTraffic(
-                legacyId,
-                'v' + version + ' legacy restore preserves HTTP/HTTPS traffic',
-            )
-            for (const entry of [
-                'active.conf',
-                'candidate.conf',
-                'last-known-good.conf',
-                'last-good.conf',
-                'engine.pid',
-                'host-configs',
-                'active-proxy-snapshot.json',
-            ]) {
-                assert.ok(
-                    await commandFails([
-                        'docker',
-                        'exec',
-                        legacyId,
-                        'test',
-                        '!',
-                        '-e',
-                        '/var/lib/rentnerproxy/proxy/' + entry,
-                    ]),
-                    'legacy runtime state restored: ' + entry,
-                )
-            }
-            passed(
-                'v' +
-                    version +
-                    ' restore excludes legacy runtime files and regenerates Caddy state from DB',
-            )
-        }
-        const legacyV2 = await makeLegacyFixture(2)
-        await restoreLegacyFixture(legacyV2, legacyComposes[0]!, legacyProjects[0]!, 2)
-        await command([...legacyComposes[0]!, 'down', '--volumes', '--remove-orphans'], 180_000)
-        const legacyV1 = await makeLegacyFixture(1)
-        await restoreLegacyFixture(legacyV1, legacyComposes[1]!, legacyProjects[1]!, 1)
-        await command([...legacyComposes[1]!, 'down', '--volumes', '--remove-orphans'], 180_000)
         await command([...restoreCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
         for (const verifyUpgrade of [verifyAlpha1Upgrade, verifyAlpha3Upgrade]) {
             await verifyUpgrade({
@@ -1910,8 +2492,10 @@ async function runSmoke(): Promise<void> {
         backend?.stop(true)
         await commandFails([...compose, 'down', '--volumes', '--remove-orphans'], 180_000)
         await commandFails([...restoreCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
-        for (const legacyCompose of legacyComposes)
-            await commandFails([...legacyCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
+        await commandFails(
+            [...deploymentChangeCompose, 'down', '--volumes', '--remove-orphans'],
+            180_000,
+        )
         await commandFails(['docker', 'image', 'rm', '--force', imageTag], 180_000)
         await commandFails(['docker', 'image', 'rm', http3Image], 180_000)
         await rm(temporaryRoot, { force: true, recursive: true })
