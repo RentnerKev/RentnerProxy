@@ -33,6 +33,7 @@ test('initial server HTML contains the saved accent before hydration', async () 
         expect(rootElement.style.getPropertyValue('--accent-500')).toBe('#3366cc')
         expect(rootElement.style.getPropertyValue('--accent-rgb')).toBe('51 102 204')
         expect(rootElement.style.getPropertyValue('--accent-foreground')).toBe('#ffffff')
+        expect(rootElement.getAttribute('data-accent-custom')).toBe('true')
     } finally {
         await window.happyDOM.close()
     }
