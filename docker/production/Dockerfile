@@ -98,7 +98,7 @@ RUN set -eux; \
         /etc/crowdsec/online_api_credentials.yaml; \
     cp -aL /etc/crowdsec/. /opt/rentnerproxy/crowdsec-config/
 
-FROM redis:8.10.2-trixie@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3 AS redis-runtime
+FROM redis:8.10.2-trixie@sha256:6f81e8915c60b065a524e6967e0ad1c639ba6efa84d669f823683ea04d9150ee AS redis-runtime
 
 FROM postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722 AS runtime
 
