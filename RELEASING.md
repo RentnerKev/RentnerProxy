@@ -19,6 +19,20 @@ release commit, and that each source digest matches the pinned
 evidence. The path-filtered pull request run checks fresh installation and Alpha 6; the weekly
 historical run does not replace this exact-commit release gate.
 
+Run [Runtime Reliability](.github/workflows/runtime-reliability.yml) manually with `profile=long`
+and `source=all` on the exact intended release ref. Retain the run URL and both sanitized JSON
+reports; require `summary.passed=true`, `summary.requestedDurationReached=true` and
+`resources.trendEvidence=comparable` for current and immutable Alpha 6, with resource capture enabled.
+The current report must have an empty `knownLimitations` list and complete certificate binding after
+one retry. Alpha 6 may disclose `alpha6-binding-retry-needs-second-request`: only its exact known
+stranded-job state permits one bounded second retry for the same job. That baseline pass accounts for
+an additional operator action; it does not demonstrate automatic recovery in the published image.
+The iteration limit may end a successful run early, so increase it within the documented bounds when
+needed to reach the requested duration. Weekly runs and short PR checks do not replace
+this exact-ref evidence. These fixture results do not establish universal production capacity.
+Release readiness and publication remain the separate [Beta 1 gate](https://github.com/RentnerKev/RentnerProxy/issues/75);
+this reliability work does not create a release.
+
 The release workflow validates release identity and builds the tagged source. It does not itself
 run the complete CI suite or verify that every release-gate issue is closed. Checking readiness
 before publication is the maintainer's responsibility.

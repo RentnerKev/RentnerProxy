@@ -1,0 +1,189 @@
+name: Runtime Reliability
+
+on:
+    pull_request:
+        branches:
+            - main
+        paths:
+            - '.github/workflows/runtime-reliability.yml'
+            - '.github/scripts/production-smoke-ci.ts'
+            - 'controller/**'
+            - 'docker/**'
+            - 'docker-compose.yml'
+            - 'scripts/runtime-reliability/**'
+            - 'scripts/smoke-resources.ts'
+            - 'web/src/server/**'
+            - 'web/src/config/**'
+            - 'web/src/features/**/validation.ts'
+            - 'web/src/start.ts'
+            - 'web/src/websockets/**'
+            - 'package.json'
+            - 'bun.lock'
+    push:
+        branches:
+            - main
+        paths:
+            - '.github/workflows/runtime-reliability.yml'
+            - '.github/scripts/production-smoke-ci.ts'
+            - 'controller/**'
+            - 'docker/**'
+            - 'docker-compose.yml'
+            - 'scripts/runtime-reliability/**'
+            - 'scripts/smoke-resources.ts'
+            - 'web/src/server/**'
+            - 'web/src/config/**'
+            - 'web/src/features/**/validation.ts'
+            - 'web/src/start.ts'
+            - 'web/src/websockets/**'
+            - 'package.json'
+            - 'bun.lock'
+    schedule:
+        - cron: '43 4 * * 2'
+    workflow_dispatch:
+        inputs:
+            profile:
+                description: Bounded runtime reliability profile
+                required: true
+                default: long
+                type: choice
+                options:
+                    - short
+                    - long
+            source:
+                description: Current build, immutable published Alpha 6, or both
+                required: true
+                default: all
+                type: choice
+                options:
+                    - all
+                    - current
+                    - alpha.6
+            duration-seconds:
+                description: Optional duration bound (30 to 7200 seconds)
+                type: string
+            iterations:
+                description: Optional iteration bound (1 to 1000)
+                type: string
+            concurrency:
+                description: Optional bounded concurrency (1 to 8)
+                type: string
+            capture-resources:
+                description: Capture resource samples
+                default: true
+                type: boolean
+            seed:
+                description: Optional deterministic uint32 seed
+                type: string
+
+permissions:
+    contents: read
+
+concurrency:
+    group: runtime-reliability-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+    BUN_VERSION: 1.4.2
+    RENTNERPROXY_SMOKE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
+
+jobs:
+    select-sources:
+        runs-on: ubuntu-latest
+        outputs:
+            sources: ${{ steps.select.outputs.sources }}
+            profile: ${{ steps.select.outputs.profile }}
+        steps:
+            - id: select
+              name: Select bounded profile and sources
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+                  REQUESTED_SOURCE: ${{ inputs.source }}
+                  REQUESTED_PROFILE: ${{ inputs.profile }}
+              run: |
+                  case "$EVENT_NAME" in
+                    pull_request|push)
+                      sources='["current"]'
+                      profile=short
+                      ;;
+                    schedule)
+                      sources='["current","alpha.6"]'
+                      profile=long
+                      ;;
+                    workflow_dispatch)
+                      case "$REQUESTED_SOURCE" in
+                        all) sources='["current","alpha.6"]' ;;
+                        current) sources='["current"]' ;;
+                        alpha.6) sources='["alpha.6"]' ;;
+                        *) exit 1 ;;
+                      esac
+                      case "$REQUESTED_PROFILE" in
+                        short|long) profile="$REQUESTED_PROFILE" ;;
+                        *) exit 1 ;;
+                      esac
+                      ;;
+                    *) exit 1 ;;
+                  esac
+                  echo "sources=$sources" >> "$GITHUB_OUTPUT"
+                  echo "profile=$profile" >> "$GITHUB_OUTPUT"
+
+    runtime-reliability:
+        needs: select-sources
+        strategy:
+            fail-fast: false
+            max-parallel: 1
+            matrix:
+                source: ${{ fromJSON(needs.select-sources.outputs.sources) }}
+        name: ${{ needs.select-sources.outputs.profile }} / ${{ matrix.source }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 90
+        steps:
+            - name: Prepare sanitized failure report
+              run: |
+                  mkdir -p "$RUNNER_TEMP/runtime-reliability-report"
+                  printf '%s\n' '{"summary":{"passed":false,"requestedDurationReached":false},"failure":"runner-not-completed"}' > "$RUNNER_TEMP/runtime-reliability-report/report.json"
+
+            - name: Check out exact target commit and historical sources
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  fetch-depth: 0
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+            - name: Set up Bun
+              id: bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+
+            - name: Run isolated runtime reliability fixture
+              env:
+                  PROFILE: ${{ needs.select-sources.outputs.profile }}
+                  SOURCE: ${{ matrix.source }}
+                  DURATION_SECONDS: ${{ inputs['duration-seconds'] }}
+                  ITERATIONS: ${{ inputs.iterations }}
+                  CONCURRENCY: ${{ inputs.concurrency }}
+                  CAPTURE_RESOURCES: ${{ github.event_name != 'workflow_dispatch' || inputs['capture-resources'] }}
+                  SEED: ${{ inputs.seed }}
+              run: |
+                  args=(--profile "$PROFILE" --source "$SOURCE" --capture-resources "$CAPTURE_RESOURCES" --report "$RUNNER_TEMP/runtime-reliability-report/report.json")
+                  if [ -n "$DURATION_SECONDS" ]; then args+=(--duration-seconds "$DURATION_SECONDS"); fi
+                  if [ -n "$ITERATIONS" ]; then args+=(--iterations "$ITERATIONS"); fi
+                  if [ -n "$CONCURRENCY" ]; then args+=(--concurrency "$CONCURRENCY"); fi
+                  if [ -n "$SEED" ]; then args+=(--seed "$SEED"); fi
+                  bun --no-env-file --no-orphans scripts/runtime-reliability/run.ts "${args[@]}"
+
+            - name: Remove this run's private Docker resources
+              if: always() && steps.bun.outcome == 'success'
+              run: bun --no-env-file .github/scripts/production-smoke-ci.ts cleanup
+
+            - name: Upload sanitized JSON evidence
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: runtime-reliability-${{ matrix.source }}-${{ github.run_attempt }}
+                  path: ${{ runner.temp }}/runtime-reliability-report/report.json
+                  if-no-files-found: error
+                  retention-days: 30

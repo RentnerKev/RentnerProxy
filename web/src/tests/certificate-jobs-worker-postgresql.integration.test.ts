@@ -77,7 +77,7 @@ function validMetadata(
     }
 }
 
-function createController() {
+function createController(issueOverrides: Partial<ControllerCertificateMetadata> = {}) {
     const entries = new Map<string, ControllerCertificateMetadata>()
     let failIssueOnce = false
     let getCalls = 0
@@ -95,6 +95,7 @@ function createController() {
             issueCalls += 1
             const metadata = validMetadata(certificateId, input.domains, {
                 environment: input.environment ?? 'staging',
+                ...issueOverrides,
             })
             entries.set(certificateId, metadata)
             if (failIssueOnce) {
@@ -608,66 +609,111 @@ describe('certificate job worker with PostgreSQL', () => {
         })
     })
 
-    integrationTest('retries a matching failed operation with replacement issuance', async () => {
-        const actorId = await createUser()
-        const fixture = await createJob(actorId)
-        const controller = createController()
-        const runtime = createRuntime()
-        const operationId = randomUUID()
-        controller.entries.set(
-            fixture.certificateId,
-            validMetadata(fixture.certificateId, [fixture.domain], {
+    integrationTest(
+        'keeps asynchronous retry of a failed operation polling until the same certificate applies',
+        async () => {
+            const actorId = await createUser()
+            const fixture = await createJob(actorId)
+            const retryOperation = {
+                id: randomUUID(),
+                kind: 'issue' as const,
+                stage: 'queued' as const,
+                startedAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            }
+            const controller = createController({
                 status: 'failed',
-                operation: 'idle',
-                currentOperation: {
-                    id: operationId,
-                    kind: 'issue',
-                    stage: 'failed',
-                    startedAt: new Date(Date.now() - 120_000).toISOString(),
-                    updatedAt: new Date(Date.now() - 60_000).toISOString(),
-                },
-                candidate: null,
+                operation: 'issuing',
+                currentOperation: retryOperation,
                 issuedAt: null,
                 expiresAt: null,
                 issuer: null,
                 fingerprint: null,
-                lastErrorCode: 'acme_failed',
-            }),
-        )
-        await getAuthDatabase()
-            .update(certificateJobs)
-            .set({
-                stage: 'failed',
-                controllerOperationId: operationId,
-                lastErrorCode: 'acme_failed',
             })
-            .where(eq(certificateJobs.id, fixture.id))
+            const runtime = createRuntime()
+            const operationId = randomUUID()
+            controller.entries.set(
+                fixture.certificateId,
+                validMetadata(fixture.certificateId, [fixture.domain], {
+                    status: 'failed',
+                    operation: 'idle',
+                    currentOperation: {
+                        id: operationId,
+                        kind: 'issue',
+                        stage: 'failed',
+                        startedAt: new Date(Date.now() - 120_000).toISOString(),
+                        updatedAt: new Date(Date.now() - 60_000).toISOString(),
+                    },
+                    candidate: null,
+                    issuedAt: null,
+                    expiresAt: null,
+                    issuer: null,
+                    fingerprint: null,
+                    lastErrorCode: 'acme_failed',
+                }),
+            )
+            await getAuthDatabase()
+                .update(certificateJobs)
+                .set({
+                    stage: 'failed',
+                    controllerOperationId: operationId,
+                    lastErrorCode: 'acme_failed',
+                })
+                .where(eq(certificateJobs.id, fixture.id))
 
-        await asUser(actorId, () => retryCertificateJobService(fixture.id))
-        expect(await readJob(fixture.id)).toMatchObject({
-            controllerOperationId: operationId,
-            retryRequested: true,
-        })
-        runtime.setAvailable(true)
-        await makeDue(fixture.id)
-        await runCertificateJobsOnce(controller.controller, runtime.runtime)
+            await asUser(actorId, () => retryCertificateJobService(fixture.id))
+            expect(await readJob(fixture.id)).toMatchObject({
+                controllerOperationId: operationId,
+                retryRequested: true,
+            })
+            runtime.setAvailable(true)
+            await makeDue(fixture.id)
+            await runCertificateJobsOnce(controller.controller, runtime.runtime)
 
-        expect(controller.issueCalls()).toBe(1)
-        expect(controller.renewCalls()).toBe(0)
-        expectCompletedJob(await readJob(fixture.id))
-        expect(await readHost(fixture.hostId)).toMatchObject({
-            certificateId: fixture.certificateId,
-            enabled: true,
-        })
-        expect(await readCertificate(fixture.certificateId)).toMatchObject({
-            candidate: null,
-            currentOperation: null,
-            fingerprint: 'sha256:' + 'a'.repeat(64),
-            lastErrorCode: null,
-            operation: 'idle',
-            status: 'valid',
-        })
-    })
+            expect(controller.issueCalls()).toBe(1)
+            expect(controller.renewCalls()).toBe(0)
+            expect(await readJob(fixture.id)).toMatchObject({
+                id: fixture.id,
+                certificateId: fixture.certificateId,
+                proxyHostId: fixture.hostId,
+                stage: 'issuing',
+                controllerOperationId: retryOperation.id,
+                controllerStage: 'queued',
+                lastErrorCode: null,
+                retryRequested: false,
+                leaseToken: null,
+                leaseExpiresAt: null,
+            })
+            expect(await readHost(fixture.hostId)).toEqual({ certificateId: null, enabled: false })
+            controller.entries.set(
+                fixture.certificateId,
+                validMetadata(fixture.certificateId, [fixture.domain], {
+                    currentOperation: { ...retryOperation, stage: 'applied' },
+                }),
+            )
+            await makeDue(fixture.id)
+            await runCertificateJobsOnce(controller.controller, runtime.runtime)
+            expectCompletedJob(await readJob(fixture.id))
+            expect(await readJob(fixture.id)).toMatchObject({
+                controllerOperationId: retryOperation.id,
+                controllerStage: 'applied',
+            })
+            expect(controller.issueCalls()).toBe(1)
+            expect(controller.renewCalls()).toBe(0)
+            expect(await readHost(fixture.hostId)).toMatchObject({
+                certificateId: fixture.certificateId,
+                enabled: true,
+            })
+            expect(await readCertificate(fixture.certificateId)).toMatchObject({
+                candidate: null,
+                currentOperation: { ...retryOperation, stage: 'applied' },
+                fingerprint: 'sha256:' + 'a'.repeat(64),
+                lastErrorCode: null,
+                operation: 'idle',
+                status: 'valid',
+            })
+        },
+    )
 
     integrationTest(
         'consumes a retry with a retained unmatched operation without duplicate issuance',

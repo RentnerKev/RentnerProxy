@@ -147,3 +147,38 @@ Keep the Compose file, image tag/digest, port mappings and deployment environmen
 Redis sessions/challenges, request logs, sockets, PID files, locks, temporary files and supervisor status/staging are excluded. Redis-backed flows restart after restore; durable users, sessions, roles, permissions, policies, Basic Auth, Forward Auth, importer history, hosts, redirects, CAs, certificate jobs/events/retries, candidates, ACME accounts and encrypted DNS credentials remain in PostgreSQL/controller state. CrowdSec's SQLite WAL is retained when present, while its shared-memory file is regenerated. Managed startup re-registers the bouncer with a private key and preserves detections and registrations; the LAPI remains bound to loopback.
 
 If restore is interrupted after replacement begins, the persistent journal prevents startup with partially restored state. Stop the appliance if it was manually started and rerun the same backup with `--resume --confirm-replace`. Resume validates that backup again and repeats all replacement steps. Another backup is rejected while the journal is pending. A failure before replacement leaves the running target intact; no automatic destructive retry is attempted. For rollback, use a fresh volume, the pre-upgrade source backup, that source release's restore tools and its exact image digest.
+
+## Runtime reliability checks
+
+With Docker Engine (Linux containers), Docker Compose, Bun 1.4.2, Git history and the repository
+dependencies installed, run the isolated synthetic fixture:
+
+```bash
+bun run runtime:reliability -- --profile short --source current --report ./runtime-reliability.json
+bun run runtime:reliability -- --profile long --source alpha.6 --report ./runtime-reliability-alpha6.json
+```
+
+`current` builds the committed `HEAD` snapshot; fixture services are bundled from the exact matching
+Git revision. A supplied `--image` for current is accepted only when its OCI revision matches `HEAD`.
+`alpha.6` uses the immutable published Alpha 6 image and its pinned historical source. The fixture creates its own private data and credentials. Never supply production
+secrets or private data. Cycle admission stops at the first duration or iteration bound: short defaults
+to 120 seconds/3 iterations, long to 1800 seconds/120 iterations, both with concurrency 2. The sanitized
+JSON records actual workload elapsed time, excluding cold setup, and whether the requested duration was
+reached. In-flight cycles finish their bounded commands, so observed duration can exceed the admission
+cap. Retain at least eight quiescent samples for trend evidence; a shorter passing run cannot establish
+resource stability. These are fixture guards, not production performance benchmarks. The separate
+[Runtime Reliability workflow](.github/workflows/runtime-reliability.yml) runs short checks for relevant
+PR/main changes and long current/Alpha 6 checks weekly or manually. See [Architecture](ARCHITECTURE.md)
+for resource evidence limits and [Releasing](RELEASING.md) for the exact-ref release gate.
+
+Override bounds with `--duration-seconds 30..7200`, `--iterations 1..1000` and `--concurrency 1..8`
+(using one integer, not a range). `--seed` accepts a uint32 (default 69) for repeatable fixture choices;
+`--capture-resources true|false` controls sampling (default true). CI manual inputs expose the same
+controls. Disabling resource capture cannot establish resource stability.
+
+The published Alpha 6 baseline has a known certificate-binding retry defect: an accepted asynchronous
+retry can leave the job failed while the controller completes issuance. The fixture records
+`alpha6-binding-retry-needs-second-request` in `knownLimitations` only for the verified known state,
+then sends one bounded second retry for the same job. This represents an additional operator action;
+a passing baseline accounts for that limitation. Current builds must complete after one retry and
+report no known limitations. See [Releasing](RELEASING.md) for the required evidence.

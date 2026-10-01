@@ -249,3 +249,36 @@ certificate, upgrade, backup, restore, and appliance paths when their external
 dependencies are available. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the
 required check commands and [`ASSURANCE_CASE.md`](./ASSURANCE_CASE.md) for the
 claims and limits supported by this evidence.
+
+## Runtime reliability evidence
+
+The isolated runner in [`scripts/runtime-reliability/`](./scripts/runtime-reliability/) exercises
+repeatable synthetic runtime work against the committed `HEAD` appliance snapshot or the
+digest-pinned published Alpha 6 appliance. Fixture services are bundled from the matching Git revision;
+a supplied current image must carry an OCI revision matching `HEAD`. Historical fixture tools are bundled against that release's pinned source rather
+than assuming today's database and service contracts. The workflow preserves the existing fast
+Production Smokes merge gate and adds a short PR/main check plus separate weekly/manual long runs.
+
+The fixture's resource guard is 1 GiB memory, 512 PIDs and 100 PostgreSQL connections. Quiescent
+file-descriptor, memory and database-connection deltas detect growth within this fixture envelope;
+they are not universal capacity or production performance benchmarks. Fewer than eight samples
+provide insufficient trend evidence. Resource capture can be disabled for diagnosis, which cannot
+establish resource stability. The duration bound caps admission of new cycles; an in-flight cycle
+finishes its bounded commands.
+Observed workload duration excludes cold setup and may exceed the requested cap. Reports distinguish
+`summary.stoppedBy` and `summary.requestedDurationReached`. Each run removes only its labelled Docker
+resources and private fixture files. CI retains only the sanitized JSON report, never raw service logs or private volumes.
+
+Quiescent samples follow deliberate restarts and growing durable fixture history. They measure the
+bounded recovered footprint; they do not demonstrate continuous memory stability of the same process
+or exclude every possible leak. `targetSha` identifies the tested harness commit, while
+`runtimeRevision` identifies committed `HEAD` or the pinned historical Alpha 6 runtime source.
+
+The Alpha 6 baseline preserves the published runtime, including its certificate-binding retry defect.
+A retry accepted during asynchronous issuance can strand a failed job. Only when that job remains
+failed with `errorCode=null` and the controller has a valid, idle, applied certificate does the harness
+record `alpha6-binding-retry-needs-second-request` in `knownLimitations` and issue one bounded second
+manual retry for the same job. That request represents additional operator intervention, not automatic
+recovery by the published runtime. A passing baseline includes this disclosed known case; current
+builds must recover with one retry and an empty limitation list. This test-driven correction does not
+publish or modify a release.

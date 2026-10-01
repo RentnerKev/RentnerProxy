@@ -45,7 +45,12 @@ async function saveJobCertificateMetadata(
         await transaction
             .update(certificateJobs)
             .set({
-                stage: metadata.status === 'failed' && !metadata.candidate ? 'failed' : 'issuing',
+                stage:
+                    metadata.status === 'failed' &&
+                    metadata.operation === 'idle' &&
+                    !metadata.candidate
+                        ? 'failed'
+                        : 'issuing',
                 controllerStage: metadata.currentOperation?.stage ?? null,
                 controllerOperationId:
                     metadata.currentOperation?.id ?? current.controllerOperationId,
