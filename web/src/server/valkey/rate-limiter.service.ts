@@ -4,8 +4,8 @@ import { createHash } from 'node:crypto'
 import { isIP } from 'node:net'
 import { z } from 'zod'
 
-import { getRedisClient } from './client.server'
-import type { RedisCommandClient } from './Types/redis.types'
+import { getValkeyClient } from './client.server'
+import type { ValkeyCommandClient } from './Types/valkey.types'
 
 const FIXED_WINDOW_SCRIPT = `
 local count = redis.call('INCR', KEYS[1])
@@ -44,7 +44,7 @@ export interface RateLimitRequest extends RateLimitPolicy {
 }
 
 export interface RateLimitDependencies {
-    readonly getClient: () => RedisCommandClient | null
+    readonly getClient: () => ValkeyCommandClient | null
 }
 
 export interface AuthRateLimitRequest {
@@ -153,7 +153,7 @@ export class RateLimitUnavailableError extends Error {
 }
 
 const defaultDependencies: RateLimitDependencies = {
-    getClient: getRedisClient,
+    getClient: getValkeyClient,
 }
 
 export function hashRateLimitIdentifier(identifier: string): string {
@@ -215,7 +215,7 @@ async function consumeRateLimitKey(
     }
 
     const dependencies = { ...defaultDependencies, ...overrides }
-    let client: RedisCommandClient | null
+    let client: ValkeyCommandClient | null
 
     try {
         client = dependencies.getClient()
@@ -275,7 +275,7 @@ export function getClientIp(request: Request): string {
 }
 
 const defaultAuthDependencies: AuthRateLimitDependencies = {
-    getClient: getRedisClient,
+    getClient: getValkeyClient,
     resolveClientIp: getClientIp,
     warn: (reason) => console.warn(`[auth-rate-limit] ${reason}`),
 }

@@ -58,7 +58,7 @@ body:
               - ACME
               - Upstream TLS
               - Database
-              - Redis
+              - Valkey
               - Docker / Deployment
               - CI / GitHub Automation
               - Other

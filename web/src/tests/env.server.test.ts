@@ -9,14 +9,14 @@ import {
     getControllerToken,
     getDatabaseUrl,
     getPublicOrigin,
-    getRedisUrl,
+    getValkeyUrl,
     getSmtpConfiguration,
     getWebAuthnConfiguration,
     deriveWebAuthnRpId,
     parseAppEncryptionKey,
     parseDatabaseUrl,
     parsePublicOrigin,
-    parseRedisUrl,
+    parseValkeyUrl,
     parseTrustedManagementOrigin,
     parseWebAuthnRpId,
     validateProductionEnvironment,
@@ -30,6 +30,7 @@ const ENVIRONMENT_VARIABLES = [
     'DATABASE_URL',
     'DATABASE_URL_FILE',
     'NODE_ENV',
+    'VALKEY_URL',
     'REDIS_URL',
     'RENTNERPROXY_CONTROLLER_TOKEN',
     'RENTNERPROXY_CONTROLLER_TOKEN_FILE',
@@ -82,7 +83,7 @@ function configureRequiredSmtp(): void {
 function configureRequiredProductionEnvironment(): void {
     process.env.NODE_ENV = 'production'
     process.env.DATABASE_URL = 'postgresql://rentnerproxy:secret@postgres:5432/rentnerproxy'
-    process.env.REDIS_URL = 'redis://redis:6379'
+    process.env.VALKEY_URL = 'redis://valkey:6379'
     process.env.APP_ENCRYPTION_KEY = Buffer.from('01234567890123456789012345678901').toString(
         'base64',
     )
@@ -134,21 +135,33 @@ describe('parseDatabaseUrl', () => {
     })
 })
 
-describe('getRedisUrl', () => {
-    test('returns null when REDIS_URL is absent, blank, or not Redis', () => {
-        delete process.env.REDIS_URL
-        expect(getRedisUrl()).toBeNull()
-        expect(parseRedisUrl('   ')).toBeNull()
-        expect(parseRedisUrl('https://redis.example')).toBeNull()
-        expect(parseRedisUrl('redis://redis.example/not-a-database')).toBeNull()
-        expect(parseRedisUrl('redis://redis.example/0?secret=value')).toBeNull()
+describe('getValkeyUrl', () => {
+    test('returns null when VALKEY_URL is absent, blank, or not Valkey', () => {
+        delete process.env.VALKEY_URL
+        expect(getValkeyUrl()).toBeNull()
+        expect(parseValkeyUrl('   ')).toBeNull()
+        expect(parseValkeyUrl('https://valkey.example')).toBeNull()
+        expect(parseValkeyUrl('redis://valkey.example/not-a-database')).toBeNull()
+        expect(parseValkeyUrl('redis://valkey.example/0?secret=value')).toBeNull()
     })
 
-    test('accepts redis and rediss URLs, database indexes, and credentials', () => {
-        expect(parseRedisUrl('redis://127.0.0.1:6379')).toBe('redis://127.0.0.1:6379')
-        expect(parseRedisUrl(' rediss://user:password@redis.example:6380/2 ')).toBe(
-            'rediss://user:password@redis.example:6380/2',
+    test('accepts redis and rediss protocols, database indexes, and credentials', () => {
+        expect(parseValkeyUrl('redis://127.0.0.1:6379')).toBe('redis://127.0.0.1:6379')
+        expect(parseValkeyUrl(' rediss://user:password@valkey.example:6380/2 ')).toBe(
+            'rediss://user:password@valkey.example:6380/2',
         )
+    })
+
+    test('ignores legacy-only configuration and uses VALKEY_URL when both are set', () => {
+        process.env.REDIS_URL = 'redis://legacy.example:6379'
+        delete process.env.VALKEY_URL
+        expect(getValkeyUrl()).toBeNull()
+
+        process.env.VALKEY_URL = 'redis://valkey.example:6380/2'
+        expect(getValkeyUrl()).toBe('redis://valkey.example:6380/2')
+
+        process.env.VALKEY_URL = 'https://invalid.example'
+        expect(getValkeyUrl()).toBeNull()
     })
 })
 
@@ -221,6 +234,31 @@ describe('parseTrustedManagementOrigin', () => {
 })
 
 describe('production environment validation', () => {
+    test.each([undefined, '', 'https://user:private-value@invalid.example'])(
+        'fails closed with safe migration guidance for VALKEY_URL %s',
+        (configured) => {
+            configureRequiredProductionEnvironment()
+            process.env.REDIS_URL = 'redis://user:legacy-secret@legacy.example'
+            if (configured === undefined) delete process.env.VALKEY_URL
+            else process.env.VALKEY_URL = configured
+
+            expect(() => validateProductionEnvironment()).toThrow('VALKEY_URL is required')
+            expect(() => validateProductionEnvironment()).toThrow('Rename legacy REDIS_URL')
+            try {
+                validateProductionEnvironment()
+            } catch (error) {
+                expect(String(error)).not.toContain('private-value')
+                expect(String(error)).not.toContain('legacy-secret')
+                expect(String(error)).not.toContain('invalid.example')
+            }
+        },
+    )
+
+    test('accepts valid VALKEY_URL even when the legacy variable is invalid', () => {
+        configureRequiredProductionEnvironment()
+        process.env.REDIS_URL = 'invalid legacy configuration'
+        expect(() => validateProductionEnvironment()).not.toThrow()
+    })
     test('requires the canonical origin and provides the Alpha 3 migration hint', () => {
         configureRequiredProductionEnvironment()
         delete process.env.RENTNERPROXY_PUBLIC_ORIGIN

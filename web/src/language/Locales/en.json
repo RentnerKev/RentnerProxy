@@ -226,7 +226,7 @@
         "description": "A compact connection check for every service that supports this RentnerProxy instance.",
         "loading": {
             "title": "Checking connections",
-            "description": "RentnerProxy is verifying the controller, PostgreSQL, and Redis."
+            "description": "RentnerProxy is verifying the controller, PostgreSQL, and Valkey."
         },
         "error": {
             "title": "Health check unavailable",
@@ -268,9 +268,9 @@
                 "label": "Database",
                 "detail": "Server-side PostgreSQL health check"
             },
-            "redis": {
-                "label": "Redis",
-                "detail": "Server-side Redis health check"
+            "valkey": {
+                "label": "Valkey",
+                "detail": "Server-side Valkey health check"
             },
             "websocket": {
                 "label": "WebSocket Server",

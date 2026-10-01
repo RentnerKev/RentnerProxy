@@ -27,7 +27,7 @@ import {
     createAuthChallenge,
     consumeAuthChallenge,
     type WebAuthnReauthenticationChallenge,
-} from '../../redis/auth-challenges.service'
+} from '../../valkey/auth-challenges.service'
 import {
     requireRecentAuthenticationForSession,
     requireSessionPermission,

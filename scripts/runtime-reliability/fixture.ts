@@ -138,7 +138,7 @@ export async function createFixtureContext(command: FixtureCommand) {
         basicAuth,
         runtime,
         certificates,
-        redis,
+        valkey,
         jobs,
     ] = await Promise.all([
         import('drizzle-orm'),
@@ -155,7 +155,7 @@ export async function createFixtureContext(command: FixtureCommand) {
         import('../../web/src/server/Admin/AccessPolicyManagement/basic-auth.service'),
         import('../../web/src/server/ProxyRuntime/proxy-runtime.service'),
         import('../../web/src/server/Admin/CertificateManagement/certificates.service'),
-        import('../../web/src/server/redis/client.server'),
+        import('../../web/src/server/valkey/client.server'),
         import('../../web/src/server/Admin/ProxyHostManagement/certificate-jobs.service'),
     ])
     const database = getAuthDatabase()
@@ -211,7 +211,7 @@ export async function createFixtureContext(command: FixtureCommand) {
         contextStage = 'state-chmod'
         await chmod(statePath, 0o600)
     } catch (error) {
-        redis.closeRedisClient()
+        valkey.closeValkeyClient()
         await database.$client.close()
         throw new FixtureContextError(contextStage, contextDiagnostic(error))
     }
@@ -238,7 +238,7 @@ export async function createFixtureContext(command: FixtureCommand) {
     const domain =
         command.certificateDomain ?? state.domain ?? 'reliability-' + command.runId + '.test'
     if (state.domain && state.domain !== domain) {
-        redis.closeRedisClient()
+        valkey.closeValkeyClient()
         await database.$client.close()
         throw new Error('fixture_domain_mismatch')
     }
@@ -255,7 +255,7 @@ export async function createFixtureContext(command: FixtureCommand) {
     }
     async function close() {
         await runtime.stopProxyRuntimeReconciliation()
-        redis.closeRedisClient()
+        valkey.closeValkeyClient()
         await database.$client.close()
     }
     return {

@@ -1,7 +1,7 @@
 // oxlint-disable no-await-in-loop -- Fault injection, recovery probes and lifecycle changes depend on the preceding step.
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
-import { chmod, copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { startCertificateDnsFixture } from '../certificate-dns-fixture'
@@ -262,7 +262,8 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
                 '--env',
                 'DATABASE_URL_FILE=/run/rentnerproxy/database-url/value',
                 '--env',
-                'REDIS_URL=redis://127.0.0.1:6379',
+                (options.source === 'alpha.6' ? 'REDIS_URL' : 'VALKEY_URL') +
+                    '=redis://127.0.0.1:6379',
                 '--env',
                 'RENTNERPROXY_CONTROLLER_URL=http://127.0.0.1:8081',
                 '--env',
@@ -667,6 +668,29 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
                 )),
         )
         await ready()
+        if (options.source === 'current') {
+            assert.match(
+                await docker([
+                    'exec',
+                    container,
+                    '/opt/rentnerproxy/valkey/bin/valkey-server',
+                    '--version',
+                ]),
+                /Valkey server v=9\.1\.2/u,
+            )
+            assert.equal(
+                await docker([
+                    'exec',
+                    container,
+                    'gosu',
+                    'rentnerproxy',
+                    '/opt/rentnerproxy/valkey/bin/valkey-cli',
+                    'ping',
+                ]),
+                'PONG',
+            )
+            check('health', 'bundled Valkey is ready')
+        }
         const fixtureRoot = join(temp, 'fixture-source')
         await archive(
             options.source === 'alpha.6' ? publishedAlpha('alpha.6').revision : targetSha,
@@ -677,10 +701,21 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         for (const name of options.source === 'alpha.6'
             ? ['fixture.ts']
             : ['fixture.ts', 'fixture-beta.ts']) {
-            await copyFile(
+            let fixtureContents = await readFile(
                 join(repositoryRoot, 'scripts/runtime-reliability', name),
-                join(fixtureRoot, 'scripts/runtime-reliability', name),
+                'utf8',
             )
+            if (options.source === 'alpha.6') {
+                assert.ok(fixtureContents.includes('../../web/src/server/valkey/client.server'))
+                assert.ok(fixtureContents.includes('valkey.closeValkeyClient()'))
+                fixtureContents = fixtureContents
+                    .replace(
+                        '../../web/src/server/valkey/client.server',
+                        '../../web/src/server/redis/client.server',
+                    )
+                    .replaceAll('valkey.closeValkeyClient()', 'valkey.closeRedisClient()')
+            }
+            await writeFile(join(fixtureRoot, 'scripts/runtime-reliability', name), fixtureContents)
         }
         const fixtureSource = join(
             fixtureRoot,

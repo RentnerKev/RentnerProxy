@@ -10,15 +10,15 @@ import {
     releaseCodeChallengeVerification,
     type AuthChallengeDependencies,
     type LoginMfaChallenge,
-} from '../server/redis/auth-challenges.service'
-import type { RedisCommandClient } from '../server/redis/Types/redis.types'
+} from '../server/valkey/auth-challenges.service'
+import type { ValkeyCommandClient } from '../server/valkey/Types/valkey.types'
 
 interface FakeEntry {
     expiresAt: number | null
     value: string
 }
 
-class FakeRedis implements RedisCommandClient {
+class FakeValkey implements ValkeyCommandClient {
     readonly calls: Array<{ args: string[]; command: string }> = []
     private readonly entries = new Map<string, FakeEntry>()
 
@@ -39,7 +39,7 @@ class FakeRedis implements RedisCommandClient {
             case 'EVAL':
                 return this.eval(args)
             default:
-                throw new Error(`Unsupported fake Redis command: ${command}`)
+                throw new Error(`Unsupported fake Valkey command: ${command}`)
         }
     }
 
@@ -172,9 +172,9 @@ class FakeRedis implements RedisCommandClient {
     }
 }
 
-const fakeRedis = new FakeRedis()
+const fakeValkey = new FakeValkey()
 const dependencies: AuthChallengeDependencies = {
-    getClient: () => fakeRedis,
+    getClient: () => fakeValkey,
 }
 
 function createLoginChallenge(): LoginMfaChallenge {
@@ -188,9 +188,9 @@ function createLoginChallenge(): LoginMfaChallenge {
 
 describe('authentication challenge storage', () => {
     test('creates challenges with NX and PX and supports peek plus one-use consumption', async () => {
-        fakeRedis.calls.length = 0
+        fakeValkey.calls.length = 0
         const issued = await createAuthChallenge(createLoginChallenge(), 300_000, dependencies)
-        const setCall = fakeRedis.calls.find((call) => call.command === 'SET')
+        const setCall = fakeValkey.calls.find((call) => call.command === 'SET')
 
         expect(setCall?.args.slice(-2)).toEqual(['PX', '300000'])
         expect(setCall?.args).toContain('NX')
@@ -224,7 +224,7 @@ describe('authentication challenge storage', () => {
         ).toBe('invalid')
 
         for (let attempt = 2; attempt <= 5; attempt += 1) {
-            // oxlint-disable eslint/no-await-in-loop -- Each attempt must observe the previous atomic Redis mutation.
+            // oxlint-disable eslint/no-await-in-loop -- Each attempt must observe the previous atomic Valkey mutation.
             const verification = await acquireCodeChallengeVerification(
                 'login-mfa',
                 issued.id,
@@ -275,7 +275,7 @@ describe('authentication challenge storage', () => {
 
     test('fails closed for malformed persisted challenge data', async () => {
         const issued = await createAuthChallenge(createLoginChallenge(), 300_000, dependencies)
-        fakeRedis.setRaw(
+        fakeValkey.setRaw(
             `rentnerproxy:auth-challenge:login-mfa:${issued.id}`,
             JSON.stringify({ attempts: 'not-a-number', kind: 'login-mfa' }),
         )

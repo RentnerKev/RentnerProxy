@@ -226,7 +226,7 @@
         "description": "Ein kompakter Verbindungscheck für alle Dienste dieser RentnerProxy-Instanz.",
         "loading": {
             "title": "Verbindungen werden geprüft",
-            "description": "RentnerProxy prüft Controller, PostgreSQL und Redis."
+            "description": "RentnerProxy prüft Controller, PostgreSQL und Valkey."
         },
         "error": {
             "title": "Statusprüfung nicht verfügbar",
@@ -268,9 +268,9 @@
                 "label": "Datenbank",
                 "detail": "Serverseitige PostgreSQL-Statusprüfung"
             },
-            "redis": {
-                "label": "Redis",
-                "detail": "Serverseitige Redis-Statusprüfung"
+            "valkey": {
+                "label": "Valkey",
+                "detail": "Serverseitige Valkey-Statusprüfung"
             },
             "websocket": {
                 "label": "WebSocket-Server",

@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 
-import { checkRedisHealth } from '../server/redis/health.server'
+import { checkValkeyHealth } from '../server/valkey/health.server'
 
-describe('checkRedisHealth', () => {
-    test('returns connected only for the Redis PONG response', async () => {
+describe('checkValkeyHealth', () => {
+    test('returns connected only for the Valkey PONG response', async () => {
         const warnings: string[] = []
 
         expect(
-            await checkRedisHealth({
+            await checkValkeyHealth({
                 createProbe: () => Promise.resolve('PONG'),
                 warn: (reason) => warnings.push(reason),
             }),
@@ -15,7 +15,7 @@ describe('checkRedisHealth', () => {
         expect(warnings).toEqual([])
 
         expect(
-            await checkRedisHealth({
+            await checkValkeyHealth({
                 createProbe: () => Promise.resolve('unexpected'),
                 warn: (reason) => warnings.push(reason),
             }),
@@ -23,11 +23,11 @@ describe('checkRedisHealth', () => {
         expect(warnings).toEqual(['invalid_result'])
     })
 
-    test('returns unavailable when Redis is not configured or the probe rejects', async () => {
+    test('returns unavailable when Valkey is not configured or the probe rejects', async () => {
         const warnings: string[] = []
 
         expect(
-            await checkRedisHealth({
+            await checkValkeyHealth({
                 createProbe: () => null,
                 warn: (reason) => warnings.push(reason),
             }),
@@ -36,8 +36,8 @@ describe('checkRedisHealth', () => {
 
         warnings.length = 0
         expect(
-            await checkRedisHealth({
-                createProbe: () => Promise.reject(new Error('redis://user:secret@redis.example')),
+            await checkValkeyHealth({
+                createProbe: () => Promise.reject(new Error('redis://user:secret@valkey.example')),
                 warn: (reason) => warnings.push(reason),
             }),
         ).toEqual({ state: 'unavailable' })
@@ -49,7 +49,7 @@ describe('checkRedisHealth', () => {
         const warnings: string[] = []
 
         expect(
-            await checkRedisHealth({
+            await checkValkeyHealth({
                 createProbe: () => new Promise(() => undefined),
                 timeoutMs: 0,
                 warn: (reason) => warnings.push(reason),

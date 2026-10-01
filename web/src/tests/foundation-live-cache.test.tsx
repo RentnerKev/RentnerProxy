@@ -22,12 +22,12 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const freshHealth: FoundationHealth = {
     controller: { state: 'connected' },
     database: { state: 'connected' },
-    redis: { state: 'connected' },
+    valkey: { state: 'connected' },
 }
 const staleHealth: FoundationHealth = {
     controller: { state: 'unavailable' },
     database: { state: 'unavailable' },
-    redis: { state: 'unavailable' },
+    valkey: { state: 'unavailable' },
 }
 
 let resolveHealth: ((health: FoundationHealth) => void) | undefined

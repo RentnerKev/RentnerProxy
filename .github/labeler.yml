@@ -3,7 +3,7 @@
           - any-glob-to-any-file:
                 - 'web/src/features/Auth/**'
                 - 'web/src/server/Auth/**'
-                - 'web/src/server/redis/auth-challenges.service.ts'
+                - 'web/src/server/valkey/auth-challenges.service.ts'
                 - 'web/src/config/auth*.config.ts'
                 - 'web/src/shared/Types/auth.types.ts'
                 - 'web/src/db/Schema/auth.ts'

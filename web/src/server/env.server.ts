@@ -177,7 +177,7 @@ export function validateDatabaseEnvironment(): { readonly DATABASE_URL: string }
     return { DATABASE_URL }
 }
 
-export function parseRedisUrl(configured: string | undefined): string | null {
+export function parseValkeyUrl(configured: string | undefined): string | null {
     if (configured === undefined) {
         return null
     }
@@ -203,8 +203,8 @@ export function parseRedisUrl(configured: string | undefined): string | null {
     }
 }
 
-export function getRedisUrl(): string | null {
-    return parseRedisUrl(process.env.REDIS_URL)
+export function getValkeyUrl(): string | null {
+    return parseValkeyUrl(process.env.VALKEY_URL)
 }
 
 export function getPublicOrigin(): string | null {
@@ -300,7 +300,7 @@ export function getTrustProxyHeaders(): boolean {
 export function validateProductionEnvironment(): void {
     const invalidVariables: string[] = []
     const databaseUrl = getDatabaseUrl()
-    const redisUrl = getRedisUrl()
+    const valkeyUrl = getValkeyUrl()
     const appEncryptionKey = getAppEncryptionKey()
     const publicOrigin = getPublicOrigin()
     const controllerUrl = getControllerBaseUrl()
@@ -309,7 +309,7 @@ export function validateProductionEnvironment(): void {
     const trustProxyHeaders = process.env.RENTNERPROXY_TRUST_PROXY_HEADERS
 
     if (!databaseUrl) invalidVariables.push('DATABASE_URL')
-    if (!redisUrl) invalidVariables.push('REDIS_URL')
+    if (!valkeyUrl) invalidVariables.push('VALKEY_URL')
     if (!appEncryptionKey) invalidVariables.push('APP_ENCRYPTION_KEY')
     if (!publicOrigin) invalidVariables.push(PUBLIC_ORIGIN_ENVIRONMENT_VARIABLE)
     if (!process.env.RENTNERPROXY_CONTROLLER_URL?.trim() || !controllerUrl)
@@ -322,6 +322,10 @@ export function validateProductionEnvironment(): void {
 
     if (invalidVariables.length > 0) {
         let message = 'Invalid production environment. Check: ' + invalidVariables.join(', ') + '.'
+        if (!valkeyUrl) {
+            message +=
+                ' VALKEY_URL is required and must be a valid redis:// or rediss:// URL. Rename legacy REDIS_URL to VALKEY_URL; REDIS_URL is no longer read.'
+        }
         if (!publicOrigin) {
             message +=
                 ' Set RENTNERPROXY_PUBLIC_ORIGIN to a valid deployment origin. For Alpha 3 upgrades, use the previous management origin from management_origin_v1; Alpha 4 does not read that database value automatically.'

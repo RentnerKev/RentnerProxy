@@ -12,14 +12,14 @@ describe('checkFoundationHealth', () => {
         const result = await checkFoundationHealth({
             checkController: async () => ({ state: 'connected' }),
             checkDatabase: () => Promise.reject(new Error('database connection failed')),
-            checkRedis: async () => ({ state: 'connected' }),
+            checkValkey: async () => ({ state: 'connected' }),
             warn: (service) => warnings.push(service),
         })
 
         expect(result).toEqual({
             controller: { state: 'connected' },
             database: { state: 'unavailable' },
-            redis: { state: 'connected' },
+            valkey: { state: 'connected' },
         })
         expect(warnings).toEqual(['database'])
     })
@@ -28,43 +28,43 @@ describe('checkFoundationHealth', () => {
         const result = await checkFoundationHealth({
             checkController: async () => ({ state: 'unavailable' }),
             checkDatabase: async () => ({ state: 'connected' }),
-            checkRedis: async () => ({ state: 'unavailable' }),
+            checkValkey: async () => ({ state: 'unavailable' }),
             warn: () => undefined,
         })
 
         expect(result).toEqual({
             controller: { state: 'unavailable' },
             database: { state: 'connected' },
-            redis: { state: 'unavailable' },
+            valkey: { state: 'unavailable' },
         })
     })
 
-    test('keeps controller and database results when the Redis check throws', async () => {
+    test('keeps controller and database results when the Valkey check throws', async () => {
         const warnings: string[] = []
 
         const result = await checkFoundationHealth({
             checkController: async () => ({ state: 'connected' }),
             checkDatabase: async () => ({ state: 'connected' }),
-            checkRedis: () => Promise.reject(new Error('Redis connection failed')),
+            checkValkey: () => Promise.reject(new Error('Valkey connection failed')),
             warn: (service) => warnings.push(service),
         })
 
         expect(result).toEqual({
             controller: { state: 'connected' },
             database: { state: 'connected' },
-            redis: { state: 'unavailable' },
+            valkey: { state: 'unavailable' },
         })
-        expect(warnings).toEqual(['redis'])
+        expect(warnings).toEqual(['valkey'])
     })
 })
 
 describe('checkFoundationReadiness', () => {
-    test('is ready only when database, Redis, and controller readiness are connected', async () => {
+    test('is ready only when database, Valkey, and controller readiness are connected', async () => {
         expect(
             await checkFoundationReadiness({
                 checkController: async () => ({ state: 'connected' }),
                 checkDatabase: async () => ({ state: 'connected' }),
-                checkRedis: async () => ({ state: 'connected' }),
+                checkValkey: async () => ({ state: 'connected' }),
                 warn: () => undefined,
             }),
         ).toBe(true)
@@ -73,7 +73,7 @@ describe('checkFoundationReadiness', () => {
             await checkFoundationReadiness({
                 checkController: async () => ({ state: 'unavailable' }),
                 checkDatabase: async () => ({ state: 'connected' }),
-                checkRedis: async () => ({ state: 'connected' }),
+                checkValkey: async () => ({ state: 'connected' }),
                 warn: () => undefined,
             }),
         ).toBe(false)

@@ -1,30 +1,30 @@
 import '@tanstack/react-start/server-only'
 
 import type { ServiceHealth } from '../../shared/Types/health.types'
-import { getRedisClient } from './client.server'
-import type { RedisHealthDependencies } from './Types/redis.types'
+import { getValkeyClient } from './client.server'
+import type { ValkeyHealthDependencies } from './Types/valkey.types'
 
 const HEALTH_TIMEOUT_MS = 1_500
-const HEALTH_TIMEOUT = Symbol('redis-health-timeout')
+const HEALTH_TIMEOUT = Symbol('valkey-health-timeout')
 
 function createProbe(): Promise<unknown> | null {
-    const client = getRedisClient()
+    const client = getValkeyClient()
     return client ? client.ping() : null
 }
 
-const defaultDependencies: RedisHealthDependencies = {
+const defaultDependencies: ValkeyHealthDependencies = {
     createProbe,
     timeoutMs: HEALTH_TIMEOUT_MS,
-    warn: (reason) => console.warn(`[redis] health check unavailable: ${reason}`),
+    warn: (reason) => console.warn(`[valkey] health check unavailable: ${reason}`),
 }
 
-function unavailable(reason: string, dependencies: RedisHealthDependencies): ServiceHealth {
+function unavailable(reason: string, dependencies: ValkeyHealthDependencies): ServiceHealth {
     dependencies.warn(reason)
     return { state: 'unavailable' }
 }
 
-export async function checkRedisHealth(
-    overrides: Partial<RedisHealthDependencies> = {},
+export async function checkValkeyHealth(
+    overrides: Partial<ValkeyHealthDependencies> = {},
 ): Promise<ServiceHealth> {
     const dependencies = { ...defaultDependencies, ...overrides }
     let probe: Promise<unknown> | null

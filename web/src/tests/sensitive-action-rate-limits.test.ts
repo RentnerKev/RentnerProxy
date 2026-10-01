@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { getResponseHeaders, getResponseStatus, requestHandler } from '@tanstack/react-start/server'
 
 import { localizedActionFailure } from '../features/Auth/serverHelpers'
-import { RateLimitError, RateLimitUnavailableError } from '../server/redis/rate-limiter.service'
+import { RateLimitError, RateLimitUnavailableError } from '../server/valkey/rate-limiter.service'
 
 const actorId = '019b85a0-7c29-7000-8abc-0123456789ab'
 
@@ -34,7 +34,7 @@ describe('sensitive action rate-limit placement', () => {
                 userInvites: {},
                 users: {},
             }))
-            mock.module('./server/redis/rate-limiter.service.ts', () => ({
+            mock.module('./server/valkey/rate-limiter.service.ts', () => ({
                 enforcePasswordChangeRateLimit: async (userId) => {
                     calls.passwordLimit.push(userId)
                     throw denied
@@ -164,7 +164,7 @@ describe('sensitive action rate-limit responses', () => {
             '13',
         ],
         [
-            'Redis outage',
+            'Valkey outage',
             new RateLimitUnavailableError('request_failed'),
             503,
             'errors.authUnavailable',

@@ -2,7 +2,7 @@
 
 RentnerProxy is a public-alpha self-hosted reverse-proxy manager. The production
 appliance is one Docker container with a Bun/TanStack management service, a Rust
-controller, Caddy, PostgreSQL, and Redis. The deployment and support posture is
+controller, Caddy, PostgreSQL, and Valkey. The deployment and support posture is
 described in [`README.md`](./README.md), [`SECURITY.md`](./SECURITY.md), and
 [`CONTRIBUTING.md`](./CONTRIBUTING.md). This document describes the implementation
 in this repository; it is not a promise of a particular release or deployment.
@@ -14,7 +14,7 @@ flowchart TD
     U[Management browser] --> W[Bun TanStack web service]
     Q[Public clients] --> D[Caddy data plane]
     W --> P[(PostgreSQL)]
-    W --> R[(Redis)]
+    W --> R[(Valkey)]
     W --> C[Rust controller]
     C --> D
     D --> X[Managed upstreams]
@@ -27,7 +27,7 @@ flowchart TD
 The production image and its pinned base components are assembled in
 [`docker/production/Dockerfile`](./docker/production/Dockerfile). The supervisor
 in [`docker/production/entrypoint.sh`](./docker/production/entrypoint.sh) starts
-PostgreSQL on loopback, an intentionally non-durable local Redis, the controller
+PostgreSQL on loopback, an intentionally non-durable local Valkey, the controller
 on `127.0.0.1:8081`, and the Bun server on port `3000`. Caddy is started by the
 controller and listens on the internal HTTP/TLS ports. The Compose mapping in
 [`docker-compose.yml`](./docker-compose.yml) exposes managed traffic on host
@@ -62,12 +62,12 @@ requires application access and rejects a request queued for a different signed-
 saves restore the last confirmed value and show a localized error. Rendering, route navigation,
 and localization changes do not save preferences. These controls do not affect server-side RBAC.
 
-Redis is a local connection used for rate limiting, authentication challenges,
+Valkey is a local connection used for rate limiting, authentication challenges,
 and cross-process application-change notifications. The client and its reconnect
-behavior are in [`web/src/server/redis/client.server.ts`](./web/src/server/redis/client.server.ts);
+behavior are in [`web/src/server/valkey/client.server.ts`](./web/src/server/valkey/client.server.ts);
 the realtime service publishes and subscribes to the `rentnerproxy:realtime` channel in
-[`web/src/websockets/Server/realtimeRedis.service.ts`](./web/src/websockets/Server/realtimeRedis.service.ts).
-Redis is not the source of truth and is deliberately run without persistence by
+[`web/src/websockets/Server/realtimeValkey.service.ts`](./web/src/websockets/Server/realtimeValkey.service.ts).
+Valkey is not the source of truth and is deliberately run without persistence by
 the production entrypoint.
 
 The Bun server exposes HTTP and one authenticated, origin-checked native WebSocket
@@ -186,7 +186,7 @@ The settings are intentionally deployment configuration, not PostgreSQL state.
 ## Events and live state
 
 Successful management mutations publish an application revision locally and to
-Redis. WebSocket subscriptions then sample changed topics; Redis loss can delay or
+Valkey. WebSocket subscriptions then sample changed topics; Valkey loss can delay or
 drop notifications, but the next HTTP or live snapshot reads PostgreSQL/controller
 state again. Startup and shutdown wiring is in [`web/src/start.ts`](./web/src/start.ts).
 
@@ -213,7 +213,7 @@ for encrypted controller state; losing it makes encrypted records unrecoverable.
 appliance and captures a PostgreSQL dump, the controller state archive, and the
 application encryption key, and a separate managed CrowdSec archive. Backup v4 records the source image identity and the public origin/trusted proxy CIDRs. The archive filters in
 [`scripts/controller-state-archive.ts`](./scripts/controller-state-archive.ts)
-remove sockets, transient runtime files, caches, and logs. Redis and proxy request
+remove sockets, transient runtime files, caches, and logs. Valkey and proxy request
 logs are excluded. The deployment environment, including the public origin,
 trusted proxy CIDRs, port mappings, SMTP settings, and Compose project/file, must
 be retained by the operator alongside the backup. Restore and rollback are separate
@@ -239,7 +239,7 @@ before target replacement.
 
 ## Change and verification boundaries
 
-The web tests exercise validation, authorization, persistence, Redis behavior,
+The web tests exercise validation, authorization, persistence, Valkey behavior,
 realtime transport, proxy reconciliation, and event synchronization under
 [`web/src/tests/`](./web/src/tests/). Rust unit and integration tests cover config,
 proxy rendering and validation, Caddy transport, certificate material, recovery,

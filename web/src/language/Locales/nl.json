@@ -210,7 +210,7 @@
         "description": "Een compacte verbindingscontrole voor elke dienst die deze RentnerProxy-instantie ondersteunt.",
         "loading": {
             "title": "Verbindingen controleren",
-            "description": "RentnerProxy controleert de controller, PostgreSQL en Redis."
+            "description": "RentnerProxy controleert de controller, PostgreSQL en Valkey."
         },
         "error": {
             "title": "Statuscontrole niet beschikbaar",
@@ -252,9 +252,9 @@
                 "label": "Database",
                 "detail": "PostgreSQL-statuscontrole via de server"
             },
-            "redis": {
-                "label": "Redis",
-                "detail": "Redis-statuscontrole via de server"
+            "valkey": {
+                "label": "Valkey",
+                "detail": "Valkey-statuscontrole via de server"
             },
             "websocket": {
                 "label": "WebSocket-server",

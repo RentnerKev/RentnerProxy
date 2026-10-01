@@ -39,7 +39,7 @@ import {
     users,
     userTotpFactors,
 } from '../db/schema'
-import { getDatabaseUrl, getRedisUrl } from '../server/env.server'
+import { getDatabaseUrl, getValkeyUrl } from '../server/env.server'
 import { getAuthDatabase } from '../server/Auth/Core/database.server'
 import { AuthDomainError } from '../server/Auth/Core/errors.server'
 import { acceptInviteService, issueInviteService } from '../server/Auth/Setup/invites.service'
@@ -87,14 +87,14 @@ import {
     hashRecoveryCode,
     normalizeRecoveryCode,
 } from '../server/Auth/TwoFactor/two-factor-credentials.server'
-import { consumeAuthChallenge } from '../server/redis/auth-challenges.service'
-import { closeRedisClient, getRedisClient } from '../server/redis/client.server'
+import { consumeAuthChallenge } from '../server/valkey/auth-challenges.service'
+import { closeValkeyClient, getValkeyClient } from '../server/valkey/client.server'
 import {
     RateLimitError,
     SENSITIVE_ACTION_RATE_LIMITS,
     createRateLimitKey,
     createUserRateLimitKey,
-} from '../server/redis/rate-limiter.service'
+} from '../server/valkey/rate-limiter.service'
 import {
     setupFirstOwnerService,
     type FirstOwnerSetupResult,
@@ -111,8 +111,8 @@ const CURRENT_PASSWORD = 'correct horse battery staple'
 const NEW_PASSWORD = 'new correct horse battery staple'
 const SECURITY_INTEGRATION_ENABLED =
     DATABASE_INTEGRATION_ENABLED &&
-    process.env.RENTNERPROXY_REDIS_INTEGRATION === '1' &&
-    getRedisUrl() !== null
+    process.env.RENTNERPROXY_VALKEY_INTEGRATION === '1' &&
+    getValkeyUrl() !== null
 const securityIntegrationTest = SECURITY_INTEGRATION_ENABLED ? test : test.skip
 
 let preparedPasswordHash = ''
@@ -141,16 +141,16 @@ async function captureError(promise: Promise<unknown>): Promise<unknown> {
     }
 }
 
-async function cleanRedisRateLimitKeys(): Promise<void> {
+async function cleanValkeyRateLimitKeys(): Promise<void> {
     if (!SECURITY_INTEGRATION_ENABLED || createdRateLimitKeys.size === 0) {
         createdRateLimitKeys.clear()
         return
     }
 
-    const client = getRedisClient()
+    const client = getValkeyClient()
 
     if (!client) {
-        throw new Error('Redis integration client is unavailable during cleanup.')
+        throw new Error('Valkey integration client is unavailable during cleanup.')
     }
 
     try {
@@ -359,8 +359,8 @@ beforeAll(async () => {
     await getAuthDatabase().transaction((transaction) =>
         ensureAuthorizationRegistryInTransaction(transaction),
     )
-    if (SECURITY_INTEGRATION_ENABLED && !getRedisClient()) {
-        throw new Error('Redis integration client is unavailable.')
+    if (SECURITY_INTEGRATION_ENABLED && !getValkeyClient()) {
+        throw new Error('Valkey integration client is unavailable.')
     }
 })
 
@@ -374,7 +374,7 @@ afterEach(async () => {
     if (DATABASE_INTEGRATION_ENABLED) {
         await cleanTestRows()
     }
-    await cleanRedisRateLimitKeys()
+    await cleanValkeyRateLimitKeys()
 })
 
 afterAll(async () => {
@@ -383,9 +383,9 @@ afterAll(async () => {
     }
 
     await cleanTestRows()
-    await cleanRedisRateLimitKeys()
+    await cleanValkeyRateLimitKeys()
     if (SECURITY_INTEGRATION_ENABLED) {
-        closeRedisClient()
+        closeValkeyClient()
     }
 })
 
@@ -1435,7 +1435,7 @@ describe('user invites with PostgreSQL', () => {
     })
 })
 
-describe('sensitive action rate limits with PostgreSQL and Redis', () => {
+describe('sensitive action rate limits with PostgreSQL and Valkey', () => {
     securityIntegrationTest(
         'admits ten wrong password changes, isolates users, and rejects the eleventh',
         async () => {
@@ -1455,7 +1455,7 @@ describe('sensitive action rate limits with PostgreSQL and Redis', () => {
             const otherSession = await createSessionService(otherUser.id)
 
             for (let attempt = 0; attempt < 10; attempt += 1) {
-                // oxlint-disable-next-line eslint/no-await-in-loop -- Attempts must consume one shared Redis window in order.
+                // oxlint-disable-next-line eslint/no-await-in-loop -- Attempts must consume one shared Valkey window in order.
                 const result = await runWithSessionToken(session.token, () =>
                     changeCurrentPasswordService({
                         currentPassword: 'wrong current password',
@@ -1646,7 +1646,7 @@ describe('sensitive action rate limits with PostgreSQL and Redis', () => {
     )
 })
 
-describe('account security with PostgreSQL and Redis', () => {
+describe('account security with PostgreSQL and Valkey', () => {
     securityIntegrationTest(
         'enables SHA256 TOTP, enforces MFA/replay rules, rotates recovery codes, and manages passkeys',
         async () => {

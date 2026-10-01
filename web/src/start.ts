@@ -8,7 +8,7 @@ import { getRequest, getRequestProtocol, setResponseHeaders } from '@tanstack/re
 
 import { getTrustProxyHeaders, validateProductionEnvironment } from './server/env.server'
 import { publishApplicationChange } from './websockets/Helpers/publishFunctions'
-import { startRealtimeRedis } from './websockets/Server/realtimeRedis.service'
+import { startRealtimeValkey } from './websockets/Server/realtimeValkey.service'
 import {
     applyAdminUiSecurityHeaders,
     createCspNonce,
@@ -21,7 +21,7 @@ const validateProductionEnvironmentAtStartup = createServerOnlyFn(() => {
 
 if (typeof window === 'undefined') validateProductionEnvironmentAtStartup()
 
-const startRealtimeEvents = createServerOnlyFn(startRealtimeRedis)
+const startRealtimeEvents = createServerOnlyFn(startRealtimeValkey)
 if (typeof window === 'undefined') startRealtimeEvents()
 
 const startProxyRuntimeLifecycle = createServerOnlyFn(async () => {

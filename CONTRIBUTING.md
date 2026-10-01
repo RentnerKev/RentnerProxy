@@ -17,12 +17,12 @@ Never include credentials, tokens, private configuration, personal data, or unre
 ## Development setup
 
 Install Bun 1.4.2, the Rust toolchain pinned by [`ci.yml`](.github/workflows/ci.yml), PostgreSQL
-18 or newer, and Redis. The controller requires Rust 1.88 or newer. Clone the repository, start
-PostgreSQL and Redis separately, and prepare the web environment:
+18 or newer, and Valkey. The controller requires Rust 1.88 or newer. Clone the repository, start
+PostgreSQL and Valkey separately, and prepare the web environment:
 
 ```bash
 cp .env.example .env
-# Configure DATABASE_URL, REDIS_URL, SMTP_*, and RENTNERPROXY_PUBLIC_ORIGIN.
+# Configure DATABASE_URL, VALKEY_URL, SMTP_*, and RENTNERPROXY_PUBLIC_ORIGIN.
 # Generate APP_ENCRYPTION_KEY, then copy the result into .env.
 bun -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 # Set RENTNERPROXY_CONTROLLER_TOKEN for certificate management or non-loopback controller access.

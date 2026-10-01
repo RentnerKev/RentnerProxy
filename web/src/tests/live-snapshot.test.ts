@@ -72,7 +72,7 @@ test('live snapshots enforce canonical origin, query limits and current permissi
     expect(result.application.userVersion).toMatch(/^[a-f0-9]{64}$/)
 })
 
-test('application events publish immediately, deduplicate Redis echoes and clean up subscribers', async () => {
+test('application events publish immediately, deduplicate Valkey echoes and clean up subscribers', async () => {
     const script = `
         const { getApplicationRevision, publishApplicationChange, subscribeToApplicationChanges, receiveApplicationChange, setApplicationPublisher } = await import('./websockets/Helpers/publishFunctions.ts')
         let deliveries = 0

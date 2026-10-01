@@ -53,6 +53,7 @@ for (const variable of [
     'POSTGRES_PASSWORD',
     'RENTNERPROXY_APP_KEY_FILE',
     'RENTNERPROXY_CONTROLLER_TOKEN',
+    'RENTNERPROXY_IMAGE',
     'RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS',
     'RENTNERPROXY_PUBLIC_ORIGIN',
 ]) {
@@ -100,6 +101,19 @@ async function command(argumentsList: string[], timeoutMs = 120_000): Promise<st
 
 function http3Command(args: string[], options?: { readonly timeoutMs?: number }): Promise<string> {
     return command(args, options?.timeoutMs)
+}
+
+function valkeyCommand(container: string, args: string[]): Promise<string> {
+    return command([
+        'docker',
+        'exec',
+        container,
+        'gosu',
+        'rentnerproxy',
+        '/opt/rentnerproxy/valkey/bin/valkey-cli',
+        '--raw',
+        ...args,
+    ])
 }
 
 async function commandWithEnvironment(
@@ -420,15 +434,16 @@ async function runSmoke(): Promise<void> {
             publicOrigin +
             '\nRENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=' +
             trustedProxyCidrs +
+            '\nRENTNERPROXY_IMAGE=' +
+            imageTag +
             '\n',
         'utf8',
     )
     const rootCompose = (await readFile(rootComposeFile, 'utf8')).replaceAll('\r\n', '\n')
-    const publishedImagePattern = /ghcr\.io\/rentnerkev\/rentnerproxy:[^\s]+/u
     assert.match(
         rootCompose,
-        publishedImagePattern,
-        'root Compose must contain the published RentnerProxy image',
+        /image: \$\{RENTNERPROXY_IMAGE:\?[^}]+\}/u,
+        'root Compose must require an explicit RentnerProxy image',
     )
     const temporaryCompose = smokeCompose(
         rootCompose
@@ -436,7 +451,6 @@ async function runSmoke(): Promise<void> {
                 'services:\n    rentnerproxy:\n',
                 'services:\n    rentnerproxy:\n        extra_hosts:\n            - host.docker.internal:host-gateway\n',
             )
-            .replace(publishedImagePattern, imageTag)
             .replace(
                 '        environment:\n',
                 '        environment:\n            RENTNERPROXY_PROXY_PUBLIC_HTTPS_PORT: "' +
@@ -475,6 +489,7 @@ async function runSmoke(): Promise<void> {
     const scriptEnvironment: NodeJS.ProcessEnv = {
         ...commandEnvironment,
         ...smtpEnvironment,
+        RENTNERPROXY_IMAGE: imageTag,
         RENTNERPROXY_PUBLIC_ORIGIN: publicOrigin,
         RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS: trustedProxyCidrs,
         RENTNERPROXY_COMPOSE_FILE: temporaryComposeFile,
@@ -569,6 +584,33 @@ async function runSmoke(): Promise<void> {
             'every appliance volume must belong to this smoke; anonymous volumes cannot be recovered by run label',
         )
         passed('empty appliance volume builds and starts healthy')
+        assert.match(
+            await command([
+                'docker',
+                'exec',
+                id,
+                '/opt/rentnerproxy/valkey/bin/valkey-server',
+                '--version',
+            ]),
+            /Valkey server v=9\.1\.2/u,
+        )
+        assert.equal(await valkeyCommand(id, ['PING']), 'PONG')
+        assert.equal(await valkeyCommand(id, ['CONFIG', 'GET', 'bind']), 'bind\n127.0.0.1')
+        assert.equal(await valkeyCommand(id, ['CONFIG', 'GET', 'appendonly']), 'appendonly\nno')
+        assert.equal(await valkeyCommand(id, ['CONFIG', 'GET', 'save']), 'save')
+        for (const [source, target] of [
+            ['Valkey-LICENSE', 'LICENSE'],
+            ['Valkey-NOTICE', 'NOTICE'],
+        ] as const) {
+            const targetPath = '/usr/share/licenses/valkey/' + target
+            assert.equal(
+                await command(['docker', 'exec', id, 'sha256sum', targetPath]),
+                digest(await readFile(join(repositoryRoot, 'docker', 'licenses', source))) +
+                    '  ' +
+                    targetPath,
+            )
+        }
+        passed('pinned Valkey runs on loopback without persistence and retains its licenses')
         const initialCrowdSecStatus = parseCrowdSecStatus(
             await controllerCall(id, '/internal/v1/crowdsec/status', 'GET'),
         )
@@ -891,7 +933,7 @@ async function runSmoke(): Promise<void> {
         assertLoopbackListeners(procNet, 5432)
         assertLoopbackListeners(procNet, 6379)
         assertLoopbackListeners(procNet, 8081)
-        passed('database, Redis, and controller are unpublished and loopback-only')
+        passed('database, Valkey, and controller are unpublished and loopback-only')
 
         const environment = JSON.parse(await inspect(id, '{{json .Config.Env}}')) as string[]
         assert.ok(
@@ -1579,8 +1621,12 @@ async function runSmoke(): Promise<void> {
         assert.notEqual(reactivatedKeyDigest, bouncerKeyDigest)
         passed('mode switches retain managed state and rotate the internal bouncer credential')
 
+        const transientCacheKey = 'rentnerproxy:appliance-smoke:' + runId
+        assert.equal(await valkeyCommand(recreatedId, ['SET', transientCacheKey, runId]), 'OK')
         await command([...compose, 'restart', 'rentnerproxy'])
         await waitForHealthy(recreatedId)
+        assert.equal(await valkeyCommand(recreatedId, ['GET', transientCacheKey]), '')
+        passed('appliance restart discards transient Valkey state')
         await waitForCrowdSec(
             recreatedId,
             (status) =>
