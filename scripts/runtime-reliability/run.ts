@@ -349,13 +349,20 @@ async function main() {
                   ? 'assertion'
                   : 'unexpected'
         failure = { stage, category }
+        const location =
+            error instanceof Error
+                ? error.stack?.match(
+                      /runtime-reliability[/\\](harness|certificates|crowdsec|run|control)\.ts:(\d+):(\d+)/,
+                  )
+                : undefined
         console.error(
             'Reliability failed at ' +
                 stage +
                 ' (' +
                 category +
                 ')' +
-                (error instanceof ReliabilityError ? ': ' + error.message : ''),
+                (error instanceof ReliabilityError ? ': ' + error.message : '') +
+                (location ? ' at ' + location[1] + '.ts:' + location[2] + ':' + location[3] : ''),
         )
         observedDurationSeconds = elapsed()
     } finally {

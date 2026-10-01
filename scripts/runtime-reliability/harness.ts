@@ -111,6 +111,8 @@ async function archive(revision: string, destination: string, paths: string[] = 
         'git',
         '-c',
         'safe.directory=' + repositoryRoot.replaceAll('\\', '/'),
+        '-c',
+        'core.autocrlf=false',
         'archive',
         '--format=tar',
         '--output=' + path,
@@ -333,7 +335,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         await docker(['cp', container + ':' + indexPath, fixturePath])
         const index = JSON.parse(await Bun.file(fixturePath).text()) as FixtureResult
         assert.ok(index.certificates[id])
-        assert.equal(index.certificates[id].metadata.operation, 'idle')
+        assert.equal(index.certificates[id].operation, 'idle')
         index.certificates[id].nextAttemptAt = '2000-01-01T00:00:00Z'
         delete index.certificates[id].retryAfter
         await writeFile(fixturePath, JSON.stringify(index), { mode: 0o600 })
