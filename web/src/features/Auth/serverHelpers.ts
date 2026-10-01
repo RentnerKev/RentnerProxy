@@ -17,7 +17,7 @@ import {
     RateLimitError,
     RateLimitUnavailableError,
     type AuthRateLimitAction,
-} from '../../server/redis/rate-limiter.service'
+} from '../../server/valkey/rate-limiter.service'
 
 export interface AuthActionResult {
     readonly success: boolean

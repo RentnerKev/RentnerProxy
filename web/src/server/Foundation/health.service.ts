@@ -3,13 +3,13 @@ import '@tanstack/react-start/server-only'
 import type { FoundationHealth, ServiceHealth } from '../../shared/Types/health.types'
 import { checkControllerHealth, checkControllerReadiness } from './controller.server'
 import { checkDatabaseHealth } from './database-health.server'
-import { checkRedisHealth } from '../redis/health.server'
+import { checkValkeyHealth } from '../valkey/health.server'
 import type { FoundationHealthDependencies, FoundationService } from './Types/health.types'
 
 const defaultDependencies: FoundationHealthDependencies = {
     checkController: checkControllerHealth,
     checkDatabase: checkDatabaseHealth,
-    checkRedis: checkRedisHealth,
+    checkValkey: checkValkeyHealth,
     warn: (service) => console.warn(`[foundation] unexpected ${service} health check failure`),
 }
 
@@ -30,13 +30,13 @@ export async function checkFoundationHealth(
     overrides: Partial<FoundationHealthDependencies> = {},
 ): Promise<FoundationHealth> {
     const dependencies = { ...defaultDependencies, ...overrides }
-    const [controller, database, redis] = await Promise.all([
+    const [controller, database, valkey] = await Promise.all([
         checkSafely('controller', dependencies.checkController, dependencies.warn),
         checkSafely('database', dependencies.checkDatabase, dependencies.warn),
-        checkSafely('redis', dependencies.checkRedis, dependencies.warn),
+        checkSafely('valkey', dependencies.checkValkey, dependencies.warn),
     ])
 
-    return { controller, database, redis }
+    return { controller, database, valkey }
 }
 
 export async function checkFoundationReadiness(

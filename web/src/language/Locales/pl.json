@@ -226,7 +226,7 @@
         "description": "Zwięzły test połączeń ze wszystkimi usługami obsługującymi tę instancję RentnerProxy.",
         "loading": {
             "title": "Sprawdzanie połączeń",
-            "description": "RentnerProxy sprawdza kontroler, PostgreSQL i Redis."
+            "description": "RentnerProxy sprawdza kontroler, PostgreSQL i Valkey."
         },
         "error": {
             "title": "Kontrola stanu jest niedostępna",
@@ -268,9 +268,9 @@
                 "label": "Baza danych",
                 "detail": "Kontrola stanu PostgreSQL po stronie serwera"
             },
-            "redis": {
-                "label": "Redis",
-                "detail": "Kontrola stanu Redis po stronie serwera"
+            "valkey": {
+                "label": "Valkey",
+                "detail": "Kontrola stanu Valkey po stronie serwera"
             },
             "websocket": {
                 "label": "Serwer WebSocket",

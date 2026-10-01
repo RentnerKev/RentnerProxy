@@ -133,20 +133,20 @@ jobs:
                     --health-interval 5s
                     --health-timeout 5s
                     --health-retries 10
-            redis:
-                image: redis:8.10.1-alpine
+            valkey:
+                image: valkey/valkey:9.1.2-alpine@sha256:48332870af354a799964c0012ae1194a0bf2bf894eb508f945810596dc2d8d11
                 ports:
                     - 6379:6379
                 options: >-
-                    --health-cmd "redis-cli ping"
+                    --health-cmd "valkey-cli ping"
                     --health-interval 5s
                     --health-timeout 5s
                     --health-retries 10
         env:
             DATABASE_URL: postgresql://rentnerproxy:rentnerproxy@127.0.0.1:5432/rentnerproxy_upstream_test
-            REDIS_URL: redis://127.0.0.1:6379
+            VALKEY_URL: redis://127.0.0.1:6379
             RENTNERPROXY_DATABASE_INTEGRATION: '1'
-            RENTNERPROXY_REDIS_INTEGRATION: '1'
+            RENTNERPROXY_VALKEY_INTEGRATION: '1'
         steps:
             - name: Check out repository
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

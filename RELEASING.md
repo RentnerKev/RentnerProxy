@@ -11,6 +11,13 @@ Choose the intended commit and check its CI, security analysis, and Production S
 Follow the [contribution checks](CONTRIBUTING.md#testing-policy) and the applicable release-gate
 issue; the [Beta 1 gate](https://github.com/RentnerKev/RentnerProxy/issues/75) is still planned work.
 Review installation, upgrade, recovery, and known limitations for the chosen version.
+The Valkey migration is a breaking deployment change tracked by #148. Verify the required
+`RENTNERPROXY_IMAGE` Compose selector, the development `REDIS_URL` to `VALKEY_URL` rename, the
+Foundation health response's `redis` to `valkey` field change, and
+the Redis-based Alpha-to-Valkey upgrade/rollback instructions. Cache state remains transient;
+historical v4 backup metadata stays compatible. Release notes must call out the required
+configuration changes and include fresh-install, upgrade, backup/restore and reliability evidence
+for the exact Valkey target commit.
 For Beta 1, run [Release Compatibility](.github/workflows/release-compatibility.yml) manually
 with `source=all` on the intended release ref before publication. Verify that fresh installation
 and all six published Alpha image upgrades pass, that the logged target SHA is the intended

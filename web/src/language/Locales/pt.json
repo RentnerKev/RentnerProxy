@@ -226,7 +226,7 @@
         "description": "Uma verificação compacta das ligações de todos os serviços que suportam esta instância do RentnerProxy.",
         "loading": {
             "title": "A verificar ligações",
-            "description": "O RentnerProxy está a verificar o controlador, o PostgreSQL e o Redis."
+            "description": "O RentnerProxy está a verificar o controlador, o PostgreSQL e o Valkey."
         },
         "error": {
             "title": "Verificação de estado indisponível",
@@ -268,9 +268,9 @@
                 "label": "Base de dados",
                 "detail": "Verificação de estado do PostgreSQL do lado do servidor."
             },
-            "redis": {
-                "label": "Redis",
-                "detail": "Verificação de estado do Redis do lado do servidor."
+            "valkey": {
+                "label": "Valkey",
+                "detail": "Verificação de estado do Valkey do lado do servidor."
             },
             "websocket": {
                 "label": "Servidor WebSocket",

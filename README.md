@@ -27,7 +27,7 @@
 - CrowdSec protection: managed or external Local API, optional community/Console connection, and a dedicated security dashboard in the development image.
 - Users, roles, permissions, TOTP, passkeys, and audit logs.
 - Live status and access logs; English, German, Spanish, French, Italian, Portuguese, Dutch, and Polish UI.
-- Single-container appliance with Caddy, PostgreSQL, Redis, and a Rust controller.
+- Single-container appliance with Caddy, PostgreSQL, Valkey, and a Rust controller.
 
 ## Installation
 
@@ -37,12 +37,19 @@ Requirements:
 - Free ports `80/tcp`, `443/tcp`, and `443/udp`.
 - HTTPS management origin and SMTP credentials.
 
+Select a Valkey-based RentnerProxy image with `RENTNERPROXY_IMAGE`. The example uses a local build
+from this checkout. Build it before starting the appliance:
+
+```bash
+docker build --file docker/production/Dockerfile --tag rentnerproxy:local .
+```
+
 Save this as `docker-compose.yml` (or use the [repository file](docker-compose.yml)):
 
 ```yaml
 services:
     rentnerproxy:
-        image: ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6
+        image: ${RENTNERPROXY_IMAGE:?Set RENTNERPROXY_IMAGE to a Valkey-based RentnerProxy image}
         environment:
             RENTNERPROXY_PUBLIC_ORIGIN: ${RENTNERPROXY_PUBLIC_ORIGIN:?Set RENTNERPROXY_PUBLIC_ORIGIN}
             RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS: ${RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS:-}
@@ -68,6 +75,7 @@ volumes:
 Create `.env` beside it (see also [`.env.production.example`](.env.production.example)):
 
 ```dotenv
+RENTNERPROXY_IMAGE=rentnerproxy:local
 RENTNERPROXY_PUBLIC_ORIGIN=https://management.example.com
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
@@ -93,7 +101,10 @@ docker compose up -d
 
 ## Images and upgrades
 
-- The Compose example pins `v1.0.0-alpha.6`. `v1.0.0-beta.1` has not been published. The current Beta 1 target is a build of the intended code, and its final release commit must pass the [full release compatibility matrix](https://github.com/RentnerKev/RentnerProxy/actions/workflows/release-compatibility.yml) before publication.
+- **Breaking deployment change:** Compose now requires `RENTNERPROXY_IMAGE`; the development web environment uses `VALKEY_URL` in place of `REDIS_URL`. Production runs Valkey inside the appliance on loopback and supplies its URL internally. The connection scheme remains `redis://` or `rediss://` for the Bun client.
+- Published Alpha images contain Redis. `v1.0.0-beta.1` has not been published. Select a Valkey-based build of the intended code; use its immutable released tag/digest when available. Its final release commit must pass the [full release compatibility matrix](https://github.com/RentnerKev/RentnerProxy/actions/workflows/release-compatibility.yml) before publication.
+- Existing Compose installations must replace the old literal `image: ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6` with the `RENTNERPROXY_IMAGE` expression above and set that variable in their deployment `.env`. Preserve the Compose project name, existing `rentnerproxy` volume, port mappings, public origin and SMTP settings. Local development must rename `REDIS_URL` to `VALKEY_URL` and start Valkey; the application does not fall back to the old variable.
+- Foundation health responses now expose the cache as `valkey` instead of `redis`. Update integrations or monitoring that read the old field.
 - The tested direct source contract for that target is:
 
 | Published source image                           | Direct path to Beta 1 target             |
@@ -106,10 +117,16 @@ docker compose up -d
 | `ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6` | Supported direct; mandatory release gate |
 
 - No staged path is needed for these tested sources. Unlisted or moving images such as `:dev` are unsupported upgrade sources, as are downgrades. The [matrix](scripts/release-compatibility/published-alphas.ts) pins the published image digests.
-- Before upgrading, create and retain a pre-upgrade backup outside the appliance volume and record the exact source image tag and digest. Repository [backup](scripts/production-backup.ts) and [restore](scripts/production-restore.ts) tools require a checkout and Bun. Then change to the released target tag, run `docker compose pull`, and run `docker compose up -d`.
+- Before changing the source deployment, create and retain a pre-upgrade backup outside the appliance volume with that release's tools, and record the exact source image tag/digest, Compose file and environment. Repository [backup](scripts/production-backup.ts) and [restore](scripts/production-restore.ts) tools require a checkout and Bun. Set `RENTNERPROXY_IMAGE` to the released target tag/digest, run `docker compose config`, then `docker compose pull` and `docker compose up -d`. For a local target build, build the selected image locally and run `docker compose up -d` after configuration validation.
 - Never start an older image with a database already migrated by a newer image. Rollback means stopping the target, restoring the **pre-upgrade** backup into a fresh volume, and starting the previous **exact** image. Use the tools from that source release for the rollback; current restore tools deliberately reject a newer database on an older target.
 - `:dev` is a moving **test image** built manually from `main` by the [Dev Image workflow](https://github.com/RentnerKev/RentnerProxy/actions/workflows/dev-image.yml); it is not a release.
-- CrowdSec, Forward Auth, and the NPM importer are **not** in the pinned Alpha 6 image. To test the current implementation, use `ghcr.io/rentnerkev/rentnerproxy:dev` after triggering that workflow.
+- CrowdSec, Forward Auth, the NPM importer, and Valkey are **not** in the published Alpha 6 image. A newly built local image contains the current implementation; a `:dev` image contains it only after its workflow builds the intended commit.
+
+The Redis-to-Valkey switch resets transient rate-limit counters, in-progress authentication
+challenges and Pub/Sub delivery. Restart pending login/verification flows. Durable sessions,
+users, configuration and certificate state remain in PostgreSQL/controller storage. Valkey stays
+ephemeral, loopback-only and outside production backups. Rollback retains the previous Compose
+configuration and restores the source backup into a fresh volume with the recorded source image.
 
 ## CrowdSec (development image)
 
@@ -144,7 +161,7 @@ Supported restore sources are current v4 backups into the same current database 
 
 Keep the Compose file, image tag/digest, port mappings and deployment environment alongside the backup, including SMTP credentials, canonical public origin and trusted proxy CIDRs. Environment secrets are deliberately absent from the manifest. A v4 restore checks the origin and CIDRs against the target; legacy v3 restores require explicit deployment review with `--allow-deployment-change`. Use that option for an intentional environment change only after reviewing authentication, forwarded-client trust and external integration reachability.
 
-Redis sessions/challenges, request logs, sockets, PID files, locks, temporary files and supervisor status/staging are excluded. Redis-backed flows restart after restore; durable users, sessions, roles, permissions, policies, Basic Auth, Forward Auth, importer history, hosts, redirects, CAs, certificate jobs/events/retries, candidates, ACME accounts and encrypted DNS credentials remain in PostgreSQL/controller state. CrowdSec's SQLite WAL is retained when present, while its shared-memory file is regenerated. Managed startup re-registers the bouncer with a private key and preserves detections and registrations; the LAPI remains bound to loopback.
+Valkey challenge/rate-limit/realtime state, request logs, sockets, PID files, locks, temporary files and supervisor status/staging are excluded. Cache-backed flows restart after restore; durable users, sessions, roles, permissions, policies, Basic Auth, Forward Auth, importer history, hosts, redirects, CAs, certificate jobs/events/retries, candidates, ACME accounts and encrypted DNS credentials remain in PostgreSQL/controller state. Backup v4 retains its historical `redis: "excluded"` manifest field for compatibility; it describes the transient cache exclusion for both engines. CrowdSec's SQLite WAL is retained when present, while its shared-memory file is regenerated. Managed startup re-registers the bouncer with a private key and preserves detections and registrations; the LAPI remains bound to loopback.
 
 If restore is interrupted after replacement begins, the persistent journal prevents startup with partially restored state. Stop the appliance if it was manually started and rerun the same backup with `--resume --confirm-replace`. Resume validates that backup again and repeats all replacement steps. Another backup is rejected while the journal is pending. A failure before replacement leaves the running target intact; no automatic destructive retry is attempted. For rollback, use a fresh volume, the pre-upgrade source backup, that source release's restore tools and its exact image digest.
 

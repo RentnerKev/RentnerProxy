@@ -19,7 +19,7 @@ import {
     PENDING_DISPLAY_NAME,
 } from '../Core/identity.server'
 import { hashPassword } from '../Core/password.server'
-import { enforceInviteRateLimit } from '../../redis/rate-limiter.service'
+import { enforceInviteRateLimit } from '../../valkey/rate-limiter.service'
 import {
     assertRoleAssignmentAllowedInTransaction,
     getUserRoleKeysInTransaction,

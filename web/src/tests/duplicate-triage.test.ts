@@ -129,11 +129,11 @@ describe('duplicate triage text normalization and metrics', () => {
 
     test('uses a similar body when titles contain no useful tokens', () => {
         const current = triageItem({
-            body: 'Redis session expires after controller restart',
+            body: 'Valkey session expires after controller restart',
             title: 'Bug',
         })
         const candidate = triageItem({
-            body: 'Redis session expires after controller restart',
+            body: 'Valkey session expires after controller restart',
             number: 2,
             title: 'Issue',
         })
@@ -330,7 +330,7 @@ describe('duplicate triage pull request signals', () => {
             kind: 'pull_request',
             linkedIssues: [123],
             number: 2,
-            title: 'Redis runtime cleanup',
+            title: 'Valkey runtime cleanup',
         })
         const score = calculatePullRequestSimilarity(current, candidate).score
 

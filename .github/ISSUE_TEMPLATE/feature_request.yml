@@ -41,7 +41,7 @@ body:
               - Proxy Hosts
               - Caddy Runtime
               - Certificates / ACME / TLS
-              - Database / Redis
+              - Database / Valkey
               - Docker / Deployment
               - CI / GitHub Automation
               - Documentation

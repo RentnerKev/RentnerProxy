@@ -20,7 +20,7 @@ configurations. It makes no claim of absolute security or availability.
 ## Scope and assumptions
 
 The case covers the production appliance path: the Bun/TanStack web service,
-PostgreSQL, Redis, the Rust controller, Caddy, the optional managed CrowdSec engine,
+PostgreSQL, Valkey, the Rust controller, Caddy, the optional managed CrowdSec engine,
 the persistent appliance volume, and the repository's backup/restore scripts. It assumes the operator protects the
 host, Docker socket, volume, application encryption key, controller token, SMTP
 credentials, deployment environment, and backup directory. ACME/DNS providers,
@@ -38,8 +38,8 @@ and are not proved correct here.
    middleware, session checks, permission checks, and recent-authentication checks.
    Live WebSocket upgrades are origin checked and replay the session cookie only to
    the server-side snapshot request.
-3. **Bun to PostgreSQL and Redis.** These are local appliance services. PostgreSQL
-   uses a restricted `rentnerproxy` role for the application; Redis is an ephemeral
+3. **Bun to PostgreSQL and Valkey.** These are local appliance services. PostgreSQL
+   uses a restricted `rentnerproxy` role for the application; Valkey is an ephemeral
    local broker/cache and is not a durable authority. Database queries are built
    through Drizzle/Bun SQL APIs and mutations use transactions and advisory locks.
 4. **Bun to the Rust controller.** This is a local control boundary protected by a
@@ -111,7 +111,7 @@ public gateway path is intentionally outside the check and must be narrowly conf
 | G3  | Certificate private material and activation are controller-owned, validated, staged, and recoverable without silently replacing a valid active certificate.                                           | [`controller/src/runtime/certificates/material_files.rs`](./controller/src/runtime/certificates/material_files.rs), [`controller/src/runtime/certificates/staging.rs`](./controller/src/runtime/certificates/staging.rs), [`controller/src/runtime/certificates/activation.rs`](./controller/src/runtime/certificates/activation.rs), [`controller/src/runtime/certificates/recovery.rs`](./controller/src/runtime/certificates/recovery.rs), [`controller/src/tests/certificates.rs`](./controller/src/tests/certificates.rs), [`controller/src/tests/certificate_operations.rs`](./controller/src/tests/certificate_operations.rs), [`scripts/certificate-state-restore-smoke.ts`](./scripts/certificate-state-restore-smoke.ts)                                                                                                                                         |
 | G4  | Web certificate jobs bind only current, authorized host state and retain idempotent, encrypted work data across worker restarts.                                                                      | [`web/src/db/Schema/certificateJobs.ts`](./web/src/db/Schema/certificateJobs.ts), [`web/src/server/Admin/ProxyHostManagement/certificate-jobs.creation.ts`](./web/src/server/Admin/ProxyHostManagement/certificate-jobs.creation.ts), [`web/src/server/Admin/ProxyHostManagement/certificate-jobs.worker.server.ts`](./web/src/server/Admin/ProxyHostManagement/certificate-jobs.worker.server.ts), [`web/src/server/Admin/ProxyHostManagement/certificate-jobs.binding.server.ts`](./web/src/server/Admin/ProxyHostManagement/certificate-jobs.binding.server.ts), [`web/src/tests/certificate-jobs-worker-postgresql.integration.test.ts`](./web/src/tests/certificate-jobs-worker-postgresql.integration.test.ts), [`web/src/tests/certificate-jobs-creation-postgresql.integration.test.ts`](./web/src/tests/certificate-jobs-creation-postgresql.integration.test.ts) |
 | G5  | Certificate operation events are cursorable and deduplicated into PostgreSQL receipts and audit rows; ephemeral live notifications do not serve as durable state.                                     | [`controller/src/runtime/certificates/operations.rs`](./controller/src/runtime/certificates/operations.rs), [`web/src/server/Admin/CertificateManagement/certificate-events.worker.ts`](./web/src/server/Admin/CertificateManagement/certificate-events.worker.ts), [`web/src/db/Schema/certificates.ts`](./web/src/db/Schema/certificates.ts), [`web/src/server/Audit/audit.service.ts`](./web/src/server/Audit/audit.service.ts), [`web/src/tests/certificate-events.test.ts`](./web/src/tests/certificate-events.test.ts), [`web/src/tests/certificate-events-postgresql.integration.test.ts`](./web/src/tests/certificate-events-postgresql.integration.test.ts), [`web/src/tests/audit-events-postgresql.integration.test.ts`](./web/src/tests/audit-events-postgresql.integration.test.ts)                                                                           |
-| G6  | The appliance's documented backup contains the durable database, controller state, and application key, while transient Redis/cache/log state is identified as excluded.                              | [`scripts/production-backup.ts`](./scripts/production-backup.ts), [`scripts/controller-state-archive.ts`](./scripts/controller-state-archive.ts), [`scripts/production-restore.ts`](./scripts/production-restore.ts), [`scripts/restore-rollback-smoke.ts`](./scripts/restore-rollback-smoke.ts), [`tests/production/appliance-compose-smoke.ts`](./tests/production/appliance-compose-smoke.ts), [`README.md`](./README.md)                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| G6  | The appliance's documented backup contains the durable database, controller state, and application key, while transient Valkey/cache/log state is identified as excluded.                             | [`scripts/production-backup.ts`](./scripts/production-backup.ts), [`scripts/controller-state-archive.ts`](./scripts/controller-state-archive.ts), [`scripts/production-restore.ts`](./scripts/production-restore.ts), [`scripts/restore-rollback-smoke.ts`](./scripts/restore-rollback-smoke.ts), [`tests/production/appliance-compose-smoke.ts`](./tests/production/appliance-compose-smoke.ts), [`README.md`](./README.md)                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | G7  | State and external input have bounded formats and failure handling, including database migration locking, secret validation, proxy model validation, and controller request limits.                   | [`web/src/db/migrate.ts`](./web/src/db/migrate.ts), [`docker/web/bootstrap-secrets.mjs`](./docker/web/bootstrap-secrets.mjs), [`controller/src/server/mod.rs`](./controller/src/server/mod.rs), [`controller/src/models.rs`](./controller/src/models.rs), [`controller/src/proxy/mod.rs`](./controller/src/proxy/mod.rs), [`controller/src/tests/config.rs`](./controller/src/tests/config.rs), [`controller/src/tests/proxy_validation.rs`](./controller/src/tests/proxy_validation.rs), [`web/src/tests/env.server.test.ts`](./web/src/tests/env.server.test.ts)                                                                                                                                                                                                                                                                                                         |
 | G8  | Web security controls protect sessions, secret values, rendered HTML, and HTTPS upstream identity when verification is enabled.                                                                       | [`web/src/server/Auth/Access/cookies.server.ts`](./web/src/server/Auth/Access/cookies.server.ts), [`web/src/server/Auth/Core/encryption.server.ts`](./web/src/server/Auth/Core/encryption.server.ts), [`web/src/server/security-headers.ts`](./web/src/server/security-headers.ts), [`controller/src/runtime/renderer/proxy.rs`](./controller/src/runtime/renderer/proxy.rs), [`web/src/tests/auth-security-encryption.test.ts`](./web/src/tests/auth-security-encryption.test.ts), [`web/src/tests/security-headers.test.ts`](./web/src/tests/security-headers.test.ts), [`web/src/tests/mail-templates.test.ts`](./web/src/tests/mail-templates.test.ts), [`scripts/upstream-tls-smoke.ts`](./scripts/upstream-tls-smoke.ts)                                                                                                                                             |
 | G9  | Repository automation runs formatting, lint, type, migration, web, fuzz, Rust, CodeQL, secret-scanning, and dependency-review jobs.                                                                   | [`.github/workflows/ci.yml`](./.github/workflows/ci.yml), [`.github/workflows/codeql.yml`](./.github/workflows/codeql.yml), [`.github/workflows/gitleaks.yml`](./.github/workflows/gitleaks.yml), [`.github/workflows/dependency-review.yml`](./.github/workflows/dependency-review.yml)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -166,7 +166,7 @@ archive or application key.
 The controller event journal uses stable IDs, a store ID, bounded retention, and
 cursor validation. The web synchronizer advances a PostgreSQL cursor while inserting
 event receipts with a unique event ID and writing system audit records in one
-transaction. Redis/WebSocket application-change signals are only cache invalidation
+transaction. Valkey/WebSocket application-change signals are only cache invalidation
 and live refresh hints. This supports G5; events older than the journal or receipt
 retention window are not reconstructed by this design.
 
@@ -174,7 +174,7 @@ retention window are not reconstructed by this design.
 
 The appliance volume retains PostgreSQL and controller/Caddy state. The production
 backup explicitly captures the PostgreSQL dump, controller archive, and application
-key and deliberately excludes sockets, caches, Redis, and logs. Restore scripts
+key and deliberately excludes sockets, caches, Valkey, and logs. Restore scripts
 replace a target project and include rollback checks. This supports G6, subject to
 quiescing, preserving the deployment environment, and testing the restored instance.
 Backups are not automatically encrypted or transported by these scripts; the
@@ -187,7 +187,7 @@ subscriptions, controller event pages, access-log snapshots, retries, and databa
 metadata fields have explicit bounds in code. Health/readiness endpoints and
 supervision expose failed local dependencies. The limits reduce accidental or
 hostile load but do not provide availability against a hostile host, exhausted
-disk, PostgreSQL failure, Redis failure, DDoS, ACME/DNS outage, SMTP outage, or
+disk, PostgreSQL failure, Valkey failure, DDoS, ACME/DNS outage, SMTP outage, or
 upstream failure.
 
 ### T8: CrowdSec is bypassed, leaks a credential, or causes a proxy outage
@@ -203,7 +203,7 @@ only as current as the last successful stream.
 
 ## Residual risks and limits
 
-- Redis is intentionally ephemeral and is not part of the backup contract. A restart
+- Valkey is intentionally ephemeral and is not part of the backup contract. A restart
   can remove live invalidation signals, rate-limit state, and pending authentication
   challenge state; durable reads and login flows must recover through their normal
   stores.
@@ -234,7 +234,7 @@ only as current as the last successful stream.
   isolate the control API from a compromised web process. Host/root compromise defeats these
   local boundaries.
 - The design is a single-appliance process topology. Host, volume, Docker, kernel,
-  base-image, PostgreSQL, Redis, Caddy, ACME/DNS, SMTP, and upstream failures remain
+  base-image, PostgreSQL, Valkey, Caddy, ACME/DNS, SMTP, and upstream failures remain
   operational risks.
 - The repository's tests and smoke scripts provide focused evidence for listed paths;
   they do not establish exhaustive behavior, formal verification, penetration-test

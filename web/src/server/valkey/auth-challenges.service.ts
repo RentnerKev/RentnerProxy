@@ -5,8 +5,8 @@ import {
     MFA_CHALLENGE_MAX_ATTEMPTS,
 } from '../../config/auth-security.config'
 import { createOpaqueToken, isValidOpaqueToken } from '../Auth/Core/tokens.server'
-import { getRedisClient } from './client.server'
-import type { RedisCommandClient } from './Types/redis.types'
+import { getValkeyClient } from './client.server'
+import type { ValkeyCommandClient } from './Types/valkey.types'
 
 const KEY_PREFIX = 'rentnerproxy:auth-challenge'
 
@@ -122,7 +122,7 @@ export interface CodeChallengeVerification<TChallenge extends AuthChallenge> {
 }
 
 export interface AuthChallengeDependencies {
-    readonly getClient: () => RedisCommandClient | null
+    readonly getClient: () => ValkeyCommandClient | null
 }
 
 export class AuthChallengeUnavailableError extends Error {
@@ -148,10 +148,10 @@ function getChallengeLockKey(kind: AuthChallengeKind, id: string): string {
 }
 
 const defaultDependencies: AuthChallengeDependencies = {
-    getClient: getRedisClient,
+    getClient: getValkeyClient,
 }
 
-function getClient(overrides: Partial<AuthChallengeDependencies>): RedisCommandClient {
+function getClient(overrides: Partial<AuthChallengeDependencies>): ValkeyCommandClient {
     const dependencies = { ...defaultDependencies, ...overrides }
     const client = dependencies.getClient()
 

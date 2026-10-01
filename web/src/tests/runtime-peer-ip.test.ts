@@ -6,8 +6,8 @@ import {
     createRateLimitKey,
     enforceAuthRateLimit,
     RateLimitError,
-} from '../server/redis/rate-limiter.service'
-import type { RedisCommandClient } from '../server/redis/Types/redis.types'
+} from '../server/valkey/rate-limiter.service'
+import type { ValkeyCommandClient } from '../server/valkey/Types/valkey.types'
 
 describe('production request peer addresses', () => {
     test('makes the Bun connection address available inside the TanStack request context', async () => {
@@ -40,7 +40,7 @@ describe('production request peer addresses', () => {
 
     test('isolates simultaneous clients so one exhausted bucket does not block another peer', async () => {
         const counts = new Map<string, number>()
-        const client: RedisCommandClient = {
+        const client: ValkeyCommandClient = {
             ping: async () => 'PONG',
             send: async (_command, args) => {
                 const key = args[2]!

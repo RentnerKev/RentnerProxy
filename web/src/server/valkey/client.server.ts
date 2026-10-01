@@ -2,37 +2,37 @@ import '@tanstack/react-start/server-only'
 
 import { RedisClient } from 'bun'
 
-import { getRedisUrl } from '../env.server'
-import type { CachedRedisClient, RedisGlobal } from './Types/redis.types'
+import { getValkeyUrl } from '../env.server'
+import type { CachedValkeyClient, ValkeyGlobal } from './Types/valkey.types'
 
 const CONNECTION_TIMEOUT_MS = 1_200
 
-const redisGlobal = globalThis as typeof globalThis & RedisGlobal
-let productionClient: CachedRedisClient | undefined
+const valkeyGlobal = globalThis as typeof globalThis & ValkeyGlobal
+let productionClient: CachedValkeyClient | undefined
 
-function getCachedClient(): CachedRedisClient | undefined {
+function getCachedClient(): CachedValkeyClient | undefined {
     return process.env.NODE_ENV === 'production'
         ? productionClient
-        : redisGlobal.rentnerproxyRedisClient
+        : valkeyGlobal.rentnerproxyValkeyClient
 }
 
-function cacheClient(cachedClient: CachedRedisClient): void {
+function cacheClient(cachedClient: CachedValkeyClient): void {
     if (process.env.NODE_ENV === 'production') {
         productionClient = cachedClient
         return
     }
 
-    redisGlobal.rentnerproxyRedisClient = cachedClient
+    valkeyGlobal.rentnerproxyValkeyClient = cachedClient
 }
 
 function clearCachedClient(): void {
     productionClient = undefined
-    delete redisGlobal.rentnerproxyRedisClient
+    delete valkeyGlobal.rentnerproxyValkeyClient
 }
 
 function closeCachedClients(): void {
     const cachedClients = new Set(
-        [productionClient, redisGlobal.rentnerproxyRedisClient]
+        [productionClient, valkeyGlobal.rentnerproxyValkeyClient]
             .filter((cachedClient) => cachedClient !== undefined)
             .map((cachedClient) => cachedClient.client),
     )
@@ -44,17 +44,17 @@ function closeCachedClients(): void {
     }
 }
 
-export function getRedisClient(): RedisClient | null {
-    const redisUrl = getRedisUrl()
+export function getValkeyClient(): RedisClient | null {
+    const valkeyUrl = getValkeyUrl()
 
-    if (!redisUrl) {
+    if (!valkeyUrl) {
         closeCachedClients()
         return null
     }
 
     const cachedClient = getCachedClient()
 
-    if (cachedClient?.url === redisUrl) {
+    if (cachedClient?.url === valkeyUrl) {
         return cachedClient.client
     }
 
@@ -62,7 +62,7 @@ export function getRedisClient(): RedisClient | null {
         closeCachedClients()
     }
 
-    const client = new RedisClient(redisUrl, {
+    const client = new RedisClient(valkeyUrl, {
         autoReconnect: true,
         connectionTimeout: CONNECTION_TIMEOUT_MS,
     })
@@ -71,10 +71,10 @@ export function getRedisClient(): RedisClient | null {
         if (getCachedClient()?.client === client) clearCachedClient()
     }
 
-    cacheClient({ client, url: redisUrl })
+    cacheClient({ client, url: valkeyUrl })
     return client
 }
 
-export function closeRedisClient(): void {
+export function closeValkeyClient(): void {
     closeCachedClients()
 }

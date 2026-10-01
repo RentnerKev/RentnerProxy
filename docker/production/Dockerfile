@@ -98,7 +98,7 @@ RUN set -eux; \
         /etc/crowdsec/online_api_credentials.yaml; \
     cp -aL /etc/crowdsec/. /opt/rentnerproxy/crowdsec-config/
 
-FROM redis:8.10.2-trixie@sha256:6f81e8915c60b065a524e6967e0ad1c639ba6efa84d669f823683ea04d9150ee AS redis-runtime
+FROM valkey/valkey:9.1.2-trixie@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd AS valkey-runtime
 
 FROM postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722 AS runtime
 
@@ -115,7 +115,7 @@ ENV APP_DIR=/opt/rentnerproxy/web \
     RENTNERPROXY_SYSTEM_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl openssl tini libcap2-bin \
+    && apt-get install -y --no-install-recommends ca-certificates curl openssl tini libcap2-bin libsystemd0 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 rentnerproxy \
     && useradd --uid 10001 --gid rentnerproxy --no-create-home --shell /usr/sbin/nologin rentnerproxy \
@@ -134,7 +134,7 @@ RUN apt-get update \
     && install -d -m 0700 -o root -g root /var/lib/rentnerproxy/bootstrap \
     && install -d -m 0700 -o postgres -g postgres /var/run/postgresql \
     && chmod 00700 /var/run/postgresql \
-    && install -d -m 0755 /opt/rentnerproxy/redis/bin
+    && install -d -m 0755 /opt/rentnerproxy/valkey/bin
 
 COPY --from=web-runtime /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=web-runtime /app /opt/rentnerproxy/web
@@ -154,7 +154,9 @@ COPY docker/licenses/CaddyCrowdSecBouncer-NOTICE /usr/share/licenses/caddy-crowd
 COPY docker/licenses/CrowdSec-LICENSE /usr/share/licenses/crowdsec/LICENSE
 COPY docker/licenses/CrowdSec-NOTICE /usr/share/licenses/crowdsec/NOTICE
 COPY docker/licenses/GeoIP-NOTICE /usr/share/licenses/rentnerproxy-geoip/NOTICE
-COPY --from=redis-runtime /usr/local/bin/redis-server /usr/local/bin/redis-cli /opt/rentnerproxy/redis/bin/
+COPY docker/licenses/Valkey-LICENSE /usr/share/licenses/valkey/LICENSE
+COPY docker/licenses/Valkey-NOTICE /usr/share/licenses/valkey/NOTICE
+COPY --from=valkey-runtime /usr/local/bin/valkey-server /usr/local/bin/valkey-cli /opt/rentnerproxy/valkey/bin/
 COPY docker/production/entrypoint.sh /usr/local/bin/rentnerproxy-production
 COPY docker/crowdsec/runtime/supervisor.sh /usr/local/bin/rentnerproxy-crowdsec-supervisor
 
@@ -163,7 +165,13 @@ RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
     && chmod 0555 /usr/local/bin/rentnerproxy-controller \
     && chmod 0555 /usr/local/bin/crowdsec /usr/local/bin/cscli \
     && chmod 0555 /usr/local/bin/bun \
-    && chmod 0555 /opt/rentnerproxy/redis/bin/redis-server /opt/rentnerproxy/redis/bin/redis-cli \
+    && chmod 0555 /opt/rentnerproxy/valkey/bin/valkey-server /opt/rentnerproxy/valkey/bin/valkey-cli \
+    && /opt/rentnerproxy/valkey/bin/valkey-server --version | grep -F 'v=9.1.2 ' \
+    && /opt/rentnerproxy/valkey/bin/valkey-cli --version | grep -Fx 'valkey-cli 9.1.2' \
+    && ldd /opt/rentnerproxy/valkey/bin/valkey-server > /tmp/valkey-server-libraries \
+    && ldd /opt/rentnerproxy/valkey/bin/valkey-cli > /tmp/valkey-cli-libraries \
+    && ! grep -F 'not found' /tmp/valkey-server-libraries /tmp/valkey-cli-libraries \
+    && rm /tmp/valkey-server-libraries /tmp/valkey-cli-libraries \
     && install -d -m 0555 -o root -g root /usr/share/rentnerproxy/crowdsec/plugins \
     && find /usr/share/rentnerproxy/crowdsec -type d -exec chmod 0555 {} + \
     && find /usr/share/rentnerproxy/crowdsec -type f -exec chmod 0444 {} + \

@@ -8,7 +8,7 @@ import type { ChangePasswordResult, CurrentSession } from '../Core/Types/auth-se
 import { getAuthDatabase } from '../Core/database.server'
 import { AuthDomainError } from '../Core/errors.server'
 import { hashPassword, verifyPassword } from '../Core/password.server'
-import { enforcePasswordChangeRateLimit } from '../../redis/rate-limiter.service'
+import { enforcePasswordChangeRateLimit } from '../../valkey/rate-limiter.service'
 import { requirePermissionInTransaction } from '../Access/rbac.service'
 import { appendAuditEventInTransaction } from '../../Audit/audit.service'
 import { auditAuthOperation } from '../Core/audit-auth.server'

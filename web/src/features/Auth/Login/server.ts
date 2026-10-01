@@ -17,7 +17,7 @@ import {
     completeLoginMfaWithTotpService,
     getTwoFactorStatusService,
 } from '../../../server/Auth/TwoFactor/two-factor.service'
-import { getAuthChallenge } from '../../../server/redis/auth-challenges.service'
+import { getAuthChallenge } from '../../../server/valkey/auth-challenges.service'
 import {
     actionFailure,
     AUTH_UNAVAILABLE_MESSAGE,

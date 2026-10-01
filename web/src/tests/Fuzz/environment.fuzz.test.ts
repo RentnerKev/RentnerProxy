@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import * as fc from 'fast-check'
 
-import { parsePublicOrigin } from '../../server/env.server'
+import { parsePublicOrigin, parseValkeyUrl } from '../../server/env.server'
 
 const FUZZ_RUNS = 100
 
@@ -29,6 +29,27 @@ const unsafePublicOriginArbitrary = httpsOriginArbitrary.chain((origin) => {
 })
 
 describe('environment property fuzzing', () => {
+    test('accepts Valkey URLs only with supported protocols and numeric database indexes', () => {
+        fc.assert(
+            fc.property(
+                hostLabelArbitrary,
+                fc.constantFrom('redis', 'rediss'),
+                fc.integer({ min: 0, max: 100 }),
+                (host, protocol, database) => {
+                    const url = `${protocol}://${host}.example:6379/${database}`
+                    expect(parseValkeyUrl(` ${url} `)).toBe(url)
+                    expect(parseValkeyUrl(`${url}?secret=value`)).toBeNull()
+                    expect(parseValkeyUrl(`${url}#fragment`)).toBeNull()
+                    expect(parseValkeyUrl(`valkey://${host}.example/${database}`)).toBeNull()
+                    expect(
+                        parseValkeyUrl(`${protocol}://${host}.example/not-a-database`),
+                    ).toBeNull()
+                },
+            ),
+            { numRuns: FUZZ_RUNS },
+        )
+    })
+
     test('canonicalizes arbitrary valid HTTPS public origins', () => {
         fc.assert(
             fc.property(httpsOriginArbitrary, (origin) => {

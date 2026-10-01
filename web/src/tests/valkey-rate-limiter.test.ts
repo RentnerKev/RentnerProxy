@@ -14,10 +14,10 @@ import {
     enforceLoginMfaRateLimit,
     enforcePasswordChangeRateLimit,
     getClientIp,
-} from '../server/redis/rate-limiter.service'
-import type { RedisCommandClient } from '../server/redis/Types/redis.types'
+} from '../server/valkey/rate-limiter.service'
+import type { ValkeyCommandClient } from '../server/valkey/Types/valkey.types'
 
-function createClient(send: RedisCommandClient['send']): RedisCommandClient {
+function createClient(send: ValkeyCommandClient['send']): ValkeyCommandClient {
     return {
         ping: async () => 'PONG',
         send,
@@ -86,7 +86,7 @@ describe('consumeRateLimit', () => {
         })
     })
 
-    test('fails closed for missing Redis, outages, and malformed responses', async () => {
+    test('fails closed for missing Valkey, outages, and malformed responses', async () => {
         const missingError = await captureError(
             consumeRateLimit(
                 { identifier: 'value', limit: 1, scope: 'login-ip', windowMs: 1_000 },
@@ -254,7 +254,7 @@ describe('enforceLoginMfaRateLimit', () => {
     })
 
     test.each(['', 'user-1', 'person@example.com', `${userId}:other`])(
-        'rejects invalid user ID %s before issuing any Redis command',
+        'rejects invalid user ID %s before issuing any Valkey command',
         async (invalidUserId) => {
             const calls: string[] = []
             const client = createClient((command) => {
@@ -524,7 +524,7 @@ describe('sensitive authenticated action limits', () => {
         ).toBe(1)
     })
 
-    test('fails closed when Redis is unavailable before a sensitive action is admitted', async () => {
+    test('fails closed when Valkey is unavailable before a sensitive action is admitted', async () => {
         const passwordError = await captureError(
             enforcePasswordChangeRateLimit(firstUserId, { getClient: () => null }),
         )
@@ -545,7 +545,7 @@ describe('sensitive authenticated action limits', () => {
         })
     })
 
-    test('fails closed when a Redis command fails for password changes and invitations', async () => {
+    test('fails closed when a Valkey command fails for password changes and invitations', async () => {
         const client = createClient(() => Promise.reject(new Error('connection refused')))
         const passwordError = await captureError(
             enforcePasswordChangeRateLimit(firstUserId, { getClient: () => client }),

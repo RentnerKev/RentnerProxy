@@ -5,6 +5,6 @@ export type FoundationService = keyof FoundationHealth
 export interface FoundationHealthDependencies {
     readonly checkController: () => Promise<ServiceHealth>
     readonly checkDatabase: () => Promise<ServiceHealth>
-    readonly checkRedis: () => Promise<ServiceHealth>
+    readonly checkValkey: () => Promise<ServiceHealth>
     readonly warn: (service: FoundationService) => void
 }

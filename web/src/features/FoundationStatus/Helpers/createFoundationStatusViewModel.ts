@@ -9,7 +9,7 @@ export default function createFoundationStatusViewModel(
 ): FoundationStatusViewModel {
     const controllerConnected = health.controller.state === 'connected'
     const databaseConnected = health.database.state === 'connected'
-    const redisConnected = health.redis.state === 'connected'
+    const valkeyConnected = health.valkey.state === 'connected'
     const liveConnected = liveStatus === 'connected'
 
     return {
@@ -35,10 +35,10 @@ export default function createFoundationStatusViewModel(
                 tone: databaseConnected ? 'positive' : 'warning',
             },
             {
-                label: t('foundation.services.redis.label'),
-                detail: t('foundation.services.redis.detail'),
-                value: t(redisConnected ? 'foundation.connected' : 'foundation.unavailable'),
-                tone: redisConnected ? 'positive' : 'warning',
+                label: t('foundation.services.valkey.label'),
+                detail: t('foundation.services.valkey.detail'),
+                value: t(valkeyConnected ? 'foundation.connected' : 'foundation.unavailable'),
+                tone: valkeyConnected ? 'positive' : 'warning',
             },
             {
                 label: t('foundation.services.websocket.label'),

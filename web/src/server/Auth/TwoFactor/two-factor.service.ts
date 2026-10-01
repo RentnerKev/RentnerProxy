@@ -16,7 +16,7 @@ import {
     createAuthChallenge,
     failCodeChallengeVerification,
     releaseCodeChallengeVerification,
-} from '../../redis/auth-challenges.service'
+} from '../../valkey/auth-challenges.service'
 import {
     decodeBase64Url,
     decryptSecret,

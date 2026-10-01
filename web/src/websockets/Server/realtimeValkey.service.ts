@@ -2,17 +2,17 @@ import '@tanstack/react-start/server-only'
 
 import type { RedisClient } from 'bun'
 import { receiveApplicationChange, setApplicationPublisher } from '../Helpers/publishFunctions'
-import { getRedisClient } from '../../server/redis/client.server'
+import { getValkeyClient } from '../../server/valkey/client.server'
 import { applicationChangedEventSchema } from '../Types/events'
 
 const CHANNEL = 'rentnerproxy:realtime'
 
 declare global {
-    var rentnerproxyRealtimeRedis: { stop: () => void } | undefined
+    var rentnerproxyRealtimeValkey: { stop: () => void } | undefined
 }
 
-export function startRealtimeRedis(): void {
-    if (globalThis.rentnerproxyRealtimeRedis) return
+export function startRealtimeValkey(): void {
+    if (globalThis.rentnerproxyRealtimeValkey) return
     let stopped = false
     let subscriber: RedisClient | undefined
     let retry: ReturnType<typeof setTimeout> | undefined
@@ -21,14 +21,14 @@ export function startRealtimeRedis(): void {
         clearTimeout(retry)
         subscriber?.close()
         setApplicationPublisher(undefined)
-        globalThis.rentnerproxyRealtimeRedis = undefined
+        globalThis.rentnerproxyRealtimeValkey = undefined
     }
-    globalThis.rentnerproxyRealtimeRedis = { stop }
+    globalThis.rentnerproxyRealtimeValkey = { stop }
     process.once('rentnerproxy:shutdown', stop)
 
     async function connect(): Promise<void> {
         try {
-            const publisher = getRedisClient()
+            const publisher = getValkeyClient()
             if (!publisher) return
             const connection = await publisher.duplicate()
             if (stopped) {

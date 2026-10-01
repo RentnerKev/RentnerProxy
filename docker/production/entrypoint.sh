@@ -17,7 +17,7 @@ readonly controller_app_key_file=/run/rentnerproxy/controller-app-key/value
 readonly controller_token_file=/run/rentnerproxy/controller-token/value
 readonly database_url_file=/run/rentnerproxy/database-url/value
 readonly postgres_password_file=/run/rentnerproxy/postgres/value
-readonly redis_directory=/opt/rentnerproxy/redis
+readonly valkey_directory=/opt/rentnerproxy/valkey
 
 declare -a child_pids=()
 declare -a child_names=()
@@ -236,8 +236,8 @@ start_postgres() {
     ensure_application_database
 }
 
-start_redis() {
-    start_child redis gosu rentnerproxy "$redis_directory/bin/redis-server" \
+start_valkey() {
+    start_child valkey gosu rentnerproxy "$valkey_directory/bin/valkey-server" \
         --appendonly no \
         --bind 127.0.0.1 \
         --daemonize no \
@@ -246,7 +246,7 @@ start_redis() {
         --port 6379 \
         --protected-mode yes \
         --save ''
-    wait_for_command Redis gosu rentnerproxy "$redis_directory/bin/redis-cli" -h 127.0.0.1 ping
+    wait_for_command Valkey gosu rentnerproxy "$valkey_directory/bin/valkey-cli" -h 127.0.0.1 ping
 }
 
 start_crowdsec_supervisor() {
@@ -289,7 +289,7 @@ start_web() {
         HOST=0.0.0.0 \
         NODE_ENV=production \
         PORT=3000 \
-        REDIS_URL=redis://127.0.0.1:6379 \
+        VALKEY_URL=redis://127.0.0.1:6379 \
         RENTNERPROXY_CONTROLLER_TOKEN_FILE="$controller_token_file" \
         RENTNERPROXY_CONTROLLER_URL=http://127.0.0.1:8081 \
         RENTNERPROXY_TRUST_PROXY_HEADERS="${RENTNERPROXY_TRUST_PROXY_HEADERS:-false}" \
@@ -314,7 +314,7 @@ initialize_layout
 initialize_secrets
 initialize_postgres_data_directory
 start_postgres
-start_redis
+start_valkey
 start_crowdsec_supervisor
 start_controller
 run_migrations
