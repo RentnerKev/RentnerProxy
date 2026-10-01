@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { X509Certificate } from 'node:crypto'
-import { writeFile } from 'node:fs/promises'
+import { chmod, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { assertHttp3Response, requestHttp3Client } from '../http3-client'
@@ -202,6 +202,7 @@ export async function prepareCertificateFixture(
     ])
     const caFile = join(context.temp, 'reliability-ca.pem')
     await context.docker(['cp', context.container + ':/tmp/reliability-ca.pem', caFile])
+    await chmod(caFile, 0o644)
     const imported = await context.fixture('certificate-import')
     const id = certificateId(imported.certificateId)
     await context.synced(await context.fixture('certificate-bind', { certificateId: id }))
@@ -233,7 +234,9 @@ export async function prepareCertificateFixture(
     ])
     assert.ok(new X509Certificate(rootPem).ca, 'Local ACME issuance root must be a CA')
     const issuanceCaFile = join(context.temp, 'reliability-issuance-ca.pem')
-    await writeFile(issuanceCaFile, rootPem, { mode: 0o600 })
+    // The unprivileged HTTP/3 client mounts only this public CA certificate.
+    await writeFile(issuanceCaFile, rootPem, { mode: 0o644 })
+    await chmod(issuanceCaFile, 0o644)
     states.set(context, { activeCaFile: caFile, issuanceCaFile, activeId: id })
     context.check('reload', 'Local CA certificate imported and bound')
     return { caFile }

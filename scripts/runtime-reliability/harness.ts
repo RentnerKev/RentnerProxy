@@ -584,6 +584,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             prefix + '-certs:/test/certs/pebble.minica.pem',
             join(temp, 'pebble.minica.pem'),
         ])
+        await chmod(join(temp, 'pebble.minica.pem'), 0o644)
         await docker(['rm', prefix + '-certs'])
         await writeFile(
             join(temp, 'pebble-config.json'),
