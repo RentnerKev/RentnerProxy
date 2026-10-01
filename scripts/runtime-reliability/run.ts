@@ -301,10 +301,25 @@ async function main() {
                 assert.equal(imported.historyFound, true)
                 assert.equal(imported.identicalSourceRetry.historyFound, true)
                 assert.equal(imported.failed, 0)
+                assert.equal(imported.imported, iteration < 4 ? 2 : 0)
+                assert.equal(imported.skipped, iteration < 4 ? 0 : 2)
                 assert.equal(imported.identicalSourceRetry.imported, 0)
                 assert.equal(imported.identicalSourceRetry.failed, 0)
                 assert.equal(imported.identicalSourceRetry.skipped, 2)
                 await context.synced(imported)
+                const importedProxy = await context.http(
+                    'npm-' + (iteration % 4) + '-' + context.domain,
+                )
+                assert.equal(importedProxy.status, 200)
+                assert.equal(importedProxy.body.backend, 'a')
+                const importedRedirect = await context.http(
+                    'npm-redirect-' + (iteration % 4) + '-' + context.domain,
+                )
+                assert.equal(importedRedirect.status, 302)
+                assert.equal(
+                    importedRedirect.headers.get('location'),
+                    'http://' + context.domain + '/',
+                )
                 context.check(
                     'revision',
                     'NPM importer retry retains history without duplicate domains',
