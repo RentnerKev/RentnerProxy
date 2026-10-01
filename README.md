@@ -174,7 +174,9 @@ for resource evidence limits and [Releasing](RELEASING.md) for the exact-ref rel
 Override bounds with `--duration-seconds 30..7200`, `--iterations 1..1000` and `--concurrency 1..8`
 (using one integer, not a range). `--seed` accepts a uint32 (default 69) for repeatable fixture choices;
 `--capture-resources true|false` controls sampling (default true). CI manual inputs expose the same
-controls. Disabling resource capture cannot establish resource stability.
+controls. A manual duration override receives a four-hour CI job budget per source, including cold
+setup and completion of the last bounded cycle; the default workload durations stay the same.
+Disabling resource capture cannot establish resource stability.
 
 The published Alpha 6 baseline has a known certificate-binding retry defect: an accepted asynchronous
 retry can leave the job failed while the controller completes issuance. The fixture records

@@ -67,6 +67,55 @@ const stateSchema = z.strictObject({
 })
 export type FixtureState = z.output<typeof stateSchema>
 const statePath = '/tmp/rentnerproxy-reliability-fixture.json'
+type ContextStage =
+    | 'registry'
+    | 'actor-read'
+    | 'actor-create'
+    | 'session-delete'
+    | 'session-create'
+    | 'state-write'
+    | 'state-chmod'
+class FixtureContextError extends Error {
+    constructor(
+        readonly contextStage: ContextStage,
+        readonly diagnosticCode: string,
+    ) {
+        super('fixture_auth_unavailable')
+    }
+}
+function contextDiagnostic(error: unknown): string {
+    const codes = new Set([
+        'EACCES',
+        'EPERM',
+        'EROFS',
+        'ENOENT',
+        'ECONNREFUSED',
+        'ETIMEDOUT',
+        '42501',
+        '40P01',
+        '28P01',
+        '23505',
+        '42P01',
+        '42703',
+        '42704',
+        '08001',
+        '08003',
+        '08006',
+        '57P01',
+        '53300',
+        'user_not_active',
+        'service_unavailable',
+    ])
+    let cause = error
+    for (let depth = 0; depth < 3; depth += 1) {
+        if (!cause || typeof cause !== 'object') break
+        const detail = cause as { code?: unknown; errno?: unknown; cause?: unknown }
+        for (const code of [detail.code, detail.errno])
+            if (typeof code === 'string' && codes.has(code)) return code
+        cause = detail.cause
+    }
+    return 'unexpected'
+}
 
 export async function createFixtureContext(command: FixtureCommand) {
     if (
@@ -120,8 +169,10 @@ export async function createFixtureContext(command: FixtureCommand) {
             throw new Error('invalid_fixture_state', { cause: error })
         }
     }
+    let contextStage: ContextStage = 'registry'
     try {
         await database.transaction(registry.ensureAuthorizationRegistryInTransaction)
+        contextStage = 'actor-read'
         const email = command.runId + '@reliability.invalid'
         let actor = (
             await database
@@ -130,6 +181,7 @@ export async function createFixtureContext(command: FixtureCommand) {
                 .where(eq(schema.users.email, email))
         ).at(0)
         if (!actor) {
+            contextStage = 'actor-create'
             actor = (
                 await database
                     .insert(schema.users)
@@ -150,14 +202,18 @@ export async function createFixtureContext(command: FixtureCommand) {
             if (!actor || !owner) throw new Error('fixture_owner_unavailable')
             await database.insert(schema.userRoles).values({ userId: actor.id, roleId: owner.id })
         }
+        contextStage = 'session-delete'
         await database.delete(schema.sessions).where(eq(schema.sessions.userId, actor.id))
+        contextStage = 'session-create'
         state.session = (await createSessionService(actor.id)).token
+        contextStage = 'state-write'
         await writeFile(statePath, JSON.stringify(state), { mode: 0o600 })
+        contextStage = 'state-chmod'
         await chmod(statePath, 0o600)
-    } catch {
+    } catch (error) {
         redis.closeRedisClient()
         await database.$client.close()
-        throw new Error('fixture_auth_unavailable')
+        throw new FixtureContextError(contextStage, contextDiagnostic(error))
     }
     async function authorized<T>(operation: () => Promise<T>): Promise<T> {
         let outcome: { value: T } | { error: unknown } | undefined
@@ -728,7 +784,14 @@ export async function runFixture(
             ...(extension ? await extension(context) : await executeCoreFixture(context)),
         }
     } catch (error) {
-        output = { ok: false, errorCode: safeErrorCode(error), executionStage }
+        output = {
+            ok: false,
+            errorCode: safeErrorCode(error),
+            executionStage,
+            ...(error instanceof FixtureContextError
+                ? { contextStage: error.contextStage, diagnosticCode: error.diagnosticCode }
+                : {}),
+        }
         process.exitCode = 1
     } finally {
         try {

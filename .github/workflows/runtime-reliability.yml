@@ -135,7 +135,7 @@ jobs:
                 source: ${{ fromJSON(needs.select-sources.outputs.sources) }}
         name: ${{ needs.select-sources.outputs.profile }} / ${{ matrix.source }}
         runs-on: ubuntu-latest
-        timeout-minutes: 90
+        timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs['duration-seconds'] != '' && 240 || 90 }}
         steps:
             - name: Prepare sanitized failure report
               run: |
