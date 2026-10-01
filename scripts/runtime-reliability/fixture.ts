@@ -273,6 +273,16 @@ function safeJob(job: Awaited<ReturnType<FixtureContext['jobs']['getCertificateJ
     }
 }
 export async function readFixtureJobs(context: FixtureContext) {
+    const [{ eq }, { certificateJobs }] = await Promise.all([
+        import('drizzle-orm'),
+        import('../../web/src/db/schema'),
+    ])
+    const persisted = context.state.proxyId
+        ? await context.database
+              .select({ stage: certificateJobs.stage })
+              .from(certificateJobs)
+              .where(eq(certificateJobs.proxyHostId, context.state.proxyId))
+        : []
     const visible = await context.authorized(context.jobs.getCertificateJobProgressService)
     const current = context.state.jobId
         ? await context.authorized(() =>
@@ -281,6 +291,10 @@ export async function readFixtureJobs(context: FixtureContext) {
         : null
     return {
         count: visible.length,
+        persistedJobCounts: {
+            total: persisted.length,
+            nonApplied: persisted.filter((job) => job.stage !== 'applied').length,
+        },
         jobs: visible.map(safeJob),
         currentJob: current ? safeJob(current) : null,
     }

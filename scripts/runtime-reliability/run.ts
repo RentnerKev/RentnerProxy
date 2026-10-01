@@ -338,7 +338,9 @@ async function main() {
             await context.synced(await context.fixture('proxy-update', { resetTls: true }))
             const final = await context.fixture('durability-read')
             await context.synced(final)
-            if (final.currentJob) assert.equal(final.currentJob.stage, 'applied')
+            assert.equal(final.currentJob?.stage, 'applied')
+            assert.equal(final.persistedJobCounts.nonApplied, 0)
+            assert.equal(final.persistedJobCounts.total, Math.floor(iteration / 3) + 1)
             if (options.source === 'current') {
                 assert.ok(Array.isArray(final.importHistory) && final.importHistory.length === 2)
                 assert.ok(final.importHistory.every((run: FixtureResult) => run.found === true))

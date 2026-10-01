@@ -188,7 +188,21 @@ export async function createHarness(options: ReliabilityOptions, checks: Reliabi
         auth.stop(true)
         dns.stop()
         const failures: unknown[] = []
-        for (const name of ownedContainers) {
+        // Backup/restore may leave a one-off helper after its bounded command is interrupted.
+        const composeContainers = (
+            await docker([
+                'ps',
+                '--all',
+                '--filter',
+                'label=com.docker.compose.project=' + prefix,
+                '--format',
+                '{{.Names}}',
+            ])
+        )
+            .split('\n')
+            .filter(Boolean)
+        assert.ok(composeContainers.every((name) => name.startsWith(prefix + '-')))
+        for (const name of new Set([...ownedContainers, ...composeContainers])) {
             const exists = await docker([
                 'container',
                 'inspect',
@@ -474,6 +488,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         await ready()
         const after = await fixture('durability-read')
         assert.deepEqual(after.durableCounts, before.durableCounts)
+        assert.deepEqual(after.persistedJobCounts, before.persistedJobCounts)
         assert.equal(after.desiredRevision, before.desiredRevision)
         assert.equal(after.boundCertificateId, before.boundCertificateId)
         assert.deepEqual(after.importHistory, before.importHistory)
