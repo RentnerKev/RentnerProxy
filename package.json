@@ -14,6 +14,7 @@
         "backup:production": "bun scripts/production-backup.ts",
         "restore:production": "bun scripts/production-restore.ts",
         "runtime:reliability": "bun --no-env-file --no-orphans scripts/runtime-reliability/run.ts",
+        "runtime:scale": "bun --no-env-file --no-orphans scripts/runtime-scale/run.ts",
         "production:smoke": "bun --no-orphans tests/production/appliance-compose-smoke.ts",
         "build": "bun --no-orphans scripts/build.ts",
         "build:web": "bun --bun vite build --configLoader native --config web/vite.config.ts && bun build web/src/server/WebSockets/realtimeWebSocket.ts --target=bun --outfile=web/dist/server/realtimeWebSocket.js && tsc --noEmit -p web/tsconfig.json",

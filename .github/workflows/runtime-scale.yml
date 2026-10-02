@@ -1,0 +1,132 @@
+name: Runtime Scale
+
+on:
+    pull_request:
+        branches:
+            - main
+        paths:
+            - '.github/workflows/runtime-scale.yml'
+            - '.github/workflows/runtime-reliability.yml'
+            - '.github/scripts/production-smoke-ci.ts'
+            - 'controller/**'
+            - 'docker/**'
+            - 'docker-compose.yml'
+            - 'scripts/http3-client.ts'
+            - 'scripts/runtime-scale/**'
+            - 'scripts/runtime-reliability/**'
+            - 'scripts/smoke-resources.ts'
+            - 'scripts/*smoke.ts'
+            - 'tests/production/proxy-smoke.ts'
+            - 'web/src/server/**'
+            - 'web/src/config/**'
+            - 'web/src/features/**/validation.ts'
+            - 'web/src/start.ts'
+            - 'web/src/lib/**'
+            - 'package.json'
+            - 'bun.lock'
+    push:
+        branches:
+            - main
+        paths:
+            - '.github/workflows/runtime-scale.yml'
+            - '.github/workflows/runtime-reliability.yml'
+            - '.github/scripts/production-smoke-ci.ts'
+            - 'controller/**'
+            - 'docker/**'
+            - 'docker-compose.yml'
+            - 'scripts/http3-client.ts'
+            - 'scripts/runtime-scale/**'
+            - 'scripts/runtime-reliability/**'
+            - 'scripts/smoke-resources.ts'
+            - 'scripts/*smoke.ts'
+            - 'tests/production/proxy-smoke.ts'
+            - 'web/src/server/**'
+            - 'web/src/config/**'
+            - 'web/src/features/**/validation.ts'
+            - 'web/src/start.ts'
+            - 'web/src/lib/**'
+            - 'package.json'
+            - 'bun.lock'
+    workflow_dispatch:
+        inputs:
+            hosts:
+                description: Bounded number of proxy hosts
+                required: false
+                default: '100'
+                type: string
+            concurrency:
+                description: Bounded concurrent workers
+                required: false
+                default: '4'
+                type: string
+            rounds:
+                description: Bounded workload rounds
+                required: false
+                default: '3'
+                type: string
+            seed:
+                description: Deterministic workload seed
+                required: false
+                default: '70'
+                type: string
+
+permissions:
+    contents: read
+
+concurrency:
+    group: runtime-scale-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+env:
+    BUN_VERSION: 1.4.2
+    RENTNERPROXY_SMOKE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
+
+jobs:
+    runtime-scale:
+        name: Runtime scale / current
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        steps:
+            - name: Prepare sanitized failure report
+              run: |
+                  mkdir -p "$RUNNER_TEMP/runtime-scale-report"
+                  printf '%s\n' '{"summary":{"passed":false},"failure":"runner-not-completed"}' > "$RUNNER_TEMP/runtime-scale-report/report.json"
+
+            - name: Check out exact target commit
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  fetch-depth: 0
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+            - name: Set up Bun
+              id: bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: ${{ env.BUN_VERSION }}
+
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+
+            - name: Run bounded proxy scale fixture
+              env:
+                  HOSTS: ${{ inputs.hosts }}
+                  CONCURRENCY: ${{ inputs.concurrency }}
+                  ROUNDS: ${{ inputs.rounds }}
+                  SEED: ${{ inputs.seed }}
+              run: |
+                  args=(--timeout-seconds 600 --hosts "${HOSTS:-100}" --concurrency "${CONCURRENCY:-4}" --rounds "${ROUNDS:-3}" --seed "${SEED:-70}" --report "$RUNNER_TEMP/runtime-scale-report/report.json")
+                  bun --no-env-file --no-orphans scripts/runtime-scale/run.ts "${args[@]}"
+
+            - name: Remove this run's private Docker resources
+              if: always() && steps.bun.outcome == 'success'
+              run: bun --no-env-file .github/scripts/production-smoke-ci.ts cleanup
+
+            - name: Upload sanitized JSON evidence
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: runtime-scale-${{ github.run_attempt }}
+                  path: ${{ runner.temp }}/runtime-scale-report/report.json
+                  if-no-files-found: error
+                  retention-days: 30

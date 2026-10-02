@@ -190,6 +190,16 @@ hostile load but do not provide availability against a hostile host, exhausted
 disk, PostgreSQL failure, Valkey failure, DDoS, ACME/DNS outage, SMTP outage, or
 upstream failure.
 
+The [bounded scale fixture](scripts/runtime-scale/run.ts) exercises 25-to-100-host growth,
+parallel service mutations and reads, the same-policy partial-update boundary, shipped Beta
+integrations, and recovery of persisted desired intent after a Caddy Admin interruption and
+appliance restart. It verifies active Caddy JSON and traffic alongside durable configuration.
+Its [workflow](.github/workflows/runtime-scale.yml) retains allowlisted reports with exact
+commit/image identities. Resource ceilings and eight unchanged-configuration samples provide
+short regression evidence; they do not demonstrate universal capacity or long-term leak freedom.
+See [the workload contract](README.md#proxy-scale-and-concurrency-checks) and the separate
+[release-duration gate](RELEASING.md#before-publication).
+
 ### T8: CrowdSec is bypassed, leaks a credential, or causes a proxy outage
 
 Disabled mode omits the Caddy handler. Enabled modes use Caddy's effective client address after

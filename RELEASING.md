@@ -26,6 +26,14 @@ release commit, and that each source digest matches the pinned
 evidence. The path-filtered pull request run checks fresh installation and Alpha 6; the weekly
 historical run does not replace this exact-commit release gate.
 
+Run [Runtime Scale](.github/workflows/runtime-scale.yml) on the exact intended release ref with
+100 hosts, concurrency 4, three rounds and seed 70. Retain its run URL and sanitized JSON report;
+require `summary.passed=true` and `steadyStateResources.trendEvidence=comparable`. The report must
+identify the intended commit and built image. This bounded fixture covers configuration growth,
+concurrent management operations, shipped Beta integrations and interruption/restart recovery.
+Its short final resource samples do not replace release-duration evidence or establish a production
+capacity guarantee. See [README.md](README.md#proxy-scale-and-concurrency-checks) for workload bounds.
+
 Run [Runtime Reliability](.github/workflows/runtime-reliability.yml) manually with `profile=long`
 and `source=all` on the exact intended release ref. Retain the run URL and both sanitized JSON
 reports; require `summary.passed=true`, `summary.requestedDurationReached=true` and

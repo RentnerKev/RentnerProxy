@@ -165,6 +165,43 @@ Valkey challenge/rate-limit/realtime state, request logs, sockets, PID files, lo
 
 If restore is interrupted after replacement begins, the persistent journal prevents startup with partially restored state. Stop the appliance if it was manually started and rerun the same backup with `--resume --confirm-replace`. Resume validates that backup again and repeats all replacement steps. Another backup is rejected while the journal is pending. A failure before replacement leaves the running target intact; no automatic destructive retry is attempted. For rollback, use a fresh volume, the pre-upgrade source backup, that source release's restore tools and its exact image digest.
 
+## Proxy scale and concurrency checks
+
+With the same Docker/Bun prerequisites as the reliability fixture, run:
+
+```bash
+bun run runtime:scale -- --hosts 100 --concurrency 4 --rounds 3 --seed 70 --report ./runtime-scale.json
+```
+
+The isolated fixture builds committed `HEAD` and bundles services from that exact revision. A supplied
+`--image` must carry the matching OCI revision. It grows from 25 to 100 proxy hosts, with two domains
+per host, 25 redirects, ten policies, ten wildcard-certificate bindings and a trusted upstream CA.
+Each seeded round changes upstreams, disables/enables hosts and updates redirects while management
+reads and HTTP traffic continue. Independent patches to the same policy must both survive. Final
+persisted fields, IDs, domains, assignments, desired revision, active controller revision, Caddy JSON
+and every route are checked. The feature phase also exercises Basic/IP policies, Forward Auth,
+managed CrowdSec, TLS/HTTP/3, ACME issuance/renewal and a durable certificate-binding retry, plus a
+20-row NPM import and identical-source retry. An unavailable Caddy Admin socket must preserve the
+last active routes; appliance restart must apply all pending intent without losing IDs or import
+history. Deletion removes a subset and checks their absent routes.
+
+Bounds are `--hosts 1..100`, `--concurrency 1..8`, `--rounds 1..5`, uint32 `--seed` (default 70), and
+`--timeout-seconds 30..900` (default 600, excluding cold image setup). Each command and recovery wait
+is also bounded; an admitted phase finishes before cleanup, so the elapsed time can exceed the guard.
+Small overrides proportionally reduce policies, redirects and NPM rows. Reports contain only
+allowlisted counts, timings, resource analyses, commit/image identities and static failure categories;
+the private fixture data is cleaned up. Image builds can require more time than the workload.
+
+The appliance is constrained to 1 GiB, two CPUs and 512 PIDs; PostgreSQL connection evidence is bounded
+at 100. CPU usage is reported, without a throughput target. Configuration growth is measured
+separately from eight samples with unchanged final geometry. Only those final samples are compared
+for connection/FD growth and sustained memory growth, using the existing reliability allowances
+(`4 × concurrency + 16` connections/FDs and 128 MiB sustained memory growth). These short checks can
+detect regressions in this workload; they establish neither universal capacity nor long-term leak
+freedom. The [Runtime Scale workflow](.github/workflows/runtime-scale.yml) runs this bounded case on
+relevant PR/main changes and manually. It has no long-duration profile or schedule. Release soak
+evidence remains a separate check.
+
 ## Runtime reliability checks
 
 With Docker Engine (Linux containers), Docker Compose, Bun 1.4.2, Git history and the repository

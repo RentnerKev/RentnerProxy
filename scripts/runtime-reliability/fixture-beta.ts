@@ -104,7 +104,9 @@ async function importNpm(context: FixtureContext) {
     }
 }
 
-async function executeBetaFixture(context: FixtureContext): Promise<Record<string, unknown>> {
+export async function executeBetaFixture(
+    context: FixtureContext,
+): Promise<Record<string, unknown>> {
     const { command, state, authorized, policies, runtime } = context
     const crowdsec = await import('../../web/src/server/Admin/CrowdSec/crowdsec.service')
     const closeCore = context.close
