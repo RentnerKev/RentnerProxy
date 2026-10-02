@@ -1,5 +1,5 @@
-import useTranslationStore from '../../language/useTranslationStore'
-import type { FormMessageProps } from './Types/form-component-props.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import type { FormMessageProps } from './Types/form-component-props.types.ts'
 
 const toneClassNames = {
     error: 'border-[rgb(166_27_27_/_22%)] bg-danger-bg text-danger-text',

@@ -1,7 +1,7 @@
 import type {
     CertificateErrorCode,
     CertificateOperationStage,
-} from '../../config/certificates.config'
+} from './certificates-config.types.ts'
 
 export const AUDIT_ACTOR_KINDS = ['user', 'anonymous', 'system'] as const
 export type AuditActorKind = (typeof AUDIT_ACTOR_KINDS)[number]

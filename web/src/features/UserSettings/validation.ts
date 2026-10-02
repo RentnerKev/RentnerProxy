@@ -1,15 +1,15 @@
 import { z } from 'zod'
 
-import { AVAILABLE_LANGUAGES } from '../../config/language.config'
-import { PROFILE_IMAGE_MAX_DATA_URL_LENGTH } from '../../config/profile-image.config'
-import { USER_THEME_MODES } from '../../config/theme.config'
-import { navigationGroupPreferenceInputSchema } from '../../config/navigation.config'
-import { credentialPasswordSchema, newPasswordSchema } from '../Auth/Shared/validation'
+import { AVAILABLE_LANGUAGES } from '@/config/language.config.ts'
+import { PROFILE_IMAGE_MAX_DATA_URL_LENGTH } from '@/config/profile-image.config.ts'
+import { USER_THEME_MODES } from '@/config/theme.config.ts'
+import { navigationGroupPreferenceInputSchema } from '@/lib/Navigation/navigationPreferences.ts'
+import { credentialPasswordSchema, newPasswordSchema } from '@/lib/Auth/validation.ts'
 import {
     authenticationResponseSchema,
     opaqueAuthChallengeSchema,
     registrationResponseSchema,
-} from '../Auth/Shared/webauthn.validation'
+} from '@/lib/Auth/webauthn.validation.ts'
 
 export const updateNavigationGroupInputSchema = navigationGroupPreferenceInputSchema
 

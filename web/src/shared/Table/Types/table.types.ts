@@ -1,11 +1,27 @@
 import type { Column, ColumnDef, FilterFn, RowData, SortingState } from '@tanstack/react-table'
 import type { ReactNode } from 'react'
+import type { TablePaginationControlsProps } from '../Components/TablePaginationControls/Types/table-pagination-controls.types.ts'
 
-import type { ClientTable, ClientTableFeatures } from '../clientTable'
+import type { ClientTable, ClientTableFeatures } from '../clientTable.ts'
 
 export interface TableFilterOption {
     readonly label: string
     readonly value: string
+}
+
+export interface DataTableLogicParams {
+    readonly showColumnFilters?: boolean | undefined
+    readonly onToggleColumnFilters?: ((expanded: boolean) => void) | undefined
+}
+
+export interface DataTableLogicResult {
+    readonly state: {
+        readonly searchId: string
+        readonly titleId: string
+        readonly filterPanelId: string
+        readonly filtersExpanded: boolean
+    }
+    readonly handler: { readonly handleToggleFilters: () => void }
 }
 
 export interface TableDateRangeFilterValue {
@@ -53,7 +69,7 @@ export interface TableLoadingBodyProps {
     readonly loadingLabel: string
 }
 
-export interface UseClientTableLogicParams<TData extends RowData> {
+export interface UseClientTableParams<TData extends RowData> {
     readonly data: Array<TData>
     readonly columns: Array<ColumnDef<ClientTableFeatures, TData>>
     readonly getRowId: (row: TData) => string
@@ -62,9 +78,9 @@ export interface UseClientTableLogicParams<TData extends RowData> {
     readonly globalFilterFn?: FilterFn<ClientTableFeatures, TData>
 }
 
-export interface UseClientTableLogicReturn<TData extends RowData> {
+export interface UseClientTableReturn<TData extends RowData> {
+    readonly table: ClientTable<TData>
     readonly state: {
-        readonly table: ClientTable<TData>
         readonly searchInput: string
     }
     readonly handler: {
@@ -100,17 +116,6 @@ export interface TablePaginationProps<TData extends RowData> {
     readonly table: ClientTable<TData>
     readonly itemLabel: string
     readonly pageSizeOptions: ReadonlyArray<number>
-}
-
-export interface TablePaginationControlsProps {
-    readonly pageIndex: number
-    readonly pageSize: number
-    readonly total: number
-    readonly pageSizeOptions: ReadonlyArray<number>
-    readonly itemLabel: string
-    readonly onPageChange: (pageIndex: number) => void
-    readonly onPageSizeChange: (pageSize: number) => void
-    readonly disabled?: boolean
 }
 
 export interface RemoteTablePaginationProps extends Omit<

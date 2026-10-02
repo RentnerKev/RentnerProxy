@@ -2,9 +2,9 @@ import '@tanstack/react-start/server-only'
 
 import { deleteCookie, getCookie, setCookie } from '@tanstack/react-start/server'
 
-import { MFA_CHALLENGE_COOKIE_NAME, SESSION_COOKIE_NAME } from '../../../config/auth.config'
-import { AuthDomainError } from '../Core/errors.server'
-import { isValidOpaqueToken } from '../Core/tokens.server'
+import { MFA_CHALLENGE_COOKIE_NAME, SESSION_COOKIE_NAME } from '@/config/auth.config.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { isValidOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
 
 const sharedCookieOptions = {
     httpOnly: true,

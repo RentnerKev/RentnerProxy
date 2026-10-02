@@ -2,14 +2,14 @@ import '@tanstack/react-start/server-only'
 
 import { createTransport } from 'nodemailer'
 
-import { getSmtpConfiguration } from '../env.server'
-import { getRuntimeManagementOrigin } from '../Configuration/management-origin.server'
-import { createSmtpTransportOptions } from './smtp-options'
+import { getSmtpConfiguration } from '@/server/env.server.ts'
+import { getRuntimeManagementOrigin } from '@/server/Configuration/management-origin.server.ts'
+import { createSmtpTransportOptions } from './smtp-options.ts'
 import {
     createPasswordResetEmailTemplate,
     createUserInviteEmailTemplate,
     type MailTemplate,
-} from './templates'
+} from './templates.ts'
 
 export type SendActionEmailInput = Readonly<{
     to: string

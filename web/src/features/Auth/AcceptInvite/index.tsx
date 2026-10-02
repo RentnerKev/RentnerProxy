@@ -1,12 +1,12 @@
 import { Link } from '@tanstack/react-router'
 
-import AuthShell from '../../../layout/Components/AuthShell'
-import AcceptInviteForm from './Components/AcceptInviteForm'
-import FormMessage from '../../../shared/Forms/FormMessage'
-import useAcceptInviteLogic from './Hooks/useAcceptInviteLogic'
+import AuthShell from '@/shared/Auth/AuthShell/index.tsx'
+import AcceptInviteForm from './Components/AcceptInviteForm.tsx'
+import FormMessage from '@/shared/Forms/FormMessage.tsx'
+import useAcceptInviteLogic from './Hooks/useAcceptInviteLogic.ts'
 
 export default function AcceptInvitePage() {
-    const { state } = useAcceptInviteLogic()
+    const { state, handler, form } = useAcceptInviteLogic()
 
     return (
         <AuthShell
@@ -26,7 +26,7 @@ export default function AcceptInvitePage() {
                     This page needs a valid invitation from your email.
                 </FormMessage>
             ) : (
-                <AcceptInviteForm state={state} />
+                <AcceptInviteForm state={state} form={form} handler={handler} />
             )}
         </AuthShell>
     )

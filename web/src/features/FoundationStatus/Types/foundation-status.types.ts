@@ -1,4 +1,4 @@
-import type { FoundationHealth } from '../../../shared/Types/health.types'
+import type { FoundationHealth } from '@/shared/Types/health.types.ts'
 
 export interface FoundationStatusProps {
     readonly health: FoundationHealth
@@ -28,3 +28,7 @@ export interface FoundationStatusViewModel {
 }
 
 export type FoundationStatusViewProps = FoundationStatusViewModel
+
+export interface FoundationStatusViewLogicResult {
+    state: FoundationStatusViewModel
+}

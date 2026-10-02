@@ -1,8 +1,8 @@
 // oxlint-disable-next-line import/no-unassigned-import -- Audit helpers stay on the server boundary.
 import '@tanstack/react-start/server-only'
 
-import type { AuditAction, AuditResource } from '../../shared/Types/audit-events.types'
-import { recordAuditEventBestEffort } from '../Audit/audit.service'
+import type { AuditAction, AuditResource } from '@/shared/Types/audit-events.types.ts'
+import { recordAuditEventBestEffortService } from '@/server/Audit/audit.service.ts'
 
 function isPermissionDenial(error: unknown): boolean {
     if (!error || typeof error !== 'object') return false
@@ -22,7 +22,7 @@ export function recordMutationFailureBestEffort(input: {
     readonly targetId: string | null
     readonly error: unknown
 }): Promise<void> {
-    return recordAuditEventBestEffort({
+    return recordAuditEventBestEffortService({
         actorUserId: input.actorId,
         actorKind: 'user',
         action: input.action,

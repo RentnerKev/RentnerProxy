@@ -1,8 +1,8 @@
 import { ArrowDown, ArrowRight } from 'lucide-react'
 
-import useTranslationStore from '../../../language/useTranslationStore'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
-import type { ConnectionTraceProps } from '../Types/foundation-status.types'
+import type { ConnectionTraceProps } from '../Types/foundation-status.types.ts'
 
 export default function ConnectionTrace({ connected }: ConnectionTraceProps) {
     const { t } = useTranslationStore()

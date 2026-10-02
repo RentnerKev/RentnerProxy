@@ -1,27 +1,33 @@
+import type { ProxyAccessLogsLogicResult } from '../Types/proxy-access-logs.types.ts'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { PERMISSIONS } from '../../../../config/permissions.config'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import useLiveQuery from '../../../../shared/Live/useLiveQuery'
-import type { ProxyAccessLogsResult } from '../../../../shared/Types/proxy-access-logs.types'
-import { proxyAccessLogsQueryKeys } from '../queryKeys'
-import { getProxyAccessLogsHandler } from '../server'
-import { proxyAccessLogsQuerySchema } from '../validation'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import useLiveQuery from '@/shared/Live/useLiveQuery.ts'
+import type { ProxyAccessLogsResult } from '@/shared/Types/proxy-access-logs.types.ts'
+import {
+    proxyAccessLogsQueryKeys,
+    applyProxyAccessLogsSnapshot,
+} from '@/lib/Admin/ProxyAccessLogs/proxyAccessLogsCache.ts'
+import { getProxyAccessLogsHandler } from '../middleware.ts'
+import { proxyAccessLogsQuerySchema } from '../validation.ts'
 import {
     emptyProxyAccessLogsFilters,
     PROXY_ACCESS_LOGS_DEFAULT_PAGE_SIZE,
     PROXY_ACCESS_LOGS_PAGE_SIZES,
     parseStatusFilter,
     toProxyAccessLogsQuery,
-} from '../Helpers/proxyAccessLogs'
+} from '@/lib/Admin/ProxyAccessLogs/proxyAccessLogs.ts'
 import type {
     ProxyAccessLogsFilterErrors,
     ProxyAccessLogsFilters,
     ProxyAccessLogsPageProps,
-} from '../Types/proxy-access-logs.types'
+} from '../Types/proxy-access-logs.types.ts'
 
-export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogsPageProps) {
+export default function useProxyAccessLogsLogic({
+    permissions,
+}: ProxyAccessLogsPageProps): ProxyAccessLogsLogicResult {
     const { locale } = useTranslationStore()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canView = permissionSet.has(PERMISSIONS.PROXY_ACCESS_LOGS_VIEW)
@@ -61,11 +67,12 @@ export default function useProxyAccessLogsLogic({ permissions }: ProxyAccessLogs
     )
     const onLiveData = useCallback(
         async (data: ProxyAccessLogsResult) => {
-            if (requestRef.current !== request) return
-            const queryKey = proxyAccessLogsQueryKeys.list(request)
-            await queryClient.cancelQueries({ queryKey, exact: true })
-            if (requestRef.current !== request) return
-            queryClient.setQueryData(queryKey, data)
+            await applyProxyAccessLogsSnapshot(
+                queryClient,
+                request,
+                data,
+                () => requestRef.current === request,
+            )
         },
         [queryClient, request],
     )

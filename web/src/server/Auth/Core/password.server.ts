@@ -1,7 +1,7 @@
 import '@tanstack/react-start/server-only'
 
-import { PASSWORD_MAX_LENGTH } from '../../../config/auth.config'
-import { AuthDomainError } from './errors.server'
+import { PASSWORD_MAX_LENGTH } from '@/config/auth.config.ts'
+import { AuthDomainError } from './errors.server.ts'
 
 export function isValidPassword(password: string): boolean {
     return password.length > 0 && password.length <= PASSWORD_MAX_LENGTH

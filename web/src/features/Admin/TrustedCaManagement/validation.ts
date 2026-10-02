@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { MAX_TRUSTED_CA_PEM_BYTES } from '../../../config/trusted-cas.config'
+import { MAX_TRUSTED_CA_PEM_BYTES } from '@/config/trusted-cas.config.ts'
 
 const name = z
     .string()

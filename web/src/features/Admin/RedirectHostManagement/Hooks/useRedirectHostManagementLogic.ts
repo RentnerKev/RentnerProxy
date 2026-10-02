@@ -1,11 +1,13 @@
+import type { RedirectHostManagementLogicResult } from '../Types/management-logic.types.ts'
+import { invalidateRedirectHostManagementRuntimeStatusCache } from '@/lib/Admin/RedirectHostManagement/redirectHostManagementCache.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
-import { PERMISSIONS } from '../../../../config/permissions.config'
-import useLiveInvalidation from '../../../../shared/Live/useLiveInvalidation'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import useLiveInvalidation from '@/shared/Live/useLiveInvalidation.ts'
 import { toast } from '@rentnerkev/toasts/toast'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import type { RedirectHostSummary } from '../../../../shared/Types/redirect-hosts.types'
-import { redirectHostManagementQueryKeys } from '../queryKeys'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import type { RedirectHostSummary } from '@/shared/Types/redirect-hosts.types.ts'
+import { redirectHostManagementQueryKeys } from '@/lib/Admin/RedirectHostManagement/redirectHostManagementCache.ts'
 import {
     applyRedirectConfigurationHandler,
     deleteRedirectHostHandler,
@@ -13,12 +15,12 @@ import {
     enableRedirectHostHandler,
     getRedirectHostsHandler,
     getRedirectRuntimeStatusHandler,
-} from '../server'
-import type { RedirectHostManagementPageProps } from '../Types/redirect-host-management.types'
+} from '../middleware.ts'
+import type { RedirectHostManagementPageProps } from '../Types/redirect-host-management.types.ts'
 const EMPTY_REDIRECT_HOSTS: RedirectHostSummary[] = []
 export default function useRedirectHostManagementLogic({
     permissions,
-}: RedirectHostManagementPageProps) {
+}: RedirectHostManagementPageProps): RedirectHostManagementLogicResult {
     const { t } = useTranslationStore()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canView = permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_VIEW)
@@ -52,17 +54,13 @@ export default function useRedirectHostManagementLogic({
                 queryKey: redirectHostManagementQueryKeys.all,
                 exact: true,
             }),
-            queryClient.invalidateQueries({
-                queryKey: redirectHostManagementQueryKeys.runtimeStatus,
-            }),
+            invalidateRedirectHostManagementRuntimeStatusCache(queryClient),
         ])
     }, [queryClient])
     const applyMutation = useMutation({
         mutationFn: () => applyRedirectConfigurationHandler(),
         onSuccess: async (result) => {
-            await queryClient.invalidateQueries({
-                queryKey: redirectHostManagementQueryKeys.runtimeStatus,
-            })
+            await invalidateRedirectHostManagementRuntimeStatusCache(queryClient)
             if (result.success)
                 toast.success(t(result.message), { title: t('toast.titles.success') })
             else toast.error(t(result.message), { title: t('toast.titles.error') })

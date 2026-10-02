@@ -2,11 +2,11 @@ import '@tanstack/react-start/server-only'
 
 import { lt, sql } from 'drizzle-orm'
 
-import { auditEvents } from '../../db/schema'
-import type { AuditEventInput, AuditMetadata } from '../../shared/Types/audit-events.types'
-import { auditEventInputSchema } from '../../features/Admin/AuditLogs/validation'
-import { getAuthDatabase, type AuthTransaction } from '../Auth/Core/database.server'
-import { AuthDomainError } from '../Auth/Core/errors.server'
+import { auditEvents } from '@/db/schema.ts'
+import type { AuditEventInput, AuditMetadata } from '@/shared/Types/audit-events.types.ts'
+import { auditEventInputSchema } from '@/features/Admin/AuditLogs/validation.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 
 export const AUDIT_RETENTION_DAYS = 90
 export const AUDIT_MAX_ROWS = 100_000
@@ -36,7 +36,7 @@ function parseEventInput(input: AuditEventInput): AuditEventInput {
     }
 }
 
-export async function appendAuditEventInTransaction(
+export async function appendAuditEventInTransactionService(
     transaction: AuthTransaction,
     input: AuditEventInput,
 ): Promise<void> {
@@ -55,7 +55,7 @@ export async function appendAuditEventInTransaction(
     await pruneAuditEventsInTransaction(transaction)
 }
 
-export async function appendAuditEventsInTransaction(
+export async function appendAuditEventsInTransactionService(
     transaction: AuthTransaction,
     inputs: readonly AuditEventInput[],
 ): Promise<void> {
@@ -77,10 +77,10 @@ export async function appendAuditEventsInTransaction(
     await pruneAuditEventsInTransaction(transaction)
 }
 
-export async function recordAuditEventBestEffort(input: AuditEventInput): Promise<void> {
+export async function recordAuditEventBestEffortService(input: AuditEventInput): Promise<void> {
     try {
         await getAuthDatabase().transaction(async (transaction) => {
-            await appendAuditEventInTransaction(transaction, input)
+            await appendAuditEventInTransactionService(transaction, input)
         })
     } catch {}
 }

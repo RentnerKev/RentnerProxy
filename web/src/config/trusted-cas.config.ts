@@ -7,5 +7,3 @@ export const TRUSTED_CA_ERROR_CODES = [
     'trusted_ca_in_use',
     'controller_unavailable',
 ] as const
-
-export type TrustedCaErrorCode = (typeof TRUSTED_CA_ERROR_CODES)[number]

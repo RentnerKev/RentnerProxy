@@ -1,0 +1,43 @@
+import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
+import { ArrowUp } from 'lucide-react'
+
+import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
+import { APP_VERSION } from '@/lib/ApplicationVersion/version.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import useApplicationVersionLogic from '@/features/ApplicationVersion/Hooks/useApplicationVersionLogic.ts'
+
+const versionWithoutPrefix = APP_VERSION.replace(/^v/, '')
+const displayVersion =
+    versionWithoutPrefix.startsWith('dev-') || versionWithoutPrefix.includes('-dev')
+        ? versionWithoutPrefix
+        : `v${versionWithoutPrefix}`
+
+export default function ApplicationVersion() {
+    const { t } = useTranslationStore()
+    const { state } = useApplicationVersionLogic()
+    const updateLabel = t('shell.updateAvailable', { version: state.data?.latestVersion })
+
+    return (
+        <div className="flex min-h-4 shrink-0 items-center justify-start gap-1.5 text-[0.65rem] leading-4 text-mist-400 shell:-mt-5 shell:-ml-4">
+            <span
+                aria-label={t('shell.systemVersion', { version: displayVersion })}
+                className="font-mono tabular-nums"
+            >
+                {displayVersion}
+            </span>
+            {state.data?.latestVersion ? (
+                <CustomTooltip {...TOOLTIP_DEFAULT_PROPS} content={updateLabel}>
+                    <a
+                        href="https://github.com/RentnerKev/RentnerProxy/releases"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={updateLabel}
+                        className="inline-flex size-4 items-center justify-center rounded text-brand-400 hover:bg-brand-400/15 focus-visible:outline-2 focus-visible:outline-brand-400"
+                    >
+                        <ArrowUp className="size-3.5" aria-hidden="true" />
+                    </a>
+                </CustomTooltip>
+            ) : null}
+        </div>
+    )
+}

@@ -1,25 +1,28 @@
-import { auditAuthOperation } from '../Core/audit-auth.server'
+import { auditAuthOperation } from '@/server/Auth/Core/audit-auth.server.ts'
 import '@tanstack/react-start/server-only'
 
 import { and, eq, gt, isNull, sql } from 'drizzle-orm'
 
-import { ACTIVE_OWNER_ADVISORY_LOCK_ID, USER_INVITE_DURATION_MS } from '../../../config/auth.config'
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { userInvites, users } from '../../../db/schema'
-import type { TokenConsumptionResult, TokenDelivery } from '../Core/Types/auth-service.types'
-import { requirePermissionService } from '../Access/authorization.service'
-import { getCurrentSessionService } from '../Access/sessions.service'
-import { getAuthDatabase } from '../Core/database.server'
-import { AuthDomainError } from '../Core/errors.server'
-import { isUniqueConstraintViolation } from '../Core/database-errors.server'
+import { ACTIVE_OWNER_ADVISORY_LOCK_ID, USER_INVITE_DURATION_MS } from '@/config/auth.config.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { userInvites, users } from '@/db/schema.ts'
+import type {
+    TokenConsumptionResult,
+    TokenDelivery,
+} from '@/server/Auth/Core/Types/auth-service.types.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { getCurrentSessionService } from '@/server/Auth/Access/sessions.service.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { isUniqueConstraintViolation } from '@/server/Auth/Core/database-errors.server.ts'
 import {
     normalizeDisplayName,
     normalizeEmail,
     normalizePendingDisplayName,
     PENDING_DISPLAY_NAME,
-} from '../Core/identity.server'
-import { hashPassword } from '../Core/password.server'
-import { enforceInviteRateLimit } from '../../valkey/rate-limiter.service'
+} from '@/server/Auth/Core/identity.server.ts'
+import { hashPassword } from '@/server/Auth/Core/password.server.ts'
+import { enforceInviteRateLimit } from '@/server/valkey/rate-limiter.service.ts'
 import {
     assertRoleAssignmentAllowedInTransaction,
     getUserRoleKeysInTransaction,
@@ -27,12 +30,16 @@ import {
     loadRolesByKeysInTransaction,
     replaceUserRolesInTransaction,
     requirePermissionInTransaction,
-} from '../Access/rbac.service'
-import { createOpaqueToken, hashOpaqueToken, isValidOpaqueToken } from '../Core/tokens.server'
+} from '@/server/Auth/Access/rbac.service.ts'
 import {
-    appendAuditEventInTransaction,
-    recordAuditEventBestEffort,
-} from '../../Audit/audit.service'
+    createOpaqueToken,
+    hashOpaqueToken,
+    isValidOpaqueToken,
+} from '@/server/Auth/Core/tokens.server.ts'
+import {
+    appendAuditEventInTransactionService,
+    recordAuditEventBestEffortService,
+} from '@/server/Audit/audit.service.ts'
 
 export async function issueInviteService(input: {
     displayName?: string | undefined
@@ -44,7 +51,7 @@ export async function issueInviteService(input: {
             if (error instanceof AuthDomainError && error.code === 'permission_denied') {
                 const session = await getCurrentSessionService().catch(() => null)
                 if (session) {
-                    await recordAuditEventBestEffort({
+                    await recordAuditEventBestEffortService({
                         actorUserId: session.user.id,
                         actorKind: 'user',
                         action: 'create',
@@ -162,7 +169,7 @@ export async function issueInviteService(input: {
                 tokenHash,
                 userId,
             })
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'create',
@@ -180,7 +187,7 @@ export async function issueInviteService(input: {
             }
         })
     } catch (error) {
-        await recordAuditEventBestEffort({
+        await recordAuditEventBestEffortService({
             actorUserId: actor.id,
             actorKind: 'user',
             action: 'create',
@@ -303,7 +310,7 @@ export async function acceptInviteService(input: {
                     )
                 }
 
-                await appendAuditEventInTransaction(transaction, {
+                await appendAuditEventInTransactionService(transaction, {
                     actorUserId: user.id,
                     actorKind: 'user',
                     action: 'accept',

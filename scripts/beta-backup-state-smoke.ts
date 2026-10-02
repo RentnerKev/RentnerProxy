@@ -7,7 +7,7 @@ import type { Command } from './alpha1-upgrade-fixture'
 import {
     forwardAuthInputSchema,
     type ForwardAuthConfiguration,
-} from '../web/src/shared/Helpers/forwardAuth'
+} from '../web/src/lib/ForwardAuth/forwardAuth.ts'
 
 interface ImportResultItem {
     readonly kind: 'proxy-host'

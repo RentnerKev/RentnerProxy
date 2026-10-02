@@ -6,7 +6,7 @@ import {
     CROWDSEC_API_URL_MAX_LENGTH,
     CROWDSEC_ENROLLMENT_KEY_MAX_LENGTH,
     CROWDSEC_MODES,
-} from '../../../config/crowdsec.config'
+} from '@/config/crowdsec.config.ts'
 
 export const crowdSecModeSchema = z.enum(CROWDSEC_MODES)
 

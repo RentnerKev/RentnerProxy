@@ -1,21 +1,28 @@
-import { auditAuthOperation } from '../Core/audit-auth.server'
+import { auditAuthOperation } from '@/server/Auth/Core/audit-auth.server.ts'
 import '@tanstack/react-start/server-only'
 
 import { and, eq, gt, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 
-import { PASSWORD_RESET_DURATION_MS } from '../../../config/auth.config'
-import { passwordResetTokens, users } from '../../../db/schema'
-import { sendPasswordResetEmailService } from '../../Mail/mail.service'
-import type { TokenConsumptionResult, TokenDelivery } from '../Core/Types/auth-service.types'
-import { getAuthDatabase } from '../Core/database.server'
-import { normalizeEmail } from '../Core/identity.server'
-import { hashPassword } from '../Core/password.server'
-import { revokeAllUserSessionsInTransaction } from '../Access/sessions.service'
-import { createOpaqueToken, hashOpaqueToken, isValidOpaqueToken } from '../Core/tokens.server'
+import { PASSWORD_RESET_DURATION_MS } from '@/config/auth.config.ts'
+import { passwordResetTokens, users } from '@/db/schema.ts'
+import { sendPasswordResetEmailService } from '@/server/Mail/mail.service.ts'
+import type {
+    TokenConsumptionResult,
+    TokenDelivery,
+} from '@/server/Auth/Core/Types/auth-service.types.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { normalizeEmail } from '@/server/Auth/Core/identity.server.ts'
+import { hashPassword } from '@/server/Auth/Core/password.server.ts'
+import { revokeAllUserSessionsInTransaction } from '@/server/Auth/Access/sessions.service.ts'
 import {
-    appendAuditEventInTransaction,
-    recordAuditEventBestEffort,
-} from '../../Audit/audit.service'
+    createOpaqueToken,
+    hashOpaqueToken,
+    isValidOpaqueToken,
+} from '@/server/Auth/Core/tokens.server.ts'
+import {
+    appendAuditEventInTransactionService,
+    recordAuditEventBestEffortService,
+} from '@/server/Audit/audit.service.ts'
 
 async function createPasswordResetDelivery(emailInput: string): Promise<TokenDelivery | null> {
     let email: string
@@ -76,7 +83,7 @@ export async function issuePasswordResetService(emailInput: string): Promise<Tok
 }
 
 export async function requestPasswordResetService(emailInput: string): Promise<void> {
-    await recordAuditEventBestEffort({
+    await recordAuditEventBestEffortService({
         actorUserId: null,
         actorKind: 'anonymous',
         action: 'request',
@@ -188,7 +195,7 @@ export async function consumePasswordResetService(input: {
                     .set({ passwordHash, updatedAt: now })
                     .where(eq(users.id, user.id))
                 await revokeAllUserSessionsInTransaction(transaction, user.id)
-                await appendAuditEventInTransaction(transaction, {
+                await appendAuditEventInTransactionService(transaction, {
                     actorUserId: user.id,
                     actorKind: 'user',
                     action: 'reset',

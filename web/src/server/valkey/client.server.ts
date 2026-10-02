@@ -2,8 +2,8 @@ import '@tanstack/react-start/server-only'
 
 import { RedisClient } from 'bun'
 
-import { getValkeyUrl } from '../env.server'
-import type { CachedValkeyClient, ValkeyGlobal } from './Types/valkey.types'
+import { getValkeyUrl } from '@/server/env.server.ts'
+import type { CachedValkeyClient, ValkeyGlobal } from './Types/valkey.types.ts'
 
 const CONNECTION_TIMEOUT_MS = 1_200
 

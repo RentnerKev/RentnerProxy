@@ -2,23 +2,23 @@ import '@tanstack/react-start/server-only'
 
 import { and, eq, inArray, isNotNull, ne, or } from 'drizzle-orm'
 
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { accessPolicies, hostDomains, proxyHosts } from '../../../db/schema'
-import type { ProxyHostSummary } from '../../../shared/Types/proxy-hosts.types'
-import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
-import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
-import type { AuthTransaction } from '../../Auth/Core/database.server'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { accessPolicies, hostDomains, proxyHosts } from '@/db/schema.ts'
+import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
+import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
 import {
     createProxyHostInputSchema,
     updateProxyHostInputSchema,
     type CreateProxyHostInput,
     type UpdateProxyHostInput,
-} from '../../../features/Admin/ProxyHostManagement/validation'
-import { ProxyHostDomainError } from './proxy-hosts.errors'
-import { normalizeUpstreamTlsSettings } from './upstream-tls.service'
-import { validateTrustedCaAssignmentInTransaction } from '../TrustedCaManagement/trusted-cas.service'
-import { validateCertificateAssignmentInTransaction } from '../CertificateManagement/certificates.service'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+} from '@/features/Admin/ProxyHostManagement/validation.ts'
+import { ProxyHostDomainError } from './proxy-hosts.errors.ts'
+import { normalizeUpstreamTlsSettings } from './upstream-tls.service.ts'
+import { validateTrustedCaAssignmentInTransaction } from '@/server/Admin/TrustedCaManagement/trusted-cas.service.ts'
+import { validateCertificateAssignmentInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 
 type ProxyHostRow = {
     id: string
@@ -222,7 +222,7 @@ export async function createProxyHostInTransaction(
         .insert(hostDomains)
         .values(domains.map((domain) => ({ domain, proxyHostId: proxyHost.id })))
 
-    await appendAuditEventInTransaction(transaction, {
+    await appendAuditEventInTransactionService(transaction, {
         actorUserId: actorId,
         actorKind: 'user',
         action: 'create',
@@ -335,7 +335,7 @@ export async function updateProxyHostInTransaction(
 
     await replaceDomainsInTransaction(transaction, proxyHost.id, domains)
 
-    await appendAuditEventInTransaction(transaction, {
+    await appendAuditEventInTransactionService(transaction, {
         actorUserId: actorId,
         actorKind: 'user',
         action: 'update',

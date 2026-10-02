@@ -1,6 +1,6 @@
 export const PROFILE_IMAGE_ACCEPTED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
-export const PROFILE_IMAGE_ACCEPT = PROFILE_IMAGE_ACCEPTED_MIME_TYPES.join(',')
+export const PROFILE_IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp'
 export const PROFILE_IMAGE_CLIENT_OUTPUT_SIZE = 512
 export const PROFILE_IMAGE_SERVER_OUTPUT_SIZE = 256
 export const PROFILE_IMAGE_MAX_SOURCE_BYTES = 8 * 1_024 * 1_024

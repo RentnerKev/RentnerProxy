@@ -13,15 +13,15 @@ import {
     CERTIFICATE_SOURCES,
     CERTIFICATE_STORED_STATUSES,
     MAX_CERTIFICATE_DOMAINS,
-} from '../../config/certificates.config'
+} from '@/config/certificates.config.ts'
 import type {
     ImportCertificateInput,
     RequestCertificateInput,
-} from '../../features/Admin/CertificateManagement/validation'
-import { normalizeCertificateDomain } from '../../features/Admin/CertificateManagement/Helpers/certificateValidation'
-import type { CertificateEventPage } from '../../shared/Types/certificates.types'
-import { CertificateDomainError } from '../Admin/CertificateManagement/certificates.errors'
-import { controllerRequest, CONTROLLER_APPLY_TIMEOUT_MS } from './controller.server'
+} from '@/features/Admin/CertificateManagement/validation.ts'
+import { normalizeCertificateDomain } from '@/lib/Admin/CertificateManagement/certificateValidation.ts'
+import type { CertificateEventPage } from '@/shared/Types/certificates.types.ts'
+import { CertificateDomainError } from '@/server/Admin/CertificateManagement/certificates.errors.ts'
+import { controllerRequest, CONTROLLER_APPLY_TIMEOUT_MS } from './controller.server.ts'
 
 const timestamp = z
     .string()

@@ -1,5 +1,5 @@
-import useTranslationStore from '../../../../language/useTranslationStore'
-import type { RedirectRuntimeStatus } from '../Types/redirect-host-management.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import type { RedirectRuntimeStatus } from '../Types/redirect-host-management.types.ts'
 interface Props {
     readonly canApply: boolean
     readonly isError?: boolean

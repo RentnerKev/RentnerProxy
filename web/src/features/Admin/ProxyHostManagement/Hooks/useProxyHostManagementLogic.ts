@@ -1,13 +1,16 @@
+import { invalidateAccessPoliciesCache } from '@/lib/Admin/AccessPolicyManagement/accessPolicyManagementCache.ts'
+import type { ProxyHostManagementLogicResult } from '../Types/management-logic.types.ts'
+import { invalidateProxyHostManagementRuntimeStatusCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
+import { invalidateProxyHostManagementCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 
-import { PERMISSIONS } from '../../../../config/permissions.config'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { toast } from '@rentnerkev/toasts/toast'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
-import useLiveInvalidation from '../../../../shared/Live/useLiveInvalidation'
-import { accessPolicyManagementQueryKeys } from '../../AccessPolicyManagement/queryKeys'
-import { proxyHostManagementQueryKeys } from '../queryKeys'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
+import useLiveInvalidation from '@/shared/Live/useLiveInvalidation.ts'
+import { proxyHostManagementQueryKeys } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import {
     applyProxyConfigurationHandler,
     deleteProxyHostHandler,
@@ -15,12 +18,14 @@ import {
     enableProxyHostHandler,
     getProxyRuntimeStatusHandler,
     getProxyHostsHandler,
-} from '../server'
-import type { ProxyHostManagementPageProps } from '../Types/proxy-host-management.types'
+} from '../middleware.ts'
+import type { ProxyHostManagementPageProps } from '../Types/proxy-host-management.types.ts'
 
 const EMPTY_PROXY_HOSTS: ProxyHostSummary[] = []
 
-export default function useProxyHostManagementLogic({ permissions }: ProxyHostManagementPageProps) {
+export default function useProxyHostManagementLogic({
+    permissions,
+}: ProxyHostManagementPageProps): ProxyHostManagementLogicResult {
     const { t } = useTranslationStore()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canView = permissionSet.has(PERMISSIONS.PROXY_HOSTS_VIEW)
@@ -55,16 +60,14 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
                 queryKey: proxyHostManagementQueryKeys.all,
                 exact: true,
             }),
-            queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.runtimeStatus }),
-            queryClient.invalidateQueries({ queryKey: accessPolicyManagementQueryKeys.all }),
+            invalidateProxyHostManagementRuntimeStatusCache(queryClient),
+            invalidateAccessPoliciesCache(queryClient),
         ])
     }, [queryClient])
     const applyMutation = useMutation({
         mutationFn: () => applyProxyConfigurationHandler(),
         onSuccess: async (result) => {
-            await queryClient.invalidateQueries({
-                queryKey: proxyHostManagementQueryKeys.runtimeStatus,
-            })
+            await invalidateProxyHostManagementRuntimeStatusCache(queryClient)
             if (!result.success) {
                 toast.error(t(result.message), { title: t('toast.titles.error') })
                 return
@@ -230,7 +233,7 @@ export default function useProxyHostManagementLogic({ permissions }: ProxyHostMa
     }, [applyMutation])
     const handleCertificateRequestSuccess = useCallback(() => {
         setCertificateRequestTarget(null)
-        void queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.all })
+        void invalidateProxyHostManagementCache(queryClient)
     }, [queryClient])
     const handleFormSuccess = useCallback(() => {
         setShowCreate(false)

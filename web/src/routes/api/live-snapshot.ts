@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { createServerOnlyFn } from '@tanstack/react-start'
 
-import { getLiveSnapshotResponse } from '../../websockets/Server/realtimeSnapshots.service'
+import { getLiveSnapshotResponse } from '@/server/WebSockets/realtimeSnapshots.service.ts'
 
 const readSnapshot = createServerOnlyFn(getLiveSnapshotResponse)
 

@@ -2,18 +2,15 @@ import '@tanstack/react-start/server-only'
 
 import { eq } from 'drizzle-orm'
 
-import { CROWDSEC_DASHBOARD_DEMO_KEY } from '../../../config/crowdsec.config'
-import { systemSettings } from '../../../db/schema'
+import { CROWDSEC_DASHBOARD_DEMO_KEY } from '@/config/crowdsec.config.ts'
+import { systemSettings } from '@/db/schema.ts'
 import {
     filterCrowdSecDemoDashboard,
     isLocalCrowdSecDemoEnvironment,
-} from '../../../features/Admin/CrowdSec/Helpers/demoDashboard'
-import type {
-    CrowdSecDashboard,
-    CrowdSecDashboardQuery,
-} from '../../../shared/Types/crowdsec.types'
-import { getAuthDatabase } from '../../Auth/Core/database.server'
-import { crowdSecDashboardSchema } from '../../Foundation/controller.server'
+} from '@/lib/Admin/CrowdSec/demoDashboard.ts'
+import type { CrowdSecDashboard, CrowdSecDashboardQuery } from '@/shared/Types/crowdsec.types.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { crowdSecDashboardSchema } from '@/server/Foundation/controller.server.ts'
 
 export async function getLocalDemoDashboard(
     query: CrowdSecDashboardQuery,

@@ -1,66 +1,17 @@
+import ImportItemDetails from '@/features/Admin/NpmImport/Components/ImportItemDetails/index.tsx'
+import type { MigrationSource } from './Types/migration.types.ts'
 import { FileInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 
-import { TOOLTIP_DEFAULT_PROPS } from '../../../config/tooltip.config'
-import useTranslationStore from '../../../language/useTranslationStore'
-import PageHeader from '../../../shared/Management/PageHeader'
-import { useMigration, type MigrationSource } from './Hooks/useMigration'
-import type { NpmImportResultItem, NpmPreviewItem } from '../NpmImport/Types/npm-import.types'
-
-function reasonText(reason: string, t: (key: string) => string): string {
-    const [code, detail] = reason.split(':', 2)
-    const translated = t(`admin.npmImport.reasons.${code}`)
-    return detail ? `${translated} (${detail})` : translated
-}
-
-function itemDetails(item: NpmPreviewItem | NpmImportResultItem, t: (key: string) => string) {
-    return (
-        <li
-            key={`${item.kind}:${item.sourceId}`}
-            className="border-b border-border py-3 last:border-0"
-        >
-            <div className="flex flex-wrap items-center gap-2">
-                <strong className="text-ink">{item.label}</strong>
-                <span className="text-xs text-muted">{t(`admin.npmImport.kind.${item.kind}`)}</span>
-                <span className="rounded-full border border-border px-2 py-0.5 text-xs font-bold text-ink-soft">
-                    {t(`admin.npmImport.status.${item.status}`)}
-                </span>
-                {'outcome' in item ? (
-                    <span className="text-xs font-bold text-ink-soft">
-                        {t(`admin.npmImport.${item.outcome}`)}
-                    </span>
-                ) : null}
-            </div>
-            {item.reasons.length > 0 ? (
-                <ul className="mt-1 list-disc pl-5 text-sm text-ink-soft">
-                    {item.reasons.map((reason) => (
-                        <li key={reason}>{reasonText(reason, t)}</li>
-                    ))}
-                </ul>
-            ) : null}
-        </li>
-    )
-}
+import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import PageHeader from '@/shared/Management/PageHeader.tsx'
+import { useMigrationLogic } from './Hooks/useMigrationLogic.ts'
 
 export default function MigrationPage() {
     const { t } = useTranslationStore()
-    const {
-        source,
-        selectSource,
-        exporting,
-        downloadExport,
-        file,
-        preview,
-        result,
-        history,
-        busy,
-        error,
-        selectFile,
-        discardPreview,
-        previewSource,
-        applySource,
-    } = useMigration()
+    const { state, handler } = useMigrationLogic()
 
     return (
         <div className="grid gap-5">
@@ -85,14 +36,16 @@ export default function MigrationPage() {
                         <button
                             type="button"
                             className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"
-                            disabled={exporting}
-                            onClick={() => void downloadExport()}
+                            disabled={state.exporting}
+                            onClick={() => void handler.downloadExport()}
                         >
-                            {exporting ? t('common.working') : t('admin.migration.exportButton')}
+                            {state.exporting
+                                ? t('common.working')
+                                : t('admin.migration.exportButton')}
                         </button>
                     </CustomTooltip>
                 </div>
-                {error === 'export_failed' ? (
+                {state.error === 'export_failed' ? (
                     <p role="alert" className="mt-4 text-sm text-danger-text">
                         {t('admin.migration.errors.export_failed')}
                     </p>
@@ -116,9 +69,9 @@ export default function MigrationPage() {
                         id="migration-source"
                         aria-label={t('admin.migration.sourceLabel')}
                         aria-describedby="migration-source-help"
-                        value={source}
-                        disabled={busy !== null}
-                        onValueChange={selectSource}
+                        value={state.source}
+                        disabled={state.busy !== null}
+                        onValueChange={handler.selectSource}
                         options={[
                             {
                                 value: 'rentnerproxy',
@@ -130,7 +83,7 @@ export default function MigrationPage() {
                     />
                 </div>
                 <p id="migration-source-help" className="mt-3 text-sm text-ink-soft">
-                    {t(`admin.migration.sourceHelp.${source}`)}
+                    {t(`admin.migration.sourceHelp.${state.source}`)}
                 </p>
                 <div className="mt-5 grid gap-2">
                     <label
@@ -140,20 +93,20 @@ export default function MigrationPage() {
                         {t('admin.migration.fileLabel')}
                     </label>
                     <FileInput
-                        key={source}
+                        key={state.source}
                         id="migration-file"
                         aria-describedby="migration-source-help"
                         type="file"
                         accept={
-                            source === 'npm'
+                            state.source === 'npm'
                                 ? '.sqlite,.db,application/vnd.sqlite3'
-                                : source === 'zoraxy'
+                                : state.source === 'zoraxy'
                                   ? '.zip,application/zip'
                                   : '.json,application/json'
                         }
-                        disabled={busy !== null}
+                        disabled={state.busy !== null}
                         onChange={(event) => {
-                            selectFile(event.currentTarget.files?.[0] ?? null)
+                            handler.selectFile(event.currentTarget.files?.[0] ?? null)
                         }}
                     />
                 </div>
@@ -161,19 +114,21 @@ export default function MigrationPage() {
                     <button
                         type="button"
                         className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
-                        disabled={!file || busy !== null}
-                        onClick={() => void previewSource()}
+                        disabled={!state.file || state.busy !== null}
+                        onClick={() => void handler.previewSource()}
                     >
-                        {busy === 'preview' ? t('common.working') : t('admin.npmImport.preview')}
+                        {state.busy === 'preview'
+                            ? t('common.working')
+                            : t('admin.npmImport.preview')}
                     </button>
                 </div>
-                {error && error !== 'export_failed' ? (
+                {state.error && state.error !== 'export_failed' ? (
                     <p role="alert" className="mt-4 text-sm text-danger-text">
-                        {t(`admin.migration.errors.${error}`)}
+                        {t(`admin.migration.errors.${state.error}`)}
                     </p>
                 ) : null}
             </section>
-            {preview ? (
+            {state.preview ? (
                 <section
                     className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
                     aria-labelledby="npm-preview-title"
@@ -183,7 +138,7 @@ export default function MigrationPage() {
                     </h2>
                     <p className="mt-2 text-sm text-ink-soft">{t('admin.migration.previewHelp')}</p>
                     <div className="mt-4 flex flex-wrap gap-2" aria-live="polite">
-                        {Object.entries(preview.counts).map(([status, count]) => (
+                        {Object.entries(state.preview.counts).map(([status, count]) => (
                             <span
                                 key={status}
                                 className="inline-flex items-center rounded-full border border-success-text/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text"
@@ -197,7 +152,12 @@ export default function MigrationPage() {
                             {t('admin.npmImport.details')}
                         </summary>
                         <ul className="mt-2 max-h-[32rem] overflow-y-auto">
-                            {preview.items.map((item) => itemDetails(item, t))}
+                            {state.preview.items.map((item) => (
+                                <ImportItemDetails
+                                    key={`${item.kind}:${item.sourceId}`}
+                                    item={item}
+                                />
+                            ))}
                         </ul>
                     </details>
                     <div className="mt-5 flex flex-wrap gap-3">
@@ -205,24 +165,27 @@ export default function MigrationPage() {
                             type="button"
                             className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
                             disabled={
-                                busy !== null || preview.counts.ready + preview.counts.partial === 0
+                                state.busy !== null ||
+                                state.preview.counts.ready + state.preview.counts.partial === 0
                             }
-                            onClick={() => void applySource()}
+                            onClick={() => void handler.applySource()}
                         >
-                            {busy === 'apply' ? t('common.working') : t('admin.npmImport.apply')}
+                            {state.busy === 'apply'
+                                ? t('common.working')
+                                : t('admin.npmImport.apply')}
                         </button>
                         <button
                             type="button"
                             className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"
-                            disabled={busy !== null}
-                            onClick={discardPreview}
+                            disabled={state.busy !== null}
+                            onClick={handler.discardPreview}
                         >
                             {t('common.cancel')}
                         </button>
                     </div>
                 </section>
             ) : null}
-            {result ? (
+            {state.result ? (
                 <section
                     className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
                     aria-live="polite"
@@ -231,29 +194,36 @@ export default function MigrationPage() {
                         {t('admin.npmImport.resultTitle')}
                     </h2>
                     <p className="mt-2 text-sm text-ink-soft">
-                        {t(`admin.migration.source.${source}`)}:{' '}
+                        {t(`admin.migration.source.${state.source}`)}:{' '}
                         {t('admin.npmImport.resultSummary', {
-                            imported: result.imported,
-                            skipped: result.skipped,
-                            failed: result.failed,
-                            runtime: t(`admin.npmImport.runtime.${result.runtimeStatus}`),
+                            imported: state.result.imported,
+                            skipped: state.result.skipped,
+                            failed: state.result.failed,
+                            runtime: t(`admin.npmImport.runtime.${state.result.runtimeStatus}`),
                         })}
                     </p>
                     <details className="mt-4">
                         <summary className="cursor-pointer font-bold text-ink">
                             {t('admin.npmImport.details')}
                         </summary>
-                        <ul className="mt-2">{result.items.map((item) => itemDetails(item, t))}</ul>
+                        <ul className="mt-2">
+                            {state.result.items.map((item) => (
+                                <ImportItemDetails
+                                    key={`${item.kind}:${item.sourceId}`}
+                                    item={item}
+                                />
+                            ))}
+                        </ul>
                     </details>
                 </section>
             ) : null}
-            {history.length > 0 ? (
+            {state.history.length > 0 ? (
                 <section className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface">
                     <h2 className="text-lg font-extrabold text-ink">
                         {t('admin.npmImport.history')}
                     </h2>
                     <ul className="mt-3 grid gap-2 text-sm text-ink-soft">
-                        {history.map((entry) => (
+                        {state.history.map((entry) => (
                             <li key={entry.runId}>
                                 <details>
                                     <summary className="cursor-pointer">
@@ -271,7 +241,12 @@ export default function MigrationPage() {
                                         {t(`admin.npmImport.runtime.${entry.runtimeStatus}`)}
                                     </summary>
                                     <ul className="mt-2 pl-4">
-                                        {entry.items.map((item) => itemDetails(item, t))}
+                                        {entry.items.map((item) => (
+                                            <ImportItemDetails
+                                                key={`${item.kind}:${item.sourceId}`}
+                                                item={item}
+                                            />
+                                        ))}
                                     </ul>
                                 </details>
                             </li>

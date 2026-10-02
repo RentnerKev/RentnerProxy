@@ -1,12 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { handleMigrationGet, handleMigrationPost } from '../../features/Admin/Migration/server'
+import {
+    handleMigrationGetHandler,
+    handleMigrationPostHandler,
+} from '@/features/Admin/Migration/middleware.ts'
 
 export const Route = createFileRoute('/api/migration')({
     server: {
         handlers: {
-            GET: () => handleMigrationGet(),
-            POST: ({ request }) => handleMigrationPost(request),
+            GET: () => handleMigrationGetHandler(),
+            POST: ({ request }) => handleMigrationPostHandler(request),
         },
     },
 })

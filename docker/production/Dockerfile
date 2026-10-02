@@ -37,7 +37,6 @@ COPY --from=web-build /app/docker/web/bootstrap-secrets.mjs ./docker/web/bootstr
 COPY --from=web-build /app/docker/web/validate-backup.mjs ./docker/web/validate-backup.mjs
 COPY --from=web-build /app/docker/web/request-context.ts ./docker/web/request-context.ts
 COPY --from=web-build /app/docker/web/static-assets.ts ./docker/web/static-assets.ts
-COPY --from=web-build /app/web/src/websockets ./web/src/websockets
 COPY --from=web-build /app/docker/web/serve.mjs ./docker/web/serve.mjs
 COPY --from=web-build /app/docker/web/healthcheck.mjs ./docker/web/healthcheck.mjs
 

@@ -2,30 +2,30 @@ import '@tanstack/react-start/server-only'
 
 import { desc, eq } from 'drizzle-orm'
 
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { hostDomains, npmImportRuns } from '../../../db/schema'
-import { requirePermissionService } from '../../Auth/Access/authorization.service'
-import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
-import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { hostDomains, npmImportRuns } from '@/db/schema.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
 import {
-    recordAuditEventBestEffort,
-    appendAuditEventInTransaction,
-} from '../../Audit/audit.service'
-import { reconcileProxyConfigurationWithAudit } from '../../ProxyRuntime/proxy-runtime.service'
-import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
-import { publishApplicationChange } from '../../../websockets/Helpers/publishFunctions'
+    recordAuditEventBestEffortService,
+    appendAuditEventInTransactionService,
+} from '@/server/Audit/audit.service.ts'
+import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
+import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
 import type {
     NpmImportPreview,
     NpmImportResult,
     NpmImportResultItem,
-} from '../../../features/Admin/NpmImport/Types/npm-import.types'
-import { createAccessPolicyInTransaction } from '../AccessPolicyManagement/access-policies.service'
-import { createProxyHostInTransaction } from '../ProxyHostManagement/proxy-hosts.mutations.server'
-import { createRedirectHostInTransaction } from '../RedirectHostManagement/redirect-hosts.service'
-import { buildNpmImportPlan, publicNpmPreview, type NpmImportPlan } from './npm-plan'
-import { readNpmSqliteSource } from './npm-source'
-import { buildPortablePlan, readPortableSource } from '../Migration/portable'
-import { buildZoraxyPlan, readZoraxySource } from '../Migration/zoraxy'
+} from '@/features/Admin/NpmImport/Types/npm-import.types.ts'
+import { createAccessPolicyInTransaction } from '@/server/Admin/AccessPolicyManagement/access-policies.service.ts'
+import { createProxyHostInTransaction } from '@/server/Admin/ProxyHostManagement/proxy-hosts.mutations.server.ts'
+import { createRedirectHostInTransaction } from '@/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'
+import { buildNpmImportPlan, publicNpmPreview, type NpmImportPlan } from './npm-plan.ts'
+import { readNpmSqliteSource } from './npm-source.ts'
+import { buildPortablePlan, readPortableSource } from '@/server/Admin/Migration/portable.ts'
+import { buildZoraxyPlan, readZoraxySource } from '@/server/Admin/Migration/zoraxy.ts'
 
 export type ImportSource = 'npm' | 'rentnerproxy' | 'zoraxy'
 
@@ -97,7 +97,7 @@ export async function applyImportService(
     if (fingerprint !== expectedFingerprint || !/^[a-f0-9]{64}$/u.test(expectedFingerprint)) {
         throw new NpmImportError('fingerprint_mismatch')
     }
-    await recordAuditEventBestEffort({
+    await recordAuditEventBestEffortService({
         actorUserId: actor.id,
         actorKind: 'user',
         action: 'started',
@@ -186,7 +186,7 @@ export async function applyImportService(
                 .returning({ id: npmImportRuns.id })
             const runId = rows.at(0)?.id
             if (!runId) throw new Error('Import result could not be saved.')
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'import',
@@ -243,7 +243,7 @@ export async function applyImportService(
                     throw new Error('Import failure result could not be saved.', {
                         cause: error,
                     })
-                await appendAuditEventInTransaction(transaction, {
+                await appendAuditEventInTransactionService(transaction, {
                     actorUserId: actor.id,
                     actorKind: 'user',
                     action: 'failed',
@@ -258,7 +258,7 @@ export async function applyImportService(
             // The source transaction has already rolled back; audit remains best effort if storage is unavailable.
         }
         if (!recorded) {
-            await recordAuditEventBestEffort({
+            await recordAuditEventBestEffortService({
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'failed',

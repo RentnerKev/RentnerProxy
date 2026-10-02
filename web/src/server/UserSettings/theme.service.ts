@@ -1,11 +1,11 @@
 import '@tanstack/react-start/server-only'
 
-import { PERMISSIONS } from '../../config/permissions.config'
-import type { UserThemeMode } from '../../config/theme.config'
-import { userSettings } from '../../db/schema'
-import { getAuthDatabase } from '../Auth/Core/database.server'
-import { AuthDomainError } from '../Auth/Core/errors.server'
-import { getCurrentSessionService } from '../Auth/Access/sessions.service'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import type { UserThemeMode } from '@/shared/Types/theme-config.types.ts'
+import { userSettings } from '@/db/schema.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { getCurrentSessionService } from '@/server/Auth/Access/sessions.service.ts'
 
 export async function updateCurrentUserThemeModeService(
     themeMode: UserThemeMode,

@@ -1,5 +1,5 @@
-import type { CrowdSecMode } from '../../config/crowdsec.config'
-import type { ProxyRuntimeMutationStatus } from './proxy-runtime.types'
+import type { CrowdSecMode } from './crowdsec-config.types.ts'
+import type { ProxyRuntimeMutationStatus } from './proxy-runtime.types.ts'
 
 export type CrowdSecHealth = 'disabled' | 'starting' | 'connected' | 'degraded'
 export type CrowdSecManagedEngineState =

@@ -1,8 +1,8 @@
 import type {
     CertificateJobErrorCode,
     CertificateJobStage,
-} from '../../config/certificate-jobs.config'
-import type { CertificateOperationStage } from '../../config/certificates.config'
+} from './certificate-jobs-config.types.ts'
+import type { CertificateOperationStage } from './certificates-config.types.ts'
 
 export interface CertificateJobSummary {
     readonly id: string

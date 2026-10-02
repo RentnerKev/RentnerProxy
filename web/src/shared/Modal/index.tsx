@@ -1,10 +1,10 @@
 import { X } from 'lucide-react'
 import * as Dialog from 'radix-ui/dialog'
 
-import useTranslationStore from '../../language/useTranslationStore'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
-import useModalLogic from './Hooks/useModalLogic'
-import type { ModalProps, ModalSize } from './Types/modal.types'
+import useModalLogic from './Hooks/useModalLogic.ts'
+import type { ModalProps, ModalSize } from './Types/modal.types.ts'
 
 const contentSizeClassNames: Record<ModalSize, string> = {
     sm: 'max-w-md',
@@ -23,7 +23,7 @@ export function Modal({
     closeDisabled = false,
 }: ModalProps) {
     const { t } = useTranslationStore()
-    const handler = useModalLogic({ closeDisabled, onOpenChange })
+    const { handler } = useModalLogic({ closeDisabled, onOpenChange })
 
     return (
         <Dialog.Root open={open} onOpenChange={handler.handleOpenChange}>
@@ -70,4 +70,4 @@ export function Modal({
     )
 }
 
-export type { ModalProps, ModalSize } from './Types/modal.types'
+export type { ModalProps, ModalSize } from './Types/modal.types.ts'

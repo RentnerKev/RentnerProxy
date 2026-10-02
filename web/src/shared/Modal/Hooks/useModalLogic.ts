@@ -1,14 +1,13 @@
+import type { ModalLogicResult, UseModalLogicParams } from '../Types/modal.types.ts'
 import { useRef } from 'react'
 
-import { TOAST_ROOT_CLASS } from '../../../config/toast.config'
-import type { PreventableEvent } from '../Types/modal.types'
+import { TOAST_ROOT_CLASS } from '@/config/toast.config.ts'
+import type { PreventableEvent } from '../Types/modal.types.ts'
 
-interface UseModalLogicParams {
-    readonly closeDisabled: boolean
-    readonly onOpenChange: (open: boolean) => void
-}
-
-export default function useModalLogic({ closeDisabled, onOpenChange }: UseModalLogicParams) {
+export default function useModalLogic({
+    closeDisabled,
+    onOpenChange,
+}: UseModalLogicParams): ModalLogicResult {
     const returnFocusRef = useRef<HTMLElement | null>(null)
 
     const restoreFocus = () => {
@@ -22,36 +21,38 @@ export default function useModalLogic({ closeDisabled, onOpenChange }: UseModalL
     }
 
     return {
-        handleCloseAutoFocus: (event: PreventableEvent) => {
-            if (returnFocusRef.current?.isConnected) {
-                event.preventDefault()
-                restoreFocus()
-            }
-        },
-        handleOpenAutoFocus: () => {
-            const activeElement = document.activeElement
+        handler: {
+            handleCloseAutoFocus: (event: PreventableEvent) => {
+                if (returnFocusRef.current?.isConnected) {
+                    event.preventDefault()
+                    restoreFocus()
+                }
+            },
+            handleOpenAutoFocus: () => {
+                const activeElement = document.activeElement
 
-            returnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null
-        },
-        handleOpenChange: (nextOpen: boolean) => {
-            if (!nextOpen && closeDisabled) {
-                return
-            }
+                returnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null
+            },
+            handleOpenChange: (nextOpen: boolean) => {
+                if (!nextOpen && closeDisabled) {
+                    return
+                }
 
-            onOpenChange(nextOpen)
+                onOpenChange(nextOpen)
 
-            if (!nextOpen) {
-                window.setTimeout(restoreFocus, 0)
-            }
-        },
-        preventClose: (event: PreventableEvent) => {
-            const target = event.target
-            const isToastInteraction =
-                target instanceof Element && target.closest(`.${TOAST_ROOT_CLASS}`) !== null
+                if (!nextOpen) {
+                    window.setTimeout(restoreFocus, 0)
+                }
+            },
+            preventClose: (event: PreventableEvent) => {
+                const target = event.target
+                const isToastInteraction =
+                    target instanceof Element && target.closest(`.${TOAST_ROOT_CLASS}`) !== null
 
-            if (closeDisabled || isToastInteraction) {
-                event.preventDefault()
-            }
+                if (closeDisabled || isToastInteraction) {
+                    event.preventDefault()
+                }
+            },
         },
     }
 }

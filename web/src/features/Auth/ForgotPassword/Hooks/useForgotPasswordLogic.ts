@@ -1,11 +1,13 @@
+import { emailSchema, getValidationMessage } from '@/lib/Auth/validation.ts'
+import type { ForgotPasswordLogicResult } from '../Types/forgot-password-logic.types.ts'
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 
 import { toast } from '@rentnerkev/toasts/toast'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import { requestPasswordResetHandler } from '../server'
-import { forgotPasswordInputSchema } from '../validation'
-import type { ForgotPasswordFormValues } from '../Types/forgot-password-form.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import { requestPasswordResetHandler } from '../middleware.ts'
+import { forgotPasswordInputSchema } from '../validation.ts'
+import type { ForgotPasswordFormValues } from '../Types/forgot-password-form.types.ts'
 
 export default function useForgotPasswordLogic() {
     const { t } = useTranslationStore()
@@ -38,9 +40,17 @@ export default function useForgotPasswordLogic() {
     })
 
     return {
+        handler: {
+            handleSubmit: (event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                void form.handleSubmit()
+            },
+            validateEmail: ({ value }) => getValidationMessage(emailSchema, value),
+        },
+        form,
         state: {
-            form,
             isPending: mutation.isPending,
         },
-    }
+    } satisfies ForgotPasswordLogicResult<typeof form>
 }

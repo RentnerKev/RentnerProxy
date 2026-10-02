@@ -6,7 +6,7 @@ import { lstat, mkdtemp, open, readdir, rmdir, unlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { NPM_IMPORT_MAX_BYTES, NpmSourceError } from './npm-source'
+import { NPM_IMPORT_MAX_BYTES, NpmSourceError } from './npm-source.ts'
 
 const PREFIX = 'rentnerproxy-npm-'
 const STALE_AGE_MS = 60 * 60 * 1_000

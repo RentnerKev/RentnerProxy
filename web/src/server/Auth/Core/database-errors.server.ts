@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 
-import { isRecord } from '../../../shared/Helpers/isRecord'
+import { isRecord } from '@/lib/Records/isRecord.ts'
 
 const POSTGRES_UNIQUE_VIOLATION = '23505'
 

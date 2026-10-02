@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
-import {
-    subscribeToRealtimeEvents,
-    type LiveStatus,
-} from '../../websockets/Client/realtimeEventsClient'
-import type { LiveTopic } from '../../websockets/Types/events'
+import { subscribeToRealtimeEvents, type LiveStatus } from '@/lib/Live/realtimeEventsClient.ts'
+import type { LiveTopic } from '@/lib/Live/events.ts'
 
 export type { LiveStatus, LiveTopic }
 

@@ -1,20 +1,16 @@
+import type { AcmeEnvironment } from '@/shared/Types/certificates-config.types.ts'
 export const CERTIFICATE_SOURCES = ['manual', 'acme'] as const
-export type CertificateSource = (typeof CERTIFICATE_SOURCES)[number]
 
 export const ACME_ENVIRONMENTS = ['staging', 'production'] as const
-export type AcmeEnvironment = (typeof ACME_ENVIRONMENTS)[number]
+
 export const DEFAULT_ACME_ENVIRONMENT: AcmeEnvironment = 'production'
 export const ACME_CHALLENGE_TYPES = ['http-01', 'dns-01'] as const
-export type AcmeChallengeType = (typeof ACME_CHALLENGE_TYPES)[number]
 
 export const CERTIFICATE_STORED_STATUSES = ['pending', 'valid', 'failed'] as const
-export type CertificateStoredStatus = (typeof CERTIFICATE_STORED_STATUSES)[number]
-export type CertificateStatus = CertificateStoredStatus | 'expiring' | 'expired'
+
 export const CERTIFICATE_OPERATIONS = ['idle', 'issuing', 'renewing'] as const
-export type CertificateOperation = (typeof CERTIFICATE_OPERATIONS)[number]
 
 export const CERTIFICATE_OPERATION_KINDS = ['issue', 'renew', 'import'] as const
-export type CertificateOperationKind = (typeof CERTIFICATE_OPERATION_KINDS)[number]
 
 export const CERTIFICATE_OPERATION_STAGES = [
     'queued',
@@ -29,7 +25,6 @@ export const CERTIFICATE_OPERATION_STAGES = [
     'failed',
     'needs_attention',
 ] as const
-export type CertificateOperationStage = (typeof CERTIFICATE_OPERATION_STAGES)[number]
 
 export const CERTIFICATE_EVENT_KINDS = [
     'accepted',
@@ -40,7 +35,6 @@ export const CERTIFICATE_EVENT_KINDS = [
     'retry_scheduled',
     'failed',
 ] as const
-export type CertificateEventKind = (typeof CERTIFICATE_EVENT_KINDS)[number]
 
 export const MAX_CERTIFICATE_NAME_LENGTH = 120
 export const MAX_CERTIFICATE_DOMAINS = 100
@@ -68,4 +62,16 @@ export const CERTIFICATE_ERROR_CODES = [
     'certificate_store_unavailable',
     'controller_unavailable',
 ] as const
-export type CertificateErrorCode = (typeof CERTIFICATE_ERROR_CODES)[number]
+
+export type {
+    CertificateSource,
+    AcmeEnvironment,
+    AcmeChallengeType,
+    CertificateStoredStatus,
+    CertificateStatus,
+    CertificateOperation,
+    CertificateOperationKind,
+    CertificateOperationStage,
+    CertificateEventKind,
+    CertificateErrorCode,
+} from '@/shared/Types/certificates-config.types.ts'

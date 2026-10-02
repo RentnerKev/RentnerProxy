@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 
-import { isCspNonce } from '../shared/Helpers/cspNonce'
+import { isCspNonce } from '@/lib/Security/cspNonce.ts'
 
 function getAdminUiContentSecurityPolicy(nonce?: string): string {
     const styleSource = isCspNonce(nonce) ? `'self' 'nonce-${nonce}'` : "'self'"

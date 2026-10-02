@@ -1,27 +1,30 @@
+import type { AuditLogsLogicResult } from '../Types/audit-logs.types.ts'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { PERMISSIONS } from '../../../../config/permissions.config'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import useLiveQuery from '../../../../shared/Live/useLiveQuery'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import useLiveQuery from '@/shared/Live/useLiveQuery.ts'
 import type {
     AuditAction,
     AuditActorOption,
     AuditEventsQuery,
     AuditEventsResult,
     AuditResource,
-} from '../../../../shared/Types/audit-events.types'
-import { auditLogsQueryKeys } from '../queryKeys'
-import { getAuditActorOptionsHandler, getAuditEventsHandler } from '../server'
+} from '@/shared/Types/audit-events.types.ts'
+import { auditLogsQueryKeys, applyAuditLogsSnapshot } from '@/lib/Admin/AuditLogs/auditLogsCache.ts'
+import { getAuditActorOptionsHandler, getAuditEventsHandler } from '../middleware.ts'
 import {
     emptyAuditLogsFilters,
     sortAuditEventsNewestFirst,
     toAuditEventsQuery,
     validateAuditLogsFilters,
-} from '../Helpers/auditLogs'
-import type { AuditLogsFilterErrors, AuditLogsPageProps } from '../Types/audit-logs.types'
+} from '@/lib/Admin/AuditLogs/auditLogs.ts'
+import type { AuditLogsFilterErrors, AuditLogsPageProps } from '../Types/audit-logs.types.ts'
 
-export default function useAuditLogsLogic({ permissions }: AuditLogsPageProps) {
+export default function useAuditLogsLogic({
+    permissions,
+}: AuditLogsPageProps): AuditLogsLogicResult {
     const { locale } = useTranslationStore()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canView = permissionSet.has(PERMISSIONS.AUDIT_LOGS_VIEW)
@@ -59,11 +62,12 @@ export default function useAuditLogsLogic({ permissions }: AuditLogsPageProps) {
     const liveRequest = useMemo(() => toAuditEventsQuery(filters, undefined), [filters])
     const onLiveData = useCallback(
         async (data: AuditEventsResult) => {
-            if (requestRef.current !== request) return
-            const queryKey = auditLogsQueryKeys.list(request)
-            await queryClient.cancelQueries({ queryKey, exact: true })
-            if (requestRef.current !== request) return
-            queryClient.setQueryData(queryKey, data)
+            await applyAuditLogsSnapshot(
+                queryClient,
+                request,
+                data,
+                () => requestRef.current === request,
+            )
         },
         [queryClient, request],
     )

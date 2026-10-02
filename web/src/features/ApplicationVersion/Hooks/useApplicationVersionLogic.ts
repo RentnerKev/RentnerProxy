@@ -1,9 +1,10 @@
+import type { ApplicationVersionLogicResult } from '../Types/application-version-logic.types.ts'
 import { useQuery } from '@tanstack/react-query'
 
-import { getApplicationUpdateHandler } from '../server'
+import { getApplicationUpdateHandler } from '../middleware.ts'
 
-export default function useApplicationVersionLogic() {
-    return useQuery({
+export default function useApplicationVersionLogic(): ApplicationVersionLogicResult {
+    const query = useQuery({
         queryKey: ['application-update'],
         queryFn: () => getApplicationUpdateHandler(),
         staleTime: 60 * 60 * 1000,
@@ -11,4 +12,5 @@ export default function useApplicationVersionLogic() {
         refetchIntervalInBackground: false,
         retry: false,
     })
+    return { state: { data: query.data } }
 }

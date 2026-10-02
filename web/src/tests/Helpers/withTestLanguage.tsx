@@ -1,19 +1,16 @@
 import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
-import {
-    AuthenticatedLanguageProvider,
-    type AppLanguage,
-    type LanguageBootstrap,
-} from '../../language/useTranslationStore'
-import de from '../../language/Locales/de.json'
-import en from '../../language/Locales/en.json'
-import es from '../../language/Locales/es.json'
-import fr from '../../language/Locales/fr.json'
-import it from '../../language/Locales/it.json'
-import pt from '../../language/Locales/pt.json'
-import nl from '../../language/Locales/nl.json'
-import pl from '../../language/Locales/pl.json'
+import { AuthenticatedLanguageProvider } from '@/shared/Language/Hooks/useTranslationStore.ts'
+import { type AppLanguage, type LanguageBootstrap } from '@/shared/Language/Types/language.types.ts'
+import de from '@/lib/Language/Locales/de.json'
+import en from '@/lib/Language/Locales/en.json'
+import es from '@/lib/Language/Locales/es.json'
+import fr from '@/lib/Language/Locales/fr.json'
+import it from '@/lib/Language/Locales/it.json'
+import pt from '@/lib/Language/Locales/pt.json'
+import nl from '@/lib/Language/Locales/nl.json'
+import pl from '@/lib/Language/Locales/pl.json'
 
 const catalogs = { en, de, es, fr, it, pt, nl, pl }
 const bootstraps: Record<AppLanguage, LanguageBootstrap> = {

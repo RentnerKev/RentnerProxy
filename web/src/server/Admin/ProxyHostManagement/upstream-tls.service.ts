@@ -5,8 +5,8 @@ import { isIP } from 'node:net'
 import type {
     CreateProxyHostInput,
     UpdateProxyHostInput,
-} from '../../../features/Admin/ProxyHostManagement/validation'
-import { ProxyHostDomainError } from './proxy-hosts.errors'
+} from '@/features/Admin/ProxyHostManagement/validation.ts'
+import { ProxyHostDomainError } from './proxy-hosts.errors.ts'
 
 export type UpstreamTlsSettings = {
     readonly verifyUpstreamTls: boolean

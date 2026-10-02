@@ -1,22 +1,22 @@
 import { createHash } from 'node:crypto'
 
-import type { CreateAccessPolicyInput } from '../../../features/Admin/AccessPolicyManagement/validation'
-import { createAccessPolicyInputSchema } from '../../../features/Admin/AccessPolicyManagement/validation'
-import type { CreateProxyHostInput } from '../../../features/Admin/ProxyHostManagement/validation'
+import type { CreateAccessPolicyInput } from '@/features/Admin/AccessPolicyManagement/validation.ts'
+import { createAccessPolicyInputSchema } from '@/features/Admin/AccessPolicyManagement/validation.ts'
+import type { CreateProxyHostInput } from '@/features/Admin/ProxyHostManagement/validation.ts'
 import {
     createProxyHostInputSchema,
     proxyHostDomainsSchema,
-} from '../../../features/Admin/ProxyHostManagement/validation'
-import { normalizeForwardHost } from '../../../features/Admin/ProxyHostManagement/Helpers/proxyHostValidation'
-import type { CreateRedirectHostInput } from '../../../features/Admin/RedirectHostManagement/validation'
-import { createRedirectHostInputSchema } from '../../../features/Admin/RedirectHostManagement/validation'
+} from '@/features/Admin/ProxyHostManagement/validation.ts'
+import { normalizeForwardHost } from '@/lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
+import type { CreateRedirectHostInput } from '@/features/Admin/RedirectHostManagement/validation.ts'
+import { createRedirectHostInputSchema } from '@/features/Admin/RedirectHostManagement/validation.ts'
 import type {
     NpmImportKind,
     NpmImportPreview,
     NpmImportStatus,
     NpmPreviewItem,
-} from '../../../features/Admin/NpmImport/Types/npm-import.types'
-import type { NpmRecord, NpmSource } from './npm-source'
+} from '@/features/Admin/NpmImport/Types/npm-import.types.ts'
+import type { NpmRecord, NpmSource } from './npm-source.ts'
 
 export interface NpmImportPlanItem extends NpmPreviewItem {
     readonly proxyInput?: CreateProxyHostInput

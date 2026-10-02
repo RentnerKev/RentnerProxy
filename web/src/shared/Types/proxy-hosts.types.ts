@@ -1,8 +1,8 @@
-import type { ProxyHostForwardScheme } from '../../config/proxy-hosts.config'
-import type { AccessPolicyCombination, AccessPolicyMode } from '../../config/access-policies.config'
-import type { AccessPolicyBasicAuthRuntime, AccessPolicyIpRules } from './access-policies.types'
-import type { ForwardAuthRuntimeConfiguration } from '../Helpers/forwardAuth'
-import type { CertificateJobSummary } from './certificate-jobs.types'
+import type { ProxyHostForwardScheme } from './proxy-hosts-config.types.ts'
+import type { AccessPolicyCombination, AccessPolicyMode } from './access-policies-config.types.ts'
+import type { AccessPolicyBasicAuthRuntime, AccessPolicyIpRules } from './access-policies.types.ts'
+import type { ForwardAuthRuntimeConfiguration } from '@/lib/ForwardAuth/forwardAuth.ts'
+import type { CertificateJobSummary } from './certificate-jobs.types.ts'
 
 export interface ProxyHostAccessPolicy {
     readonly id: string

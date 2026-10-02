@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 
-import { requireAnonymousRoute } from '../../features/Auth/route-guards'
+import { requireAnonymousRoute } from '@/features/Auth/route-guards.ts'
 
 export const Route = createFileRoute('/_public/login')({
     beforeLoad: requireAnonymousRoute,

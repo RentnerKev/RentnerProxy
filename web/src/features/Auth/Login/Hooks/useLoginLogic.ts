@@ -1,13 +1,19 @@
+import {
+    credentialPasswordSchema,
+    emailSchema,
+    getValidationMessage,
+} from '@/lib/Auth/validation.ts'
+import type { LoginLogicResult } from '../Types/login-logic.types.ts'
 import { startAuthentication } from '@simplewebauthn/browser'
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 
 import { toast } from '@rentnerkev/toasts/toast'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import { beginPasskeyLoginHandler, finishPasskeyLoginHandler, loginHandler } from '../server'
-import { loginInputSchema } from '../validation'
-import type { LoginFormValues } from '../Types/login-form.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import { beginPasskeyLoginHandler, finishPasskeyLoginHandler, loginHandler } from '../middleware.ts'
+import { loginInputSchema } from '../validation.ts'
+import type { LoginFormValues } from '../Types/login-form.types.ts'
 export default function useLoginLogic() {
     const navigate = useNavigate()
     const router = useRouter()
@@ -72,12 +78,20 @@ export default function useLoginLogic() {
         },
     })
     return {
+        form,
         state: {
-            form,
             isPending: mutation.isPending,
             isPasskeyPending: passkeyMutation.isPending,
         },
         handler: {
+            handleSubmit: (event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                void form.handleSubmit()
+            },
+            validateEmail: ({ value }) => getValidationMessage(emailSchema, value),
+            validatePassword: ({ value }) => getValidationMessage(credentialPasswordSchema, value),
+
             handlePasskeyLogin: async () => {
                 passkeyMutation.reset()
 
@@ -86,5 +100,5 @@ export default function useLoginLogic() {
                 } catch {}
             },
         },
-    }
+    } satisfies LoginLogicResult<typeof form>
 }

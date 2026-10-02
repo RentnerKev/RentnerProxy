@@ -1,11 +1,9 @@
-import { PERMISSIONS } from '../../config/permissions.config'
-import useTranslationStore from '../../language/useTranslationStore'
-import ContentState from '../../shared/Management/ContentState'
-import PageHeader from '../../shared/Management/PageHeader'
-import FoundationStatus from './Components/FoundationStatus'
-import CrowdSecOverview from './Components/CrowdSecOverview'
-import useCrowdSecOverviewLogic from './Hooks/useCrowdSecOverviewLogic'
-import useFoundationStatusLogic from './Hooks/useFoundationStatusLogic'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import ContentState from '@/shared/Management/ContentState.tsx'
+import PageHeader from '@/shared/Management/PageHeader.tsx'
+import FoundationStatus from './Components/FoundationStatus/index.tsx'
+import CrowdSecOverview from './Components/CrowdSecOverview/index.tsx'
+import useFoundationStatusLogic from './Hooks/useFoundationStatusLogic.ts'
 
 export default function FoundationStatusPage({
     permissions,
@@ -13,9 +11,7 @@ export default function FoundationStatusPage({
     readonly permissions: readonly string[]
 }) {
     const { t } = useTranslationStore()
-    const { state, handler } = useFoundationStatusLogic()
-    const canViewCrowdSec = permissions.includes(PERMISSIONS.CROWDSEC_VIEW)
-    const crowdSec = useCrowdSecOverviewLogic(canViewCrowdSec)
+    const { state, handler } = useFoundationStatusLogic(permissions)
 
     return (
         <>
@@ -47,7 +43,7 @@ export default function FoundationStatusPage({
             ) : (
                 <FoundationStatus health={state.data} liveStatus={state.liveStatus} compact />
             )}
-            {canViewCrowdSec ? <CrowdSecOverview logic={crowdSec} /> : null}
+            <CrowdSecOverview enabled={state.canViewCrowdSec} />
         </>
     )
 }

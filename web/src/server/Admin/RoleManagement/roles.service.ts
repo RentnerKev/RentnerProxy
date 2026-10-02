@@ -2,25 +2,23 @@ import '@tanstack/react-start/server-only'
 
 import { asc, count, eq, inArray } from 'drizzle-orm'
 
-import {
-    PERMISSIONS,
-    SYSTEM_ROLE_REGISTRY,
-    type PermissionKey,
-} from '../../../config/permissions.config'
-import { permissions, rolePermissions, roles, userRoles } from '../../../db/schema'
-import type { RoleManagementSummary, RoleSummary } from '../../../shared/Types/auth.types'
-import { requirePermissionService } from '../../Auth/Access/authorization.service'
-import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
-import { AuthDomainError } from '../../Auth/Core/errors.server'
-import { isUniqueConstraintViolation } from '../../Auth/Core/database-errors.server'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { SYSTEM_ROLE_REGISTRY } from '@/lib/Permissions/systemRoles.ts'
+import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import { permissions, rolePermissions, roles, userRoles } from '@/db/schema.ts'
+import type { RoleManagementSummary, RoleSummary } from '@/shared/Types/auth.types.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { isUniqueConstraintViolation } from '@/server/Auth/Core/database-errors.server.ts'
 import {
     hasOwnerRole,
     isRegisteredPermissionKey,
     normalizeKeys,
     requirePermissionInTransaction,
-} from '../../Auth/Access/rbac.service'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
-import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
+} from '@/server/Auth/Access/rbac.service.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
 
 const roleKeyPattern = /^[a-z][a-z0-9_.-]{1,99}$/
 const systemRoleKeys = new Set<string>(SYSTEM_ROLE_REGISTRY.map((role) => role.key))
@@ -227,7 +225,7 @@ export async function createRoleService(input: {
 
             await replaceRolePermissionsInTransaction(transaction, role.id, selectedPermissions)
 
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'create',
@@ -358,7 +356,7 @@ export async function updateRoleService(input: {
                 await replaceRolePermissionsInTransaction(transaction, role.id, selectedPermissions)
             }
 
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'update',
@@ -440,7 +438,7 @@ export async function deleteRoleService(roleId: string): Promise<void> {
             }
 
             await transaction.delete(roles).where(eq(roles.id, role.id))
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'delete',

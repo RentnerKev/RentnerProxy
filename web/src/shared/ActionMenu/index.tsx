@@ -1,21 +1,36 @@
 import { EllipsisVertical } from 'lucide-react'
 import * as DropdownMenu from 'radix-ui/dropdown-menu'
 
-import useTranslationStore from '../../language/useTranslationStore'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
-import ActionMenuItemView from './Components/ActionMenuItemView'
-import useActionMenuLogic from './Hooks/useActionMenuLogic'
-import type { ActionMenuProps } from './Types/action-menu.types'
+import ActionMenuItemView from './Components/ActionMenuItemView.tsx'
+import useActionMenuLogic from './Hooks/useActionMenuLogic.ts'
+import type { ActionMenuProps } from './Types/action-menu.types.ts'
 
 export function ActionMenu({ items, ariaLabel, openOnHover = true }: ActionMenuProps) {
     const { t } = useTranslationStore()
-    const { rootProps, triggerProps, contentProps } = useActionMenuLogic(openOnHover)
+    const {
+        state,
+        handler,
+        refs: { trigger: triggerRef, content: contentRef },
+    } = useActionMenuLogic(openOnHover)
 
     return (
-        <DropdownMenu.Root {...rootProps}>
+        <DropdownMenu.Root
+            {...(state.openOnHover
+                ? { open: state.open, onOpenChange: handler.handleOpenChange, modal: false }
+                : {})}
+        >
             <DropdownMenu.Trigger asChild>
                 <button
-                    {...triggerProps}
+                    ref={triggerRef}
+                    {...(state.openOnHover
+                        ? {
+                              onPointerEnter: handler.handlePointerEnter,
+                              onPointerLeave: handler.handlePointerLeave,
+                              onKeyDownCapture: handler.handleKeyDown,
+                          }
+                        : {})}
                     type="button"
                     aria-label={ariaLabel ?? t('common.openActions')}
                     className="inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-transparent text-xl font-extrabold leading-none text-muted transition-[background-color,border-color,color] duration-150 hover:border-border-strong hover:bg-surface-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring motion-reduce:transition-none"
@@ -25,7 +40,16 @@ export function ActionMenu({ items, ariaLabel, openOnHover = true }: ActionMenuP
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
                 <DropdownMenu.Content
-                    {...contentProps}
+                    ref={contentRef}
+                    {...(state.openOnHover
+                        ? {
+                              onPointerEnter: handler.handlePointerEnter,
+                              onPointerLeave: handler.handlePointerLeave,
+                              onKeyDownCapture: handler.handleKeyDown,
+                              onOpenAutoFocus: handler.handleOpenAutoFocus,
+                              onCloseAutoFocus: handler.handleCloseAutoFocus,
+                          }
+                        : {})}
                     align="end"
                     sideOffset={6}
                     collisionPadding={8}
@@ -40,4 +64,4 @@ export function ActionMenu({ items, ariaLabel, openOnHover = true }: ActionMenuP
     )
 }
 
-export type { ActionMenuItem, ActionMenuProps } from './Types/action-menu.types'
+export type { ActionMenuItem, ActionMenuProps } from './Types/action-menu.types.ts'

@@ -5,8 +5,8 @@ import { isAbsolute, join } from 'node:path'
 
 import maxmind from 'maxmind'
 
-import countryCodeFromGeoRecord from '../../../features/Admin/CrowdSec/Helpers/countryCodeFromGeoRecord'
-import type { CrowdSecDashboard } from '../../../shared/Types/crowdsec.types'
+import countryCodeFromGeoRecord from '@/lib/Admin/CrowdSec/countryCodeFromGeoRecord.ts'
+import type { CrowdSecDashboard } from '@/shared/Types/crowdsec.types.ts'
 
 type GeoReader = Awaited<ReturnType<typeof maxmind.open>>
 

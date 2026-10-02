@@ -2,37 +2,37 @@ import '@tanstack/react-start/server-only'
 
 import { asc, desc, eq, inArray } from 'drizzle-orm'
 
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { certificateJobs, hostDomains, proxyHosts } from '../../../db/schema'
-import type { ProxyHostSummary } from '../../../shared/Types/proxy-hosts.types'
-import type { ProxyRuntimeMutationStatus } from '../../../shared/Types/proxy-runtime.types'
-import { reconcileProxyConfigurationWithAudit } from '../../ProxyRuntime/proxy-runtime.service'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { certificateJobs, hostDomains, proxyHosts } from '@/db/schema.ts'
+import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
+import type { ProxyRuntimeMutationStatus } from '@/shared/Types/proxy-runtime.types.ts'
+import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import {
     lockProxyRuntimeSettings,
     writeProxyHostHttpSettings,
-} from '../../ProxyRuntime/proxy-runtime-settings'
-import { requirePermissionService } from '../../Auth/Access/authorization.service'
-import { validateCertificateAssignmentInTransaction } from '../CertificateManagement/certificates.service'
-import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
-import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
+} from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { validateCertificateAssignmentInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
 import {
     createProxyHostInputSchema,
     proxyHostIdInputSchema,
     updateProxyHostInputSchema,
     type CreateProxyHostInput,
     type UpdateProxyHostInput,
-} from '../../../features/Admin/ProxyHostManagement/validation'
-import { mapProxyHostDomainUniqueViolation, ProxyHostDomainError } from './proxy-hosts.errors'
-import { validateTrustedCaAssignmentInTransaction } from '../TrustedCaManagement/trusted-cas.service'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
-import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
-import { certificateJobSummary } from './certificate-jobs.storage.server'
+} from '@/features/Admin/ProxyHostManagement/validation.ts'
+import { mapProxyHostDomainUniqueViolation, ProxyHostDomainError } from './proxy-hosts.errors.ts'
+import { validateTrustedCaAssignmentInTransaction } from '@/server/Admin/TrustedCaManagement/trusted-cas.service.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
+import { certificateJobSummary } from './certificate-jobs.storage.server.ts'
 import {
     createProxyHostInTransaction,
     loadProxyHostForUpdate,
     toProxyHostSummary,
     updateProxyHostInTransaction,
-} from './proxy-hosts.mutations.server'
+} from './proxy-hosts.mutations.server.ts'
 
 export type ProxyHostMutationSummary = ProxyHostSummary & {
     readonly runtimeStatus: ProxyRuntimeMutationStatus
@@ -254,7 +254,7 @@ export async function deleteProxyHostService(
 
             await writeProxyHostHttpSettings(transaction, proxyHost.id, {})
             await transaction.delete(proxyHosts).where(eq(proxyHosts.id, proxyHost.id))
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'delete',
@@ -338,7 +338,7 @@ async function setProxyHostEnabledService(
                 throw new ProxyHostDomainError('proxy_host_not_found', 'Proxy host was not found.')
             }
 
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: enabled ? 'enable' : 'disable',

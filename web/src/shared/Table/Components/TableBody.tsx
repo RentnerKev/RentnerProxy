@@ -1,9 +1,9 @@
 import type { RowData } from '@tanstack/react-table'
 
-import useTranslationStore from '../../../language/useTranslationStore'
-import type { TableBodyProps } from '../Types/table.types'
-import TableBodyState from './TableBodyState'
-import TableLoadingBody from './TableLoadingBody'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import type { TableBodyProps } from '../Types/table.types.ts'
+import TableBodyState from './TableBodyState.tsx'
+import TableLoadingBody from './TableLoadingBody.tsx'
 
 export default function TableBody<TData extends RowData>({
     table,

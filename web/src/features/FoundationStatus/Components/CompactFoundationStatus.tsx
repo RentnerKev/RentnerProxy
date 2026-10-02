@@ -1,5 +1,5 @@
-import useTranslationStore from '../../../language/useTranslationStore'
-import type { FoundationStatusViewProps } from '../Types/foundation-status.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import type { FoundationStatusViewProps } from '../Types/foundation-status.types.ts'
 
 export default function CompactFoundationStatus({ services }: FoundationStatusViewProps) {
     const { t } = useTranslationStore()

@@ -2,21 +2,25 @@ import '@tanstack/react-start/server-only'
 
 import { eq, sql } from 'drizzle-orm'
 
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { users } from '../../../db/schema'
-import type { LoginResult } from '../Core/Types/auth-service.types'
-import { getAuthDatabase } from '../Core/database.server'
-import { isAuthDomainError } from '../Core/errors.server'
-import { normalizeEmail } from '../Core/identity.server'
-import { hashPassword, isValidPassword, verifyPassword } from '../Core/password.server'
-import { createSessionService } from '../Access/sessions.service'
-import { resolveActiveUserAccessInTransaction } from '../Access/rbac.service'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { users } from '@/db/schema.ts'
+import type { LoginResult } from '@/server/Auth/Core/Types/auth-service.types.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { isAuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { normalizeEmail } from '@/server/Auth/Core/identity.server.ts'
+import {
+    hashPassword,
+    isValidPassword,
+    verifyPassword,
+} from '@/server/Auth/Core/password.server.ts'
+import { createSessionService } from '@/server/Auth/Access/sessions.service.ts'
+import { resolveActiveUserAccessInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import {
     createLoginMfaChallengeService,
     hasEnabledTotpFactorService,
-} from '../TwoFactor/two-factor.service'
-import { createOpaqueToken } from '../Core/tokens.server'
-import { recordAuditEventBestEffort } from '../../Audit/audit.service'
+} from '@/server/Auth/TwoFactor/two-factor.service.ts'
+import { createOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
+import { recordAuditEventBestEffortService } from '@/server/Audit/audit.service.ts'
 
 const dummyPassword = createOpaqueToken()
 const dummyPasswordHash = hashPassword(dummyPassword)
@@ -52,7 +56,7 @@ export async function loginService(input: {
     )
 
     if (!user || user.status !== 'active' || !user.passwordHash || !passwordMatches) {
-        await recordAuditEventBestEffort({
+        await recordAuditEventBestEffortService({
             actorUserId: null,
             actorKind: 'anonymous',
             action: 'login',
@@ -69,7 +73,7 @@ export async function loginService(input: {
     )
 
     if (!access?.permissions.includes(PERMISSIONS.APP_ACCESS)) {
-        await recordAuditEventBestEffort({
+        await recordAuditEventBestEffortService({
             actorUserId: null,
             actorKind: 'anonymous',
             action: 'login',
@@ -103,7 +107,7 @@ export async function loginService(input: {
             },
         }
     } catch (error) {
-        await recordAuditEventBestEffort({
+        await recordAuditEventBestEffortService({
             actorUserId: null,
             actorKind: 'anonymous',
             action: 'login',

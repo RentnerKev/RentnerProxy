@@ -8,8 +8,8 @@ import type {
     CertificateOperationStage,
     CertificateSource,
     CertificateStatus,
-} from '../../config/certificates.config'
-import type { ProxyRuntimeMutationStatus } from './proxy-runtime.types'
+} from './certificates-config.types.ts'
+import type { ProxyRuntimeMutationStatus } from './proxy-runtime.types.ts'
 
 export interface CertificateCurrentOperationMetadata {
     readonly id: string

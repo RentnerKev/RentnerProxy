@@ -1,7 +1,7 @@
 // oxlint-disable-next-line import/no-unassigned-import -- Marks this domain error module as server-only.
 import '@tanstack/react-start/server-only'
 
-import { mapHostDomainUniqueViolation } from '../ProxyHostManagement/proxy-hosts.errors'
+import { mapHostDomainUniqueViolation } from '@/server/Admin/ProxyHostManagement/proxy-hosts.errors.ts'
 
 export type RedirectHostDomainErrorCode =
     | 'domain_conflict'

@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { handleMigrationExport } from '../../../features/Admin/Migration/server'
+import { handleMigrationExportHandler } from '@/features/Admin/Migration/middleware.ts'
 
 export const Route = createFileRoute('/api/migration/export')({
-    server: { handlers: { GET: () => handleMigrationExport() } },
+    server: { handlers: { GET: () => handleMigrationExportHandler() } },
 })

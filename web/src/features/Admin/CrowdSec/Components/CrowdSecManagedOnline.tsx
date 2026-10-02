@@ -1,10 +1,10 @@
 import { CheckboxInput, PasswordInput } from '@rentnerkev/inputs'
 import { ExternalLink, Link2 } from 'lucide-react'
 
-import { CROWDSEC_ENROLLMENT_KEY_MAX_LENGTH } from '../../../../config/crowdsec.config'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import FieldError from '../../../../shared/Forms/FieldError'
-import type { CrowdSecPageLogic } from '../Types/crowdsec.types'
+import { CROWDSEC_ENROLLMENT_KEY_MAX_LENGTH } from '@/config/crowdsec.config.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import FieldError from '@/shared/Forms/FieldError.tsx'
+import type { CrowdSecPageLogic } from '../Types/crowdsec.types.ts'
 
 export default function CrowdSecManagedOnline({
     state,
@@ -14,25 +14,6 @@ export default function CrowdSecManagedOnline({
     readonly handler: CrowdSecPageLogic['handler']
 }) {
     const { t } = useTranslationStore()
-    const busy = state.isSaving || state.isTesting || state.isEnrolling
-    const activeManaged =
-        state.configuration?.mode === 'managed' &&
-        state.configuration.runtime?.mode === 'managed' &&
-        state.configuration.synchronized
-    const communityState = activeManaged
-        ? (state.configuration?.runtime?.communityState ?? 'disabled')
-        : 'disabled'
-    const consoleState = activeManaged
-        ? (state.configuration?.runtime?.consoleState ?? 'not_enrolled')
-        : 'not_enrolled'
-    const canEnroll =
-        activeManaged &&
-        state.communityEnabled &&
-        state.configuration?.communityEnabled &&
-        communityState === 'connected' &&
-        consoleState !== 'connected' &&
-        consoleState !== 'pending'
-
     return (
         <div className="mt-6 border-t border-border pt-5">
             <h3 className="text-sm font-bold text-ink-soft">{t('admin.crowdSec.online.title')}</h3>
@@ -48,7 +29,7 @@ export default function CrowdSecManagedOnline({
                     name="crowdsec-community-enabled"
                     type="checkbox"
                     checked={state.communityEnabled}
-                    disabled={!state.canUpdate || busy}
+                    disabled={!state.canUpdate || state.busy}
                     onChange={(event) => handler.setCommunityEnabled(event.target.checked)}
                 />
                 <span className="grid gap-[0.12rem]">
@@ -63,9 +44,11 @@ export default function CrowdSecManagedOnline({
             <p className="mt-3 text-xs text-muted" aria-live="polite">
                 {t('admin.crowdSec.online.communityStatus')}:{' '}
                 <span
-                    className={communityState === 'degraded' ? 'text-danger-text' : 'text-ink-soft'}
+                    className={
+                        state.communityState === 'degraded' ? 'text-danger-text' : 'text-ink-soft'
+                    }
                 >
-                    {t(`admin.crowdSec.online.communityStates.${communityState}`)}
+                    {t(`admin.crowdSec.online.communityStates.${state.communityState}`)}
                 </span>
             </p>
 
@@ -93,18 +76,18 @@ export default function CrowdSecManagedOnline({
                     {t('admin.crowdSec.online.consoleStatus')}:{' '}
                     <span
                         className={
-                            consoleState === 'degraded' ? 'text-danger-text' : 'text-ink-soft'
+                            state.consoleState === 'degraded' ? 'text-danger-text' : 'text-ink-soft'
                         }
                     >
-                        {t(`admin.crowdSec.online.consoleStates.${consoleState}`)}
+                        {t(`admin.crowdSec.online.consoleStates.${state.consoleState}`)}
                     </span>
                 </p>
-                {consoleState === 'pending' ? (
+                {state.consoleState === 'pending' ? (
                     <p className="mt-2 text-xs leading-relaxed text-warning-text">
                         {t('admin.crowdSec.online.acceptEnrollment')}
                     </p>
                 ) : null}
-                {canEnroll ? (
+                {state.canEnroll ? (
                     <div className="mt-4 flex flex-wrap items-end gap-3">
                         <div className="grid gap-[0.45rem] min-w-56 flex-1">
                             <label
@@ -118,7 +101,7 @@ export default function CrowdSecManagedOnline({
                                 name="crowdsec-enrollment-key"
                                 type="password"
                                 value={state.enrollmentKey}
-                                disabled={!state.canUpdate || busy}
+                                disabled={!state.canUpdate || state.busy}
                                 autoComplete="new-password"
                                 maxLength={CROWDSEC_ENROLLMENT_KEY_MAX_LENGTH}
                                 placeholder={t('admin.crowdSec.online.enrollmentPlaceholder')}
@@ -138,7 +121,9 @@ export default function CrowdSecManagedOnline({
                         <button
                             type="button"
                             className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"
-                            disabled={!state.canUpdate || busy || state.enrollmentKey.length === 0}
+                            disabled={
+                                !state.canUpdate || state.busy || state.enrollmentKey.length === 0
+                            }
                             onClick={handler.enrollConsole}
                         >
                             <Link2 aria-hidden="true" className="size-4" />
@@ -155,7 +140,7 @@ export default function CrowdSecManagedOnline({
                             {t('admin.crowdSec.online.enrollmentHint')}
                         </p>
                     </div>
-                ) : !state.communityEnabled || !activeManaged ? (
+                ) : !state.communityEnabled || !state.activeManaged ? (
                     <p className="mt-3 text-xs leading-relaxed text-muted">
                         {t('admin.crowdSec.online.enableFirst')}
                     </p>

@@ -3,30 +3,30 @@ import '@tanstack/react-start/server-only'
 import { and, asc, count, eq } from 'drizzle-orm'
 import type { z } from 'zod'
 
-import { MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY } from '../../../config/access-policies.config'
-import { accessPolicyBasicAuthAccounts, accessPolicies } from '../../../db/schema'
+import { MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY } from '@/config/access-policies.config.ts'
+import { accessPolicyBasicAuthAccounts, accessPolicies } from '@/db/schema.ts'
 import type {
     BasicAuthAccountsPolicyInput,
     CreateBasicAuthAccountInput,
     DeleteBasicAuthAccountInput,
     UpdateBasicAuthAccountInput,
-} from '../../../features/Admin/AccessPolicyManagement/basic-auth.validation'
+} from '@/features/Admin/AccessPolicyManagement/basic-auth.validation.ts'
 import {
     basicAuthAccountsPolicyInputSchema,
     createBasicAuthAccountInputSchema,
     deleteBasicAuthAccountInputSchema,
     updateBasicAuthAccountInputSchema,
-} from '../../../features/Admin/AccessPolicyManagement/basic-auth.validation'
-import { requirePermissionService } from '../../Auth/Access/authorization.service'
-import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
-import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
-import { reconcileProxyConfigurationWithAudit } from '../../ProxyRuntime/proxy-runtime.service'
-import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
-import { AccessPolicyDomainError } from './access-policies.errors'
-import { BasicAuthDomainError } from './basic-auth.errors'
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
-import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
+} from '@/features/Admin/AccessPolicyManagement/basic-auth.validation.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
+import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import { AccessPolicyDomainError } from './access-policies.errors.ts'
+import { BasicAuthDomainError } from './basic-auth.errors.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
 
 export interface BasicAuthAccountSummary {
     readonly id: string
@@ -207,7 +207,7 @@ export async function createBasicAuthAccountService(
                 .returning({ id: accessPolicyBasicAuthAccounts.id })
             const created = rows.at(0)
             if (!created) throw new BasicAuthDomainError('basic_auth_account_not_found')
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'create',
@@ -261,7 +261,7 @@ export async function updateBasicAuthAccountService(
                     updatedAt: new Date(),
                 })
                 .where(eq(accessPolicyBasicAuthAccounts.id, current.id))
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'update',
@@ -311,7 +311,7 @@ export async function deleteBasicAuthAccountService(
             await transaction
                 .delete(accessPolicyBasicAuthAccounts)
                 .where(eq(accessPolicyBasicAuthAccounts.id, current.id))
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'delete',

@@ -3,16 +3,13 @@ import { RangeCalendar } from '@rentnerkev/calendar/range-calendar'
 import { CustomSelect } from '@rentnerkev/select/select'
 import type { RowData } from '@tanstack/react-table'
 
-import {
-    CALENDAR_CUSTOM_DESIGN,
-    CALENDAR_TRIGGER_CLASS_NAME,
-} from '../../../config/calendar.config'
+import { CALENDAR_CUSTOM_DESIGN, CALENDAR_TRIGGER_CLASS_NAME } from '@/config/calendar.config.ts'
 import {
     getRangeCalendarInputValue,
     getTableDateRangeFilterValue,
-} from '../Helpers/calendarFilterValue.helpers'
-import useCalendarPresentation from '../../Calendar/Hooks/useCalendarPresentation'
-import type { TableColumnFilterInputProps } from '../Types/table.types'
+} from '@/lib/Table/calendarFilterValue.ts'
+import useCalendarPresentation from '@/shared/Calendar/Hooks/useCalendarPresentation.ts'
+import type { TableColumnFilterInputProps } from '../Types/table.types.ts'
 
 export default function TableColumnFilterInput<TData extends RowData>({
     column,

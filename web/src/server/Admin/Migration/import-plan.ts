@@ -1,4 +1,4 @@
-import type { NpmImportPlan, NpmImportPlanItem } from '../NpmImport/npm-plan'
+import type { NpmImportPlan, NpmImportPlanItem } from '@/server/Admin/NpmImport/npm-plan.ts'
 
 export function finalizeImportPlan(
     fingerprint: string,

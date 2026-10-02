@@ -2,10 +2,10 @@ import '@tanstack/react-start/server-only'
 
 import { randomUUID } from 'node:crypto'
 import { and, asc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm'
-import { certificateJobs } from '../../../db/schema'
-import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
-import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
-import type { CertificateJobRow } from './certificate-jobs.storage.server'
+import { certificateJobs } from '@/db/schema.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import type { CertificateJobRow } from './certificate-jobs.storage.server.ts'
 
 export async function claimCertificateJob(): Promise<CertificateJobRow | null> {
     return getAuthDatabase().transaction(async (transaction) => {

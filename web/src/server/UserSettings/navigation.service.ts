@@ -1,13 +1,13 @@
 import '@tanstack/react-start/server-only'
 
 import { sql } from 'drizzle-orm'
-import { navigationGroupPreferenceInputSchema } from '../../config/navigation.config'
-import type { NavigationGroupChange } from '../../config/navigation.config'
-import { PERMISSIONS } from '../../config/permissions.config'
-import { userSettings } from '../../db/schema'
-import { requirePermissionService } from '../Auth/Access/authorization.service'
-import { getAuthDatabase } from '../Auth/Core/database.server'
-import { AuthDomainError } from '../Auth/Core/errors.server'
+import { navigationGroupPreferenceInputSchema } from '@/lib/Navigation/navigationPreferences.ts'
+import type { NavigationGroupChange } from '@/shared/Types/navigation-config.types.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { userSettings } from '@/db/schema.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 
 export async function updateCurrentUserNavigationGroupService(
     input: unknown,

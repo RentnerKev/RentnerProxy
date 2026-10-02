@@ -2,17 +2,17 @@ import '@tanstack/react-start/server-only'
 
 import { and, asc, eq, isNotNull, ne, sql } from 'drizzle-orm'
 
-import { ACTIVE_OWNER_ADVISORY_LOCK_ID } from '../../../config/auth.config'
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { passwordResetTokens, roles, userInvites, userRoles, users } from '../../../db/schema'
-import type { UserSummary } from '../../../shared/Types/auth.types'
-import { sendUserInviteEmailService } from '../../Mail/mail.service'
-import { requirePermissionService } from '../../Auth/Access/authorization.service'
-import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
-import { AuthDomainError } from '../../Auth/Core/errors.server'
-import { isUniqueConstraintViolation } from '../../Auth/Core/database-errors.server'
-import { normalizeDisplayName, normalizeEmail } from '../../Auth/Core/identity.server'
-import { issueInviteService } from '../../Auth/Setup/invites.service'
+import { ACTIVE_OWNER_ADVISORY_LOCK_ID } from '@/config/auth.config.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { passwordResetTokens, roles, userInvites, userRoles, users } from '@/db/schema.ts'
+import type { UserSummary } from '@/shared/Types/auth.types.ts'
+import { sendUserInviteEmailService } from '@/server/Mail/mail.service.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { isUniqueConstraintViolation } from '@/server/Auth/Core/database-errors.server.ts'
+import { normalizeDisplayName, normalizeEmail } from '@/server/Auth/Core/identity.server.ts'
+import { issueInviteService } from '@/server/Auth/Setup/invites.service.ts'
 import {
     assertRoleAssignmentAllowedInTransaction,
     countActiveOwnersInTransaction,
@@ -21,10 +21,10 @@ import {
     loadRolesByKeysInTransaction,
     replaceUserRolesInTransaction,
     requirePermissionInTransaction,
-} from '../../Auth/Access/rbac.service'
-import { revokeAllUserSessionsInTransaction } from '../../Auth/Access/sessions.service'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
-import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
+} from '@/server/Auth/Access/rbac.service.ts'
+import { revokeAllUserSessionsInTransaction } from '@/server/Auth/Access/sessions.service.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
 
 async function lockOwnerPolicy(transaction: AuthTransaction): Promise<void> {
     await transaction.execute(sql`select pg_advisory_xact_lock(${ACTIVE_OWNER_ADVISORY_LOCK_ID})`)
@@ -245,7 +245,7 @@ export async function updateUserService(input: {
                 await transaction.delete(userInvites).where(eq(userInvites.userId, user.id))
             }
 
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'update',
@@ -335,7 +335,7 @@ export async function disableUserService(userId: string): Promise<UserSummary> {
                 .where(eq(passwordResetTokens.userId, user.id))
             await transaction.delete(userInvites).where(eq(userInvites.userId, user.id))
 
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'disable',
@@ -411,7 +411,7 @@ export async function enableUserService(userId: string): Promise<UserSummary> {
                 )
             }
 
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'enable',

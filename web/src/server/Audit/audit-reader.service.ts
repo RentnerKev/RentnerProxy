@@ -2,25 +2,25 @@ import '@tanstack/react-start/server-only'
 
 import { and, asc, desc, eq, gte, lte, lt, or, sql } from 'drizzle-orm'
 
-import { PERMISSIONS } from '../../config/permissions.config'
-import { auditEvents, users } from '../../db/schema'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { auditEvents, users } from '@/db/schema.ts'
 import type {
     AuditEventDto,
     AuditActorOption,
     AuditEventsQuery,
     AuditEventsResult,
     AuditMetadata,
-} from '../../shared/Types/audit-events.types'
+} from '@/shared/Types/audit-events.types.ts'
 import {
     auditEventsQuerySchema,
     auditMetadataSchema,
     encodeAuditCursor,
     parseAuditCursor,
-} from '../../features/Admin/AuditLogs/validation'
-import { requirePermissionService } from '../Auth/Access/authorization.service'
-import { getAuthDatabase } from '../Auth/Core/database.server'
-import { AuthDomainError } from '../Auth/Core/errors.server'
-import { AUDIT_RETENTION_LOCK_ID, pruneAuditEventsInTransaction } from './audit.service'
+} from '@/features/Admin/AuditLogs/validation.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { AUDIT_RETENTION_LOCK_ID, pruneAuditEventsInTransaction } from './audit.service.ts'
 
 const AUDIT_METADATA_MAX_BYTES = 4_096
 

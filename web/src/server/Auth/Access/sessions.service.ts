@@ -2,17 +2,21 @@ import '@tanstack/react-start/server-only'
 
 import { and, eq, gt, lte, ne } from 'drizzle-orm'
 
-import { RECENT_AUTHENTICATION_DURATION_MS } from '../../../config/auth-security.config'
-import { SESSION_DURATION_MS, SESSION_LAST_SEEN_INTERVAL_MS } from '../../../config/auth.config'
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { sessions, users } from '../../../db/schema'
-import type { CurrentSession } from '../Core/Types/auth-service.types'
-import { getSessionCookie } from './cookies.server'
-import { getAuthDatabase, type AuthTransaction } from '../Core/database.server'
-import { AuthDomainError } from '../Core/errors.server'
-import { resolveActiveUserAccessInTransaction } from './rbac.service'
-import { createOpaqueToken, hashOpaqueToken, isValidOpaqueToken } from '../Core/tokens.server'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+import { RECENT_AUTHENTICATION_DURATION_MS } from '@/config/auth-security.config.ts'
+import { SESSION_DURATION_MS, SESSION_LAST_SEEN_INTERVAL_MS } from '@/config/auth.config.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { sessions, users } from '@/db/schema.ts'
+import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
+import { getSessionCookie } from './cookies.server.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { resolveActiveUserAccessInTransaction } from './rbac.service.ts'
+import {
+    createOpaqueToken,
+    hashOpaqueToken,
+    isValidOpaqueToken,
+} from '@/server/Auth/Core/tokens.server.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 
 export async function createSessionInTransaction(
     transaction: AuthTransaction,
@@ -57,7 +61,7 @@ export async function createSessionInTransaction(
         throw new AuthDomainError('user_not_active', 'User is not active.')
     }
 
-    await appendAuditEventInTransaction(transaction, {
+    await appendAuditEventInTransactionService(transaction, {
         actorUserId: userId,
         actorKind: 'user',
         action: 'login',
@@ -150,7 +154,7 @@ export async function revokeSessionByTokenService(token: string): Promise<boolea
             .returning({ id: sessions.id, userId: sessions.userId })
         const session = deletedSessions.at(0)
         if (session) {
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: session.userId,
                 actorKind: 'user',
                 action: 'logout',

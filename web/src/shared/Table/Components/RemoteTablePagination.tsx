@@ -1,5 +1,5 @@
-import TablePaginationControls from './TablePaginationControls'
-import type { RemoteTablePaginationProps } from '../Types/table.types'
+import TablePaginationControls from './TablePaginationControls/index.tsx'
+import type { RemoteTablePaginationProps } from '../Types/table.types.ts'
 
 export const remoteTablePageSizeOptions = [15, 25, 50, 100] as const
 

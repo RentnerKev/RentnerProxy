@@ -1,5 +1,5 @@
-import useTranslationStore from '../../../../language/useTranslationStore'
-import type { ProxyRuntimeState, ProxyRuntimeStatus } from '../Types/proxy-host-management.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import type { ProxyRuntimeState, ProxyRuntimeStatus } from '../Types/proxy-host-management.types.ts'
 
 interface ProxyRuntimeStatusPanelProps {
     readonly canApply: boolean

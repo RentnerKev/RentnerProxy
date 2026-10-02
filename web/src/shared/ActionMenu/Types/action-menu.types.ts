@@ -1,3 +1,4 @@
+import type { RefObject, PointerEvent, KeyboardEvent } from 'react'
 import type { ReactNode } from 'react'
 
 export interface ActionMenuItem {
@@ -16,4 +17,20 @@ export interface ActionMenuProps {
 
 export interface ActionMenuItemViewProps {
     readonly item: ActionMenuItem
+}
+
+export interface ActionMenuLogicResult {
+    readonly state: { readonly openOnHover: boolean; readonly open: boolean }
+    readonly refs: {
+        readonly trigger: RefObject<HTMLButtonElement | null>
+        readonly content: RefObject<HTMLDivElement | null>
+    }
+    readonly handler: {
+        readonly handlePointerEnter: (event: PointerEvent<HTMLElement>) => void
+        readonly handlePointerLeave: (event: PointerEvent<HTMLElement>) => void
+        readonly handleKeyDown: (event: KeyboardEvent<HTMLElement>) => void
+        readonly handleOpenChange: (open: boolean) => void
+        readonly handleOpenAutoFocus: (event: Event) => void
+        readonly handleCloseAutoFocus: (event: Event) => void
+    }
 }

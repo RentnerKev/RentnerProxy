@@ -1,9 +1,10 @@
+import type { ActionMenuLogicResult } from '../Types/action-menu.types.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 
 const HOVER_CLOSE_DELAY_MS = 150
 
-export default function useActionMenuLogic(openOnHover: boolean) {
+export default function useActionMenuLogic(openOnHover: boolean): ActionMenuLogicResult {
     const [open, setOpen] = useState(false)
     const triggerRef = useRef<HTMLButtonElement>(null)
     const contentRef = useRef<HTMLDivElement>(null)
@@ -79,26 +80,16 @@ export default function useActionMenuLogic(openOnHover: boolean) {
 
     useEffect(() => clearCloseTimeout, [clearCloseTimeout])
 
-    const pointerProps = openOnHover
-        ? {
-              onPointerEnter: handlePointerEnter,
-              onPointerLeave: handlePointerLeave,
-              onKeyDownCapture: handleKeyDown,
-          }
-        : {}
-
     return {
-        rootProps: openOnHover ? { open, onOpenChange: handleOpenChange, modal: false } : {},
-        triggerProps: { ref: triggerRef, ...pointerProps },
-        contentProps: {
-            ref: contentRef,
-            ...pointerProps,
-            ...(openOnHover
-                ? {
-                      onOpenAutoFocus: handleOpenAutoFocus,
-                      onCloseAutoFocus: handleCloseAutoFocus,
-                  }
-                : {}),
+        state: { openOnHover, open },
+        refs: { trigger: triggerRef, content: contentRef },
+        handler: {
+            handlePointerEnter,
+            handlePointerLeave,
+            handleKeyDown,
+            handleOpenChange,
+            handleOpenAutoFocus,
+            handleCloseAutoFocus,
         },
     }
 }

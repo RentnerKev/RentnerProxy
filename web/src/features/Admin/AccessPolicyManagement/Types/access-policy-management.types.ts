@@ -1,13 +1,8 @@
-import type { PermissionKey } from '../../../../config/permissions.config'
-import type { ProxyRuntimeSyncStatus } from '../../../../shared/Types/proxy-runtime.types'
-import type useAccessPolicyManagementLogic from '../Hooks/useAccessPolicyManagementLogic'
+import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { ProxyRuntimeSyncStatus } from '@/shared/Types/proxy-runtime.types.ts'
 
 export interface AccessPolicyManagementPageProps {
     readonly permissions: readonly PermissionKey[]
-}
-
-export interface AccessPolicyManagementPageViewProps {
-    readonly logic: ReturnType<typeof useAccessPolicyManagementLogic>
 }
 
 export type AccessPolicyRuntimeStatus = ProxyRuntimeSyncStatus

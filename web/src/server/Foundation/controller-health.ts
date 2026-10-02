@@ -1,6 +1,6 @@
-import { isRecord } from '../../shared/Helpers/isRecord'
-import { CONTROLLER_SERVICE } from './controller.constants'
-import type { ControllerHealthPayload } from './Types/controller-health.types'
+import { isRecord } from '@/lib/Records/isRecord.ts'
+import { CONTROLLER_SERVICE } from '@/config/controller.config.ts'
+import type { ControllerHealthPayload } from './Types/controller-health.types.ts'
 
 export function parseControllerHealth(value: unknown): ControllerHealthPayload | null {
     if (

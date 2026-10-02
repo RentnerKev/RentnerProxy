@@ -2,8 +2,8 @@ import type {
     ProxyHostConfigEditorData,
     ProxyConfigEditorData,
     ProxyHttpSettings,
-} from '../../../../shared/Types/proxy-runtime.types'
-import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
+} from '@/shared/Types/proxy-runtime.types.ts'
+import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
 
 export type ProxyConfigEditorTab = 'edit' | 'active'
 

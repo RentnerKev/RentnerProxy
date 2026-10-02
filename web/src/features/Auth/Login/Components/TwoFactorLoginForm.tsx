@@ -2,32 +2,23 @@ import { TextInput } from '@rentnerkev/inputs'
 import { Link } from '@tanstack/react-router'
 import type { ChangeEvent } from 'react'
 
-import FieldError from '../../../../shared/Forms/FieldError'
-import type { TwoFactorLoginFormProps } from '../Types/login-component-props.types'
+import FieldError from '@/shared/Forms/FieldError.tsx'
+import type { TwoFactorLoginFormProps } from '../Types/login-component-props.types.ts'
 
 export default function TwoFactorLoginForm({
     state,
+    handler,
+    form,
     onToggleMode,
-    getCredentialError,
     normalizeCredential,
 }: TwoFactorLoginFormProps) {
     return (
-        <form
-            className="mt-7 grid gap-[1.1rem]"
-            noValidate
-            onSubmit={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                void state.form.handleSubmit()
-            }}
-        >
-            <state.form.Subscribe selector={(formState) => formState.values.mode}>
+        <form className="mt-7 grid gap-[1.1rem]" noValidate onSubmit={handler.handleSubmit}>
+            <form.Subscribe selector={(formState) => formState.values.mode}>
                 {(mode) => (
-                    <state.form.Field
+                    <form.Field
                         name="credential"
-                        validators={{
-                            onBlur: ({ value }) => getCredentialError(mode, value),
-                        }}
+                        validators={{ onBlur: handler.validateCredential }}
                     >
                         {(field) => (
                             <div className="grid gap-[0.45rem]">
@@ -58,10 +49,10 @@ export default function TwoFactorLoginForm({
                                 />
                             </div>
                         )}
-                    </state.form.Field>
+                    </form.Field>
                 )}
-            </state.form.Subscribe>
-            <state.form.Subscribe
+            </form.Subscribe>
+            <form.Subscribe
                 selector={(formState) =>
                     [formState.canSubmit, formState.isSubmitting, formState.values.mode] as const
                 }
@@ -89,7 +80,7 @@ export default function TwoFactorLoginForm({
                         ) : null}
                     </>
                 )}
-            </state.form.Subscribe>
+            </form.Subscribe>
             <Link to="/login" className="text-center text-sm text-muted hover:text-accent-ring">
                 Back to sign in
             </Link>

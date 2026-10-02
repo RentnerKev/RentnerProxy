@@ -1,8 +1,11 @@
-import type { AccessPolicyCombination, AccessPolicyMode } from '../../config/access-policies.config'
-import type { AccessPolicyIpRules } from '../Helpers/ipAccessRules'
-import type { ForwardAuthConfiguration } from '../Helpers/forwardAuth'
+import type { AccessPolicyCombination, AccessPolicyMode } from './access-policies-config.types.ts'
+import type { AccessPolicyIpRules } from '@/lib/AccessPolicies/ipAccessRules.ts'
+import type { ForwardAuthConfiguration } from '@/lib/ForwardAuth/forwardAuth.ts'
 
-export type { AccessPolicyIpRuleAction, AccessPolicyIpRules } from '../Helpers/ipAccessRules'
+export type {
+    AccessPolicyIpRuleAction,
+    AccessPolicyIpRules,
+} from '@/lib/AccessPolicies/ipAccessRules.ts'
 
 export interface AccessPolicyBasicAuthRuntimeAccount {
     readonly username: string

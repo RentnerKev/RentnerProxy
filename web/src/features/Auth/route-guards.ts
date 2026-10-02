@@ -1,9 +1,9 @@
 import { redirect } from '@tanstack/react-router'
 
-import { PERMISSIONS } from '../../config/permissions.config'
-import type { PermissionKey } from '../../config/permissions.config'
-import { getAuthStateHandler, logoutHandler } from './server'
-import type { PermissionRouteContext } from './Types/route-context.types'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import { getAuthStateHandler, logoutHandler } from '@/features/Auth/middleware.ts'
+import type { PermissionRouteContext } from '@/features/Auth/Types/route-context.types.ts'
 
 export function requirePermissionRoute(permission: PermissionKey) {
     return ({ context }: PermissionRouteContext) => {

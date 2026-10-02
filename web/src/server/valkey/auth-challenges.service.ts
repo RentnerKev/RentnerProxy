@@ -3,10 +3,10 @@ import '@tanstack/react-start/server-only'
 import {
     CHALLENGE_VERIFICATION_LOCK_DURATION_MS,
     MFA_CHALLENGE_MAX_ATTEMPTS,
-} from '../../config/auth-security.config'
-import { createOpaqueToken, isValidOpaqueToken } from '../Auth/Core/tokens.server'
-import { getValkeyClient } from './client.server'
-import type { ValkeyCommandClient } from './Types/valkey.types'
+} from '@/config/auth-security.config.ts'
+import { createOpaqueToken, isValidOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
+import { getValkeyClient } from './client.server.ts'
+import type { ValkeyCommandClient } from './Types/valkey.types.ts'
 
 const KEY_PREFIX = 'rentnerproxy:auth-challenge'
 

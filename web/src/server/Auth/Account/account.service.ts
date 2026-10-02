@@ -2,21 +2,24 @@ import '@tanstack/react-start/server-only'
 
 import { and, eq, gt } from 'drizzle-orm'
 
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { passwordResetTokens, sessions, users } from '../../../db/schema'
-import type { ChangePasswordResult, CurrentSession } from '../Core/Types/auth-service.types'
-import { getAuthDatabase } from '../Core/database.server'
-import { AuthDomainError } from '../Core/errors.server'
-import { hashPassword, verifyPassword } from '../Core/password.server'
-import { enforcePasswordChangeRateLimit } from '../../valkey/rate-limiter.service'
-import { requirePermissionInTransaction } from '../Access/rbac.service'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
-import { auditAuthOperation } from '../Core/audit-auth.server'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { passwordResetTokens, sessions, users } from '@/db/schema.ts'
+import type {
+    ChangePasswordResult,
+    CurrentSession,
+} from '@/server/Auth/Core/Types/auth-service.types.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { hashPassword, verifyPassword } from '@/server/Auth/Core/password.server.ts'
+import { enforcePasswordChangeRateLimit } from '@/server/valkey/rate-limiter.service.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import { auditAuthOperation } from '@/server/Auth/Core/audit-auth.server.ts'
 import {
     getCurrentSessionService,
     markSessionReauthenticatedInTransaction,
     revokeOtherUserSessionsInTransaction,
-} from '../Access/sessions.service'
+} from '@/server/Auth/Access/sessions.service.ts'
 
 export async function changeCurrentPasswordService(input: {
     currentPassword: string
@@ -110,7 +113,7 @@ export async function changeCurrentPasswordService(input: {
                     currentSession.id,
                 )
                 await markSessionReauthenticatedInTransaction(transaction, currentSession)
-                await appendAuditEventInTransaction(transaction, {
+                await appendAuditEventInTransactionService(transaction, {
                     actorUserId: currentSession.user.id,
                     actorKind: 'user',
                     action: 'update',
@@ -147,7 +150,7 @@ export async function reauthenticateCurrentSessionWithPasswordService(
         }
 
         if (!(await verifyPassword(password, user.passwordHash))) {
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: currentSession.user.id,
                 actorKind: 'user',
                 action: 'reauthenticate',
@@ -161,7 +164,7 @@ export async function reauthenticateCurrentSessionWithPasswordService(
 
         const completed = await markSessionReauthenticatedInTransaction(transaction, currentSession)
         if (completed) {
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: currentSession.user.id,
                 actorKind: 'user',
                 action: 'reauthenticate',

@@ -1,4 +1,4 @@
-import type { AppLanguage } from '../language/useTranslationStore'
+import type { AppLanguage } from '@/shared/Language/Types/language.types.ts'
 
 export const FALLBACK_LANGUAGE: AppLanguage = 'en'
 export const AVAILABLE_LANGUAGES = ['en', 'de', 'es', 'fr', 'it', 'pt', 'nl', 'pl'] as const
@@ -12,21 +12,6 @@ export const LANGUAGE_NATIVE_NAMES: Record<AppLanguage, string> = {
     pt: 'Português',
     nl: 'Nederlands',
     pl: 'Polski',
-}
-
-export const LANGUAGE_RESOURCE_LOADERS = {
-    en: () => import('../language/Locales/en.json').then((module) => module.default),
-    de: () => import('../language/Locales/de.json').then((module) => module.default),
-    es: () => import('../language/Locales/es.json').then((module) => module.default),
-    fr: () => import('../language/Locales/fr.json').then((module) => module.default),
-    it: () => import('../language/Locales/it.json').then((module) => module.default),
-    pt: () => import('../language/Locales/pt.json').then((module) => module.default),
-    nl: () => import('../language/Locales/nl.json').then((module) => module.default),
-    pl: () => import('../language/Locales/pl.json').then((module) => module.default),
-} as const
-
-export function isAppLanguage(value: unknown): value is AppLanguage {
-    return typeof value === 'string' && AVAILABLE_LANGUAGES.some((language) => language === value)
 }
 
 export const LANGUAGE_LOCALES: Record<AppLanguage, string> = {

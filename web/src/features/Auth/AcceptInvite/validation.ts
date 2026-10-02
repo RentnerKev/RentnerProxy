@@ -4,7 +4,7 @@ import {
     addPasswordConfirmationIssue,
     displayNameSchema,
     newPasswordSchema,
-} from '../Shared/validation'
+} from '@/lib/Auth/validation.ts'
 
 export const acceptInviteFormSchema = z
     .object({

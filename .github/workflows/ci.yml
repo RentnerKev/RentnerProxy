@@ -176,6 +176,9 @@ jobs:
             - name: Run web tests
               run: bun run test:ts
 
+            - name: Run database integration tests
+              run: bun run test:db
+
     fuzz:
         name: Fuzz Tests
         runs-on: ubuntu-latest

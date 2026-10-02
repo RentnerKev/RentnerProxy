@@ -1,11 +1,11 @@
 import { Link } from '@tanstack/react-router'
 
-import AuthShell from '../../../layout/Components/AuthShell'
-import ForgotPasswordForm from './Components/ForgotPasswordForm'
-import useForgotPasswordLogic from './Hooks/useForgotPasswordLogic'
+import AuthShell from '@/shared/Auth/AuthShell/index.tsx'
+import ForgotPasswordForm from './Components/ForgotPasswordForm.tsx'
+import useForgotPasswordLogic from './Hooks/useForgotPasswordLogic.ts'
 
 export default function ForgotPasswordPage() {
-    const { state } = useForgotPasswordLogic()
+    const { state, handler, form } = useForgotPasswordLogic()
 
     return (
         <AuthShell
@@ -18,7 +18,7 @@ export default function ForgotPasswordPage() {
                 </>
             }
         >
-            <ForgotPasswordForm state={state} />
+            <ForgotPasswordForm state={state} form={form} handler={handler} />
         </AuthShell>
     )
 }

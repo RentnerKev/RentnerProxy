@@ -1,5 +1,5 @@
-import type { PermissionKey } from '../../../../config/permissions.config'
-import useCertificateJobProgressObserver from '../Hooks/useCertificateJobProgressObserver'
+import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import useCertificateJobProgressObserver from '../Hooks/useCertificateJobProgressObserver.ts'
 
 export default function CertificateJobProgressObserver({
     permissions,

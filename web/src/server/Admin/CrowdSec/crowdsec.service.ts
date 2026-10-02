@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 
-import { PERMISSIONS } from '../../../config/permissions.config'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
 import {
     testCrowdSecConnectionSchema,
     updateCrowdSecConfigurationSchema,
@@ -8,19 +8,19 @@ import {
     crowdSecDashboardQuerySchema,
     type TestCrowdSecConnectionInput,
     type UpdateCrowdSecConfigurationInput,
-} from '../../../features/Admin/CrowdSec/validation'
+} from '@/features/Admin/CrowdSec/validation.ts'
 import type {
     CrowdSecConfiguration,
     CrowdSecDashboard,
     CrowdSecDashboardQuery,
     CrowdSecMutationResult,
     CrowdSecRuntimeStatus,
-} from '../../../shared/Types/crowdsec.types'
-import type { ProxyRuntimeMutationStatus } from '../../../shared/Types/proxy-runtime.types'
-import { requirePermissionService } from '../../Auth/Access/authorization.service'
-import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
-import { getAuthDatabase } from '../../Auth/Core/database.server'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+} from '@/shared/Types/crowdsec.types.ts'
+import type { ProxyRuntimeMutationStatus } from '@/shared/Types/proxy-runtime.types.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 import {
     applyCrowdSecConfiguration,
     enrollCrowdSecConsole,
@@ -28,12 +28,12 @@ import {
     getCrowdSecDashboard,
     testCrowdSecControllerConnection,
     type CrowdSecControllerRequest,
-} from '../../Foundation/controller.server'
-import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
-import { CrowdSecDomainError } from './crowdsec.errors'
-import { getLocalDemoDashboard } from './crowdsec-demo.server'
-import { enrichCrowdSecCountryCodes } from './crowdsec-geoip.server'
-import { createCrowdSecReconciler } from './crowdsec-reconcile'
+} from '@/server/Foundation/controller.server.ts'
+import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
+import { CrowdSecDomainError } from './crowdsec.errors.ts'
+import { getLocalDemoDashboard } from './crowdsec-demo.server.ts'
+import { enrichCrowdSecCountryCodes } from './crowdsec-geoip.server.ts'
+import { createCrowdSecReconciler } from './crowdsec-reconcile.ts'
 import {
     buildStoredCrowdSecConfiguration,
     crowdSecConfigurationFingerprint,
@@ -44,7 +44,7 @@ import {
     readStoredCrowdSecConfiguration,
     writeStoredCrowdSecConfiguration,
     type StoredCrowdSecConfiguration,
-} from './crowdsec-settings'
+} from './crowdsec-settings.ts'
 
 interface ReconcileSnapshot {
     readonly fingerprint: string
@@ -182,7 +182,7 @@ export async function enrollCrowdSecConsoleService(input: {
     }
     try {
         await getAuthDatabase().transaction((transaction) =>
-            appendAuditEventInTransaction(transaction, {
+            appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'request',
@@ -236,7 +236,7 @@ async function persistCrowdSecConfiguration(
         }
         await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.CROWDSEC_UPDATE)
         await writeStoredCrowdSecConfiguration(transaction, next)
-        await appendAuditEventInTransaction(transaction, {
+        await appendAuditEventInTransactionService(transaction, {
             actorUserId: actorId,
             actorKind: 'user',
             action: 'update',
@@ -250,7 +250,7 @@ async function persistCrowdSecConfiguration(
             (baseline.external.apiKey.ciphertext !== next.external.apiKey.ciphertext ||
                 baseline.external.apiKey.iv !== next.external.apiKey.iv)
         ) {
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actorId,
                 actorKind: 'user',
                 action: 'rotate',

@@ -1,9 +1,9 @@
 import { NativeTimeInput } from '@rentnerkev/inputs'
 import { SingleCalendar } from '@rentnerkev/calendar/single-calendar'
 
-import { CALENDAR_CUSTOM_DESIGN, CALENDAR_TRIGGER_CLASS_NAME } from '../../config/calendar.config'
-import useUtcDateTimeInputLogic from '../Calendar/Hooks/useUtcDateTimeInputLogic'
-import type { UtcDateTimeInputProps } from './Types/utc-date-time-input.types'
+import { CALENDAR_CUSTOM_DESIGN, CALENDAR_TRIGGER_CLASS_NAME } from '@/config/calendar.config.ts'
+import useUtcDateTimeInputLogic from '@/shared/Calendar/Hooks/useUtcDateTimeInputLogic.ts'
+import type { UtcDateTimeInputProps } from './Types/utc-date-time-input.types.ts'
 
 export default function UtcDateTimeInput({
     ariaLabel,

@@ -6,14 +6,14 @@ import {
 } from '@tanstack/react-start'
 import { getRequest, getRequestProtocol, setResponseHeaders } from '@tanstack/react-start/server'
 
-import { getTrustProxyHeaders, validateProductionEnvironment } from './server/env.server'
-import { publishApplicationChange } from './websockets/Helpers/publishFunctions'
-import { startRealtimeValkey } from './websockets/Server/realtimeValkey.service'
+import { getTrustProxyHeaders, validateProductionEnvironment } from '@/server/env.server.ts'
+import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
+import { startRealtimeValkey } from '@/server/WebSockets/realtimeValkey.service.ts'
 import {
     applyAdminUiSecurityHeaders,
     createCspNonce,
     getAdminUiSecurityHeaders,
-} from './server/security-headers'
+} from '@/server/security-headers.ts'
 
 const validateProductionEnvironmentAtStartup = createServerOnlyFn(() => {
     if (process.env.NODE_ENV === 'production') validateProductionEnvironment()
@@ -26,7 +26,7 @@ if (typeof window === 'undefined') startRealtimeEvents()
 
 const startProxyRuntimeLifecycle = createServerOnlyFn(async () => {
     let stop: (() => Promise<void>) | null = null
-    const initializing = import('./server/ProxyRuntime/proxy-runtime.service').then(
+    const initializing = import('@/server/ProxyRuntime/proxy-runtime.service.ts').then(
         ({ startProxyRuntimeReconciliation, stopProxyRuntimeReconciliation }) => {
             stop = stopProxyRuntimeReconciliation
             startProxyRuntimeReconciliation()
@@ -43,7 +43,7 @@ if (typeof window === 'undefined') void startProxyRuntimeLifecycle()
 
 const startCrowdSecRuntimeLifecycle = createServerOnlyFn(async () => {
     let stop: (() => Promise<void>) | null = null
-    const initializing = import('./server/Admin/CrowdSec/crowdsec.service').then(
+    const initializing = import('@/server/Admin/CrowdSec/crowdsec.service.ts').then(
         ({ startCrowdSecReconciliation, stopCrowdSecReconciliation }) => {
             stop = stopCrowdSecReconciliation
             startCrowdSecReconciliation()
@@ -61,7 +61,7 @@ if (typeof window === 'undefined') void startCrowdSecRuntimeLifecycle()
 const startCertificateEventsLifecycle = createServerOnlyFn(async () => {
     let stop: (() => Promise<void>) | null = null
     const initializing =
-        import('./server/Admin/CertificateManagement/certificate-events.worker').then(
+        import('@/server/Admin/CertificateManagement/certificate-events.worker.ts').then(
             ({ startCertificateEventsSynchronization, stopCertificateEventsSynchronization }) => {
                 stop = stopCertificateEventsSynchronization
                 startCertificateEventsSynchronization()
@@ -79,7 +79,7 @@ if (typeof window === 'undefined') void startCertificateEventsLifecycle()
 const startCertificateJobsLifecycle = createServerOnlyFn(async () => {
     let stop: (() => Promise<void>) | null = null
     const initializing =
-        import('./server/Admin/ProxyHostManagement/certificate-jobs.worker.server').then(
+        import('@/server/Admin/ProxyHostManagement/certificate-jobs.worker.server.ts').then(
             ({ startCertificateJobWorker, stopCertificateJobWorker }) => {
                 stop = stopCertificateJobWorker
                 startCertificateJobWorker()
@@ -94,7 +94,7 @@ const startCertificateJobsLifecycle = createServerOnlyFn(async () => {
 if (typeof window === 'undefined') void startCertificateJobsLifecycle()
 
 const startNpmImportTempCleanup = createServerOnlyFn(async () => {
-    const { pruneStaleNpmImports } = await import('./server/Admin/NpmImport/npm-temp')
+    const { pruneStaleNpmImports } = await import('@/server/Admin/NpmImport/npm-temp.ts')
     await pruneStaleNpmImports().catch(() => undefined)
     const timer = setInterval(
         () => {

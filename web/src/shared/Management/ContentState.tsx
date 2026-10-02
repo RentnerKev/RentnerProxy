@@ -1,4 +1,4 @@
-import type { ContentStateProps } from './Types/management-component-props.types'
+import type { ContentStateProps } from './Types/management-component-props.types.ts'
 
 export default function ContentState({
     action,

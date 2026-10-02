@@ -1,21 +1,21 @@
 import '@tanstack/react-start/server-only'
 
-import { PERMISSIONS } from '../../config/permissions.config'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type {
     ProxyRuntimeMutationStatus,
     ProxyRuntimeSyncStatus,
-} from '../../shared/Types/proxy-runtime.types'
-import { requirePermissionService } from '../Auth/Access/authorization.service'
-import { getAuthDatabase } from '../Auth/Core/database.server'
+} from '@/shared/Types/proxy-runtime.types.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import {
     applyProxyRuntimeConfiguration,
     getProxyRuntimeStatus,
-} from '../Foundation/controller.server'
-import { createProxyReconciler } from './proxy-reconcile'
-import { compareProxyRuntimeStatus } from './proxy-runtime-snapshot'
-import { readProxyRuntimeSnapshot } from './proxy-runtime-data'
-import type { ProxyRuntimeSnapshot } from './Types/proxy-runtime.types'
-import { recordAuditEventBestEffort } from '../Audit/audit.service'
+} from '@/server/Foundation/controller.server.ts'
+import { createProxyReconciler } from './proxy-reconcile.ts'
+import { compareProxyRuntimeStatus } from './proxy-runtime-snapshot.ts'
+import { readProxyRuntimeSnapshot } from './proxy-runtime-data.ts'
+import type { ProxyRuntimeSnapshot } from './Types/proxy-runtime.types.ts'
+import { recordAuditEventBestEffortService } from '@/server/Audit/audit.service.ts'
 
 export async function getProxyRuntimeSnapshotService(): Promise<ProxyRuntimeSnapshot> {
     return getAuthDatabase().transaction((transaction) => readProxyRuntimeSnapshot(transaction), {
@@ -85,7 +85,7 @@ export async function reconcileProxyConfigurationWithAudit(
 ): Promise<ProxyRuntimeMutationStatus> {
     try {
         const status = await reconcileProxyConfigurationService()
-        await recordAuditEventBestEffort({
+        await recordAuditEventBestEffortService({
             actorUserId: actorId,
             actorKind: 'user',
             action: 'apply',
@@ -96,7 +96,7 @@ export async function reconcileProxyConfigurationWithAudit(
         })
         return status
     } catch (error) {
-        await recordAuditEventBestEffort({
+        await recordAuditEventBestEffortService({
             actorUserId: actorId,
             actorKind: 'user',
             action: 'apply',

@@ -1,32 +1,12 @@
 import { EmailInput, PasswordInput, TextInput } from '@rentnerkev/inputs'
-import FieldError from '../../../../shared/Forms/FieldError'
+import FieldError from '@/shared/Forms/FieldError.tsx'
 import type { ChangeEvent } from 'react'
-import type { SetupFormProps } from '../Types/setup-component-props.types'
-import {
-    displayNameSchema,
-    emailSchema,
-    getPasswordConfirmationMessage,
-    getValidationMessage,
-    newPasswordSchema,
-} from '../../Shared/validation'
+import type { SetupFormProps } from '../Types/setup-component-props.types.ts'
 
-export default function SetupForm({ state }: SetupFormProps) {
+export default function SetupForm({ state, form, handler }: SetupFormProps) {
     return (
-        <form
-            className="mt-7 grid gap-[1.1rem]"
-            noValidate
-            onSubmit={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                void state.form.handleSubmit()
-            }}
-        >
-            <state.form.Field
-                name="displayName"
-                validators={{
-                    onBlur: ({ value }) => getValidationMessage(displayNameSchema, value),
-                }}
-            >
+        <form className="mt-7 grid gap-[1.1rem]" noValidate onSubmit={handler.handleSubmit}>
+            <form.Field name="displayName" validators={{ onBlur: handler.validateDisplayName }}>
                 {(field) => (
                     <div className="grid gap-[0.45rem]">
                         <label
@@ -50,13 +30,8 @@ export default function SetupForm({ state }: SetupFormProps) {
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
                 )}
-            </state.form.Field>
-            <state.form.Field
-                name="email"
-                validators={{
-                    onBlur: ({ value }) => getValidationMessage(emailSchema, value),
-                }}
-            >
+            </form.Field>
+            <form.Field name="email" validators={{ onBlur: handler.validateEmail }}>
                 {(field) => (
                     <div className="grid gap-[0.45rem]">
                         <label
@@ -82,13 +57,8 @@ export default function SetupForm({ state }: SetupFormProps) {
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
                 )}
-            </state.form.Field>
-            <state.form.Field
-                name="password"
-                validators={{
-                    onBlur: ({ value }) => getValidationMessage(newPasswordSchema, value),
-                }}
-            >
+            </form.Field>
+            <form.Field name="password" validators={{ onBlur: handler.validatePassword }}>
                 {(field) => (
                     <div className="grid gap-[0.45rem]">
                         <label
@@ -113,16 +83,10 @@ export default function SetupForm({ state }: SetupFormProps) {
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
                 )}
-            </state.form.Field>
-            <state.form.Field
+            </form.Field>
+            <form.Field
                 name="confirmPassword"
-                validators={{
-                    onBlur: ({ value, fieldApi }) =>
-                        getPasswordConfirmationMessage(
-                            fieldApi.form.getFieldValue('password'),
-                            value,
-                        ),
-                }}
+                validators={{ onBlur: handler.validateConfirmPassword }}
             >
                 {(field) => (
                     <div className="grid gap-[0.45rem]">
@@ -147,8 +111,8 @@ export default function SetupForm({ state }: SetupFormProps) {
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
                 )}
-            </state.form.Field>
-            <state.form.Subscribe
+            </form.Field>
+            <form.Subscribe
                 selector={(formState) => [formState.canSubmit, formState.isSubmitting] as const}
             >
                 {([canSubmit, isSubmitting]) => (
@@ -160,7 +124,7 @@ export default function SetupForm({ state }: SetupFormProps) {
                         {isSubmitting || state.isPending ? 'Creating owner…' : 'Create owner'}
                     </button>
                 )}
-            </state.form.Subscribe>
+            </form.Subscribe>
         </form>
     )
 }

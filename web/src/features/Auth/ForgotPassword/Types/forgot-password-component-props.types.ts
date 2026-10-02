@@ -1,5 +1,8 @@
-import type useForgotPasswordLogic from '../Hooks/useForgotPasswordLogic'
+import type { ForgotPasswordLogicResult } from './forgot-password-logic.types.ts'
+import type useForgotPasswordLogic from '../Hooks/useForgotPasswordLogic.ts'
 
 export interface ForgotPasswordFormProps {
-    readonly state: ReturnType<typeof useForgotPasswordLogic>['state']
+    readonly handler: ForgotPasswordLogicResult<unknown>['handler']
+    readonly state: ForgotPasswordLogicResult<unknown>['state']
+    readonly form: ReturnType<typeof useForgotPasswordLogic>['form']
 }

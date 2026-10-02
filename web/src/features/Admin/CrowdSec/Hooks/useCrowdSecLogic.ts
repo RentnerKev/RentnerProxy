@@ -1,29 +1,30 @@
+import { invalidateCrowdSecConfigurationCache } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import { toast } from '@rentnerkev/toasts/toast'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
-import type { CrowdSecMode } from '../../../../config/crowdsec.config'
-import { PERMISSIONS } from '../../../../config/permissions.config'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import { getCrowdSecTransitionProgress } from '../progress'
-import { crowdSecQueryKeys } from '../queryKeys'
+import type { CrowdSecMode } from '@/shared/Types/crowdsec-config.types.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import { getCrowdSecTransitionProgress } from '../progress.ts'
+import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import {
     getCrowdSecConfigurationHandler,
     enrollCrowdSecConsoleHandler,
     testCrowdSecConnectionHandler,
     updateCrowdSecConfigurationHandler,
-} from '../server'
+} from '../middleware.ts'
 import type {
     CrowdSecPageLogic,
     CrowdSecPageProps,
     CrowdSecTransition,
     CrowdSecTransitionMode,
-} from '../Types/crowdsec.types'
+} from '../Types/crowdsec.types.ts'
 import {
     crowdSecConsoleEnrollmentSchema,
     testCrowdSecConnectionSchema,
     updateCrowdSecConfigurationSchema,
-} from '../validation'
+} from '../validation.ts'
 
 type FieldErrors = CrowdSecPageLogic['state']['fieldErrors']
 const TRANSITION_POLL_INTERVAL_MS = 1_500
@@ -159,7 +160,7 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
             setDraftApiUrl(null)
             setApiKey('')
             setDraftCommunityEnabled(null)
-            void queryClient.invalidateQueries({ queryKey: crowdSecQueryKeys.configuration })
+            void invalidateCrowdSecConfigurationCache(queryClient)
             void queryClient.resetQueries({ queryKey: crowdSecQueryKeys.dashboard })
             if (tracksProgress) {
                 setTransition((current) =>
@@ -194,7 +195,7 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
             toast[result.success ? 'success' : 'error'](t(result.message), {
                 title: t(`toast.titles.${result.success ? 'success' : 'error'}`),
             })
-            void queryClient.invalidateQueries({ queryKey: crowdSecQueryKeys.configuration })
+            void invalidateCrowdSecConfigurationCache(queryClient)
         },
         onError: () => {
             setEnrollmentKey('')
@@ -211,8 +212,38 @@ export default function useCrowdSecLogic({ permissions }: CrowdSecPageProps): Cr
             apiKey.length > 0 ||
             (mode === 'managed' && communityEnabled !== configuration.communityEnabled))
 
+    const busy =
+        saveMutation.isPending ||
+        (transitionActive && !transitionProgress?.complete) ||
+        testMutation.isPending ||
+        enrollMutation.isPending
+    const activeManaged = Boolean(
+        configuration?.mode === 'managed' &&
+        configuration.runtime?.mode === 'managed' &&
+        configuration.synchronized,
+    )
+    const communityState = activeManaged
+        ? (configuration?.runtime?.communityState ?? 'disabled')
+        : 'disabled'
+    const consoleState = activeManaged
+        ? (configuration?.runtime?.consoleState ?? 'not_enrolled')
+        : 'not_enrolled'
+    const canEnroll = Boolean(
+        activeManaged &&
+        communityEnabled &&
+        configuration?.communityEnabled &&
+        communityState === 'connected' &&
+        consoleState !== 'connected' &&
+        consoleState !== 'pending',
+    )
+
     return {
         state: {
+            busy,
+            activeManaged,
+            communityState,
+            consoleState,
+            canEnroll,
             canUpdate,
             configuration,
             mode,

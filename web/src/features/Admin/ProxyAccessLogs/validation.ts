@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { normalizeProxyDomain } from '../ProxyHostManagement/Helpers/proxyHostValidation'
+import { normalizeProxyDomain } from '@/lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
 
 export const PROXY_ACCESS_LOGS_DEFAULT_LIMIT = 15
 export const PROXY_ACCESS_LOGS_MAX_LIMIT = 200

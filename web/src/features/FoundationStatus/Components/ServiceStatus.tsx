@@ -1,4 +1,4 @@
-import type { ServiceStatusProps } from '../Types/foundation-status.types'
+import type { ServiceStatusProps } from '../Types/foundation-status.types.ts'
 
 export default function ServiceStatus({ detail, label, tone, value }: ServiceStatusProps) {
     const valueClassName =

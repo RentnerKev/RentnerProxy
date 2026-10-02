@@ -1,31 +1,12 @@
 import { PasswordInput, TextInput } from '@rentnerkev/inputs'
-import FieldError from '../../../../shared/Forms/FieldError'
+import FieldError from '@/shared/Forms/FieldError.tsx'
 import type { ChangeEvent } from 'react'
-import type { AcceptInviteFormProps } from '../Types/accept-invite-component-props.types'
-import {
-    displayNameSchema,
-    getPasswordConfirmationMessage,
-    getValidationMessage,
-    newPasswordSchema,
-} from '../../Shared/validation'
+import type { AcceptInviteFormProps } from '../Types/accept-invite-component-props.types.ts'
 
-export default function AcceptInviteForm({ state }: AcceptInviteFormProps) {
+export default function AcceptInviteForm({ state, form, handler }: AcceptInviteFormProps) {
     return (
-        <form
-            className="mt-7 grid gap-[1.1rem]"
-            noValidate
-            onSubmit={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                void state.form.handleSubmit()
-            }}
-        >
-            <state.form.Field
-                name="displayName"
-                validators={{
-                    onBlur: ({ value }) => getValidationMessage(displayNameSchema, value),
-                }}
-            >
+        <form className="mt-7 grid gap-[1.1rem]" noValidate onSubmit={handler.handleSubmit}>
+            <form.Field name="displayName" validators={{ onBlur: handler.validateDisplayName }}>
                 {(field) => (
                     <div className="grid gap-[0.45rem]">
                         <label
@@ -49,13 +30,8 @@ export default function AcceptInviteForm({ state }: AcceptInviteFormProps) {
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
                 )}
-            </state.form.Field>
-            <state.form.Field
-                name="password"
-                validators={{
-                    onBlur: ({ value }) => getValidationMessage(newPasswordSchema, value),
-                }}
-            >
+            </form.Field>
+            <form.Field name="password" validators={{ onBlur: handler.validatePassword }}>
                 {(field) => (
                     <div className="grid gap-[0.45rem]">
                         <label
@@ -80,16 +56,10 @@ export default function AcceptInviteForm({ state }: AcceptInviteFormProps) {
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
                 )}
-            </state.form.Field>
-            <state.form.Field
+            </form.Field>
+            <form.Field
                 name="confirmPassword"
-                validators={{
-                    onBlur: ({ value, fieldApi }) =>
-                        getPasswordConfirmationMessage(
-                            fieldApi.form.getFieldValue('password'),
-                            value,
-                        ),
-                }}
+                validators={{ onBlur: handler.validateConfirmPassword }}
             >
                 {(field) => (
                     <div className="grid gap-[0.45rem]">
@@ -114,8 +84,8 @@ export default function AcceptInviteForm({ state }: AcceptInviteFormProps) {
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
                 )}
-            </state.form.Field>
-            <state.form.Subscribe
+            </form.Field>
+            <form.Subscribe
                 selector={(formState) => [formState.canSubmit, formState.isSubmitting] as const}
             >
                 {([canSubmit, isSubmitting]) => (
@@ -129,7 +99,7 @@ export default function AcceptInviteForm({ state }: AcceptInviteFormProps) {
                             : 'Activate account'}
                     </button>
                 )}
-            </state.form.Subscribe>
+            </form.Subscribe>
         </form>
     )
 }

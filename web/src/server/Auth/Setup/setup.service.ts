@@ -2,15 +2,15 @@ import '@tanstack/react-start/server-only'
 
 import { eq, sql } from 'drizzle-orm'
 
-import { FIRST_OWNER_ADVISORY_LOCK_ID } from '../../../config/auth.config'
-import { SYSTEM_ROLES } from '../../../config/permissions.config'
-import { roles, userRoles, users } from '../../../db/schema'
-import { getAuthDatabase } from '../Core/database.server'
-import { AuthDomainError } from '../Core/errors.server'
-import { normalizeDisplayName, normalizeEmail } from '../Core/identity.server'
-import { hashPassword } from '../Core/password.server'
-import { ensureAuthorizationRegistryInTransaction } from '../Access/registry.service'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+import { FIRST_OWNER_ADVISORY_LOCK_ID } from '@/config/auth.config.ts'
+import { SYSTEM_ROLES } from '@/config/permissions.config.ts'
+import { roles, userRoles, users } from '@/db/schema.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { normalizeDisplayName, normalizeEmail } from '@/server/Auth/Core/identity.server.ts'
+import { hashPassword } from '@/server/Auth/Core/password.server.ts'
+import { ensureAuthorizationRegistryInTransaction } from '@/server/Auth/Access/registry.service.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 
 export type FirstOwnerSetupResult =
     | { readonly success: true; readonly userId: string; readonly email: string }
@@ -68,7 +68,7 @@ export async function setupFirstOwnerService(input: {
 
         await transaction.insert(userRoles).values({ roleId: ownerRole.id, userId: user.id })
 
-        await appendAuditEventInTransaction(transaction, {
+        await appendAuditEventInTransactionService(transaction, {
             actorUserId: user.id,
             actorKind: 'user',
             action: 'create',

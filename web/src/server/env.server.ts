@@ -4,12 +4,12 @@ import { closeSync, fstatSync, lstatSync, openSync, readSync } from 'node:fs'
 import { isIP } from 'node:net'
 import { isAbsolute } from 'node:path'
 
-import { APP_ENCRYPTION_KEY_BYTES, WEBAUTHN_RP_NAME } from '../config/auth-security.config'
+import { APP_ENCRYPTION_KEY_BYTES, WEBAUTHN_RP_NAME } from '@/config/auth-security.config.ts'
 import {
     DEFAULT_PUBLIC_ORIGIN,
     PUBLIC_ORIGIN_ENVIRONMENT_VARIABLE,
-    parsePublicOrigin,
-} from '../config/management-origin.config'
+} from '@/config/management-origin.config.ts'
+import { parsePublicOrigin } from '@/lib/ManagementOrigin/origin.ts'
 
 const DEFAULT_CONTROLLER_BASE_URL = 'http://127.0.0.1:8081'
 const MAXIMUM_SECRET_FILE_BYTES = 4_096
@@ -110,7 +110,7 @@ function readSecretEnvironment(variable: string): string | undefined {
     }
 }
 
-export { parsePublicOrigin, parseTrustedManagementOrigin } from '../config/management-origin.config'
+export { parsePublicOrigin, parseTrustedManagementOrigin } from '@/lib/ManagementOrigin/origin.ts'
 
 export function getControllerBaseUrl(): string | null {
     const configured = process.env.RENTNERPROXY_CONTROLLER_URL

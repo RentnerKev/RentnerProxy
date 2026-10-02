@@ -1,41 +1,41 @@
-import { auditAuthOperation } from '../Core/audit-auth.server'
+import { auditAuthOperation } from '@/server/Auth/Core/audit-auth.server.ts'
 import '@tanstack/react-start/server-only'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 
 import { and, count, eq, isNull, lt } from 'drizzle-orm'
 
 import {
     LOGIN_MFA_CHALLENGE_DURATION_MS,
     TOTP_SETUP_CHALLENGE_DURATION_MS,
-} from '../../../config/auth-security.config'
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { userRecoveryCodes, userTotpFactors } from '../../../db/schema'
+} from '@/config/auth-security.config.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { userRecoveryCodes, userTotpFactors } from '@/db/schema.ts'
 import {
     acquireCodeChallengeVerification,
     consumeCodeChallengeVerification,
     createAuthChallenge,
     failCodeChallengeVerification,
     releaseCodeChallengeVerification,
-} from '../../valkey/auth-challenges.service'
+} from '@/server/valkey/auth-challenges.service.ts'
 import {
     decodeBase64Url,
     decryptSecret,
     encodeBase64Url,
     encryptSecret,
-} from '../Core/encryption.server'
-import { getAuthDatabase, type AuthTransaction } from '../Core/database.server'
-import { AuthDomainError } from '../Core/errors.server'
-import type { CurrentSession } from '../Core/Types/auth-service.types'
+} from '@/server/Auth/Core/encryption.server.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
 import {
     requireRecentAuthenticationForSession,
     requireSessionPermission,
-} from '../Access/authorization.service'
+} from '@/server/Auth/Access/authorization.service.ts'
 import {
     createSessionInTransaction,
     requireRecentSessionInTransaction,
     revokeOtherUserSessionsInTransaction,
-} from '../Access/sessions.service'
-import { requirePermissionInTransaction } from '../Access/rbac.service'
+} from '@/server/Auth/Access/sessions.service.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 
 import {
     createRecoveryCodeBatch,
@@ -44,7 +44,7 @@ import {
     getMatchedTotpCounter,
     hashRecoveryCode,
     normalizeRecoveryCode,
-} from './two-factor-credentials.server'
+} from './two-factor-credentials.server.ts'
 export interface TwoFactorStatus {
     readonly recoveryCodesRemaining: number
     readonly totpEnabled: boolean
@@ -264,7 +264,7 @@ export async function confirmTotpSetupService(input: {
                     input.currentSession.user.id,
                     input.currentSession.id,
                 )
-                await appendAuditEventInTransaction(transaction, {
+                await appendAuditEventInTransactionService(transaction, {
                     actorUserId: input.currentSession.user.id,
                     actorKind: 'user',
                     action: 'enable',
@@ -331,7 +331,7 @@ export async function regenerateRecoveryCodesService(
                     currentSession.user.id,
                     currentSession.id,
                 )
-                await appendAuditEventInTransaction(transaction, {
+                await appendAuditEventInTransactionService(transaction, {
                     actorUserId: currentSession.user.id,
                     actorKind: 'user',
                     action: 'rotate',
@@ -386,7 +386,7 @@ export async function disableTotpService(currentSession: CurrentSession): Promis
                     currentSession.user.id,
                     currentSession.id,
                 )
-                await appendAuditEventInTransaction(transaction, {
+                await appendAuditEventInTransactionService(transaction, {
                     actorUserId: currentSession.user.id,
                     actorKind: 'user',
                     action: 'disable',

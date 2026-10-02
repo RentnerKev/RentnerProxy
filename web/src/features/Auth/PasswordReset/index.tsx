@@ -1,12 +1,12 @@
 import { Link } from '@tanstack/react-router'
 
-import AuthShell from '../../../layout/Components/AuthShell'
-import PasswordResetForm from './Components/PasswordResetForm'
-import FormMessage from '../../../shared/Forms/FormMessage'
-import usePasswordResetLogic from './Hooks/usePasswordResetLogic'
+import AuthShell from '@/shared/Auth/AuthShell/index.tsx'
+import PasswordResetForm from './Components/PasswordResetForm.tsx'
+import FormMessage from '@/shared/Forms/FormMessage.tsx'
+import usePasswordResetLogic from './Hooks/usePasswordResetLogic.ts'
 
 export default function PasswordResetPage() {
-    const { state } = usePasswordResetLogic()
+    const { state, handler, form } = usePasswordResetLogic()
 
     return (
         <AuthShell
@@ -26,7 +26,7 @@ export default function PasswordResetPage() {
                     This page needs a valid reset link from your email.
                 </FormMessage>
             ) : (
-                <PasswordResetForm state={state} />
+                <PasswordResetForm state={state} form={form} handler={handler} />
             )}
         </AuthShell>
     )

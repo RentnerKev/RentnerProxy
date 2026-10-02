@@ -1,9 +1,9 @@
-import AuthShell from '../../../layout/Components/AuthShell'
-import SetupForm from './Components/SetupForm'
-import useSetupLogic from './Hooks/useSetupLogic'
+import AuthShell from '@/shared/Auth/AuthShell/index.tsx'
+import SetupForm from './Components/SetupForm.tsx'
+import useSetupLogic from './Hooks/useSetupLogic.ts'
 
 export default function SetupPage() {
-    const { state } = useSetupLogic()
+    const { state, handler, form } = useSetupLogic()
 
     return (
         <AuthShell
@@ -12,7 +12,7 @@ export default function SetupPage() {
             description="Bootstrap this installation with one verified owner account. Setup closes permanently after this step."
             footer="The first-owner transaction is protected by PostgreSQL, even if two setup requests arrive together."
         >
-            <SetupForm state={state} />
+            <SetupForm state={state} form={form} handler={handler} />
         </AuthShell>
     )
 }

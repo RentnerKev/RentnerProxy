@@ -1,4 +1,4 @@
-import type { CONTROLLER_SERVICE } from '../controller.constants'
+import type { CONTROLLER_SERVICE } from '@/config/controller.config.ts'
 
 export type ControllerHealthPayload = Readonly<{
     status: 'ok'

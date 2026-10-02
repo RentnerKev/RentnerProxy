@@ -2,8 +2,8 @@ import '@tanstack/react-start/server-only'
 
 import { randomBytes } from 'node:crypto'
 
-import { OPAQUE_TOKEN_BYTES, OPAQUE_TOKEN_PATTERN } from '../../../config/auth.config'
-import { AuthDomainError } from './errors.server'
+import { OPAQUE_TOKEN_BYTES, OPAQUE_TOKEN_PATTERN } from '@/config/auth.config.ts'
+import { AuthDomainError } from './errors.server.ts'
 
 export function createOpaqueToken(): string {
     return randomBytes(OPAQUE_TOKEN_BYTES).toString('base64url')

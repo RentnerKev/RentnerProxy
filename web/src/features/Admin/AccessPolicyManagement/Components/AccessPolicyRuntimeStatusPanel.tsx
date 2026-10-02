@@ -1,8 +1,8 @@
-import useTranslationStore from '../../../../language/useTranslationStore'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type {
     AccessPolicyRuntimeState,
     AccessPolicyRuntimeStatus,
-} from '../Types/access-policy-management.types'
+} from '../Types/access-policy-management.types.ts'
 
 interface AccessPolicyRuntimeStatusPanelProps {
     readonly canApply: boolean

@@ -4,14 +4,14 @@ import '@tanstack/react-start/server-only'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { systemSettings } from '../../db/schema'
+import { systemSettings } from '@/db/schema.ts'
 import {
     normalizeProxyHttpSettings,
     normalizeProxyHostHttpSettings,
     proxyHttpSettingsSchema,
-} from '../../features/Admin/ProxyHostManagement/config-validation'
-import type { ProxyHttpSettings } from '../../shared/Types/proxy-runtime.types'
-import type { AuthTransaction } from '../Auth/Core/database.server'
+} from '@/features/Admin/ProxyHostManagement/config-validation.ts'
+import type { ProxyHttpSettings } from '@/shared/Types/proxy-runtime.types.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
 
 export const PROXY_RUNTIME_SETTINGS_KEY = 'proxy_runtime_editor_v1'
 
