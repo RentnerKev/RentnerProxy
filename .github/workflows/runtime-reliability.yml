@@ -16,7 +16,7 @@ on:
             - 'web/src/config/**'
             - 'web/src/features/**/validation.ts'
             - 'web/src/start.ts'
-            - 'web/src/websockets/**'
+            - 'web/src/lib/**'
             - 'package.json'
             - 'bun.lock'
     push:
@@ -34,7 +34,7 @@ on:
             - 'web/src/config/**'
             - 'web/src/features/**/validation.ts'
             - 'web/src/start.ts'
-            - 'web/src/websockets/**'
+            - 'web/src/lib/**'
             - 'package.json'
             - 'bun.lock'
     schedule:

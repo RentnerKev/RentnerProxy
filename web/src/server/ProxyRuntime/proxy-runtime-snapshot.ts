@@ -7,40 +7,40 @@ import {
     ACCESS_POLICY_MODES,
     MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY,
     MAX_ACCESS_POLICY_IP_RULES,
-} from '../../config/access-policies.config'
+} from '@/config/access-policies.config.ts'
 import {
     ACCESS_POLICY_IP_RULE_ACTIONS,
     canonicalIpNetwork,
-} from '../../shared/Helpers/ipAccessRules'
+} from '@/lib/AccessPolicies/ipAccessRules.ts'
 
 import {
     normalizeProxyHttpSettings,
     proxyHostHttpSettingsSchema,
-} from '../../features/Admin/ProxyHostManagement/config-validation'
+} from '@/features/Admin/ProxyHostManagement/config-validation.ts'
 
 import {
     proxyForwardHostSchema,
     proxyForwardPortSchema,
     proxyHostDomainsSchema,
     proxyUpstreamTlsServerNameSchema,
-} from '../../features/Admin/ProxyHostManagement/validation'
+} from '@/features/Admin/ProxyHostManagement/validation.ts'
 import {
     normalizeRedirectDestination,
     redirectStatusCodeSchema,
-} from '../../features/Admin/RedirectHostManagement/validation'
+} from '@/features/Admin/RedirectHostManagement/validation.ts'
 import type {
     ProxyHttpSettings,
     ProxyRuntimeStatus,
     ProxyRuntimeSyncStatus,
-} from '../../shared/Types/proxy-runtime.types'
+} from '@/shared/Types/proxy-runtime.types.ts'
 import type {
     ProxyRuntimeHost,
     ProxyRuntimeSnapshot,
     ProxyRuntimeTrustedCa,
     RedirectRuntimeHost,
-} from './Types/proxy-runtime.types'
-import { createTrustedCaInputSchema } from '../../features/Admin/TrustedCaManagement/validation'
-import { forwardAuthRuntimeSchema } from '../../shared/Helpers/forwardAuth'
+} from './Types/proxy-runtime.types.ts'
+import { createTrustedCaInputSchema } from '@/features/Admin/TrustedCaManagement/validation.ts'
+import { forwardAuthRuntimeSchema } from '@/lib/ForwardAuth/forwardAuth.ts'
 
 export const MAX_RUNTIME_PROXY_HOSTS = 1_000
 export const MAX_RUNTIME_DOMAINS = 50_000

@@ -1,18 +1,19 @@
-import type useLoginLogic from '../Hooks/useLoginLogic'
-import type useTwoFactorLoginLogic from '../Hooks/useTwoFactorLoginLogic'
+import type { TwoFactorLoginLogicResult } from './two-factor-login-logic.types.ts'
+import type { LoginLogicResult } from './login-logic.types.ts'
+import type useLoginLogic from '../Hooks/useLoginLogic.ts'
+import type useTwoFactorLoginLogic from '../Hooks/useTwoFactorLoginLogic.ts'
 
 export interface LoginFormProps {
-    readonly state: ReturnType<typeof useLoginLogic>['state']
+    readonly handler: LoginLogicResult<unknown>['handler']
+    readonly state: LoginLogicResult<unknown>['state']
+    readonly form: ReturnType<typeof useLoginLogic>['form']
     readonly onPasskeyLogin: () => void
 }
 
 export interface TwoFactorLoginFormProps {
-    readonly state: ReturnType<typeof useTwoFactorLoginLogic>['state']
+    readonly handler: TwoFactorLoginLogicResult<unknown>['handler']
+    readonly state: TwoFactorLoginLogicResult<unknown>['state']
+    readonly form: ReturnType<typeof useTwoFactorLoginLogic>['form']
     readonly onToggleMode: () => void
-    readonly getCredentialError: ReturnType<
-        typeof useTwoFactorLoginLogic
-    >['handler']['getCredentialError']
-    readonly normalizeCredential: ReturnType<
-        typeof useTwoFactorLoginLogic
-    >['handler']['normalizeCredential']
+    readonly normalizeCredential: TwoFactorLoginLogicResult<unknown>['handler']['normalizeCredential']
 }

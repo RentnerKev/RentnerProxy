@@ -1,6 +1,6 @@
 import type { SingleCalendarValue } from '@rentnerkev/calendar/types'
 
-import type { CalendarPresentation } from '../../Calendar/Types/calendar-presentation.types'
+import type { CalendarPresentation } from '@/shared/Calendar/Types/calendar-presentation.types.ts'
 
 export interface UtcDateTimeInputProps {
     readonly ariaLabel: string

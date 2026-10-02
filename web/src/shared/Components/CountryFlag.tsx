@@ -1,8 +1,8 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { hasFlag } from 'country-flag-icons'
 
-import { TOOLTIP_DEFAULT_PROPS } from '../../config/tooltip.config'
-import useTranslationStore from '../../language/useTranslationStore'
+import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
 export default function CountryFlag({ code }: { readonly code: string | null | undefined }) {
     const { locale } = useTranslationStore()

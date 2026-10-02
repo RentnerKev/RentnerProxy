@@ -1,25 +1,25 @@
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { toast } from '@rentnerkev/toasts/toast'
 import type { ToastId, ToastType } from '@rentnerkev/toasts/types'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef } from 'react'
 
-import {
-    CERTIFICATE_JOB_SUCCESS_TOAST_DURATION_MS,
-    isCertificateJobActive,
-} from '../../../../config/certificate-jobs.config'
-import { PERMISSIONS, type PermissionKey } from '../../../../config/permissions.config'
-import useTranslationStore, { type Translate } from '../../../../language/useTranslationStore'
-import useLiveInvalidation from '../../../../shared/Live/useLiveInvalidation'
-import type { CertificateJobSummary } from '../../../../shared/Types/certificate-jobs.types'
-import { certificateManagementQueryKeys } from '../../CertificateManagement/queryKeys'
+import { CERTIFICATE_JOB_SUCCESS_TOAST_DURATION_MS } from '@/config/certificate-jobs.config.ts'
+import { isCertificateJobActive } from '@/lib/CertificateJobs/stages.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import { type Translate } from '@/shared/Language/Types/language.types.ts'
+import useLiveInvalidation from '@/shared/Live/useLiveInvalidation.ts'
+import type { CertificateJobSummary } from '@/shared/Types/certificate-jobs.types.ts'
+import { certificateManagementQueryKeys } from '@/lib/Admin/CertificateManagement/certificateManagementCache.ts'
 import {
     getCertificateJobErrorKey,
     getCertificateJobOperationStage,
     isCertificateJobFailure,
-} from '../CertificateJobs/certificateJobProgress'
-import { certificateJobProgressQueryKeys } from '../CertificateJobs/queryKeys'
-import { getCertificateJobProgressHandler } from '../CertificateJobs/server'
-import { proxyHostManagementQueryKeys } from '../queryKeys'
+} from '@/lib/Admin/ProxyHostManagement/CertificateJobs/certificateJobsCache.ts'
+import { certificateJobProgressQueryKeys } from '@/lib/Admin/ProxyHostManagement/CertificateJobs/certificateJobsCache.ts'
+import { getCertificateJobProgressHandler } from '../CertificateJobs/middleware.ts'
+import { proxyHostManagementQueryKeys } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 
 const EMPTY_JOBS: CertificateJobSummary[] = []
 const LIVE_QUERY_KEYS = [

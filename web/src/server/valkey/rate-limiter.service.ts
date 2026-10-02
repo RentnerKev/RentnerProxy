@@ -4,8 +4,8 @@ import { createHash } from 'node:crypto'
 import { isIP } from 'node:net'
 import { z } from 'zod'
 
-import { getValkeyClient } from './client.server'
-import type { ValkeyCommandClient } from './Types/valkey.types'
+import { getValkeyClient } from './client.server.ts'
+import type { ValkeyCommandClient } from './Types/valkey.types.ts'
 
 const FIXED_WINDOW_SCRIPT = `
 local count = redis.call('INCR', KEYS[1])

@@ -1,17 +1,16 @@
-interface UseConfirmDialogLogicParams {
-    readonly isPending: boolean
-    readonly onConfirm: () => void | Promise<void>
-}
+import type { ConfirmDialogLogicResult, UseConfirmDialogLogicParams } from '../Types/modal.types.ts'
 
 export default function useConfirmDialogLogic({
     isPending,
     onConfirm,
-}: UseConfirmDialogLogicParams) {
+}: UseConfirmDialogLogicParams): ConfirmDialogLogicResult {
     return {
-        handleConfirm: () => {
-            if (!isPending) {
-                void onConfirm()
-            }
+        handler: {
+            handleConfirm: () => {
+                if (!isPending) {
+                    void onConfirm()
+                }
+            },
         },
     }
 }

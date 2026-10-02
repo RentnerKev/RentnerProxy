@@ -1,6 +1,6 @@
 import type { RowData } from '@tanstack/react-table'
-import TablePaginationControls from './TablePaginationControls'
-import type { TablePaginationProps } from '../Types/table.types'
+import TablePaginationControls from './TablePaginationControls/index.tsx'
+import type { TablePaginationProps } from '../Types/table.types.ts'
 
 export default function TablePagination<TData extends RowData>({
     table,

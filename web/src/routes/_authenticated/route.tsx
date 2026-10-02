@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import AuthenticatedRouteLayout from '../../layout/Components/AuthenticatedRouteLayout'
-import { requireAuthenticatedRoute } from '../../features/Auth/route-guards'
+import AuthenticatedRouteLayout from '@/layouts/AuthenticatedLayout/index.tsx'
+import { requireAuthenticatedRoute } from '@/features/Auth/route-guards.ts'
 import {
     AuthenticatedLanguageProvider,
     loadLanguageBootstrap,
-} from '../../language/useTranslationStore'
+} from '@/shared/Language/Hooks/useTranslationStore.ts'
 
 export const Route = createFileRoute('/_authenticated')({
     beforeLoad: requireAuthenticatedRoute,

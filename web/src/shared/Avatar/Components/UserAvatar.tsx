@@ -1,8 +1,7 @@
 import { UserRound } from 'lucide-react'
 
-import { getUserAvatarUrl } from '../Helpers/userAvatar'
-import useUserAvatarLogic from '../Hooks/useUserAvatarLogic'
-import type { UserAvatarProps, UserAvatarSize } from '../Types/avatar.types'
+import useUserAvatarLogic from '../Hooks/useUserAvatarLogic.ts'
+import type { UserAvatarProps, UserAvatarSize } from '../Types/avatar.types.ts'
 
 const sizeClassNames: Record<UserAvatarSize, string> = {
     sm: 'size-9 [&>span>svg]:size-[1.05rem]',
@@ -11,8 +10,7 @@ const sizeClassNames: Record<UserAvatarSize, string> = {
 }
 
 export default function UserAvatar({ profileImageVersion, size = 'md', userId }: UserAvatarProps) {
-    const src = getUserAvatarUrl(userId, profileImageVersion)
-    const logic = useUserAvatarLogic(src)
+    const { state, handler } = useUserAvatarLogic({ userId, profileImageVersion })
 
     return (
         <span
@@ -22,14 +20,14 @@ export default function UserAvatar({ profileImageVersion, size = 'md', userId }:
             <span className="absolute inset-0 grid place-items-center">
                 <UserRound aria-hidden="true" strokeWidth={1.8} />
             </span>
-            {logic.showImage && src ? (
+            {state.showImage && state.src ? (
                 <img
-                    src={src}
+                    src={state.src}
                     alt=""
                     loading="lazy"
                     decoding="async"
                     className="absolute inset-0 size-full object-cover"
-                    onError={logic.handleError}
+                    onError={handler.handleError}
                 />
             ) : null}
         </span>

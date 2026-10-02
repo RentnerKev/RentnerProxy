@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-import { PROXY_HTTP_SETTINGS } from '../../../config/proxy-http.config'
-import type { ProxyHttpSettings } from '../../../shared/Types/proxy-runtime.types'
+import { PROXY_HTTP_SETTINGS } from '@/config/proxy-http.config.ts'
+import type { ProxyHttpSettings } from '@/shared/Types/proxy-runtime.types.ts'
 
 export const proxyHttpSettingsSchema = z.strictObject({
     clientMaxBodySizeBytes: z.number().int().min(1_024).max(1_073_741_824).optional(),

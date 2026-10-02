@@ -1,4 +1,4 @@
-import type { UserThemeMode } from '../../../config/theme.config'
+import type { UserThemeMode } from '@/shared/Types/theme-config.types.ts'
 
 export type ThemeModeUpdateResult =
     | { readonly success: true; readonly themeMode: UserThemeMode }

@@ -1,5 +1,6 @@
 // oxlint-disable no-await-in-loop -- Fault injection, recovery probes and lifecycle changes depend on the preceding step.
 import assert from 'node:assert/strict'
+import { dockerBuildDiagnostic } from '../docker-build-diagnostics.ts'
 import { randomBytes } from 'node:crypto'
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -71,14 +72,17 @@ export async function command(args: string[], options: CommandOptions = {}): Pro
         child.kill()
     }, options.timeoutMs ?? 45_000)
     try {
-        const [code, stdout] = await Promise.all([
+        const [code, stdout, stderr] = await Promise.all([
             child.exited,
             new Response(child.stdout).text(),
             new Response(child.stderr).text(),
         ])
         if (timedOut) throw new ReliabilityError('timeout', 'bounded command timed out')
-        if (code !== 0 && !options.acceptableExitCodes?.includes(code))
+        if (code !== 0 && !options.acceptableExitCodes?.includes(code)) {
+            if (args[0] === 'docker' && args[1] === 'build')
+                console.error(dockerBuildDiagnostic(stderr))
             throw new ReliabilityError('command', 'command failed: ' + args.slice(0, 2).join(' '))
+        }
         return stdout.trim()
     } finally {
         clearTimeout(timer)
@@ -695,7 +699,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         await archive(
             options.source === 'alpha.6' ? publishedAlpha('alpha.6').revision : targetSha,
             fixtureRoot,
-            ['web/src', 'package.json', 'bun.lock'],
+            ['web/src', 'web/tsconfig.json', 'package.json', 'bun.lock'],
         )
         await mkdir(join(fixtureRoot, 'scripts/runtime-reliability'), { recursive: true })
         for (const name of options.source === 'alpha.6'
@@ -728,6 +732,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             '--no-env-file',
             'build',
             fixtureSource,
+            '--tsconfig-override=' + join(fixtureRoot, 'web/tsconfig.json'),
             '--target=bun',
             '--packages=external',
             '--outfile=' + bundle,

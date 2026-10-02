@@ -6,18 +6,18 @@ import { readFile } from 'node:fs/promises'
 import { asc } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { accessPolicies, hostDomains, proxyHosts, redirectHosts } from '../../../db/schema'
-import { createAccessPolicyInputSchema } from '../../../features/Admin/AccessPolicyManagement/validation'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { accessPolicies, hostDomains, proxyHosts, redirectHosts } from '@/db/schema.ts'
+import { createAccessPolicyInputSchema } from '@/features/Admin/AccessPolicyManagement/validation.ts'
 import {
     createProxyHostInputSchema,
     proxyHostDomainsSchema,
-} from '../../../features/Admin/ProxyHostManagement/validation'
-import { createRedirectHostInputSchema } from '../../../features/Admin/RedirectHostManagement/validation'
-import { requirePermissionService } from '../../Auth/Access/authorization.service'
-import { getAuthDatabase } from '../../Auth/Core/database.server'
-import type { NpmImportPlan, NpmImportPlanItem } from '../NpmImport/npm-plan'
-import { finalizeImportPlan } from './import-plan'
+} from '@/features/Admin/ProxyHostManagement/validation.ts'
+import { createRedirectHostInputSchema } from '@/features/Admin/RedirectHostManagement/validation.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { NpmImportPlan, NpmImportPlanItem } from '@/server/Admin/NpmImport/npm-plan.ts'
+import { finalizeImportPlan } from './import-plan.ts'
 
 export const PORTABLE_MAX_BYTES = 4 * 1024 * 1024
 const MAX_OBJECTS = 500

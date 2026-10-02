@@ -5,14 +5,14 @@ import { asc } from 'drizzle-orm'
 import type {
     ProxyAccessLogsQuery,
     ProxyAccessLogsResult,
-} from '../../../shared/Types/proxy-access-logs.types'
-import { hostDomains } from '../../../db/schema'
-import { requirePermissionService } from '../../Auth/Access/authorization.service'
-import { AuthDomainError } from '../../Auth/Core/errors.server'
-import { getAuthDatabase } from '../../Auth/Core/database.server'
-import { getProxyAccessLogs } from '../../Foundation/controller.server'
-import { proxyAccessLogsQuerySchema } from '../../../features/Admin/ProxyAccessLogs/validation'
-import { PERMISSIONS } from '../../../config/permissions.config'
+} from '@/shared/Types/proxy-access-logs.types.ts'
+import { hostDomains } from '@/db/schema.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { getProxyAccessLogs } from '@/server/Foundation/controller.server.ts'
+import { proxyAccessLogsQuerySchema } from '@/features/Admin/ProxyAccessLogs/validation.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
 
 async function configuredProxyHostDomains(): Promise<readonly string[]> {
     const rows = await getAuthDatabase()

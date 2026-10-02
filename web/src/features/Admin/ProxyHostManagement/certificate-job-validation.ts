@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { requestCertificateInputSchema } from '../CertificateManagement/validation'
-import { createProxyHostInputSchema, updateProxyHostInputSchema } from './validation'
+import { requestCertificateInputSchema } from '@/features/Admin/CertificateManagement/validation.ts'
+import { createProxyHostInputSchema, updateProxyHostInputSchema } from './validation.ts'
 
 const requestFields = requestCertificateInputSchema.shape
 export const hostCertificateRequestSchema = z.strictObject({

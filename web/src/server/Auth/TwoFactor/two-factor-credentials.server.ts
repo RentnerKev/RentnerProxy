@@ -11,7 +11,7 @@ import {
     TOTP_PERIOD_SECONDS,
     TOTP_SECRET_BYTES,
     TOTP_VALIDATION_WINDOW,
-} from '../../../config/auth-security.config'
+} from '@/config/auth-security.config.ts'
 
 export interface RecoveryCodeCredential {
     readonly hash: string

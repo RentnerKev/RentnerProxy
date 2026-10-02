@@ -2,8 +2,8 @@ import type { RowData } from '@tanstack/react-table'
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { Fragment } from 'react'
 
-import useTranslationStore from '../../../language/useTranslationStore'
-import type { TableHeadProps } from '../Types/table.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import type { TableHeadProps } from '../Types/table.types.ts'
 
 export default function TableHead<TData extends RowData>({ table }: TableHeadProps<TData>) {
     const { t } = useTranslationStore()

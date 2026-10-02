@@ -8,6 +8,7 @@
         "vite.config.ts"
     ],
     "compilerOptions": {
+        "paths": { "@/*": ["./src/*"] },
         "target": "ES2024",
         "module": "ESNext",
         "moduleResolution": "Bundler",

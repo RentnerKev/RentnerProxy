@@ -1,16 +1,15 @@
+import useDataTableLogic from './Hooks/useDataTableLogic.ts'
 import type { RowData } from '@tanstack/react-table'
 
-import TableLayout from './Components/TableLayout'
-import TableFilters from './Components/TableFilters'
-import TableFilterToggle from './Components/TableFilterToggle'
-import useTableFilters from './Hooks/useTableFilters'
-import TableColumnFilters from './Components/TableColumnFilters'
-import TableBody from './Components/TableBody'
-import TableHead from './Components/TableHead'
-import TablePagination from './Components/TablePagination'
-import TableToolbar from './Components/TableToolbar'
-import useDataTableIds from './Hooks/useDataTableIds'
-import type { DataTableProps } from './Types/table.types'
+import TableLayout from './Components/TableLayout.tsx'
+import TableFilters from './Components/TableFilters.tsx'
+import TableFilterToggle from './Components/TableFilterToggle.tsx'
+import TableColumnFilters from './Components/TableColumnFilters.tsx'
+import TableBody from './Components/TableBody.tsx'
+import TableHead from './Components/TableHead.tsx'
+import TablePagination from './Components/TablePagination.tsx'
+import TableToolbar from './Components/TableToolbar.tsx'
+import type { DataTableProps } from './Types/table.types.ts'
 
 const defaultPageSizeOptions = [5, 10, 20, 50] as const
 const defaultColumnFilterConfigs = {}
@@ -38,12 +37,11 @@ export default function DataTable<TData extends RowData>({
     action,
     tableMinWidthClassName = 'min-w-[60rem]',
 }: DataTableProps<TData>) {
-    const { searchId, titleId } = useDataTableIds()
-    const filterPanel = useTableFilters(showColumnFilters, onToggleColumnFilters)
+    const { state, handler } = useDataTableLogic({ showColumnFilters, onToggleColumnFilters })
 
     return (
         <TableLayout
-            titleId={titleId}
+            titleId={state.titleId}
             title={title}
             eyebrow={eyebrow}
             description={description}
@@ -51,7 +49,7 @@ export default function DataTable<TData extends RowData>({
                 <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
                     <TableToolbar
                         searchInput={searchInput}
-                        searchId={searchId}
+                        searchId={state.searchId}
                         searchLabel={searchLabel}
                         searchPlaceholder={searchPlaceholder}
                         onSearchChange={onSearchChange}
@@ -67,9 +65,9 @@ export default function DataTable<TData extends RowData>({
                     >
                         {(count) => (
                             <TableFilterToggle
-                                contentId={filterPanel.contentId}
-                                expanded={filterPanel.open}
-                                onToggle={filterPanel.toggle}
+                                contentId={state.filterPanelId}
+                                expanded={state.filtersExpanded}
+                                onToggle={handler.handleToggleFilters}
                                 activeCount={count + (searchInput.trim() ? 1 : 0)}
                             />
                         )}
@@ -84,8 +82,8 @@ export default function DataTable<TData extends RowData>({
                     >
                         {(count) => (
                             <TableFilters
-                                contentId={filterPanel.contentId}
-                                expanded={filterPanel.open}
+                                contentId={state.filterPanelId}
+                                expanded={state.filtersExpanded}
                                 activeCount={count + (searchInput.trim() ? 1 : 0)}
                                 onReset={onResetFilters}
                             >
@@ -129,8 +127,9 @@ export default function DataTable<TData extends RowData>({
     )
 }
 
-export { default as RemoteTablePagination } from './Components/RemoteTablePagination'
-export { default as TablePaginationControls } from './Components/TablePaginationControls'
-export { remoteTablePageSizeOptions } from './Components/RemoteTablePagination'
-export { getPaginationItems } from './Components/TablePaginationControls'
-export type { RemoteTablePaginationProps, TablePaginationControlsProps } from './Types/table.types'
+export { default as RemoteTablePagination } from './Components/RemoteTablePagination.tsx'
+export { default as TablePaginationControls } from './Components/TablePaginationControls/index.tsx'
+export { remoteTablePageSizeOptions } from './Components/RemoteTablePagination.tsx'
+export { getPaginationItems } from '@/lib/Table/pagination.ts'
+export type { RemoteTablePaginationProps } from './Types/table.types.ts'
+export type { TablePaginationControlsProps } from './Components/TablePaginationControls/Types/table-pagination-controls.types.ts'

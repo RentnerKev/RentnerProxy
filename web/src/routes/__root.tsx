@@ -1,12 +1,12 @@
 import { createRootRoute } from '@tanstack/react-router'
 
-import RootLayout from '../layout'
-import RootDocument from '../layout/Components/RootDocument'
-import { DEFAULT_ACCENT_COLOR } from '../config/appearance.config'
-import { getSystemAccentColorHandler } from '../features/SystemAppearance/server'
-import { isCspNonce } from '../shared/Helpers/cspNonce'
+import RootLayout from '@/layouts/RootLayout/index.tsx'
+import RootDocument from '@/layouts/RootDocument/index.tsx'
+import { DEFAULT_ACCENT_COLOR } from '@/config/appearance.config.ts'
+import { getSystemAccentColorHandler } from '@/features/SystemAppearance/middleware.ts'
+import { isCspNonce } from '@/lib/Security/cspNonce.ts'
 // oxlint-disable-next-line import/no-unassigned-import -- Vite collects the stylesheet into the production asset manifest.
-import '../styles.css'
+import '@/styles.css'
 
 function readCspNonce(context: unknown): string | undefined {
     if (typeof context !== 'object' || context === null) return undefined

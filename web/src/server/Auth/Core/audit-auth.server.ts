@@ -1,8 +1,8 @@
 import '@tanstack/react-start/server-only'
 
-import { recordAuditEventBestEffort } from '../../Audit/audit.service'
+import { recordAuditEventBestEffortService } from '@/server/Audit/audit.service.ts'
 
-type FailureEvent = Omit<Parameters<typeof recordAuditEventBestEffort>[0], 'result'>
+type FailureEvent = Omit<Parameters<typeof recordAuditEventBestEffortService>[0], 'result'>
 
 export async function auditAuthOperation<T>(
     event: FailureEvent,
@@ -17,7 +17,7 @@ export async function auditAuthOperation<T>(
                 'success' in result &&
                 result.success === false)
         ) {
-            await recordAuditEventBestEffort({ ...event, result: 'failure' })
+            await recordAuditEventBestEffortService({ ...event, result: 'failure' })
         }
         return result
     } catch (error) {
@@ -30,7 +30,7 @@ export async function auditAuthOperation<T>(
             code === 'authentication_required' ||
             code === 'reauthentication_required' ||
             code === 'owner_required'
-        await recordAuditEventBestEffort({ ...event, result: denied ? 'denied' : 'failure' })
+        await recordAuditEventBestEffortService({ ...event, result: denied ? 'denied' : 'failure' })
         throw error
     }
 }

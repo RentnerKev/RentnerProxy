@@ -3,9 +3,9 @@ import { z } from 'zod'
 import {
     authenticationResponseSchema,
     opaqueAuthChallengeSchema,
-} from '../Shared/webauthn.validation'
-import { credentialPasswordSchema, emailSchema } from '../Shared/validation'
-import type { TwoFactorLoginMode } from './Types/login-security.types'
+} from '@/lib/Auth/webauthn.validation.ts'
+import { credentialPasswordSchema, emailSchema } from '@/lib/Auth/validation.ts'
+import type { TwoFactorLoginMode } from './Types/login-security.types.ts'
 
 export const loginInputSchema = z.object({ email: emailSchema, password: credentialPasswordSchema })
 export const getTwoFactorChallengeStatusInputSchema = z.object({})

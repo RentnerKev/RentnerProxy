@@ -2,7 +2,7 @@
 import '@tanstack/react-start/server-only'
 // oxlint-disable no-await-in-loop -- Reconcile attempts are deliberately serialized.
 
-import type { ProxyRuntimeMutationStatus } from '../../../shared/Types/proxy-runtime.types'
+import type { ProxyRuntimeMutationStatus } from '@/shared/Types/proxy-runtime.types.ts'
 
 export const CROWDSEC_RECONCILE_TIMEOUT_MS = 60_000
 const INITIAL_RETRY_DELAY_MS = 1_000

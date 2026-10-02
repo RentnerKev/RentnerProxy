@@ -1,25 +1,11 @@
 import { EmailInput } from '@rentnerkev/inputs'
-import FieldError from '../../../../shared/Forms/FieldError'
-import type { ForgotPasswordFormProps } from '../Types/forgot-password-component-props.types'
-import { emailSchema, getValidationMessage } from '../../Shared/validation'
+import FieldError from '@/shared/Forms/FieldError.tsx'
+import type { ForgotPasswordFormProps } from '../Types/forgot-password-component-props.types.ts'
 
-export default function ForgotPasswordForm({ state }: ForgotPasswordFormProps) {
+export default function ForgotPasswordForm({ state, form, handler }: ForgotPasswordFormProps) {
     return (
-        <form
-            className="mt-7 grid gap-[1.1rem]"
-            noValidate
-            onSubmit={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                void state.form.handleSubmit()
-            }}
-        >
-            <state.form.Field
-                name="email"
-                validators={{
-                    onBlur: ({ value }) => getValidationMessage(emailSchema, value),
-                }}
-            >
+        <form className="mt-7 grid gap-[1.1rem]" noValidate onSubmit={handler.handleSubmit}>
+            <form.Field name="email" validators={{ onBlur: handler.validateEmail }}>
                 {(field) => (
                     <div className="grid gap-[0.45rem]">
                         <label
@@ -43,8 +29,8 @@ export default function ForgotPasswordForm({ state }: ForgotPasswordFormProps) {
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
                 )}
-            </state.form.Field>
-            <state.form.Subscribe
+            </form.Field>
+            <form.Subscribe
                 selector={(formState) => [formState.canSubmit, formState.isSubmitting] as const}
             >
                 {([canSubmit, isSubmitting]) => (
@@ -56,7 +42,7 @@ export default function ForgotPasswordForm({ state }: ForgotPasswordFormProps) {
                         {isSubmitting || state.isPending ? 'Requesting link…' : 'Send reset link'}
                     </button>
                 )}
-            </state.form.Subscribe>
+            </form.Subscribe>
         </form>
     )
 }

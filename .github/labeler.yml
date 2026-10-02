@@ -7,11 +7,11 @@
                 - 'web/src/config/auth*.config.ts'
                 - 'web/src/shared/Types/auth.types.ts'
                 - 'web/src/db/Schema/auth.ts'
-                - 'web/src/tests/auth-*.test.ts'
-                - 'web/src/tests/auth-*.test.tsx'
-                - 'web/src/tests/session-*.test.ts'
-                - 'web/src/tests/password-reset-*.test.tsx'
-                - 'web/src/tests/account-security-*.test.tsx'
+                - 'web/src/lib/Auth/**'
+                - 'web/src/tests/features/Auth/**'
+                - 'web/src/tests/server/Auth/**'
+                - 'web/src/tests/features/UserSettings/Components/SecuritySettingsPanel/**'
+                - 'web/src/tests/server/valkey/auth-challenges.test.ts'
 
 'area: proxy':
     - changed-files:
@@ -23,9 +23,11 @@
                 - 'web/src/config/proxy-*.config.ts'
                 - 'web/src/shared/Types/proxy-*.types.ts'
                 - 'web/src/db/Schema/proxyHosts.ts'
-                - 'web/src/tests/proxy-*.test.ts'
-                - 'web/src/tests/proxy-*.test.tsx'
-                - 'web/src/tests/upstream-tls.test.ts'
+                - 'web/src/lib/Admin/ProxyHostManagement/**'
+                - 'web/src/tests/features/Admin/ProxyHostManagement/**'
+                - 'web/src/tests/lib/Admin/ProxyHostManagement/**'
+                - 'web/src/tests/server/Admin/ProxyHostManagement/**'
+                - 'web/src/tests/server/ProxyRuntime/**'
 
 'area: runtime':
     - changed-files:
@@ -35,7 +37,7 @@
                 - 'web/src/server/ProxyRuntime/**'
                 - 'web/src/features/Admin/ProxyHostManagement/Components/ProxyRuntimeStatusPanel.tsx'
                 - 'web/src/shared/Types/proxy-runtime.types.ts'
-                - 'web/src/tests/proxy-runtime.test.ts'
+                - 'web/src/tests/server/ProxyRuntime/**'
 
 'area: certificates':
     - changed-files:
@@ -59,9 +61,13 @@
                 - 'web/src/shared/Types/trusted-cas.types.ts'
                 - 'web/src/db/Schema/certificates.ts'
                 - 'web/src/db/Schema/trustedCas.ts'
-                - 'web/src/tests/certificates*.test.ts'
-                - 'web/src/tests/certificates*.test.tsx'
-                - 'web/src/tests/trusted-cas*.test.ts'
+                - 'web/src/lib/Admin/CertificateManagement/**'
+                - 'web/src/lib/Admin/TrustedCaManagement/**'
+                - 'web/src/tests/features/Admin/CertificateManagement/**'
+                - 'web/src/tests/lib/Admin/CertificateManagement/**'
+                - 'web/src/tests/server/Admin/CertificateManagement/**'
+                - 'web/src/tests/server/Admin/TrustedCaManagement/**'
+                - 'web/src/tests/server/Foundation/certificates.test.ts'
 
 'area: database':
     - changed-files:
@@ -70,8 +76,8 @@
                 - 'web/drizzle/**'
                 - 'web/drizzle.config.ts'
                 - 'web/src/server/Auth/Core/database.server.ts'
-                - 'web/src/tests/database*.test.ts'
-                - 'web/src/tests/*-postgresql.integration.test.ts'
+                - 'web/src/tests/db/**'
+                - 'web/src/tests/**/*.db.test.ts'
 
 'area: ui':
     - changed-files:
@@ -80,13 +86,15 @@
                 - 'web/src/features/**/Components/**'
                 - 'web/src/features/**/Hooks/**'
                 - 'web/src/features/**/*.tsx'
-                - 'web/src/layout/**'
-                - 'web/src/language/**'
+                - 'web/src/layouts/**'
+                - 'web/src/lib/Language/**'
+                - 'web/src/lib/Theme/**'
                 - 'web/src/routes/**/*.tsx'
                 - 'web/src/shared/**'
                 - 'web/src/styles.css'
-                - 'web/src/tests/*-ui.test.tsx'
-                - 'web/src/tests/application-shell.test.tsx'
+                - 'web/src/tests/**/*-ui.test.tsx'
+                - 'web/src/tests/layouts/**'
+                - 'web/src/tests/shared/**'
 
 'area: docker':
     - changed-files:
@@ -104,10 +112,9 @@
                 - '.github/labeler.yml'
                 - '.github/release-notes.json'
                 - 'scripts/check.ts'
-                - 'web/src/tests/duplicate-triage.test.ts'
-                - 'web/src/tests/pr-preview-*.test.ts'
-                - 'web/src/tests/release-*.test.ts'
-                - 'web/src/tests/repository-governance.test.ts'
+                - 'scripts/test-web.ts'
+                - 'web/src/tests/tooling/github/**'
+                - 'web/src/tests/architecture/**'
 
 documentation:
     - changed-files:

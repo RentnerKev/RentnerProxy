@@ -2,9 +2,9 @@ import '@tanstack/react-start/server-only'
 
 import { z } from 'zod'
 
-import { MAX_TRUSTED_CA_PEM_BYTES } from '../../config/trusted-cas.config'
-import { TrustedCaDomainError } from '../Admin/TrustedCaManagement/trusted-cas.errors'
-import { CONTROLLER_APPLY_TIMEOUT_MS, controllerRequest } from './controller.server'
+import { MAX_TRUSTED_CA_PEM_BYTES } from '@/config/trusted-cas.config.ts'
+import { TrustedCaDomainError } from '@/server/Admin/TrustedCaManagement/trusted-cas.errors.ts'
+import { CONTROLLER_APPLY_TIMEOUT_MS, controllerRequest } from './controller.server.ts'
 
 const timestampSchema = z
     .string()

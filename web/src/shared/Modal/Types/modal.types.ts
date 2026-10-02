@@ -30,3 +30,23 @@ export interface PreventableEvent {
     readonly preventDefault: () => void
     readonly target?: EventTarget | null
 }
+
+export interface UseConfirmDialogLogicParams {
+    readonly isPending: boolean
+    readonly onConfirm: () => void | Promise<void>
+}
+export interface ConfirmDialogLogicResult {
+    readonly handler: { readonly handleConfirm: () => void }
+}
+export interface UseModalLogicParams {
+    readonly closeDisabled: boolean
+    readonly onOpenChange: (open: boolean) => void
+}
+export interface ModalLogicResult {
+    readonly handler: {
+        readonly handleCloseAutoFocus: (event: PreventableEvent) => void
+        readonly handleOpenAutoFocus: () => void
+        readonly handleOpenChange: (nextOpen: boolean) => void
+        readonly preventClose: (event: PreventableEvent) => void
+    }
+}

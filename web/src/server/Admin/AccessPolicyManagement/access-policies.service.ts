@@ -7,31 +7,33 @@ import {
     ACCESS_POLICY_COMBINATIONS,
     ACCESS_POLICY_MODES,
     MAX_ACCESS_POLICIES,
+} from '@/config/access-policies.config.ts'
+import {
     type AccessPolicyCombination,
     type AccessPolicyMode,
-} from '../../../config/access-policies.config'
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { accessPolicyBasicAuthAccounts, accessPolicies, proxyHosts } from '../../../db/schema'
-import type { AccessPolicySummary } from '../../../shared/Types/access-policies.types'
-import { requirePermissionService } from '../../Auth/Access/authorization.service'
-import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
-import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
-import { reconcileProxyConfigurationWithAudit } from '../../ProxyRuntime/proxy-runtime.service'
-import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
-import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
+} from '@/shared/Types/access-policies-config.types.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { accessPolicyBasicAuthAccounts, accessPolicies, proxyHosts } from '@/db/schema.ts'
+import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
+import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
 import {
     accessPolicyIdInputSchema,
     createAccessPolicyInputSchema,
     updateAccessPolicyInputSchema,
     type CreateAccessPolicyInput,
     type UpdateAccessPolicyInput,
-} from '../../../features/Admin/AccessPolicyManagement/validation'
-import { AccessPolicyDomainError } from './access-policies.errors'
+} from '@/features/Admin/AccessPolicyManagement/validation.ts'
+import { AccessPolicyDomainError } from './access-policies.errors.ts'
 import {
     forwardAuthInputSchema,
     type ForwardAuthConfiguration,
-} from '../../../shared/Helpers/forwardAuth'
+} from '@/lib/ForwardAuth/forwardAuth.ts'
 
 export type AccessPolicyMutationResult = AccessPolicySummary & {
     readonly accessPolicyId: string
@@ -227,7 +229,7 @@ export async function createAccessPolicyInTransaction(
     const rows = await transaction.insert(accessPolicies).values(parsed).returning()
     const created = rows.at(0)
     if (!created) throw new AccessPolicyDomainError('controller_unavailable')
-    await appendAuditEventInTransaction(transaction, {
+    await appendAuditEventInTransactionService(transaction, {
         actorUserId: actorId,
         actorKind: 'user',
         action: 'create',
@@ -296,7 +298,7 @@ export async function updateAccessPolicyService(
                 .select({ count: count() })
                 .from(accessPolicyBasicAuthAccounts)
                 .where(eq(accessPolicyBasicAuthAccounts.policyId, id))
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'update',
@@ -355,7 +357,7 @@ export async function deleteAccessPolicyService(
                 throw new AccessPolicyDomainError('access_policy_in_use')
             }
             await transaction.delete(accessPolicies).where(eq(accessPolicies.id, id))
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'delete',

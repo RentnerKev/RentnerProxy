@@ -1,8 +1,8 @@
 import type { RowData } from '@tanstack/react-table'
 
-import useTranslationStore from '../../../language/useTranslationStore'
-import type { TableColumnFiltersProps } from '../Types/table.types'
-import TableColumnFilterInput from './TableColumnFilterInput'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import type { TableColumnFiltersProps } from '../Types/table.types.ts'
+import TableColumnFilterInput from './TableColumnFilterInput.tsx'
 
 export default function TableColumnFilters<TData extends RowData>({
     table,

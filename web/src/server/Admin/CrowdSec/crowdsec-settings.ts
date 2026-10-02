@@ -4,22 +4,22 @@ import '@tanstack/react-start/server-only'
 import { eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { CROWDSEC_SECRET_CONTEXT, CROWDSEC_SETTINGS_KEY } from '../../../config/crowdsec.config'
-import { systemSettings } from '../../../db/schema'
+import { CROWDSEC_SECRET_CONTEXT, CROWDSEC_SETTINGS_KEY } from '@/config/crowdsec.config.ts'
+import { systemSettings } from '@/db/schema.ts'
 import {
     crowdSecApiUrlSchema,
     crowdSecModeSchema,
     type UpdateCrowdSecConfigurationInput,
-} from '../../../features/Admin/CrowdSec/validation'
-import type { CrowdSecControllerRequest } from '../../Foundation/controller.server'
-import type { AuthTransaction } from '../../Auth/Core/database.server'
+} from '@/features/Admin/CrowdSec/validation.ts'
+import type { CrowdSecControllerRequest } from '@/server/Foundation/controller.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
 import {
     decodeBase64Url,
     decryptSecret,
     encodeBase64Url,
     encryptSecret,
-} from '../../Auth/Core/encryption.server'
-import { CrowdSecDomainError } from './crowdsec.errors'
+} from '@/server/Auth/Core/encryption.server.ts'
+import { CrowdSecDomainError } from './crowdsec.errors.ts'
 
 const encryptedApiKeySchema = z.strictObject({
     ciphertext: z.string().min(1).max(1_024),

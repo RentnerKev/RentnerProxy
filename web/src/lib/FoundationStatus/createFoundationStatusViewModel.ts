@@ -1,0 +1,60 @@
+import type { Translate } from '@/shared/Language/Types/language.types.ts'
+import type { FoundationHealth } from '@/shared/Types/health.types.ts'
+import type {
+    FoundationStatusViewModel,
+    LiveStatus,
+} from '@/features/FoundationStatus/Types/foundation-status.types.ts'
+
+export default function createFoundationStatusViewModel(
+    health: FoundationHealth,
+    t: Translate,
+    liveStatus: LiveStatus,
+): FoundationStatusViewModel {
+    const controllerConnected = health.controller.state === 'connected'
+    const databaseConnected = health.database.state === 'connected'
+    const valkeyConnected = health.valkey.state === 'connected'
+    const liveConnected = liveStatus === 'connected'
+
+    return {
+        controllerConnected,
+        liveStatus,
+        services: [
+            {
+                label: t('foundation.services.web.label'),
+                detail: t('foundation.services.web.detail'),
+                value: t('foundation.running'),
+                tone: 'positive',
+            },
+            {
+                label: t('foundation.services.controller.label'),
+                detail: t('foundation.services.controller.detail'),
+                value: t(controllerConnected ? 'foundation.connected' : 'foundation.unavailable'),
+                tone: controllerConnected ? 'positive' : 'warning',
+            },
+            {
+                label: t('foundation.services.database.label'),
+                detail: t('foundation.services.database.detail'),
+                value: t(databaseConnected ? 'foundation.connected' : 'foundation.unavailable'),
+                tone: databaseConnected ? 'positive' : 'warning',
+            },
+            {
+                label: t('foundation.services.valkey.label'),
+                detail: t('foundation.services.valkey.detail'),
+                value: t(valkeyConnected ? 'foundation.connected' : 'foundation.unavailable'),
+                tone: valkeyConnected ? 'positive' : 'warning',
+            },
+            {
+                label: t('foundation.services.websocket.label'),
+                detail: t('foundation.services.websocket.detail'),
+                value: t(
+                    liveConnected
+                        ? 'foundation.connected'
+                        : liveStatus === 'connecting'
+                          ? 'foundation.connecting'
+                          : 'foundation.unavailable',
+                ),
+                tone: liveConnected ? 'positive' : 'warning',
+            },
+        ],
+    }
+}

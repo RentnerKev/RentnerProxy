@@ -1,4 +1,4 @@
-import type { PageHeaderProps } from './Types/management-component-props.types'
+import type { PageHeaderProps } from './Types/management-component-props.types.ts'
 
 export default function PageHeader({ action, description, eyebrow, title }: PageHeaderProps) {
     return (

@@ -3,33 +3,37 @@ import '@tanstack/react-start/server-only'
 
 import { z } from 'zod'
 
-import type { ServiceHealth } from '../../shared/Types/health.types'
+import type { ServiceHealth } from '@/shared/Types/health.types.ts'
 import type {
     CrowdSecDashboard,
     CrowdSecDashboardQuery,
     CrowdSecRuntimeStatus,
-} from '../../shared/Types/crowdsec.types'
-import type { CrowdSecMode } from '../../config/crowdsec.config'
-import type { ProxyConfigSource, ProxyRuntimeStatus } from '../../shared/Types/proxy-runtime.types'
+} from '@/shared/Types/crowdsec.types.ts'
+import type { CrowdSecMode } from '@/shared/Types/crowdsec-config.types.ts'
+import type { ProxyConfigSource, ProxyRuntimeStatus } from '@/shared/Types/proxy-runtime.types.ts'
 import type {
     ProxyAccessLogsQuery,
     ProxyAccessLogsResult,
-} from '../../shared/Types/proxy-access-logs.types'
-import { getControllerBaseUrl, getControllerToken, isLoopbackControllerUrl } from '../env.server'
+} from '@/shared/Types/proxy-access-logs.types.ts'
+import {
+    getControllerBaseUrl,
+    getControllerToken,
+    isLoopbackControllerUrl,
+} from '@/server/env.server.ts'
 import {
     MAX_RUNTIME_PAYLOAD_BYTES,
     PROXY_RUNTIME_REVISION_PATTERN,
-} from '../ProxyRuntime/proxy-runtime-snapshot'
+} from '@/server/ProxyRuntime/proxy-runtime-snapshot.ts'
 import type {
     ProxyRuntimeApplyResponse,
     ProxyRuntimeSnapshot,
-} from '../ProxyRuntime/Types/proxy-runtime.types'
-import { parseControllerHealth } from './controller-health'
+} from '@/server/ProxyRuntime/Types/proxy-runtime.types.ts'
+import { parseControllerHealth } from './controller-health.ts'
 import {
     PROXY_ACCESS_LOGS_MAX_RESPONSE_BYTES,
     proxyAccessLogsQuerySchema,
     proxyAccessLogsResultSchema,
-} from '../../features/Admin/ProxyAccessLogs/validation'
+} from '@/features/Admin/ProxyAccessLogs/validation.ts'
 
 const HEALTH_TIMEOUT_MS = 1_200
 const STATUS_TIMEOUT_MS = 2_000

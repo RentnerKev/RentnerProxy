@@ -1,22 +1,22 @@
 import '@tanstack/react-start/server-only'
 
 import { and, eq, ne } from 'drizzle-orm'
-import { certificateJobs, certificates, proxyHosts, redirectHosts } from '../../../db/schema'
-import { certificateCoversDomains } from '../../../features/Admin/CertificateManagement/Helpers/certificateValidation'
-import { getAuthDatabase } from '../../Auth/Core/database.server'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
-import type { ControllerCertificateMetadata } from '../../Foundation/certificates.server'
-import { getProxyRuntimeStatus } from '../../Foundation/controller.server'
-import { readProxyRuntimeSnapshot } from '../../ProxyRuntime/proxy-runtime-data'
-import { reconcileProxyConfigurationService } from '../../ProxyRuntime/proxy-runtime.service'
-import { persistControllerCertificatesMetadataInTransaction } from '../CertificateManagement/certificates.service'
+import { certificateJobs, certificates, proxyHosts, redirectHosts } from '@/db/schema.ts'
+import { certificateCoversDomains } from '@/lib/Admin/CertificateManagement/certificateValidation.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import type { ControllerCertificateMetadata } from '@/server/Foundation/certificates.server.ts'
+import { getProxyRuntimeStatus } from '@/server/Foundation/controller.server.ts'
+import { readProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-data.ts'
+import { reconcileProxyConfigurationService } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
+import { persistControllerCertificatesMetadataInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
 import {
     CertificateJobDomainError,
     readCertificateJobHost,
     validateCertificateJobContext,
     type CertificateJobRow,
-} from './certificate-jobs.storage.server'
-import { withCertificateJobClaim } from './certificate-jobs.lease.server'
+} from './certificate-jobs.storage.server.ts'
+import { withCertificateJobClaim } from './certificate-jobs.lease.server.ts'
 
 export const certificateJobRuntime = {
     reconcile: reconcileProxyConfigurationService,
@@ -97,7 +97,7 @@ export async function bindIssuedJobCertificate(
                         updatedAt: new Date(),
                     })
                     .where(eq(certificateJobs.id, current.id))
-                await appendAuditEventInTransaction(transaction, {
+                await appendAuditEventInTransactionService(transaction, {
                     actorUserId: current.actorUserId,
                     actorKind: 'user',
                     action: 'update',
@@ -143,7 +143,7 @@ export async function confirmJobRuntime(
                     updatedAt: new Date(),
                 })
                 .where(eq(certificateJobs.id, current.id))
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: current.actorUserId,
                 actorKind: 'user',
                 action: 'apply',

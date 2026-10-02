@@ -1,8 +1,8 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { ListFilter } from 'lucide-react'
 
-import { TOOLTIP_DEFAULT_PROPS } from '../../../config/tooltip.config'
-import useTranslationStore from '../../../language/useTranslationStore'
+import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
 interface TableFilterToggleProps {
     readonly contentId: string

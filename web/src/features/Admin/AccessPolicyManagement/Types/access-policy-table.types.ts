@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import type { AccessPolicySummary } from '../../../../shared/Types/access-policies.types'
+import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
 
 export interface AccessPoliciesTableProps {
     readonly action?: ReactNode

@@ -1,9 +1,9 @@
-import useTranslationStore from '../../../language/useTranslationStore'
-import ApplicationFooter from '../../../layout/Components/ApplicationShell/Components/ApplicationFooter'
-import ApplicationHeader from '../../../layout/Components/ApplicationShell/Components/ApplicationHeader'
-import type { FoundationStatusViewProps } from '../Types/foundation-status.types'
-import ConnectionTrace from './ConnectionTrace'
-import ServiceStatus from './ServiceStatus'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import ApplicationFooter from '@/layouts/AuthenticatedLayout/Components/ApplicationShell/Components/ApplicationFooter.tsx'
+import ApplicationHeader from '@/layouts/AuthenticatedLayout/Components/ApplicationShell/Components/ApplicationHeader.tsx'
+import type { FoundationStatusViewProps } from '../Types/foundation-status.types.ts'
+import ConnectionTrace from './ConnectionTrace.tsx'
+import ServiceStatus from './ServiceStatus.tsx'
 
 export default function FullFoundationStatus({
     controllerConnected,

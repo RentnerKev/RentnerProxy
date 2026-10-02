@@ -3,10 +3,14 @@ import '@tanstack/react-start/server-only'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { parseTrustedManagementOrigin } from '../../config/management-origin.config'
-import { systemSettings } from '../../db/schema'
-import { deriveWebAuthnRpId, getPublicOrigin, type WebAuthnConfiguration } from '../env.server'
-import { getAuthDatabase } from '../Auth/Core/database.server'
+import { parseTrustedManagementOrigin } from '@/lib/ManagementOrigin/origin.ts'
+import { systemSettings } from '@/db/schema.ts'
+import {
+    deriveWebAuthnRpId,
+    getPublicOrigin,
+    type WebAuthnConfiguration,
+} from '@/server/env.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 
 export const MANAGEMENT_ORIGIN_SETTINGS_KEY = 'management_origin_v1'
 

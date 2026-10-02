@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import type { ProxyHostSummary } from '../../../../shared/Types/proxy-hosts.types'
+import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
 
 export interface ProxyHostsTableProps {
     readonly proxyHosts: ReadonlyArray<ProxyHostSummary>

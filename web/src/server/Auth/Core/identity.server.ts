@@ -2,7 +2,7 @@ import '@tanstack/react-start/server-only'
 
 import { z } from 'zod'
 
-import { AuthDomainError } from './errors.server'
+import { AuthDomainError } from './errors.server.ts'
 
 const normalizedEmailSchema = z.email().max(254)
 export const PENDING_DISPLAY_NAME = 'Pending invitation'

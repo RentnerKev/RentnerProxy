@@ -1,5 +1,4 @@
 export const CROWDSEC_MODES = ['disabled', 'managed', 'external'] as const
-export type CrowdSecMode = (typeof CROWDSEC_MODES)[number]
 
 export const CROWDSEC_API_URL_MAX_LENGTH = 2_048
 export const CROWDSEC_API_KEY_MIN_LENGTH = 16

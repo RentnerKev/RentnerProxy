@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { RedirectHostSummary } from '../../../../shared/Types/redirect-hosts.types'
+import type { RedirectHostSummary } from '@/shared/Types/redirect-hosts.types.ts'
 export interface RedirectHostsTableProps {
     readonly redirectHosts: ReadonlyArray<RedirectHostSummary>
     readonly loading: boolean

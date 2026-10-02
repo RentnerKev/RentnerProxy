@@ -1,16 +1,16 @@
 import { Activity } from 'react'
 
-import useTranslationStore from '../../language/useTranslationStore'
-import PageHeader from '../../shared/Management/PageHeader'
-import AccountIdentity from './Components/AccountIdentity'
-import ChangePasswordPanel from './Components/ChangePasswordPanel'
-import LanguageSettingsPanel from './Components/LanguageSettingsPanel'
-import ProfileImagePanel from './Components/ProfileImagePanel'
-import SystemAppearancePanel from './Components/SystemAppearancePanel'
-import SecuritySettingsPanel from './Components/SecuritySettingsPanel'
-import UserSettingsNavigation from './Components/UserSettingsNavigation'
-import { getUserSettingsPageViewModel } from './Helpers/userSettingsPage'
-import type { UserSettingsPageProps } from './Types/user-settings-component-props.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import PageHeader from '@/shared/Management/PageHeader.tsx'
+import AccountIdentity from './Components/AccountIdentity.tsx'
+import ChangePasswordPanel from './Components/ChangePasswordPanel/index.tsx'
+import LanguageSettingsPanel from './Components/LanguageSettingsPanel/index.tsx'
+import ProfileImagePanel from './Components/ProfileImagePanel/index.tsx'
+import SystemAppearancePanel from './Components/SystemAppearancePanel/index.tsx'
+import SecuritySettingsPanel from './Components/SecuritySettingsPanel/index.tsx'
+import UserSettingsNavigation from './Components/UserSettingsNavigation.tsx'
+import { getUserSettingsPageViewModel } from '@/lib/UserSettings/userSettingsPage.ts'
+import type { UserSettingsPageProps } from './Types/user-settings-component-props.types.ts'
 
 export default function UserSettingsPage({ user, activeSection }: UserSettingsPageProps) {
     const { t } = useTranslationStore()

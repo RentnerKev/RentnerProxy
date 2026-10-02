@@ -7,8 +7,11 @@ import {
     MAX_CERTIFICATE_NAME_LENGTH,
     MAX_CERTIFICATE_PEM_LENGTH,
     MAX_PRIVATE_KEY_PEM_LENGTH,
-} from '../../../config/certificates.config'
-import { isPublicAcmeDomain, normalizeCertificateDomain } from './Helpers/certificateValidation'
+} from '@/config/certificates.config.ts'
+import {
+    isPublicAcmeDomain,
+    normalizeCertificateDomain,
+} from '@/lib/Admin/CertificateManagement/certificateValidation.ts'
 
 const name = z
     .string()

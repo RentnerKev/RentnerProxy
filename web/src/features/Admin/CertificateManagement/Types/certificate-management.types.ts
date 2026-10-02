@@ -1,66 +1,89 @@
-import type { PermissionKey } from '../../../../config/permissions.config'
-import type { CertificateSummary } from '../../../../shared/Types/certificates.types'
-import type { CertificateJobSummary } from '../../../../shared/Types/certificate-jobs.types'
-import type useCertificateManagementLogic from '../Hooks/useCertificateManagementLogic'
+import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { CertificateJobSummary } from '@/shared/Types/certificate-jobs.types.ts'
 
 export interface CertificateManagementPageProps {
     readonly permissions: readonly PermissionKey[]
 }
 
-export interface CertificateManagementPageViewProps {
-    readonly logic: ReturnType<typeof useCertificateManagementLogic>
+export interface CertificateWorkspaceLogicResult {
+    readonly state: {
+        readonly active: 'server' | 'trusted'
+        readonly canViewServers: boolean
+        readonly canViewTrustedCas: boolean
+        readonly tabs: readonly {
+            readonly value: 'server' | 'trusted'
+            readonly allowed: boolean
+            readonly label: string
+        }[]
+    }
+    readonly handler: { readonly handleSelect: (value: 'server' | 'trusted') => void }
 }
 
-export interface CertificateTableProps {
-    readonly certificates: ReadonlyArray<CertificateSummary>
-    readonly loading: boolean
-    readonly canCreate: boolean
-    readonly canIssue: boolean
-    readonly canRenew: boolean
-    readonly canUpdate: boolean
-    readonly canDelete: boolean
-    readonly isPending: boolean
-    readonly onCreate: () => void
-    readonly onRequest: () => void
-    readonly onDetails: (certificate: CertificateSummary) => void
-    readonly onRenew: (certificate: CertificateSummary) => void
-    readonly onReplace: (certificate: CertificateSummary) => void
-    readonly onDelete: (certificate: CertificateSummary) => void
-}
-
-export interface CertificateTableActionsProps {
-    readonly certificate: CertificateSummary
-    readonly canRenew: boolean
-    readonly canUpdate: boolean
-    readonly canDelete: boolean
-    readonly isPending: boolean
-    readonly onDetails: (certificate: CertificateSummary) => void
-    readonly onRenew: (certificate: CertificateSummary) => void
-    readonly onReplace: (certificate: CertificateSummary) => void
-    readonly onDelete: (certificate: CertificateSummary) => void
-}
-
-export interface CertificateDetailsModalProps {
-    readonly certificate: CertificateSummary
-    readonly open: boolean
-    readonly onOpenChange: (open: boolean) => void
-}
-
-export interface CertificateImportModalProps {
-    readonly certificate?: CertificateSummary
-    readonly open: boolean
-    readonly onOpenChange: (open: boolean) => void
+export interface CertificateRequestInputs {
     readonly onSuccess: () => void | Promise<void>
-}
-
-export interface CertificateRequestModalProps {
-    readonly open: boolean
-    readonly onOpenChange: (open: boolean) => void
-    readonly onSuccess: () => void | Promise<void>
-    readonly initialDomains?: ReadonlyArray<string>
-    readonly initialName?: string
-    readonly proxyHostId?: string
-    readonly expectedUpdatedAt?: string
-    readonly readOnlyDomains?: boolean
+    readonly initialDomains?: ReadonlyArray<string> | undefined
+    readonly initialName?: string | undefined
+    readonly proxyHostId?: string | undefined
+    readonly expectedUpdatedAt?: string | undefined
+    readonly readOnlyDomains?: boolean | undefined
     readonly certificateJob?: CertificateJobSummary | null | undefined
+}
+
+export interface CertificateManagementLogicResult {
+    readonly state: {
+        readonly certificates: readonly import('@/shared/Types/certificates.types.ts').CertificateSummary[]
+        readonly canCreate: boolean
+        readonly canDelete: boolean
+        readonly canIssue: boolean
+        readonly canRenew: boolean
+        readonly canUpdate: boolean
+        readonly importOpen: boolean
+        readonly isDeleting: boolean
+        readonly isError: boolean
+        readonly isLoading: boolean
+        readonly isMutating: boolean
+        readonly isRenewing: boolean
+        readonly requestOpen: boolean
+        readonly deleteTarget:
+            | import('@/shared/Types/certificates.types.ts').CertificateSummary
+            | null
+        readonly detailsTarget:
+            | import('@/shared/Types/certificates.types.ts').CertificateSummary
+            | null
+        readonly replaceTarget:
+            | import('@/shared/Types/certificates.types.ts').CertificateSummary
+            | null
+        readonly renewTarget:
+            | import('@/shared/Types/certificates.types.ts').CertificateSummary
+            | null
+        readonly requestDefaults: { readonly domains?: string[]; readonly name?: string }
+    }
+    readonly handler: {
+        readonly confirmDelete: () => Promise<void>
+        readonly confirmRenew: () => Promise<void>
+        readonly handleFormSuccess: () => Promise<void>
+        readonly openDelete: (
+            certificate: import('@/shared/Types/certificates.types.ts').CertificateSummary,
+        ) => void
+        readonly openDetails: (
+            certificate: import('@/shared/Types/certificates.types.ts').CertificateSummary,
+        ) => void
+        readonly openReplace: (
+            certificate: import('@/shared/Types/certificates.types.ts').CertificateSummary,
+        ) => void
+        readonly openRenew: (
+            certificate: import('@/shared/Types/certificates.types.ts').CertificateSummary,
+        ) => void
+        readonly openRequest: (
+            proxyHost?: import('@/shared/Types/proxy-hosts.types.ts').ProxyHostSummary,
+        ) => void
+        readonly openImport: () => void
+        readonly retry: () => void
+        readonly setDeleteDialogOpen: (open: boolean) => void
+        readonly setDetailsDialogOpen: (open: boolean) => void
+        readonly setImportDialogOpen: (open: boolean) => void
+        readonly setReplaceDialogOpen: (open: boolean) => void
+        readonly setRequestDialogOpen: (open: boolean) => void
+        readonly setRenewDialogOpen: (open: boolean) => void
+    }
 }

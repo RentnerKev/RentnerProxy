@@ -1,6 +1,6 @@
-import useTranslationStore from '../../language/useTranslationStore'
-import getFieldErrorMessage from './Helpers/getFieldErrorMessage'
-import type { FieldErrorProps } from './Types/form-component-props.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import getFieldErrorMessage from '@/lib/Forms/fieldErrors.ts'
+import type { FieldErrorProps } from './Types/form-component-props.types.ts'
 
 export default function FieldError({ errors, id }: FieldErrorProps) {
     const { authenticated, t } = useTranslationStore()

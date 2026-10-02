@@ -1,5 +1,6 @@
 // oxlint-disable no-await-in-loop -- Appliance phases and bounded readiness probes run in order.
 import assert from 'node:assert/strict'
+import { dockerBuildDiagnostic } from '../docker-build-diagnostics.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
@@ -93,6 +94,8 @@ async function command(
             new Response(child.stderr).text(),
         ])
         if (code !== 0) {
+            if (args[0] === 'docker' && args[1] === 'build')
+                console.error(dockerBuildDiagnostic(err))
             // Docker, SQL and application output can contain private fixture material.
             const diagnostic = restoreSmokeDiagnostic(err)
             if (diagnostic) console.error(diagnostic)

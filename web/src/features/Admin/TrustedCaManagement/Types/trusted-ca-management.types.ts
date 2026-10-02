@@ -1,30 +1,32 @@
-import type { PermissionKey } from '../../../../config/permissions.config'
-import type { TrustedCaSummary } from '../../../../shared/Types/trusted-cas.types'
-import type useTrustedCaManagementLogic from '../Hooks/useTrustedCaManagementLogic'
+import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { TrustedCaSummary } from '@/shared/Types/trusted-cas.types.ts'
 
 export interface TrustedCaManagementPageProps {
     readonly permissions: readonly PermissionKey[]
 }
 
-export interface TrustedCaManagementPageViewProps {
-    readonly logic: ReturnType<typeof useTrustedCaManagementLogic>
-}
-
-export interface TrustedCaTableProps {
-    readonly trustedCas: ReadonlyArray<TrustedCaSummary>
-    readonly loading: boolean
-    readonly canCreate: boolean
-    readonly canUpdate: boolean
-    readonly canDelete: boolean
-    readonly isPending: boolean
-    readonly onCreate: () => void
-    readonly onReplace: (trustedCa: TrustedCaSummary) => void
-    readonly onDelete: (trustedCa: TrustedCaSummary) => void
-}
-
-export interface TrustedCaImportModalProps {
-    readonly trustedCa?: TrustedCaSummary
-    readonly open: boolean
-    readonly onOpenChange: (open: boolean) => void
-    readonly onSuccess: () => void | Promise<void>
+export interface TrustedCaManagementLogicResult {
+    readonly state: {
+        readonly trustedCas: readonly TrustedCaSummary[]
+        readonly canCreate: boolean
+        readonly canUpdate: boolean
+        readonly canDelete: boolean
+        readonly isLoading: boolean
+        readonly isError: boolean
+        readonly isMutating: boolean
+        readonly importOpen: boolean
+        readonly replaceTarget: TrustedCaSummary | null
+        readonly deleteTarget: TrustedCaSummary | null
+    }
+    readonly handler: {
+        readonly handleFormSuccess: () => Promise<void>
+        readonly openImport: () => void
+        readonly openReplace: (trustedCa: TrustedCaSummary) => void
+        readonly openDelete: (trustedCa: TrustedCaSummary) => void
+        readonly setImportOpen: (open: boolean) => void
+        readonly setReplaceOpen: (open: boolean) => void
+        readonly setDeleteOpen: (open: boolean) => void
+        readonly confirmDelete: () => Promise<void>
+        readonly retry: () => void
+    }
 }

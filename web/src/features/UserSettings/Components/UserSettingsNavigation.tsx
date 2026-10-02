@@ -1,9 +1,9 @@
 import { Link } from '@tanstack/react-router'
 import { Fingerprint, Globe, LockKeyhole, Palette, ShieldCheck, UserRound } from 'lucide-react'
 
-import useTranslationStore from '../../../language/useTranslationStore'
-import { UserAvatar } from '../../../shared/Avatar'
-import type { UserSettingsPageProps } from '../Types/user-settings-component-props.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import UserAvatar from '@/shared/Avatar/Components/UserAvatar.tsx'
+import type { UserSettingsPageProps } from '../Types/user-settings-component-props.types.ts'
 
 const groups = [
     {

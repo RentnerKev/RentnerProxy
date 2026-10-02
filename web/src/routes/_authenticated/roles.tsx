@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { PERMISSIONS } from '../../config/permissions.config'
-import RoleManagementPage from '../../features/Admin/RoleManagement'
-import { requirePermissionRoute } from '../../features/Auth/route-guards'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import RoleManagementPage from '@/features/Admin/RoleManagement/index.tsx'
+import { requirePermissionRoute } from '@/features/Auth/route-guards.ts'
 
 export const Route = createFileRoute('/_authenticated/roles')({
     beforeLoad: requirePermissionRoute(PERMISSIONS.ROLES_VIEW),

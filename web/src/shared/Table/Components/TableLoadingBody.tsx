@@ -1,5 +1,5 @@
-import type { TableLoadingBodyProps } from '../Types/table.types'
-import useTranslationStore from '../../../language/useTranslationStore'
+import type { TableLoadingBodyProps } from '../Types/table.types.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
 export default function TableLoadingBody({ columnCount, loadingLabel }: TableLoadingBodyProps) {
     const { t } = useTranslationStore()

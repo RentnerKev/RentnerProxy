@@ -3,13 +3,13 @@ import '@tanstack/react-start/server-only'
 import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { users } from '../../../db/schema'
-import { requirePermissionInTransaction } from '../Access/rbac.service'
-import { getCurrentSessionService } from '../Access/sessions.service'
-import { getAuthDatabase } from '../Core/database.server'
-import { AuthDomainError } from '../Core/errors.server'
-import { createNormalizedProfileImageWebp } from './profile-image-processing.server'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { users } from '@/db/schema.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { getCurrentSessionService } from '@/server/Auth/Access/sessions.service.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import { createNormalizedProfileImageWebp } from './profile-image-processing.server.ts'
 
 export interface ProfileImageAsset {
     readonly bytes: Uint8Array

@@ -1,5 +1,5 @@
-import type { AccountIdentityProps } from '../Types/user-settings-component-props.types'
-import useTranslationStore from '../../../language/useTranslationStore'
+import type { AccountIdentityProps } from '../Types/user-settings-component-props.types.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
 export default function AccountIdentity({ user }: AccountIdentityProps) {
     const { t } = useTranslationStore()

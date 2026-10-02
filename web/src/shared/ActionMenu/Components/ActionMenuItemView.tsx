@@ -1,6 +1,6 @@
 import * as DropdownMenu from 'radix-ui/dropdown-menu'
 
-import type { ActionMenuItemViewProps } from '../Types/action-menu.types'
+import type { ActionMenuItemViewProps } from '../Types/action-menu.types.ts'
 
 export default function ActionMenuItemView({ item }: ActionMenuItemViewProps) {
     return (

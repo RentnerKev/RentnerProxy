@@ -1,14 +1,11 @@
 import { z } from 'zod'
 
-import {
-    MAX_PROXY_HOST_DOMAINS,
-    PROXY_HOST_FORWARD_SCHEMES,
-} from '../../../config/proxy-hosts.config'
+import { MAX_PROXY_HOST_DOMAINS, PROXY_HOST_FORWARD_SCHEMES } from '@/config/proxy-hosts.config.ts'
 import {
     normalizeForwardHost,
     normalizeProxyDomain,
     normalizeUpstreamTlsServerName,
-} from './Helpers/proxyHostValidation'
+} from '@/lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
 
 export const proxyDomainSchema = z
     .string()

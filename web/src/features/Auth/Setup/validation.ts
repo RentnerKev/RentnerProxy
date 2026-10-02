@@ -5,7 +5,7 @@ import {
     displayNameSchema,
     emailSchema,
     newPasswordSchema,
-} from '../Shared/validation'
+} from '@/lib/Auth/validation.ts'
 
 export const setupInputSchema = z
     .object({

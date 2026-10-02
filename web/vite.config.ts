@@ -30,6 +30,9 @@ export default defineConfig({
     root: webRoot,
     envDir: repositoryRoot,
     cacheDir: cacheDirectory,
+    resolve: {
+        alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    },
     optimizeDeps: {
         exclude: ['bun'],
     },

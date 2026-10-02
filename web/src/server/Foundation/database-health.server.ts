@@ -1,8 +1,8 @@
 import '@tanstack/react-start/server-only'
 
-import { db } from '../../db'
-import { isRecord } from '../../shared/Helpers/isRecord'
-import type { ServiceHealth } from '../../shared/Types/health.types'
+import { db } from '@/db/index.ts'
+import { isRecord } from '@/lib/Records/isRecord.ts'
+import type { ServiceHealth } from '@/shared/Types/health.types.ts'
 
 interface DatabaseProbe {
     readonly result: Promise<unknown>

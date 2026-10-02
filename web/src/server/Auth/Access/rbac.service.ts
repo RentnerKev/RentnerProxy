@@ -2,26 +2,17 @@ import '@tanstack/react-start/server-only'
 
 import { and, count, eq, inArray } from 'drizzle-orm'
 
-import {
-    PERMISSION_REGISTRY,
-    SYSTEM_ROLES,
-    type PermissionKey,
-} from '../../../config/permissions.config'
-import { FALLBACK_LANGUAGE } from '../../../config/language.config'
-import { parseStoredNavigationGroupPreferences } from '../../../config/navigation.config'
-import { DEFAULT_USER_THEME_MODE, isUserThemeMode } from '../../../config/theme.config'
-import {
-    permissions,
-    rolePermissions,
-    roles,
-    userRoles,
-    users,
-    userSettings,
-} from '../../../db/schema'
-import type { AuthenticatedUser } from '../../../shared/Types/auth.types'
-import { isAppLanguage } from '../../../config/language.config'
-import type { AuthTransaction } from '../Core/database.server'
-import { AuthDomainError } from '../Core/errors.server'
+import { PERMISSION_REGISTRY, SYSTEM_ROLES } from '@/config/permissions.config.ts'
+import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import { FALLBACK_LANGUAGE } from '@/config/language.config.ts'
+import { parseStoredNavigationGroupPreferences } from '@/lib/Navigation/navigationPreferences.ts'
+import { DEFAULT_USER_THEME_MODE } from '@/config/theme.config.ts'
+import { isUserThemeMode } from '@/lib/Theme/themeMode.ts'
+import { permissions, rolePermissions, roles, userRoles, users, userSettings } from '@/db/schema.ts'
+import type { AuthenticatedUser } from '@/shared/Types/auth.types.ts'
+import { isAppLanguage } from '@/lib/Language/language.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 
 const registeredPermissionKeys = new Set<PermissionKey>(
     PERMISSION_REGISTRY.map((permission) => permission.key),

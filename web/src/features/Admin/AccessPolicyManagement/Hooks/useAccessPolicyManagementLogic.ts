@@ -1,19 +1,25 @@
+import {
+    invalidateAccessPoliciesCache,
+    invalidateAssignableAccessPoliciesCache,
+    invalidateAccessPolicyRuntimeStatusCache,
+} from '@/lib/Admin/AccessPolicyManagement/accessPolicyManagementCache.ts'
+import type { AccessPolicyManagementLogicResult } from '../Types/management-logic.types.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 
-import { PERMISSIONS } from '../../../../config/permissions.config'
-import useLiveInvalidation from '../../../../shared/Live/useLiveInvalidation'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import useLiveInvalidation from '@/shared/Live/useLiveInvalidation.ts'
 import { toast } from '@rentnerkev/toasts/toast'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import type { AccessPolicySummary } from '../../../../shared/Types/access-policies.types'
-import { accessPolicyManagementQueryKeys } from '../queryKeys'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
+import { accessPolicyManagementQueryKeys } from '@/lib/Admin/AccessPolicyManagement/accessPolicyManagementCache.ts'
 import {
     applyAccessPolicyConfigurationHandler,
     deleteAccessPolicyHandler,
     getAccessPoliciesHandler,
     getAccessPolicyRuntimeStatusHandler,
-} from '../server'
-import type { AccessPolicyManagementPageProps } from '../Types/access-policy-management.types'
+} from '../middleware.ts'
+import type { AccessPolicyManagementPageProps } from '../Types/access-policy-management.types.ts'
 
 const EMPTY_ACCESS_POLICIES: AccessPolicySummary[] = []
 
@@ -25,7 +31,7 @@ type ActionResult = {
 
 export default function useAccessPolicyManagementLogic({
     permissions,
-}: AccessPolicyManagementPageProps) {
+}: AccessPolicyManagementPageProps): AccessPolicyManagementLogicResult {
     const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
@@ -56,16 +62,9 @@ export default function useAccessPolicyManagementLogic({
     })
     const invalidate = useCallback(async () => {
         await Promise.all([
-            queryClient.invalidateQueries({
-                queryKey: accessPolicyManagementQueryKeys.all,
-                exact: true,
-            }),
-            queryClient.invalidateQueries({
-                queryKey: accessPolicyManagementQueryKeys.assignable,
-            }),
-            queryClient.invalidateQueries({
-                queryKey: accessPolicyManagementQueryKeys.runtimeStatus,
-            }),
+            invalidateAccessPoliciesCache(queryClient, true),
+            invalidateAssignableAccessPoliciesCache(queryClient),
+            invalidateAccessPolicyRuntimeStatusCache(queryClient),
         ])
     }, [queryClient])
 
@@ -73,9 +72,7 @@ export default function useAccessPolicyManagementLogic({
         mutationFn: async (): Promise<ActionResult> =>
             (await applyAccessPolicyConfigurationHandler()) as ActionResult,
         onSuccess: async (result) => {
-            await queryClient.invalidateQueries({
-                queryKey: accessPolicyManagementQueryKeys.runtimeStatus,
-            })
+            await invalidateAccessPolicyRuntimeStatusCache(queryClient)
             if (result.success)
                 toast.success(t(result.message), { title: t('toast.titles.success') })
             else toast.error(t(result.message), { title: t('toast.titles.error') })
@@ -133,10 +130,7 @@ export default function useAccessPolicyManagementLogic({
         if (!open) setCredentialsPolicy(null)
     }, [])
     const handleAccountsChange = useCallback(async () => {
-        await queryClient.invalidateQueries({
-            queryKey: accessPolicyManagementQueryKeys.all,
-            exact: true,
-        })
+        await invalidateAccessPoliciesCache(queryClient, true)
     }, [queryClient])
     const openDelete = useCallback(
         (policy: AccessPolicySummary) => {

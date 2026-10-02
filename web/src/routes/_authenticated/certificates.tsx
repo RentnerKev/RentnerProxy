@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { PERMISSIONS } from '../../config/permissions.config'
-import CertificateManagementPage from '../../features/Admin/CertificateManagement'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import CertificateManagementPage from '@/features/Admin/CertificateManagement/index.tsx'
 
 export const Route = createFileRoute('/_authenticated/certificates')({
     beforeLoad: ({ context }) => {

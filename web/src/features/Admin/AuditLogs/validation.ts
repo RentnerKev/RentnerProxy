@@ -2,7 +2,7 @@ import { z } from 'zod'
 import {
     CERTIFICATE_ERROR_CODES,
     CERTIFICATE_OPERATION_STAGES,
-} from '../../../config/certificates.config'
+} from '@/config/certificates.config.ts'
 
 import {
     AUDIT_ACTIONS,
@@ -12,7 +12,7 @@ import {
     AUDIT_FAILURE_CODES,
     AUDIT_RESOURCES,
     AUDIT_RESULTS,
-} from '../../../shared/Types/audit-events.types'
+} from '@/shared/Types/audit-events.types.ts'
 
 export const AUDIT_DEFAULT_LIMIT = 50
 export const AUDIT_MAX_LIMIT = 100

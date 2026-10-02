@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { getFoundationReadiness } from '../../features/Health/server'
+import { getFoundationReadinessHandler } from '@/features/Health/middleware.ts'
 
 export const Route = createFileRoute('/health/ready')({
     server: {
         handlers: {
             GET: async () => {
-                const ready = await getFoundationReadiness()
+                const ready = await getFoundationReadinessHandler()
                 return Response.json(
                     { status: ready ? 'ready' : 'not_ready' },
                     {

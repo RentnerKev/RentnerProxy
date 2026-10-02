@@ -1,8 +1,8 @@
 import '@tanstack/react-start/server-only'
 
-import type { ServiceHealth } from '../../shared/Types/health.types'
-import { getValkeyClient } from './client.server'
-import type { ValkeyHealthDependencies } from './Types/valkey.types'
+import type { ServiceHealth } from '@/shared/Types/health.types.ts'
+import { getValkeyClient } from './client.server.ts'
+import type { ValkeyHealthDependencies } from './Types/valkey.types.ts'
 
 const HEALTH_TIMEOUT_MS = 1_500
 const HEALTH_TIMEOUT = Symbol('valkey-health-timeout')

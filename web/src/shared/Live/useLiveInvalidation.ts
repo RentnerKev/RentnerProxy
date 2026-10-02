@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react'
 import { useQueryClient, type QueryKey } from '@tanstack/react-query'
 
-import useLiveQuery from './useLiveQuery'
+import useLiveQuery from './useLiveQuery.ts'
 
 export type LiveInvalidationTopic =
     | 'proxy-hosts'

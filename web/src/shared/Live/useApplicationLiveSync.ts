@@ -2,10 +2,10 @@ import { useCallback, useRef } from 'react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 
-import { auditLogsQueryKeys } from '../../features/Admin/AuditLogs/queryKeys'
-import { proxyAccessLogsQueryKeys } from '../../features/Admin/ProxyAccessLogs/queryKeys'
-import { foundationStatusQueryKeys } from '../../features/FoundationStatus/queryKeys'
-import useLiveQuery, { type LiveStatus } from './useLiveQuery'
+import { auditLogsQueryKeys } from '@/lib/Admin/AuditLogs/auditLogsCache.ts'
+import { proxyAccessLogsQueryKeys } from '@/lib/Admin/ProxyAccessLogs/proxyAccessLogsCache.ts'
+import { foundationStatusQueryKeys } from '@/lib/FoundationStatus/foundationStatusCache.ts'
+import useLiveQuery, { type LiveStatus } from './useLiveQuery.ts'
 
 export interface ApplicationLiveSnapshot {
     readonly revision: string

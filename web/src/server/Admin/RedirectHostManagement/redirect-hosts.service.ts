@@ -2,30 +2,30 @@ import '@tanstack/react-start/server-only'
 
 import { and, asc, eq, inArray, isNotNull, ne, or } from 'drizzle-orm'
 
-import type { RedirectHostStatusCode } from '../../../config/redirect-hosts.config'
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { hostDomains, redirectHosts } from '../../../db/schema'
-import type { RedirectHostSummary } from '../../../shared/Types/redirect-hosts.types'
-import type { ProxyRuntimeMutationStatus } from '../../../shared/Types/proxy-runtime.types'
-import { requirePermissionService } from '../../Auth/Access/authorization.service'
-import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
-import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
-import { reconcileProxyConfigurationWithAudit } from '../../ProxyRuntime/proxy-runtime.service'
-import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
-import { validateCertificateAssignmentInTransaction } from '../CertificateManagement/certificates.service'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
-import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
+import type { RedirectHostStatusCode } from '@/shared/Types/redirect-hosts-config.types.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { hostDomains, redirectHosts } from '@/db/schema.ts'
+import type { RedirectHostSummary } from '@/shared/Types/redirect-hosts.types.ts'
+import type { ProxyRuntimeMutationStatus } from '@/shared/Types/proxy-runtime.types.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
+import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import { validateCertificateAssignmentInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
 import {
     createRedirectHostInputSchema,
     redirectHostIdInputSchema,
     updateRedirectHostInputSchema,
     type CreateRedirectHostInput,
     type UpdateRedirectHostInput,
-} from '../../../features/Admin/RedirectHostManagement/validation'
+} from '@/features/Admin/RedirectHostManagement/validation.ts'
 import {
     mapRedirectHostDomainUniqueViolation,
     RedirectHostDomainError,
-} from './redirect-hosts.errors'
+} from './redirect-hosts.errors.ts'
 
 export type RedirectHostMutationSummary = RedirectHostSummary & {
     readonly runtimeStatus: ProxyRuntimeMutationStatus
@@ -259,7 +259,7 @@ export async function createRedirectHostInTransaction(
     await transaction
         .insert(hostDomains)
         .values(domains.map((domain) => ({ domain, redirectHostId: redirectHost.id })))
-    await appendAuditEventInTransaction(transaction, {
+    await appendAuditEventInTransactionService(transaction, {
         actorUserId: actorId,
         actorKind: 'user',
         action: 'create',
@@ -328,7 +328,7 @@ export async function updateRedirectHostService(
             if (!updated)
                 throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
             await replaceDomainsInTransaction(transaction, redirectHost.id, domains)
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'update',
@@ -371,7 +371,7 @@ export async function deleteRedirectHostService(
             if (!redirectHost)
                 throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
             await transaction.delete(redirectHosts).where(eq(redirectHosts.id, redirectHost.id))
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'delete',
@@ -431,7 +431,7 @@ async function setRedirectHostEnabledService(
             const updated = rows.at(0)
             if (!updated)
                 throw new RedirectHostDomainError('host_not_found', 'Redirect host was not found.')
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: enabled ? 'enable' : 'disable',

@@ -1,0 +1,120 @@
+import { describe, expect, test } from 'bun:test'
+import { eq } from 'drizzle-orm'
+
+import { db } from '@/db/index.ts'
+import { systemSettings, users } from '@/db/schema.ts'
+import { getDatabaseUrl } from '@/server/env.server.ts'
+import { checkDatabaseHealth } from '@/server/Foundation/database-health.server.ts'
+
+const integrationTest =
+    process.env.RENTNERPROXY_DATABASE_INTEGRATION === '1' && getDatabaseUrl() ? test : test.skip
+
+describe('PostgreSQL integration', () => {
+    integrationTest(
+        'uses PostgreSQL 18, the application schema, and the updated_at trigger',
+        async () => {
+            const key = `integration.${Date.now()}.${Math.random().toString(16).slice(2)}`
+            let inserted = false
+
+            try {
+                expect(await checkDatabaseHealth()).toEqual({ state: 'connected' })
+
+                const versionRows =
+                    await db.$client`SELECT current_setting('server_version_num')::integer AS version`
+                expect(versionRows[0]?.version).toBeGreaterThanOrEqual(180_000)
+
+                const namespaceRows = await db.$client`
+        SELECT
+          to_regclass('public.system_settings') IS NULL AS public_table_missing,
+          to_regclass('rentnerproxy.system_settings') IS NOT NULL AS application_table_exists,
+          (
+            SELECT namespace.nspname
+            FROM pg_proc AS procedure
+            INNER JOIN pg_namespace AS namespace ON namespace.oid = procedure.pronamespace
+            WHERE procedure.proname = 'rentnerproxy_set_system_settings_updated_at'
+          ) AS function_schema
+      `
+                expect(namespaceRows[0]).toMatchObject({
+                    public_table_missing: true,
+                    application_table_exists: true,
+                    function_schema: 'rentnerproxy',
+                })
+
+                const createdRows = await db
+                    .insert(systemSettings)
+                    .values({ key, value: { enabled: true } })
+                    .returning()
+                inserted = true
+                const created = createdRows[0]
+
+                expect(created).toBeDefined()
+
+                if (!created) {
+                    throw new Error('system setting was not returned after insert')
+                }
+
+                expect(created.id[14]).toBe('7')
+                expect(created.createdAt).toBeInstanceOf(Date)
+                expect(created.updatedAt).toBeInstanceOf(Date)
+
+                await Bun.sleep(10)
+
+                const updatedRows = await db
+                    .update(systemSettings)
+                    .set({ value: { enabled: false } })
+                    .where(eq(systemSettings.key, key))
+                    .returning({ updatedAt: systemSettings.updatedAt })
+                const updated = updatedRows[0]
+
+                expect(updated).toBeDefined()
+
+                if (!updated) {
+                    throw new Error('system setting was not returned after update')
+                }
+
+                expect(updated.updatedAt.getTime()).toBeGreaterThan(created.updatedAt.getTime())
+            } finally {
+                if (inserted) {
+                    await db.delete(systemSettings).where(eq(systemSettings.key, key))
+                }
+            }
+        },
+    )
+
+    integrationTest('round-trips profile image WebP bytes through the users schema', async () => {
+        const email = `profile-image-${Date.now()}-${Math.random().toString(16).slice(2)}@integration.invalid`
+        const expectedBytes = new Uint8Array([82, 73, 70, 70, 1, 2, 3, 4])
+        let userId: string | null = null
+
+        try {
+            const insertedRows = await db
+                .insert(users)
+                .values({
+                    displayName: 'Profile image integration',
+                    email,
+                    profileImageVersion: 7,
+                    profileImageWebp: expectedBytes,
+                })
+                .returning({ id: users.id })
+            userId = insertedRows.at(0)?.id ?? null
+
+            expect(userId).not.toBeNull()
+
+            const rows = await db
+                .select({
+                    profileImageVersion: users.profileImageVersion,
+                    profileImageWebp: users.profileImageWebp,
+                })
+                .from(users)
+                .where(eq(users.email, email))
+            const stored = rows.at(0)
+
+            expect(stored?.profileImageVersion).toBe(7)
+            expect([...new Uint8Array(stored?.profileImageWebp ?? [])]).toEqual([...expectedBytes])
+        } finally {
+            if (userId) {
+                await db.delete(users).where(eq(users.id, userId))
+            }
+        }
+    })
+})

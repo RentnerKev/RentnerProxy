@@ -1,0 +1,23 @@
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import ChangePasswordForm from './Components/ChangePasswordForm.tsx'
+import useChangePasswordLogic from './Hooks/useChangePasswordLogic.ts'
+
+export default function ChangePasswordPanel() {
+    const { state, handler, form } = useChangePasswordLogic()
+    const { t } = useTranslationStore()
+
+    return (
+        <section
+            className="min-w-0 rounded-2xl border border-border bg-surface p-[clamp(1.15rem,4vw,1.75rem)] shadow-surface"
+            aria-labelledby="password-title"
+        >
+            <p className="m-0 font-mono text-[0.68rem] font-bold tracking-[0.16em] text-accent-ring uppercase">
+                {t('account.password.sectionEyebrow')}
+            </p>
+            <h2 id="password-title" className="mt-[0.6rem] text-xl text-ink-soft">
+                {t('account.password.title')}
+            </h2>
+            <ChangePasswordForm state={state} form={form} handler={handler} />
+        </section>
+    )
+}

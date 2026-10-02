@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { displayNameSchema, emailSchema } from '../../Auth/Shared/validation'
+import { displayNameSchema, emailSchema } from '@/lib/Auth/validation.ts'
 
 export const roleKeysSchema = z
     .array(z.string().trim().min(1).max(100))

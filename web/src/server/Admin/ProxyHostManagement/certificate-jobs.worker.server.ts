@@ -1,33 +1,33 @@
 import '@tanstack/react-start/server-only'
 
 import { eq } from 'drizzle-orm'
-import { certificateJobs } from '../../../db/schema'
-import { requestCertificateInputSchema } from '../../../features/Admin/CertificateManagement/validation'
-import { decryptSecret } from '../../Auth/Core/encryption.server'
+import { certificateJobs } from '@/db/schema.ts'
+import { requestCertificateInputSchema } from '@/features/Admin/CertificateManagement/validation.ts'
+import { decryptSecret } from '@/server/Auth/Core/encryption.server.ts'
 import {
     getControllerCertificate,
     issueControllerCertificate,
     renewControllerCertificate,
     type ControllerCertificateMetadata,
-} from '../../Foundation/certificates.server'
-import { CertificateDomainError } from '../CertificateManagement/certificates.errors'
-import { persistControllerCertificatesMetadataInTransaction } from '../CertificateManagement/certificates.service'
+} from '@/server/Foundation/certificates.server.ts'
+import { CertificateDomainError } from '@/server/Admin/CertificateManagement/certificates.errors.ts'
+import { persistControllerCertificatesMetadataInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
 import {
     bindIssuedJobCertificate,
     certificateJobRuntime,
     confirmJobRuntime,
-} from './certificate-jobs.binding.server'
+} from './certificate-jobs.binding.server.ts'
 import {
     claimCertificateJob,
     releaseCertificateJob,
     withCertificateJobClaim,
-} from './certificate-jobs.lease.server'
+} from './certificate-jobs.lease.server.ts'
 import {
     CertificateJobDomainError,
     certificateJobDigest,
     validateCertificateJobContext,
     type CertificateJobRow,
-} from './certificate-jobs.storage.server'
+} from './certificate-jobs.storage.server.ts'
 
 export const certificateJobController = {
     get: getControllerCertificate,

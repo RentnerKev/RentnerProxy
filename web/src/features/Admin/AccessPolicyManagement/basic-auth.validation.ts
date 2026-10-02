@@ -3,7 +3,7 @@ import { z } from 'zod'
 import {
     BASIC_AUTH_PASSWORD_MAX_LENGTH,
     BASIC_AUTH_USERNAME_MAX_LENGTH,
-} from '../../../config/access-policies.config'
+} from '@/config/access-policies.config.ts'
 
 const basicAuthAccountIdSchema = z.uuidv7()
 const accessPolicyIdSchema = z.uuidv7()

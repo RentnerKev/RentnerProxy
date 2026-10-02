@@ -1,11 +1,11 @@
 // oxlint-disable-next-line import/no-unassigned-import -- ZIP parsing must stay server-side.
 import '@tanstack/react-start/server-only'
 
-import { createProxyHostInputSchema } from '../../../features/Admin/ProxyHostManagement/validation'
-import { createRedirectHostInputSchema } from '../../../features/Admin/RedirectHostManagement/validation'
-import { normalizeForwardHost } from '../../../features/Admin/ProxyHostManagement/Helpers/proxyHostValidation'
-import type { NpmImportPlan, NpmImportPlanItem } from '../NpmImport/npm-plan'
-import { finalizeImportPlan } from './import-plan'
+import { createProxyHostInputSchema } from '@/features/Admin/ProxyHostManagement/validation.ts'
+import { createRedirectHostInputSchema } from '@/features/Admin/RedirectHostManagement/validation.ts'
+import { normalizeForwardHost } from '@/lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
+import type { NpmImportPlan, NpmImportPlanItem } from '@/server/Admin/NpmImport/npm-plan.ts'
+import { finalizeImportPlan } from './import-plan.ts'
 
 import yauzl, { type Entry, type ZipFile } from 'yauzl'
 

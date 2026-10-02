@@ -1,6 +1,6 @@
 import { createRuntimeFetch } from './request-context.ts'
 import { createStaticAssetFetch } from './static-assets.ts'
-import { createLiveWebSocketRuntime } from '../../web/src/websockets/Server/realtimeWebSocket.ts'
+import { createLiveWebSocketRuntime } from '../../web/dist/server/realtimeWebSocket.js'
 import { fileURLToPath } from 'node:url'
 
 const { default: application } = await import('../../web/dist/server/server.js')

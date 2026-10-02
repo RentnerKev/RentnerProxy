@@ -1,11 +1,20 @@
-import type { CrowdSecMode } from '../../../../config/crowdsec.config'
-import type { CrowdSecConfiguration } from '../../../../shared/Types/crowdsec.types'
+import type { CrowdSecMode } from '@/shared/Types/crowdsec-config.types.ts'
+import type {
+    CrowdSecConfiguration,
+    CrowdSecCommunityState,
+    CrowdSecConsoleState,
+} from '@/shared/Types/crowdsec.types.ts'
 
 export interface CrowdSecPageProps {
     readonly permissions: readonly string[]
 }
 
 export interface CrowdSecPageState {
+    readonly busy: boolean
+    readonly activeManaged: boolean
+    readonly communityState: CrowdSecCommunityState
+    readonly consoleState: CrowdSecConsoleState
+    readonly canEnroll: boolean
     readonly canUpdate: boolean
     readonly configuration: CrowdSecConfiguration | undefined
     readonly mode: CrowdSecMode
@@ -61,8 +70,4 @@ export interface CrowdSecPageLogic {
         readonly save: () => void
         readonly closeTransition: () => void
     }
-}
-
-export interface CrowdSecPageViewProps {
-    readonly logic: CrowdSecPageLogic
 }

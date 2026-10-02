@@ -1,4 +1,4 @@
-import type { TableBodyStateProps } from '../Types/table.types'
+import type { TableBodyStateProps } from '../Types/table.types.ts'
 
 export default function TableBodyState({ columnCount, state }: TableBodyStateProps) {
     return (

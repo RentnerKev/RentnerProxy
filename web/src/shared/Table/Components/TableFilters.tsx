@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import useTranslationStore from '../../../language/useTranslationStore'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
 interface TableFiltersProps {
     readonly children: (resetButton: ReactNode) => ReactNode

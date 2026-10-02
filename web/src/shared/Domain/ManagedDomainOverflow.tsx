@@ -1,18 +1,11 @@
 import * as Popover from 'radix-ui/popover'
-import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react'
+import type { ManagedDomainOverflowProps } from './Types/managed-domain.types.ts'
+import useManagedDomainOverflowLogic from './Hooks/useManagedDomainOverflowLogic.ts'
 
-import ManagedDomainLink from './ManagedDomainLink'
-
-interface ManagedDomainOverflowProps {
-    readonly ariaLabel: string
-    readonly domains: ReadonlyArray<string>
-}
-
-function stopPropagation(event: KeyboardEvent | MouseEvent | PointerEvent): void {
-    event.stopPropagation()
-}
+import ManagedDomainLink from './ManagedDomainLink.tsx'
 
 export default function ManagedDomainOverflow({ ariaLabel, domains }: ManagedDomainOverflowProps) {
+    const { handler } = useManagedDomainOverflowLogic()
     if (domains.length === 0) return null
 
     return (
@@ -22,9 +15,9 @@ export default function ManagedDomainOverflow({ ariaLabel, domains }: ManagedDom
                     type="button"
                     aria-label={ariaLabel}
                     className="inline-flex h-12 items-center justify-center rounded-xl border-0 bg-neutral px-3 py-0 font-mono text-sm font-bold text-muted outline-hidden hover:text-ink focus-visible:outline-2 focus-visible:outline-accent-ring"
-                    onClick={stopPropagation}
-                    onKeyDown={stopPropagation}
-                    onPointerDown={stopPropagation}
+                    onClick={handler.handleStopPropagation}
+                    onKeyDown={handler.handleStopPropagation}
+                    onPointerDown={handler.handleStopPropagation}
                 >
                     +{domains.length}
                 </button>
@@ -37,9 +30,9 @@ export default function ManagedDomainOverflow({ ariaLabel, domains }: ManagedDom
                     collisionPadding={10}
                     aria-label={ariaLabel}
                     className="z-[90] max-w-72 rounded-xl border border-border bg-surface-raised p-3 shadow-surface outline-hidden"
-                    onClick={stopPropagation}
-                    onKeyDown={stopPropagation}
-                    onPointerDown={stopPropagation}
+                    onClick={handler.handleStopPropagation}
+                    onKeyDown={handler.handleStopPropagation}
+                    onPointerDown={handler.handleStopPropagation}
                 >
                     <div className="flex flex-wrap gap-[0.45rem]">
                         {domains.map((domain) => (

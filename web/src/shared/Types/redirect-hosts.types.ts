@@ -1,4 +1,4 @@
-import type { RedirectHostStatusCode } from '../../config/redirect-hosts.config'
+import type { RedirectHostStatusCode } from './redirect-hosts-config.types.ts'
 
 export interface RedirectHostSummary {
     readonly id: string

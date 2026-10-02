@@ -1,6 +1,6 @@
-import { auditAuthOperation } from '../Core/audit-auth.server'
+import { auditAuthOperation } from '@/server/Auth/Core/audit-auth.server.ts'
 import '@tanstack/react-start/server-only'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 
 import {
     generateAuthenticationOptions,
@@ -19,29 +19,29 @@ import {
     PASSKEY_NAME_MAX_LENGTH,
     WEBAUTHN_CHALLENGE_DURATION_MS,
     WEBAUTHN_TIMEOUT_MS,
-} from '../../../config/auth-security.config'
-import { PERMISSIONS } from '../../../config/permissions.config'
-import { passkeys, users } from '../../../db/schema'
-import { getRuntimeWebAuthnConfiguration } from '../../Configuration/management-origin.server'
+} from '@/config/auth-security.config.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { passkeys, users } from '@/db/schema.ts'
+import { getRuntimeWebAuthnConfiguration } from '@/server/Configuration/management-origin.server.ts'
 import {
     createAuthChallenge,
     consumeAuthChallenge,
     type WebAuthnReauthenticationChallenge,
-} from '../../valkey/auth-challenges.service'
+} from '@/server/valkey/auth-challenges.service.ts'
 import {
     requireRecentAuthenticationForSession,
     requireSessionPermission,
-} from '../Access/authorization.service'
+} from '@/server/Auth/Access/authorization.service.ts'
 import {
     createSessionInTransaction,
     markSessionReauthenticatedInTransaction,
     requireRecentSessionInTransaction,
     revokeOtherUserSessionsInTransaction,
-} from '../Access/sessions.service'
-import { requirePermissionInTransaction } from '../Access/rbac.service'
-import { getAuthDatabase } from '../Core/database.server'
-import { AuthDomainError } from '../Core/errors.server'
-import type { CurrentSession } from '../Core/Types/auth-service.types'
+} from '@/server/Auth/Access/sessions.service.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
 
 export interface PasskeySummary {
     readonly createdAt: Date
@@ -311,7 +311,7 @@ export async function finishPasskeyRegistrationService(input: {
                     input.currentSession.user.id,
                     input.currentSession.id,
                 )
-                await appendAuditEventInTransaction(transaction, {
+                await appendAuditEventInTransactionService(transaction, {
                     actorUserId: input.currentSession.user.id,
                     actorKind: 'user',
                     action: 'create',
@@ -586,7 +586,7 @@ export async function finishPasskeyReauthenticationService(input: {
                         input.currentSession.user.id,
                         input.currentSession.id,
                     )
-                    await appendAuditEventInTransaction(transaction, {
+                    await appendAuditEventInTransactionService(transaction, {
                         actorUserId: input.currentSession.user.id,
                         actorKind: 'user',
                         action: 'reauthenticate',
@@ -637,7 +637,7 @@ export async function renamePasskeyService(input: {
                     .returning({ id: passkeys.id })
 
                 if (updated.length === 1) {
-                    await appendAuditEventInTransaction(transaction, {
+                    await appendAuditEventInTransactionService(transaction, {
                         actorUserId: input.currentSession.user.id,
                         actorKind: 'user',
                         action: 'update',
@@ -688,7 +688,7 @@ export async function deletePasskeyService(input: {
                 if (deleted.length !== 1) {
                     return false
                 }
-                await appendAuditEventInTransaction(transaction, {
+                await appendAuditEventInTransactionService(transaction, {
                     actorUserId: input.currentSession.user.id,
                     actorKind: 'user',
                     action: 'delete',

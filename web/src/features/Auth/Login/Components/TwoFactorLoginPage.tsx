@@ -1,9 +1,9 @@
-import AuthShell from '../../../../layout/Components/AuthShell'
-import useTwoFactorLoginLogic from '../Hooks/useTwoFactorLoginLogic'
-import TwoFactorLoginForm from './TwoFactorLoginForm'
+import AuthShell from '@/shared/Auth/AuthShell/index.tsx'
+import useTwoFactorLoginLogic from '../Hooks/useTwoFactorLoginLogic.ts'
+import TwoFactorLoginForm from './TwoFactorLoginForm.tsx'
 
 export default function TwoFactorLoginPage() {
-    const { state, handler } = useTwoFactorLoginLogic()
+    const { state, handler, form } = useTwoFactorLoginLogic()
     return (
         <AuthShell
             eyebrow="Additional verification"
@@ -12,9 +12,10 @@ export default function TwoFactorLoginPage() {
         >
             {state.isValid ? (
                 <TwoFactorLoginForm
+                    handler={handler}
                     state={state}
+                    form={form}
                     onToggleMode={handler.toggleMode}
-                    getCredentialError={handler.getCredentialError}
                     normalizeCredential={handler.normalizeCredential}
                 />
             ) : state.isLoading ? (

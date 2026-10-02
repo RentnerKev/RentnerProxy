@@ -1,10 +1,10 @@
 import '@tanstack/react-start/server-only'
 
-import type { FoundationHealth, ServiceHealth } from '../../shared/Types/health.types'
-import { checkControllerHealth, checkControllerReadiness } from './controller.server'
-import { checkDatabaseHealth } from './database-health.server'
-import { checkValkeyHealth } from '../valkey/health.server'
-import type { FoundationHealthDependencies, FoundationService } from './Types/health.types'
+import type { FoundationHealth, ServiceHealth } from '@/shared/Types/health.types.ts'
+import { checkControllerHealth, checkControllerReadiness } from './controller.server.ts'
+import { checkDatabaseHealth } from './database-health.server.ts'
+import { checkValkeyHealth } from '@/server/valkey/health.server.ts'
+import type { FoundationHealthDependencies, FoundationService } from './Types/health.types.ts'
 
 const defaultDependencies: FoundationHealthDependencies = {
     checkController: checkControllerHealth,
@@ -26,7 +26,7 @@ async function checkSafely(
     }
 }
 
-export async function checkFoundationHealth(
+export async function checkFoundationHealthService(
     overrides: Partial<FoundationHealthDependencies> = {},
 ): Promise<FoundationHealth> {
     const dependencies = { ...defaultDependencies, ...overrides }
@@ -39,10 +39,10 @@ export async function checkFoundationHealth(
     return { controller, database, valkey }
 }
 
-export async function checkFoundationReadiness(
+export async function checkFoundationReadinessService(
     overrides: Partial<FoundationHealthDependencies> = {},
 ): Promise<boolean> {
-    const health = await checkFoundationHealth({
+    const health = await checkFoundationHealthService({
         checkController: checkControllerReadiness,
         ...overrides,
     })

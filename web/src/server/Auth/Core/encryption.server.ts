@@ -1,8 +1,8 @@
 import '@tanstack/react-start/server-only'
 
-import { AES_GCM_IV_BYTES } from '../../../config/auth-security.config'
-import { getAppEncryptionKey } from '../../env.server'
-import { AuthDomainError } from './errors.server'
+import { AES_GCM_IV_BYTES } from '@/config/auth-security.config.ts'
+import { getAppEncryptionKey } from '@/server/env.server.ts'
+import { AuthDomainError } from './errors.server.ts'
 
 export interface EncryptedSecret {
     readonly ciphertext: Uint8Array

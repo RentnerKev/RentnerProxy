@@ -1,4 +1,4 @@
-import type { UserSummary } from '../../../../shared/Types/auth.types'
+import type { UserSummary } from '@/shared/Types/auth.types.ts'
 
 export interface UserCreatedAtCellProps {
     readonly value: unknown

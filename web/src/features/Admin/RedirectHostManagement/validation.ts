@@ -3,12 +3,12 @@ import { z } from 'zod'
 import {
     MAX_REDIRECT_DESTINATION_LENGTH,
     MAX_REDIRECT_HOST_DOMAINS,
-} from '../../../config/redirect-hosts.config'
-import type { RedirectHostStatusCode } from '../../../config/redirect-hosts.config'
+} from '@/config/redirect-hosts.config.ts'
+import type { RedirectHostStatusCode } from '@/shared/Types/redirect-hosts-config.types.ts'
 import {
     normalizeForwardHost,
     normalizeProxyDomain,
-} from '../ProxyHostManagement/Helpers/proxyHostValidation'
+} from '@/lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
 
 // oxlint-disable-next-line no-control-regex -- Redirect targets must reject decoded C0/C1 controls.
 const controlCharacterPattern = /[\u0000-\u001f\u007f-\u009f]/u

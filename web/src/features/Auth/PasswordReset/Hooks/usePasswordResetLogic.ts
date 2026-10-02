@@ -1,13 +1,19 @@
+import {
+    getPasswordConfirmationMessage,
+    getValidationMessage,
+    newPasswordSchema,
+} from '@/lib/Auth/validation.ts'
+import type { PasswordResetLogicResult } from '../Types/password-reset-logic.types.ts'
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
 import { toast } from '@rentnerkev/toasts/toast'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import useFragmentToken from '../../Shared/Hooks/useFragmentToken'
-import { resetPasswordHandler } from '../server'
-import { passwordConfirmationInputSchema } from '../validation'
-import type { PasswordResetFormValues } from '../Types/password-reset-form.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import useFragmentToken from '@/shared/Auth/Hooks/useFragmentToken.ts'
+import { resetPasswordHandler } from '../middleware.ts'
+import { passwordConfirmationInputSchema } from '../validation.ts'
+import type { PasswordResetFormValues } from '../Types/password-reset-form.types.ts'
 
 export default function usePasswordResetLogic() {
     const token = useFragmentToken()
@@ -46,10 +52,20 @@ export default function usePasswordResetLogic() {
     })
 
     return {
+        handler: {
+            handleSubmit: (event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                void form.handleSubmit()
+            },
+            validatePassword: ({ value }) => getValidationMessage(newPasswordSchema, value),
+            validateConfirmPassword: ({ value }) =>
+                getPasswordConfirmationMessage(form.getFieldValue('password'), value),
+        },
+        form,
         state: {
-            form,
             token,
             isPending: mutation.isPending,
         },
-    }
+    } satisfies PasswordResetLogicResult<typeof form>
 }

@@ -5,9 +5,9 @@ import {
     ACCESS_POLICY_DESCRIPTION_MAX_LENGTH,
     ACCESS_POLICY_MODES,
     ACCESS_POLICY_NAME_MAX_LENGTH,
-} from '../../../config/access-policies.config'
-import { accessPolicyIpRulesInputSchema } from '../../../shared/Helpers/ipAccessRules'
-import { forwardAuthInputSchema } from '../../../shared/Helpers/forwardAuth'
+} from '@/config/access-policies.config.ts'
+import { accessPolicyIpRulesInputSchema } from '@/lib/AccessPolicies/ipAccessRules.ts'
+import { forwardAuthInputSchema } from '@/lib/ForwardAuth/forwardAuth.ts'
 
 // oxlint-disable-next-line no-control-regex -- Policy names and descriptions must reject C0/C1 controls.
 const ACCESS_POLICY_CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F-\u009F]/u

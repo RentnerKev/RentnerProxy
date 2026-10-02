@@ -1,4 +1,5 @@
 export const APP_ENCRYPTION_KEY_BYTES = 32
+export const MINIMUM_RESET_RESPONSE_MS = 600
 export const AES_GCM_IV_BYTES = 12
 
 export const TOTP_ISSUER = 'RentnerProxy'

@@ -3,29 +3,28 @@ import '@tanstack/react-start/server-only'
 import { asc, desc, eq, isNotNull } from 'drizzle-orm'
 import { z } from 'zod'
 
-import {
-    CERTIFICATE_JOB_SUCCESS_VISIBILITY_MS,
-    isCertificateJobActive,
-} from '../../../config/certificate-jobs.config'
-import { PERMISSIONS, type PermissionKey } from '../../../config/permissions.config'
-import { certificates, certificateJobs, proxyHosts } from '../../../db/schema'
+import { CERTIFICATE_JOB_SUCCESS_VISIBILITY_MS } from '@/config/certificate-jobs.config.ts'
+import { isCertificateJobActive } from '@/lib/CertificateJobs/stages.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import { certificates, certificateJobs, proxyHosts } from '@/db/schema.ts'
 import {
     certificateJobIdInputSchema,
     createProxyHostWithCertificateInputSchema,
     requestProxyHostCertificateInputSchema,
     updateProxyHostWithCertificateInputSchema,
     type RequestProxyHostCertificateInput,
-} from '../../../features/Admin/ProxyHostManagement/certificate-job-validation'
-import type { CertificateJobSummary } from '../../../shared/Types/certificate-jobs.types'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
-import { requirePermissionService } from '../../Auth/Access/authorization.service'
-import { getAuthDatabase } from '../../Auth/Core/database.server'
-import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
-import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
+} from '@/features/Admin/ProxyHostManagement/certificate-job-validation.ts'
+import type { CertificateJobSummary } from '@/shared/Types/certificate-jobs.types.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import {
     createProxyHostInTransaction,
     updateProxyHostInTransaction,
-} from './proxy-hosts.mutations.server'
+} from './proxy-hosts.mutations.server.ts'
 import {
     assertNoActiveHostJob,
     canonicalHostForDigest,
@@ -43,13 +42,13 @@ import {
     type CreateJobInput,
     type ParsedRequest,
     type UpdateJobInput,
-} from './certificate-jobs.creation'
+} from './certificate-jobs.creation.ts'
 import {
     certificateJobSummary,
     CertificateJobDomainError,
     readCertificateJobHost,
     validateCertificateJobContext,
-} from './certificate-jobs.storage.server'
+} from './certificate-jobs.storage.server.ts'
 
 async function createJobTransaction(
     actorId: string,
@@ -231,7 +230,7 @@ async function requestJobTransaction(
                     updatedAt: new Date(),
                 })
                 .where(eq(proxyHosts.id, hostState.host.id))
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actorId,
                 actorKind: 'user',
                 action: 'update',

@@ -2,34 +2,34 @@ import '@tanstack/react-start/server-only'
 
 import type { z } from 'zod'
 
-import { PERMISSIONS } from '../../config/permissions.config'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
 import {
     normalizeProxyHttpSettings,
     proxyConfigEditorSaveSchema,
     proxyConfigEditorResetSchema,
-} from '../../features/Admin/ProxyHostManagement/config-validation'
+} from '@/features/Admin/ProxyHostManagement/config-validation.ts'
 import type {
     ProxyConfigEditorData,
     ProxyConfigSource,
     ProxyHttpSettings,
     ProxyRuntimeMutationStatus,
-} from '../../shared/Types/proxy-runtime.types'
-import { requirePermissionService } from '../Auth/Access/authorization.service'
-import { requirePermissionInTransaction } from '../Auth/Access/rbac.service'
-import { getAuthDatabase } from '../Auth/Core/database.server'
+} from '@/shared/Types/proxy-runtime.types.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import {
     getActiveProxyConfiguration,
     previewProxyConfiguration,
-} from '../Foundation/controller.server'
-import { readProxyRuntimeSnapshot } from './proxy-runtime-data'
-import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot'
-import { lockProxyRuntimeSettings, writeProxyHttpSettings } from './proxy-runtime-settings'
+} from '@/server/Foundation/controller.server.ts'
+import { readProxyRuntimeSnapshot } from './proxy-runtime-data.ts'
+import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot.ts'
+import { lockProxyRuntimeSettings, writeProxyHttpSettings } from './proxy-runtime-settings.ts'
 import {
     getProxyRuntimeSnapshotService,
     reconcileProxyConfigurationWithAudit,
-} from './proxy-runtime.service'
-import { appendAuditEventInTransaction } from '../Audit/audit.service'
-import { recordMutationFailureBestEffort } from './audit-mutation'
+} from './proxy-runtime.service.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import { recordMutationFailureBestEffort } from './audit-mutation.ts'
 
 export class ProxyConfigEditorError extends Error {
     constructor(
@@ -101,7 +101,7 @@ async function saveSettings(
                 throw new ProxyConfigEditorError('configuration_conflict')
             }
             await writeProxyHttpSettings(transaction, settings)
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action,

@@ -4,17 +4,17 @@ import '@tanstack/react-start/server-only'
 
 import { lt, sql } from 'drizzle-orm'
 
-import { certificateEventCursor, certificateEventReceipts } from '../../../db/schema'
-import type { CertificateEventMetadata } from '../../../shared/Types/certificates.types'
-import { appendAuditEventsInTransaction } from '../../Audit/audit.service'
+import { certificateEventCursor, certificateEventReceipts } from '@/db/schema.ts'
+import type { CertificateEventMetadata } from '@/shared/Types/certificates.types.ts'
+import { appendAuditEventsInTransactionService } from '@/server/Audit/audit.service.ts'
 import {
     getControllerCertificateEvents,
     getControllerCertificates,
     type ControllerCertificateMetadata,
-} from '../../Foundation/certificates.server'
-import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
-import { persistControllerCertificatesMetadataInTransaction } from './certificates.service'
-import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
+} from '@/server/Foundation/certificates.server.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { persistControllerCertificatesMetadataInTransaction } from './certificates.service.ts'
+import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 
 const CERTIFICATE_EVENT_SYNC_LOCK_ID = 7_421_910
 const CERTIFICATE_EVENT_PAGE_LIMIT = 100
@@ -172,7 +172,7 @@ async function persistFetchedBatch(batch: FetchedEvents): Promise<boolean> {
                 .returning({ eventId: certificateEventReceipts.eventId })
             if (receipt) newEvents.push(event)
         }
-        await appendAuditEventsInTransaction(
+        await appendAuditEventsInTransactionService(
             transaction,
             newEvents.map((event) => ({
                 actorUserId: null,

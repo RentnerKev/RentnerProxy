@@ -1,13 +1,20 @@
+import {
+    displayNameSchema,
+    getPasswordConfirmationMessage,
+    getValidationMessage,
+    newPasswordSchema,
+} from '@/lib/Auth/validation.ts'
+import type { AcceptInviteLogicResult } from '../Types/accept-invite-logic.types.ts'
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 
 import { toast } from '@rentnerkev/toasts/toast'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import useFragmentToken from '../../Shared/Hooks/useFragmentToken'
-import { acceptInviteHandler } from '../server'
-import { acceptInviteFormSchema } from '../validation'
-import type { AcceptInviteFormValues } from '../Types/accept-invite-form.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import useFragmentToken from '@/shared/Auth/Hooks/useFragmentToken.ts'
+import { acceptInviteHandler } from '../middleware.ts'
+import { acceptInviteFormSchema } from '../validation.ts'
+import type { AcceptInviteFormValues } from '../Types/accept-invite-form.types.ts'
 
 export default function useAcceptInviteLogic() {
     const token = useFragmentToken()
@@ -48,10 +55,21 @@ export default function useAcceptInviteLogic() {
     })
 
     return {
+        handler: {
+            handleSubmit: (event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                void form.handleSubmit()
+            },
+            validateDisplayName: ({ value }) => getValidationMessage(displayNameSchema, value),
+            validatePassword: ({ value }) => getValidationMessage(newPasswordSchema, value),
+            validateConfirmPassword: ({ value }) =>
+                getPasswordConfirmationMessage(form.getFieldValue('password'), value),
+        },
+        form,
         state: {
-            form,
             token,
             isPending: mutation.isPending,
         },
-    }
+    } satisfies AcceptInviteLogicResult<typeof form>
 }

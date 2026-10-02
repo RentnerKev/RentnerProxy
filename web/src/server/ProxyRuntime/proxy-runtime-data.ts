@@ -10,20 +10,20 @@ import {
     proxyHosts,
     redirectHosts,
     trustedCas,
-} from '../../db/schema'
-import type { AuthTransaction } from '../Auth/Core/database.server'
-import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot'
-import { readProxyHttpSettings, readProxyHostHttpSettingsMap } from './proxy-runtime-settings'
+} from '@/db/schema.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot.ts'
+import { readProxyHttpSettings, readProxyHostHttpSettingsMap } from './proxy-runtime-settings.ts'
 import type {
     ProxyRuntimeHost,
     ProxyRuntimeSnapshot,
     ProxyRuntimeTrustedCa,
     RedirectRuntimeHost,
-} from './Types/proxy-runtime.types'
+} from './Types/proxy-runtime.types.ts'
 import {
     forwardAuthInputSchema,
     toForwardAuthRuntimeConfiguration,
-} from '../../shared/Helpers/forwardAuth'
+} from '@/lib/ForwardAuth/forwardAuth.ts'
 
 async function readBasicAuthAccounts(
     transaction: AuthTransaction,

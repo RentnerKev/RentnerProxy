@@ -1,8 +1,8 @@
-import type { PermissionKey } from '../../config/permissions.config'
-import type { USER_STATUSES } from '../../config/auth.config'
-import type { UserThemeMode } from '../../config/theme.config'
-import type { NavigationGroupPreferences } from '../../config/navigation.config'
-import type { AppLanguage } from '../../language/useTranslationStore'
+import type { PermissionKey } from './permissions-config.types.ts'
+import type { USER_STATUSES } from '@/config/auth.config.ts'
+import type { UserThemeMode } from './theme-config.types.ts'
+import type { NavigationGroupPreferences } from './navigation-config.types.ts'
+import type { AppLanguage } from '@/shared/Language/Types/language.types.ts'
 
 export type UserStatus = (typeof USER_STATUSES)[number]
 

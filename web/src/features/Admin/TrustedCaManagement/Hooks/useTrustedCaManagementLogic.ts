@@ -1,17 +1,24 @@
+import { invalidateTrustedCaManagementCache } from '@/lib/Admin/TrustedCaManagement/trustedCaManagementCache.ts'
+import { invalidateProxyHostManagementCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
+import { invalidateProxyHostManagementRuntimeStatusCache } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
-import { PERMISSIONS } from '../../../../config/permissions.config'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { toast } from '@rentnerkev/toasts/toast'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import type { TrustedCaSummary } from '../../../../shared/Types/trusted-cas.types'
-import { proxyHostManagementQueryKeys } from '../../ProxyHostManagement/queryKeys'
-import { trustedCaManagementQueryKeys } from '../queryKeys'
-import { deleteTrustedCaHandler, getTrustedCasHandler } from '../server'
-import type { TrustedCaManagementPageProps } from '../Types/trusted-ca-management.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import type { TrustedCaSummary } from '@/shared/Types/trusted-cas.types.ts'
+import { trustedCaManagementQueryKeys } from '@/lib/Admin/TrustedCaManagement/trustedCaManagementCache.ts'
+import { deleteTrustedCaHandler, getTrustedCasHandler } from '../middleware.ts'
+import type {
+    TrustedCaManagementPageProps,
+    TrustedCaManagementLogicResult,
+} from '../Types/trusted-ca-management.types.ts'
 
 const EMPTY_TRUSTED_CAS: readonly TrustedCaSummary[] = []
 
-export default function useTrustedCaManagementLogic({ permissions }: TrustedCaManagementPageProps) {
+export default function useTrustedCaManagementLogic({
+    permissions,
+}: TrustedCaManagementPageProps): TrustedCaManagementLogicResult {
     const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const trustedCasQuery = useQuery({
@@ -24,9 +31,9 @@ export default function useTrustedCaManagementLogic({ permissions }: TrustedCaMa
     const [deleteTarget, setDeleteTarget] = useState<TrustedCaSummary | null>(null)
     const invalidate = useCallback(async () => {
         await Promise.all([
-            queryClient.invalidateQueries({ queryKey: trustedCaManagementQueryKeys.all }),
-            queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.all }),
-            queryClient.invalidateQueries({ queryKey: proxyHostManagementQueryKeys.runtimeStatus }),
+            invalidateTrustedCaManagementCache(queryClient),
+            invalidateProxyHostManagementCache(queryClient),
+            invalidateProxyHostManagementRuntimeStatusCache(queryClient),
         ])
     }, [queryClient])
     const deleteMutation = useMutation({

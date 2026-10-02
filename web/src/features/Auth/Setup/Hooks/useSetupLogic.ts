@@ -1,13 +1,21 @@
+import {
+    displayNameSchema,
+    emailSchema,
+    getPasswordConfirmationMessage,
+    getValidationMessage,
+    newPasswordSchema,
+} from '@/lib/Auth/validation.ts'
+import type { SetupLogicResult } from '../Types/setup-logic.types.ts'
 import { useRef } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 
 import { toast } from '@rentnerkev/toasts/toast'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import { setupOwnerHandler } from '../server'
-import { setupInputSchema } from '../validation'
-import type { SetupFormValues } from '../Types/setup-form.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import { setupOwnerHandler } from '../middleware.ts'
+import { setupInputSchema } from '../validation.ts'
+import type { SetupFormValues } from '../Types/setup-form.types.ts'
 
 export default function useSetupLogic() {
     const navigate = useNavigate()
@@ -54,9 +62,21 @@ export default function useSetupLogic() {
     })
 
     return {
+        handler: {
+            handleSubmit: (event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                void form.handleSubmit()
+            },
+            validateDisplayName: ({ value }) => getValidationMessage(displayNameSchema, value),
+            validateEmail: ({ value }) => getValidationMessage(emailSchema, value),
+            validatePassword: ({ value }) => getValidationMessage(newPasswordSchema, value),
+            validateConfirmPassword: ({ value }) =>
+                getPasswordConfirmationMessage(form.getFieldValue('password'), value),
+        },
+        form,
         state: {
-            form,
             isPending: mutation.isPending,
         },
-    }
+    } satisfies SetupLogicResult<typeof form>
 }

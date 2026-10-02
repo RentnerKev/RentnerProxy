@@ -1,7 +1,7 @@
-import type { ProxyHostForwardScheme } from '../../../config/proxy-hosts.config'
-import type { RedirectHostStatusCode } from '../../../config/redirect-hosts.config'
-import type { ProxyHttpSettings } from '../../../shared/Types/proxy-runtime.types'
-import type { ProxyHostAccessPolicy } from '../../../shared/Types/proxy-hosts.types'
+import type { ProxyHostForwardScheme } from '@/shared/Types/proxy-hosts-config.types.ts'
+import type { RedirectHostStatusCode } from '@/shared/Types/redirect-hosts-config.types.ts'
+import type { ProxyHttpSettings } from '@/shared/Types/proxy-runtime.types.ts'
+import type { ProxyHostAccessPolicy } from '@/shared/Types/proxy-hosts.types.ts'
 
 export type ProxyHostHttpSettings = Pick<
     ProxyHttpSettings,

@@ -3,28 +3,29 @@ import '@tanstack/react-start/server-only'
 import { asc, count, eq } from 'drizzle-orm'
 import type { z } from 'zod'
 
-import { PERMISSIONS, type PermissionKey } from '../../../config/permissions.config'
-import { proxyHosts, trustedCas } from '../../../db/schema'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import { proxyHosts, trustedCas } from '@/db/schema.ts'
 import {
     createTrustedCaInputSchema,
     replaceTrustedCaInputSchema,
     trustedCaIdInputSchema,
     type CreateTrustedCaInput,
     type ReplaceTrustedCaInput,
-} from '../../../features/Admin/TrustedCaManagement/validation'
-import type { TrustedCaSummary } from '../../../shared/Types/trusted-cas.types'
+} from '@/features/Admin/TrustedCaManagement/validation.ts'
+import type { TrustedCaSummary } from '@/shared/Types/trusted-cas.types.ts'
 import {
     requirePermissionService,
     requireUserService,
-} from '../../Auth/Access/authorization.service'
-import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
-import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
-import { validateControllerTrustedCa } from '../../Foundation/trusted-cas.server'
-import { reconcileProxyConfigurationWithAudit } from '../../ProxyRuntime/proxy-runtime.service'
-import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
-import { TrustedCaDomainError } from './trusted-cas.errors'
-import { appendAuditEventInTransaction } from '../../Audit/audit.service'
-import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
+} from '@/server/Auth/Access/authorization.service.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { validateControllerTrustedCa } from '@/server/Foundation/trusted-cas.server.ts'
+import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
+import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import { TrustedCaDomainError } from './trusted-cas.errors.ts'
+import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
 
 export type TrustedCaMutationResult = {
     readonly trustedCaId: string
@@ -155,7 +156,7 @@ async function persistTrustedCa(
                         updatedAt: new Date(),
                     })
                     .where(eq(trustedCas.id, existingId))
-                await appendAuditEventInTransaction(transaction, {
+                await appendAuditEventInTransactionService(transaction, {
                     actorUserId: actorId,
                     actorKind: 'user',
                     action: 'replace',
@@ -178,7 +179,7 @@ async function persistTrustedCa(
                 })
                 .returning({ id: trustedCas.id })
             if (!created) throw new TrustedCaDomainError('controller_unavailable')
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actorId,
                 actorKind: 'user',
                 action: 'create',
@@ -245,7 +246,7 @@ export async function deleteTrustedCaService(
                 .limit(1)
             if (assigned) throw new TrustedCaDomainError('trusted_ca_in_use')
             await transaction.delete(trustedCas).where(eq(trustedCas.id, id))
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'delete',

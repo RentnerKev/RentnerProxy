@@ -1,25 +1,24 @@
+import type { FoundationStatusLogicResult } from '../Types/foundation-status-logic.types.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
-import useLiveQuery from '../../../shared/Live/useLiveQuery'
-import type { FoundationHealth } from '../../../shared/Types/health.types'
-import { foundationStatusQueryKeys } from '../queryKeys'
-import { getFoundationHealthHandler } from '../server'
+import useLiveQuery from '@/shared/Live/useLiveQuery.ts'
+import type { FoundationHealth } from '@/shared/Types/health.types.ts'
+import {
+    foundationStatusQueryKeys,
+    replaceFoundationHealthCache,
+} from '@/lib/FoundationStatus/foundationStatusCache.ts'
+import { getFoundationHealthHandler } from '../middleware.ts'
 
-export default function useFoundationStatusLogic() {
+export default function useFoundationStatusLogic(permissions: readonly string[]) {
     const queryClient = useQueryClient()
     const healthQuery = useQuery({
         queryKey: foundationStatusQueryKeys.all,
         queryFn: () => getFoundationHealthHandler(),
     })
     const onLiveData = useCallback(
-        async (data: FoundationHealth) => {
-            await queryClient.cancelQueries({
-                queryKey: foundationStatusQueryKeys.all,
-                exact: true,
-            })
-            queryClient.setQueryData(foundationStatusQueryKeys.all, data)
-        },
+        (data: FoundationHealth) => replaceFoundationHealthCache(queryClient, data),
         [queryClient],
     )
     const liveStatus = useLiveQuery<FoundationHealth>({
@@ -31,6 +30,7 @@ export default function useFoundationStatusLogic() {
 
     return {
         state: {
+            canViewCrowdSec: permissions.includes(PERMISSIONS.CROWDSEC_VIEW),
             data: healthQuery.data,
             isError: healthQuery.isError,
             isPending: healthQuery.isPending,
@@ -41,5 +41,5 @@ export default function useFoundationStatusLogic() {
                 void healthQuery.refetch()
             },
         },
-    }
+    } satisfies FoundationStatusLogicResult
 }

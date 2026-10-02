@@ -1,0 +1,102 @@
+import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
+
+import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
+import ManagedDomainLink from '@/shared/Domain/ManagedDomainLink.tsx'
+import ManagedDomainOverflow from '@/shared/Domain/ManagedDomainOverflow.tsx'
+import { useDateFormatter } from '@/shared/Language/Hooks/useTranslationStore.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import {
+    formatProxyHostCreatedAt,
+    formatProxyHostForward,
+} from '@/lib/Admin/ProxyHostManagement/proxyHostTableCells.ts'
+import type {
+    ProxyHostCreatedAtCellProps,
+    ProxyHostDomainsCellProps,
+    ProxyHostForwardCellProps,
+    ProxyHostStatusCellProps,
+} from '../../../Types/proxy-host-table.types.ts'
+
+const statusBadgeClassName =
+    'inline-flex rounded-full px-[0.6rem] py-[0.3rem] text-[0.66rem] font-extrabold data-[status=enabled]:bg-success-bg data-[status=enabled]:text-success-text data-[status=disabled]:bg-danger-bg data-[status=disabled]:text-danger-text'
+
+function DomainChip({ domain }: { readonly domain: string }) {
+    const chipClassName =
+        'inline-flex items-center rounded-full border border-success-text/20 bg-success-bg px-[0.6rem] py-[0.28rem] font-mono text-[0.65rem] font-bold text-success-text' +
+        ' inline-block max-w-56 truncate align-bottom'
+    const isLong = domain.length > 28
+    const chip = <ManagedDomainLink className={chipClassName} domain={domain} />
+
+    return isLong ? (
+        <CustomTooltip {...TOOLTIP_DEFAULT_PROPS} content={domain}>
+            {chip}
+        </CustomTooltip>
+    ) : (
+        chip
+    )
+}
+
+export function ProxyHostDomainsCell({ domains }: ProxyHostDomainsCellProps) {
+    const { t } = useTranslationStore()
+    const visibleDomains = domains.slice(0, 2)
+    const extraDomains = domains.slice(2)
+
+    if (visibleDomains.length === 0) {
+        return <span className="text-muted">—</span>
+    }
+
+    return (
+        <div className="flex flex-wrap gap-[0.45rem]">
+            {visibleDomains.map((domain) => (
+                <DomainChip domain={domain} key={domain} />
+            ))}
+            {extraDomains.length > 0 ? (
+                <ManagedDomainOverflow
+                    ariaLabel={t('common.moreDomains', { count: extraDomains.length })}
+                    domains={extraDomains}
+                />
+            ) : null}
+        </div>
+    )
+}
+
+export function ProxyHostForwardCell({
+    forwardHost,
+    forwardPort,
+    forwardScheme,
+    verifyUpstreamTls,
+}: ProxyHostForwardCellProps) {
+    const { t } = useTranslationStore()
+    return (
+        <div className="grid justify-items-start gap-2">
+            <span className="block max-w-64 wrap-anywhere font-mono text-[0.72rem] text-muted">
+                {formatProxyHostForward(forwardScheme, forwardHost, forwardPort)}
+            </span>
+            {forwardScheme === 'https' && verifyUpstreamTls === false ? (
+                <span className="inline-flex max-w-64 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs font-bold text-ink-soft">
+                    {t('admin.proxyHosts.upstreamTls.verificationDisabled')}
+                </span>
+            ) : null}
+        </div>
+    )
+}
+
+export function ProxyHostStatusCell({ enabled }: ProxyHostStatusCellProps) {
+    const { t } = useTranslationStore()
+    const status = enabled ? 'enabled' : 'disabled'
+
+    return (
+        <span className={statusBadgeClassName} data-status={status}>
+            {t('admin.proxyHosts.status.' + status)}
+        </span>
+    )
+}
+
+export function ProxyHostCreatedAtCell({ value }: ProxyHostCreatedAtCellProps) {
+    const dateFormatter = useDateFormatter()
+
+    return (
+        <span className="whitespace-nowrap text-muted">
+            {formatProxyHostCreatedAt(value, dateFormatter)}
+        </span>
+    )
+}

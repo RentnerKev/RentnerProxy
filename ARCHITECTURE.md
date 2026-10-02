@@ -41,6 +41,41 @@ traffic reaches Bun through the loopback-bound port.
 
 ### Management service
 
+The source boundary follows `routes → features → middleware.ts → server services`.
+Feature `middleware.ts` files own Server Function methods, validation, authorization,
+rate limits, and service delegation; raw API routes retain explicit server-only
+adapters. Business logic, persistence, integrations, and WebSocket server transport
+live under `web/src/server/`, including `server/Auth/transport.server.ts` for HTTP
+authentication errors, statuses, client IP resolution, and timing protections.
+
+Screens and complex components render from one public `use...Logic` hook, with
+named `state` and `handler` groups and native `form`/`table` instances when needed.
+Focused hooks share lifecycle responsibilities without creating another screen
+orchestrator. Tables, forms, and modals own their supporting `Hooks/`, `Types/`, and
+`Components/` directories. Public and authenticated shells live in
+`web/src/layouts/PublicLayout/` and `web/src/layouts/AuthenticatedLayout/`.
+
+UI-free domain utilities and cache operations live under `web/src/lib/`;
+declarative policy and configuration live under `web/src/config/`. Reusable
+language and theme UI lives in `web/src/shared/Language/` and
+`web/src/shared/Theme/`, with pure computations and language resources in
+`lib/Language/` and `lib/Theme/`. Browser realtime code and event contracts belong
+to `lib/Live/`; server realtime transport belongs to `server/WebSockets/`.
+Cross-area imports use the `@/` alias for `web/src/`, while local imports keep
+explicit TypeScript file extensions. Tests mirror these owners under
+`web/src/tests/`. Property-based tests use `.fuzz.test.ts` and database integration
+tests use `.db.test.ts` in the mirrored hierarchy; ordinary test runs exclude both.
+The WebSocket runtime is bundled alongside the server build, so the Docker image
+ships built artifacts without relying on source imports or development aliases.
+
+Two legacy paths remain as type-only compatibility shims:
+`web/src/shared/Helpers/forwardAuth.ts` and
+`web/src/shared/Helpers/ipAccessRules.ts`. They re-export only the configuration
+types required by the untouched database schema. Runtime implementations live in
+`lib/ForwardAuth/forwardAuth.ts` and `lib/AccessPolicies/ipAccessRules.ts`.
+These shims contain no runtime helpers; removing them requires a separate change
+to the schema imports. This refactor changes no schema or migrations.
+
 The web application is TanStack Start/React running under Bun. Server functions
 implement authentication, authorization, users, roles, proxy-host and redirect
 configuration, policies, certificates, audit history, and settings. The service
@@ -66,7 +101,7 @@ Valkey is a local connection used for rate limiting, authentication challenges,
 and cross-process application-change notifications. The client and its reconnect
 behavior are in [`web/src/server/valkey/client.server.ts`](./web/src/server/valkey/client.server.ts);
 the realtime service publishes and subscribes to the `rentnerproxy:realtime` channel in
-[`web/src/websockets/Server/realtimeValkey.service.ts`](./web/src/websockets/Server/realtimeValkey.service.ts).
+[`web/src/server/WebSockets/realtimeValkey.service.ts`](./web/src/server/WebSockets/realtimeValkey.service.ts).
 Valkey is not the source of truth and is deliberately run without persistence by
 the production entrypoint.
 
@@ -75,7 +110,7 @@ endpoint per browser tab. WebSocket subscriptions sample the same server-side
 snapshots used by HTTP and enforce connection, payload, subscription, message-rate,
 and backpressure limits. The transport is assembled in
 [`docker/web/serve.mjs`](./docker/web/serve.mjs) and
-[`web/src/websockets/Server/realtimeWebSocket.ts`](./web/src/websockets/Server/realtimeWebSocket.ts).
+[`web/src/server/WebSockets/realtimeWebSocket.ts`](./web/src/server/WebSockets/realtimeWebSocket.ts).
 
 ### Rust controller and Caddy
 

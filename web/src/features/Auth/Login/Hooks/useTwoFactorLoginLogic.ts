@@ -1,16 +1,17 @@
+import type { TwoFactorLoginLogicResult } from '../Types/two-factor-login-logic.types.ts'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 
 import { toast } from '@rentnerkev/toasts/toast'
-import useTranslationStore from '../../../../language/useTranslationStore'
-import { completeTwoFactorLoginHandler, getTwoFactorChallengeStatusHandler } from '../server'
-import type { TwoFactorLoginFormValues, TwoFactorLoginMode } from '../Types/login-security.types'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import { completeTwoFactorLoginHandler, getTwoFactorChallengeStatusHandler } from '../middleware.ts'
+import type { TwoFactorLoginFormValues, TwoFactorLoginMode } from '../Types/login-security.types.ts'
 import {
     getTwoFactorCredentialError,
     normalizeTwoFactorCredential,
     twoFactorLoginFormSchema,
-} from '../validation'
+} from '../validation.ts'
 
 export default function useTwoFactorLoginLogic() {
     const navigate = useNavigate()
@@ -69,17 +70,25 @@ export default function useTwoFactorLoginLogic() {
     const methods: ReadonlyArray<TwoFactorLoginMode> = status.data?.methods ?? []
 
     return {
+        form,
         state: {
-            form,
             isLoading: status.isPending,
             isPending: mutation.isPending,
             isValid: status.data?.valid ?? false,
             methods,
         },
         handler: {
+            handleSubmit: (event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                void form.handleSubmit()
+            },
+            validateCredential: ({ value }) =>
+                getTwoFactorCredentialError(form.getFieldValue('mode'), value),
+
             getCredentialError: getTwoFactorCredentialError,
             normalizeCredential: normalizeTwoFactorCredential,
             toggleMode,
         },
-    }
+    } satisfies TwoFactorLoginLogicResult<typeof form>
 }

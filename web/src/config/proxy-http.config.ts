@@ -1,4 +1,4 @@
-import type { ProxyHttpSettings } from '../shared/Types/proxy-runtime.types'
+import type { ProxyHttpSettings } from '@/shared/Types/proxy-runtime.types.ts'
 
 export const PROXY_HTTP_SETTINGS = [
     {

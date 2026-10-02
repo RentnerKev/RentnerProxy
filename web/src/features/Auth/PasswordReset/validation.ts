@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { addPasswordConfirmationIssue, newPasswordSchema } from '../Shared/validation'
+import { addPasswordConfirmationIssue, newPasswordSchema } from '@/lib/Auth/validation.ts'
 
 export const passwordConfirmationInputSchema = z
     .object({

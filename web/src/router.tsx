@@ -1,9 +1,9 @@
 import { createRouter } from '@tanstack/react-router'
 
-import { routeTree } from './routeTree.gen'
-import GlobalErrorPage from './layout/Components/SystemStatePage/GlobalErrorPage'
-import NotFoundPage from './layout/Components/SystemStatePage/NotFoundPage'
-import { isCspNonce } from './shared/Helpers/cspNonce'
+import { routeTree } from '@/routeTree.gen.ts'
+import GlobalErrorPage from '@/shared/SystemStatePage/GlobalErrorPage.tsx'
+import NotFoundPage from '@/shared/SystemStatePage/NotFoundPage.tsx'
+import { isCspNonce } from '@/lib/Security/cspNonce.ts'
 
 export function getRouter() {
     const router = createRouter({

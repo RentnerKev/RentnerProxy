@@ -2,9 +2,10 @@ import '@tanstack/react-start/server-only'
 
 import { and, asc, count, eq, inArray, notInArray } from 'drizzle-orm'
 import type { z } from 'zod'
-import { PERMISSIONS, type PermissionKey } from '../../../config/permissions.config'
-import type { AuditEventInput } from '../../../shared/Types/audit-events.types'
-import type { ProxyRuntimeMutationStatus } from '../../../shared/Types/proxy-runtime.types'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { AuditEventInput } from '@/shared/Types/audit-events.types.ts'
+import type { ProxyRuntimeMutationStatus } from '@/shared/Types/proxy-runtime.types.ts'
 import {
     certificates,
     certificateJobs,
@@ -12,7 +13,7 @@ import {
     hostDomains,
     proxyHosts,
     redirectHosts,
-} from '../../../db/schema'
+} from '@/db/schema.ts'
 import {
     certificateIdInputSchema,
     importCertificateInputSchema,
@@ -21,19 +22,19 @@ import {
     type ImportCertificateInput,
     type ReplaceCertificateInput,
     type RequestCertificateInput,
-} from '../../../features/Admin/CertificateManagement/validation'
+} from '@/features/Admin/CertificateManagement/validation.ts'
 import {
     certificateCoversDomains,
     getCertificateStatus,
-} from '../../../features/Admin/CertificateManagement/Helpers/certificateValidation'
-import type { CertificateSummary } from '../../../shared/Types/certificates.types'
+} from '@/lib/Admin/CertificateManagement/certificateValidation.ts'
+import type { CertificateSummary } from '@/shared/Types/certificates.types.ts'
 import {
     requirePermissionService,
     requireUserService,
-} from '../../Auth/Access/authorization.service'
-import { requirePermissionInTransaction } from '../../Auth/Access/rbac.service'
-import { getAuthDatabase, type AuthTransaction } from '../../Auth/Core/database.server'
-import { AuthDomainError } from '../../Auth/Core/errors.server'
+} from '@/server/Auth/Access/authorization.service.ts'
+import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
+import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import {
     deleteControllerCertificate,
     getControllerCertificate,
@@ -42,15 +43,15 @@ import {
     issueControllerCertificate,
     renewControllerCertificate,
     type ControllerCertificateMetadata,
-} from '../../Foundation/certificates.server'
-import { lockProxyRuntimeSettings } from '../../ProxyRuntime/proxy-runtime-settings'
-import { reconcileProxyConfigurationWithAudit } from '../../ProxyRuntime/proxy-runtime.service'
-import { CertificateDomainError } from './certificates.errors'
+} from '@/server/Foundation/certificates.server.ts'
+import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
+import { CertificateDomainError } from './certificates.errors.ts'
 import {
-    appendAuditEventInTransaction,
-    appendAuditEventsInTransaction,
-} from '../../Audit/audit.service'
-import { recordMutationFailureBestEffort } from '../../ProxyRuntime/audit-mutation'
+    appendAuditEventInTransactionService,
+    appendAuditEventsInTransactionService,
+} from '@/server/Audit/audit.service.ts'
+import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
 
 type CertificateRow = typeof certificates.$inferSelect
 
@@ -76,7 +77,7 @@ async function appendCertificateDetachAuditEvents(
     offset = 0,
 ): Promise<void> {
     if (offset >= events.length) return
-    await appendAuditEventsInTransaction(
+    await appendAuditEventsInTransactionService(
         transaction,
         events.slice(offset, offset + CERTIFICATE_DETACH_AUDIT_BATCH_SIZE),
     )
@@ -460,7 +461,7 @@ async function createPendingCertificate(
                 })),
             )
         }
-        await appendAuditEventInTransaction(transaction, {
+        await appendAuditEventInTransactionService(transaction, {
             actorUserId: actorId,
             actorKind: 'user',
             action: 'create',
@@ -534,7 +535,7 @@ async function importCertificateMaterial(
                 .update(certificates)
                 .set({ name: input.name, updatedAt: new Date() })
                 .where(eq(certificates.id, certificateId))
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actorId,
                 actorKind: 'user',
                 action,
@@ -609,7 +610,7 @@ export async function requestCertificateService(input: RequestCertificateInput):
                 transaction,
                 await issueControllerCertificate(id, parsed),
             )
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'request',
@@ -646,7 +647,7 @@ export async function renewCertificateService(certificateId: string): Promise<st
             const row = await getCertificateRow(transaction, id)
             if (row.source !== 'acme') throw new CertificateDomainError('invalid_input')
             await persistControllerMetadata(transaction, await renewControllerCertificate(id))
-            await appendAuditEventInTransaction(transaction, {
+            await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
                 actorKind: 'user',
                 action: 'renew',
@@ -804,7 +805,7 @@ async function finalizeCertificateDeletion(
             throw error
         }
         await transaction.delete(certificates).where(eq(certificates.id, certificateId))
-        await appendAuditEventInTransaction(transaction, {
+        await appendAuditEventInTransactionService(transaction, {
             actorUserId: actorId,
             actorKind: 'user',
             action: 'delete',

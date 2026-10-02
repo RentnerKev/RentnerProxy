@@ -1,6 +1,7 @@
 // oxlint-disable no-await-in-loop -- Readiness probes deliberately poll in a bounded sequence.
 
 import assert from 'node:assert/strict'
+import { dockerBuildDiagnostic } from '../../scripts/docker-build-diagnostics.ts'
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto'
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
@@ -89,6 +90,8 @@ async function command(argumentsList: string[], timeoutMs = 120_000): Promise<st
     try {
         const [exitCode, output, errorOutput] = await Promise.all([child.exited, stdout, stderr])
         if (exitCode !== 0) {
+            if (argumentsList[0] === 'docker' && argumentsList[1] === 'build')
+                console.error(dockerBuildDiagnostic(errorOutput))
             const diagnostic = restoreSmokeDiagnostic(errorOutput)
             if (diagnostic) console.error(diagnostic)
             throw new Error('smoke command failed: ' + argumentsList.slice(0, 2).join(' '))

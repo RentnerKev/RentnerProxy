@@ -37,7 +37,7 @@ export function findAvailableUpdate(currentVersion: string, releases: unknown): 
     )
 }
 
-export async function getAvailableUpdate(currentVersion: string): Promise<string | null> {
+export async function getAvailableUpdateService(currentVersion: string): Promise<string | null> {
     if (currentVersion.includes('-dev') || !versionPattern.test(currentVersion)) return null
     if (Date.now() >= expiresAt) {
         pending ??= (async () => {

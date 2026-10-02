@@ -1,0 +1,494 @@
+import useAccessPolicyFormFieldsLogic from '../Hooks/useAccessPolicyFormFieldsLogic.ts'
+import { CheckboxInput, RadioInput, TextInput, Textarea } from '@rentnerkev/inputs'
+import { CustomSelect } from '@rentnerkev/select/select'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import { FORWARD_AUTH_PROVIDERS } from '@/lib/ForwardAuth/forwardAuth.ts'
+import { defaultAccessPolicyIpRules } from '@/lib/Admin/AccessPolicyManagement/ipAccessPolicyState.ts'
+import type { AccessPolicyFormFieldsProps } from '../Types/access-policy-form.types.ts'
+
+const modes = ['public', 'authenticated', 'ip-restricted', 'combined'] as const
+const requestHeaderOptions = ['Cookie', 'Authorization'] as const
+
+export default function AccessPolicyFormFields({
+    basicAuthAccountCount,
+    errors,
+    formId,
+    isPending,
+    setCombination,
+    setIpRules,
+    setIpRuleAllow,
+    setIpRuleDefaultAction,
+    setIpRuleDeny,
+    setMode,
+    setName,
+    setAuthMethod,
+    setForwardAuthProvider,
+    setForwardAuthEndpoint,
+    setForwardAuthGatewayPathPrefix,
+    setForwardAuthTimeout,
+    setForwardAuthRequestHeader,
+    setForwardAuthResponseHeaders,
+    values,
+}: AccessPolicyFormFieldsProps) {
+    const { t } = useTranslationStore()
+    const nameErrorId = `${formId}-name-error`
+    const combinationErrorId = `${formId}-combination-error`
+    const ipRulesErrorId = `${formId}-ip-rules-error`
+    const {
+        state: {
+            ipRulesSectionVisible,
+            authenticationModeVisible,
+            availability,
+            availabilityKey,
+            availabilityClassName,
+        },
+    } = useAccessPolicyFormFieldsLogic({ values, basicAuthAccountCount })
+
+    return (
+        <>
+            <div className="grid gap-[0.45rem]">
+                <label
+                    className="text-[0.82rem] font-[750] text-ink-soft"
+                    htmlFor={`${formId}-name`}
+                >
+                    {t('admin.accessPolicies.form.name')}
+                </label>
+                <TextInput
+                    id={`${formId}-name`}
+                    name="name"
+                    value={values.name}
+                    maxLength={120}
+                    disabled={isPending}
+                    onChange={(event) => setName(event.target.value)}
+                    aria-invalid={errors.name !== undefined}
+                    aria-describedby={nameErrorId}
+                />
+                {errors.name ? (
+                    <p id={nameErrorId} className="m-0 text-sm text-danger-text" role="alert">
+                        {t(errors.name)}
+                    </p>
+                ) : null}
+            </div>
+            <div className="grid gap-[0.45rem]">
+                <label
+                    className="text-[0.82rem] font-[750] text-ink-soft"
+                    htmlFor={`${formId}-mode`}
+                >
+                    {t('admin.accessPolicies.form.mode')}
+                </label>
+                <CustomSelect
+                    id={`${formId}-mode`}
+                    name="mode"
+                    required
+                    aria-label={t('admin.accessPolicies.form.mode')}
+                    disabled={isPending}
+                    aria-describedby={`${formId}-mode-hint`}
+                    options={modes.map((mode) => ({
+                        label: t(`admin.accessPolicies.mode.${mode}`),
+                        value: mode,
+                    }))}
+                    value={values.mode}
+                    onValueChange={setMode}
+                />
+                <p
+                    id={`${formId}-mode-hint`}
+                    className="m-0 text-[0.76rem] leading-[1.45] text-muted"
+                >
+                    {t('admin.accessPolicies.form.modeHint')}
+                </p>
+            </div>
+            {authenticationModeVisible ? (
+                <fieldset className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft shell:col-span-full">
+                    <legend>{t('admin.accessPolicies.form.authenticationMethod')}</legend>
+                    <div className="grid gap-2">
+                        {(['basicAuth', 'forwardAuth'] as const).map((method) => (
+                            <label
+                                className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
+                                htmlFor={`${formId}-authentication-${method}`}
+                                key={method}
+                            >
+                                <RadioInput
+                                    type="radio"
+                                    id={`${formId}-authentication-${method}`}
+                                    name="authenticationMethod"
+                                    checked={values.authMethod === method}
+                                    disabled={isPending}
+                                    onChange={() => setAuthMethod(method)}
+                                />
+                                <span className="grid gap-[0.12rem]">
+                                    <span className="text-[0.78rem] text-ink-soft">
+                                        {t(
+                                            method === 'forwardAuth'
+                                                ? 'admin.accessPolicies.form.forwardAuth.title'
+                                                : 'admin.accessPolicies.form.basicAuth',
+                                        )}
+                                    </span>
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                </fieldset>
+            ) : null}
+            {authenticationModeVisible && values.authMethod === 'forwardAuth' ? (
+                <fieldset className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft shell:col-span-full grid gap-3">
+                    <legend>{t('admin.accessPolicies.form.forwardAuth.title')}</legend>
+                    <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
+                        {t('admin.accessPolicies.form.forwardAuth.description')}
+                    </p>
+                    <div className="grid gap-[0.45rem]">
+                        <label
+                            className="text-[0.82rem] font-[750] text-ink-soft"
+                            htmlFor={`${formId}-forwardAuth-provider`}
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.provider')}
+                        </label>
+                        <CustomSelect
+                            id={`${formId}-forwardAuth-provider`}
+                            name="forwardAuth.provider"
+                            required
+                            aria-label={t('admin.accessPolicies.form.forwardAuth.provider')}
+                            disabled={isPending}
+                            options={FORWARD_AUTH_PROVIDERS.map((provider) => ({
+                                value: provider,
+                                label: t(
+                                    `admin.accessPolicies.form.forwardAuth.providers.${provider}`,
+                                ),
+                            }))}
+                            value={values.forwardAuth.provider}
+                            onValueChange={setForwardAuthProvider}
+                        />
+                    </div>
+                    <div className="grid gap-[0.45rem]">
+                        <label
+                            className="text-[0.82rem] font-[750] text-ink-soft"
+                            htmlFor={`${formId}-forwardAuth-gatewayPathPrefix`}
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.gatewayPathPrefix')}
+                        </label>
+                        <TextInput
+                            id={`${formId}-forwardAuth-gatewayPathPrefix`}
+                            name="forwardAuth.gatewayPathPrefix"
+                            value={values.forwardAuth.gatewayPathPrefix}
+                            disabled={isPending}
+                            aria-invalid={errors.forwardAuth !== undefined}
+                            aria-describedby={`${formId}-forwardAuth-gatewayPathPrefix-hint ${formId}-forwardAuth-error`}
+                            onChange={(event) =>
+                                setForwardAuthGatewayPathPrefix(event.target.value)
+                            }
+                        />
+                        <p
+                            id={`${formId}-forwardAuth-gatewayPathPrefix-hint`}
+                            className="m-0 text-[0.76rem] leading-[1.45] text-muted"
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.gatewayPathPrefixHint')}
+                        </p>
+                    </div>
+                    <div className="grid gap-[0.45rem]">
+                        <label
+                            className="text-[0.82rem] font-[750] text-ink-soft"
+                            htmlFor={`${formId}-forwardAuth-endpoint`}
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.endpoint')}
+                        </label>
+                        <TextInput
+                            id={`${formId}-forwardAuth-endpoint`}
+                            name="forwardAuth.endpoint"
+                            inputMode="url"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            value={values.forwardAuth.endpoint}
+                            disabled={isPending}
+                            aria-invalid={errors.forwardAuth !== undefined}
+                            aria-describedby={`${formId}-forwardAuth-endpoint-hint ${formId}-forwardAuth-error`}
+                            onChange={(event) => setForwardAuthEndpoint(event.target.value)}
+                        />
+                        <p
+                            id={`${formId}-forwardAuth-endpoint-hint`}
+                            className="m-0 text-[0.76rem] leading-[1.45] text-muted"
+                        >
+                            {t(
+                                `admin.accessPolicies.form.forwardAuth.endpointHint.${values.forwardAuth.provider}`,
+                            )}
+                        </p>
+                    </div>
+                    <div className="grid gap-[0.45rem]">
+                        <label
+                            className="text-[0.82rem] font-[750] text-ink-soft"
+                            htmlFor={`${formId}-forwardAuth-timeout`}
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.timeout')}
+                        </label>
+                        <TextInput
+                            id={`${formId}-forwardAuth-timeout`}
+                            name="forwardAuth.timeoutSeconds"
+                            inputMode="numeric"
+                            min={1}
+                            max={30}
+                            step={1}
+                            value={values.forwardAuth.timeoutSeconds}
+                            disabled={isPending}
+                            aria-invalid={errors.forwardAuth !== undefined}
+                            aria-describedby={`${formId}-forwardAuth-error`}
+                            onChange={(event) => setForwardAuthTimeout(event.target.value)}
+                        />
+                    </div>
+                    <div className="grid gap-[0.45rem]">
+                        <span className="text-[0.82rem] font-[750] text-ink-soft">
+                            {t('admin.accessPolicies.form.forwardAuth.requestHeaders')}
+                        </span>
+                        {requestHeaderOptions.map((header) => (
+                            <label
+                                className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
+                                htmlFor={`${formId}-forwardAuth-request-${header}`}
+                                key={header}
+                            >
+                                <CheckboxInput
+                                    type="checkbox"
+                                    id={`${formId}-forwardAuth-request-${header}`}
+                                    name={`forwardAuth.requestHeaders.${header}`}
+                                    checked={values.forwardAuth.requestHeaders.includes(header)}
+                                    disabled={isPending}
+                                    onChange={(event) =>
+                                        setForwardAuthRequestHeader(header, event.target.checked)
+                                    }
+                                />
+                                <span className="grid gap-[0.12rem]">
+                                    <span className="text-[0.78rem] text-ink-soft">{header}</span>
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                    <div className="grid gap-[0.45rem]">
+                        <label
+                            className="text-[0.82rem] font-[750] text-ink-soft"
+                            htmlFor={`${formId}-forwardAuth-responseHeaders`}
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.responseHeaders')}
+                        </label>
+                        <Textarea
+                            id={`${formId}-forwardAuth-responseHeaders`}
+                            name="forwardAuth.responseHeaders"
+                            value={values.forwardAuth.responseHeaders}
+                            disabled={isPending}
+                            rows={4}
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            aria-invalid={errors.forwardAuth !== undefined}
+                            aria-describedby={`${formId}-forwardAuth-responseHeaders-hint ${formId}-forwardAuth-error`}
+                            placeholder={t(
+                                'admin.accessPolicies.form.forwardAuth.responseHeadersHint',
+                            )}
+                            onChange={(event) => setForwardAuthResponseHeaders(event.target.value)}
+                        />
+                        <p
+                            id={`${formId}-forwardAuth-responseHeaders-hint`}
+                            className="m-0 text-[0.76rem] leading-[1.45] text-muted"
+                        >
+                            {t('admin.accessPolicies.form.forwardAuth.responseHeadersDescription')}
+                        </p>
+                    </div>
+                    {errors.forwardAuth ? (
+                        <p
+                            id={`${formId}-forwardAuth-error`}
+                            className="m-0 text-sm text-danger-text"
+                            role="alert"
+                        >
+                            {t(errors.forwardAuth)}
+                        </p>
+                    ) : null}
+                </fieldset>
+            ) : null}
+            {values.mode === 'combined' ? (
+                <fieldset className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft shell:col-span-full">
+                    <legend>{t('admin.accessPolicies.form.combination')}</legend>
+                    <div className="grid gap-2">
+                        {(values.authMethod === 'forwardAuth'
+                            ? (['all'] as const)
+                            : (['all', 'any'] as const)
+                        ).map((combination) => (
+                            <label
+                                className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
+                                aria-label={t(`admin.accessPolicies.combination.${combination}`)}
+                                htmlFor={`${formId}-combination-${combination}`}
+                                key={combination}
+                            >
+                                <RadioInput
+                                    type="radio"
+                                    id={`${formId}-combination-${combination}`}
+                                    name="combination"
+                                    checked={values.combination === combination}
+                                    disabled={isPending}
+                                    onChange={() => setCombination(combination)}
+                                />
+                                <span className="grid gap-[0.12rem]">
+                                    <span className="text-[0.78rem] text-ink-soft">
+                                        {t(`admin.accessPolicies.combination.${combination}`)}
+                                    </span>
+                                    <span className="m-0 text-[0.76rem] leading-[1.45] text-muted">
+                                        {t(
+                                            `admin.accessPolicies.combinationDescription.${combination}`,
+                                        )}
+                                    </span>
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                    {errors.combination ? (
+                        <p
+                            id={combinationErrorId}
+                            className="m-0 text-sm text-danger-text"
+                            role="alert"
+                        >
+                            {t(errors.combination)}
+                        </p>
+                    ) : null}
+                </fieldset>
+            ) : null}
+            {ipRulesSectionVisible ? (
+                <fieldset
+                    className="m-0 min-w-0 border-0 p-0 [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft shell:col-span-full grid gap-3"
+                    aria-describedby={ipRulesErrorId}
+                >
+                    <legend>{t('admin.accessPolicies.form.ipRules.title')}</legend>
+                    <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
+                        {t('admin.accessPolicies.form.ipRules.description')}
+                    </p>
+                    <label
+                        className="flex cursor-pointer items-start gap-[0.65rem] rounded-[0.7rem] border border-border bg-surface-raised p-[0.65rem]"
+                        htmlFor={`${formId}-ip-rules-enabled`}
+                        aria-label={t('admin.accessPolicies.form.ipRules.configure')}
+                    >
+                        <CheckboxInput
+                            type="checkbox"
+                            id={`${formId}-ip-rules-enabled`}
+                            name="ipRules.enabled"
+                            checked={values.ipRules !== null}
+                            disabled={isPending}
+                            onChange={(event) =>
+                                setIpRules(
+                                    event.target.checked ? { ...defaultAccessPolicyIpRules } : null,
+                                )
+                            }
+                        />
+                        <span className="grid gap-[0.12rem]">
+                            <span className="text-[0.78rem] text-ink-soft">
+                                {t('admin.accessPolicies.form.ipRules.configure')}
+                            </span>
+                            <span className="m-0 text-[0.76rem] leading-[1.45] text-muted">
+                                {t('admin.accessPolicies.form.ipRules.configureHint')}
+                            </span>
+                        </span>
+                    </label>
+                    {values.ipRules ? (
+                        <>
+                            <div className="grid gap-[0.45rem]">
+                                <label
+                                    className="text-[0.82rem] font-[750] text-ink-soft"
+                                    htmlFor={`${formId}-ip-rules-default-action`}
+                                >
+                                    {t('admin.accessPolicies.form.ipRules.defaultAction')}
+                                </label>
+                                <CustomSelect
+                                    id={`${formId}-ip-rules-default-action`}
+                                    name="ipRules.defaultAction"
+                                    required
+                                    aria-label={t(
+                                        'admin.accessPolicies.form.ipRules.defaultAction',
+                                    )}
+                                    disabled={isPending}
+                                    aria-describedby={`${formId}-ip-rules-default-action-hint`}
+                                    options={[
+                                        {
+                                            label: t('admin.accessPolicies.form.ipRules.allow'),
+                                            value: 'allow',
+                                        },
+                                        {
+                                            label: t(
+                                                'admin.accessPolicies.form.ipRules.denyRecommended',
+                                            ),
+                                            value: 'deny',
+                                        },
+                                    ]}
+                                    value={values.ipRules.defaultAction}
+                                    onValueChange={setIpRuleDefaultAction}
+                                />
+                                <p
+                                    id={`${formId}-ip-rules-default-action-hint`}
+                                    className="m-0 text-[0.76rem] leading-[1.45] text-muted"
+                                >
+                                    {t('admin.accessPolicies.form.ipRules.defaultActionHint')}
+                                </p>
+                            </div>
+                            <div className="grid gap-[0.45rem]">
+                                <label
+                                    className="text-[0.82rem] font-[750] text-ink-soft"
+                                    htmlFor={`${formId}-ip-rules-allow`}
+                                >
+                                    {t('admin.accessPolicies.form.ipRules.allow')}
+                                </label>
+                                <Textarea
+                                    id={`${formId}-ip-rules-allow`}
+                                    name="ipRules.allow"
+                                    value={values.ipRules.allow}
+                                    disabled={isPending}
+                                    rows={4}
+                                    autoCapitalize="none"
+                                    autoCorrect="off"
+                                    spellCheck={false}
+                                    aria-invalid={errors.ipRules !== undefined}
+                                    aria-describedby={ipRulesErrorId}
+                                    placeholder={t('admin.accessPolicies.form.ipRules.allowHint')}
+                                    onChange={(event) => setIpRuleAllow(event.target.value)}
+                                />
+                            </div>
+                            <div className="grid gap-[0.45rem]">
+                                <label
+                                    className="text-[0.82rem] font-[750] text-ink-soft"
+                                    htmlFor={`${formId}-ip-rules-deny`}
+                                >
+                                    {t('admin.accessPolicies.form.ipRules.deny')}
+                                </label>
+                                <Textarea
+                                    id={`${formId}-ip-rules-deny`}
+                                    name="ipRules.deny"
+                                    value={values.ipRules.deny}
+                                    disabled={isPending}
+                                    rows={4}
+                                    autoCapitalize="none"
+                                    autoCorrect="off"
+                                    spellCheck={false}
+                                    aria-invalid={errors.ipRules !== undefined}
+                                    aria-describedby={ipRulesErrorId}
+                                    placeholder={t('admin.accessPolicies.form.ipRules.denyHint')}
+                                    onChange={(event) => setIpRuleDeny(event.target.value)}
+                                />
+                            </div>
+                        </>
+                    ) : null}
+                    {errors.ipRules ? (
+                        <p
+                            id={ipRulesErrorId}
+                            className="m-0 text-sm text-danger-text"
+                            role="alert"
+                        >
+                            {t(errors.ipRules)}
+                        </p>
+                    ) : null}
+                </fieldset>
+            ) : null}
+            <aside
+                className={`shell:col-span-full rounded-xl border p-3 text-sm leading-relaxed text-ink-soft ${availabilityClassName}`}
+                role={availability === 'publicIgnored' ? undefined : 'status'}
+            >
+                <p className="m-0 font-extrabold">
+                    {t('admin.accessPolicies.form.availabilityTitle')}
+                </p>
+                <p className="mt-1 mb-0">
+                    {t(`admin.accessPolicies.availability.${availabilityKey}`)}
+                </p>
+            </aside>
+        </>
+    )
+}

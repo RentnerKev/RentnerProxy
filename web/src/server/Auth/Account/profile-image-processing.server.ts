@@ -7,8 +7,8 @@ import {
     PROFILE_IMAGE_MAX_INPUT_PIXELS,
     PROFILE_IMAGE_MAX_WEBP_BYTES,
     PROFILE_IMAGE_SERVER_OUTPUT_SIZE,
-} from '../../../config/profile-image.config'
-import { AuthDomainError, isAuthDomainError } from '../Core/errors.server'
+} from '@/config/profile-image.config.ts'
+import { AuthDomainError, isAuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 
 const PROFILE_IMAGE_DATA_URL_PATTERN =
     /^data:image\/(?:jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/
