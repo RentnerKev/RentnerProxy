@@ -56,6 +56,7 @@ export const commandSchema = z.strictObject({
     certificateEnvironment: z.enum(['staging', 'production']).default('staging'),
     certificateId: z.uuid().optional(),
     authPort: z.number().int().min(1).max(65535).optional(),
+    forwardAuthCombined: z.boolean().default(false),
     policyMode: z.enum(['public', 'authenticated', 'ip-restricted']).default('public'),
 })
 export type FixtureCommand = z.output<typeof commandSchema>

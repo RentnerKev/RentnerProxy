@@ -137,9 +137,19 @@ export async function executeBetaFixture(
             const result = await authorized(() =>
                 policies.updateAccessPolicyService({
                     accessPolicyId: state.policyId!,
-                    mode: 'authenticated',
-                    combination: null,
-                    ipRules: null,
+                    mode: command.forwardAuthCombined ? 'combined' : 'authenticated',
+                    combination: command.forwardAuthCombined ? 'all' : null,
+                    ipRules: command.forwardAuthCombined
+                        ? {
+                              defaultAction: 'deny',
+                              allow: [
+                                  command.policyMode === 'ip-restricted'
+                                      ? '127.0.0.0/8'
+                                      : '0.0.0.0/0',
+                              ],
+                              deny: [],
+                          }
+                        : null,
                     forwardAuth: {
                         provider: 'authentik',
                         endpoint: 'http://host.docker.internal:' + command.authPort + '/auth',

@@ -179,10 +179,14 @@ per host, 25 redirects, ten policies, ten wildcard-certificate bindings and a tr
 Each seeded round changes upstreams, disables/enables hosts and updates redirects while management
 reads and HTTP traffic continue. Independent patches to the same policy must both survive. Final
 persisted fields, IDs, domains, assignments, desired revision, active controller revision, Caddy JSON
-and every route are checked. The feature phase also exercises Basic/IP policies, Forward Auth,
-managed CrowdSec, TLS/HTTP/3, ACME issuance/renewal and a durable certificate-binding retry, plus a
+and every route are checked. The feature phase also exercises Basic/IP policies, managed CrowdSec,
+Forward Auth with combined IP restrictions, TLS/HTTP3, ACME issuance/renewal
+and a durable certificate-binding retry, plus a
 20-row NPM import and identical-source retry. An unavailable Caddy Admin socket must preserve the
-last active routes; appliance restart must apply all pending intent without losing IDs or import
+last verified routes on a failed apply. The fixture briefly pauses its own web process to prevent
+automatic background retries from racing that checkpoint; the fixture command stops its reconciler
+after the failed attempt. The web process is resumed in a finally block. Appliance restart must
+apply the pending intent without losing IDs or import
 history. Deletion removes a subset and checks their absent routes.
 
 Bounds are `--hosts 1..100`, `--concurrency 1..8`, `--rounds 1..5`, uint32 `--seed` (default 70), and

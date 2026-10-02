@@ -199,18 +199,46 @@ async function verifyPolicies(harness: Awaited<ReturnType<typeof createHarness>>
             assert.equal((await context.http(host, '/', { authorization })).status, 200)
         }
     }
-    await context.synced(await context.fixture('forward-auth'))
-    assert.equal((await context.http(host)).body.user, 'reliability-user')
-    try {
-        harness.setAuthMode('deny')
-        assert.equal((await context.http(host)).status, 401)
-        harness.setAuthMode('unavailable')
-        assert.notEqual((await context.http(host)).status, 200)
-    } finally {
-        harness.setAuthMode('allow')
+    for (const forwardAuthCombined of [false, true]) {
+        await context.synced(await context.fixture('forward-auth', { forwardAuthCombined }))
+        assert.equal((await context.http(host)).body.user, 'reliability-user')
+        try {
+            harness.setAuthMode('deny')
+            assert.equal((await context.http(host)).status, 401)
+            harness.setAuthMode('unavailable')
+            assert.notEqual((await context.http(host)).status, 200)
+        } finally {
+            harness.setAuthMode('allow')
+        }
+        assert.equal((await context.http(host)).status, 200)
     }
-    assert.equal((await context.http(host)).status, 200)
+    await context.synced(
+        await context.fixture('forward-auth', {
+            forwardAuthCombined: true,
+            policyMode: 'ip-restricted',
+        }),
+    )
+    assert.equal(
+        (await context.http(host)).status,
+        403,
+        'Combined Forward Auth retains the IP restriction',
+    )
     await context.synced(await context.fixture('policy-update', { policyMode: 'public' }))
+}
+
+async function webProcess(context: ReliabilityContext): Promise<number> {
+    const script = `import {readdir,readFile} from 'node:fs/promises';const ids=[];
+for(const pid of await readdir('/proc')) {if(!/^\\d+$/.test(pid)||Number(pid)===process.pid)continue;try{
+if((await readFile('/proc/'+pid+'/comm','utf8')).trim()==='bun'&&(await readFile('/proc/'+pid+'/cmdline','utf8')).includes('/docker/web/serve.mjs'))ids.push(Number(pid));}catch{}}
+console.log(JSON.stringify(ids));`
+    const ids: unknown = JSON.parse(
+        await context.docker(['exec', context.container, 'bun', '--no-env-file', '-e', script]),
+    )
+    assert.ok(
+        Array.isArray(ids) && ids.length === 1 && Number.isInteger(ids[0]) && ids[0] > 1,
+        'Exactly one owned web process is available for fault injection',
+    )
+    return ids[0] as number
 }
 
 async function main() {
@@ -379,40 +407,60 @@ async function main() {
         console.log('Scale: interrupted reconcile and recovery')
         const before = await context.controller('/internal/v1/proxy/status')
         const previous = result
-        await context.docker([
-            'exec',
-            context.container,
-            'rm',
-            '--',
-            '/var/lib/rentnerproxy/proxy/caddy-admin.sock',
-        ])
-        const pending = await measure('scale-update', { iteration: options.rounds })
-        const interrupted = await context.controller('/internal/v1/proxy/status')
-        assert.equal(
-            interrupted.body.activeRevision,
-            before.body.activeRevision,
-            'Unavailable Admin API retains the active revision',
-        )
-        assert.notEqual(
-            pending.desiredRevision,
-            before.body.activeRevision,
-            'New desired intent is persisted during interruption',
-        )
-        await verifyTraffic(context, previous, options.concurrency)
+        const webPid = await webProcess(context)
+        let pendingRevision = ''
+        await context.docker(['exec', context.container, 'kill', '-STOP', String(webPid)])
+        try {
+            await context.docker([
+                'exec',
+                context.container,
+                'rm',
+                '--',
+                '/var/lib/rentnerproxy/proxy/caddy-admin.sock',
+            ])
+            const pending = await context.fixture('proxy-update', {
+                secondaryPort: harness.secondaryPort,
+                resetTls: true,
+            })
+            pendingRevision = pending.desiredRevision
+            const interrupted = await context.controller('/internal/v1/proxy/status')
+            assert.equal(
+                interrupted.body.activeRevision,
+                before.body.activeRevision,
+                'Failed apply retains the last verified configuration',
+            )
+            assert.notEqual(
+                pendingRevision,
+                before.body.activeRevision,
+                'New desired intent is persisted during interruption',
+            )
+            result = await measure('scale-read')
+            assert.equal(result.inventoryFingerprint, previous.inventoryFingerprint)
+            assert.equal(result.desiredRevision, pendingRevision)
+            await verifyTraffic(context, previous, options.concurrency)
+            await verifyActiveCertificate(context)
+        } finally {
+            await context.docker(['exec', context.container, 'kill', '-CONT', String(webPid)])
+        }
         await context.restart()
         result = await measure('scale-read')
         assert.equal(
             result.inventoryFingerprint,
-            pending.inventoryFingerprint,
+            previous.inventoryFingerprint,
             'Pending desired state survives restart',
         )
         assert.equal(
             result.desiredRevision,
-            pending.desiredRevision,
+            pendingRevision,
             'Recovery applies the persisted revision',
         )
         await synchronized(result)
         checks.push({ name: 'interruption', passed: true })
+        assert.equal(
+            (await context.http()).body.backend,
+            'b',
+            'Recovery activates the pending upstream change',
+        )
         stage = 'restart'
         console.log('Scale: complete appliance restart')
         const persisted = result
@@ -430,7 +478,6 @@ async function main() {
         assert.deepEqual(recoveredJobs.persistedJobCounts, jobs.persistedJobCounts)
         await synchronized(result)
         await verifyTls(context, result, caFile)
-        await verifyActiveCertificate(context)
         await sample()
         checks.push({ name: 'restart', passed: true })
         stage = 'delete'
