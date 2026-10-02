@@ -208,6 +208,18 @@ freedom. The [Runtime Scale workflow](.github/workflows/runtime-scale.yml) runs 
 relevant PR/main changes and manually. It has no long-duration profile or schedule. Release soak
 evidence remains a separate check.
 
+A Docker Desktop reference run on Windows with Bun 1.4.2 at
+[`1aba761`](https://github.com/RentnerKev/RentnerProxy/commit/1aba761419c73877a35474240f1979f93124d0aa)
+passed the default case in 379 seconds after image setup. The 25-host creation command took 1.13 s,
+growth to 100 took 2.51 s, and each concurrent fixture command took 7.73–7.92 s for 328 mutations and
+407 management reads; these command timings exclude subsequent traffic/revision checks. NPM import
+raised the inventory to 110 proxy hosts and 35 redirects. Sampled maxima were 205 MiB, 51% CPU,
+54 PIDs, 11 PostgreSQL connections and 23/12/163 web/controller/Caddy FDs. Across the eight unchanged
+final samples, connections and web/controller FDs stayed constant, Caddy FDs decreased by five and
+memory increased by 3.4 MiB. This observed cost supports the bounded 100-host default within the
+600-second guard on that test setup. The samples are not instantaneous peaks or production limits;
+retain each CI run's own report for its exact revision and environment.
+
 ## Runtime reliability checks
 
 With Docker Engine (Linux containers), Docker Compose, Bun 1.4.2, Git history and the repository
