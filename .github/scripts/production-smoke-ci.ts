@@ -1,5 +1,6 @@
 // oxlint-disable no-await-in-loop -- stream draining and ordered Docker cleanup are sequential.
 import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { isDockerBuildDiagnostic } from '../../scripts/docker-build-diagnostics.ts'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -50,6 +51,10 @@ export function smokeProgress(suite: Suite) {
     const specification = smokeSuites[suite]
     return {
         consume(line: string): string | undefined {
+            if (isDockerBuildDiagnostic(line)) {
+                diagnostic = line
+                return diagnostic
+            }
             if (line.startsWith('PASS ')) {
                 checks += 1
                 return specification.label + ': check ' + checks + ' passed'
