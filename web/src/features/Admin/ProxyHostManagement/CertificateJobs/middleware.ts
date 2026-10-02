@@ -13,7 +13,6 @@ import {
     updateProxyHostWithCertificateService,
     requestProxyHostCertificateService,
     getCertificateJobProgressService,
-    getCertificateJobService,
     retryCertificateJobService,
 } from '@/server/Admin/ProxyHostManagement/certificate-jobs.service.ts'
 import { localizedActionFailure, throwLocalizedQueryError } from '@/server/Auth/transport.server.ts'
@@ -94,17 +93,6 @@ export const getCertificateJobProgressHandler = createServerFn({ method: 'GET' }
         }
     },
 )
-
-export const getCertificateJobHandler = createServerFn({ method: 'GET' })
-    .validator(certificateJobIdInputSchema)
-    .handler(async ({ data }) => {
-        setResponseHeader('Cache-Control', 'private, no-store')
-        try {
-            return await getCertificateJobService(data.jobId)
-        } catch (error) {
-            throwLocalizedQueryError(error, 'admin.proxyHosts.certificateJob.errors.loadFailed')
-        }
-    })
 
 export const retryCertificateJobHandler = createServerFn({ method: 'POST' })
     .validator(certificateJobIdInputSchema)

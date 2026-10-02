@@ -167,4 +167,3 @@ export const updateRedirectHostInputSchema = redirectHostFieldsSchema
 
 export type CreateRedirectHostInput = z.output<typeof createRedirectHostInputSchema>
 export type UpdateRedirectHostInput = z.output<typeof updateRedirectHostInputSchema>
-export type RedirectHostFormValues = z.input<typeof redirectHostFormSchema>

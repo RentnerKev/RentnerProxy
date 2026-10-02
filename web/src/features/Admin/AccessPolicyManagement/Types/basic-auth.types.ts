@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react'
-
 import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
 
 export interface BasicAuthAccount {
@@ -59,21 +57,4 @@ export interface BasicAuthAccountFormFieldsProps {
     readonly setPassword: (value: string) => void
     readonly setUsername: (value: string) => void
     readonly values: BasicAuthAccountFormValues
-}
-
-export interface BasicAuthAvailabilityCellProps {
-    readonly combination: AccessPolicySummary['combination']
-    readonly count: number
-    readonly mode: AccessPolicySummary['mode']
-}
-
-export type BasicAuthStatus =
-    | 'available'
-    | 'combinedAnyAvailable'
-    | 'combinedAnyMissing'
-    | 'ipProviderRequired'
-    | 'publicIgnored'
-
-export interface BasicAuthAccountListEmptyProps {
-    readonly action?: ReactNode
 }

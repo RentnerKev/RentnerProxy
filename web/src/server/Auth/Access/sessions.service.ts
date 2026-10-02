@@ -235,11 +235,3 @@ export async function markSessionReauthenticatedInTransaction(
 
     return updated.length === 1
 }
-
-export async function markCurrentSessionReauthenticatedService(
-    currentSession: CurrentSession,
-): Promise<boolean> {
-    return getAuthDatabase().transaction((transaction) =>
-        markSessionReauthenticatedInTransaction(transaction, currentSession),
-    )
-}

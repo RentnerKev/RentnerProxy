@@ -16,12 +16,6 @@ export interface ProxyConfigEditorModalProps {
 
 export type ProxyConfigEditorLogicProps = ProxyConfigEditorModalProps
 
-export interface ProxyConfigEditorDraft {
-    readonly settings: ProxyHttpSettings
-    readonly baselineSettings: ProxyHttpSettings
-    readonly baseRevision: string
-}
-
 export interface ProxyConfigEditorState {
     readonly activeTab: ProxyConfigEditorTab
     readonly settings: ProxyHttpSettings

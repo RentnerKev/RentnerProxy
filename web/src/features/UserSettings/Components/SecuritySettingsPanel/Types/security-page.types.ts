@@ -35,7 +35,6 @@ export interface SecurityPageLogicResult {
         handleReauthenticationOpenChange: (open: boolean) => void
         resetSetup: () => void
         resetRecoveryCodes: () => void
-        closeConfirmation: () => void
         closePasskeyName: () => void
         closeReauthentication: () => void
         confirmDestructiveAction: () => Promise<void>

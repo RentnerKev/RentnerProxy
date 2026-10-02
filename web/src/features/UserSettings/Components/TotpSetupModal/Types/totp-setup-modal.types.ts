@@ -9,7 +9,6 @@ export interface TotpSetupModalLogicResult<TForm> {
         validateCode: (context: { value: string }) => ReturnType<typeof getValidationIssue>
         back: () => void
         close: () => void
-        getCodeError: (value: string) => ReturnType<typeof getValidationIssue>
         normalizeCode: (value: string) => string
         verify: () => void
     }

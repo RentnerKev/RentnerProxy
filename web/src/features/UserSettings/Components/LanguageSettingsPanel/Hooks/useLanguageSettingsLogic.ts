@@ -93,7 +93,6 @@ export default function useLanguageSettingsLogic() {
                     mutation.reset()
                 }
             },
-            handleSave,
         },
     } satisfies LanguageSettingsLogicResult
 }

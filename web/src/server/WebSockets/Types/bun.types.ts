@@ -1,5 +1,3 @@
-import type { ServerWebSocket } from 'bun'
-
 import type { LiveTopic } from '@/lib/Live/Types/realtime.types.ts'
 
 export type MaybePromise<T> = T | Promise<T>
@@ -45,5 +43,3 @@ export interface LiveWebSocketRuntime {
     readonly connectionCount: number
     readonly samplingGroupCount: number
 }
-
-export type LiveServerWebSocket = ServerWebSocket<LiveSocketData>

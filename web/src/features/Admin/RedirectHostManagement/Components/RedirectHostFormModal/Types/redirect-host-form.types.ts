@@ -59,9 +59,3 @@ export type RedirectHostFormModalFooterProps = Pick<
     'form' | 'formId' | 'isPending' | 'pendingSubmitLabel' | 'submitLabel'
 > &
     Pick<RedirectHostFormModalProps, 'onOpenChange'>
-
-export interface RedirectHostFormModalLogicResult {
-    readonly form: RedirectHostFormInstance
-    readonly state: Omit<RedirectHostFormModalState, 'form'>
-    readonly handler: RedirectHostFormModalHandler
-}

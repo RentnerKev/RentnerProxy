@@ -50,7 +50,6 @@ export default function useTotpSetupModalLogic({
             validateCode: ({ value }) => getValidationIssue(totpCodeSchema, value, 'code'),
             back: () => setStep('scan'),
             close,
-            getCodeError: (value: string) => getValidationIssue(totpCodeSchema, value, 'code'),
             normalizeCode: (value: string) => value.replace(/\D/g, '').slice(0, 6),
             verify: () => setStep('verify'),
         },

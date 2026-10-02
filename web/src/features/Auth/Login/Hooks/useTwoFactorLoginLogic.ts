@@ -85,8 +85,6 @@ export default function useTwoFactorLoginLogic() {
             },
             validateCredential: ({ value }) =>
                 getTwoFactorCredentialError(form.getFieldValue('mode'), value),
-
-            getCredentialError: getTwoFactorCredentialError,
             normalizeCredential: normalizeTwoFactorCredential,
             toggleMode,
         },

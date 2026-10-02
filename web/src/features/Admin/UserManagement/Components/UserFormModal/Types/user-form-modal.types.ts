@@ -36,9 +36,3 @@ export type UserFormModalFooterProps = Pick<
     'form' | 'formId' | 'isPending' | 'pendingSubmitLabel' | 'submitLabel'
 > &
     Pick<UserFormModalProps, 'onOpenChange'>
-
-export interface UserFormModalLogicResult {
-    readonly form: UserFormInstance
-    readonly state: Omit<UserFormModalState, 'form'>
-    readonly handler: UserFormModalHandler
-}

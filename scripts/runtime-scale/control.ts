@@ -11,13 +11,6 @@ export type ScaleOptions = {
     reportPath?: string
 }
 
-export type ScaleTraffic = {
-    domain: string
-    status: 200 | 404 | 302 | 307
-    backend?: 'a' | 'b' | 'tls'
-    location?: string
-}
-
 const countsSchema = z.strictObject({
     proxyHosts: z.number().int().nonnegative(),
     domains: z.number().int().nonnegative(),

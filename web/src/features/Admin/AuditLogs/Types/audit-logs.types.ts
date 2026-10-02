@@ -3,8 +3,6 @@ import type {
     AuditAction,
     AuditActorOption,
     AuditEventDto,
-    AuditEventsQuery,
-    AuditEventsResult,
     AuditResource,
 } from '@/shared/Types/audit-events.types.ts'
 
@@ -32,16 +30,12 @@ export interface AuditLogsQueryState {
     readonly hasMore: boolean
     readonly isError: boolean
     readonly isLoading: boolean
-    readonly nextCursor: string | null
     readonly pageNumber: number
-    readonly result: AuditEventsResult | undefined
-    readonly request: AuditEventsQuery
 }
 
 export interface AuditLogsLogicResult {
     readonly state: AuditLogsQueryState & {
         readonly formatTimestamp: (value: string) => string
-        readonly liveStatus: import('@/lib/Live/realtimeEventsClient.ts').LiveStatus
     }
     readonly handler: {
         readonly onActionChange: (value: AuditAction | '') => void

@@ -84,7 +84,6 @@ export function useSystemAppearancePanelLogic(canUpdate: boolean) {
                 event.preventDefault()
                 handleSaveDraft()
             },
-            handleSaveDraft,
             handleReset: () => save(null),
         },
         setter: { setDraftColor, setIsValid },

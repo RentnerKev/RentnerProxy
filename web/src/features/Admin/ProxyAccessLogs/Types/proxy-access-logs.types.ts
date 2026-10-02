@@ -16,24 +16,18 @@ export interface ProxyAccessLogsLogicResult {
     readonly state: {
         readonly entries: readonly import('@/shared/Types/proxy-access-logs.types.ts').ProxyAccessLogEntry[]
         readonly canView: boolean
-        readonly liveStatus: import('@/lib/Live/realtimeEventsClient.ts').LiveStatus
         readonly availableHosts: readonly string[]
         readonly availableStatuses: readonly number[]
         readonly expandedEntry: string | null
         readonly formatTimestamp: (value: string) => string
         readonly filterErrors: ProxyAccessLogsFilterErrors
         readonly filters: ProxyAccessLogsFilters
-        readonly hasActiveFilters: boolean
-        readonly hasMore: boolean
         readonly isError: boolean
         readonly isLoading: boolean
-        readonly limit: number
-        readonly offset: number
         readonly total: number
         readonly truncated: boolean
         readonly snapshotReset: boolean
         readonly pageSize: number
-        readonly pageCount: number
         readonly currentPage: number
     }
     readonly handler: {

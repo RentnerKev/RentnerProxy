@@ -14,7 +14,6 @@ export interface SystemAppearancePanelLogicResult {
     }
     handler: {
         handleSubmit: FormEventHandler<HTMLFormElement>
-        handleSaveDraft: () => void
         handleReset: () => void
     }
     setter: { setDraftColor: (value: string) => void; setIsValid: (value: boolean) => void }

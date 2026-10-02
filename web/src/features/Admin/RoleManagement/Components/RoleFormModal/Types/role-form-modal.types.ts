@@ -36,9 +36,3 @@ export type RoleFormModalFooterProps = Pick<
     'form' | 'formId' | 'isPending' | 'pendingSubmitLabel' | 'submitLabel'
 > &
     Pick<RoleFormModalProps, 'onOpenChange'>
-
-export interface RoleFormModalLogicResult {
-    readonly form: RoleFormInstance
-    readonly state: Omit<RoleFormModalState, 'form'>
-    readonly handler: RoleFormModalHandler
-}

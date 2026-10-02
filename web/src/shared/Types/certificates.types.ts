@@ -37,16 +37,6 @@ export interface CertificateEventMetadata {
     readonly errorCode: CertificateErrorCode | null
 }
 
-export interface CertificateEvent {
-    readonly id: string
-    readonly operationId: string
-    readonly certificateId: string
-    readonly kind: CertificateEventKind
-    readonly stage: CertificateOperationStage
-    readonly occurredAt: Date
-    readonly errorCode: CertificateErrorCode | null
-}
-
 export interface CertificateEventPage {
     readonly events: readonly CertificateEventMetadata[]
     readonly nextCursor: string

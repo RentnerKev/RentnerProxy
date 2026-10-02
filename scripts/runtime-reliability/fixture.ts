@@ -3,7 +3,7 @@ import { chmod, readFile, writeFile } from 'node:fs/promises'
 import { z } from 'zod'
 import { CERTIFICATE_ERROR_CODES } from '../../web/src/config/certificates.config'
 
-export const commandSchema = z.strictObject({
+const commandSchema = z.strictObject({
     runId: z.string().regex(/^[a-z0-9]{8,32}$/u),
     phase: z.enum([
         'prepare',
@@ -60,7 +60,7 @@ export const commandSchema = z.strictObject({
     forwardAuthCombined: z.boolean().default(false),
     policyMode: z.enum(['public', 'authenticated', 'ip-restricted']).default('public'),
 })
-export type FixtureCommand = z.output<typeof commandSchema>
+type FixtureCommand = z.output<typeof commandSchema>
 const stateSchema = z.strictObject({
     runId: z.string().regex(/^[a-z0-9]{8,32}$/u),
     domain: commandSchema.shape.certificateDomain,
@@ -76,7 +76,7 @@ const stateSchema = z.strictObject({
     npmHistoryId: z.uuid().optional(),
     npmRetryHistoryId: z.uuid().optional(),
 })
-export type FixtureState = z.output<typeof stateSchema>
+type FixtureState = z.output<typeof stateSchema>
 const statePath = '/tmp/rentnerproxy-reliability-fixture.json'
 type ContextStage =
     | 'registry'
@@ -128,7 +128,7 @@ function contextDiagnostic(error: unknown): string {
     return 'unexpected'
 }
 
-export async function createFixtureContext(command: FixtureCommand) {
+async function createFixtureContext(command: FixtureCommand) {
     if (
         process.env.RENTNERPROXY_RELIABILITY_ISOLATED !== command.runId ||
         process.platform !== 'linux'
@@ -341,7 +341,7 @@ function safeJob(job: Awaited<ReturnType<FixtureContext['jobs']['getCertificateJ
                 job.lastErrorCode !== null),
     }
 }
-export async function readFixtureJobs(context: FixtureContext) {
+async function readFixtureJobs(context: FixtureContext) {
     const [{ eq }, { certificateJobs }] = await Promise.all([
         import('drizzle-orm'),
         import('../../web/src/db/schema'),

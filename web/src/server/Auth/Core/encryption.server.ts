@@ -44,10 +44,6 @@ function getAdditionalData(context: string): Uint8Array<ArrayBuffer> {
     return new TextEncoder().encode(context)
 }
 
-export function isSecretEncryptionAvailable(): boolean {
-    return getAppEncryptionKey() !== null
-}
-
 export async function encryptSecret(plaintext: string, context: string): Promise<EncryptedSecret> {
     if (!plaintext) {
         throw unavailable()

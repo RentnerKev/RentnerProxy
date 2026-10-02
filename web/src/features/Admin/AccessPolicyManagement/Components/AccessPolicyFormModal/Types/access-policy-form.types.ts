@@ -101,8 +101,3 @@ export interface AccessPolicyFormFieldsProps {
     readonly setForwardAuthResponseHeaders: AccessPolicyFormModalHandler['setForwardAuthResponseHeaders']
     readonly values: AccessPolicyFormValues
 }
-
-export interface AccessPolicyFormModalLogicResult {
-    readonly state: AccessPolicyFormModalState
-    readonly handler: AccessPolicyFormModalHandler
-}

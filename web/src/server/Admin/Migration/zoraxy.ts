@@ -9,7 +9,6 @@ import { finalizeImportPlan } from './import-plan.ts'
 
 import yauzl, { type Entry, type ZipFile } from 'yauzl'
 
-export const ZORAXY_MAX_BYTES = 32 * 1024 * 1024
 const MAX_ENTRIES = 2_000
 const MAX_SELECTED = 500
 const MAX_ENTRY_BYTES = 256 * 1024

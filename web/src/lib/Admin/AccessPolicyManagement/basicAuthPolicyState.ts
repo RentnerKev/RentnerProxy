@@ -3,7 +3,6 @@ import type {
     AccessPolicyIpRules,
     AccessPolicySummary,
 } from '@/shared/Types/access-policies.types.ts'
-import type { BasicAuthStatus } from '@/features/Admin/AccessPolicyManagement/Types/basic-auth.types.ts'
 
 export type AccessPolicyAvailabilityStatus =
     | 'publicIgnored'
@@ -25,19 +24,6 @@ export type AccessPolicyAvailabilityStatus =
 
 export function getBasicAuthAccountCount(policy: AccessPolicySummary): number {
     return policy.basicAuthAccountCount
-}
-
-export function getBasicAuthStatus(
-    mode: AccessPolicyMode,
-    combination: AccessPolicySummary['combination'],
-    count: number,
-): BasicAuthStatus {
-    if (mode === 'public') return 'publicIgnored'
-    if (mode === 'ip-restricted' || (mode === 'combined' && combination === 'all')) {
-        return 'ipProviderRequired'
-    }
-    if (count > 0) return mode === 'combined' ? 'combinedAnyAvailable' : 'available'
-    return 'combinedAnyMissing'
 }
 
 export function getAccessPolicyAvailability(
@@ -72,14 +58,6 @@ export function getAccessPolicyAvailability(
     if (ipCanAllow) return 'combinedAnyAvailableIp'
     if (hasIpRules) return 'combinedAnyIpBlocksAll'
     return 'combinedAnyMissing'
-}
-
-export function getIpAccessStatus(
-    mode: AccessPolicyMode,
-    ipRules: AccessPolicyIpRules | null,
-): 'ignored' | 'enabled' | 'missing' {
-    if (mode === 'public' || mode === 'authenticated') return 'ignored'
-    return ipRules === null ? 'missing' : 'enabled'
 }
 
 export function getIpAccessRuleCount(ipRules: AccessPolicyIpRules | null): number {

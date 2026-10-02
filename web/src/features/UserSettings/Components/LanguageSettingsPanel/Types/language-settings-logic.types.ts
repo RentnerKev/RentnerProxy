@@ -10,6 +10,5 @@ export interface LanguageSettingsLogicResult {
     handler: {
         handleSubmit: FormEventHandler<HTMLFormElement>
         handleLanguageChange: (value: string) => void
-        handleSave: () => void
     }
 }

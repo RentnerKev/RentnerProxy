@@ -98,10 +98,3 @@ export type ProxyHostFormModalFooterProps = Pick<
     'form' | 'formId' | 'isPending' | 'pendingSubmitLabel' | 'submitLabel'
 > &
     Pick<ProxyHostFormModalProps, 'onOpenChange'>
-
-export interface ProxyHostFormModalLogicResult {
-    readonly form: ProxyHostFormInstance
-    readonly certificateRequestForm: ProxyHostFormModalState['certificateRequestForm']
-    readonly state: Omit<ProxyHostFormModalState, 'form' | 'certificateRequestForm'>
-    readonly handler: ProxyHostFormModalHandler
-}

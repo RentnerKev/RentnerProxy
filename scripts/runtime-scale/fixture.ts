@@ -718,9 +718,7 @@ async function npmImport(context: FixtureContext, inventory: Inventory) {
     }
 }
 
-export async function executeScaleFixture(
-    context: FixtureContext,
-): Promise<Record<string, unknown>> {
+async function executeScaleFixture(context: FixtureContext): Promise<Record<string, unknown>> {
     if (context.command.phase === 'scale-create') return create(context)
     if (!context.command.phase.startsWith('scale-')) return executeBetaFixture(context)
     const inventory = await load(context)

@@ -50,7 +50,6 @@ export default function useCertificateDetailsModalLogic(certificate: Certificate
         state: {
             scheduling,
             operation,
-            retryAt,
             retryStatus,
             operationStage,
             challengeLabel: certificateChallengeLabel(certificate.challengeType, t),

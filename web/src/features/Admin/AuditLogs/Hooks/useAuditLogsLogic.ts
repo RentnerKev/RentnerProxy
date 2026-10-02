@@ -71,7 +71,7 @@ export default function useAuditLogsLogic({
         },
         [queryClient, request],
     )
-    const liveStatus = useLiveQuery<AuditEventsResult>({
+    useLiveQuery<AuditEventsResult>({
         topic: 'audit-logs',
         query: liveRequest,
         enabled: canView && cursorStack.length === 0,
@@ -136,7 +136,6 @@ export default function useAuditLogsLogic({
         state: {
             actorOptions: canView ? (actorOptionsQuery.data ?? []) : [],
             canView,
-            liveStatus,
             events,
             expandedEventId,
             formatTimestamp,
@@ -145,10 +144,7 @@ export default function useAuditLogsLogic({
             hasMore: canView && (auditQuery.data?.hasMore ?? false),
             isError: canView && (auditQuery.isError || actorOptionsQuery.isError),
             isLoading: canView && (auditQuery.isPending || actorOptionsQuery.isPending),
-            nextCursor: canView ? (auditQuery.data?.nextCursor ?? null) : null,
             pageNumber: cursorStack.length + 1,
-            result: canView ? auditQuery.data : undefined,
-            request,
         },
         handler: {
             onActionChange: (value: AuditAction | '') => updateFilter('action', value),

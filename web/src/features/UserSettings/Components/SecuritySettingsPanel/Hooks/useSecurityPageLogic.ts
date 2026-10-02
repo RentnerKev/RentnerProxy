@@ -319,9 +319,6 @@ export default function useSecurityPageLogic() {
             },
             resetSetup: security.handler.resetSetup,
             resetRecoveryCodes: security.handler.resetRecoveryCodes,
-            closeConfirmation: () => {
-                setConfirmation(null)
-            },
             closePasskeyName: () => setNameRequest(null),
             closeReauthentication: resetReauthentication,
             confirmDestructiveAction,

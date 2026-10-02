@@ -35,14 +35,6 @@ export interface PreviewIdentity {
     readonly testedSha: string
 }
 
-export interface PreviewPublishPlan {
-    readonly image: string
-    readonly immutableReference: string
-    readonly immutableTag: string
-    readonly movingReference: string
-    readonly movingTag: string
-}
-
 export interface RequiredCheck {
     readonly context: string
     readonly integrationId: number | null

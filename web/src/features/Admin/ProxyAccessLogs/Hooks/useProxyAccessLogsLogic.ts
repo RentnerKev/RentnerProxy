@@ -76,7 +76,7 @@ export default function useProxyAccessLogsLogic({
         },
         [queryClient, request],
     )
-    const liveStatus = useLiveQuery<ProxyAccessLogsResult>({
+    useLiveQuery<ProxyAccessLogsResult>({
         topic: 'access-logs',
         query: liveRequest,
         enabled: canView && page === 1,
@@ -206,7 +206,6 @@ export default function useProxyAccessLogsLogic({
     return {
         state: {
             canView,
-            liveStatus,
             entries,
             availableHosts: logsQuery.data?.availableHosts ?? [],
             availableStatuses: logsQuery.data?.availableStatuses ?? [],
@@ -214,20 +213,12 @@ export default function useProxyAccessLogsLogic({
             formatTimestamp,
             filterErrors,
             filters: draftFilters,
-            hasActiveFilters:
-                draftFilters.host.trim().length > 0 ||
-                draftFilters.status.trim().length > 0 ||
-                draftFilters.search.trim().length > 0,
-            hasMore: canView && (logsQuery.data?.hasMore ?? false),
             isError: canView && logsQuery.isError,
             isLoading: canView && logsQuery.isPending,
-            limit: effectiveLimit,
-            offset: logsQuery.data?.offset ?? offset,
             total,
             truncated: canView && (logsQuery.data?.truncated ?? false),
             snapshotReset,
             pageSize,
-            pageCount,
             currentPage,
         },
         handler: {

@@ -23,10 +23,6 @@ export class ProxyHostDomainError extends Error {
     }
 }
 
-export function isProxyHostDomainError(error: unknown): error is ProxyHostDomainError {
-    return error instanceof ProxyHostDomainError
-}
-
 function getErrorProperty(error: object, key: string): unknown {
     if (!(key in error)) {
         return undefined
