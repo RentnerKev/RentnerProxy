@@ -9,6 +9,7 @@ describe('Docker build diagnostics', () => {
         ['toomanyrequests: rate exceeded', 'registry-rate-limit'],
         ['write /private/fixture: no space left on device', 'disk-space'],
         ['process did not complete successfully: exit code: 137', 'memory'],
+        ['sha256sum: WARNING: 1 of 1 computed checksums did NOT match', 'checksum-mismatch'],
         ['Could not resolve "@/private/module"', 'source-import'],
         ['error TS6133: private fixture is unused', 'typescript'],
         ['x509: certificate signed by unknown authority', 'tls'],

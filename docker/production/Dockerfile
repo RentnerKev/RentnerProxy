@@ -69,14 +69,9 @@ RUN wget -qO /tmp/caddy-crowdsec-bouncer.tar.gz \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec \
     && ! /usr/bin/caddy list-modules | grep -Eq '(^|\.)layer4($|\.)|^http\.handlers\.appsec$'
 
-FROM caddy:2.11.4-builder@sha256:369218c81ca6d6af249981221b3a5c764d886dd5b058f51d144066de13f2418d AS geoip-assets
-RUN set -eux; \
-    wget -qO /tmp/user-country.mmdb \
-        https://github.com/sapics/ip-location-db/releases/download/latest/user-country.mmdb; \
-    wget -qO /tmp/user-country.mmdb.sha256 \
-        https://github.com/sapics/ip-location-db/releases/download/checksum/user-country.mmdb.sha256; \
-    cd /tmp; \
-    sha256sum -c user-country.mmdb.sha256
+FROM oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS geoip-assets
+COPY scripts/download-geoip.ts /tmp/download-geoip.ts
+RUN bun --no-env-file /tmp/download-geoip.ts
 
 FROM ghcr.io/crowdsecurity/crowdsec:v1.8.1-debian@sha256:ab1bdb61a072154d478ad6c625b8e62c7f79a727b2740209d2128dd51d69d58d AS crowdsec-assets
 
