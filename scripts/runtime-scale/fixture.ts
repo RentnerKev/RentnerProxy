@@ -324,7 +324,10 @@ async function verify(
         runtimeStatus,
         traffic,
         inventoryFingerprint:
-            'sha256:' + createHash('sha256').update(JSON.stringify(inventory)).digest('hex'),
+            'sha256:' +
+            createHash('sha256')
+                .update(JSON.stringify(inventorySchema.parse(inventory)))
+                .digest('hex'),
         tlsHost: inventory.hosts.find(
             (host) => !host.deleted && host.enabled && host.certificateId !== null,
         )?.domains[0],

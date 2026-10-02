@@ -285,6 +285,13 @@ async function main() {
         startedAt = performance.now()
         await context.synced(await context.fixture('prepare'))
         const { caFile } = await prepareCertificateFixture(context)
+        await context.synced(
+            await context.fixture('proxy-update', {
+                resetTls: true,
+                secondaryPort: harness.primaryPort,
+            }),
+        )
+        assert.equal((await context.http()).status, 200)
         tlsUpstream = await prepareTlsUpstream(context)
         await sample()
         stage = 'small'
