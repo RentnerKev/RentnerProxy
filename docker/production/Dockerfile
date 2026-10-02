@@ -43,8 +43,8 @@ COPY --from=web-build /app/docker/web/healthcheck.mjs ./docker/web/healthcheck.m
 FROM rust:1.98.1-bookworm@sha256:93ce27a88655056a51dbdd8f5f2d7ddc071c7b0070fb288a37b5a285fc83971e AS controller-build
 
 WORKDIR /build
-COPY controller/Cargo.toml controller/Cargo.lock ./
-COPY controller/src ./src
+COPY core/Cargo.toml core/Cargo.lock ./
+COPY core/src ./src
 RUN cargo build --locked --release
 
 # The builder digest pins xcaddy v0.4.5. The module revision is the signed v0.14.1 release.

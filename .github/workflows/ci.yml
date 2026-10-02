@@ -230,19 +230,19 @@ jobs:
                       ~/.cargo/registry/cache
                       ~/.cargo/registry/src
                       ~/.cargo/git/db
-                  key: ${{ runner.os }}-cargo-${{ env.RUST_VERSION }}-${{ hashFiles('controller/Cargo.lock') }}
+                  key: ${{ runner.os }}-cargo-${{ env.RUST_VERSION }}-${{ hashFiles('core/Cargo.lock') }}
 
             - name: Check Rust formatting
-              run: cargo fmt --manifest-path controller/Cargo.toml -- --check
+              run: cargo fmt --manifest-path core/Cargo.toml -- --check
 
             - name: Run Clippy
-              run: cargo clippy --manifest-path controller/Cargo.toml --all-targets --all-features -- -D warnings
+              run: cargo clippy --manifest-path core/Cargo.toml --all-targets --all-features -- -D warnings
 
             - name: Run Rust tests
-              run: cargo test --manifest-path controller/Cargo.toml
+              run: cargo test --manifest-path core/Cargo.toml
 
             - name: Check Rust targets
-              run: cargo check --manifest-path controller/Cargo.toml --all-targets
+              run: cargo check --manifest-path core/Cargo.toml --all-targets
 
             - name: Save Cargo dependency cache
               if: github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true'
@@ -253,7 +253,7 @@ jobs:
                       ~/.cargo/registry/cache
                       ~/.cargo/registry/src
                       ~/.cargo/git/db
-                  key: ${{ runner.os }}-cargo-${{ env.RUST_VERSION }}-${{ hashFiles('controller/Cargo.lock') }}
+                  key: ${{ runner.os }}-cargo-${{ env.RUST_VERSION }}-${{ hashFiles('core/Cargo.lock') }}
 
     build:
         name: Build
@@ -289,7 +289,7 @@ jobs:
                       ~/.cargo/registry/cache
                       ~/.cargo/registry/src
                       ~/.cargo/git/db
-                  key: ${{ runner.os }}-cargo-${{ env.RUST_VERSION }}-${{ hashFiles('controller/Cargo.lock') }}
+                  key: ${{ runner.os }}-cargo-${{ env.RUST_VERSION }}-${{ hashFiles('core/Cargo.lock') }}
 
             - name: Install dependencies
               run: bun install --frozen-lockfile

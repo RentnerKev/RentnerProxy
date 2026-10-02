@@ -103,7 +103,7 @@ export function smokeProgress(suite: Suite) {
                 return diagnostic
             }
             const location = line.match(
-                /((?:scripts|tests[/\\]production)[/\\])([a-z0-9-]+\.ts):(\d+):(\d+)/u,
+                /((?:\.github[/\\]scripts|scripts)[/\\])([a-z0-9-]+\.ts):(\d+):(\d+)/u,
             )
             if (
                 location &&

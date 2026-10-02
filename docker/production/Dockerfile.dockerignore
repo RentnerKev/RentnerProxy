@@ -12,11 +12,11 @@
 !.github/scripts/production-smoke-ci.ts
 !.github/scripts/release-notes.ts
 
-!controller/
-!controller/Cargo.toml
-!controller/Cargo.lock
-!controller/src/
-!controller/src/**
+!core/
+!core/Cargo.toml
+!core/Cargo.lock
+!core/src/
+!core/src/**
 
 !docker/
 !docker/web/
@@ -40,7 +40,7 @@
 
 web/dist/
 web/node_modules/
-controller/target/
+core/target/
 node_modules/
 .cache/
 **/.env

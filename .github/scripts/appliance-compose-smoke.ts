@@ -2569,7 +2569,7 @@ try {
     if (locations) {
         for (const location of [...locations].slice(0, 6)) {
             const locationRoot =
-                location[1] === 'appliance-compose-smoke' ? 'tests/production' : 'scripts'
+                location[1] === 'appliance-compose-smoke' ? '.github/scripts' : 'scripts'
             console.error(
                 'at ' + locationRoot + '/' + location[1] + '.ts:' + location[2] + ':' + location[3],
             )

@@ -32,7 +32,7 @@ export interface DevelopmentDependencies {
 
 export interface ServiceDefinition {
     readonly label: string
-    readonly script: 'dev:controller' | 'dev:web'
+    readonly script: 'dev:core' | 'dev:web'
 }
 
 export interface RunningService extends ServiceDefinition {

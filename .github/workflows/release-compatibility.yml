@@ -6,11 +6,11 @@ on:
             - main
         paths:
             - '.github/workflows/release-compatibility.yml'
-            - 'controller/**'
+            - 'core/**'
             - 'docker/**'
             - 'docker-compose.yml'
             - 'scripts/**'
-            - 'tests/production/**'
+            - '.github/scripts/**'
             - 'web/drizzle/**'
             - 'web/src/db/**'
             - 'web/src/features/**'

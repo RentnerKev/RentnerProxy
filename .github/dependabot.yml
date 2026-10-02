@@ -23,7 +23,7 @@ updates:
                   - 'patch'
 
     - package-ecosystem: 'cargo'
-      directory: '/controller'
+      directory: '/core'
       schedule:
           interval: 'cron'
           cronjob: '0 3 * * *'

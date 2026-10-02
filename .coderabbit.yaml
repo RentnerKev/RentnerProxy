@@ -6,7 +6,7 @@ reviews:
         - '!**/*.lock'
         - '!**/routeTree.gen.ts'
     path_instructions:
-        - path: 'controller/src/**'
+        - path: 'core/src/**'
           instructions: |
               Focus on Rust correctness, security, concurrency, cancellation, shutdown behavior,
               resource handling, network boundaries, error handling, and input validation.

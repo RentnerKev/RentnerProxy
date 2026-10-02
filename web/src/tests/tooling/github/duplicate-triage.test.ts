@@ -340,12 +340,12 @@ describe('duplicate triage pull request signals', () => {
 
     test('classifies redirect-host implementations with file overlap as high', () => {
         const current = triageItem({
-            files: ['web/src/features/redirect.ts', 'controller/src/runtime/renderer.rs'],
+            files: ['web/src/features/redirect.ts', 'core/src/runtime/renderer.rs'],
             kind: 'pull_request',
             title: 'Add Redirect Hosts',
         })
         const candidate = triageItem({
-            files: ['web/src/features/redirect.ts', 'controller/src/runtime/renderer.rs'],
+            files: ['web/src/features/redirect.ts', 'core/src/runtime/renderer.rs'],
             kind: 'pull_request',
             number: 2,
             title: 'Implement redirect host support',
@@ -363,7 +363,7 @@ describe('duplicate triage pull request signals', () => {
             title: 'Redirect Host UI',
         })
         const candidate = triageItem({
-            files: ['controller/src/runtime/renderer.rs'],
+            files: ['core/src/runtime/renderer.rs'],
             kind: 'pull_request',
             number: 2,
             title: 'Redirect Host runtime renderer',

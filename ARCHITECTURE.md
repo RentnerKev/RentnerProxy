@@ -9,6 +9,11 @@ in this repository; it is not a promise of a particular release or deployment.
 
 ## Runtime shape
 
+The Rust controller lives in `core/`, and the management application lives in `web/`.
+Web unit and integration tests mirror their source owners under `web/src/tests/`.
+Docker production smoke entrypoints live in `.github/scripts/` alongside their CI runner;
+shared development, build, and smoke helpers remain under `scripts/`.
+
 ```mermaid
 flowchart TD
     U[Management browser] --> W[Bun TanStack web service]
@@ -117,20 +122,20 @@ and backpressure limits. The transport is assembled in
 The Rust service is an Axum HTTP controller. Its internal routes are protected by
 the controller bearer token when configured; a non-loopback controller refuses to
 start without one. Route registration and authorization are in
-[`controller/src/server/mod.rs`](./controller/src/server/mod.rs) and
-[`controller/src/server/auth.rs`](./controller/src/server/auth.rs), and the
-configuration checks are in [`controller/src/config.rs`](./controller/src/config.rs).
+[`core/src/server/mod.rs`](./core/src/server/mod.rs) and
+[`core/src/server/auth.rs`](./core/src/server/auth.rs), and the
+configuration checks are in [`core/src/config.rs`](./core/src/config.rs).
 
 The controller validates the desired proxy model, renders Caddy JSON, starts or
 loads Caddy through a Unix-domain admin socket, and probes a revision endpoint
-before reporting success. [`controller/src/runtime/engine.rs`](./controller/src/runtime/engine.rs),
-[`controller/src/runtime/configuration.rs`](./controller/src/runtime/configuration.rs),
-and [`controller/src/runtime/apply.rs`](./controller/src/runtime/apply.rs) contain
+before reporting success. [`core/src/runtime/engine.rs`](./core/src/runtime/engine.rs),
+[`core/src/runtime/configuration.rs`](./core/src/runtime/configuration.rs),
+and [`core/src/runtime/apply.rs`](./core/src/runtime/apply.rs) contain
 that lifecycle. The rendered config enables Caddy's file storage. Separately, the
 controller persists the desired proxy snapshot in schema version 7; certificates
 are loaded from controller-owned paths. Caddy's automatic HTTPS is disabled, so the
 controller owns ACME issuance and renewal rather than delegating it to Caddy. See
-[`controller/src/runtime/renderer/config.rs`](./controller/src/runtime/renderer/config.rs).
+[`core/src/runtime/renderer/config.rs`](./core/src/runtime/renderer/config.rs).
 
 The web service maintains a serialized reconciliation worker in
 [`web/src/server/ProxyRuntime/proxy-reconcile.ts`](./web/src/server/ProxyRuntime/proxy-reconcile.ts).
@@ -203,8 +208,8 @@ ACME-account state, material versions, candidates, activation, and renewal state
 under its configured state directory. The separation is visible in
 [`web/src/db/Schema/certificates.ts`](./web/src/db/Schema/certificates.ts),
 [`web/src/db/Schema/certificateJobs.ts`](./web/src/db/Schema/certificateJobs.ts),
-[`controller/src/runtime/certificates/material_files.rs`](./controller/src/runtime/certificates/material_files.rs),
-and [`controller/src/runtime/certificates/activation.rs`](./controller/src/runtime/certificates/activation.rs).
+[`core/src/runtime/certificates/material_files.rs`](./core/src/runtime/certificates/material_files.rs),
+and [`core/src/runtime/certificates/activation.rs`](./core/src/runtime/certificates/activation.rs).
 
 For a host certificate request, the web service creates or reuses an idempotent
 database job, records the host revision and required permissions, and lets a server
@@ -218,7 +223,7 @@ and [`web/src/server/Admin/ProxyHostManagement/certificate-jobs.binding.server.t
 The controller writes issued ACME material as a durable candidate before activation.
 An activation failure leaves the previous valid material serving and schedules a
 retry or marks the operation as needing attention. Startup recovery reconciles the
-index and candidate manifests in [`controller/src/runtime/certificates/recovery.rs`](./controller/src/runtime/certificates/recovery.rs).
+index and candidate manifests in [`core/src/runtime/certificates/recovery.rs`](./core/src/runtime/certificates/recovery.rs).
 The web database therefore mirrors controller metadata; it does not replace the
 controller's material or activation authority.
 
@@ -227,8 +232,8 @@ protocol information only from configured socket-peer CIDRs, with strict single
 value handling in the rendered routes. The management service's
 `RENTNERPROXY_TRUST_PROXY_HEADERS` setting controls request-protocol handling for
 the web application. The controller-side parsing is in
-[`controller/src/config.rs`](./controller/src/config.rs) and
-[`controller/src/runtime/renderer/routes.rs`](./controller/src/runtime/renderer/routes.rs);
+[`core/src/config.rs`](./core/src/config.rs) and
+[`core/src/runtime/renderer/routes.rs`](./core/src/runtime/renderer/routes.rs);
 the web-side setting is in [`web/src/server/env.server.ts`](./web/src/server/env.server.ts).
 The settings are intentionally deployment configuration, not PostgreSQL state.
 
@@ -241,7 +246,7 @@ state again. Startup and shutdown wiring is in [`web/src/start.ts`](./web/src/st
 
 Certificate operations use a separate durable path. The controller keeps a bounded
 journal of operation events with a store ID and cursor in
-[`controller/src/runtime/certificates/operations.rs`](./controller/src/runtime/certificates/operations.rs).
+[`core/src/runtime/certificates/operations.rs`](./core/src/runtime/certificates/operations.rs).
 The web worker in [`web/src/server/Admin/CertificateManagement/certificate-events.worker.ts`](./web/src/server/Admin/CertificateManagement/certificate-events.worker.ts)
 pages that journal, stores the cursor and deduplicating event receipts in PostgreSQL,
 and writes system audit events in the same transaction. The journal and receipt
@@ -292,7 +297,7 @@ The web tests exercise validation, authorization, persistence, Valkey behavior,
 realtime transport, proxy reconciliation, and event synchronization under
 [`web/src/tests/`](./web/src/tests/). Rust unit and integration tests cover config,
 proxy rendering and validation, Caddy transport, certificate material, recovery,
-ACME, DNS, and runtime behavior under [`controller/src/tests/`](./controller/src/tests/).
+ACME, DNS, and runtime behavior under [`core/src/tests/`](./core/src/tests/).
 The smoke scripts under [`scripts/`](./scripts/) exercise selected proxy,
 certificate, upgrade, backup, restore, and appliance paths when their external
 dependencies are available. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the

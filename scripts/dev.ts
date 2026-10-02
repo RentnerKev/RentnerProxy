@@ -15,7 +15,7 @@ const SHUTDOWN_TIMEOUT_MS = 5_000
 
 const services: readonly ServiceDefinition[] = [
     { label: 'Web server', script: 'dev:web' },
-    { label: 'Controller', script: 'dev:controller' },
+    { label: 'Controller', script: 'dev:core' },
 ]
 
 function spawnProcess(request: SpawnRequest): ManagedProcess {

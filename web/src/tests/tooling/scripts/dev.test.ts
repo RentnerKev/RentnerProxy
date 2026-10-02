@@ -120,7 +120,7 @@ describe('runDevelopment', () => {
                 detached: true,
             },
             {
-                command: [process.execPath, '--no-orphans', 'run', '--silent', 'dev:controller'],
+                command: [process.execPath, '--no-orphans', 'run', '--silent', 'dev:core'],
                 cwd: 'C:\\RentnerProxy',
                 stdin: 'inherit',
                 stdout: 'inherit',

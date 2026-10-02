@@ -120,13 +120,13 @@ describe('production smoke CI output boundary', () => {
         expect(progress.result(1).diagnostic).not.toContain('secret-value')
     })
 
-    test('reports test-folder smoke locations without exposing unrelated stack frames', () => {
+    test('reports CI smoke locations without exposing unrelated stack frames', () => {
         const progress = smokeProgress('production')
         progress.consume('error: Timed out waiting for managed CrowdSec acquisition')
-        progress.consume('at tests/production/appliance-compose-smoke.ts:1184:20')
-        progress.consume('at tests/production/private-value.ts:2:4')
+        progress.consume('at .github/scripts/appliance-compose-smoke.ts:1184:20')
+        progress.consume('at .github/scripts/private-value.ts:2:4')
         expect(progress.result(1).diagnostic).toBe(
-            'Readiness polling timed out at tests/production/appliance-compose-smoke.ts:1184:20',
+            'Readiness polling timed out at .github/scripts/appliance-compose-smoke.ts:1184:20',
         )
     })
 

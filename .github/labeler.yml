@@ -16,7 +16,7 @@
 'area: proxy':
     - changed-files:
           - any-glob-to-any-file:
-                - 'controller/src/proxy/**'
+                - 'core/src/proxy/**'
                 - 'web/src/features/Admin/ProxyHostManagement/**'
                 - 'web/src/server/Admin/ProxyHostManagement/**'
                 - 'web/src/server/ProxyRuntime/**'
@@ -32,7 +32,7 @@
 'area: runtime':
     - changed-files:
           - any-glob-to-any-file:
-                - 'controller/src/**'
+                - 'core/src/**'
                 - 'docker/proxy-runtime/**'
                 - 'web/src/server/ProxyRuntime/**'
                 - 'web/src/features/Admin/ProxyHostManagement/Components/ProxyRuntimeStatusPanel.tsx'
@@ -42,13 +42,13 @@
 'area: certificates':
     - changed-files:
           - any-glob-to-any-file:
-                - 'controller/src/runtime/acme.rs'
-                - 'controller/src/runtime/certificates.rs'
-                - 'controller/src/runtime/trusted_cas.rs'
-                - 'controller/src/proxy/trusted_ca.rs'
-                - 'controller/src/server/challenges.rs'
-                - 'controller/src/tests/acme.rs'
-                - 'controller/src/tests/certificates.rs'
+                - 'core/src/runtime/acme.rs'
+                - 'core/src/runtime/certificates.rs'
+                - 'core/src/runtime/trusted_cas.rs'
+                - 'core/src/proxy/trusted_ca.rs'
+                - 'core/src/server/challenges.rs'
+                - 'core/src/tests/acme.rs'
+                - 'core/src/tests/certificates.rs'
                 - 'web/src/features/Admin/CertificateManagement/**'
                 - 'web/src/features/Admin/TrustedCaManagement/**'
                 - 'web/src/server/Admin/CertificateManagement/**'

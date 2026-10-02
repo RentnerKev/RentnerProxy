@@ -73,7 +73,7 @@ describe('runSteps', () => {
 
 describe('script step definitions', () => {
     test('keeps build steps granular and appends them to checks without recursion', () => {
-        expect(buildSteps.map((step) => step.script)).toEqual(['build:web', 'build:controller'])
+        expect(buildSteps.map((step) => step.script)).toEqual(['build:web', 'build:core'])
         expect(checkSteps.slice(-buildSteps.length)).toEqual(buildSteps.slice())
         expect(
             checkSteps.some((step) => step.script === 'build' || step.script === 'check'),

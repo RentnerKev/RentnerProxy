@@ -113,7 +113,7 @@ describe('production smokes workflow execution contract', () => {
 
     test('maps each CI phase to the existing smoke implementation and builds production from checkout', async () => {
         const runner = await repositoryFile('.github/scripts/production-smoke-ci.ts')
-        const productionSmoke = await repositoryFile('tests/production/appliance-compose-smoke.ts')
+        const productionSmoke = await repositoryFile('.github/scripts/appliance-compose-smoke.ts')
         const packageManifest = await repositoryFile('package.json')
 
         expect(runner).toContain("script: 'proxy:smoke'")
@@ -124,8 +124,8 @@ describe('production smokes workflow execution contract', () => {
         expect(runner).toContain("source: 'upstream-tls-smoke.ts'")
         expect(runner).toContain("script: 'production:smoke'")
         expect(runner).toContain("source: 'appliance-compose-smoke.ts'")
-        expect(packageManifest).toContain('tests/production/appliance-compose-smoke.ts')
-        expect(packageManifest).toContain('tests/production/proxy-smoke.ts')
+        expect(packageManifest).toContain('.github/scripts/appliance-compose-smoke.ts')
+        expect(packageManifest).toContain('.github/scripts/proxy-smoke.ts')
         expect(runner).toContain('cwd: repositoryRoot')
         expect(productionSmoke).toContain(
             "const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url))",

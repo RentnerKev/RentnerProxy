@@ -3,7 +3,7 @@ import type { CommandRunnerDependencies, CommandStep } from './Types/command-run
 
 export const buildSteps: readonly CommandStep[] = [
     { label: 'Web build', script: 'build:web' },
-    { label: 'Controller build', script: 'build:controller' },
+    { label: 'Controller build', script: 'build:core' },
 ]
 
 export function runBuild(dependencies: Partial<CommandRunnerDependencies> = {}): Promise<number> {
