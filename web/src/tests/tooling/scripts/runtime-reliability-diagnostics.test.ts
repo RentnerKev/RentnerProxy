@@ -68,6 +68,7 @@ describe('certificate failure evidence', () => {
             pebbleFailureCategories(secret + ' urn:ietf:params:acme:error:unauthorized badNonce'),
         ).toEqual(['unauthorized'])
         expect(pebbleFailureCategories(secret + ' urn:ietf:params:acme:error:private')).toEqual([])
+        expect(pebbleFailureCategories('urn:ietf:params:acme:error:unauthorized_extra')).toEqual([])
         expect(
             pebbleFailureCategories(
                 'urn:ietf:params:acme:error:badNonce urn:ietf:params:acme:error:dns',

@@ -37,6 +37,9 @@ export function certificateFailureDetails(value: unknown, observedStages: readon
 }
 
 export function pebbleFailureCategories(log: string): string[] {
+    const problems = new Set(
+        [...log.matchAll(/urn:ietf:params:acme:error:([a-zA-Z0-9_-]+)/gu)].map((match) => match[1]),
+    )
     return [
         'incorrectResponse',
         'unauthorized',
@@ -47,5 +50,5 @@ export function pebbleFailureCategories(log: string): string[] {
         'badNonce',
         'serverInternal',
         'malformed',
-    ].filter((code) => log.includes('urn:ietf:params:acme:error:' + code))
+    ].filter((code) => problems.has(code))
 }

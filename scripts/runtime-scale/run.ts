@@ -116,9 +116,20 @@ async function verifyTraffic(
     result: ScaleResult,
     concurrency: number,
 ) {
-    await runBoundedTasks(result.traffic, concurrency, async (expected) => {
+    await runBoundedTasks(result.traffic, concurrency, async (expected, index) => {
         const response = await context.http(expected.domain)
-        assert.equal(response.status, expected.status, 'Scale route returns the expected status')
+        if (response.status !== expected.status)
+            throw new ReliabilityError(
+                'assertion',
+                'Scale route ' +
+                    index +
+                    ' returned status ' +
+                    response.status +
+                    '; expected ' +
+                    expected.status +
+                    '; upstream ' +
+                    (expected.backend ?? 'redirect'),
+            )
         if (expected.status === 200)
             assert.equal(
                 response.body.backend,
