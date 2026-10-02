@@ -4,12 +4,16 @@ import { fileURLToPath } from 'node:url'
 const serviceScript = `
     import { strict as assert } from 'node:assert'
     import { mock } from 'bun:test'
+    import { MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY } from './config/access-policies.config.ts'
+    import { MAX_DEFAULT_SITE_HTML_BYTES } from './config/default-site.config.ts'
+    import { createProxyRuntimeSnapshot, MAX_RUNTIME_PAYLOAD_BYTES } from './server/ProxyRuntime/proxy-runtime-snapshot.ts'
 
     let allowed = new Set()
     let transactionDenied = false
     let databaseCalls = 0
     let revision = 'sha256:' + 'a'.repeat(64)
     let settings = { mode: 'not-found' }
+    let runtime = createProxyRuntimeSnapshot([])
     let status = 'applied'
     const writes = []
     const audits = []
@@ -38,7 +42,7 @@ const serviceScript = `
     mock.module('./server/ProxyRuntime/proxy-runtime-data.ts', () => ({
         readProxyRuntimeSnapshot: async () => {
             events.push('read')
-            return { revision, ...(settings.mode === 'not-found' ? {} : { defaultSite: settings }) }
+            return { ...runtime, revision, ...(settings.mode === 'not-found' ? {} : { defaultSite: settings }) }
         },
     }))
     mock.module('./server/ProxyRuntime/proxy-runtime-settings.ts', () => ({
@@ -105,11 +109,57 @@ const serviceScript = `
     settings = { mode: 'welcome' }
     assert.equal(await saveDefaultSiteService({ baseRevision: revision, settings }), 'pending')
     assert.deepEqual(await getDefaultSiteService(), { baseRevision: revision, settings })
+
+    const policy = {
+        id: '0198d98a-0000-7000-8000-000000000002',
+        mode: 'authenticated',
+        combination: null,
+        basicAuth: {
+            accounts: Array.from({ length: MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY }, (_, index) => ({
+                username: ('synthetic-' + index.toString().padStart(4, '0')).padEnd(64, 'x'),
+                passwordHash: '$argon2id$v=19$m=47104,t=1,p=1$' + 'A'.repeat(43) + '$' + 'A'.repeat(43),
+            })),
+        },
+    }
+    const host = (index) => ({
+        id: '0198d98a-0000-7000-8000-' + index.toString(16).padStart(12, '0'),
+        enabled: true,
+        domains: Array.from({ length: 50 }, (_, domain) =>
+            'h' + index.toString().padStart(4, '0') + '-d' + domain.toString().padStart(2, '0') + '.' +
+            (('a'.repeat(63) + '.').repeat(3)) + 'b'.repeat(43) + '.test'),
+        forwardScheme: 'http',
+        forwardHost: '127.0.0.1',
+        forwardPort: 8080,
+        accessPolicy: policy,
+    })
+    const canonicalBytes = (snapshot) => {
+        const { revision: _revision, ...payload } = snapshot
+        return Buffer.byteLength(JSON.stringify(payload))
+    }
+    const emptyBytes = canonicalBytes(createProxyRuntimeSnapshot([]))
+    const hostBytes = canonicalBytes(createProxyRuntimeSnapshot([host(0)])) - emptyBytes
+    const hostCount = Math.floor((MAX_RUNTIME_PAYLOAD_BYTES - 100 - emptyBytes + 1) / (hostBytes + 1))
+    assert.ok(hostCount > 0 && hostCount <= 1000)
+    runtime = createProxyRuntimeSnapshot(Array.from({ length: hostCount }, (_, index) => host(index)))
+    revision = runtime.revision
+    settings = { mode: 'not-found' }
+    assert.ok(canonicalBytes(runtime) + 100 <= MAX_RUNTIME_PAYLOAD_BYTES)
+    const writesBeforeOverflow = writes.length
+    const auditsBeforeOverflow = audits.length
+    const appliesBeforeOverflow = reconciles.length
+    await assert.rejects(saveDefaultSiteService({
+        baseRevision: revision,
+        settings: { mode: 'custom-html', html: 'x'.repeat(MAX_DEFAULT_SITE_HTML_BYTES) },
+    }), { message: 'Proxy runtime snapshot is too large.' })
+    assert.equal(writes.length, writesBeforeOverflow)
+    assert.equal(audits.length, auditsBeforeOverflow)
+    assert.equal(reconciles.length, appliesBeforeOverflow)
+    assert.deepEqual(await getDefaultSiteService(), { baseRevision: revision, settings })
     console.log('default-site-service-ok')
 `
 
 describe('default site service boundary', () => {
-    test('authorizes reads and writes, rechecks revocation, rejects conflicts and reports pending apply', async () => {
+    test('authorizes, rejects stale or oversized candidates before writes and reports pending apply', async () => {
         const child = Bun.spawn([process.execPath, '--no-env-file', '-e', serviceScript], {
             cwd: fileURLToPath(new URL('../../..', import.meta.url)),
             stdout: 'pipe',

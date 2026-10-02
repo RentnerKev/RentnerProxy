@@ -9,6 +9,7 @@ import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.servic
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 import { readProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-data.ts'
+import { createProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-snapshot.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
@@ -55,6 +56,13 @@ export async function saveDefaultSiteService(input: unknown): Promise<ProxyRunti
             if (latest.revision !== parsed.baseRevision) {
                 throw new DefaultSiteError('configuration_conflict')
             }
+            createProxyRuntimeSnapshot(
+                latest.proxyHosts.map((host) => Object.assign({ enabled: true }, host)),
+                latest.httpSettings,
+                latest.trustedCas,
+                latest.redirectHosts.map((host) => Object.assign({ enabled: true }, host)),
+                parsed.settings,
+            )
             await writeDefaultSiteSettings(transaction, parsed.settings)
             await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,
