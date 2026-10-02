@@ -55,7 +55,7 @@ describe('GeoIP release download', () => {
 
     test('rejects corrupted bytes even when the asset size matches', async () => {
         const corrupted = database.slice()
-        corrupted[0] ^= 1
+        corrupted[0] = corrupted[0]! ^ 1
         await expect(
             downloadGeoip(async (url) =>
                 url.endsWith('/latest')
