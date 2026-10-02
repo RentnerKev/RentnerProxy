@@ -1,6 +1,7 @@
 // oxlint-disable no-await-in-loop -- Fault injection, recovery probes and lifecycle changes depend on the preceding step.
 import assert from 'node:assert/strict'
 import { dockerBuildDiagnostic } from '../docker-build-diagnostics.ts'
+import { pebbleFailureCategories } from './diagnostics.ts'
 import { randomBytes } from 'node:crypto'
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -20,6 +21,7 @@ export class ReliabilityError extends Error {
     }
 }
 export type CommandOptions = {
+    diagnostic?: 'pebble-problems'
     timeoutMs?: number
     stdin?: string
     env?: Record<string, string>
@@ -77,6 +79,11 @@ export async function command(args: string[], options: CommandOptions = {}): Pro
             new Response(child.stdout).text(),
             new Response(child.stderr).text(),
         ])
+        if (options.diagnostic === 'pebble-problems')
+            console.error(
+                'Pebble failure categories: ' +
+                    JSON.stringify(pebbleFailureCategories(stdout + '\n' + stderr)),
+            )
         if (timedOut) throw new ReliabilityError('timeout', 'bounded command timed out')
         if (code !== 0 && !options.acceptableExitCodes?.includes(code)) {
             if (args[0] === 'docker' && args[1] === 'build')

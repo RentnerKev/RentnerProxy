@@ -184,8 +184,10 @@ Forward Auth with combined IP restrictions, TLS/HTTP3, ACME issuance/renewal
 and a durable certificate-binding retry, plus a
 20-row NPM import and identical-source retry. An unavailable Caddy Admin socket must preserve the
 last verified routes on a failed apply. The fixture briefly pauses its own web process to prevent
-automatic background retries from racing that checkpoint; the fixture command stops its reconciler
-after the failed attempt. The web process is resumed in a finally block. Appliance restart must
+automatic background retries from racing that checkpoint. For this one fault probe the fixture
+stops its own reconciler before mutation, asserts a pending response and makes one explicit apply
+through the normal controller client, which must fail. Normal concurrent rounds use the production
+reconciler unchanged. The web process is resumed in a finally block. Appliance restart must
 apply the pending intent without losing IDs or import
 history. Deletion removes a subset and checks their absent routes.
 

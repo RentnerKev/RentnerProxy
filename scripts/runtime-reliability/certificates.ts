@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { z } from 'zod'
 import { assertHttp3Response, requestHttp3Client } from '../http3-client'
 import { ReliabilityError, type ReliabilityContext } from './harness'
+import { certificateFailureDetails } from './diagnostics.ts'
 
 const metadataSchema = z.object({
     status: z.string(),
@@ -38,15 +39,33 @@ async function metadata(context: ReliabilityContext, id: string): Promise<Certif
 
 async function idleCertificate(context: ReliabilityContext, id: string, label: string) {
     let result: CertificateMetadata | undefined
+    const stages: string[] = []
     await context.waitFor(
         async () => {
             result = await metadata(context, id)
+            const stage = result.currentOperation?.stage
+            if (stage && stages.at(-1) !== stage && stages.length < 32) stages.push(stage)
             return result.operation === 'idle'
         },
         label,
         120_000,
     )
     assert.ok(result)
+    if (result.status === 'failed') {
+        const details = certificateFailureDetails(result, stages)
+        console.error('Certificate failure: ' + JSON.stringify(details))
+        try {
+            await context.docker(['logs', '--tail', '100', context.pebble], {
+                diagnostic: 'pebble-problems',
+            })
+        } catch {
+            /* Diagnostics do not replace the original failure. */
+        }
+        throw new ReliabilityError(
+            'assertion',
+            'Certificate operation failed [' + details.errorCode + '/' + details.stage + ']',
+        )
+    }
     return result
 }
 

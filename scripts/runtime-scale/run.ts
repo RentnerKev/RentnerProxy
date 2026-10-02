@@ -421,7 +421,10 @@ async function main() {
             const pending = await context.fixture('proxy-update', {
                 secondaryPort: harness.secondaryPort,
                 resetTls: true,
+                interruptedApply: true,
             })
+            assert.equal(pending.mutationStatus, 'pending')
+            assert.equal(pending.interruptedApplyObserved, true)
             pendingRevision = pending.desiredRevision
             const interrupted = await context.controller('/internal/v1/proxy/status')
             assert.equal(

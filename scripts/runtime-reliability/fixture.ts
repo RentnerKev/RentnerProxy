@@ -48,6 +48,7 @@ export const commandSchema = z.strictObject({
     seed: z.number().int().min(0).max(0xffffffff).default(70),
     trustedUpstreamPort: z.number().int().min(1).max(65535).optional(),
     resetTls: z.boolean().default(false),
+    interruptedApply: z.boolean().default(false),
     certificateDomain: z
         .string()
         .max(253)
@@ -310,6 +311,8 @@ const safeCodes = new Set<string>([
     'forward_auth_not_prepared',
     'oversized_input',
     'fixture_owner_unavailable',
+    'interrupted_apply_not_observed',
+    'invalid_interrupted_phase',
 ])
 function safeErrorCode(error: unknown): string {
     if (error instanceof z.ZodError || error instanceof SyntaxError) return 'invalid_input'
@@ -409,6 +412,10 @@ export async function executeCoreFixture(
     } = context
     let mutationStatus: 'applied' | 'pending' | undefined
     let detail: Record<string, unknown> = {}
+    if (command.interruptedApply) {
+        if (command.phase !== 'proxy-update') throw new Error('invalid_interrupted_phase')
+        await runtime.stopProxyRuntimeReconciliation()
+    }
     switch (command.phase) {
         case 'prepare': {
             const existingHosts = await authorized(hosts.getProxyHostsService)
@@ -478,6 +485,14 @@ export async function executeCoreFixture(
                     }),
                 )
             ).runtimeStatus
+            if (command.interruptedApply) {
+                const { applyProxyRuntimeConfiguration } =
+                    await import('../../web/src/server/Foundation/controller.server.ts')
+                const snapshot = await runtime.getProxyRuntimeSnapshotService()
+                const applied = await applyProxyRuntimeConfiguration(snapshot)
+                if (applied !== null) throw new Error('interrupted_apply_not_observed')
+                detail.interruptedApplyObserved = true
+            }
             break
         case 'proxy-disable':
             mutationStatus = (
