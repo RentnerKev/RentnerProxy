@@ -29,4 +29,13 @@ describe('Docker build diagnostics', () => {
         expect(isDockerBuildDiagnostic('Docker build diagnostic: disk-space secret')).toBeFalse()
         expect(isDockerBuildDiagnostic('Docker build diagnostic: unknown\nprivate')).toBeFalse()
     })
+
+    test('does not mistake a source line or progress counter for a registry rate limit', () => {
+        expect(dockerBuildDiagnostic('module.ts(429,1): error TS2307: Cannot find module')).toBe(
+            'Docker build diagnostic: source-import',
+        )
+        expect(dockerBuildDiagnostic('Build stopped after 429 seconds')).toBe(
+            'Docker build diagnostic: unknown',
+        )
+    })
 })

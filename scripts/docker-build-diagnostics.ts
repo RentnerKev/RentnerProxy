@@ -1,5 +1,5 @@
 const buildFailureCategories = [
-    ['registry-rate-limit', /too\s*many\s*requests|pull rate limit|\b429\b/iu],
+    ['registry-rate-limit', /too\s*many\s*requests|pull rate limit/iu],
     ['disk-space', /no space left on device|\bENOSPC\b/iu],
     ['memory', /out of memory|cannot allocate memory|exit code:?\s*137\b/iu],
     ['source-import', /could not resolve|cannot find module|\bTS(?:2307|6053)\b/iu],
