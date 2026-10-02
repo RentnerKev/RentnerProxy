@@ -2347,7 +2347,8 @@
             "crowdsec": "CrowdSec",
             "system_appearance": "System appearance",
             "audit-logs": "Audit log",
-            "system": "System"
+            "system": "System",
+            "default_site": "Default site"
         },
         "app": {
             "access": "Application access"
@@ -2423,6 +2424,10 @@
             "create": "Import trusted CAs",
             "update": "Replace trusted CA bundles",
             "delete": "Delete unused trusted CAs"
+        },
+        "default_site": {
+            "view": "View default site settings",
+            "update": "Update default site settings"
         }
     },
     "systemRoles": {
@@ -2524,6 +2529,48 @@
             "hue": "Hue",
             "selectColor": "Select color",
             "presetColor": "Use {{color}}"
+        }
+    },
+    "defaultSite": {
+        "title": "Default site",
+        "description": "Choose the response for an IP address or hostname without a matching proxy or redirect host.",
+        "current": "Saved mode",
+        "mode": "Response mode",
+        "url": "Redirect URL",
+        "html": "HTML source",
+        "loading": "Loading default site…",
+        "reload": "Reload saved settings (discard draft)",
+        "dirty": "Unsaved changes",
+        "clean": "No unsaved changes",
+        "readOnly": "Editing requires default-site update and proxy apply permissions.",
+        "saved": "Default site saved and applied.",
+        "pending": "Settings saved. Runtime application is pending because the proxy runtime is unavailable.",
+        "savedPending": "Settings saved. Runtime application is pending because the proxy runtime is unavailable.",
+        "redirectHint": "Fixed absolute HTTP(S) destination, sent with status 302. The incoming URI is not appended.",
+        "htmlHint": "Maximum 256 KiB in UTF-8. HTML is served as a sandboxed page; scripts and forms are disabled.",
+        "htmlBytes": "{{bytes}} / {{max}} UTF-8 bytes",
+        "tlsHint": "IP addresses and unknown hosts work over HTTP. HTTPS requires a successful TLS handshake with a suitable configured certificate and SNI. This setting does not issue certificates.",
+        "modes": {
+            "not-found": "404 Not found (default)",
+            "welcome": "Welcome page",
+            "close": "Close connection",
+            "redirect": "Redirect",
+            "custom-html": "Custom HTML"
+        },
+        "errors": {
+            "conflict": "Settings changed elsewhere. Reload the saved settings before trying again.",
+            "loadFailed": "Could not load the default site.",
+            "saveFailed": "Could not save the default site.",
+            "invalidSettings": "Choose valid default-site settings.",
+            "invalidUrl": "Enter an absolute HTTP(S) URL without credentials.",
+            "invalidHtml": "Enter nonempty, valid HTML without NUL characters, at most 256 KiB in UTF-8."
+        }
+    },
+    "operations": {
+        "page": {
+            "eyebrow": "System-wide administration",
+            "title": "Operations",
+            "description": "Configure the default response for the server IP and unmatched hostnames."
         }
     }
 }

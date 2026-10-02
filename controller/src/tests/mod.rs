@@ -1,6 +1,8 @@
 mod acme;
 mod certificates;
 mod config;
+mod default_site;
+mod default_site_caddy;
 pub(crate) mod fixtures;
 mod proxy;
 mod proxy_validation;

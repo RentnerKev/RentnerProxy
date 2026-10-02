@@ -2347,7 +2347,8 @@
             "crowdsec": "CrowdSec",
             "system_appearance": "Apariencia del sistema",
             "audit-logs": "Registro de auditoría",
-            "system": "Sistema"
+            "system": "Sistema",
+            "default_site": "Sitio predeterminado"
         },
         "app": {
             "access": "Acceso a la aplicación"
@@ -2423,6 +2424,10 @@
             "create": "Importar CA de confianza",
             "update": "Sustituir paquetes de CA de confianza",
             "delete": "Eliminar CA de confianza sin uso"
+        },
+        "default_site": {
+            "view": "Ver los ajustes del sitio predeterminado",
+            "update": "Actualizar los ajustes del sitio predeterminado"
         }
     },
     "systemRoles": {
@@ -2524,6 +2529,48 @@
             "hue": "Tono",
             "selectColor": "Seleccionar color",
             "presetColor": "Usar {{color}}"
+        }
+    },
+    "defaultSite": {
+        "title": "Sitio predeterminado",
+        "description": "Elige la respuesta para una dirección IP o un nombre de host sin un host de proxy o redirección coincidente.",
+        "current": "Modo guardado",
+        "mode": "Modo de respuesta",
+        "url": "URL de redirección",
+        "html": "Código HTML",
+        "loading": "Cargando el sitio predeterminado…",
+        "reload": "Volver a cargar los ajustes guardados (descartar borrador)",
+        "dirty": "Cambios sin guardar",
+        "clean": "No hay cambios sin guardar",
+        "readOnly": "Para editar se necesitan permisos para actualizar el sitio predeterminado y aplicar la configuración del proxy.",
+        "saved": "Sitio predeterminado guardado y aplicado.",
+        "pending": "Ajustes guardados. La aplicación está pendiente porque el sistema del proxy no está disponible.",
+        "savedPending": "Ajustes guardados. La aplicación está pendiente porque el sistema del proxy no está disponible.",
+        "redirectHint": "Destino HTTP(S) absoluto fijo, enviado con el estado 302. La URI entrante no se añade.",
+        "htmlHint": "Máximo de 256 KiB en UTF-8. El HTML se sirve en una página aislada; los scripts y formularios están desactivados.",
+        "htmlBytes": "{{bytes}} / {{max}} bytes UTF-8",
+        "tlsHint": "Las direcciones IP y los hosts desconocidos funcionan por HTTP. HTTPS requiere un protocolo de enlace TLS correcto con un certificado configurado adecuado y SNI. Este ajuste no emite certificados.",
+        "modes": {
+            "not-found": "404 No encontrado (predeterminado)",
+            "welcome": "Página de bienvenida",
+            "close": "Cerrar conexión",
+            "redirect": "Redirección",
+            "custom-html": "HTML personalizado"
+        },
+        "errors": {
+            "conflict": "Los ajustes cambiaron en otro lugar. Vuelve a cargar los ajustes guardados antes de intentarlo de nuevo.",
+            "loadFailed": "No se pudo cargar el sitio predeterminado.",
+            "saveFailed": "No se pudo guardar el sitio predeterminado.",
+            "invalidSettings": "Elige unos ajustes válidos para el sitio predeterminado.",
+            "invalidUrl": "Introduce una URL HTTP(S) absoluta sin credenciales.",
+            "invalidHtml": "Introduce HTML válido y no vacío, sin caracteres NUL y con un máximo de 256 KiB en UTF-8."
+        }
+    },
+    "operations": {
+        "page": {
+            "eyebrow": "Administración del sistema",
+            "title": "Operations",
+            "description": "Configura la respuesta predeterminada para la IP del servidor y los nombres de host sin coincidencia."
         }
     }
 }

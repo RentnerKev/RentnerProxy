@@ -2,6 +2,8 @@
 import '@tanstack/react-start/server-only'
 
 import { z } from 'zod'
+import { normalizeDefaultSiteSettings } from '@/lib/DefaultSite/defaultSite.ts'
+import type { DefaultSiteSettings } from '@/shared/Types/default-site.types.ts'
 import {
     ACCESS_POLICY_COMBINATIONS,
     ACCESS_POLICY_MODES,
@@ -211,6 +213,7 @@ export function createProxyRuntimeSnapshot(
     httpSettings: ProxyHttpSettings = {},
     trustedCas: ReadonlyArray<ProxyRuntimeTrustedCa> = [],
     redirects: ReadonlyArray<RedirectRuntimeHost & { readonly enabled: boolean }> = [],
+    defaultSite: DefaultSiteSettings = { mode: 'not-found' },
 ): ProxyRuntimeSnapshot {
     const enabledHosts = hosts.filter((host) => host.enabled)
     const enabledRedirects = redirects.filter((host) => host.enabled)
@@ -350,12 +353,16 @@ export function createProxyRuntimeSnapshot(
 
         return { id, pem: parsed.pem, fingerprintSha256: parsed.fingerprintSha256 }
     })
+    const normalizedDefaultSite = normalizeDefaultSiteSettings(defaultSite)
     const snapshot = {
         version: 7,
         proxyHosts,
         redirectHosts,
         httpSettings: normalizedSettings,
         trustedCas: referencedCas,
+        ...(normalizedDefaultSite.mode === 'not-found'
+            ? {}
+            : { defaultSite: normalizedDefaultSite }),
     } as const
     const canonical = JSON.stringify(snapshot)
 

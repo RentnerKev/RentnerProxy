@@ -432,6 +432,7 @@ fn upstream_configuration(ca: TrustedCa) -> ValidatedProxyConfig {
         redirect_hosts: vec![],
         http_settings: settings,
         trusted_cas: vec![ca],
+        default_site: crate::models::DefaultSite::default(),
     })
     .unwrap()
 }
@@ -541,6 +542,67 @@ async fn restart_restores_verified_ip_rules_routes() {
             .0
             .contains("203.0.113.0/24")
     );
+    restarted.shutdown().await;
+}
+
+#[tokio::test]
+async fn default_site_custom_html_is_persisted_and_restored_after_restart() {
+    let (runtime, settings) = runtime(Some(FakeCaddy::new()));
+    runtime.initialize().await;
+    let mut configuration = configuration(4_000);
+    let html = r#"<style>p{color:red}</style><p>{env.SECRET}\literal</p>"#;
+    configuration.default_site = crate::models::DefaultSite::CustomHtml {
+        html: html.to_owned(),
+    };
+    configuration.revision = crate::proxy::revision_for_full_configuration(
+        &configuration.proxy_hosts,
+        &configuration.redirect_hosts,
+        &configuration.http_settings,
+        &configuration.trusted_cas,
+        &configuration.default_site,
+    );
+    runtime.apply(configuration.clone()).await.unwrap();
+    let snapshot: ProxyConfigRequest = serde_json::from_slice(
+        &std::fs::read(settings.state_dir.join("active-proxy-snapshot.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(snapshot.default_site, configuration.default_site);
+    assert_eq!(validate_proxy_config(snapshot).unwrap(), configuration);
+    let active = runtime.active_config().await.unwrap();
+    runtime.shutdown().await;
+    let restarted = ProxyRuntime::new(settings, Some(FakeCaddy::new()));
+    restarted.initialize().await;
+    assert_eq!(restarted.active_config().await.unwrap(), active);
+    restarted.shutdown().await;
+}
+
+#[tokio::test]
+async fn default_site_revision_shaped_html_applies_and_restores_the_actual_revision() {
+    let (runtime, settings) = runtime(Some(FakeCaddy::new()));
+    runtime.initialize().await;
+    let mut configuration = configuration(4_000);
+    let html = format!("sha256:{}\n", "a".repeat(64));
+    configuration.default_site = crate::models::DefaultSite::CustomHtml { html: html.clone() };
+    configuration.revision = crate::proxy::revision_for_full_configuration(
+        &configuration.proxy_hosts,
+        &configuration.redirect_hosts,
+        &configuration.http_settings,
+        &configuration.trusted_cas,
+        &configuration.default_site,
+    );
+    assert_ne!(configuration.revision, html.trim_end());
+    runtime.preview_config(&configuration).await.unwrap();
+    runtime.apply(configuration.clone()).await.unwrap();
+    let active = runtime.active_config().await.unwrap();
+    assert_eq!(active.1, Some(configuration.revision.clone()));
+    assert_eq!(
+        revision_from_config(&active.0),
+        Some(configuration.revision)
+    );
+    runtime.shutdown().await;
+    let restarted = ProxyRuntime::new(settings, Some(FakeCaddy::new()));
+    restarted.initialize().await;
+    assert_eq!(restarted.active_config().await.unwrap(), active);
     restarted.shutdown().await;
 }
 

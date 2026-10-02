@@ -44,7 +44,9 @@ pub(super) fn http_routes(
     for host in &config.redirect_hosts {
         routes.push(redirect_route(host)?);
     }
-    routes.push(not_found_route());
+    routes.push(super::default_site::default_site_route(
+        &config.default_site,
+    ));
     Ok(routes)
 }
 

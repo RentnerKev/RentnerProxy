@@ -2347,7 +2347,8 @@
             "crowdsec": "CrowdSec",
             "system_appearance": "Apparence du système",
             "audit-logs": "Journal d’audit",
-            "system": "Système"
+            "system": "Système",
+            "default_site": "Site par défaut"
         },
         "app": {
             "access": "Accès à l’application"
@@ -2423,6 +2424,10 @@
             "create": "Importer des AC de confiance",
             "update": "Remplacer les bundles d’AC de confiance",
             "delete": "Supprimer les AC de confiance inutilisées"
+        },
+        "default_site": {
+            "view": "Voir les paramètres du site par défaut",
+            "update": "Modifier les paramètres du site par défaut"
         }
     },
     "systemRoles": {
@@ -2524,6 +2529,48 @@
             "hue": "Teinte",
             "selectColor": "Sélectionner une couleur",
             "presetColor": "Utiliser {{color}}"
+        }
+    },
+    "defaultSite": {
+        "title": "Site par défaut",
+        "description": "Choisissez la réponse pour une adresse IP ou un nom d’hôte sans hôte proxy ni hôte de redirection correspondant.",
+        "current": "Mode enregistré",
+        "mode": "Mode de réponse",
+        "url": "URL de redirection",
+        "html": "Code HTML",
+        "loading": "Chargement du site par défaut…",
+        "reload": "Recharger les paramètres enregistrés (abandonner le brouillon)",
+        "dirty": "Modifications non enregistrées",
+        "clean": "Aucune modification non enregistrée",
+        "readOnly": "La modification nécessite les autorisations de mise à jour du site par défaut et d’application de la configuration du proxy.",
+        "saved": "Site par défaut enregistré et appliqué.",
+        "pending": "Paramètres enregistrés. Leur application est en attente car le service proxy est indisponible.",
+        "savedPending": "Paramètres enregistrés. Leur application est en attente car le service proxy est indisponible.",
+        "redirectHint": "Destination HTTP(S) absolue fixe, envoyée avec le statut 302. L’URI entrante n’est pas ajoutée.",
+        "htmlHint": "Maximum de 256 Kio en UTF-8. Le HTML est servi dans une page isolée ; les scripts et les formulaires sont désactivés.",
+        "htmlBytes": "{{bytes}} / {{max}} octets UTF-8",
+        "tlsHint": "Les adresses IP et les hôtes inconnus fonctionnent en HTTP. HTTPS exige une négociation TLS réussie avec un certificat configuré adapté et SNI. Ce paramètre ne délivre pas de certificats.",
+        "modes": {
+            "not-found": "404 Introuvable (par défaut)",
+            "welcome": "Page de bienvenue",
+            "close": "Fermer la connexion",
+            "redirect": "Redirection",
+            "custom-html": "HTML personnalisé"
+        },
+        "errors": {
+            "conflict": "Les paramètres ont été modifiés ailleurs. Rechargez les paramètres enregistrés avant de réessayer.",
+            "loadFailed": "Impossible de charger le site par défaut.",
+            "saveFailed": "Impossible d’enregistrer le site par défaut.",
+            "invalidSettings": "Choisissez des paramètres valides pour le site par défaut.",
+            "invalidUrl": "Saisissez une URL HTTP(S) absolue sans identifiants.",
+            "invalidHtml": "Saisissez un code HTML valide et non vide, sans caractère NUL, de 256 Kio maximum en UTF-8."
+        }
+    },
+    "operations": {
+        "page": {
+            "eyebrow": "Administration du système",
+            "title": "Operations",
+            "description": "Configurez la réponse par défaut pour l’adresse IP du serveur et les noms d’hôte sans correspondance."
         }
     }
 }

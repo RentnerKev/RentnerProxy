@@ -11,6 +11,14 @@ Choose the intended commit and check its CI, security analysis, and Production S
 Follow the [contribution checks](CONTRIBUTING.md#testing-policy) and the applicable release-gate
 issue; the [Beta 1 gate](https://github.com/RentnerKev/RentnerProxy/issues/75) is still planned work.
 Review installation, upgrade, recovery, and known limitations for the chosen version.
+For Beta 1, include [Default Site #152](https://github.com/RentnerKev/RentnerProxy/issues/152)
+in the [security review #72](https://github.com/RentnerKev/RentnerProxy/issues/72),
+[UX/accessibility review #74](https://github.com/RentnerKev/RentnerProxy/issues/74), and
+[release preparation #75](https://github.com/RentnerKev/RentnerProxy/issues/75).
+Verify administrator permissions, literal HTML and sandbox headers, IP/unknown-host behavior,
+matched-route precedence, close/redirect behavior, restart and appliance backup/restore, and the
+documented HTTPS/SNI limitations on the intended release image. Include its default 404 behavior,
+custom HTML limits, and HTTPS limitations in release notes. This feature needs no schema migration.
 The Valkey migration is a breaking deployment change tracked by #148. Verify the required
 `RENTNERPROXY_IMAGE` Compose selector, the development `REDIS_URL` to `VALKEY_URL` rename, the
 Foundation health response's `redis` to `valkey` field change, and

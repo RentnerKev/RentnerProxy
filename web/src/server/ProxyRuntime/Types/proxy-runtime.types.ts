@@ -2,6 +2,7 @@ import type { ProxyHostForwardScheme } from '@/shared/Types/proxy-hosts-config.t
 import type { RedirectHostStatusCode } from '@/shared/Types/redirect-hosts-config.types.ts'
 import type { ProxyHttpSettings } from '@/shared/Types/proxy-runtime.types.ts'
 import type { ProxyHostAccessPolicy } from '@/shared/Types/proxy-hosts.types.ts'
+import type { DefaultSiteSettings } from '@/shared/Types/default-site.types.ts'
 
 export type ProxyHostHttpSettings = Pick<
     ProxyHttpSettings,
@@ -52,6 +53,7 @@ export interface ProxyRuntimeSnapshot {
     readonly redirectHosts: ReadonlyArray<RedirectRuntimeHost>
     readonly httpSettings: ProxyHttpSettings
     readonly trustedCas: ReadonlyArray<ProxyRuntimeTrustedCa>
+    readonly defaultSite?: DefaultSiteSettings
 }
 
 export interface ProxyRuntimeApplyResponse {

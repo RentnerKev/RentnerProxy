@@ -39,6 +39,7 @@ pub(super) fn request_with_settings(
         redirect_hosts: Vec::new(),
         http_settings,
         trusted_cas: Vec::new(),
+        default_site: crate::models::DefaultSite::default(),
     }
 }
 

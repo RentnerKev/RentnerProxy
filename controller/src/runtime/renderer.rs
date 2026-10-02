@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 mod config;
+mod default_site;
 mod model;
 mod policy;
 mod proxy;

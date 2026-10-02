@@ -2347,7 +2347,8 @@
             "crowdsec": "CrowdSec",
             "system_appearance": "Systemdarstellung",
             "audit-logs": "Audit-Protokoll",
-            "system": "System"
+            "system": "System",
+            "default_site": "Standardseite"
         },
         "app": {
             "access": "Anwendungszugriff"
@@ -2423,6 +2424,10 @@
             "create": "Vertrauenswürdige CAs importieren",
             "update": "Vertrauenswürdige CA-Bundles ersetzen",
             "delete": "Ungenutzte vertrauenswürdige CAs löschen"
+        },
+        "default_site": {
+            "view": "Einstellungen der Standardseite anzeigen",
+            "update": "Einstellungen der Standardseite aktualisieren"
         }
     },
     "systemRoles": {
@@ -2524,6 +2529,48 @@
             "hue": "Farbton",
             "selectColor": "Farbe auswählen",
             "presetColor": "{{color}} verwenden"
+        }
+    },
+    "defaultSite": {
+        "title": "Standardseite",
+        "description": "Wähle die Antwort für eine IP-Adresse oder einen Hostnamen ohne passenden Proxy- oder Weiterleitungshost.",
+        "current": "Gespeicherter Modus",
+        "mode": "Antwortmodus",
+        "url": "Weiterleitungs-URL",
+        "html": "HTML-Quelltext",
+        "loading": "Standardseite wird geladen…",
+        "reload": "Gespeicherte Einstellungen laden (Entwurf verwerfen)",
+        "dirty": "Ungespeicherte Änderungen",
+        "clean": "Keine ungespeicherten Änderungen",
+        "readOnly": "Zum Bearbeiten werden die Rechte zum Ändern der Standardseite und Anwenden der Proxy-Konfiguration benötigt.",
+        "saved": "Standardseite gespeichert und angewendet.",
+        "pending": "Einstellungen gespeichert. Die Anwendung wartet, weil die Proxy-Laufzeit nicht erreichbar ist.",
+        "savedPending": "Einstellungen gespeichert. Die Anwendung wartet, weil die Proxy-Laufzeit nicht erreichbar ist.",
+        "redirectHint": "Festes absolutes HTTP(S)-Ziel mit Status 302. Die eingehende URI wird nicht angehängt.",
+        "htmlHint": "Maximal 256 KiB in UTF-8. HTML wird als Sandbox-Seite ausgeliefert; Skripte und Formulare sind deaktiviert.",
+        "htmlBytes": "{{bytes}} / {{max}} UTF-8-Bytes",
+        "tlsHint": "IP-Adressen und unbekannte Hosts funktionieren über HTTP. HTTPS setzt einen erfolgreichen TLS-Handshake mit einem geeigneten konfigurierten Zertifikat und SNI voraus. Diese Einstellung stellt keine Zertifikate aus.",
+        "modes": {
+            "not-found": "404 Nicht gefunden (Standard)",
+            "welcome": "Willkommensseite",
+            "close": "Verbindung schließen",
+            "redirect": "Weiterleitung",
+            "custom-html": "Eigenes HTML"
+        },
+        "errors": {
+            "conflict": "Die Einstellungen wurden anderswo geändert. Lade vor dem nächsten Versuch die gespeicherten Einstellungen neu.",
+            "loadFailed": "Die Standardseite konnte nicht geladen werden.",
+            "saveFailed": "Die Standardseite konnte nicht gespeichert werden.",
+            "invalidSettings": "Wähle gültige Einstellungen für die Standardseite.",
+            "invalidUrl": "Gib eine absolute HTTP(S)-URL ohne Zugangsdaten ein.",
+            "invalidHtml": "Gib nichtleeres, gültiges HTML ohne NUL-Zeichen mit höchstens 256 KiB in UTF-8 ein."
+        }
+    },
+    "operations": {
+        "page": {
+            "eyebrow": "Systemweite Verwaltung",
+            "title": "Operations",
+            "description": "Konfiguriere die Standardantwort für die Server-IP und nicht zugeordnete Hostnamen."
         }
     }
 }

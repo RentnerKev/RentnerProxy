@@ -138,6 +138,20 @@ It sends a database-derived snapshot to the controller, requires the returned
 active revision to match, then checks the latest desired revision. A periodic drift
 check queues another apply when the controller does not match the desired snapshot.
 
+Default Site settings live in the existing PostgreSQL `system_settings` row keyed by
+`default_site_v1`. Dedicated view/update permissions protect the Operations page and editor; a save also
+requires proxy apply permission, repeats authorization inside the transaction, and uses the
+global runtime-settings lock and base revision to reject stale edits. Saves enter the existing
+audit and reconciliation path. The independent row cannot be erased by HTTP editor saves or resets.
+
+The typed version 7 snapshot adds `defaultSite` after `trustedCas` only for a non-404 choice.
+Omitting the default preserves existing canonical bytes and recovery revisions. Both producers
+validate mode payloads, redirect destinations and HTML size. The controller persists the field
+and appends its terminal Caddy route after configured hosts and redirects on each existing public
+listener; the private probe retains its own 404 route. Custom HTML escapes Caddy placeholder
+delimiters, carries a sandboxed CSP, and stays literal source in the management editor. TLS
+certificate selection, strict SNI/Host checks and certificate issuance are unchanged.
+
 ### CrowdSec control and enforcement
 
 PostgreSQL stores the desired CrowdSec mode, managed community opt-in, and an encrypted external bouncer credential. The

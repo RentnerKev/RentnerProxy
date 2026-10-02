@@ -6,6 +6,7 @@ import {
     ClipboardList,
     KeyRound,
     LayoutDashboard,
+    Settings2,
     Network,
     Import,
     ScrollText,
@@ -137,6 +138,12 @@ export default function ApplicationNavigation({
                                         />
                                     ) : item.to === '/security' ? (
                                         <ShieldAlert
+                                            aria-hidden="true"
+                                            className="size-4 shrink-0"
+                                            strokeWidth={1.8}
+                                        />
+                                    ) : item.to === '/operations' ? (
+                                        <Settings2
                                             aria-hidden="true"
                                             className="size-4 shrink-0"
                                             strokeWidth={1.8}

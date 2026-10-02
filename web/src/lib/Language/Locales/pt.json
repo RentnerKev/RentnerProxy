@@ -2373,7 +2373,8 @@
             "crowdsec": "CrowdSec",
             "system_appearance": "Aspeto do sistema",
             "audit-logs": "Registo de auditoria",
-            "system": "Sistema"
+            "system": "Sistema",
+            "default_site": "Site predefinido"
         },
         "app": {
             "access": "Acesso à aplicação"
@@ -2449,6 +2450,10 @@
             "create": "Importar ACs fidedignas",
             "update": "Substituir conjuntos de ACs fidedignas",
             "delete": "Eliminar ACs fidedignas não utilizadas"
+        },
+        "default_site": {
+            "view": "Ver as definições do site predefinido",
+            "update": "Atualizar as definições do site predefinido"
         }
     },
     "systemRoles": {
@@ -2550,6 +2555,48 @@
             "hue": "Matiz",
             "selectColor": "Selecionar cor",
             "presetColor": "Usar {{color}}"
+        }
+    },
+    "defaultSite": {
+        "title": "Site predefinido",
+        "description": "Escolha a resposta para um endereço IP ou nome de anfitrião sem um anfitrião proxy ou de redirecionamento correspondente.",
+        "current": "Modo guardado",
+        "mode": "Modo de resposta",
+        "url": "URL de redirecionamento",
+        "html": "Código HTML",
+        "loading": "A carregar o site predefinido…",
+        "reload": "Recarregar as definições guardadas (descartar rascunho)",
+        "dirty": "Alterações por guardar",
+        "clean": "Sem alterações por guardar",
+        "readOnly": "A edição requer permissões para atualizar o site predefinido e aplicar a configuração do proxy.",
+        "saved": "Site predefinido guardado e aplicado.",
+        "pending": "Definições guardadas. A aplicação está pendente porque o runtime do proxy não está disponível.",
+        "savedPending": "Definições guardadas. A aplicação está pendente porque o runtime do proxy não está disponível.",
+        "redirectHint": "Destino HTTP(S) absoluto fixo, enviado com o estado 302. O URI recebido não é acrescentado.",
+        "htmlHint": "Máximo de 256 KiB em UTF-8. O HTML é servido numa página isolada; os scripts e formulários estão desativados.",
+        "htmlBytes": "{{bytes}} / {{max}} bytes UTF-8",
+        "tlsHint": "Os endereços IP e anfitriões desconhecidos funcionam por HTTP. HTTPS requer um handshake TLS bem-sucedido com um certificado configurado adequado e SNI. Esta definição não emite certificados.",
+        "modes": {
+            "not-found": "404 Não encontrado (predefinido)",
+            "welcome": "Página de boas-vindas",
+            "close": "Fechar ligação",
+            "redirect": "Redirecionamento",
+            "custom-html": "HTML personalizado"
+        },
+        "errors": {
+            "conflict": "As definições foram alteradas noutro local. Recarregue as definições guardadas antes de tentar novamente.",
+            "loadFailed": "Não foi possível carregar o site predefinido.",
+            "saveFailed": "Não foi possível guardar o site predefinido.",
+            "invalidSettings": "Escolha definições válidas para o site predefinido.",
+            "invalidUrl": "Introduza um URL HTTP(S) absoluto sem credenciais.",
+            "invalidHtml": "Introduza HTML válido e não vazio, sem caracteres NUL, até 256 KiB em UTF-8."
+        }
+    },
+    "operations": {
+        "page": {
+            "eyebrow": "Administração do sistema",
+            "title": "Operations",
+            "description": "Configure a resposta predefinida para o endereço IP do servidor e nomes de anfitrião sem correspondência."
         }
     }
 }

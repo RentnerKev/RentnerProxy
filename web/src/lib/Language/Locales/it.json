@@ -2360,7 +2360,8 @@
             "crowdsec": "CrowdSec",
             "system_appearance": "Aspetto del sistema",
             "audit-logs": "Registro di audit",
-            "system": "Sistema"
+            "system": "Sistema",
+            "default_site": "Sito predefinito"
         },
         "app": {
             "access": "Accesso all’applicazione"
@@ -2436,6 +2437,10 @@
             "create": "Importare CA attendibili",
             "update": "Sostituire i bundle di CA attendibili",
             "delete": "Eliminare CA attendibili inutilizzate"
+        },
+        "default_site": {
+            "view": "Visualizzare le impostazioni del sito predefinito",
+            "update": "Aggiornare le impostazioni del sito predefinito"
         }
     },
     "systemRoles": {
@@ -2537,6 +2542,48 @@
             "hue": "Tonalità",
             "selectColor": "Seleziona colore",
             "presetColor": "Usa {{color}}"
+        }
+    },
+    "defaultSite": {
+        "title": "Sito predefinito",
+        "description": "Scegli la risposta per un indirizzo IP o un nome host senza un host proxy o di reindirizzamento corrispondente.",
+        "current": "Modalità salvata",
+        "mode": "Modalità di risposta",
+        "url": "URL di reindirizzamento",
+        "html": "Sorgente HTML",
+        "loading": "Caricamento del sito predefinito…",
+        "reload": "Ricarica le impostazioni salvate (scarta la bozza)",
+        "dirty": "Modifiche non salvate",
+        "clean": "Nessuna modifica non salvata",
+        "readOnly": "Per modificare servono i permessi per aggiornare il sito predefinito e applicare la configurazione del proxy.",
+        "saved": "Sito predefinito salvato e applicato.",
+        "pending": "Impostazioni salvate. L’applicazione è in attesa perché il runtime del proxy non è disponibile.",
+        "savedPending": "Impostazioni salvate. L’applicazione è in attesa perché il runtime del proxy non è disponibile.",
+        "redirectHint": "Destinazione HTTP(S) assoluta fissa, inviata con stato 302. L’URI in ingresso non viene aggiunto.",
+        "htmlHint": "Massimo 256 KiB in UTF-8. L’HTML viene servito in una pagina isolata; script e moduli sono disabilitati.",
+        "htmlBytes": "{{bytes}} / {{max}} byte UTF-8",
+        "tlsHint": "Gli indirizzi IP e gli host sconosciuti funzionano tramite HTTP. HTTPS richiede un handshake TLS riuscito con un certificato configurato idoneo e SNI. Questa impostazione non emette certificati.",
+        "modes": {
+            "not-found": "404 Non trovato (predefinito)",
+            "welcome": "Pagina di benvenuto",
+            "close": "Chiudi connessione",
+            "redirect": "Reindirizzamento",
+            "custom-html": "HTML personalizzato"
+        },
+        "errors": {
+            "conflict": "Le impostazioni sono state modificate altrove. Ricarica le impostazioni salvate prima di riprovare.",
+            "loadFailed": "Impossibile caricare il sito predefinito.",
+            "saveFailed": "Impossibile salvare il sito predefinito.",
+            "invalidSettings": "Scegli impostazioni valide per il sito predefinito.",
+            "invalidUrl": "Inserisci un URL HTTP(S) assoluto senza credenziali.",
+            "invalidHtml": "Inserisci HTML valido e non vuoto, senza caratteri NUL e di massimo 256 KiB in UTF-8."
+        }
+    },
+    "operations": {
+        "page": {
+            "eyebrow": "Amministrazione del sistema",
+            "title": "Operations",
+            "description": "Configura la risposta predefinita per l’indirizzo IP del server e i nomi host senza corrispondenza."
         }
     }
 }

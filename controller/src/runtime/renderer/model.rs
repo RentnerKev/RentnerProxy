@@ -166,6 +166,13 @@ pub(super) enum Handler {
     CrowdSec(CrowdSecHandler),
     #[serde(rename = "static_response")]
     ErrorResponse(ErrorResponse),
+    #[serde(rename = "static_response")]
+    AbortResponse(AbortResponse),
+}
+
+#[derive(Serialize)]
+pub(super) struct AbortResponse {
+    pub(super) abort: bool,
 }
 
 #[derive(Serialize)]

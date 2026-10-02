@@ -1,4 +1,4 @@
-use crate::models::{ProxyHost, ProxyHttpSettings, RedirectHost, TrustedCa};
+use crate::models::{DefaultSite, ProxyHost, ProxyHttpSettings, RedirectHost, TrustedCa};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -11,6 +11,8 @@ struct CanonicalSnapshot<'a> {
     redirect_hosts: Vec<RedirectHost>,
     http_settings: &'a ProxyHttpSettings,
     trusted_cas: Vec<TrustedCa>,
+    #[serde(skip_serializing_if = "DefaultSite::is_default")]
+    default_site: &'a DefaultSite,
 }
 
 #[cfg(test)]
@@ -35,11 +37,28 @@ pub(crate) fn revision_for_configuration_with_trusted_cas(
     revision_for_configuration_with_redirects(hosts, &[], http_settings, trusted_cas)
 }
 
+#[cfg(test)]
 pub(crate) fn revision_for_configuration_with_redirects(
     hosts: &[ProxyHost],
     redirect_hosts: &[RedirectHost],
     http_settings: &ProxyHttpSettings,
     trusted_cas: &[TrustedCa],
+) -> String {
+    revision_for_full_configuration(
+        hosts,
+        redirect_hosts,
+        http_settings,
+        trusted_cas,
+        &DefaultSite::default(),
+    )
+}
+
+pub(crate) fn revision_for_full_configuration(
+    hosts: &[ProxyHost],
+    redirect_hosts: &[RedirectHost],
+    http_settings: &ProxyHttpSettings,
+    trusted_cas: &[TrustedCa],
+    default_site: &DefaultSite,
 ) -> String {
     hash_snapshot(&CanonicalSnapshot {
         version: 7,
@@ -47,6 +66,7 @@ pub(crate) fn revision_for_configuration_with_redirects(
         redirect_hosts: canonical_redirect_hosts(redirect_hosts),
         http_settings,
         trusted_cas: canonical_trusted_cas(trusted_cas),
+        default_site,
     })
 }
 
@@ -67,12 +87,18 @@ pub(crate) fn revision_from_config(contents: &str) -> Option<String> {
         .apps?
         .http?
         .servers
-        .values()
-        .find_map(|server| find_revision(&server.routes))
+        .get("rentnerproxy-probe")
+        .and_then(|server| find_revision(&server.routes))
 }
 
 fn find_revision(routes: &[ProbeRoute]) -> Option<String> {
     for route in routes {
+        if !route.terminal
+            || route.matchers.len() != 1
+            || route.matchers[0].path != ["/__rentnerproxy_runtime_probe"]
+        {
+            continue;
+        }
         for handler in &route.handle {
             if handler.handler == "static_response"
                 && handler.status_code == Some(200)
@@ -87,9 +113,6 @@ fn find_revision(routes: &[ProbeRoute]) -> Option<String> {
                     .and_then(|body| body.strip_suffix('\n'))
                     .map(ToOwned::to_owned);
             }
-        }
-        if let Some(revision) = find_revision(&route.routes) {
-            return Some(revision);
         }
     }
     None
@@ -144,10 +167,18 @@ struct ProbeServer {
 
 #[derive(Deserialize)]
 struct ProbeRoute {
+    #[serde(default, rename = "match")]
+    matchers: Vec<ProbeMatcher>,
+    #[serde(default)]
+    terminal: bool,
     #[serde(default)]
     handle: Vec<ProbeHandler>,
+}
+
+#[derive(Deserialize)]
+struct ProbeMatcher {
     #[serde(default)]
-    routes: Vec<ProbeRoute>,
+    path: Vec<String>,
 }
 
 #[derive(Deserialize)]

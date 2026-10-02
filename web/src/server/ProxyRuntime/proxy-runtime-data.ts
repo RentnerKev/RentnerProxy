@@ -14,6 +14,7 @@ import {
 import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
 import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot.ts'
 import { readProxyHttpSettings, readProxyHostHttpSettingsMap } from './proxy-runtime-settings.ts'
+import { readDefaultSiteSettings } from '@/server/DefaultSite/default-site-settings.ts'
 import type {
     ProxyRuntimeHost,
     ProxyRuntimeSnapshot,
@@ -222,9 +223,13 @@ export async function readProxyRuntimeSnapshot(
         }
         if (row.domain !== null) redirect.domains.push(row.domain)
     }
-    return createProxyRuntimeSnapshot(configuredHosts, httpSettings, referencedCas, [
-        ...redirects.values(),
-    ])
+    return createProxyRuntimeSnapshot(
+        configuredHosts,
+        httpSettings,
+        referencedCas,
+        [...redirects.values()],
+        await readDefaultSiteSettings(transaction),
+    )
 }
 
 export async function readProxyRuntimeHost(

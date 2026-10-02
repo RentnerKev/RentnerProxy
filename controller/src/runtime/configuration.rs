@@ -35,6 +35,7 @@ impl ProxyRuntime {
             redirect_hosts: configuration.redirect_hosts.clone(),
             http_settings: configuration.http_settings.clone(),
             trusted_cas: configuration.trusted_cas.clone(),
+            default_site: configuration.default_site.clone(),
         };
         let bytes = serde_json::to_vec(&request).map_err(|_| RuntimeError::ApplyFailed)?;
         if bytes.len() > MAX_RENDERED_PROXY_CONFIG_BYTES {

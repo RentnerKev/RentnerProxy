@@ -38,6 +38,7 @@ export interface ApplicationNavigationItem {
     readonly label: string
     readonly to:
         | '/'
+        | '/operations'
         | '/proxy-hosts'
         | '/redirect-hosts'
         | '/certificates'

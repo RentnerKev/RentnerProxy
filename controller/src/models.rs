@@ -114,6 +114,50 @@ pub(crate) struct ProxyConfigRequest {
     pub(crate) http_settings: ProxyHttpSettings,
     #[serde(default)]
     pub(crate) trusted_cas: Vec<TrustedCa>,
+    #[serde(default, skip_serializing_if = "DefaultSite::is_default")]
+    pub(crate) default_site: DefaultSite,
+}
+
+#[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
+#[serde(tag = "mode", rename_all = "kebab-case", deny_unknown_fields)]
+pub(crate) enum DefaultSite {
+    #[default]
+    NotFound,
+    Welcome,
+    Close,
+    Redirect {
+        url: String,
+    },
+    CustomHtml {
+        html: String,
+    },
+}
+
+impl<'de> Deserialize<'de> for DefaultSite {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(tag = "mode", rename_all = "kebab-case", deny_unknown_fields)]
+        enum StrictDefaultSite {
+            NotFound {},
+            Welcome {},
+            Close {},
+            Redirect { url: String },
+            CustomHtml { html: String },
+        }
+        Ok(match StrictDefaultSite::deserialize(deserializer)? {
+            StrictDefaultSite::NotFound {} => Self::NotFound,
+            StrictDefaultSite::Welcome {} => Self::Welcome,
+            StrictDefaultSite::Close {} => Self::Close,
+            StrictDefaultSite::Redirect { url } => Self::Redirect { url },
+            StrictDefaultSite::CustomHtml { html } => Self::CustomHtml { html },
+        })
+    }
+}
+
+impl DefaultSite {
+    pub(crate) fn is_default(&self) -> bool {
+        matches!(self, Self::NotFound)
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
@@ -263,6 +307,7 @@ pub(crate) struct TrustedCa {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ValidatedProxyConfig {
+    pub(crate) default_site: DefaultSite,
     pub(crate) revision: String,
     pub(crate) proxy_hosts: Vec<ProxyHost>,
     pub(crate) http_settings: ProxyHttpSettings,

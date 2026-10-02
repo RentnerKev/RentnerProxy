@@ -47,6 +47,7 @@ export async function getProxyConfigEditorService(): Promise<ProxyConfigEditorDa
         {},
         snapshot.trustedCas,
         snapshot.redirectHosts.map((host) => Object.assign({ enabled: true }, host)),
+        snapshot.defaultSite,
     )
     const [active, defaults] = await Promise.all([
         getActiveProxyConfiguration(),
@@ -70,6 +71,7 @@ export async function previewProxyConfigEditorService(
         settings,
         snapshot.trustedCas,
         snapshot.redirectHosts.map((host) => Object.assign({ enabled: true }, host)),
+        snapshot.defaultSite,
     )
     const preview = await previewProxyConfiguration(candidate)
     if (!preview) throw new ProxyConfigEditorError('runtime_unavailable')

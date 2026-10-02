@@ -32,6 +32,7 @@ describe('role permission groups', () => {
             'proxy-access-logs:',
             'crowdsec.',
             'system_appearance.',
+            'default_site.',
             'audit-logs:',
             'system.',
             'account.',

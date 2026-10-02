@@ -2373,7 +2373,8 @@
             "crowdsec": "CrowdSec",
             "system_appearance": "Wygląd systemu",
             "audit-logs": "Dziennik audytu",
-            "system": "System"
+            "system": "System",
+            "default_site": "Witryna domyślna"
         },
         "app": {
             "access": "Dostęp do aplikacji"
@@ -2449,6 +2450,10 @@
             "create": "Importowanie zaufanych urzędów certyfikacji",
             "update": "Zastępowanie pakietów zaufanych urzędów certyfikacji",
             "delete": "Usuwanie nieużywanych zaufanych urzędów certyfikacji"
+        },
+        "default_site": {
+            "view": "Wyświetlanie ustawień witryny domyślnej",
+            "update": "Aktualizowanie ustawień witryny domyślnej"
         }
     },
     "systemRoles": {
@@ -2550,6 +2555,48 @@
             "hue": "Odcień",
             "selectColor": "Wybierz kolor",
             "presetColor": "Użyj koloru {{color}}"
+        }
+    },
+    "defaultSite": {
+        "title": "Witryna domyślna",
+        "description": "Wybierz odpowiedź dla adresu IP lub nazwy hosta bez pasującego hosta proxy ani hosta przekierowania.",
+        "current": "Zapisany tryb",
+        "mode": "Tryb odpowiedzi",
+        "url": "Adres URL przekierowania",
+        "html": "Kod HTML",
+        "loading": "Wczytywanie witryny domyślnej…",
+        "reload": "Wczytaj ponownie zapisane ustawienia (odrzuć wersję roboczą)",
+        "dirty": "Niezapisane zmiany",
+        "clean": "Brak niezapisanych zmian",
+        "readOnly": "Edycja wymaga uprawnień do aktualizacji witryny domyślnej i zastosowania konfiguracji proxy.",
+        "saved": "Zapisano i zastosowano witrynę domyślną.",
+        "pending": "Ustawienia zapisano. Ich zastosowanie oczekuje, ponieważ środowisko uruchomieniowe proxy jest niedostępne.",
+        "savedPending": "Ustawienia zapisano. Ich zastosowanie oczekuje, ponieważ środowisko uruchomieniowe proxy jest niedostępne.",
+        "redirectHint": "Stały, bezwzględny adres docelowy HTTP(S), wysyłany ze statusem 302. Przychodzący URI nie jest dołączany.",
+        "htmlHint": "Maksymalnie 256 KiB w UTF-8. HTML jest udostępniany jako strona w piaskownicy; skrypty i formularze są wyłączone.",
+        "htmlBytes": "{{bytes}} / {{max}} bajtów UTF-8",
+        "tlsHint": "Adresy IP i nieznane hosty działają przez HTTP. HTTPS wymaga udanego uzgadniania TLS z odpowiednim skonfigurowanym certyfikatem i SNI. To ustawienie nie wystawia certyfikatów.",
+        "modes": {
+            "not-found": "404 Nie znaleziono (domyślnie)",
+            "welcome": "Strona powitalna",
+            "close": "Zamknij połączenie",
+            "redirect": "Przekierowanie",
+            "custom-html": "Własny kod HTML"
+        },
+        "errors": {
+            "conflict": "Ustawienia zostały zmienione w innym miejscu. Wczytaj zapisane ustawienia ponownie przed kolejną próbą.",
+            "loadFailed": "Nie udało się wczytać witryny domyślnej.",
+            "saveFailed": "Nie udało się zapisać witryny domyślnej.",
+            "invalidSettings": "Wybierz prawidłowe ustawienia witryny domyślnej.",
+            "invalidUrl": "Wprowadź bezwzględny adres URL HTTP(S) bez danych logowania.",
+            "invalidHtml": "Wprowadź niepusty, prawidłowy kod HTML bez znaków NUL, o rozmiarze do 256 KiB w UTF-8."
+        }
+    },
+    "operations": {
+        "page": {
+            "eyebrow": "Administracja systemem",
+            "title": "Operations",
+            "description": "Skonfiguruj domyślną odpowiedź dla adresu IP serwera i niedopasowanych nazw hostów."
         }
     }
 }

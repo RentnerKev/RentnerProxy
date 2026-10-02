@@ -176,7 +176,9 @@ pub(super) fn render_config_inner(
             https_routes.push(redirect_route(host)?);
         }
         if !certs.is_empty() {
-            https_routes.push(not_found_route());
+            https_routes.push(super::default_site::default_site_route(
+                &config.default_site,
+            ));
             servers.insert(
                 "rentnerproxy-https".to_owned(),
                 HttpServer {
@@ -236,6 +238,7 @@ pub(super) fn render_config_inner(
 
 fn empty_config() -> ValidatedProxyConfig {
     ValidatedProxyConfig {
+        default_site: crate::models::DefaultSite::default(),
         revision: String::new(),
         proxy_hosts: Vec::new(),
         redirect_hosts: Vec::new(),

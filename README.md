@@ -143,6 +143,48 @@ Forward Auth is configured inside an existing Access Policy. Choose a provider p
 
 Provider reachability is not measured by the Security Dashboard; it reports configured policy counts and settings only.
 
+## Default Site (development image)
+
+Open **Operations** in the main navigation to choose the Default Site response for the server's IP address or a hostname
+with no active Proxy Host or Redirect Host. Existing installations keep the empty HTTP 404 response
+until an administrator saves another mode. Owners and administrators have the dedicated
+`default_site.view` and `default_site.update` permissions; saving also requires `proxy_hosts.apply`.
+Custom roles may receive these permissions through role management.
+
+| Mode             | Unmatched request behavior                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------------- |
+| 404              | HTTP 404, preserving the existing default.                                                              |
+| Welcome page     | Built-in RentnerProxy HTML page, HTTP 200.                                                              |
+| Close connection | Caddy aborts the connection without an HTTP response. No HTTP 444 is sent.                              |
+| Redirect         | HTTP 302 to the exact configured absolute HTTP/HTTPS URL; the incoming path and query are not appended. |
+| Custom HTML      | The saved HTML, HTTP 200 with `Content-Type: text/html; charset=utf-8`.                                 |
+
+Custom HTML is limited to 256 KiB of UTF-8 text. Edit it as source on the Operations page; it is never rendered
+inside the management UI. The public page uses a sandboxed Content Security Policy: scripts,
+forms, frames and navigation privileges are disabled; inline styles and HTTP/HTTPS/data images
+are allowed. Caddy placeholders, including `{env.*}` and `{file.*}`, are served literally.
+Redirect targets reject credentials, control characters and unsupported URL schemes. HTML and
+redirect responses disable caching. The close mode follows Caddy's
+[abort behavior](https://caddyserver.com/docs/caddyfile/directives/abort), which also interrupts
+other active HTTP streams on the same connection.
+
+For HTTP, point the hostname's DNS record at the server or open its IP address on the published
+HTTP port. Existing hosts, redirects and access policies take precedence; ACME challenge handling
+and the separate management endpoint remain in their existing routing paths.
+
+HTTPS requires a successful TLS handshake before any Default Site response can be delivered.
+This setting does not request a certificate, add a default certificate, enable on-demand TLS or
+expand the configured SNI policies. The HTTPS listener exists only when a configured host has
+certificate material. Unknown names and IP addresses normally fail the handshake, and a Host/SNI
+mismatch is still rejected. A Default Site selection cannot solve these certificate limitations;
+configure a host and a suitable certificate when visitors need HTTPS for that address.
+
+The selected mode and custom HTML are durable PostgreSQL settings, included in the supported
+appliance backup/restore. The controller also persists the active snapshot for restart recovery.
+Saving reports when runtime application is pending; the existing reconciliation worker retries
+automatically. Reload Operations after a configuration conflict before saving another edit.
+Portable host configuration exports do not include these global settings.
+
 ## More information
 
 - [Architecture](ARCHITECTURE.md) · [Security policy](SECURITY.md) · [Assurance case](ASSURANCE_CASE.md)

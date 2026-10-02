@@ -14,7 +14,7 @@ import type {
 const navigationGroups = [
     {
         id: 'operations',
-        paths: ['/', '/proxy-hosts', '/redirect-hosts', '/certificates'],
+        paths: ['/', '/proxy-hosts', '/redirect-hosts', '/certificates', '/operations'],
     },
     {
         id: 'security',

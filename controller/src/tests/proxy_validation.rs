@@ -39,6 +39,7 @@ fn v7_request(
         redirect_hosts,
         http_settings,
         trusted_cas,
+        default_site: crate::models::DefaultSite::default(),
     }
 }
 
@@ -398,6 +399,7 @@ fn v7_enforces_cross_type_identity_domain_and_host_limits() {
         redirect_hosts,
         http_settings: ProxyHttpSettings::default(),
         trusted_cas: Vec::new(),
+        default_site: crate::models::DefaultSite::default(),
     };
     assert_eq!(
         validate_proxy_config(oversized),

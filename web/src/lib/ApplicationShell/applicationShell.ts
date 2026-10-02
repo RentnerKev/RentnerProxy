@@ -12,6 +12,9 @@ export default function getApplicationShellViewModel(
     const permissionSet = new Set(user.permissions)
     const navigationItems: ApplicationShellViewModel['navigationItems'] = [
         { to: '/', label: t('shell.overview'), exact: true },
+        ...(permissionSet.has(PERMISSIONS.DEFAULT_SITE_VIEW)
+            ? ([{ to: '/operations', label: t('operations.page.title') }] as const)
+            : []),
         ...(permissionSet.has(PERMISSIONS.PROXY_HOSTS_VIEW)
             ? ([{ to: '/proxy-hosts', label: t('shell.proxyHosts') }] as const)
             : []),

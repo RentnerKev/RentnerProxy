@@ -202,6 +202,7 @@ fn access_policy_changes_the_v7_revision_and_requires_explicit_combination_shape
             redirect_hosts: vec![],
             http_settings: ProxyHttpSettings::default(),
             trusted_cas: vec![],
+            default_site: crate::models::DefaultSite::default(),
         })
         .is_ok()
     );
@@ -218,6 +219,7 @@ fn access_policy_changes_the_v7_revision_and_requires_explicit_combination_shape
             redirect_hosts: vec![],
             http_settings: ProxyHttpSettings::default(),
             trusted_cas: vec![],
+            default_site: crate::models::DefaultSite::default(),
         })
         .is_err()
     );
@@ -233,6 +235,7 @@ fn access_policy_changes_the_v7_revision_and_requires_explicit_combination_shape
             redirect_hosts: vec![],
             http_settings: ProxyHttpSettings::default(),
             trusted_cas: vec![],
+            default_site: crate::models::DefaultSite::default(),
         })
         .is_ok()
     );
@@ -282,6 +285,7 @@ fn access_policy_identity_must_have_one_canonical_definition() {
             redirect_hosts: vec![],
             http_settings: ProxyHttpSettings::default(),
             trusted_cas: vec![],
+            default_site: crate::models::DefaultSite::default(),
         })
         .is_err()
     );
@@ -381,6 +385,7 @@ fn forward_auth_is_limited_to_authenticated_or_combined_all_policies() {
         redirect_hosts: vec![],
         http_settings: ProxyHttpSettings::default(),
         trusted_cas: vec![],
+        default_site: crate::models::DefaultSite::default(),
     };
     assert!(validate_proxy_config(request_with(proxy_host.clone())).is_ok());
 
@@ -488,6 +493,7 @@ fn basic_auth_accounts_require_bounded_sorted_exact_argon2id_phc() {
         redirect_hosts: vec![],
         http_settings: ProxyHttpSettings::default(),
         trusted_cas: vec![],
+        default_site: crate::models::DefaultSite::default(),
     };
     assert!(validate_proxy_config(valid.clone()).is_ok());
 
@@ -545,6 +551,7 @@ fn basic_auth_accounts_require_bounded_sorted_exact_argon2id_phc() {
         redirect_hosts: vec![],
         http_settings: ProxyHttpSettings::default(),
         trusted_cas: vec![],
+        default_site: crate::models::DefaultSite::default(),
     };
     assert!(validate_proxy_config(request.clone()).is_err());
     request.proxy_hosts[0]

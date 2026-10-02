@@ -19,6 +19,7 @@ import { Route as AuthenticatedCertificatesRouteImport } from './routes/_authent
 import { Route as AuthenticatedCrowdsecRouteImport } from './routes/_authenticated/crowdsec'
 import { Route as AuthenticatedMigrationRouteImport } from './routes/_authenticated/migration'
 import { Route as AuthenticatedNpmImportRouteImport } from './routes/_authenticated/npm-import'
+import { Route as AuthenticatedOperationsRouteImport } from './routes/_authenticated/operations'
 import { Route as AuthenticatedProxyAccessLogsRouteImport } from './routes/_authenticated/proxy-access-logs'
 import { Route as AuthenticatedProxyHostsRouteImport } from './routes/_authenticated/proxy-hosts'
 import { Route as AuthenticatedRedirectHostsRouteImport } from './routes/_authenticated/redirect-hosts'
@@ -88,6 +89,11 @@ const AuthenticatedMigrationRoute = AuthenticatedMigrationRouteImport.update({
 const AuthenticatedNpmImportRoute = AuthenticatedNpmImportRouteImport.update({
   id: '/npm-import',
   path: '/npm-import',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedOperationsRoute = AuthenticatedOperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProxyAccessLogsRoute =
@@ -202,6 +208,7 @@ export interface FileRoutesByFullPath {
   '/crowdsec': typeof AuthenticatedCrowdsecRoute
   '/migration': typeof AuthenticatedMigrationRoute
   '/npm-import': typeof AuthenticatedNpmImportRoute
+  '/operations': typeof AuthenticatedOperationsRoute
   '/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
   '/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
@@ -232,6 +239,7 @@ export interface FileRoutesByTo {
   '/crowdsec': typeof AuthenticatedCrowdsecRoute
   '/migration': typeof AuthenticatedMigrationRoute
   '/npm-import': typeof AuthenticatedNpmImportRoute
+  '/operations': typeof AuthenticatedOperationsRoute
   '/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/proxy-hosts': typeof AuthenticatedProxyHostsRoute
   '/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
@@ -263,6 +271,7 @@ export interface FileRoutesById {
   '/_authenticated/crowdsec': typeof AuthenticatedCrowdsecRoute
   '/_authenticated/migration': typeof AuthenticatedMigrationRoute
   '/_authenticated/npm-import': typeof AuthenticatedNpmImportRoute
+  '/_authenticated/operations': typeof AuthenticatedOperationsRoute
   '/_authenticated/proxy-access-logs': typeof AuthenticatedProxyAccessLogsRoute
   '/_authenticated/proxy-hosts': typeof AuthenticatedProxyHostsRoute
   '/_authenticated/redirect-hosts': typeof AuthenticatedRedirectHostsRoute
@@ -296,6 +305,7 @@ export interface FileRouteTypes {
     | '/crowdsec'
     | '/migration'
     | '/npm-import'
+    | '/operations'
     | '/proxy-access-logs'
     | '/proxy-hosts'
     | '/redirect-hosts'
@@ -326,6 +336,7 @@ export interface FileRouteTypes {
     | '/crowdsec'
     | '/migration'
     | '/npm-import'
+    | '/operations'
     | '/proxy-access-logs'
     | '/proxy-hosts'
     | '/redirect-hosts'
@@ -356,6 +367,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crowdsec'
     | '/_authenticated/migration'
     | '/_authenticated/npm-import'
+    | '/_authenticated/operations'
     | '/_authenticated/proxy-access-logs'
     | '/_authenticated/proxy-hosts'
     | '/_authenticated/redirect-hosts'
@@ -460,6 +472,13 @@ declare module '@tanstack/react-router' {
       path: '/npm-import'
       fullPath: '/npm-import'
       preLoaderRoute: typeof AuthenticatedNpmImportRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/operations': {
+      id: '/_authenticated/operations'
+      path: '/operations'
+      fullPath: '/operations'
+      preLoaderRoute: typeof AuthenticatedOperationsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/proxy-access-logs': {
@@ -613,6 +632,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCrowdsecRoute: typeof AuthenticatedCrowdsecRoute
   AuthenticatedMigrationRoute: typeof AuthenticatedMigrationRoute
   AuthenticatedNpmImportRoute: typeof AuthenticatedNpmImportRoute
+  AuthenticatedOperationsRoute: typeof AuthenticatedOperationsRoute
   AuthenticatedProxyAccessLogsRoute: typeof AuthenticatedProxyAccessLogsRoute
   AuthenticatedProxyHostsRoute: typeof AuthenticatedProxyHostsRoute
   AuthenticatedRedirectHostsRoute: typeof AuthenticatedRedirectHostsRoute
@@ -630,6 +650,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCrowdsecRoute: AuthenticatedCrowdsecRoute,
   AuthenticatedMigrationRoute: AuthenticatedMigrationRoute,
   AuthenticatedNpmImportRoute: AuthenticatedNpmImportRoute,
+  AuthenticatedOperationsRoute: AuthenticatedOperationsRoute,
   AuthenticatedProxyAccessLogsRoute: AuthenticatedProxyAccessLogsRoute,
   AuthenticatedProxyHostsRoute: AuthenticatedProxyHostsRoute,
   AuthenticatedRedirectHostsRoute: AuthenticatedRedirectHostsRoute,

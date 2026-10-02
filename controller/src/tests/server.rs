@@ -94,6 +94,7 @@ fn valid_payload() -> Vec<u8> {
         redirect_hosts: Vec::new(),
         http_settings: ProxyHttpSettings::default(),
         trusted_cas: Vec::new(),
+        default_site: crate::models::DefaultSite::default(),
     })
     .unwrap()
 }
@@ -161,6 +162,7 @@ fn custom_payload() -> Vec<u8> {
         redirect_hosts: Vec::new(),
         http_settings,
         trusted_cas: Vec::new(),
+        default_site: crate::models::DefaultSite::default(),
     })
     .unwrap()
 }

@@ -2331,7 +2331,8 @@
             "crowdsec": "CrowdSec",
             "system_appearance": "Systeemweergave",
             "audit-logs": "Auditlogboek",
-            "system": "Systeem"
+            "system": "Systeem",
+            "default_site": "Standaardsite"
         },
         "app": {
             "access": "Toegang tot de applicatie"
@@ -2407,6 +2408,10 @@
             "create": "Vertrouwde CA’s importeren",
             "update": "Bundels met vertrouwde CA’s vervangen",
             "delete": "Ongebruikte vertrouwde CA’s verwijderen"
+        },
+        "default_site": {
+            "view": "Instellingen van de standaardsite bekijken",
+            "update": "Instellingen van de standaardsite bijwerken"
         }
     },
     "systemRoles": {
@@ -2525,5 +2530,47 @@
         "hourPlaceholder": "Uur",
         "minuteSelect": "Minuut kiezen",
         "minutePlaceholder": "Minuut"
+    },
+    "defaultSite": {
+        "title": "Standaardsite",
+        "description": "Kies het antwoord voor een IP-adres of hostnaam zonder een overeenkomende proxy- of omleidingshost.",
+        "current": "Opgeslagen modus",
+        "mode": "Antwoordmodus",
+        "url": "Omleidings-URL",
+        "html": "HTML-broncode",
+        "loading": "Standaardsite laden…",
+        "reload": "Opgeslagen instellingen opnieuw laden (concept verwerpen)",
+        "dirty": "Niet-opgeslagen wijzigingen",
+        "clean": "Geen niet-opgeslagen wijzigingen",
+        "readOnly": "Bewerken vereist rechten om de standaardsite bij te werken en de proxyconfiguratie toe te passen.",
+        "saved": "Standaardsite opgeslagen en toegepast.",
+        "pending": "Instellingen opgeslagen. Toepassing wacht omdat de proxy-runtime niet beschikbaar is.",
+        "savedPending": "Instellingen opgeslagen. Toepassing wacht omdat de proxy-runtime niet beschikbaar is.",
+        "redirectHint": "Vaste absolute HTTP(S)-bestemming, verzonden met status 302. De binnenkomende URI wordt niet toegevoegd.",
+        "htmlHint": "Maximaal 256 KiB in UTF-8. HTML wordt aangeboden als een afgeschermde pagina; scripts en formulieren zijn uitgeschakeld.",
+        "htmlBytes": "{{bytes}} / {{max}} UTF-8-bytes",
+        "tlsHint": "IP-adressen en onbekende hosts werken via HTTP. HTTPS vereist een geslaagde TLS-handshake met een geschikt geconfigureerd certificaat en SNI. Deze instelling geeft geen certificaten uit.",
+        "modes": {
+            "not-found": "404 Niet gevonden (standaard)",
+            "welcome": "Welkomstpagina",
+            "close": "Verbinding sluiten",
+            "redirect": "Omleiden",
+            "custom-html": "Aangepaste HTML"
+        },
+        "errors": {
+            "conflict": "De instellingen zijn elders gewijzigd. Laad de opgeslagen instellingen opnieuw voordat je het nog eens probeert.",
+            "loadFailed": "De standaardsite kon niet worden geladen.",
+            "saveFailed": "De standaardsite kon niet worden opgeslagen.",
+            "invalidSettings": "Kies geldige instellingen voor de standaardsite.",
+            "invalidUrl": "Voer een absolute HTTP(S)-URL zonder inloggegevens in.",
+            "invalidHtml": "Voer niet-lege, geldige HTML zonder NUL-tekens in, maximaal 256 KiB in UTF-8."
+        }
+    },
+    "operations": {
+        "page": {
+            "eyebrow": "Systeembeheer",
+            "title": "Operations",
+            "description": "Configureer de standaardreactie voor het IP-adres van de server en niet-overeenkomende hostnamen."
+        }
     }
 }

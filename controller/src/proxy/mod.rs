@@ -11,7 +11,8 @@ use base64::{Engine as _, engine::general_purpose::STANDARD_NO_PAD};
 use ipnet::IpNet;
 
 use crate::models::{
-    AccessPolicy, IpRules, ProxyConfigRequest, ProxyHttpSettings, TrustedCa, ValidatedProxyConfig,
+    AccessPolicy, DefaultSite, IpRules, ProxyConfigRequest, ProxyHttpSettings, TrustedCa,
+    ValidatedProxyConfig,
 };
 
 use forward_auth::has_valid_forward_auth;
@@ -19,11 +20,13 @@ pub(crate) use forward_auth::parse_forward_auth_endpoint;
 #[cfg(test)]
 pub(crate) use revision::revision_for_configuration;
 #[cfg(test)]
+pub(crate) use revision::revision_for_configuration_with_redirects;
+#[cfg(test)]
 pub(crate) use revision::revision_for_configuration_with_trusted_cas;
 #[cfg(test)]
 pub(crate) use revision::revision_for_hosts;
 use revision::{canonical_hosts, canonical_redirect_hosts, canonical_trusted_cas, is_revision};
-pub(crate) use revision::{revision_for_configuration_with_redirects, revision_from_config};
+pub(crate) use revision::{revision_for_full_configuration, revision_from_config};
 pub(crate) use trusted_ca::{
     MAX_TRUSTED_CA_PEM_BYTES, TrustedCaValidationRequest, validate_trusted_ca,
     validate_trusted_ca_pem,
@@ -47,7 +50,9 @@ pub(crate) fn validate_proxy_config(
         return Err(ProxyValidationError::InvalidConfiguration);
     }
 
-    if !has_valid_http_settings(&request.http_settings) {
+    if !has_valid_http_settings(&request.http_settings)
+        || !has_valid_default_site(&request.default_site)
+    {
         return Err(ProxyValidationError::ValidationFailed);
     }
 
@@ -168,23 +173,35 @@ pub(crate) fn validate_proxy_config(
     let canonical_hosts = canonical_hosts(&request.proxy_hosts);
     let canonical_redirect_hosts = canonical_redirect_hosts(&request.redirect_hosts);
     let canonical_trusted_cas = canonical_trusted_cas(&request.trusted_cas);
-    let actual_revision = revision_for_configuration_with_redirects(
+    let actual_revision = revision_for_full_configuration(
         &canonical_hosts,
         &canonical_redirect_hosts,
         &request.http_settings,
         &canonical_trusted_cas,
+        &request.default_site,
     );
     if request.revision != actual_revision {
         return Err(ProxyValidationError::ValidationFailed);
     }
 
     Ok(ValidatedProxyConfig {
+        default_site: request.default_site,
         revision: request.revision,
         proxy_hosts: canonical_hosts,
         redirect_hosts: canonical_redirect_hosts,
         http_settings: request.http_settings,
         trusted_cas: canonical_trusted_cas,
     })
+}
+
+fn has_valid_default_site(default_site: &DefaultSite) -> bool {
+    match default_site {
+        DefaultSite::NotFound | DefaultSite::Welcome | DefaultSite::Close => true,
+        DefaultSite::Redirect { url } => has_valid_redirect_destination(url, false),
+        DefaultSite::CustomHtml { html } => {
+            !html.trim().is_empty() && !html.contains('\0') && html.len() <= 262_144
+        }
+    }
 }
 
 fn has_valid_upstream_tls(host: &crate::models::ProxyHost) -> bool {
