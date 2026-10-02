@@ -695,7 +695,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         await archive(
             options.source === 'alpha.6' ? publishedAlpha('alpha.6').revision : targetSha,
             fixtureRoot,
-            ['web/src', 'package.json', 'bun.lock'],
+            ['web/src', 'web/tsconfig.json', 'package.json', 'bun.lock'],
         )
         await mkdir(join(fixtureRoot, 'scripts/runtime-reliability'), { recursive: true })
         for (const name of options.source === 'alpha.6'
@@ -728,6 +728,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             '--no-env-file',
             'build',
             fixtureSource,
+            '--tsconfig-override=' + join(fixtureRoot, 'web/tsconfig.json'),
             '--target=bun',
             '--packages=external',
             '--outfile=' + bundle,
