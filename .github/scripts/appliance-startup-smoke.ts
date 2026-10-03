@@ -142,6 +142,7 @@ export async function verifyApplianceStartup(
                             scenario +
                             '\n',
                     ),
+                    { mode: 0o755 },
                 )
                 const override = join(directory, 'compose.json')
                 await writeFile(
