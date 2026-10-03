@@ -46,7 +46,7 @@ describe('deterministic migration image packaging', () => {
                     ? fixtureSql
                     : eol === 'CRLF'
                       ? fixtureSql.replaceAll('\n', '\r\n')
-                      : fixtureSql.replace('\n', '\r\n')
+                      : 'CREATE TABLE fixture (id integer);\r\n--> statement-breakpoint\nSELECT 1;\n'
             const { source, output } = await fixture(sql)
             const metadataPath = join(source, 'meta', '_journal.json')
             const originalJournal = (await readFile(metadataPath, 'utf8')).replaceAll('\n', '\r\n')
