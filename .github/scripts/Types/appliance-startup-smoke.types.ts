@@ -12,6 +12,7 @@ export type ApplianceStartupSmokeOptions = Readonly<{
     managementPort: number
     hostDomain: string
     trafficMarker: string
+    ca: string
     command: (args: string[], timeoutMs?: number) => Promise<string>
     containerId: (compose: string[]) => Promise<string>
     waitForHealthy: (id: string) => Promise<void>

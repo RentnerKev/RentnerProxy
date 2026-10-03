@@ -16,6 +16,7 @@ export function probeStartupRoute(
     domain: string,
     marker: string,
     timeoutMs = 700,
+    ca?: string,
 ): Promise<StartupProbe> {
     const started = performance.now()
     return new Promise((resolve) => {
@@ -33,7 +34,7 @@ export function probeStartupRoute(
                 path: '/appliance-startup-probe',
                 headers: { Host: domain },
                 agent: false,
-                ...(protocol === 'https' ? { servername: domain, rejectUnauthorized: false } : {}),
+                ...(protocol === 'https' ? { servername: domain, ca } : {}),
             },
             (response) => {
                 let body = ''
@@ -74,7 +75,14 @@ export async function verifyApplianceStartup(
     const probe = async () =>
         Promise.all([
             probeStartupRoute('http', options.httpPort, hostDomain, trafficMarker),
-            probeStartupRoute('https', options.httpsPort, hostDomain, trafficMarker),
+            probeStartupRoute(
+                'https',
+                options.httpsPort,
+                hostDomain,
+                trafficMarker,
+                700,
+                options.ca,
+            ),
         ])
     const entrypoint = (await readFile(options.entrypointFile, 'utf8')).replaceAll('\r\n', '\n')
     let id = await options.containerId([...compose])

@@ -1653,6 +1653,7 @@ async function runSmoke(): Promise<void> {
             managementPort,
             hostDomain,
             trafficMarker,
+            ca: await readFile(http3CaFile, 'utf8'),
             command,
             containerId,
             waitForHealthy,
