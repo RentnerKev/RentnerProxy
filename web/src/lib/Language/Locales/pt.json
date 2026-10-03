@@ -28,7 +28,8 @@
         "openActions": "Abrir ações",
         "backHome": "Voltar à página inicial",
         "openDomainInNewTab": "Abrir {{domain}} num novo separador",
-        "moreDomains": "Mostrar mais {{count}} domínios"
+        "moreDomains": "Mostrar mais {{count}} domínios",
+        "clearSelection": "Limpar seleção"
     },
     "inputs": {
         "invalidPhone": "Introduza um número de telefone válido.",
@@ -44,7 +45,10 @@
         "hourSelect": "Selecionar hora",
         "hourPlaceholder": "Hora",
         "minuteSelect": "Selecionar minuto",
-        "minutePlaceholder": "Minuto"
+        "minutePlaceholder": "Minuto",
+        "otpCode": "Código de uso único",
+        "otpDigit": "Dígito {{position}} de {{count}}",
+        "otpIncomplete": "Introduza todos os {{count}} dígitos do código."
     },
     "shell": {
         "home": "Página inicial do RentnerProxy",

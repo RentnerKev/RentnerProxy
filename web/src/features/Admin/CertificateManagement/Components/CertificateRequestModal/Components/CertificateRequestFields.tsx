@@ -29,7 +29,7 @@ export default function CertificateRequestFields({
                             maxLength={120}
                             disabled={isPending}
                             onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
+                            onValueChange={field.handleChange}
                             aria-describedby="certificate-request-name-error"
                         />
                         <FieldError
@@ -154,9 +154,7 @@ export default function CertificateRequestFields({
                                             maxLength={32}
                                             disabled={isPending}
                                             onBlur={field.handleBlur}
-                                            onChange={(event) =>
-                                                field.handleChange(event.target.value)
-                                            }
+                                            onValueChange={field.handleChange}
                                             autoCapitalize="none"
                                             autoComplete="off"
                                             spellCheck={false}
@@ -186,9 +184,7 @@ export default function CertificateRequestFields({
                                             maxLength={512}
                                             disabled={isPending}
                                             onBlur={field.handleBlur}
-                                            onChange={(event) =>
-                                                field.handleChange(event.target.value)
-                                            }
+                                            onValueChange={field.handleChange}
                                             autoComplete="new-password"
                                             aria-describedby="certificate-request-dns-api-token-error"
                                         />
@@ -271,7 +267,7 @@ export default function CertificateRequestFields({
                             maxLength={254}
                             disabled={isPending}
                             onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
+                            onValueChange={field.handleChange}
                             aria-describedby="certificate-request-contact-hint certificate-request-contact-error"
                         />
                         <p

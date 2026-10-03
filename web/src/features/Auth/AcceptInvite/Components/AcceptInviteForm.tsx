@@ -1,6 +1,5 @@
 import { PasswordInput, TextInput } from '@rentnerkev/inputs'
 import FieldError from '@/shared/Forms/FieldError.tsx'
-import type { ChangeEvent } from 'react'
 import type { AcceptInviteFormProps } from '../Types/accept-invite-component-props.types.ts'
 
 export default function AcceptInviteForm({ state, form, handler }: AcceptInviteFormProps) {
@@ -22,9 +21,7 @@ export default function AcceptInviteForm({ state, form, handler }: AcceptInviteF
                             maxLength={100}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
@@ -48,9 +45,7 @@ export default function AcceptInviteForm({ state, form, handler }: AcceptInviteF
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
@@ -76,9 +71,7 @@ export default function AcceptInviteForm({ state, form, handler }: AcceptInviteF
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />

@@ -107,7 +107,7 @@ export default function CrowdSecManagedOnline({
                                 placeholder={t('admin.crowdSec.online.enrollmentPlaceholder')}
                                 aria-invalid={state.fieldErrors.enrollmentKey ? true : undefined}
                                 aria-describedby="crowdsec-enrollment-hint crowdsec-enrollment-error"
-                                onChange={(event) => handler.setEnrollmentKey(event.target.value)}
+                                onValueChange={handler.setEnrollmentKey}
                             />
                             <FieldError
                                 id="crowdsec-enrollment-error"

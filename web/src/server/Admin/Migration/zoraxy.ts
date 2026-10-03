@@ -37,121 +37,78 @@ function validName(name: string): boolean {
     )
 }
 
-function readEntry(zip: ZipFile, entry: Entry): Promise<unknown> {
-    return new Promise((resolve, reject) => {
-        zip.openReadStream(entry, (error, stream) => {
-            if (error || !stream) return reject(new ZoraxySourceError('invalid_source'))
-            const chunks: Buffer[] = []
-            let size = 0
-            stream.on('data', (chunk: Buffer) => {
-                size += chunk.byteLength
-                if (size > MAX_ENTRY_BYTES) stream.destroy(new ZoraxySourceError('source_limit'))
-                else chunks.push(chunk)
-            })
-            stream.once('error', reject)
-            stream.once('end', () => {
-                try {
-                    resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')))
-                } catch {
-                    reject(new ZoraxySourceError('invalid_source'))
-                }
-            })
-        })
-    })
+async function readEntry(zip: ZipFile, entry: Entry): Promise<unknown> {
+    const stream = await zip.openReadStreamPromise(entry)
+    const chunks: Buffer[] = []
+    let size = 0
+    for await (const chunk of stream) {
+        if (!Buffer.isBuffer(chunk)) throw new ZoraxySourceError('invalid_source')
+        size += chunk.byteLength
+        if (size > MAX_ENTRY_BYTES) throw new ZoraxySourceError('source_limit')
+        chunks.push(chunk)
+    }
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'))
 }
 
 export async function readZoraxySource(path: string): Promise<ZoraxySource> {
-    return new Promise((resolve, reject) => {
-        yauzl.open(
-            path,
-            {
-                lazyEntries: true,
-                autoClose: true,
-                decodeStrings: true,
-                validateEntrySizes: true,
-                strictFileNames: true,
-            },
-            (openError, zip) => {
-                if (openError || !zip) return reject(new ZoraxySourceError('invalid_source'))
-                if (zip.entryCount > MAX_ENTRIES) {
-                    zip.close()
-                    return reject(new ZoraxySourceError('source_limit'))
-                }
-                const proxies: SourceEntry[] = []
-                const redirects: SourceEntry[] = []
-                const omitted = { streams: 0, accessRules: 0, certificates: 0, pathRules: 0 }
-                const names = new Set<string>()
-                let totalBytes = 0
-                let settled = false
-                const fail = (error: unknown) => {
-                    if (settled) return
-                    settled = true
-                    zip.close()
-                    reject(
-                        error instanceof ZoraxySourceError
-                            ? error
-                            : new ZoraxySourceError('invalid_source'),
-                    )
-                }
-                zip.on('error', fail)
-                zip.on('end', () => {
-                    if (settled) return
-                    if (
-                        proxies.length +
-                            redirects.length +
-                            Object.values(omitted).reduce((sum, count) => sum + count, 0) ===
-                        0
-                    )
-                        return fail(new ZoraxySourceError('invalid_source'))
-                    settled = true
-                    resolve({ proxies, redirects, omitted })
-                })
-                zip.on('entry', (entry: Entry) => {
-                    const name = entry.fileName.replace(/^\.\//u, '')
-                    if (
-                        !validName(name) ||
-                        entry.isEncrypted() ||
-                        ![0, 8].includes(entry.compressionMethod)
-                    ) {
-                        return fail(new ZoraxySourceError('invalid_source'))
-                    }
-                    const mode = entry.externalFileAttributes >>> 16
-                    if ((mode & 0o170000) === 0o120000)
-                        return fail(new ZoraxySourceError('invalid_source'))
-                    if (names.has(name.toLowerCase()))
-                        return fail(new ZoraxySourceError('invalid_source'))
-                    names.add(name.toLowerCase())
-                    totalBytes += entry.uncompressedSize
-                    if (totalBytes > MAX_TOTAL_BYTES)
-                        return fail(new ZoraxySourceError('source_limit'))
-                    const isProxy = /^conf\/proxy\/[^/]+\.config$/u.test(name)
-                    const isRedirect = /^conf\/redirect\/[^/]+\.json$/u.test(name)
-                    if (!isProxy && !isRedirect) {
-                        if (/^conf\/streamproxy\/[^/]+\.config$/u.test(name)) omitted.streams += 1
-                        else if (/^conf\/access\/[^/]+$/u.test(name)) omitted.accessRules += 1
-                        else if (/^conf\/certs\/[^/]+$/u.test(name)) omitted.certificates += 1
-                        else if (/^conf\/(?:rules\/pathrules|proxy)\/.+\.config$/u.test(name))
-                            omitted.pathRules += 1
-                        zip.readEntry()
-                        return
-                    }
-                    if (
-                        entry.uncompressedSize > MAX_ENTRY_BYTES ||
-                        proxies.length + redirects.length >= MAX_SELECTED
-                    ) {
-                        return fail(new ZoraxySourceError('source_limit'))
-                    }
-                    void readEntry(zip, entry)
-                        .then((value) => {
-                            ;(isProxy ? proxies : redirects).push({ name, value })
-                            zip.readEntry()
-                        })
-                        .catch(fail)
-                })
-                zip.readEntry()
-            },
-        )
-    })
+    let zip: ZipFile | undefined
+    try {
+        zip = await yauzl.openPromise(path, {
+            lazyEntries: true,
+            autoClose: true,
+            decodeStrings: true,
+            validateEntrySizes: true,
+            strictFileNames: true,
+        })
+        if (zip.entryCount > MAX_ENTRIES) throw new ZoraxySourceError('source_limit')
+        const proxies: SourceEntry[] = []
+        const redirects: SourceEntry[] = []
+        const omitted = { streams: 0, accessRules: 0, certificates: 0, pathRules: 0 }
+        const names = new Set<string>()
+        let totalBytes = 0
+        for await (const entry of zip.eachEntry()) {
+            const name = entry.fileName.replace(/^\.\//u, '')
+            if (!validName(name) || !entry.canDecodeFileData())
+                throw new ZoraxySourceError('invalid_source')
+            const mode = entry.externalFileAttributes >>> 16
+            if ((mode & 0o170000) === 0o120000) throw new ZoraxySourceError('invalid_source')
+            if (names.has(name.toLowerCase())) throw new ZoraxySourceError('invalid_source')
+            names.add(name.toLowerCase())
+            totalBytes += entry.uncompressedSize
+            if (totalBytes > MAX_TOTAL_BYTES) throw new ZoraxySourceError('source_limit')
+            const isProxy = /^conf\/proxy\/[^/]+\.config$/u.test(name)
+            const isRedirect = /^conf\/redirect\/[^/]+\.json$/u.test(name)
+            if (!isProxy && !isRedirect) {
+                if (/^conf\/streamproxy\/[^/]+\.config$/u.test(name)) omitted.streams += 1
+                else if (/^conf\/access\/[^/]+$/u.test(name)) omitted.accessRules += 1
+                else if (/^conf\/certs\/[^/]+$/u.test(name)) omitted.certificates += 1
+                else if (/^conf\/(?:rules\/pathrules|proxy)\/.+\.config$/u.test(name))
+                    omitted.pathRules += 1
+                continue
+            }
+            if (
+                entry.uncompressedSize > MAX_ENTRY_BYTES ||
+                proxies.length + redirects.length >= MAX_SELECTED
+            ) {
+                throw new ZoraxySourceError('source_limit')
+            }
+            const value = await readEntry(zip, entry)
+            ;(isProxy ? proxies : redirects).push({ name, value })
+        }
+        if (
+            proxies.length +
+                redirects.length +
+                Object.values(omitted).reduce((sum, count) => sum + count, 0) ===
+            0
+        ) {
+            throw new ZoraxySourceError('invalid_source')
+        }
+        return { proxies, redirects, omitted }
+    } catch (error) {
+        throw error instanceof ZoraxySourceError ? error : new ZoraxySourceError('invalid_source')
+    } finally {
+        zip?.close()
+    }
 }
 
 function record(value: unknown): Record<string, unknown> | null {

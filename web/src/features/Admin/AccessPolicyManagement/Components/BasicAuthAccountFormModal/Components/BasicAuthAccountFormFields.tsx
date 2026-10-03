@@ -31,7 +31,7 @@ export default function BasicAuthAccountFormFields({
                     maxLength={64}
                     autoComplete="username"
                     disabled={isPending}
-                    onChange={(event) => setUsername(event.target.value)}
+                    onValueChange={setUsername}
                     aria-invalid={errors.username !== undefined}
                     aria-describedby={usernameErrorId}
                 />
@@ -60,7 +60,7 @@ export default function BasicAuthAccountFormFields({
                     maxLength={256}
                     autoComplete="new-password"
                     disabled={isPending}
-                    onChange={(event) => setPassword(event.target.value)}
+                    onValueChange={setPassword}
                     aria-invalid={errors.password !== undefined}
                     aria-describedby={passwordErrorId}
                 />

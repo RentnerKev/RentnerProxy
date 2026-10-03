@@ -28,7 +28,8 @@
         "openActions": "Acties openen",
         "backHome": "Terug naar de startpagina",
         "openDomainInNewTab": "{{domain}} openen in een nieuw tabblad",
-        "moreDomains": "Nog {{count}} domeinen tonen"
+        "moreDomains": "Nog {{count}} domeinen tonen",
+        "clearSelection": "Selectie wissen"
     },
     "shell": {
         "home": "RentnerProxy-startpagina",
@@ -2521,7 +2522,10 @@
         "hourSelect": "Uur kiezen",
         "hourPlaceholder": "Uur",
         "minuteSelect": "Minuut kiezen",
-        "minutePlaceholder": "Minuut"
+        "minutePlaceholder": "Minuut",
+        "otpCode": "Eenmalige code",
+        "otpDigit": "Cijfer {{position}} van {{count}}",
+        "otpIncomplete": "Voer alle {{count}} cijfers van de code in."
     },
     "defaultSite": {
         "editor": {

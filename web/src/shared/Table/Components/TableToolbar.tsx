@@ -19,7 +19,7 @@ export default function TableToolbar({
                 value={searchInput}
                 maxLength={200}
                 placeholder={searchPlaceholder}
-                onChange={(event) => onSearchChange(event.target.value)}
+                onValueChange={onSearchChange}
             />
         </label>
     )

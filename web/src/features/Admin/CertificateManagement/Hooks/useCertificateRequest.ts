@@ -62,6 +62,9 @@ export default function useCertificateRequest({
             if (isPending) return
             setIsPending(true)
             try {
+                if (!retryableJob && proxyHostId && !expectedUpdatedAt) {
+                    throw new Error('Missing proxy host revision.')
+                }
                 const parsed = retryableJob ? null : getRequestInput(value)
                 const result = retryableJob
                     ? await retryCertificateJobHandler({ data: { jobId: certificateJob!.id } })
@@ -70,7 +73,7 @@ export default function useCertificateRequest({
                             data: {
                                 idempotencyKey,
                                 proxyHostId,
-                                expectedUpdatedAt: expectedUpdatedAt ?? new Date().toISOString(),
+                                expectedUpdatedAt: expectedUpdatedAt!,
                                 request: (() => {
                                     const { domains: _domains, ...request } = parsed!
                                     return request
