@@ -9,7 +9,8 @@ FROM dependencies AS build
 COPY . .
 ARG RENTNERPROXY_BUILD_VERSION
 RUN RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" bun run build:web
-RUN bun build web/src/db/migrate.ts --target=bun --outfile=/build/migrate.js
+RUN bun build web/src/db/migrate.ts --target=bun --outfile=/build/migrate.js \
+    && bun docker/web/package-migrations.ts ./web/drizzle /build/migrations
 
 FROM oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS runtime
 
@@ -32,7 +33,7 @@ RUN bun install --frozen-lockfile --production \
         node_modules/typescript \
         node_modules/vite
 COPY --from=build /app/web/dist ./web/dist
-COPY --from=build /app/web/drizzle ./web/drizzle
+COPY --from=build /build/migrations ./web/drizzle
 COPY --from=build /build/migrate.js ./migrate.js
 COPY --from=build /app/docker/web/bootstrap-secrets.mjs ./docker/web/bootstrap-secrets.mjs
 COPY --from=build /app/docker/web/request-context.ts ./docker/web/request-context.ts
