@@ -1,0 +1,51 @@
+import type { HtmlEditorColorPreset, HtmlEditorColors } from './Types/html-editor-config.types.ts'
+
+export const HTML_EDITOR_COLOR_PRESETS = ['rentnerproxy', 'midnight', 'paper'] as const
+
+export const HTML_EDITOR_COLORS: Readonly<Record<HtmlEditorColorPreset, HtmlEditorColors>> = {
+    rentnerproxy: {
+        background: 'var(--theme-code)',
+        foreground: 'var(--theme-ink)',
+        gutter: 'var(--theme-surface)',
+        gutterText: 'var(--theme-muted)',
+        border: 'var(--theme-border)',
+        activeLine: 'var(--theme-surface-hover)',
+        selection: 'var(--accent-muted)',
+        tag: 'var(--theme-brand-text)',
+        attribute: 'var(--editor-attribute)',
+        string: 'var(--editor-string)',
+        keyword: 'var(--editor-keyword)',
+        number: 'var(--editor-number)',
+        comment: 'var(--theme-muted)',
+    },
+    midnight: {
+        background: '#1e1e2e',
+        foreground: '#cdd6f4',
+        gutter: '#181825',
+        gutterText: '#9399b2',
+        border: '#313244',
+        activeLine: '#242436',
+        selection: '#45475a',
+        tag: '#89b4fa',
+        attribute: '#cba6f7',
+        string: '#a6e3a1',
+        keyword: '#f38ba8',
+        number: '#fab387',
+        comment: '#9399b2',
+    },
+    paper: {
+        background: '#ffffff',
+        foreground: '#24292f',
+        gutter: '#f6f8fa',
+        gutterText: '#57606a',
+        border: '#d0d7de',
+        activeLine: '#f6f8fa',
+        selection: '#b6e3ff',
+        tag: '#116329',
+        attribute: '#6639ba',
+        string: '#0a3069',
+        keyword: '#cf222e',
+        number: '#0550ae',
+        comment: '#6e7781',
+    },
+}

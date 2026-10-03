@@ -2550,6 +2550,19 @@
         }
     },
     "defaultSite": {
+        "editor": {
+            "loading": "Ładowanie edytora HTML…",
+            "colors": "Kolory edytora",
+            "format": "Formatuj HTML",
+            "formatting": "Formatowanie…",
+            "formatFailed": "Nie udało się sformatować HTML. Sprawdź składnię i limit 256 KiB.",
+            "formatChanged": "HTML zmienił się podczas formatowania. Spróbuj ponownie.",
+            "presets": {
+                "rentnerproxy": "RentnerProxy",
+                "midnight": "Północ",
+                "paper": "Papier (jasny)"
+            }
+        },
         "title": "Witryna domyślna",
         "description": "Wybierz odpowiedź dla adresu IP lub nazwy hosta bez pasującego hosta proxy ani hosta przekierowania.",
         "current": "Zapisany tryb",

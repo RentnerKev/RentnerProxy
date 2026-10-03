@@ -2550,6 +2550,19 @@
         }
     },
     "defaultSite": {
+        "editor": {
+            "loading": "A carregar o editor HTML…",
+            "colors": "Cores do editor",
+            "format": "Formatar HTML",
+            "formatting": "A formatar…",
+            "formatFailed": "Não foi possível formatar o HTML. Verifica a sintaxe e o limite de 256 KiB.",
+            "formatChanged": "O HTML mudou durante a formatação. Tenta novamente.",
+            "presets": {
+                "rentnerproxy": "RentnerProxy",
+                "midnight": "Meia-noite",
+                "paper": "Papel (claro)"
+            }
+        },
         "title": "Site predefinido",
         "description": "Escolha a resposta para um endereço IP ou nome de anfitrião sem um anfitrião proxy ou de redirecionamento correspondente.",
         "current": "Modo guardado",

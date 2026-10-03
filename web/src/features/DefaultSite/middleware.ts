@@ -1,4 +1,4 @@
-import type { DefaultSiteSaveResult } from './Types/middleware.types.ts'
+import type { DefaultSiteFormatResult, DefaultSiteSaveResult } from './Types/middleware.types.ts'
 import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
 import { z } from 'zod'
@@ -7,7 +7,11 @@ import {
     getDefaultSiteService,
     saveDefaultSiteService,
 } from '@/server/DefaultSite/default-site.service.ts'
-import { DefaultSiteError } from '@/server/DefaultSite/default-site.errors.ts'
+import {
+    DefaultSiteError,
+    DefaultSiteHtmlFormatError,
+} from '@/server/DefaultSite/default-site.errors.ts'
+import { formatDefaultSiteHtmlService } from '@/server/DefaultSite/format-default-site-html.service.ts'
 import { localizedActionFailure, throwLocalizedQueryError } from '@/server/Auth/transport.server.ts'
 
 export const getDefaultSiteHandler = createServerFn({ method: 'GET' }).handler(async () => {
@@ -18,6 +22,21 @@ export const getDefaultSiteHandler = createServerFn({ method: 'GET' }).handler(a
         throwLocalizedQueryError(error, 'defaultSite.errors.loadFailed')
     }
 })
+
+export const formatDefaultSiteHtmlHandler = createServerFn({ method: 'POST' })
+    .validator((input: unknown) => input)
+    .handler(async ({ data }): Promise<DefaultSiteFormatResult> => {
+        setResponseHeader('Cache-Control', 'no-store')
+        try {
+            return { success: true, html: await formatDefaultSiteHtmlService(data) }
+        } catch (error) {
+            if (error instanceof DefaultSiteHtmlFormatError || error instanceof z.ZodError) {
+                setResponseStatus(400)
+                return { success: false, message: 'defaultSite.editor.formatFailed' }
+            }
+            return localizedActionFailure(error, 'defaultSite.editor.formatFailed')
+        }
+    })
 
 export const saveDefaultSiteHandler = createServerFn({ method: 'POST' })
     .validator((input: unknown) => input)

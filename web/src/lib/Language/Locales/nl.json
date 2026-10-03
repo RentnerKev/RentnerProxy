@@ -2524,6 +2524,19 @@
         "minutePlaceholder": "Minuut"
     },
     "defaultSite": {
+        "editor": {
+            "loading": "HTML-editor laden…",
+            "colors": "Editorkleuren",
+            "format": "HTML opmaken",
+            "formatting": "Opmaken…",
+            "formatFailed": "HTML kon niet worden opgemaakt. Controleer de syntaxis en de limiet van 256 KiB.",
+            "formatChanged": "HTML is tijdens het opmaken gewijzigd. Probeer het opnieuw.",
+            "presets": {
+                "rentnerproxy": "RentnerProxy",
+                "midnight": "Middernacht",
+                "paper": "Papier (licht)"
+            }
+        },
         "title": "Standaardsite",
         "description": "Kies het antwoord voor een IP-adres of hostnaam zonder een overeenkomende proxy- of omleidingshost.",
         "current": "Opgeslagen modus",

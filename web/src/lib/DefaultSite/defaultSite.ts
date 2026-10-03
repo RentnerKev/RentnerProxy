@@ -15,7 +15,7 @@ const redirectUrlSchema = z
         return normalized
     })
 
-const customHtmlSchema = z
+export const defaultSiteHtmlSchema = z
     .string()
     .max(MAX_DEFAULT_SITE_HTML_BYTES, 'defaultSite.errors.invalidHtml')
     .refine(
@@ -32,7 +32,7 @@ export const defaultSiteSettingsSchema = z.discriminatedUnion('mode', [
     z.strictObject({ mode: z.literal('welcome') }),
     z.strictObject({ mode: z.literal('close') }),
     z.strictObject({ mode: z.literal('redirect'), url: redirectUrlSchema }),
-    z.strictObject({ mode: z.literal('custom-html'), html: customHtmlSchema }),
+    z.strictObject({ mode: z.literal('custom-html'), html: defaultSiteHtmlSchema }),
 ])
 
 export const defaultSiteSaveSchema = z.strictObject({

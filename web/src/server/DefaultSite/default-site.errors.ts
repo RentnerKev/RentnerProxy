@@ -3,3 +3,9 @@ export class DefaultSiteError extends Error {
         super(code)
     }
 }
+
+export class DefaultSiteHtmlFormatError extends Error {
+    constructor() {
+        super('HTML could not be formatted.')
+    }
+}

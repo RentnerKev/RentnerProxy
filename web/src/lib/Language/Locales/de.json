@@ -2524,6 +2524,19 @@
         }
     },
     "defaultSite": {
+        "editor": {
+            "loading": "HTML-Editor wird geladen…",
+            "colors": "Editor-Farben",
+            "format": "HTML formatieren",
+            "formatting": "Wird formatiert…",
+            "formatFailed": "HTML konnte nicht formatiert werden. Prüfe die Syntax und das Limit von 256 KiB.",
+            "formatChanged": "HTML wurde während der Formatierung geändert. Versuche es erneut.",
+            "presets": {
+                "rentnerproxy": "RentnerProxy",
+                "midnight": "Mitternacht",
+                "paper": "Papier (hell)"
+            }
+        },
         "title": "Standardseite",
         "description": "Wähle die Antwort für eine IP-Adresse oder einen Hostnamen ohne passenden Proxy- oder Weiterleitungshost.",
         "current": "Gespeicherter Modus",

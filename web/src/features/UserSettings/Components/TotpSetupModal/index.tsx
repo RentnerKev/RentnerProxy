@@ -1,6 +1,6 @@
 import type { TotpSetupModalProps } from './Types/totp-setup-modal-props.types.ts'
 import { TextInput } from '@rentnerkev/inputs'
-import { QRCodeSVG } from 'qrcode.react'
+import { QRCode } from 'react-qr-code'
 import type { ChangeEvent } from 'react'
 
 import FieldError from '@/shared/Forms/FieldError.tsx'
@@ -134,7 +134,7 @@ export default function TotpSetupModal({
             ) : (
                 <div className="mt-5 grid gap-5 sm:grid-cols-[auto_1fr] sm:items-start">
                     <figure className="mx-auto rounded-xl bg-white p-4 sm:mx-0">
-                        <QRCodeSVG value={setup.otpAuthUrl} size={176} aria-hidden="true" />
+                        <QRCode value={setup.otpAuthUrl} size={176} level="L" aria-hidden="true" />
                         <figcaption className="sr-only">
                             {t('account.twoFactor.setup.qrCode')}
                         </figcaption>

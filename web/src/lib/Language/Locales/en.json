@@ -2524,6 +2524,19 @@
         }
     },
     "defaultSite": {
+        "editor": {
+            "loading": "Loading HTML editor…",
+            "colors": "Editor colors",
+            "format": "Format HTML",
+            "formatting": "Formatting…",
+            "formatFailed": "Could not format HTML. Check the syntax and the 256 KiB limit.",
+            "formatChanged": "HTML changed during formatting. Try again.",
+            "presets": {
+                "rentnerproxy": "RentnerProxy",
+                "midnight": "Midnight",
+                "paper": "Paper (light)"
+            }
+        },
         "title": "Default site",
         "description": "Choose the response for an IP address or hostname without a matching proxy or redirect host.",
         "current": "Saved mode",

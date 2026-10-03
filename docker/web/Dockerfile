@@ -27,7 +27,6 @@ RUN bun install --frozen-lockfile --production \
         node_modules/@vitejs \
         node_modules/drizzle-kit \
         node_modules/fast-check \
-        node_modules/oxfmt \
         node_modules/oxlint \
         node_modules/tailwindcss \
         node_modules/typescript \

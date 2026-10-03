@@ -3,7 +3,10 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { Root } from 'react-dom/client'
 import type { DefaultSiteEditorData } from '@/lib/DefaultSite/Types/default-site.types.ts'
-import type { DefaultSiteSaveResult } from '@/features/DefaultSite/Types/middleware.types.ts'
+import type {
+    DefaultSiteFormatResult,
+    DefaultSiteSaveResult,
+} from '@/features/DefaultSite/Types/middleware.types.ts'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { getDefaultSitePageViewModel } from '@/lib/DefaultSite/defaultSitePage.ts'
@@ -24,6 +27,7 @@ const { TOAST_PROVIDER_PROPS } = await import('@/config/toast.config.ts')
 const { createMemoryHistory, createRootRoute, createRouter, RouterProvider } =
     await import('@tanstack/react-router')
 const { renderToString } = await import('react-dom/server')
+const { EditorView } = await import('codemirror')
 const { default: ApplicationNavigation } =
     await import('@/layouts/AuthenticatedLayout/Components/ApplicationShell/Components/ApplicationNavigation/index.tsx')
 
@@ -40,9 +44,14 @@ const saveSettings = mock(
         return outcome
     },
 )
+let formatOutcome: DefaultSiteFormatResult = { success: true, html: '<p>formatted</p>\n' }
+const formatSettings = mock(
+    async (_input: { data: string }): Promise<DefaultSiteFormatResult> => formatOutcome,
+)
 mock.module('@/features/DefaultSite/middleware.ts', () => ({
     getDefaultSiteHandler: getSettings,
     saveDefaultSiteHandler: saveSettings,
+    formatDefaultSiteHtmlHandler: formatSettings,
 }))
 const { default: DefaultSitePanel } =
     await import('@/features/DefaultSite/Components/DefaultSitePanel/index.tsx')
@@ -117,6 +126,39 @@ async function setInputValue(input: HTMLInputElement | HTMLTextAreaElement, valu
     })
 }
 
+function getEditor(container: HTMLElement) {
+    const element = container.querySelector<HTMLElement>('.cm-editor')
+    expect(element).not.toBeNull()
+    const view = EditorView.findFromDOM(element!)
+    expect(view).not.toBeNull()
+    return view!
+}
+
+async function setHtml(container: HTMLElement, value: string) {
+    await act(async () => {
+        const view = getEditor(container)
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: value },
+            userEvent: 'input',
+        })
+    })
+}
+
+function formatButton(container: HTMLElement) {
+    return [...container.querySelectorAll('button')].find((button) =>
+        button.textContent?.includes('Format HTML'),
+    )!
+}
+
+async function chooseEditorColors(container: HTMLElement, label: string) {
+    await click(container.querySelector('[aria-label="Editor colors"]')!)
+    const option = [...document.querySelectorAll('[role="option"]')].find((candidate) =>
+        candidate.textContent?.includes(label),
+    )
+    expect(option).toBeDefined()
+    await click(option!)
+}
+
 afterEach(async () => {
     await act(async () => root?.unmount())
     root = null
@@ -127,6 +169,8 @@ afterEach(async () => {
     outcome = { success: true, message: 'defaultSite.saved', runtimeStatus: 'applied' }
     getSettings.mockClear()
     saveSettings.mockClear()
+    formatSettings.mockClear()
+    formatOutcome = { success: true, html: '<p>formatted</p>\n' }
 })
 
 describe('default-site settings panel', () => {
@@ -174,8 +218,11 @@ describe('default-site settings panel', () => {
         const html = '<h1 id="untrusted">Hi</h1><script>window.hacked=true</script>'
         saved = { baseRevision: 'revision-1', settings: { mode: 'custom-html', html } }
         const container = await renderPanel(false)
-        expect(container.querySelector('textarea')?.value).toBe(html)
-        expect(container.querySelector('textarea')?.disabled).toBe(true)
+        expect(getEditor(container).state.doc.toString()).toBe(html)
+        expect(container.querySelector('[role="textbox"]')?.getAttribute('aria-readonly')).toBe(
+            'true',
+        )
+        expect(formatButton(container).disabled).toBe(true)
         expect(container.querySelector('#untrusted')).toBeNull()
         expect(container.querySelector('script')).toBeNull()
         expect(container.querySelector('button[type="submit"]')).toBeNull()
@@ -213,7 +260,7 @@ describe('default-site settings panel', () => {
         const container = await renderPanel()
         await chooseMode(container, 'Welcome page')
         await chooseMode(container, 'Custom HTML')
-        expect(container.querySelector('textarea')?.value).toBe('<p>draft</p>')
+        expect(getEditor(container).state.doc.toString()).toBe('<p>draft</p>')
         await chooseMode(container, 'Close connection')
         await submit(container)
         expect(container.querySelector('section [role="alert"]')?.textContent).toContain(
@@ -281,12 +328,17 @@ describe('default-site settings panel', () => {
                         : { mode, html: '<p>original</p>' },
             }
             const container = await renderPanel()
-            const selector = mode === 'redirect' ? 'input[name="url"]' : 'textarea[name="html"]'
             const draft = mode === 'redirect' ? 'https://draft.example/' : '<p>unsaved draft</p>'
-            await setInputValue(
-                container.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector)!,
-                draft,
-            )
+            const readDraft = () =>
+                mode === 'redirect'
+                    ? container.querySelector<HTMLInputElement>('input[name="url"]')?.value
+                    : getEditor(container).state.doc.toString()
+            if (mode === 'redirect')
+                await setInputValue(
+                    container.querySelector<HTMLInputElement>('input[name="url"]')!,
+                    draft,
+                )
+            else await setHtml(container, draft)
             saved = { baseRevision: 'revision-2', settings: { mode: 'welcome' } }
             await act(async () => {
                 await client!.invalidateQueries({ queryKey: ['default-site'] })
@@ -295,9 +347,7 @@ describe('default-site settings panel', () => {
             expect(
                 client!.getQueryData<DefaultSiteEditorData>(['default-site'])?.baseRevision,
             ).toBe('revision-2')
-            expect(
-                container.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector)?.value,
-            ).toBe(draft)
+            expect(readDraft()).toBe(draft)
             expect(container.textContent).toContain('Unsaved changes')
             outcome = { success: false, message: 'defaultSite.errors.conflict' }
             await submit(container)
@@ -307,14 +357,114 @@ describe('default-site settings panel', () => {
                     settings: mode === 'redirect' ? { mode, url: draft } : { mode, html: draft },
                 },
             })
-            expect(
-                container.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector)?.value,
-            ).toBe(draft)
+            expect(readDraft()).toBe(draft)
             expect(container.querySelector('section [role="alert"]')?.textContent).toContain(
                 'Settings changed elsewhere',
             )
         },
     )
+
+    test('changes only editor colors and keeps undo history through theme changes', async () => {
+        const html = '<p>original</p>'
+        saved = { baseRevision: 'revision-1', settings: { mode: 'custom-html', html } }
+        const container = await renderPanel()
+        const view = getEditor(container)
+        await chooseEditorColors(container, 'Midnight')
+        expect(getEditor(container)).toBe(view)
+        expect(view.state.doc.toString()).toBe(html)
+        expect(container.textContent).toContain('No unsaved changes')
+        await setHtml(container, '<p>draft</p>')
+        await chooseEditorColors(container, 'Paper')
+        expect(getEditor(container)).toBe(view)
+        expect(container.querySelector('[data-color-preset="paper"]')).not.toBeNull()
+        await act(async () => {
+            view.contentDOM.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'z',
+                    code: 'KeyZ',
+                    ctrlKey: true,
+                    bubbles: true,
+                    cancelable: true,
+                }),
+            )
+        })
+        expect(view.state.doc.toString()).toBe(html)
+        expect(container.textContent).toContain('No unsaved changes')
+        expect(saveSettings).not.toHaveBeenCalled()
+    })
+
+    test('formats embedded CSS as an undoable draft without saving', async () => {
+        const html = '<style>h1{color:red;margin:0}</style>\n<h1>Welcome</h1>'
+        formatOutcome = {
+            success: true,
+            html: '<style>\n    h1 {\n        color: red;\n        margin: 0;\n    }\n</style>\n<h1>Welcome</h1>\n',
+        }
+        saved = { baseRevision: 'revision-1', settings: { mode: 'custom-html', html } }
+        const container = await renderPanel()
+        await click(formatButton(container))
+        expect(formatSettings).toHaveBeenCalledWith({ data: html })
+        expect(getEditor(container).state.doc.toString()).toContain('color: red;')
+        expect(container.textContent).toContain('Unsaved changes')
+        expect(saveSettings).not.toHaveBeenCalled()
+        await act(async () => {
+            getEditor(container).contentDOM.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'z',
+                    code: 'KeyZ',
+                    ctrlKey: true,
+                    bubbles: true,
+                    cancelable: true,
+                }),
+            )
+        })
+        expect(getEditor(container).state.doc.toString()).toBe(html)
+        await click(formatButton(container))
+        await submit(container)
+        expect(saveSettings).toHaveBeenCalledWith({
+            data: {
+                baseRevision: 'revision-1',
+                settings: { mode: 'custom-html', html: getEditor(container).state.doc.toString() },
+            },
+        })
+    })
+
+    test('preserves the source and shows a useful error when formatting fails', async () => {
+        const html = '<div><span>private draft</div>'
+        formatOutcome = { success: false, message: 'defaultSite.editor.formatFailed' }
+        saved = { baseRevision: 'revision-1', settings: { mode: 'custom-html', html } }
+        const container = await renderPanel()
+        await click(formatButton(container))
+        expect(getEditor(container).state.doc.toString()).toBe(html)
+        expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+            'Could not format HTML',
+        )
+        expect(saveSettings).not.toHaveBeenCalled()
+    })
+
+    test('does not overwrite typing that happens while formatting is in flight', async () => {
+        saved = {
+            baseRevision: 'revision-1',
+            settings: { mode: 'custom-html', html: '<p>original</p>' },
+        }
+        let finish!: (result: DefaultSiteFormatResult) => void
+        formatSettings.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve
+                }),
+        )
+        const container = await renderPanel()
+        await click(formatButton(container))
+        await setHtml(container, '<p>new typing</p>')
+        await act(async () => {
+            finish({ success: true, html: '<p>original</p>\n' })
+        })
+        expect(getEditor(container).state.doc.toString()).toBe('<p>new typing</p>')
+        expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+            'HTML changed during formatting',
+        )
+        expect(saveSettings).not.toHaveBeenCalled()
+    })
 
     test('shows failed loading and allows retry', async () => {
         getSettings.mockRejectedValueOnce(new Error('offline'))

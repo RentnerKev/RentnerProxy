@@ -2537,6 +2537,19 @@
         }
     },
     "defaultSite": {
+        "editor": {
+            "loading": "Caricamento dell’editor HTML…",
+            "colors": "Colori dell’editor",
+            "format": "Formatta HTML",
+            "formatting": "Formattazione…",
+            "formatFailed": "Impossibile formattare l’HTML. Controlla la sintassi e il limite di 256 KiB.",
+            "formatChanged": "L’HTML è cambiato durante la formattazione. Riprova.",
+            "presets": {
+                "rentnerproxy": "RentnerProxy",
+                "midnight": "Mezzanotte",
+                "paper": "Carta (chiaro)"
+            }
+        },
         "title": "Sito predefinito",
         "description": "Scegli la risposta per un indirizzo IP o un nome host senza un host proxy o di reindirizzamento corrispondente.",
         "current": "Modalità salvata",

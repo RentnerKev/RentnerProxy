@@ -1,10 +1,13 @@
-import { TextInput, Textarea } from '@rentnerkev/inputs'
+import { lazy, Suspense } from 'react'
+import { TextInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
 import { Globe } from 'lucide-react'
 
 import { MAX_DEFAULT_SITE_HTML_BYTES } from '@/config/default-site.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { useDefaultSitePanelLogic } from './Hooks/useDefaultSitePanelLogic.ts'
+
+const HtmlSourceEditor = lazy(() => import('./Components/HtmlSourceEditor/index.tsx'))
 
 export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: boolean }) {
     const { t } = useTranslationStore()
@@ -77,7 +80,7 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                     {state.mode === 'redirect' ? (
                         <form.Field name="url">
                             {(field) => (
-                                <div className="grid gap-2">
+                                <div className="grid min-w-0 gap-2">
                                     <label
                                         htmlFor="default-site-url"
                                         className="text-sm font-bold text-ink-soft"
@@ -108,28 +111,32 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                     {state.mode === 'custom-html' ? (
                         <form.Field name="html">
                             {(field) => (
-                                <div className="grid gap-2">
+                                <div className="grid min-w-0 gap-2">
                                     <label
                                         htmlFor="default-site-html"
                                         className="text-sm font-bold text-ink-soft"
                                     >
                                         {t('defaultSite.html')}
                                     </label>
-                                    <Textarea
-                                        id="default-site-html"
-                                        name={field.name}
-                                        value={field.state.value}
-                                        onChange={(event) => field.handleChange(event.target.value)}
-                                        onBlur={field.handleBlur}
-                                        disabled={!canUpdate || state.isSaving || state.isReloading}
-                                        maxLength={MAX_DEFAULT_SITE_HTML_BYTES}
-                                        className="min-h-64 font-mono text-xs"
-                                        autoCapitalize="off"
-                                        autoComplete="off"
-                                        spellCheck={false}
-                                        aria-invalid={!state.isValid}
-                                        aria-describedby="default-site-html-hint default-site-validation"
-                                    />
+                                    <Suspense
+                                        fallback={
+                                            <output className="block min-h-90 w-full rounded-xl border border-border-strong bg-surface-raised p-4 text-sm text-muted">
+                                                {t('defaultSite.editor.loading')}
+                                            </output>
+                                        }
+                                    >
+                                        <HtmlSourceEditor
+                                            id="default-site-html"
+                                            value={field.state.value}
+                                            onChange={field.handleChange}
+                                            onBlur={field.handleBlur}
+                                            disabled={
+                                                !canUpdate || state.isSaving || state.isReloading
+                                            }
+                                            invalid={!state.isValid}
+                                            describedBy="default-site-html-hint default-site-validation"
+                                        />
+                                    </Suspense>
                                     <p id="default-site-html-hint" className="text-sm text-muted">
                                         {t('defaultSite.htmlHint')}
                                     </p>

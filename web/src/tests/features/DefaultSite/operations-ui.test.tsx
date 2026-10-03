@@ -23,6 +23,10 @@ const getSettings = mock(async () => ({
 }))
 mock.module('@/features/DefaultSite/middleware.ts', () => ({
     getDefaultSiteHandler: getSettings,
+    formatDefaultSiteHtmlHandler: async () => ({
+        success: false,
+        message: 'defaultSite.editor.formatFailed',
+    }),
     saveDefaultSiteHandler: async () => ({
         success: true,
         message: 'defaultSite.saved',

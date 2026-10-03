@@ -2524,6 +2524,19 @@
         }
     },
     "defaultSite": {
+        "editor": {
+            "loading": "Chargement de l’éditeur HTML…",
+            "colors": "Couleurs de l’éditeur",
+            "format": "Formater le HTML",
+            "formatting": "Formatage…",
+            "formatFailed": "Impossible de formater le HTML. Vérifiez la syntaxe et la limite de 256 Kio.",
+            "formatChanged": "Le HTML a changé pendant le formatage. Réessayez.",
+            "presets": {
+                "rentnerproxy": "RentnerProxy",
+                "midnight": "Minuit",
+                "paper": "Papier (clair)"
+            }
+        },
         "title": "Site par défaut",
         "description": "Choisissez la réponse pour une adresse IP ou un nom d’hôte sans hôte proxy ni hôte de redirection correspondant.",
         "current": "Mode enregistré",
