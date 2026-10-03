@@ -22,16 +22,16 @@ import { createReadStream } from 'node:fs'
 import { appendFile, lstat, readFile, readdir } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 
-export const PREVIEW_ARTIFACT_NAME = 'pr-preview-image'
+const PREVIEW_ARTIFACT_NAME = 'pr-preview-image'
 export const PREVIEW_COMMENT_MARKER = '<!-- rentnerproxy-pr-preview -->'
-export const PREVIEW_PLATFORM = 'linux/amd64'
-export const PREVIEW_SHORT_SHA_LENGTH = 12
-export const PREVIEW_SOURCE_ARTIFACT_NAME = 'pr-preview-source'
-export const PREVIEW_TRIGGER_WORKFLOW_NAME = 'PR Title'
-export const PREVIEW_TRIGGER_WORKFLOW_PATH = '.github/workflows/pr-title.yml'
-export const PREVIEW_WORKFLOW_NAME = 'PR Preview Build'
-export const PREVIEW_WORKFLOW_PATH = '.github/workflows/pr-preview-build.yml'
-export const MAX_PREVIEW_ARTIFACT_BYTES = 4 * 1024 * 1024 * 1024
+const PREVIEW_PLATFORM = 'linux/amd64'
+const PREVIEW_SHORT_SHA_LENGTH = 12
+const PREVIEW_SOURCE_ARTIFACT_NAME = 'pr-preview-source'
+const PREVIEW_TRIGGER_WORKFLOW_NAME = 'PR Title'
+const PREVIEW_TRIGGER_WORKFLOW_PATH = '.github/workflows/pr-title.yml'
+const PREVIEW_WORKFLOW_NAME = 'PR Preview Build'
+const PREVIEW_WORKFLOW_PATH = '.github/workflows/pr-preview-build.yml'
+const MAX_PREVIEW_ARTIFACT_BYTES = 4 * 1024 * 1024 * 1024
 
 const API_VERSION = '2022-11-28'
 const DEFAULT_GATE_TIMEOUT_SECONDS = 25 * 60
@@ -119,7 +119,7 @@ export function parsePullRequestNumberProof(value: unknown): number {
     return parsePositiveInteger(value.slice(0, -1), 'Proven pull request number')
 }
 
-export function validateSha256Digest(value: unknown, label = 'SHA-256 digest'): string {
+function validateSha256Digest(value: unknown, label = 'SHA-256 digest'): string {
     if (typeof value !== 'string' || !/^sha256:[0-9a-f]{64}$/u.test(value)) {
         throw new Error(`${label} is invalid.`)
     }
@@ -133,7 +133,7 @@ function validateSha256Hex(value: unknown, label: string): string {
     return value
 }
 
-export function normalizeRepository(value: unknown): string {
+function normalizeRepository(value: unknown): string {
     const normalized = stringValue(value, 'Repository').toLowerCase()
     if (!/^[a-z0-9][a-z0-9_.-]*\/[a-z0-9][a-z0-9_.-]*$/u.test(normalized)) {
         throw new Error('Repository is invalid.')

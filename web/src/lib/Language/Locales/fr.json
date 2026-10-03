@@ -1276,7 +1276,6 @@
                 "errors": {
                     "loadFailed": "Impossible de charger la configuration.",
                     "saveFailed": "Impossible d’enregistrer les paramètres HTTP.",
-                    "previewFailed": "L’aperçu est indisponible.",
                     "configuration_conflict": "La configuration enregistrée a changé. Rechargez avant d’enregistrer. Votre brouillon est conservé.",
                     "runtime_unavailable": "Le contrôleur est indisponible. Les paramètres enregistrés pourront être appliqués plus tard.",
                     "invalidSettings": "Les paramètres HTTP sont invalides. Seuls les champs et valeurs indiqués sont autorisés.",

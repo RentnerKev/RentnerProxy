@@ -9,7 +9,7 @@ import type useProxyHostFormModalLogic from '../Hooks/useProxyHostFormModalLogic
 import type { proxyHostFormSchema } from '../../../validation.ts'
 
 export type ProxyHostEditorFormValues = z.input<typeof proxyHostFormSchema>
-export type ProxyHostFormInstance = ReturnType<typeof useProxyHostFormModalLogic>['form']
+type ProxyHostFormInstance = ReturnType<typeof useProxyHostFormModalLogic>['form']
 
 export interface ProxyHostFormModalProps {
     readonly canEnable: boolean

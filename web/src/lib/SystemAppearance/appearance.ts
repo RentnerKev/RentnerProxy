@@ -1,5 +1,5 @@
 import { z } from 'zod'
-export const accentColorSchema = z
+const accentColorSchema = z
     .string()
     .regex(/^#[\da-fA-F]{6}$/u, 'invalid_accent_color')
     .transform((value) => value.toLowerCase())

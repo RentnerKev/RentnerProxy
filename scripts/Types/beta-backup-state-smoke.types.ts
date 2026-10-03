@@ -1,4 +1,4 @@
-export interface ImportResultItem {
+interface ImportResultItem {
     readonly kind: 'proxy-host'
     readonly sourceId: number
     readonly label: string

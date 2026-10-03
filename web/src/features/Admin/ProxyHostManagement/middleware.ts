@@ -18,16 +18,11 @@ import {
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import {
     getProxyConfigEditorService,
-    previewProxyConfigEditorService,
     resetProxyConfigEditorService,
     saveProxyConfigEditorService,
     ProxyConfigEditorError,
 } from '@/server/ProxyRuntime/proxy-config-editor.service.ts'
-import {
-    proxyConfigEditorSaveSchema,
-    proxyConfigEditorResetSchema,
-    normalizeProxyHttpSettings,
-} from './config-validation.ts'
+import { proxyConfigEditorSaveSchema, proxyConfigEditorResetSchema } from './config-validation.ts'
 import type {
     ProxyHostActionResult,
     ProxyRuntimeMutationStatus,
@@ -204,17 +199,6 @@ export const getProxyConfigEditorHandler = createServerFn({ method: 'GET' }).han
         throwLocalizedQueryError(error, 'admin.proxyHosts.config.errors.loadFailed')
     }
 })
-
-export const previewProxyConfigEditorHandler = createServerFn({ method: 'POST' })
-    .validator(proxyConfigEditorSaveSchema.pick({ settings: true }))
-    .handler(async ({ data }) => {
-        noStore()
-        try {
-            return await previewProxyConfigEditorService(normalizeProxyHttpSettings(data.settings))
-        } catch (error) {
-            throwLocalizedQueryError(error, 'admin.proxyHosts.config.errors.previewFailed')
-        }
-    })
 
 export const saveProxyConfigEditorHandler = createServerFn({ method: 'POST' })
     .validator(proxyConfigEditorSaveSchema)

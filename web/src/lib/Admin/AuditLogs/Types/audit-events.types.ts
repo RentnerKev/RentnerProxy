@@ -12,19 +12,19 @@ import type {
     AUDIT_CHANGED_FIELDS,
 } from '@/config/audit.config.ts'
 
-export type AuditActorKind = (typeof AUDIT_ACTOR_KINDS)[number]
+type AuditActorKind = (typeof AUDIT_ACTOR_KINDS)[number]
 
-export type AuditResult = (typeof AUDIT_RESULTS)[number]
+type AuditResult = (typeof AUDIT_RESULTS)[number]
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 
 export type AuditResource = (typeof AUDIT_RESOURCES)[number]
 
-export type AuditAuthenticationMethod = (typeof AUDIT_AUTHENTICATION_METHODS)[number]
+type AuditAuthenticationMethod = (typeof AUDIT_AUTHENTICATION_METHODS)[number]
 
-export type AuditFailureCode = (typeof AUDIT_FAILURE_CODES)[number]
+type AuditFailureCode = (typeof AUDIT_FAILURE_CODES)[number]
 
-export type AuditChangedField = (typeof AUDIT_CHANGED_FIELDS)[number]
+type AuditChangedField = (typeof AUDIT_CHANGED_FIELDS)[number]
 
 export interface AuditMetadata {
     readonly authenticationMethod?: AuditAuthenticationMethod

@@ -10,6 +10,6 @@ export type LiveTopic = z.infer<typeof liveTopicSchema>
 
 export type ApplicationChangedEvent = z.infer<typeof applicationChangedEventSchema>
 
-export type RealtimeEvent = z.infer<typeof realtimeEventSchema>
+type RealtimeEvent = z.infer<typeof realtimeEventSchema>
 
 export type SnapshotEvent = Extract<RealtimeEvent, { type: 'snapshot' }>

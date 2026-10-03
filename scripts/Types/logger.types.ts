@@ -1,6 +1,6 @@
 export type LogColor = 'blue' | 'green' | 'red' | 'yellow'
 export type LogMethod = (message: string) => void
-export type LogWriter = (output: string) => void
+type LogWriter = (output: string) => void
 
 export interface Logger {
     readonly create: LogMethod

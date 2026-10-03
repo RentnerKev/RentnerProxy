@@ -1283,7 +1283,6 @@
                 "errors": {
                     "loadFailed": "Impossibile caricare la configurazione.",
                     "saveFailed": "Impossibile salvare le impostazioni HTTP.",
-                    "previewFailed": "L’anteprima della configurazione non è disponibile.",
                     "configuration_conflict": "La configurazione salvata è cambiata mentre questo editor era aperto. Ricaricala prima di salvare; la bozza è stata mantenuta.",
                     "runtime_unavailable": "Il controller proxy non è disponibile. Le impostazioni salvate potranno essere applicate in seguito.",
                     "invalidSettings": "Queste impostazioni HTTP non sono valide. Sono accettati solo i campi e i valori elencati.",

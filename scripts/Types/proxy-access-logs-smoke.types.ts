@@ -1,4 +1,4 @@
-export interface LogEntry {
+interface LogEntry {
     readonly timestamp: string
     readonly host: string
     readonly method: string

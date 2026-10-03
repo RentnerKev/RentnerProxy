@@ -14,7 +14,7 @@ export const checkSteps: readonly CommandStep[] = [
     ...buildSteps,
 ]
 
-export function runCheck(dependencies: Partial<CommandRunnerDependencies> = {}): Promise<number> {
+function runCheck(dependencies: Partial<CommandRunnerDependencies> = {}): Promise<number> {
     return runSteps(
         {
             title: 'Running RentnerProxy checks',

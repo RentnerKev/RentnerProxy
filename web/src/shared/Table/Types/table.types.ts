@@ -29,7 +29,7 @@ export interface TableDateRangeFilterValue {
     to?: string
 }
 
-export type TableColumnFilterConfig =
+type TableColumnFilterConfig =
     | {
           readonly type: 'text'
           readonly placeholder?: string
@@ -53,7 +53,7 @@ export type TableColumnFilterConfig =
 
 export type TableColumnFilterConfigs = Readonly<Record<string, TableColumnFilterConfig>>
 
-export interface TableBodyStateConfig {
+interface TableBodyStateConfig {
     readonly title: ReactNode
     readonly description: ReactNode
     readonly action?: ReactNode

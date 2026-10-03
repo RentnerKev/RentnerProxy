@@ -1290,7 +1290,6 @@
                 "errors": {
                     "loadFailed": "Não foi possível carregar a configuração.",
                     "saveFailed": "Não foi possível guardar as definições HTTP.",
-                    "previewFailed": "A pré-visualização da configuração está indisponível.",
                     "configuration_conflict": "A configuração guardada foi alterada enquanto este editor estava aberto. Volte a carregá-la antes de guardar; o seu rascunho foi mantido.",
                     "runtime_unavailable": "O controlador do proxy está indisponível. As definições guardadas continuam disponíveis para aplicação posterior.",
                     "invalidSettings": "Estas definições HTTP são inválidas. Só são aceites os campos e valores listados.",

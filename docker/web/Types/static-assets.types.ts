@@ -1,4 +1,4 @@
-export type RuntimeServer = Readonly<{
+type RuntimeServer = Readonly<{
     requestIP(request: Request): { readonly address: string } | null
 }>
 

@@ -7,7 +7,7 @@ export function isValidPassword(password: string): boolean {
     return password.length > 0 && password.length <= PASSWORD_MAX_LENGTH
 }
 
-export function validatePassword(password: string): void {
+function validatePassword(password: string): void {
     if (!isValidPassword(password)) {
         throw new AuthDomainError(
             'password_policy',

@@ -1,13 +1,13 @@
 import type { LiveTopic } from '@/lib/Live/Types/realtime.types.ts'
 
-export type MaybePromise<T> = T | Promise<T>
+type MaybePromise<T> = T | Promise<T>
 
 export interface LiveUpgradeResult {
     readonly handled: boolean
     readonly response?: Response
 }
 
-export interface LiveSnapshotReaderRequest {
+interface LiveSnapshotReaderRequest {
     readonly request: Request
     readonly topic: LiveTopic
     readonly query: unknown

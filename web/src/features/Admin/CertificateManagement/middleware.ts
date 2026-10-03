@@ -5,7 +5,6 @@ import { CertificateDomainError } from '@/server/Admin/CertificateManagement/cer
 import {
     deleteCertificateService,
     getAssignableCertificatesService,
-    getCertificateDetailsService,
     getCertificatesService,
     importCertificateService,
     renewCertificateService,
@@ -73,17 +72,6 @@ export const getAssignableCertificatesHandler = createServerFn({ method: 'GET' }
         }
     },
 )
-
-export const getCertificateDetailsHandler = createServerFn({ method: 'GET' })
-    .validator(certificateIdInputSchema)
-    .handler(async ({ data }) => {
-        noStore()
-        try {
-            return await getCertificateDetailsService(data.certificateId)
-        } catch (error) {
-            throwLocalizedQueryError(error, 'admin.certificates.errors.loadFailed')
-        }
-    })
 
 export const importCertificateHandler = createServerFn({ method: 'POST' })
     .validator(importCertificateInputSchema)

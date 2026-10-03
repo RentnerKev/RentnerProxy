@@ -1260,7 +1260,6 @@
                 "errors": {
                     "loadFailed": "De configuratie kon niet worden geladen.",
                     "saveFailed": "De HTTP-instellingen konden niet worden opgeslagen.",
-                    "previewFailed": "Het configuratievoorbeeld is niet beschikbaar.",
                     "configuration_conflict": "De opgeslagen configuratie is gewijzigd terwijl deze editor open was. Laad deze opnieuw voordat je opslaat; je concept is behouden.",
                     "runtime_unavailable": "De proxycontroller is niet beschikbaar. Opgeslagen instellingen blijven beschikbaar om later toe te passen.",
                     "invalidSettings": "Deze HTTP-instellingen zijn ongeldig. Alleen de vermelde velden en waarden worden geaccepteerd.",

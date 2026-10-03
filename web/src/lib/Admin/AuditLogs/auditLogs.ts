@@ -11,7 +11,7 @@ import type {
 } from '@/features/Admin/AuditLogs/Types/audit-logs.types.ts'
 import type { Translate } from '@/shared/Language/Types/language.types.ts'
 
-export const AUDIT_LOGS_PAGE_SIZE = 100
+const AUDIT_LOGS_PAGE_SIZE = 100
 
 export const emptyAuditLogsFilters: AuditLogsFilters = {
     actorUserId: '',
@@ -24,7 +24,7 @@ export const emptyAuditLogsFilters: AuditLogsFilters = {
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 const DATE_TIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/u
 
-export function isUuid(value: string): boolean {
+function isUuid(value: string): boolean {
     return UUID_PATTERN.test(value.trim())
 }
 

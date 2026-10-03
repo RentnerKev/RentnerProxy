@@ -12,7 +12,7 @@ export interface ConnectionTraceProps {
     readonly connected: boolean
 }
 
-export type ServiceStatusTone = 'positive' | 'warning'
+type ServiceStatusTone = 'positive' | 'warning'
 
 export interface ServiceStatusProps {
     readonly detail: string

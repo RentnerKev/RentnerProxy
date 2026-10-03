@@ -17,7 +17,7 @@ const MAX_ENTRIES = 2_000
 const MAX_SELECTED = 500
 const MAX_ENTRY_BYTES = 256 * 1024
 const MAX_TOTAL_BYTES = 64 * 1024 * 1024
-export const ZORAXY_SCHEMA = 'zoraxy-v3-config-zip'
+const ZORAXY_SCHEMA = 'zoraxy-v3-config-zip'
 
 export class ZoraxySourceError extends Error {
     constructor(readonly code: 'invalid_source' | 'source_limit') {

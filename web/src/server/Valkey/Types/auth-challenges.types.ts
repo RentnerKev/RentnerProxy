@@ -7,7 +7,7 @@ export type AuthChallengeKind =
     | 'webauthn-reauthentication'
     | 'webauthn-registration'
 
-export interface BaseChallenge {
+interface BaseChallenge {
     readonly createdAt: string
     readonly kind: AuthChallengeKind
 }

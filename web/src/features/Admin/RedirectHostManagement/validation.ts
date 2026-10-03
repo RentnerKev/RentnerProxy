@@ -94,7 +94,7 @@ export const redirectDomainSchema = z
         return domain
     })
 
-export const redirectHostDomainsSchema = z
+const redirectHostDomainsSchema = z
     .array(redirectDomainSchema)
     .min(1, 'admin.redirectHosts.validation.domainsRequired')
     .max(MAX_REDIRECT_HOST_DOMAINS, 'admin.redirectHosts.validation.domainsLimit')

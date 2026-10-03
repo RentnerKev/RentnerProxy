@@ -1,6 +1,6 @@
 export const SMOKE_RUN_LABEL = 'io.rentnerproxy.smoke-run'
 
-export const RESTORE_SMOKE_OPERATIONS = [
+const RESTORE_SMOKE_OPERATIONS = [
     'inspect controller state archive',
     'validate controller state archive types',
     'initialize restore target',

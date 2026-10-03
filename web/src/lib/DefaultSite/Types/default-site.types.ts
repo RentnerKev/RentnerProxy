@@ -1,7 +1,3 @@
-import type { DEFAULT_SITE_MODES } from '@/config/default-site.config.ts'
-
-export type DefaultSiteMode = (typeof DEFAULT_SITE_MODES)[number]
-
 export type DefaultSiteSettings =
     | { readonly mode: 'not-found' }
     | { readonly mode: 'welcome' }

@@ -19,7 +19,7 @@ export interface CertificateCurrentOperationMetadata {
     readonly updatedAt: string
 }
 
-export interface CertificateCurrentOperation {
+interface CertificateCurrentOperation {
     readonly id: string
     readonly kind: CertificateOperationKind
     readonly stage: CertificateOperationStage
@@ -52,7 +52,7 @@ export interface CertificateCandidateMetadata {
     readonly nextAttemptAt: string | null
 }
 
-export interface CertificateCandidate {
+interface CertificateCandidate {
     readonly fingerprint: string
     readonly issuedAt: Date
     readonly expiresAt: Date

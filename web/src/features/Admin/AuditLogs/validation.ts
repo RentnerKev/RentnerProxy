@@ -14,9 +14,9 @@ import {
     AUDIT_RESULTS,
 } from '@/config/audit.config.ts'
 
-export const AUDIT_DEFAULT_LIMIT = 50
-export const AUDIT_MAX_LIMIT = 100
-export const AUDIT_MAX_CURSOR_BYTES = 512
+const AUDIT_DEFAULT_LIMIT = 50
+const AUDIT_MAX_LIMIT = 100
+const AUDIT_MAX_CURSOR_BYTES = 512
 
 const uuidSchema = z.uuid().transform((value) => value.toLowerCase())
 function isValidUtcDate(value: string): boolean {

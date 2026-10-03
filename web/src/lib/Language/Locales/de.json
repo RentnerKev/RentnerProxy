@@ -1276,7 +1276,6 @@
                 "errors": {
                     "loadFailed": "Die Konfiguration konnte nicht geladen werden.",
                     "saveFailed": "Die HTTP-Einstellungen konnten nicht gespeichert werden.",
-                    "previewFailed": "Die Konfigurationsvorschau ist nicht verfügbar.",
                     "configuration_conflict": "Die gespeicherte Konfiguration wurde zwischenzeitlich geändert. Lade sie vor dem Speichern neu. Dein Entwurf bleibt erhalten.",
                     "runtime_unavailable": "Der Proxy-Controller ist nicht verfügbar. Gespeicherte Einstellungen können später angewendet werden.",
                     "invalidSettings": "Die HTTP-Einstellungen sind ungültig. Nur die aufgeführten Direktiven und Werte sind erlaubt.",

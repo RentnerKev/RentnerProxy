@@ -9,11 +9,11 @@ export interface AccessPolicyIpRulesDraft {
     readonly deny: string
 }
 
-export interface AccessPolicyIpRulesParseSuccess {
+interface AccessPolicyIpRulesParseSuccess {
     readonly rules: AccessPolicyIpRules | null
 }
 
-export interface AccessPolicyIpRulesParseFailure {
+interface AccessPolicyIpRulesParseFailure {
     readonly error:
         | 'admin.accessPolicies.validation.ipRulesInvalid'
         | 'admin.accessPolicies.validation.ipRulesTooMany'

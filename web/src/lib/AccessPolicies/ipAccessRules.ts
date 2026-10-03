@@ -129,11 +129,11 @@ function compareAscii(left: string, right: string): number {
     return left < right ? -1 : left > right ? 1 : 0
 }
 
-export function canonicalizeIpNetworks(values: ReadonlyArray<string>): Array<string> {
+function canonicalizeIpNetworks(values: ReadonlyArray<string>): Array<string> {
     return [...new Set(values)].toSorted(compareAscii)
 }
 
-export const accessPolicyIpNetworkSchema = z
+const accessPolicyIpNetworkSchema = z
     .string()
     .max(64)
     .transform((value, context) => {

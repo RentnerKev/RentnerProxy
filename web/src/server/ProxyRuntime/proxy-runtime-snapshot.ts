@@ -45,7 +45,7 @@ import { createTrustedCaInputSchema } from '@/features/Admin/TrustedCaManagement
 import { forwardAuthRuntimeSchema } from '@/lib/ForwardAuth/forwardAuth.ts'
 
 export const MAX_RUNTIME_PROXY_HOSTS = 1_000
-export const MAX_RUNTIME_DOMAINS = 50_000
+const MAX_RUNTIME_DOMAINS = 50_000
 export const MAX_RUNTIME_PAYLOAD_BYTES = 16 * 1_024 * 1_024
 export const PROXY_RUNTIME_REVISION_PATTERN = /^sha256:[a-f0-9]{64}$/u
 

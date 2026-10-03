@@ -1,6 +1,6 @@
 export type Command = (argumentsList: string[], timeoutMs?: number) => Promise<string>
 
-export type CommandWithEnvironment = (
+type CommandWithEnvironment = (
     argumentsList: string[],
     environment: NodeJS.ProcessEnv,
     timeoutMs?: number,

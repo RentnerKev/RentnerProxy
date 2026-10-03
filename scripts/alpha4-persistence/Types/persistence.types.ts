@@ -47,12 +47,6 @@ export interface Alpha4PersistenceCommandInput {
     readonly containerId: string
 }
 
-export interface SeedAlpha4PersistenceFixtureInput extends Alpha4PersistenceCommandInput {
-    readonly runId: string
-    readonly withDnsCredential?: boolean
-    readonly withCandidate?: boolean
-}
-
 export interface AssertAlpha4PersistenceFixtureInput extends Alpha4PersistenceCommandInput {
     readonly fixture: Alpha4PersistenceFixture
 }

@@ -8,13 +8,13 @@ import { ACCESS_POLICY_FORWARD_AUTH_PROVIDERS } from '@/config/access-policies.c
 
 export const FORWARD_AUTH_PROVIDERS = ACCESS_POLICY_FORWARD_AUTH_PROVIDERS
 
-export const FORWARD_AUTH_REQUEST_HEADERS = ['Authorization', 'Cookie'] as const
+const FORWARD_AUTH_REQUEST_HEADERS = ['Authorization', 'Cookie'] as const
 
 export const DEFAULT_FORWARD_AUTH_TIMEOUT_SECONDS = 5
-export const MAX_FORWARD_AUTH_TIMEOUT_SECONDS = 30
-export const MAX_FORWARD_AUTH_RESPONSE_HEADERS = 16
-export const MAX_FORWARD_AUTH_GATEWAY_PATH_PREFIX_LENGTH = 128
-export const MAX_FORWARD_AUTH_ENDPOINT_LENGTH = 2_048
+const MAX_FORWARD_AUTH_TIMEOUT_SECONDS = 30
+const MAX_FORWARD_AUTH_RESPONSE_HEADERS = 16
+const MAX_FORWARD_AUTH_GATEWAY_PATH_PREFIX_LENGTH = 128
+const MAX_FORWARD_AUTH_ENDPOINT_LENGTH = 2_048
 
 export function isValidForwardAuthGatewayPathPrefix(value: string): boolean {
     if (
@@ -32,7 +32,7 @@ export function isValidForwardAuthGatewayPathPrefix(value: string): boolean {
         .every((segment) => segment !== '.' && segment !== '..')
 }
 
-export const forwardAuthGatewayPathPrefixSchema = z
+const forwardAuthGatewayPathPrefixSchema = z
     .string()
     .nullable()
     .default(null)
@@ -95,14 +95,14 @@ export function isCanonicalForwardAuthEndpoint(value: string): boolean {
     }
 }
 
-export const forwardAuthEndpointSchema = z.string().refine(isCanonicalForwardAuthEndpoint, {
+const forwardAuthEndpointSchema = z.string().refine(isCanonicalForwardAuthEndpoint, {
     message:
         'Forward Auth endpoint must be a canonical HTTP or HTTPS URL without credentials, query, fragment, or placeholders.',
 })
 
 const requestHeaderSchema = z.enum(FORWARD_AUTH_REQUEST_HEADERS)
 
-export const forwardAuthRequestHeadersSchema = z
+const forwardAuthRequestHeadersSchema = z
     .array(requestHeaderSchema)
     .default(['Cookie'])
     .superRefine((headers, context) => {
@@ -153,7 +153,7 @@ export function isAllowedForwardAuthResponseHeader(value: string): boolean {
     )
 }
 
-export const forwardAuthResponseHeadersSchema = z
+const forwardAuthResponseHeadersSchema = z
     .array(z.string().refine(isAllowedForwardAuthResponseHeader).transform(canonicalizeHeaderName))
     .max(MAX_FORWARD_AUTH_RESPONSE_HEADERS)
     .default([])

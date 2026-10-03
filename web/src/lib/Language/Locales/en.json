@@ -1276,7 +1276,6 @@
                 "errors": {
                     "loadFailed": "The configuration could not be loaded.",
                     "saveFailed": "The HTTP settings could not be saved.",
-                    "previewFailed": "The configuration preview is unavailable.",
                     "configuration_conflict": "The saved configuration changed while this editor was open. Reload it before saving; your draft has been kept.",
                     "runtime_unavailable": "The proxy controller is unavailable. Saved settings remain available to apply later.",
                     "invalidSettings": "These HTTP settings are invalid. Only the listed fields and values are accepted.",

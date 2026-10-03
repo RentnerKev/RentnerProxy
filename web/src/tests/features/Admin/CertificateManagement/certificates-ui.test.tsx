@@ -49,7 +49,6 @@ const getCertificatesHandlerMock = mock(async (): Promise<CertificateSummary[]> 
 const getAssignableCertificatesHandlerMock = mock(async (): Promise<CertificateSummary[]> => [
     certificate,
 ])
-const getCertificateDetailsHandlerMock = mock(async () => certificate)
 const importCertificateHandlerMock = mock(async () => ({
     success: true as const,
     message: 'admin.certificates.messages.imported',
@@ -89,7 +88,6 @@ const deleteCertificateHandlerMock = mock(async (): Promise<CertificateActionRes
 mock.module('@/features/Admin/CertificateManagement/middleware.ts', () => ({
     getCertificatesHandler: getCertificatesHandlerMock,
     getAssignableCertificatesHandler: getAssignableCertificatesHandlerMock,
-    getCertificateDetailsHandler: getCertificateDetailsHandlerMock,
     importCertificateHandler: importCertificateHandlerMock,
     replaceCertificateHandler: replaceCertificateHandlerMock,
     requestCertificateHandler: requestCertificateHandlerMock,
@@ -282,7 +280,6 @@ beforeEach(() => {
     })
     getCertificatesHandlerMock.mockReset().mockResolvedValue([certificate])
     getAssignableCertificatesHandlerMock.mockReset().mockResolvedValue([certificate])
-    getCertificateDetailsHandlerMock.mockReset().mockResolvedValue(certificate)
     importCertificateHandlerMock.mockReset().mockResolvedValue({
         success: true,
         message: 'admin.certificates.messages.imported',

@@ -300,7 +300,7 @@ function scoringLabels(labels: readonly string[]): Set<string> {
     )
 }
 
-export function labelSimilarity(left: readonly string[], right: readonly string[]): number {
+function labelSimilarity(left: readonly string[], right: readonly string[]): number {
     return jaccardSimilarity(scoringLabels(left), scoringLabels(right))
 }
 

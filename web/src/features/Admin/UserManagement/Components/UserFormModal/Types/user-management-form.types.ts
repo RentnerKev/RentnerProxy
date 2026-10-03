@@ -2,6 +2,6 @@ import type { z } from 'zod'
 
 import type { inviteUserFormSchema, updateUserFormSchema } from '../../../validation.ts'
 
-export type InviteUserFormValues = z.input<typeof inviteUserFormSchema>
-export type UpdateUserFormValues = z.input<typeof updateUserFormSchema>
+type InviteUserFormValues = z.input<typeof inviteUserFormSchema>
+type UpdateUserFormValues = z.input<typeof updateUserFormSchema>
 export type UserFormValues = InviteUserFormValues | UpdateUserFormValues

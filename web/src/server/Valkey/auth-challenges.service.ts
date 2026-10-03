@@ -69,14 +69,14 @@ end
 return 1
 `
 
-export class AuthChallengeUnavailableError extends Error {
+class AuthChallengeUnavailableError extends Error {
     constructor() {
         super('Authentication challenge storage is unavailable.')
         this.name = 'AuthChallengeUnavailableError'
     }
 }
 
-export class AuthChallengeStateError extends Error {
+class AuthChallengeStateError extends Error {
     constructor() {
         super('Authentication challenge state is invalid.')
         this.name = 'AuthChallengeStateError'

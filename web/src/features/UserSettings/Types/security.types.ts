@@ -1,6 +1,6 @@
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server'
 
-export interface SecurityPasskey {
+interface SecurityPasskey {
     readonly id: string
     readonly name: string
     readonly createdAt: string

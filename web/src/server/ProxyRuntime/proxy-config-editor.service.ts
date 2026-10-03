@@ -10,7 +10,6 @@ import {
 } from '@/features/Admin/ProxyHostManagement/config-validation.ts'
 import type {
     ProxyConfigEditorData,
-    ProxyConfigSource,
     ProxyHttpSettings,
     ProxyRuntimeMutationStatus,
 } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
@@ -59,23 +58,6 @@ export async function getProxyConfigEditorService(): Promise<ProxyConfigEditorDa
         active,
         defaults,
     }
-}
-
-export async function previewProxyConfigEditorService(
-    settings: ProxyHttpSettings,
-): Promise<ProxyConfigSource> {
-    await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
-    const snapshot = await getProxyRuntimeSnapshotService()
-    const candidate = createProxyRuntimeSnapshot(
-        snapshot.proxyHosts.map((host) => Object.assign({ enabled: true }, host)),
-        settings,
-        snapshot.trustedCas,
-        snapshot.redirectHosts.map((host) => Object.assign({ enabled: true }, host)),
-        snapshot.defaultSite,
-    )
-    const preview = await previewProxyConfiguration(candidate)
-    if (!preview) throw new ProxyConfigEditorError('runtime_unavailable')
-    return preview
 }
 
 async function saveSettings(

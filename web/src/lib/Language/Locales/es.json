@@ -1276,7 +1276,6 @@
                 "errors": {
                     "loadFailed": "No se pudo cargar la configuración.",
                     "saveFailed": "No se pudieron guardar las opciones HTTP.",
-                    "previewFailed": "La vista previa no está disponible.",
                     "configuration_conflict": "La configuración guardada ha cambiado. Vuelve a cargar antes de guardar. Se conserva tu borrador.",
                     "runtime_unavailable": "El controlador no está disponible. Las opciones guardadas se podrán aplicar más tarde.",
                     "invalidSettings": "Las opciones HTTP no son válidas. Solo se admiten las directivas y los valores indicados.",

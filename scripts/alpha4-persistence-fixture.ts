@@ -14,8 +14,6 @@ import type {
     Alpha4PersistenceSnapshot,
     AssertAlpha4PersistenceFixtureInput,
     AssertAlpha4PersistenceSnapshotInput,
-    Command,
-    SeedAlpha4PersistenceFixtureInput,
 } from './alpha4-persistence/Types/persistence.types.ts'
 
 const appEncryptionKeyFile = '/run/rentnerproxy/app-key/value'
@@ -77,12 +75,4 @@ export async function assertAlpha4PersistenceRequestDecrypts(
 }
 
 export { seedAlpha4PersistenceFixture }
-export type {
-    Alpha4PersistenceCommandInput,
-    Alpha4PersistenceFixture,
-    Alpha4PersistenceSnapshot,
-    AssertAlpha4PersistenceFixtureInput,
-    AssertAlpha4PersistenceSnapshotInput,
-    Command,
-    SeedAlpha4PersistenceFixtureInput,
-}
+export type { Alpha4PersistenceFixture, Alpha4PersistenceSnapshot }

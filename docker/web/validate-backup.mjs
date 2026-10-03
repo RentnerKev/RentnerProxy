@@ -5,7 +5,7 @@ import { createDecipheriv, createHash } from 'node:crypto'
 import { mkdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
-export function decryptBackupSecret(key, ciphertext, iv, context) {
+function decryptBackupSecret(key, ciphertext, iv, context) {
     if (key.length !== 32 || iv.length !== 12 || ciphertext.length < 17) {
         throw new Error('invalid encrypted backup secret')
     }

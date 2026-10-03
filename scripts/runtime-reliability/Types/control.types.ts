@@ -33,7 +33,7 @@ export type ReliabilityFailure = {
     category: 'assertion' | 'timeout' | 'command' | 'telemetry' | 'unexpected'
 }
 
-export type KnownBaselineLimitation = 'alpha6-binding-retry-needs-second-request'
+type KnownBaselineLimitation = 'alpha6-binding-retry-needs-second-request'
 
 export type ReliabilityReportInput = {
     targetSha: string

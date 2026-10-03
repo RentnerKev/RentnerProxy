@@ -29,7 +29,7 @@ export function sqlTextArray(values: readonly string[]): string {
     return `ARRAY[${values.map(sqlQuote).join(',')}]::text[]`
 }
 
-export async function inContainer(
+async function inContainer(
     command: Command,
     containerId: string,
     script: string,
@@ -104,7 +104,7 @@ export async function readOrCreateCursor(
     }
 }
 
-export function snapshotStatement(fixture: Alpha4PersistenceFixture): string {
+function snapshotStatement(fixture: Alpha4PersistenceFixture): string {
     return `select jsonb_build_object(
         'fixtureVersion', 1,
         'user', (select to_jsonb(u) - 'password_hash' from rentnerproxy.users u where u.id = ${sqlQuote(fixture.ownerUserId)}),

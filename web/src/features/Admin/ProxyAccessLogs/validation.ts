@@ -2,18 +2,18 @@ import { z } from 'zod'
 
 import { normalizeProxyDomain } from '@/lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
 
-export const PROXY_ACCESS_LOGS_DEFAULT_LIMIT = 15
-export const PROXY_ACCESS_LOGS_MAX_LIMIT = 200
-export const PROXY_ACCESS_LOGS_MAX_OFFSET = 10_000
-export const PROXY_ACCESS_LOGS_MAX_SEARCH_BYTES = 128
+const PROXY_ACCESS_LOGS_DEFAULT_LIMIT = 15
+const PROXY_ACCESS_LOGS_MAX_LIMIT = 200
+const PROXY_ACCESS_LOGS_MAX_OFFSET = 10_000
+const PROXY_ACCESS_LOGS_MAX_SEARCH_BYTES = 128
 export const PROXY_ACCESS_LOGS_MAX_RESPONSE_BYTES = 4 * 1_024 * 1_024
-export const PROXY_ACCESS_LOGS_MAX_AVAILABLE_HOSTS = 10_000
-export const PROXY_ACCESS_LOGS_MAX_AVAILABLE_STATUSES = 500
+const PROXY_ACCESS_LOGS_MAX_AVAILABLE_HOSTS = 10_000
+const PROXY_ACCESS_LOGS_MAX_AVAILABLE_STATUSES = 500
 
 // oxlint-disable-next-line no-control-regex -- Access-log filters must reject C0/C1 controls.
 const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F-\u009F]/u
 
-export const proxyAccessLogHostSchema = z
+const proxyAccessLogHostSchema = z
     .string()
     .trim()
     .min(1, 'admin.proxyAccessLogs.validation.host')
@@ -30,7 +30,7 @@ export const proxyAccessLogHostSchema = z
         return normalized
     })
 
-export const proxyAccessLogsSearchSchema = z
+const proxyAccessLogsSearchSchema = z
     .string()
     .max(PROXY_ACCESS_LOGS_MAX_SEARCH_BYTES, 'admin.proxyAccessLogs.validation.search')
     .refine(

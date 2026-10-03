@@ -9,7 +9,7 @@ export interface CrowdSecPageProps {
     readonly permissions: readonly string[]
 }
 
-export interface CrowdSecPageState {
+interface CrowdSecPageState {
     readonly busy: boolean
     readonly activeManaged: boolean
     readonly communityState: CrowdSecCommunityState

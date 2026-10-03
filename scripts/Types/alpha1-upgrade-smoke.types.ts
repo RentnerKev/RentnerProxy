@@ -8,7 +8,7 @@ export interface PublishedUpgradeBaseline {
     readonly directoryName: string
 }
 
-export type Command = (argumentsList: string[], timeoutMs?: number) => Promise<string>
+type Command = (argumentsList: string[], timeoutMs?: number) => Promise<string>
 
 export interface UpgradeSmokeOptions {
     readonly imageTag: string

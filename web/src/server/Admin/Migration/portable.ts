@@ -28,9 +28,9 @@ import type {
 } from '@/server/Admin/NpmImport/Types/npm-plan.types.ts'
 import { finalizeImportPlan } from './import-plan.ts'
 
-export const PORTABLE_MAX_BYTES = 4 * 1024 * 1024
+const PORTABLE_MAX_BYTES = 4 * 1024 * 1024
 const MAX_OBJECTS = 500
-export const PORTABLE_SCHEMA = 'rentnerproxy-portable-v1'
+const PORTABLE_SCHEMA = 'rentnerproxy-portable-v1'
 
 const recordSchema = z.record(z.string(), z.unknown())
 const documentSchema = z.strictObject({

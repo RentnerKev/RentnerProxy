@@ -106,7 +106,7 @@ const defaultDependencies: RateLimitDependencies = {
     getClient: getValkeyClient,
 }
 
-export function hashRateLimitIdentifier(identifier: string): string {
+function hashRateLimitIdentifier(identifier: string): string {
     return createHash('sha256').update(identifier.trim().toLowerCase()).digest('hex')
 }
 

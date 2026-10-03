@@ -6,7 +6,7 @@ export const buildSteps: readonly CommandStep[] = [
     { label: 'Controller build', script: 'build:core' },
 ]
 
-export function runBuild(dependencies: Partial<CommandRunnerDependencies> = {}): Promise<number> {
+function runBuild(dependencies: Partial<CommandRunnerDependencies> = {}): Promise<number> {
     return runSteps(
         {
             title: 'Building RentnerProxy',

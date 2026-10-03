@@ -20,7 +20,7 @@ export interface AuditLogsFilters {
 
 export type AuditLogsFilterErrors = Partial<Record<keyof AuditLogsFilters | 'dateRange', string>>
 
-export interface AuditLogsQueryState {
+interface AuditLogsQueryState {
     readonly actorOptions: readonly AuditActorOption[]
     readonly canView: boolean
     readonly events: readonly AuditEventDto[]

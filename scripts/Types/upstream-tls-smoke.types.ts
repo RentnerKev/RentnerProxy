@@ -1,6 +1,6 @@
 export type JsonObject = Record<string, any>
 
-export type UpstreamTls = {
+type UpstreamTls = {
     readonly verify: boolean
     readonly serverName: string | null
     readonly trustedCaId: string | null

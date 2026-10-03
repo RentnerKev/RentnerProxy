@@ -23,7 +23,7 @@ export const certificateJobRuntime = {
     status: getProxyRuntimeStatus,
 }
 
-export function validateIssuedJobCertificate(
+function validateIssuedJobCertificate(
     metadata: ControllerCertificateMetadata,
     job: CertificateJobRow,
 ): void {

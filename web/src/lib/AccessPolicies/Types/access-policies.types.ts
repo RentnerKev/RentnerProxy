@@ -5,7 +5,7 @@ import type {
 import type { AccessPolicyIpRules } from '@/lib/AccessPolicies/Types/ip-access-rules.types.ts'
 import type { ForwardAuthConfiguration } from '@/lib/ForwardAuth/Types/forward-auth.types.ts'
 
-export interface AccessPolicyBasicAuthRuntimeAccount {
+interface AccessPolicyBasicAuthRuntimeAccount {
     readonly username: string
     readonly passwordHash: string
 }

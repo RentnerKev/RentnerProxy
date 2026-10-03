@@ -6,10 +6,10 @@ import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-poli
 import type { ForwardAuthConfiguration } from '@/lib/ForwardAuth/Types/forward-auth.types.ts'
 import type { AccessPolicyIpRulesDraft } from '@/lib/Admin/AccessPolicyManagement/Types/ip-access-policy.types.ts'
 
-export type ForwardAuthProvider = ForwardAuthConfiguration['provider']
-export type ForwardAuthRequestHeader = ForwardAuthConfiguration['requestHeaders'][number]
+type ForwardAuthProvider = ForwardAuthConfiguration['provider']
+type ForwardAuthRequestHeader = ForwardAuthConfiguration['requestHeaders'][number]
 
-export interface ForwardAuthDraft {
+interface ForwardAuthDraft {
     readonly provider: ForwardAuthProvider
     readonly endpoint: string
     readonly gatewayPathPrefix: string

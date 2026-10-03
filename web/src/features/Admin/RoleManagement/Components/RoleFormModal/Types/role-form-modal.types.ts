@@ -5,7 +5,7 @@ import type { RoleManagementSummary } from '@/lib/Auth/Types/auth.types.ts'
 import type useRoleFormModalLogic from '../Hooks/useRoleFormModalLogic.ts'
 import type { RoleFormModalProps } from '../../../Types/role-management-component-props.types.ts'
 
-export type RoleFormInstance = ReturnType<typeof useRoleFormModalLogic>['form']
+type RoleFormInstance = ReturnType<typeof useRoleFormModalLogic>['form']
 
 export interface RoleFormModalState {
     readonly canEditPermissions: boolean

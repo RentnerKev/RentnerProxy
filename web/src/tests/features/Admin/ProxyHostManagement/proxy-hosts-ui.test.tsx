@@ -150,10 +150,6 @@ const resetProxyHostConfigEditorHandlerMock = mock(
 const getProxyConfigEditorHandlerMock = mock(
     async (): Promise<ProxyConfigEditorData> => globalEditorFixture,
 )
-const previewProxyConfigEditorHandlerMock = mock(async () => ({
-    config: hostConfig(120),
-    revision: editorBaseRevision,
-}))
 const saveProxyConfigEditorHandlerMock = mock(async (): Promise<ProxyHostActionResult> => ({
     success: true,
     message: 'admin.proxyHosts.config.saved',
@@ -167,7 +163,6 @@ const resetProxyConfigEditorHandlerMock = mock(async (): Promise<ProxyHostAction
 
 mock.module('@/features/Admin/ProxyHostManagement/middleware.ts', () => ({
     getProxyConfigEditorHandler: getProxyConfigEditorHandlerMock,
-    previewProxyConfigEditorHandler: previewProxyConfigEditorHandlerMock,
     saveProxyConfigEditorHandler: saveProxyConfigEditorHandlerMock,
     resetProxyConfigEditorHandler: resetProxyConfigEditorHandlerMock,
     getProxyHostConfigEditorHandler: getProxyHostConfigEditorHandlerMock,
@@ -501,10 +496,6 @@ beforeEach(() => {
     toast.dismissAll()
     window.sessionStorage.clear()
     getProxyConfigEditorHandlerMock.mockReset().mockResolvedValue(globalEditorFixture)
-    previewProxyConfigEditorHandlerMock.mockReset().mockResolvedValue({
-        config: hostConfig(120),
-        revision: editorBaseRevision,
-    })
     saveProxyConfigEditorHandlerMock.mockReset().mockResolvedValue({
         success: true,
         message: 'admin.proxyHosts.config.saved',

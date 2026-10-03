@@ -418,15 +418,6 @@ export async function getAssignableCertificatesService(): Promise<CertificateSum
     return readCertificateSummaries()
 }
 
-export async function getCertificateDetailsService(
-    certificateId: string,
-): Promise<CertificateSummary> {
-    const id = parseId(certificateId)
-    const certificate = (await getCertificatesService()).find((entry) => entry.id === id)
-    if (!certificate) throw new CertificateDomainError('certificate_not_found')
-    return certificate
-}
-
 async function createPendingCertificate(
     actorId: string,
     permission: PermissionKey,

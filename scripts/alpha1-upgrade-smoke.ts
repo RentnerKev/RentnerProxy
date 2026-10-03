@@ -20,14 +20,14 @@ import {
 } from './alpha1-upgrade-fixture.ts'
 import type { Alpha1UpgradeFixture } from './Types/alpha1-upgrade-fixture.types.ts'
 
-export const ALPHA1_IMAGE =
+const ALPHA1_IMAGE =
     'ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.1@sha256:f88edb70a80db7c527e1a963e835593f6998ab4541f810e26cf75ffa63da0d3f'
-export const ALPHA1_REVISION = 'a147176c6096935dc5d9824f671b5f21d89b636b'
-export const ALPHA3_IMAGE =
+const ALPHA1_REVISION = 'a147176c6096935dc5d9824f671b5f21d89b636b'
+const ALPHA3_IMAGE =
     'ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.3@sha256:f876c9c59c819cf537617ff256ec247eae9897adf632453117496fbea6a28742'
-export const ALPHA3_REVISION = 'a1bb0117828606cd10919871a098eb3a794b912e'
+const ALPHA3_REVISION = 'a1bb0117828606cd10919871a098eb3a794b912e'
 
-export const ALPHA1_BASELINE: PublishedUpgradeBaseline = {
+const ALPHA1_BASELINE: PublishedUpgradeBaseline = {
     name: 'Alpha 1',
     image: ALPHA1_IMAGE,
     version: 'v1.0.0-alpha.1',
@@ -37,7 +37,7 @@ export const ALPHA1_BASELINE: PublishedUpgradeBaseline = {
     directoryName: 'alpha1-upgrade',
 }
 
-export const ALPHA3_BASELINE: PublishedUpgradeBaseline = {
+const ALPHA3_BASELINE: PublishedUpgradeBaseline = {
     name: 'Alpha 3',
     image: ALPHA3_IMAGE,
     version: 'v1.0.0-alpha.3',
@@ -90,7 +90,7 @@ function composeDocument(image: string, includePublicOrigin: boolean): string {
     )
 }
 
-export async function verifyPublishedUpgrade(
+async function verifyPublishedUpgrade(
     options: UpgradeSmokeOptions,
     baseline: PublishedUpgradeBaseline,
 ): Promise<void> {

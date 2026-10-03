@@ -2,8 +2,8 @@ import { createCipheriv, createHash, randomBytes } from 'node:crypto'
 
 import type { Alpha4CertificateRequest } from './Types/persistence.types.ts'
 
-export const APP_ENCRYPTION_KEY_BYTES = 32
-export const AES_GCM_IV_BYTES = 12
+const APP_ENCRYPTION_KEY_BYTES = 32
+const AES_GCM_IV_BYTES = 12
 
 function canonicalValue(value: unknown): unknown {
     if (value instanceof Date) return value.toISOString()

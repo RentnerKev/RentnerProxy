@@ -5,7 +5,7 @@ import type { AuthState } from '@/server/Auth/Core/Types/auth-service.types.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { getCurrentSessionService } from './sessions.service.ts'
 
-export async function hasAnyUserService(): Promise<boolean> {
+async function hasAnyUserService(): Promise<boolean> {
     const rows = await getAuthDatabase().select({ id: users.id }).from(users).limit(1)
     return rows.length > 0
 }

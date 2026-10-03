@@ -6,7 +6,7 @@ import type useRedirectHostFormModalLogic from '../Hooks/useRedirectHostFormModa
 import type { redirectHostFormSchema } from '../../../validation.ts'
 
 export type RedirectHostEditorFormValues = z.input<typeof redirectHostFormSchema>
-export type RedirectHostFormInstance = ReturnType<typeof useRedirectHostFormModalLogic>['form']
+type RedirectHostFormInstance = ReturnType<typeof useRedirectHostFormModalLogic>['form']
 export interface RedirectHostFormModalProps {
     readonly canEnable: boolean
     readonly canDisable: boolean

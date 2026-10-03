@@ -4,7 +4,7 @@ import type { ProxyHttpSettings } from '@/lib/ProxyRuntime/Types/proxy-runtime.t
 import type { ProxyHostAccessPolicy } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import type { DefaultSiteSettings } from '@/lib/DefaultSite/Types/default-site.types.ts'
 
-export type ProxyHostHttpSettings = Pick<
+type ProxyHostHttpSettings = Pick<
     ProxyHttpSettings,
     | 'clientMaxBodySizeBytes'
     | 'proxyConnectTimeoutSeconds'

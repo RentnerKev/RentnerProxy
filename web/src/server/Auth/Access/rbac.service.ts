@@ -39,7 +39,7 @@ export async function getUserRoleKeysInTransaction(
     return rows.map((row) => row.key)
 }
 
-export async function getUserPermissionKeysInTransaction(
+async function getUserPermissionKeysInTransaction(
     transaction: AuthTransaction,
     userId: string,
     roleKeys?: ReadonlyArray<string>,

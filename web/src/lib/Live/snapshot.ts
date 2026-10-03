@@ -6,7 +6,7 @@ import {
 } from '@/config/realtime.config.ts'
 import type { LiveTopic } from './Types/realtime.types.ts'
 
-export class LivePayloadError extends Error {
+class LivePayloadError extends Error {
     constructor() {
         super('Live snapshot payload is too large or invalid.')
     }

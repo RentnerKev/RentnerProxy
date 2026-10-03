@@ -9,7 +9,7 @@ import '@tanstack/react-start/server-only'
 
 import type { ProxyRuntimeMutationStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 
-export const PROXY_RECONCILE_TIMEOUT_MS = 25_000
+const PROXY_RECONCILE_TIMEOUT_MS = 25_000
 const CONTROLLER_APPLY_TIMEOUT_MS = 20_000
 const DRIFT_CHECK_INTERVAL_MS = 60_000
 const INITIAL_RETRY_DELAY_MS = 1_000

@@ -1290,7 +1290,6 @@
                 "errors": {
                     "loadFailed": "Nie udało się wczytać konfiguracji.",
                     "saveFailed": "Nie udało się zapisać ustawień HTTP.",
-                    "previewFailed": "Podgląd konfiguracji jest niedostępny.",
                     "configuration_conflict": "Zapisana konfiguracja zmieniła się, gdy ten edytor był otwarty. Wczytaj ją ponownie przed zapisaniem; wersja robocza została zachowana.",
                     "runtime_unavailable": "Kontroler proxy jest niedostępny. Zapisane ustawienia można zastosować później.",
                     "invalidSettings": "Te ustawienia HTTP są nieprawidłowe. Akceptowane są tylko wymienione pola i wartości.",

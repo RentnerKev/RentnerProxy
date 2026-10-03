@@ -273,7 +273,7 @@ function fullChangelogMarkdown(
     return `**Full Changelog:** [${range}](${url})`
 }
 
-export function renderIssueChangelog(input: ReleaseNotesDocumentInput): string {
+function renderIssueChangelog(input: ReleaseNotesDocumentInput): string {
     const sections: string[] = []
     const highlightLabels = new Set(
         input.config.highlightLabels.map((label) => label.trim().toLowerCase()),
@@ -341,7 +341,7 @@ export function renderIssueChangelog(input: ReleaseNotesDocumentInput): string {
     return `${sections.join('\n\n')}\n`
 }
 
-export function formatReleaseDate(value: string): string {
+function formatReleaseDate(value: string): string {
     const timestamp = parseTimestamp(value, 'published_at')
     return new Intl.DateTimeFormat('en-GB', {
         day: 'numeric',

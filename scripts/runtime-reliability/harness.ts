@@ -27,7 +27,7 @@ const pebbleImage =
 const healthcheck = '/opt/rentnerproxy/web/docker/web/healthcheck.mjs'
 const repositoryRoot = resolve(import.meta.dir, '../..')
 
-export async function command(args: string[], options: CommandOptions = {}): Promise<string> {
+async function command(args: string[], options: CommandOptions = {}): Promise<string> {
     const child = Bun.spawn(smokeDockerArguments(args), {
         cwd: repositoryRoot,
         env: { ...process.env, ...options.env },
@@ -62,11 +62,7 @@ export async function command(args: string[], options: CommandOptions = {}): Pro
         clearTimeout(timer)
     }
 }
-export async function waitFor(
-    predicate: () => Promise<boolean>,
-    label: string,
-    timeoutMs = 60_000,
-) {
+async function waitFor(predicate: () => Promise<boolean>, label: string, timeoutMs = 60_000) {
     const deadline = Date.now() + timeoutMs
     do {
         try {
