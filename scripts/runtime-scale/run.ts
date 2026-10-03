@@ -100,30 +100,35 @@ async function verifyTraffic(
 ) {
     await runBoundedTasks(result.traffic, concurrency, async (expected, index) => {
         const response = await context.http(expected.domain, '/', {}, index)
-        if (response.status !== expected.status)
-            throw new ReliabilityError(
-                'assertion',
-                'Scale route ' +
-                    index +
-                    ' returned status ' +
-                    response.status +
-                    '; expected ' +
-                    expected.status +
-                    '; upstream ' +
-                    (expected.backend ?? 'redirect'),
-            )
-        if (expected.status === 200)
-            assert.equal(
-                response.body.backend,
-                expected.backend,
-                'Scale route reaches its final upstream',
-            )
-        if (expected.status === 302 || expected.status === 307)
-            assert.equal(
-                response.headers.get('location'),
-                expected.location,
-                'Scale redirect retains its final destination',
-            )
+        try {
+            if (response.status !== expected.status)
+                throw new ReliabilityError(
+                    'assertion',
+                    'Scale route ' +
+                        index +
+                        ' returned status ' +
+                        response.status +
+                        '; expected ' +
+                        expected.status +
+                        '; upstream ' +
+                        (expected.backend ?? 'redirect'),
+                )
+            if (expected.status === 200)
+                assert.equal(
+                    response.body.backend,
+                    expected.backend,
+                    'Scale route reaches its final upstream',
+                )
+            if (expected.status === 302 || expected.status === 307)
+                assert.equal(
+                    response.headers.get('location'),
+                    expected.location,
+                    'Scale redirect retains its final destination',
+                )
+        } catch (error) {
+            context.recordTrafficFailure(index, response.status)
+            throw error
+        }
     })
 }
 
@@ -195,11 +200,17 @@ async function verifyPolicies(harness: Awaited<ReturnType<typeof createHarness>>
     for (const forwardAuthCombined of [false, true]) {
         await context.synced(await context.fixture('forward-auth', { forwardAuthCombined }))
         assert.equal((await context.http(host)).body.user, 'reliability-user')
+        let authStatus: number | null = null
         try {
             await harness.setAuthMode('deny')
-            assert.equal((await context.http(host)).status, 401)
+            authStatus = (await context.http(host)).status
+            assert.equal(authStatus, 401)
             await harness.setAuthMode('unavailable')
-            assert.notEqual((await context.http(host)).status, 200)
+            authStatus = (await context.http(host)).status
+            assert.notEqual(authStatus, 200)
+        } catch (error) {
+            context.recordTrafficFailure(null, authStatus)
+            throw error
         } finally {
             await harness.setAuthMode('allow')
         }

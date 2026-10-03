@@ -4,6 +4,7 @@ import { commandSchema } from '../../../../../scripts/runtime-reliability/fixtur
 import { normalizeForwardHost } from '../../../lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
 import {
     caddyTransportErrors,
+    createTrafficObserver,
     hostFetchCode,
 } from '../../../../../scripts/runtime-reliability/transport-diagnostics.ts'
 
@@ -91,6 +92,44 @@ describe('isolated runtime fixture transport', () => {
 })
 
 describe('traffic failure diagnostics', () => {
+    test('first unexpected 4xx route survives later concurrent successes and network failures', async () => {
+        const observer = createTrafficObserver()
+        const first = { route: 4, status: 404, hostFetchCode: null }
+        await Promise.all([
+            Promise.resolve().then(() => {
+                observer.observe(first)
+                observer.recordFailure(first)
+            }),
+            Promise.resolve().then(() => {
+                observer.observe({ route: 5, status: 200, hostFetchCode: null })
+                observer.recordFailure({
+                    route: 6,
+                    status: null,
+                    hostFetchCode: 'ConnectionRefused',
+                })
+            }),
+        ])
+        expect(observer.observation).toEqual(first)
+        observer.clearHealthyObservation()
+        observer.observe({ route: 7, status: 200, hostFetchCode: null })
+        expect(observer.observation).toEqual(first)
+        observer.reset()
+        expect(observer.observation).toBeNull()
+        const next = { route: 1, status: null, hostFetchCode: 'TimeoutError' }
+        observer.recordFailure(next)
+        observer.recordFailure({ route: 2, status: 502, hostFetchCode: null })
+        expect(observer.observation).toEqual(next)
+    })
+    test('expected negative HTTP statuses do not freeze an unrelated subsequent failure', () => {
+        const observer = createTrafficObserver()
+        observer.observe({ route: 0, status: 404, hostFetchCode: null })
+        observer.observe({ route: 1, status: 503, hostFetchCode: null })
+        observer.clearHealthyObservation()
+        expect(observer.observation).toBeNull()
+        const failure = { route: 2, status: 400, hostFetchCode: null }
+        observer.recordFailure(failure)
+        expect(observer.observation).toEqual(failure)
+    })
     const secret = 'private-token-header-body-key-url'
     const line = (msg: string, status = 502) =>
         JSON.stringify({

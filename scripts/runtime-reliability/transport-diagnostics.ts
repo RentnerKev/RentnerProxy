@@ -1,7 +1,33 @@
 import type {
     TrafficDiagnostic,
+    TrafficObservation,
     TransportFailureCategory,
 } from './Types/fixture-transport.types.ts'
+
+export function createTrafficObserver() {
+    let observation: TrafficObservation | null = null
+    let failed = false
+    return {
+        observe(value: TrafficObservation) {
+            if (!failed) observation = value
+        },
+        recordFailure(value: TrafficObservation) {
+            if (failed) return
+            observation = value
+            failed = true
+        },
+        reset() {
+            observation = null
+            failed = false
+        },
+        clearHealthyObservation() {
+            if (!failed) observation = null
+        },
+        get observation() {
+            return observation
+        },
+    }
+}
 
 function classify(message: string): TransportFailureCategory {
     if (/dial (?:tcp|udp).*i\/o timeout/u.test(message)) return 'tcp-dial-timeout'

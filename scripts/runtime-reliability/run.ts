@@ -270,8 +270,13 @@ async function main() {
             await context.synced(await context.fixture('prepare'))
             await exercisePolicies(context, random)
             await harness.setUpstreamFailed(true)
+            let upstreamStatus: number | null = null
             try {
-                assert.equal((await context.http()).status, 503)
+                upstreamStatus = (await context.http()).status
+                assert.equal(upstreamStatus, 503)
+            } catch (error) {
+                context.recordTrafficFailure(null, upstreamStatus)
+                throw error
             } finally {
                 await harness.setUpstreamFailed(false)
             }

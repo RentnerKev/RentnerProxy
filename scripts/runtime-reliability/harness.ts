@@ -13,12 +13,12 @@ import { publishedAlpha } from '../release-compatibility/published-alphas.ts'
 import { smokeCompose, smokeDockerArguments, smokeRunScope } from '../smoke-resources.ts'
 import type { ReliabilityCheck, ReliabilityOptions, ResourceSample } from './Types/control.types.ts'
 import { fixtureTransport } from './fixture-transport.config.ts'
-import { caddyTransportErrors, hostFetchCode } from './transport-diagnostics.ts'
-import type {
-    FixtureControl,
-    TrafficDiagnostic,
-    TrafficObservation,
-} from './Types/fixture-transport.types.ts'
+import {
+    caddyTransportErrors,
+    createTrafficObserver,
+    hostFetchCode,
+} from './transport-diagnostics.ts'
+import type { FixtureControl, TrafficDiagnostic } from './Types/fixture-transport.types.ts'
 
 export class ReliabilityError extends Error {
     constructor(
@@ -124,7 +124,7 @@ export async function createHarness(options: ReliabilityOptions, checks: Reliabi
     const ownedImages = [http3Image]
     const docker = (args: string[], config?: CommandOptions) => command(['docker', ...args], config)
     const dns = await startCertificateDnsFixture(randomBytes(16).toString('hex'))
-    let trafficObservation: TrafficObservation | null = null
+    const traffic = createTrafficObserver()
     let fixtureTlsStarted = false
     let imageIdentity = 'sha256:' + '0'.repeat(64)
     let targetSha = '0'.repeat(40)
@@ -200,7 +200,8 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         ) as { status: number; body: FixtureResult }
     }
     async function fixture(phase: string, extra: Record<string, unknown> = {}) {
-        trafficObservation = null
+        // Fixture mutations also run in recovery finally blocks (for example CrowdSec disable).
+        traffic.clearHealthyObservation()
         const output = await docker(
             [
                 'exec',
@@ -345,24 +346,25 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
                 signal: AbortSignal.timeout(8_000),
             })
         } catch (error) {
-            trafficObservation = {
+            traffic.recordFailure({
                 route: route ?? null,
                 status: null,
                 hostFetchCode: hostFetchCode(error),
-            }
+            })
             throw error
         }
-        // Keep the first bad response even if concurrent requests finish afterward.
-        if (
-            !trafficObservation ||
-            (!trafficObservation.hostFetchCode && (trafficObservation.status ?? 0) < 500)
-        )
-            trafficObservation = {
+        traffic.observe({ route: route ?? null, status: response.status, hostFetchCode: null })
+        let value: string
+        try {
+            value = await response.text()
+        } catch (error) {
+            traffic.recordFailure({
                 route: route ?? null,
                 status: response.status,
-                hostFetchCode: null,
-            }
-        const value = await response.text()
+                hostFetchCode: hostFetchCode(error),
+            })
+            throw error
+        }
         let body: FixtureResult = {}
         try {
             body = JSON.parse(value) as FixtureResult
@@ -372,7 +374,8 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         return { status: response.status, headers: response.headers, body }
     }
     async function fixtureControl(input: FixtureControl) {
-        trafficObservation = null
+        // A recovery finally must not erase evidence before the outer failure handler captures it.
+        traffic.clearHealthyObservation()
         const script = `const response=await fetch('http://127.0.0.1:${fixtureTransport.controlPort}/',{method:'POST',body:await Bun.stdin.text(),signal:AbortSignal.timeout(3000)});if(response.status!==200)process.exit(1);`
         await docker(['exec', '-i', upstream, 'bun', '--no-env-file', '-e', script], {
             stdin: JSON.stringify(input),
@@ -387,8 +390,25 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             const local = join(temp, basename(target!))
             await docker(['cp', container + ':' + source, local])
             await chmod(local, 0o600)
-            await docker(['cp', local, upstream + ':' + target])
-            await rm(local)
+            try {
+                // Docker's archive API rejects cp into a read-only rootfs, even for /tmp tmpfs.
+                // Exec writes through the container mount namespace without relaxing read-only mode.
+                await docker(
+                    [
+                        'exec',
+                        '-i',
+                        upstream,
+                        'bun',
+                        '--no-env-file',
+                        '-e',
+                        "import {writeFile} from 'node:fs/promises';await writeFile(process.argv[1],await Bun.stdin.text(),{mode:0o600});",
+                        target!,
+                    ],
+                    { stdin: await readFile(local, 'utf8'), timeoutMs: 5_000 },
+                )
+            } finally {
+                await rm(local)
+            }
         }
         await fixtureControl({ startTls: true })
         fixtureTlsStarted = true
@@ -424,7 +444,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             ].includes(category)
                 ? category
                 : 'unexpected',
-            observation: trafficObservation,
+            observation: traffic.observation,
             caddy: [],
             fixtureReachability: null,
             fixtureRunning: null,
@@ -652,6 +672,9 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         expireCertificateRetry,
         http,
         captureTrafficDiagnostic,
+        recordTrafficFailure(route, status) {
+            traffic.recordFailure({ route, status, hostFetchCode: null })
+        },
         startFixtureTls,
         runId,
         container,

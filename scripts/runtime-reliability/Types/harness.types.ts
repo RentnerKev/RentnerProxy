@@ -31,6 +31,7 @@ export type ReliabilityContext = {
         route?: number,
     ) => Promise<{ status: number; headers: Headers; body: FixtureResult }>
     captureTrafficDiagnostic: (stage: string, category: string) => Promise<TrafficDiagnostic>
+    recordTrafficFailure: (route: number | null, status: number | null) => void
     startFixtureTls: () => Promise<number>
     runId: string
     container: string
