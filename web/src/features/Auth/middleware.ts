@@ -1,4 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
+import { setResponseHeader } from '@tanstack/react-start/server'
+
+import { DEFAULT_ACCENT_COLOR } from '@/config/appearance.config.ts'
 
 import { getAuthStateService } from '@/server/Auth/Access/auth-state.service.ts'
 import { clearSessionCookie } from '@/server/Auth/Access/cookies.server.ts'
@@ -7,6 +10,7 @@ import type { AuthActionResult } from '@/server/Auth/Types/auth-transport.types.
 import { throwPageError } from '@/server/Auth/transport.server.ts'
 
 export const getAuthStateHandler = createServerFn({ method: 'GET' }).handler(async () => {
+    setResponseHeader('Cache-Control', 'no-store')
     const state = await getAuthStateService().catch(throwPageError)
 
     return {
@@ -21,6 +25,7 @@ export const getAuthStateHandler = createServerFn({ method: 'GET' }).handler(asy
                   permissions: state.user.permissions,
                   language: state.user.language,
                   themeMode: state.user.themeMode,
+                  accentColor: state.user.accentColor ?? DEFAULT_ACCENT_COLOR,
                   navigationGroupPreferences: state.user.navigationGroupPreferences ?? {},
               }
             : null,

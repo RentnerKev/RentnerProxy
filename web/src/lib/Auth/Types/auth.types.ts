@@ -15,6 +15,7 @@ export interface AuthenticatedUser {
     readonly permissions: ReadonlyArray<PermissionKey>
     readonly language: AppLanguage
     readonly themeMode: UserThemeMode
+    readonly accentColor?: string
     readonly navigationGroupPreferences?: NavigationGroupPreferences
 }
 

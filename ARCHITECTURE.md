@@ -116,6 +116,15 @@ requires application access and rejects a request queued for a different signed-
 saves restore the last confirmed value and show a localized error. Rendering, route navigation,
 and localization changes do not save preferences. These controls do not affect server-side RBAC.
 
+Accent colors are also personal preferences. The existing JSONB settings store holds a strict
+versioned value at `user_appearance_v1:<user UUID>`, resolved alongside authenticated user access.
+Saving requires application access and the expected signed-in user ID; users can only change
+their own color. The document uses the authenticated route's color, including in its initial
+server HTML. Login and all public routes always use the default green. Public requests never
+load an accent preference, and the former global `system_appearance_v1` value is ignored.
+Router invalidation reloads a saved color without a document-wide override surviving logout or
+account switches. Existing backups preserve the per-user values through their full database dump.
+
 Valkey is a local connection used for rate limiting, authentication challenges,
 and cross-process application-change notifications. The client and its reconnect
 behavior are in [`web/src/server/Valkey/client.server.ts`](./web/src/server/Valkey/client.server.ts);

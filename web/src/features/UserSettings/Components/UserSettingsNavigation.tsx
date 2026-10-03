@@ -11,6 +11,7 @@ const groups = [
         items: [
             { section: 'profile', label: 'account.navigation.profile', icon: UserRound },
             { section: 'language', label: 'account.navigation.language', icon: Globe },
+            { section: 'appearance', label: 'account.navigation.appearance', icon: Palette },
         ],
     },
     {
@@ -20,10 +21,6 @@ const groups = [
             { section: 'two-factor', label: 'account.navigation.twoFactor', icon: ShieldCheck },
             { section: 'passkeys', label: 'account.navigation.passkeys', icon: Fingerprint },
         ],
-    },
-    {
-        label: 'account.navigation.groups.system',
-        items: [{ section: 'appearance', label: 'account.navigation.appearance', icon: Palette }],
     },
 ] as const
 
@@ -82,11 +79,6 @@ export default function UserSettingsNavigation({ user, activeSection }: UserSett
                                             className={`size-4 shrink-0 lg:size-5 ${active ? 'text-brand-text' : ''}`}
                                         />
                                         <span className="min-w-0 break-words">{t(label)}</span>
-                                        {section === 'appearance' ? (
-                                            <span className="ml-auto hidden rounded-md border border-border px-1.5 py-0.5 text-[0.6rem] font-medium text-muted lg:inline">
-                                                {t('account.navigation.admin')}
-                                            </span>
-                                        ) : null}
                                     </Link>
                                 )
                             })}

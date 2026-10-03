@@ -283,16 +283,14 @@
             "label": "User settings navigation",
             "groups": {
                 "profile": "Profile",
-                "signIn": "Sign-in",
-                "system": "System"
+                "signIn": "Sign-in"
             },
             "profile": "My profile",
             "language": "Language",
             "password": "Password",
             "twoFactor": "Two-factor",
             "passkeys": "Passkeys",
-            "appearance": "Appearance",
-            "admin": "Admin"
+            "appearance": "Appearance"
         },
         "page": {
             "eyebrow": "Your account",
@@ -2344,7 +2342,6 @@
             "access_policies": "Access policies",
             "proxy-access-logs": "Proxy access logs",
             "crowdsec": "CrowdSec",
-            "system_appearance": "System appearance",
             "audit-logs": "Audit log",
             "system": "System",
             "default_site": "Default site"
@@ -2409,9 +2406,6 @@
         "crowdsec": {
             "view": "View CrowdSec configuration",
             "update": "Update CrowdSec configuration"
-        },
-        "system_appearance": {
-            "update": "Update system appearance"
         },
         "audit-logs:view": "View audit log",
         "system": {
@@ -2500,9 +2494,9 @@
         "hours": "Hours",
         "minutes": "Minutes"
     },
-    "systemAppearance": {
-        "title": "System appearance",
-        "description": "Personalize the interface with your preferred accent color.",
+    "userAppearance": {
+        "title": "Personal appearance",
+        "description": "Your accent color applies only to your account after sign-in. Public pages and the sign-in page keep the default green.",
         "current": "Current accent color",
         "default": "Default color",
         "label": "Accent color",
@@ -2510,8 +2504,7 @@
         "preview": "Preview",
         "previewButton": "Preview button",
         "reset": "Reset to default",
-        "adminOnly": "Only administrators can change the system accent color.",
-        "saved": "Accent color saved.",
+        "saved": "Accent color saved for your account.",
         "errors": {
             "invalidColor": "Enter a valid color.",
             "saveFailed": "Could not save the accent color.",

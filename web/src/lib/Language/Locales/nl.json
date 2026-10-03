@@ -267,16 +267,14 @@
             "label": "Navigatie van gebruikersinstellingen",
             "groups": {
                 "profile": "Profiel",
-                "signIn": "Inloggen",
-                "system": "Systeem"
+                "signIn": "Inloggen"
             },
             "profile": "Mijn profiel",
             "language": "Taal",
             "password": "Wachtwoord",
             "twoFactor": "Twee factoren",
             "passkeys": "Passkeys",
-            "appearance": "Weergave",
-            "admin": "Beheerder"
+            "appearance": "Weergave"
         },
         "page": {
             "eyebrow": "Je account",
@@ -2328,7 +2326,6 @@
             "access_policies": "Toegangsbeleid",
             "proxy-access-logs": "Proxytoegangslogboeken",
             "crowdsec": "CrowdSec",
-            "system_appearance": "Systeemweergave",
             "audit-logs": "Auditlogboek",
             "system": "Systeem",
             "default_site": "Standaardsite"
@@ -2393,9 +2390,6 @@
         "crowdsec": {
             "view": "CrowdSec-configuratie bekijken",
             "update": "CrowdSec-configuratie bijwerken"
-        },
-        "system_appearance": {
-            "update": "Systeemweergave bijwerken"
         },
         "audit-logs:view": "Auditlogboek bekijken",
         "system": {
@@ -2484,9 +2478,9 @@
         "hours": "Uren",
         "minutes": "Minuten"
     },
-    "systemAppearance": {
-        "title": "Systeemweergave",
-        "description": "Personaliseer de interface met je favoriete accentkleur.",
+    "userAppearance": {
+        "title": "Persoonlijke weergave",
+        "description": "Je accentkleur geldt na het aanmelden alleen voor jouw account. Openbare pagina’s en de aanmeldpagina behouden het standaardgroen.",
         "current": "Huidige accentkleur",
         "default": "Standaardkleur",
         "label": "Accentkleur",
@@ -2494,8 +2488,7 @@
         "preview": "Voorbeeld",
         "previewButton": "Voorbeeldknop",
         "reset": "Standaard herstellen",
-        "adminOnly": "Alleen beheerders kunnen de accentkleur van het systeem wijzigen.",
-        "saved": "Accentkleur opgeslagen.",
+        "saved": "Accentkleur opgeslagen voor je account.",
         "errors": {
             "invalidColor": "Voer een geldige kleur in.",
             "saveFailed": "De accentkleur kon niet worden opgeslagen.",

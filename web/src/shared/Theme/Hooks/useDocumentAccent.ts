@@ -1,20 +1,21 @@
 import { useRouterState } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { DEFAULT_ACCENT_COLOR } from '@/config/appearance.config.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 
 export function useDocumentAccent() {
-    const routeAccentColor = useRouterState({
+    const accentColor = useRouterState({
         select: (state) => {
-            const rootMatch = state.matches.find((match) => match.routeId === '__root__')
-            const accentColor = (rootMatch?.context as { accentColor?: unknown } | undefined)
-                ?.accentColor
-            return typeof accentColor === 'string' ? accentColor : DEFAULT_ACCENT_COLOR
+            const authenticatedMatch = state.matches.find(
+                (match) => match.routeId === '/_authenticated',
+            )
+            const user = (authenticatedMatch?.context as { user?: AuthenticatedUser } | undefined)
+                ?.user
+            return user?.accentColor ?? DEFAULT_ACCENT_COLOR
         },
     })
-    const [overrideAccentColor, setAccentColor] = useState<string | null>(null)
-    const accentColor = overrideAccentColor ?? routeAccentColor
-    const accentContext = useMemo(() => ({ accentColor, setAccentColor }), [accentColor])
+    const accentContext = useMemo(() => ({ accentColor }), [accentColor])
 
     return { accentColor, accentContext }
 }

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import type { SystemAccentState } from '@/shared/Theme/Types/system-accent.types.ts'
+import type { AccentState } from '@/shared/Theme/Types/accent.types.ts'
 
 export interface RootDocumentLogicResult {
     readonly state: {
@@ -8,5 +8,5 @@ export interface RootDocumentLogicResult {
         readonly hasCustomAccent: boolean
         readonly accentStyles: CSSProperties
     }
-    readonly accentContext: SystemAccentState
+    readonly accentContext: AccentState
 }

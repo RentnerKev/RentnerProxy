@@ -1,14 +1,27 @@
 import '@tanstack/react-start/server-only'
 
-import { and, count, eq, inArray } from 'drizzle-orm'
+import { and, count, eq, inArray, sql } from 'drizzle-orm'
 
 import { PERMISSION_REGISTRY, SYSTEM_ROLES } from '@/config/permissions.config.ts'
 import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import { FALLBACK_LANGUAGE } from '@/config/language.config.ts'
+import {
+    DEFAULT_ACCENT_COLOR,
+    USER_APPEARANCE_SETTINGS_KEY_PREFIX,
+} from '@/config/appearance.config.ts'
+import { parseStoredUserAppearance } from '@/lib/UserSettings/appearance.ts'
 import { parseStoredNavigationGroupPreferences } from '@/lib/Navigation/navigationPreferences.ts'
 import { DEFAULT_USER_THEME_MODE } from '@/config/theme.config.ts'
 import { isUserThemeMode } from '@/lib/Theme/themeMode.ts'
-import { permissions, rolePermissions, roles, userRoles, users, userSettings } from '@/db/schema.ts'
+import {
+    permissions,
+    rolePermissions,
+    roles,
+    systemSettings,
+    userRoles,
+    users,
+    userSettings,
+} from '@/db/schema.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import { isAppLanguage } from '@/lib/Language/language.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
@@ -73,10 +86,18 @@ export async function resolveActiveUserAccessInTransaction(
             status: users.status,
             language: userSettings.language,
             themeMode: userSettings.themeMode,
+            appearance: systemSettings.value,
             navigationGroupPreferences: userSettings.navigationGroupPreferences,
         })
         .from(users)
         .leftJoin(userSettings, eq(userSettings.userId, users.id))
+        .leftJoin(
+            systemSettings,
+            eq(
+                systemSettings.key,
+                sql`${USER_APPEARANCE_SETTINGS_KEY_PREFIX} || ${users.id}::text`,
+            ),
+        )
         .where(eq(users.id, userId))
         .limit(1)
     const user = userRows.at(0)
@@ -97,6 +118,7 @@ export async function resolveActiveUserAccessInTransaction(
         permissions: permissionKeys,
         language: isAppLanguage(user.language) ? user.language : FALLBACK_LANGUAGE,
         themeMode: isUserThemeMode(user.themeMode) ? user.themeMode : DEFAULT_USER_THEME_MODE,
+        accentColor: parseStoredUserAppearance(user.appearance) ?? DEFAULT_ACCENT_COLOR,
         navigationGroupPreferences: parseStoredNavigationGroupPreferences(
             user.navigationGroupPreferences,
         ),
@@ -192,7 +214,12 @@ export async function assertRoleAssignmentAllowedInTransaction(
         )
     const actorPermissions = new Set<string>(actor.permissions)
 
-    if (assignedPermissionRows.some((permission) => !actorPermissions.has(permission.key))) {
+    if (
+        assignedPermissionRows.some(
+            (permission) =>
+                isRegisteredPermissionKey(permission.key) && !actorPermissions.has(permission.key),
+        )
+    ) {
         throw new AuthDomainError(
             'permission_denied',
             'Roles may only grant permissions held by the assigning user.',

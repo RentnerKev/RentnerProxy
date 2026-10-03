@@ -1,3 +1,9 @@
 import type { z } from 'zod'
-import type { systemAccentColorUpdateSchema } from '@/lib/SystemAppearance/appearance.ts'
-export type SystemAccentColorUpdate = z.infer<typeof systemAccentColorUpdateSchema>
+import type { userAccentColorUpdateSchema } from '@/lib/UserSettings/appearance.ts'
+
+export type UserAccentColorUpdate = z.infer<typeof userAccentColorUpdateSchema>
+
+export interface UserAccentColor {
+    readonly userId: string
+    readonly accentColor: string
+}

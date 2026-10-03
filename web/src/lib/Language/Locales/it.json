@@ -283,16 +283,14 @@
             "label": "Navigazione delle impostazioni utente",
             "groups": {
                 "profile": "Profilo",
-                "signIn": "Accesso",
-                "system": "Sistema"
+                "signIn": "Accesso"
             },
             "profile": "Il mio profilo",
             "language": "Lingua",
             "password": "Password",
             "twoFactor": "Autenticazione a due fattori",
             "passkeys": "Passkey",
-            "appearance": "Aspetto",
-            "admin": "Amministrazione"
+            "appearance": "Aspetto"
         },
         "page": {
             "eyebrow": "Il tuo account",
@@ -2357,7 +2355,6 @@
             "access_policies": "Politiche di accesso",
             "proxy-access-logs": "Registri degli accessi proxy",
             "crowdsec": "CrowdSec",
-            "system_appearance": "Aspetto del sistema",
             "audit-logs": "Registro di audit",
             "system": "Sistema",
             "default_site": "Sito predefinito"
@@ -2422,9 +2419,6 @@
         "crowdsec": {
             "view": "Visualizzare la configurazione di CrowdSec",
             "update": "Modificare la configurazione di CrowdSec"
-        },
-        "system_appearance": {
-            "update": "Modificare l’aspetto del sistema"
         },
         "audit-logs:view": "Visualizzare il registro di audit",
         "system": {
@@ -2513,9 +2507,9 @@
         "hours": "Ore",
         "minutes": "Minuti"
     },
-    "systemAppearance": {
-        "title": "Aspetto del sistema",
-        "description": "Personalizza l’interfaccia con il colore di accento che preferisci.",
+    "userAppearance": {
+        "title": "Aspetto personale",
+        "description": "Il tuo colore di accento si applica solo al tuo account dopo l’accesso. Le pagine pubbliche e la pagina di accesso mantengono il verde predefinito.",
         "current": "Colore di accento attuale",
         "default": "Colore predefinito",
         "label": "Colore di accento",
@@ -2523,8 +2517,7 @@
         "preview": "Anteprima",
         "previewButton": "Pulsante di anteprima",
         "reset": "Ripristina colore predefinito",
-        "adminOnly": "Solo gli amministratori possono modificare il colore di accento del sistema.",
-        "saved": "Colore di accento salvato.",
+        "saved": "Colore di accento salvato per il tuo account.",
         "errors": {
             "invalidColor": "Inserisci un colore valido.",
             "saveFailed": "Impossibile salvare il colore di accento.",
