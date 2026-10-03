@@ -402,6 +402,9 @@ try {
     stage = 'appliance-restart'
     await command(['start', container])
     await ready()
+    // Docker may assign new dynamic host ports when the stopped container starts.
+    httpPort = await published(8080)
+    tlsPort = await published(8443)
     await drain(60)
     stage = 'complete'
     console.log('Appliance drain smoke passed: ' + assertions + ' assertions')
