@@ -107,7 +107,6 @@ export default function useAccessPolicyManagementLogic({
         setSelectedPolicy(null)
         setShowCreate(true)
     }, [])
-    const setCreateOpen = useCallback((open: boolean) => setShowCreate(open), [])
     const openEditor = useCallback((policy: AccessPolicySummary) => {
         setShowCreate(false)
         setSelectedPolicy(policy)
@@ -190,7 +189,7 @@ export default function useAccessPolicyManagementLogic({
             openEditor,
             retry,
             retryRuntime,
-            setCreateOpen,
+            setCreateOpen: setShowCreate,
             setDeleteOpen,
             setEditorOpen,
             setCredentialsOpen,

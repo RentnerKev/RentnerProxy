@@ -9,7 +9,6 @@ import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.type
 import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.ts'
 import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 import type { AccessPoliciesTableProps } from '../../../Types/access-policy-table.types.ts'
-import { getBasicAuthAccountCount } from '@/lib/Admin/AccessPolicyManagement/basicAuthPolicyState.ts'
 import useAccessPoliciesTableColumns from './useAccessPoliciesTableColumns.ts'
 
 const EMPTY_ACCESS_POLICIES: AccessPolicySummary[] = []
@@ -28,7 +27,7 @@ const createAccessPolicyGlobalFilter =
             policy.combination ?? '',
             policy.combination ? t(`admin.accessPolicies.combination.${policy.combination}`) : '',
             String(policy.assignedHostCount),
-            String(getBasicAuthAccountCount(policy)),
+            String(policy.basicAuthAccountCount),
             policy.ipRules?.defaultAction ?? '',
             ...(policy.ipRules?.allow ?? []),
             ...(policy.ipRules?.deny ?? []),

@@ -19,7 +19,6 @@ import {
     AccessPolicyModeCell,
     AccessPolicyNameCell,
 } from '../Components/AccessPolicyTableCells.tsx'
-import { getBasicAuthAccountCount } from '@/lib/Admin/AccessPolicyManagement/basicAuthPolicyState.ts'
 import type { AccessPolicyTableActionProps } from '../../../Types/access-policy-table.types.ts'
 
 const textFilter = createTrimmedIncludesStringFilter<AccessPolicySummary>()
@@ -62,7 +61,7 @@ export default function useAccessPoliciesTableColumns(actions: AccessPolicyTable
             },
             {
                 id: 'basicAuth',
-                accessorFn: (policy) => getBasicAuthAccountCount(policy),
+                accessorKey: 'basicAuthAccountCount',
                 header: t('admin.accessPolicies.columns.basicAuth'),
                 enableSorting: false,
                 enableColumnFilter: false,
@@ -70,7 +69,7 @@ export default function useAccessPoliciesTableColumns(actions: AccessPolicyTable
                 cell: ({ row }) =>
                     createElement(AccessPolicyBasicAuthCell, {
                         combination: row.original.combination,
-                        count: getBasicAuthAccountCount(row.original),
+                        count: row.original.basicAuthAccountCount,
                         ipRules: row.original.ipRules,
                         mode: row.original.mode,
                     }),
@@ -87,7 +86,7 @@ export default function useAccessPoliciesTableColumns(actions: AccessPolicyTable
                 enableGlobalFilter: true,
                 cell: ({ row }) =>
                     createElement(AccessPolicyIpRulesCell, {
-                        basicAuthAccountCount: getBasicAuthAccountCount(row.original),
+                        basicAuthAccountCount: row.original.basicAuthAccountCount,
                         combination: row.original.combination,
                         ipRules: row.original.ipRules,
                         mode: row.original.mode,

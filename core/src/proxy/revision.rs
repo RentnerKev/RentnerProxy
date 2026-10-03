@@ -100,18 +100,16 @@ fn find_revision(routes: &[ProbeRoute]) -> Option<String> {
             continue;
         }
         for handler in &route.handle {
-            if handler.handler == "static_response"
-                && handler.status_code == Some(200)
-                && handler
-                    .body
-                    .as_deref()
-                    .is_some_and(|body| body.strip_suffix('\n').is_some_and(is_revision))
+            if handler.handler != "static_response" || handler.status_code != Some(200) {
+                continue;
+            }
+            if let Some(revision) = handler
+                .body
+                .as_deref()
+                .and_then(|body| body.strip_suffix('\n'))
+                .filter(|revision| is_revision(revision))
             {
-                return handler
-                    .body
-                    .as_deref()
-                    .and_then(|body| body.strip_suffix('\n'))
-                    .map(ToOwned::to_owned);
+                return Some(revision.to_owned());
             }
         }
     }

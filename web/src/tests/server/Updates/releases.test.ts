@@ -27,6 +27,27 @@ describe('application update selection', () => {
         )
         expect(findAvailableUpdate('v1.0.0-beta.2', [release('v1.0.0')])).toBe('1.0.0')
     })
+    test('selects the newest allowed version without reordering the release list', () => {
+        const releases = [
+            release('v2.0.0'),
+            release('v1.0.10'),
+            release('v4.0.0-alpha.1'),
+            release('v1.9.9'),
+            release('v3.0.0', false, true),
+        ]
+        const original = releases.slice()
+        expect(findAvailableUpdate('1.0.0', releases)).toBe('2.0.0')
+        expect(releases).toEqual(original)
+    })
+    test('preserves the first release when versions differ only in build metadata', () => {
+        expect(
+            findAvailableUpdate('1.0.0', [
+                release('v1.0.1+first'),
+                release('v1.0.1+second'),
+                release('v1.0.1'),
+            ]),
+        ).toBe('1.0.1+first')
+    })
     test('equal, older, development and malformed versions have no update', () => {
         for (const version of ['1.0.0', '2.0.0', '0.0.0-dev', 'preview-123']) {
             expect(findAvailableUpdate(version, [release('v1.0.0')])).toBeNull()

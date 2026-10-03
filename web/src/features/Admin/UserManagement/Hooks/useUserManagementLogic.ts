@@ -98,7 +98,6 @@ export default function useUserManagementLogic({
         setSelectedUser(null)
         setShowCreate(true)
     }, [])
-    const setCreateOpen = useCallback((open: boolean) => setShowCreate(open), [])
     const openEditor = useCallback((user: UserSummary) => {
         setShowCreate(false)
         setSelectedUser(user)
@@ -181,7 +180,7 @@ export default function useUserManagementLogic({
             refreshCurrentUser,
             retryRoles,
             retryUsers,
-            setCreateOpen,
+            setCreateOpen: setShowCreate,
             setDisableOpen,
             setEditorOpen,
         },

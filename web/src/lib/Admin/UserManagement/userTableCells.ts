@@ -5,5 +5,5 @@ export function formatUserCreatedAt(value: unknown, formatter: Intl.DateTimeForm
 }
 
 export function getVisibleRoleKeys(roleKeys: readonly string[], limit = 2): Array<string> {
-    return [...roleKeys].toSorted().slice(0, limit)
+    return roleKeys.toSorted().slice(0, limit)
 }

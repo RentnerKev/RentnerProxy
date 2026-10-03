@@ -50,7 +50,6 @@ export default function useRoleManagementLogic({
         setSelectedRole(null)
         setShowCreate(true)
     }, [])
-    const setCreateOpen = useCallback((open: boolean) => setShowCreate(open), [])
     const openEditor = useCallback((role: RoleManagementSummary) => {
         setShowCreate(false)
         setSelectedRole(role)
@@ -121,7 +120,7 @@ export default function useRoleManagementLogic({
             openEditor,
             refreshCurrentUser,
             retry,
-            setCreateOpen,
+            setCreateOpen: setShowCreate,
             setDeleteOpen,
             setEditorOpen,
         },

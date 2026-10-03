@@ -150,6 +150,38 @@ fn default_site_revision_shaped_html_cannot_impersonate_the_private_probe() {
 }
 
 #[test]
+fn private_probe_ignores_invalid_bodies_and_non_probe_handlers() {
+    let configuration = validate_proxy_config(with_site(DefaultSite::default())).unwrap();
+    let rendered = render_config(Some(&configuration), &settings()).unwrap();
+    let actual: Value = serde_json::from_str(&rendered).unwrap();
+    for body in [
+        Value::Null,
+        json!(configuration.revision),
+        json!(format!("sha256:{}\n", "g".repeat(64))),
+        json!(format!("{}\n\n", configuration.revision)),
+    ] {
+        let mut invalid = actual.clone();
+        invalid["apps"]["http"]["servers"]["rentnerproxy-probe"]["routes"][0]["handle"][0]["body"] =
+            body;
+        assert_eq!(revision_from_config(&invalid.to_string()), None);
+    }
+
+    let mut mixed = actual.clone();
+    let valid =
+        actual["apps"]["http"]["servers"]["rentnerproxy-probe"]["routes"][0]["handle"][0].clone();
+    mixed["apps"]["http"]["servers"]["rentnerproxy-probe"]["routes"][0]["handle"] = json!([
+        {"handler": "reverse_proxy", "status_code": 200, "body": valid["body"]},
+        {"handler": "static_response", "status_code": 204, "body": valid["body"]},
+        {"handler": "static_response", "status_code": 200, "body": configuration.revision},
+        valid,
+    ]);
+    assert_eq!(
+        revision_from_config(&mixed.to_string()),
+        Some(configuration.revision)
+    );
+}
+
+#[test]
 fn default_site_rejects_wrong_shapes_bounds_urls_and_revision() {
     for value in [
         json!(null),

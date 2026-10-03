@@ -6,6 +6,7 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         import { mock } from 'bun:test'
         import { AuthDomainError } from './server/Auth/Core/errors.server.ts'
         let authorized = true
+        let authorizationError
         let reads = 0
         let permissionChecks = 0
         mock.module('./server/env.server.ts', () => ({ getPublicOrigin: () => 'https://proxy.example' }))
@@ -13,7 +14,7 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         mock.module('./server/Auth/Access/authorization.service.ts', () => ({
             requirePermissionService: async () => {
                 permissionChecks++
-                if (!authorized) throw new AuthDomainError('permission_denied', 'Denied')
+                if (!authorized) throw authorizationError ?? new AuthDomainError('permission_denied', 'Denied')
                 return { id: 'current-user', permissions: ['app.access'] }
             },
         }))
@@ -49,9 +50,15 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         authorized = false
         statuses.push((await read('foundation')).status)
         statuses.push((await read('app-events')).status)
+        for (const code of ['authentication_required', 'user_not_active', 'service_unavailable']) {
+            authorizationError = new AuthDomainError(code, 'Denied')
+            statuses.push((await read('foundation')).status)
+        }
+        authorizationError = new Error('internal failure')
+        statuses.push((await read('foundation')).status)
         console.log(JSON.stringify({ statuses, rejectedReads, reads, permissionChecks, cacheControl, application }))
     `
-    const child = Bun.spawn([process.execPath, '-e', script], {
+    const child = Bun.spawn([process.execPath, '--no-env-file', '-e', script], {
         cwd: fileURLToPath(new URL('../../..', import.meta.url)),
         stdout: 'pipe',
         stderr: 'pipe',
@@ -63,10 +70,12 @@ test('live snapshots enforce canonical origin, query limits and current permissi
     ])
     expect(code, stderr).toBe(0)
     const result = JSON.parse(stdout)
-    expect(result.statuses).toEqual([403, 403, 400, 400, 400, 400, 400, 400, 200, 403, 403])
+    expect(result.statuses).toEqual([
+        403, 403, 400, 400, 400, 400, 400, 400, 200, 403, 403, 401, 403, 503, 503,
+    ])
     expect(result.rejectedReads).toBe(0)
     expect(result.reads).toBe(1)
-    expect(result.permissionChecks).toBe(4)
+    expect(result.permissionChecks).toBe(8)
     expect(result.cacheControl).toBe('private, no-store')
     expect(Object.keys(result.application).toSorted()).toEqual(['revision', 'userVersion'])
     expect(result.application.userVersion).toMatch(/^[a-f0-9]{64}$/)
@@ -92,7 +101,7 @@ test('application events publish immediately, deduplicate Valkey echoes and clea
         await new Promise(resolve => setTimeout(resolve, 0))
         console.log(JSON.stringify({ initial, changed, afterEcho, deliveries, remote }))
     `
-    const child = Bun.spawn([process.execPath, '-e', script], {
+    const child = Bun.spawn([process.execPath, '--no-env-file', '-e', script], {
         cwd: fileURLToPath(new URL('../../..', import.meta.url)),
         stdout: 'pipe',
         stderr: 'pipe',

@@ -15,7 +15,6 @@ import UtcDateTimeInput from '@/shared/Forms/UtcDateTimeInput.tsx'
 import { ActionMenu } from '@/shared/ActionMenu/index.tsx'
 import type { AuditEventDto } from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 import {
-    auditEventKey,
     formatAuditActor,
     formatAuditMetadataValue,
     getAuditMetadataEntries,
@@ -304,7 +303,7 @@ export default function AuditLogsTable(props: AuditLogsTableProps) {
                     {!isLoading && events.length > 0 ? (
                         <tbody>
                             {events.map((event) => {
-                                const eventId = auditEventKey(event)
+                                const eventId = event.id
                                 const expanded = expandedEventId === eventId
                                 const detailsId = `audit-log-details-${eventId}`
                                 return (

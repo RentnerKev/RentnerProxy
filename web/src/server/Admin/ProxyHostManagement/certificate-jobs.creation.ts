@@ -46,7 +46,7 @@ export function digestJobRequest(
 export function canonicalHostForDigest(host: unknown): unknown {
     if (host === null || typeof host !== 'object' || Array.isArray(host)) return host
     const value = { ...(host as Record<string, unknown>) }
-    if (Array.isArray(value.domains)) value.domains = [...value.domains].toSorted()
+    if (Array.isArray(value.domains)) value.domains = value.domains.toSorted()
     for (const key of ['proxyHostId', 'certificateId', 'trustedCaId', 'accessPolicyId']) {
         if (typeof value[key] === 'string') value[key] = value[key].toLowerCase()
     }
@@ -59,7 +59,7 @@ export function normalizeRequest(
 ): ParsedRequest {
     return parse(requestCertificateInputSchema, {
         ...request,
-        domains: [...hostDomains].toSorted(),
+        domains: hostDomains.toSorted(),
     })
 }
 
@@ -79,10 +79,10 @@ export async function requireTransactionPermissions(
     actorId: string,
     permissions: readonly PermissionKey[],
 ): Promise<void> {
-    await permissions.reduce(async (previous, permission) => {
-        await previous
+    for (const permission of permissions) {
+        // oxlint-disable-next-line no-await-in-loop -- Transaction checks stop at the first permission denial.
         await requirePermissionInTransaction(transaction, actorId, permission)
-    }, Promise.resolve())
+    }
 }
 
 export function permissionsForCreate(

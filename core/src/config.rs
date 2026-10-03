@@ -316,16 +316,13 @@ fn parse_proxy_port(
     variable: &'static str,
     default: u16,
 ) -> Result<u16, ConfigError> {
-    value
-        .map(|value| {
-            value
-                .parse::<u16>()
-                .ok()
-                .filter(|port| *port != 0)
-                .ok_or(ConfigError::InvalidProxyHttpPort { variable })
-        })
-        .transpose()?
-        .map_or(Ok(default), Ok)
+    value.map_or(Ok(default), |value| {
+        value
+            .parse::<u16>()
+            .ok()
+            .filter(|port| *port != 0)
+            .ok_or(ConfigError::InvalidProxyHttpPort { variable })
+    })
 }
 
 fn read_env(variable: &'static str) -> Result<Option<String>, ConfigError> {

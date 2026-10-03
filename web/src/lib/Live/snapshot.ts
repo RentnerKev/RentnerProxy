@@ -122,26 +122,24 @@ export async function readBoundedJson(
     response: Response,
     maxPayloadBytes = LIVE_MAX_PAYLOAD_BYTES,
 ): Promise<unknown> {
-    const bodyReader = response.body?.getReader()
-    if (!bodyReader) throw new LivePayloadError()
-    const reader = bodyReader
-
+    const reader = response.body?.getReader()
+    if (!reader) throw new LivePayloadError()
     const chunks: Uint8Array[] = []
-    async function collect(length: number): Promise<number> {
-        const chunk = await reader.read()
-        if (chunk.done) return length
-        const nextLength = length + chunk.value.byteLength
-        if (nextLength > maxPayloadBytes) {
-            await reader.cancel()
-            throw new LivePayloadError()
-        }
-        chunks.push(chunk.value)
-        return collect(nextLength)
-    }
+    let length = 0
 
-    let length: number
     try {
-        length = await collect(0)
+        for (;;) {
+            // oxlint-disable-next-line no-await-in-loop -- Count each chunk before reading more data.
+            const chunk = await reader.read()
+            if (chunk.done) break
+            length += chunk.value.byteLength
+            if (length > maxPayloadBytes) {
+                // oxlint-disable-next-line no-await-in-loop -- Cancel the oversized stream before releasing its reader.
+                await reader.cancel()
+                throw new LivePayloadError()
+            }
+            chunks.push(chunk.value)
+        }
     } finally {
         reader.releaseLock()
     }

@@ -123,24 +123,14 @@ export function getAuditMetadataEntries(metadata: AuditMetadata): AuditMetadataE
     })
 }
 
-export function auditEventKey(event: AuditEventDto): string {
-    return event.id
-}
-
 export function formatAuditActor(event: AuditEventDto): string {
     return event.actorDisplayName ?? event.actorUserId ?? event.actorKind
 }
 
 export function sortAuditEventsNewestFirst(events: readonly AuditEventDto[]): AuditEventDto[] {
-    return events
-        .map((event, index) => ({ event, index }))
-        .toSorted((left, right) => {
-            const rightTimestamp = Date.parse(right.event.timestamp)
-            const leftTimestamp = Date.parse(left.event.timestamp)
-            if (rightTimestamp !== leftTimestamp) return rightTimestamp - leftTimestamp
-            return left.index - right.index
-        })
-        .map(({ event }) => event)
+    return events.toSorted(
+        (left, right) => Date.parse(right.timestamp) - Date.parse(left.timestamp),
+    )
 }
 
 export const resultClassName = (result: AuditEventDto['result']) => {

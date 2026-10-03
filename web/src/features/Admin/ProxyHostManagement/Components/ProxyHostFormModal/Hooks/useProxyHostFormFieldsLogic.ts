@@ -1,9 +1,6 @@
 import { useStore } from '@tanstack/react-form'
 import { certificateCoversDomains } from '@/lib/Admin/CertificateManagement/certificateValidation.ts'
-import {
-    getAccessPolicyAvailability,
-    getBasicAuthAccountCount,
-} from '@/lib/Admin/AccessPolicyManagement/basicAuthPolicyState.ts'
+import { getAccessPolicyAvailability } from '@/lib/Admin/AccessPolicyManagement/basicAuthPolicyState.ts'
 import type { ProxyHostFormFieldsProps } from '../Types/proxy-host-form.types.ts'
 import type { ProxyHostFormFieldsLogicResult } from '../Types/form-fields-logic.types.ts'
 
@@ -37,7 +34,7 @@ export default function useProxyHostFormFieldsLogic({
         ? getAccessPolicyAvailability(
               selectedPolicy.mode,
               selectedPolicy.combination,
-              getBasicAuthAccountCount(selectedPolicy),
+              selectedPolicy.basicAuthAccountCount,
               selectedPolicy.ipRules,
           )
         : null

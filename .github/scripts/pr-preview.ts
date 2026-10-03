@@ -218,7 +218,7 @@ export function assertPreviewPublishPlan(
 ): PreviewIdentity {
     const plan = asRecord(value, 'Preview publish plan')
     const actualKeys = Object.keys(plan).toSorted()
-    if (actualKeys.join('\0') !== [...previewPublishPlanKeys].toSorted().join('\0')) {
+    if (actualKeys.join('\0') !== previewPublishPlanKeys.toSorted().join('\0')) {
         throw new Error('Preview publish plan fields are invalid.')
     }
 
@@ -1344,7 +1344,7 @@ const metadataKeys = [
 export function parsePreviewArtifactMetadata(value: unknown): PreviewArtifactMetadata {
     const metadata = asRecord(value, 'Preview artifact metadata')
     const actualKeys = Object.keys(metadata).toSorted()
-    if (actualKeys.join('\0') !== [...metadataKeys].toSorted().join('\0')) {
+    if (actualKeys.join('\0') !== metadataKeys.toSorted().join('\0')) {
         throw new Error('Preview artifact metadata fields are invalid.')
     }
     if (metadata.schemaVersion !== 1) {

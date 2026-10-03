@@ -381,7 +381,7 @@ export default function useAccessPolicyFormModalLogic({
                               nextValues.forwardAuth.gatewayPathPrefix.trim() === ''
                                   ? null
                                   : nextValues.forwardAuth.gatewayPathPrefix,
-                          requestHeaders: [...nextValues.forwardAuth.requestHeaders].toSorted(),
+                          requestHeaders: nextValues.forwardAuth.requestHeaders.toSorted(),
                           responseHeaders: parseForwardAuthResponseHeaders(
                               nextValues.forwardAuth.responseHeaders,
                           ),

@@ -3,10 +3,6 @@ import type { AccessPolicyMode } from '@/config/Types/access-policies-config.typ
 import type { AccessPolicyIpRules } from '@/lib/AccessPolicies/Types/ip-access-rules.types.ts'
 import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 
-export function getBasicAuthAccountCount(policy: AccessPolicySummary): number {
-    return policy.basicAuthAccountCount
-}
-
 export function getAccessPolicyAvailability(
     mode: AccessPolicyMode,
     combination: AccessPolicySummary['combination'],

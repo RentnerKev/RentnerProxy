@@ -20,21 +20,16 @@ export function findAvailableUpdate(currentVersion: string, releases: unknown): 
     if (!parsed.success) return null
     const current = currentVersion.replace(/^v/, '')
     const allowsPrerelease = current.split('+')[0]!.includes('-')
-    return (
-        parsed.data
-            .filter((release) => !release.draft && versionPattern.test(release.tag_name))
-            .map((release) => ({
-                prerelease: release.prerelease,
-                version: release.tag_name.replace(/^v/, ''),
-            }))
-            .filter(
-                (release) =>
-                    (allowsPrerelease ||
-                        (!release.prerelease && !release.version.split('+')[0]!.includes('-'))) &&
-                    semver.order(release.version, current) > 0,
-            )
-            .toSorted((a, b) => semver.order(b.version, a.version))[0]?.version ?? null
-    )
+    let update: string | null = null
+    for (const release of parsed.data) {
+        if (release.draft || !versionPattern.test(release.tag_name)) continue
+        const version = release.tag_name.replace(/^v/, '')
+        if (!allowsPrerelease && (release.prerelease || version.split('+')[0]!.includes('-')))
+            continue
+        if (semver.order(version, current) > 0 && (!update || semver.order(version, update) > 0))
+            update = version
+    }
+    return update
 }
 
 export async function getAvailableUpdateService(currentVersion: string): Promise<string | null> {

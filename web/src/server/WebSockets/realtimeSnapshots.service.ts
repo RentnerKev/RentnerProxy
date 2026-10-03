@@ -96,16 +96,13 @@ export async function getLiveSnapshotResponse(request: Request): Promise<Respons
         }
         return Response.json(data, { headers })
     } catch (error) {
-        const status =
-            error instanceof SyntaxError
-                ? 400
-                : isAuthDomainError(error)
-                  ? error.code === 'authentication_required'
-                      ? 401
-                      : error.code === 'permission_denied' || error.code === 'user_not_active'
-                        ? 403
-                        : 503
-                  : 503
+        let status = 503
+        if (error instanceof SyntaxError) status = 400
+        else if (isAuthDomainError(error)) {
+            if (error.code === 'authentication_required') status = 401
+            else if (error.code === 'permission_denied' || error.code === 'user_not_active')
+                status = 403
+        }
         return new Response(null, { status, headers })
     }
 }

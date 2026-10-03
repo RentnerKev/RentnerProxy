@@ -169,13 +169,11 @@ export default function useProxyHostManagementLogic({
         if (!open) setConfigTarget(null)
     }, [])
     const openGlobalConfig = useCallback(() => setGlobalConfigOpen(true), [])
-    const setGlobalConfigEditorOpen = useCallback((open: boolean) => setGlobalConfigOpen(open), [])
     const openCreate = useCallback(() => {
         setConfigTarget(null)
         setSelectedProxyHost(null)
         setShowCreate(true)
     }, [])
-    const setCreateOpen = useCallback((open: boolean) => setShowCreate(open), [])
     const openEditor = useCallback((proxyHost: ProxyHostSummary) => {
         setConfigTarget(null)
         setShowCreate(false)
@@ -305,13 +303,13 @@ export default function useProxyHostManagementLogic({
             setCertificateRequestOpen,
             setConfigEditorOpen,
             openGlobalConfig,
-            setGlobalConfigEditorOpen,
+            setGlobalConfigEditorOpen: setGlobalConfigOpen,
             openDelete,
             openDisable,
             openEditor,
             retry,
             retryRuntime,
-            setCreateOpen,
+            setCreateOpen: setShowCreate,
             setDeleteOpen,
             setDisableOpen,
             setEditorOpen,

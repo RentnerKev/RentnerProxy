@@ -86,7 +86,7 @@ function hashRevision(value: unknown): string {
 function canonicalHost(host: ProxyHost): ProxyHost {
     return {
         id: host.id,
-        domains: [...host.domains].toSorted(),
+        domains: host.domains.toSorted(),
         forwardScheme: host.forwardScheme,
         forwardHost: host.forwardHost,
         forwardPort: host.forwardPort,
@@ -111,7 +111,7 @@ function createHttpsSnapshot(host: ProxyHost, trustedCas: readonly TrustedCa[] =
         proxyHosts: [canonicalHost(host)],
         redirectHosts: [],
         httpSettings: {},
-        trustedCas: [...trustedCas].toSorted((left, right) => left.id.localeCompare(right.id)),
+        trustedCas: trustedCas.toSorted((left, right) => left.id.localeCompare(right.id)),
     }
     return { ...canonical, revision: hashRevision(canonical) }
 }
