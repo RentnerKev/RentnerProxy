@@ -29,7 +29,7 @@ export default function CertificateImportFields({ form, isPending }: Certificate
                             maxLength={120}
                             disabled={isPending}
                             onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
+                            onValueChange={field.handleChange}
                             aria-describedby="certificate-import-name-error"
                         />
                         <FieldError
@@ -101,7 +101,7 @@ function PemField({
                             disabled={isPending}
                             maxLength={field.name === 'privateKeyPem' ? 64 * 1024 : 256 * 1024}
                             onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
+                            onValueChange={field.handleChange}
                             autoCapitalize="off"
                             autoComplete="off"
                             spellCheck={false}

@@ -30,6 +30,9 @@ export default function useControlLocalization() {
             hourPlaceholder: t('inputs.hourPlaceholder'),
             minuteSelect: t('inputs.minuteSelect'),
             minutePlaceholder: t('inputs.minutePlaceholder'),
+            otpCode: t('inputs.otpCode'),
+            otpDigit: (position, count) => t('inputs.otpDigit', { position, count }),
+            otpIncomplete: (count) => t('inputs.otpIncomplete', { count }),
         }),
         [t],
     )
@@ -42,6 +45,7 @@ export default function useControlLocalization() {
             searchPlaceholder: t('calendar.searchPlaceholder'),
             noResults: t('calendar.noResults'),
             noOptions: t('calendar.noOptions'),
+            clearSelection: t('common.clearSelection'),
         }),
         [t],
     )

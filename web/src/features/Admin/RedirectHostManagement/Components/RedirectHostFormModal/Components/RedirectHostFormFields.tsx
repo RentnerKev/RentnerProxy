@@ -63,9 +63,7 @@ export default function RedirectHostFormFields({
                                                             'admin.redirectHosts.form.domainPlaceholder',
                                                         )}
                                                         onBlur={field.handleBlur}
-                                                        onChange={(event) =>
-                                                            field.handleChange(event.target.value)
-                                                        }
+                                                        onValueChange={field.handleChange}
                                                         aria-invalid={
                                                             field.state.meta.errors.length > 0
                                                         }
@@ -154,7 +152,7 @@ export default function RedirectHostFormFields({
                                 spellCheck={false}
                                 placeholder={t('admin.redirectHosts.form.destinationPlaceholder')}
                                 onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(event.target.value)}
+                                onValueChange={field.handleChange}
                                 aria-invalid={field.state.meta.errors.length > 0}
                                 aria-describedby={`${inputId}-hint ${errorId}`}
                             />

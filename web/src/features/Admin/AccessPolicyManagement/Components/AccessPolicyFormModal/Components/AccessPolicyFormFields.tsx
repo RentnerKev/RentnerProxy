@@ -59,7 +59,7 @@ export default function AccessPolicyFormFields({
                     value={values.name}
                     maxLength={120}
                     disabled={isPending}
-                    onChange={(event) => setName(event.target.value)}
+                    onValueChange={setName}
                     aria-invalid={errors.name !== undefined}
                     aria-describedby={nameErrorId}
                 />
@@ -172,9 +172,7 @@ export default function AccessPolicyFormFields({
                             disabled={isPending}
                             aria-invalid={errors.forwardAuth !== undefined}
                             aria-describedby={`${formId}-forwardAuth-gatewayPathPrefix-hint ${formId}-forwardAuth-error`}
-                            onChange={(event) =>
-                                setForwardAuthGatewayPathPrefix(event.target.value)
-                            }
+                            onValueChange={setForwardAuthGatewayPathPrefix}
                         />
                         <p
                             id={`${formId}-forwardAuth-gatewayPathPrefix-hint`}
@@ -201,7 +199,7 @@ export default function AccessPolicyFormFields({
                             disabled={isPending}
                             aria-invalid={errors.forwardAuth !== undefined}
                             aria-describedby={`${formId}-forwardAuth-endpoint-hint ${formId}-forwardAuth-error`}
-                            onChange={(event) => setForwardAuthEndpoint(event.target.value)}
+                            onValueChange={setForwardAuthEndpoint}
                         />
                         <p
                             id={`${formId}-forwardAuth-endpoint-hint`}
@@ -230,7 +228,7 @@ export default function AccessPolicyFormFields({
                             disabled={isPending}
                             aria-invalid={errors.forwardAuth !== undefined}
                             aria-describedby={`${formId}-forwardAuth-error`}
-                            onChange={(event) => setForwardAuthTimeout(event.target.value)}
+                            onValueChange={setForwardAuthTimeout}
                         />
                     </div>
                     <div className="grid gap-[0.45rem]">
@@ -280,7 +278,7 @@ export default function AccessPolicyFormFields({
                             placeholder={t(
                                 'admin.accessPolicies.form.forwardAuth.responseHeadersHint',
                             )}
-                            onChange={(event) => setForwardAuthResponseHeaders(event.target.value)}
+                            onValueChange={setForwardAuthResponseHeaders}
                         />
                         <p
                             id={`${formId}-forwardAuth-responseHeaders-hint`}
@@ -440,7 +438,7 @@ export default function AccessPolicyFormFields({
                                     aria-invalid={errors.ipRules !== undefined}
                                     aria-describedby={ipRulesErrorId}
                                     placeholder={t('admin.accessPolicies.form.ipRules.allowHint')}
-                                    onChange={(event) => setIpRuleAllow(event.target.value)}
+                                    onValueChange={setIpRuleAllow}
                                 />
                             </div>
                             <div className="grid gap-[0.45rem]">
@@ -462,7 +460,7 @@ export default function AccessPolicyFormFields({
                                     aria-invalid={errors.ipRules !== undefined}
                                     aria-describedby={ipRulesErrorId}
                                     placeholder={t('admin.accessPolicies.form.ipRules.denyHint')}
-                                    onChange={(event) => setIpRuleDeny(event.target.value)}
+                                    onValueChange={setIpRuleDeny}
                                 />
                             </div>
                         </>

@@ -45,7 +45,7 @@ export default function RoleFormFields({
                                 value={field.state.value}
                                 disabled={!isCreate}
                                 onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(event.target.value)}
+                                onValueChange={field.handleChange}
                                 aria-describedby={`${hintId} ${errorId}`}
                             />
                             <p id={hintId} className="m-0 text-[0.76rem] leading-[1.45] text-muted">
@@ -77,7 +77,7 @@ export default function RoleFormFields({
                                 maxLength={100}
                                 value={field.state.value}
                                 onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(event.target.value)}
+                                onValueChange={field.handleChange}
                                 aria-describedby={errorId}
                             />
                             <FieldError id={errorId} errors={field.state.meta.errors} />
@@ -108,7 +108,7 @@ export default function RoleFormFields({
                                 maxLength={500}
                                 value={field.state.value}
                                 onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(event.target.value)}
+                                onValueChange={field.handleChange}
                                 aria-describedby={errorId}
                             />
                             <FieldError id={errorId} errors={field.state.meta.errors} />

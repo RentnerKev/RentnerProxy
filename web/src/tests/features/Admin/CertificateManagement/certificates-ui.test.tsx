@@ -2,6 +2,7 @@ import { generateKeyPairSync } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { QueryClient as QueryClientInstance } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
@@ -132,6 +133,8 @@ mock.module('@/features/Admin/TrustedCaManagement/middleware.ts', () => ({
 
 const { default: CertificateManagementPage } =
     await import('@/features/Admin/CertificateManagement/index.tsx')
+const { default: CertificateRequestModal } =
+    await import('@/features/Admin/CertificateManagement/Components/CertificateRequestModal/index.tsx')
 
 let activeRoot: Root | null = null
 let activeQueryClient: QueryClientInstance | null = null
@@ -139,6 +142,7 @@ let activeQueryClient: QueryClientInstance | null = null
 async function renderPage(
     permissions: readonly (typeof PERMISSIONS)[keyof typeof PERMISSIONS][],
     language: 'en' | 'de' | 'es' | 'fr' = 'en',
+    content?: ReactElement,
 ): Promise<HTMLElement> {
     const container = document.createElement('div')
     document.body.append(container)
@@ -152,7 +156,7 @@ async function renderPage(
                 <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
                     <QueryClientProvider client={activeQueryClient!}>
                         {withTestLanguage(
-                            <CertificateManagementPage permissions={permissions} />,
+                            content ?? <CertificateManagementPage permissions={permissions} />,
                             language,
                         )}
                     </QueryClientProvider>
@@ -262,6 +266,8 @@ async function chooseAcmeEnvironment(environment: 'Production' | 'Staging'): Pro
 
 beforeEach(() => {
     toast.dismissAll()
+    requestProxyHostCertificateHandlerMock.mockClear()
+    retryCertificateJobHandlerMock.mockClear()
     getTrustedCasHandlerMock.mockReset().mockResolvedValue([trustedCa])
     createTrustedCaHandlerMock.mockReset().mockResolvedValue({
         success: true,
@@ -315,6 +321,54 @@ afterEach(async () => {
 })
 
 describe('certificate management UI', () => {
+    test.each([undefined, '2026-10-01T12:00:00.000Z'])(
+        'requires the actual proxy revision for a certificate request (%s)',
+        async (expectedUpdatedAt) => {
+            const proxyHostId = '018f2f52-7c1b-7cc0-9f3c-6a9952c54053'
+            await renderPage(
+                [],
+                'en',
+                <CertificateRequestModal
+                    open
+                    onOpenChange={() => {}}
+                    onSuccess={() => {}}
+                    proxyHostId={proxyHostId}
+                    expectedUpdatedAt={expectedUpdatedAt}
+                    initialDomains={['edge.example.com']}
+                    initialName="Production edge"
+                />,
+            )
+            await setValue(
+                document.querySelector('#certificate-request-contact')!,
+                'ops@example.com',
+            )
+            await click(document.querySelector('#certificate-request-terms')!)
+            await click(lastButton('Request with ACME'))
+            await waitForToast('error')
+
+            if (expectedUpdatedAt) {
+                expect(requestProxyHostCertificateHandlerMock).toHaveBeenCalledWith({
+                    data: {
+                        idempotencyKey: expect.any(String),
+                        proxyHostId,
+                        expectedUpdatedAt,
+                        request: {
+                            name: 'Production edge',
+                            environment: 'production',
+                            challengeType: 'http-01',
+                            contactEmail: 'ops@example.com',
+                            acceptTerms: true,
+                        },
+                    },
+                })
+            } else {
+                expect(requestProxyHostCertificateHandlerMock).not.toHaveBeenCalled()
+            }
+            expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+            expect(retryCertificateJobHandlerMock).not.toHaveBeenCalled()
+        },
+    )
+
     test('filters exact certificate names with search and expiry dates with the calendar', async () => {
         const now = new Date()
         const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-15`

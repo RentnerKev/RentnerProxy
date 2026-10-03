@@ -117,7 +117,7 @@ export default function ProxyHostFormFields({
                                 inputMode="numeric"
                                 maxLength={5}
                                 onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(event.target.value)}
+                                onValueChange={field.handleChange}
                                 aria-invalid={field.state.meta.errors.length > 0}
                                 aria-describedby={errorId}
                             />
@@ -156,7 +156,7 @@ export default function ProxyHostFormFields({
                                 spellCheck={false}
                                 placeholder={t('admin.proxyHosts.form.forwardHostPlaceholder')}
                                 onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(event.target.value)}
+                                onValueChange={field.handleChange}
                                 aria-invalid={field.state.meta.errors.length > 0}
                                 aria-describedby={`${hintId} ${errorId}`}
                             />

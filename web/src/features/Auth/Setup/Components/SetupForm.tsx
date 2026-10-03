@@ -1,6 +1,5 @@
 import { EmailInput, PasswordInput, TextInput } from '@rentnerkev/inputs'
 import FieldError from '@/shared/Forms/FieldError.tsx'
-import type { ChangeEvent } from 'react'
 import type { SetupFormProps } from '../Types/setup-component-props.types.ts'
 
 export default function SetupForm({ state, form, handler }: SetupFormProps) {
@@ -22,9 +21,7 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
                             maxLength={100}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
@@ -49,9 +46,7 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
                             maxLength={254}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
@@ -75,9 +70,7 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
@@ -103,9 +96,7 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />

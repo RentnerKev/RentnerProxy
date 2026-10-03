@@ -23,7 +23,7 @@ export default function ForgotPasswordForm({ state, form, handler }: ForgotPassw
                             maxLength={254}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
+                            onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />

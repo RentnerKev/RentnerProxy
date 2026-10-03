@@ -50,7 +50,7 @@ export default function UserFormFields({
                                 maxLength={100}
                                 value={field.state.value}
                                 onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(event.target.value)}
+                                onValueChange={field.handleChange}
                                 aria-describedby={errorId}
                             />
                             <FieldError id={errorId} errors={field.state.meta.errors} />
@@ -82,7 +82,7 @@ export default function UserFormFields({
                                 maxLength={254}
                                 value={field.state.value}
                                 onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(event.target.value)}
+                                onValueChange={field.handleChange}
                                 aria-describedby={errorId}
                             />
                             <FieldError id={errorId} errors={field.state.meta.errors} />

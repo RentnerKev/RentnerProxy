@@ -180,9 +180,7 @@ export default function CrowdSecPage(props: CrowdSecPageProps) {
                                                 state.fieldErrors.apiUrl ? true : undefined
                                             }
                                             aria-describedby="crowdsec-api-url-error"
-                                            onChange={(event) =>
-                                                handler.setApiUrl(event.target.value)
-                                            }
+                                            onValueChange={handler.setApiUrl}
                                         />
                                         <FieldError
                                             id="crowdsec-api-url-error"
@@ -217,9 +215,7 @@ export default function CrowdSecPage(props: CrowdSecPageProps) {
                                                 state.fieldErrors.apiKey ? true : undefined
                                             }
                                             aria-describedby="crowdsec-api-key-hint crowdsec-api-key-error"
-                                            onChange={(event) =>
-                                                handler.setApiKey(event.target.value)
-                                            }
+                                            onValueChange={handler.setApiKey}
                                         />
                                         <FieldError
                                             id="crowdsec-api-key-error"

@@ -64,7 +64,7 @@ export default function RenamePasskeyModal({
                     autoComplete="off"
                     maxLength={100}
                     value={logic.state.name}
-                    onChange={(event) => logic.handler.setName(event.target.value)}
+                    onValueChange={logic.handler.setName}
                 />
             </label>
         </Modal>

@@ -28,7 +28,8 @@
         "openActions": "Open actions",
         "backHome": "Back to home",
         "openDomainInNewTab": "Open {{domain}} in a new tab",
-        "moreDomains": "Show {{count}} more domains"
+        "moreDomains": "Show {{count}} more domains",
+        "clearSelection": "Clear selection"
     },
     "inputs": {
         "invalidPhone": "Enter a valid phone number.",
@@ -44,7 +45,10 @@
         "hourSelect": "Select hour",
         "hourPlaceholder": "Hour",
         "minuteSelect": "Select minute",
-        "minutePlaceholder": "Minute"
+        "minutePlaceholder": "Minute",
+        "otpCode": "One-time code",
+        "otpDigit": "Digit {{position}} of {{count}}",
+        "otpIncomplete": "Enter all {{count}} digits of the code."
     },
     "shell": {
         "home": "RentnerProxy home",

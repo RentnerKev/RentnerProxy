@@ -52,7 +52,7 @@ export default function ReauthenticationModal({
                         id="reauth-password"
                         autoComplete="current-password"
                         value={value}
-                        onChange={(event) => onChange(event.target.value)}
+                        onValueChange={onChange}
                     />
                 </label>
                 <button

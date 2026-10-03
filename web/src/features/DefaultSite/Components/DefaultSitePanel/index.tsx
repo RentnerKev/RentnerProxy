@@ -91,7 +91,7 @@ export default function DefaultSitePanel({ canUpdate }: { readonly canUpdate: bo
                                         id="default-site-url"
                                         name={field.name}
                                         value={field.state.value}
-                                        onChange={(event) => field.handleChange(event.target.value)}
+                                        onValueChange={field.handleChange}
                                         onBlur={field.handleBlur}
                                         disabled={!canUpdate || state.isSaving || state.isReloading}
                                         maxLength={2048}

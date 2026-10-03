@@ -61,9 +61,7 @@ export default function DomainInputs({
                                                         'admin.proxyHosts.form.domainPlaceholder',
                                                     )}
                                                     onBlur={field.handleBlur}
-                                                    onChange={(event) =>
-                                                        field.handleChange(event.target.value)
-                                                    }
+                                                    onValueChange={field.handleChange}
                                                     aria-invalid={
                                                         field.state.meta.errors.length > 0
                                                     }

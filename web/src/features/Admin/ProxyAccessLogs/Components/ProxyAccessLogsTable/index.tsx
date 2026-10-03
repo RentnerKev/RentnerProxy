@@ -165,7 +165,7 @@ export default function ProxyAccessLogsTable(props: ProxyAccessLogsTableProps) {
                                     placeholder={t(
                                         'admin.proxyAccessLogs.filters.searchPlaceholder',
                                     )}
-                                    onChange={(event) => onSearchChange(event.target.value)}
+                                    onValueChange={onSearchChange}
                                     aria-invalid={filterErrors.search !== undefined}
                                     aria-describedby={
                                         filterErrors.search ? 'proxy-log-search-error' : undefined

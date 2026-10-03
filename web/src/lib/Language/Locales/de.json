@@ -28,7 +28,8 @@
         "openActions": "Aktionen öffnen",
         "backHome": "Zur Startseite",
         "openDomainInNewTab": "{{domain}} in einem neuen Tab öffnen",
-        "moreDomains": "{{count}} weitere Domains anzeigen"
+        "moreDomains": "{{count}} weitere Domains anzeigen",
+        "clearSelection": "Auswahl löschen"
     },
     "inputs": {
         "invalidPhone": "Gib eine gültige Telefonnummer ein.",
@@ -44,7 +45,10 @@
         "hourSelect": "Stunde auswählen",
         "hourPlaceholder": "Stunde",
         "minuteSelect": "Minute auswählen",
-        "minutePlaceholder": "Minute"
+        "minutePlaceholder": "Minute",
+        "otpCode": "Einmalcode",
+        "otpDigit": "Ziffer {{position}} von {{count}}",
+        "otpIncomplete": "Gib alle {{count}} Ziffern des Codes ein."
     },
     "shell": {
         "home": "RentnerProxy-Startseite",

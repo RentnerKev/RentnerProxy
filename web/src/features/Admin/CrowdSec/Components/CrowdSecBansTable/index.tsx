@@ -44,7 +44,7 @@ export default function CrowdSecBansTable(props: CrowdSecBansTableProps) {
                         value={filters.searchInput}
                         maxLength={200}
                         placeholder={t('admin.crowdSec.dashboard.searchPlaceholder')}
-                        onChange={(event) => onSearchChange(event.target.value)}
+                        onValueChange={onSearchChange}
                     />
                 </label>
             }

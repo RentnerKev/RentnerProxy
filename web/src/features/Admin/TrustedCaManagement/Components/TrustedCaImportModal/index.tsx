@@ -82,7 +82,7 @@ export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
                                 maxLength={120}
                                 disabled={state.isPending}
                                 onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(event.target.value)}
+                                onValueChange={field.handleChange}
                                 aria-invalid={field.state.meta.errors.length > 0}
                                 aria-describedby={state.formId + '-name-error'}
                             />
@@ -113,7 +113,7 @@ export default function TrustedCaImportModal(props: TrustedCaImportModalProps) {
                                 maxLength={256 * 1024}
                                 disabled={state.isPending}
                                 onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(event.target.value)}
+                                onValueChange={field.handleChange}
                                 autoCapitalize="off"
                                 autoComplete="off"
                                 spellCheck={false}

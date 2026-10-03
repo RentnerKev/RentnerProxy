@@ -1,6 +1,5 @@
 import { EmailInput, PasswordInput } from '@rentnerkev/inputs'
 import { Link } from '@tanstack/react-router'
-import type { ChangeEvent } from 'react'
 import FieldError from '@/shared/Forms/FieldError.tsx'
 import type { LoginFormProps } from '../Types/login-component-props.types.ts'
 export default function LoginForm({ state, form, handler, onPasskeyLogin }: LoginFormProps) {
@@ -24,9 +23,7 @@ export default function LoginForm({ state, form, handler, onPasskeyLogin }: Logi
                             maxLength={254}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
@@ -52,9 +49,7 @@ export default function LoginForm({ state, form, handler, onPasskeyLogin }: Logi
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />

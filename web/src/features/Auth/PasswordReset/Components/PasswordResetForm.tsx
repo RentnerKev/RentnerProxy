@@ -1,6 +1,5 @@
 import { PasswordInput } from '@rentnerkev/inputs'
 import FieldError from '@/shared/Forms/FieldError.tsx'
-import type { ChangeEvent } from 'react'
 import type { PasswordResetFormProps } from '../Types/password-reset-component-props.types.ts'
 
 export default function PasswordResetForm({ state, form, handler }: PasswordResetFormProps) {
@@ -23,9 +22,7 @@ export default function PasswordResetForm({ state, form, handler }: PasswordRese
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
@@ -51,9 +48,7 @@ export default function PasswordResetForm({ state, form, handler }: PasswordRese
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />

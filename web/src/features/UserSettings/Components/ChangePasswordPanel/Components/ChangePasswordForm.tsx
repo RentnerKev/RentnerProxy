@@ -1,7 +1,6 @@
 import { PasswordInput } from '@rentnerkev/inputs'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import getFieldErrorMessage from '@/lib/Forms/fieldErrors.ts'
-import type { ChangeEvent } from 'react'
 import type { ChangePasswordFormProps } from '../Types/change-password-form-props.types.ts'
 
 export default function ChangePasswordForm({ state, form, handler }: ChangePasswordFormProps) {
@@ -28,9 +27,7 @@ export default function ChangePasswordForm({ state, form, handler }: ChangePassw
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             error={getFieldErrorMessage(field.state.meta.errors, t)}
                         />
                     </div>
@@ -53,9 +50,7 @@ export default function ChangePasswordForm({ state, form, handler }: ChangePassw
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             error={getFieldErrorMessage(field.state.meta.errors, t)}
                         />
                     </div>
@@ -80,9 +75,7 @@ export default function ChangePasswordForm({ state, form, handler }: ChangePassw
                             maxLength={256}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                field.handleChange(event.target.value)
-                            }
+                            onValueChange={field.handleChange}
                             error={getFieldErrorMessage(field.state.meta.errors, t)}
                         />
                     </div>
