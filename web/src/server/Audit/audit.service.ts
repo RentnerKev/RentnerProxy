@@ -3,9 +3,13 @@ import '@tanstack/react-start/server-only'
 import { lt, sql } from 'drizzle-orm'
 
 import { auditEvents } from '@/db/schema.ts'
-import type { AuditEventInput, AuditMetadata } from '@/shared/Types/audit-events.types.ts'
+import type {
+    AuditEventInput,
+    AuditMetadata,
+} from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 import { auditEventInputSchema } from '@/features/Admin/AuditLogs/validation.ts'
-import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 
 export const AUDIT_RETENTION_DAYS = 90

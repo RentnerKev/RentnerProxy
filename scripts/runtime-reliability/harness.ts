@@ -1,3 +1,4 @@
+import type { CommandOptions, FixtureResult, ReliabilityContext } from './Types/harness.types.ts'
 // oxlint-disable no-await-in-loop -- Fault injection, recovery probes and lifecycle changes depend on the preceding step.
 import assert from 'node:assert/strict'
 import { dockerBuildDiagnostic } from '../docker-build-diagnostics.ts'
@@ -6,11 +7,11 @@ import { randomBytes } from 'node:crypto'
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
-import { startCertificateDnsFixture } from '../certificate-dns-fixture'
-import { buildHttp3Client } from '../http3-client'
-import { publishedAlpha } from '../release-compatibility/published-alphas'
-import { smokeCompose, smokeDockerArguments, smokeRunScope } from '../smoke-resources'
-import type { ReliabilityCheck, ReliabilityOptions, ResourceSample } from './control'
+import { startCertificateDnsFixture } from '../certificate-dns-fixture.ts'
+import { buildHttp3Client } from '../http3-client.ts'
+import { publishedAlpha } from '../release-compatibility/published-alphas.ts'
+import { smokeCompose, smokeDockerArguments, smokeRunScope } from '../smoke-resources.ts'
+import type { ReliabilityCheck, ReliabilityOptions, ResourceSample } from './Types/control.types.ts'
 
 export class ReliabilityError extends Error {
     constructor(
@@ -20,41 +21,7 @@ export class ReliabilityError extends Error {
         super(label)
     }
 }
-export type CommandOptions = {
-    diagnostic?: 'pebble-problems'
-    timeoutMs?: number
-    stdin?: string
-    env?: Record<string, string>
-    acceptableExitCodes?: number[]
-}
-export type FixtureResult = Record<string, any>
-export type ReliabilityContext = {
-    source: ReliabilityOptions['source']
-    noteKnownLimitation: (name: 'alpha6-binding-retry-needs-second-request') => void
-    command: (args: string[], options?: CommandOptions) => Promise<string>
-    docker: (args: string[], options?: CommandOptions) => Promise<string>
-    fixture: (phase: string, extra?: Record<string, unknown>) => Promise<FixtureResult>
-    controller: (path: string, body?: unknown) => Promise<{ status: number; body: FixtureResult }>
-    waitFor: (predicate: () => Promise<boolean>, label: string, timeoutMs?: number) => Promise<void>
-    check: (name: ReliabilityCheck['name'], label: string) => void
-    synced: (result: FixtureResult) => Promise<void>
-    restart: () => Promise<void>
-    expireCertificateRetry: (id: string) => Promise<void>
-    http: (
-        domain?: string,
-        path?: string,
-        headers?: Record<string, string>,
-    ) => Promise<{ status: number; headers: Headers; body: FixtureResult }>
-    runId: string
-    container: string
-    network: string
-    pebble: string
-    domain: string
-    temp: string
-    tlsPort: number
-    publicTlsPort: number
-    http3Image: string
-}
+
 const pebbleImage =
     'ghcr.io/letsencrypt/pebble:2.10.1@sha256:ddf230642b1a584f519f32e347de1b05a6e4c1f6c35c1863b33effeab5f78199'
 const healthcheck = '/opt/rentnerproxy/web/docker/web/healthcheck.mjs'
@@ -703,28 +670,35 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             check('health', 'bundled Valkey is ready')
         }
         const fixtureRoot = join(temp, 'fixture-source')
+        const fixtureTsconfig = options.source === 'alpha.6' ? 'web/tsconfig.json' : 'tsconfig.json'
         await archive(
             options.source === 'alpha.6' ? publishedAlpha('alpha.6').revision : targetSha,
             fixtureRoot,
-            ['web/src', 'web/tsconfig.json', 'package.json', 'bun.lock'],
+            ['web/src', fixtureTsconfig, 'package.json', 'bun.lock'],
         )
         await mkdir(join(fixtureRoot, 'scripts/runtime-reliability'), { recursive: true })
         for (const name of options.source === 'alpha.6'
-            ? ['fixture.ts']
-            : ['fixture.ts', 'fixture-beta.ts']) {
+            ? ['fixture.ts', 'fixture-context.ts', 'fixture.validation.ts']
+            : ['fixture.ts', 'fixture-beta.ts', 'fixture-context.ts', 'fixture.validation.ts']) {
             let fixtureContents = await readFile(
                 join(repositoryRoot, 'scripts/runtime-reliability', name),
                 'utf8',
             )
-            if (options.source === 'alpha.6') {
-                assert.ok(fixtureContents.includes('../../web/src/server/valkey/client.server'))
+            if (options.source === 'alpha.6' && name === 'fixture-context.ts') {
+                assert.ok(fixtureContents.includes('../../web/src/server/Valkey/client.server.ts'))
                 assert.ok(fixtureContents.includes('valkey.closeValkeyClient()'))
                 fixtureContents = fixtureContents
                     .replace(
-                        '../../web/src/server/valkey/client.server',
-                        '../../web/src/server/redis/client.server',
+                        '../../web/src/server/Valkey/client.server.ts',
+                        '../../web/src/server/redis/client.server.ts',
                     )
                     .replaceAll('valkey.closeValkeyClient()', 'valkey.closeRedisClient()')
+            }
+            if (options.source === 'alpha.6') {
+                fixtureContents = fixtureContents.replaceAll(
+                    '../../web/src/server/Controller/proxy.server.ts',
+                    '../../web/src/server/Foundation/controller.server.ts',
+                )
             }
             await writeFile(join(fixtureRoot, 'scripts/runtime-reliability', name), fixtureContents)
         }
@@ -739,7 +713,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             '--no-env-file',
             'build',
             fixtureSource,
-            '--tsconfig-override=' + join(fixtureRoot, 'web/tsconfig.json'),
+            '--tsconfig-override=' + join(fixtureRoot, fixtureTsconfig),
             '--target=bun',
             '--packages=external',
             '--outfile=' + bundle,

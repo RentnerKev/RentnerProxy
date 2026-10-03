@@ -1,10 +1,10 @@
-import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import type {
     AuditAction,
     AuditActorOption,
     AuditEventDto,
     AuditResource,
-} from '@/shared/Types/audit-events.types.ts'
+} from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 
 export interface AuditLogsPageProps {
     readonly permissions: readonly PermissionKey[]

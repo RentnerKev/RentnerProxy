@@ -1,4 +1,4 @@
-import type { NavigationGroupId } from '@/shared/Types/navigation-config.types.ts'
+import type { NavigationGroupId } from '@/config/Types/navigation-config.types.ts'
 import type { ApplicationNavigationItem } from '../../../Types/application-shell.types.ts'
 export interface ApplicationNavigationLogicResult {
     readonly state: {

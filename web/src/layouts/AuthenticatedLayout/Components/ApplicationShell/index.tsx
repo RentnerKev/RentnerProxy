@@ -144,5 +144,3 @@ export default function AuthenticatedShell({
         </div>
     )
 }
-
-export type { AuthenticatedShellProps } from './Types/application-shell.types.ts'

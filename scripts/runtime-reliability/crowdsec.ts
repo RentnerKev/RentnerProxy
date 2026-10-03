@@ -1,12 +1,8 @@
+import type { ManagedStatus } from './Types/crowdsec.types.ts'
 import assert from 'node:assert/strict'
 import { isIP } from 'node:net'
-import { ReliabilityError } from './harness'
-import type { ReliabilityContext } from './harness'
-
-type ManagedStatus = {
-    state: 'disabled' | 'starting' | 'connected' | 'degraded'
-    managedEngine: 'stopped' | 'starting' | 'ready' | 'restarting' | 'degraded' | 'unavailable'
-}
+import { ReliabilityError } from './harness.ts'
+import type { ReliabilityContext } from './Types/harness.types.ts'
 
 function record(value: unknown): Record<string, unknown> {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {

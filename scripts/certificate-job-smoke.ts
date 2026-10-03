@@ -1,20 +1,10 @@
+import type { JobSmokeOptions } from './Types/certificate-job-smoke.types.ts'
 import assert from 'node:assert/strict'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { SQL } from 'bun'
-import { smokeDockerArguments } from './smoke-resources'
-
-interface JobSmokeOptions {
-    readonly controllerUrl: string
-    readonly httpUrl: string
-    readonly token: string
-    readonly backendPort: number
-    readonly temporaryDirectory: string
-    readonly waitFor: (probe: () => Promise<boolean>, label: string) => Promise<void>
-    readonly restartRuntime: () => Promise<void>
-    readonly verifyHttps: () => Promise<void>
-}
+import { smokeDockerArguments } from './smoke-resources.ts'
 
 export async function verifyDurableCertificateJob(options: JobSmokeOptions): Promise<void> {
     const root = fileURLToPath(new URL('..', import.meta.url))

@@ -1,3 +1,4 @@
+import type { Suite, Result } from './Types/production-smoke-ci.types.ts'
 // oxlint-disable no-await-in-loop -- stream draining and ordered Docker cleanup are sequential.
 import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { isDockerBuildDiagnostic } from '../../scripts/docker-build-diagnostics.ts'
@@ -9,8 +10,8 @@ import {
     isRestoreSmokeDiagnostic,
     SMOKE_RUN_LABEL,
     smokeRunScope,
-} from '../../scripts/smoke-resources'
-import { CERTIFICATE_ERROR_CODES } from '../../web/src/config/certificates.config'
+} from '../../scripts/smoke-resources.ts'
+import { CERTIFICATE_ERROR_CODES } from '../../web/src/config/certificates.config.ts'
 
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url))
 export const smokeSuites = {
@@ -39,8 +40,6 @@ export const smokeSuites = {
         completion: /^Appliance Compose smoke passed: (\d+) assertions$/u,
     },
 } as const
-type Suite = keyof typeof smokeSuites
-type Result = { status: 'PASS' | 'FAIL'; checks: number; seconds: number }
 
 // Raw child output can contain assertion operands, generated credentials or PEM material.
 

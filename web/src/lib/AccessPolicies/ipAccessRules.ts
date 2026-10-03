@@ -1,15 +1,9 @@
+import type { ParsedNetwork } from './Types/ip-access-rules.types.ts'
 import { z } from 'zod'
 
 import { MAX_ACCESS_POLICY_IP_RULES } from '@/config/access-policies.config.ts'
 
 export const ACCESS_POLICY_IP_RULE_ACTIONS = ['allow', 'deny'] as const
-export type AccessPolicyIpRuleAction = (typeof ACCESS_POLICY_IP_RULE_ACTIONS)[number]
-
-interface ParsedNetwork {
-    readonly bytes: number[]
-    readonly bits: 32 | 128
-    readonly prefix: number
-}
 
 function parsePrefix(value: string, max: number): number | null {
     if (!/^[0-9]{1,3}$/u.test(value)) return null
@@ -162,9 +156,3 @@ export const accessPolicyIpRulesInputSchema = z
         allow: canonicalizeIpNetworks(rules.allow),
         deny: canonicalizeIpNetworks(rules.deny),
     }))
-
-export interface AccessPolicyIpRules {
-    readonly defaultAction: AccessPolicyIpRuleAction
-    readonly allow: ReadonlyArray<string>
-    readonly deny: ReadonlyArray<string>
-}

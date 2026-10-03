@@ -15,8 +15,8 @@ import {
     createDateRangeFilter,
     createTrimmedIncludesStringFilter,
 } from '@/lib/Table/tableFilters.ts'
-import type { ClientTableFeatures } from '@/shared/Table/clientTable.ts'
-import type { RoleManagementSummary } from '@/shared/Types/auth.types.ts'
+import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
+import type { RoleManagementSummary } from '@/lib/Auth/Types/auth.types.ts'
 import type { RoleTableActionProps } from '../../../Types/role-management-component-props.types.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 

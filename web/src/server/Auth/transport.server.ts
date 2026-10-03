@@ -17,8 +17,8 @@ import {
     enforceLoginMfaRateLimit,
     RateLimitError,
     RateLimitUnavailableError,
-    type AuthRateLimitAction,
-} from '@/server/valkey/rate-limiter.service.ts'
+} from '@/server/Valkey/rate-limiter.service.ts'
+import type { AuthRateLimitAction } from '@/server/Valkey/Types/rate-limiter.types.ts'
 
 export const AUTH_UNAVAILABLE_MESSAGE = 'Authentication service temporarily unavailable.'
 export const GENERIC_LOGIN_MESSAGE = 'Invalid email or password.'

@@ -1,4 +1,4 @@
-import type { ActionMenuItem } from '@/shared/ActionMenu/index.tsx'
+import type { ActionMenuItem } from '@/shared/ActionMenu/Types/action-menu.types.ts'
 import type { Translate } from '@/shared/Language/Types/language.types.ts'
 import type { RedirectHostTableActionsProps } from '@/features/Admin/RedirectHostManagement/Types/redirect-host-table.types.ts'
 export function getRedirectHostTableActionItems(

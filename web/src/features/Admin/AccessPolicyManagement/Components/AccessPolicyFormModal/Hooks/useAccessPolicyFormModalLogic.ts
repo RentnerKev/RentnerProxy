@@ -1,3 +1,4 @@
+import type { ActionResult, FormErrors } from '../Types/access-policy-form-modal-logic.types.ts'
 import {
     invalidateAccessPoliciesCache,
     invalidateAssignableAccessPoliciesCache,
@@ -23,33 +24,20 @@ import {
     isAllowedForwardAuthResponseHeader,
     isCanonicalForwardAuthEndpoint,
     isValidForwardAuthGatewayPathPrefix,
-    type ForwardAuthConfiguration,
 } from '@/lib/ForwardAuth/forwardAuth.ts'
+import type { ForwardAuthConfiguration } from '@/lib/ForwardAuth/Types/forward-auth.types.ts'
 import { toast } from '@rentnerkev/toasts/toast'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import {
     accessPolicyIpRulesToDraft,
     parseAccessPolicyIpRulesDraft,
-    type AccessPolicyIpRulesDraft,
 } from '@/lib/Admin/AccessPolicyManagement/ipAccessPolicyState.ts'
+import type { AccessPolicyIpRulesDraft } from '@/lib/Admin/AccessPolicyManagement/Types/ip-access-policy.types.ts'
 import { createAccessPolicyHandler, updateAccessPolicyHandler } from '../../../middleware.ts'
 import type {
     AccessPolicyFormSubmitValues,
     AccessPolicyFormValues,
 } from '../Types/access-policy-form.types.ts'
-
-type ActionResult = {
-    readonly success: boolean
-    readonly message: string
-    readonly runtimeStatus?: 'applied' | 'pending'
-}
-
-type FormErrors = {
-    name?: string | undefined
-    combination?: string | undefined
-    ipRules?: string | undefined
-    forwardAuth?: string | undefined
-}
 
 const FORWARD_AUTH_HEADER_PRESETS: Record<
     (typeof FORWARD_AUTH_PROVIDERS)[number],

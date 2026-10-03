@@ -10,7 +10,7 @@ import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type {
     DefaultSiteEditorData,
     DefaultSiteSettings,
-} from '@/shared/Types/default-site.types.ts'
+} from '@/lib/DefaultSite/Types/default-site.types.ts'
 import type {
     DefaultSiteFormValues,
     DefaultSitePanelLogicResult,

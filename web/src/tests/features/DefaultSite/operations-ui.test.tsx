@@ -12,8 +12,8 @@ import { Window } from 'happy-dom'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import getApplicationShellViewModel from '@/lib/ApplicationShell/applicationShell.ts'
-import type { AuthenticatedUser } from '@/shared/Types/auth.types.ts'
-import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 import ApplicationNavigation from '@/layouts/AuthenticatedLayout/Components/ApplicationShell/Components/ApplicationNavigation/index.tsx'
 

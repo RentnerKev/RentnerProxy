@@ -1,4 +1,4 @@
-import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 export const PERMISSIONS = {
     APP_ACCESS: 'app.access',
     PROXY_HOSTS_VIEW: 'proxy_hosts.view',
@@ -119,5 +119,3 @@ export const SYSTEM_ROLES = {
     ADMIN: 'admin',
     VIEWER: 'viewer',
 } as const
-
-export type { PermissionKey, SystemRoleKey } from '@/shared/Types/permissions-config.types.ts'

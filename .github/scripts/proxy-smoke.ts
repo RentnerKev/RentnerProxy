@@ -10,8 +10,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { SQL } from 'bun'
 import { Database } from 'bun:sqlite'
 
-import { startTestUpstream } from '../../scripts/proxy-test-upstream'
-import { smokeCompose, smokeDockerArguments } from '../../scripts/smoke-resources'
+import { startTestUpstream } from '../../scripts/proxy-test-upstream.ts'
+import { smokeCompose, smokeDockerArguments } from '../../scripts/smoke-resources.ts'
 
 function basicHeader(username: string, password: string): string {
     return 'Basic ' + Buffer.from(username + ':' + password).toString('base64')
@@ -368,25 +368,27 @@ async function runSmoke(): Promise<void> {
             crowdSecServices,
             runtime,
             controller,
+            crowdSecController,
             authorizationRegistry,
         ] = await Promise.all([
             import('drizzle-orm'),
             import('@tanstack/react-start/server'),
-            import('../../web/src/config/auth.config'),
-            import('../../web/src/config/permissions.config'),
-            import('../../web/src/db/schema'),
-            import('../../web/src/server/Auth/Core/database.server'),
-            import('../../web/src/server/Auth/Access/sessions.service'),
-            import('../../web/src/server/Admin/ProxyHostManagement/proxy-hosts.service'),
-            import('../../web/src/server/Admin/RedirectHostManagement/redirect-hosts.service'),
-            import('../../web/src/server/Admin/AccessPolicyManagement/access-policies.service'),
-            import('../../web/src/server/Admin/AccessPolicyManagement/basic-auth.service'),
-            import('../../web/src/server/Admin/NpmImport/npm-import.service'),
-            import('../../web/src/server/Admin/NpmImport/npm-source'),
-            import('../../web/src/server/Admin/CrowdSec/crowdsec.service'),
-            import('../../web/src/server/ProxyRuntime/proxy-runtime.service'),
-            import('../../web/src/server/Foundation/controller.server'),
-            import('../../web/src/server/Auth/Access/registry.service'),
+            import('../../web/src/config/auth.config.ts'),
+            import('../../web/src/config/permissions.config.ts'),
+            import('../../web/src/db/schema.ts'),
+            import('../../web/src/server/Auth/Core/database.server.ts'),
+            import('../../web/src/server/Auth/Access/sessions.service.ts'),
+            import('../../web/src/server/Admin/ProxyHostManagement/proxy-hosts.service.ts'),
+            import('../../web/src/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'),
+            import('../../web/src/server/Admin/AccessPolicyManagement/access-policies.service.ts'),
+            import('../../web/src/server/Admin/AccessPolicyManagement/basic-auth.service.ts'),
+            import('../../web/src/server/Admin/NpmImport/npm-import.service.ts'),
+            import('../../web/src/server/Admin/NpmImport/npm-source.ts'),
+            import('../../web/src/server/Admin/CrowdSec/crowdsec.service.ts'),
+            import('../../web/src/server/ProxyRuntime/proxy-runtime.service.ts'),
+            import('../../web/src/server/Controller/proxy.server.ts'),
+            import('../../web/src/server/Controller/crowdsec.server.ts'),
+            import('../../web/src/server/Auth/Access/registry.service.ts'),
         ])
         const database = getAuthDatabase()
         closeDatabase = () => database.$client.close()
@@ -990,12 +992,16 @@ async function runSmoke(): Promise<void> {
                 combination: null,
             }),
         )
+        const forwardAuthApplicationPort = forwardAuthApplication.port
+        if (forwardAuthApplicationPort === undefined) {
+            throw new Error('Forward Auth application did not bind a port.')
+        }
         const forwardAuthHost = await authorized(() =>
             services.createProxyHostService({
                 ...hostInput,
                 domains: ['forward-auth.test'],
                 forwardHost: 'host.docker.internal',
-                forwardPort: forwardAuthApplication.port,
+                forwardPort: forwardAuthApplicationPort,
                 accessPolicyId: forwardAuthPolicy.accessPolicyId,
             }),
         )
@@ -1182,10 +1188,10 @@ async function runSmoke(): Promise<void> {
         passed('invalid external endpoint and credentials preserve the last working provider')
 
         crowdSecLapiAvailable = false
-        assert.equal((await controller.getCrowdSecRuntimeStatus())?.state, 'degraded')
+        assert.equal((await crowdSecController.getCrowdSecRuntimeStatus())?.state, 'degraded')
         await expectProxyMessage('demo.test', 'upstream-two')
         crowdSecLapiAvailable = true
-        assert.equal((await controller.getCrowdSecRuntimeStatus())?.state, 'connected')
+        assert.equal((await crowdSecController.getCrowdSecRuntimeStatus())?.state, 'connected')
         passed('temporary LAPI failure reports degraded and fails open without proxy downtime')
 
         assert.equal(
@@ -1619,7 +1625,7 @@ async function runSmoke(): Promise<void> {
             join(repositoryRoot, 'web/src/server/ProxyRuntime/proxy-runtime.service.ts'),
         ).href
         const controllerClientUrl = pathToFileURL(
-            join(repositoryRoot, 'web/src/server/Foundation/controller.server.ts'),
+            join(repositoryRoot, 'web/src/server/Controller/proxy.server.ts'),
         ).href
         const databaseModuleUrl = pathToFileURL(
             join(repositoryRoot, 'web/src/server/Auth/Core/database.server.ts'),

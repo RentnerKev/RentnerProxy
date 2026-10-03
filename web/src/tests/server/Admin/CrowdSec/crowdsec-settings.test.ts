@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 
-import type { StoredCrowdSecConfiguration } from '@/server/Admin/CrowdSec/crowdsec-settings.ts'
+import type { StoredCrowdSecConfiguration } from '@/server/Admin/CrowdSec/Types/crowdsec-settings.types.ts'
 
 const originalEncryptionKey = process.env.APP_ENCRYPTION_KEY
 const encryptionKeyA = Buffer.from(new Uint8Array(32).fill(21)).toString('base64')

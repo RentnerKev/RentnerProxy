@@ -1,4 +1,4 @@
-import type { CertificateStatus } from '@/shared/Types/certificates-config.types.ts'
+import type { CertificateStatus } from '@/config/Types/certificates-config.types.ts'
 
 export function formatCertificateDate(value: Date | null, formatter: Intl.DateTimeFormat): string {
     if (!value || Number.isNaN(value.getTime())) return '—'

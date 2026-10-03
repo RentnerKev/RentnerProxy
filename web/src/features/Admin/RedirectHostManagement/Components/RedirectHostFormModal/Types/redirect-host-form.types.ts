@@ -1,7 +1,7 @@
 import type { FormEventHandler } from 'react'
 import type { z } from 'zod'
-import type { CertificateSummary } from '@/shared/Types/certificates.types.ts'
-import type { RedirectHostSummary } from '@/shared/Types/redirect-hosts.types.ts'
+import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
+import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
 import type useRedirectHostFormModalLogic from '../Hooks/useRedirectHostFormModalLogic.ts'
 import type { redirectHostFormSchema } from '../../../validation.ts'
 

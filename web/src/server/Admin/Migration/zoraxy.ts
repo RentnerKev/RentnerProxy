@@ -1,10 +1,14 @@
+import type { SourceEntry, ZoraxySource } from './Types/zoraxy.types.ts'
 // oxlint-disable-next-line import/no-unassigned-import -- ZIP parsing must stay server-side.
 import '@tanstack/react-start/server-only'
 
 import { createProxyHostInputSchema } from '@/features/Admin/ProxyHostManagement/validation.ts'
 import { createRedirectHostInputSchema } from '@/features/Admin/RedirectHostManagement/validation.ts'
 import { normalizeForwardHost } from '@/lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
-import type { NpmImportPlan, NpmImportPlanItem } from '@/server/Admin/NpmImport/npm-plan.ts'
+import type {
+    NpmImportPlan,
+    NpmImportPlanItem,
+} from '@/server/Admin/NpmImport/Types/npm-plan.types.ts'
 import { finalizeImportPlan } from './import-plan.ts'
 
 import yauzl, { type Entry, type ZipFile } from 'yauzl'
@@ -18,18 +22,6 @@ export const ZORAXY_SCHEMA = 'zoraxy-v3-config-zip'
 export class ZoraxySourceError extends Error {
     constructor(readonly code: 'invalid_source' | 'source_limit') {
         super(code)
-    }
-}
-
-type SourceEntry = { readonly name: string; readonly value: unknown }
-export interface ZoraxySource {
-    readonly proxies: readonly SourceEntry[]
-    readonly redirects: readonly SourceEntry[]
-    readonly omitted: {
-        readonly streams: number
-        readonly accessRules: number
-        readonly certificates: number
-        readonly pathRules: number
     }
 }
 

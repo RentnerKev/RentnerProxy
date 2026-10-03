@@ -1,3 +1,4 @@
+import type { DefaultSiteSaveResult } from './Types/middleware.types.ts'
 import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
 import { z } from 'zod'
@@ -8,15 +9,6 @@ import {
 } from '@/server/DefaultSite/default-site.service.ts'
 import { DefaultSiteError } from '@/server/DefaultSite/default-site.errors.ts'
 import { localizedActionFailure, throwLocalizedQueryError } from '@/server/Auth/transport.server.ts'
-import type { ProxyRuntimeMutationStatus } from '@/shared/Types/proxy-runtime.types.ts'
-
-export type DefaultSiteSaveResult =
-    | {
-          readonly success: true
-          readonly message: string
-          readonly runtimeStatus: ProxyRuntimeMutationStatus
-      }
-    | { readonly success: false; readonly message: string }
 
 export const getDefaultSiteHandler = createServerFn({ method: 'GET' }).handler(async () => {
     setResponseHeader('Cache-Control', 'no-store')

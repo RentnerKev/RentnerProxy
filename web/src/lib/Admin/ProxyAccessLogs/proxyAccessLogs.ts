@@ -1,4 +1,4 @@
-import type { ProxyAccessLogsQuery } from '@/shared/Types/proxy-access-logs.types.ts'
+import type { ProxyAccessLogsQuery } from '@/lib/Admin/ProxyAccessLogs/Types/proxy-access-logs.types.ts'
 import type { ProxyAccessLogsFilters } from '@/features/Admin/ProxyAccessLogs/Types/proxy-access-logs.types.ts'
 
 export const PROXY_ACCESS_LOGS_DEFAULT_PAGE_SIZE = 15

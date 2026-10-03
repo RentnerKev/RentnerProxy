@@ -1,10 +1,10 @@
 import type { FormEventHandler } from 'react'
 import type { z } from 'zod'
 
-import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
-import type { CertificateSummary } from '@/shared/Types/certificates.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
+import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import type useCertificateRequest from '@/features/Admin/CertificateManagement/Hooks/useCertificateRequest.ts'
-import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
+import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import type useProxyHostFormModalLogic from '../Hooks/useProxyHostFormModalLogic.ts'
 import type { proxyHostFormSchema } from '../../../validation.ts'
 

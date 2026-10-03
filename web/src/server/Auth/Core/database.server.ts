@@ -5,6 +5,3 @@ import { db } from '@/db/index.ts'
 export function getAuthDatabase() {
     return db
 }
-
-export type AuthDatabase = ReturnType<typeof getAuthDatabase>
-export type AuthTransaction = Parameters<Parameters<AuthDatabase['transaction']>[0]>[0]

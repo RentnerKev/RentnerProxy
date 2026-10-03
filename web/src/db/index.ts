@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/bun-sql'
 import { SQL } from 'bun'
-import { validateDatabaseEnvironment } from '../server/env.server'
-import * as schema from './schema'
+import { validateDatabaseEnvironment } from '../server/env.server.ts'
+import * as schema from './schema.ts'
 
 const { DATABASE_URL } = validateDatabaseEnvironment()
 const developmentGlobal = globalThis as typeof globalThis & {

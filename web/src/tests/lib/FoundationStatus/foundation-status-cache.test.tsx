@@ -11,8 +11,8 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import type { CrowdSecConfiguration } from '@/shared/Types/crowdsec.types.ts'
-import type { FoundationHealth } from '@/shared/Types/health.types.ts'
+import type { CrowdSecConfiguration } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
+import type { FoundationHealth } from '@/lib/FoundationStatus/Types/health.types.ts'
 import { foundationStatusQueryKeys } from '@/lib/FoundationStatus/foundationStatusCache.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 

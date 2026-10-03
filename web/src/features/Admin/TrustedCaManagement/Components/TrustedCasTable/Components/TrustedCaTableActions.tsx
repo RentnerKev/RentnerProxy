@@ -1,6 +1,6 @@
 import { ActionMenu } from '@/shared/ActionMenu/index.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type { TrustedCaSummary } from '@/shared/Types/trusted-cas.types.ts'
+import type { TrustedCaSummary } from '@/lib/Admin/TrustedCaManagement/Types/trusted-cas.types.ts'
 import type { TrustedCaTableProps } from '../Types/trusted-cas-table.types.ts'
 
 export default function TrustedCaTableActions({

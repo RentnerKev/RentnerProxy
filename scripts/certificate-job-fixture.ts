@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { requestHandler } from '@tanstack/react-start/server'
 import { eq } from 'drizzle-orm'
-import { SESSION_COOKIE_NAME } from '../web/src/config/auth.config'
+import { SESSION_COOKIE_NAME } from '../web/src/config/auth.config.ts'
 import {
     certificateJobs,
     certificates,
@@ -11,11 +11,11 @@ import {
     roles,
     userRoles,
     users,
-} from '../web/src/db/schema'
-import { getAuthDatabase } from '../web/src/server/Auth/Core/database.server'
-import { createSessionService } from '../web/src/server/Auth/Access/sessions.service'
-import { createProxyHostWithCertificateService } from '../web/src/server/Admin/ProxyHostManagement/certificate-jobs.service'
-import { runCertificateJobsOnce } from '../web/src/server/Admin/ProxyHostManagement/certificate-jobs.worker.server'
+} from '../web/src/db/schema.ts'
+import { getAuthDatabase } from '../web/src/server/Auth/Core/database.server.ts'
+import { createSessionService } from '../web/src/server/Auth/Access/sessions.service.ts'
+import { createProxyHostWithCertificateService } from '../web/src/server/Admin/ProxyHostManagement/certificate-jobs.service.ts'
+import { runCertificateJobsOnce } from '../web/src/server/Admin/ProxyHostManagement/certificate-jobs.worker.server.ts'
 
 const stateFile = process.env.RENTNERPROXY_JOB_SMOKE_STATE_FILE
 assert.ok(stateFile)

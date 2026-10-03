@@ -5,8 +5,8 @@ import type { AppLanguage } from '@/shared/Language/Types/language.types.ts'
 import type {
     NavigationGroupChange,
     NavigationGroupPreferences,
-} from '@/shared/Types/navigation-config.types.ts'
-import type { UserThemeMode } from '@/shared/Types/theme-config.types.ts'
+} from '@/config/Types/navigation-config.types.ts'
+import type { UserThemeMode } from '@/config/Types/theme-config.types.ts'
 
 export interface AuthenticatedLayoutLogicResult {
     readonly state: {

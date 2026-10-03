@@ -4,8 +4,8 @@ import { createElement, useMemo } from 'react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { createDateRangeFilter } from '@/lib/Table/tableFilters.ts'
-import type { ClientTableFeatures } from '@/shared/Table/clientTable.ts'
-import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
+import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
+import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import ProxyHostTableActions from '../Components/ProxyHostTableActions.tsx'
 import {
     ProxyHostCreatedAtCell,

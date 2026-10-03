@@ -2,7 +2,7 @@ import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
 import { AuthenticatedLanguageProvider } from '@/shared/Language/Hooks/useTranslationStore.ts'
-import { type AppLanguage, type LanguageBootstrap } from '@/shared/Language/Types/language.types.ts'
+import type { AppLanguage, LanguageBootstrap } from '@/shared/Language/Types/language.types.ts'
 import de from '@/lib/Language/Locales/de.json'
 import en from '@/lib/Language/Locales/en.json'
 import es from '@/lib/Language/Locales/es.json'

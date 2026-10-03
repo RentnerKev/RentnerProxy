@@ -12,7 +12,6 @@ import {
     sortFn_text,
     tableFeatures,
 } from '@tanstack/react-table'
-import type { ReactTable, RowData } from '@tanstack/react-table'
 
 export const clientTableFeatures = tableFeatures({
     columnSizingFeature,
@@ -31,7 +30,3 @@ export const clientTableFeatures = tableFeatures({
     rowPaginationFeature,
     paginatedRowModel: createPaginatedRowModel(),
 })
-
-export type ClientTableFeatures = typeof clientTableFeatures
-
-export type ClientTable<TData extends RowData> = ReactTable<ClientTableFeatures, TData, null>

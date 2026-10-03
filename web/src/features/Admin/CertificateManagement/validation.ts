@@ -1,3 +1,4 @@
+import type { CertificateRequestFormValues } from './Types/validation.types.ts'
 import { z } from 'zod'
 import {
     ACME_CHALLENGE_TYPES,
@@ -138,17 +139,6 @@ export const requestCertificateInputSchema = z
         }
     })
 
-export interface CertificateRequestFormValues {
-    readonly name: string
-    readonly domains: string[]
-    readonly environment: string
-    readonly challengeType: string
-    readonly dnsZoneId: string
-    readonly dnsApiToken: string
-    readonly contactEmail: string
-    readonly acceptTerms: boolean
-}
-
 /** Converts certificate form values into the controller request shape. */
 export function certificateRequestInputFromForm(
     value: CertificateRequestFormValues,
@@ -199,6 +189,3 @@ export const certificateRequestFormSchema = z
             })
         }
     })
-export type ImportCertificateInput = z.input<typeof importCertificateInputSchema>
-export type ReplaceCertificateInput = z.input<typeof replaceCertificateInputSchema>
-export type RequestCertificateInput = z.input<typeof requestCertificateInputSchema>

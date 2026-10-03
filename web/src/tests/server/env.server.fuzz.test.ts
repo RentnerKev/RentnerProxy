@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import * as fc from 'fast-check'
 
-import { parsePublicOrigin, parseValkeyUrl } from '@/server/env.server.ts'
+import { parsePublicOrigin } from '@/lib/ManagementOrigin/origin.ts'
+import { parseValkeyUrl } from '@/server/env.server.ts'
 
 const FUZZ_RUNS = 100
 

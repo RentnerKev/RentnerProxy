@@ -1,5 +1,5 @@
-import type { UserSummary } from '@/shared/Types/auth.types.ts'
-import type { RoleSummary } from '@/shared/Types/auth.types.ts'
+import type { UserSummary } from '@/lib/Auth/Types/auth.types.ts'
+import type { RoleSummary } from '@/lib/Auth/Types/auth.types.ts'
 
 export interface UserManagementLogicResult {
     readonly state: {

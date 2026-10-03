@@ -30,8 +30,3 @@ export const requestProxyHostCertificateInputSchema = z.strictObject({
     request: hostCertificateRequestSchema,
 })
 export const certificateJobIdInputSchema = z.strictObject({ jobId: z.uuidv7() })
-
-export type HostCertificateRequest = z.input<typeof hostCertificateRequestSchema>
-export type RequestProxyHostCertificateInput = z.input<
-    typeof requestProxyHostCertificateInputSchema
->

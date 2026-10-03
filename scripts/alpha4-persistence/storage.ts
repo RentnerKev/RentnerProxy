@@ -1,5 +1,9 @@
-import type { Alpha4PersistenceFixture, Alpha4PersistenceSnapshot, Command } from './types'
-import { uuidV7 } from './crypto'
+import type {
+    Alpha4PersistenceFixture,
+    Alpha4PersistenceSnapshot,
+    Command,
+} from './Types/persistence.types.ts'
+import { uuidV7 } from './crypto.ts'
 
 const postgresPasswordFile = '/run/rentnerproxy/postgres/value'
 const databaseName = 'rentnerproxy'

@@ -11,7 +11,7 @@ import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type {
     CertificateActionResult,
     CertificateSummary,
-} from '@/shared/Types/certificates.types.ts'
+} from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import { redirectHostManagementQueryKeys } from '@/lib/Admin/RedirectHostManagement/redirectHostManagementCache.ts'
 import withTestLanguage, { withLanguageRoot } from '@/tests/Helpers/withTestLanguage.tsx'
 

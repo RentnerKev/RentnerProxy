@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import { getAccessPolicyTableActionItems } from '@/lib/Admin/AccessPolicyManagement/accessPolicyTableActions.ts'
-import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 
 const policy: AccessPolicySummary = {
     id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54021',

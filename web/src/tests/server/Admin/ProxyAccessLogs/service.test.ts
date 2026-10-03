@@ -23,7 +23,7 @@ const serviceScript = `
             return { id: '0198d98a-0000-7000-8000-000000000001' }
         },
     }))
-    mock.module('./server/Foundation/controller.server.ts', () => ({
+    mock.module('./server/Controller/access-logs.server.ts', () => ({
         getProxyAccessLogs: async (query) => {
             calls.push(query)
             return expectedResult

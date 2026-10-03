@@ -2,7 +2,7 @@ import useTranslationStore, {
     useDateFormatter,
     useDateTimeFormatter,
 } from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type { CertificateSummary } from '@/shared/Types/certificates.types.ts'
+import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import {
     getCertificateOperationDisplay,
     getCertificateRetryAt,

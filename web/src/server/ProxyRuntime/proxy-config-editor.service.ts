@@ -13,14 +13,14 @@ import type {
     ProxyConfigSource,
     ProxyHttpSettings,
     ProxyRuntimeMutationStatus,
-} from '@/shared/Types/proxy-runtime.types.ts'
+} from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import {
     getActiveProxyConfiguration,
     previewProxyConfiguration,
-} from '@/server/Foundation/controller.server.ts'
+} from '@/server/Controller/proxy.server.ts'
 import { readProxyRuntimeSnapshot } from './proxy-runtime-data.ts'
 import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot.ts'
 import { lockProxyRuntimeSettings, writeProxyHttpSettings } from './proxy-runtime-settings.ts'

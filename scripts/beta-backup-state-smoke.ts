@@ -1,40 +1,12 @@
+import type { ImportResult, BetaBackupStateFixture } from './Types/beta-backup-state-smoke.types.ts'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 
-import { uuidV7 } from './alpha4-persistence/crypto'
-import { psql, sqlJson, sqlQuote } from './alpha4-persistence/storage'
-import type { Command } from './alpha1-upgrade-fixture'
-import {
-    forwardAuthInputSchema,
-    type ForwardAuthConfiguration,
-} from '../web/src/lib/ForwardAuth/forwardAuth.ts'
-
-interface ImportResultItem {
-    readonly kind: 'proxy-host'
-    readonly sourceId: number
-    readonly label: string
-    readonly domains: readonly string[]
-    readonly status: 'manual'
-    readonly reasons: readonly string[]
-    readonly outcome: 'skipped'
-}
-
-interface ImportResult {
-    readonly status: 'completed'
-    readonly items: readonly ImportResultItem[]
-    readonly imported: 0
-    readonly skipped: 1
-    readonly failed: 0
-}
-
-export interface BetaBackupStateFixture {
-    readonly forwardAuthPolicyId: string
-    readonly importerRunId: string
-    readonly sourceFingerprint: string
-    readonly sourceSchema: 'npm-2.16-schema'
-    readonly expectedForwardAuthJson: string
-    readonly expectedImporterResultJson: string
-}
+import { uuidV7 } from './alpha4-persistence/crypto.ts'
+import { psql, sqlJson, sqlQuote } from './alpha4-persistence/storage.ts'
+import type { Command } from './Types/alpha1-upgrade-fixture.types.ts'
+import { forwardAuthInputSchema } from '../web/src/lib/ForwardAuth/forwardAuth.ts'
+import type { ForwardAuthConfiguration } from '../web/src/lib/ForwardAuth/Types/forward-auth.types.ts'
 
 export async function seedBetaBackupState(input: {
     readonly command: Command

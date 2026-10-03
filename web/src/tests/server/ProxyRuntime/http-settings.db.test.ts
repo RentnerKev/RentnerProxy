@@ -2,7 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import { eq, sql } from 'drizzle-orm'
 
 import { systemSettings } from '@/db/schema.ts'
-import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import {
     lockProxyRuntimeSettings,
     PROXY_RUNTIME_SETTINGS_KEY,

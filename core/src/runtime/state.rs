@@ -394,5 +394,5 @@ pub(super) fn validate_component(component: &str) -> std::io::Result<()> {
 }
 
 #[cfg(all(test, unix))]
-#[path = "../tests/state.rs"]
+#[path = "../../tests/private/state.rs"]
 mod tests;

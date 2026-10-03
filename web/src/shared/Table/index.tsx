@@ -126,10 +126,3 @@ export default function DataTable<TData extends RowData>({
         </TableLayout>
     )
 }
-
-export { default as RemoteTablePagination } from './Components/RemoteTablePagination.tsx'
-export { default as TablePaginationControls } from './Components/TablePaginationControls/index.tsx'
-export { remoteTablePageSizeOptions } from './Components/RemoteTablePagination.tsx'
-export { getPaginationItems } from '@/lib/Table/pagination.ts'
-export type { RemoteTablePaginationProps } from './Types/table.types.ts'
-export type { TablePaginationControlsProps } from './Components/TablePaginationControls/Types/table-pagination-controls.types.ts'

@@ -3,13 +3,13 @@ import { describe, expect, test } from 'bun:test'
 import type {
     CertificateOperationKind,
     CertificateOperationStage,
-} from '@/shared/Types/certificates-config.types.ts'
+} from '@/config/Types/certificates-config.types.ts'
 import {
     getCertificateOperationDisplay,
     getCertificateOperationSearchValues,
     hasActiveCertificateOperation,
 } from '@/lib/Admin/CertificateManagement/certificateOperations.ts'
-import type { CertificateSummary } from '@/shared/Types/certificates.types.ts'
+import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 
 const baseCertificate: CertificateSummary = {
     id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54021',

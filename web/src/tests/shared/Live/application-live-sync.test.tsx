@@ -13,7 +13,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { auditLogsQueryKeys } from '@/lib/Admin/AuditLogs/auditLogsCache.ts'
 import { proxyAccessLogsQueryKeys } from '@/lib/Admin/ProxyAccessLogs/proxyAccessLogsCache.ts'
 import { foundationStatusQueryKeys } from '@/lib/FoundationStatus/foundationStatusCache.ts'
-import useApplicationLiveSync from '@/shared/Live/useApplicationLiveSync.ts'
+import useApplicationLiveSync from '@/shared/Live/Hooks/useApplicationLiveSync.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })

@@ -30,5 +30,19 @@
         "denyWarnings": true,
         "reportUnusedDisableDirectives": "error"
     },
-    "ignorePatterns": ["**/routeTree.gen.ts"]
+    "ignorePatterns": [
+        "**/drizzle/**",
+        "**/.env*",
+        "**/routeTree.gen.ts",
+        "**/*.gen.ts",
+        "**/node_modules/**",
+        "**/target/**",
+        "**/dist/**",
+        "**/build/**",
+        "**/.git/**",
+        "coverage/**",
+        "backups/**",
+        "tmp/**",
+        "temp/**"
+    ]
 }

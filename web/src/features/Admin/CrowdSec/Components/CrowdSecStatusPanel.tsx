@@ -1,5 +1,5 @@
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type { CrowdSecConfiguration } from '@/shared/Types/crowdsec.types.ts'
+import type { CrowdSecConfiguration } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 
 const stateStyles = {
     disabled: 'border-border-strong bg-surface-raised text-muted',

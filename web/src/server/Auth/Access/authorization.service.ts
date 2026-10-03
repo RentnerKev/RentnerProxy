@@ -1,8 +1,8 @@
 import '@tanstack/react-start/server-only'
 
 import { RECENT_AUTHENTICATION_DURATION_MS } from '@/config/auth-security.config.ts'
-import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
-import type { AuthenticatedUser } from '@/shared/Types/auth.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { getCurrentSessionService } from './sessions.service.ts'

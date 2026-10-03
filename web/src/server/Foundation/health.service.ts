@@ -1,9 +1,9 @@
 import '@tanstack/react-start/server-only'
 
-import type { FoundationHealth, ServiceHealth } from '@/shared/Types/health.types.ts'
-import { checkControllerHealth, checkControllerReadiness } from './controller.server.ts'
+import type { FoundationHealth, ServiceHealth } from '@/lib/FoundationStatus/Types/health.types.ts'
+import { checkControllerHealth, checkControllerReadiness } from '../Controller/health.server.ts'
 import { checkDatabaseHealth } from './database-health.server.ts'
-import { checkValkeyHealth } from '@/server/valkey/health.server.ts'
+import { checkValkeyHealth } from '@/server/Valkey/health.server.ts'
 import type { FoundationHealthDependencies, FoundationService } from './Types/health.types.ts'
 
 const defaultDependencies: FoundationHealthDependencies = {

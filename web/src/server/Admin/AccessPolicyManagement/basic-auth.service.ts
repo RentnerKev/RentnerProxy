@@ -1,3 +1,8 @@
+import type {
+    BasicAuthAccountSummary,
+    BasicAuthMutationResult,
+    BasicAuthAccountRow,
+} from './Types/basic-auth.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { and, asc, count, eq } from 'drizzle-orm'
@@ -10,7 +15,7 @@ import type {
     CreateBasicAuthAccountInput,
     DeleteBasicAuthAccountInput,
     UpdateBasicAuthAccountInput,
-} from '@/features/Admin/AccessPolicyManagement/basic-auth.validation.ts'
+} from '@/features/Admin/AccessPolicyManagement/Types/basic-auth-validation.types.ts'
 import {
     basicAuthAccountsPolicyInputSchema,
     createBasicAuthAccountInputSchema,
@@ -19,7 +24,8 @@ import {
 } from '@/features/Admin/AccessPolicyManagement/basic-auth.validation.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
-import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import { AccessPolicyDomainError } from './access-policies.errors.ts'
@@ -27,21 +33,6 @@ import { BasicAuthDomainError } from './basic-auth.errors.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
-
-export interface BasicAuthAccountSummary {
-    readonly id: string
-    readonly accessPolicyId: string
-    readonly username: string
-    readonly createdAt: Date
-    readonly updatedAt: Date
-}
-
-export interface BasicAuthMutationResult {
-    readonly accountId: string
-    readonly runtimeStatus: 'applied' | 'pending'
-}
-
-type BasicAuthAccountRow = typeof accessPolicyBasicAuthAccounts.$inferSelect
 
 function parseInput<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
     const parsed = schema.safeParse(input)

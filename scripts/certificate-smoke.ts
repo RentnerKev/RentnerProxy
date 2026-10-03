@@ -8,13 +8,13 @@ import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { basename, dirname, resolve } from 'node:path'
 
-import { smokeDockerArguments } from './smoke-resources'
-import { startCertificateDnsFixture } from './certificate-dns-fixture'
-import { verifyProxyAccessLogs } from './proxy-access-logs-smoke'
-import { verifyDurableCertificateJob } from './certificate-job-smoke'
-import { buildHttp3Client, requestHttp3Client, assertHttp3Response } from './http3-client'
-import { restoreCertificateStateFixture } from './certificate-state-restore-smoke'
-import { CERTIFICATE_ERROR_CODES } from '../web/src/config/certificates.config'
+import { smokeDockerArguments } from './smoke-resources.ts'
+import { startCertificateDnsFixture } from './certificate-dns-fixture.ts'
+import { verifyProxyAccessLogs } from './proxy-access-logs-smoke.ts'
+import { verifyDurableCertificateJob } from './certificate-job-smoke.ts'
+import { buildHttp3Client, requestHttp3Client, assertHttp3Response } from './http3-client.ts'
+import { restoreCertificateStateFixture } from './certificate-state-restore-smoke.ts'
+import { CERTIFICATE_ERROR_CODES } from '../web/src/config/certificates.config.ts'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)

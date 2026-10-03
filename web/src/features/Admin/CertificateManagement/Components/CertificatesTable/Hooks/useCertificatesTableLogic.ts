@@ -1,19 +1,18 @@
+import type { Translate } from '../Types/certificates-table-logic.types.ts'
 import type { CertificatesTableLogicResult } from '../Types/certificates-table.types.ts'
 import type { FilterFn } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useClientTable from '@/shared/Table/Hooks/useClientTable.ts'
 import { createSortedUniqueFilterOptions } from '@/lib/Table/tableFilters.ts'
-import type { ClientTableFeatures } from '@/shared/Table/clientTable.ts'
-import type { CertificateSummary } from '@/shared/Types/certificates.types.ts'
+import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
+import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import type { CertificateTableProps } from '../Types/certificates-table.types.ts'
 import {
     getCertificateOperationDisplay,
     getCertificateOperationSearchValues,
 } from '@/lib/Admin/CertificateManagement/certificateOperations.ts'
 import useCertificatesTableColumns from './useCertificatesTableColumns.ts'
-
-type Translate = ReturnType<typeof useTranslationStore>['t']
 
 const getCertificateRowId = (certificate: CertificateSummary) => certificate.id
 

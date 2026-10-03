@@ -13,8 +13,8 @@ import {
     CURRENT_MIGRATION_COUNT,
     assertAlpha1UpgradeFixture,
     seedAlpha1UpgradeFixture,
-    type Alpha1UpgradeFixture,
-} from '../alpha1-upgrade-fixture'
+} from '../alpha1-upgrade-fixture.ts'
+import type { Alpha1UpgradeFixture } from '../Types/alpha1-upgrade-fixture.types.ts'
 import {
     assertAlpha4PersistenceFixture,
     assertAlpha4PersistenceRequestDecrypts,
@@ -22,24 +22,20 @@ import {
     seedAlpha4PersistenceFixture,
     type Alpha4PersistenceFixture,
     type Alpha4PersistenceSnapshot,
-} from '../alpha4-persistence-fixture'
-import { psql } from '../alpha4-persistence/storage'
-import { assertHttp3Response, buildHttp3Client, requestHttp3Client } from '../http3-client'
-import { restoreSmokeDiagnostic, smokeCompose, smokeDockerArguments } from '../smoke-resources'
-import { PUBLISHED_ALPHAS, publishedAlpha, type PublishedAlphaKey } from './published-alphas'
-import { assertAuthFixture, seedAuthFixture, type AuthFixture } from './auth-state'
-import { assertAuditFixture, seedAuditFixture, type AuditFixture } from './audit-state'
-import {
-    assertAcmeAccountFixture,
-    seedAcmeAccountFixture,
-    type AcmeAccountFixture,
-} from './acme-account-state'
-import {
-    assertBetaDefaults,
-    assertPolicyFixture,
-    seedPolicyFixture,
-    type PolicyFixture,
-} from './state'
+} from '../alpha4-persistence-fixture.ts'
+import { psql } from '../alpha4-persistence/storage.ts'
+import { assertHttp3Response, buildHttp3Client, requestHttp3Client } from '../http3-client.ts'
+import { restoreSmokeDiagnostic, smokeCompose, smokeDockerArguments } from '../smoke-resources.ts'
+import { PUBLISHED_ALPHAS, publishedAlpha } from './published-alphas.ts'
+import type { PublishedAlphaKey } from './Types/published-alphas.types.ts'
+import { assertAuthFixture, seedAuthFixture } from './auth-state.ts'
+import type { AuthFixture } from './Types/auth-state.types.ts'
+import { assertAuditFixture, seedAuditFixture } from './audit-state.ts'
+import type { AuditFixture } from './Types/audit-state.types.ts'
+import { assertAcmeAccountFixture, seedAcmeAccountFixture } from './acme-account-state.ts'
+import type { AcmeAccountFixture } from './Types/acme-account-state.types.ts'
+import { assertBetaDefaults, assertPolicyFixture, seedPolicyFixture } from './state.ts'
+import type { PolicyFixture } from './Types/state.types.ts'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const sourceKey = process.argv[2]

@@ -1,15 +1,9 @@
+import type { TableFilterToggleProps } from '../Types/table-filter-toggle.types.ts'
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { ListFilter } from 'lucide-react'
 
 import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-
-interface TableFilterToggleProps {
-    readonly contentId: string
-    readonly expanded: boolean
-    readonly onToggle: () => void
-    readonly activeCount?: number
-}
 
 export default function TableFilterToggle({
     contentId,

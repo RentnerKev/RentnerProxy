@@ -10,8 +10,8 @@ import {
     normalizeProxyHostHttpSettings,
     proxyHttpSettingsSchema,
 } from '@/features/Admin/ProxyHostManagement/config-validation.ts'
-import type { ProxyHttpSettings } from '@/shared/Types/proxy-runtime.types.ts'
-import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import type { ProxyHttpSettings } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 
 export const PROXY_RUNTIME_SETTINGS_KEY = 'proxy_runtime_editor_v1'
 

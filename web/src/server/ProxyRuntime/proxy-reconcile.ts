@@ -1,40 +1,19 @@
+import type {
+    ReconcileDependencies,
+    ReconcileWaiter,
+    ProxyReconciler,
+} from './Types/proxy-reconcile.types.ts'
 // oxlint-disable-next-line import/no-unassigned-import -- Reconcile must never execute in the browser.
 import '@tanstack/react-start/server-only'
 // oxlint-disable no-await-in-loop -- Reconcile attempts are deliberately serialized.
 
-import type { ProxyRuntimeMutationStatus } from '@/shared/Types/proxy-runtime.types.ts'
-import type {
-    ProxyRuntimeApplyResponse,
-    ProxyRuntimeSnapshot,
-} from './Types/proxy-runtime.types.ts'
+import type { ProxyRuntimeMutationStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 
 export const PROXY_RECONCILE_TIMEOUT_MS = 25_000
 const CONTROLLER_APPLY_TIMEOUT_MS = 20_000
 const DRIFT_CHECK_INTERVAL_MS = 60_000
 const INITIAL_RETRY_DELAY_MS = 1_000
 const MAX_RETRY_DELAY_MS = 60_000
-
-interface ReconcileDependencies {
-    readonly loadSnapshot: () => Promise<ProxyRuntimeSnapshot>
-    readonly checkDrift?: () => Promise<boolean>
-    readonly applySnapshot: (
-        snapshot: ProxyRuntimeSnapshot,
-        timeoutMs: number,
-    ) => Promise<ProxyRuntimeApplyResponse | null>
-}
-
-interface ReconcileWaiter {
-    readonly target: number
-    readonly resolve: (status: ProxyRuntimeMutationStatus) => void
-    readonly timer: ReturnType<typeof setTimeout>
-}
-
-export interface ProxyReconciler {
-    (): Promise<ProxyRuntimeMutationStatus>
-    readonly start: () => void
-    readonly stop: () => Promise<void>
-    readonly checkDrift: () => Promise<void>
-}
 
 export function createProxyReconciler(
     dependencies: ReconcileDependencies,

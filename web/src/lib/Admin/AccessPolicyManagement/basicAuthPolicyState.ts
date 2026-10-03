@@ -1,26 +1,7 @@
-import type { AccessPolicyMode } from '@/shared/Types/access-policies-config.types.ts'
-import type {
-    AccessPolicyIpRules,
-    AccessPolicySummary,
-} from '@/shared/Types/access-policies.types.ts'
-
-export type AccessPolicyAvailabilityStatus =
-    | 'publicIgnored'
-    | 'authenticatedAvailable'
-    | 'authenticatedMissing'
-    | 'ipRestrictedAvailable'
-    | 'ipRestrictedMissing'
-    | 'ipRestrictedBlocksAll'
-    | 'combinedAllAvailable'
-    | 'combinedAllMissingAuth'
-    | 'combinedAllMissingIp'
-    | 'combinedAllMissingBoth'
-    | 'combinedAllIpBlocksAll'
-    | 'combinedAnyAvailableAuth'
-    | 'combinedAnyAvailableIp'
-    | 'combinedAnyAvailableBoth'
-    | 'combinedAnyIpBlocksAll'
-    | 'combinedAnyMissing'
+import type { AccessPolicyAvailabilityStatus } from './Types/basic-auth-policy-state.types.ts'
+import type { AccessPolicyMode } from '@/config/Types/access-policies-config.types.ts'
+import type { AccessPolicyIpRules } from '@/lib/AccessPolicies/Types/ip-access-rules.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 
 export function getBasicAuthAccountCount(policy: AccessPolicySummary): number {
     return policy.basicAuthAccountCount

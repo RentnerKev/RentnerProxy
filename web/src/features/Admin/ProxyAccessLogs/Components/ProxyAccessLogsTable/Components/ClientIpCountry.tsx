@@ -1,5 +1,5 @@
-import CountryFlag from '@/shared/Components/CountryFlag.tsx'
-import type { ProxyAccessLogEntry } from '@/shared/Types/proxy-access-logs.types.ts'
+import CountryFlag from '@/shared/Geography/CountryFlag.tsx'
+import type { ProxyAccessLogEntry } from '@/lib/Admin/ProxyAccessLogs/Types/proxy-access-logs.types.ts'
 
 export default function ClientIpCountry({ entry }: { readonly entry: ProxyAccessLogEntry }) {
     return (

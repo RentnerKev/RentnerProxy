@@ -1,6 +1,6 @@
 import type { UseClientTableReturn } from '@/shared/Table/Types/table.types.ts'
 import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.ts'
-import type { RedirectHostSummary } from '@/shared/Types/redirect-hosts.types.ts'
+import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
 
 export type RedirectHostsTableLogicResult = {
     readonly table: UseClientTableReturn<RedirectHostSummary>['table']

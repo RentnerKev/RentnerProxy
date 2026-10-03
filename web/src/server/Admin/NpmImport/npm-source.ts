@@ -1,3 +1,4 @@
+import type { NpmRecord, NpmSource } from './Types/npm-source.types.ts'
 // oxlint-disable-next-line import/no-unassigned-import -- Keep SQLite parsing out of client bundles.
 import '@tanstack/react-start/server-only'
 
@@ -81,20 +82,6 @@ export class NpmSourceError extends Error {
     constructor(readonly code: 'invalid_source' | 'unsupported_schema' | 'source_limit') {
         super(code)
     }
-}
-
-export type NpmRecord = Record<string, unknown>
-
-export interface NpmSource {
-    readonly schema: 'npm-2.16-schema'
-    readonly proxyHosts: readonly NpmRecord[]
-    readonly redirectHosts: readonly NpmRecord[]
-    readonly accessLists: readonly NpmRecord[]
-    readonly accessClients: readonly NpmRecord[]
-    readonly authCounts: readonly NpmRecord[]
-    readonly certificates: readonly NpmRecord[]
-    readonly deadHosts: readonly NpmRecord[]
-    readonly streams: readonly NpmRecord[]
 }
 
 function queryRows(database: Database, sql: string): NpmRecord[] {

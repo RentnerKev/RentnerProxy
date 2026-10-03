@@ -7,7 +7,7 @@ import { eq, inArray, like } from 'drizzle-orm'
 import { SESSION_COOKIE_NAME } from '@/config/auth.config.ts'
 import { MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY } from '@/config/access-policies.config.ts'
 import { PERMISSIONS, SYSTEM_ROLES } from '@/config/permissions.config.ts'
-import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import {
     accessPolicyBasicAuthAccounts,
     accessPolicies,
@@ -33,7 +33,7 @@ import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { createProxyHostService } from '@/server/Admin/ProxyHostManagement/proxy-hosts.service.ts'
 import { getProxyRuntimeSnapshotService } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import { getDatabaseUrl } from '@/server/env.server.ts'
-import type { CreateProxyHostInput } from '@/features/Admin/ProxyHostManagement/validation.ts'
+import type { CreateProxyHostInput } from '@/features/Admin/ProxyHostManagement/Types/validation.types.ts'
 
 const DATABASE_INTEGRATION_ENABLED =
     process.env.RENTNERPROXY_DATABASE_INTEGRATION === '1' && getDatabaseUrl() !== null

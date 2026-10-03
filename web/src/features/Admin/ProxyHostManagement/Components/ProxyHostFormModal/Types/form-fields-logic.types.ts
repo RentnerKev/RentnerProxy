@@ -1,4 +1,4 @@
-import type { CertificateSummary } from '@/shared/Types/certificates.types.ts'
+import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import type { getAccessPolicyAvailability } from '@/lib/Admin/AccessPolicyManagement/basicAuthPolicyState.ts'
 
 export interface ProxyHostFormFieldsLogicResult {

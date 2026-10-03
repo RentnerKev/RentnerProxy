@@ -1,25 +1,9 @@
+import type { PolicyFixture } from './Types/state.types.ts'
 import assert from 'node:assert/strict'
 
-import { uuidV7 } from '../alpha4-persistence/crypto'
-import { psql, sqlJson, sqlQuote } from '../alpha4-persistence/storage'
-import type { Command } from '../alpha1-upgrade-fixture'
-
-export interface PolicyFixture {
-    readonly basicPolicyId: string
-    readonly ipPolicyId: string
-    readonly basicHostId: string
-    readonly ipHostId: string
-    readonly basicDomain: string
-    readonly ipDomain: string
-    readonly username: string
-    readonly password: string
-    readonly passwordHash: string
-    readonly ipRules: {
-        readonly defaultAction: 'deny'
-        readonly allow: readonly string[]
-        readonly deny: readonly string[]
-    }
-}
+import { uuidV7 } from '../alpha4-persistence/crypto.ts'
+import { psql, sqlJson, sqlQuote } from '../alpha4-persistence/storage.ts'
+import type { Command } from '../Types/alpha1-upgrade-fixture.types.ts'
 
 export async function seedPolicyFixture(input: {
     readonly command: Command

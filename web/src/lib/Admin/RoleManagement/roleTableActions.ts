@@ -1,4 +1,4 @@
-import type { ActionMenuItem } from '@/shared/ActionMenu/index.tsx'
+import type { ActionMenuItem } from '@/shared/ActionMenu/Types/action-menu.types.ts'
 import type { Translate } from '@/shared/Language/Types/language.types.ts'
 import type { RoleTableActionInputs, RoleTableActionState } from './Types/table-actions.types.ts'
 
@@ -31,5 +31,3 @@ export function getRoleTableActionState(
 
     return { kind: 'actions', items }
 }
-
-export type { RoleTableActionState } from './Types/table-actions.types.ts'

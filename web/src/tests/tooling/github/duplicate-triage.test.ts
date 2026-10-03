@@ -24,7 +24,7 @@ import type {
     CandidateMatch,
     CommentWriter,
     TriageItem,
-} from '../../../../../.github/scripts/duplicate-triage.ts'
+} from '../../../../../.github/scripts/Types/duplicate-triage.types.ts'
 
 const REPOSITORY = 'RentnerKev/RentnerProxy'
 

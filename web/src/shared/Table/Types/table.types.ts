@@ -2,7 +2,7 @@ import type { Column, ColumnDef, FilterFn, RowData, SortingState } from '@tansta
 import type { ReactNode } from 'react'
 import type { TablePaginationControlsProps } from '../Components/TablePaginationControls/Types/table-pagination-controls.types.ts'
 
-import type { ClientTable, ClientTableFeatures } from '../clientTable.ts'
+import type { ClientTable, ClientTableFeatures } from './client-table.types.ts'
 
 export interface TableFilterOption {
     readonly label: string

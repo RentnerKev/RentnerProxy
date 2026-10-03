@@ -1,3 +1,8 @@
+import type {
+    Cursor,
+    FetchedEvents,
+    CursorSnapshot,
+} from './Types/certificate-events-worker.types.ts'
 // oxlint-disable no-await-in-loop -- The controller event stream is consumed in cursor order.
 // oxlint-disable-next-line import/no-unassigned-import -- Keeps the synchronization worker server-only.
 import '@tanstack/react-start/server-only'
@@ -5,14 +10,14 @@ import '@tanstack/react-start/server-only'
 import { lt, sql } from 'drizzle-orm'
 
 import { certificateEventCursor, certificateEventReceipts } from '@/db/schema.ts'
-import type { CertificateEventMetadata } from '@/shared/Types/certificates.types.ts'
+import type { CertificateEventMetadata } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import { appendAuditEventsInTransactionService } from '@/server/Audit/audit.service.ts'
 import {
     getControllerCertificateEvents,
     getControllerCertificates,
-    type ControllerCertificateMetadata,
-} from '@/server/Foundation/certificates.server.ts'
-import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+} from '@/server/Controller/certificates.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { persistControllerCertificatesMetadataInTransaction } from './certificates.service.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 
@@ -27,22 +32,6 @@ const CERTIFICATE_EVENT_RECEIPT_MAX_ROWS = 100_000
 const MAX_EVENT_SEQUENCE = 18_446_744_073_709_551_615n
 const CERTIFICATE_EVENT_CURSOR_PATTERN =
     /^([0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}):(\d{1,20})$/u
-
-type Cursor = string | null
-
-interface FetchedEvents {
-    readonly expectedCursor: Cursor
-    readonly nextCursor: Cursor
-    readonly resetRequired: boolean
-    readonly events: readonly CertificateEventMetadata[]
-    readonly metadata: readonly ControllerCertificateMetadata[]
-}
-
-interface CursorSnapshot {
-    readonly expectedCursor: Cursor
-
-    readonly fetchCursor: Cursor
-}
 
 function parseCursor(
     cursor: Cursor,

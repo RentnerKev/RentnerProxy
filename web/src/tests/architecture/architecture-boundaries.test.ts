@@ -196,6 +196,12 @@ describe('web architecture boundaries', () => {
         )
         const violations: string[] = []
         for (const { path, source } of sources) {
+            if (path.split(sep).includes('Types')) {
+                if (new Bun.Transpiler({ loader: 'ts' }).transformSync(source).trim()) {
+                    violations.push(path)
+                }
+                continue
+            }
             const imports = new Bun.Transpiler({ loader: 'ts' }).scanImports(source)
             // Strip comments and display strings so CSS functions and prose are not treated as code.
             const code = source.replace(
@@ -218,23 +224,13 @@ describe('web architecture boundaries', () => {
         expect(files.filter((path) => basename(path) === 'queryKeys.ts')).toEqual([])
     })
 
-    test('limits legacy shared helper paths to the two type-only database compatibility contracts', async () => {
-        const files = await collectFiles(resolve(sourceRoot, 'shared/Helpers'))
-        expect(files.map((path) => basename(path)).toSorted()).toEqual([
-            'forwardAuth.ts',
-            'ipAccessRules.ts',
-        ])
-        const sources = await Promise.all(files.map((path) => readFile(path, 'utf8')))
-        for (const source of sources) {
-            expect(source.trim()).toMatch(
-                /^export type \{ \w+ \} from ['"](?:\.\.\/\.\.\/lib\/|@\/lib\/)[^'"]+['"]$/,
-            )
-            expect(new Bun.Transpiler({ loader: 'ts' }).scanImports(source)).toEqual([])
-        }
+    test('keeps generic helper and compatibility wrapper paths out of shared source', async () => {
+        const files = await collectFiles(resolve(sourceRoot, 'shared'))
+        expect(files.filter((path) => path.split(sep).includes('Helpers'))).toEqual([])
     })
 
     test('keeps client-safe auth types free of credentials and tokens', async () => {
-        const source = await readFile(resolve(sourceRoot, 'shared/Types/auth.types.ts'), 'utf8')
+        const source = await readFile(resolve(sourceRoot, 'lib/Auth/Types/auth.types.ts'), 'utf8')
 
         expect(source).not.toMatch(/password|token|hash/i)
     })
@@ -264,7 +260,7 @@ describe('web architecture boundaries', () => {
     })
 
     test('protects server, service, and database imports in the Vite client graph', async () => {
-        const viteConfig = await readFile(resolve(sourceRoot, '../vite.config.ts'), 'utf8')
+        const viteConfig = await readFile(resolve(sourceRoot, '../../vite.config.ts'), 'utf8')
 
         expect(viteConfig).toContain("'**/*.server.*'")
         expect(viteConfig).toContain("'**/*.service.*'")

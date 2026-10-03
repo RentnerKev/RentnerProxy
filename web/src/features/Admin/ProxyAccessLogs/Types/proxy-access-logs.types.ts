@@ -1,4 +1,4 @@
-import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 
 export interface ProxyAccessLogsPageProps {
     readonly permissions: readonly PermissionKey[]
@@ -14,7 +14,7 @@ export type ProxyAccessLogsFilterErrors = Partial<Record<keyof ProxyAccessLogsFi
 
 export interface ProxyAccessLogsLogicResult {
     readonly state: {
-        readonly entries: readonly import('@/shared/Types/proxy-access-logs.types.ts').ProxyAccessLogEntry[]
+        readonly entries: readonly import('@/lib/Admin/ProxyAccessLogs/Types/proxy-access-logs.types.ts').ProxyAccessLogEntry[]
         readonly canView: boolean
         readonly availableHosts: readonly string[]
         readonly availableStatuses: readonly number[]

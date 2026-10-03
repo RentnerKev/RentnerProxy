@@ -6,24 +6,18 @@ import {
     prepareCertificateFixture,
     exerciseCertificates,
     verifyActiveCertificate,
-} from './certificates'
-import { exerciseCrowdSec } from './crowdsec'
+} from './certificates.ts'
+import { exerciseCrowdSec } from './crowdsec.ts'
 import {
     analyzeResources,
     buildReliabilityReport,
     createSeededRandom,
     parseReliabilityOptions,
     shouldContinue,
-    type ReliabilityCheck,
-    type ReliabilityFailure,
-    type ResourceSample,
-} from './control'
-import {
-    createHarness,
-    ReliabilityError,
-    type ReliabilityContext,
-    type FixtureResult,
-} from './harness'
+} from './control.ts'
+import type { ReliabilityCheck, ReliabilityFailure, ResourceSample } from './Types/control.types.ts'
+import { createHarness, ReliabilityError } from './harness.ts'
+import type { ReliabilityContext, FixtureResult } from './Types/harness.types.ts'
 
 async function processIds(
     context: ReliabilityContext,

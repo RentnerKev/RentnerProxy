@@ -12,7 +12,7 @@ import {
     AuthenticatedLanguageProvider,
     TranslationContext,
 } from '@/shared/Language/Hooks/useTranslationStore.ts'
-import { type TranslationStore } from '@/shared/Language/Types/language.types.ts'
+import type { TranslationStore } from '@/shared/Language/Types/language.types.ts'
 import getFieldErrorMessage, { getValidationIssue } from '@/lib/Forms/fieldErrors.ts'
 import FieldError from '@/shared/Forms/FieldError.tsx'
 import FormMessage from '@/shared/Forms/FormMessage.tsx'

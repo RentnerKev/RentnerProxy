@@ -1,17 +1,16 @@
+import type { CertificateJobRow } from './Types/certificate-jobs-storage.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { createHash } from 'node:crypto'
 import { asc, eq } from 'drizzle-orm'
-import type { CertificateJobErrorCode } from '@/shared/Types/certificate-jobs-config.types.ts'
+import type { CertificateJobErrorCode } from '@/config/Types/certificate-jobs-config.types.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import { certificateJobs, hostDomains, proxyHosts } from '@/db/schema.ts'
-import type { CertificateJobSummary } from '@/shared/Types/certificate-jobs.types.ts'
-import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { hostDomains, proxyHosts } from '@/db/schema.ts'
+import type { CertificateJobSummary } from '@/lib/CertificateJobs/Types/certificate-jobs.types.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { readProxyHostHttpSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
-
-export type CertificateJobRow = typeof certificateJobs.$inferSelect
 
 export class CertificateJobDomainError extends Error {
     readonly code: CertificateJobErrorCode

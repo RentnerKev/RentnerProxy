@@ -1,13 +1,9 @@
+import type { EncryptedSecret } from './Types/encryption.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { AES_GCM_IV_BYTES } from '@/config/auth-security.config.ts'
 import { getAppEncryptionKey } from '@/server/env.server.ts'
 import { AuthDomainError } from './errors.server.ts'
-
-export interface EncryptedSecret {
-    readonly ciphertext: Uint8Array
-    readonly iv: Uint8Array
-}
 
 function unavailable(): AuthDomainError {
     return new AuthDomainError('service_unavailable', 'Secret encryption is unavailable.')

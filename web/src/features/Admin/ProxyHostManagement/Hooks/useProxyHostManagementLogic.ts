@@ -8,8 +8,8 @@ import { useCallback, useMemo, useState } from 'react'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { toast } from '@rentnerkev/toasts/toast'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
-import useLiveInvalidation from '@/shared/Live/useLiveInvalidation.ts'
+import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
+import useLiveInvalidation from '@/shared/Live/Hooks/useLiveInvalidation.ts'
 import { proxyHostManagementQueryKeys } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import {
     applyProxyConfigurationHandler,

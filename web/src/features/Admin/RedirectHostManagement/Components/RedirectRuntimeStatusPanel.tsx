@@ -1,14 +1,6 @@
+import type { Props } from '../Types/redirect-runtime-status-panel.types.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type { RedirectRuntimeStatus } from '../Types/redirect-host-management.types.ts'
-interface Props {
-    readonly canApply: boolean
-    readonly isError?: boolean
-    readonly isApplying: boolean
-    readonly isRetrying?: boolean
-    readonly onApply: () => void
-    readonly onRetry?: () => void
-    readonly status: RedirectRuntimeStatus | undefined
-}
+
 export default function RedirectRuntimeStatusPanel({
     canApply,
     isError = false,

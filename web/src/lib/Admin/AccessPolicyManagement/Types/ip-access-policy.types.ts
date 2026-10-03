@@ -1,7 +1,7 @@
 import type {
     AccessPolicyIpRuleAction,
     AccessPolicyIpRules,
-} from '@/shared/Types/access-policies.types.ts'
+} from '@/lib/AccessPolicies/Types/ip-access-rules.types.ts'
 
 export interface AccessPolicyIpRulesDraft {
     readonly defaultAction: AccessPolicyIpRuleAction

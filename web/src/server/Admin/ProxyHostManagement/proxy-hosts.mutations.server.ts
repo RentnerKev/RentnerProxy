@@ -1,40 +1,27 @@
+import type { ProxyHostRow } from './Types/proxy-hosts-mutations.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { and, eq, inArray, isNotNull, ne, or } from 'drizzle-orm'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { accessPolicies, hostDomains, proxyHosts } from '@/db/schema.ts'
-import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
+import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
-import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import {
     createProxyHostInputSchema,
     updateProxyHostInputSchema,
-    type CreateProxyHostInput,
-    type UpdateProxyHostInput,
 } from '@/features/Admin/ProxyHostManagement/validation.ts'
+import type {
+    CreateProxyHostInput,
+    UpdateProxyHostInput,
+} from '@/features/Admin/ProxyHostManagement/Types/validation.types.ts'
 import { ProxyHostDomainError } from './proxy-hosts.errors.ts'
 import { normalizeUpstreamTlsSettings } from './upstream-tls.service.ts'
 import { validateTrustedCaAssignmentInTransaction } from '@/server/Admin/TrustedCaManagement/trusted-cas.service.ts'
 import { validateCertificateAssignmentInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
-
-type ProxyHostRow = {
-    id: string
-    forwardScheme: 'http' | 'https'
-    forwardHost: string
-    forwardPort: number
-    enabled: boolean
-    certificateId: string | null
-    forceHttps: boolean
-    verifyUpstreamTls: boolean
-    upstreamTlsServerName: string | null
-    trustedCaId: string | null
-    accessPolicyId?: string | null
-    createdAt: Date
-    updatedAt: Date
-}
 
 function invalidInput(): ProxyHostDomainError {
     return new ProxyHostDomainError('invalid_input', 'Proxy host input is invalid.')

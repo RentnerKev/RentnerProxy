@@ -20,7 +20,7 @@ import {
     applyRedirectConfigurationService,
     getRedirectRuntimeStatusService,
 } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
-import type { RedirectHostActionResult } from '@/shared/Types/redirect-hosts.types.ts'
+import type { RedirectHostActionResult } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
 import { localizedActionFailure, throwLocalizedQueryError } from '@/server/Auth/transport.server.ts'
 import {
     createRedirectHostInputSchema,

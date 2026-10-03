@@ -22,7 +22,7 @@ import {
     PENDING_DISPLAY_NAME,
 } from '@/server/Auth/Core/identity.server.ts'
 import { hashPassword } from '@/server/Auth/Core/password.server.ts'
-import { enforceInviteRateLimit } from '@/server/valkey/rate-limiter.service.ts'
+import { enforceInviteRateLimit } from '@/server/Valkey/rate-limiter.service.ts'
 import {
     assertRoleAssignmentAllowedInTransaction,
     getUserRoleKeysInTransaction,

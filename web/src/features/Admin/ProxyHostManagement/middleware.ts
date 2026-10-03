@@ -31,7 +31,7 @@ import {
 import type {
     ProxyHostActionResult,
     ProxyRuntimeMutationStatus,
-} from '@/shared/Types/proxy-runtime.types.ts'
+} from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import {
     applyProxyConfigurationService,
     getProxyRuntimeStatusService,

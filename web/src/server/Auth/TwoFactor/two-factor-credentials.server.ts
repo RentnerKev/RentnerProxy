@@ -1,3 +1,4 @@
+import type { RecoveryCodeCredential } from './Types/two-factor-credentials.types.ts'
 import '@tanstack/react-start/server-only'
 
 import * as OTPAuth from 'otpauth'
@@ -12,11 +13,6 @@ import {
     TOTP_SECRET_BYTES,
     TOTP_VALIDATION_WINDOW,
 } from '@/config/auth-security.config.ts'
-
-export interface RecoveryCodeCredential {
-    readonly hash: string
-    readonly plaintext: string
-}
 
 function parseTotpSecret(value: string): OTPAuth.Secret {
     let secret: OTPAuth.Secret

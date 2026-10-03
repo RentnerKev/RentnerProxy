@@ -1,11 +1,6 @@
+import type { ParsedLiveMessage } from './Types/messages.types.ts'
 import { LIVE_MAX_MESSAGE_BYTES } from '@/config/realtime.config.ts'
 import { byteLength, isRecord } from './snapshot.ts'
-
-export interface ParsedLiveMessage {
-    readonly type: unknown
-    readonly topic: unknown
-    readonly query: unknown
-}
 
 export function parseLiveMessage(
     message: string | ArrayBuffer | Uint8Array,

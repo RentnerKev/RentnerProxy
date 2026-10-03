@@ -4,7 +4,7 @@ import { useId, useState } from 'react'
 
 import { NAVIGATION_GROUP_IDS } from '@/config/navigation.config.ts'
 import { parseStoredNavigationGroupPreferences } from '@/lib/Navigation/navigationPreferences.ts'
-import type { NavigationGroupId } from '@/shared/Types/navigation-config.types.ts'
+import type { NavigationGroupId } from '@/config/Types/navigation-config.types.ts'
 
 import type {
     ApplicationNavigationItem,

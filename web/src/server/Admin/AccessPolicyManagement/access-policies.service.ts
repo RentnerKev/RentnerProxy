@@ -1,3 +1,4 @@
+import type { AccessPolicyMutationResult, AccessPolicyRow } from './Types/access-policies.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { asc, count, eq } from 'drizzle-orm'
@@ -8,16 +9,17 @@ import {
     ACCESS_POLICY_MODES,
     MAX_ACCESS_POLICIES,
 } from '@/config/access-policies.config.ts'
-import {
-    type AccessPolicyCombination,
-    type AccessPolicyMode,
-} from '@/shared/Types/access-policies-config.types.ts'
+import type {
+    AccessPolicyCombination,
+    AccessPolicyMode,
+} from '@/config/Types/access-policies-config.types.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { accessPolicyBasicAuthAccounts, accessPolicies, proxyHosts } from '@/db/schema.ts'
-import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
-import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
@@ -26,21 +28,14 @@ import {
     accessPolicyIdInputSchema,
     createAccessPolicyInputSchema,
     updateAccessPolicyInputSchema,
-    type CreateAccessPolicyInput,
-    type UpdateAccessPolicyInput,
 } from '@/features/Admin/AccessPolicyManagement/validation.ts'
+import type {
+    CreateAccessPolicyInput,
+    UpdateAccessPolicyInput,
+} from '@/features/Admin/AccessPolicyManagement/Types/validation.types.ts'
 import { AccessPolicyDomainError } from './access-policies.errors.ts'
-import {
-    forwardAuthInputSchema,
-    type ForwardAuthConfiguration,
-} from '@/lib/ForwardAuth/forwardAuth.ts'
-
-export type AccessPolicyMutationResult = AccessPolicySummary & {
-    readonly accessPolicyId: string
-    readonly runtimeStatus: 'applied' | 'pending'
-}
-
-type AccessPolicyRow = typeof accessPolicies.$inferSelect
+import { forwardAuthInputSchema } from '@/lib/ForwardAuth/forwardAuth.ts'
+import type { ForwardAuthConfiguration } from '@/lib/ForwardAuth/Types/forward-auth.types.ts'
 
 function parseInput<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
     const parsed = schema.safeParse(input)

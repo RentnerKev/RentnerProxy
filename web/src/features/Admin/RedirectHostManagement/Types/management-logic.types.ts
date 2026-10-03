@@ -1,5 +1,5 @@
-import type { RedirectHostSummary } from '@/shared/Types/redirect-hosts.types.ts'
-import type { ProxyRuntimeSyncStatus } from '@/shared/Types/proxy-runtime.types.ts'
+import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
+import type { ProxyRuntimeSyncStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 
 export interface RedirectHostManagementLogicResult {
     readonly state: {

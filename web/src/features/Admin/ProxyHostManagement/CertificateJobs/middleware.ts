@@ -4,7 +4,7 @@ import { CERTIFICATE_ERROR_CODES } from '@/config/certificates.config.ts'
 import type {
     CertificateJobActionResult,
     CertificateJobSummary,
-} from '@/shared/Types/certificate-jobs.types.ts'
+} from '@/lib/CertificateJobs/Types/certificate-jobs.types.ts'
 import { CertificateDomainError } from '@/server/Admin/CertificateManagement/certificates.errors.ts'
 import { ProxyHostDomainError } from '@/server/Admin/ProxyHostManagement/proxy-hosts.errors.ts'
 import { CertificateJobDomainError } from '@/server/Admin/ProxyHostManagement/certificate-jobs.storage.server.ts'

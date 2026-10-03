@@ -3,7 +3,7 @@ import { NAVIGATION_GROUP_IDS } from '@/config/navigation.config.ts'
 import type {
     NavigationGroupId,
     NavigationGroupPreferences,
-} from '@/shared/Types/navigation-config.types.ts'
+} from '@/config/Types/navigation-config.types.ts'
 export const navigationGroupPreferenceInputSchema = z.strictObject({
     expectedUserId: z.string().uuid(),
     groupId: z.enum(NAVIGATION_GROUP_IDS),

@@ -19,12 +19,12 @@ import type {
     CertificateOperationStage,
     CertificateSource,
     CertificateStoredStatus,
-} from '../../config/certificates.config'
+} from '../../config/Types/certificates-config.types.ts'
 import type {
     CertificateCandidateMetadata,
     CertificateCurrentOperationMetadata,
-} from '../../shared/Types/certificates.types'
-import { rentnerProxySchema } from './base'
+} from '../../lib/Admin/CertificateManagement/Types/certificates.types.ts'
+import { rentnerProxySchema } from './base.ts'
 
 export const certificates = rentnerProxySchema.table(
     'certificates',

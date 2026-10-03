@@ -12,9 +12,9 @@ import {
     varchar,
 } from 'drizzle-orm/pg-core'
 
-import { rentnerProxySchema } from './base'
-import { bytea } from './columns'
-import { users } from './users'
+import { rentnerProxySchema } from './base.ts'
+import { bytea } from './columns.ts'
+import { users } from './users.ts'
 
 export const sessions = rentnerProxySchema.table(
     'sessions',

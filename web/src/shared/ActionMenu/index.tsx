@@ -63,5 +63,3 @@ export function ActionMenu({ items, ariaLabel, openOnHover = true }: ActionMenuP
         </DropdownMenu.Root>
     )
 }
-
-export type { ActionMenuItem, ActionMenuProps } from './Types/action-menu.types.ts'

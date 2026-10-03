@@ -4,7 +4,7 @@ import {
     LIVE_SNAPSHOT_PATH,
     LIVE_TOPICS,
 } from '@/config/realtime.config.ts'
-import { type LiveTopic } from './Types/realtime.types.ts'
+import type { LiveTopic } from './Types/realtime.types.ts'
 
 export class LivePayloadError extends Error {
     constructor() {

@@ -1,10 +1,7 @@
 import '@tanstack/react-start/server-only'
 
-import {
-    deriveWebAuthnRpId,
-    getPublicOrigin,
-    type WebAuthnConfiguration,
-} from '@/server/env.server.ts'
+import { deriveWebAuthnRpId, getPublicOrigin } from '@/server/env.server.ts'
+import type { WebAuthnConfiguration } from '@/server/Types/env.types.ts'
 
 export async function getRuntimeManagementOrigin(): Promise<string | null> {
     return getPublicOrigin()

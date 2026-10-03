@@ -1,13 +1,6 @@
+import type { TxtRecord } from './Types/certificate-dns-fixture.types.ts'
 import { createSocket } from 'node:dgram'
 import { createServer, type Socket } from 'node:net'
-
-interface TxtRecord {
-    readonly id: string
-    readonly type: 'TXT'
-    readonly name: string
-    readonly content: string
-    readonly comment?: string
-}
 
 export function dnsFixtureResponse(
     query: Buffer,

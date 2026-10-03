@@ -20,7 +20,7 @@ import {
 
 import { PERMISSIONS, SYSTEM_ROLES } from '@/config/permissions.config.ts'
 import { SYSTEM_ROLE_REGISTRY } from '@/lib/Permissions/systemRoles.ts'
-import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import {
     auditEvents,
     passwordResetTokens,
@@ -87,20 +87,18 @@ import {
     hashRecoveryCode,
     normalizeRecoveryCode,
 } from '@/server/Auth/TwoFactor/two-factor-credentials.server.ts'
-import { consumeAuthChallenge } from '@/server/valkey/auth-challenges.service.ts'
-import { closeValkeyClient, getValkeyClient } from '@/server/valkey/client.server.ts'
+import { consumeAuthChallenge } from '@/server/Valkey/auth-challenges.service.ts'
+import { closeValkeyClient, getValkeyClient } from '@/server/Valkey/client.server.ts'
 import {
     RateLimitError,
     SENSITIVE_ACTION_RATE_LIMITS,
     createRateLimitKey,
     createUserRateLimitKey,
-} from '@/server/valkey/rate-limiter.service.ts'
-import {
-    setupFirstOwnerService,
-    type FirstOwnerSetupResult,
-} from '@/server/Auth/Setup/setup.service.ts'
+} from '@/server/Valkey/rate-limiter.service.ts'
+import { setupFirstOwnerService } from '@/server/Auth/Setup/setup.service.ts'
+import type { FirstOwnerSetupResult } from '@/server/Auth/Setup/Types/setup.types.ts'
 import { createOpaqueToken, hashOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
-import type { AuthenticatedUser, UserStatus } from '@/shared/Types/auth.types.ts'
+import type { AuthenticatedUser, UserStatus } from '@/lib/Auth/Types/auth.types.ts'
 
 const DATABASE_INTEGRATION_ENABLED =
     process.env.RENTNERPROXY_DATABASE_INTEGRATION === '1' && getDatabaseUrl() !== null

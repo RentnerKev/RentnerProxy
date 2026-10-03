@@ -1,3 +1,8 @@
+import type {
+    Command,
+    BackupMetadata,
+    VerifyRestoreRollbackInput,
+} from './Types/restore-rollback-smoke.types.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -6,36 +11,6 @@ const postgresPasswordFile = '/run/rentnerproxy/postgres/value'
 const database = 'rentnerproxy'
 const databaseUser = 'rentnerproxy'
 const restoreScript = 'scripts/production-restore.ts'
-
-type Command = (argumentsList: string[], timeoutMs?: number) => Promise<string>
-type CommandWithEnvironment = (
-    argumentsList: string[],
-    environment: NodeJS.ProcessEnv,
-    timeoutMs?: number,
-) => Promise<string>
-
-type BackupMetadata = {
-    postgres?: {
-        bytes?: number
-        database?: string
-        dump?: string
-        sha256?: string
-        user?: string
-    }
-    [key: string]: unknown
-}
-
-export type VerifyRestoreRollbackInput = Readonly<{
-    containerId: string
-    command: Command
-    commandWithEnvironment: CommandWithEnvironment
-    environment: NodeJS.ProcessEnv
-    waitForHealthy: () => Promise<void>
-    composeFile: string
-    project: string
-    backupPath: string
-    temporaryRoot: string
-}>
 
 function shellQuote(value: string): string {
     return "'" + value.replaceAll("'", "'\"'\"'") + "'"

@@ -25,7 +25,7 @@ import {
     importControllerCertificate,
     issueControllerCertificate,
     deleteControllerCertificate,
-} from '@/server/Foundation/certificates.server.ts'
+} from '@/server/Controller/certificates.server.ts'
 import { CertificateDomainError } from '@/server/Admin/CertificateManagement/certificates.errors.ts'
 import { createProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-snapshot.ts'
 

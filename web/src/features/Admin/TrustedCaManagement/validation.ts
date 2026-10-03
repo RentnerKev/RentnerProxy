@@ -45,6 +45,3 @@ export const createTrustedCaInputSchema = z.strictObject({ name, pem })
 export const replaceTrustedCaInputSchema = createTrustedCaInputSchema.extend(
     trustedCaIdInputSchema.shape,
 )
-
-export type CreateTrustedCaInput = z.input<typeof createTrustedCaInputSchema>
-export type ReplaceTrustedCaInput = z.input<typeof replaceTrustedCaInputSchema>

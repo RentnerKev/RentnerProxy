@@ -1,3 +1,4 @@
+import type { UseRoleFormLogicParams } from '../Types/role-form-modal-logic.types.ts'
 import { useCallback, useId } from 'react'
 import type { RoleFormModalHandler, RoleFormModalState } from '../Types/role-form-modal.types.ts'
 
@@ -8,20 +9,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@rentnerkev/toasts/toast'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { createRoleHandler, updateRoleHandler } from '../../../middleware.ts'
-import type { RoleFormModalProps } from '../../../Types/role-management-component-props.types.ts'
+
 import type { RoleEditorFormValues } from '../Types/role-management-form.types.ts'
 import { createRoleInputSchema } from '../../../validation.ts'
-
-type UseRoleFormLogicParams = Pick<
-    RoleFormModalProps,
-    | 'assignablePermissionKeys'
-    | 'canAssignPermissions'
-    | 'currentUserRoleKeys'
-    | 'mode'
-    | 'onCurrentUserChanged'
-    | 'onSuccess'
-    | 'role'
->
 
 export default function useRoleFormModalLogic({
     canAssignPermissions: requestedCanAssignPermissions,

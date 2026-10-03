@@ -1,3 +1,4 @@
+import type { FirstOwnerSetupResult } from './Types/setup.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { eq, sql } from 'drizzle-orm'
@@ -11,10 +12,6 @@ import { normalizeDisplayName, normalizeEmail } from '@/server/Auth/Core/identit
 import { hashPassword } from '@/server/Auth/Core/password.server.ts'
 import { ensureAuthorizationRegistryInTransaction } from '@/server/Auth/Access/registry.service.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
-
-export type FirstOwnerSetupResult =
-    | { readonly success: true; readonly userId: string; readonly email: string }
-    | { readonly success: false; readonly code: 'already_initialized' }
 
 export async function setupFirstOwnerService(input: {
     displayName: string

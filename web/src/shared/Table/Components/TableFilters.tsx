@@ -1,14 +1,6 @@
-import type { ReactNode } from 'react'
+import type { TableFiltersProps } from '../Types/table-filters.types.ts'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-
-interface TableFiltersProps {
-    readonly children: (resetButton: ReactNode) => ReactNode
-    readonly contentId: string
-    readonly expanded: boolean
-    readonly activeCount?: number
-    readonly onReset?: () => void
-}
 
 export default function TableFilters({
     children,

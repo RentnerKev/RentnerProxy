@@ -3,10 +3,10 @@ import { afterEach, describe, expect, spyOn, test } from 'bun:test'
 import {
     getProxyRuntimeStatus,
     applyProxyRuntimeConfiguration,
-    checkControllerHealth,
     previewProxyConfiguration,
     previewProxyHostConfiguration,
-} from '@/server/Foundation/controller.server.ts'
+} from '@/server/Controller/proxy.server.ts'
+import { checkControllerHealth } from '@/server/Controller/health.server.ts'
 import { createProxyReconciler } from '@/server/ProxyRuntime/proxy-reconcile.ts'
 import {
     compareProxyRuntimeStatus,

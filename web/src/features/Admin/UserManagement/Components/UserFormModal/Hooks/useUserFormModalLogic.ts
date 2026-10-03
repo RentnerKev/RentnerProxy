@@ -1,3 +1,4 @@
+import type { UseUserFormLogicParams } from '../Types/user-form-modal-logic.types.ts'
 import { useCallback, useId } from 'react'
 import type { UserFormModalHandler, UserFormModalState } from '../Types/user-form-modal.types.ts'
 
@@ -10,20 +11,9 @@ import { SYSTEM_ROLES } from '@/config/permissions.config.ts'
 import { toast } from '@rentnerkev/toasts/toast'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { createUserHandler, updateUserHandler } from '../../../middleware.ts'
-import type { UserFormModalProps } from '../../../Types/user-management-component-props.types.ts'
+
 import type { UserFormValues } from '../Types/user-management-form.types.ts'
 import { inviteUserFormSchema, updateUserFormSchema } from '../../../validation.ts'
-
-type UseUserFormLogicParams = Pick<
-    UserFormModalProps,
-    | 'canAssignRoles'
-    | 'currentUserId'
-    | 'mode'
-    | 'onCurrentUserChanged'
-    | 'onSuccess'
-    | 'roles'
-    | 'user'
->
 
 export default function useUserFormModalLogic({
     canAssignRoles: requestedCanAssignRoles,

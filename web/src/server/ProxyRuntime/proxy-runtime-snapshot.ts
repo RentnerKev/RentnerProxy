@@ -3,7 +3,7 @@ import '@tanstack/react-start/server-only'
 
 import { z } from 'zod'
 import { normalizeDefaultSiteSettings } from '@/lib/DefaultSite/defaultSite.ts'
-import type { DefaultSiteSettings } from '@/shared/Types/default-site.types.ts'
+import type { DefaultSiteSettings } from '@/lib/DefaultSite/Types/default-site.types.ts'
 import {
     ACCESS_POLICY_COMBINATIONS,
     ACCESS_POLICY_MODES,
@@ -34,7 +34,7 @@ import type {
     ProxyHttpSettings,
     ProxyRuntimeStatus,
     ProxyRuntimeSyncStatus,
-} from '@/shared/Types/proxy-runtime.types.ts'
+} from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import type {
     ProxyRuntimeHost,
     ProxyRuntimeSnapshot,

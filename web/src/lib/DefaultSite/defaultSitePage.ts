@@ -1,5 +1,5 @@
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 
 export function getDefaultSitePageViewModel(permissions: readonly PermissionKey[]) {
     return {

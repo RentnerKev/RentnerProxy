@@ -5,8 +5,8 @@ import { certificateJobs, certificates, proxyHosts, redirectHosts } from '@/db/s
 import { certificateCoversDomains } from '@/lib/Admin/CertificateManagement/certificateValidation.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
-import type { ControllerCertificateMetadata } from '@/server/Foundation/certificates.server.ts'
-import { getProxyRuntimeStatus } from '@/server/Foundation/controller.server.ts'
+import type { ControllerCertificateMetadata } from '@/server/Controller/Types/certificates.types.ts'
+import { getProxyRuntimeStatus } from '@/server/Controller/proxy.server.ts'
 import { readProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-data.ts'
 import { reconcileProxyConfigurationService } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import { persistControllerCertificatesMetadataInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
@@ -14,8 +14,8 @@ import {
     CertificateJobDomainError,
     readCertificateJobHost,
     validateCertificateJobContext,
-    type CertificateJobRow,
 } from './certificate-jobs.storage.server.ts'
+import type { CertificateJobRow } from './Types/certificate-jobs-storage.types.ts'
 import { withCertificateJobClaim } from './certificate-jobs.lease.server.ts'
 
 export const certificateJobRuntime = {

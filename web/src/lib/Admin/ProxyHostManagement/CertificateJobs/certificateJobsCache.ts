@@ -2,8 +2,8 @@ import type { QueryClient } from '@tanstack/react-query'
 
 import { isCertificateJobActive } from '@/lib/CertificateJobs/stages.ts'
 import { CERTIFICATE_ERROR_CODES } from '@/config/certificates.config.ts'
-import { type CertificateOperationStage } from '@/shared/Types/certificates-config.types.ts'
-import type { CertificateJobSummary } from '@/shared/Types/certificate-jobs.types.ts'
+import type { CertificateOperationStage } from '@/config/Types/certificates-config.types.ts'
+import type { CertificateJobSummary } from '@/lib/CertificateJobs/Types/certificate-jobs.types.ts'
 
 const jobStageToOperationStage = {
     preparing: 'queued',

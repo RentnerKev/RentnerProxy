@@ -69,5 +69,3 @@ export function Modal({
         </Dialog.Root>
     )
 }
-
-export type { ModalProps, ModalSize } from './Types/modal.types.ts'

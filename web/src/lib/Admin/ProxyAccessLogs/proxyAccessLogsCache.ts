@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import type {
     ProxyAccessLogsQuery,
     ProxyAccessLogsResult,
-} from '@/shared/Types/proxy-access-logs.types.ts'
+} from '@/lib/Admin/ProxyAccessLogs/Types/proxy-access-logs.types.ts'
 
 export const proxyAccessLogsQueryKeys = {
     all: ['admin', 'proxy-access-logs'] as const,

@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
-import useLiveInvalidation from '@/shared/Live/useLiveInvalidation.ts'
+import useLiveInvalidation from '@/shared/Live/Hooks/useLiveInvalidation.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })

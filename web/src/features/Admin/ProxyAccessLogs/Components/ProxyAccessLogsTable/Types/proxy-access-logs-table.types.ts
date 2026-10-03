@@ -1,4 +1,4 @@
-import type { ProxyAccessLogEntry } from '@/shared/Types/proxy-access-logs.types.ts'
+import type { ProxyAccessLogEntry } from '@/lib/Admin/ProxyAccessLogs/Types/proxy-access-logs.types.ts'
 import type {
     ProxyAccessLogsFilters,
     ProxyAccessLogsFilterErrors,

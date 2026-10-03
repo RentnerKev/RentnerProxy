@@ -1,13 +1,8 @@
+import type { RedirectHostDomainErrorCode } from './Types/redirect-hosts-errors.types.ts'
 // oxlint-disable-next-line import/no-unassigned-import -- Marks this domain error module as server-only.
 import '@tanstack/react-start/server-only'
 
 import { mapHostDomainUniqueViolation } from '@/server/Admin/ProxyHostManagement/proxy-hosts.errors.ts'
-
-export type RedirectHostDomainErrorCode =
-    | 'domain_conflict'
-    | 'host_not_found'
-    | 'invalid_status_transition'
-    | 'invalid_input'
 
 export class RedirectHostDomainError extends Error {
     readonly code: RedirectHostDomainErrorCode

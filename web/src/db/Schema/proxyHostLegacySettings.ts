@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { jsonb, text, timestamp, uuid } from 'drizzle-orm/pg-core'
-import { rentnerProxySchema } from './base'
+import { rentnerProxySchema } from './base.ts'
 
 export const proxyHostLegacySettings = rentnerProxySchema.table('proxy_host_legacy_settings', {
     id: uuid('id')

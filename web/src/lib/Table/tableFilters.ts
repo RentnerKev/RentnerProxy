@@ -4,7 +4,7 @@ import type {
     TableDateRangeFilterValue,
     TableFilterOption,
 } from '@/shared/Table/Types/table.types.ts'
-import type { ClientTableFeatures } from '@/shared/Table/clientTable.ts'
+import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
 
 function filterTrimmedIncludesString<TData extends RowData>(
     row: Row<ClientTableFeatures, TData>,

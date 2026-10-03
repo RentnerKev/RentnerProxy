@@ -22,7 +22,7 @@ import {
     selectPreviewComment,
     validateFullSha,
 } from '../../../../../.github/scripts/pr-preview.ts'
-import type { PreviewArtifactMetadata } from '../../../../../.github/scripts/pr-preview.ts'
+import type { PreviewArtifactMetadata } from '../../../../../.github/scripts/Types/pr-preview.types.ts'
 
 const headSha = '1'.repeat(40)
 const baseSha = '2'.repeat(40)

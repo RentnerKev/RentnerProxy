@@ -4,7 +4,7 @@ import {
     MAX_REDIRECT_DESTINATION_LENGTH,
     MAX_REDIRECT_HOST_DOMAINS,
 } from '@/config/redirect-hosts.config.ts'
-import type { RedirectHostStatusCode } from '@/shared/Types/redirect-hosts-config.types.ts'
+import type { RedirectHostStatusCode } from '@/config/Types/redirect-hosts-config.types.ts'
 import {
     normalizeForwardHost,
     normalizeProxyDomain,
@@ -164,6 +164,3 @@ export const redirectHostIdInputSchema = z.object({ redirectHostId: z.uuid() })
 export const updateRedirectHostInputSchema = redirectHostFieldsSchema
     .extend(redirectHostIdInputSchema.shape)
     .transform(normalizeInput)
-
-export type CreateRedirectHostInput = z.output<typeof createRedirectHostInputSchema>
-export type UpdateRedirectHostInput = z.output<typeof updateRedirectHostInputSchema>

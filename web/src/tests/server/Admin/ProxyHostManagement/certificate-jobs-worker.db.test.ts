@@ -15,7 +15,7 @@ import {
     userRoles,
     users,
 } from '@/db/schema.ts'
-import type { RequestCertificateInput } from '@/features/Admin/CertificateManagement/validation.ts'
+import type { RequestCertificateInput } from '@/features/Admin/CertificateManagement/Types/validation.types.ts'
 import { ensureAuthorizationRegistryInTransaction } from '@/server/Auth/Access/registry.service.ts'
 import { createSessionService } from '@/server/Auth/Access/sessions.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
@@ -25,8 +25,8 @@ import { runCertificateJobsOnce } from '@/server/Admin/ProxyHostManagement/certi
 import { readCertificateJobHost } from '@/server/Admin/ProxyHostManagement/certificate-jobs.storage.server.ts'
 import { encryptSecret } from '@/server/Auth/Core/encryption.server.ts'
 import { readProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-data.ts'
-import type { ProxyRuntimeStatus } from '@/shared/Types/proxy-runtime.types.ts'
-import type { ControllerCertificateMetadata } from '@/server/Foundation/certificates.server.ts'
+import type { ProxyRuntimeStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
+import type { ControllerCertificateMetadata } from '@/server/Controller/Types/certificates.types.ts'
 import { getDatabaseUrl } from '@/server/env.server.ts'
 
 const enabled = process.env.RENTNERPROXY_DATABASE_INTEGRATION === '1' && getDatabaseUrl() !== null

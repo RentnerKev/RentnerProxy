@@ -1,3 +1,9 @@
+import type {
+    PolicyExportRow,
+    ProxyExportRow,
+    RedirectExportRow,
+    DomainExportRow,
+} from './Types/portable.types.ts'
 // oxlint-disable-next-line import/no-unassigned-import -- Portable exports and imports must stay server-side.
 import '@tanstack/react-start/server-only'
 
@@ -16,7 +22,10 @@ import {
 import { createRedirectHostInputSchema } from '@/features/Admin/RedirectHostManagement/validation.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
-import type { NpmImportPlan, NpmImportPlanItem } from '@/server/Admin/NpmImport/npm-plan.ts'
+import type {
+    NpmImportPlan,
+    NpmImportPlanItem,
+} from '@/server/Admin/NpmImport/Types/npm-plan.types.ts'
 import { finalizeImportPlan } from './import-plan.ts'
 
 export const PORTABLE_MAX_BYTES = 4 * 1024 * 1024
@@ -68,33 +77,6 @@ export class PortableSourceError extends Error {
         super(code)
     }
 }
-
-type PolicyExportRow = Pick<
-    typeof accessPolicies.$inferSelect,
-    'id' | 'name' | 'description' | 'mode' | 'ipRules'
->
-type ProxyExportRow = Pick<
-    typeof proxyHosts.$inferSelect,
-    | 'id'
-    | 'forwardScheme'
-    | 'forwardHost'
-    | 'forwardPort'
-    | 'enabled'
-    | 'forceHttps'
-    | 'verifyUpstreamTls'
-    | 'upstreamTlsServerName'
-    | 'accessPolicyId'
-    | 'certificateId'
-    | 'trustedCaId'
->
-type RedirectExportRow = Pick<
-    typeof redirectHosts.$inferSelect,
-    'id' | 'destination' | 'statusCode' | 'preserveRequestUri' | 'enabled' | 'certificateId'
->
-type DomainExportRow = Pick<
-    typeof hostDomains.$inferSelect,
-    'domain' | 'proxyHostId' | 'redirectHostId'
->
 
 export function buildPortableDocument(
     policies: readonly PolicyExportRow[],

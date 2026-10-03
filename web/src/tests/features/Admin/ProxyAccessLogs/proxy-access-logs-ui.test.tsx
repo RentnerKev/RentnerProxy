@@ -6,7 +6,7 @@ import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type {
     ProxyAccessLogsQuery,
     ProxyAccessLogsResult,
-} from '@/shared/Types/proxy-access-logs.types.ts'
+} from '@/lib/Admin/ProxyAccessLogs/Types/proxy-access-logs.types.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()

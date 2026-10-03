@@ -1,11 +1,4 @@
-export type SmtpConfiguration = Readonly<{
-    host: string
-    port: number
-    secure: boolean
-    user: string | null
-    password: string | null
-    from: string
-}>
+import type { SmtpConfiguration } from './Types/smtp-options.types.ts'
 
 export function createSmtpTransportOptions(configuration: SmtpConfiguration) {
     const hasUser = configuration.user !== null

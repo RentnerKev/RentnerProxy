@@ -5,7 +5,7 @@ import {
     proxyAccessLogsQuerySchema,
     proxyAccessLogsResultSchema,
 } from '@/features/Admin/ProxyAccessLogs/validation.ts'
-import { getProxyAccessLogs } from '@/server/Foundation/controller.server.ts'
+import { getProxyAccessLogs } from '@/server/Controller/access-logs.server.ts'
 
 const CONTROLLER_ENVIRONMENT = ['RENTNERPROXY_CONTROLLER_URL', 'RENTNERPROXY_CONTROLLER_TOKEN']
 const originalEnvironment = new Map<string, string | undefined>()

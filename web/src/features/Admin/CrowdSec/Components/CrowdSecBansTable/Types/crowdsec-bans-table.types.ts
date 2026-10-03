@@ -1,4 +1,7 @@
-import type { CrowdSecDashboard, CrowdSecDashboardQuery } from '@/shared/Types/crowdsec.types.ts'
+import type {
+    CrowdSecDashboard,
+    CrowdSecDashboardQuery,
+} from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 
 export interface CrowdSecBansTableProps {
     readonly decisions: CrowdSecDashboard['decisions']

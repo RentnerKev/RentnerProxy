@@ -1,4 +1,4 @@
-import type { AuthenticatedUser } from '@/shared/Types/auth.types.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 
 export interface AuthenticatedRouteLayoutProps {
     readonly user: AuthenticatedUser

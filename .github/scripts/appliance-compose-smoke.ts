@@ -1,3 +1,4 @@
+import type { CrowdSecMode, CrowdSecRuntimeStatus } from './Types/appliance-compose-smoke.types.ts'
 // oxlint-disable no-await-in-loop -- Readiness probes deliberately poll in a bounded sequence.
 
 import assert from 'node:assert/strict'
@@ -14,20 +15,23 @@ import {
     restoreSmokeDiagnostic,
     smokeCompose,
     smokeDockerArguments,
-} from '../../scripts/smoke-resources'
+} from '../../scripts/smoke-resources.ts'
 import {
     buildHttp3Client,
     requestHttp3Client,
     assertHttp3Response,
-} from '../../scripts/http3-client'
-import { verifyAlpha1Upgrade, verifyAlpha3Upgrade } from '../../scripts/alpha1-upgrade-smoke'
-import { seedBetaBackupState, assertBetaBackupState } from '../../scripts/beta-backup-state-smoke'
+} from '../../scripts/http3-client.ts'
+import { verifyAlpha1Upgrade, verifyAlpha3Upgrade } from '../../scripts/alpha1-upgrade-smoke.ts'
+import {
+    seedBetaBackupState,
+    assertBetaBackupState,
+} from '../../scripts/beta-backup-state-smoke.ts'
 import {
     seedAlpha4PersistenceFixture,
     readAlpha4PersistenceSnapshot,
     assertAlpha4PersistenceFixture,
     assertAlpha4PersistenceRequestDecrypts,
-} from '../../scripts/alpha4-persistence-fixture'
+} from '../../scripts/alpha4-persistence-fixture.ts'
 
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url))
 const rootComposeFile = join(repositoryRoot, 'docker-compose.yml')
@@ -258,22 +262,6 @@ async function controllerCall(
         await command(['docker', 'exec', '--user', '10001:10001', id, 'bun', '-e', source]),
     ) as { status: number; body: string }
 }
-
-type CrowdSecMode = 'disabled' | 'managed'
-
-type CrowdSecRuntimeStatus = Readonly<{
-    mode: 'disabled' | 'managed' | 'external'
-    state: 'disabled' | 'starting' | 'connected' | 'degraded'
-    apiUrl?: string
-    credentialConfigured: boolean
-    enforcementActive: boolean
-    managedEngine: 'stopped' | 'starting' | 'ready' | 'restarting' | 'degraded' | 'unavailable'
-    communityEnabled: boolean
-    communityState: 'disabled' | 'starting' | 'connected' | 'degraded'
-    consoleState: 'not_enrolled' | 'pending' | 'connected' | 'degraded'
-    failureBehavior: 'fail_open'
-    clientIpSource: 'caddy'
-}>
 
 function parseCrowdSecStatus(response: { status: number; body: string }): CrowdSecRuntimeStatus {
     assert.equal(response.status, 200)
@@ -2244,7 +2232,9 @@ async function runSmoke(): Promise<void> {
         const corruptCrowdSecArchive = await readFile(
             join(corruptArchiveFixture, 'crowdsec-state.tar'),
         )
-        corruptCrowdSecArchive[corruptCrowdSecArchive.length - 1] ^= 1
+        const lastArchiveByte = corruptCrowdSecArchive[corruptCrowdSecArchive.length - 1]
+        if (lastArchiveByte === undefined) throw new Error('CrowdSec archive is empty.')
+        corruptCrowdSecArchive[corruptCrowdSecArchive.length - 1] = lastArchiveByte ^ 1
         await writeFile(join(corruptArchiveFixture, 'crowdsec-state.tar'), corruptCrowdSecArchive)
         await assertRestorePreflightFailure(corruptArchiveFixture, 'corrupt CrowdSec archive')
 

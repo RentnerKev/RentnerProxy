@@ -1,23 +1,8 @@
-export type MailTemplate = Readonly<{
-    subject: string
-    text: string
-    html: string
-}>
-
-export type ActionMailTemplateInput = Readonly<{
-    appUrl: string
-    displayName: string
-    token: string
-}>
-
-type ActionMailDefinition = Readonly<{
-    path: '/accept-invite' | '/reset-password'
-    subject: string
-    heading: string
-    introduction: string
-    actionLabel: string
-    securityNotice: string
-}>
+import type {
+    MailTemplate,
+    ActionMailTemplateInput,
+    ActionMailDefinition,
+} from './Types/templates.types.ts'
 
 const PASSWORD_RESET_DEFINITION: ActionMailDefinition = {
     path: '/reset-password',

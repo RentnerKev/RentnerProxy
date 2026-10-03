@@ -1,6 +1,6 @@
 import type { FormEventHandler } from 'react'
 
-import type { RoleSummary, UserSummary } from '@/shared/Types/auth.types.ts'
+import type { RoleSummary, UserSummary } from '@/lib/Auth/Types/auth.types.ts'
 import type useUserFormModalLogic from '../Hooks/useUserFormModalLogic.ts'
 import type { UserFormModalProps } from '../../../Types/user-management-component-props.types.ts'
 

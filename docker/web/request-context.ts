@@ -1,12 +1,5 @@
+import type { RuntimeApplication, PeerAddressProvider } from './Types/request-context.types.ts'
 import { isIP } from 'node:net'
-
-interface RuntimeApplication {
-    fetch(request: Request): Response | Promise<Response>
-}
-
-interface PeerAddressProvider {
-    requestIP(request: Request): { readonly address: string } | null
-}
 
 export function createRuntimeFetch(application: RuntimeApplication) {
     return (request: Request, server: PeerAddressProvider): Response | Promise<Response> => {

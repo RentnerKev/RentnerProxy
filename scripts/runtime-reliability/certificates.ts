@@ -1,25 +1,15 @@
+import type { CertificateMetadata } from './Types/certificates.types.ts'
+import { metadataSchema } from './certificates.validation.ts'
+import type { CertificateState } from './Types/certificates.types.ts'
 import assert from 'node:assert/strict'
 import { X509Certificate } from 'node:crypto'
 import { chmod, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { z } from 'zod'
-import { assertHttp3Response, requestHttp3Client } from '../http3-client'
-import { ReliabilityError, type ReliabilityContext } from './harness'
+import { assertHttp3Response, requestHttp3Client } from '../http3-client.ts'
+import { ReliabilityError } from './harness.ts'
+import type { ReliabilityContext } from './Types/harness.types.ts'
 import { certificateFailureDetails } from './diagnostics.ts'
 
-const metadataSchema = z.object({
-    status: z.string(),
-    operation: z.string(),
-    fingerprint: z
-        .string()
-        .regex(/^sha256:[a-f0-9]{64}$/u)
-        .nullable(),
-    lastErrorCode: z.string().nullable(),
-    currentOperation: z.object({ id: z.string().uuid(), stage: z.string() }).nullable(),
-    candidate: z.object({ fingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/u) }).nullable(),
-})
-type CertificateMetadata = z.output<typeof metadataSchema>
-type CertificateState = { activeCaFile: string; issuanceCaFile: string; activeId: string }
 const states = new WeakMap<ReliabilityContext, CertificateState>()
 const socketPath = '/var/lib/rentnerproxy/proxy/caddy-admin.sock'
 

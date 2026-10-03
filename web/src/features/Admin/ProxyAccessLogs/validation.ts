@@ -146,5 +146,3 @@ export const proxyAccessLogsResultSchema = z
             context.addIssue({ code: 'custom', path: ['hasMore'] })
         }
     })
-
-export type ProxyAccessLogsQuery = z.input<typeof proxyAccessLogsQuerySchema>

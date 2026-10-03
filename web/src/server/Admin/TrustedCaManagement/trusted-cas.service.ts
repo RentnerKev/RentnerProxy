@@ -1,38 +1,35 @@
+import type { TrustedCaMutationResult, TrustedCaRow } from './Types/trusted-cas.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { asc, count, eq } from 'drizzle-orm'
 import type { z } from 'zod'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import { proxyHosts, trustedCas } from '@/db/schema.ts'
 import {
     createTrustedCaInputSchema,
     replaceTrustedCaInputSchema,
     trustedCaIdInputSchema,
-    type CreateTrustedCaInput,
-    type ReplaceTrustedCaInput,
 } from '@/features/Admin/TrustedCaManagement/validation.ts'
-import type { TrustedCaSummary } from '@/shared/Types/trusted-cas.types.ts'
+import type {
+    CreateTrustedCaInput,
+    ReplaceTrustedCaInput,
+} from '@/features/Admin/TrustedCaManagement/Types/validation.types.ts'
+import type { TrustedCaSummary } from '@/lib/Admin/TrustedCaManagement/Types/trusted-cas.types.ts'
 import {
     requirePermissionService,
     requireUserService,
 } from '@/server/Auth/Access/authorization.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
-import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
-import { validateControllerTrustedCa } from '@/server/Foundation/trusted-cas.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
+import { validateControllerTrustedCa } from '@/server/Controller/trusted-cas.server.ts'
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import { TrustedCaDomainError } from './trusted-cas.errors.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
-
-export type TrustedCaMutationResult = {
-    readonly trustedCaId: string
-    readonly runtimeStatus: 'applied' | 'pending'
-}
-
-type TrustedCaRow = typeof trustedCas.$inferSelect
 
 function parseInput<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
     const parsed = schema.safeParse(input)

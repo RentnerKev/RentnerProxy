@@ -1,32 +1,11 @@
-import { realtimeEventSchema, type LiveTopic, type SnapshotEvent } from './events.ts'
-
-export type LiveStatus = 'connecting' | 'connected' | 'disconnected' | 'inactive'
-
-export interface RealtimeSubscriptionOptions<T> {
-    readonly topic: LiveTopic
-    readonly query: object
-    readonly onData: (data: T) => void | Promise<void>
-    readonly onStatus?: (status: LiveStatus) => void
-    readonly onUnauthorized?: () => void
-    readonly onResume?: () => void
-}
-
-interface Listener {
-    readonly id: number
-    readonly onData: (data: unknown) => void | Promise<void>
-    readonly onStatus?: (status: LiveStatus) => void
-    readonly onUnauthorized?: () => void
-    readonly onResume?: () => void
-    subscriptionKey: string
-}
-
-interface Subscription {
-    readonly key: string
-    readonly topic: LiveTopic
-    readonly queryText: string
-    readonly query: object
-    readonly listeners: Set<Listener>
-}
+import type {
+    LiveStatus,
+    RealtimeSubscriptionOptions,
+    Listener,
+    Subscription,
+} from './Types/realtime-events-client.types.ts'
+import { realtimeEventSchema } from './events.ts'
+import type { LiveTopic, SnapshotEvent } from './Types/events.types.ts'
 
 const MIN_RECONNECT_DELAY_MS = 1000
 const MAX_RECONNECT_DELAY_MS = 30_000

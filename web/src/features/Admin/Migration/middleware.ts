@@ -6,8 +6,8 @@ import {
     getImportRunsService,
     NpmImportError,
     previewImportService,
-    type ImportSource,
 } from '@/server/Admin/NpmImport/npm-import.service.ts'
+import type { ImportSource } from '@/server/Admin/NpmImport/Types/npm-import.types.ts'
 import { NpmSourceError } from '@/server/Admin/NpmImport/npm-source.ts'
 import { withNpmSqliteUpload } from '@/server/Admin/NpmImport/npm-temp.ts'
 import { PortableSourceError } from '@/server/Admin/Migration/portable.ts'

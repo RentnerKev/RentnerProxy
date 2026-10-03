@@ -3,15 +3,15 @@ import '@tanstack/react-start/server-only'
 import { and, count, eq, inArray } from 'drizzle-orm'
 
 import { PERMISSION_REGISTRY, SYSTEM_ROLES } from '@/config/permissions.config.ts'
-import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import { FALLBACK_LANGUAGE } from '@/config/language.config.ts'
 import { parseStoredNavigationGroupPreferences } from '@/lib/Navigation/navigationPreferences.ts'
 import { DEFAULT_USER_THEME_MODE } from '@/config/theme.config.ts'
 import { isUserThemeMode } from '@/lib/Theme/themeMode.ts'
 import { permissions, rolePermissions, roles, userRoles, users, userSettings } from '@/db/schema.ts'
-import type { AuthenticatedUser } from '@/shared/Types/auth.types.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import { isAppLanguage } from '@/lib/Language/language.ts'
-import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 
 const registeredPermissionKeys = new Set<PermissionKey>(

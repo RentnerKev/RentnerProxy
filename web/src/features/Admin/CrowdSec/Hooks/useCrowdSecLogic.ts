@@ -1,9 +1,10 @@
+import type { FieldErrors } from '../Types/crowd-sec-logic.types.ts'
 import { invalidateCrowdSecConfigurationCache } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import { toast } from '@rentnerkev/toasts/toast'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
-import type { CrowdSecMode } from '@/shared/Types/crowdsec-config.types.ts'
+import type { CrowdSecMode } from '@/config/Types/crowdsec-config.types.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { getCrowdSecTransitionProgress } from '../progress.ts'
@@ -26,7 +27,6 @@ import {
     updateCrowdSecConfigurationSchema,
 } from '../validation.ts'
 
-type FieldErrors = CrowdSecPageLogic['state']['fieldErrors']
 const TRANSITION_POLL_INTERVAL_MS = 1_500
 const TRANSITION_DELAY_NOTICE_MS = 120_000
 const COMPLETION_VISIBLE_MS = 2_000

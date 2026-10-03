@@ -1,4 +1,4 @@
-import type { RoleManagementSummary } from '@/shared/Types/auth.types.ts'
+import type { RoleManagementSummary } from '@/lib/Auth/Types/auth.types.ts'
 import type { ActionMenuItem } from '@/shared/ActionMenu/Types/action-menu.types.ts'
 
 export interface RoleTableActionInputs {

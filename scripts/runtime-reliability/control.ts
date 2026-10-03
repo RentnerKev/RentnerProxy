@@ -1,13 +1,11 @@
-export type ReliabilityOptions = {
-    source: 'current' | 'alpha.6'
-    durationSeconds: number
-    iterations: number
-    concurrency: number
-    captureResources: boolean
-    seed: number
-    image?: string
-    reportPath?: string
-}
+import { resourceLimits, metrics } from './control.config.ts'
+import type { ResourceMetric, ResourceAnalysis } from './Types/control.types.ts'
+import type {
+    ReliabilityOptions,
+    ResourceSample,
+    ReliabilityFailure,
+    ReliabilityReportInput,
+} from './Types/control.types.ts'
 
 const profiles = {
     short: { durationSeconds: 120, iterations: 3 },
@@ -113,53 +111,6 @@ export function shouldContinue(
     )
 }
 
-export type ResourceSample = {
-    elapsedSeconds: number
-    phase: 'quiescent'
-    memoryBytes: number
-    cpuPercent: number
-    pids: number
-    postgresConnections: number
-    webFds: number
-    controllerFds: number
-    caddyFds: number
-    restartCount: number
-    oomKilled: boolean
-}
-
-export const resourceLimits = { memoryBytes: 1024 ** 3, pids: 512, postgresConnections: 100 }
-const metrics = [
-    'memoryBytes',
-    'cpuPercent',
-    'pids',
-    'postgresConnections',
-    'webFds',
-    'controllerFds',
-    'caddyFds',
-    'restartCount',
-] as const
-
-type ResourceMetric = (typeof metrics)[number]
-export type ResourceAnalysis = {
-    sampleCount: number
-    trendEvidence: 'insufficient' | 'comparable'
-    passed: boolean
-    violations: (
-        | 'oom'
-        | 'restart'
-        | 'memory-limit'
-        | 'pid-limit'
-        | 'connection-limit'
-        | 'memory-growth'
-        | 'connection-growth'
-        | 'fd-growth'
-        | 'telemetry-missing'
-    )[]
-    maxima: Record<ResourceMetric, number>
-    headroom: typeof resourceLimits
-    deltas: Partial<Record<ResourceMetric, number>>
-}
-
 function median(values: number[]): number {
     return values.toSorted((left, right) => left - right)[1] ?? 0
 }
@@ -239,28 +190,6 @@ export function analyzeResources(samples: ResourceSample[], concurrency: number)
         },
         deltas,
     }
-}
-
-export type ReliabilityCheck = {
-    name: 'health' | 'proxy' | 'revision' | 'restart' | 'reload' | 'rollback' | 'resources'
-    passed: boolean
-}
-export type ReliabilityFailure = {
-    stage: 'setup' | 'warmup' | 'cycle' | 'resources' | 'cleanup'
-    category: 'assertion' | 'timeout' | 'command' | 'telemetry' | 'unexpected'
-}
-export type KnownBaselineLimitation = 'alpha6-binding-retry-needs-second-request'
-export type ReliabilityReportInput = {
-    targetSha: string
-    runtimeRevision: string
-    imageIdentity: string
-    options: ReliabilityOptions
-    completedIterations: number
-    observedDurationSeconds: number
-    checks: ReliabilityCheck[]
-    samples: ResourceSample[]
-    failure?: ReliabilityFailure
-    knownLimitations?: KnownBaselineLimitation[]
 }
 
 export function buildReliabilityReport(input: ReliabilityReportInput) {

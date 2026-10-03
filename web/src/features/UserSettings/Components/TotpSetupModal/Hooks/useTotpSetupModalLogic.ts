@@ -1,3 +1,7 @@
+import type {
+    TotpSetupStep,
+    UseTotpSetupModalLogicOptions,
+} from '../Types/totp-setup-modal-logic.types.ts'
 import type { TotpSetupModalLogicResult } from '../Types/totp-setup-modal.types.ts'
 import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
@@ -5,14 +9,6 @@ import { useState } from 'react'
 import { getValidationIssue } from '@/lib/Forms/fieldErrors.ts'
 import type { TotpSetupFormValues } from '../../../Types/security.types.ts'
 import { totpCodeSchema, totpSetupFormSchema } from '../../../validation.ts'
-
-type TotpSetupStep = 'scan' | 'verify'
-
-interface UseTotpSetupModalLogicOptions {
-    readonly isPending: boolean
-    readonly onClose: () => void
-    readonly onConfirm: (code: string) => Promise<unknown>
-}
 
 export default function useTotpSetupModalLogic({
     isPending,

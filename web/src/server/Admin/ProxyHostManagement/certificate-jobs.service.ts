@@ -6,16 +6,16 @@ import { z } from 'zod'
 import { CERTIFICATE_JOB_SUCCESS_VISIBILITY_MS } from '@/config/certificate-jobs.config.ts'
 import { isCertificateJobActive } from '@/lib/CertificateJobs/stages.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import { certificates, certificateJobs, proxyHosts } from '@/db/schema.ts'
 import {
     certificateJobIdInputSchema,
     createProxyHostWithCertificateInputSchema,
     requestProxyHostCertificateInputSchema,
     updateProxyHostWithCertificateInputSchema,
-    type RequestProxyHostCertificateInput,
 } from '@/features/Admin/ProxyHostManagement/certificate-job-validation.ts'
-import type { CertificateJobSummary } from '@/shared/Types/certificate-jobs.types.ts'
+import type { RequestProxyHostCertificateInput } from '@/features/Admin/ProxyHostManagement/Types/certificate-job-validation.types.ts'
+import type { CertificateJobSummary } from '@/lib/CertificateJobs/Types/certificate-jobs.types.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
@@ -39,10 +39,12 @@ import {
     permissionsForUpdate,
     requireActorPermissions,
     requireTransactionPermissions,
-    type CreateJobInput,
-    type ParsedRequest,
-    type UpdateJobInput,
 } from './certificate-jobs.creation.ts'
+import type {
+    CreateJobInput,
+    ParsedRequest,
+    UpdateJobInput,
+} from './Types/certificate-jobs-creation.types.ts'
 import {
     certificateJobSummary,
     CertificateJobDomainError,

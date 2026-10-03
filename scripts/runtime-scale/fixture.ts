@@ -1,55 +1,16 @@
+import { inventorySchema } from './fixture.validation.ts'
+import type { Inventory, ExpectedHost } from './Types/fixture.types.ts'
 // oxlint-disable no-await-in-loop -- Bounded batches and dependent preparation serialize intentionally.
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { chmod, readFile, rm, writeFile } from 'node:fs/promises'
 import { Database } from 'bun:sqlite'
-import { z } from 'zod'
-import { runFixture, type FixtureContext } from '../runtime-reliability/fixture.ts'
+import { runFixture } from '../runtime-reliability/fixture.ts'
+import type { FixtureContext } from '../runtime-reliability/Types/fixture.types.ts'
 import { executeBetaFixture } from '../runtime-reliability/fixture-beta.ts'
 import { drainConcurrent, runBoundedTasks } from './control.ts'
-import type { UpdateProxyHostInput } from '../../web/src/features/Admin/ProxyHostManagement/validation.ts'
+import type { UpdateProxyHostInput } from '../../web/src/features/Admin/ProxyHostManagement/Types/validation.types.ts'
 import type { ProxyRuntimeSnapshot } from '../../web/src/server/ProxyRuntime/Types/proxy-runtime.types.ts'
-
-const hostSchema = z.strictObject({
-    id: z.uuid(),
-    index: z.number().int(),
-    domains: z.array(z.string()),
-    enabled: z.boolean(),
-    forwardScheme: z.enum(['http', 'https']),
-    forwardHost: z.string(),
-    forwardPort: z.number().int(),
-    certificateId: z.uuid().nullable(),
-    forceHttps: z.boolean(),
-    verifyUpstreamTls: z.boolean(),
-    upstreamTlsServerName: z.string().nullable(),
-    trustedCaId: z.uuid().nullable(),
-    accessPolicyId: z.uuid().nullable(),
-    backend: z.enum(['primary', 'secondary', 'trusted']),
-    deleted: z.boolean(),
-})
-const redirectSchema = z.strictObject({
-    id: z.uuid(),
-    index: z.number().int(),
-    domains: z.array(z.string()),
-    enabled: z.boolean(),
-    destination: z.string(),
-    statusCode: z.union([z.literal(301), z.literal(302), z.literal(307), z.literal(308)]),
-    preserveRequestUri: z.boolean(),
-    certificateId: z.uuid().nullable(),
-    deleted: z.boolean(),
-})
-const inventorySchema = z.strictObject({
-    runId: z.string(),
-    domain: z.string(),
-    certificateId: z.uuid(),
-    trustedCaId: z.uuid(),
-    hosts: z.array(hostSchema),
-    redirects: z.array(redirectSchema),
-    policies: z.array(z.strictObject({ id: z.uuid(), name: z.string(), description: z.string() })),
-    npmRuns: z.array(z.uuid()),
-})
-type Inventory = z.output<typeof inventorySchema>
-type ExpectedHost = Inventory['hosts'][number]
 
 function inventoryPath(context: FixtureContext) {
     return '/tmp/rentnerproxy-scale-' + context.command.runId + '.json'

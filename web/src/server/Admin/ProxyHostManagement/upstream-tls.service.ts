@@ -1,3 +1,4 @@
+import type { UpstreamTlsSettings, ExistingProxyHost } from './Types/upstream-tls.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { isIP } from 'node:net'
@@ -5,18 +6,8 @@ import { isIP } from 'node:net'
 import type {
     CreateProxyHostInput,
     UpdateProxyHostInput,
-} from '@/features/Admin/ProxyHostManagement/validation.ts'
+} from '@/features/Admin/ProxyHostManagement/Types/validation.types.ts'
 import { ProxyHostDomainError } from './proxy-hosts.errors.ts'
-
-export type UpstreamTlsSettings = {
-    readonly verifyUpstreamTls: boolean
-    readonly upstreamTlsServerName: string | null
-    readonly trustedCaId: string | null
-}
-
-type ExistingProxyHost = UpstreamTlsSettings & {
-    readonly forwardScheme: 'http' | 'https'
-}
 
 export function normalizeUpstreamTlsSettings(
     input: CreateProxyHostInput | UpdateProxyHostInput,

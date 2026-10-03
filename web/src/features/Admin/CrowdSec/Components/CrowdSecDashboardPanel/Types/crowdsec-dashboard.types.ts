@@ -2,7 +2,7 @@ import type {
     CrowdSecConfiguration,
     CrowdSecDashboard,
     CrowdSecDashboardQuery,
-} from '@/shared/Types/crowdsec.types.ts'
+} from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 
 export interface CrowdSecDashboardPanelProps {
     readonly configuration: CrowdSecConfiguration

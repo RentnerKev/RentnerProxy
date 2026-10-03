@@ -1,4 +1,4 @@
-import type { AuthenticatedUser } from '@/shared/Types/auth.types.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import type { UserSettingsSection } from './user-settings-section.types.ts'
 
 export interface AccountIdentityProps {

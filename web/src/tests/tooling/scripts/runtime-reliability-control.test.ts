@@ -4,11 +4,13 @@ import {
     buildReliabilityReport,
     createSeededRandom,
     parseReliabilityOptions,
-    resourceLimits,
     shouldContinue,
-    type ReliabilityReportInput,
-    type ResourceSample,
 } from '../../../../../scripts/runtime-reliability/control.ts'
+import { resourceLimits } from '../../../../../scripts/runtime-reliability/control.config.ts'
+import type {
+    ReliabilityReportInput,
+    ResourceSample,
+} from '../../../../../scripts/runtime-reliability/Types/control.types.ts'
 
 function sample(index: number, overrides: Partial<ResourceSample> = {}): ResourceSample {
     return {

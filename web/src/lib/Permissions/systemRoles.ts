@@ -1,5 +1,5 @@
 import { PERMISSIONS, PERMISSION_REGISTRY, SYSTEM_ROLES } from '@/config/permissions.config.ts'
-import type { PermissionKey, SystemRoleKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey, SystemRoleKey } from '@/config/Types/permissions-config.types.ts'
 const allPermissionKeys = PERMISSION_REGISTRY.map((permission) => permission.key)
 
 export const SYSTEM_ROLE_REGISTRY = [

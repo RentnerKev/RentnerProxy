@@ -1,18 +1,19 @@
+import type {
+    EncryptedCrowdSecApiKey,
+    StoredCrowdSecConfiguration,
+} from './Types/crowdsec-settings.types.ts'
+import { storedCrowdSecConfigurationSchema } from './crowdsec-settings.validation.ts'
 // oxlint-disable-next-line import/no-unassigned-import -- Keeps encrypted CrowdSec settings behind the server boundary.
 import '@tanstack/react-start/server-only'
 
 import { eq, sql } from 'drizzle-orm'
-import { z } from 'zod'
 
 import { CROWDSEC_SECRET_CONTEXT, CROWDSEC_SETTINGS_KEY } from '@/config/crowdsec.config.ts'
 import { systemSettings } from '@/db/schema.ts'
-import {
-    crowdSecApiUrlSchema,
-    crowdSecModeSchema,
-    type UpdateCrowdSecConfigurationInput,
-} from '@/features/Admin/CrowdSec/validation.ts'
-import type { CrowdSecControllerRequest } from '@/server/Foundation/controller.server.ts'
-import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { crowdSecApiUrlSchema } from '@/features/Admin/CrowdSec/validation.ts'
+import type { UpdateCrowdSecConfigurationInput } from '@/features/Admin/CrowdSec/Types/validation.types.ts'
+import type { CrowdSecControllerRequest } from '@/server/Controller/Types/crowdsec.types.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import {
     decodeBase64Url,
     decryptSecret,
@@ -20,29 +21,6 @@ import {
     encryptSecret,
 } from '@/server/Auth/Core/encryption.server.ts'
 import { CrowdSecDomainError } from './crowdsec.errors.ts'
-
-const encryptedApiKeySchema = z.strictObject({
-    ciphertext: z.string().min(1).max(1_024),
-    iv: z.string().min(1).max(64),
-})
-const externalConfigurationSchema = z.strictObject({
-    apiUrl: crowdSecApiUrlSchema,
-    apiKey: encryptedApiKeySchema,
-})
-const storedCrowdSecConfigurationSchema = z
-    .strictObject({
-        version: z.literal(1),
-        mode: crowdSecModeSchema,
-        communityEnabled: z.boolean().optional(),
-        external: externalConfigurationSchema.optional(),
-    })
-    .superRefine((value, context) => {
-        if (value.mode === 'external' && value.external === undefined) {
-            context.addIssue({ code: 'custom', path: ['external'], message: 'required' })
-        }
-    })
-
-export type StoredCrowdSecConfiguration = z.infer<typeof storedCrowdSecConfigurationSchema>
 
 export const DEFAULT_CROWDSEC_CONFIGURATION: StoredCrowdSecConfiguration = {
     version: 1,
@@ -131,7 +109,7 @@ async function encodeApiKey(apiKey: string) {
     }
 }
 
-async function decodeApiKey(value: z.infer<typeof encryptedApiKeySchema>): Promise<string> {
+async function decodeApiKey(value: EncryptedCrowdSecApiKey): Promise<string> {
     const ciphertext = decodeBase64Url(value.ciphertext)
     const iv = decodeBase64Url(value.iv)
     if (!ciphertext || !iv) throw new CrowdSecDomainError('configuration_unavailable')

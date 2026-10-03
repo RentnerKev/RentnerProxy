@@ -3,7 +3,7 @@ import {
     DEFAULT_USER_SETTINGS_SECTION,
     USER_SETTINGS_SECTIONS,
 } from '@/config/user-settings.config.ts'
-import type { AuthenticatedUser } from '@/shared/Types/auth.types.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 
 export function getUserSettingsSearch(search: Record<string, unknown>) {
     return {

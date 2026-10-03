@@ -1,6 +1,6 @@
-import type { Alpha4CertificateRequest, Alpha4PersistenceIds } from './types'
-import { digest, encryptRequest, uuidV7 } from './crypto'
-import { sqlJson, sqlQuote, sqlTextArray, sqlTimestamp } from './storage'
+import type { Alpha4CertificateRequest, Alpha4PersistenceIds } from './Types/persistence.types.ts'
+import { digest, encryptRequest, uuidV7 } from './crypto.ts'
+import { sqlJson, sqlQuote, sqlTextArray, sqlTimestamp } from './storage.ts'
 
 const futureAttemptAt = '2099-01-01T00:00:00.000Z'
 const futureLeaseExpiresAt = '2099-01-02T00:00:00.000Z'

@@ -3,7 +3,7 @@ import type {
     AuditActorOption,
     AuditEventDto,
     AuditResource,
-} from '@/shared/Types/audit-events.types.ts'
+} from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 import type { AuditLogsFilters, AuditLogsFilterErrors } from '../../../Types/audit-logs.types.ts'
 
 export interface AuditLogsTableProps {

@@ -1,15 +1,7 @@
+import type { DownloadFetch, ReleaseAsset } from './Types/download-geoip.types.ts'
 // oxlint-disable no-await-in-loop -- A replaced release asset needs a fresh metadata snapshot before retrying.
 import { createHash } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
-
-type DownloadFetch = (url: string, options: RequestInit) => Promise<Response>
-type ReleaseAsset = {
-    id: number
-    name: string
-    state: string
-    size: number
-    digest: string
-}
 
 const repositoryApi = 'https://api.github.com/repos/sapics/ip-location-db'
 const maximumDatabaseBytes = 64 * 1024 * 1024

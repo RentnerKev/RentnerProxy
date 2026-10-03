@@ -1,8 +1,8 @@
 import { sql } from 'drizzle-orm'
 import { boolean, index, primaryKey, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 
-import { rentnerProxySchema } from './base'
-import { users } from './users'
+import { rentnerProxySchema } from './base.ts'
+import { users } from './users.ts'
 
 export const roles = rentnerProxySchema.table(
     'roles',

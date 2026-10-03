@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 
-import type { CertificateJobStage } from '@/shared/Types/certificate-jobs-config.types.ts'
+import type { CertificateJobStage } from '@/config/Types/certificate-jobs-config.types.ts'
 import { getProxyHostTableActionItems } from '@/lib/Admin/ProxyHostManagement/proxyHostTableActions.ts'
 import type { ProxyHostTableActionsProps } from '@/features/Admin/ProxyHostManagement/Types/proxy-host-table.types.ts'
-import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
+import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 
 const host: ProxyHostSummary = {
     id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54019',

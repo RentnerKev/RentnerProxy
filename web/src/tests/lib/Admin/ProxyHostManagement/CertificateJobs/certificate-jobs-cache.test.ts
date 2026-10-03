@@ -9,7 +9,7 @@ import {
     upsertCertificateJobProgress,
 } from '@/lib/Admin/ProxyHostManagement/CertificateJobs/certificateJobsCache.ts'
 import { certificateJobProgressQueryKeys } from '@/lib/Admin/ProxyHostManagement/CertificateJobs/certificateJobsCache.ts'
-import type { CertificateJobSummary } from '@/shared/Types/certificate-jobs.types.ts'
+import type { CertificateJobSummary } from '@/lib/CertificateJobs/Types/certificate-jobs.types.ts'
 
 function job(overrides: Partial<CertificateJobSummary> = {}): CertificateJobSummary {
     return {

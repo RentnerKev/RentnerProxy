@@ -1,4 +1,4 @@
-import type { AcmeEnvironment } from '@/shared/Types/certificates-config.types.ts'
+import type { AcmeEnvironment } from '@/config/Types/certificates-config.types.ts'
 export const CERTIFICATE_SOURCES = ['manual', 'acme'] as const
 
 export const ACME_ENVIRONMENTS = ['staging', 'production'] as const
@@ -62,16 +62,3 @@ export const CERTIFICATE_ERROR_CODES = [
     'certificate_store_unavailable',
     'controller_unavailable',
 ] as const
-
-export type {
-    CertificateSource,
-    AcmeEnvironment,
-    AcmeChallengeType,
-    CertificateStoredStatus,
-    CertificateStatus,
-    CertificateOperation,
-    CertificateOperationKind,
-    CertificateOperationStage,
-    CertificateEventKind,
-    CertificateErrorCode,
-} from '@/shared/Types/certificates-config.types.ts'

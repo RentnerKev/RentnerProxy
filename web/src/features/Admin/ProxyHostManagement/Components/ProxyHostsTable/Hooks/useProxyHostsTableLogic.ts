@@ -1,3 +1,4 @@
+import type { Translate } from '../Types/proxy-hosts-table-logic.types.ts'
 import type { ProxyHostsTableLogicResult } from '../Types/table-logic.types.ts'
 import type { FilterFn } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
@@ -5,13 +6,11 @@ import { useMemo, useState } from 'react'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useClientTable from '@/shared/Table/Hooks/useClientTable.ts'
 import { createSortedUniqueFilterOptions } from '@/lib/Table/tableFilters.ts'
-import type { ClientTableFeatures } from '@/shared/Table/clientTable.ts'
+import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
 import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.ts'
-import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
+import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import type { ProxyHostsTableProps } from '../../../Types/proxy-host-table.types.ts'
 import useProxyHostsTableColumns from './useProxyHostsTableColumns.ts'
-
-type Translate = ReturnType<typeof useTranslationStore>['t']
 
 const getProxyHostRowId = (host: ProxyHostSummary) => host.id
 

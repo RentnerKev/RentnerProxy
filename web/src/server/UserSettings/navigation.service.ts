@@ -2,7 +2,7 @@ import '@tanstack/react-start/server-only'
 
 import { sql } from 'drizzle-orm'
 import { navigationGroupPreferenceInputSchema } from '@/lib/Navigation/navigationPreferences.ts'
-import type { NavigationGroupChange } from '@/shared/Types/navigation-config.types.ts'
+import type { NavigationGroupChange } from '@/config/Types/navigation-config.types.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { userSettings } from '@/db/schema.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'

@@ -96,7 +96,7 @@ Contributions must follow the repository's coding standards:
   [.oxlintrc.type-aware.json](.oxlintrc.type-aware.json): four-space indentation, single quotes,
   no semicolons, a 100-column formatting target, and the enabled correctness, suspicious-code,
   performance, React, accessibility, and type-aware Promise rules. Type checking uses
-  [web/tsconfig.json](web/tsconfig.json) and [scripts/tsconfig.json](scripts/tsconfig.json).
+  [tsconfig.json](tsconfig.json) and [tsconfig.scripts.json](tsconfig.scripts.json).
 - Rust follows the [Rust Style Guide](https://doc.rust-lang.org/style-guide/), enforced with
   `cargo fmt`, and the repository's Clippy gate with warnings denied.
 - Markdown and configuration files follow the checked-in Oxfmt configuration and existing

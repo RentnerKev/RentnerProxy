@@ -7,7 +7,7 @@ import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type {
     ProxyHttpSettings,
     ProxyHostConfigEditorData,
-} from '@/shared/Types/proxy-runtime.types.ts'
+} from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import {
     getProxyHostConfigEditorHandler,
     resetProxyHostConfigEditorHandler,

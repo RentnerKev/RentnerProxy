@@ -4,7 +4,10 @@ import type { Root } from 'react-dom/client'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
-import type { CrowdSecConfiguration, CrowdSecDashboard } from '@/shared/Types/crowdsec.types.ts'
+import type {
+    CrowdSecConfiguration,
+    CrowdSecDashboard,
+} from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 

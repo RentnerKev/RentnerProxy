@@ -6,8 +6,8 @@ import {
     createDateRangeFilter,
     createTrimmedIncludesStringFilter,
 } from '@/lib/Table/tableFilters.ts'
-import type { ClientTableFeatures } from '@/shared/Table/clientTable.ts'
-import type { RedirectHostSummary } from '@/shared/Types/redirect-hosts.types.ts'
+import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
+import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
 import RedirectHostTableActions from '../Components/RedirectHostTableActions.tsx'
 import {
     RedirectHostCertificateCell,

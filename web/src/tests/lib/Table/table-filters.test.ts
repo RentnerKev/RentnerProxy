@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import type { Row } from '@tanstack/react-table'
 
 import { createDateRangeFilter } from '@/lib/Table/tableFilters.ts'
-import type { ClientTableFeatures } from '@/shared/Table/clientTable.ts'
+import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
 import type { TableDateRangeFilterValue } from '@/shared/Table/Types/table.types.ts'
 
 type DateRow = { createdAt: string }
