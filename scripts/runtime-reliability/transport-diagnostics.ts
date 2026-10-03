@@ -30,9 +30,10 @@ export function createTrafficObserver() {
 }
 
 function classify(message: string): TransportFailureCategory {
-    if (/dial (?:tcp|udp).*i\/o timeout/u.test(message)) return 'tcp-dial-timeout'
-    if (/dial tcp.*connection refused/u.test(message)) return 'tcp-dial-refused'
     if (/no such host|lookup .* (?:timeout|failure)/u.test(message)) return 'dns-lookup'
+    if (/dial tcp.*i\/o timeout/u.test(message)) return 'tcp-dial-timeout'
+    if (/dial tcp.*connection refused/u.test(message)) return 'tcp-dial-refused'
+    if (/dial udp/u.test(message)) return 'upstream-error'
     if (/connection reset by peer/u.test(message)) return 'connection-reset'
     if (/\bEOF\b/u.test(message)) return 'unexpected-eof'
     if (/tls:|x509:/u.test(message)) return 'tls-failure'
