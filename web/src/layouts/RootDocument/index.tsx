@@ -1,14 +1,14 @@
 import useRootDocumentLogic from './Hooks/useRootDocumentLogic.ts'
 import { HeadContent, Scripts } from '@tanstack/react-router'
 
-import { SystemAccentContext } from '@/shared/Theme/systemAccentContext.ts'
+import { AccentContext } from '@/shared/Theme/accentContext.ts'
 import type { RootDocumentProps } from './Types/root-document.types.ts'
 
 export default function RootDocument({ children }: RootDocumentProps) {
     const { state, accentContext } = useRootDocumentLogic()
 
     return (
-        <SystemAccentContext.Provider value={accentContext}>
+        <AccentContext.Provider value={accentContext}>
             <html
                 lang={state.language}
                 className="group min-h-full min-w-80 [font-synthesis:none] [scrollbar-gutter:stable] [text-rendering:optimizeLegibility]"
@@ -27,6 +27,6 @@ export default function RootDocument({ children }: RootDocumentProps) {
                     <Scripts />
                 </body>
             </html>
-        </SystemAccentContext.Provider>
+        </AccentContext.Provider>
     )
 }

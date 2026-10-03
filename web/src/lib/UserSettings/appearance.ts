@@ -1,19 +1,27 @@
 import { z } from 'zod'
+
+import { USER_APPEARANCE_SETTINGS_KEY_PREFIX } from '@/config/appearance.config.ts'
+
 const accentColorSchema = z
     .string()
     .regex(/^#[\da-fA-F]{6}$/u, 'invalid_accent_color')
     .transform((value) => value.toLowerCase())
 
-export const systemAccentColorUpdateSchema = z.strictObject({
+export const userAccentColorUpdateSchema = z.strictObject({
+    expectedUserId: z.uuid(),
     accentColor: accentColorSchema.nullable(),
 })
 
-export const storedSystemAppearanceSchema = z.strictObject({
+export const storedUserAppearanceSchema = z.strictObject({
     version: z.literal(1),
     accentColor: accentColorSchema,
 })
 
-export function parseStoredSystemAppearance(input: unknown): string | null {
+export function userAppearanceSettingsKey(userId: string): string {
+    return USER_APPEARANCE_SETTINGS_KEY_PREFIX + userId
+}
+
+export function parseStoredUserAppearance(input: unknown): string | null {
     let value = input
     if (typeof value === 'string') {
         try {
@@ -22,6 +30,6 @@ export function parseStoredSystemAppearance(input: unknown): string | null {
             return null
         }
     }
-    const parsed = storedSystemAppearanceSchema.safeParse(value)
+    const parsed = storedUserAppearanceSchema.safeParse(value)
     return parsed.success ? parsed.data.accentColor : null
 }

@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, spyOn, test } from 'bun:test'
+import { afterAll, afterEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 
@@ -25,7 +25,12 @@ const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query
 const { ToastProvider } = await import('@rentnerkev/toasts')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 const { default: withTestLanguage } = await import('@/tests/Helpers/withTestLanguage.tsx')
-const { SystemAccentContext } = await import('@/shared/Theme/systemAccentContext.ts')
+const { AccentContext } = await import('@/shared/Theme/accentContext.ts')
+mock.module('@/server/Auth/Core/database.server.ts', () => ({
+    getAuthDatabase: () => {
+        throw new Error('Account navigation tests must not access a database.')
+    },
+}))
 const settingsServer = await import('@/features/UserSettings/middleware.ts')
 const securityStatus = spyOn(settingsServer, 'getSecurityStatusHandler').mockResolvedValue({
     passkeys: [],
@@ -45,17 +50,13 @@ const testUser = {
     email: 'kevin@example.test',
     id: 'user-settings-navigation-test',
     language: 'en',
-    permissions: [
-        PERMISSIONS.ACCOUNT_VIEW,
-        PERMISSIONS.ACCOUNT_UPDATE,
-        PERMISSIONS.SYSTEM_APPEARANCE_UPDATE,
-    ],
+    permissions: [PERMISSIONS.ACCOUNT_VIEW, PERMISSIONS.ACCOUNT_UPDATE],
     profileImageVersion: null,
     roles: ['Owner'],
     themeMode: 'light',
 } satisfies AuthenticatedUser
 
-const testAccent = { accentColor: '#3366cc', setAccentColor: () => undefined }
+const testAccent = { accentColor: '#3366cc' }
 
 let activeRoot: Root | null = null
 let activeQueryClient: InstanceType<typeof QueryClient> | null = null
@@ -105,9 +106,9 @@ async function render(
                 <TooltipProvider {...TOOLTIP_PROVIDER_PROPS}>
                     <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
                         <QueryClientProvider client={activeQueryClient!}>
-                            <SystemAccentContext.Provider value={testAccent}>
+                            <AccentContext.Provider value={testAccent}>
                                 <RouterProvider router={testRouter} />
-                            </SystemAccentContext.Provider>
+                            </AccentContext.Provider>
                         </QueryClientProvider>
                     </ToastProvider>
                 </TooltipProvider>,
@@ -227,7 +228,7 @@ describe('user settings navigation', () => {
         expect(changePassword).not.toHaveBeenCalled()
     })
 
-    test('keeps profile image and appearance controls behind their existing permissions', async () => {
+    test('keeps profile-image permissions while letting regular users edit their own appearance', async () => {
         const { container, router } = await render('/account?section=profile', [
             PERMISSIONS.ACCOUNT_VIEW,
         ])
@@ -243,10 +244,9 @@ describe('user settings navigation', () => {
         await waitFor(() => router.state.location.search.section === 'appearance')
         expect(activeNavigationLabel(container)).toBe('Appearance')
         expect(
-            container.querySelector('[aria-labelledby="system-appearance-heading"] form'),
-        ).toBeNull()
-        expect(container.textContent).toContain(
-            'Only administrators can change the system accent color.',
-        )
+            container.querySelector('[aria-labelledby="user-appearance-heading"] form'),
+        ).not.toBeNull()
+        expect(container.textContent).not.toContain('Only administrators')
+        expect(container.querySelector('nav')?.textContent).not.toContain('Admin')
     })
 })

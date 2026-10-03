@@ -16,6 +16,5 @@ export function getUserSettingsSearch(search: Record<string, unknown>) {
 export function getUserSettingsPageViewModel(user: AuthenticatedUser) {
     return {
         canUpdateProfileImage: user.permissions.includes(PERMISSIONS.ACCOUNT_UPDATE),
-        canUpdateSystemAppearance: user.permissions.includes(PERMISSIONS.SYSTEM_APPEARANCE_UPDATE),
     }
 }

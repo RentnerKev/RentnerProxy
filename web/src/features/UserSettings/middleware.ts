@@ -1,6 +1,7 @@
 import type { AuthActionResult } from '@/server/Auth/Types/auth-transport.types.ts'
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server'
 import { createServerFn, createServerOnlyFn } from '@tanstack/react-start'
+import { setResponseHeader } from '@tanstack/react-start/server'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { PROFILE_IMAGE_VERSION_QUERY_KEY } from '@/config/profile-image.config.ts'
@@ -37,6 +38,8 @@ import {
 import { updateCurrentUserLanguageService } from '@/server/UserSettings/language.service.ts'
 import { updateCurrentUserThemeModeService } from '@/server/UserSettings/theme.service.ts'
 import { updateCurrentUserNavigationGroupService } from '@/server/UserSettings/navigation.service.ts'
+import { updateCurrentUserAccentColorService } from '@/server/UserSettings/appearance.service.ts'
+import { userAccentColorUpdateSchema } from '@/lib/UserSettings/appearance.ts'
 import {
     enforceSensitiveLimit,
     localizedActionFailure,
@@ -45,6 +48,7 @@ import {
 import type { LanguageUpdateResult } from './Types/language-server-result.types.ts'
 import type { ThemeModeUpdateResult } from './Types/theme-server-result.types.ts'
 import type { NavigationGroupUpdateResult } from './Types/navigation-server-result.types.ts'
+import type { AccentColorUpdateResult } from './Types/appearance-server-result.types.ts'
 import {
     beginPasskeyReauthenticationInputSchema,
     changePasswordInputSchema,
@@ -61,6 +65,21 @@ import {
     updateThemeModeInputSchema,
     updateNavigationGroupInputSchema,
 } from './validation.ts'
+
+export const updateCurrentUserAccentColorHandler = createServerFn({ method: 'POST' })
+    .validator((data: unknown) => data)
+    .handler(async ({ data }): Promise<AccentColorUpdateResult> => {
+        setResponseHeader('Cache-Control', 'no-store')
+        const parsed = userAccentColorUpdateSchema.safeParse(data)
+        if (!parsed.success) {
+            return { success: false, message: 'userAppearance.errors.invalidColor' }
+        }
+        try {
+            return { success: true, ...(await updateCurrentUserAccentColorService(parsed.data)) }
+        } catch (error) {
+            return localizedActionFailure(error, 'userAppearance.errors.saveFailed')
+        }
+    })
 
 export const updateCurrentUserLanguageHandler = createServerFn({ method: 'POST' })
     .validator(updateLanguageInputSchema)

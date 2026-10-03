@@ -1,38 +1,50 @@
-import type { SystemAppearancePanelLogicResult } from '../Types/system-appearance-panel.types.ts'
+import type { UserAppearancePanelLogicResult } from '../Types/user-appearance-panel.types.ts'
 import { type PickerMessages } from '@rentnerkev/picker'
 import { toast } from '@rentnerkev/toasts/toast'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { DEFAULT_ACCENT_COLOR } from '@/config/appearance.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import { useSystemAccent } from '@/shared/Theme/systemAccentContext.ts'
-import { updateSystemAccentColorHandler } from '@/features/SystemAppearance/middleware.ts'
+import { useAccent } from '@/shared/Theme/accentContext.ts'
+import { updateCurrentUserAccentColorHandler } from '@/features/UserSettings/middleware.ts'
 
-export function useSystemAppearancePanelLogic(canUpdate: boolean) {
+export function useUserAppearancePanelLogic(userId: string) {
     const router = useRouter()
     const { language, t } = useTranslationStore()
-    const { accentColor, setAccentColor } = useSystemAccent()
+    const { accentColor } = useAccent()
     const [draftColor, setDraftColor] = useState(accentColor)
     const [isValid, setIsValid] = useState(true)
     const saveInFlight = useRef(false)
+    const isMounted = useRef(true)
+
+    useEffect(() => {
+        isMounted.current = true
+        return () => {
+            isMounted.current = false
+        }
+    }, [])
 
     const mutation = useMutation({
         mutationFn: (nextColor: string | null) =>
-            updateSystemAccentColorHandler({ data: { accentColor: nextColor } }),
-        onSuccess: (result) => {
+            updateCurrentUserAccentColorHandler({
+                data: { expectedUserId: userId, accentColor: nextColor },
+            }),
+        onSuccess: async (result) => {
             if (result.success) {
-                setAccentColor(result.accentColor)
+                if (result.userId !== userId) return
+                await router.invalidate()
                 setDraftColor(result.accentColor)
-                toast.success(t('systemAppearance.saved'), { title: t('toast.titles.success') })
-                void router.invalidate()
-            } else {
+                if (!isMounted.current) return
+                toast.success(t('userAppearance.saved'), { title: t('toast.titles.success') })
+            } else if (isMounted.current) {
                 toast.error(t(result.message), { title: t('toast.titles.error') })
             }
         },
         onError: () => {
-            toast.error(t('systemAppearance.errors.saveFailed'), {
+            if (!isMounted.current) return
+            toast.error(t('userAppearance.errors.saveFailed'), {
                 title: t('toast.titles.error'),
             })
         },
@@ -42,24 +54,24 @@ export function useSystemAppearancePanelLogic(canUpdate: boolean) {
     })
 
     const pickerMessages: Partial<PickerMessages> = {
-        required: t('systemAppearance.picker.required'),
-        invalidColor: t('systemAppearance.picker.invalidColor'),
-        eyeDropper: t('systemAppearance.picker.eyeDropper'),
-        closePicker: t('systemAppearance.picker.closePicker'),
-        colorArea: t('systemAppearance.picker.colorArea'),
-        colorAreaInstructions: t('systemAppearance.picker.colorAreaInstructions'),
+        required: t('userAppearance.picker.required'),
+        invalidColor: t('userAppearance.picker.invalidColor'),
+        eyeDropper: t('userAppearance.picker.eyeDropper'),
+        closePicker: t('userAppearance.picker.closePicker'),
+        colorArea: t('userAppearance.picker.colorArea'),
+        colorAreaInstructions: t('userAppearance.picker.colorAreaInstructions'),
         colorAreaValue: (saturation, value) =>
-            t('systemAppearance.picker.colorAreaValue', { saturation, value }),
-        hue: t('systemAppearance.picker.hue'),
-        selectColor: t('systemAppearance.picker.selectColor'),
-        presetColor: (color) => t('systemAppearance.picker.presetColor', { color }),
+            t('userAppearance.picker.colorAreaValue', { saturation, value }),
+        hue: t('userAppearance.picker.hue'),
+        selectColor: t('userAppearance.picker.selectColor'),
+        presetColor: (color) => t('userAppearance.picker.presetColor', { color }),
     }
     const isSaving = mutation.isPending
     const isDirty = draftColor !== accentColor
-    const canSave = canUpdate && isValid && !!draftColor && isDirty && !isSaving
+    const canSave = isValid && !!draftColor && isDirty && !isSaving
 
     function save(nextColor: string | null) {
-        if (!canUpdate || saveInFlight.current || isSaving) return
+        if (saveInFlight.current || isSaving) return
         saveInFlight.current = true
         mutation.mutate(nextColor)
     }
@@ -87,5 +99,5 @@ export function useSystemAppearancePanelLogic(canUpdate: boolean) {
             handleReset: () => save(null),
         },
         setter: { setDraftColor, setIsValid },
-    } satisfies SystemAppearancePanelLogicResult
+    } satisfies UserAppearancePanelLogicResult
 }

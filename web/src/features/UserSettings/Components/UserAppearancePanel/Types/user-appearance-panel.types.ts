@@ -1,7 +1,7 @@
 import type { FormEventHandler } from 'react'
 import type { PickerMessages } from '@rentnerkev/picker'
 
-export interface SystemAppearancePanelLogicResult {
+export interface UserAppearancePanelLogicResult {
     state: {
         accentColor: string
         canSave: boolean
@@ -17,4 +17,8 @@ export interface SystemAppearancePanelLogicResult {
         handleReset: () => void
     }
     setter: { setDraftColor: (value: string) => void; setIsValid: (value: boolean) => void }
+}
+
+export interface UserAppearancePanelProps {
+    readonly userId: string
 }

@@ -283,16 +283,14 @@
             "label": "Navegação das definições do utilizador",
             "groups": {
                 "profile": "Perfil",
-                "signIn": "Início de sessão",
-                "system": "Sistema"
+                "signIn": "Início de sessão"
             },
             "profile": "O meu perfil",
             "language": "Idioma",
             "password": "Palavra-passe",
             "twoFactor": "Dois fatores",
             "passkeys": "Chaves de acesso",
-            "appearance": "Aspeto",
-            "admin": "Admin"
+            "appearance": "Aspeto"
         },
         "page": {
             "eyebrow": "A sua conta",
@@ -2370,7 +2368,6 @@
             "access_policies": "Políticas de acesso",
             "proxy-access-logs": "Registos de acesso do proxy",
             "crowdsec": "CrowdSec",
-            "system_appearance": "Aspeto do sistema",
             "audit-logs": "Registo de auditoria",
             "system": "Sistema",
             "default_site": "Site predefinido"
@@ -2435,9 +2432,6 @@
         "crowdsec": {
             "view": "Ver configuração do CrowdSec",
             "update": "Atualizar configuração do CrowdSec"
-        },
-        "system_appearance": {
-            "update": "Atualizar o aspeto do sistema"
         },
         "audit-logs:view": "Ver registo de auditoria",
         "system": {
@@ -2526,9 +2520,9 @@
         "hours": "Horas",
         "minutes": "Minutos"
     },
-    "systemAppearance": {
-        "title": "Aspeto do sistema",
-        "description": "Personalize a interface com a cor de destaque que prefere.",
+    "userAppearance": {
+        "title": "Aspeto pessoal",
+        "description": "A tua cor de destaque aplica-se apenas à tua conta após iniciares sessão. As páginas públicas e a página de início de sessão mantêm o verde predefinido.",
         "current": "Cor de destaque atual",
         "default": "Cor predefinida",
         "label": "Cor de destaque",
@@ -2536,8 +2530,7 @@
         "preview": "Pré-visualização",
         "previewButton": "Botão de pré-visualização",
         "reset": "Repor predefinição",
-        "adminOnly": "Só os administradores podem alterar a cor de destaque do sistema.",
-        "saved": "Cor de destaque guardada.",
+        "saved": "Cor de destaque guardada para a tua conta.",
         "errors": {
             "invalidColor": "Introduza uma cor válida.",
             "saveFailed": "Não foi possível guardar a cor de destaque.",

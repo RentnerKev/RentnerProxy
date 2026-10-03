@@ -283,16 +283,14 @@
             "label": "Benutzereinstellungen",
             "groups": {
                 "profile": "Profil",
-                "signIn": "Anmeldung",
-                "system": "System"
+                "signIn": "Anmeldung"
             },
             "profile": "Mein Profil",
             "language": "Sprache",
             "password": "Passwort",
             "twoFactor": "Zwei-Faktor",
             "passkeys": "Passkeys",
-            "appearance": "Darstellung",
-            "admin": "Admin"
+            "appearance": "Darstellung"
         },
         "page": {
             "eyebrow": "Dein Konto",
@@ -2344,7 +2342,6 @@
             "access_policies": "Zugriffsrichtlinien",
             "proxy-access-logs": "Proxy-Zugriffsprotokolle",
             "crowdsec": "CrowdSec",
-            "system_appearance": "Systemdarstellung",
             "audit-logs": "Audit-Protokoll",
             "system": "System",
             "default_site": "Standardseite"
@@ -2409,9 +2406,6 @@
         "crowdsec": {
             "view": "CrowdSec-Konfiguration anzeigen",
             "update": "CrowdSec-Konfiguration aktualisieren"
-        },
-        "system_appearance": {
-            "update": "Systemdarstellung ändern"
         },
         "audit-logs:view": "Audit-Protokoll anzeigen",
         "system": {
@@ -2500,9 +2494,9 @@
         "hours": "Stunden",
         "minutes": "Minuten"
     },
-    "systemAppearance": {
-        "title": "Systemdarstellung",
-        "description": "Passen Sie die Oberfläche mit Ihrer bevorzugten Akzentfarbe an.",
+    "userAppearance": {
+        "title": "Persönliche Darstellung",
+        "description": "Deine Akzentfarbe gilt nach der Anmeldung nur für dein Konto. Öffentliche Seiten und die Anmeldung behalten das Standardgrün.",
         "current": "Aktuelle Akzentfarbe",
         "default": "Standardfarbe",
         "label": "Akzentfarbe",
@@ -2510,8 +2504,7 @@
         "preview": "Vorschau",
         "previewButton": "Vorschau-Schaltfläche",
         "reset": "Auf Standard zurücksetzen",
-        "adminOnly": "Nur Administratoren können die Systemakzentfarbe ändern.",
-        "saved": "Akzentfarbe gespeichert.",
+        "saved": "Akzentfarbe für dein Konto gespeichert.",
         "errors": {
             "invalidColor": "Geben Sie eine gültige Farbe ein.",
             "saveFailed": "Die Akzentfarbe konnte nicht gespeichert werden.",

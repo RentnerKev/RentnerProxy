@@ -283,16 +283,14 @@
             "label": "Nawigacja ustawień użytkownika",
             "groups": {
                 "profile": "Profil",
-                "signIn": "Logowanie",
-                "system": "System"
+                "signIn": "Logowanie"
             },
             "profile": "Mój profil",
             "language": "Język",
             "password": "Hasło",
             "twoFactor": "Uwierzytelnianie dwuskładnikowe",
             "passkeys": "Klucze dostępu",
-            "appearance": "Wygląd",
-            "admin": "Administracja"
+            "appearance": "Wygląd"
         },
         "page": {
             "eyebrow": "Twoje konto",
@@ -2370,7 +2368,6 @@
             "access_policies": "Zasady dostępu",
             "proxy-access-logs": "Dzienniki dostępu proxy",
             "crowdsec": "CrowdSec",
-            "system_appearance": "Wygląd systemu",
             "audit-logs": "Dziennik audytu",
             "system": "System",
             "default_site": "Witryna domyślna"
@@ -2435,9 +2432,6 @@
         "crowdsec": {
             "view": "Wyświetlanie konfiguracji CrowdSec",
             "update": "Aktualizowanie konfiguracji CrowdSec"
-        },
-        "system_appearance": {
-            "update": "Aktualizowanie wyglądu systemu"
         },
         "audit-logs:view": "Wyświetlanie dziennika audytu",
         "system": {
@@ -2526,9 +2520,9 @@
         "hours": "Godziny",
         "minutes": "Minuty"
     },
-    "systemAppearance": {
-        "title": "Wygląd systemu",
-        "description": "Dostosuj interfejs za pomocą wybranego koloru akcentu.",
+    "userAppearance": {
+        "title": "Osobisty wygląd",
+        "description": "Twój kolor akcentu dotyczy tylko Twojego konta po zalogowaniu. Strony publiczne i strona logowania zachowują domyślną zieleń.",
         "current": "Bieżący kolor akcentu",
         "default": "Kolor domyślny",
         "label": "Kolor akcentu",
@@ -2536,8 +2530,7 @@
         "preview": "Podgląd",
         "previewButton": "Przycisk podglądu",
         "reset": "Przywróć kolor domyślny",
-        "adminOnly": "Kolor akcentu systemu mogą zmieniać tylko administratorzy.",
-        "saved": "Kolor akcentu został zapisany.",
+        "saved": "Kolor akcentu zapisany dla Twojego konta.",
         "errors": {
             "invalidColor": "Wpisz prawidłowy kolor.",
             "saveFailed": "Nie udało się zapisać koloru akcentu.",

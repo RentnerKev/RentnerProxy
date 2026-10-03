@@ -283,16 +283,14 @@
             "label": "Paramètres utilisateur",
             "groups": {
                 "profile": "Profil",
-                "signIn": "Connexion",
-                "system": "Système"
+                "signIn": "Connexion"
             },
             "profile": "Mon profil",
             "language": "Langue",
             "password": "Mot de passe",
             "twoFactor": "2FA",
             "passkeys": "Clés d’accès",
-            "appearance": "Apparence",
-            "admin": "Admin"
+            "appearance": "Apparence"
         },
         "page": {
             "eyebrow": "Votre compte",
@@ -2344,7 +2342,6 @@
             "access_policies": "Politiques d’accès",
             "proxy-access-logs": "Journaux d’accès du proxy",
             "crowdsec": "CrowdSec",
-            "system_appearance": "Apparence du système",
             "audit-logs": "Journal d’audit",
             "system": "Système",
             "default_site": "Site par défaut"
@@ -2409,9 +2406,6 @@
         "crowdsec": {
             "view": "Afficher la configuration CrowdSec",
             "update": "Modifier la configuration CrowdSec"
-        },
-        "system_appearance": {
-            "update": "Modifier l’apparence du système"
         },
         "audit-logs:view": "Afficher le journal d’audit",
         "system": {
@@ -2500,9 +2494,9 @@
         "hours": "Heures",
         "minutes": "Minutes"
     },
-    "systemAppearance": {
-        "title": "Apparence du système",
-        "description": "Personnalisez l’interface avec la couleur d’accent de votre choix.",
+    "userAppearance": {
+        "title": "Apparence personnelle",
+        "description": "Votre couleur d’accent s’applique uniquement à votre compte après connexion. Les pages publiques et la page de connexion conservent le vert par défaut.",
         "current": "Couleur d’accent actuelle",
         "default": "Couleur par défaut",
         "label": "Couleur d’accent",
@@ -2510,8 +2504,7 @@
         "preview": "Aperçu",
         "previewButton": "Bouton d’aperçu",
         "reset": "Rétablir la couleur par défaut",
-        "adminOnly": "Seuls les administrateurs peuvent modifier la couleur d’accent du système.",
-        "saved": "Couleur d’accent enregistrée.",
+        "saved": "Couleur d’accent enregistrée pour votre compte.",
         "errors": {
             "invalidColor": "Saisissez une couleur valide.",
             "saveFailed": "Impossible d’enregistrer la couleur d’accent.",

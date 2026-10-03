@@ -6,7 +6,7 @@ import AccountIdentity from './Components/AccountIdentity.tsx'
 import ChangePasswordPanel from './Components/ChangePasswordPanel/index.tsx'
 import LanguageSettingsPanel from './Components/LanguageSettingsPanel/index.tsx'
 import ProfileImagePanel from './Components/ProfileImagePanel/index.tsx'
-import SystemAppearancePanel from './Components/SystemAppearancePanel/index.tsx'
+import UserAppearancePanel from './Components/UserAppearancePanel/index.tsx'
 import SecuritySettingsPanel from './Components/SecuritySettingsPanel/index.tsx'
 import UserSettingsNavigation from './Components/UserSettingsNavigation.tsx'
 import { getUserSettingsPageViewModel } from '@/lib/UserSettings/userSettingsPage.ts'
@@ -53,7 +53,7 @@ export default function UserSettingsPage({ user, activeSection }: UserSettingsPa
                         />
                     </Activity>
                     <Activity mode={activeSection === 'appearance' ? 'visible' : 'hidden'}>
-                        <SystemAppearancePanel canUpdate={viewModel.canUpdateSystemAppearance} />
+                        <UserAppearancePanel key={user.id} userId={user.id} />
                     </Activity>
                 </div>
             </div>

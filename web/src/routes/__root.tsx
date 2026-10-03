@@ -2,8 +2,6 @@ import { createRootRoute } from '@tanstack/react-router'
 
 import RootLayout from '@/layouts/RootLayout/index.tsx'
 import RootDocument from '@/layouts/RootDocument/index.tsx'
-import { DEFAULT_ACCENT_COLOR } from '@/config/appearance.config.ts'
-import { getSystemAccentColorHandler } from '@/features/SystemAppearance/middleware.ts'
 import { isCspNonce } from '@/lib/Security/cspNonce.ts'
 // oxlint-disable-next-line import/no-unassigned-import -- Vite collects the stylesheet into the production asset manifest.
 import '@/styles.css'
@@ -19,15 +17,9 @@ function readCspNonce(context: unknown): string | undefined {
 }
 
 export const Route = createRootRoute({
-    beforeLoad: async (context) => {
+    beforeLoad: (context) => {
         const cspNonce = readCspNonce(context)
-        let accentColor = DEFAULT_ACCENT_COLOR
-        try {
-            accentColor = (await getSystemAccentColorHandler()).accentColor
-        } catch {
-            // Keep document rendering available if the optional appearance setting cannot load.
-        }
-        return { accentColor, ...(cspNonce ? { cspNonce } : {}) }
+        return cspNonce ? { cspNonce } : {}
     },
     head: () => ({
         links: [{ rel: 'icon', type: 'image/png', href: '/rentnerproxy-logo.png' }],

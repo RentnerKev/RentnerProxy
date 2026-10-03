@@ -283,16 +283,14 @@
             "label": "Configuración de usuario",
             "groups": {
                 "profile": "Perfil",
-                "signIn": "Inicio de sesión",
-                "system": "Sistema"
+                "signIn": "Inicio de sesión"
             },
             "profile": "Mi perfil",
             "language": "Idioma",
             "password": "Contraseña",
             "twoFactor": "Dos factores",
             "passkeys": "Claves de acceso",
-            "appearance": "Apariencia",
-            "admin": "Admin"
+            "appearance": "Apariencia"
         },
         "page": {
             "eyebrow": "Tu cuenta",
@@ -2344,7 +2342,6 @@
             "access_policies": "Políticas de acceso",
             "proxy-access-logs": "Registros de acceso del proxy",
             "crowdsec": "CrowdSec",
-            "system_appearance": "Apariencia del sistema",
             "audit-logs": "Registro de auditoría",
             "system": "Sistema",
             "default_site": "Sitio predeterminado"
@@ -2409,9 +2406,6 @@
         "crowdsec": {
             "view": "Ver la configuración de CrowdSec",
             "update": "Actualizar la configuración de CrowdSec"
-        },
-        "system_appearance": {
-            "update": "Modificar la apariencia del sistema"
         },
         "audit-logs:view": "Ver el registro de auditoría",
         "system": {
@@ -2500,9 +2494,9 @@
         "hours": "Horas",
         "minutes": "Minutos"
     },
-    "systemAppearance": {
-        "title": "Apariencia del sistema",
-        "description": "Personaliza la interfaz con tu color de acento preferido.",
+    "userAppearance": {
+        "title": "Apariencia personal",
+        "description": "Tu color de acento se aplica solo a tu cuenta después de iniciar sesión. Las páginas públicas y el inicio de sesión conservan el verde predeterminado.",
         "current": "Color de acento actual",
         "default": "Color predeterminado",
         "label": "Color de acento",
@@ -2510,8 +2504,7 @@
         "preview": "Vista previa",
         "previewButton": "Botón de ejemplo",
         "reset": "Restablecer valor predeterminado",
-        "adminOnly": "Solo los administradores pueden cambiar el color de acento del sistema.",
-        "saved": "Color de acento guardado.",
+        "saved": "Color de acento guardado para tu cuenta.",
         "errors": {
             "invalidColor": "Introduce un color válido.",
             "saveFailed": "No se pudo guardar el color de acento.",
