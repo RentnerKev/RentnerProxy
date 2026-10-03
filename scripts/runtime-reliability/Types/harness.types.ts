@@ -1,4 +1,5 @@
 import type { ReliabilityOptions, ReliabilityCheck } from './control.types.ts'
+import type { TrafficDiagnostic } from './fixture-transport.types.ts'
 
 export type CommandOptions = {
     diagnostic?: 'pebble-problems'
@@ -6,6 +7,7 @@ export type CommandOptions = {
     stdin?: string
     env?: Record<string, string>
     acceptableExitCodes?: number[]
+    includeStderr?: boolean
 }
 
 export type FixtureResult = Record<string, any>
@@ -26,7 +28,10 @@ export type ReliabilityContext = {
         domain?: string,
         path?: string,
         headers?: Record<string, string>,
+        route?: number,
     ) => Promise<{ status: number; headers: Headers; body: FixtureResult }>
+    captureTrafficDiagnostic: (stage: string, category: string) => Promise<TrafficDiagnostic>
+    startFixtureTls: () => Promise<number>
     runId: string
     container: string
     network: string

@@ -366,7 +366,7 @@ async function create(context: FixtureContext) {
             domains,
             enabled: true,
             forwardScheme: 'http' as const,
-            forwardHost: 'host.docker.internal',
+            forwardHost: context.command.upstreamHost,
             forwardPort: context.command.upstreamPort,
             certificateId: index % 10 === 0 ? inventory.certificateId : null,
             forceHttps: false,
@@ -562,11 +562,12 @@ async function npmImport(context: FixtureContext, inventory: Inventory) {
         for (let index = 0; index < count; index += 1) {
             sqlite
                 .query(
-                    "insert into proxy_host (id,domain_names,forward_scheme,forward_host,forward_port) values (?,?,'http','host.docker.internal',?)",
+                    "insert into proxy_host (id,domain_names,forward_scheme,forward_host,forward_port) values (?,?,'http',?,?)",
                 )
                 .run(
                     index + 1,
                     JSON.stringify(['npm-h' + index + '.scale-' + context.domain]),
+                    context.command.upstreamHost,
                     context.command.upstreamPort,
                 )
             sqlite
@@ -633,7 +634,7 @@ async function npmImport(context: FixtureContext, inventory: Inventory) {
                     domains: [...item.domains],
                     enabled: true,
                     forwardScheme: 'http',
-                    forwardHost: 'host.docker.internal',
+                    forwardHost: context.command.upstreamHost,
                     forwardPort: context.command.upstreamPort,
                     certificateId: null,
                     forceHttps: false,

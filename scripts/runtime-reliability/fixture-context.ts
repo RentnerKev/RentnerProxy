@@ -177,7 +177,7 @@ export async function createFixtureContext(command: FixtureCommand) {
         domains: [domain],
         enabled: true,
         forwardScheme: 'http' as const,
-        forwardHost: 'host.docker.internal',
+        forwardHost: command.upstreamHost,
         forwardPort: command.upstreamPort,
     }
     async function save() {

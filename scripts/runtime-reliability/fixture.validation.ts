@@ -38,6 +38,7 @@ export const commandSchema = z.strictObject({
         'scale-npm-import',
     ]),
     upstreamPort: z.number().int().min(1).max(65535),
+    upstreamHost: z.enum(['fixture-upstream', 'host.docker.internal']).default('fixture-upstream'),
     secondaryPort: z.number().int().min(1).max(65535),
     iteration: z.number().int().min(0).max(10000).default(0),
     concurrency: z.number().int().min(1).max(8).default(1),
