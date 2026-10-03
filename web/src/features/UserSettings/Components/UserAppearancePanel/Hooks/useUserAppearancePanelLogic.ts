@@ -34,8 +34,9 @@ export function useUserAppearancePanelLogic(userId: string) {
         onSuccess: async (result) => {
             if (result.success) {
                 if (result.userId !== userId) return
-                await router.invalidate()
-                setDraftColor(result.accentColor)
+                if (isMounted.current) setDraftColor(result.accentColor)
+                // Persistence succeeded; a route refresh failure must not turn it into a save error.
+                await router.invalidate().catch(() => undefined)
                 if (!isMounted.current) return
                 toast.success(t('userAppearance.saved'), { title: t('toast.titles.success') })
             } else if (isMounted.current) {
