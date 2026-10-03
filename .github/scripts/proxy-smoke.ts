@@ -392,8 +392,8 @@ async function runSmoke(): Promise<void> {
         ])
         const database = getAuthDatabase()
         closeDatabase = () => database.$client.close()
-        stopReconciliation = runtime.stopProxyRuntimeReconciliation
-        stopCrowdSecReconciliation = crowdSecServices.stopCrowdSecReconciliation
+        stopReconciliation = runtime.reconcileProxyConfigurationService.stop
+        stopCrowdSecReconciliation = crowdSecServices.reconcileCrowdSecConfiguration.stop
         await database.transaction(authorizationRegistry.ensureAuthorizationRegistryInTransaction)
 
         await waitFor(
@@ -1616,7 +1616,7 @@ async function runSmoke(): Promise<void> {
             services.createProxyHostService({ ...hostInput, domains: ['startup.test'] }),
         )
         assert.equal(startupPending.runtimeStatus, 'pending')
-        await runtime.stopProxyRuntimeReconciliation()
+        await runtime.reconcileProxyConfigurationService.stop()
         await command([...compose, 'start', 'proxy-runtime'])
         await refreshRuntimeAddresses()
 
@@ -1639,7 +1639,7 @@ const initialActiveRevision = (await controller.getProxyRuntimeStatus())?.active
 let firstDesiredRevision = null;
 let latestDesiredRevision = null;
 let latestActive = null;
-runtime.startProxyRuntimeReconciliation();
+runtime.reconcileProxyConfigurationService.start();
 try {
     const deadline = Date.now() + 75000;
     let synced = false;
@@ -1660,7 +1660,7 @@ try {
         throw new Error('Startup reconciliation did not converge.');
     }
 } finally {
-    await runtime.stopProxyRuntimeReconciliation();
+    await runtime.reconcileProxyConfigurationService.stop();
     await getAuthDatabase().$client.close();
 }
 `,

@@ -27,9 +27,9 @@ if (typeof window === 'undefined') startRealtimeEvents()
 const startProxyRuntimeLifecycle = createServerOnlyFn(async () => {
     let stop: (() => Promise<void>) | null = null
     const initializing = import('@/server/ProxyRuntime/proxy-runtime.service.ts').then(
-        ({ startProxyRuntimeReconciliation, stopProxyRuntimeReconciliation }) => {
-            stop = stopProxyRuntimeReconciliation
-            startProxyRuntimeReconciliation()
+        ({ reconcileProxyConfigurationService }) => {
+            stop = reconcileProxyConfigurationService.stop
+            reconcileProxyConfigurationService.start()
         },
     )
 
@@ -44,9 +44,9 @@ if (typeof window === 'undefined') void startProxyRuntimeLifecycle()
 const startCrowdSecRuntimeLifecycle = createServerOnlyFn(async () => {
     let stop: (() => Promise<void>) | null = null
     const initializing = import('@/server/Admin/CrowdSec/crowdsec.service.ts').then(
-        ({ startCrowdSecReconciliation, stopCrowdSecReconciliation }) => {
-            stop = stopCrowdSecReconciliation
-            startCrowdSecReconciliation()
+        ({ reconcileCrowdSecConfiguration }) => {
+            stop = reconcileCrowdSecConfiguration.stop
+            reconcileCrowdSecConfiguration.start()
         },
     )
 

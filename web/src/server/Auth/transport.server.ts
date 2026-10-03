@@ -223,6 +223,6 @@ export async function waitForResetTimingFloor(startedAt: number): Promise<void> 
     const remaining = MINIMUM_RESET_RESPONSE_MS - (Date.now() - startedAt)
 
     if (remaining > 0) {
-        await new Promise((resolve) => setTimeout(resolve, remaining))
+        await Bun.sleep(remaining)
     }
 }

@@ -1,5 +1,4 @@
 import type { Command, Alpha1UpgradeFixture } from './Types/alpha1-upgrade-fixture.types.ts'
-import { randomBytes } from 'node:crypto'
 import migrationJournal from '../web/drizzle/meta/_journal.json'
 
 export const ALPHA1_MIGRATION_COUNT = 13
@@ -17,21 +16,6 @@ function shellQuote(value: string): string {
 
 function sqlQuote(value: string): string {
     return "'" + value.replaceAll("'", "''") + "'"
-}
-
-function uuidV7(): string {
-    const bytes = randomBytes(16)
-    const timestamp = BigInt(Date.now())
-    bytes[0] = Number((timestamp >> 40n) & 0xffn)
-    bytes[1] = Number((timestamp >> 32n) & 0xffn)
-    bytes[2] = Number((timestamp >> 24n) & 0xffn)
-    bytes[3] = Number((timestamp >> 16n) & 0xffn)
-    bytes[4] = Number((timestamp >> 8n) & 0xffn)
-    bytes[5] = Number(timestamp & 0xffn)
-    bytes[6] = (bytes[6]! & 0x0f) | 0x70
-    bytes[8] = (bytes[8]! & 0x3f) | 0x80
-    const hex = bytes.toString('hex')
-    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
 function validateRunId(runId: string): void {
@@ -229,16 +213,16 @@ export async function seedAlpha1UpgradeFixture(input: {
     const redirectDomain = `redirect-alpha1-${input.runId}.test`
     const redirectDestination = `http://${hostDomain}/migrated`
     const redirectStatus = 302
-    const ownerUserId = uuidV7()
-    const adminUserId = uuidV7()
-    const customUserId = uuidV7()
-    const customRoleId = uuidV7()
+    const ownerUserId = Bun.randomUUIDv7()
+    const adminUserId = Bun.randomUUIDv7()
+    const customUserId = Bun.randomUUIDv7()
+    const customRoleId = Bun.randomUUIDv7()
     const customRoleKey = `alpha1_custom_${input.runId}`
-    const liveProxyHostId = uuidV7()
-    const disabledTlsProxyHostId = uuidV7()
-    const redirectHostId = uuidV7()
-    const certificateId = uuidV7()
-    const trustedCaId = uuidV7()
+    const liveProxyHostId = Bun.randomUUIDv7()
+    const disabledTlsProxyHostId = Bun.randomUUIDv7()
+    const redirectHostId = Bun.randomUUIDv7()
+    const certificateId = Bun.randomUUIDv7()
+    const trustedCaId = Bun.randomUUIDv7()
     const globalHttpSettings = {
         clientMaxBodySizeBytes: 1_048_576,
         proxyConnectTimeoutSeconds: 11,

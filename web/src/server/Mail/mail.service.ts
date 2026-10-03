@@ -3,8 +3,7 @@ import '@tanstack/react-start/server-only'
 
 import { createTransport } from 'nodemailer'
 
-import { getSmtpConfiguration } from '@/server/env.server.ts'
-import { getRuntimeManagementOrigin } from '@/server/Configuration/management-origin.server.ts'
+import { getPublicOrigin, getSmtpConfiguration } from '@/server/env.server.ts'
 import { createSmtpTransportOptions } from './smtp-options.ts'
 import { createPasswordResetEmailTemplate, createUserInviteEmailTemplate } from './templates.ts'
 import type { MailTemplate } from './Types/templates.types.ts'
@@ -38,7 +37,7 @@ function getMailClient(): MailClient {
 }
 
 async function getRequiredPublicOrigin(): Promise<string> {
-    const publicOrigin = await getRuntimeManagementOrigin()
+    const publicOrigin = getPublicOrigin()
 
     if (!publicOrigin) {
         throw new Error('RENTNERPROXY_PUBLIC_ORIGIN is not configured.')

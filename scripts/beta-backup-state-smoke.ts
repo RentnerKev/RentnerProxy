@@ -2,7 +2,6 @@ import type { ImportResult, BetaBackupStateFixture } from './Types/beta-backup-s
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 
-import { uuidV7 } from './alpha4-persistence/crypto.ts'
 import { psql, sqlJson, sqlQuote } from './alpha4-persistence/storage.ts'
 import type { Command } from './Types/alpha1-upgrade-fixture.types.ts'
 import { forwardAuthInputSchema } from '../web/src/lib/ForwardAuth/forwardAuth.ts'
@@ -40,8 +39,8 @@ export async function seedBetaBackupState(input: {
         skipped: 1,
         failed: 0,
     }
-    const forwardAuthPolicyId = uuidV7()
-    const importerRunId = uuidV7()
+    const forwardAuthPolicyId = Bun.randomUUIDv7()
+    const importerRunId = Bun.randomUUIDv7()
     const sourceFingerprint = createHash('sha256')
         .update('beta-backup-state:' + input.runId)
         .digest('hex')

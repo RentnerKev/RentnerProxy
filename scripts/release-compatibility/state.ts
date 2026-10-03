@@ -1,7 +1,6 @@
 import type { PolicyFixture } from './Types/state.types.ts'
 import assert from 'node:assert/strict'
 
-import { uuidV7 } from '../alpha4-persistence/crypto.ts'
 import { psql, sqlJson, sqlQuote } from '../alpha4-persistence/storage.ts'
 import type { Command } from '../Types/alpha1-upgrade-fixture.types.ts'
 
@@ -11,10 +10,10 @@ export async function seedPolicyFixture(input: {
     readonly runId: string
     readonly upstreamPort: number
 }): Promise<PolicyFixture> {
-    const basicPolicyId = uuidV7()
-    const ipPolicyId = uuidV7()
-    const basicHostId = uuidV7()
-    const ipHostId = uuidV7()
+    const basicPolicyId = Bun.randomUUIDv7()
+    const ipPolicyId = Bun.randomUUIDv7()
+    const basicHostId = Bun.randomUUIDv7()
+    const ipHostId = Bun.randomUUIDv7()
     const basicDomain = `basic-${input.runId}.test`
     const ipDomain = `ip-${input.runId}.test`
     const username = 'upgrade-fixture'

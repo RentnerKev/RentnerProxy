@@ -24,7 +24,7 @@ import {
     recordAuditEventBestEffortService,
 } from '@/server/Audit/audit.service.ts'
 
-async function createPasswordResetDelivery(emailInput: string): Promise<TokenDelivery | null> {
+export async function issuePasswordResetService(emailInput: string): Promise<TokenDelivery | null> {
     let email: string
 
     try {
@@ -78,10 +78,6 @@ async function createPasswordResetDelivery(emailInput: string): Promise<TokenDel
     })
 }
 
-export async function issuePasswordResetService(emailInput: string): Promise<TokenDelivery | null> {
-    return createPasswordResetDelivery(emailInput)
-}
-
 export async function requestPasswordResetService(emailInput: string): Promise<void> {
     await recordAuditEventBestEffortService({
         actorUserId: null,
@@ -91,7 +87,7 @@ export async function requestPasswordResetService(emailInput: string): Promise<v
         targetId: null,
         result: 'success',
     })
-    const delivery = await createPasswordResetDelivery(emailInput)
+    const delivery = await issuePasswordResetService(emailInput)
 
     if (!delivery) {
         return

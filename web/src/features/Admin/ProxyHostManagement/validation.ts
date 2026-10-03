@@ -4,7 +4,6 @@ import { MAX_PROXY_HOST_DOMAINS, PROXY_HOST_FORWARD_SCHEMES } from '@/config/pro
 import {
     normalizeForwardHost,
     normalizeProxyDomain,
-    normalizeUpstreamTlsServerName,
 } from '@/lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
 
 export const proxyDomainSchema = z
@@ -66,7 +65,7 @@ export const proxyUpstreamTlsServerNameSchema = z
     .max(1_024, 'admin.proxyHosts.validation.upstreamTlsServerName')
     .transform((value, context) => {
         if (!value.trim()) return null
-        const serverName = normalizeUpstreamTlsServerName(value)
+        const serverName = normalizeProxyDomain(value)
         if (serverName === null) {
             context.addIssue({
                 code: 'custom',

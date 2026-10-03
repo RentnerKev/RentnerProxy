@@ -10,7 +10,7 @@ import type {
 } from '@/server/Auth/Core/Types/auth-service.types.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
-import { hashPassword, verifyPassword } from '@/server/Auth/Core/password.server.ts'
+import { hashPassword } from '@/server/Auth/Core/password.server.ts'
 import { enforcePasswordChangeRateLimit } from '@/server/Valkey/rate-limiter.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
@@ -94,7 +94,7 @@ export async function changeCurrentPasswordService(input: {
                 const currentPasswordMatches =
                     input.currentPassword.length > 0 &&
                     input.currentPassword.length <= 256 &&
-                    (await verifyPassword(input.currentPassword, user.passwordHash))
+                    (await Bun.password.verify(input.currentPassword, user.passwordHash))
 
                 if (!currentPasswordMatches) {
                     return { success: false as const, code: 'invalid_current_password' as const }
@@ -149,7 +149,7 @@ export async function reauthenticateCurrentSessionWithPasswordService(
             throw new AuthDomainError('authentication_required', 'Authentication is required.')
         }
 
-        if (!(await verifyPassword(password, user.passwordHash))) {
+        if (!(await Bun.password.verify(password, user.passwordHash))) {
             await appendAuditEventInTransactionService(transaction, {
                 actorUserId: currentSession.user.id,
                 actorKind: 'user',

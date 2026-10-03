@@ -4,7 +4,7 @@ import { PERMISSION_REGISTRY } from '@/config/permissions.config.ts'
 import { SYSTEM_ROLE_REGISTRY } from '@/lib/Permissions/systemRoles.ts'
 import {
     normalizeForwardHost,
-    normalizeUpstreamTlsServerName,
+    normalizeProxyDomain,
 } from '@/lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
 import { normalizeUpstreamTlsSettings } from '@/server/Admin/ProxyHostManagement/upstream-tls.service.ts'
 import { createProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-snapshot.ts'
@@ -193,7 +193,7 @@ describe('upstream TLS form normalization', () => {
     })
 
     test('normalizes DNS server names and rejects URL, port, wildcard, IP, and injection forms', () => {
-        expect(normalizeUpstreamTlsServerName('  Backend.Example. ')).toBe('backend.example')
+        expect(normalizeProxyDomain('  Backend.Example. ')).toBe('backend.example')
         expect(normalizeForwardHost('[2001:0DB8::10]')).toBe('2001:db8::10')
         for (const value of [
             'https://backend.example',
@@ -206,7 +206,7 @@ describe('upstream TLS form normalization', () => {
             'backend.example\\nproxy_pass http://evil',
             'user:password@backend.example',
         ]) {
-            expect(normalizeUpstreamTlsServerName(value), value).toBeNull()
+            expect(normalizeProxyDomain(value), value).toBeNull()
         }
     })
 })

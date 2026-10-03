@@ -15,8 +15,7 @@ use super::{
         proxy_route,
     },
     proxy::{
-        force_https_headers, force_https_location, location_headers, redirect_location,
-        rendered_ranges, reverse_proxy,
+        force_https_location, location_headers, redirect_location, rendered_ranges, reverse_proxy,
     },
 };
 
@@ -234,7 +233,7 @@ fn redirect_to_https_route(domains: &[String], public_https_port: u16) -> Route 
         handle: vec![Handler::StaticResponse(StaticResponse {
             body: None,
             status_code: Some(308),
-            headers: Some(force_https_headers(force_https_location(public_https_port))),
+            headers: Some(location_headers(force_https_location(public_https_port))),
         })],
         terminal: true,
     }
@@ -302,7 +301,7 @@ impl HostSourceRoutes {
     }
 }
 
-pub(super) fn render_host_config_for_runtime(
+pub(crate) fn render_host_config_for_runtime(
     host: &ProxyHost,
     defaults: &ProxyHttpSettings,
     public_https_port: u16,
@@ -337,7 +336,7 @@ pub(super) fn render_host_config_for_runtime(
     serde_json::to_string(&source).map_err(|_| RenderError::ConfigTooLarge)
 }
 
-pub(super) fn render_host_sources_for_runtime(
+pub(crate) fn render_host_sources_for_runtime(
     configuration: &ValidatedProxyConfig,
     public_https_port: u16,
     upstream_tls: Option<&UpstreamTlsRenderSettings>,

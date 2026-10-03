@@ -21,7 +21,6 @@ import {
 import {
     decodeBase64Url,
     decryptSecret,
-    encodeBase64Url,
     encryptSecret,
 } from '@/server/Auth/Core/encryption.server.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
@@ -111,9 +110,9 @@ export async function beginTotpSetupService(currentSession: CurrentSession) {
     const issued = await createAuthChallenge(
         {
             attempts: 0,
-            ciphertext: encodeBase64Url(encrypted.ciphertext),
+            ciphertext: Buffer.from(encrypted.ciphertext).toString('base64url'),
             createdAt: new Date().toISOString(),
-            iv: encodeBase64Url(encrypted.iv),
+            iv: Buffer.from(encrypted.iv).toString('base64url'),
             kind: 'totp-setup',
             sessionId: currentSession.id,
             userId: currentSession.user.id,

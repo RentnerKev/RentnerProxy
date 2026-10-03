@@ -2,7 +2,7 @@
 import '@tanstack/react-start/server-only'
 
 import { z } from 'zod'
-import { normalizeDefaultSiteSettings } from '@/lib/DefaultSite/defaultSite.ts'
+import { defaultSiteSettingsSchema } from '@/lib/DefaultSite/defaultSite.ts'
 import type { DefaultSiteSettings } from '@/lib/DefaultSite/Types/default-site.types.ts'
 import {
     ACCESS_POLICY_COMBINATIONS,
@@ -353,7 +353,7 @@ export function createProxyRuntimeSnapshot(
 
         return { id, pem: parsed.pem, fingerprintSha256: parsed.fingerprintSha256 }
     })
-    const normalizedDefaultSite = normalizeDefaultSiteSettings(defaultSite)
+    const normalizedDefaultSite = defaultSiteSettingsSchema.parse(defaultSite)
     const snapshot = {
         version: 7,
         proxyHosts,

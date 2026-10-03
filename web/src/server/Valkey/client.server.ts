@@ -30,7 +30,7 @@ function clearCachedClient(): void {
     delete valkeyGlobal.rentnerproxyValkeyClient
 }
 
-function closeCachedClients(): void {
+export function closeValkeyClient(): void {
     const cachedClients = new Set(
         [productionClient, valkeyGlobal.rentnerproxyValkeyClient]
             .filter((cachedClient) => cachedClient !== undefined)
@@ -48,7 +48,7 @@ export function getValkeyClient(): RedisClient | null {
     const valkeyUrl = getValkeyUrl()
 
     if (!valkeyUrl) {
-        closeCachedClients()
+        closeValkeyClient()
         return null
     }
 
@@ -59,7 +59,7 @@ export function getValkeyClient(): RedisClient | null {
     }
 
     if (cachedClient) {
-        closeCachedClients()
+        closeValkeyClient()
     }
 
     const client = new RedisClient(valkeyUrl, {
@@ -73,8 +73,4 @@ export function getValkeyClient(): RedisClient | null {
 
     cacheClient({ client, url: valkeyUrl })
     return client
-}
-
-export function closeValkeyClient(): void {
-    closeCachedClients()
 }

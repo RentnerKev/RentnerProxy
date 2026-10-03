@@ -37,14 +37,6 @@ export const reconcileProxyConfigurationService = createProxyReconciler({
     },
 })
 
-export function startProxyRuntimeReconciliation(): void {
-    reconcileProxyConfigurationService.start()
-}
-
-export function stopProxyRuntimeReconciliation(): Promise<void> {
-    return reconcileProxyConfigurationService.stop()
-}
-
 export async function getProxyRuntimeStatusService(
     permission: RuntimeViewPermission = PERMISSIONS.PROXY_HOSTS_VIEW,
 ): Promise<ProxyRuntimeSyncStatus> {

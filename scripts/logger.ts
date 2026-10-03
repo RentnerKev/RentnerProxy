@@ -8,10 +8,6 @@ const ANSI = {
     reset: '\u001B[0m',
 } as const
 
-function writeToStdout(output: string): void {
-    process.stdout.write(output)
-}
-
 function supportsColor(): boolean {
     return process.stdout.isTTY === true && process.env.NO_COLOR === undefined
 }
@@ -29,7 +25,7 @@ function formatOutput(prefix: string, styledPrefix: string, message: string): st
 
 export function createLogger(options: LoggerOptions = {}): Logger {
     const colors = options.colors ?? supportsColor()
-    const write = options.write ?? writeToStdout
+    const write = options.write ?? process.stdout.write.bind(process.stdout)
 
     function method(prefix: string, color: LogColor): LogMethod {
         const styledPrefix = colors ? `${ANSI[color]}${prefix}${ANSI.reset}` : prefix

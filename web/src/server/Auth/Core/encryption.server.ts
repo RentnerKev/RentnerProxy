@@ -94,10 +94,6 @@ export async function decryptSecret(encrypted: EncryptedSecret, context: string)
     }
 }
 
-export function encodeBase64Url(value: Uint8Array): string {
-    return Buffer.from(value).toString('base64url')
-}
-
 export function decodeBase64Url(value: string): Uint8Array<ArrayBuffer> | null {
     if (!/^[A-Za-z0-9_-]+$/.test(value)) {
         return null

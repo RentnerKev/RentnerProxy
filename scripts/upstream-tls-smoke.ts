@@ -79,31 +79,6 @@ function passed(label: string): void {
     console.log('PASS ' + label)
 }
 
-function uuidV7(): string {
-    const bytes = randomBytes(16)
-    const timestamp = BigInt(Date.now())
-    bytes[0] = Number((timestamp >> 40n) & 0xffn)
-    bytes[1] = Number((timestamp >> 32n) & 0xffn)
-    bytes[2] = Number((timestamp >> 24n) & 0xffn)
-    bytes[3] = Number((timestamp >> 16n) & 0xffn)
-    bytes[4] = Number((timestamp >> 8n) & 0xffn)
-    bytes[5] = Number(timestamp & 0xffn)
-    bytes[6] = (bytes[6]! & 0x0f) | 0x70
-    bytes[8] = (bytes[8]! & 0x3f) | 0x80
-    const hex = Buffer.from(bytes).toString('hex')
-    return (
-        hex.slice(0, 8) +
-        '-' +
-        hex.slice(8, 12) +
-        '-' +
-        hex.slice(12, 16) +
-        '-' +
-        hex.slice(16, 20) +
-        '-' +
-        hex.slice(20)
-    )
-}
-
 function hashRevision(value: unknown): string {
     return 'sha256:' + new Bun.CryptoHasher('sha256').update(JSON.stringify(value)).digest('hex')
 }
@@ -399,7 +374,7 @@ async function validateCa(pem: string): Promise<TrustedCa> {
     assert.equal(typeof result.pem, 'string')
     assert.match(result.fingerprintSha256, /^sha256:[a-f0-9]{64}$/u)
     return {
-        id: uuidV7(),
+        id: Bun.randomUUIDv7(),
         pem: result.pem as string,
         fingerprintSha256: result.fingerprintSha256 as string,
     }
@@ -471,7 +446,7 @@ async function runSmoke(): Promise<void> {
         assert.match(backendIp, /^(?:\d{1,3}\.){3}\d{1,3}$/u)
 
         const httpHost: ProxyHost = {
-            id: uuidV7(),
+            id: Bun.randomUUIDv7(),
             domains: ['http-upstream.test'],
             forwardScheme: 'http',
             forwardHost: backendIp,
@@ -487,7 +462,7 @@ async function runSmoke(): Promise<void> {
         passed('HTTP upstream reaches a real backend')
 
         const secureHost: ProxyHost = {
-            id: uuidV7(),
+            id: Bun.randomUUIDv7(),
             domains: ['secure-upstream.test'],
             forwardScheme: 'https',
             forwardHost: backendIp,
@@ -528,7 +503,7 @@ async function runSmoke(): Promise<void> {
         passed('custom CA verifies the IP-targeted HTTPS upstream and backend observes correct SNI')
 
         const automaticDnsHost: ProxyHost = {
-            id: uuidV7(),
+            id: Bun.randomUUIDv7(),
             domains: ['automatic-dns-upstream.test'],
             forwardScheme: 'https',
             forwardHost: 'backend.test',

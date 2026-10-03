@@ -1,10 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import {
-    hashPassword,
-    isValidPassword,
-    verifyPassword,
-} from '@/server/Auth/Core/password.server.ts'
+import { hashPassword, isValidPassword } from '@/server/Auth/Core/password.server.ts'
 import { createOpaqueToken, hashOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
 
 const PASSWORD = 'correct horse battery staple'
@@ -34,8 +30,8 @@ describe('password hashing', () => {
     test('accepts the original password and rejects a different password', async () => {
         const passwordHash = await hashPassword(PASSWORD)
 
-        expect(await verifyPassword(PASSWORD, passwordHash)).toBeTrue()
-        expect(await verifyPassword('a different secure password', passwordHash)).toBeFalse()
+        expect(await Bun.password.verify(PASSWORD, passwordHash)).toBeTrue()
+        expect(await Bun.password.verify('a different secure password', passwordHash)).toBeFalse()
     })
 })
 

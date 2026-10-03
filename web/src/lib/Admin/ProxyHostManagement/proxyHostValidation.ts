@@ -44,6 +44,3 @@ export function normalizeForwardHost(value: string): string | null {
 
     return normalizeProxyDomain(input)
 }
-export function normalizeUpstreamTlsServerName(value: string): string | null {
-    return normalizeProxyDomain(value)
-}

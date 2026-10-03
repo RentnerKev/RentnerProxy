@@ -20,7 +20,7 @@ pub(in crate::server) async fn list_certificates(state: AppState) -> Result<Resp
             .runtime
             .certificates()
             .await
-            .map_err(certificate_error)?,
+            .map_err(ApiError::certificate)?,
     }))
 }
 
@@ -60,7 +60,7 @@ pub(in crate::server) async fn certificate_events(
             .runtime
             .certificate_events(query.after.as_deref(), limit)
             .await
-            .map_err(certificate_error)?,
+            .map_err(ApiError::certificate)?,
     ))
 }
 
@@ -86,7 +86,7 @@ pub(in crate::server) async fn get_certificate(
             .runtime
             .certificate(&id)
             .await
-            .map_err(certificate_error)?,
+            .map_err(ApiError::certificate)?,
     ))
 }
 
@@ -114,7 +114,7 @@ pub(in crate::server) async fn import_certificate(
             .runtime
             .import_certificate(&id, request)
             .await
-            .map_err(certificate_error)?,
+            .map_err(ApiError::certificate)?,
     ))
 }
 
@@ -131,7 +131,7 @@ pub(in crate::server) async fn issue_certificate(
         .runtime
         .start_acme_issue(id, request, state.challenges.clone())
         .await
-        .map_err(certificate_error)?;
+        .map_err(ApiError::certificate)?;
     Ok(no_store_status_json(StatusCode::ACCEPTED, metadata))
 }
 
@@ -149,7 +149,7 @@ pub(in crate::server) async fn renew_certificate(
         .runtime
         .start_acme_renewal(id, state.challenges.clone())
         .await
-        .map_err(certificate_error)?;
+        .map_err(ApiError::certificate)?;
     Ok(no_store_status_json(StatusCode::ACCEPTED, metadata))
 }
 
@@ -162,7 +162,7 @@ pub(in crate::server) async fn delete_certificate(
         .runtime
         .delete_certificate(&id)
         .await
-        .map_err(certificate_error)?;
+        .map_err(ApiError::certificate)?;
     Ok(no_store_json(DeletedCertificateResponse { deleted: true }))
 }
 
@@ -172,10 +172,6 @@ fn certificate_id(id: &str) -> Result<(), ApiError> {
     } else {
         Err(ApiError::certificate(CertificateError::NotFound))
     }
-}
-
-fn certificate_error(error: CertificateError) -> ApiError {
-    ApiError::certificate(error)
 }
 
 #[derive(Serialize)]

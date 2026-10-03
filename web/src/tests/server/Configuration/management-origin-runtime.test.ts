@@ -25,14 +25,15 @@ test('mail and passkeys use deployment configuration without consulting legacy d
         process.env.SMTP_FROM = 'test@example.com'
         delete process.env.SMTP_USER
         delete process.env.SMTP_PASSWORD
-        const { getRuntimeWebAuthnConfiguration, getRuntimeManagementOrigin } = await import('./server/Configuration/management-origin.server.ts')
+        const { getRuntimeWebAuthnConfiguration } = await import('./server/Configuration/management-origin.server.ts')
+        const { getPublicOrigin } = await import('./server/env.server.ts')
         const { sendPasswordResetEmailService, sendUserInviteEmailService } = await import('./server/Mail/mail.service.ts')
         const input = { to: 'recipient@example.com', displayName: 'Test', token: 'isolated-token' }
         await sendPasswordResetEmailService(input)
         await sendUserInviteEmailService(input)
         const passkeys = await getRuntimeWebAuthnConfiguration()
         delete process.env.RENTNERPROXY_PUBLIC_ORIGIN
-        if (await getRuntimeManagementOrigin() !== null) throw Error('Missing origin used a fallback')
+        if (getPublicOrigin() !== null) throw Error('Missing origin used a fallback')
         let rejected = false
         try { await sendPasswordResetEmailService(input) } catch (error) {
             rejected = error.message.includes('RENTNERPROXY_PUBLIC_ORIGIN')

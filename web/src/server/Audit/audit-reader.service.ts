@@ -24,13 +24,12 @@ import { AUDIT_RETENTION_LOCK_ID, pruneAuditEventsInTransaction } from './audit.
 
 const AUDIT_METADATA_MAX_BYTES = 4_096
 
-function jsonByteLength(value: unknown): number {
-    return new TextEncoder().encode(JSON.stringify(value)).byteLength
-}
-
 function parseStoredMetadata(value: unknown): AuditMetadata {
     const result = auditMetadataSchema.safeParse(value)
-    if (!result.success || jsonByteLength(result.data) > AUDIT_METADATA_MAX_BYTES) {
+    if (
+        !result.success ||
+        Buffer.byteLength(JSON.stringify(result.data), 'utf8') > AUDIT_METADATA_MAX_BYTES
+    ) {
         throw new AuthDomainError('service_unavailable', 'Stored audit metadata is invalid.')
     }
     return result.data as AuditMetadata

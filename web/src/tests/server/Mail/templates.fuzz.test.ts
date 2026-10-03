@@ -4,7 +4,6 @@ import * as fc from 'fast-check'
 import {
     createPasswordResetEmailTemplate,
     createUserInviteEmailTemplate,
-    escapeMailHtml,
 } from '@/server/Mail/templates.ts'
 
 const FUZZ_RUNS = 100
@@ -67,9 +66,9 @@ describe('mail template property fuzzing', () => {
 
                     const actionUrl = new URL(textActionUrls[0] ?? '')
                     const tokenParameter = new URLSearchParams(actionUrl.hash.slice(1)).get('token')
-                    const escapedInput = escapeMailHtml(displayName)
+                    const escapedInput = Bun.escapeHTML(displayName)
                     const unrecognizedAmpersands = escapedInput.replace(
-                        /&(amp|lt|gt|quot|#039);/g,
+                        /&(amp|lt|gt|quot|#x27);/g,
                         '',
                     )
                     const greeting = displayName.trim()
@@ -80,7 +79,7 @@ describe('mail template property fuzzing', () => {
                     expect(actionUrl.pathname).toBe(path)
                     expect(actionUrl.search).toBe('')
                     expect(tokenParameter).toBe(token)
-                    expect(template.html).toContain(escapeMailHtml(greeting))
+                    expect(template.html).toContain(Bun.escapeHTML(greeting))
                     expect(template.html).not.toMatch(/<(script|img|iframe|link)\b/i)
                     expect(unrecognizedAmpersands).not.toMatch(/[&<>"']/)
                 },
