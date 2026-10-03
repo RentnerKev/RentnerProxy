@@ -114,7 +114,7 @@ export async function executeBetaFixture(
     const closeCore = context.close
     context.close = async () => {
         try {
-            await crowdsec.stopCrowdSecReconciliation()
+            await crowdsec.reconcileCrowdSecConfiguration.stop()
         } finally {
             await closeCore()
         }
@@ -207,7 +207,7 @@ export async function executeBetaFixture(
             }
             return executeCoreFixture(context)
     }
-    await crowdsec.stopCrowdSecReconciliation()
+    await crowdsec.reconcileCrowdSecConfiguration.stop()
     const status = await authorized(() => runtime.getProxyRuntimeStatusService())
     const snapshot = await runtime.getProxyRuntimeSnapshotService()
     return {

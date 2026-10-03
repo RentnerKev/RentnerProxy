@@ -2,7 +2,6 @@ import { z } from 'zod'
 
 import { MAX_DEFAULT_SITE_HTML_BYTES } from '@/config/default-site.config.ts'
 import { normalizeRedirectDestination } from '@/features/Admin/RedirectHostManagement/validation.ts'
-import type { DefaultSiteSettings } from '@/lib/DefaultSite/Types/default-site.types.ts'
 
 const redirectUrlSchema = z
     .string()
@@ -40,7 +39,3 @@ export const defaultSiteSaveSchema = z.strictObject({
     baseRevision: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
     settings: defaultSiteSettingsSchema,
 })
-
-export function normalizeDefaultSiteSettings(input: unknown): DefaultSiteSettings {
-    return defaultSiteSettingsSchema.parse(input)
-}

@@ -1,3 +1,4 @@
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use rustls::pki_types::{CertificateDer, pem::PemObject};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -132,7 +133,7 @@ fn canonical_pem(certificates: &[CertificateDer<'_>]) -> String {
     let mut pem = String::new();
     for certificate in certificates {
         pem.push_str("-----BEGIN CERTIFICATE-----\n");
-        let encoded = base64_encode(certificate.as_ref());
+        let encoded = STANDARD.encode(certificate.as_ref());
         for line in encoded.as_bytes().chunks(64) {
             pem.push_str(std::str::from_utf8(line).expect("base64 is ASCII"));
             pem.push('\n');
@@ -140,31 +141,6 @@ fn canonical_pem(certificates: &[CertificateDer<'_>]) -> String {
         pem.push_str("-----END CERTIFICATE-----\n");
     }
     pem
-}
-
-fn base64_encode(bytes: &[u8]) -> String {
-    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut output = String::with_capacity(bytes.len().div_ceil(3) * 4);
-    for chunk in bytes.chunks(3) {
-        let first = chunk[0];
-        let second = *chunk.get(1).unwrap_or(&0);
-        let third = *chunk.get(2).unwrap_or(&0);
-        output.push(char::from(TABLE[usize::from(first >> 2)]));
-        output.push(char::from(
-            TABLE[usize::from(((first & 0b0000_0011) << 4) | (second >> 4))],
-        ));
-        output.push(if chunk.len() > 1 {
-            char::from(TABLE[usize::from(((second & 0b0000_1111) << 2) | (third >> 6))])
-        } else {
-            '='
-        });
-        output.push(if chunk.len() > 2 {
-            char::from(TABLE[usize::from(third & 0b0011_1111)])
-        } else {
-            '='
-        });
-    }
-    output
 }
 
 fn has_only_certificate_pem_blocks(value: &str) -> bool {

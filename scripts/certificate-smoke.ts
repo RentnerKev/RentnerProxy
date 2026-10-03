@@ -38,31 +38,6 @@ let curlTestCaArgs: string[] = []
 let opensslTempDirectory = ''
 const opensslImage = runtimeImage
 
-function uuidV7(): string {
-    const bytes = randomBytes(16)
-    const timestamp = BigInt(Date.now())
-    bytes[0] = Number((timestamp >> 40n) & 0xffn)
-    bytes[1] = Number((timestamp >> 32n) & 0xffn)
-    bytes[2] = Number((timestamp >> 24n) & 0xffn)
-    bytes[3] = Number((timestamp >> 16n) & 0xffn)
-    bytes[4] = Number((timestamp >> 8n) & 0xffn)
-    bytes[5] = Number(timestamp & 0xffn)
-    bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x70
-    bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80
-    const hex = Buffer.from(bytes).toString('hex')
-    return (
-        hex.slice(0, 8) +
-        '-' +
-        hex.slice(8, 12) +
-        '-' +
-        hex.slice(12, 16) +
-        '-' +
-        hex.slice(16, 20) +
-        '-' +
-        hex.slice(20)
-    )
-}
-
 async function command(
     args: string[],
     options: { readonly inherit?: boolean; readonly timeoutMs?: number } = {},
@@ -244,10 +219,6 @@ async function fingerprint(path: string): Promise<string> {
     const value = output.match(/=([0-9A-F:]+)/u)?.[1]
     assert.ok(value)
     return value.replaceAll(':', '').toLowerCase()
-}
-
-async function readFileText(path: string): Promise<string> {
-    return await Bun.file(path).text()
 }
 
 function snapshot(
@@ -746,9 +717,9 @@ async function runSmoke(): Promise<void> {
                 {
                     method: 'POST',
                     body: JSON.stringify({
-                        certificatePem: await readFileText(material.certificatePem),
-                        privateKeyPem: await readFileText(material.privateKeyPem),
-                        chainPem: await readFileText(temp + '/ca.pem'),
+                        certificatePem: await Bun.file(material.certificatePem).text(),
+                        privateKeyPem: await Bun.file(material.privateKeyPem).text(),
+                        chainPem: await Bun.file(temp + '/ca.pem').text(),
                         requiredDomains: domains,
                     }),
                 },
@@ -757,10 +728,10 @@ async function runSmoke(): Promise<void> {
             return jsonObject(await response.json())
         }
 
-        const firstId = uuidV7()
-        const secondId = uuidV7()
-        const redirectCertificateId = uuidV7()
-        const acmeId = uuidV7()
+        const firstId = Bun.randomUUIDv7()
+        const secondId = Bun.randomUUIDv7()
+        const redirectCertificateId = Bun.randomUUIDv7()
+        const acmeId = Bun.randomUUIDv7()
         const firstMetadata = await importCertificate(firstId, first, ['one.test'])
         const secondMetadata = await importCertificate(secondId, second, ['two.test'])
         const redirectMetadata = await importCertificate(
@@ -871,12 +842,12 @@ async function runSmoke(): Promise<void> {
             await writeFile(outputPath, pem)
             return 'sha256:' + (await fingerprint(outputPath))
         }
-        const one = host(uuidV7(), 'one.test', backend.port!, firstId, true)
-        const two = host(uuidV7(), 'two.test', backend.port!, secondId, true)
-        const acmeHost = host(uuidV7(), 'acme.invalid', backend.port!)
-        const plainHost = host(uuidV7(), 'plain.invalid', backend.port!)
+        const one = host(Bun.randomUUIDv7(), 'one.test', backend.port!, firstId, true)
+        const two = host(Bun.randomUUIDv7(), 'two.test', backend.port!, secondId, true)
+        const acmeHost = host(Bun.randomUUIDv7(), 'acme.invalid', backend.port!)
+        const plainHost = host(Bun.randomUUIDv7(), 'plain.invalid', backend.port!)
         const httpsRedirect = redirectHost(
-            uuidV7(),
+            Bun.randomUUIDv7(),
             'redirect.test',
             'https://new.example.test/base',
             redirectCertificateId,
@@ -1524,8 +1495,8 @@ async function runSmoke(): Promise<void> {
             {
                 method: 'POST',
                 body: JSON.stringify({
-                    certificatePem: await readFileText(first.certificatePem),
-                    privateKeyPem: await readFileText(mismatch.privateKeyPem),
+                    certificatePem: await Bun.file(first.certificatePem).text(),
+                    privateKeyPem: await Bun.file(mismatch.privateKeyPem).text(),
                     requiredDomains: ['one.test'],
                 }),
             },
@@ -1549,11 +1520,11 @@ async function runSmoke(): Promise<void> {
             firstId +
             '/versions/' +
             new Bun.CryptoHasher('sha256')
-                .update(await readFileText(replacement.certificatePem))
+                .update(await Bun.file(replacement.certificatePem).text())
                 .update('\0')
-                .update(await readFileText(temp + '/ca.pem'))
+                .update(await Bun.file(temp + '/ca.pem').text())
                 .update('\0')
-                .update(await readFileText(replacement.privateKeyPem))
+                .update(await Bun.file(replacement.privateKeyPem).text())
                 .digest('hex') +
             '/fullchain.pem'
         const savedCertificatePath = '/tmp/' + project + '-fullchain.pem'
@@ -1604,7 +1575,7 @@ async function runSmoke(): Promise<void> {
         await command(['docker', 'network', 'disconnect', network, pebbleContainer])
         let pendingAccountDigest = ''
         for (let attempt = 0; attempt < 2; attempt += 1) {
-            const interruptedId = uuidV7()
+            const interruptedId = Bun.randomUUIDv7()
             const interrupted = await controllerRequest(
                 '/internal/v1/certificates/' + interruptedId + '/issue',
                 {
@@ -1756,7 +1727,7 @@ async function runSmoke(): Promise<void> {
             'sha256sum',
             accountFile,
         ])
-        const failedAuthorizationId = uuidV7()
+        const failedAuthorizationId = Bun.randomUUIDv7()
         const failedAuthorization = await controllerRequest(
             '/internal/v1/certificates/' + failedAuthorizationId + '/issue',
             {
@@ -2084,7 +2055,7 @@ async function runSmoke(): Promise<void> {
             'restarted runtime activates the same candidate with Pebble offline and serves its new TLS fingerprint',
         )
 
-        const wildcardId = uuidV7()
+        const wildcardId = Bun.randomUUIDv7()
         const dnsRequest = {
             domains: ['*.example.com', 'example.com'],
             environment: 'staging',
@@ -2093,7 +2064,7 @@ async function runSmoke(): Promise<void> {
             dnsProvider: { type: 'cloudflare', zoneId: dnsFixture.zoneId, apiToken: dnsToken },
         }
         const forbiddenHttpWildcard = await controllerRequest(
-            '/internal/v1/certificates/' + uuidV7() + '/issue',
+            '/internal/v1/certificates/' + Bun.randomUUIDv7() + '/issue',
             {
                 method: 'POST',
                 body: JSON.stringify({
@@ -2142,10 +2113,15 @@ async function runSmoke(): Promise<void> {
         assert.ok(dnsFixture.maxSimultaneousTxt >= 2)
         await waitForDnsRecordsToClear()
         passed('mixed apex/wildcard DNS-01 validates simultaneous TXT proofs and cleans up')
-        const wildcardProxy = host(uuidV7(), 'proxy.example.com', backend.port!, wildcardId)
-        const wildcardApex = host(uuidV7(), 'example.com', backend.port!, wildcardId)
+        const wildcardProxy = host(
+            Bun.randomUUIDv7(),
+            'proxy.example.com',
+            backend.port!,
+            wildcardId,
+        )
+        const wildcardApex = host(Bun.randomUUIDv7(), 'example.com', backend.port!, wildcardId)
         const wildcardRedirect = redirectHost(
-            uuidV7(),
+            Bun.randomUUIDv7(),
             'redirect.example.com',
             'https://example.org',
             wildcardId,
@@ -2179,7 +2155,7 @@ async function runSmoke(): Promise<void> {
             const rejected = await controllerRequest('/internal/v1/proxy/config', {
                 method: 'PUT',
                 body: JSON.stringify(
-                    snapshot([host(uuidV7(), unrelated, backend.port!, wildcardId)]),
+                    snapshot([host(Bun.randomUUIDv7(), unrelated, backend.port!, wildcardId)]),
                 ),
             })
             assert.notEqual(rejected.status, 200)
@@ -2302,7 +2278,7 @@ async function runSmoke(): Promise<void> {
             'DNS cleanup failure keeps the issued certificate live and restart recovery clears proofs without another CA order',
         )
 
-        const unrelatedDnsId = uuidV7()
+        const unrelatedDnsId = Bun.randomUUIDv7()
         assert.equal(
             (
                 await controllerRequest('/internal/v1/certificates/' + unrelatedDnsId + '/issue', {
@@ -2335,8 +2311,8 @@ async function runSmoke(): Promise<void> {
         assert.equal(JSON.stringify(list).includes(dnsToken), false)
         passed('certificate endpoints require the controller token and never return keys or PEM')
 
-        const policyHost = host(uuidV7(), 'policy.example.com', backend.port!, wildcardId)
-        const policyId = uuidV7()
+        const policyHost = host(Bun.randomUUIDv7(), 'policy.example.com', backend.port!, wildcardId)
+        const policyId = Bun.randomUUIDv7()
         const upstreamBeforePolicies = upstreamRequests.length
         for (const policy of [
             { mode: 'authenticated', combination: null },

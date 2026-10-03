@@ -39,7 +39,6 @@ import { enrichCrowdSecCountryCodes } from './crowdsec-geoip.server.ts'
 import { createCrowdSecReconciler } from './crowdsec-reconcile.ts'
 import {
     buildStoredCrowdSecConfiguration,
-    crowdSecConfigurationFingerprint,
     crowdSecControllerRequestFromStored,
     externalApiKeyFromStored,
     lockStoredCrowdSecConfiguration,
@@ -70,7 +69,7 @@ async function loadReconcileSnapshot(): Promise<ReconcileSnapshot> {
         { isolationLevel: 'repeatable read', accessMode: 'read only' },
     )
     return {
-        fingerprint: crowdSecConfigurationFingerprint(stored),
+        fingerprint: JSON.stringify(stored),
         request: await crowdSecControllerRequestFromStored(stored),
     }
 }
@@ -106,14 +105,6 @@ export const reconcileCrowdSecConfiguration = createCrowdSecReconciler({
                   runtime.communityEnabled !== (snapshot.request.communityEnabled ?? false)
     },
 })
-
-export function startCrowdSecReconciliation(): void {
-    reconcileCrowdSecConfiguration.start()
-}
-
-export function stopCrowdSecReconciliation(): Promise<void> {
-    return reconcileCrowdSecConfiguration.stop()
-}
 
 export async function getCrowdSecConfigurationService(): Promise<CrowdSecConfiguration> {
     await requirePermissionService(PERMISSIONS.CROWDSEC_VIEW)
@@ -227,9 +218,7 @@ async function persistCrowdSecConfiguration(
 ): Promise<void> {
     await getAuthDatabase().transaction(async (transaction) => {
         const current = await lockStoredCrowdSecConfiguration(transaction)
-        if (
-            crowdSecConfigurationFingerprint(current) !== crowdSecConfigurationFingerprint(baseline)
-        ) {
+        if (JSON.stringify(current) !== JSON.stringify(baseline)) {
             throw new CrowdSecDomainError('configuration_conflict')
         }
         await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.CROWDSEC_UPDATE)

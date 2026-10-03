@@ -8,11 +8,7 @@ import type { LoginResult } from '@/server/Auth/Core/Types/auth-service.types.ts
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { isAuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { normalizeEmail } from '@/server/Auth/Core/identity.server.ts'
-import {
-    hashPassword,
-    isValidPassword,
-    verifyPassword,
-} from '@/server/Auth/Core/password.server.ts'
+import { hashPassword, isValidPassword } from '@/server/Auth/Core/password.server.ts'
 import { createSessionService } from '@/server/Auth/Access/sessions.service.ts'
 import { resolveActiveUserAccessInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import {
@@ -50,7 +46,7 @@ export async function loginService(input: {
     const user = userRows.at(0)
     const preparedDummyHash = await dummyPasswordHash
     const passwordToVerify = isValidPassword(input.password) ? input.password : dummyPassword
-    const passwordMatches = await verifyPassword(
+    const passwordMatches = await Bun.password.verify(
         passwordToVerify,
         user?.passwordHash ?? preparedDummyHash,
     )

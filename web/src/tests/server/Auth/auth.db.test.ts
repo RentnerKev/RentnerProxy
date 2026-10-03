@@ -43,7 +43,7 @@ import { acceptInviteService, issueInviteService } from '@/server/Auth/Setup/inv
 import { decryptSecret } from '@/server/Auth/Core/encryption.server.ts'
 import { changeCurrentPasswordService } from '@/server/Auth/Account/account.service.ts'
 import { loginService } from '@/server/Auth/Login/login.service.ts'
-import { hashPassword, verifyPassword } from '@/server/Auth/Core/password.server.ts'
+import { hashPassword } from '@/server/Auth/Core/password.server.ts'
 import {
     consumePasswordResetService,
     issuePasswordResetService,
@@ -1277,7 +1277,7 @@ describe('password reset with PostgreSQL', () => {
         const updatedUser = requireFirstRow(updatedUsers, 'Reset user was not found.')
 
         expect(updatedUser.passwordHash).not.toBeNull()
-        expect(await verifyPassword(NEW_PASSWORD, updatedUser.passwordHash ?? '')).toBeTrue()
+        expect(await Bun.password.verify(NEW_PASSWORD, updatedUser.passwordHash ?? '')).toBeTrue()
         const resetEvents = await getAuthDatabase()
             .select()
             .from(auditEvents)
@@ -1408,7 +1408,7 @@ describe('user invites with PostgreSQL', () => {
 
         expect(acceptedUser.status).toBe('active')
         expect(acceptedUser.passwordHash).not.toBeNull()
-        expect(await verifyPassword(NEW_PASSWORD, acceptedUser.passwordHash ?? '')).toBeTrue()
+        expect(await Bun.password.verify(NEW_PASSWORD, acceptedUser.passwordHash ?? '')).toBeTrue()
         expect(
             requireFirstRow(acceptedInvites, 'Accepted invite was not found.').acceptedAt,
         ).toBeInstanceOf(Date)

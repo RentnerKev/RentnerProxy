@@ -2,7 +2,6 @@ import type { AuditFixture } from './Types/audit-state.types.ts'
 import assert from 'node:assert/strict'
 
 import type { Alpha1UpgradeFixture, Command } from '../Types/alpha1-upgrade-fixture.types.ts'
-import { uuidV7 } from '../alpha4-persistence/crypto.ts'
 import { psql, sqlJson, sqlQuote } from '../alpha4-persistence/storage.ts'
 
 export async function seedAuditFixture(input: {
@@ -11,7 +10,7 @@ export async function seedAuditFixture(input: {
     readonly base: Alpha1UpgradeFixture
     readonly runId: string
 }): Promise<AuditFixture> {
-    const id = uuidV7()
+    const id = Bun.randomUUIDv7()
     const metadata = { source: `release-compatibility-${input.runId}` }
     await psql(
         input.command,

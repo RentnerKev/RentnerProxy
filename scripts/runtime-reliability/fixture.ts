@@ -131,7 +131,7 @@ export async function executeCoreFixture(
     let detail: Record<string, unknown> = {}
     if (command.interruptedApply) {
         if (command.phase !== 'proxy-update') throw new Error('invalid_interrupted_phase')
-        await runtime.stopProxyRuntimeReconciliation()
+        await runtime.reconcileProxyConfigurationService.stop()
     }
     switch (command.phase) {
         case 'prepare': {

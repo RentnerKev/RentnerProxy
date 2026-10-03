@@ -17,10 +17,6 @@ export const AUDIT_MAX_ROWS = 100_000
 export const AUDIT_RETENTION_LOCK_ID = 7_421_908
 const AUDIT_METADATA_MAX_BYTES = 4_096
 
-function jsonByteLength(value: unknown): number {
-    return new TextEncoder().encode(JSON.stringify(value)).byteLength
-}
-
 function parseEventInput(input: AuditEventInput): AuditEventInput {
     let parsed: ReturnType<typeof auditEventInputSchema.parse>
     try {
@@ -29,7 +25,7 @@ function parseEventInput(input: AuditEventInput): AuditEventInput {
         throw new AuthDomainError('invalid_input', 'Audit event is invalid.')
     }
     const metadata = parsed.metadata ?? {}
-    if (jsonByteLength(metadata) > AUDIT_METADATA_MAX_BYTES) {
+    if (Buffer.byteLength(JSON.stringify(metadata), 'utf8') > AUDIT_METADATA_MAX_BYTES) {
         throw new AuthDomainError('invalid_input', 'Audit metadata is too large.')
     }
     return {

@@ -184,7 +184,7 @@ export async function createFixtureContext(command: FixtureCommand) {
         await writeFile(statePath, JSON.stringify(state), { mode: 0o600 })
     }
     async function close() {
-        await runtime.stopProxyRuntimeReconciliation()
+        await runtime.reconcileProxyConfigurationService.stop()
         valkey.closeValkeyClient()
         await database.$client.close()
     }

@@ -1,5 +1,5 @@
 import type { Alpha4CertificateRequest, Alpha4PersistenceIds } from './Types/persistence.types.ts'
-import { digest, encryptRequest, uuidV7 } from './crypto.ts'
+import { digest, encryptRequest } from './crypto.ts'
 import { sqlJson, sqlQuote, sqlTextArray, sqlTimestamp } from './storage.ts'
 
 const futureAttemptAt = '2099-01-01T00:00:00.000Z'
@@ -59,7 +59,7 @@ export function buildSeedStatements(
     }
     const encrypted = encryptRequest(values.request, values.key, values.requestContext)
     const certificateFingerprint = `sha256:${digest({ runId: input.runId, certificate: true })}`
-    const leaseToken = uuidV7()
+    const leaseToken = Bun.randomUUIDv7()
     return [
         'begin',
         'insert into rentnerproxy.users (id, display_name, email, status, created_at, updated_at) values (' +

@@ -148,10 +148,6 @@ pub(super) fn location_headers(value: String) -> BTreeMap<String, Vec<String>> {
     ])
 }
 
-pub(super) fn force_https_headers(value: String) -> BTreeMap<String, Vec<String>> {
-    location_headers(value)
-}
-
 pub(super) fn trusted_proxies(cidrs: &[String]) -> Option<TrustedProxies> {
     (!cidrs.is_empty()).then(|| TrustedProxies {
         source: "static".to_owned(),

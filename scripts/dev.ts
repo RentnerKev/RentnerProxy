@@ -38,14 +38,6 @@ function signalProcessTree(childProcess: ManagedProcess, signal: NodeJS.Signals)
     process.kill(-childProcess.pid, signal)
 }
 
-function addSignalHandler(signal: ShutdownSignal, handler: () => void): void {
-    process.on(signal, handler)
-}
-
-function removeSignalHandler(signal: ShutdownSignal, handler: () => void): void {
-    process.off(signal, handler)
-}
-
 const defaultDependencies: DevelopmentDependencies = {
     logger: defaultLogger,
     platform: process.platform,
@@ -53,8 +45,8 @@ const defaultDependencies: DevelopmentDependencies = {
     shutdownTimeoutMs: SHUTDOWN_TIMEOUT_MS,
     spawn: spawnProcess,
     signalProcessTree,
-    onSignal: addSignalHandler,
-    offSignal: removeSignalHandler,
+    onSignal: process.on.bind(process),
+    offSignal: process.off.bind(process),
 }
 
 function isRunning(service: RunningService): boolean {

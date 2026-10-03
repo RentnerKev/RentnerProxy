@@ -4,7 +4,7 @@ import type {
     Alpha4PersistenceIds,
     Command,
 } from './Types/persistence.types.ts'
-import { decodeApplicationKey, digest, uuidV7 } from './crypto.ts'
+import { decodeApplicationKey, digest } from './crypto.ts'
 import { buildSeedStatements } from './seed-sql.ts'
 import { psql, readContainerFile, readOrCreateCursor } from './storage.ts'
 
@@ -24,13 +24,13 @@ function validateCommandInput(containerId: string): void {
 
 function readFixtureIds(): Alpha4PersistenceIds {
     return {
-        ownerUserId: uuidV7(),
-        hostId: uuidV7(),
-        certificateId: uuidV7(),
-        jobId: uuidV7(),
-        idempotencyKey: uuidV7(),
-        operationId: uuidV7(),
-        eventIds: [uuidV7(), uuidV7()],
+        ownerUserId: Bun.randomUUIDv7(),
+        hostId: Bun.randomUUIDv7(),
+        certificateId: Bun.randomUUIDv7(),
+        jobId: Bun.randomUUIDv7(),
+        idempotencyKey: Bun.randomUUIDv7(),
+        operationId: Bun.randomUUIDv7(),
+        eventIds: [Bun.randomUUIDv7(), Bun.randomUUIDv7()],
     }
 }
 

@@ -24,15 +24,6 @@ const USER_INVITE_DEFINITION: ActionMailDefinition = {
     securityNotice: 'Wenn du diese Einladung nicht erwartest, kannst du diese E-Mail ignorieren.',
 }
 
-export function escapeMailHtml(value: string): string {
-    return value
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;')
-}
-
 function createActionUrl(appUrl: string, path: ActionMailDefinition['path'], token: string) {
     if (token.length === 0) {
         throw new Error('A mail action token is required.')
@@ -74,12 +65,12 @@ function createActionMailTemplate(
 ): MailTemplate {
     const actionUrl = createActionUrl(input.appUrl, definition.path, input.token)
     const greeting = createGreeting(input.displayName)
-    const safeGreeting = escapeMailHtml(greeting)
-    const safeHeading = escapeMailHtml(definition.heading)
-    const safeIntroduction = escapeMailHtml(definition.introduction)
-    const safeActionLabel = escapeMailHtml(definition.actionLabel)
-    const safeActionUrl = escapeMailHtml(actionUrl)
-    const safeSecurityNotice = escapeMailHtml(definition.securityNotice)
+    const safeGreeting = Bun.escapeHTML(greeting)
+    const safeHeading = Bun.escapeHTML(definition.heading)
+    const safeIntroduction = Bun.escapeHTML(definition.introduction)
+    const safeActionLabel = Bun.escapeHTML(definition.actionLabel)
+    const safeActionUrl = Bun.escapeHTML(actionUrl)
+    const safeSecurityNotice = Bun.escapeHTML(definition.securityNotice)
 
     const text = [
         'RentnerProxy',

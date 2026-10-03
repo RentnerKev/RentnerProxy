@@ -3,7 +3,6 @@ import type {
     Alpha4PersistenceSnapshot,
     Command,
 } from './Types/persistence.types.ts'
-import { uuidV7 } from './crypto.ts'
 
 const postgresPasswordFile = '/run/rentnerproxy/postgres/value'
 const databaseName = 'rentnerproxy'
@@ -93,7 +92,7 @@ export async function readOrCreateCursor(
                 ') on conflict (id) do nothing',
         }
     }
-    const cursor = `${uuidV7()}:0`
+    const cursor = `${Bun.randomUUIDv7()}:0`
     return {
         cursor,
         statement:

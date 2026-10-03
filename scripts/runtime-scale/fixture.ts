@@ -27,13 +27,7 @@ async function load(context: FixtureContext): Promise<Inventory> {
     assert.equal(inventory.domain, context.domain, 'scale inventory domain')
     return inventory
 }
-async function bounded<T>(
-    values: readonly T[],
-    concurrency: number,
-    operation: (value: T) => Promise<void>,
-) {
-    await runBoundedTasks(values, concurrency, operation)
-}
+
 function shuffled<T>(values: readonly T[], seed: number): T[] {
     const result = [...values]
     let state = seed >>> 0
@@ -362,7 +356,7 @@ async function create(context: FixtureContext) {
     const indices = Array.from({ length: count }, (_, index) => index).filter(
         (index) => !inventory.hosts.some((host) => host.index === index),
     )
-    await bounded(indices, context.command.concurrency, async (index) => {
+    await runBoundedTasks(indices, context.command.concurrency, async (index) => {
         const domains = [
             'alias-h' + index + '.scale-' + context.domain,
             'h' + index + '.scale-' + context.domain,
@@ -391,7 +385,7 @@ async function create(context: FixtureContext) {
     const redirects = Array.from({ length: Math.ceil(count / 4) }, (_, index) => index).filter(
         (index) => !inventory.redirects.some((host) => host.index === index),
     )
-    await bounded(redirects, context.command.concurrency, async (index) => {
+    await runBoundedTasks(redirects, context.command.concurrency, async (index) => {
         const expected = {
             index,
             domains: ['r' + index + '.scale-' + context.domain],
@@ -418,7 +412,7 @@ async function update(context: FixtureContext, inventory: Inventory) {
         inventory.hosts.filter((host) => !host.deleted),
         context.command.seed + context.command.iteration,
     )
-    await bounded(hosts, context.command.concurrency, async (host) => {
+    await runBoundedTasks(hosts, context.command.concurrency, async (host) => {
         if (host.backend !== 'trusted') {
             host.backend = (host.index + context.command.iteration) % 2 ? 'primary' : 'secondary'
             host.forwardPort =
@@ -442,12 +436,12 @@ async function update(context: FixtureContext, inventory: Inventory) {
             (operation) => operation(),
         )
     })
-    await bounded(hosts, context.command.concurrency, async (host) => {
+    await runBoundedTasks(hosts, context.command.concurrency, async (host) => {
         await context.authorized(() => context.hosts.disableProxyHostService(host.id))
         await context.authorized(() => context.hosts.enableProxyHostService(host.id))
         host.enabled = true
     })
-    await bounded(
+    await runBoundedTasks(
         inventory.redirects.filter((host) => !host.deleted),
         context.command.concurrency,
         async (host) => {
@@ -507,12 +501,12 @@ async function remove(context: FixtureContext, inventory: Inventory) {
     const candidates = inventory.hosts.filter((host) => !host.deleted)
     const hosts = candidates.filter((host) => host.index % 7 === 6)
     if (hosts.length === 0 && candidates.length) hosts.push(candidates.at(-1)!)
-    await bounded(hosts, context.command.concurrency, async (host) => {
+    await runBoundedTasks(hosts, context.command.concurrency, async (host) => {
         await context.authorized(() => context.hosts.deleteProxyHostService(host.id))
         host.deleted = true
     })
     const redirects = inventory.redirects.filter((host) => !host.deleted && host.index % 5 === 4)
-    await bounded(redirects, context.command.concurrency, async (host) => {
+    await runBoundedTasks(redirects, context.command.concurrency, async (host) => {
         await context.authorized(() => context.redirects.deleteRedirectHostService(host.id))
         host.deleted = true
     })

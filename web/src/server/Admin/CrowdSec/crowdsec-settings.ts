@@ -17,7 +17,6 @@ import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts
 import {
     decodeBase64Url,
     decryptSecret,
-    encodeBase64Url,
     encryptSecret,
 } from '@/server/Auth/Core/encryption.server.ts'
 import { CrowdSecDomainError } from './crowdsec.errors.ts'
@@ -26,10 +25,6 @@ export const DEFAULT_CROWDSEC_CONFIGURATION: StoredCrowdSecConfiguration = {
     version: 1,
     mode: 'disabled',
     communityEnabled: false,
-}
-
-function jsonbValue(value: unknown) {
-    return sql`${value}`
 }
 
 function parseStored(input: unknown): StoredCrowdSecConfiguration {
@@ -54,10 +49,6 @@ export function normalizeCrowdSecApiUrl(value: string): string {
     return url.toString()
 }
 
-export function crowdSecConfigurationFingerprint(value: StoredCrowdSecConfiguration): string {
-    return JSON.stringify(value)
-}
-
 export async function readStoredCrowdSecConfiguration(
     transaction: AuthTransaction,
 ): Promise<StoredCrowdSecConfiguration> {
@@ -76,7 +67,7 @@ export async function lockStoredCrowdSecConfiguration(
         .insert(systemSettings)
         .values({
             key: CROWDSEC_SETTINGS_KEY,
-            value: jsonbValue(DEFAULT_CROWDSEC_CONFIGURATION),
+            value: sql`${DEFAULT_CROWDSEC_CONFIGURATION}`,
         })
         .onConflictDoNothing({ target: systemSettings.key })
     const [row] = await transaction
@@ -97,15 +88,15 @@ export async function writeStoredCrowdSecConfiguration(
     if (!parsed.success) throw new CrowdSecDomainError('invalid_input')
     await transaction
         .update(systemSettings)
-        .set({ value: jsonbValue(parsed.data), updatedAt: new Date() })
+        .set({ value: sql`${parsed.data}`, updatedAt: new Date() })
         .where(eq(systemSettings.key, CROWDSEC_SETTINGS_KEY))
 }
 
 async function encodeApiKey(apiKey: string) {
     const encrypted = await encryptSecret(apiKey, CROWDSEC_SECRET_CONTEXT)
     return {
-        ciphertext: encodeBase64Url(encrypted.ciphertext),
-        iv: encodeBase64Url(encrypted.iv),
+        ciphertext: Buffer.from(encrypted.ciphertext).toString('base64url'),
+        iv: Buffer.from(encrypted.iv).toString('base64url'),
     }
 }
 

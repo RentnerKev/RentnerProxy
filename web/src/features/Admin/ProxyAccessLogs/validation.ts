@@ -13,14 +13,6 @@ export const PROXY_ACCESS_LOGS_MAX_AVAILABLE_STATUSES = 500
 // oxlint-disable-next-line no-control-regex -- Access-log filters must reject C0/C1 controls.
 const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F-\u009F]/u
 
-function hasControlCharacter(value: string): boolean {
-    return CONTROL_CHARACTER_PATTERN.test(value)
-}
-
-function byteLength(value: string): number {
-    return new TextEncoder().encode(value).byteLength
-}
-
 export const proxyAccessLogHostSchema = z
     .string()
     .trim()
@@ -41,10 +33,13 @@ export const proxyAccessLogHostSchema = z
 export const proxyAccessLogsSearchSchema = z
     .string()
     .max(PROXY_ACCESS_LOGS_MAX_SEARCH_BYTES, 'admin.proxyAccessLogs.validation.search')
-    .refine((value) => byteLength(value) <= PROXY_ACCESS_LOGS_MAX_SEARCH_BYTES, {
-        message: 'admin.proxyAccessLogs.validation.search',
-    })
-    .refine((value) => !hasControlCharacter(value), {
+    .refine(
+        (value) => new TextEncoder().encode(value).byteLength <= PROXY_ACCESS_LOGS_MAX_SEARCH_BYTES,
+        {
+            message: 'admin.proxyAccessLogs.validation.search',
+        },
+    )
+    .refine((value) => !CONTROL_CHARACTER_PATTERN.test(value), {
         message: 'admin.proxyAccessLogs.validation.search',
     })
 
@@ -86,7 +81,7 @@ const responseTextSchema = (max: number) =>
         .string()
         .min(1)
         .max(max)
-        .refine((value) => !hasControlCharacter(value))
+        .refine((value) => !CONTROL_CHARACTER_PATTERN.test(value))
 
 const proxyAccessLogEntrySchema = z.strictObject({
     timestamp: timestampSchema,
@@ -96,7 +91,7 @@ const proxyAccessLogEntrySchema = z.strictObject({
         .string()
         .min(1)
         .max(2_048)
-        .refine((value) => !hasControlCharacter(value) && !value.includes('?')),
+        .refine((value) => !CONTROL_CHARACTER_PATTERN.test(value) && !value.includes('?')),
     status: z.number().int().min(100).max(599),
     durationMs: safeNonNegativeNumberSchema,
     clientIp: responseTextSchema(64),

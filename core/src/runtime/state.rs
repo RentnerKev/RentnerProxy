@@ -61,7 +61,7 @@ impl SafeDir {
     }
 
     pub(super) fn open_dir(&self, component: &str) -> std::io::Result<Self> {
-        let candidate = self.child(component)?;
+        let candidate = self.child_path(component)?;
         let path = candidate.canonicalize()?;
         ensure_direct_child(&self.path, &path)?;
         #[cfg(unix)]
@@ -81,7 +81,7 @@ impl SafeDir {
     }
 
     pub(super) fn ensure_dir(&self, component: &str) -> std::io::Result<Self> {
-        let candidate = self.child(component)?;
+        let candidate = self.child_path(component)?;
         match candidate.canonicalize() {
             Ok(path) => {
                 ensure_direct_child(&self.path, &path)?;
@@ -120,7 +120,7 @@ impl SafeDir {
     }
 
     pub(super) fn open_file(&self, component: &str) -> std::io::Result<File> {
-        let candidate = self.child(component)?;
+        let candidate = self.child_path(component)?;
         let path = candidate.canonicalize()?;
         ensure_direct_child(&self.path, &path)?;
         #[cfg(unix)]
@@ -159,16 +159,8 @@ impl SafeDir {
         Ok(contents)
     }
 
-    pub(super) fn file_path(&self, component: &str) -> std::io::Result<PathBuf> {
-        self.existing_regular_file(component)
-    }
-
-    pub(super) fn child_path(&self, component: &str) -> std::io::Result<PathBuf> {
-        self.child(component)
-    }
-
     pub(super) fn atomic_write(&self, component: &str, contents: &[u8]) -> std::io::Result<()> {
-        let destination = self.child(component)?;
+        let destination = self.child_path(component)?;
         match destination.canonicalize() {
             Ok(path) => {
                 ensure_direct_child(&self.path, &path)?;
@@ -180,7 +172,7 @@ impl SafeDir {
         }
 
         let temporary_name = temporary_component(component)?;
-        let temporary = self.child(&temporary_name)?;
+        let temporary = self.child_path(&temporary_name)?;
         let mut options = OpenOptions::new();
 
         options.create_new(true).write(true);
@@ -202,7 +194,7 @@ impl SafeDir {
 
     pub(super) fn rename_dir(&self, source: &str, destination: &str) -> std::io::Result<Self> {
         let source = self.open_dir(source)?.path;
-        let destination = self.child(destination)?;
+        let destination = self.child_path(destination)?;
         match destination.canonicalize() {
             Err(error) if error.kind() == ErrorKind::NotFound => {}
             Ok(_) => return Err(invalid_state_path()),
@@ -232,8 +224,8 @@ impl SafeDir {
         File::open(&self.path)?.sync_all()
     }
 
-    fn existing_regular_file(&self, component: &str) -> std::io::Result<PathBuf> {
-        let candidate = self.child(component)?;
+    pub(super) fn file_path(&self, component: &str) -> std::io::Result<PathBuf> {
+        let candidate = self.child_path(component)?;
         let path = candidate.canonicalize()?;
         ensure_direct_child(&self.path, &path)?;
         #[cfg(unix)]
@@ -245,7 +237,7 @@ impl SafeDir {
         Ok(path)
     }
 
-    fn child(&self, component: &str) -> std::io::Result<PathBuf> {
+    pub(super) fn child_path(&self, component: &str) -> std::io::Result<PathBuf> {
         if resolve_existing_path(&self.path)? != self.path {
             return Err(invalid_state_path());
         }
