@@ -98,6 +98,8 @@ export async function verifyApplianceStartup(
         const started = performance.now()
         const lastSuccess = [started, started]
         const largestGapMs = [0, 0]
+        const recoveredSamples = [0, 0]
+        let verifiedRecoveryAt = Infinity
         const sampler = (async () => {
             while (!sampling.signal.aborted && performance.now() - started < 300_000) {
                 const samples = await probe()
@@ -110,6 +112,7 @@ export async function verifyApplianceStartup(
                             now - lastSuccess[index]!,
                         )
                         lastSuccess[index] = now
+                        if (now >= verifiedRecoveryAt) recoveredSamples[index]! += 1
                     } else unavailableSamples += 1
                 })
                 await Bun.sleep(150)
@@ -168,30 +171,36 @@ export async function verifyApplianceStartup(
                 await command([...gatedCompose, 'up', '--force-recreate', '--detach'])
                 id = await options.containerId(gatedCompose)
                 await waitFor(async () => {
-                    await command([
-                        'docker',
-                        'exec',
-                        id,
-                        'test',
-                        '-e',
-                        '/run/rentnerproxy/smoke-startup-gate',
-                    ])
+                    await command(
+                        [
+                            'docker',
+                            'exec',
+                            id,
+                            'test',
+                            '-e',
+                            '/run/rentnerproxy/smoke-startup-gate',
+                        ],
+                        5_000,
+                    )
                     return true
                 }, 'dependency gate reached')
                 await waitFor(
                     async () => (await probe()).every((sample) => sample.ok),
                     'persisted HTTP/HTTPS before dependency readiness',
                 )
-                await command([
-                    'docker',
-                    'exec',
-                    id,
-                    'bash',
-                    '-c',
-                    scenario === 'postgres'
-                        ? '! gosu postgres pg_isready --host=/var/run/postgresql --username=postgres --dbname=postgres'
-                        : '! gosu rentnerproxy /opt/rentnerproxy/valkey/bin/valkey-cli -h 127.0.0.1 ping',
-                ])
+                await command(
+                    [
+                        'docker',
+                        'exec',
+                        id,
+                        'bash',
+                        '-c',
+                        scenario === 'postgres'
+                            ? '! gosu postgres pg_isready --host=/var/run/postgresql --username=postgres --dbname=postgres'
+                            : '! gosu rentnerproxy /opt/rentnerproxy/valkey/bin/valkey-cli -h 127.0.0.1 ping',
+                    ],
+                    5_000,
+                )
                 const managementReady = await fetch(
                     'http://127.0.0.1:' + options.managementPort + '/health/ready',
                     {
@@ -217,6 +226,15 @@ export async function verifyApplianceStartup(
                 'traffic after startup',
             )
             assert.ok(successfulSamples >= 2, 'continuous external probes did not complete')
+            assert.ok(
+                performance.now() - started < 300_000,
+                'continuous startup sampling budget exceeded',
+            )
+            verifiedRecoveryAt = performance.now()
+            await waitFor(
+                async () => recoveredSamples.every((count) => count > 0),
+                'continuous HTTP/HTTPS recovery samples',
+            )
             options.passed(
                 `persisted HTTP/HTTPS ${scenario} startup; samples=${successfulSamples}/${unavailableSamples}; recovery gaps=${Math.round(largestGapMs[0]!)}ms/${Math.round(largestGapMs[1]!)}ms`,
             )
