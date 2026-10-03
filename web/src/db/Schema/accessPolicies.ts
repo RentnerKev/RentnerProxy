@@ -1,9 +1,9 @@
 import { sql } from 'drizzle-orm'
 import { check, index, jsonb, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 
-import type { AccessPolicyIpRules } from '../../shared/Helpers/ipAccessRules'
-import type { ForwardAuthConfiguration } from '../../shared/Helpers/forwardAuth'
-import { rentnerProxySchema } from './base'
+import type { AccessPolicyIpRules } from '../../lib/AccessPolicies/Types/ip-access-rules.types.ts'
+import type { ForwardAuthConfiguration } from '../../lib/ForwardAuth/Types/forward-auth.types.ts'
+import { rentnerProxySchema } from './base.ts'
 
 export const accessPolicyMode = rentnerProxySchema.enum('access_policy_mode', [
     'public',

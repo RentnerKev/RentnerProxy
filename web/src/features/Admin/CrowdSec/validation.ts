@@ -103,6 +103,3 @@ function hasControlCharacters(value: string): boolean {
         return code < 32 || code === 127
     })
 }
-
-export type UpdateCrowdSecConfigurationInput = z.infer<typeof updateCrowdSecConfigurationSchema>
-export type TestCrowdSecConnectionInput = z.infer<typeof testCrowdSecConnectionSchema>

@@ -1,36 +1,33 @@
+import type {
+    CreateJobInput,
+    UpdateJobInput,
+    ParsedRequest,
+} from './Types/certificate-jobs-creation.types.ts'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { isCertificateJobActive } from '@/lib/CertificateJobs/stages.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import { certificates, certificateDomains, certificateJobs } from '@/db/schema.ts'
 import { requestCertificateInputSchema } from '@/features/Admin/CertificateManagement/validation.ts'
-import {
-    createProxyHostWithCertificateInputSchema,
-    updateProxyHostWithCertificateInputSchema,
-    type HostCertificateRequest,
-} from '@/features/Admin/ProxyHostManagement/certificate-job-validation.ts'
+import type { HostCertificateRequest } from '@/features/Admin/ProxyHostManagement/Types/certificate-job-validation.types.ts'
 import { certificateCoversDomains } from '@/lib/Admin/CertificateManagement/certificateValidation.ts'
-import type { CertificateJobSummary } from '@/shared/Types/certificate-jobs.types.ts'
+import type { CertificateJobSummary } from '@/lib/CertificateJobs/Types/certificate-jobs.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { encryptSecret } from '@/server/Auth/Core/encryption.server.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
-import { getControllerCertificate } from '@/server/Foundation/certificates.server.ts'
+import { getControllerCertificate } from '@/server/Controller/certificates.server.ts'
 import { CertificateDomainError } from '@/server/Admin/CertificateManagement/certificates.errors.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
-import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import {
     certificateJobDigest,
     certificateJobSummary,
     CertificateJobDomainError,
     readCertificateJobHost,
-    type CertificateJobRow,
 } from './certificate-jobs.storage.server.ts'
-
-export type CreateJobInput = z.output<typeof createProxyHostWithCertificateInputSchema>
-export type UpdateJobInput = z.output<typeof updateProxyHostWithCertificateInputSchema>
-export type ParsedRequest = z.output<typeof requestCertificateInputSchema>
+import type { CertificateJobRow } from './Types/certificate-jobs-storage.types.ts'
 
 export function parse<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
     const result = schema.safeParse(input)

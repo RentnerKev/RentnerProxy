@@ -1,36 +1,13 @@
-import type { ServerWebSocket } from 'bun'
+import type {
+    LiveConnectionData,
+    LiveTopicSubscription,
+    SubscriptionManagerOptions,
+    LiveSubscriptionManager,
+} from './Types/realtime-subscriptions.types.ts'
 
 import { LIVE_INTERVALS, LIVE_MAX_SUBSCRIPTIONS } from '@/config/realtime.config.ts'
-import { type LiveTopic } from '@/lib/Live/Types/realtime.types.ts'
+import type { LiveTopic } from '@/lib/Live/Types/realtime.types.ts'
 import { comparisonKey, snapshotMessage } from '@/lib/Live/snapshot.ts'
-import type { LiveSocketData } from './Types/bun.types.ts'
-
-export interface LiveConnectionData {
-    readonly requestUrl: string
-    readonly cookie: string | null
-    readonly origin: string
-    ws: ServerWebSocket<LiveSocketData> | null
-    closed: boolean
-    handshakeAbortController: AbortController | null
-    subscriptions: Map<LiveTopic, LiveTopicSubscription>
-    messageWindowStarted: number
-    messageCount: number
-}
-
-export interface LiveTopicSubscription {
-    readonly connection: LiveConnectionData
-    readonly topic: LiveTopic
-    readonly query: unknown
-    readonly queryText: string
-    readonly intervalMs: number
-    timer: ReturnType<typeof setInterval> | null
-    abortController: AbortController | null
-    abortTimer: ReturnType<typeof setTimeout> | null
-    inflight: boolean
-    pending: boolean
-    lastComparison: string | null
-    active: boolean
-}
 
 function unsubscribe(connection: LiveConnectionData, topic: LiveTopic): void {
     const subscription = connection.subscriptions.get(topic)
@@ -44,36 +21,6 @@ function unsubscribe(connection: LiveConnectionData, topic: LiveTopic): void {
     if (subscription.timer !== null) clearInterval(subscription.timer)
     subscription.timer = null
     connection.subscriptions.delete(topic)
-}
-
-interface SubscriptionManagerOptions {
-    readonly readSnapshot: (
-        subscription: LiveTopicSubscription,
-        signal: AbortSignal,
-    ) => Promise<{
-        readonly kind: 'success' | 'failure'
-        readonly data?: unknown
-        readonly status?: number
-    }>
-    readonly maxPayloadBytes: number
-    readonly snapshotTimeoutMs: number
-    readonly closeUnauthorized: (connection: LiveConnectionData) => void
-    readonly closeUnavailable: (connection: LiveConnectionData, status: number) => void
-    readonly closeBackpressured: (connection: LiveConnectionData) => void
-}
-
-export interface LiveSubscriptionManager {
-    readonly connections: Set<LiveConnectionData>
-    readonly sample: (subscription: LiveTopicSubscription) => Promise<void>
-    readonly sampleAll: () => void
-    readonly subscribe: (
-        connection: LiveConnectionData,
-        topic: LiveTopic,
-        query: unknown,
-        queryText: string,
-    ) => boolean
-    readonly unsubscribe: (connection: LiveConnectionData, topic: LiveTopic) => void
-    readonly dispose: (connection: LiveConnectionData) => void
 }
 
 export function createSubscriptionManager(options: SubscriptionManagerOptions) {

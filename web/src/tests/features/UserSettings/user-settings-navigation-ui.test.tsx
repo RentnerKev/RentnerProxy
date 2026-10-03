@@ -3,10 +3,10 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
 import { TOOLTIP_PROVIDER_PROPS } from '@/config/tooltip.config.ts'
-import type { AuthenticatedUser } from '@/shared/Types/auth.types.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })

@@ -1,35 +1,21 @@
+import type { NpmImportPlanItem, NpmImportPlan } from './Types/npm-plan.types.ts'
 import { createHash } from 'node:crypto'
 
-import type { CreateAccessPolicyInput } from '@/features/Admin/AccessPolicyManagement/validation.ts'
 import { createAccessPolicyInputSchema } from '@/features/Admin/AccessPolicyManagement/validation.ts'
-import type { CreateProxyHostInput } from '@/features/Admin/ProxyHostManagement/validation.ts'
+
 import {
     createProxyHostInputSchema,
     proxyHostDomainsSchema,
 } from '@/features/Admin/ProxyHostManagement/validation.ts'
 import { normalizeForwardHost } from '@/lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
-import type { CreateRedirectHostInput } from '@/features/Admin/RedirectHostManagement/validation.ts'
+
 import { createRedirectHostInputSchema } from '@/features/Admin/RedirectHostManagement/validation.ts'
 import type {
     NpmImportKind,
     NpmImportPreview,
     NpmImportStatus,
-    NpmPreviewItem,
 } from '@/features/Admin/NpmImport/Types/npm-import.types.ts'
-import type { NpmRecord, NpmSource } from './npm-source.ts'
-
-export interface NpmImportPlanItem extends NpmPreviewItem {
-    readonly proxyInput?: CreateProxyHostInput
-    readonly redirectInput?: CreateRedirectHostInput
-    readonly policyInput?: CreateAccessPolicyInput
-    readonly accessListId?: number
-}
-
-export interface NpmImportPlan {
-    readonly fingerprint: string
-    readonly sourceSchema: string
-    readonly items: readonly NpmImportPlanItem[]
-}
+import type { NpmRecord, NpmSource } from './Types/npm-source.types.ts'
 
 function integer(value: unknown): number | null {
     return typeof value === 'number' && Number.isSafeInteger(value) ? value : null

@@ -1,6 +1,6 @@
 import { createCipheriv, createHash, randomBytes } from 'node:crypto'
 
-import type { Alpha4CertificateRequest } from './types'
+import type { Alpha4CertificateRequest } from './Types/persistence.types.ts'
 
 export const APP_ENCRYPTION_KEY_BYTES = 32
 export const AES_GCM_IV_BYTES = 12

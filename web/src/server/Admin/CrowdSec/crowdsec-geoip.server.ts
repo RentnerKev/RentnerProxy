@@ -1,3 +1,4 @@
+import type { GeoReader } from './Types/crowdsec-geoip.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { isIP } from 'node:net'
@@ -6,9 +7,7 @@ import { isAbsolute, join } from 'node:path'
 import maxmind from 'maxmind'
 
 import countryCodeFromGeoRecord from '@/lib/Admin/CrowdSec/countryCodeFromGeoRecord.ts'
-import type { CrowdSecDashboard } from '@/shared/Types/crowdsec.types.ts'
-
-type GeoReader = Awaited<ReturnType<typeof maxmind.open>>
+import type { CrowdSecDashboard } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 
 let readerPromise: Promise<GeoReader | null> | undefined
 

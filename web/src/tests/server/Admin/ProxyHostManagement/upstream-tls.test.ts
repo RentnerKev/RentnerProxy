@@ -14,7 +14,7 @@ import type {
     ProxyRuntimeTrustedCa,
     ProxyRuntimeUpstreamTls,
 } from '@/server/ProxyRuntime/Types/proxy-runtime.types.ts'
-import type { ProxyHostForwardScheme } from '@/shared/Types/proxy-hosts-config.types.ts'
+import type { ProxyHostForwardScheme } from '@/config/Types/proxy-hosts-config.types.ts'
 
 const BASE_ID = '018f2f52-7c1b-7cc0-9f3c-6a9952c54019'
 const SECOND_ID = '018f2f52-7c1b-7cc0-9f3c-6a9952c54020'

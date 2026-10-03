@@ -1,3 +1,4 @@
+import type { SendActionEmailInput, MailClient } from './Types/mail.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { createTransport } from 'nodemailer'
@@ -5,22 +6,8 @@ import { createTransport } from 'nodemailer'
 import { getSmtpConfiguration } from '@/server/env.server.ts'
 import { getRuntimeManagementOrigin } from '@/server/Configuration/management-origin.server.ts'
 import { createSmtpTransportOptions } from './smtp-options.ts'
-import {
-    createPasswordResetEmailTemplate,
-    createUserInviteEmailTemplate,
-    type MailTemplate,
-} from './templates.ts'
-
-export type SendActionEmailInput = Readonly<{
-    to: string
-    displayName: string
-    token: string
-}>
-
-type MailClient = Readonly<{
-    from: string
-    transport: ReturnType<typeof createTransport>
-}>
+import { createPasswordResetEmailTemplate, createUserInviteEmailTemplate } from './templates.ts'
+import type { MailTemplate } from './Types/templates.types.ts'
 
 let mailClient: MailClient | null = null
 

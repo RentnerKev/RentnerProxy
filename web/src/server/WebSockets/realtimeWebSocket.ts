@@ -21,7 +21,8 @@ import type {
     LiveWebSocketRuntime,
     LiveWebSocketRuntimeOptions,
 } from './Types/bun.types.ts'
-import { createSubscriptionManager, type LiveConnectionData } from './realtimeSubscriptions.ts'
+import { createSubscriptionManager } from './realtimeSubscriptions.ts'
+import type { LiveConnectionData } from './Types/realtime-subscriptions.types.ts'
 import { createRealtimeLifecycle } from './realtimeLifecycle.ts'
 import { createRealtimeHandler } from './realtimeHandler.ts'
 

@@ -2,13 +2,13 @@ import { afterEach, describe, expect, mock, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { Root } from 'react-dom/client'
-import type { DefaultSiteEditorData } from '@/shared/Types/default-site.types.ts'
-import type { DefaultSiteSaveResult } from '@/features/DefaultSite/middleware.ts'
+import type { DefaultSiteEditorData } from '@/lib/DefaultSite/Types/default-site.types.ts'
+import type { DefaultSiteSaveResult } from '@/features/DefaultSite/Types/middleware.types.ts'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { getDefaultSitePageViewModel } from '@/lib/DefaultSite/defaultSitePage.ts'
 import getApplicationShellViewModel from '@/lib/ApplicationShell/applicationShell.ts'
-import type { AuthenticatedUser } from '@/shared/Types/auth.types.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })

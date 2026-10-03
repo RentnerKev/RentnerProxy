@@ -1,4 +1,4 @@
-import type { RoleSummary, UserSummary } from '@/shared/Types/auth.types.ts'
+import type { RoleSummary, UserSummary } from '@/lib/Auth/Types/auth.types.ts'
 
 export interface UserManagementPageProps {
     readonly currentUserId: string

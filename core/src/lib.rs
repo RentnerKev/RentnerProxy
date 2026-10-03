@@ -9,4 +9,5 @@ mod shutdown;
 pub use application::{healthcheck, run};
 
 #[cfg(test)]
+#[path = "../tests/private/mod.rs"]
 mod tests;

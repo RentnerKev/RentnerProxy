@@ -1,11 +1,12 @@
+import type { ProxyHostMutationSummary } from './Types/proxy-hosts.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { asc, desc, eq, inArray } from 'drizzle-orm'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { certificateJobs, hostDomains, proxyHosts } from '@/db/schema.ts'
-import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
-import type { ProxyRuntimeMutationStatus } from '@/shared/Types/proxy-runtime.types.ts'
+import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
+import type { ProxyRuntimeMutationStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import {
     lockProxyRuntimeSettings,
@@ -14,14 +15,17 @@ import {
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { validateCertificateAssignmentInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
-import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import {
     createProxyHostInputSchema,
     proxyHostIdInputSchema,
     updateProxyHostInputSchema,
-    type CreateProxyHostInput,
-    type UpdateProxyHostInput,
 } from '@/features/Admin/ProxyHostManagement/validation.ts'
+import type {
+    CreateProxyHostInput,
+    UpdateProxyHostInput,
+} from '@/features/Admin/ProxyHostManagement/Types/validation.types.ts'
 import { mapProxyHostDomainUniqueViolation, ProxyHostDomainError } from './proxy-hosts.errors.ts'
 import { validateTrustedCaAssignmentInTransaction } from '@/server/Admin/TrustedCaManagement/trusted-cas.service.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
@@ -33,10 +37,6 @@ import {
     toProxyHostSummary,
     updateProxyHostInTransaction,
 } from './proxy-hosts.mutations.server.ts'
-
-export type ProxyHostMutationSummary = ProxyHostSummary & {
-    readonly runtimeStatus: ProxyRuntimeMutationStatus
-}
 
 function invalidInput(): ProxyHostDomainError {
     return new ProxyHostDomainError('invalid_input', 'Proxy host input is invalid.')

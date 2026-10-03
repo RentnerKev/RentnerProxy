@@ -4,7 +4,7 @@ import type { ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
 
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
-import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 

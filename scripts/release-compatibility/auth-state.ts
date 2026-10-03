@@ -1,23 +1,10 @@
+import type { AuthFixture } from './Types/auth-state.types.ts'
 import assert from 'node:assert/strict'
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto'
 
-import type { Alpha1UpgradeFixture, Command } from '../alpha1-upgrade-fixture'
-import { decodeApplicationKey } from '../alpha4-persistence/crypto'
-import { psql, readContainerFile, sqlQuote } from '../alpha4-persistence/storage'
-
-export interface AuthFixture {
-    readonly sessionId: string
-    readonly sessionTokenHash: string
-    readonly recoveryId: string
-    readonly recoveryHash: string
-    readonly passkeyId: string
-    readonly credentialId: string
-    readonly publicKeyHex: string
-    readonly totpId: string
-    readonly totpSecret: string
-    readonly ciphertextHex: string
-    readonly ivHex: string
-}
+import type { Alpha1UpgradeFixture, Command } from '../Types/alpha1-upgrade-fixture.types.ts'
+import { decodeApplicationKey } from '../alpha4-persistence/crypto.ts'
+import { psql, readContainerFile, sqlQuote } from '../alpha4-persistence/storage.ts'
 
 export async function seedAuthFixture(input: {
     readonly command: Command

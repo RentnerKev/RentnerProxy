@@ -10,7 +10,7 @@ import type {
     AuditEventsQuery,
     AuditEventsResult,
     AuditMetadata,
-} from '@/shared/Types/audit-events.types.ts'
+} from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 import {
     auditEventsQuerySchema,
     auditMetadataSchema,

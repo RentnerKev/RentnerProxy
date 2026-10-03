@@ -11,12 +11,12 @@ import {
     varchar,
 } from 'drizzle-orm/pg-core'
 
-import { USER_STATUSES } from '../../config/auth.config'
-import { FALLBACK_LANGUAGE } from '../../config/language.config'
-import { DEFAULT_USER_THEME_MODE } from '../../config/theme.config'
-import type { NavigationGroupPreferences } from '../../config/navigation.config'
-import { rentnerProxySchema } from './base'
-import { bytea } from './columns'
+import { USER_STATUSES } from '../../config/auth.config.ts'
+import { FALLBACK_LANGUAGE } from '../../config/language.config.ts'
+import { DEFAULT_USER_THEME_MODE } from '../../config/theme.config.ts'
+import type { NavigationGroupPreferences } from '../../config/Types/navigation-config.types.ts'
+import { rentnerProxySchema } from './base.ts'
+import { bytea } from './columns.ts'
 
 export const userStatus = rentnerProxySchema.enum('user_status', USER_STATUSES)
 export const users = rentnerProxySchema.table(

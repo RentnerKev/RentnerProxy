@@ -8,8 +8,8 @@ import {
     getControllerCertificate,
     issueControllerCertificate,
     renewControllerCertificate,
-    type ControllerCertificateMetadata,
-} from '@/server/Foundation/certificates.server.ts'
+} from '@/server/Controller/certificates.server.ts'
+import type { ControllerCertificateMetadata } from '@/server/Controller/Types/certificates.types.ts'
 import { CertificateDomainError } from '@/server/Admin/CertificateManagement/certificates.errors.ts'
 import { persistControllerCertificatesMetadataInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
 import {
@@ -26,8 +26,8 @@ import {
     CertificateJobDomainError,
     certificateJobDigest,
     validateCertificateJobContext,
-    type CertificateJobRow,
 } from './certificate-jobs.storage.server.ts'
+import type { CertificateJobRow } from './Types/certificate-jobs-storage.types.ts'
 
 export const certificateJobController = {
     get: getControllerCertificate,

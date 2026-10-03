@@ -1,21 +1,9 @@
+import type { RealtimeHandlerOptions } from './Types/realtime-handler.types.ts'
 import { LIVE_MAX_MESSAGE_BYTES, LIVE_MAX_MESSAGES_PER_SECOND } from '@/config/realtime.config.ts'
 import { parseLiveMessage } from '@/lib/Live/messages.ts'
 import { byteLength, parseQuery, topicFrom } from '@/lib/Live/snapshot.ts'
 import type { LiveSocketData } from './Types/bun.types.ts'
-import type { LiveConnectionData, LiveSubscriptionManager } from './realtimeSubscriptions.ts'
-
-interface Lifecycle {
-    readonly close: (connection: LiveConnectionData, code: number, reason: string) => void
-    readonly dispose: (connection: LiveConnectionData) => void
-}
-
-interface RealtimeHandlerOptions {
-    readonly manager: LiveSubscriptionManager
-    readonly lifecycle: Lifecycle
-    readonly maxQueryBytes: number
-    readonly maxPayloadBytes: number
-    readonly idleTimeoutSeconds: number
-}
+import type { LiveConnectionData } from './Types/realtime-subscriptions.types.ts'
 
 export function createRealtimeHandler(
     options: RealtimeHandlerOptions,

@@ -1,14 +1,12 @@
+import type { LiveReadResult } from './Types/live-reader.types.ts'
 import { LIVE_MAX_PAYLOAD_BYTES } from '@/config/realtime.config.ts'
-import { type LiveTopic } from '@/lib/Live/Types/realtime.types.ts'
+import type { LiveTopic } from '@/lib/Live/Types/realtime.types.ts'
 import { readBoundedJson, snapshotUrl } from '@/lib/Live/snapshot.ts'
-import type { LiveConnectionData, LiveTopicSubscription } from './realtimeSubscriptions.ts'
+import type {
+    LiveConnectionData,
+    LiveTopicSubscription,
+} from './Types/realtime-subscriptions.types.ts'
 import type { LiveSnapshotReader } from './Types/bun.types.ts'
-
-export interface LiveReadResult {
-    readonly kind: 'success' | 'failure'
-    readonly data?: unknown
-    readonly status?: number
-}
 
 function handshakeSubscription(connection: LiveConnectionData): LiveTopicSubscription {
     return {

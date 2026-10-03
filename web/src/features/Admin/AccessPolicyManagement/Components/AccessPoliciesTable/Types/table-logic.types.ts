@@ -1,6 +1,6 @@
 import type { UseClientTableReturn } from '@/shared/Table/Types/table.types.ts'
 import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.ts'
-import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 
 export type AccessPoliciesTableLogicResult = {
     readonly table: UseClientTableReturn<AccessPolicySummary>['table']

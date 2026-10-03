@@ -1,5 +1,5 @@
 import type { FormEventHandler } from 'react'
-import type { DefaultSiteSettings } from '@/shared/Types/default-site.types.ts'
+import type { DefaultSiteSettings } from '@/lib/DefaultSite/Types/default-site.types.ts'
 
 export interface DefaultSiteFormValues {
     mode: DefaultSiteSettings['mode']

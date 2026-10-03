@@ -1,3 +1,4 @@
+import type { ProfileImageAsset } from './Types/profile-image.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { and, eq, sql } from 'drizzle-orm'
@@ -10,10 +11,6 @@ import { getCurrentSessionService } from '@/server/Auth/Access/sessions.service.
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { createNormalizedProfileImageWebp } from './profile-image-processing.server.ts'
-
-export interface ProfileImageAsset {
-    readonly bytes: Uint8Array
-}
 
 export async function updateCurrentProfileImageService(dataUrl: string): Promise<void> {
     const currentSession = await getCurrentSessionService()

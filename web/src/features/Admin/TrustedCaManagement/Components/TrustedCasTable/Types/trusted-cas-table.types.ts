@@ -1,5 +1,5 @@
-import type { ClientTable } from '@/shared/Table/clientTable.ts'
-import type { TrustedCaSummary } from '@/shared/Types/trusted-cas.types.ts'
+import type { ClientTable } from '@/shared/Table/Types/client-table.types.ts'
+import type { TrustedCaSummary } from '@/lib/Admin/TrustedCaManagement/Types/trusted-cas.types.ts'
 
 export interface TrustedCaTableProps {
     readonly trustedCas: ReadonlyArray<TrustedCaSummary>

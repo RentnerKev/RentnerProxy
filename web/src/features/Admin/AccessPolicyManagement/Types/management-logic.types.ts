@@ -1,5 +1,5 @@
-import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
-import type { ProxyRuntimeSyncStatus } from '@/shared/Types/proxy-runtime.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
+import type { ProxyRuntimeSyncStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 
 export interface AccessPolicyManagementLogicResult {
     readonly state: {

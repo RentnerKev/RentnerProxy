@@ -6,8 +6,8 @@ import { z } from 'zod'
 
 import { systemSettings } from '@/db/schema.ts'
 import { defaultSiteSettingsSchema } from '@/lib/DefaultSite/defaultSite.ts'
-import type { DefaultSiteSettings } from '@/shared/Types/default-site.types.ts'
-import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import type { DefaultSiteSettings } from '@/lib/DefaultSite/Types/default-site.types.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 
 export const DEFAULT_SITE_SETTINGS_KEY = 'default_site_v1'
 

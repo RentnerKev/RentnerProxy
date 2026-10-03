@@ -1,5 +1,5 @@
 import type { Translate } from '@/shared/Language/Types/language.types.ts'
-import type { FoundationHealth } from '@/shared/Types/health.types.ts'
+import type { FoundationHealth } from '@/lib/FoundationStatus/Types/health.types.ts'
 import type {
     FoundationStatusViewModel,
     LiveStatus,

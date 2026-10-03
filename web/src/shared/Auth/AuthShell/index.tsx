@@ -110,5 +110,3 @@ export default function AuthShell({
         </main>
     )
 }
-
-export type { AuthShellProps } from './Types/auth-shell.types.ts'

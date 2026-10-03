@@ -8,7 +8,7 @@ import {
     AuthenticatedLanguageProvider,
     default as useTranslationStore,
 } from '@/shared/Language/Hooks/useTranslationStore.ts'
-import { type AppLanguage } from '@/shared/Language/Types/language.types.ts'
+import type { AppLanguage } from '@/shared/Language/Types/language.types.ts'
 import { bootstraps, default as withTestLanguage } from '@/tests/Helpers/withTestLanguage.tsx'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 

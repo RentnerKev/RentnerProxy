@@ -1,6 +1,6 @@
 import type { UseClientTableReturn } from '@/shared/Table/Types/table.types.ts'
 import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.ts'
-import type { RoleManagementSummary } from '@/shared/Types/auth.types.ts'
+import type { RoleManagementSummary } from '@/lib/Auth/Types/auth.types.ts'
 
 export type RolesTableLogicResult = {
     readonly table: UseClientTableReturn<RoleManagementSummary>['table']

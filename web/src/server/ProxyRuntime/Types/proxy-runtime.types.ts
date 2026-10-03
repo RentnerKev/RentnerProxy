@@ -1,8 +1,8 @@
-import type { ProxyHostForwardScheme } from '@/shared/Types/proxy-hosts-config.types.ts'
-import type { RedirectHostStatusCode } from '@/shared/Types/redirect-hosts-config.types.ts'
-import type { ProxyHttpSettings } from '@/shared/Types/proxy-runtime.types.ts'
-import type { ProxyHostAccessPolicy } from '@/shared/Types/proxy-hosts.types.ts'
-import type { DefaultSiteSettings } from '@/shared/Types/default-site.types.ts'
+import type { ProxyHostForwardScheme } from '@/config/Types/proxy-hosts-config.types.ts'
+import type { RedirectHostStatusCode } from '@/config/Types/redirect-hosts-config.types.ts'
+import type { ProxyHttpSettings } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
+import type { ProxyHostAccessPolicy } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
+import type { DefaultSiteSettings } from '@/lib/DefaultSite/Types/default-site.types.ts'
 
 export type ProxyHostHttpSettings = Pick<
     ProxyHttpSettings,
@@ -61,3 +61,15 @@ export interface ProxyRuntimeApplyResponse {
     readonly activeRevision: string
     readonly lastApplyAt: string | null
 }
+
+import type { PERMISSIONS } from '@/config/permissions.config.ts'
+
+export type RuntimeViewPermission =
+    | typeof PERMISSIONS.PROXY_HOSTS_VIEW
+    | typeof PERMISSIONS.REDIRECT_HOSTS_VIEW
+    | typeof PERMISSIONS.ACCESS_POLICIES_VIEW
+
+export type RuntimeApplyPermission =
+    | typeof PERMISSIONS.PROXY_HOSTS_APPLY
+    | typeof PERMISSIONS.REDIRECT_HOSTS_APPLY
+    | typeof PERMISSIONS.ACCESS_POLICIES_APPLY

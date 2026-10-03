@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { MAX_DEFAULT_SITE_HTML_BYTES } from '@/config/default-site.config.ts'
 import { normalizeRedirectDestination } from '@/features/Admin/RedirectHostManagement/validation.ts'
-import type { DefaultSiteSettings } from '@/shared/Types/default-site.types.ts'
+import type { DefaultSiteSettings } from '@/lib/DefaultSite/Types/default-site.types.ts'
 
 const redirectUrlSchema = z
     .string()

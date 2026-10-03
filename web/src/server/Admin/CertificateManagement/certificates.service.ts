@@ -1,11 +1,16 @@
+import type {
+    CertificateRow,
+    DeleteCertificateResult,
+    CertificateDeletionRuntime,
+} from './Types/certificates.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { and, asc, count, eq, inArray, notInArray } from 'drizzle-orm'
 import type { z } from 'zod'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
-import type { AuditEventInput } from '@/shared/Types/audit-events.types.ts'
-import type { ProxyRuntimeMutationStatus } from '@/shared/Types/proxy-runtime.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
+import type { AuditEventInput } from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
+
 import {
     certificates,
     certificateJobs,
@@ -19,21 +24,24 @@ import {
     importCertificateInputSchema,
     replaceCertificateInputSchema,
     requestCertificateInputSchema,
-    type ImportCertificateInput,
-    type ReplaceCertificateInput,
-    type RequestCertificateInput,
 } from '@/features/Admin/CertificateManagement/validation.ts'
+import type {
+    ImportCertificateInput,
+    ReplaceCertificateInput,
+    RequestCertificateInput,
+} from '@/features/Admin/CertificateManagement/Types/validation.types.ts'
 import {
     certificateCoversDomains,
     getCertificateStatus,
 } from '@/lib/Admin/CertificateManagement/certificateValidation.ts'
-import type { CertificateSummary } from '@/shared/Types/certificates.types.ts'
+import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import {
     requirePermissionService,
     requireUserService,
 } from '@/server/Auth/Access/authorization.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
-import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import {
     deleteControllerCertificate,
@@ -42,8 +50,8 @@ import {
     importControllerCertificate,
     issueControllerCertificate,
     renewControllerCertificate,
-    type ControllerCertificateMetadata,
-} from '@/server/Foundation/certificates.server.ts'
+} from '@/server/Controller/certificates.server.ts'
+import type { ControllerCertificateMetadata } from '@/server/Controller/Types/certificates.types.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import { CertificateDomainError } from './certificates.errors.ts'
@@ -52,18 +60,6 @@ import {
     appendAuditEventsInTransactionService,
 } from '@/server/Audit/audit.service.ts'
 import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
-
-type CertificateRow = typeof certificates.$inferSelect
-
-export interface DeleteCertificateResult {
-    readonly deleted: boolean
-    readonly detachedHostCount: number
-    readonly runtimeStatus: ProxyRuntimeMutationStatus
-}
-
-interface CertificateDeletionRuntime {
-    readonly reconcile: (actorId: string) => Promise<ProxyRuntimeMutationStatus>
-}
 
 const certificateDeletionRuntime: CertificateDeletionRuntime = {
     reconcile: reconcileProxyConfigurationWithAudit,

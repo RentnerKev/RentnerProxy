@@ -1,12 +1,7 @@
+import type { RuntimeFetch } from './Types/static-assets.types.ts'
 import { realpath, stat } from 'node:fs/promises'
 import { realpathSync } from 'node:fs'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-
-type RuntimeServer = Readonly<{
-    requestIP(request: Request): { readonly address: string } | null
-}>
-
-type RuntimeFetch = (request: Request, server: RuntimeServer) => Response | Promise<Response>
 
 function isWithinRoot(root: string, target: string): boolean {
     const path = relative(root, target)

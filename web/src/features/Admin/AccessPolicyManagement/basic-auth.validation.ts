@@ -61,8 +61,3 @@ export const deleteBasicAuthAccountInputSchema = z.strictObject({
     accessPolicyId: accessPolicyIdSchema,
     accountId: basicAuthAccountIdSchema,
 })
-
-export type BasicAuthAccountsPolicyInput = z.input<typeof basicAuthAccountsPolicyInputSchema>
-export type CreateBasicAuthAccountInput = z.input<typeof createBasicAuthAccountInputSchema>
-export type UpdateBasicAuthAccountInput = z.input<typeof updateBasicAuthAccountInputSchema>
-export type DeleteBasicAuthAccountInput = z.input<typeof deleteBasicAuthAccountInputSchema>

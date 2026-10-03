@@ -408,5 +408,5 @@ fn parse_decision(value: &Value) -> Option<DecisionEntry> {
 }
 
 #[cfg(test)]
-#[path = "../tests/crowdsec_dashboard.rs"]
+#[path = "../../tests/private/crowdsec_dashboard.rs"]
 mod tests;

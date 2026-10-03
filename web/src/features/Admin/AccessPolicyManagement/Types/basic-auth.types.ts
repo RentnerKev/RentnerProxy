@@ -1,4 +1,4 @@
-import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 
 export interface BasicAuthAccount {
     readonly id: string

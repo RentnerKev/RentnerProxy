@@ -8,18 +8,18 @@ import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
-import type { CertificateSummary } from '@/shared/Types/certificates.types.ts'
+import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
+import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import type {
     ProxyHostActionResult,
     ProxyRuntimeSyncStatus,
     ProxyHostConfigEditorData,
     ProxyConfigEditorData,
-} from '@/shared/Types/proxy-runtime.types.ts'
+} from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import type {
     CertificateJobActionResult,
     CertificateJobSummary,
-} from '@/shared/Types/certificate-jobs.types.ts'
+} from '@/lib/CertificateJobs/Types/certificate-jobs.types.ts'
 import { proxyHostManagementQueryKeys } from '@/lib/Admin/ProxyHostManagement/proxyHostManagementCache.ts'
 import { certificateJobProgressQueryKeys } from '@/lib/Admin/ProxyHostManagement/CertificateJobs/certificateJobsCache.ts'
 import withTestLanguage, { withLanguageRoot } from '@/tests/Helpers/withTestLanguage.tsx'

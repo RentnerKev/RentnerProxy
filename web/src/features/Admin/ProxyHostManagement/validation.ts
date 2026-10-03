@@ -142,6 +142,3 @@ export const proxyHostFormSchema = createProxyHostFieldsSchema
 export const proxyHostIdInputSchema = z.object({ proxyHostId: z.uuid() })
 
 export const updateProxyHostInputSchema = proxyHostInputSchema.extend(proxyHostIdInputSchema.shape)
-
-export type CreateProxyHostInput = z.input<typeof createProxyHostInputSchema>
-export type UpdateProxyHostInput = z.input<typeof updateProxyHostInputSchema>

@@ -4,13 +4,11 @@ import {
     drainConcurrent,
     parseScaleOptions,
     runBoundedTasks,
-    scaleResultSchema,
-    type ScaleCounts,
 } from '../../../../../scripts/runtime-scale/control.ts'
-import {
-    resourceLimits,
-    type ResourceSample,
-} from '../../../../../scripts/runtime-reliability/control.ts'
+import { scaleResultSchema } from '../../../../../scripts/runtime-scale/control.validation.ts'
+import type { ScaleCounts } from '../../../../../scripts/runtime-scale/Types/control.types.ts'
+import { resourceLimits } from '../../../../../scripts/runtime-reliability/control.config.ts'
+import type { ResourceSample } from '../../../../../scripts/runtime-reliability/Types/control.types.ts'
 
 const counts: ScaleCounts = {
     proxyHosts: 100,

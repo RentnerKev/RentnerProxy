@@ -1,5 +1,5 @@
-import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
-import type { CertificateJobSummary } from '@/shared/Types/certificate-jobs.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
+import type { CertificateJobSummary } from '@/lib/CertificateJobs/Types/certificate-jobs.types.ts'
 
 export interface CertificateManagementPageProps {
     readonly permissions: readonly PermissionKey[]
@@ -31,7 +31,7 @@ export interface CertificateRequestInputs {
 
 export interface CertificateManagementLogicResult {
     readonly state: {
-        readonly certificates: readonly import('@/shared/Types/certificates.types.ts').CertificateSummary[]
+        readonly certificates: readonly import('@/lib/Admin/CertificateManagement/Types/certificates.types.ts').CertificateSummary[]
         readonly canCreate: boolean
         readonly canDelete: boolean
         readonly canIssue: boolean
@@ -45,16 +45,16 @@ export interface CertificateManagementLogicResult {
         readonly isRenewing: boolean
         readonly requestOpen: boolean
         readonly deleteTarget:
-            | import('@/shared/Types/certificates.types.ts').CertificateSummary
+            | import('@/lib/Admin/CertificateManagement/Types/certificates.types.ts').CertificateSummary
             | null
         readonly detailsTarget:
-            | import('@/shared/Types/certificates.types.ts').CertificateSummary
+            | import('@/lib/Admin/CertificateManagement/Types/certificates.types.ts').CertificateSummary
             | null
         readonly replaceTarget:
-            | import('@/shared/Types/certificates.types.ts').CertificateSummary
+            | import('@/lib/Admin/CertificateManagement/Types/certificates.types.ts').CertificateSummary
             | null
         readonly renewTarget:
-            | import('@/shared/Types/certificates.types.ts').CertificateSummary
+            | import('@/lib/Admin/CertificateManagement/Types/certificates.types.ts').CertificateSummary
             | null
         readonly requestDefaults: { readonly domains?: string[]; readonly name?: string }
     }
@@ -63,19 +63,19 @@ export interface CertificateManagementLogicResult {
         readonly confirmRenew: () => Promise<void>
         readonly handleFormSuccess: () => Promise<void>
         readonly openDelete: (
-            certificate: import('@/shared/Types/certificates.types.ts').CertificateSummary,
+            certificate: import('@/lib/Admin/CertificateManagement/Types/certificates.types.ts').CertificateSummary,
         ) => void
         readonly openDetails: (
-            certificate: import('@/shared/Types/certificates.types.ts').CertificateSummary,
+            certificate: import('@/lib/Admin/CertificateManagement/Types/certificates.types.ts').CertificateSummary,
         ) => void
         readonly openReplace: (
-            certificate: import('@/shared/Types/certificates.types.ts').CertificateSummary,
+            certificate: import('@/lib/Admin/CertificateManagement/Types/certificates.types.ts').CertificateSummary,
         ) => void
         readonly openRenew: (
-            certificate: import('@/shared/Types/certificates.types.ts').CertificateSummary,
+            certificate: import('@/lib/Admin/CertificateManagement/Types/certificates.types.ts').CertificateSummary,
         ) => void
         readonly openRequest: (
-            proxyHost?: import('@/shared/Types/proxy-hosts.types.ts').ProxyHostSummary,
+            proxyHost?: import('@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts').ProxyHostSummary,
         ) => void
         readonly openImport: () => void
         readonly retry: () => void

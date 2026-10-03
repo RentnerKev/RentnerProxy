@@ -1,5 +1,5 @@
-import { runSteps } from './command-runner'
-import type { CommandRunnerDependencies, CommandStep } from './Types/command-runner.types'
+import { runSteps } from './command-runner.ts'
+import type { CommandRunnerDependencies, CommandStep } from './Types/command-runner.types.ts'
 
 export const buildSteps: readonly CommandStep[] = [
     { label: 'Web build', script: 'build:web' },

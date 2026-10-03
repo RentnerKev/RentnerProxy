@@ -12,7 +12,7 @@ import {
     AUDIT_FAILURE_CODES,
     AUDIT_RESOURCES,
     AUDIT_RESULTS,
-} from '@/shared/Types/audit-events.types.ts'
+} from '@/config/audit.config.ts'
 
 export const AUDIT_DEFAULT_LIMIT = 50
 export const AUDIT_MAX_LIMIT = 100

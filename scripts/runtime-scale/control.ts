@@ -1,58 +1,9 @@
+import { stages } from './control.config.ts'
+import { countsSchema } from './control.validation.ts'
+import type { ScaleMeasurement, ScaleResourceSample, ScaleFailure } from './Types/control.types.ts'
+import type { ScaleOptions } from './Types/control.types.ts'
 import { z } from 'zod'
-import { analyzeResources, type ResourceSample } from '../runtime-reliability/control.ts'
-
-export type ScaleOptions = {
-    hosts: number
-    concurrency: number
-    rounds: number
-    seed: number
-    timeoutSeconds: number
-    image?: string
-    reportPath?: string
-}
-
-const countsSchema = z.strictObject({
-    proxyHosts: z.number().int().nonnegative(),
-    domains: z.number().int().nonnegative(),
-    redirectHosts: z.number().int().nonnegative(),
-    policies: z.number().int().nonnegative(),
-    certificates: z.number().int().nonnegative(),
-    trustedCas: z.number().int().nonnegative(),
-    managementReads: z.number().int().nonnegative(),
-    mutations: z.number().int().nonnegative(),
-})
-export type ScaleCounts = z.output<typeof countsSchema>
-
-export const scaleResultSchema = z.object({
-    desiredRevision: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
-    counts: countsSchema,
-    inventoryFingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
-    traffic: z
-        .array(
-            z.object({
-                domain: z
-                    .string()
-                    .min(1)
-                    .max(253)
-                    .regex(/^[a-z0-9.-]+$/u),
-                status: z.union([z.literal(200), z.literal(404), z.literal(302), z.literal(307)]),
-                backend: z.enum(['a', 'b', 'tls']).optional(),
-                location: z.string().max(2048).optional(),
-            }),
-        )
-        .max(1000),
-    tlsHost: z
-        .string()
-        .max(253)
-        .regex(/^[a-z0-9.-]+$/u)
-        .optional(),
-    certificateFingerprint: z
-        .string()
-        .regex(/^sha256:[a-f0-9]{64}$/u)
-        .optional(),
-    importRetryVerified: z.boolean().optional(),
-})
-export type ScaleResult = z.output<typeof scaleResultSchema>
+import { analyzeResources } from '../runtime-reliability/control.ts'
 
 export function parseScaleOptions(args: string[]): ScaleOptions {
     const flags = new Map<string, string>()
@@ -141,34 +92,6 @@ export async function drainConcurrent<T extends readonly unknown[]>(
     const settled = await Promise.allSettled(operations)
     for (const result of settled) if (result.status === 'rejected') throw result.reason
     return Promise.all(operations)
-}
-
-const stages = [
-    'setup',
-    'warmup',
-    'small',
-    'large',
-    'concurrent',
-    'features',
-    'interruption',
-    'restart',
-    'delete',
-    'resources',
-    'final',
-    'cleanup',
-] as const
-export type ScaleStage = (typeof stages)[number]
-export type ScaleMeasurement = {
-    stage: ScaleStage
-    elapsedMilliseconds: number
-    counts: ScaleCounts
-    desiredRevision: string
-    inventoryFingerprint: string
-}
-export type ScaleResourceSample = { stage: ScaleStage; sample: ResourceSample }
-type ScaleFailure = {
-    stage: ScaleStage
-    category: 'assertion' | 'timeout' | 'command' | 'telemetry' | 'unexpected'
 }
 
 export function buildScaleReport(input: {

@@ -1,5 +1,5 @@
-import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
-import type { RoleManagementSummary } from '@/shared/Types/auth.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
+import type { RoleManagementSummary } from '@/lib/Auth/Types/auth.types.ts'
 
 export interface RoleManagementPageProps {
     readonly currentUserRoleKeys: readonly string[]

@@ -3,7 +3,10 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import type { AuditEventsQuery, AuditEventsResult } from '@/shared/Types/audit-events.types.ts'
+import type {
+    AuditEventsQuery,
+    AuditEventsResult,
+} from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 import { toAuditEventsQuery, validateAuditLogsFilters } from '@/lib/Admin/AuditLogs/auditLogs.ts'
 import type { AuditLogsFilters } from '@/features/Admin/AuditLogs/Types/audit-logs.types.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'

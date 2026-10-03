@@ -7,7 +7,7 @@ import { Info, Search } from 'lucide-react'
 
 import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import CountryFlag from '@/shared/Components/CountryFlag.tsx'
+import CountryFlag from '@/shared/Geography/CountryFlag.tsx'
 import TableBodyState from '@/shared/Table/Components/TableBodyState.tsx'
 import TableFilters from '@/shared/Table/Components/TableFilters.tsx'
 import TableFilterToggle from '@/shared/Table/Components/TableFilterToggle.tsx'

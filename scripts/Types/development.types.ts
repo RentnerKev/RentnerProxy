@@ -1,4 +1,4 @@
-import type { Logger } from './logger.types'
+import type { Logger } from './logger.types.ts'
 
 export type ShutdownSignal = 'SIGINT' | 'SIGTERM'
 

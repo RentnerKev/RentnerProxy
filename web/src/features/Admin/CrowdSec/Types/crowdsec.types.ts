@@ -1,9 +1,9 @@
-import type { CrowdSecMode } from '@/shared/Types/crowdsec-config.types.ts'
+import type { CrowdSecMode } from '@/config/Types/crowdsec-config.types.ts'
 import type {
     CrowdSecConfiguration,
     CrowdSecCommunityState,
     CrowdSecConsoleState,
-} from '@/shared/Types/crowdsec.types.ts'
+} from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 
 export interface CrowdSecPageProps {
     readonly permissions: readonly string[]

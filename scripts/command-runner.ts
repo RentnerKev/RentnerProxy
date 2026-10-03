@@ -1,11 +1,11 @@
 import { fileURLToPath } from 'node:url'
 
-import { logger as defaultLogger } from './logger'
+import { logger as defaultLogger } from './logger.ts'
 import type {
     CommandRunnerDependencies,
     CommandStep,
     StepSequence,
-} from './Types/command-runner.types'
+} from './Types/command-runner.types.ts'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 

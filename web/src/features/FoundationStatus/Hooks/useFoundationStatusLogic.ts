@@ -3,8 +3,8 @@ import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
-import useLiveQuery from '@/shared/Live/useLiveQuery.ts'
-import type { FoundationHealth } from '@/shared/Types/health.types.ts'
+import useLiveQuery from '@/shared/Live/Hooks/useLiveQuery.ts'
+import type { FoundationHealth } from '@/lib/FoundationStatus/Types/health.types.ts'
 import {
     foundationStatusQueryKeys,
     replaceFoundationHealthCache,

@@ -1,13 +1,9 @@
+import type { AuditFixture } from './Types/audit-state.types.ts'
 import assert from 'node:assert/strict'
 
-import type { Alpha1UpgradeFixture, Command } from '../alpha1-upgrade-fixture'
-import { uuidV7 } from '../alpha4-persistence/crypto'
-import { psql, sqlJson, sqlQuote } from '../alpha4-persistence/storage'
-
-export interface AuditFixture {
-    readonly id: string
-    readonly metadata: { readonly source: string }
-}
+import type { Alpha1UpgradeFixture, Command } from '../Types/alpha1-upgrade-fixture.types.ts'
+import { uuidV7 } from '../alpha4-persistence/crypto.ts'
+import { psql, sqlJson, sqlQuote } from '../alpha4-persistence/storage.ts'
 
 export async function seedAuditFixture(input: {
     readonly command: Command

@@ -14,16 +14,16 @@ const databaseHost = '127.0.0.1'
 const stateArchiveName = 'controller-state.tar'
 const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.mjs'
 const healthcheckScript = '/opt/rentnerproxy/web/docker/web/healthcheck.mjs'
-import { stateArchiveExclusions } from './controller-state-archive'
+import { stateArchiveExclusions } from './controller-state-archive.ts'
 import {
     assertDeploymentCompatible,
-    deploymentSchema,
     parseBackupMetadata,
     validateControllerEncryption,
     validateStateArchive,
     verifyBackupArtifact,
-} from './production-backup-format'
-import { smokeDockerArguments } from './smoke-resources'
+} from './production-backup-format.ts'
+import { deploymentSchema } from './production-backup.validation.ts'
+import { smokeDockerArguments } from './smoke-resources.ts'
 
 function optionValue(argumentsList: string[], name: string): string | undefined {
     const index = argumentsList.indexOf(name)

@@ -1,3 +1,10 @@
+import type {
+    PasskeySummary,
+    PasskeyAuthenticationResult,
+    SerializableWebAuthnExtensions,
+    SerializablePasskeyRegistrationOptions,
+    SerializablePasskeyAuthenticationOptions,
+} from './Types/passkey.types.ts'
 import { auditAuthOperation } from '@/server/Auth/Core/audit-auth.server.ts'
 import '@tanstack/react-start/server-only'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
@@ -26,8 +33,8 @@ import { getRuntimeWebAuthnConfiguration } from '@/server/Configuration/manageme
 import {
     createAuthChallenge,
     consumeAuthChallenge,
-    type WebAuthnReauthenticationChallenge,
-} from '@/server/valkey/auth-challenges.service.ts'
+} from '@/server/Valkey/auth-challenges.service.ts'
+import type { WebAuthnReauthenticationChallenge } from '@/server/Valkey/Types/auth-challenges.types.ts'
 import {
     requireRecentAuthenticationForSession,
     requireSessionPermission,
@@ -42,27 +49,6 @@ import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.servic
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
-
-export interface PasskeySummary {
-    readonly createdAt: Date
-    readonly id: string
-    readonly lastUsedAt: Date | null
-    readonly name: string
-}
-
-export type PasskeyAuthenticationResult =
-    | {
-          readonly code: 'authentication_failed' | 'challenge_expired'
-          readonly success: false
-      }
-    | {
-          readonly session: {
-              readonly expiresAt: Date
-              readonly id: string
-              readonly token: string
-          }
-          readonly success: true
-      }
 
 function unavailable(): AuthDomainError {
     return new AuthDomainError('service_unavailable', 'Passkey authentication is unavailable.')
@@ -102,27 +88,6 @@ function toStoredTransports(value: ReadonlyArray<string>): Array<string> {
     const valid = new Set(['ble', 'cable', 'hybrid', 'internal', 'nfc', 'smart-card', 'usb'])
 
     return value.filter((transport) => valid.has(transport))
-}
-
-interface SerializableWebAuthnExtensions {
-    readonly appid?: string
-    readonly credProps?: boolean
-    readonly hmacCreateSecret?: boolean
-    readonly minPinLength?: boolean
-}
-
-export type SerializablePasskeyRegistrationOptions = Omit<
-    PublicKeyCredentialCreationOptionsJSON,
-    'extensions'
-> & {
-    readonly extensions?: SerializableWebAuthnExtensions
-}
-
-export type SerializablePasskeyAuthenticationOptions = Omit<
-    PublicKeyCredentialRequestOptionsJSON,
-    'extensions'
-> & {
-    readonly extensions?: SerializableWebAuthnExtensions
 }
 
 function toSerializableExtensions(

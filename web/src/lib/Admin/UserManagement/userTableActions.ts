@@ -1,5 +1,5 @@
 import { SYSTEM_ROLES } from '@/config/permissions.config.ts'
-import type { ActionMenuItem } from '@/shared/ActionMenu/index.tsx'
+import type { ActionMenuItem } from '@/shared/ActionMenu/Types/action-menu.types.ts'
 import type { Translate } from '@/shared/Language/Types/language.types.ts'
 import type { UserTableActionInputs } from './Types/table-actions.types.ts'
 

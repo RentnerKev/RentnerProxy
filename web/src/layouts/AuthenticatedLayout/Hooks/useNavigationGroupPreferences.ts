@@ -1,19 +1,16 @@
+import type { NavigationGroupMutation } from '../Types/navigation-group-preferences.types.ts'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from '@rentnerkev/toasts/toast'
 
 import { parseStoredNavigationGroupPreferences } from '@/lib/Navigation/navigationPreferences.ts'
-import {
-    type NavigationGroupChange,
-    type NavigationGroupId,
-} from '@/shared/Types/navigation-config.types.ts'
+import type {
+    NavigationGroupChange,
+    NavigationGroupId,
+} from '@/config/Types/navigation-config.types.ts'
 import { updateCurrentUserNavigationGroupHandler } from '@/features/UserSettings/middleware.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type { AuthenticatedUser } from '@/shared/Types/auth.types.ts'
-
-interface NavigationGroupMutation extends NavigationGroupChange {
-    readonly version: number
-}
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 
 export default function useNavigationGroupPreferences(
     user: Pick<AuthenticatedUser, 'id' | 'navigationGroupPreferences'>,

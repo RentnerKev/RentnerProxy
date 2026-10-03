@@ -1,3 +1,4 @@
+import type { ImportSource } from './Types/npm-import.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { desc, eq } from 'drizzle-orm'
@@ -6,7 +7,8 @@ import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { hostDomains, npmImportRuns } from '@/db/schema.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
-import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import {
     recordAuditEventBestEffortService,
     appendAuditEventInTransactionService,
@@ -22,12 +24,11 @@ import type {
 import { createAccessPolicyInTransaction } from '@/server/Admin/AccessPolicyManagement/access-policies.service.ts'
 import { createProxyHostInTransaction } from '@/server/Admin/ProxyHostManagement/proxy-hosts.mutations.server.ts'
 import { createRedirectHostInTransaction } from '@/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'
-import { buildNpmImportPlan, publicNpmPreview, type NpmImportPlan } from './npm-plan.ts'
+import { buildNpmImportPlan, publicNpmPreview } from './npm-plan.ts'
+import type { NpmImportPlan } from './Types/npm-plan.types.ts'
 import { readNpmSqliteSource } from './npm-source.ts'
 import { buildPortablePlan, readPortableSource } from '@/server/Admin/Migration/portable.ts'
 import { buildZoraxyPlan, readZoraxySource } from '@/server/Admin/Migration/zoraxy.ts'
-
-export type ImportSource = 'npm' | 'rentnerproxy' | 'zoraxy'
 
 export class NpmImportError extends Error {
     constructor(readonly code: 'fingerprint_mismatch' | 'preview_changed') {

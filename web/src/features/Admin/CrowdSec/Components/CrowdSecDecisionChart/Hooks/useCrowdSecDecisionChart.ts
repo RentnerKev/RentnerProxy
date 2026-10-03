@@ -4,7 +4,7 @@ import { tooltip } from '@tanstack/charts/tooltip'
 import { useMemo } from 'react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type { CrowdSecOriginCount } from '@/shared/Types/crowdsec.types.ts'
+import type { CrowdSecOriginCount } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 
 export const decisionPalette = [
     'var(--color-brand-500)',

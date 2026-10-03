@@ -2,7 +2,7 @@ import '@tanstack/react-start/server-only'
 
 import type { RedisClient } from 'bun'
 import { receiveApplicationChange, setApplicationPublisher } from './applicationChanges.ts'
-import { getValkeyClient } from '@/server/valkey/client.server.ts'
+import { getValkeyClient } from '@/server/Valkey/client.server.ts'
 import { applicationChangedEventSchema } from '@/lib/Live/events.ts'
 
 const CHANNEL = 'rentnerproxy:realtime'

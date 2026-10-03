@@ -1,5 +1,5 @@
 import type { AccessPolicyFormFieldsProps } from './access-policy-form.types.ts'
-import type { AccessPolicyAvailabilityStatus } from '@/lib/Admin/AccessPolicyManagement/basicAuthPolicyState.ts'
+import type { AccessPolicyAvailabilityStatus } from '@/lib/Admin/AccessPolicyManagement/Types/basic-auth-policy-state.types.ts'
 
 export type AccessPolicyFormFieldsLogicInputs = Pick<
     AccessPolicyFormFieldsProps,

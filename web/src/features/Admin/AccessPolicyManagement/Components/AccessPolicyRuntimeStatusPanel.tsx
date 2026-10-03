@@ -1,18 +1,6 @@
+import type { AccessPolicyRuntimeStatusPanelProps } from '../Types/access-policy-runtime-status-panel.types.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type {
-    AccessPolicyRuntimeState,
-    AccessPolicyRuntimeStatus,
-} from '../Types/access-policy-management.types.ts'
-
-interface AccessPolicyRuntimeStatusPanelProps {
-    readonly canApply: boolean
-    readonly isApplying: boolean
-    readonly isError?: boolean
-    readonly isRetrying?: boolean
-    readonly onApply: () => void
-    readonly onRetry?: () => void
-    readonly status: AccessPolicyRuntimeStatus | undefined
-}
+import type { AccessPolicyRuntimeState } from '../Types/access-policy-management.types.ts'
 
 const statusStyles: Record<AccessPolicyRuntimeState, string> = {
     synced: 'border-success-text/25 bg-success-bg',

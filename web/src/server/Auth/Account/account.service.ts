@@ -11,7 +11,7 @@ import type {
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { hashPassword, verifyPassword } from '@/server/Auth/Core/password.server.ts'
-import { enforcePasswordChangeRateLimit } from '@/server/valkey/rate-limiter.service.ts'
+import { enforcePasswordChangeRateLimit } from '@/server/Valkey/rate-limiter.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 import { auditAuthOperation } from '@/server/Auth/Core/audit-auth.server.ts'

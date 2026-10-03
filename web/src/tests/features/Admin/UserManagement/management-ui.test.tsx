@@ -14,8 +14,8 @@ import { PERMISSIONS, PERMISSION_REGISTRY } from '@/config/permissions.config.ts
 import { roleManagementQueryKeys } from '@/lib/Admin/RoleManagement/roleManagementCache.ts'
 import { userManagementQueryKeys } from '@/lib/Admin/UserManagement/userManagementCache.ts'
 import { createTrimmedIncludesStringFilter } from '@/lib/Table/tableFilters.ts'
-import type { ClientTableFeatures } from '@/shared/Table/clientTable.ts'
-import type { RoleManagementSummary, UserSummary } from '@/shared/Types/auth.types.ts'
+import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
+import type { RoleManagementSummary, UserSummary } from '@/lib/Auth/Types/auth.types.ts'
 import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.ts'
 import withTestLanguage, { withLanguageRoot } from '@/tests/Helpers/withTestLanguage.tsx'
 

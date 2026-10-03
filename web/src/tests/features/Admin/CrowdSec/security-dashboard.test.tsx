@@ -7,9 +7,9 @@ import type {
     CrowdSecDashboard,
     CrowdSecDashboardQuery,
     CrowdSecDecision,
-} from '@/shared/Types/crowdsec.types.ts'
-import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
-import type { ProxyRuntimeSyncStatus } from '@/shared/Types/proxy-runtime.types.ts'
+} from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
+import type { ProxyRuntimeSyncStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import { scenarioDescriptionKey } from '@/lib/Admin/CrowdSec/scenarioDescription.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 

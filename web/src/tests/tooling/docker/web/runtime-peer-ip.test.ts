@@ -6,8 +6,8 @@ import {
     createRateLimitKey,
     enforceAuthRateLimit,
     RateLimitError,
-} from '@/server/valkey/rate-limiter.service.ts'
-import type { ValkeyCommandClient } from '@/server/valkey/Types/valkey.types.ts'
+} from '@/server/Valkey/rate-limiter.service.ts'
+import type { ValkeyCommandClient } from '@/server/Valkey/Types/valkey.types.ts'
 
 describe('production request peer addresses', () => {
     test('makes the Bun connection address available inside the TanStack request context', async () => {

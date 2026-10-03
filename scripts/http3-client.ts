@@ -1,10 +1,6 @@
+import type { Http3Command, Http3Request } from './Types/http3-client.types.ts'
 import assert from 'node:assert/strict'
 import { X509Certificate } from 'node:crypto'
-
-export type Http3Command = (
-    args: string[],
-    options?: { readonly timeoutMs?: number },
-) => Promise<string>
 
 export async function buildHttp3Client(command: Http3Command, image: string): Promise<void> {
     await command(
@@ -13,19 +9,6 @@ export async function buildHttp3Client(command: Http3Command, image: string): Pr
     )
     const version = await command(['docker', 'run', '--rm', image, '--version'])
     assert.match(version, /Features:.*\bHTTP2\b.*\bHTTP3\b/u)
-}
-
-interface Http3Request {
-    readonly image: string
-    readonly caFile: string
-    readonly hostname: string
-    readonly port: number
-    readonly path?: string
-    readonly protocol?: '--http3-only' | '--http3' | '--http2' | '--http1.1'
-    readonly network?: string
-    readonly address?: string
-    readonly headers?: readonly string[]
-    readonly credentials?: string
 }
 
 export async function requestHttp3Client(command: Http3Command, request: Http3Request) {

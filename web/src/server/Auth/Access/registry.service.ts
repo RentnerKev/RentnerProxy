@@ -5,7 +5,7 @@ import { inArray, sql } from 'drizzle-orm'
 import { PERMISSION_REGISTRY } from '@/config/permissions.config.ts'
 import { SYSTEM_ROLE_REGISTRY } from '@/lib/Permissions/systemRoles.ts'
 import { permissions, rolePermissions, roles } from '@/db/schema.ts'
-import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 
 export async function ensureAuthorizationRegistryInTransaction(

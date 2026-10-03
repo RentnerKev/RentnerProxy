@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { check, index, text, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg-core'
 
-import { rentnerProxySchema } from './base'
+import { rentnerProxySchema } from './base.ts'
 
 export const trustedCas = rentnerProxySchema.table(
     'trusted_cas',

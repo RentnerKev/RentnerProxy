@@ -1,4 +1,4 @@
-import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
+import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 
 export interface ProxyHostTableActionInputs {
     readonly canDelete: boolean

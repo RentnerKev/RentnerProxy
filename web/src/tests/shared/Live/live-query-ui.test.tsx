@@ -3,7 +3,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
-import useLiveQuery from '@/shared/Live/useLiveQuery.ts'
+import useLiveQuery from '@/shared/Live/Hooks/useLiveQuery.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })

@@ -1,10 +1,10 @@
 import type {
     AccessPolicyCombination,
     AccessPolicyMode,
-} from '@/shared/Types/access-policies-config.types.ts'
-import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
-import type { ForwardAuthConfiguration } from '@/lib/ForwardAuth/forwardAuth.ts'
-import type { AccessPolicyIpRulesDraft } from '@/lib/Admin/AccessPolicyManagement/ipAccessPolicyState.ts'
+} from '@/config/Types/access-policies-config.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
+import type { ForwardAuthConfiguration } from '@/lib/ForwardAuth/Types/forward-auth.types.ts'
+import type { AccessPolicyIpRulesDraft } from '@/lib/Admin/AccessPolicyManagement/Types/ip-access-policy.types.ts'
 
 export type ForwardAuthProvider = ForwardAuthConfiguration['provider']
 export type ForwardAuthRequestHeader = ForwardAuthConfiguration['requestHeaders'][number]

@@ -1,4 +1,4 @@
-import type { CrowdSecConfiguration } from '@/shared/Types/crowdsec.types.ts'
+import type { CrowdSecConfiguration } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 import type { CrowdSecTransitionMode, CrowdSecTransitionProgress } from './Types/crowdsec.types.ts'
 
 export function getCrowdSecTransitionProgress(

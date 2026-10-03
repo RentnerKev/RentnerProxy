@@ -4,7 +4,7 @@ import { eq, sql } from 'drizzle-orm'
 
 import { DEFAULT_ACCENT_COLOR } from '@/config/appearance.config.ts'
 import { parseStoredSystemAppearance } from '@/lib/SystemAppearance/appearance.ts'
-import { type SystemAccentColorUpdate } from '@/shared/Types/appearance-config.types.ts'
+import type { SystemAccentColorUpdate } from '@/config/Types/appearance-config.types.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { systemSettings } from '@/db/schema.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'

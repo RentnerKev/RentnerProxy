@@ -1,16 +1,17 @@
+import type { RuntimeViewPermission, RuntimeApplyPermission } from './Types/proxy-runtime.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type {
     ProxyRuntimeMutationStatus,
     ProxyRuntimeSyncStatus,
-} from '@/shared/Types/proxy-runtime.types.ts'
+} from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import {
     applyProxyRuntimeConfiguration,
     getProxyRuntimeStatus,
-} from '@/server/Foundation/controller.server.ts'
+} from '@/server/Controller/proxy.server.ts'
 import { createProxyReconciler } from './proxy-reconcile.ts'
 import { compareProxyRuntimeStatus } from './proxy-runtime-snapshot.ts'
 import { readProxyRuntimeSnapshot } from './proxy-runtime-data.ts'
@@ -43,15 +44,6 @@ export function startProxyRuntimeReconciliation(): void {
 export function stopProxyRuntimeReconciliation(): Promise<void> {
     return reconcileProxyConfigurationService.stop()
 }
-
-type RuntimeViewPermission =
-    | typeof PERMISSIONS.PROXY_HOSTS_VIEW
-    | typeof PERMISSIONS.REDIRECT_HOSTS_VIEW
-    | typeof PERMISSIONS.ACCESS_POLICIES_VIEW
-type RuntimeApplyPermission =
-    | typeof PERMISSIONS.PROXY_HOSTS_APPLY
-    | typeof PERMISSIONS.REDIRECT_HOSTS_APPLY
-    | typeof PERMISSIONS.ACCESS_POLICIES_APPLY
 
 export async function getProxyRuntimeStatusService(
     permission: RuntimeViewPermission = PERMISSIONS.PROXY_HOSTS_VIEW,

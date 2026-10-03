@@ -1,3 +1,4 @@
+import type { UpdateSystemAccentColorResult } from './Types/middleware.types.ts'
 import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader } from '@tanstack/react-start/server'
 
@@ -7,10 +8,6 @@ import {
     updateSystemAccentColorService,
 } from '@/server/SystemAppearance/system-appearance.service.ts'
 import { localizedActionFailure, throwLocalizedQueryError } from '@/server/Auth/transport.server.ts'
-
-export type UpdateSystemAccentColorResult =
-    | { readonly success: true; readonly accentColor: string }
-    | { readonly success: false; readonly message: string }
 
 function noStore(): void {
     setResponseHeader('Cache-Control', 'no-store')

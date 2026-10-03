@@ -3,10 +3,10 @@ import { invalidateRedirectHostManagementRuntimeStatusCache } from '@/lib/Admin/
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import useLiveInvalidation from '@/shared/Live/useLiveInvalidation.ts'
+import useLiveInvalidation from '@/shared/Live/Hooks/useLiveInvalidation.ts'
 import { toast } from '@rentnerkev/toasts/toast'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type { RedirectHostSummary } from '@/shared/Types/redirect-hosts.types.ts'
+import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
 import { redirectHostManagementQueryKeys } from '@/lib/Admin/RedirectHostManagement/redirectHostManagementCache.ts'
 import {
     applyRedirectConfigurationHandler,

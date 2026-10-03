@@ -150,7 +150,7 @@ describe('production smokes resource safety', () => {
 
         expect(runner).toContain('tmpdir()')
         expect(runner).toContain('rentnerproxy-smokes-')
-        expect(runner).toContain("from '../../scripts/smoke-resources'")
+        expect(runner).toContain("from '../../scripts/smoke-resources.ts'")
         expect(runner).toContain('SMOKE_RUN_LABEL')
         expect(runner).toContain('--filter')
         expect(runner).toContain("'label=' + SMOKE_RUN_LABEL + '=' + scope")

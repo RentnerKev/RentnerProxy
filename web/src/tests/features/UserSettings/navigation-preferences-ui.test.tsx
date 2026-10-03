@@ -7,10 +7,10 @@ import { PERMISSION_REGISTRY } from '@/config/permissions.config.ts'
 import type {
     NavigationGroupId,
     NavigationGroupPreferences,
-} from '@/shared/Types/navigation-config.types.ts'
+} from '@/config/Types/navigation-config.types.ts'
 import type { NavigationGroupUpdateResult } from '@/features/UserSettings/Types/navigation-server-result.types.ts'
 import type { ApplicationNavigationItem } from '@/layouts/AuthenticatedLayout/Components/ApplicationShell/Types/application-shell.types.ts'
-import type { AuthenticatedUser } from '@/shared/Types/auth.types.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
 import type { AppLanguage } from '@/shared/Language/Types/language.types.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 

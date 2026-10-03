@@ -13,7 +13,7 @@ import {
     defaultAccessPolicyIpRules,
     parseAccessPolicyIpRulesDraft,
 } from '@/lib/Admin/AccessPolicyManagement/ipAccessPolicyState.ts'
-import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()

@@ -3,8 +3,8 @@ import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 
-import type { CrowdSecConfiguration } from '@/shared/Types/crowdsec.types.ts'
-import type { CrowdSecDashboardQuery } from '@/shared/Types/crowdsec.types.ts'
+import type { CrowdSecConfiguration } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
+import type { CrowdSecDashboardQuery } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 import { crowdSecQueryKeys } from '@/lib/Admin/CrowdSec/crowdSecCache.ts'
 import { getCrowdSecDashboardHandler } from '../../../middleware.ts'
 

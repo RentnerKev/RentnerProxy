@@ -1,10 +1,5 @@
-import type { LiveConnectionData } from './realtimeSubscriptions.ts'
-import type { LiveSubscriptionManager } from './realtimeSubscriptions.ts'
-
-interface RealtimeLifecycleOptions {
-    readonly manager: LiveSubscriptionManager
-    readonly pending: Set<LiveConnectionData>
-}
+import type { RealtimeLifecycleOptions } from './Types/realtime-lifecycle.types.ts'
+import type { LiveConnectionData } from './Types/realtime-subscriptions.types.ts'
 
 export function createRealtimeLifecycle(options: RealtimeLifecycleOptions) {
     function dispose(connection: LiveConnectionData): void {

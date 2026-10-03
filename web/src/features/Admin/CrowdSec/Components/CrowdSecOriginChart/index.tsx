@@ -1,6 +1,6 @@
 import { Chart } from '@tanstack/charts/react'
 
-import type { CrowdSecOriginCount } from '@/shared/Types/crowdsec.types.ts'
+import type { CrowdSecOriginCount } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 import useCrowdSecOriginChart from './Hooks/useCrowdSecOriginChart.ts'
 
 export default function CrowdSecOriginChart({

@@ -13,11 +13,12 @@ import type {
     ProxyHostConfigEditorData,
     ProxyHttpSettings,
     ProxyRuntimeMutationStatus,
-} from '@/shared/Types/proxy-runtime.types.ts'
+} from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
-import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
-import { getActiveProxyHostConfiguration } from '@/server/Foundation/controller.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
+import { getActiveProxyHostConfiguration } from '@/server/Controller/proxy.server.ts'
 import { ProxyConfigEditorError } from './proxy-config-editor.service.ts'
 import { readProxyRuntimeHost, readProxyRuntimeTrustedCas } from './proxy-runtime-data.ts'
 import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot.ts'

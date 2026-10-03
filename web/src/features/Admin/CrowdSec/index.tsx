@@ -5,7 +5,7 @@ import {
     CROWDSEC_API_KEY_MAX_LENGTH,
     CROWDSEC_API_URL_MAX_LENGTH,
 } from '@/config/crowdsec.config.ts'
-import { type CrowdSecMode } from '@/shared/Types/crowdsec-config.types.ts'
+import type { CrowdSecMode } from '@/config/Types/crowdsec-config.types.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import FieldError from '@/shared/Forms/FieldError.tsx'
 import ContentState from '@/shared/Management/ContentState.tsx'

@@ -1,3 +1,7 @@
+import type {
+    PublishedUpgradeBaseline,
+    UpgradeSmokeOptions,
+} from './Types/alpha1-upgrade-smoke.types.ts'
 // oxlint-disable no-await-in-loop -- Upgrade phases and bounded readiness probes are sequential.
 
 import assert from 'node:assert/strict'
@@ -5,16 +9,16 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { smokeCompose } from './smoke-resources'
-import { verifyRestoreRollback } from './restore-rollback-smoke'
+import { smokeCompose } from './smoke-resources.ts'
+import { verifyRestoreRollback } from './restore-rollback-smoke.ts'
 import {
     ALPHA1_MIGRATION_COUNT,
     ALPHA3_MIGRATION_COUNT,
     CURRENT_MIGRATION_COUNT,
     assertAlpha1UpgradeFixture,
     seedAlpha1UpgradeFixture,
-    type Alpha1UpgradeFixture,
-} from './alpha1-upgrade-fixture'
+} from './alpha1-upgrade-fixture.ts'
+import type { Alpha1UpgradeFixture } from './Types/alpha1-upgrade-fixture.types.ts'
 
 export const ALPHA1_IMAGE =
     'ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.1@sha256:f88edb70a80db7c527e1a963e835593f6998ab4541f810e26cf75ffa63da0d3f'
@@ -22,16 +26,6 @@ export const ALPHA1_REVISION = 'a147176c6096935dc5d9824f671b5f21d89b636b'
 export const ALPHA3_IMAGE =
     'ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.3@sha256:f876c9c59c819cf537617ff256ec247eae9897adf632453117496fbea6a28742'
 export const ALPHA3_REVISION = 'a1bb0117828606cd10919871a098eb3a794b912e'
-
-export interface PublishedUpgradeBaseline {
-    readonly name: 'Alpha 1' | 'Alpha 3'
-    readonly image: string
-    readonly version: string
-    readonly revision: string
-    readonly migrationCount: number
-    readonly targetName: 'current'
-    readonly directoryName: string
-}
 
 export const ALPHA1_BASELINE: PublishedUpgradeBaseline = {
     name: 'Alpha 1',
@@ -51,24 +45,6 @@ export const ALPHA3_BASELINE: PublishedUpgradeBaseline = {
     migrationCount: ALPHA3_MIGRATION_COUNT,
     targetName: 'current',
     directoryName: 'alpha3-upgrade',
-}
-
-type Command = (argumentsList: string[], timeoutMs?: number) => Promise<string>
-
-export interface UpgradeSmokeOptions {
-    readonly imageTag: string
-    readonly temporaryRoot: string
-    readonly upstreamPort: number
-    readonly trafficMarker: string
-    readonly envFile: string
-    readonly environment: NodeJS.ProcessEnv
-    readonly command: Command
-    readonly commandWithEnvironment: (
-        args: string[],
-        environment: NodeJS.ProcessEnv,
-        timeoutMs?: number,
-    ) => Promise<string>
-    readonly passed: (label: string) => void
 }
 
 async function waitFor(

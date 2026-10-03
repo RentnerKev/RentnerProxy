@@ -7,8 +7,8 @@ import {
     createDateRangeFilter,
     createTrimmedIncludesStringFilter,
 } from '@/lib/Table/tableFilters.ts'
-import type { ClientTableFeatures } from '@/shared/Table/clientTable.ts'
-import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
+import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 import AccessPolicyTableActions from '../Components/AccessPolicyTableActions.tsx'
 import {
     AccessPolicyBasicAuthCell,

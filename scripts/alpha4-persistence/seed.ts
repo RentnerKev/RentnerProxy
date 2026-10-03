@@ -3,10 +3,10 @@ import type {
     Alpha4PersistenceFixture,
     Alpha4PersistenceIds,
     Command,
-} from './types'
-import { decodeApplicationKey, digest, uuidV7 } from './crypto'
-import { buildSeedStatements } from './seed-sql'
-import { psql, readContainerFile, readOrCreateCursor } from './storage'
+} from './Types/persistence.types.ts'
+import { decodeApplicationKey, digest, uuidV7 } from './crypto.ts'
+import { buildSeedStatements } from './seed-sql.ts'
+import { psql, readContainerFile, readOrCreateCursor } from './storage.ts'
 
 const appEncryptionKeyFile = '/run/rentnerproxy/app-key/value'
 

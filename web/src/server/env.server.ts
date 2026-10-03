@@ -1,3 +1,4 @@
+import type { SmtpConfiguration, WebAuthnConfiguration } from './Types/env.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { closeSync, fstatSync, lstatSync, openSync, readSync } from 'node:fs'
@@ -15,21 +16,6 @@ const DEFAULT_CONTROLLER_BASE_URL = 'http://127.0.0.1:8081'
 const MAXIMUM_SECRET_FILE_BYTES = 4_096
 const SMTP_FROM_ADDRESS_PATTERN =
     /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/
-
-export interface SmtpConfiguration {
-    readonly from: string
-    readonly host: string
-    readonly password?: string
-    readonly port: number
-    readonly secure: boolean
-    readonly user?: string
-}
-
-export interface WebAuthnConfiguration {
-    readonly origin: string
-    readonly rpId: string
-    readonly rpName: string
-}
 
 function normalizeHttpOrigin(value: string): string | null {
     try {
@@ -109,8 +95,6 @@ function readSecretEnvironment(variable: string): string | undefined {
         if (descriptor !== undefined) closeSync(descriptor)
     }
 }
-
-export { parsePublicOrigin, parseTrustedManagementOrigin } from '@/lib/ManagementOrigin/origin.ts'
 
 export function getControllerBaseUrl(): string | null {
     const configured = process.env.RENTNERPROXY_CONTROLLER_URL

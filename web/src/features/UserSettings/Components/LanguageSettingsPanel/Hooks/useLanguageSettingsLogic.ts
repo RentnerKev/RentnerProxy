@@ -7,7 +7,7 @@ import { useRouter } from '@tanstack/react-router'
 import { AVAILABLE_LANGUAGES } from '@/config/language.config.ts'
 import { isAppLanguage } from '@/lib/Language/language.ts'
 import { loadLanguageBootstrap } from '@/shared/Language/Hooks/useTranslationStore.ts'
-import { type AppLanguage } from '@/shared/Language/Types/language.types.ts'
+import type { AppLanguage } from '@/shared/Language/Types/language.types.ts'
 import { updateCurrentUserLanguageHandler } from '../../../middleware.ts'
 import { toast } from '@rentnerkev/toasts/toast'
 

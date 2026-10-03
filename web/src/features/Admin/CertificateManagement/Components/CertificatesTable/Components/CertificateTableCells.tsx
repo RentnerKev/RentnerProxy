@@ -6,8 +6,8 @@ import useTranslationStore, {
 import type {
     CertificateSource,
     CertificateStatus,
-} from '@/shared/Types/certificates-config.types.ts'
-import type { CertificateSummary } from '@/shared/Types/certificates.types.ts'
+} from '@/config/Types/certificates-config.types.ts'
+import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import {
     certificateSourceClass,
     certificateStatusClass,

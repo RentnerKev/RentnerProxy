@@ -1,13 +1,13 @@
 import { deepStrictEqual } from 'node:assert/strict'
 import { createDecipheriv } from 'node:crypto'
 
-import { decodeApplicationKey } from './alpha4-persistence/crypto'
-import { seedAlpha4PersistenceFixture } from './alpha4-persistence/seed'
+import { decodeApplicationKey } from './alpha4-persistence/crypto.ts'
+import { seedAlpha4PersistenceFixture } from './alpha4-persistence/seed.ts'
 import {
     readAlpha4PersistenceSnapshot as readSnapshotFromStorage,
     readContainerFile,
     readEncryptedRequestParts,
-} from './alpha4-persistence/storage'
+} from './alpha4-persistence/storage.ts'
 import type {
     Alpha4PersistenceCommandInput,
     Alpha4PersistenceFixture,
@@ -16,7 +16,7 @@ import type {
     AssertAlpha4PersistenceSnapshotInput,
     Command,
     SeedAlpha4PersistenceFixtureInput,
-} from './alpha4-persistence/types'
+} from './alpha4-persistence/Types/persistence.types.ts'
 
 const appEncryptionKeyFile = '/run/rentnerproxy/app-key/value'
 

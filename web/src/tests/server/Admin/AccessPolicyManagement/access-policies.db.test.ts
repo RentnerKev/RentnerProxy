@@ -6,7 +6,7 @@ import { inArray, like, eq, and } from 'drizzle-orm'
 
 import { SESSION_COOKIE_NAME } from '@/config/auth.config.ts'
 import { PERMISSIONS, SYSTEM_ROLES } from '@/config/permissions.config.ts'
-import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import {
     accessPolicies,
     auditEvents,
@@ -17,8 +17,8 @@ import {
     userRoles,
     users,
 } from '@/db/schema.ts'
-import type { CreateProxyHostInput } from '@/features/Admin/ProxyHostManagement/validation.ts'
-import type { AccessPolicyIpRules } from '@/lib/AccessPolicies/ipAccessRules.ts'
+import type { CreateProxyHostInput } from '@/features/Admin/ProxyHostManagement/Types/validation.types.ts'
+import type { AccessPolicyIpRules } from '@/lib/AccessPolicies/Types/ip-access-rules.types.ts'
 import {
     createAccessPolicyService,
     deleteAccessPolicyService,

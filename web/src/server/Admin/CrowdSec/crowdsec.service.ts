@@ -1,3 +1,4 @@
+import type { ReconcileSnapshot } from './Types/crowdsec.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -6,17 +7,19 @@ import {
     updateCrowdSecConfigurationSchema,
     crowdSecConsoleEnrollmentSchema,
     crowdSecDashboardQuerySchema,
-    type TestCrowdSecConnectionInput,
-    type UpdateCrowdSecConfigurationInput,
 } from '@/features/Admin/CrowdSec/validation.ts'
+import type {
+    TestCrowdSecConnectionInput,
+    UpdateCrowdSecConfigurationInput,
+} from '@/features/Admin/CrowdSec/Types/validation.types.ts'
 import type {
     CrowdSecConfiguration,
     CrowdSecDashboard,
     CrowdSecDashboardQuery,
     CrowdSecMutationResult,
     CrowdSecRuntimeStatus,
-} from '@/shared/Types/crowdsec.types.ts'
-import type { ProxyRuntimeMutationStatus } from '@/shared/Types/proxy-runtime.types.ts'
+} from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
+import type { ProxyRuntimeMutationStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
@@ -27,8 +30,8 @@ import {
     getCrowdSecRuntimeStatus,
     getCrowdSecDashboard,
     testCrowdSecControllerConnection,
-    type CrowdSecControllerRequest,
-} from '@/server/Foundation/controller.server.ts'
+} from '@/server/Controller/crowdsec.server.ts'
+import type { CrowdSecControllerRequest } from '@/server/Controller/Types/crowdsec.types.ts'
 import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
 import { CrowdSecDomainError } from './crowdsec.errors.ts'
 import { getLocalDemoDashboard } from './crowdsec-demo.server.ts'
@@ -43,13 +46,8 @@ import {
     normalizeCrowdSecApiUrl,
     readStoredCrowdSecConfiguration,
     writeStoredCrowdSecConfiguration,
-    type StoredCrowdSecConfiguration,
 } from './crowdsec-settings.ts'
-
-interface ReconcileSnapshot {
-    readonly fingerprint: string
-    readonly request: CrowdSecControllerRequest
-}
+import type { StoredCrowdSecConfiguration } from './Types/crowdsec-settings.types.ts'
 
 function runtimeMatches(
     stored: StoredCrowdSecConfiguration,

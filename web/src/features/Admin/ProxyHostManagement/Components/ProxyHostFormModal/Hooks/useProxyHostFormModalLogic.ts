@@ -1,7 +1,7 @@
+import type { UseProxyHostFormLogicParams } from '../Types/proxy-host-form-modal-logic.types.ts'
 import { invalidateAccessPoliciesCache } from '@/lib/Admin/AccessPolicyManagement/accessPolicyManagementCache.ts'
 import type {
     ProxyHostFormModalHandler,
-    ProxyHostFormModalProps,
     ProxyHostFormModalState,
 } from '../Types/proxy-host-form.types.ts'
 
@@ -30,21 +30,9 @@ import useCertificateRequest from '@/features/Admin/CertificateManagement/Hooks/
 import { hostCertificateRequestSchema } from '../../../certificate-job-validation.ts'
 import { createProxyHostHandler, updateProxyHostHandler } from '../../../middleware.ts'
 import type { ProxyHostEditorFormValues } from '../Types/proxy-host-form.types.ts'
-import type { ProxyHostActionResult } from '@/shared/Types/proxy-runtime.types.ts'
-import type { CertificateJobActionResult } from '@/shared/Types/certificate-jobs.types.ts'
+import type { ProxyHostActionResult } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
+import type { CertificateJobActionResult } from '@/lib/CertificateJobs/Types/certificate-jobs.types.ts'
 import { proxyHostFormSchema } from '../../../validation.ts'
-
-type UseProxyHostFormLogicParams = Pick<
-    ProxyHostFormModalProps,
-    | 'canEnable'
-    | 'canDisable'
-    | 'canAssignCertificates'
-    | 'canRequestCertificate'
-    | 'canAssignPolicies'
-    | 'mode'
-    | 'onSuccess'
-    | 'proxyHost'
->
 
 export default function useProxyHostFormModalLogic({
     canEnable,

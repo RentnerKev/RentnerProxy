@@ -15,12 +15,11 @@ import {
     deriveWebAuthnRpId,
     parseAppEncryptionKey,
     parseDatabaseUrl,
-    parsePublicOrigin,
     parseValkeyUrl,
-    parseTrustedManagementOrigin,
     parseWebAuthnRpId,
     validateProductionEnvironment,
 } from '@/server/env.server.ts'
+import { parsePublicOrigin, parseTrustedManagementOrigin } from '@/lib/ManagementOrigin/origin.ts'
 
 const ENVIRONMENT_VARIABLES = [
     'APP_URL',

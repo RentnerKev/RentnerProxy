@@ -1,3 +1,4 @@
+import type { ActionResult } from '../Types/access-policy-management-logic.types.ts'
 import {
     invalidateAccessPoliciesCache,
     invalidateAssignableAccessPoliciesCache,
@@ -8,10 +9,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import useLiveInvalidation from '@/shared/Live/useLiveInvalidation.ts'
+import useLiveInvalidation from '@/shared/Live/Hooks/useLiveInvalidation.ts'
 import { toast } from '@rentnerkev/toasts/toast'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type { AccessPolicySummary } from '@/shared/Types/access-policies.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 import { accessPolicyManagementQueryKeys } from '@/lib/Admin/AccessPolicyManagement/accessPolicyManagementCache.ts'
 import {
     applyAccessPolicyConfigurationHandler,
@@ -22,12 +23,6 @@ import {
 import type { AccessPolicyManagementPageProps } from '../Types/access-policy-management.types.ts'
 
 const EMPTY_ACCESS_POLICIES: AccessPolicySummary[] = []
-
-type ActionResult = {
-    readonly success: boolean
-    readonly message: string
-    readonly runtimeStatus?: 'applied' | 'pending'
-}
 
 export default function useAccessPolicyManagementLogic({
     permissions,

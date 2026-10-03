@@ -1,7 +1,5 @@
-import type { ApplicationChangedEvent } from '@/lib/Live/events.ts'
-
-type ChangeListener = () => void
-type ChangePublisher = (event: ApplicationChangedEvent) => Promise<unknown>
+import type { ChangeListener, ChangePublisher } from './Types/application-changes.types.ts'
+import type { ApplicationChangedEvent } from '@/lib/Live/Types/events.types.ts'
 
 declare global {
     var rentnerproxyRealtimeEvents:

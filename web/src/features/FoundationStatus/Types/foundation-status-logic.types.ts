@@ -1,4 +1,4 @@
-import type { FoundationHealth } from '@/shared/Types/health.types.ts'
+import type { FoundationHealth } from '@/lib/FoundationStatus/Types/health.types.ts'
 import type { LiveStatus } from './foundation-status.types.ts'
 export interface FoundationStatusLogicResult {
     state: {

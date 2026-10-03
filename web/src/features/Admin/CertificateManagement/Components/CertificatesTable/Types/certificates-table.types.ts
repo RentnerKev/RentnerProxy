@@ -1,6 +1,6 @@
-import type { ClientTable } from '@/shared/Table/clientTable.ts'
+import type { ClientTable } from '@/shared/Table/Types/client-table.types.ts'
 import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.ts'
-import type { CertificateSummary } from '@/shared/Types/certificates.types.ts'
+import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 
 export interface CertificateTableProps {
     readonly certificates: ReadonlyArray<CertificateSummary>

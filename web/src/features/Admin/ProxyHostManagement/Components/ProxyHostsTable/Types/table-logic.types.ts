@@ -1,6 +1,6 @@
 import type { UseClientTableReturn } from '@/shared/Table/Types/table.types.ts'
 import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.ts'
-import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
+import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 
 export type ProxyHostsTableLogicResult = {
     readonly table: UseClientTableReturn<ProxyHostSummary>['table']

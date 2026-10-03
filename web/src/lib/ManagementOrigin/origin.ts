@@ -1,4 +1,4 @@
-import type { ManagementOriginEnvironment } from '@/shared/Types/management-origin-config.types.ts'
+import type { ManagementOriginEnvironment } from '@/config/Types/management-origin-config.types.ts'
 function normalizeHttpOrigin(value: string): string | null {
     try {
         const url = new URL(value)

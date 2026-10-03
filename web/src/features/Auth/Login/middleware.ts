@@ -1,3 +1,4 @@
+import type { TwoFactorLoginActionResult } from './Types/middleware.types.ts'
 import type { AuthActionResult } from '@/server/Auth/Types/auth-transport.types.ts'
 import type { AuthenticationResponseJSON } from '@simplewebauthn/server'
 import { createServerFn } from '@tanstack/react-start'
@@ -18,7 +19,7 @@ import {
     completeLoginMfaWithTotpService,
     getTwoFactorStatusService,
 } from '@/server/Auth/TwoFactor/two-factor.service.ts'
-import { getAuthChallenge } from '@/server/valkey/auth-challenges.service.ts'
+import { getAuthChallenge } from '@/server/Valkey/auth-challenges.service.ts'
 import {
     actionFailure,
     AUTH_UNAVAILABLE_MESSAGE,
@@ -35,10 +36,6 @@ import {
     getTwoFactorChallengeStatusInputSchema,
     loginInputSchema,
 } from './validation.ts'
-
-type TwoFactorLoginActionResult = AuthActionResult & {
-    readonly restartLogin?: boolean
-}
 
 export const loginHandler = createServerFn({ method: 'POST' })
     .validator(loginInputSchema)

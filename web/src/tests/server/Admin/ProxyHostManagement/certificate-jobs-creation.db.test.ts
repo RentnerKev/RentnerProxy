@@ -29,7 +29,7 @@ import {
     requestProxyHostCertificateService,
     updateProxyHostWithCertificateService,
 } from '@/server/Admin/ProxyHostManagement/certificate-jobs.service.ts'
-import type { ControllerCertificateMetadata } from '@/server/Foundation/certificates.server.ts'
+import type { ControllerCertificateMetadata } from '@/server/Controller/Types/certificates.types.ts'
 import { getAppEncryptionKey, getDatabaseUrl } from '@/server/env.server.ts'
 
 const enabled = process.env.RENTNERPROXY_DATABASE_INTEGRATION === '1' && getDatabaseUrl() !== null

@@ -2,15 +2,24 @@
 
 !package.json
 !bun.lock
+!vite.config.ts
+!tsconfig.json
+!tsconfig.scripts.json
+!drizzle.config.ts
 
 !core/
 !core/Cargo.toml
 !core/Cargo.lock
 !core/src/
 !core/src/**
+!core/tests/
+!core/tests/**
 
 !docker/
 !docker/**
+
+!scripts/
+!scripts/**
 
 !web/
 !web/**

@@ -1,8 +1,7 @@
+import type { FailureEvent } from './Types/audit-auth.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { recordAuditEventBestEffortService } from '@/server/Audit/audit.service.ts'
-
-type FailureEvent = Omit<Parameters<typeof recordAuditEventBestEffortService>[0], 'result'>
 
 export async function auditAuthOperation<T>(
     event: FailureEvent,

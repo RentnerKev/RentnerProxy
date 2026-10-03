@@ -1,41 +1,7 @@
+import type { LogPage, SmokeOptions } from './Types/proxy-access-logs-smoke.types.ts'
 // oxlint-disable no-await-in-loop -- bounded request batches and readiness polling.
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-
-interface LogEntry {
-    readonly timestamp: string
-    readonly host: string
-    readonly method: string
-    readonly path: string
-    readonly status: number
-    readonly durationMs: number
-    readonly clientIp: string
-    readonly upstream: string | null
-    readonly bytes: number
-    readonly protocol: string
-}
-
-interface LogPage {
-    readonly entries: LogEntry[]
-    readonly limit: number
-    readonly offset: number
-    readonly total: number
-    readonly hasMore: boolean
-    readonly truncated: boolean
-    readonly snapshot: string
-    readonly snapshotExpiresAt: string
-    readonly snapshotReset: boolean
-}
-
-interface SmokeOptions {
-    readonly controllerUrl: string
-    readonly httpUrl: string
-    readonly runtimeContainer: string
-    readonly controllerRequest: (path: string) => Promise<Response>
-    readonly command: (args: string[]) => Promise<string>
-    readonly restart: () => Promise<void>
-    readonly waitFor: (check: () => Promise<boolean>, label: string) => Promise<void>
-}
 
 export async function verifyProxyAccessLogs(options: SmokeOptions): Promise<void> {
     const { controllerRequest, httpUrl, runtimeContainer, command, waitFor } = options

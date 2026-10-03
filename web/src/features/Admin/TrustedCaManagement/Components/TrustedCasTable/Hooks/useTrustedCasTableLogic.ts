@@ -6,8 +6,8 @@ import useTranslationStore, {
     useDateFormatter,
 } from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useClientTable from '@/shared/Table/Hooks/useClientTable.ts'
-import type { ClientTableFeatures } from '@/shared/Table/clientTable.ts'
-import type { TrustedCaSummary } from '@/shared/Types/trusted-cas.types.ts'
+import type { ClientTableFeatures } from '@/shared/Table/Types/client-table.types.ts'
+import type { TrustedCaSummary } from '@/lib/Admin/TrustedCaManagement/Types/trusted-cas.types.ts'
 import TrustedCaTableActions from '../Components/TrustedCaTableActions.tsx'
 import type { TrustedCaTableProps } from '../Types/trusted-cas-table.types.ts'
 

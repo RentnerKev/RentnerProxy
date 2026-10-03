@@ -1,14 +1,11 @@
+import type { AcmeAccountFixture } from './Types/acme-account-state.types.ts'
 import assert from 'node:assert/strict'
 import { createHash, generateKeyPairSync } from 'node:crypto'
 
-import type { Command } from '../alpha1-upgrade-fixture'
+import type { Command } from '../Types/alpha1-upgrade-fixture.types.ts'
 
 const directory = '/var/lib/rentnerproxy/proxy/certificates/acme-accounts'
 const path = `${directory}/staging.json`
-
-export interface AcmeAccountFixture {
-    readonly sha256: string
-}
 
 async function fileDigest(command: Command, containerId: string): Promise<string> {
     const output = await command(['docker', 'exec', containerId, 'sha256sum', path])

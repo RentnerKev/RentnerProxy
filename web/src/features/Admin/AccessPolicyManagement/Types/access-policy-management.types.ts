@@ -1,5 +1,5 @@
-import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
-import type { ProxyRuntimeSyncStatus } from '@/shared/Types/proxy-runtime.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
+import type { ProxyRuntimeSyncStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 
 export interface AccessPolicyManagementPageProps {
     readonly permissions: readonly PermissionKey[]

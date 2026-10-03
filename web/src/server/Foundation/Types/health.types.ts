@@ -1,4 +1,4 @@
-import type { FoundationHealth, ServiceHealth } from '@/shared/Types/health.types.ts'
+import type { FoundationHealth, ServiceHealth } from '@/lib/FoundationStatus/Types/health.types.ts'
 
 export type FoundationService = keyof FoundationHealth
 

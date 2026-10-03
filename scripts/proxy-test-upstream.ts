@@ -1,8 +1,4 @@
-interface TestUpstreamOptions {
-    readonly hostname?: string
-    readonly port?: number
-    readonly message?: string
-}
+import type { TestUpstreamOptions } from './Types/proxy-test-upstream.types.ts'
 
 export function startTestUpstream(options: TestUpstreamOptions = {}) {
     return Bun.serve({

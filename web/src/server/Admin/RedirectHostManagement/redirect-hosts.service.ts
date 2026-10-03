@@ -1,15 +1,16 @@
+import type { RedirectHostMutationSummary, RedirectHostRow } from './Types/redirect-hosts.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { and, asc, eq, inArray, isNotNull, ne, or } from 'drizzle-orm'
 
-import type { RedirectHostStatusCode } from '@/shared/Types/redirect-hosts-config.types.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { hostDomains, redirectHosts } from '@/db/schema.ts'
-import type { RedirectHostSummary } from '@/shared/Types/redirect-hosts.types.ts'
-import type { ProxyRuntimeMutationStatus } from '@/shared/Types/proxy-runtime.types.ts'
+import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
+import type { ProxyRuntimeMutationStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
-import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import { validateCertificateAssignmentInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
@@ -19,28 +20,15 @@ import {
     createRedirectHostInputSchema,
     redirectHostIdInputSchema,
     updateRedirectHostInputSchema,
-    type CreateRedirectHostInput,
-    type UpdateRedirectHostInput,
 } from '@/features/Admin/RedirectHostManagement/validation.ts'
+import type {
+    CreateRedirectHostInput,
+    UpdateRedirectHostInput,
+} from '@/features/Admin/RedirectHostManagement/Types/validation.types.ts'
 import {
     mapRedirectHostDomainUniqueViolation,
     RedirectHostDomainError,
 } from './redirect-hosts.errors.ts'
-
-export type RedirectHostMutationSummary = RedirectHostSummary & {
-    readonly runtimeStatus: ProxyRuntimeMutationStatus
-}
-
-type RedirectHostRow = {
-    id: string
-    destination: string
-    statusCode: RedirectHostStatusCode
-    preserveRequestUri: boolean
-    enabled: boolean
-    certificateId: string | null
-    createdAt: Date
-    updatedAt: Date
-}
 
 function invalidInput(): RedirectHostDomainError {
     return new RedirectHostDomainError('invalid_input', 'Redirect host input is invalid.')

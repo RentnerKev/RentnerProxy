@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { RedirectHostSummary } from '@/shared/Types/redirect-hosts.types.ts'
+import type { RedirectHostSummary } from '@/lib/Admin/RedirectHostManagement/Types/redirect-hosts.types.ts'
 import { getRedirectHostTableActionItems } from '@/lib/Admin/RedirectHostManagement/redirectHostTableActions.ts'
 
 const host: RedirectHostSummary = {

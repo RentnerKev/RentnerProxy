@@ -1,3 +1,4 @@
+import type { TwoFactorStatus, MfaLoginCompletionResult } from './Types/two-factor.types.ts'
 import { auditAuthOperation } from '@/server/Auth/Core/audit-auth.server.ts'
 import '@tanstack/react-start/server-only'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
@@ -16,14 +17,15 @@ import {
     createAuthChallenge,
     failCodeChallengeVerification,
     releaseCodeChallengeVerification,
-} from '@/server/valkey/auth-challenges.service.ts'
+} from '@/server/Valkey/auth-challenges.service.ts'
 import {
     decodeBase64Url,
     decryptSecret,
     encodeBase64Url,
     encryptSecret,
 } from '@/server/Auth/Core/encryption.server.ts'
-import { getAuthDatabase, type AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
 import {
@@ -45,24 +47,6 @@ import {
     hashRecoveryCode,
     normalizeRecoveryCode,
 } from './two-factor-credentials.server.ts'
-export interface TwoFactorStatus {
-    readonly recoveryCodesRemaining: number
-    readonly totpEnabled: boolean
-}
-
-export type MfaLoginCompletionResult =
-    | {
-          readonly code: 'authentication_failed' | 'challenge_expired'
-          readonly success: false
-      }
-    | {
-          readonly session: {
-              readonly expiresAt: Date
-              readonly id: string
-              readonly token: string
-          }
-          readonly success: true
-      }
 
 function createTotpEncryptionContext(userId: string): string {
     return `rentnerproxy:totp:${userId}`

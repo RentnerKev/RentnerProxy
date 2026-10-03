@@ -6,7 +6,7 @@ import { useCallback, useState } from 'react'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { toast } from '@rentnerkev/toasts/toast'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type { TrustedCaSummary } from '@/shared/Types/trusted-cas.types.ts'
+import type { TrustedCaSummary } from '@/lib/Admin/TrustedCaManagement/Types/trusted-cas.types.ts'
 import { trustedCaManagementQueryKeys } from '@/lib/Admin/TrustedCaManagement/trustedCaManagementCache.ts'
 import { deleteTrustedCaHandler, getTrustedCasHandler } from '../middleware.ts'
 import type {

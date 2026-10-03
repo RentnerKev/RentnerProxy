@@ -3,7 +3,7 @@ import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 
 import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type { CrowdSecOriginCount } from '@/shared/Types/crowdsec.types.ts'
+import type { CrowdSecOriginCount } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 import useCrowdSecDecisionChart, { decisionPalette } from './Hooks/useCrowdSecDecisionChart.ts'
 
 export default function CrowdSecDecisionChart({

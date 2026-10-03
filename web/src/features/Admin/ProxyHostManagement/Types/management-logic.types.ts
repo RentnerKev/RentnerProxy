@@ -1,5 +1,5 @@
-import type { ProxyHostSummary } from '@/shared/Types/proxy-hosts.types.ts'
-import type { ProxyRuntimeSyncStatus } from '@/shared/Types/proxy-runtime.types.ts'
+import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
+import type { ProxyRuntimeSyncStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 
 export interface ProxyHostManagementLogicResult {
     readonly state: {

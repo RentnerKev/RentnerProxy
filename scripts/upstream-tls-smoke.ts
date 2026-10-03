@@ -1,3 +1,9 @@
+import type {
+    JsonObject,
+    ProxyHost,
+    TrustedCa,
+    Snapshot,
+} from './Types/upstream-tls-smoke.types.ts'
 // oxlint-disable no-await-in-loop -- bounded readiness polling must await each probe.
 import assert from 'node:assert/strict'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -6,8 +12,8 @@ import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { createProxyRuntimeSnapshot } from '../web/src/server/ProxyRuntime/proxy-runtime-snapshot'
-import { smokeDockerArguments } from './smoke-resources'
+import { createProxyRuntimeSnapshot } from '../web/src/server/ProxyRuntime/proxy-runtime-snapshot.ts'
+import { smokeDockerArguments } from './smoke-resources.ts'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
@@ -23,34 +29,6 @@ const tempDirectory = await mkdtemp(join(tmpdir(), 'rentnerproxy-upstream-tls-sm
 let assertions = 0
 let httpPort = 0
 let controllerPort = 0
-
-type JsonObject = Record<string, any>
-type UpstreamTls = {
-    readonly verify: boolean
-    readonly serverName: string | null
-    readonly trustedCaId: string | null
-}
-type ProxyHost = {
-    readonly id: string
-    readonly domains: readonly string[]
-    readonly forwardScheme: 'http' | 'https'
-    readonly forwardHost: string
-    readonly forwardPort: number
-    readonly upstreamTls?: UpstreamTls
-}
-type TrustedCa = {
-    readonly id: string
-    readonly pem: string
-    readonly fingerprintSha256: string
-}
-type Snapshot = {
-    readonly version: 7
-    readonly revision: string
-    readonly proxyHosts: readonly ProxyHost[]
-    readonly redirectHosts: readonly unknown[]
-    readonly httpSettings: Record<string, never>
-    readonly trustedCas: readonly TrustedCa[]
-}
 
 async function command(
     args: readonly string[],

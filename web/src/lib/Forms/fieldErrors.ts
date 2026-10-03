@@ -1,16 +1,7 @@
+import type { ValidationIssue } from './Types/field-errors.types.ts'
 import type { z } from 'zod'
 
 import type { Translate } from '@/shared/Language/Types/language.types.ts'
-
-interface ValidationIssue {
-    readonly code?: string
-    readonly message?: string
-    readonly origin?: string
-    readonly format?: string
-    readonly minimum?: number | bigint
-    readonly maximum?: number | bigint
-    readonly path?: readonly PropertyKey[]
-}
 
 function localizeValidationIssue(t: Translate, issue: ValidationIssue): string {
     if (/^(?:validation|account|admin)\./u.test(issue.message ?? '')) return t(issue.message!)

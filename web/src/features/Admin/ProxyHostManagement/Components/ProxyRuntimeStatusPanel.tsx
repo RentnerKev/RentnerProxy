@@ -1,15 +1,6 @@
+import type { ProxyRuntimeStatusPanelProps } from '../Types/proxy-runtime-status-panel.types.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import type { ProxyRuntimeState, ProxyRuntimeStatus } from '../Types/proxy-host-management.types.ts'
-
-interface ProxyRuntimeStatusPanelProps {
-    readonly canApply: boolean
-    readonly isError?: boolean
-    readonly isApplying: boolean
-    readonly isRetrying?: boolean
-    readonly onApply: () => void
-    readonly onRetry?: () => void
-    readonly status: ProxyRuntimeStatus | undefined
-}
+import type { ProxyRuntimeState } from '../Types/proxy-host-management.types.ts'
 
 const statusStyles: Record<ProxyRuntimeState, string> = {
     synced: 'border-success-text/25 bg-success-bg',

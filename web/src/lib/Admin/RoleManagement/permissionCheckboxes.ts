@@ -1,8 +1,7 @@
 import { PERMISSION_REGISTRY } from '@/config/permissions.config.ts'
-import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 
 import type { PermissionGroup } from './Types/permission-checkboxes.types.ts'
-export type { PermissionGroup } from './Types/permission-checkboxes.types.ts'
 
 function getPermissionGroup(permissionKey: string): { namespace: string; prefix: string } {
     const dotIndex = permissionKey.indexOf('.')

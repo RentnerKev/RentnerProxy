@@ -4,14 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import useLiveQuery from '@/shared/Live/useLiveQuery.ts'
+import useLiveQuery from '@/shared/Live/Hooks/useLiveQuery.ts'
 import type {
     AuditAction,
     AuditActorOption,
     AuditEventsQuery,
     AuditEventsResult,
     AuditResource,
-} from '@/shared/Types/audit-events.types.ts'
+} from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 import { auditLogsQueryKeys, applyAuditLogsSnapshot } from '@/lib/Admin/AuditLogs/auditLogsCache.ts'
 import { getAuditActorOptionsHandler, getAuditEventsHandler } from '../middleware.ts'
 import {

@@ -4,7 +4,7 @@ import { requestHandler } from '@tanstack/react-start/server'
 import { and, eq, inArray, like, notLike, sql } from 'drizzle-orm'
 import { SESSION_COOKIE_NAME } from '@/config/auth.config.ts'
 import { PERMISSIONS, SYSTEM_ROLES } from '@/config/permissions.config.ts'
-import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import {
     auditEvents,
     certificateDomains,

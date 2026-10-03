@@ -1,6 +1,6 @@
 import type { UseClientTableReturn } from '@/shared/Table/Types/table.types.ts'
 import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.ts'
-import type { UserSummary } from '@/shared/Types/auth.types.ts'
+import type { UserSummary } from '@/lib/Auth/Types/auth.types.ts'
 
 export type UsersTableLogicResult = {
     readonly table: UseClientTableReturn<UserSummary>['table']

@@ -1,9 +1,8 @@
+import type { Command } from './Types/certificate-state-restore-smoke.types.ts'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 
-import { stateArchiveExclusions } from './controller-state-archive'
-
-type Command = (args: string[], options?: { timeoutMs?: number }) => Promise<string>
+import { stateArchiveExclusions } from './controller-state-archive.ts'
 
 export async function restoreCertificateStateFixture(
     command: Command,

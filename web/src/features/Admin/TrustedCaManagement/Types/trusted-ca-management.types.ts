@@ -1,5 +1,5 @@
-import type { PermissionKey } from '@/shared/Types/permissions-config.types.ts'
-import type { TrustedCaSummary } from '@/shared/Types/trusted-cas.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
+import type { TrustedCaSummary } from '@/lib/Admin/TrustedCaManagement/Types/trusted-cas.types.ts'
 
 export interface TrustedCaManagementPageProps {
     readonly permissions: readonly PermissionKey[]

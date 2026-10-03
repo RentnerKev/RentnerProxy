@@ -1,7 +1,7 @@
 import type {
     CertificateStatus,
     CertificateStoredStatus,
-} from '@/shared/Types/certificates-config.types.ts'
+} from '@/config/Types/certificates-config.types.ts'
 import { normalizeProxyDomain } from '@/lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
 
 export function normalizeCertificateDomain(value: string): string | null {

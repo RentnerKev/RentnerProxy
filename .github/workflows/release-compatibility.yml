@@ -20,7 +20,7 @@ on:
             - 'web/src/shared/**'
             - 'web/src/start.ts'
             - 'web/src/lib/**'
-            - 'web/vite.config.ts'
+            - 'vite.config.ts'
             - 'package.json'
             - 'bun.lock'
     push:

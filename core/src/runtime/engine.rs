@@ -350,7 +350,7 @@ struct ControlResponse {
 }
 
 #[cfg(test)]
-#[path = "../tests/caddy_transport.rs"]
+#[path = "../../tests/private/caddy_transport.rs"]
 mod tests;
 
 struct ConnectionTask(JoinHandle<()>);

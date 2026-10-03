@@ -1,7 +1,7 @@
 import '@tanstack/react-start/server-only'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import type { UserThemeMode } from '@/shared/Types/theme-config.types.ts'
+import type { UserThemeMode } from '@/config/Types/theme-config.types.ts'
 import { userSettings } from '@/db/schema.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'

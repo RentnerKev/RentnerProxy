@@ -1,10 +1,4 @@
-export type ScenarioDescriptionKey =
-    | 'bruteForce'
-    | 'scanning'
-    | 'crawling'
-    | 'flooding'
-    | 'exploit'
-    | 'generic'
+import type { ScenarioDescriptionKey } from './Types/scenario-description.types.ts'
 
 export function scenarioDescriptionKey(scenario: string): ScenarioDescriptionKey {
     const normalized = scenario.toLowerCase()

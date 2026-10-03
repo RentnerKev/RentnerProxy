@@ -10,6 +10,10 @@ in this repository; it is not a promise of a particular release or deployment.
 ## Runtime shape
 
 The Rust controller lives in `core/`, and the management application lives in `web/`.
+JavaScript tooling lives at the repository root: `package.json`, `bun.lock`,
+`vite.config.ts`, `tsconfig.json`, `tsconfig.scripts.json`, the OXC configuration,
+and `drizzle.config.ts`. Vite uses `web/` as its application root. Cargo manifests,
+the Rust lockfile, source, and tests belong to `core/`.
 Web unit and integration tests mirror their source owners under `web/src/tests/`.
 Docker production smoke entrypoints live in `.github/scripts/` alongside their CI runner;
 shared development, build, and smoke helpers remain under `scripts/`.
@@ -73,13 +77,23 @@ tests use `.db.test.ts` in the mirrored hierarchy; ordinary test runs exclude bo
 The WebSocket runtime is bundled alongside the server build, so the Docker image
 ships built artifacts without relying on source imports or development aliases.
 
-Two legacy paths remain as type-only compatibility shims:
-`web/src/shared/Helpers/forwardAuth.ts` and
-`web/src/shared/Helpers/ipAccessRules.ts`. They re-export only the configuration
-types required by the untouched database schema. Runtime implementations live in
-`lib/ForwardAuth/forwardAuth.ts` and `lib/AccessPolicies/ipAccessRules.ts`.
-These shims contain no runtime helpers; removing them requires a separate change
-to the schema imports. This refactor changes no schema or migrations.
+Type definitions live under their owner's `Types/` directory. Configuration
+contracts belong to `config/Types/`. UI-free domain
+contracts belong to `lib/Auth/Types/`, `lib/AccessPolicies/Types/`,
+`lib/Admin/<domain>/Types/`, and the other domain owners. Rendering and hook
+contracts belong to their feature, component, or shared UI owner. Callers import
+the defining module directly; the old shared helper compatibility wrappers are removed.
+There is no root contracts directory. SQL schema definitions and migrations are unchanged.
+`db/schema.ts` is the single schema assembly required by the ORM and migration
+configuration; there is no additional schema index wrapper.
+
+Controller HTTP integrations live in `server/Controller/`: one bounded bearer
+transport and separate adapters for health, proxy configuration, certificates,
+trusted CAs, CrowdSec, and access logs. Response schemas and their inferred types
+remain with these adapters. `server/Foundation/` combines dependency health;
+`server/Valkey/` owns the Valkey connection and storage operations. React Query
+client construction belongs to `lib/TanstackQuery/`, while its provider remains
+in `integrations/TanstackQuery/`. Shared realtime hooks live in `shared/Live/Hooks/`.
 
 The web application is TanStack Start/React running under Bun. Server functions
 implement authentication, authorization, users, roles, proxy-host and redirect
@@ -104,7 +118,7 @@ and localization changes do not save preferences. These controls do not affect s
 
 Valkey is a local connection used for rate limiting, authentication challenges,
 and cross-process application-change notifications. The client and its reconnect
-behavior are in [`web/src/server/valkey/client.server.ts`](./web/src/server/valkey/client.server.ts);
+behavior are in [`web/src/server/Valkey/client.server.ts`](./web/src/server/Valkey/client.server.ts);
 the realtime service publishes and subscribes to the `rentnerproxy:realtime` channel in
 [`web/src/server/WebSockets/realtimeValkey.service.ts`](./web/src/server/WebSockets/realtimeValkey.service.ts).
 Valkey is not the source of truth and is deliberately run without persistence by
@@ -297,7 +311,13 @@ The web tests exercise validation, authorization, persistence, Valkey behavior,
 realtime transport, proxy reconciliation, and event synchronization under
 [`web/src/tests/`](./web/src/tests/). Rust unit and integration tests cover config,
 proxy rendering and validation, Caddy transport, certificate material, recovery,
-ACME, DNS, and runtime behavior under [`core/src/tests/`](./core/src/tests/).
+ACME, DNS, and runtime behavior under [`core/tests/`](./core/tests/).
+Tests that exercise private algorithms and fault-injection seams live in
+`core/tests/private/` and are compiled as private unit modules through explicit
+test-only paths. This preserves the controller's public API. Focused DNS and
+access-log algorithm tests remain beside their private modules. HTTP handlers
+under `core/src/server/handlers/` and CrowdSec runtime modules under
+`core/src/runtime/crowdsec/` each own one operational responsibility.
 The smoke scripts under [`scripts/`](./scripts/) exercise selected proxy,
 certificate, upgrade, backup, restore, and appliance paths when their external
 dependencies are available. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the

@@ -13,14 +13,14 @@ import {
 import type {
     CertificateJobErrorCode,
     CertificateJobStage,
-} from '../../config/certificate-jobs.config'
-import type { CertificateOperationStage } from '../../config/certificates.config'
-import type { PermissionKey } from '../../config/permissions.config'
-import { rentnerProxySchema } from './base'
-import { bytea } from './columns'
-import { certificates } from './certificates'
-import { proxyHosts } from './proxyHosts'
-import { users } from './users'
+} from '../../config/Types/certificate-jobs-config.types.ts'
+import type { CertificateOperationStage } from '../../config/Types/certificates-config.types.ts'
+import type { PermissionKey } from '../../config/Types/permissions-config.types.ts'
+import { rentnerProxySchema } from './base.ts'
+import { bytea } from './columns.ts'
+import { certificates } from './certificates.ts'
+import { proxyHosts } from './proxyHosts.ts'
+import { users } from './users.ts'
 
 export const certificateJobs = rentnerProxySchema.table(
     'certificate_binding_jobs',

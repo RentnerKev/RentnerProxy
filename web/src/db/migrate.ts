@@ -1,18 +1,13 @@
 import { SQL } from 'bun'
+import type { MigrationFailurePhase, MigrationOptions } from './Types/migration.types.ts'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/bun-sql'
 import { migrate } from 'drizzle-orm/bun-sql/migrator'
-import { ACTIVE_OWNER_ADVISORY_LOCK_ID, MIGRATION_ADVISORY_LOCK_ID } from '../config/auth.config'
-import { ensureAuthorizationRegistryInTransaction } from '../server/Auth/Access/registry.service'
-import { validateDatabaseEnvironment } from '../server/env.server'
-import * as schema from './schema'
+import { ACTIVE_OWNER_ADVISORY_LOCK_ID, MIGRATION_ADVISORY_LOCK_ID } from '../config/auth.config.ts'
+import { ensureAuthorizationRegistryInTransaction } from '../server/Auth/Access/registry.service.ts'
+import { validateDatabaseEnvironment } from '../server/env.server.ts'
+import * as schema from './schema.ts'
 
-export interface MigrationOptions {
-    readonly databaseUrl?: string
-    readonly migrationsFolder?: string
-}
-
-type MigrationFailurePhase = 'database connection' | 'schema migration' | 'authorization registry'
 const migrationFailurePhases = new WeakMap<object, MigrationFailurePhase>()
 
 function recordMigrationFailurePhase(error: unknown, phase: MigrationFailurePhase): void {

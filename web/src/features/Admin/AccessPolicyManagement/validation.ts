@@ -110,6 +110,3 @@ export const updateAccessPolicyInputSchema = z
     })
 
 export const accessPolicyIdInputSchema = z.strictObject({ accessPolicyId: z.uuidv7() })
-
-export type CreateAccessPolicyInput = z.input<typeof createAccessPolicyInputSchema>
-export type UpdateAccessPolicyInput = z.input<typeof updateAccessPolicyInputSchema>

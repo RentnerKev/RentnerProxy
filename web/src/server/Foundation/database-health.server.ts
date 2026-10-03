@@ -1,19 +1,9 @@
+import type { DatabaseProbe, DatabaseHealthDependencies } from './Types/database-health.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { db } from '@/db/index.ts'
 import { isRecord } from '@/lib/Records/isRecord.ts'
-import type { ServiceHealth } from '@/shared/Types/health.types.ts'
-
-interface DatabaseProbe {
-    readonly result: Promise<unknown>
-    cancel(): void
-}
-
-interface DatabaseHealthDependencies {
-    readonly createProbe: () => DatabaseProbe | null
-    readonly timeoutMs: number
-    readonly warn: (reason: string) => void
-}
+import type { ServiceHealth } from '@/lib/FoundationStatus/Types/health.types.ts'
 
 const HEALTH_TIMEOUT_MS = 1_500
 const HEALTH_TIMEOUT = Symbol('database-health-timeout')

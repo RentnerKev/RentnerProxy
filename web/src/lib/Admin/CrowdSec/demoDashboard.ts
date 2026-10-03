@@ -1,4 +1,7 @@
-import type { CrowdSecDashboard, CrowdSecDashboardQuery } from '@/shared/Types/crowdsec.types.ts'
+import type {
+    CrowdSecDashboard,
+    CrowdSecDashboardQuery,
+} from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 
 function isLoopbackUrl(value: string | undefined): boolean {
     if (!value) return false

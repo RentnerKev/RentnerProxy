@@ -1,23 +1,5 @@
+import type { AuthDomainErrorCode } from './Types/errors.types.ts'
 import '@tanstack/react-start/server-only'
-
-export type AuthDomainErrorCode =
-    | 'authentication_required'
-    | 'email_conflict'
-    | 'invalid_email'
-    | 'invalid_input'
-    | 'last_active_owner'
-    | 'owner_required'
-    | 'password_policy'
-    | 'permission_denied'
-    | 'reauthentication_required'
-    | 'role_in_use'
-    | 'role_not_found'
-    | 'service_unavailable'
-    | 'system_role_immutable'
-    | 'unknown_permission'
-    | 'unknown_role'
-    | 'user_not_active'
-    | 'user_not_found'
 
 export class AuthDomainError extends Error {
     readonly code: AuthDomainErrorCode

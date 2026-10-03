@@ -4,5 +4,19 @@
     "semi": false,
     "singleQuote": true,
     "tabWidth": 4,
-    "ignorePatterns": ["**/routeTree.gen.ts"]
+    "ignorePatterns": [
+        "**/drizzle/**",
+        "**/.env*",
+        "**/routeTree.gen.ts",
+        "**/*.gen.ts",
+        "**/node_modules/**",
+        "**/target/**",
+        "**/dist/**",
+        "**/build/**",
+        "**/.git/**",
+        "coverage/**",
+        "backups/**",
+        "tmp/**",
+        "temp/**"
+    ]
 }

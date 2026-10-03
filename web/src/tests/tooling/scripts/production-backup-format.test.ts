@@ -9,9 +9,11 @@ import {
     validateControllerEncryption,
     validateStateArchive,
     verifyBackupArtifact,
-    type DeploymentSettings,
-    type StateArchiveEntry,
 } from '../../../../../scripts/production-backup-format.ts'
+import type {
+    DeploymentSettings,
+    StateArchiveEntry,
+} from '../../../../../scripts/Types/production-backup-format.types.ts'
 
 const sha256 = (data: Uint8Array | string) => createHash('sha256').update(data).digest('hex')
 const fixedSha = 'a'.repeat(64)

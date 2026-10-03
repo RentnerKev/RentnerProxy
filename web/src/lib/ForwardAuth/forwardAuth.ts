@@ -1,12 +1,14 @@
+import type {
+    ForwardAuthConfiguration,
+    ForwardAuthRuntimeConfiguration,
+} from './Types/forward-auth.types.ts'
 import { z } from 'zod'
 
 import { ACCESS_POLICY_FORWARD_AUTH_PROVIDERS } from '@/config/access-policies.config.ts'
 
 export const FORWARD_AUTH_PROVIDERS = ACCESS_POLICY_FORWARD_AUTH_PROVIDERS
-export type ForwardAuthProvider = (typeof FORWARD_AUTH_PROVIDERS)[number]
 
 export const FORWARD_AUTH_REQUEST_HEADERS = ['Authorization', 'Cookie'] as const
-export type ForwardAuthRequestHeader = (typeof FORWARD_AUTH_REQUEST_HEADERS)[number]
 
 export const DEFAULT_FORWARD_AUTH_TIMEOUT_SECONDS = 5
 export const MAX_FORWARD_AUTH_TIMEOUT_SECONDS = 30
@@ -210,9 +212,6 @@ function validateSortedUniqueHeaders(headers: ReadonlyArray<string>, context: z.
         })
     }
 }
-
-export type ForwardAuthConfiguration = z.output<typeof forwardAuthInputSchema>
-export type ForwardAuthRuntimeConfiguration = z.output<typeof forwardAuthRuntimeSchema>
 
 export function toForwardAuthRuntimeConfiguration(
     config: ForwardAuthConfiguration,

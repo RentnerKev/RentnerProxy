@@ -1,8 +1,8 @@
 import { sql } from 'drizzle-orm'
 import { index, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
 
-import { rentnerProxySchema } from './base'
-import { accessPolicies } from './accessPolicies'
+import { rentnerProxySchema } from './base.ts'
+import { accessPolicies } from './accessPolicies.ts'
 
 export const accessPolicyBasicAuthAccounts = rentnerProxySchema.table(
     'access_policy_basic_auth_accounts',

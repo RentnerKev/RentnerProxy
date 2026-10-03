@@ -1,3 +1,4 @@
+import type { ProxyHostDomainErrorCode } from './Types/proxy-hosts-errors.types.ts'
 // oxlint-disable-next-line import/no-unassigned-import -- Marks this domain error module as server-only.
 import '@tanstack/react-start/server-only'
 
@@ -6,12 +7,6 @@ const hostDomainUniqueConstraints = new Set([
 
     'proxy_host_domains_domain_unique',
 ])
-
-export type ProxyHostDomainErrorCode =
-    | 'domain_conflict'
-    | 'proxy_host_not_found'
-    | 'invalid_status_transition'
-    | 'invalid_input'
 
 export class ProxyHostDomainError extends Error {
     readonly code: ProxyHostDomainErrorCode

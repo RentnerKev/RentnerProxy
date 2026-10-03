@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react'
 import type useTrustedCaImportLogic from '../Hooks/useTrustedCaImportLogic.ts'
-import type { TrustedCaSummary } from '@/shared/Types/trusted-cas.types.ts'
+import type { TrustedCaSummary } from '@/lib/Admin/TrustedCaManagement/Types/trusted-cas.types.ts'
 
 export interface TrustedCaImportModalProps {
     readonly trustedCa?: TrustedCaSummary

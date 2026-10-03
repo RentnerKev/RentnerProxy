@@ -1,7 +1,10 @@
 import { SQL } from 'bun'
 
-import { CROWDSEC_DASHBOARD_DEMO_KEY } from '../web/src/config/crowdsec.config'
-import type { CrowdSecDashboard, CrowdSecDecision } from '../web/src/shared/Types/crowdsec.types'
+import { CROWDSEC_DASHBOARD_DEMO_KEY } from '../web/src/config/crowdsec.config.ts'
+import type {
+    CrowdSecDashboard,
+    CrowdSecDecision,
+} from '../web/src/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 
 function isLoopback(value: string | undefined): boolean {
     if (!value) return false

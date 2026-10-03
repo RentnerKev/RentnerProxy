@@ -1,47 +1,10 @@
+import type { Command, Alpha1UpgradeFixture } from './Types/alpha1-upgrade-fixture.types.ts'
 import { randomBytes } from 'node:crypto'
 import migrationJournal from '../web/drizzle/meta/_journal.json'
-
-export type Command = (args: string[], timeoutMs?: number) => Promise<string>
 
 export const ALPHA1_MIGRATION_COUNT = 13
 export const ALPHA3_MIGRATION_COUNT = 17
 export const CURRENT_MIGRATION_COUNT = migrationJournal.entries.length
-
-export interface Alpha1UpgradeFixture {
-    readonly runId: string
-    readonly ownerUserId: string
-    readonly adminUserId: string
-    readonly customUserId: string
-    readonly customRoleId: string
-    readonly customRoleKey: string
-    readonly customPermissionKeys: readonly string[]
-    readonly liveProxyHostId: string
-    readonly disabledTlsProxyHostId: string
-    readonly redirectHostId: string
-    readonly certificateId: string
-    readonly trustedCaId: string
-    readonly trustedCaFingerprint: string
-    readonly trustedCaNotBefore: string
-    readonly trustedCaNotAfter: string
-    readonly passwordHash: string
-    readonly certificateIssuedAt: string
-    readonly certificateExpiresAt: string
-    readonly certificateIssuer: string
-    readonly certificateFingerprint: string
-    readonly hostDomain: string
-    readonly aliasDomain: string
-    readonly disabledTlsDomain: string
-    readonly redirectDomain: string
-    readonly caPem: string
-    readonly redirectDestination: string
-    readonly redirectStatus: number
-    readonly upstreamPort: number
-    readonly globalHttpSettings: Readonly<Record<string, number>>
-    readonly hostHttpSettings: Readonly<Record<string, number>>
-    readonly unsupportedHostSettings: Readonly<Record<string, number>>
-    readonly advancedConfig: string
-    readonly managementOrigin?: string
-}
 
 const postgresPasswordFile = '/run/rentnerproxy/postgres/value'
 const controllerTokenFile = '/run/rentnerproxy/controller-token/value'

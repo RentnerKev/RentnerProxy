@@ -9,21 +9,12 @@ import {
     verifyActiveCertificate,
 } from '../runtime-reliability/certificates.ts'
 import { exerciseCrowdSec } from '../runtime-reliability/crowdsec.ts'
-import {
-    createHarness,
-    ReliabilityError,
-    type ReliabilityContext,
-} from '../runtime-reliability/harness.ts'
-import {
-    buildScaleReport,
-    parseScaleOptions,
-    runBoundedTasks,
-    scaleResultSchema,
-    type ScaleMeasurement,
-    type ScaleResourceSample,
-    type ScaleResult,
-    type ScaleStage,
-} from './control.ts'
+import { createHarness, ReliabilityError } from '../runtime-reliability/harness.ts'
+import type { ReliabilityContext } from '../runtime-reliability/Types/harness.types.ts'
+import { buildScaleReport, parseScaleOptions, runBoundedTasks } from './control.ts'
+import { scaleResultSchema } from './control.validation.ts'
+import type { ScaleMeasurement, ScaleResourceSample, ScaleStage } from './Types/control.types.ts'
+import type { ScaleResult } from './Types/control.types.ts'
 
 async function installFixture(context: ReliabilityContext, targetSha: string) {
     const source = join(context.temp, 'fixture-source')
@@ -47,7 +38,7 @@ async function installFixture(context: ReliabilityContext, targetSha: string) {
         '--no-env-file',
         'build',
         join(source, 'scripts/runtime-scale/fixture.ts'),
-        '--tsconfig-override=' + join(source, 'web/tsconfig.json'),
+        '--tsconfig-override=' + join(source, 'tsconfig.json'),
         '--target=bun',
         '--packages=external',
         '--outfile=' + bundle,

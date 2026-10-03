@@ -1,10 +1,10 @@
-import {
-    AUDIT_ACTIONS,
-    AUDIT_RESOURCES,
-    type AuditEventDto,
-    type AuditMetadata,
-    type AuditEventsQuery,
-} from '@/shared/Types/audit-events.types.ts'
+import type { AuditMetadataEntry } from './Types/audit-logs.types.ts'
+import { AUDIT_ACTIONS, AUDIT_RESOURCES } from '@/config/audit.config.ts'
+import type {
+    AuditEventDto,
+    AuditMetadata,
+    AuditEventsQuery,
+} from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 import type {
     AuditLogsFilterErrors,
     AuditLogsFilters,
@@ -103,11 +103,6 @@ const metadataKeys: readonly (keyof AuditMetadata)[] = [
     'occurredAt',
     'certificateErrorCode',
 ]
-
-export interface AuditMetadataEntry {
-    readonly key: keyof AuditMetadata
-    readonly value: string
-}
 
 export function formatAuditMetadataValue(entry: AuditMetadataEntry, t: Translate): string {
     if (entry.key === 'certificateStage')

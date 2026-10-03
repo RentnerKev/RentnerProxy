@@ -1,14 +1,10 @@
+import type { DragStart } from '../Types/application-sidebar-scroll-indicator-logic.types.ts'
 import type {
     SidebarScrollIndicatorLogicResult,
     IndicatorPosition,
 } from '../Types/sidebar-scroll-indicator.types.ts'
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent, RefObject } from 'react'
-
-interface DragStart {
-    readonly pointerY: number
-    readonly scrollTop: number
-}
 
 const EDGE_WIDTH = 80
 const EDGE_HEIGHT = 1440

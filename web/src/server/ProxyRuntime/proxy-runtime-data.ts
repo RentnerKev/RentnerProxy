@@ -11,7 +11,7 @@ import {
     redirectHosts,
     trustedCas,
 } from '@/db/schema.ts'
-import type { AuthTransaction } from '@/server/Auth/Core/database.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { createProxyRuntimeSnapshot } from './proxy-runtime-snapshot.ts'
 import { readProxyHttpSettings, readProxyHostHttpSettingsMap } from './proxy-runtime-settings.ts'
 import { readDefaultSiteSettings } from '@/server/DefaultSite/default-site-settings.ts'

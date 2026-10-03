@@ -15,8 +15,8 @@ import {
     certificateRequestFormSchema,
     certificateRequestInputFromForm,
     requestCertificateInputSchema,
-    type CertificateRequestFormValues,
 } from '../validation.ts'
+import type { CertificateRequestFormValues } from '../Types/validation.types.ts'
 import type { CertificateRequestInputs } from '../Types/certificate-management.types.ts'
 
 /** Builds and submits certificate requests, including reset and retry behavior. */

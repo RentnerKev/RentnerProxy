@@ -16,7 +16,7 @@ import type {
     GitHubIssue,
     GitHubRelease,
     ReleaseNotesConfig,
-} from '../../../../../.github/scripts/release-notes.ts'
+} from '../../../../../.github/scripts/Types/release-notes.types.ts'
 
 const config: ReleaseNotesConfig = {
     excludedLabels: ['duplicate', 'invalid', 'wontfix', 'no-changelog', 'not-planned'],

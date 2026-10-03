@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
-import type { CertificateActionResult } from '@/shared/Types/certificates.types.ts'
+import type { CertificateActionResult } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
 import { CertificateDomainError } from '@/server/Admin/CertificateManagement/certificates.errors.ts'
 import {
     deleteCertificateService,

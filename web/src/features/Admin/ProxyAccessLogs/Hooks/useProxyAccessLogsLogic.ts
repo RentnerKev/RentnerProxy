@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import useLiveQuery from '@/shared/Live/useLiveQuery.ts'
-import type { ProxyAccessLogsResult } from '@/shared/Types/proxy-access-logs.types.ts'
+import useLiveQuery from '@/shared/Live/Hooks/useLiveQuery.ts'
+import type { ProxyAccessLogsResult } from '@/lib/Admin/ProxyAccessLogs/Types/proxy-access-logs.types.ts'
 import {
     proxyAccessLogsQueryKeys,
     applyProxyAccessLogsSnapshot,

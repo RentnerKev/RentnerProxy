@@ -1,8 +1,8 @@
 import { sql } from 'drizzle-orm'
 import { check, index, jsonb, timestamp, uuid } from 'drizzle-orm/pg-core'
 
-import type { AuditMetadata } from '../../shared/Types/audit-events.types'
-import { rentnerProxySchema } from './base'
+import type { AuditMetadata } from '../../lib/Admin/AuditLogs/Types/audit-events.types.ts'
+import { rentnerProxySchema } from './base.ts'
 
 export const auditActorKind = rentnerProxySchema.enum('audit_actor_kind', [
     'user',

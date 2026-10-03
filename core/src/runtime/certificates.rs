@@ -21,11 +21,11 @@ use super::dns::{DnsProviderConfig, DnsRecordIntent, EncryptedDnsConfig, encrypt
 use super::state::{SafeDir, state_dir};
 
 #[cfg(test)]
-#[path = "../tests/certificate_dns.rs"]
+#[path = "../../tests/private/certificate_dns.rs"]
 mod dns_tests;
 
 #[cfg(test)]
-#[path = "../tests/certificate_operations.rs"]
+#[path = "../../tests/private/certificate_operations.rs"]
 mod operation_tests;
 mod operations;
 

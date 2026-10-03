@@ -1,7 +1,7 @@
 // oxlint-disable-next-line import/no-unassigned-import -- Audit helpers stay on the server boundary.
 import '@tanstack/react-start/server-only'
 
-import type { AuditAction, AuditResource } from '@/shared/Types/audit-events.types.ts'
+import type { AuditAction, AuditResource } from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 import { recordAuditEventBestEffortService } from '@/server/Audit/audit.service.ts'
 
 function isPermissionDenial(error: unknown): boolean {

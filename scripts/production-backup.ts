@@ -1,11 +1,12 @@
-import { stateArchiveExclusions } from './controller-state-archive'
+import type { CommandOptions } from './Types/production-backup.types.ts'
+import { stateArchiveExclusions } from './controller-state-archive.ts'
 import {
     crowdSecArchiveExclusions,
-    deploymentSchema,
     parseBackupMetadata,
     validateStateArchive,
-    type BackupMetadata,
-} from './production-backup-format'
+} from './production-backup-format.ts'
+import { deploymentSchema } from './production-backup.validation.ts'
+import type { BackupMetadata } from './Types/production-backup-format.types.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import {
     chmod,
@@ -30,10 +31,6 @@ const databaseUser = 'rentnerproxy'
 const statePath = '/var/lib/rentnerproxy/proxy'
 const stateArchiveName = 'controller-state.tar'
 const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.mjs'
-
-type CommandOptions = Readonly<{
-    timeoutMs?: number
-}>
 
 function optionValue(argumentsList: string[], name: string): string | undefined {
     const index = argumentsList.indexOf(name)

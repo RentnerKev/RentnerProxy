@@ -13,7 +13,7 @@ import TableLayout from '@/shared/Table/Components/TableLayout.tsx'
 import TableLoadingBody from '@/shared/Table/Components/TableLoadingBody.tsx'
 import RemoteTablePagination from '@/shared/Table/Components/RemoteTablePagination.tsx'
 import { ActionMenu } from '@/shared/ActionMenu/index.tsx'
-import type { ProxyAccessLogEntry } from '@/shared/Types/proxy-access-logs.types.ts'
+import type { ProxyAccessLogEntry } from '@/lib/Admin/ProxyAccessLogs/Types/proxy-access-logs.types.ts'
 import {
     formatBytes,
     formatDuration,

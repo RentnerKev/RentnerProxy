@@ -1,4 +1,4 @@
-import type { UserThemeMode } from '@/shared/Types/theme-config.types.ts'
+import type { UserThemeMode } from '@/config/Types/theme-config.types.ts'
 
 export interface ThemeModeSwitchProps {
     readonly isSaving: boolean

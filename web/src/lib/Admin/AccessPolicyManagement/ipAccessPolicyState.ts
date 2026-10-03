@@ -1,15 +1,9 @@
 import { MAX_ACCESS_POLICY_IP_RULES } from '@/config/access-policies.config.ts'
 import { accessPolicyIpRulesInputSchema } from '@/lib/AccessPolicies/ipAccessRules.ts'
-import type { AccessPolicyIpRules } from '@/shared/Types/access-policies.types.ts'
+import type { AccessPolicyIpRules } from '@/lib/AccessPolicies/Types/ip-access-rules.types.ts'
 
 import type {
     AccessPolicyIpRulesDraft,
-    AccessPolicyIpRulesParseResult,
-} from './Types/ip-access-policy.types.ts'
-export type {
-    AccessPolicyIpRulesDraft,
-    AccessPolicyIpRulesParseSuccess,
-    AccessPolicyIpRulesParseFailure,
     AccessPolicyIpRulesParseResult,
 } from './Types/ip-access-policy.types.ts'
 

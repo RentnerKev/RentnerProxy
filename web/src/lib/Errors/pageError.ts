@@ -1,52 +1,6 @@
+import { PAGE_ERRORS, KNOWN_CODES } from '@/config/errors.config.ts'
+import type { PageErrorCode } from './Types/page-error.types.ts'
 import { isRecord } from '@/lib/Records/isRecord.ts'
-
-const PAGE_ERRORS = {
-    DATABASE_SCHEMA: { status: 503, key: 'databaseSchema' },
-    DATABASE_BUSY: { status: 503, key: 'databaseBusy' },
-    DATABASE_UNAVAILABLE: { status: 503, key: 'databaseUnavailable' },
-    DATABASE_AUTHENTICATION: { status: 503, key: 'databaseAuthentication' },
-    SESSION_EXPIRED: { status: 401, key: 'sessionExpired' },
-    ACCESS_DENIED: { status: 403, key: 'accessDenied' },
-    NOT_FOUND: { status: 404, key: 'notFound' },
-    RATE_LIMITED: { status: 429, key: 'rateLimited' },
-    SERVICE_UNAVAILABLE: { status: 503, key: 'serviceUnavailable' },
-    NETWORK: { status: 503, key: 'network' },
-    ASSET_LOAD: { status: 503, key: 'assetLoad' },
-    UNEXPECTED: { status: 500, key: 'unexpected' },
-} as const
-
-type PageErrorCode = keyof typeof PAGE_ERRORS
-
-const KNOWN_CODES: Record<string, PageErrorCode> = {
-    '42703': 'DATABASE_SCHEMA',
-    '42P01': 'DATABASE_SCHEMA',
-    '3F000': 'DATABASE_SCHEMA',
-    '53300': 'DATABASE_BUSY',
-    '28P01': 'DATABASE_AUTHENTICATION',
-    '28000': 'DATABASE_AUTHENTICATION',
-    '3D000': 'DATABASE_UNAVAILABLE',
-    '57P01': 'DATABASE_UNAVAILABLE',
-    '57P02': 'DATABASE_UNAVAILABLE',
-    '57P03': 'DATABASE_UNAVAILABLE',
-    ERR_POSTGRES_CONNECTION_REFUSED: 'DATABASE_UNAVAILABLE',
-    ERR_POSTGRES_CONNECTION_TIMEOUT: 'DATABASE_UNAVAILABLE',
-    ERR_POSTGRES_CONNECTION_CLOSED: 'DATABASE_UNAVAILABLE',
-    ERR_POSTGRES_CONNECTION_FAILED: 'DATABASE_UNAVAILABLE',
-    authentication_required: 'SESSION_EXPIRED',
-    reauthentication_required: 'SESSION_EXPIRED',
-    permission_denied: 'ACCESS_DENIED',
-    owner_required: 'ACCESS_DENIED',
-    user_not_found: 'NOT_FOUND',
-    role_not_found: 'NOT_FOUND',
-    service_unavailable: 'SERVICE_UNAVAILABLE',
-    RATE_LIMITED: 'RATE_LIMITED',
-    RATE_LIMIT_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
-    '401': 'SESSION_EXPIRED',
-    '403': 'ACCESS_DENIED',
-    '404': 'NOT_FOUND',
-    '429': 'RATE_LIMITED',
-    '503': 'SERVICE_UNAVAILABLE',
-}
 
 function reportedError(error: unknown) {
     if (!isRecord(error) || typeof error.message !== 'string') return null

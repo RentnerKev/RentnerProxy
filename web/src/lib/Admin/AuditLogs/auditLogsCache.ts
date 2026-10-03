@@ -1,5 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query'
-import type { AuditEventsQuery, AuditEventsResult } from '@/shared/Types/audit-events.types.ts'
+import type {
+    AuditEventsQuery,
+    AuditEventsResult,
+} from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 
 export const auditLogsQueryKeys = {
     all: ['admin', 'audit-logs'] as const,

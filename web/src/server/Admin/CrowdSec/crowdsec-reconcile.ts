@@ -1,37 +1,20 @@
+import type {
+    CrowdSecReconcileSnapshot,
+    CrowdSecReconcileDependencies,
+    Waiter,
+    CrowdSecReconciler,
+} from './Types/crowdsec-reconcile.types.ts'
 // oxlint-disable-next-line import/no-unassigned-import -- Reconcile must never execute in the browser.
 import '@tanstack/react-start/server-only'
 // oxlint-disable no-await-in-loop -- Reconcile attempts are deliberately serialized.
 
-import type { ProxyRuntimeMutationStatus } from '@/shared/Types/proxy-runtime.types.ts'
+import type { ProxyRuntimeMutationStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 
 export const CROWDSEC_RECONCILE_TIMEOUT_MS = 60_000
 const INITIAL_RETRY_DELAY_MS = 1_000
 const MAX_RETRY_DELAY_MS = 60_000
 const DRIFT_CHECK_INTERVAL_MS = 60_000
 const STOP_WAIT_TIMEOUT_MS = 60_000
-
-interface CrowdSecReconcileSnapshot {
-    readonly fingerprint: string
-}
-
-interface CrowdSecReconcileDependencies<T extends CrowdSecReconcileSnapshot> {
-    readonly load: () => Promise<T>
-    readonly apply: (snapshot: T) => Promise<boolean>
-    readonly hasDrift: (snapshot: T) => Promise<boolean>
-}
-
-interface Waiter {
-    readonly target: number
-    readonly resolve: (status: ProxyRuntimeMutationStatus) => void
-    readonly timer: ReturnType<typeof setTimeout>
-}
-
-export interface CrowdSecReconciler {
-    (): Promise<ProxyRuntimeMutationStatus>
-    readonly start: () => void
-    readonly stop: () => Promise<void>
-    readonly checkDrift: () => Promise<void>
-}
 
 export function createCrowdSecReconciler<T extends CrowdSecReconcileSnapshot>(
     dependencies: CrowdSecReconcileDependencies<T>,

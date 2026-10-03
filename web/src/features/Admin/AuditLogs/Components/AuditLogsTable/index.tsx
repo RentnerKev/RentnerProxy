@@ -13,7 +13,7 @@ import TableLayout from '@/shared/Table/Components/TableLayout.tsx'
 import TableLoadingBody from '@/shared/Table/Components/TableLoadingBody.tsx'
 import UtcDateTimeInput from '@/shared/Forms/UtcDateTimeInput.tsx'
 import { ActionMenu } from '@/shared/ActionMenu/index.tsx'
-import type { AuditEventDto } from '@/shared/Types/audit-events.types.ts'
+import type { AuditEventDto } from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
 import {
     auditEventKey,
     formatAuditActor,

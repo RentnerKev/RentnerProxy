@@ -7,7 +7,7 @@ import { eq, inArray, like, notLike } from 'drizzle-orm'
 import { SESSION_COOKIE_NAME } from '@/config/auth.config.ts'
 import { PERMISSION_REGISTRY, PERMISSIONS, SYSTEM_ROLES } from '@/config/permissions.config.ts'
 import { SYSTEM_ROLE_REGISTRY } from '@/lib/Permissions/systemRoles.ts'
-import { type PermissionKey } from '@/shared/Types/permissions-config.types.ts'
+import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import {
     permissions,
     redirectHosts,
@@ -66,9 +66,9 @@ import {
 } from '@/server/Admin/ProxyHostManagement/proxy-hosts.errors.ts'
 import { RedirectHostDomainError } from '@/server/Admin/RedirectHostManagement/redirect-hosts.errors.ts'
 import { getDatabaseUrl } from '@/server/env.server.ts'
-import type { CreateProxyHostInput } from '@/features/Admin/ProxyHostManagement/validation.ts'
-import type { CreateRedirectHostInput } from '@/features/Admin/RedirectHostManagement/validation.ts'
-import type { ProxyHttpSettings } from '@/shared/Types/proxy-runtime.types.ts'
+import type { CreateProxyHostInput } from '@/features/Admin/ProxyHostManagement/Types/validation.types.ts'
+import type { CreateRedirectHostInput } from '@/features/Admin/RedirectHostManagement/Types/validation.types.ts'
+import type { ProxyHttpSettings } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import {
     applyRedirectConfigurationHandler,
     getRedirectRuntimeStatusHandler,

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 
-import type { UserThemeMode } from '@/shared/Types/theme-config.types.ts'
+import type { UserThemeMode } from '@/config/Types/theme-config.types.ts'
 import { toast } from '@rentnerkev/toasts/toast'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { updateCurrentUserThemeModeHandler } from '@/features/UserSettings/middleware.ts'

@@ -1,4 +1,4 @@
-import type { LogColor, LogMethod, Logger, LoggerOptions } from './Types/logger.types'
+import type { LogColor, LogMethod, Logger, LoggerOptions } from './Types/logger.types.ts'
 
 const ANSI = {
     blue: '\u001B[34m',

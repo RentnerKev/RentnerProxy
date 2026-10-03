@@ -3,15 +3,15 @@
           - any-glob-to-any-file:
                 - 'web/src/features/Auth/**'
                 - 'web/src/server/Auth/**'
-                - 'web/src/server/valkey/auth-challenges.service.ts'
+                - 'web/src/server/Valkey/auth-challenges.service.ts'
                 - 'web/src/config/auth*.config.ts'
-                - 'web/src/shared/Types/auth.types.ts'
+                - 'web/src/lib/Auth/Types/auth.types.ts'
                 - 'web/src/db/Schema/auth.ts'
                 - 'web/src/lib/Auth/**'
                 - 'web/src/tests/features/Auth/**'
                 - 'web/src/tests/server/Auth/**'
                 - 'web/src/tests/features/UserSettings/Components/SecuritySettingsPanel/**'
-                - 'web/src/tests/server/valkey/auth-challenges.test.ts'
+                - 'web/src/tests/server/Valkey/auth-challenges.test.ts'
 
 'area: proxy':
     - changed-files:
@@ -21,7 +21,7 @@
                 - 'web/src/server/Admin/ProxyHostManagement/**'
                 - 'web/src/server/ProxyRuntime/**'
                 - 'web/src/config/proxy-*.config.ts'
-                - 'web/src/shared/Types/proxy-*.types.ts'
+                - 'web/src/lib/Admin/ProxyHostManagement/Types/**'
                 - 'web/src/db/Schema/proxyHosts.ts'
                 - 'web/src/lib/Admin/ProxyHostManagement/**'
                 - 'web/src/tests/features/Admin/ProxyHostManagement/**'
@@ -36,7 +36,7 @@
                 - 'docker/proxy-runtime/**'
                 - 'web/src/server/ProxyRuntime/**'
                 - 'web/src/features/Admin/ProxyHostManagement/Components/ProxyRuntimeStatusPanel.tsx'
-                - 'web/src/shared/Types/proxy-runtime.types.ts'
+                - 'web/src/lib/ProxyRuntime/Types/**'
                 - 'web/src/tests/server/ProxyRuntime/**'
 
 'area: certificates':
@@ -47,18 +47,18 @@
                 - 'core/src/runtime/trusted_cas.rs'
                 - 'core/src/proxy/trusted_ca.rs'
                 - 'core/src/server/challenges.rs'
-                - 'core/src/tests/acme.rs'
-                - 'core/src/tests/certificates.rs'
+                - 'core/tests/private/acme.rs'
+                - 'core/tests/private/certificates.rs'
                 - 'web/src/features/Admin/CertificateManagement/**'
                 - 'web/src/features/Admin/TrustedCaManagement/**'
                 - 'web/src/server/Admin/CertificateManagement/**'
                 - 'web/src/server/Admin/TrustedCaManagement/**'
-                - 'web/src/server/Foundation/certificates.server.ts'
-                - 'web/src/server/Foundation/trusted-cas.server.ts'
+                - 'web/src/server/Controller/certificates.server.ts'
+                - 'web/src/server/Controller/trusted-cas.server.ts'
                 - 'web/src/config/certificates.config.ts'
                 - 'web/src/config/trusted-cas.config.ts'
-                - 'web/src/shared/Types/certificates.types.ts'
-                - 'web/src/shared/Types/trusted-cas.types.ts'
+                - 'web/src/lib/Admin/CertificateManagement/Types/**'
+                - 'web/src/lib/Admin/TrustedCaManagement/Types/**'
                 - 'web/src/db/Schema/certificates.ts'
                 - 'web/src/db/Schema/trustedCas.ts'
                 - 'web/src/lib/Admin/CertificateManagement/**'
@@ -67,14 +67,14 @@
                 - 'web/src/tests/lib/Admin/CertificateManagement/**'
                 - 'web/src/tests/server/Admin/CertificateManagement/**'
                 - 'web/src/tests/server/Admin/TrustedCaManagement/**'
-                - 'web/src/tests/server/Foundation/certificates.test.ts'
+                - 'web/src/tests/server/Controller/certificates.test.ts'
 
 'area: database':
     - changed-files:
           - any-glob-to-any-file:
                 - 'web/src/db/**'
                 - 'web/drizzle/**'
-                - 'web/drizzle.config.ts'
+                - 'drizzle.config.ts'
                 - 'web/src/server/Auth/Core/database.server.ts'
                 - 'web/src/tests/db/**'
                 - 'web/src/tests/**/*.db.test.ts'

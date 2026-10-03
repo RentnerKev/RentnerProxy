@@ -1,3 +1,8 @@
+import type {
+    FetchImplementation,
+    GeneratedReleaseNotes,
+    GenerateReleaseNotesInput,
+} from './Types/generate-release-notes.types.ts'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
@@ -9,35 +14,15 @@ import {
     renderReleaseNotes,
     validateReleaseTag,
     validateRepository,
-} from './release-notes'
+} from './release-notes.ts'
 import type {
-    CurrentRelease,
     GitHubIssue,
     GitHubMilestone,
     GitHubRelease,
     ReleaseCategory,
     ReleaseChannel,
     ReleaseNotesConfig,
-    RenderedReleaseNotes,
-} from './release-notes'
-
-type FetchImplementation = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
-
-export interface GeneratedReleaseNotes extends RenderedReleaseNotes {
-    issues: readonly GitHubIssue[]
-    previousTag?: string
-    milestoneNumber?: number
-    selectionMode: 'milestone' | 'release-window'
-}
-
-export interface GenerateReleaseNotesInput {
-    repository: string
-    release: CurrentRelease
-    channel: ReleaseChannel
-    image: string
-    bannerAssetName: string
-    config: ReleaseNotesConfig
-}
+} from './Types/release-notes.types.ts'
 
 function repositoryApiPath(repository: string): string {
     validateRepository(repository)

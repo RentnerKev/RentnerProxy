@@ -1,12 +1,14 @@
 import { createHash } from 'node:crypto'
 import { readFile, rm, chmod } from 'node:fs/promises'
 import { Database } from 'bun:sqlite'
-import { executeCoreFixture, runFixture, type FixtureContext } from './fixture'
+import { executeCoreFixture, runFixture } from './fixture.ts'
+import type { FixtureContext } from './Types/fixture.types.ts'
 
 async function importNpm(context: FixtureContext) {
     const { command, authorized, domain } = context
-    const npm = await import('../../web/src/server/Admin/NpmImport/npm-import.service')
-    const { NPM_216_MIGRATIONS } = await import('../../web/src/server/Admin/NpmImport/npm-source')
+    const npm = await import('../../web/src/server/Admin/NpmImport/npm-import.service.ts')
+    const { NPM_216_MIGRATIONS } =
+        await import('../../web/src/server/Admin/NpmImport/npm-source.ts')
     const path = '/tmp/reliability-npm-' + command.runId + '-' + command.iteration + '.sqlite'
     const sqlite = new Database(path, { create: true })
     try {
@@ -108,7 +110,7 @@ export async function executeBetaFixture(
     context: FixtureContext,
 ): Promise<Record<string, unknown>> {
     const { command, state, authorized, policies, runtime } = context
-    const crowdsec = await import('../../web/src/server/Admin/CrowdSec/crowdsec.service')
+    const crowdsec = await import('../../web/src/server/Admin/CrowdSec/crowdsec.service.ts')
     const closeCore = context.close
     context.close = async () => {
         try {
@@ -173,7 +175,7 @@ export async function executeBetaFixture(
             break
         case 'durability-read': {
             const core = await executeCoreFixture(context)
-            const npm = await import('../../web/src/server/Admin/NpmImport/npm-import.service')
+            const npm = await import('../../web/src/server/Admin/NpmImport/npm-import.service.ts')
             const history = await authorized(npm.getNpmImportRunsService)
             detail = {
                 ...core,

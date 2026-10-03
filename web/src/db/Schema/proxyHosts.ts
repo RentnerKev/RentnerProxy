@@ -1,12 +1,12 @@
 import { sql } from 'drizzle-orm'
 import { boolean, check, index, integer, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 
-import type { ProxyHostForwardScheme } from '../../config/proxy-hosts.config'
-import type { RedirectHostStatusCode } from '../../config/redirect-hosts.config'
-import { rentnerProxySchema } from './base'
-import { certificates } from './certificates'
-import { trustedCas } from './trustedCas'
-import { accessPolicies } from './accessPolicies'
+import type { ProxyHostForwardScheme } from '../../config/Types/proxy-hosts-config.types.ts'
+import type { RedirectHostStatusCode } from '../../config/Types/redirect-hosts-config.types.ts'
+import { rentnerProxySchema } from './base.ts'
+import { certificates } from './certificates.ts'
+import { trustedCas } from './trustedCas.ts'
+import { accessPolicies } from './accessPolicies.ts'
 
 export const proxyHosts = rentnerProxySchema.table(
     'proxy_hosts',

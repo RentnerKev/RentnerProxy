@@ -5,12 +5,12 @@ import { asc } from 'drizzle-orm'
 import type {
     ProxyAccessLogsQuery,
     ProxyAccessLogsResult,
-} from '@/shared/Types/proxy-access-logs.types.ts'
+} from '@/lib/Admin/ProxyAccessLogs/Types/proxy-access-logs.types.ts'
 import { hostDomains } from '@/db/schema.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
-import { getProxyAccessLogs } from '@/server/Foundation/controller.server.ts'
+import { getProxyAccessLogs } from '@/server/Controller/access-logs.server.ts'
 import { proxyAccessLogsQuerySchema } from '@/features/Admin/ProxyAccessLogs/validation.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 
