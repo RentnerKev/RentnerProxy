@@ -1664,11 +1664,19 @@ async function runSmoke(): Promise<void> {
                         current.mode === 'managed' &&
                         current.state === 'connected' &&
                         current.managedEngine === 'ready' &&
-                        current.credentialConfigured &&
                         current.enforcementActive,
                     'managed CrowdSec before database/cache readiness',
                 )
+                assert.equal(status.credentialConfigured, false)
                 assert.equal(status.failureBehavior, 'fail_open')
+                await command([
+                    'docker',
+                    'exec',
+                    startingId,
+                    'test',
+                    '-s',
+                    '/var/lib/rentnerproxy/crowdsec/bouncer/caddy-bouncer-key',
+                ])
             },
             passed,
         })

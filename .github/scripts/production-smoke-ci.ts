@@ -47,6 +47,7 @@ export function smokeProgress(suite: Suite) {
     let checks = 0
     let reportedChecks: number | undefined
     let diagnostic = ''
+    let startupDiagnostic = ''
     const specification = smokeSuites[suite]
     return {
         consume(line: string): string | undefined {
@@ -60,6 +61,13 @@ export function smokeProgress(suite: Suite) {
             }
             const completion = specification.completion.exec(line)
             if (completion) reportedChecks = Number(completion[1])
+            if (
+                suite === 'production' &&
+                /^Startup smoke failed during (?:restart|recreate|postgres|valkey)$/u.test(line)
+            ) {
+                startupDiagnostic = line
+                return startupDiagnostic
+            }
             const certificateFailure = CERTIFICATE_ERROR_CODES.find((code) =>
                 line.endsWith('Certificate operation failed: ' + code),
             )
@@ -131,7 +139,7 @@ export function smokeProgress(suite: Suite) {
             return {
                 checks,
                 passed: exitCode === 0 && checks > 0 && reportedChecks === checks,
-                diagnostic,
+                diagnostic: [startupDiagnostic, diagnostic].filter(Boolean).join('; '),
             }
         },
     }

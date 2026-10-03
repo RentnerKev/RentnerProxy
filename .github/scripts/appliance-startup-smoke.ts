@@ -239,6 +239,9 @@ export async function verifyApplianceStartup(
             options.passed(
                 `persisted HTTP/HTTPS ${scenario} startup; samples=${successfulSamples}/${unavailableSamples}; recovery gaps=${Math.round(largestGapMs[0]!)}ms/${Math.round(largestGapMs[1]!)}ms`,
             )
+        } catch (error) {
+            console.error(`Startup smoke failed during ${scenario}`)
+            throw error
         } finally {
             if (gateFile) await writeFile(gateFile, 'release\n')
             sampling.abort()
