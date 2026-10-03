@@ -78,7 +78,7 @@ fn exchange(address: SocketAddr, host: Option<&str>, path: &str) -> std::io::Res
             Ok(0) => return Ok(bytes),
             Ok(count) => {
                 bytes.extend_from_slice(&buffer[..count]);
-                if bytes.len() > 65_536 {
+                if bytes.len() > 524_288 {
                     return Err(std::io::Error::other("Caddy smoke response exceeds bound"));
                 }
             }
@@ -269,7 +269,11 @@ fn default_site_real_caddy_smoke() {
                     assert_eq!(result.headers["referrer-policy"], "no-referrer");
                     assert_eq!(
                         result.headers["content-security-policy"],
-                        "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src http: https: data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+                        if matches!(mode, DefaultSite::Welcome) {
+                            "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+                        } else {
+                            "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src http: https: data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+                        }
                     );
                     if matches!(mode, DefaultSite::CustomHtml { .. }) {
                         assert_eq!(result.body, html.as_bytes());

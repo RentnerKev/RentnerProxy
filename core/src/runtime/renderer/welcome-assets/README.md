@@ -1,0 +1,11 @@
+# Welcome page assets
+
+The built-in Caddy welcome page embeds these assets at compile time, so an unknown hostname does not depend on the application, external fonts, or asset endpoints.
+
+- `logo.webp`: the original `web/public/rentnerproxy-logo.png`, resized to 400 × 400 and encoded as WebP. The design is unchanged.
+- `end-of-the-road.webp`: a new mascot illustration generated with the built-in Imagegen tool, using the original logo as the character reference. Resized to 1000 × 667 and encoded as WebP with transparency preserved.
+- `lilita-one-latin-400-normal.woff2`: the unchanged Latin font from the project's existing `@fontsource/lilita-one` dependency. Its SIL Open Font License is included in `LILITA-ONE-LICENSE.txt` and embedded in the page stylesheet.
+
+## Illustration prompt
+
+Use case: illustration-story. Asset type: a transparent hero illustration for the RentnerProxy 'End of the road' welcome page. The supplied image is a character identity and illustration style reference ONLY, not a logo to redraw. Create a new polished illustrated scene featuring this same friendly elderly Rentner mascot: recognizable smiling face, receding white hair, green collared shirt, cream argyle sweater vest with pale blue and grey diamonds. He stands at the end of a short gently curving road, next to a simple green-and-white road-end barrier, holding a folded road map with a mildly amused 'looks like we reached the end' expression. Small familiar dark server cabinet with green status lights beside the barrier connects the scene to reverse proxy routing. Warm, charming, confident, humorous, not worried or sad. Match the reference's crisp cartoon shading and ink outlines, slightly dimensional illustration, not a photoreal human or generic 3D mascot. Composition: compact landscape vignette, mascot is prominent and fully visible, road leads toward him from lower foreground and clearly stops at the barrier; balanced for placement in a dark website panel. Palette: deep navy, saturated fresh green #24ed57, creamy white, warm skin and pale blue accents. Use actual transparent background outside the scene, restrained soft grounding shadow; no rectangular backdrop. Do not draw a website or interface. No logo lettering, no words, no letters, no numbers, no watermark. Preserve the mascot's character identity from the reference.

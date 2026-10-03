@@ -294,7 +294,11 @@ fn default_site_renders_modes_and_literal_html_without_exposing_probe() {
                 assert_eq!(
                     response["headers"]["Content-Security-Policy"],
                     json!([
-                        "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src http: https: data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+                        if matches!(configuration.default_site, DefaultSite::Welcome) {
+                            "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+                        } else {
+                            "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src http: https: data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+                        }
                     ])
                 );
                 let body = response["body"].as_str().unwrap();
@@ -306,6 +310,8 @@ fn default_site_renders_modes_and_literal_html_without_exposing_probe() {
                 } else {
                     assert!(body.contains("Welcome to RentnerProxy"));
                     assert!(!body.contains("<script"));
+                    assert!(!body.contains("__WELCOME_"));
+                    assert!(body.len() < 524_288, "welcome page stays within 512 KiB");
                 }
             }
         }

@@ -1,4 +1,6 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::LazyLock};
+
+use base64::{Engine, engine::general_purpose::STANDARD};
 
 use crate::models::DefaultSite;
 
@@ -7,8 +9,32 @@ use super::{
     routes::not_found_route,
 };
 
-const WELCOME_HTML: &str = r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Welcome to RentnerProxy</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#101b24;color:#e9f4f2;font-family:system-ui,sans-serif}main{max-width:38rem;margin:2rem;padding:3rem;border:1px solid #375650;border-radius:1.5rem;background:#172a30}small{color:#76dac2;letter-spacing:.14em}h1{font-size:clamp(2rem,6vw,3.5rem);line-height:1.1}p{color:#b7cfcc;line-height:1.6}</style></head><body><main><small>RENTNERPROXY</small><h1>Your proxy is ready.</h1><p>This address has no configured proxy host yet.</p></main></body></html>"#;
+const WELCOME_HTML: &str = include_str!("welcome.html");
 const HTML_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src http: https: data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+const WELCOME_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
+static WELCOME_PAGE: LazyLock<String> = LazyLock::new(|| {
+    // The fallback can be served on any hostname, without the application's asset routes.
+    WELCOME_HTML
+        .replace(
+            "__WELCOME_LOGO__",
+            &STANDARD.encode(include_bytes!("welcome-assets/logo.webp")),
+        )
+        .replace(
+            "__WELCOME_ILLUSTRATION__",
+            &STANDARD.encode(include_bytes!("welcome-assets/end-of-the-road.webp")),
+        )
+        .replace(
+            "__WELCOME_FONT__",
+            &STANDARD.encode(include_bytes!(
+                "welcome-assets/lilita-one-latin-400-normal.woff2"
+            )),
+        )
+        .replace(
+            "__WELCOME_FONT_LICENSE__",
+            include_str!("welcome-assets/LILITA-ONE-LICENSE.txt"),
+        )
+});
 
 pub(super) fn default_site_route(site: &DefaultSite) -> Route {
     let response = match site {
@@ -22,8 +48,8 @@ pub(super) fn default_site_route(site: &DefaultSite) -> Route {
                 ("Cache-Control".to_owned(), vec!["no-store".to_owned()]),
             ])),
         }),
-        DefaultSite::Welcome => html_response(WELCOME_HTML),
-        DefaultSite::CustomHtml { html } => html_response(html),
+        DefaultSite::Welcome => html_response(&WELCOME_PAGE, WELCOME_CSP),
+        DefaultSite::CustomHtml { html } => html_response(html, HTML_CSP),
     };
     Route {
         matchers: Vec::new(),
@@ -32,7 +58,7 @@ pub(super) fn default_site_route(site: &DefaultSite) -> Route {
     }
 }
 
-fn html_response(html: &str) -> Handler {
+fn html_response(html: &str, content_security_policy: &str) -> Handler {
     Handler::StaticResponse(StaticResponse {
         body: Some(html.replace('{', "\\{").replace('}', "\\}")),
         status_code: Some(200),
@@ -49,7 +75,7 @@ fn html_response(html: &str) -> Handler {
             ("Referrer-Policy".to_owned(), vec!["no-referrer".to_owned()]),
             (
                 "Content-Security-Policy".to_owned(),
-                vec![HTML_CSP.to_owned()],
+                vec![content_security_policy.to_owned()],
             ),
         ])),
     })

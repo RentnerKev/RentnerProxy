@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light" />
+        <meta name="robots" content="noindex, nofollow" />
+        <title>Welcome to RentnerProxy</title>
+        <style>
+            /* __WELCOME_FONT_LICENSE__ */
+            @font-face {
+                font-family: 'Lilita One';
+                font-style: normal;
+                font-weight: 400;
+                font-display: swap;
+                src: url('data:font/woff2;base64,__WELCOME_FONT__') format('woff2');
+            }
+
+            :root {
+                color-scheme: light;
+                font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+                --accent: #30ee61;
+                --canvas: #f7faf8;
+                --ink: #06120f;
+                --muted: #52665c;
+                --display: 'Lilita One', 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif;
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            body {
+                margin: 0;
+                min-width: 280px;
+                background: var(--canvas);
+                color: var(--ink);
+            }
+
+            .welcome {
+                display: grid;
+                grid-template-columns: minmax(380px, 46%) minmax(0, 1fr);
+                min-height: 100vh;
+                min-height: 100svh;
+            }
+
+            .brand-stage {
+                position: relative;
+                isolation: isolate;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                overflow: hidden;
+                padding: 32px clamp(30px, 4vw, 64px) 32px;
+                background: #020a0b;
+                color: #fff;
+            }
+
+            .brand-stage::before {
+                position: absolute;
+                z-index: -1;
+                inset: 0;
+                background:
+                    radial-gradient(ellipse at 95% 85%, #0fb33a30, transparent 60%),
+                    radial-gradient(ellipse at 40% 40%, #12372955, transparent 60%);
+                content: '';
+            }
+
+            .circuit {
+                position: absolute;
+                z-index: -1;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                opacity: 0.7;
+            }
+
+            .edge {
+                position: absolute;
+                inset: 0 -1px 0 auto;
+                width: 48px;
+                height: 100%;
+                pointer-events: none;
+            }
+
+            .edge-mobile {
+                display: none;
+            }
+
+            .logo {
+                display: block;
+                width: clamp(144px, 16vw, 208px);
+                height: auto;
+                filter: drop-shadow(0 10px 20px #0005);
+            }
+
+            .scene {
+                width: min(100%, 560px);
+                margin: 16px auto 12px;
+            }
+
+            .scene img {
+                display: block;
+                width: 100%;
+                height: auto;
+            }
+
+            .aside-copy {
+                max-width: 430px;
+                margin: 0 24px 30px 0;
+            }
+
+            .eyebrow {
+                margin: 0 0 14px;
+                font-family: Consolas, 'Liberation Mono', monospace;
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 1.8px;
+                text-transform: uppercase;
+            }
+
+            .aside-copy .eyebrow {
+                color: #4ee99a;
+            }
+
+            .aside-copy p:last-child {
+                margin: 0;
+                font-family: var(--display);
+                font-size: clamp(32px, 3.4vw, 48px);
+                line-height: 1.06;
+                letter-spacing: -1.5px;
+            }
+
+            .brand-footer {
+                margin: 0;
+                color: #91a99d;
+                font-size: 10px;
+                font-weight: 600;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+            }
+
+            .destination {
+                display: grid;
+                place-items: center;
+                padding: 56px clamp(28px, 5vw, 80px);
+                background: radial-gradient(ellipse at 100% 0, #30ee6118, transparent 50%);
+            }
+
+            .card {
+                width: min(100%, 480px);
+                padding: clamp(28px, 3.5vw, 44px);
+                border: 1px solid #06120f1f;
+                border-radius: 24px;
+                background: #fff;
+                box-shadow: 0 24px 70px #020a0b14;
+            }
+
+            .card .eyebrow {
+                color: #0d8a31;
+            }
+
+            h1 {
+                margin: 0;
+                font-family: var(--display);
+                font-size: clamp(52px, 5.4vw, 76px);
+                font-weight: 400;
+                line-height: 0.98;
+                letter-spacing: -2px;
+            }
+
+            h1 span {
+                display: block;
+                color: #0d8a31;
+            }
+
+            .description {
+                margin: 24px 0 32px;
+                color: var(--muted);
+                font-size: 16px;
+                line-height: 1.75;
+            }
+
+            .description strong {
+                color: var(--ink);
+                font-weight: 600;
+            }
+
+            .website {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 16px;
+                min-height: 52px;
+                padding: 14px 18px;
+                border: 1px solid transparent;
+                border-radius: 12px;
+                background: var(--accent);
+                color: var(--ink);
+                font-size: 15px;
+                font-weight: 750;
+                text-decoration: none;
+                transition: background-color 160ms;
+            }
+
+            .website svg {
+                flex-shrink: 0;
+                width: 18px;
+                height: 18px;
+            }
+
+            .website:hover {
+                background: #65f586;
+            }
+
+            .website:focus-visible {
+                outline: 3px solid #0d8a31;
+                outline-offset: 5px;
+            }
+
+            .website-address {
+                margin: 12px 0 0;
+                color: var(--muted);
+                font-family: Consolas, 'Liberation Mono', monospace;
+                font-size: 12px;
+                text-align: center;
+            }
+
+            .hint {
+                margin: 28px 0 0;
+                padding-top: 22px;
+                border-top: 1px solid #06120f1a;
+                color: var(--muted);
+                font-size: 13px;
+                line-height: 1.7;
+            }
+
+            @media (max-width: 900px) {
+                .welcome {
+                    grid-template-columns: 1fr;
+                }
+
+                .brand-stage {
+                    display: grid;
+                    grid-template-columns: 88px minmax(0, 360px);
+                    justify-content: center;
+                    align-items: center;
+                    gap: 12px 20px;
+                    padding: 24px 28px 38px;
+                    text-align: center;
+                }
+
+                .logo {
+                    width: 88px;
+                }
+
+                .scene {
+                    width: 100%;
+                    margin: 0;
+                }
+
+                .aside-copy {
+                    grid-column: 1 / -1;
+                    justify-self: center;
+                    margin: 0;
+                }
+
+                .aside-copy .eyebrow {
+                    display: none;
+                }
+
+                .aside-copy p:last-child {
+                    max-width: 320px;
+                    font-size: 30px;
+                    letter-spacing: -0.8px;
+                }
+
+                .edge {
+                    display: none;
+                }
+
+                .edge-mobile {
+                    position: absolute;
+                    inset: auto -1px -1px;
+                    display: block;
+                    width: calc(100% + 2px);
+                    height: 24px;
+                    pointer-events: none;
+                }
+
+                .brand-footer {
+                    display: none;
+                }
+
+                .destination {
+                    padding: 28px 24px 44px;
+                }
+
+                .card {
+                    padding: 28px;
+                }
+
+                h1 {
+                    font-size: 60px;
+                }
+            }
+
+            @media (max-width: 380px) {
+                .brand-stage {
+                    padding-inline: 20px;
+                }
+
+                .destination {
+                    padding-inline: 16px;
+                }
+
+                .card {
+                    padding: 24px;
+                }
+
+                h1 {
+                    font-size: clamp(44px, 14vw, 52px);
+                }
+
+                .description {
+                    font-size: 15px;
+                }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                .website {
+                    transition: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <main class="welcome">
+            <section class="brand-stage" aria-label="RentnerProxy">
+                <svg
+                    class="circuit"
+                    viewBox="0 0 720 900"
+                    fill="none"
+                    preserveAspectRatio="xMaxYMid slice"
+                    aria-hidden="true"
+                >
+                    <g stroke="#0fb33a" opacity="0.18">
+                        <path
+                            d="M-140 980C630 900 650 400 400-180M-120 1010C660 920 690 390 430-180M-90 1040C690 940 730 380 460-180M-60 1070C720 960 770 370 490-180M-30 1100C750 980 810 360 520-180"
+                        />
+                        <path
+                            d="M-130 850H190L280 760V680L440 520V360L560 240V-30M-130 875H200L305 770V690L465 530V370L585 250V-30M-130 900H210L330 780V700L490 540V380L610 260V-30"
+                        />
+                    </g>
+                    <path
+                        d="M-60 990C730 900 720 370 470-160"
+                        stroke="#30ee61"
+                        stroke-width="2"
+                        opacity="0.13"
+                    />
+                    <g fill="#30ee61" opacity="0.22">
+                        <circle cx="280" cy="680" r="3" />
+                        <circle cx="440" cy="360" r="3" />
+                        <circle cx="190" cy="850" r="3" />
+                    </g>
+                </svg>
+                <img
+                    class="logo"
+                    src="data:image/webp;base64,__WELCOME_LOGO__"
+                    width="400"
+                    height="400"
+                    alt="RentnerProxy — Modern Reverse Proxy Manager"
+                />
+                <figure class="scene">
+                    <img
+                        src="data:image/webp;base64,__WELCOME_ILLUSTRATION__"
+                        width="1000"
+                        height="667"
+                        alt="The RentnerProxy mascot with a map beside a green barrier at the end of a road."
+                    />
+                </figure>
+                <div class="aside-copy">
+                    <p class="eyebrow">A little detour</p>
+                    <p>Every route needs<br />a destination.</p>
+                </div>
+                <p class="brand-footer">RentnerProxy · Modern Reverse Proxy Manager</p>
+                <svg
+                    class="edge"
+                    viewBox="0 0 48 900"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                >
+                    <path d="M18 0C72 235-12 610 20 900H48V0Z" fill="#0fb33a" />
+                    <path d="M25 0C79 235-5 610 27 900H48V0Z" fill="#f7faf8" />
+                </svg>
+                <svg
+                    class="edge-mobile"
+                    viewBox="0 0 900 48"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                >
+                    <path d="M0 12C235 66 610-18 900 14V48H0Z" fill="#0fb33a" />
+                    <path d="M0 20C235 74 610-10 900 22V48H0Z" fill="#f7faf8" />
+                </svg>
+            </section>
+            <section class="destination" aria-labelledby="welcome-heading">
+                <div class="card">
+                    <p class="eyebrow">No destination here</p>
+                    <h1 id="welcome-heading">End of <span>the road.</span></h1>
+                    <p class="description">
+                        You've arrived at <strong>RentnerProxy</strong>, but there's no destination
+                        at this address yet.
+                    </p>
+                    <a
+                        class="website"
+                        href="https://proxy.rentner.dev/"
+                        referrerpolicy="no-referrer"
+                    >
+                        Visit RentnerProxy
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path
+                                d="M5 12h14m-6-6 6 6-6 6"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+                    </a>
+                    <p class="website-address">proxy.rentner.dev</p>
+                    <p class="hint">Expecting a website? Double-check the address and try again.</p>
+                </div>
+            </section>
+        </main>
+    </body>
+</html>
