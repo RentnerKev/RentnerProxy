@@ -100,6 +100,13 @@ docker compose up -d
 - Use the configured HTTPS `RENTNERPROXY_PUBLIC_ORIGIN` for normal access, email links, and passkeys.
 - Application data lives in the persistent `rentnerproxy` Docker volume.
 
+During restart or recreation, the controller recovers supported persisted proxy snapshots after
+preparing CrowdSec, before waiting for PostgreSQL and Valkey. Existing HTTP/HTTPS routes can serve
+while those independent services recover; management readiness still waits for the database,
+cache and migrations. Fresh installations and unsupported snapshot versions use the safe default
+site until the application reconciles their configuration. Replacing a single appliance container
+still interrupts its connections and listeners; this startup order does not provide zero downtime.
+
 ## Images and upgrades
 
 - **Breaking deployment change:** Compose now requires `RENTNERPROXY_IMAGE`; the development web environment uses `VALKEY_URL` in place of `REDIS_URL`. Production runs Valkey inside the appliance on loopback and supplies its URL internally. The connection scheme remains `redis://` or `rediss://` for the Bun client.
