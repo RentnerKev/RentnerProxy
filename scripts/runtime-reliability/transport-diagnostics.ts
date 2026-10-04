@@ -30,7 +30,7 @@ export function createTrafficObserver() {
 }
 
 function classify(message: string): TransportFailureCategory {
-    if (/no such host|lookup .* (?:timeout|failure)/u.test(message)) return 'dns-lookup'
+    if (/no such host|\blookup\s/u.test(message)) return 'dns-lookup'
     if (/dial tcp.*i\/o timeout/u.test(message)) return 'tcp-dial-timeout'
     if (/dial tcp.*connection refused/u.test(message)) return 'tcp-dial-refused'
     if (/dial udp/u.test(message)) return 'upstream-error'

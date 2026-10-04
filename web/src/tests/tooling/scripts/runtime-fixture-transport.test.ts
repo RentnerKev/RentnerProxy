@@ -174,6 +174,11 @@ describe('traffic failure diagnostics', () => {
     test.each([
         ['dial udp 192.0.2.1:53: i/o timeout', 'upstream-error'],
         ['dial tcp: lookup fixture-upstream on 127.0.0.11:53: read udp: i/o timeout', 'dns-lookup'],
+        [
+            'dial tcp: lookup fixture-upstream on 127.0.0.11:53: read udp: connection refused',
+            'dns-lookup',
+        ],
+        ['dial tcp: lookup fixture-upstream: server misbehaving', 'dns-lookup'],
     ] as const)('does not report a new TCP connection for %s', (message, category) => {
         expect(caddyTransportErrors(line(message))).toEqual([
             { category, status: 502, newTcpDial: false },
