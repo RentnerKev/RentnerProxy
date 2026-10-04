@@ -1,1 +1,3 @@
 *.sh text eol=lf
+# Published migration hashes use LF bytes, including Windows build contexts.
+web/drizzle/** text eol=lf
