@@ -1,5 +1,5 @@
 import { EllipsisVertical } from 'lucide-react'
-import * as DropdownMenu from 'radix-ui/dropdown-menu'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 

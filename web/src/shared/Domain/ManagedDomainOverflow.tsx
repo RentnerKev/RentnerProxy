@@ -1,4 +1,4 @@
-import * as Popover from 'radix-ui/popover'
+import * as Popover from '@radix-ui/react-popover'
 import type { ManagedDomainOverflowProps } from './Types/managed-domain.types.ts'
 import useManagedDomainOverflowLogic from './Hooks/useManagedDomainOverflowLogic.ts'
 

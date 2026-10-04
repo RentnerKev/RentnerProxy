@@ -1,4 +1,4 @@
-import * as Dialog from 'radix-ui/dialog'
+import * as Dialog from '@radix-ui/react-dialog'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
