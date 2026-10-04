@@ -12,6 +12,13 @@ import { buildHttp3Client } from '../http3-client.ts'
 import { publishedAlpha } from '../release-compatibility/published-alphas.ts'
 import { smokeCompose, smokeDockerArguments, smokeRunScope } from '../smoke-resources.ts'
 import type { ReliabilityCheck, ReliabilityOptions, ResourceSample } from './Types/control.types.ts'
+import { fixtureTransport } from './fixture-transport.config.ts'
+import {
+    caddyTransportErrors,
+    createTrafficObserver,
+    hostFetchCode,
+} from './transport-diagnostics.ts'
+import type { FixtureControl, TrafficDiagnostic } from './Types/fixture-transport.types.ts'
 
 export class ReliabilityError extends Error {
     constructor(
@@ -57,7 +64,7 @@ async function command(args: string[], options: CommandOptions = {}): Promise<st
                 console.error(dockerBuildDiagnostic(stderr))
             throw new ReliabilityError('command', 'command failed: ' + args.slice(0, 2).join(' '))
         }
-        return stdout.trim()
+        return (options.includeStderr ? stdout + '\n' + stderr : stdout).trim()
     } finally {
         clearTimeout(timer)
     }
@@ -104,6 +111,7 @@ export async function createHarness(options: ReliabilityOptions, checks: Reliabi
     const prefix = 'rentnerproxy-reliability-' + runId
     const container = prefix + '-app'
     const pebble = prefix + '-pebble'
+    const upstream = prefix + '-upstream'
     const network = prefix + '-network'
     let volume = prefix + '-data'
     const composeFile = join(tmpdir(), prefix + '-compose.yml')
@@ -111,41 +119,13 @@ export async function createHarness(options: ReliabilityOptions, checks: Reliabi
     const builtImage = prefix + '-current'
     const temp = await mkdtemp(join(tmpdir(), 'rentnerproxy-reliability-'))
     await chmod(temp, 0o700)
-    const ownedContainers = [container, pebble, prefix + '-certs']
+    const ownedContainers = [container, pebble, upstream, prefix + '-certs']
     const ownedVolumes = [volume]
     const ownedImages = [http3Image]
     const docker = (args: string[], config?: CommandOptions) => command(['docker', ...args], config)
     const dns = await startCertificateDnsFixture(randomBytes(16).toString('hex'))
-    let upstreamFailed = false
-    let authMode: 'allow' | 'deny' | 'unavailable' = 'allow'
-    const backend = (name: string) =>
-        Bun.serve({
-            hostname: '0.0.0.0',
-            port: 0,
-            fetch(request) {
-                if (upstreamFailed)
-                    return new Response('fixture upstream unavailable', { status: 503 })
-                return Response.json({
-                    backend: name,
-                    user: request.headers.get('Remote-User'),
-                    forwardedFor: request.headers.get('X-Forwarded-For'),
-                })
-            },
-        })
-    const primary = backend('a')
-    const secondary = backend('b')
-    const auth = Bun.serve({
-        hostname: '0.0.0.0',
-        port: 0,
-        fetch() {
-            if (authMode === 'unavailable') return new Response(null, { status: 503 })
-            if (authMode === 'deny') return new Response(null, { status: 401 })
-            return new Response(null, {
-                status: 200,
-                headers: { 'Remote-User': 'reliability-user' },
-            })
-        },
-    })
+    const traffic = createTrafficObserver()
+    let fixtureTlsStarted = false
     let imageIdentity = 'sha256:' + '0'.repeat(64)
     let targetSha = '0'.repeat(40)
     let image = options.image ?? builtImage
@@ -157,9 +137,6 @@ export async function createHarness(options: ReliabilityOptions, checks: Reliabi
         console.log('PASS ' + label)
     }
     async function cleanup() {
-        primary.stop(true)
-        secondary.stop(true)
-        auth.stop(true)
         dns.stop()
         const failures: unknown[] = []
         // Backup/restore may leave a one-off helper after its bounded command is interrupted.
@@ -185,7 +162,7 @@ export async function createHarness(options: ReliabilityOptions, checks: Reliabi
                 name,
             ]).catch(() => '')
             if (exists)
-                await docker(['rm', '--force', name]).catch((error: unknown) =>
+                await docker(['rm', '--force', '--volumes', name]).catch((error: unknown) =>
                     failures.push(error),
                 )
         }
@@ -223,6 +200,8 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         ) as { status: number; body: FixtureResult }
     }
     async function fixture(phase: string, extra: Record<string, unknown> = {}) {
+        // Fixture mutations also run in recovery finally blocks (for example CrowdSec disable).
+        traffic.clearHealthyObservation()
         const output = await docker(
             [
                 'exec',
@@ -253,11 +232,12 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
                 stdin: JSON.stringify({
                     runId,
                     phase,
-                    upstreamPort: primary.port,
-                    secondaryPort: secondary.port,
+                    upstreamHost: fixtureTransport.hostname,
+                    upstreamPort: fixtureTransport.primaryPort,
+                    secondaryPort: fixtureTransport.secondaryPort,
                     concurrency: options.concurrency,
                     certificateDomain: domain,
-                    authPort: auth.port,
+                    authPort: fixtureTransport.authPort,
                     ...extra,
                 }),
                 timeoutMs: 90_000,
@@ -350,15 +330,41 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         await ready()
         check('reload', 'Scoped test clock expires the fixture certificate backoff')
     }
-    async function http(host = domain, path = '/', headers: Record<string, string> = {}) {
+    async function http(
+        host = domain,
+        path = '/',
+        headers: Record<string, string> = {},
+        route?: number,
+    ) {
         const binding = await docker(['port', container, '8080/tcp'])
         assert.match(binding, /^127\.0\.0\.1:\d+$/u)
-        const response = await fetch('http://' + binding + path, {
-            headers: { host, ...headers },
-            redirect: 'manual',
-            signal: AbortSignal.timeout(8_000),
-        })
-        const value = await response.text()
+        let response: Response
+        try {
+            response = await fetch('http://' + binding + path, {
+                headers: { host, ...headers },
+                redirect: 'manual',
+                signal: AbortSignal.timeout(8_000),
+            })
+        } catch (error) {
+            traffic.recordFailure({
+                route: route ?? null,
+                status: null,
+                hostFetchCode: hostFetchCode(error),
+            })
+            throw error
+        }
+        traffic.observe({ route: route ?? null, status: response.status, hostFetchCode: null })
+        let value: string
+        try {
+            value = await response.text()
+        } catch (error) {
+            traffic.recordFailure({
+                route: route ?? null,
+                status: response.status,
+                hostFetchCode: hostFetchCode(error),
+            })
+            throw error
+        }
         let body: FixtureResult = {}
         try {
             body = JSON.parse(value) as FixtureResult
@@ -366,6 +372,164 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             /* Error pages need only their status. */
         }
         return { status: response.status, headers: response.headers, body }
+    }
+    async function fixtureControl(input: FixtureControl) {
+        // A recovery finally must not erase evidence before the outer failure handler captures it.
+        traffic.clearHealthyObservation()
+        const script = `const response=await fetch('http://127.0.0.1:${fixtureTransport.controlPort}/',{method:'POST',body:await Bun.stdin.text(),signal:AbortSignal.timeout(3000)});if(response.status!==200)process.exit(1);`
+        await docker(['exec', '-i', upstream, 'bun', '--no-env-file', '-e', script], {
+            stdin: JSON.stringify(input),
+            timeoutMs: 5_000,
+        })
+    }
+    async function startFixtureTls() {
+        for (const [source, target] of [
+            ['/tmp/scale-leaf.key', '/tmp/fixture-leaf.key'],
+            ['/tmp/scale-leaf.pem', '/tmp/fixture-leaf.pem'],
+        ]) {
+            const local = join(temp, basename(target!))
+            await docker(['cp', container + ':' + source, local])
+            await chmod(local, 0o600)
+            try {
+                // Docker's archive API rejects cp into a read-only rootfs, even for /tmp tmpfs.
+                // Exec writes through the container mount namespace without relaxing read-only mode.
+                await docker(
+                    [
+                        'exec',
+                        '-i',
+                        upstream,
+                        'bun',
+                        '--no-env-file',
+                        '-e',
+                        "import {writeFile} from 'node:fs/promises';await writeFile(process.argv[1],await Bun.stdin.text(),{mode:0o600});",
+                        target!,
+                    ],
+                    { stdin: await readFile(local, 'utf8'), timeoutMs: 5_000 },
+                )
+            } finally {
+                await rm(local)
+            }
+        }
+        await fixtureControl({ startTls: true })
+        fixtureTlsStarted = true
+        return fixtureTransport.tlsPort
+    }
+    async function captureTrafficDiagnostic(
+        stage: string,
+        category: string,
+    ): Promise<TrafficDiagnostic> {
+        const allowedStages = [
+            'setup',
+            'warmup',
+            'cycle',
+            'resources',
+            'small',
+            'large',
+            'concurrent',
+            'features',
+            'interruption',
+            'restart',
+            'delete',
+            'final',
+            'cleanup',
+        ]
+        const evidence: TrafficDiagnostic = {
+            stage: allowedStages.includes(stage) ? stage : 'unexpected',
+            failureCategory: [
+                'assertion',
+                'command',
+                'timeout',
+                'telemetry',
+                'unexpected',
+            ].includes(category)
+                ? category
+                : 'unexpected',
+            observation: traffic.observation,
+            caddy: [],
+            fixtureReachability: null,
+            fixtureRunning: null,
+            capture: 'complete',
+        }
+        const probe = `const ports=${JSON.stringify({ primary: fixtureTransport.primaryPort, secondary: fixtureTransport.secondaryPort, auth: fixtureTransport.authPort })};const result={};await Promise.all(Object.entries(ports).map(async([name,port])=>{try{const response=await fetch('http://${fixtureTransport.hostname}:'+port+'/',{keepalive:false,signal:AbortSignal.timeout(3000)});result[name]=response.status;await response.body?.cancel();}catch{result[name]=null;}}));console.log(JSON.stringify(result));`
+        const tlsHost = 'h0.scale-' + domain
+        const [logs, reachability, running, tlsReachability] = await Promise.allSettled([
+            docker(
+                [
+                    'logs',
+                    '--since',
+                    String(Math.max(eventStart, Math.floor(Date.now() / 1000) - 30)),
+                    '--tail',
+                    '200',
+                    container,
+                ],
+                { includeStderr: true, timeoutMs: 5_000 },
+            ),
+            docker(['exec', container, 'bun', '--no-env-file', '-e', probe], { timeoutMs: 5_000 }),
+            docker(['inspect', '--format', '{{.State.Running}}', upstream], { timeoutMs: 5_000 }),
+            fixtureTlsStarted
+                ? docker(
+                      [
+                          'exec',
+                          container,
+                          'curl',
+                          '--silent',
+                          '--output',
+                          '/dev/null',
+                          '--max-time',
+                          '3',
+                          '--write-out',
+                          '%{http_code}',
+                          '--cacert',
+                          '/tmp/reliability-ca.pem',
+                          '--connect-to',
+                          tlsHost +
+                              ':' +
+                              fixtureTransport.tlsPort +
+                              ':' +
+                              fixtureTransport.hostname +
+                              ':' +
+                              fixtureTransport.tlsPort,
+                          'https://' + tlsHost + ':' + fixtureTransport.tlsPort + '/',
+                      ],
+                      { timeoutMs: 5_000, acceptableExitCodes: [7, 28, 35, 60] },
+                  )
+                : Promise.resolve('000'),
+        ])
+        if (logs.status === 'fulfilled') evidence.caddy = caddyTransportErrors(logs.value)
+        else evidence.capture = 'partial'
+        if (running.status === 'fulfilled') evidence.fixtureRunning = running.value === 'true'
+        else evidence.capture = 'partial'
+        if (reachability.status === 'fulfilled') {
+            try {
+                const input: unknown = JSON.parse(reachability.value)
+                if (!input || typeof input !== 'object' || Array.isArray(input))
+                    throw new Error('invalid probe')
+                const value = input as Record<string, unknown>
+                const status = (name: string) =>
+                    typeof value[name] === 'number' &&
+                    Number.isInteger(value[name]) &&
+                    value[name] >= 100 &&
+                    value[name] <= 599
+                        ? (value[name] as number)
+                        : null
+                const tlsStatus =
+                    tlsReachability.status === 'fulfilled' &&
+                    /^[1-5]\d\d$/u.test(tlsReachability.value)
+                        ? Number(tlsReachability.value)
+                        : null
+                evidence.fixtureReachability = {
+                    primary: status('primary'),
+                    secondary: status('secondary'),
+                    auth: status('auth'),
+                    tls: tlsStatus,
+                }
+            } catch {
+                evidence.capture = 'partial'
+            }
+        } else evidence.capture = 'partial'
+        if (tlsReachability.status === 'rejected') evidence.capture = 'partial'
+        console.error('Traffic failure evidence: ' + JSON.stringify(evidence))
+        return evidence
     }
     async function writeCompose() {
         const config = {
@@ -376,7 +540,6 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
                     mem_limit: '1g',
                     cpus: 2,
                     pids_limit: 512,
-                    extra_hosts: ['host.docker.internal:host-gateway'],
                     ports: [
                         '127.0.0.1::3000',
                         '127.0.0.1::8080',
@@ -508,6 +671,11 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         restart,
         expireCertificateRetry,
         http,
+        captureTrafficDiagnostic,
+        recordTrafficFailure(route, status) {
+            traffic.recordFailure({ route, status, hostFetchCode: null })
+        },
+        startFixtureTls,
         runId,
         container,
         network,
@@ -571,6 +739,60 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         }
         await docker(['network', 'create', network])
         await docker(['volume', 'create', volume])
+        const transportBundle = join(temp, 'fixture-transport.js')
+        await command([
+            process.execPath,
+            '--no-env-file',
+            'build',
+            join(repositoryRoot, 'scripts/runtime-reliability/fixture-transport.ts'),
+            '--target=bun',
+            '--outfile=' + transportBundle,
+        ])
+        await docker([
+            'run',
+            '--detach',
+            '--name',
+            upstream,
+            '--network',
+            network,
+            '--network-alias',
+            fixtureTransport.hostname,
+            '--read-only',
+            '--no-healthcheck',
+            '--cap-drop=ALL',
+            '--security-opt=no-new-privileges',
+            '--tmpfs',
+            '/tmp:mode=1777',
+            '--tmpfs',
+            '/var/lib/postgresql',
+            '--tmpfs',
+            '/var/lib/rentnerproxy',
+            '--mount',
+            'type=bind,src=' + transportBundle + ',dst=/fixture-transport.js,readonly',
+            '--entrypoint',
+            'bun',
+            image,
+            '--no-env-file',
+            '/fixture-transport.js',
+        ])
+        await waitFor(
+            async () => {
+                await docker(
+                    [
+                        'exec',
+                        upstream,
+                        'bun',
+                        '--no-env-file',
+                        '-e',
+                        `const r=await fetch('http://127.0.0.1:${fixtureTransport.controlPort}/',{signal:AbortSignal.timeout(1000)});if(r.status!==200)process.exit(1)`,
+                    ],
+                    { timeoutMs: 3_000 },
+                )
+                return true
+            },
+            'network fixture readiness',
+            15_000,
+        )
         await buildHttp3Client(command, http3Image)
         await docker(['create', '--name', prefix + '-certs', pebbleImage])
         await docker([
@@ -822,13 +1044,13 @@ console.log(JSON.stringify({memoryBytes:Math.max(0,memory-inactive),pids:Number(
         get started() {
             return started
         },
-        primaryPort: primary.port!,
-        secondaryPort: secondary.port!,
+        primaryPort: fixtureTransport.primaryPort,
+        secondaryPort: fixtureTransport.secondaryPort,
         setUpstreamFailed(value: boolean) {
-            upstreamFailed = value
+            return fixtureControl({ upstreamFailed: value })
         },
-        setAuthMode(value: typeof authMode) {
-            authMode = value
+        setAuthMode(value: 'allow' | 'deny' | 'unavailable') {
+            return fixtureControl({ authMode: value })
         },
     }
 }

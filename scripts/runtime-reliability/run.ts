@@ -18,6 +18,7 @@ import {
 import type { ReliabilityCheck, ReliabilityFailure, ResourceSample } from './Types/control.types.ts'
 import { createHarness, ReliabilityError } from './harness.ts'
 import type { ReliabilityContext, FixtureResult } from './Types/harness.types.ts'
+import type { TrafficDiagnostic } from './Types/fixture-transport.types.ts'
 
 async function processIds(
     context: ReliabilityContext,
@@ -226,6 +227,7 @@ async function main() {
     const random = createSeededRandom(options.seed)
     let stage: ReliabilityFailure['stage'] = 'setup'
     let failure: ReliabilityFailure | undefined
+    let trafficDiagnostic: TrafficDiagnostic | undefined
     let completedIterations = 0
     let startedAt: number | undefined
     let observedDurationSeconds = 0
@@ -267,11 +269,16 @@ async function main() {
             assert.equal((await context.http('redirect-' + context.domain)).status, 404)
             await context.synced(await context.fixture('prepare'))
             await exercisePolicies(context, random)
-            harness.setUpstreamFailed(true)
+            await harness.setUpstreamFailed(true)
+            let upstreamStatus: number | null = null
             try {
-                assert.equal((await context.http()).status, 503)
+                upstreamStatus = (await context.http()).status
+                assert.equal(upstreamStatus, 503)
+            } catch (error) {
+                context.recordTrafficFailure(null, upstreamStatus)
+                throw error
             } finally {
-                harness.setUpstreamFailed(false)
+                await harness.setUpstreamFailed(false)
             }
             assert.equal((await context.http()).status, 200)
             context.check('proxy', 'Host and redirect CRUD plus transient upstream recovery')
@@ -281,11 +288,11 @@ async function main() {
                     (await context.http('policy-' + context.domain)).body.user,
                     'reliability-user',
                 )
-                harness.setAuthMode('deny')
+                await harness.setAuthMode('deny')
                 assert.equal((await context.http('policy-' + context.domain)).status, 401)
-                harness.setAuthMode('unavailable')
+                await harness.setAuthMode('unavailable')
                 assert.notEqual((await context.http('policy-' + context.domain)).status, 200)
-                harness.setAuthMode('allow')
+                await harness.setAuthMode('allow')
                 assert.equal((await context.http('policy-' + context.domain)).status, 200)
                 await context.synced(
                     await context.fixture('policy-update', { policyMode: 'public' }),
@@ -360,6 +367,10 @@ async function main() {
                   ? 'assertion'
                   : 'unexpected'
         failure = { stage, category }
+        trafficDiagnostic = await context.captureTrafficDiagnostic(stage, category).catch(() => {
+            console.error('Traffic failure evidence: capture unavailable')
+            return undefined
+        })
         const location =
             error instanceof Error
                 ? error.stack?.match(
@@ -400,7 +411,15 @@ async function main() {
             join(import.meta.dir, '../../tmp/runtime-reliability', options.source + '.json'),
     )
     await mkdir(dirname(reportPath), { recursive: true })
-    await writeFile(reportPath, JSON.stringify(report, null, 2) + '\n', { mode: 0o600 })
+    await writeFile(
+        reportPath,
+        JSON.stringify(
+            { ...report, ...(trafficDiagnostic ? { trafficDiagnostic } : {}) },
+            null,
+            2,
+        ) + '\n',
+        { mode: 0o600 },
+    )
     console.log(
         'Runtime reliability: ' +
             (report.summary.passed ? 'passed' : 'failed') +
