@@ -13,14 +13,32 @@ use tokio::{
     process::{Child, Command},
     sync::Mutex,
     task::JoinHandle,
-    time::{sleep, timeout},
+    time::{Instant, sleep, timeout, timeout_at},
 };
 
 const API_TIMEOUT: Duration = Duration::from_secs(10);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
-const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
+// Fit the appliance's 25-second shutdown window, including forced reaping.
+const SHUTDOWN_BUDGET: ShutdownBudget = ShutdownBudget {
+    control: Duration::from_secs(20),
+    drain: Duration::from_secs(22),
+    reap: Duration::from_secs(1),
+};
 const MAX_CONTROL_RESPONSE_BYTES: usize = 4_096;
 const MAX_METRICS_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
+
+#[derive(Clone, Copy)]
+struct ControlLimits {
+    response_bytes: usize,
+    timeout: Duration,
+}
+
+#[derive(Clone, Copy)]
+struct ShutdownBudget {
+    control: Duration,
+    drain: Duration,
+    reap: Duration,
+}
 
 pub(crate) type EngineFuture<'a> =
     Pin<Box<dyn Future<Output = Result<(), EngineError>> + Send + 'a>>;
@@ -119,7 +137,10 @@ impl CaddyProcess {
             method,
             path,
             body,
-            MAX_CONTROL_RESPONSE_BYTES,
+            ControlLimits {
+                response_bytes: MAX_CONTROL_RESPONSE_BYTES,
+                timeout: API_TIMEOUT,
+            },
         )
         .await
     }
@@ -131,7 +152,7 @@ impl CaddyProcess {
         method: &'static str,
         path: &'static str,
         body: &str,
-        response_limit: usize,
+        limits: ControlLimits,
     ) -> Result<ControlResponse, EngineError> {
         let operation = async {
             #[cfg(unix)]
@@ -140,7 +161,15 @@ impl CaddyProcess {
                 let stream = tokio::net::UnixStream::connect(socket)
                     .await
                     .map_err(|_| EngineError::Unavailable)?;
-                exchange_bounded(stream, "localhost", method, path, body, response_limit).await
+                exchange_bounded(
+                    stream,
+                    "localhost",
+                    method,
+                    path,
+                    body,
+                    limits.response_bytes,
+                )
+                .await
             }
             #[cfg(not(unix))]
             {
@@ -155,12 +184,12 @@ impl CaddyProcess {
                     method,
                     path,
                     body,
-                    response_limit,
+                    limits.response_bytes,
                 )
                 .await
             }
         };
-        timeout(API_TIMEOUT, operation)
+        timeout(limits.timeout, operation)
             .await
             .map_err(|_| EngineError::TimedOut)?
     }
@@ -256,9 +285,66 @@ impl CaddyProcess {
     }
 
     async fn terminate_child(&self) {
+        self.terminate_child_bounded(SHUTDOWN_BUDGET.reap).await;
+    }
+
+    async fn terminate_child_bounded(&self, reap_timeout: Duration) {
         if let Some(mut child) = self.child.lock().await.take() {
             let _ = child.start_kill();
-            let _ = timeout(SHUTDOWN_TIMEOUT, child.wait()).await;
+            let _ = timeout(reap_timeout, child.wait()).await;
+        }
+    }
+
+    async fn shutdown_owned(&self, budget: ShutdownBudget) -> Result<(), EngineError> {
+        if !self.child_running().await {
+            return Ok(());
+        }
+        let deadline = Instant::now() + budget.drain;
+        let result = timeout_at(
+            deadline,
+            self.request_bounded(
+                &self.admin_socket,
+                2_019,
+                "POST",
+                "/stop",
+                "",
+                ControlLimits {
+                    response_bytes: MAX_CONTROL_RESPONSE_BYTES,
+                    timeout: budget.control,
+                },
+            ),
+        )
+        .await
+        .unwrap_or(Err(EngineError::TimedOut));
+        if !matches!(result, Ok(ControlResponse { status: 200, .. })) {
+            self.terminate_child_bounded(budget.reap).await;
+            return Err(result.err().unwrap_or(EngineError::CommandFailed));
+        }
+        let mut slot = self.child.lock().await;
+        let Some(child) = slot.as_mut() else {
+            return Ok(());
+        };
+        // The control call and child drain share one deadline; their budgets
+        // must not add up beyond the appliance's own termination deadline.
+        let result = timeout_at(deadline, child.wait()).await;
+        match result {
+            Ok(Ok(status)) => {
+                *slot = None;
+                if status.success() {
+                    Ok(())
+                } else {
+                    Err(EngineError::CommandFailed)
+                }
+            }
+            result => {
+                drop(slot);
+                self.terminate_child_bounded(budget.reap).await;
+                Err(if result.is_err() {
+                    EngineError::TimedOut
+                } else {
+                    EngineError::CommandFailed
+                })
+            }
         }
     }
 }
@@ -292,29 +378,7 @@ impl ProxyEngine for CaddyProcess {
         Box::pin(self.verify_revision(revision))
     }
     fn shutdown<'a>(&'a self) -> EngineFuture<'a> {
-        Box::pin(async move {
-            if !self.child_running().await {
-                return Ok(());
-            }
-            let result = self
-                .request(&self.admin_socket, 2_019, "POST", "/stop", "")
-                .await;
-            if !matches!(result, Ok(ControlResponse { status: 200, .. })) {
-                self.terminate_child().await;
-                return Err(EngineError::CommandFailed);
-            }
-            let mut slot = self.child.lock().await;
-            let Some(child) = slot.as_mut() else {
-                return Ok(());
-            };
-            if !matches!(timeout(SHUTDOWN_TIMEOUT, child.wait()).await, Ok(Ok(_))) {
-                drop(slot);
-                self.terminate_child().await;
-                return Err(EngineError::TimedOut);
-            }
-            *slot = None;
-            Ok(())
-        })
+        Box::pin(self.shutdown_owned(SHUTDOWN_BUDGET))
     }
     fn is_running<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
         Box::pin(self.child_running())
@@ -333,7 +397,10 @@ impl ProxyEngine for CaddyProcess {
                     "GET",
                     "/metrics",
                     "",
-                    MAX_METRICS_RESPONSE_BYTES,
+                    ControlLimits {
+                        response_bytes: MAX_METRICS_RESPONSE_BYTES,
+                        timeout: API_TIMEOUT,
+                    },
                 )
                 .await?;
             if response.status != 200 {

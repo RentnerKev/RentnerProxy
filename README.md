@@ -66,6 +66,7 @@ services:
             - '443:8443/tcp'
             - '443:8443/udp'
         restart: unless-stopped
+        stop_grace_period: 30s
         volumes:
             - rentnerproxy:/var/lib/rentnerproxy
 
