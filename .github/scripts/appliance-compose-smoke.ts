@@ -2,6 +2,7 @@ import type { CrowdSecMode, CrowdSecRuntimeStatus } from './Types/appliance-comp
 // oxlint-disable no-await-in-loop -- Readiness probes deliberately poll in a bounded sequence.
 
 import assert from 'node:assert/strict'
+import { verifyApplianceStartup } from './appliance-startup-smoke.ts'
 import { dockerBuildDiagnostic } from '../../scripts/docker-build-diagnostics.ts'
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto'
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
@@ -1006,7 +1007,7 @@ async function runSmoke(): Promise<void> {
             '640:10001:10001',
         )
         await command([...compose, 'up', '--force-recreate', '--detach'])
-        const recreatedId = await containerId(compose)
+        let recreatedId = await containerId(compose)
         await waitForHealthy(recreatedId)
         const recreatedSecrets = JSON.parse(
             await command([
@@ -1642,6 +1643,43 @@ async function runSmoke(): Promise<void> {
         )
         await assertPublishedQuic()
         passed('verified HTTP/3 survives production appliance restart')
+
+        recreatedId = await verifyApplianceStartup({
+            temporaryRoot,
+            entrypointFile: join(repositoryRoot, 'docker/production/entrypoint.sh'),
+            compose,
+            httpPort,
+            httpsPort,
+            managementPort,
+            hostDomain,
+            trafficMarker,
+            ca: await readFile(http3CaFile, 'utf8'),
+            command,
+            containerId,
+            waitForHealthy,
+            assertSecurityReady: async (startingId) => {
+                const status = await waitForCrowdSec(
+                    startingId,
+                    (current) =>
+                        current.mode === 'managed' &&
+                        current.state === 'connected' &&
+                        current.managedEngine === 'ready' &&
+                        current.enforcementActive,
+                    'managed CrowdSec before database/cache readiness',
+                )
+                assert.equal(status.credentialConfigured, false)
+                assert.equal(status.failureBehavior, 'fail_open')
+                await command([
+                    'docker',
+                    'exec',
+                    startingId,
+                    'test',
+                    '-s',
+                    '/var/lib/rentnerproxy/crowdsec/bouncer/caddy-bouncer-key',
+                ])
+            },
+            passed,
+        })
 
         const crowdSecBackupDecision = '192.0.2.71'
         await command([
