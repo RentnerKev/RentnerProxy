@@ -1,6 +1,6 @@
 use crate::models::{DefaultSite, ProxyHost, ProxyHttpSettings, RedirectHost, TrustedCa};
+use aws_lc_rs::digest::{SHA256, digest};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
 #[derive(Serialize)]
@@ -77,7 +77,7 @@ fn hex_digest(bytes: &[u8]) -> String {
 fn hash_snapshot(snapshot: &impl Serialize) -> String {
     let bytes = serde_json::to_vec(snapshot)
         .expect("canonical proxy snapshot only contains serializable strings and numbers");
-    let digest = Sha256::digest(bytes);
+    let digest = digest(&SHA256, &bytes);
     format!("sha256:{}", hex_digest(digest.as_ref()))
 }
 

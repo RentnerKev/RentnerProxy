@@ -1,11 +1,15 @@
+use aws_lc_rs::digest::{Context, SHA256};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use rustls::pki_types::{CertificateDer, pem::PemObject};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use x509_parser::parse_x509_certificate;
 
 use crate::models::TrustedCa;
+
+#[cfg(test)]
+#[path = "../../tests/private/trusted_ca_fingerprint.rs"]
+mod fingerprint_tests;
 
 pub(crate) const MAX_TRUSTED_CA_PEM_BYTES: usize = 256 * 1024;
 const MAX_TRUSTED_CA_CERTIFICATES: usize = 100;
@@ -113,12 +117,12 @@ pub(crate) fn validate_trusted_ca_pem(
 }
 
 fn bundle_fingerprint(certificates: &[CertificateDer<'_>]) -> String {
-    let mut digest = Sha256::new();
+    let mut digest = Context::new(&SHA256);
     for certificate in certificates {
-        digest.update((certificate.as_ref().len() as u64).to_be_bytes());
+        digest.update(&(certificate.as_ref().len() as u64).to_be_bytes());
         digest.update(certificate.as_ref());
     }
-    let digest = digest.finalize();
+    let digest = digest.finish();
     let digest: &[u8] = digest.as_ref();
     format!(
         "sha256:{}",

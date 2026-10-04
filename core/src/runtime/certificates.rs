@@ -9,7 +9,6 @@ use rustls::{
     pki_types::{CertificateDer, PrivateKeyDer},
 };
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 

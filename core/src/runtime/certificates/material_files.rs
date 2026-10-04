@@ -7,12 +7,15 @@ use super::{
     CertificateCandidate, CertificateDer, CertificateError, CertificateImportRequest,
     CertificateMaterial, CertificateMetadata, ErrorKind, GeneralName, MAX_CERTIFICATE_PEM_BYTES,
     MAX_PRIVATE_KEY_PEM_BYTES, OffsetDateTime, PathBuf, PrivateKeyDer, SafeDir, ServerConfig,
-    Sha256, StoredCertificate, StoredCertificateCandidate, is_canonical_uuid_v7,
-    parse_x509_certificate,
+    StoredCertificate, StoredCertificateCandidate, is_canonical_uuid_v7, parse_x509_certificate,
 };
 
+use aws_lc_rs::digest::{Context, SHA256, digest};
 use rustls::pki_types::pem::PemObject;
-use sha2::Digest;
+
+#[cfg(test)]
+#[path = "../../../tests/private/certificate_material_hash.rs"]
+mod hash_tests;
 
 pub(super) fn ensure_material_version(
     versions_dir: &SafeDir,
@@ -299,7 +302,7 @@ impl ParsedCertificate {
             expires_at: format_timestamp(not_after)?,
             issuer: truncate(certificate.issuer().to_string(), 512),
             fingerprint: {
-                let digest = Sha256::digest(leaf.as_ref());
+                let digest = digest(&SHA256, leaf.as_ref());
                 let digest: &[u8] = digest.as_ref();
                 format!(
                     "sha256:{}",
@@ -314,14 +317,14 @@ impl ParsedCertificate {
 }
 
 pub(super) fn material_id(request: &CertificateImportRequest) -> String {
-    let mut hash = Sha256::new();
+    let mut hash = Context::new(&SHA256);
     hash.update(request.certificate_pem.as_bytes());
-    hash.update([0]);
+    hash.update(&[0]);
     hash.update(request.chain_pem.as_deref().unwrap_or("").as_bytes());
-    hash.update([0]);
+    hash.update(&[0]);
     hash.update(request.private_key_pem.as_bytes());
     {
-        let digest = hash.finalize();
+        let digest = hash.finish();
         let digest: &[u8] = digest.as_ref();
         digest
             .iter()

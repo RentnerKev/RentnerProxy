@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 
 use super::fixtures::{host, request};
 use crate::{
@@ -57,15 +56,7 @@ fn settings() -> RenderSettings {
 
 #[test]
 fn default_site_preserves_legacy_v7_hash_and_serialization() {
-    let legacy =
-        r#"{"version":7,"proxyHosts":[],"redirectHosts":[],"httpSettings":{},"trustedCas":[]}"#;
-    let expected = format!(
-        "sha256:{}",
-        Sha256::digest(legacy.as_bytes())
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect::<String>()
-    );
+    let expected = "sha256:33624890f80c28edbe09d561749351040a666cf55d02ecd47df0618d048c19e2";
     let request = with_site(DefaultSite::NotFound);
     assert_eq!(request.revision, expected);
     let mut serialized = serde_json::to_value(&request).unwrap();
