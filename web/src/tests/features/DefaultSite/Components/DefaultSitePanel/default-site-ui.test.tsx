@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { Root } from 'react-dom/client'
@@ -12,6 +12,7 @@ import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { getDefaultSitePageViewModel } from '@/lib/DefaultSite/defaultSitePage.ts'
 import getApplicationShellViewModel from '@/lib/ApplicationShell/applicationShell.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
+import { setClientCspNonce } from '@/lib/Security/cspNonce.ts'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -57,6 +58,11 @@ const { default: DefaultSitePanel } =
     await import('@/features/DefaultSite/Components/DefaultSitePanel/index.tsx')
 let root: Root | null = null
 let client: QueryClient | null = null
+const editorNonce = 'default_site_editor_nonce'
+const hadPreviousNonce = Object.hasOwn(globalThis, '__webpack_nonce__')
+const previousNonce = Reflect.get(globalThis, '__webpack_nonce__')
+
+beforeEach(() => setClientCspNonce(editorNonce))
 
 async function renderPanel(canUpdate = true) {
     const container = document.createElement('div')
@@ -75,12 +81,26 @@ async function renderPanel(canUpdate = true) {
                 </ToastProvider>,
             ),
         )
-        await new Promise((resolve) => setTimeout(resolve, 20))
     })
-    await settle()
-    await settle()
-    await settle()
+    await waitForPanel(container)
     return container
+}
+
+async function waitForPanel(container: HTMLElement) {
+    const deadline = Date.now() + 2000
+    while (true) {
+        const form = container.querySelector('form')
+        const mode = container.querySelector<HTMLInputElement>('input[name="mode"]')?.value
+        if (
+            (form && (mode !== 'custom-html' || container.querySelector('#default-site-html'))) ||
+            (!form && container.querySelector('section [role="alert"]'))
+        )
+            return
+        if (Date.now() >= deadline)
+            throw new Error('Default-site panel or HTML editor did not load.')
+        // oxlint-disable-next-line no-await-in-loop -- React must finish each render before polling the lazy editor again.
+        await settle()
+    }
 }
 
 async function settle() {
@@ -103,6 +123,7 @@ async function chooseMode(container: HTMLElement, label: string) {
     )
     expect(option).toBeDefined()
     await click(option!)
+    await waitForPanel(container)
 }
 
 async function submit(container: HTMLElement) {
@@ -171,6 +192,8 @@ afterEach(async () => {
     saveSettings.mockClear()
     formatSettings.mockClear()
     formatOutcome = { success: true, html: '<p>formatted</p>\n' }
+    if (hadPreviousNonce) Reflect.set(globalThis, '__webpack_nonce__', previousNonce)
+    else Reflect.deleteProperty(globalThis, '__webpack_nonce__')
 })
 
 describe('default-site settings panel', () => {
@@ -214,11 +237,48 @@ describe('default-site settings panel', () => {
         expect(getDefaultSitePageViewModel(editor.permissions).canUpdate).toBe(true)
         expect(getSettings).not.toHaveBeenCalled()
     })
+    test('mounts an editable empty codebox with nonce-authorized styles and saves its draft', async () => {
+        const container = await renderPanel()
+        await chooseMode(container, 'Custom HTML')
+        const view = getEditor(container)
+        expect(view.state.doc.toString()).toBe('')
+        expect(view.state.readOnly).toBe(false)
+        expect(view.contentDOM.getAttribute('contenteditable')).toBe('true')
+        expect(view.contentDOM.getAttribute('aria-readonly')).toBe('false')
+        expect(view.state.facet(EditorView.cspNonce)).toBe(editorNonce)
+        const editorStyles = [...document.querySelectorAll('style')].filter((style) =>
+            style.textContent?.includes('.cm-content'),
+        )
+        expect(editorStyles.length).toBeGreaterThan(0)
+        expect(editorStyles.map((style) => style.getAttribute('nonce'))).toEqual(
+            editorStyles.map(() => editorNonce),
+        )
+        const html = '<h1>RentnerProxy</h1>\n<p>End of the road.</p>'
+        await setHtml(container, html)
+        await chooseEditorColors(container, 'Midnight')
+        expect(getEditor(container)).toBe(view)
+        expect(view.state.doc.toString()).toBe(html)
+        const themedEditorStyles = [...document.querySelectorAll('style')].filter((style) =>
+            style.textContent?.includes('.cm-content'),
+        )
+        expect(themedEditorStyles.length).toBeGreaterThan(0)
+        expect(themedEditorStyles.map((style) => style.getAttribute('nonce'))).toEqual(
+            themedEditorStyles.map(() => editorNonce),
+        )
+        expect(container.textContent).toContain('Unsaved changes')
+        await submit(container)
+        expect(saveSettings).toHaveBeenCalledWith({
+            data: { baseRevision: 'revision-1', settings: { mode: 'custom-html', html } },
+        })
+    })
+
     test('keeps arbitrary HTML literal and makes viewers read only', async () => {
         const html = '<h1 id="untrusted">Hi</h1><script>window.hacked=true</script>'
         saved = { baseRevision: 'revision-1', settings: { mode: 'custom-html', html } }
         const container = await renderPanel(false)
         expect(getEditor(container).state.doc.toString()).toBe(html)
+        expect(getEditor(container).state.readOnly).toBe(true)
+        expect(getEditor(container).contentDOM.getAttribute('contenteditable')).toBe('false')
         expect(container.querySelector('[role="textbox"]')?.getAttribute('aria-readonly')).toBe(
             'true',
         )

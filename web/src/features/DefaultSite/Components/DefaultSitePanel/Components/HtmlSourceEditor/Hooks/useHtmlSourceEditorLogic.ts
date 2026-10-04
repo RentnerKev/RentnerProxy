@@ -6,6 +6,7 @@ import { basicSetup, EditorView } from 'codemirror'
 import { HTML_EDITOR_COLOR_PRESETS } from '@/config/html-editor.config.ts'
 import type { HtmlEditorColorPreset } from '@/config/Types/html-editor-config.types.ts'
 import { formatDefaultSiteHtmlHandler } from '@/features/DefaultSite/middleware.ts'
+import { getClientCspNonce } from '@/lib/Security/cspNonce.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { createHtmlEditorTheme } from '../editorTheme.ts'
 import type {
@@ -47,6 +48,7 @@ export function useHtmlSourceEditorLogic(
                 extensions: [
                     basicSetup,
                     html(),
+                    EditorView.cspNonce.of(getClientCspNonce() ?? ''),
                     EditorView.lineWrapping,
                     configuration.theme.of(createHtmlEditorTheme('rentnerproxy')),
                     configuration.editable.of([]),
