@@ -19,6 +19,81 @@ import {
 const POLICY_ID = '0192b7d4-4e59-7c6d-8a1b-2c3d4e5f6071'
 
 describe('access policy validation', () => {
+    test('accepts inline Basic Auth credentials for authentication policies and credential-only updates', () => {
+        const basicAuth = { username: 'kevin', password: '  unchanged password  ' }
+        const policy = createAccessPolicyInputSchema.parse({
+            name: 'Protected site',
+            mode: 'authenticated',
+            basicAuth,
+        })
+        expect(policy.basicAuth).toEqual(basicAuth)
+        expect(
+            createAccessPolicyInputSchema.safeParse({
+                name: 'Protected network',
+                mode: 'combined',
+                combination: 'all',
+                basicAuth,
+            }).success,
+        ).toBe(true)
+        expect(
+            updateAccessPolicyInputSchema.parse({ accessPolicyId: POLICY_ID, basicAuth }).basicAuth,
+        ).toEqual(basicAuth)
+    })
+
+    test('rejects incomplete, invalid, oversized, and unexpected inline credentials', () => {
+        for (const basicAuth of [
+            { username: 'kevin' },
+            { password: 'secret' },
+            { username: '', password: 'secret' },
+            { username: 'invalid:user', password: 'secret' },
+            { username: 'a'.repeat(65), password: 'secret' },
+            { username: 'kevin', password: '' },
+            { username: 'kevin', password: 'a'.repeat(257) },
+            { username: 'kevin', password: 'secret', passwordHash: 'untrusted' },
+        ]) {
+            expect(
+                createAccessPolicyInputSchema.safeParse({
+                    name: 'Protected site',
+                    mode: 'authenticated',
+                    basicAuth,
+                }).success,
+            ).toBe(false)
+            expect(
+                updateAccessPolicyInputSchema.safeParse({
+                    accessPolicyId: POLICY_ID,
+                    basicAuth,
+                }).success,
+            ).toBe(false)
+        }
+    })
+
+    test('rejects inline Basic Auth on public, IP-only, or Forward Auth policies', () => {
+        const basicAuth = { username: 'kevin', password: 'secret' }
+        for (const fields of [
+            { mode: 'public' },
+            { mode: 'ip-restricted' },
+            {
+                mode: 'authenticated',
+                forwardAuth: { provider: 'generic', endpoint: 'https://auth.example.test/authz' },
+            },
+        ]) {
+            expect(
+                createAccessPolicyInputSchema.safeParse({
+                    name: 'Invalid inline auth',
+                    ...fields,
+                    basicAuth,
+                }).success,
+            ).toBe(false)
+            expect(
+                updateAccessPolicyInputSchema.safeParse({
+                    accessPolicyId: POLICY_ID,
+                    ...fields,
+                    basicAuth,
+                }).success,
+            ).toBe(false)
+        }
+    })
+
     test('accepts updates that only configure or remove IP rules', () => {
         for (const ipRules of [null, { defaultAction: 'deny', allow: ['192.0.2.1'], deny: [] }]) {
             expect(

@@ -40,6 +40,7 @@ function noStore(): void {
 }
 
 function actionFailure(error: unknown, fallback: string) {
+    if (error instanceof BasicAuthDomainError) return basicAuthActionFailure(error, fallback)
     if (error instanceof AccessPolicyDomainError) {
         setResponseStatus(
             error.code === 'access_policy_not_found'

@@ -1551,7 +1551,7 @@
                 "mode": "Mode de protection",
                 "modeHint": "Public autorise les requêtes sans contrôle. Les politiques authentifiées utilisent Basic Auth ou Forward Auth ; les contrôles IP nécessitent leur fournisseur.",
                 "authenticationMethod": "Méthode d’authentification",
-                "basicAuth": "Comptes Basic Auth",
+                "basicAuth": "Basic Auth (identifiant et mot de passe)",
                 "forwardAuth": {
                     "title": "Forward Auth",
                     "description": "Les requêtes correspondantes sont envoyées à un service d’authentification externe. Le tableau de bord indique la configuration enregistrée et la synchronisation du runtime, sans vérifier la disponibilité du fournisseur.",
@@ -1598,6 +1598,7 @@
             "availability": {
                 "publicIgnored": "Politique publique — l’authentification et les règles IP sont ignorées.",
                 "authenticatedAvailable": "Basic Auth est configuré et peut autoriser les requêtes.",
+                "basicAuthReady": "Basic Auth sera configuré avec ces identifiants lors de l’enregistrement.",
                 "authenticatedMissing": "Aucun compte Basic Auth — les requêtes sont refusées.",
                 "ipRestrictedAvailable": "L’accès IP est configuré et peut autoriser les requêtes correspondantes.",
                 "ipRestrictedMissing": "L’accès IP n’est pas configuré — les requêtes sont refusées.",
@@ -1686,6 +1687,8 @@
                 },
                 "form": {
                     "createTitle": "Ajouter un compte Basic Auth",
+                    "setupHint": "Saisis un identifiant et un mot de passe, puis enregistre la politique. Sélectionne cette Access Policy sur l’hôte proxy : le navigateur demandera ces identifiants à l’ouverture du site.",
+                    "existingHint": "Les identifiants enregistrés restent actifs. Utilise Identifiants dans la liste des politiques pour les modifier ou ajouter des comptes.",
                     "editTitle": "Modifier le compte Basic Auth",
                     "description": "Enregistrez un nom d’utilisateur et un mot de passe pour cette politique d’accès.",
                     "username": "Nom d’utilisateur",

@@ -1,3 +1,5 @@
+import type { BasicAuthAccountFormErrors } from '../../../Types/basic-auth.types.ts'
+
 export type ActionResult = {
     readonly success: boolean
     readonly message: string
@@ -9,4 +11,5 @@ export type FormErrors = {
     combination?: string | undefined
     ipRules?: string | undefined
     forwardAuth?: string | undefined
+    basicAuth?: BasicAuthAccountFormErrors | undefined
 }

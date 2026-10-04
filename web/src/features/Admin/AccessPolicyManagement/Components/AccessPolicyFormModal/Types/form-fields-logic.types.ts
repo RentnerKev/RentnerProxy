@@ -14,6 +14,7 @@ export interface AccessPolicyFormFieldsLogicResult {
             | AccessPolicyAvailabilityStatus
             | 'forwardAuthConfigured'
             | 'forwardAuthMissing'
+            | 'basicAuthReady'
         readonly availabilityClassName: string
     }
 }

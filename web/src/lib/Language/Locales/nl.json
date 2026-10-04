@@ -1532,7 +1532,7 @@
                 "mode": "Beveiligingsmodus",
                 "modeHint": "Openbaar staat verzoeken zonder toegangscontrole toe. Beleid met authenticatie gebruikt Basic Auth of Forward Auth; IP-controles vereisen een ingestelde provider.",
                 "authenticationMethod": "Authenticatiemethode",
-                "basicAuth": "Basic Auth-accounts",
+                "basicAuth": "Basic Auth (gebruikersnaam en wachtwoord)",
                 "forwardAuth": {
                     "title": "Forward Auth",
                     "description": "Stuur overeenkomende verzoeken naar een externe authenticatiedienst. Dit dashboard toont de opgeslagen configuratie en synchronisatie met de actieve proxy; het controleert de beschikbaarheid van de provider niet.",
@@ -1579,6 +1579,7 @@
             "availability": {
                 "publicIgnored": "Openbaar beleid — authenticatie en IP-regels worden genegeerd.",
                 "authenticatedAvailable": "Basic Auth is ingesteld en kan verzoeken toestaan.",
+                "basicAuthReady": "Basic Auth wordt bij het opslaan met deze inloggegevens ingesteld.",
                 "authenticatedMissing": "Geen Basic Auth-accounts — verzoeken worden geweigerd.",
                 "ipRestrictedAvailable": "IP-toegang is ingesteld en kan overeenkomende verzoeken toestaan.",
                 "ipRestrictedMissing": "IP-toegang is niet ingesteld — verzoeken worden geweigerd.",
@@ -1667,6 +1668,8 @@
                 },
                 "form": {
                     "createTitle": "Basic Auth-account toevoegen",
+                    "setupHint": "Vul een gebruikersnaam en wachtwoord in en sla het beleid op. Selecteer deze Access Policy bij de proxyhost: de browser vraagt dan om deze inloggegevens wanneer je de site bezoekt.",
+                    "existingHint": "De opgeslagen inloggegevens blijven actief. Gebruik Inloggegevens in de beleidslijst om ze te wijzigen of meer accounts toe te voegen.",
                     "editTitle": "Basic Auth-account bewerken",
                     "description": "Sla een gebruikersnaam en wachtwoord voor dit toegangsbeleid op.",
                     "username": "Gebruikersnaam",

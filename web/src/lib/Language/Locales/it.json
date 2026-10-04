@@ -1559,7 +1559,7 @@
                 "mode": "Modalità di protezione",
                 "modeHint": "La modalità pubblica consente le richieste senza verificarne l’accesso. Le politiche autenticate usano Basic Auth o Forward Auth; i controlli IP richiedono il relativo provider.",
                 "authenticationMethod": "Metodo di autenticazione",
-                "basicAuth": "Account Basic Auth",
+                "basicAuth": "Basic Auth (nome utente e password)",
                 "forwardAuth": {
                     "title": "Forward Auth",
                     "description": "Invia le richieste corrispondenti a un servizio di autenticazione esterno. Questa dashboard mostra la configurazione salvata e la sincronizzazione runtime, ma non verifica lo stato del provider.",
@@ -1606,6 +1606,7 @@
             "availability": {
                 "publicIgnored": "Politica pubblica: autenticazione e regole IP vengono ignorate.",
                 "authenticatedAvailable": "Basic Auth è configurato e può consentire le richieste.",
+                "basicAuthReady": "Basic Auth verrà configurato con queste credenziali al salvataggio.",
                 "authenticatedMissing": "Nessun account Basic Auth: le richieste vengono negate.",
                 "ipRestrictedAvailable": "L’accesso IP è configurato e può consentire le richieste corrispondenti.",
                 "ipRestrictedMissing": "L’accesso IP non è configurato: le richieste vengono negate.",
@@ -1696,6 +1697,8 @@
                 },
                 "form": {
                     "createTitle": "Aggiungi account Basic Auth",
+                    "setupHint": "Inserisci un nome utente e una password e salva la policy. Seleziona questa Access Policy sull’host proxy: il browser chiederà queste credenziali quando apri il sito.",
+                    "existingHint": "Le credenziali salvate restano attive. Usa Credenziali nell’elenco delle policy per modificarle o aggiungere altri account.",
                     "editTitle": "Modifica account Basic Auth",
                     "description": "Salva un nome utente e una password per questa politica di accesso.",
                     "username": "Nome utente",

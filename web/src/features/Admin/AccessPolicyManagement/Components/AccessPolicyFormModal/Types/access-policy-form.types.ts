@@ -5,6 +5,10 @@ import type {
 import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 import type { ForwardAuthConfiguration } from '@/lib/ForwardAuth/Types/forward-auth.types.ts'
 import type { AccessPolicyIpRulesDraft } from '@/lib/Admin/AccessPolicyManagement/Types/ip-access-policy.types.ts'
+import type {
+    BasicAuthAccountFormErrors,
+    BasicAuthAccountFormValues,
+} from '../../../Types/basic-auth.types.ts'
 
 type ForwardAuthProvider = ForwardAuthConfiguration['provider']
 type ForwardAuthRequestHeader = ForwardAuthConfiguration['requestHeaders'][number]
@@ -32,6 +36,7 @@ export interface AccessPolicyFormValues {
     readonly combination: AccessPolicyCombination | null
     readonly ipRules: AccessPolicyIpRulesDraft | null
     readonly authMethod: 'basicAuth' | 'forwardAuth'
+    readonly basicAuth: BasicAuthAccountFormValues
     readonly forwardAuth: ForwardAuthDraft
 }
 
@@ -41,6 +46,7 @@ export interface AccessPolicyFormSubmitValues {
     readonly combination: AccessPolicyCombination | null
     readonly ipRules: AccessPolicySummary['ipRules']
     readonly forwardAuth: ForwardAuthConfiguration | null
+    readonly basicAuth?: BasicAuthAccountFormValues | undefined
 }
 
 export interface AccessPolicyFormModalState {
@@ -50,6 +56,7 @@ export interface AccessPolicyFormModalState {
         combination?: string | undefined
         ipRules?: string | undefined
         forwardAuth?: string | undefined
+        basicAuth?: BasicAuthAccountFormErrors | undefined
     }>
     readonly formId: string
     readonly isPending: boolean
@@ -69,6 +76,8 @@ export interface AccessPolicyFormModalHandler {
     readonly setMode: (value: string) => void
     readonly setName: (value: string) => void
     readonly setAuthMethod: (value: string) => void
+    readonly setBasicAuthUsername: (value: string) => void
+    readonly setBasicAuthPassword: (value: string) => void
     readonly setForwardAuthProvider: (value: string) => void
     readonly setForwardAuthEndpoint: (value: string) => void
     readonly setForwardAuthGatewayPathPrefix: (value: string) => void
@@ -93,6 +102,8 @@ export interface AccessPolicyFormFieldsProps {
     readonly setMode: AccessPolicyFormModalHandler['setMode']
     readonly setName: AccessPolicyFormModalHandler['setName']
     readonly setAuthMethod: AccessPolicyFormModalHandler['setAuthMethod']
+    readonly setBasicAuthUsername: AccessPolicyFormModalHandler['setBasicAuthUsername']
+    readonly setBasicAuthPassword: AccessPolicyFormModalHandler['setBasicAuthPassword']
     readonly setForwardAuthProvider: AccessPolicyFormModalHandler['setForwardAuthProvider']
     readonly setForwardAuthEndpoint: AccessPolicyFormModalHandler['setForwardAuthEndpoint']
     readonly setForwardAuthGatewayPathPrefix: AccessPolicyFormModalHandler['setForwardAuthGatewayPathPrefix']

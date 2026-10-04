@@ -1567,7 +1567,7 @@
                 "mode": "Modo de proteção",
                 "modeHint": "O modo público permite pedidos sem verificação de acesso. As políticas autenticadas usam Basic Auth ou Forward Auth; as verificações de IP requerem o respetivo fornecedor.",
                 "authenticationMethod": "Método de autenticação",
-                "basicAuth": "Contas Basic Auth",
+                "basicAuth": "Basic Auth (utilizador e palavra-passe)",
                 "forwardAuth": {
                     "title": "Forward Auth",
                     "description": "Envie os pedidos correspondentes para um serviço de autenticação externo. Este painel apresenta a configuração guardada e a sincronização do ambiente de execução; não verifica o estado do fornecedor.",
@@ -1614,6 +1614,7 @@
             "availability": {
                 "publicIgnored": "Política pública — a autenticação e as regras de IP são ignoradas.",
                 "authenticatedAvailable": "Basic Auth está configurado e pode permitir pedidos.",
+                "basicAuthReady": "Basic Auth será configurado com estas credenciais ao guardar.",
                 "authenticatedMissing": "Não há contas Basic Auth — os pedidos são negados.",
                 "ipRestrictedAvailable": "O acesso por IP está configurado e pode permitir pedidos correspondentes.",
                 "ipRestrictedMissing": "O acesso por IP não está configurado — os pedidos são negados.",
@@ -1706,6 +1707,8 @@
                 },
                 "form": {
                     "createTitle": "Adicionar conta Basic Auth",
+                    "setupHint": "Introduz um nome de utilizador e uma palavra-passe e guarda a política. Seleciona esta Access Policy no host proxy: o navegador pedirá estas credenciais ao abrir o site.",
+                    "existingHint": "As credenciais guardadas continuam ativas. Usa Credenciais na lista de políticas para as alterar ou adicionar mais contas.",
                     "editTitle": "Editar conta Basic Auth",
                     "description": "Guarde um nome de utilizador e uma palavra-passe para esta política de acesso.",
                     "username": "Nome de utilizador",

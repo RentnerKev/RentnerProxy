@@ -5,6 +5,7 @@ import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { FORWARD_AUTH_PROVIDERS } from '@/lib/ForwardAuth/forwardAuth.ts'
 import { defaultAccessPolicyIpRules } from '@/lib/Admin/AccessPolicyManagement/ipAccessPolicyState.ts'
 import type { AccessPolicyFormFieldsProps } from '../Types/access-policy-form.types.ts'
+import BasicAuthAccountFormFields from '../../BasicAuthAccountFormModal/Components/BasicAuthAccountFormFields.tsx'
 
 const modes = ['public', 'authenticated', 'ip-restricted', 'combined'] as const
 const requestHeaderOptions = ['Cookie', 'Authorization'] as const
@@ -22,6 +23,8 @@ export default function AccessPolicyFormFields({
     setMode,
     setName,
     setAuthMethod,
+    setBasicAuthUsername,
+    setBasicAuthPassword,
     setForwardAuthProvider,
     setForwardAuthEndpoint,
     setForwardAuthGatewayPathPrefix,
@@ -127,6 +130,37 @@ export default function AccessPolicyFormFields({
                             </label>
                         ))}
                     </div>
+                </fieldset>
+            ) : null}
+            {authenticationModeVisible && values.authMethod === 'basicAuth' ? (
+                <fieldset className="m-0 grid min-w-0 gap-3 border-0 p-0 shell:col-span-full [&_legend]:mb-[0.55rem] [&_legend]:text-[0.82rem] [&_legend]:font-[750] [&_legend]:text-ink-soft">
+                    <legend>{t('admin.accessPolicies.form.basicAuth')}</legend>
+                    {basicAuthAccountCount === 0 ? (
+                        <>
+                            <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
+                                {t(
+                                    values.mode === 'authenticated'
+                                        ? 'admin.accessPolicies.basicAuth.form.setupHint'
+                                        : 'admin.accessPolicies.basicAuth.form.description',
+                                )}
+                            </p>
+                            <div className="grid gap-4 shell:grid-cols-2">
+                                <BasicAuthAccountFormFields
+                                    errors={errors.basicAuth ?? {}}
+                                    formId={formId}
+                                    isPending={isPending}
+                                    mode="create"
+                                    setUsername={setBasicAuthUsername}
+                                    setPassword={setBasicAuthPassword}
+                                    values={values.basicAuth}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <p className="m-0 text-[0.76rem] leading-[1.45] text-muted">
+                            {t('admin.accessPolicies.basicAuth.form.existingHint')}
+                        </p>
+                    )}
                 </fieldset>
             ) : null}
             {authenticationModeVisible && values.authMethod === 'forwardAuth' ? (

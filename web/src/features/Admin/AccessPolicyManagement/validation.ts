@@ -8,6 +8,7 @@ import {
 } from '@/config/access-policies.config.ts'
 import { accessPolicyIpRulesInputSchema } from '@/lib/AccessPolicies/ipAccessRules.ts'
 import { forwardAuthInputSchema } from '@/lib/ForwardAuth/forwardAuth.ts'
+import { basicAuthCredentialsInputSchema } from './basic-auth.validation.ts'
 
 // oxlint-disable-next-line no-control-regex -- Policy names and descriptions must reject C0/C1 controls.
 const ACCESS_POLICY_CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F-\u009F]/u
@@ -39,6 +40,7 @@ const policyFieldsSchema = z.strictObject({
     combination: accessPolicyCombinationSchema.nullable().default(null),
     ipRules: accessPolicyIpRulesInputSchema.nullable().default(null),
     forwardAuth: forwardAuthInputSchema.nullable().default(null),
+    basicAuth: basicAuthCredentialsInputSchema.optional(),
 })
 
 function validateCombination(
@@ -46,6 +48,7 @@ function validateCombination(
         mode: string
         combination: string | null
         forwardAuth?: unknown | null
+        basicAuth?: unknown
     },
     context: z.RefinementCtx,
 ): void {
@@ -69,6 +72,24 @@ function validateCombination(
                 'Forward Auth requires authenticated mode or combined mode with all providers.',
         })
     }
+    validateBasicAuth(policy, context)
+}
+
+function validateBasicAuth(
+    policy: { mode?: string | undefined; forwardAuth?: unknown | null; basicAuth?: unknown },
+    context: z.RefinementCtx,
+): void {
+    if (
+        policy.basicAuth !== undefined &&
+        (policy.mode === 'public' || policy.mode === 'ip-restricted' || policy.forwardAuth != null)
+    ) {
+        context.addIssue({
+            code: 'custom',
+            path: ['basicAuth'],
+            message:
+                'Basic Auth credentials require an authentication policy without Forward Auth.',
+        })
+    }
 }
 
 export const createAccessPolicyInputSchema = policyFieldsSchema.superRefine(validateCombination)
@@ -82,6 +103,7 @@ export const updateAccessPolicyInputSchema = z
         combination: accessPolicyCombinationSchema.nullable().optional(),
         ipRules: accessPolicyIpRulesInputSchema.nullable().optional(),
         forwardAuth: forwardAuthInputSchema.nullable().optional(),
+        basicAuth: basicAuthCredentialsInputSchema.optional(),
     })
     .superRefine((input, context) => {
         if (
@@ -90,7 +112,8 @@ export const updateAccessPolicyInputSchema = z
             input.mode === undefined &&
             input.combination === undefined &&
             input.ipRules === undefined &&
-            input.forwardAuth === undefined
+            input.forwardAuth === undefined &&
+            input.basicAuth === undefined
         ) {
             context.addIssue({ code: 'custom', message: 'admin.accessPolicies.validation.changes' })
         }
@@ -107,6 +130,7 @@ export const updateAccessPolicyInputSchema = z
                     'Forward Auth requires authenticated mode or combined mode with all providers.',
             })
         }
+        validateBasicAuth(input, context)
     })
 
 export const accessPolicyIdInputSchema = z.strictObject({ accessPolicyId: z.uuidv7() })

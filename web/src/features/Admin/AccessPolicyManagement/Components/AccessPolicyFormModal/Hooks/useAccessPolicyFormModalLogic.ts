@@ -1,5 +1,6 @@
 import type { ActionResult, FormErrors } from '../Types/access-policy-form-modal-logic.types.ts'
 import {
+    accessPolicyManagementQueryKeys,
     invalidateAccessPoliciesCache,
     invalidateAssignableAccessPoliciesCache,
     invalidateAccessPolicyRuntimeStatusCache,
@@ -14,6 +15,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useId, useState } from 'react'
 
 import { ACCESS_POLICY_NAME_MAX_LENGTH } from '@/config/access-policies.config.ts'
+import { validateBasicAuthAccount } from '@/lib/Admin/AccessPolicyManagement/basicAuthValidation.ts'
 import {
     isAccessPolicyCombination,
     isAccessPolicyMode,
@@ -94,6 +96,7 @@ export default function useAccessPolicyFormModalLogic({
     const { t } = useTranslationStore()
     const formId = useId()
     const isCreate = mode === 'create'
+    const basicAuthAccountCount = isCreate ? 0 : (policy?.basicAuthAccountCount ?? 0)
     const queryClient = useQueryClient()
     const [values, setValues] = useState<AccessPolicyFormValues>(() => ({
         name: policy?.name ?? '',
@@ -101,6 +104,7 @@ export default function useAccessPolicyFormModalLogic({
         combination: policy?.combination ?? null,
         ipRules: accessPolicyIpRulesToDraft(policy?.ipRules),
         authMethod: policy?.forwardAuth ? 'forwardAuth' : 'basicAuth',
+        basicAuth: { username: '', password: '' },
         forwardAuth: toForwardAuthDraft(policy?.forwardAuth),
     }))
     const [lastValidIpRules, setLastValidIpRules] = useState(() => policy?.ipRules ?? null)
@@ -111,8 +115,15 @@ export default function useAccessPolicyFormModalLogic({
             invalidateAccessPoliciesCache(queryClient, true),
             invalidateAssignableAccessPoliciesCache(queryClient),
             invalidateAccessPolicyRuntimeStatusCache(queryClient),
+            ...(policy
+                ? [
+                      queryClient.invalidateQueries({
+                          queryKey: accessPolicyManagementQueryKeys.basicAuthAccounts(policy.id),
+                      }),
+                  ]
+                : []),
         ])
-    }, [queryClient])
+    }, [policy, queryClient])
 
     const mutation = useMutation({
         mutationFn: async (nextValues: AccessPolicyFormSubmitValues): Promise<ActionResult> => {
@@ -121,6 +132,7 @@ export default function useAccessPolicyFormModalLogic({
                 mode: nextValues.mode,
                 combination: nextValues.combination,
                 forwardAuth: nextValues.forwardAuth,
+                ...(nextValues.basicAuth ? { basicAuth: nextValues.basicAuth } : {}),
             }
             const data =
                 nextValues.ipRules === undefined
@@ -200,7 +212,28 @@ export default function useAccessPolicyFormModalLogic({
                     ? 'all'
                     : current.combination,
         }))
-        setErrors((current) => ({ ...current, combination: undefined, forwardAuth: undefined }))
+        setErrors((current) => ({
+            ...current,
+            combination: undefined,
+            forwardAuth: undefined,
+            basicAuth: undefined,
+        }))
+    }, [])
+
+    const setBasicAuthUsername = useCallback((username: string) => {
+        setValues((current) => ({ ...current, basicAuth: { ...current.basicAuth, username } }))
+        setErrors((current) => ({
+            ...current,
+            basicAuth: { ...current.basicAuth, username: undefined },
+        }))
+    }, [])
+
+    const setBasicAuthPassword = useCallback((password: string) => {
+        setValues((current) => ({ ...current, basicAuth: { ...current.basicAuth, password } }))
+        setErrors((current) => ({
+            ...current,
+            basicAuth: { ...current.basicAuth, password: undefined },
+        }))
     }, [])
 
     const setForwardAuthProvider = useCallback((value: string) => {
@@ -303,52 +336,64 @@ export default function useAccessPolicyFormModalLogic({
         [updateIpRulesDraft],
     )
 
-    const validate = useCallback((nextValues: AccessPolicyFormValues): FormErrors => {
-        const nextErrors: FormErrors = {}
-        const name = nextValues.name.trim()
-        if (!name) nextErrors.name = 'admin.accessPolicies.validation.nameRequired'
-        else if (name.length > ACCESS_POLICY_NAME_MAX_LENGTH) {
-            nextErrors.name = 'admin.accessPolicies.validation.nameTooLong'
-        }
-        if (nextValues.mode === 'combined' && nextValues.combination === null) {
-            nextErrors.combination = 'admin.accessPolicies.validation.combinationRequired'
-        }
-        if (isIpRulesMode(nextValues.mode) && nextValues.ipRules) {
-            const parsed = parseAccessPolicyIpRulesDraft(nextValues.ipRules)
-            if ('error' in parsed) nextErrors.ipRules = parsed.error
-        }
-        if (
-            (nextValues.mode === 'authenticated' || nextValues.mode === 'combined') &&
-            nextValues.authMethod === 'forwardAuth'
-        ) {
-            const endpoint = nextValues.forwardAuth.endpoint
-            const timeout = Number(nextValues.forwardAuth.timeoutSeconds)
-            const responseHeaders = parseForwardAuthResponseHeaders(
-                nextValues.forwardAuth.responseHeaders,
-            )
-            if (!isCanonicalForwardAuthEndpoint(endpoint)) {
-                nextErrors.forwardAuth = 'admin.accessPolicies.validation.forwardAuthEndpoint'
-            } else if (!Number.isInteger(timeout) || timeout < 1 || timeout > 30) {
-                nextErrors.forwardAuth = 'admin.accessPolicies.validation.forwardAuthTimeout'
-            } else if (
-                responseHeaders.length > 16 ||
-                responseHeaders.some(
-                    (header, index) =>
-                        !isAllowedForwardAuthResponseHeader(header) ||
-                        (index > 0 &&
-                            header.toLowerCase() === responseHeaders[index - 1]?.toLowerCase()),
-                )
-            ) {
-                nextErrors.forwardAuth = 'admin.accessPolicies.validation.forwardAuthHeaders'
-            } else if (
-                nextValues.forwardAuth.gatewayPathPrefix.trim() !== '' &&
-                !isValidForwardAuthGatewayPathPrefix(nextValues.forwardAuth.gatewayPathPrefix)
-            ) {
-                nextErrors.forwardAuth = 'admin.accessPolicies.validation.forwardAuthGatewayPath'
+    const validate = useCallback(
+        (nextValues: AccessPolicyFormValues): FormErrors => {
+            const nextErrors: FormErrors = {}
+            const name = nextValues.name.trim()
+            if (!name) nextErrors.name = 'admin.accessPolicies.validation.nameRequired'
+            else if (name.length > ACCESS_POLICY_NAME_MAX_LENGTH) {
+                nextErrors.name = 'admin.accessPolicies.validation.nameTooLong'
             }
-        }
-        return nextErrors
-    }, [])
+            if (nextValues.mode === 'combined' && nextValues.combination === null) {
+                nextErrors.combination = 'admin.accessPolicies.validation.combinationRequired'
+            }
+            if (isIpRulesMode(nextValues.mode) && nextValues.ipRules) {
+                const parsed = parseAccessPolicyIpRulesDraft(nextValues.ipRules)
+                if ('error' in parsed) nextErrors.ipRules = parsed.error
+            }
+            if (
+                (nextValues.mode === 'authenticated' || nextValues.mode === 'combined') &&
+                nextValues.authMethod === 'basicAuth' &&
+                basicAuthAccountCount === 0
+            ) {
+                const basicAuthErrors = validateBasicAuthAccount(nextValues.basicAuth, 'create')
+                if (Object.keys(basicAuthErrors).length > 0) nextErrors.basicAuth = basicAuthErrors
+            }
+            if (
+                (nextValues.mode === 'authenticated' || nextValues.mode === 'combined') &&
+                nextValues.authMethod === 'forwardAuth'
+            ) {
+                const endpoint = nextValues.forwardAuth.endpoint
+                const timeout = Number(nextValues.forwardAuth.timeoutSeconds)
+                const responseHeaders = parseForwardAuthResponseHeaders(
+                    nextValues.forwardAuth.responseHeaders,
+                )
+                if (!isCanonicalForwardAuthEndpoint(endpoint)) {
+                    nextErrors.forwardAuth = 'admin.accessPolicies.validation.forwardAuthEndpoint'
+                } else if (!Number.isInteger(timeout) || timeout < 1 || timeout > 30) {
+                    nextErrors.forwardAuth = 'admin.accessPolicies.validation.forwardAuthTimeout'
+                } else if (
+                    responseHeaders.length > 16 ||
+                    responseHeaders.some(
+                        (header, index) =>
+                            !isAllowedForwardAuthResponseHeader(header) ||
+                            (index > 0 &&
+                                header.toLowerCase() === responseHeaders[index - 1]?.toLowerCase()),
+                    )
+                ) {
+                    nextErrors.forwardAuth = 'admin.accessPolicies.validation.forwardAuthHeaders'
+                } else if (
+                    nextValues.forwardAuth.gatewayPathPrefix.trim() !== '' &&
+                    !isValidForwardAuthGatewayPathPrefix(nextValues.forwardAuth.gatewayPathPrefix)
+                ) {
+                    nextErrors.forwardAuth =
+                        'admin.accessPolicies.validation.forwardAuthGatewayPath'
+                }
+            }
+            return nextErrors
+        },
+        [basicAuthAccountCount],
+    )
 
     const submit = useCallback(async () => {
         const nextValues = { ...values, name: values.name.trim() }
@@ -365,6 +410,11 @@ export default function useAccessPolicyFormModalLogic({
             name: nextValues.name,
             mode: nextValues.mode,
             combination: nextValues.combination,
+            ...((nextValues.mode === 'authenticated' || nextValues.mode === 'combined') &&
+            nextValues.authMethod === 'basicAuth' &&
+            basicAuthAccountCount === 0
+                ? { basicAuth: nextValues.basicAuth }
+                : {}),
             ipRules: nextValues.ipRules
                 ? isIpRulesMode(nextValues.mode)
                     ? parsedIpRules.rules
@@ -390,7 +440,7 @@ export default function useAccessPolicyFormModalLogic({
         }
         mutation.reset()
         await mutation.mutateAsync(submittedValues).catch(() => undefined)
-    }, [lastValidIpRules, mutation, validate, values])
+    }, [basicAuthAccountCount, lastValidIpRules, mutation, validate, values])
 
     const handleSubmit = useCallback<AccessPolicyFormModalHandler['handleSubmit']>(
         (event) => {
@@ -428,6 +478,8 @@ export default function useAccessPolicyFormModalLogic({
             setMode,
             setName,
             setAuthMethod,
+            setBasicAuthUsername,
+            setBasicAuthPassword,
             setForwardAuthProvider,
             setForwardAuthEndpoint,
             setForwardAuthGatewayPathPrefix,

@@ -1567,7 +1567,7 @@
                 "mode": "Tryb ochrony",
                 "modeHint": "Tryb publiczny zezwala na żądania bez sprawdzania dostępu. Zasady uwierzytelniania używają Basic Auth lub Forward Auth; sprawdzanie IP wymaga dostawcy.",
                 "authenticationMethod": "Metoda uwierzytelniania",
-                "basicAuth": "Konta Basic Auth",
+                "basicAuth": "Basic Auth (nazwa użytkownika i hasło)",
                 "forwardAuth": {
                     "title": "Forward Auth",
                     "description": "Wysyłaj pasujące żądania do zewnętrznej usługi uwierzytelniania. Ten panel pokazuje zapisaną konfigurację i synchronizację środowiska wykonawczego; nie sprawdza dostępności dostawcy.",
@@ -1614,6 +1614,7 @@
             "availability": {
                 "publicIgnored": "Zasada publiczna — uwierzytelnianie i reguły IP są ignorowane.",
                 "authenticatedAvailable": "Skonfigurowano Basic Auth, który może zezwalać na żądania.",
+                "basicAuthReady": "Basic Auth zostanie skonfigurowany z tymi danymi logowania podczas zapisywania.",
                 "authenticatedMissing": "Brak kont Basic Auth — żądania są odrzucane.",
                 "ipRestrictedAvailable": "Skonfigurowano dostęp IP, który może zezwalać na pasujące żądania.",
                 "ipRestrictedMissing": "Dostęp IP nie jest skonfigurowany — żądania są odrzucane.",
@@ -1706,6 +1707,8 @@
                 },
                 "form": {
                     "createTitle": "Dodaj konto Basic Auth",
+                    "setupHint": "Wpisz nazwę użytkownika i hasło, a następnie zapisz politykę. Wybierz tę Access Policy na hoście proxy: przeglądarka poprosi o te dane logowania przy otwieraniu strony.",
+                    "existingHint": "Zapisane dane logowania pozostają aktywne. Użyj opcji Dane logowania na liście polityk, aby je zmienić lub dodać kolejne konta.",
                     "editTitle": "Edytuj konto Basic Auth",
                     "description": "Zapisz nazwę użytkownika i hasło dla tej zasady dostępu.",
                     "username": "Nazwa użytkownika",

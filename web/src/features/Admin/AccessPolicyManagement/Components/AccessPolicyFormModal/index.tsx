@@ -56,6 +56,8 @@ export default function AccessPolicyFormModal(props: AccessPolicyFormModalProps)
                     setMode={handler.setMode}
                     setName={handler.setName}
                     setAuthMethod={handler.setAuthMethod}
+                    setBasicAuthUsername={handler.setBasicAuthUsername}
+                    setBasicAuthPassword={handler.setBasicAuthPassword}
                     setForwardAuthProvider={handler.setForwardAuthProvider}
                     setForwardAuthEndpoint={handler.setForwardAuthEndpoint}
                     setForwardAuthGatewayPathPrefix={handler.setForwardAuthGatewayPathPrefix}

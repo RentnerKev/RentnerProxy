@@ -2,6 +2,7 @@ import type {
     BasicAuthAccountSummary,
     BasicAuthMutationResult,
     BasicAuthAccountRow,
+    BasicAuthAccountCredentials,
 } from './Types/basic-auth.types.ts'
 import '@tanstack/react-start/server-only'
 
@@ -137,7 +138,7 @@ async function requireAccountForUpdate(
     return row
 }
 
-async function hashBasicAuthPassword(password: string): Promise<string> {
+export async function hashBasicAuthPassword(password: string): Promise<string> {
     const hash = await Bun.password.hash(password, {
         algorithm: 'argon2id',
         memoryCost: 47_104,
@@ -180,33 +181,10 @@ export async function createBasicAuthAccountService(
                 actor.id,
                 PERMISSIONS.ACCESS_POLICIES_UPDATE,
             )
-            await requirePolicyForUpdate(transaction, policyId)
-            const existing = await transaction
-                .select({ count: count() })
-                .from(accessPolicyBasicAuthAccounts)
-                .where(eq(accessPolicyBasicAuthAccounts.policyId, policyId))
-            if ((existing.at(0)?.count ?? 0) >= MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY) {
-                throw new BasicAuthDomainError('basic_auth_account_limit')
-            }
-            const rows = await transaction
-                .insert(accessPolicyBasicAuthAccounts)
-                .values({
-                    policyId,
-                    username: parsed.username,
-                    passwordHash,
-                })
-                .returning({ id: accessPolicyBasicAuthAccounts.id })
-            const created = rows.at(0)
-            if (!created) throw new BasicAuthDomainError('basic_auth_account_not_found')
-            await appendAuditEventInTransactionService(transaction, {
-                actorUserId: actor.id,
-                actorKind: 'user',
-                action: 'create',
-                resource: 'basic-auth-account',
-                targetId: created.id,
-                result: 'success',
+            return createBasicAuthAccountInTransaction(transaction, actor.id, policyId, {
+                username: parsed.username,
+                passwordHash,
             })
-            return created.id
         })
     } catch (error) {
         await recordMutationFailureBestEffort({
@@ -221,6 +199,43 @@ export async function createBasicAuthAccountService(
         throw error
     }
     return { accountId, runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id) }
+}
+
+// The caller locks runtime settings and authorizes the enclosing policy mutation.
+export async function createBasicAuthAccountInTransaction(
+    transaction: AuthTransaction,
+    actorId: string,
+    policyId: string,
+    credentials: BasicAuthAccountCredentials,
+): Promise<string> {
+    await requirePolicyForUpdate(transaction, policyId)
+    const existing = await transaction
+        .select({ count: count() })
+        .from(accessPolicyBasicAuthAccounts)
+        .where(eq(accessPolicyBasicAuthAccounts.policyId, policyId))
+    if ((existing.at(0)?.count ?? 0) >= MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY) {
+        throw new BasicAuthDomainError('basic_auth_account_limit')
+    }
+    let rows: Array<{ id: string }>
+    try {
+        rows = await transaction
+            .insert(accessPolicyBasicAuthAccounts)
+            .values({ policyId, ...credentials })
+            .returning({ id: accessPolicyBasicAuthAccounts.id })
+    } catch (error) {
+        throw mapDatabaseError(error) ?? error
+    }
+    const created = rows.at(0)
+    if (!created) throw new BasicAuthDomainError('basic_auth_account_not_found')
+    await appendAuditEventInTransactionService(transaction, {
+        actorUserId: actorId,
+        actorKind: 'user',
+        action: 'create',
+        resource: 'basic-auth-account',
+        targetId: created.id,
+        result: 'success',
+    })
+    return created.id
 }
 
 export async function updateBasicAuthAccountService(

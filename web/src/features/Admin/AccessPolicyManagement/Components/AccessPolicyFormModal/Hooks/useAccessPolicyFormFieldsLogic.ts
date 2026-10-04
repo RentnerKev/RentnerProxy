@@ -1,5 +1,6 @@
 import { isCanonicalForwardAuthEndpoint } from '@/lib/ForwardAuth/forwardAuth.ts'
 import { getAccessPolicyAvailability } from '@/lib/Admin/AccessPolicyManagement/basicAuthPolicyState.ts'
+import { validateBasicAuthAccount } from '@/lib/Admin/AccessPolicyManagement/basicAuthValidation.ts'
 import {
     parseAccessPolicyIpRulesDraft,
     splitIpRuleLines,
@@ -15,6 +16,11 @@ export default function useAccessPolicyFormFieldsLogic({
 }: AccessPolicyFormFieldsLogicInputs): AccessPolicyFormFieldsLogicResult {
     const ipRulesSectionVisible = values.mode === 'ip-restricted' || values.mode === 'combined'
     const authenticationModeVisible = values.mode === 'authenticated' || values.mode === 'combined'
+    const basicAuthReady =
+        authenticationModeVisible &&
+        values.authMethod === 'basicAuth' &&
+        basicAuthAccountCount === 0 &&
+        Object.keys(validateBasicAuthAccount(values.basicAuth, 'create')).length === 0
     const parsedIpRules = values.ipRules
         ? parseAccessPolicyIpRulesDraft(values.ipRules)
         : { rules: null }
@@ -30,7 +36,7 @@ export default function useAccessPolicyFormFieldsLogic({
     const availability = getAccessPolicyAvailability(
         values.mode,
         values.combination,
-        basicAuthAccountCount,
+        basicAuthReady ? 1 : basicAuthAccountCount,
         availabilityIpRules,
     )
     const availabilityKey =
@@ -38,7 +44,9 @@ export default function useAccessPolicyFormFieldsLogic({
             ? isCanonicalForwardAuthEndpoint(values.forwardAuth.endpoint)
                 ? 'forwardAuthConfigured'
                 : 'forwardAuthMissing'
-            : availability
+            : basicAuthReady && values.mode === 'authenticated'
+              ? 'basicAuthReady'
+              : availability
     const availabilityClassName =
         availabilityKey === 'publicIgnored'
             ? 'border-border bg-surface-subtle'

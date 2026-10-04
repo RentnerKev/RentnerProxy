@@ -14,3 +14,5 @@ export interface BasicAuthMutationResult {
 }
 
 export type BasicAuthAccountRow = typeof accessPolicyBasicAuthAccounts.$inferSelect
+
+export type BasicAuthAccountCredentials = Pick<BasicAuthAccountRow, 'username' | 'passwordHash'>

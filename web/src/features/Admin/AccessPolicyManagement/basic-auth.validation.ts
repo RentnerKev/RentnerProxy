@@ -35,10 +35,13 @@ export const basicAuthAccountsPolicyInputSchema = z.strictObject({
     accessPolicyId: accessPolicyIdSchema,
 })
 
-export const createBasicAuthAccountInputSchema = z.strictObject({
-    accessPolicyId: accessPolicyIdSchema,
+export const basicAuthCredentialsInputSchema = z.strictObject({
     username: basicAuthUsernameSchema,
     password: basicAuthPasswordSchema,
+})
+
+export const createBasicAuthAccountInputSchema = basicAuthCredentialsInputSchema.extend({
+    accessPolicyId: accessPolicyIdSchema,
 })
 
 export const updateBasicAuthAccountInputSchema = z

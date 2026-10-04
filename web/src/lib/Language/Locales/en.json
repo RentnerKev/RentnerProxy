@@ -1551,7 +1551,7 @@
                 "mode": "Protection mode",
                 "modeHint": "Public allows requests without an access check. Authenticated policies use Basic Auth or Forward Auth; IP checks require their provider.",
                 "authenticationMethod": "Authentication method",
-                "basicAuth": "Basic Auth accounts",
+                "basicAuth": "Basic Auth (username and password)",
                 "forwardAuth": {
                     "title": "Forward Auth",
                     "description": "Send matching requests to an external authentication service. This dashboard reports saved configuration and runtime synchronization; it does not probe provider health.",
@@ -1598,6 +1598,7 @@
             "availability": {
                 "publicIgnored": "Public policy — authentication and IP rules are ignored.",
                 "authenticatedAvailable": "Basic Auth is configured and can allow requests.",
+                "basicAuthReady": "Basic Auth will be configured with these credentials when you save.",
                 "authenticatedMissing": "No Basic Auth accounts — requests are denied.",
                 "ipRestrictedAvailable": "IP access is configured and can allow matching requests.",
                 "ipRestrictedMissing": "IP access is not configured — requests are denied.",
@@ -1686,6 +1687,8 @@
                 },
                 "form": {
                     "createTitle": "Add Basic Auth account",
+                    "setupHint": "Enter a username and password and save the policy. Select this Access Policy on the proxy host: the browser will then ask for these credentials when visiting the site.",
+                    "existingHint": "The saved credentials remain active. Use Credentials in the policy list to edit them or add more accounts.",
                     "editTitle": "Edit Basic Auth account",
                     "description": "Save a username and password for this access policy.",
                     "username": "Username",

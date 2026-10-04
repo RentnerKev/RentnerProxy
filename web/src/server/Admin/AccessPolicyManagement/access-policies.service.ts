@@ -34,6 +34,7 @@ import type {
     UpdateAccessPolicyInput,
 } from '@/features/Admin/AccessPolicyManagement/Types/validation.types.ts'
 import { AccessPolicyDomainError } from './access-policies.errors.ts'
+import { createBasicAuthAccountInTransaction, hashBasicAuthPassword } from './basic-auth.service.ts'
 import { forwardAuthInputSchema } from '@/lib/ForwardAuth/forwardAuth.ts'
 import type { ForwardAuthConfiguration } from '@/lib/ForwardAuth/Types/forward-auth.types.ts'
 
@@ -202,7 +203,7 @@ export async function createAccessPolicyService(
         throw error
     }
     return {
-        ...toSummary(row, 0, 0),
+        ...toSummary(row, 0, input.basicAuth === undefined ? 0 : 1),
         accessPolicyId: row.id,
         runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id),
     }
@@ -213,10 +214,16 @@ export async function createAccessPolicyInTransaction(
     actorId: string,
     input: CreateAccessPolicyInput,
 ): Promise<AccessPolicyRow> {
-    const parsed = parseCreate(input)
+    const { basicAuth, ...parsed } = parseCreate(input)
     assertPolicyShape(parsed.mode, parsed.combination, parsed.forwardAuth)
     await lockProxyRuntimeSettings(transaction)
     await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.ACCESS_POLICIES_CREATE)
+    const credentials = basicAuth
+        ? {
+              username: basicAuth.username,
+              passwordHash: await hashBasicAuthPassword(basicAuth.password),
+          }
+        : undefined
     const existing = await transaction.select({ id: accessPolicies.id }).from(accessPolicies)
     if (existing.length >= MAX_ACCESS_POLICIES) {
         throw new AccessPolicyDomainError('invalid_input')
@@ -224,6 +231,9 @@ export async function createAccessPolicyInTransaction(
     const rows = await transaction.insert(accessPolicies).values(parsed).returning()
     const created = rows.at(0)
     if (!created) throw new AccessPolicyDomainError('controller_unavailable')
+    if (credentials) {
+        await createBasicAuthAccountInTransaction(transaction, actorId, created.id, credentials)
+    }
     await appendAuditEventInTransactionService(transaction, {
         actorUserId: actorId,
         actorKind: 'user',
@@ -241,6 +251,12 @@ export async function updateAccessPolicyService(
     const actor = await requirePermissionService(PERMISSIONS.ACCESS_POLICIES_UPDATE)
     const parsed = parseUpdate(input)
     const id = parsed.accessPolicyId.toLowerCase()
+    const credentials = parsed.basicAuth
+        ? {
+              username: parsed.basicAuth.username,
+              passwordHash: await hashBasicAuthPassword(parsed.basicAuth.password),
+          }
+        : undefined
     let row: {
         readonly row: AccessPolicyRow
         readonly count: number
@@ -270,6 +286,9 @@ export async function updateAccessPolicyService(
                       ? parsed.forwardAuth
                       : currentForwardAuth
             assertPolicyShape(mode, combination, forwardAuth)
+            if (credentials && (mode === 'public' || mode === 'ip-restricted' || forwardAuth)) {
+                throw new AccessPolicyDomainError('invalid_input')
+            }
             const forwardAuthChanged =
                 JSON.stringify(forwardAuth) !== JSON.stringify(currentForwardAuth)
             const rows = await transaction
@@ -289,6 +308,9 @@ export async function updateAccessPolicyService(
                 .returning()
             const updated = rows.at(0)
             if (!updated) throw new AccessPolicyDomainError('access_policy_not_found')
+            if (credentials) {
+                await createBasicAuthAccountInTransaction(transaction, actor.id, id, credentials)
+            }
             const accountRows = await transaction
                 .select({ count: count() })
                 .from(accessPolicyBasicAuthAccounts)

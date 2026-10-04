@@ -1551,7 +1551,7 @@
                 "mode": "Schutzmodus",
                 "modeHint": "Öffentlich erlaubt Anfragen ohne Prüfung. Authentifizierte Richtlinien verwenden Basic Auth oder Forward Auth; IP-Prüfungen benötigen ihren Anbieter.",
                 "authenticationMethod": "Authentifizierungsmethode",
-                "basicAuth": "Basic-Auth-Konten",
+                "basicAuth": "Basic Auth (Benutzername und Passwort)",
                 "forwardAuth": {
                     "title": "Forward Auth",
                     "description": "Passende Anfragen werden an einen externen Authentifizierungsdienst gesendet. Das Dashboard zeigt gespeicherte Konfiguration und Laufzeit-Synchronisierung, prüft aber nicht die Erreichbarkeit des Anbieters.",
@@ -1598,6 +1598,7 @@
             "availability": {
                 "publicIgnored": "Öffentliche Richtlinie — Authentifizierung und IP-Regeln werden ignoriert.",
                 "authenticatedAvailable": "Basic Auth ist eingerichtet und kann Anfragen erlauben.",
+                "basicAuthReady": "Basic Auth wird beim Speichern mit diesen Zugangsdaten eingerichtet.",
                 "authenticatedMissing": "Keine Basic-Auth-Konten — Anfragen werden abgelehnt.",
                 "ipRestrictedAvailable": "IP-Zugriff ist eingerichtet und kann passende Anfragen erlauben.",
                 "ipRestrictedMissing": "IP-Zugriff ist nicht eingerichtet — Anfragen werden abgelehnt.",
@@ -1686,6 +1687,8 @@
                 },
                 "form": {
                     "createTitle": "Basic-Auth-Konto hinzufügen",
+                    "setupHint": "Gib Benutzername und Passwort ein und speichere die Richtlinie. Wähle diese Access Policy beim Proxy-Host aus: Beim Seitenaufruf fragt der Browser dann nach diesen Zugangsdaten.",
+                    "existingHint": "Die hinterlegten Zugangsdaten bleiben aktiv. Über „Zugangsdaten“ in der Richtlinienliste kannst du sie ändern oder weitere Konten hinzufügen.",
                     "editTitle": "Basic-Auth-Konto bearbeiten",
                     "description": "Speichere einen Benutzernamen und ein Passwort für diese Zugriffsrichtlinie.",
                     "username": "Benutzername",
