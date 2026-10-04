@@ -509,7 +509,7 @@ async function main() {
         const location =
             error instanceof Error
                 ? error.stack?.match(
-                      /runtime-(?:scale|reliability)[/\\](harness|certificates|crowdsec|run|control)\.ts:(\d+):(\d+)/u,
+                      /runtime-(?:scale|reliability)[/\\](harness|certificates|crowdsec|run|control|traffic)\.ts:(\d+):(\d+)/u,
                   )
                 : undefined
         console.error(
