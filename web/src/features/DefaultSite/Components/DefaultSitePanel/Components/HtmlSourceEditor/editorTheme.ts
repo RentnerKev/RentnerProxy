@@ -28,11 +28,21 @@ export function createHtmlEditorTheme(preset: HtmlEditorColorPreset) {
                     color: colors.gutterText,
                     borderRight: `1px solid ${colors.border}`,
                 },
+                // CodeMirror draws selections beneath the text, so active-line tints stay translucent.
                 '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: colors.activeLine },
-                '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection':
+                '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground':
                     {
                         backgroundColor: colors.selection,
                     },
+                '.cm-content::selection, .cm-content ::selection': {
+                    backgroundColor: colors.selection,
+                    color: colors.foreground,
+                },
+                '&.cm-focused .cm-matchingBracket': {
+                    backgroundColor: colors.selection,
+                    boxShadow: `inset 0 -1px ${colors.tag}`,
+                },
+                '.cm-selectionMatch': { backgroundColor: colors.selection },
                 '.cm-cursor, .cm-dropCursor': { borderLeftColor: colors.foreground },
                 '.cm-tooltip': {
                     backgroundColor: colors.gutter,
