@@ -10,6 +10,26 @@ import {
 } from '../../../../../scripts/smoke-resources.ts'
 
 describe('production smoke CI output boundary', () => {
+    test('keeps only fixed startup scenarios through subsequent failure output', () => {
+        for (const scenario of ['restart', 'recreate', 'postgres', 'valkey']) {
+            const progress = smokeProgress('production')
+            const safe = `Startup smoke failed during ${scenario}`
+            expect(progress.consume(safe)).toBe(safe)
+            expect(progress.consume(safe + ' private-value')).toBeUndefined()
+            expect(progress.consume('Startup smoke failed during private-value')).toBeUndefined()
+            progress.consume('error: Timed out waiting for private-value')
+            progress.consume('at .github/scripts/appliance-compose-smoke.ts:186:15')
+            expect(progress.result(1).diagnostic).toBe(
+                safe +
+                    '; Readiness polling timed out at .github/scripts/appliance-compose-smoke.ts:186:15',
+            )
+            expect(progress.result(1).diagnostic).not.toContain('private-value')
+        }
+        const proxy = smokeProgress('proxy')
+        expect(proxy.consume('Startup smoke failed during restart')).toBeUndefined()
+        expect(proxy.result(1).diagnostic).toBe('')
+    })
+
     test('keeps only fixed backup validation codes in CI diagnostics', () => {
         const output =
             'production restore operation failed: restore PostgreSQL. Backup validation: application_key; Restore database phase: execute.'

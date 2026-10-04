@@ -66,6 +66,7 @@ services:
             - '443:8443/tcp'
             - '443:8443/udp'
         restart: unless-stopped
+        stop_grace_period: 30s
         volumes:
             - rentnerproxy:/var/lib/rentnerproxy
 
@@ -99,6 +100,13 @@ docker compose up -d
 - Complete first-owner setup at `http://localhost:81`. For a remote host, keep port 81 private and use `ssh -L 8181:127.0.0.1:81 user@server`.
 - Use the configured HTTPS `RENTNERPROXY_PUBLIC_ORIGIN` for normal access, email links, and passkeys.
 - Application data lives in the persistent `rentnerproxy` Docker volume.
+
+During restart or recreation, the controller recovers supported persisted proxy snapshots after
+preparing CrowdSec, before waiting for PostgreSQL and Valkey. Existing HTTP/HTTPS routes can serve
+while those independent services recover; management readiness still waits for the database,
+cache and migrations. Fresh installations and unsupported snapshot versions use the safe default
+site until the application reconciles their configuration. Replacing a single appliance container
+still interrupts its connections and listeners; this startup order does not provide zero downtime.
 
 ## Images and upgrades
 

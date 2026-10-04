@@ -45,9 +45,10 @@ async function importNpm(context: FixtureContext) {
         for (const name of NPM_216_MIGRATIONS) migration.run(name)
         sqlite
             .query(`insert into proxy_host (id, domain_names, forward_scheme,
-            forward_host, forward_port) values (1, ?, 'http', 'host.docker.internal', ?)`)
+            forward_host, forward_port) values (1, ?, 'http', ?, ?)`)
             .run(
                 JSON.stringify(['npm-' + (command.iteration % 4) + '-' + domain]),
+                command.upstreamHost,
                 command.upstreamPort,
             )
         sqlite
@@ -154,7 +155,8 @@ export async function executeBetaFixture(
                         : null,
                     forwardAuth: {
                         provider: 'authentik',
-                        endpoint: 'http://host.docker.internal:' + command.authPort + '/auth',
+                        endpoint:
+                            'http://' + command.upstreamHost + ':' + command.authPort + '/auth',
                         timeoutSeconds: 2,
                         gatewayPathPrefix: '/outpost.goauthentik.io/',
                         requestHeaders: ['Authorization', 'Cookie'],

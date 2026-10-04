@@ -1,4 +1,4 @@
-FROM rust:1.98.1-bookworm@sha256:93ce27a88655056a51dbdd8f5f2d7ddc071c7b0070fb288a37b5a285fc83971e AS builder
+FROM rust:1.99.0-bookworm@sha256:59037199c44290f2befcdd58dcc540164763fc296950255aaefeef096a1866b0 AS builder
 
 WORKDIR /build
 COPY core/Cargo.toml core/Cargo.lock ./
@@ -8,7 +8,7 @@ RUN cargo build --locked --release
 # The builder digest pins xcaddy v0.4.5. The module revision is the signed v0.14.1 release.
 # Upstream's HTTP package imports AppSec and a shared Layer 4 helper. Remove those
 # registrations so the appliance exposes only the required HTTP bouncer.
-FROM caddy:2.11.4-builder@sha256:369218c81ca6d6af249981221b3a5c764d886dd5b058f51d144066de13f2418d AS caddy-build
+FROM caddy:2.11.6-builder@sha256:9fa405e7bb28572759e7c75bea68ed39c4266a509f0c0237c464c6e13ed4dc25 AS caddy-build
 
 ARG CADDY_CROWDSEC_BOUNCER_COMMIT=6b35f6be25e457aa0b94e32c6ae519123e50e7b7
 ARG CADDY_CROWDSEC_BOUNCER_SOURCE_SHA256=5ff0fd225d1d14cb29633516f0dfe084835dc99dc065ae11db852c661e9ced0d

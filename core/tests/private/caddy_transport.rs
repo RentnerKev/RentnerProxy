@@ -2,6 +2,10 @@ use super::{EngineError, exchange};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
+#[cfg(unix)]
+#[path = "caddy_shutdown.rs"]
+mod shutdown;
+
 async fn read_request(stream: &mut DuplexStream) -> String {
     let mut request = Vec::new();
     while !request.ends_with(b"\r\n\r\n") {

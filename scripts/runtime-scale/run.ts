@@ -1,6 +1,6 @@
 // oxlint-disable no-await-in-loop -- Workload phases and recovery checks depend on the preceding state.
 import assert from 'node:assert/strict'
-import { chmod, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { assertHttp3Response, requestHttp3Client } from '../http3-client.ts'
 import {
@@ -11,6 +11,7 @@ import {
 import { exerciseCrowdSec } from '../runtime-reliability/crowdsec.ts'
 import { createHarness, ReliabilityError } from '../runtime-reliability/harness.ts'
 import type { ReliabilityContext } from '../runtime-reliability/Types/harness.types.ts'
+import type { TrafficDiagnostic } from '../runtime-reliability/Types/fixture-transport.types.ts'
 import { buildScaleReport, parseScaleOptions, runBoundedTasks } from './control.ts'
 import { scaleResultSchema } from './control.validation.ts'
 import type { ScaleMeasurement, ScaleResourceSample, ScaleStage } from './Types/control.types.ts'
@@ -89,17 +90,7 @@ async function prepareTlsUpstream(context: ReliabilityContext) {
         '/tmp/scale-leaf.pem',
     ])
     await context.docker(['exec', context.container, 'chmod', '600', '/tmp/scale-leaf.key'])
-    const keyPath = join(context.temp, 'scale-leaf.key')
-    const certPath = join(context.temp, 'scale-leaf.pem')
-    await context.docker(['cp', context.container + ':/tmp/scale-leaf.key', keyPath])
-    await context.docker(['cp', context.container + ':/tmp/scale-leaf.pem', certPath])
-    await chmod(keyPath, 0o600)
-    return Bun.serve({
-        hostname: '0.0.0.0',
-        port: 0,
-        tls: { key: await readFile(keyPath), cert: await readFile(certPath) },
-        fetch: () => Response.json({ backend: 'tls' }),
-    })
+    return context.startFixtureTls()
 }
 
 async function verifyTraffic(
@@ -108,31 +99,36 @@ async function verifyTraffic(
     concurrency: number,
 ) {
     await runBoundedTasks(result.traffic, concurrency, async (expected, index) => {
-        const response = await context.http(expected.domain)
-        if (response.status !== expected.status)
-            throw new ReliabilityError(
-                'assertion',
-                'Scale route ' +
-                    index +
-                    ' returned status ' +
-                    response.status +
-                    '; expected ' +
-                    expected.status +
-                    '; upstream ' +
-                    (expected.backend ?? 'redirect'),
-            )
-        if (expected.status === 200)
-            assert.equal(
-                response.body.backend,
-                expected.backend,
-                'Scale route reaches its final upstream',
-            )
-        if (expected.status === 302 || expected.status === 307)
-            assert.equal(
-                response.headers.get('location'),
-                expected.location,
-                'Scale redirect retains its final destination',
-            )
+        const response = await context.http(expected.domain, '/', {}, index)
+        try {
+            if (response.status !== expected.status)
+                throw new ReliabilityError(
+                    'assertion',
+                    'Scale route ' +
+                        index +
+                        ' returned status ' +
+                        response.status +
+                        '; expected ' +
+                        expected.status +
+                        '; upstream ' +
+                        (expected.backend ?? 'redirect'),
+                )
+            if (expected.status === 200)
+                assert.equal(
+                    response.body.backend,
+                    expected.backend,
+                    'Scale route reaches its final upstream',
+                )
+            if (expected.status === 302 || expected.status === 307)
+                assert.equal(
+                    response.headers.get('location'),
+                    expected.location,
+                    'Scale redirect retains its final destination',
+                )
+        } catch (error) {
+            context.recordTrafficFailure(index, response.status)
+            throw error
+        }
     })
 }
 
@@ -204,13 +200,19 @@ async function verifyPolicies(harness: Awaited<ReturnType<typeof createHarness>>
     for (const forwardAuthCombined of [false, true]) {
         await context.synced(await context.fixture('forward-auth', { forwardAuthCombined }))
         assert.equal((await context.http(host)).body.user, 'reliability-user')
+        let authStatus: number | null = null
         try {
-            harness.setAuthMode('deny')
-            assert.equal((await context.http(host)).status, 401)
-            harness.setAuthMode('unavailable')
-            assert.notEqual((await context.http(host)).status, 200)
+            await harness.setAuthMode('deny')
+            authStatus = (await context.http(host)).status
+            assert.equal(authStatus, 401)
+            await harness.setAuthMode('unavailable')
+            authStatus = (await context.http(host)).status
+            assert.notEqual(authStatus, 200)
+        } catch (error) {
+            context.recordTrafficFailure(null, authStatus)
+            throw error
         } finally {
-            harness.setAuthMode('allow')
+            await harness.setAuthMode('allow')
         }
         assert.equal((await context.http(host)).status, 200)
     }
@@ -263,10 +265,10 @@ async function main() {
     const checks: Parameters<typeof buildScaleReport>[0]['checks'] = []
     let stage: ScaleStage = 'setup'
     let failure: Parameters<typeof buildScaleReport>[0]['failure']
+    let trafficDiagnostic: TrafficDiagnostic | undefined
     let startedAt: number | undefined
     let observedDurationSeconds = 0
     let finalState: Parameters<typeof buildScaleReport>[0]['finalState']
-    let tlsUpstream: Awaited<ReturnType<typeof prepareTlsUpstream>> | undefined
     const elapsed = () => (startedAt === undefined ? 0 : (performance.now() - startedAt) / 1000)
     const guard = () => {
         if (elapsed() >= options.timeoutSeconds)
@@ -322,7 +324,7 @@ async function main() {
             }),
         )
         assert.equal((await context.http()).status, 200)
-        tlsUpstream = await prepareTlsUpstream(context)
+        const tlsUpstreamPort = await prepareTlsUpstream(context)
         await sample()
         stage = 'small'
         console.log('Scale: ' + Math.min(25, options.hosts) + ' hosts')
@@ -396,7 +398,7 @@ async function main() {
             'Binding work drains without a stuck queue',
         )
         assert.equal(jobs.persistedJobCounts.total, 1)
-        result = await measure('scale-trusted-upstream', { trustedUpstreamPort: tlsUpstream.port })
+        result = await measure('scale-trusted-upstream', { trustedUpstreamPort: tlsUpstreamPort })
         await synchronized(result)
         result = await measure('scale-npm-import')
         assert.equal(result.importRetryVerified, true)
@@ -510,6 +512,10 @@ async function main() {
                   ? 'assertion'
                   : 'unexpected'
         failure = { stage, category }
+        trafficDiagnostic = await context.captureTrafficDiagnostic(stage, category).catch(() => {
+            console.error('Traffic failure evidence: capture unavailable')
+            return undefined
+        })
         const location =
             error instanceof Error
                 ? error.stack?.match(
@@ -527,7 +533,6 @@ async function main() {
         )
     } finally {
         observedDurationSeconds = elapsed()
-        tlsUpstream?.stop(true)
         try {
             await harness.cleanup()
         } catch {
@@ -549,7 +554,15 @@ async function main() {
         options.reportPath ?? join(import.meta.dir, '../../tmp/runtime-scale/report.json'),
     )
     await mkdir(dirname(reportPath), { recursive: true })
-    await writeFile(reportPath, JSON.stringify(report, null, 2) + '\n', { mode: 0o600 })
+    await writeFile(
+        reportPath,
+        JSON.stringify(
+            { ...report, ...(trafficDiagnostic ? { trafficDiagnostic } : {}) },
+            null,
+            2,
+        ) + '\n',
+        { mode: 0o600 },
+    )
     await chmod(reportPath, 0o600)
     console.log(
         'Runtime scale: ' +

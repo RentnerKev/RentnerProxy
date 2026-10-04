@@ -46,6 +46,9 @@ jobs:
             - name: Production appliance, backup and restore
               run: bun --no-orphans .github/scripts/production-smoke-ci.ts production
 
+            - name: Production appliance request draining
+              run: bun --no-env-file --no-orphans .github/scripts/appliance-drain-smoke.ts
+
             - name: Certificates and ACME
               run: bun --no-orphans .github/scripts/production-smoke-ci.ts certificates
 

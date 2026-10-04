@@ -312,11 +312,13 @@ trap on_shutdown_signal INT TERM
 
 initialize_layout
 initialize_secrets
+start_crowdsec_supervisor
+start_controller
+# Supported persisted proxy snapshots do not depend on PostgreSQL or Valkey.
+# Keep CrowdSec preparation ahead of recovery and database readiness ahead of web startup.
 initialize_postgres_data_directory
 start_postgres
 start_valkey
-start_crowdsec_supervisor
-start_controller
 run_migrations
 start_web
 monitor_children
