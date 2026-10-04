@@ -13,6 +13,7 @@ import { createHarness, ReliabilityError } from '../runtime-reliability/harness.
 import type { ReliabilityContext } from '../runtime-reliability/Types/harness.types.ts'
 import type { TrafficDiagnostic } from '../runtime-reliability/Types/fixture-transport.types.ts'
 import { buildScaleReport, parseScaleOptions, runBoundedTasks } from './control.ts'
+import { verifyConcurrentTraffic } from './traffic.ts'
 import { scaleResultSchema } from './control.validation.ts'
 import type { ScaleMeasurement, ScaleResourceSample, ScaleStage } from './Types/control.types.ts'
 import type { ScaleResult } from './Types/control.types.ts'
@@ -349,21 +350,10 @@ async function main() {
                         updated = await measure('scale-update', { iteration })
                     },
                     async () => {
-                        await runBoundedTasks(
-                            previous.traffic.filter((entry) => entry.backend).slice(0, 32),
+                        await verifyConcurrentTraffic(
+                            context,
+                            previous.traffic,
                             options.concurrency,
-                            async (expected) => {
-                                const response = await context.http(expected.domain)
-                                assert.ok(
-                                    response.status === 200 || response.status === 404,
-                                    'Concurrent traffic stays within old/new route states',
-                                )
-                                if (response.status === 200)
-                                    assert.ok(
-                                        ['a', 'b', 'tls'].includes(response.body.backend),
-                                        'Concurrent traffic reaches an owned upstream',
-                                    )
-                            },
                         )
                         await harness.ready()
                     },
