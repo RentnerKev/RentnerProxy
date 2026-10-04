@@ -408,7 +408,16 @@ async function runSmoke(): Promise<void> {
             '/usr/bin/caddy',
             'version',
         ])
-        assert.match(version, /v2\.11\.4/u)
+        const caddyBuilder = await readFile(
+            join(repositoryRoot, 'docker/proxy-runtime/Dockerfile'),
+            'utf8',
+        )
+        const caddyVersion =
+            /^FROM caddy:(\d+\.\d+\.\d+)-builder@sha256:[a-f0-9]{64} AS caddy-build\r?$/mu.exec(
+                caddyBuilder,
+            )
+        assert.ok(caddyVersion, 'The Caddy builder uses an exact version and digest')
+        assert.equal(version.split(/\s/u)[0], 'v' + caddyVersion[1])
         console.log(version)
         passed('Caddy runtime and two real Bun backends started')
 

@@ -47,7 +47,8 @@ COPY core/Cargo.toml core/Cargo.lock ./
 COPY core/src ./src
 RUN cargo build --locked --release
 
-# The builder digest pins xcaddy v0.4.5. The module revision is the signed v0.14.1 release.
+# The builder supplies CADDY_VERSION so image updates also update the compiled binary.
+# The module revision is the signed v0.14.1 release.
 # Upstream's HTTP package imports AppSec and a shared Layer 4 helper. Remove those
 # registrations so the appliance exposes only the required HTTP bouncer.
 FROM caddy:2.11.6-builder@sha256:9fa405e7bb28572759e7c75bea68ed39c4266a509f0c0237c464c6e13ed4dc25 AS caddy-build
@@ -61,10 +62,12 @@ RUN wget -qO /tmp/caddy-crowdsec-bouncer.tar.gz \
     && echo "${CADDY_CROWDSEC_BOUNCER_SOURCE_SHA256}  /tmp/caddy-crowdsec-bouncer.tar.gz" | sha256sum -c - \
     && tar -xzf /tmp/caddy-crowdsec-bouncer.tar.gz --strip-components=1 \
     && /bin/sh /tmp/caddy-crowdsec-http-only.sh /tmp/caddy-crowdsec-bouncer \
-    && xcaddy build v2.11.4 --output /usr/bin/caddy \
+    && xcaddy build "${CADDY_VERSION:?Caddy builder must specify CADDY_VERSION}" --output /usr/bin/caddy \
         --with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_COMMIT} \
         --replace github.com/hslatman/caddy-crowdsec-bouncer=/tmp/caddy-crowdsec-bouncer \
-    && /usr/bin/caddy version \
+    && caddy_version="$(/usr/bin/caddy version)" \
+    && printf '%s\n' "$caddy_version" \
+    && test "${caddy_version%% *}" = "$CADDY_VERSION" \
     && /usr/bin/caddy list-modules | grep -Fx crowdsec \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec \
     && ! /usr/bin/caddy list-modules | grep -Eq '(^|\.)layer4($|\.)|^http\.handlers\.appsec$'
