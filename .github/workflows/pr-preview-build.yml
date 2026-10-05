@@ -81,7 +81,6 @@ jobs:
         name: PR Preview / Build image
         needs:
             - verify
-        if: needs.verify.outputs.lifecycle == 'open'
         runs-on: ubuntu-latest
         timeout-minutes: 45
         concurrency:

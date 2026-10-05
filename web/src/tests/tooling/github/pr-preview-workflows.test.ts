@@ -85,7 +85,6 @@ describe('trusted-triggered, read-only PR preview build workflow', () => {
         const build = await workflow('pr-preview-build.yml')
 
         expect(build).toContain('SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}')
-        expect(build).toContain("if: needs.verify.outputs.lifecycle == 'open'")
         expect(build).toContain('ref: ${{ needs.verify.outputs.tested_sha }}')
         expect(build).toContain('file source/docker/production/Dockerfile')
         expect(build).toContain('--platform "$PREVIEW_PLATFORM"')
