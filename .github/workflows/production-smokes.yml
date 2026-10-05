@@ -41,20 +41,20 @@ jobs:
               run: bun install --frozen-lockfile
 
             - name: Proxy runtime
-              run: bun --no-orphans .github/scripts/production-smoke-ci.ts proxy
+              run: bun --no-orphans .github/scripts/ci/production-smoke-ci.ts proxy
 
             - name: Production appliance, backup and restore
-              run: bun --no-orphans .github/scripts/production-smoke-ci.ts production
+              run: bun --no-orphans .github/scripts/ci/production-smoke-ci.ts production
 
             - name: Production appliance request draining
-              run: bun --no-env-file --no-orphans .github/scripts/appliance-drain-smoke.ts
+              run: bun --no-env-file --no-orphans .github/scripts/ci/appliance-drain-smoke.ts
 
             - name: Certificates and ACME
-              run: bun --no-orphans .github/scripts/production-smoke-ci.ts certificates
+              run: bun --no-orphans .github/scripts/ci/production-smoke-ci.ts certificates
 
             - name: Upstream TLS
-              run: bun --no-orphans .github/scripts/production-smoke-ci.ts upstream-tls
+              run: bun --no-orphans .github/scripts/ci/production-smoke-ci.ts upstream-tls
 
             - name: Clean up this run and summarize
               if: always() && steps.bun.outcome == 'success'
-              run: bun .github/scripts/production-smoke-ci.ts cleanup
+              run: bun .github/scripts/ci/production-smoke-ci.ts cleanup

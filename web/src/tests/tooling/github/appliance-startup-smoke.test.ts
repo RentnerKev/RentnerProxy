@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { probeStartupRoute } from '../../../../../.github/scripts/appliance-startup-smoke.ts'
+import { probeStartupRoute } from '../../../../../.github/scripts/ci/appliance-startup-smoke.ts'
 
 describe('continuous appliance startup probes', () => {
     test('requires the configured host and exact route response', async () => {

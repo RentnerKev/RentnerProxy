@@ -32,17 +32,16 @@ jobs:
                   fetch-depth: 0
                   persist-credentials: false
 
+            - name: Check out trusted secret-scanning automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: trusted
+                  ref: ${{ github.event.pull_request.base.sha || github.sha }}
+
             - name: Install Gitleaks
               shell: bash
-              run: |
-                  archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-                  archive_path="$RUNNER_TEMP/$archive"
-                  release_url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
-
-                  curl --fail --location --proto '=https' --tlsv1.2 --output "$archive_path" "$release_url"
-                  printf '%s  %s\n' "$GITLEAKS_SHA256" "$archive_path" | sha256sum --check --strict
-                  tar -xzf "$archive_path" -C "$RUNNER_TEMP" gitleaks
-                  "$RUNNER_TEMP/gitleaks" version
+              run: bash trusted/.github/scripts/security/install-gitleaks.sh
 
             - name: Scan commits
               env:
@@ -52,39 +51,4 @@ jobs:
                   PUSH_BEFORE_SHA: ${{ github.event.before }}
                   PUSH_AFTER_SHA: ${{ github.event.after }}
               shell: bash
-              run: |
-                  zero_sha='0000000000000000000000000000000000000000'
-                  config_path="$RUNNER_TEMP/gitleaks.toml"
-                  ignore_path="$RUNNER_TEMP/.gitleaksignore"
-
-                  printf '%s\n' '[extend]' 'useDefault = true' > "$config_path"
-                  # These historical findings are synthetic controller test tokens, not credentials.
-                  # Exempt only those exact occurrences; all new findings still fail the scan.
-                  printf '%s\n' \
-                      'cbaa7450afc314e4dcd3bda162660795ac4021d6:controller/src/tests/server.rs:generic-api-key:544' \
-                      '9850a9044c0c18870337009d4eee60ec059d54ba:controller/src/tests/server.rs:generic-api-key:645' > "$ignore_path"
-
-                  case "$EVENT_NAME" in
-                      pull_request)
-                          scan_log_opts="-m ${PR_BASE_SHA}..${PR_HEAD_SHA}"
-                          ;;
-                      push)
-                          if [[ -z "$PUSH_BEFORE_SHA" || "$PUSH_BEFORE_SHA" == "$zero_sha" ]] || \
-                              ! git cat-file -e "${PUSH_BEFORE_SHA}^{commit}" 2>/dev/null; then
-                              scan_log_opts="-m $PUSH_AFTER_SHA"
-                          else
-                              scan_log_opts="-m ${PUSH_BEFORE_SHA}..${PUSH_AFTER_SHA}"
-                          fi
-                          ;;
-                      workflow_dispatch)
-                          scan_log_opts='-m --all'
-                          ;;
-                      *)
-                          echo "Unsupported event: $EVENT_NAME"
-                          exit 1
-                          ;;
-                  esac
-
-                  "$RUNNER_TEMP/gitleaks" git --config="$config_path" \
-                      --gitleaks-ignore-path="$ignore_path" --redact=100 \
-                      --no-banner --no-color --verbose --log-opts="$scan_log_opts" .
+              run: bash trusted/.github/scripts/security/scan-commits.sh

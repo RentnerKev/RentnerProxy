@@ -3,7 +3,7 @@ import type { CrowdSecMode, CrowdSecRuntimeStatus } from './Types/appliance-comp
 
 import assert from 'node:assert/strict'
 import { verifyApplianceStartup } from './appliance-startup-smoke.ts'
-import { dockerBuildDiagnostic } from '../../scripts/docker-build-diagnostics.ts'
+import { dockerBuildDiagnostic } from '../../../scripts/docker-build-diagnostics.ts'
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto'
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
@@ -16,25 +16,25 @@ import {
     restoreSmokeDiagnostic,
     smokeCompose,
     smokeDockerArguments,
-} from '../../scripts/smoke-resources.ts'
+} from '../../../scripts/smoke-resources.ts'
 import {
     buildHttp3Client,
     requestHttp3Client,
     assertHttp3Response,
-} from '../../scripts/http3-client.ts'
-import { verifyAlpha1Upgrade, verifyAlpha3Upgrade } from '../../scripts/alpha1-upgrade-smoke.ts'
+} from '../../../scripts/http3-client.ts'
+import { verifyAlpha1Upgrade, verifyAlpha3Upgrade } from '../../../scripts/alpha1-upgrade-smoke.ts'
 import {
     seedBetaBackupState,
     assertBetaBackupState,
-} from '../../scripts/beta-backup-state-smoke.ts'
+} from '../../../scripts/beta-backup-state-smoke.ts'
 import {
     seedAlpha4PersistenceFixture,
     readAlpha4PersistenceSnapshot,
     assertAlpha4PersistenceFixture,
     assertAlpha4PersistenceRequestDecrypts,
-} from '../../scripts/alpha4-persistence-fixture.ts'
+} from '../../../scripts/alpha4-persistence-fixture.ts'
 
-const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url))
+const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const rootComposeFile = join(repositoryRoot, 'docker-compose.yml')
 const productionDockerfile = join(repositoryRoot, 'docker', 'production', 'Dockerfile')
 const accessLogPath = '/var/lib/rentnerproxy/proxy/logs/access.log'
@@ -2597,7 +2597,7 @@ try {
     if (locations) {
         for (const location of [...locations].slice(0, 6)) {
             const locationRoot =
-                location[1] === 'appliance-compose-smoke' ? '.github/scripts' : 'scripts'
+                location[1] === 'appliance-compose-smoke' ? '.github/scripts/ci' : 'scripts'
             console.error(
                 'at ' + locationRoot + '/' + location[1] + '.ts:' + location[2] + ':' + location[3],
             )

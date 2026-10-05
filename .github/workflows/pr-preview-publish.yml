@@ -62,7 +62,7 @@ jobs:
                   GITHUB_TOKEN: ${{ github.token }}
                   REPOSITORY: ${{ github.repository }}
                   SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-              run: bun trusted/.github/scripts/pr-preview.ts preflight
+              run: bun trusted/.github/scripts/deploy/pr-preview.ts preflight
 
             - name: Download exact handoff artifact for resolution
               uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -80,14 +80,14 @@ jobs:
                   GITHUB_TOKEN: ${{ github.token }}
                   REPOSITORY: ${{ github.repository }}
                   SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-              run: bun trusted/.github/scripts/pr-preview.ts artifact-identity
+              run: bun trusted/.github/scripts/deploy/pr-preview.ts artifact-identity
 
             - name: Verify PR trigger and SHA-proof artifact envelope
               env:
                   GITHUB_TOKEN: ${{ github.token }}
                   REPOSITORY: ${{ github.repository }}
                   SOURCE_RUN_ID: ${{ steps.handoff.outputs.trigger_run_id }}
-              run: bun trusted/.github/scripts/pr-preview.ts trigger-preflight
+              run: bun trusted/.github/scripts/deploy/pr-preview.ts trigger-preflight
 
             - name: Download exact tested merge SHA
               uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -106,7 +106,7 @@ jobs:
                   REPOSITORY: ${{ github.repository }}
                   SOURCE_PROOF_DIRECTORY: ${{ runner.temp }}/pr-preview-source
                   SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-              run: bun trusted/.github/scripts/pr-preview.ts resolve
+              run: bun trusted/.github/scripts/deploy/pr-preview.ts resolve
 
     publish:
         name: PR Preview / Publish image
@@ -172,56 +172,7 @@ jobs:
                   SOURCE_TRIGGER_RUN_ID: ${{ needs.resolve.outputs.trigger_run_id }}
                   TESTED_SHA: ${{ needs.resolve.outputs.tested_sha }}
               shell: bash
-              run: |
-                  set -Eeuo pipefail
-                  oci_archive="$ARTIFACT_DIRECTORY/preview-image.tar"
-                  bun trusted/.github/scripts/pr-preview.ts validate-artifact
-
-                  raw_manifest="$(skopeo inspect --raw "oci-archive:$oci_archive")"
-                  media_type="$(jq --raw-output '.mediaType // empty' <<< "$raw_manifest")"
-                  case "$media_type" in
-                      application/vnd.oci.image.manifest.v1+json)
-                          ;;
-                      application/vnd.oci.image.index.v1+json)
-                          jq --exit-status \
-                              '(.manifests | length) == 1 and
-                               .manifests[0].mediaType == "application/vnd.oci.image.manifest.v1+json" and
-                               .manifests[0].platform.os == "linux" and
-                               .manifests[0].platform.architecture == "amd64" and
-                               ((.manifests[0].platform.variant // "") == "")' \
-                              <<< "$raw_manifest" > /dev/null || {
-                                  echo '::error::OCI index must contain exactly one linux/amd64 image.'
-                                  exit 1
-                              }
-                          ;;
-                      *)
-                          echo '::error::Artifact is not an OCI image manifest or index.'
-                          exit 1
-                          ;;
-                  esac
-
-                  config="$(skopeo inspect --config "oci-archive:$oci_archive")"
-                  jq --exit-status \
-                      --arg revision "$TESTED_SHA" \
-                      --arg source "https://github.com/$REPOSITORY" \
-                      --arg title 'RentnerProxy PR Preview' \
-                      --arg version "$IMMUTABLE_TAG" \
-                      '.os == "linux" and
-                       .architecture == "amd64" and
-                       .config.Labels["org.opencontainers.image.title"] == $title and
-                       .config.Labels["org.opencontainers.image.source"] == $source and
-                       .config.Labels["org.opencontainers.image.revision"] == $revision and
-                       .config.Labels["org.opencontainers.image.version"] == $version' \
-                      <<< "$config" > /dev/null
-
-                  source_digest="$(
-                      skopeo inspect --format '{{.Digest}}' "oci-archive:$oci_archive"
-                  )"
-                  [[ "$source_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
-                      echo '::error::OCI archive has no valid source image digest.'
-                      exit 1
-                  }
-                  printf 'source_digest=%s\n' "$source_digest" >> "$GITHUB_OUTPUT"
+              run: bash trusted/.github/scripts/deploy/validate-preview-image.sh
 
             - name: Publish immutable and moving preview tags
               id: publish
@@ -244,98 +195,7 @@ jobs:
                   SOURCE_IMAGE_DIGEST: ${{ steps.artifact.outputs.source_digest }}
                   TESTED_SHA: ${{ needs.resolve.outputs.tested_sha }}
               shell: bash
-              run: |
-                  set -Eeuo pipefail
-                  auth_directory="$RUNNER_TEMP/pr-preview-auth"
-                  auth_file="$auth_directory/auth.json"
-                  inspect_error="$RUNNER_TEMP/pr-preview-inspect-error"
-                  oci_archive="$ARTIFACT_DIRECTORY/preview-image.tar"
-                  install -d -m 0700 "$auth_directory"
-
-                  bun trusted/.github/scripts/pr-preview.ts revalidate
-                  printf '%s' "$GHCR_TOKEN" | skopeo login \
-                      --authfile "$auth_file" \
-                      --password-stdin \
-                      --username "$GHCR_USERNAME" \
-                      ghcr.io
-
-                  set +e
-                  immutable_digest="$(
-                      skopeo inspect --authfile "$auth_file" --format '{{.Digest}}' \
-                          "docker://$IMMUTABLE_REFERENCE" 2> "$inspect_error"
-                  )"
-                  inspect_status=$?
-                  set -e
-
-                  if (( inspect_status == 0 )); then
-                      [[ "$immutable_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
-                          echo '::error::Existing immutable preview tag has no valid digest.'
-                          exit 1
-                      }
-                      existing_config="$(
-                          skopeo inspect --authfile "$auth_file" --config \
-                              "docker://$IMMUTABLE_REFERENCE"
-                      )"
-                      jq --exit-status \
-                          --arg source "https://github.com/$REPOSITORY" \
-                          --arg title 'RentnerProxy PR Preview' \
-                          --arg revision "$TESTED_SHA" \
-                          --arg version "$IMMUTABLE_TAG" \
-                          '.os == "linux" and
-                           .architecture == "amd64" and
-                           .config.Labels["org.opencontainers.image.title"] == $title and
-                           .config.Labels["org.opencontainers.image.source"] == $source and
-                           .config.Labels["org.opencontainers.image.revision"] == $revision and
-                           .config.Labels["org.opencontainers.image.version"] == $version' \
-                          <<< "$existing_config" > /dev/null || {
-                              echo '::error::Immutable preview tag collision detected.'
-                              exit 1
-                          }
-                      echo 'Immutable preview tag already exists; preserving its digest.'
-                  elif grep --extended-regexp --ignore-case --quiet \
-                      'manifest unknown|name unknown|not found' "$inspect_error"; then
-                      # Recheck immediately before the first registry write. The PR can close
-                      # while the immutable tag inspection is in progress.
-                      bun trusted/.github/scripts/pr-preview.ts revalidate
-                      skopeo copy --preserve-digests \
-                          --authfile "$auth_file" \
-                          "oci-archive:$oci_archive" \
-                          "docker://$IMMUTABLE_REFERENCE"
-                      immutable_digest="$(
-                          skopeo inspect --authfile "$auth_file" --format '{{.Digest}}' \
-                              "docker://$IMMUTABLE_REFERENCE"
-                      )"
-                  else
-                      echo '::error::Could not inspect the immutable preview tag.'
-                      sed 's/^/skopeo: /' "$inspect_error"
-                      exit 1
-                  fi
-
-                  [[ "$immutable_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
-                      echo '::error::GHCR returned no valid immutable preview digest.'
-                      exit 1
-                  }
-                  IMMUTABLE_IMAGE_DIGEST="$immutable_digest" \
-                      bun trusted/.github/scripts/pr-preview.ts validate-digests
-
-                  bun trusted/.github/scripts/pr-preview.ts revalidate
-                  skopeo copy --preserve-digests \
-                      --authfile "$auth_file" \
-                      "docker://$IMAGE@$immutable_digest" \
-                      "docker://$MOVING_REFERENCE"
-                  final_immutable_digest="$(
-                      skopeo inspect --authfile "$auth_file" --format '{{.Digest}}' \
-                          "docker://$IMMUTABLE_REFERENCE"
-                  )"
-                  moving_digest="$(
-                      skopeo inspect --authfile "$auth_file" --format '{{.Digest}}' \
-                          "docker://$MOVING_REFERENCE"
-                  )"
-                  IMMUTABLE_IMAGE_DIGEST="$final_immutable_digest" \
-                      MOVING_IMAGE_DIGEST="$moving_digest" \
-                      bun trusted/.github/scripts/pr-preview.ts validate-digests
-                  bun trusted/.github/scripts/pr-preview.ts revalidate
-                  printf 'digest=%s\n' "$final_immutable_digest" >> "$GITHUB_OUTPUT"
+              run: bash trusted/.github/scripts/deploy/publish-preview-image.sh
 
             - name: Remove registry credentials
               if: always()
@@ -387,4 +247,4 @@ jobs:
                   PR_NUMBER: ${{ needs.resolve.outputs.pr_number }}
                   REPOSITORY: ${{ needs.resolve.outputs.repository }}
                   TESTED_SHA: ${{ needs.resolve.outputs.tested_sha }}
-              run: bun trusted/.github/scripts/pr-preview.ts comment
+              run: bun trusted/.github/scripts/deploy/pr-preview.ts comment

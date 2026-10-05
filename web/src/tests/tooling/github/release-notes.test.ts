@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test'
 import {
     generateReleaseNotes,
     GitHubReleaseClient,
-} from '../../../../../.github/scripts/generate-release-notes.ts'
+} from '../../../../../.github/scripts/release/generate-release-notes.ts'
 import {
     filterIssues,
     findMatchingMilestone,
@@ -11,12 +11,12 @@ import {
     deriveReleaseChannel,
     renderReleaseNotes,
     validateReleaseTag,
-} from '../../../../../.github/scripts/release-notes.ts'
+} from '../../../../../.github/scripts/lib/release-notes.ts'
 import type {
     GitHubIssue,
     GitHubRelease,
     ReleaseNotesConfig,
-} from '../../../../../.github/scripts/Types/release-notes.types.ts'
+} from '../../../../../.github/scripts/lib/Types/release-notes.types.ts'
 
 const config: ReleaseNotesConfig = {
     excludedLabels: ['duplicate', 'invalid', 'wontfix', 'no-changelog', 'not-planned'],

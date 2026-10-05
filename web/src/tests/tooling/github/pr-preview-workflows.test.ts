@@ -2,16 +2,15 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 import { describe, expect, test } from 'bun:test'
+import readGitHubWorkflow from '@/tests/Helpers/readGitHubWorkflow.ts'
 
 const repositoryRoot = resolve(import.meta.dir, '../../../../..')
-const workflowDirectory = resolve(repositoryRoot, '.github/workflows')
-
 async function workflow(name: string): Promise<string> {
-    return readFile(resolve(workflowDirectory, name), 'utf8')
+    return readGitHubWorkflow(name)
 }
 
 async function previewHelper(): Promise<string> {
-    return readFile(resolve(repositoryRoot, '.github/scripts/pr-preview.ts'), 'utf8')
+    return readFile(resolve(repositoryRoot, '.github/scripts/deploy/pr-preview.ts'), 'utf8')
 }
 
 function externalActionReferences(source: string): readonly string[] {
@@ -39,8 +38,11 @@ describe('trusted PR trigger proof', () => {
         expect(trigger).toContain('pull-requests: read')
         expect(trigger).toContain('github.event.pull_request.number || github.ref')
         expect(trigger).toContain('$GITHUB_API_URL/repos/$REPOSITORY/pulls/$pr_number')
-        expect(trigger).not.toContain('actions/checkout@')
-        expect(trigger).not.toContain('contents: read')
+        expect(trigger).toContain('ref: ${{ github.event.pull_request.base.sha }}')
+        expect(trigger).toContain('persist-credentials: false')
+        expect(trigger).toContain('contents: read')
+        expect(trigger).not.toContain('github.event.pull_request.head.sha')
+        expect(trigger).not.toContain('contents: write')
         expect(trigger).not.toContain('secrets.')
         for (const reference of externalActionReferences(trigger)) {
             expect(reference).toMatch(/^[^@]+@[0-9a-f]{40}$/u)
@@ -69,8 +71,10 @@ describe('trusted-triggered, read-only PR preview build workflow', () => {
         expect(build).not.toContain('write-all')
         expect(build).toContain('persist-credentials: false')
         expect(build).toContain('ref: ${{ github.workflow_sha }}')
-        expect(build).toContain('bun trusted/.github/scripts/pr-preview.ts trigger-preflight')
-        expect(build).toContain('bun trusted/.github/scripts/pr-preview.ts gate')
+        expect(build).toContain(
+            'bun trusted/.github/scripts/deploy/pr-preview.ts trigger-preflight',
+        )
+        expect(build).toContain('bun trusted/.github/scripts/deploy/pr-preview.ts gate')
         expect(build).toContain('lifecycle: ${{ steps.gate.outputs.lifecycle }}')
         expect(build).toContain('name: pr-preview-source')
         expect(build).toContain('group: pr-preview-build-${{ needs.verify.outputs.pr_number }}')
@@ -187,22 +191,26 @@ describe('trusted PR preview publisher workflow', () => {
 
     test('downloads only the source run artifact and revalidates before moving the tag', async () => {
         const publisher = await workflow('pr-preview-publish.yml')
-        const preflight = publisher.indexOf('bun trusted/.github/scripts/pr-preview.ts preflight')
+        const preflight = publisher.indexOf(
+            'bun trusted/.github/scripts/deploy/pr-preview.ts preflight',
+        )
         const download = publisher.indexOf('Download exact handoff artifact for resolution')
         const firstRevalidation = publisher.indexOf(
-            'bun trusted/.github/scripts/pr-preview.ts revalidate',
+            'bun trusted/.github/scripts/deploy/pr-preview.ts revalidate',
         )
         const sourceDigestDerivation = publisher.indexOf('source_digest="$(')
         const immutableCopy = publisher.indexOf('skopeo copy --preserve-digests')
         const movingCopy = publisher.indexOf('"docker://$MOVING_REFERENCE"')
         const finalImmutableInspection = publisher.indexOf('final_immutable_digest="$(', movingCopy)
         const finalDigestValidation = publisher.lastIndexOf(
-            'bun trusted/.github/scripts/pr-preview.ts validate-digests',
+            'bun trusted/.github/scripts/deploy/pr-preview.ts validate-digests',
         )
 
         expect(publisher).toContain('name: pr-preview-image')
         expect(publisher).toContain('name: pr-preview-source')
-        expect(publisher).toContain('bun trusted/.github/scripts/pr-preview.ts artifact-identity')
+        expect(publisher).toContain(
+            'bun trusted/.github/scripts/deploy/pr-preview.ts artifact-identity',
+        )
         expect(publisher).toContain('SOURCE_PROOF_DIRECTORY:')
         expect(preflight).toBeGreaterThan(-1)
         expect(download).toBeGreaterThan(preflight)
@@ -211,10 +219,12 @@ describe('trusted PR preview publisher workflow', () => {
             'group: pr-preview-publish-${{ needs.resolve.outputs.pr_number }}',
         )
         expect(
-            publisher.match(/bun trusted\/\.github\/scripts\/pr-preview\.ts revalidate/gmu),
+            publisher.match(/bun trusted\/\.github\/scripts\/deploy\/pr-preview\.ts revalidate/gmu),
         ).toHaveLength(4)
         expect(
-            publisher.match(/bun trusted\/\.github\/scripts\/pr-preview\.ts validate-digests/gmu),
+            publisher.match(
+                /bun trusted\/\.github\/scripts\/deploy\/pr-preview\.ts validate-digests/gmu,
+            ),
         ).toHaveLength(2)
         expect(firstRevalidation).toBeGreaterThan(-1)
         expect(sourceDigestDerivation).toBeGreaterThan(-1)

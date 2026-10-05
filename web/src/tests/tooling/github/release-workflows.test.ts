@@ -2,8 +2,9 @@ import { access, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 import { describe, expect, test } from 'bun:test'
+import readGitHubWorkflow from '@/tests/Helpers/readGitHubWorkflow.ts'
 
-import { parseReleaseNotesConfig } from '../../../../../.github/scripts/generate-release-notes.ts'
+import { parseReleaseNotesConfig } from '../../../../../.github/scripts/release/generate-release-notes.ts'
 
 const repositoryRoot = resolve(import.meta.dir, '../../../../..')
 const workflowDirectory = resolve(repositoryRoot, '.github/workflows')
@@ -13,23 +14,27 @@ function workflowPath(name: string): string {
 }
 
 async function workflow(name: string): Promise<string> {
-    return readFile(workflowPath(name), 'utf8')
+    return readGitHubWorkflow(name)
 }
 
 const RELEASE_VALIDATION_TIMEOUT_MS = 5_000
 
-async function runReleaseValidation(
-    bash: string,
-    validation: string,
-    env: NodeJS.ProcessEnv,
-): Promise<number> {
-    const child = Bun.spawn([bash, '-c', validation], {
-        cwd: repositoryRoot,
-        env,
-        stdin: 'ignore',
-        stdout: 'ignore',
-        stderr: 'ignore',
-    })
+async function runReleaseValidation(bash: string, env: NodeJS.ProcessEnv): Promise<number> {
+    const child = Bun.spawn(
+        [
+            bash,
+            '--noprofile',
+            '--norc',
+            resolve(repositoryRoot, '.github/scripts/release/validate-release-event.sh'),
+        ],
+        {
+            cwd: repositoryRoot,
+            env,
+            stdin: 'ignore',
+            stdout: 'ignore',
+            stderr: 'ignore',
+        },
+    )
     const completion = child.exited
     let timer: ReturnType<typeof setTimeout> | undefined
     try {
@@ -79,13 +84,6 @@ describe('release workflow entry points', () => {
 
 describe('shared release pipeline', () => {
     test('executes release validation for valid channels and rejects invalid tags and metadata', async () => {
-        const pipeline = await workflow('release-pipeline.yml')
-        const validation = pipeline
-            .split('              run: |')[1]!
-            .split('            - name: Verify authoritative release identity')[0]!
-            .split('\n')
-            .map((line) => line.replace(/^ {18}/, ''))
-            .join('\n')
         const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash'
         const cases = [
             ['v1.0.0', 'stable', 'false', true],
@@ -104,7 +102,7 @@ describe('shared release pipeline', () => {
         ] as const
         for (const [tag, channel, prerelease, accepted] of cases) {
             // oxlint-disable-next-line no-await-in-loop -- Keep subprocesses sequential and bounded.
-            const exitCode = await runReleaseValidation(bash, validation, {
+            const exitCode = await runReleaseValidation(bash, {
                 ...process.env,
                 RELEASE_TAG: tag,
                 RELEASE_CHANNEL: channel,
@@ -187,7 +185,9 @@ describe('shared release pipeline', () => {
         expect(publishJobPosition).toBeGreaterThan(verifyPosition)
         expect(uploadPosition).toBeGreaterThan(publishJobPosition)
         expect(editPosition).toBeGreaterThan(uploadPosition)
-        expect(pipeline).toContain('bun automation/.github/scripts/generate-release-notes.ts')
+        expect(pipeline).toContain(
+            'bun automation/.github/scripts/release/generate-release-notes.ts',
+        )
         expect(pipeline).toContain('--clobber')
         expect(pipeline).toContain('--notes-file')
         expect(pipeline.match(/repos\/\$GITHUB_REPOSITORY\/releases\/\$RELEASE_ID/g)).toHaveLength(

@@ -61,4 +61,4 @@ jobs:
             - name: Analyze issue or pull request metadata
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              run: bun .github/scripts/duplicate-triage.ts
+              run: bun .github/scripts/ci/duplicate-triage.ts

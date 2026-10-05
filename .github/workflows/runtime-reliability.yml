@@ -6,7 +6,7 @@ on:
             - main
         paths:
             - '.github/workflows/runtime-reliability.yml'
-            - '.github/scripts/production-smoke-ci.ts'
+            - '.github/scripts/ci/production-smoke-ci.ts'
             - 'core/**'
             - 'docker/**'
             - 'docker-compose.yml'
@@ -24,7 +24,7 @@ on:
             - main
         paths:
             - '.github/workflows/runtime-reliability.yml'
-            - '.github/scripts/production-smoke-ci.ts'
+            - '.github/scripts/ci/production-smoke-ci.ts'
             - 'core/**'
             - 'docker/**'
             - 'docker-compose.yml'
@@ -89,42 +89,25 @@ env:
 jobs:
     select-sources:
         runs-on: ubuntu-latest
+        timeout-minutes: 5
         outputs:
             sources: ${{ steps.select.outputs.sources }}
             profile: ${{ steps.select.outputs.profile }}
         steps:
+            - name: Check out trusted runtime selection
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: trusted
+                  ref: ${{ github.event.pull_request.base.sha || github.sha }}
+
             - id: select
               name: Select bounded profile and sources
               env:
                   EVENT_NAME: ${{ github.event_name }}
                   REQUESTED_SOURCE: ${{ inputs.source }}
                   REQUESTED_PROFILE: ${{ inputs.profile }}
-              run: |
-                  case "$EVENT_NAME" in
-                    pull_request|push)
-                      sources='["current"]'
-                      profile=short
-                      ;;
-                    schedule)
-                      sources='["current","alpha.6"]'
-                      profile=long
-                      ;;
-                    workflow_dispatch)
-                      case "$REQUESTED_SOURCE" in
-                        all) sources='["current","alpha.6"]' ;;
-                        current) sources='["current"]' ;;
-                        alpha.6) sources='["alpha.6"]' ;;
-                        *) exit 1 ;;
-                      esac
-                      case "$REQUESTED_PROFILE" in
-                        short|long) profile="$REQUESTED_PROFILE" ;;
-                        *) exit 1 ;;
-                      esac
-                      ;;
-                    *) exit 1 ;;
-                  esac
-                  echo "sources=$sources" >> "$GITHUB_OUTPUT"
-                  echo "profile=$profile" >> "$GITHUB_OUTPUT"
+              run: bash trusted/.github/scripts/ci/select-runtime-sources.sh
 
     runtime-reliability:
         needs: select-sources
@@ -177,7 +160,7 @@ jobs:
 
             - name: Remove this run's private Docker resources
               if: always() && steps.bun.outcome == 'success'
-              run: bun --no-env-file .github/scripts/production-smoke-ci.ts cleanup
+              run: bun --no-env-file .github/scripts/ci/production-smoke-ci.ts cleanup
 
             - name: Upload sanitized JSON evidence
               if: always()

@@ -14,7 +14,7 @@ import {
     renderReleaseNotes,
     validateReleaseTag,
     validateRepository,
-} from './release-notes.ts'
+} from '../lib/release-notes.ts'
 import type {
     GitHubIssue,
     GitHubMilestone,
@@ -22,7 +22,7 @@ import type {
     ReleaseCategory,
     ReleaseChannel,
     ReleaseNotesConfig,
-} from './Types/release-notes.types.ts'
+} from '../lib/Types/release-notes.types.ts'
 
 function repositoryApiPath(repository: string): string {
     validateRepository(repository)

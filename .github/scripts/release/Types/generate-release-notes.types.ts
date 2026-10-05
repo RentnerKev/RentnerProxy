@@ -4,7 +4,7 @@ import type {
     CurrentRelease,
     ReleaseChannel,
     ReleaseNotesConfig,
-} from './release-notes.types.ts'
+} from '../../lib/Types/release-notes.types.ts'
 
 export type FetchImplementation = (
     input: string | URL | Request,

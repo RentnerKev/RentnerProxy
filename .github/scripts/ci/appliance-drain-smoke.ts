@@ -5,7 +5,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { smokeDockerArguments } from '../../scripts/smoke-resources.ts'
+import { smokeDockerArguments } from '../../../scripts/smoke-resources.ts'
 import { controllerCall, seedDrainFixture } from './appliance-drain-fixture.ts'
 import { drainRequest } from './appliance-drain-request.ts'
 import type {
@@ -14,7 +14,7 @@ import type {
     DrainLifecycleEvent,
 } from './Types/appliance-drain-smoke.types.ts'
 
-const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url))
+const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const runId = randomBytes(6).toString('hex')
 const prefix = 'rentnerproxy-drain-' + runId
 const container = prefix + '-app'
@@ -314,7 +314,7 @@ try {
         '--entrypoint',
         'bun',
         '--volume',
-        join(repositoryRoot, '.github/scripts/appliance-drain-upstream.ts') +
+        join(repositoryRoot, '.github/scripts/ci/appliance-drain-upstream.ts') +
             ':/test/upstream.ts:ro',
         image,
         '--no-env-file',

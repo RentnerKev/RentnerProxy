@@ -1,6 +1,5 @@
-import { readFile } from 'node:fs/promises'
-
 import { describe, expect, test } from 'bun:test'
+import readGitHubWorkflow from '@/tests/Helpers/readGitHubWorkflow.ts'
 
 interface DevImageWorkflow {
     readonly on: Record<string, unknown>
@@ -18,10 +17,8 @@ interface DevImageWorkflow {
     }
 }
 
-const workflowPath = new URL('../../../../.github/workflows/dev-image.yml', import.meta.url)
-
 async function workflow(): Promise<DevImageWorkflow> {
-    return Bun.YAML.parse(await readFile(workflowPath, 'utf8')) as DevImageWorkflow
+    return Bun.YAML.parse(await readGitHubWorkflow('dev-image.yml')) as DevImageWorkflow
 }
 
 describe('dev image workflow', () => {

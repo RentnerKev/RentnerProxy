@@ -19,12 +19,12 @@ import {
     renderDuplicateComment,
     textSimilarity,
     upsertManagedComment,
-} from '../../../../../.github/scripts/duplicate-triage.ts'
+} from '../../../../../.github/scripts/ci/duplicate-triage.ts'
 import type {
     CandidateMatch,
     CommentWriter,
     TriageItem,
-} from '../../../../../.github/scripts/Types/duplicate-triage.types.ts'
+} from '../../../../../.github/scripts/ci/Types/duplicate-triage.types.ts'
 
 const REPOSITORY = 'RentnerKev/RentnerProxy'
 

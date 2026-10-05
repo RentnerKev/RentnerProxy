@@ -7,7 +7,7 @@ on:
         paths:
             - '.github/workflows/runtime-scale.yml'
             - '.github/workflows/runtime-reliability.yml'
-            - '.github/scripts/production-smoke-ci.ts'
+            - '.github/scripts/ci/production-smoke-ci.ts'
             - 'core/**'
             - 'docker/**'
             - 'docker-compose.yml'
@@ -16,7 +16,7 @@ on:
             - 'scripts/runtime-reliability/**'
             - 'scripts/smoke-resources.ts'
             - 'scripts/*smoke.ts'
-            - '.github/scripts/proxy-smoke.ts'
+            - '.github/scripts/ci/proxy-smoke.ts'
             - 'web/src/server/**'
             - 'web/src/config/**'
             - 'web/src/features/**/validation.ts'
@@ -30,7 +30,7 @@ on:
         paths:
             - '.github/workflows/runtime-scale.yml'
             - '.github/workflows/runtime-reliability.yml'
-            - '.github/scripts/production-smoke-ci.ts'
+            - '.github/scripts/ci/production-smoke-ci.ts'
             - 'core/**'
             - 'docker/**'
             - 'docker-compose.yml'
@@ -39,7 +39,7 @@ on:
             - 'scripts/runtime-reliability/**'
             - 'scripts/smoke-resources.ts'
             - 'scripts/*smoke.ts'
-            - '.github/scripts/proxy-smoke.ts'
+            - '.github/scripts/ci/proxy-smoke.ts'
             - 'web/src/server/**'
             - 'web/src/config/**'
             - 'web/src/features/**/validation.ts'
@@ -120,7 +120,7 @@ jobs:
 
             - name: Remove this run's private Docker resources
               if: always() && steps.bun.outcome == 'success'
-              run: bun --no-env-file .github/scripts/production-smoke-ci.ts cleanup
+              run: bun --no-env-file .github/scripts/ci/production-smoke-ci.ts cleanup
 
             - name: Upload sanitized JSON evidence
               if: always()

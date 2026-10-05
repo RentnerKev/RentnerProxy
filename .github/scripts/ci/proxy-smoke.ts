@@ -10,8 +10,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { SQL } from 'bun'
 import { Database } from 'bun:sqlite'
 
-import { startTestUpstream } from '../../scripts/proxy-test-upstream.ts'
-import { smokeCompose, smokeDockerArguments } from '../../scripts/smoke-resources.ts'
+import { startTestUpstream } from '../../../scripts/proxy-test-upstream.ts'
+import { smokeCompose, smokeDockerArguments } from '../../../scripts/smoke-resources.ts'
 
 function basicHeader(username: string, password: string): string {
     return 'Basic ' + Buffer.from(username + ':' + password).toString('base64')
@@ -19,7 +19,7 @@ function basicHeader(username: string, password: string): string {
 
 const POSTGRES_IMAGE =
     'postgres:18.6@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280'
-const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url))
+const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const project = 'rentnerproxy-smoke-' + runId
 const databaseContainer = project + '-postgres'
@@ -373,22 +373,22 @@ async function runSmoke(): Promise<void> {
         ] = await Promise.all([
             import('drizzle-orm'),
             import('@tanstack/react-start/server'),
-            import('../../web/src/config/auth.config.ts'),
-            import('../../web/src/config/permissions.config.ts'),
-            import('../../web/src/db/schema.ts'),
-            import('../../web/src/server/Auth/Core/database.server.ts'),
-            import('../../web/src/server/Auth/Access/sessions.service.ts'),
-            import('../../web/src/server/Admin/ProxyHostManagement/proxy-hosts.service.ts'),
-            import('../../web/src/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'),
-            import('../../web/src/server/Admin/AccessPolicyManagement/access-policies.service.ts'),
-            import('../../web/src/server/Admin/AccessPolicyManagement/basic-auth.service.ts'),
-            import('../../web/src/server/Admin/NpmImport/npm-import.service.ts'),
-            import('../../web/src/server/Admin/NpmImport/npm-source.ts'),
-            import('../../web/src/server/Admin/CrowdSec/crowdsec.service.ts'),
-            import('../../web/src/server/ProxyRuntime/proxy-runtime.service.ts'),
-            import('../../web/src/server/Controller/proxy.server.ts'),
-            import('../../web/src/server/Controller/crowdsec.server.ts'),
-            import('../../web/src/server/Auth/Access/registry.service.ts'),
+            import('../../../web/src/config/auth.config.ts'),
+            import('../../../web/src/config/permissions.config.ts'),
+            import('../../../web/src/db/schema.ts'),
+            import('../../../web/src/server/Auth/Core/database.server.ts'),
+            import('../../../web/src/server/Auth/Access/sessions.service.ts'),
+            import('../../../web/src/server/Admin/ProxyHostManagement/proxy-hosts.service.ts'),
+            import('../../../web/src/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'),
+            import('../../../web/src/server/Admin/AccessPolicyManagement/access-policies.service.ts'),
+            import('../../../web/src/server/Admin/AccessPolicyManagement/basic-auth.service.ts'),
+            import('../../../web/src/server/Admin/NpmImport/npm-import.service.ts'),
+            import('../../../web/src/server/Admin/NpmImport/npm-source.ts'),
+            import('../../../web/src/server/Admin/CrowdSec/crowdsec.service.ts'),
+            import('../../../web/src/server/ProxyRuntime/proxy-runtime.service.ts'),
+            import('../../../web/src/server/Controller/proxy.server.ts'),
+            import('../../../web/src/server/Controller/crowdsec.server.ts'),
+            import('../../../web/src/server/Auth/Access/registry.service.ts'),
         ])
         const database = getAuthDatabase()
         closeDatabase = () => database.$client.close()

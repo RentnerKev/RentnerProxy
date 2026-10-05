@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { smokeProgress } from '../../../../../.github/scripts/production-smoke-ci.ts'
+import { smokeProgress } from '../../../../../.github/scripts/ci/production-smoke-ci.ts'
 import {
     SMOKE_RUN_LABEL,
     restoreSmokeDiagnostic,
@@ -18,10 +18,10 @@ describe('production smoke CI output boundary', () => {
             expect(progress.consume(safe + ' private-value')).toBeUndefined()
             expect(progress.consume('Startup smoke failed during private-value')).toBeUndefined()
             progress.consume('error: Timed out waiting for private-value')
-            progress.consume('at .github/scripts/appliance-compose-smoke.ts:186:15')
+            progress.consume('at .github/scripts/ci/appliance-compose-smoke.ts:186:15')
             expect(progress.result(1).diagnostic).toBe(
                 safe +
-                    '; Readiness polling timed out at .github/scripts/appliance-compose-smoke.ts:186:15',
+                    '; Readiness polling timed out at .github/scripts/ci/appliance-compose-smoke.ts:186:15',
             )
             expect(progress.result(1).diagnostic).not.toContain('private-value')
         }
@@ -143,10 +143,10 @@ describe('production smoke CI output boundary', () => {
     test('reports CI smoke locations without exposing unrelated stack frames', () => {
         const progress = smokeProgress('production')
         progress.consume('error: Timed out waiting for managed CrowdSec acquisition')
-        progress.consume('at .github/scripts/appliance-compose-smoke.ts:1184:20')
-        progress.consume('at .github/scripts/private-value.ts:2:4')
+        progress.consume('at .github/scripts/ci/appliance-compose-smoke.ts:1184:20')
+        progress.consume('at .github/scripts/ci/private-value.ts:2:4')
         expect(progress.result(1).diagnostic).toBe(
-            'Readiness polling timed out at .github/scripts/appliance-compose-smoke.ts:1184:20',
+            'Readiness polling timed out at .github/scripts/ci/appliance-compose-smoke.ts:1184:20',
         )
     })
 

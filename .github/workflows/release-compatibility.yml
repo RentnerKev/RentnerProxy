@@ -65,6 +65,7 @@ env:
 jobs:
     select-sources:
         runs-on: ubuntu-latest
+        timeout-minutes: 5
         outputs:
             sources: ${{ steps.select.outputs.sources }}
         steps:
@@ -112,4 +113,6 @@ jobs:
               run: bun install --frozen-lockfile
 
             - name: Run published-image upgrade compatibility
-              run: bun --no-orphans scripts/release-compatibility/run.ts '${{ matrix.source }}'
+              env:
+                  SOURCE_ID: ${{ matrix.source }}
+              run: bun --no-orphans scripts/release-compatibility/run.ts "$SOURCE_ID"
