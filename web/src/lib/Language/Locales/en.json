@@ -1379,6 +1379,29 @@
                 "verificationDisabled": "Certificate verification disabled",
                 "caUnavailable": "Selected CA unavailable",
                 "caLoadFailed": "Trusted CAs could not be loaded. The current selection is retained."
+            },
+            "guide": {
+                "title": "Host setup guide",
+                "open": "Show setup guide",
+                "skip": "Skip guide",
+                "previous": "Previous step",
+                "next": "Next step",
+                "domainsTitle": "Public domains",
+                "domainsHelp": "Enter hostnames without a protocol or path. Point their DNS records to your proxy; configure DNS and router forwarding outside this form.",
+                "emptyDomains": "Add your domain below.",
+                "wildcardHelp": "Wildcard certificate requests require DNS-01. A wildcard does not cover the bare domain; add that domain separately if needed.",
+                "upstreamTitle": "Destination service",
+                "upstreamHelp": "Use the address, protocol and port of your service as reachable from the proxy. HTTPS upstream verification is separate from the public TLS certificate.",
+                "tlsTitle": "Public HTTPS",
+                "tlsHelp": "Choose a usable existing or imported certificate covering every domain, request a new one, or start with HTTP. Public HTTPS needs inbound port 443 reaching the proxy.",
+                "requested": "A new certificate will be requested when you save.",
+                "existing": "Selected certificate: {{name}}. Check domain coverage and validity.",
+                "noCertificate": "No public certificate selected: this host uses HTTP.",
+                "httpHelp": "HTTP-01 needs public DNS pointing to the proxy and inbound port 80 reaching it. It cannot issue wildcard certificates.",
+                "dnsHelp": "DNS-01 needs the supported DNS provider, correct zone and credentials allowed to create TXT records. DNS propagation can take time; inbound port 80 is not required for this challenge.",
+                "resultHelp": "Saving stores configuration. A queued or issuing certificate is not ready. Wait for application and check the runtime status; applied configuration does not prove DNS or your service is reachable.",
+                "failureHelp": "Fix highlighted fields before saving. For failed certificate jobs inspect the error and retry after fixing it. For pending configuration apply changes when permitted; if the runtime is unavailable, restore it and retry.",
+                "certificateUnavailable": "Details unavailable"
             }
         },
         "redirectHosts": {

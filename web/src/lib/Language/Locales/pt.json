@@ -1393,6 +1393,29 @@
                 "verificationDisabled": "Verificação do certificado desativada",
                 "caUnavailable": "AC selecionada indisponível",
                 "caLoadFailed": "Não foi possível carregar as ACs fidedignas. A seleção atual foi mantida."
+            },
+            "guide": {
+                "title": "Guia de configuração",
+                "open": "Mostrar guia",
+                "skip": "Ignorar guia",
+                "previous": "Passo anterior",
+                "next": "Passo seguinte",
+                "domainsTitle": "Domínios públicos",
+                "domainsHelp": "Introduza nomes sem protocolo nem caminho. Aponte o DNS para o proxy; configure DNS e encaminhamento do router fora deste formulário.",
+                "emptyDomains": "Adicione o domínio abaixo.",
+                "wildcardHelp": "Certificados wildcard exigem DNS-01 e não cobrem o domínio raiz; adicione-o separadamente se necessário.",
+                "upstreamTitle": "Serviço de destino",
+                "upstreamHelp": "Use endereço, protocolo e porta acessíveis a partir do proxy. A verificação HTTPS do destino é independente do certificado público.",
+                "tlsTitle": "HTTPS público",
+                "tlsHelp": "Escolha um certificado existente ou importado válido para todos os domínios, peça um novo ou comece com HTTP. HTTPS público exige acesso de entrada ao proxy pela porta 443.",
+                "requested": "Ao guardar será pedido um certificado novo.",
+                "existing": "Certificado selecionado: {{name}}. Verifique cobertura e validade.",
+                "noCertificate": "Sem certificado público: este host usa HTTP.",
+                "httpHelp": "HTTP-01 exige DNS público para o proxy e acesso de entrada à porta 80. Não emite certificados wildcard.",
+                "dnsHelp": "DNS-01 exige o fornecedor suportado, zona correta e credenciais autorizadas a criar registos TXT. A propagação pode demorar; a porta 80 de entrada não é necessária para este desafio.",
+                "resultHelp": "Guardar armazena a configuração. Um certificado em fila ou em emissão não está pronto. Aguarde a aplicação e verifique o runtime; a configuração aplicada não comprova acesso por DNS nem ao serviço.",
+                "failureHelp": "Corrija os campos assinalados antes de guardar. Analise erros de certificados e tente novamente após corrigi-los. Aplique alterações pendentes se autorizado; restaure o runtime indisponível e tente novamente.",
+                "certificateUnavailable": "Detalhes indisponíveis"
             }
         },
         "redirectHosts": {

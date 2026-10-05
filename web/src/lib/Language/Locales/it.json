@@ -1386,6 +1386,29 @@
                 "verificationDisabled": "Verifica del certificato disattivata",
                 "caUnavailable": "CA selezionata non disponibile",
                 "caLoadFailed": "Impossibile caricare le CA attendibili. La selezione attuale è stata mantenuta."
+            },
+            "guide": {
+                "title": "Guida alla configurazione",
+                "open": "Mostra guida",
+                "skip": "Salta guida",
+                "previous": "Passaggio precedente",
+                "next": "Passaggio successivo",
+                "domainsTitle": "Domini pubblici",
+                "domainsHelp": "Inserisci nomi senza protocollo o percorso. Punta il DNS al proxy; configura DNS e inoltro del router fuori da questo modulo.",
+                "emptyDomains": "Aggiungi il dominio sotto.",
+                "wildcardHelp": "I certificati wildcard richiedono DNS-01 e non coprono il dominio principale; aggiungilo separatamente se necessario.",
+                "upstreamTitle": "Servizio di destinazione",
+                "upstreamHelp": "Usa indirizzo, protocollo e porta raggiungibili dal proxy. La verifica HTTPS della destinazione è separata dal certificato pubblico.",
+                "tlsTitle": "HTTPS pubblico",
+                "tlsHelp": "Scegli un certificato esistente o importato valido per tutti i domini, richiedine uno nuovo o inizia con HTTP. HTTPS pubblico richiede accesso in ingresso al proxy sulla porta 443.",
+                "requested": "Al salvataggio verrà richiesto un nuovo certificato.",
+                "existing": "Certificato selezionato: {{name}}. Verifica copertura e validità.",
+                "noCertificate": "Nessun certificato pubblico: questo host usa HTTP.",
+                "httpHelp": "HTTP-01 richiede DNS pubblico verso il proxy e accesso in ingresso alla porta 80. Non emette certificati wildcard.",
+                "dnsHelp": "DNS-01 richiede il provider supportato, la zona corretta e credenziali autorizzate a creare record TXT. La propagazione può richiedere tempo; non serve la porta 80 in ingresso per questa verifica.",
+                "resultHelp": "Salvare memorizza la configurazione. Un certificato in coda o in emissione non è pronto. Attendi l’applicazione e controlla il runtime; la configurazione applicata non dimostra la raggiungibilità di DNS o servizio.",
+                "failureHelp": "Correggi i campi segnalati prima di salvare. Controlla gli errori dei certificati e riprova dopo averli risolti. Applica le modifiche in attesa se autorizzato; ripristina il runtime non disponibile e riprova.",
+                "certificateUnavailable": "Dettagli non disponibili"
             }
         },
         "redirectHosts": {

@@ -1379,6 +1379,29 @@
                 "verificationDisabled": "Vérification du certificat désactivée",
                 "caUnavailable": "AC sélectionnée indisponible",
                 "caLoadFailed": "Impossible de charger les AC de confiance. La sélection actuelle est conservée."
+            },
+            "guide": {
+                "title": "Guide de configuration",
+                "open": "Afficher le guide",
+                "skip": "Ignorer le guide",
+                "previous": "Étape précédente",
+                "next": "Étape suivante",
+                "domainsTitle": "Domaines publics",
+                "domainsHelp": "Saisissez des noms sans protocole ni chemin. Dirigez le DNS vers le proxy ; configurez DNS et redirection du routeur hors de ce formulaire.",
+                "emptyDomains": "Ajoutez votre domaine ci-dessous.",
+                "wildcardHelp": "Les certificats génériques exigent DNS-01 et ne couvrent pas le domaine racine ; ajoutez-le séparément si nécessaire.",
+                "upstreamTitle": "Service cible",
+                "upstreamHelp": "Utilisez adresse, protocole et port accessibles depuis le proxy. La vérification HTTPS de la cible est indépendante du certificat public.",
+                "tlsTitle": "HTTPS public",
+                "tlsHelp": "Choisissez un certificat existant ou importé valide pour tous les domaines, demandez-en un nouveau ou commencez avec HTTP. Le HTTPS public exige un accès entrant au proxy sur le port 443.",
+                "requested": "Un nouveau certificat sera demandé à l’enregistrement.",
+                "existing": "Certificat sélectionné : {{name}}. Vérifiez couverture et validité.",
+                "noCertificate": "Aucun certificat public : cet hôte utilise HTTP.",
+                "httpHelp": "HTTP-01 exige un DNS public vers le proxy et un accès entrant au port 80. Les certificats génériques sont exclus.",
+                "dnsHelp": "DNS-01 exige le fournisseur compatible, la bonne zone et des identifiants autorisés à créer des enregistrements TXT. La propagation peut prendre du temps ; le port 80 entrant est inutile pour ce défi.",
+                "resultHelp": "Enregistrer stocke la configuration. Un certificat en attente ou en émission n’est pas prêt. Attendez l’application et vérifiez le runtime ; une configuration appliquée ne prouve pas que le DNS ou le service est accessible.",
+                "failureHelp": "Corrigez les champs signalés avant d’enregistrer. Examinez les erreurs de certificats et réessayez après correction. Appliquez les changements en attente si autorisé ; restaurez le runtime indisponible et réessayez.",
+                "certificateUnavailable": "Détails indisponibles"
             }
         },
         "redirectHosts": {

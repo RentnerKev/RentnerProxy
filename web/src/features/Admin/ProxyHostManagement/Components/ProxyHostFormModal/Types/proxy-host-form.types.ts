@@ -1,4 +1,4 @@
-import type { FormEventHandler } from 'react'
+import type { FormEventHandler, RefObject } from 'react'
 import type { z } from 'zod'
 
 import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
@@ -12,6 +12,7 @@ export type ProxyHostEditorFormValues = z.input<typeof proxyHostFormSchema>
 type ProxyHostFormInstance = ReturnType<typeof useProxyHostFormModalLogic>['form']
 
 export interface ProxyHostFormModalProps {
+    readonly initialGuideOpen?: boolean
     readonly canEnable: boolean
     readonly canDisable: boolean
     readonly canAssignCertificates?: boolean
@@ -24,7 +25,21 @@ export interface ProxyHostFormModalProps {
     readonly proxyHost?: ProxyHostSummary | undefined
 }
 
+export interface ProxyHostSetupGuideState {
+    readonly open: boolean
+    readonly step: number
+    readonly domains: string
+    readonly upstream: string
+    readonly wildcard: boolean
+    readonly certificateSource: 'manual' | 'acme' | null
+    readonly certificateSelected: boolean
+    readonly certificateName: string | null
+    readonly requestNewCertificate: boolean
+    readonly challengeType: string
+}
+
 export interface ProxyHostFormModalState {
+    readonly guide: ProxyHostSetupGuideState
     readonly canAssignCertificates: boolean
     readonly canRequestCertificate: boolean
     readonly canAssignPolicies: boolean
@@ -52,6 +67,9 @@ export interface ProxyHostFormModalState {
 }
 
 export interface ProxyHostFormModalHandler {
+    readonly toggleGuide: () => void
+    readonly nextGuideStep: () => void
+    readonly previousGuideStep: () => void
     readonly addDomain: () => void
     readonly removeDomain: (index: number) => void
     readonly retryAssignableCertificates: () => void
@@ -98,3 +116,12 @@ export type ProxyHostFormModalFooterProps = Pick<
     'form' | 'formId' | 'isPending' | 'pendingSubmitLabel' | 'submitLabel'
 > &
     Pick<ProxyHostFormModalProps, 'onOpenChange'>
+
+export type ProxyHostSetupGuideProps = Pick<
+    ProxyHostFormModalHandler,
+    'toggleGuide' | 'nextGuideStep' | 'previousGuideStep'
+> & {
+    readonly guide: ProxyHostSetupGuideState
+    readonly guideHeading: RefObject<HTMLHeadingElement | null>
+    readonly formId: string
+}

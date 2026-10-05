@@ -1360,6 +1360,29 @@
                 "verificationDisabled": "Certificaatverificatie uitgeschakeld",
                 "caUnavailable": "Gekozen CA niet beschikbaar",
                 "caLoadFailed": "Vertrouwde CA’s konden niet worden geladen. De huidige keuze blijft behouden."
+            },
+            "guide": {
+                "title": "Handleiding voor hostinstelling",
+                "open": "Handleiding tonen",
+                "skip": "Handleiding overslaan",
+                "previous": "Vorige stap",
+                "next": "Volgende stap",
+                "domainsTitle": "Openbare domeinen",
+                "domainsHelp": "Voer hostnamen zonder protocol of pad in. Richt DNS op de proxy; configureer DNS en routerdoorsturing buiten dit formulier.",
+                "emptyDomains": "Voeg hieronder je domein toe.",
+                "wildcardHelp": "Wildcardcertificaten vereisen DNS-01 en dekken het hoofddomein niet; voeg dat zo nodig apart toe.",
+                "upstreamTitle": "Doelservice",
+                "upstreamHelp": "Gebruik adres, protocol en poort die vanuit de proxy bereikbaar zijn. HTTPS-controle van het doel staat los van het openbare certificaat.",
+                "tlsTitle": "Openbare HTTPS",
+                "tlsHelp": "Kies een geldig bestaand of geïmporteerd certificaat voor alle domeinen, vraag een nieuw certificaat aan of begin met HTTP. Openbare HTTPS vereist inkomend verkeer op poort 443 naar de proxy.",
+                "requested": "Bij opslaan wordt een nieuw certificaat aangevraagd.",
+                "existing": "Gekozen certificaat: {{name}}. Controleer domeindekking en geldigheid.",
+                "noCertificate": "Geen openbaar certificaat: deze host gebruikt HTTP.",
+                "httpHelp": "HTTP-01 vereist openbare DNS naar de proxy en inkomend verkeer op poort 80. Wildcardcertificaten zijn niet mogelijk.",
+                "dnsHelp": "DNS-01 vereist de ondersteunde provider, juiste zone en gegevens met toestemming om TXT-records te maken. DNS-verspreiding kan duren; inkomende poort 80 is voor deze controle niet nodig.",
+                "resultHelp": "Opslaan bewaart de configuratie. Een certificaat in de wachtrij of in uitgifte is nog niet klaar. Wacht op toepassing en controleer de runtime; toegepaste configuratie bewijst geen bereikbaarheid via DNS of van de service.",
+                "failureHelp": "Corrigeer gemarkeerde velden voor het opslaan. Bekijk certificaatfouten en probeer opnieuw na herstel. Pas wachtende wijzigingen toe als je toestemming hebt; herstel een onbeschikbare runtime en probeer opnieuw.",
+                "certificateUnavailable": "Details niet beschikbaar"
             }
         },
         "redirectHosts": {
