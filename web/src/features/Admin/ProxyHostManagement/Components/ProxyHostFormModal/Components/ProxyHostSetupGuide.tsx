@@ -17,7 +17,7 @@ export default function ProxyHostSetupGuide({
         >
             <button
                 type="button"
-                className="text-left text-sm font-bold text-accent-ring focus-visible:outline-2 focus-visible:outline-accent-ring"
+                className="flex min-h-11 items-center rounded-lg px-3 text-left text-sm font-bold text-accent-ring hover:bg-accent-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring"
                 aria-expanded={guide.open}
                 aria-controls={`${formId}-guide`}
                 onClick={toggleGuide}
@@ -95,10 +95,10 @@ export default function ProxyHostSetupGuide({
                             <p>{t('admin.proxyHosts.guide.failureHelp')}</p>
                         </>
                     )}
-                    <div className="flex gap-4">
+                    <div className="flex flex-wrap gap-2">
                         <button
                             type="button"
-                            className="font-bold text-accent-ring disabled:opacity-50"
+                            className="inline-flex min-h-11 items-center rounded-lg px-3 font-bold text-accent-ring hover:bg-accent-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring disabled:cursor-not-allowed disabled:opacity-50"
                             disabled={guide.step === 0}
                             onClick={previousGuideStep}
                         >
@@ -106,7 +106,7 @@ export default function ProxyHostSetupGuide({
                         </button>
                         <button
                             type="button"
-                            className="font-bold text-accent-ring disabled:opacity-50"
+                            className="inline-flex min-h-11 items-center rounded-lg px-3 font-bold text-accent-ring hover:bg-accent-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring disabled:cursor-not-allowed disabled:opacity-50"
                             disabled={guide.step === 2}
                             onClick={nextGuideStep}
                         >
