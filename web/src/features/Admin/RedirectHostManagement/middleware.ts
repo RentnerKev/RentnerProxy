@@ -1,6 +1,8 @@
+import { quickSearchInputSchema } from '@/lib/QuickSearch/quickSearchValidation.ts'
+import { searchRedirectHostsService } from '@/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'
 import type { AuthActionFailureResult } from '@/server/Auth/Types/auth-transport.types.ts'
 import { createServerFn } from '@tanstack/react-start'
-import { setResponseStatus } from '@tanstack/react-start/server'
+import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
@@ -178,5 +180,17 @@ export const disableRedirectHostHandler = createServerFn({ method: 'POST' })
             )
         } catch (error) {
             return redirectHostActionFailure(error, 'admin.redirectHosts.errors.disableFailed')
+        }
+    })
+
+export const searchRedirectHostsHandler = createServerFn({ method: 'GET' })
+    .validator(quickSearchInputSchema)
+    .handler(async ({ data }) => {
+        setResponseHeader('Cache-Control', 'private, no-store')
+        try {
+            const actor = await requirePermissionService(PERMISSIONS.REDIRECT_HOSTS_VIEW)
+            return await searchRedirectHostsService(actor, data)
+        } catch (error) {
+            throwLocalizedQueryError(error, 'admin.redirectHosts.errors.loadFailed')
         }
     })

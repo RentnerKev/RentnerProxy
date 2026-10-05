@@ -6,7 +6,7 @@ import type {
 } from '@/layouts/AuthenticatedLayout/Components/ApplicationShell/Types/application-shell.types.ts'
 
 export default function getApplicationShellViewModel(
-    user: ApplicationUserSummary,
+    user: Pick<ApplicationUserSummary, 'permissions'>,
     t: Translate,
 ): ApplicationShellViewModel {
     const permissionSet = new Set(user.permissions)

@@ -1,7 +1,18 @@
 import type { RedirectHostMutationSummary, RedirectHostRow } from './Types/redirect-hosts.types.ts'
 import '@tanstack/react-start/server-only'
+import { QUICK_SEARCH_LIMIT } from '@/config/quick-search.config.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
+import type {
+    QuickSearchEntity,
+    QuickSearchInput,
+} from '@/lib/QuickSearch/Types/quick-search.types.ts'
+import {
+    getQuickSearchPattern,
+    quickSearchInputSchema,
+} from '@/lib/QuickSearch/quickSearchValidation.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 
-import { and, asc, eq, inArray, isNotNull, ne, or } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNotNull, ne, or, sql } from 'drizzle-orm'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { hostDomains, redirectHosts } from '@/db/schema.ts'
@@ -452,4 +463,36 @@ export function disableRedirectHostService(
     redirectHostId: string,
 ): Promise<RedirectHostMutationSummary> {
     return setRedirectHostEnabledService(redirectHostId, false)
+}
+
+export async function searchRedirectHostsService(
+    actor: AuthenticatedUser,
+    input: QuickSearchInput,
+): Promise<Array<QuickSearchEntity>> {
+    if (!actor.permissions.includes(PERMISSIONS.REDIRECT_HOSTS_VIEW)) {
+        throw new AuthDomainError('permission_denied', 'Permission is required.')
+    }
+    const currentActor = await requirePermissionService(PERMISSIONS.REDIRECT_HOSTS_VIEW)
+    if (currentActor.id !== actor.id) {
+        throw new AuthDomainError('permission_denied', 'Permission is required.')
+    }
+    const parsed = quickSearchInputSchema.safeParse(input)
+    if (!parsed.success) {
+        throw invalidInput()
+    }
+    const pattern = getQuickSearchPattern(parsed.data.query)
+    return getAuthDatabase()
+        .select({
+            id: redirectHosts.id,
+            label: sql<string>`coalesce((select ${hostDomains.domain} from ${hostDomains} where ${hostDomains.redirectHostId} = ${redirectHosts.id} order by ${hostDomains.domain} limit 1), '')`,
+            detail: redirectHosts.destination,
+        })
+        .from(redirectHosts)
+        .where(
+            parsed.data.id
+                ? eq(redirectHosts.id, parsed.data.id)
+                : sql`exists (select 1 from ${hostDomains} where ${hostDomains.redirectHostId} = ${redirectHosts.id} and ${hostDomains.domain} ilike ${pattern} escape '\\') or ${redirectHosts.destination} ilike ${pattern} escape '\\'`,
+        )
+        .orderBy(asc(redirectHosts.id))
+        .limit(parsed.data.id ? 1 : QUICK_SEARCH_LIMIT)
 }

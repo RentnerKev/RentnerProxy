@@ -1,3 +1,6 @@
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { quickSearchInputSchema } from '@/lib/QuickSearch/quickSearchValidation.ts'
+import { searchProxyHostsService } from '@/server/Admin/ProxyHostManagement/proxy-hosts.service.ts'
 import type {
     AuthActionResult,
     AuthActionFailureResult,
@@ -31,7 +34,6 @@ import {
     applyProxyConfigurationService,
     getProxyRuntimeStatusService,
 } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
-import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { ProxyHostDomainError } from '@/server/Admin/ProxyHostManagement/proxy-hosts.errors.ts'
 import { CertificateDomainError } from '@/server/Admin/CertificateManagement/certificates.errors.ts'
 import {
@@ -290,5 +292,17 @@ export const resetProxyHostConfigEditorHandler = createServerFn({ method: 'POST'
             )
         } catch (error) {
             return configActionFailure(error)
+        }
+    })
+
+export const searchProxyHostsHandler = createServerFn({ method: 'GET' })
+    .validator(quickSearchInputSchema)
+    .handler(async ({ data }) => {
+        setResponseHeader('Cache-Control', 'private, no-store')
+        try {
+            const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
+            return await searchProxyHostsService(actor, data)
+        } catch (error) {
+            throwLocalizedQueryError(error, 'admin.proxyHosts.errors.loadFailed')
         }
     })

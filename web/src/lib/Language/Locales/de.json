@@ -83,6 +83,31 @@
         "systemVersion": "Systemversion {{version}}",
         "updateAvailable": "Update verfügbar auf Version {{version}}"
     },
+    "quickSearch": {
+        "title": "Schnell suchen",
+        "open": "Suche öffnen",
+        "description": "Hosts, Zertifikate, Zugriffsrichtlinien oder Einstellungen finden.",
+        "placeholder": "Nach Name, Domain oder Ziel suchen…",
+        "queryLabel": "Suche",
+        "minQuery": "Gib mindestens zwei Zeichen ein, um Einträge zu suchen.",
+        "loading": "Suche läuft…",
+        "noResults": "Keine Ergebnisse gefunden.",
+        "unavailable": "Einige Ergebnisse sind nicht verfügbar. Versuche es erneut.",
+        "retry": "Suche erneut versuchen",
+        "targetUnavailable": "Dieser Eintrag ist nicht mehr verfügbar oder deine Berechtigungen haben sich geändert.",
+        "opening": "Wird geöffnet…",
+        "resultsLabel": "Suchergebnisse",
+        "keyboardHint": "↑ ↓ Auswählen · Enter Öffnen · Esc Schließen",
+        "limited": "Bis zu {{count}} Ergebnisse pro Kategorie. Suche genauer.",
+        "categories": {
+            "navigation": "Seiten",
+            "settings": "Einstellungen",
+            "proxyHosts": "Proxy-Hosts",
+            "redirectHosts": "Weiterleitungs-Hosts",
+            "certificates": "Zertifikate",
+            "accessPolicies": "Zugriffsrichtlinien"
+        }
+    },
     "language": {
         "title": "Sprache",
         "description": "Wähle die Sprache für dein Konto.",

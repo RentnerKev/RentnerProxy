@@ -1,7 +1,18 @@
 import type { ProxyHostMutationSummary } from './Types/proxy-hosts.types.ts'
 import '@tanstack/react-start/server-only'
+import { QUICK_SEARCH_LIMIT } from '@/config/quick-search.config.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
+import type {
+    QuickSearchEntity,
+    QuickSearchInput,
+} from '@/lib/QuickSearch/Types/quick-search.types.ts'
+import {
+    getQuickSearchPattern,
+    quickSearchInputSchema,
+} from '@/lib/QuickSearch/quickSearchValidation.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 
-import { asc, desc, eq, inArray } from 'drizzle-orm'
+import { asc, desc, eq, inArray, sql } from 'drizzle-orm'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { certificateJobs, hostDomains, proxyHosts } from '@/db/schema.ts'
@@ -369,4 +380,36 @@ export function enableProxyHostService(proxyHostId: string): Promise<ProxyHostMu
 
 export function disableProxyHostService(proxyHostId: string): Promise<ProxyHostMutationSummary> {
     return setProxyHostEnabledService(proxyHostId, false)
+}
+
+export async function searchProxyHostsService(
+    actor: AuthenticatedUser,
+    input: QuickSearchInput,
+): Promise<Array<QuickSearchEntity>> {
+    if (!actor.permissions.includes(PERMISSIONS.PROXY_HOSTS_VIEW)) {
+        throw new AuthDomainError('permission_denied', 'Permission is required.')
+    }
+    const currentActor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
+    if (currentActor.id !== actor.id) {
+        throw new AuthDomainError('permission_denied', 'Permission is required.')
+    }
+    const parsed = quickSearchInputSchema.safeParse(input)
+    if (!parsed.success) {
+        throw invalidInput()
+    }
+    const pattern = getQuickSearchPattern(parsed.data.query)
+    return getAuthDatabase()
+        .select({
+            id: proxyHosts.id,
+            label: sql<string>`coalesce((select ${hostDomains.domain} from ${hostDomains} where ${hostDomains.proxyHostId} = ${proxyHosts.id} order by ${hostDomains.domain} limit 1), '')`,
+            detail: sql<string>`${proxyHosts.forwardScheme} || '://' || ${proxyHosts.forwardHost} || ':' || ${proxyHosts.forwardPort}`,
+        })
+        .from(proxyHosts)
+        .where(
+            parsed.data.id
+                ? eq(proxyHosts.id, parsed.data.id)
+                : sql`exists (select 1 from ${hostDomains} where ${hostDomains.proxyHostId} = ${proxyHosts.id} and ${hostDomains.domain} ilike ${pattern} escape '\\') or (${proxyHosts.forwardScheme} || '://' || ${proxyHosts.forwardHost} || ':' || ${proxyHosts.forwardPort}) ilike ${pattern} escape '\\'`,
+        )
+        .orderBy(asc(proxyHosts.id))
+        .limit(parsed.data.id ? 1 : QUICK_SEARCH_LIMIT)
 }

@@ -7,6 +7,7 @@ export interface ModalProps {
     readonly closeDisabled?: boolean
     readonly description: ReactNode
     readonly footer?: ReactNode
+    readonly onOpenAutoFocus?: ((event: PreventableEvent) => void) | undefined
     readonly onOpenChange: (open: boolean) => void
     readonly open: boolean
     readonly size?: ModalSize
@@ -40,12 +41,13 @@ export interface ConfirmDialogLogicResult {
 }
 export interface UseModalLogicParams {
     readonly closeDisabled: boolean
+    readonly onOpenAutoFocus?: ((event: PreventableEvent) => void) | undefined
     readonly onOpenChange: (open: boolean) => void
 }
 export interface ModalLogicResult {
     readonly handler: {
         readonly handleCloseAutoFocus: (event: PreventableEvent) => void
-        readonly handleOpenAutoFocus: () => void
+        readonly handleOpenAutoFocus: (event: PreventableEvent) => void
         readonly handleOpenChange: (nextOpen: boolean) => void
         readonly preventClose: (event: PreventableEvent) => void
     }

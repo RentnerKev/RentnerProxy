@@ -1,3 +1,6 @@
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
+import { quickSearchInputSchema } from '@/lib/QuickSearch/quickSearchValidation.ts'
+import { searchAccessPoliciesService } from '@/server/Admin/AccessPolicyManagement/access-policies.service.ts'
 import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
 
@@ -21,7 +24,6 @@ import {
     getBasicAuthAccountsService,
     updateBasicAuthAccountService,
 } from '@/server/Admin/AccessPolicyManagement/basic-auth.service.ts'
-import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { localizedActionFailure, throwLocalizedQueryError } from '@/server/Auth/transport.server.ts'
 import {
     accessPolicyIdInputSchema,
@@ -249,5 +251,17 @@ export const deleteBasicAuthAccountHandler = createServerFn({ method: 'POST' })
                 error,
                 'admin.accessPolicies.basicAuth.errors.deleteFailed',
             )
+        }
+    })
+
+export const searchAccessPoliciesHandler = createServerFn({ method: 'GET' })
+    .validator(quickSearchInputSchema)
+    .handler(async ({ data }) => {
+        setResponseHeader('Cache-Control', 'private, no-store')
+        try {
+            const actor = await requirePermissionService(PERMISSIONS.ACCESS_POLICIES_VIEW)
+            return await searchAccessPoliciesService(actor, data)
+        } catch (error) {
+            throwLocalizedQueryError(error, 'admin.accessPolicies.errors.loadFailed')
         }
     })

@@ -12,6 +12,7 @@ export default function ApplicationTopbar({
     onToggleMobileNavigation,
     onToggleNavigation,
     themeControl,
+    searchControl,
 }: ApplicationTopbarProps) {
     return (
         <header
@@ -56,7 +57,10 @@ export default function ApplicationTopbar({
                     />
                 </button>
             </CustomTooltip>
-            <div className="flex items-center">{themeControl}</div>
+            <div className="flex items-center gap-2">
+                {searchControl}
+                {themeControl}
+            </div>
         </header>
     )
 }

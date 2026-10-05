@@ -19,11 +19,12 @@ export function Modal({
     description,
     children,
     footer,
+    onOpenAutoFocus,
     size = 'md',
     closeDisabled = false,
 }: ModalProps) {
     const { t } = useTranslationStore()
-    const { handler } = useModalLogic({ closeDisabled, onOpenChange })
+    const { handler } = useModalLogic({ closeDisabled, onOpenAutoFocus, onOpenChange })
 
     return (
         <Dialog.Root open={open} onOpenChange={handler.handleOpenChange}>
