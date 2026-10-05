@@ -2363,6 +2363,15 @@
                 "deleted": "AC de confiance supprimée.",
                 "savedPending": "AC enregistrée. La configuration est en attente ; la configuration précédente reste active."
             }
+        },
+        "runtimeDiagnostics": {
+            "title": "Rapport de diagnostic",
+            "privacy": "Contient uniquement les versions, les états et les compteurs, sans domaines ni identifiants. Téléchargement local ; vérifiez le rapport avant de le partager.",
+            "download": "Télécharger le rapport",
+            "downloading": "Préparation du rapport…",
+            "downloadComplete": "Le téléchargement du rapport a démarré.",
+            "downloadPartial": "Le téléchargement du rapport partiel a démarré. Les sections indisponibles sont indiquées dans le fichier.",
+            "downloadFailed": "Le rapport n’a pas pu être téléchargé. Vérifiez vos permissions et réessayez."
         }
     },
     "permissions": {

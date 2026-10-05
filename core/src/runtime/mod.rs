@@ -35,7 +35,11 @@ use std::{
     },
     time::Duration,
 };
-use tokio::{sync::Mutex, task::JoinHandle};
+use tokio::{
+    sync::{Mutex, Semaphore},
+    task::JoinHandle,
+    time::Instant,
+};
 use trusted_cas::TrustedCaStore;
 
 const BASELINE_PROBE_REVISION: &str = "none";
@@ -135,9 +139,35 @@ pub(crate) struct ProxyRuntime {
     dns_cleanup_cursor: AtomicUsize,
     crowdsec: Mutex<crowdsec::CrowdSecState>,
     crowdsec_dashboard_cache: Mutex<Option<crowdsec_dashboard::CrowdSecDashboardCache>>,
+    binary_version_cache: Mutex<Option<(Instant, Option<String>)>>,
+    binary_version_admission: Semaphore,
 }
 
 impl ProxyRuntime {
+    pub(crate) async fn version(&self) -> Option<String> {
+        let cached = self.binary_version_cache.lock().await.clone();
+        if let Some((read_at, version)) = cached.as_ref()
+            && read_at.elapsed() < Duration::from_secs(60)
+        {
+            return version.clone();
+        }
+        // Admit one metadata process at a time; never queue requests behind it.
+        let Ok(_permit) = self.binary_version_admission.try_acquire() else {
+            return cached.and_then(|(_, version)| version);
+        };
+        if let Some((read_at, version)) = self.binary_version_cache.lock().await.as_ref()
+            && read_at.elapsed() < Duration::from_secs(60)
+        {
+            return version.clone();
+        }
+        let version = match &self.engine {
+            Some(engine) => engine.version().await,
+            None => None,
+        };
+        *self.binary_version_cache.lock().await = Some((Instant::now(), version.clone()));
+        version
+    }
+
     pub(crate) async fn access_logs(
         &self,
         query: access_logs::ValidatedAccessLogQuery,
@@ -175,6 +205,8 @@ impl ProxyRuntime {
             dns_cleanup_cursor: AtomicUsize::new(0),
             crowdsec: Mutex::new(crowdsec::CrowdSecState::default()),
             crowdsec_dashboard_cache: Mutex::new(None),
+            binary_version_cache: Mutex::new(None),
+            binary_version_admission: Semaphore::new(1),
         })
     }
 }

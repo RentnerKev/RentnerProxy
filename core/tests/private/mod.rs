@@ -6,6 +6,7 @@ mod default_site_caddy;
 pub(crate) mod fixtures;
 mod proxy;
 mod proxy_validation;
+mod proxy_version;
 mod renderer;
 mod runtime;
 mod server;

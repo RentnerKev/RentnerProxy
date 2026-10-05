@@ -45,6 +45,7 @@ export async function controllerRequest(
         | '/health'
         | '/ready'
         | '/internal/v1/proxy/status'
+        | '/internal/v1/proxy/version'
         | '/internal/v1/crowdsec/status'
         | `/internal/v1/crowdsec/dashboard${string}`
         | '/internal/v1/crowdsec/config'

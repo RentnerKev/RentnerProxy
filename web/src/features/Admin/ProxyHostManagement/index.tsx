@@ -12,6 +12,7 @@ import ProxyConfigEditorModal from './Components/ProxyConfigEditorModal/index.ts
 import ProxyGlobalConfigEditorModal from './Components/ProxyGlobalConfigEditorModal/index.tsx'
 import ProxyHostsTable from './Components/ProxyHostsTable/index.tsx'
 import ProxyRuntimeStatusPanel from './Components/ProxyRuntimeStatusPanel.tsx'
+import RuntimeSupportDownload from '@/features/Admin/RuntimeDiagnostics/index.tsx'
 
 export default function ProxyHostManagementPage(props: ProxyHostManagementPageProps) {
     const { state, handler } = useProxyHostManagementLogic(props)
@@ -47,6 +48,7 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                 title={t('admin.proxyHosts.page.title')}
                 description={t('admin.proxyHosts.page.description')}
             />
+            <RuntimeSupportDownload permissions={props.permissions} />
             <ProxyRuntimeStatusPanel
                 canApply={state.canApply}
                 isApplying={state.isApplying}

@@ -16,6 +16,8 @@ use tokio::{
     time::{Instant, sleep, timeout, timeout_at},
 };
 
+mod version;
+
 const API_TIMEOUT: Duration = Duration::from_secs(10);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
 // Fit the appliance's 25-second shutdown window, including forced reaping.
@@ -69,6 +71,9 @@ impl std::fmt::Debug for EngineEnvironment {
 }
 
 pub(crate) trait ProxyEngine: Send + Sync {
+    fn version(&self) -> Pin<Box<dyn Future<Output = Option<String>> + Send + '_>> {
+        Box::pin(async { None })
+    }
     fn set_environment(&self, _environment: EngineEnvironment) {}
     fn start<'a>(&'a self, configuration: &'a str, expected_revision: &'a str) -> EngineFuture<'a>;
     fn load<'a>(&'a self, configuration: &'a str) -> EngineFuture<'a>;
@@ -350,6 +355,9 @@ impl CaddyProcess {
 }
 
 impl ProxyEngine for CaddyProcess {
+    fn version(&self) -> Pin<Box<dyn Future<Output = Option<String>> + Send + '_>> {
+        Box::pin(version::read(&self.binary))
+    }
     fn set_environment(&self, environment: EngineEnvironment) {
         if let Ok(mut current) = self.environment.lock() {
             *current = environment;

@@ -54,6 +54,12 @@ export const PERMISSIONS = {
     ACCOUNT_UPDATE: 'account.update',
 } as const
 
+export const RUNTIME_SUPPORT_REPORT_PERMISSIONS = [
+    PERMISSIONS.PROXY_HOSTS_VIEW,
+    PERMISSIONS.REDIRECT_HOSTS_VIEW,
+    PERMISSIONS.CERTIFICATES_VIEW,
+] as const
+
 export const PERMISSION_REGISTRY = [
     { key: PERMISSIONS.APP_ACCESS, name: 'Application access' },
     { key: PERMISSIONS.PROXY_HOSTS_VIEW, name: 'View proxy hosts' },

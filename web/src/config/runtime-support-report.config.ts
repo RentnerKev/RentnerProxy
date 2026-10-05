@@ -1,0 +1,4 @@
+export const RUNTIME_SUPPORT_REPORT_FORMAT = 'rentnerproxy-runtime-support'
+export const RUNTIME_SUPPORT_REPORT_VERSION = 1
+export const MAX_RUNTIME_SUPPORT_REPORT_BYTES = 64 * 1_024
+export const MAX_RUNTIME_SUPPORT_REPORT_COUNT = 1_000_000_000

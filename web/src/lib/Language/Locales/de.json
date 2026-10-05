@@ -2363,6 +2363,15 @@
                 "deleted": "Vertrauenswürdige CA gelöscht.",
                 "savedPending": "CA gespeichert. Die Konfiguration ist noch ausstehend; die zuvor funktionierende Konfiguration bleibt aktiv."
             }
+        },
+        "runtimeDiagnostics": {
+            "title": "Laufzeit-Support-Bericht",
+            "privacy": "Enthält nur Versionen, Status und Zähler, keine Domains oder Zugangsdaten. Wird lokal heruntergeladen; vor dem Teilen prüfen.",
+            "download": "Support-Bericht herunterladen",
+            "downloading": "Bericht wird erstellt…",
+            "downloadComplete": "Der Download des Support-Berichts wurde gestartet.",
+            "downloadPartial": "Der Download des unvollständigen Berichts wurde gestartet. Nicht verfügbare Abschnitte sind in der Datei markiert.",
+            "downloadFailed": "Der Bericht konnte nicht heruntergeladen werden. Prüfe deine Berechtigungen und versuche es erneut."
         }
     },
     "permissions": {

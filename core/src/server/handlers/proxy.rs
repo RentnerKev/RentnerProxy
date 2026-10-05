@@ -20,6 +20,17 @@ pub(in crate::server) async fn proxy_status(
     Ok(Json(state.runtime.status().await))
 }
 
+pub(in crate::server) async fn proxy_version(state: AppState) -> Response {
+    no_store_json(ProxyVersionResponse {
+        version: state.runtime.version().await,
+    })
+}
+
+#[derive(Serialize)]
+struct ProxyVersionResponse {
+    version: Option<String>,
+}
+
 pub(in crate::server) async fn apply_proxy_config(
     state: AppState,
     body: Result<Bytes, BytesRejection>,

@@ -2344,6 +2344,15 @@
                 "deleted": "Vertrouwde CA verwijderd.",
                 "savedPending": "Vertrouwde CA opgeslagen. De configuratie wacht op toepassing; de vorige werkende configuratie blijft actief."
             }
+        },
+        "runtimeDiagnostics": {
+            "title": "Runtime-ondersteuningsrapport",
+            "privacy": "Bevat alleen versies, statussen en aantallen, zonder domeinen of inloggegevens. Wordt lokaal gedownload; controleer het voordat je het deelt.",
+            "download": "Ondersteuningsrapport downloaden",
+            "downloading": "Rapport voorbereiden…",
+            "downloadComplete": "Het downloaden van het ondersteuningsrapport is gestart.",
+            "downloadPartial": "Het downloaden van het gedeeltelijke rapport is gestart. Niet-beschikbare onderdelen staan in het bestand aangegeven.",
+            "downloadFailed": "Het rapport kon niet worden gedownload. Controleer je rechten en probeer het opnieuw."
         }
     },
     "permissions": {
