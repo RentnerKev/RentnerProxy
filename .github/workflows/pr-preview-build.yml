@@ -18,6 +18,9 @@ env:
 jobs:
     verify:
         name: PR Preview / Verify checks
+        if: >-
+            github.event.workflow_run.conclusion == 'success' &&
+            github.event.workflow_run.event == 'pull_request'
         runs-on: ubuntu-latest
         timeout-minutes: 30
         permissions:
@@ -78,6 +81,7 @@ jobs:
         name: PR Preview / Build image
         needs:
             - verify
+        if: needs.verify.outputs.lifecycle == 'open'
         runs-on: ubuntu-latest
         timeout-minutes: 45
         concurrency:

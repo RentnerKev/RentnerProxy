@@ -56,6 +56,8 @@ describe('trusted-triggered, read-only PR preview build workflow', () => {
         expect(build).toContain('workflow_run:')
         expect(build).toContain('- PR Title')
         expect(build).toContain('- completed')
+        expect(build).toContain("github.event.workflow_run.conclusion == 'success'")
+        expect(build).toContain("github.event.workflow_run.event == 'pull_request'")
         expect(build).not.toContain('pull_request_target:')
         expect(build).not.toMatch(/^\s+pull_request:\s*$/mu)
         expect(build).not.toContain('packages: write')
@@ -83,6 +85,7 @@ describe('trusted-triggered, read-only PR preview build workflow', () => {
         const build = await workflow('pr-preview-build.yml')
 
         expect(build).toContain('SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}')
+        expect(build).toContain("if: needs.verify.outputs.lifecycle == 'open'")
         expect(build).toContain('ref: ${{ needs.verify.outputs.tested_sha }}')
         expect(build).toContain('file source/docker/production/Dockerfile')
         expect(build).toContain('--platform "$PREVIEW_PLATFORM"')
