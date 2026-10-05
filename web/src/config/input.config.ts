@@ -16,7 +16,7 @@ export const INPUT_PROVIDER_PROPS = {
         border: 'border-input-border',
         text: 'text-ink',
         labelText: 'text-ink-soft',
-        placeholder: 'placeholder:text-ink',
+        placeholder: 'placeholder:text-muted',
         focusRing: 'focus:ring-accent-ring/20',
         focusBorder: 'focus:border-accent-border',
         errorBorder: 'border-red-500',

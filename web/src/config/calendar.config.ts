@@ -1,6 +1,6 @@
 import type { CalendarCustomDesign } from '@rentnerkev/calendar/types'
 
-export const CALENDAR_TRIGGER_CLASS_NAME = 'text-left [&>span]:text-ink'
+export const CALENDAR_TRIGGER_CLASS_NAME = 'text-left'
 
 export const CALENDAR_CUSTOM_DESIGN = {
     primaryColor: 'text-accent-foreground',
