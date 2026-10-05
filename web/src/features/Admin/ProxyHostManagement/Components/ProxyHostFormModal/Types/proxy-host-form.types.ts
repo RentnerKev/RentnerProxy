@@ -17,7 +17,7 @@ export interface ProxyHostFormModalProps {
     readonly canAssignCertificates?: boolean
     readonly canRequestCertificate?: boolean
     readonly canAssignPolicies?: boolean
-    readonly mode: 'create' | 'edit'
+    readonly mode: 'create' | 'edit' | 'duplicate'
     readonly onOpenChange: (open: boolean) => void
     readonly onSuccess: () => void
     readonly open: boolean

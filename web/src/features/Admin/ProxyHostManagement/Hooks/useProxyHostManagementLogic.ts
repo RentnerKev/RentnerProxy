@@ -29,7 +29,21 @@ export default function useProxyHostManagementLogic({
     const { t } = useTranslationStore()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canView = permissionSet.has(PERMISSIONS.PROXY_HOSTS_VIEW)
+    const canCreate = permissionSet.has(PERMISSIONS.PROXY_HOSTS_CREATE)
+    const canAssignCertificates =
+        permissionSet.has(PERMISSIONS.CERTIFICATES_VIEW) &&
+        (canCreate || permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE))
+    const canAssignPolicies = permissionSet.has(PERMISSIONS.ACCESS_POLICIES_ASSIGN)
+    const canDuplicate = useCallback(
+        (host: ProxyHostSummary) =>
+            canView &&
+            canCreate &&
+            (!host.certificateId || canAssignCertificates) &&
+            (!host.accessPolicyId || canAssignPolicies),
+        [canView, canCreate, canAssignCertificates, canAssignPolicies],
+    )
     const [showCreate, setShowCreate] = useState(false)
+    const [duplicateSource, setDuplicateSource] = useState<ProxyHostSummary | null>(null)
     const [configTarget, setConfigTarget] = useState<ProxyHostSummary | null>(null)
     const [globalConfigOpen, setGlobalConfigOpen] = useState(false)
     const [certificateRequestTarget, setCertificateRequestTarget] =
@@ -152,6 +166,7 @@ export default function useProxyHostManagementLogic({
             }),
     })
     const openCertificateRequest = useCallback((proxyHost: ProxyHostSummary) => {
+        setDuplicateSource(null)
         setConfigTarget(null)
         setSelectedProxyHost(null)
         setShowCreate(false)
@@ -161,6 +176,7 @@ export default function useProxyHostManagementLogic({
         if (!open) setCertificateRequestTarget(null)
     }, [])
     const openConfigEditor = useCallback((proxyHost: ProxyHostSummary) => {
+        setDuplicateSource(null)
         setSelectedProxyHost(null)
         setShowCreate(false)
         setConfigTarget(proxyHost)
@@ -170,11 +186,27 @@ export default function useProxyHostManagementLogic({
     }, [])
     const openGlobalConfig = useCallback(() => setGlobalConfigOpen(true), [])
     const openCreate = useCallback(() => {
+        setDuplicateSource(null)
         setConfigTarget(null)
         setSelectedProxyHost(null)
         setShowCreate(true)
     }, [])
+    const openDuplicate = useCallback(
+        (proxyHost: ProxyHostSummary) => {
+            if (!canDuplicate(proxyHost)) return
+            setConfigTarget(null)
+            setSelectedProxyHost(null)
+            setDuplicateSource(proxyHost)
+            setShowCreate(true)
+        },
+        [canDuplicate],
+    )
+    const setCreateOpen = useCallback((open: boolean) => {
+        setShowCreate(open)
+        if (!open) setDuplicateSource(null)
+    }, [])
     const openEditor = useCallback((proxyHost: ProxyHostSummary) => {
+        setDuplicateSource(null)
         setConfigTarget(null)
         setShowCreate(false)
         setSelectedProxyHost(proxyHost)
@@ -234,6 +266,7 @@ export default function useProxyHostManagementLogic({
         void invalidateProxyHostManagementCache(queryClient)
     }, [queryClient])
     const handleFormSuccess = useCallback(() => {
+        setDuplicateSource(null)
         setShowCreate(false)
         setSelectedProxyHost(null)
     }, [])
@@ -251,11 +284,8 @@ export default function useProxyHostManagementLogic({
     return {
         state: {
             canApply: permissionSet.has(PERMISSIONS.PROXY_HOSTS_APPLY),
-            canAssignCertificates:
-                permissionSet.has(PERMISSIONS.CERTIFICATES_VIEW) &&
-                (permissionSet.has(PERMISSIONS.PROXY_HOSTS_CREATE) ||
-                    permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE)),
-            canAssignPolicies: permissionSet.has(PERMISSIONS.ACCESS_POLICIES_ASSIGN),
+            canAssignCertificates,
+            canAssignPolicies,
             canRequestCertificate:
                 permissionSet.has(PERMISSIONS.CERTIFICATES_ISSUE) &&
                 permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE),
@@ -266,7 +296,8 @@ export default function useProxyHostManagementLogic({
             canEditConfig:
                 permissionSet.has(PERMISSIONS.PROXY_HOSTS_UPDATE) &&
                 permissionSet.has(PERMISSIONS.PROXY_HOSTS_APPLY),
-            canCreate: permissionSet.has(PERMISSIONS.PROXY_HOSTS_CREATE),
+            canCreate,
+            canDuplicate,
             canDelete: permissionSet.has(PERMISSIONS.PROXY_HOSTS_DELETE),
             canDisable: permissionSet.has(PERMISSIONS.PROXY_HOSTS_DISABLE),
             canEnable: permissionSet.has(PERMISSIONS.PROXY_HOSTS_ENABLE),
@@ -286,6 +317,7 @@ export default function useProxyHostManagementLogic({
             runtimeStatusRetrying: runtimeStatusQuery.isFetching,
             selectedProxyHost,
             showCreate,
+            duplicateSource,
             configTarget,
             globalConfigOpen,
             certificateRequestTarget: currentCertificateRequestTarget,
@@ -298,6 +330,7 @@ export default function useProxyHostManagementLogic({
             handleFormSuccess,
             handleCertificateRequestSuccess,
             openCreate,
+            openDuplicate,
             openConfigEditor,
             openCertificateRequest,
             setCertificateRequestOpen,
@@ -309,7 +342,7 @@ export default function useProxyHostManagementLogic({
             openEditor,
             retry,
             retryRuntime,
-            setCreateOpen: setShowCreate,
+            setCreateOpen,
             setDeleteOpen,
             setDisableOpen,
             setEditorOpen,

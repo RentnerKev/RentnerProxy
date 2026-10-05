@@ -1138,6 +1138,7 @@
             },
             "actions": {
                 "add": "Dodaj host proxy",
+                "duplicate": "Duplikuj host proxy",
                 "create": "Utwórz host proxy",
                 "edit": "Edytuj",
                 "enable": "Włącz",
@@ -1164,6 +1165,7 @@
             },
             "form": {
                 "description": "Zapisz domeny i cel przekierowania dla konfiguracji środowiska proxy.",
+                "duplicateDescription": "Wprowadź nowe domeny i sprawdź certyfikaty oraz zasady dostępu. Oddzielne ustawienia HTTP z edytora konfiguracji nie są kopiowane.",
                 "editTitle": "Edytuj host proxy",
                 "creating": "Tworzenie…",
                 "domains": "Domeny",
@@ -1401,6 +1403,7 @@
             },
             "actions": {
                 "add": "Dodaj host przekierowania",
+                "duplicate": "Duplikuj host przekierowania",
                 "create": "Utwórz host przekierowania",
                 "edit": "Edytuj",
                 "enable": "Włącz",
@@ -1426,6 +1429,7 @@
             },
             "form": {
                 "description": "Zapisz domeny i adres docelowy dla konfiguracji środowiska proxy.",
+                "duplicateDescription": "Wprowadź nowe domeny i sprawdź cel, certyfikat oraz stan przed utworzeniem kopii.",
                 "editTitle": "Edytuj host przekierowania",
                 "creating": "Tworzenie…",
                 "domains": "Domeny",

@@ -33,6 +33,7 @@ import type { ProxyHostEditorFormValues } from '../Types/proxy-host-form.types.t
 import type { ProxyHostActionResult } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import type { CertificateJobActionResult } from '@/lib/CertificateJobs/Types/certificate-jobs.types.ts'
 import { proxyHostFormSchema } from '../../../validation.ts'
+import { getProxyHostFormValues } from '@/lib/Admin/ProxyHostManagement/proxyHostFormValues.ts'
 
 export default function useProxyHostFormModalLogic({
     canEnable,
@@ -46,19 +47,20 @@ export default function useProxyHostFormModalLogic({
 }: UseProxyHostFormLogicParams) {
     const { t } = useTranslationStore()
     const formId = useId()
-    const isCreate = mode === 'create'
+    const isCreate = mode !== 'edit'
+    const defaultValues = getProxyHostFormValues(mode, proxyHost)
     const queryClient = useQueryClient()
     const [domainKeys, setDomainKeys] = useState(() =>
-        (proxyHost?.domains ?? ['']).map(() => crypto.randomUUID()),
+        defaultValues.domains.map(() => crypto.randomUUID()),
     )
     const [pendingDisableValues, setPendingDisableValues] =
         useState<ProxyHostEditorFormValues | null>(null)
     const [requestNewCertificate, setRequestNewCertificate] = useState(false)
     const [certificateJobIdempotencyKey] = useState(() => crypto.randomUUID())
-    const suggestedRequestName = useRef(proxyHost?.domains[0] ?? '')
+    const suggestedRequestName = useRef(defaultValues.domains[0] ?? '')
     const certificateRequest = useCertificateRequest({
-        initialDomains: proxyHost?.domains ?? [''],
-        initialName: proxyHost?.domains[0] ?? '',
+        initialDomains: defaultValues.domains,
+        initialName: defaultValues.domains[0] ?? '',
         onSuccess: async () => undefined,
         readOnlyDomains: true,
     })
@@ -103,7 +105,7 @@ export default function useProxyHostFormModalLogic({
                       return hostCertificateRequestSchema.parse(withoutDomains)
                   })()
                 : null
-            if (mode === 'create' && request) {
+            if (isCreate && request) {
                 return createProxyHostWithCertificateHandler({
                     data: {
                         idempotencyKey: certificateJobIdempotencyKey,
@@ -112,7 +114,7 @@ export default function useProxyHostFormModalLogic({
                     },
                 })
             }
-            if (mode === 'create') return createProxyHostHandler({ data: submittedData })
+            if (isCreate) return createProxyHostHandler({ data: submittedData })
             if (!proxyHost) throw new Error('admin.proxyHosts.errors.proxy_host_not_found')
             if (request) {
                 return updateProxyHostWithCertificateHandler({
@@ -171,20 +173,6 @@ export default function useProxyHostFormModalLogic({
     const retryAssignableAccessPolicies = useCallback(() => {
         void accessPoliciesQuery.refetch()
     }, [accessPoliciesQuery])
-    const defaultValues: ProxyHostEditorFormValues = {
-        domains: proxyHost ? [...proxyHost.domains] : [''],
-        forwardScheme: proxyHost?.forwardScheme ?? 'http',
-        forwardHost: proxyHost?.forwardHost ?? '',
-        forwardPort: String(proxyHost?.forwardPort ?? 80),
-        enabled: proxyHost?.enabled ?? true,
-        certificateId: proxyHost?.certificateId ?? null,
-        forceHttps: proxyHost?.forceHttps ?? false,
-        verifyUpstreamTls:
-            proxyHost?.forwardScheme === 'https' ? (proxyHost.verifyUpstreamTls ?? true) : true,
-        upstreamTlsServerName: proxyHost?.upstreamTlsServerName ?? null,
-        trustedCaId: proxyHost?.trustedCaId ?? null,
-        accessPolicyId: proxyHost?.accessPolicyId ?? null,
-    }
     const form = useForm({
         defaultValues,
         validators: { onSubmit: proxyHostFormSchema },
@@ -245,8 +233,18 @@ export default function useProxyHostFormModalLogic({
         certificateRequestForm: certificateRequest.form,
         state: {
             formId,
-            description: t('admin.proxyHosts.form.description'),
-            title: t(isCreate ? 'admin.proxyHosts.actions.add' : 'admin.proxyHosts.form.editTitle'),
+            description: t(
+                mode === 'duplicate'
+                    ? 'admin.proxyHosts.form.duplicateDescription'
+                    : 'admin.proxyHosts.form.description',
+            ),
+            title: t(
+                mode === 'duplicate'
+                    ? 'admin.proxyHosts.actions.duplicate'
+                    : isCreate
+                      ? 'admin.proxyHosts.actions.add'
+                      : 'admin.proxyHosts.form.editTitle',
+            ),
             pendingSubmitLabel: t(isCreate ? 'admin.proxyHosts.form.creating' : 'common.saving'),
             submitLabel: requestNewCertificate
                 ? t('admin.certificates.actions.request')
@@ -258,7 +256,7 @@ export default function useProxyHostFormModalLogic({
             assignableAccessPolicies: accessPoliciesQuery.data ?? [],
             assignableAccessPoliciesLoadFailed: accessPoliciesQuery.isError,
             assignableAccessPoliciesLoading: accessPoliciesQuery.isPending,
-            canChangeEnabled: mode === 'create' || (proxyHost?.enabled ? canDisable : canEnable),
+            canChangeEnabled: isCreate || (proxyHost?.enabled ? canDisable : canEnable),
             assignableCertificates: certificatesQuery.data ?? [],
             assignableCertificatesLoadFailed: certificatesQuery.isError,
             assignableCertificatesLoading: certificatesQuery.isPending,

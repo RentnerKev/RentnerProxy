@@ -1107,6 +1107,7 @@
             },
             "actions": {
                 "add": "Proxyhost toevoegen",
+                "duplicate": "Proxyhost dupliceren",
                 "create": "Proxyhost aanmaken",
                 "edit": "Bewerken",
                 "enable": "Inschakelen",
@@ -1133,6 +1134,7 @@
             },
             "form": {
                 "description": "Sla domeinen en een doorstuurdoel op voor de actieve proxyconfiguratie.",
+                "duplicateDescription": "Voer nieuwe domeinen in en controleer de certificaten en het toegangsbeleid. Afzonderlijke HTTP-instellingen uit de configuratie-editor worden niet gekopieerd.",
                 "editTitle": "Proxyhost bewerken",
                 "creating": "Aanmaken…",
                 "domains": "Domeinen",
@@ -1368,6 +1370,7 @@
             },
             "actions": {
                 "add": "Omleidingshost toevoegen",
+                "duplicate": "Omleidingshost dupliceren",
                 "create": "Omleidingshost aanmaken",
                 "edit": "Bewerken",
                 "enable": "Inschakelen",
@@ -1393,6 +1396,7 @@
             },
             "form": {
                 "description": "Sla domeinen en een bestemming op voor de actieve proxyconfiguratie.",
+                "duplicateDescription": "Voer nieuwe domeinen in en controleer de bestemming, het certificaat en de status voordat je de kopie maakt.",
                 "editTitle": "Omleidingshost bewerken",
                 "creating": "Aanmaken…",
                 "domains": "Domeinen",

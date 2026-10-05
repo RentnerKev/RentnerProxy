@@ -10,6 +10,7 @@ export interface ProxyHostManagementLogicResult {
         readonly canCreateCertificateJob: boolean
         readonly canEditConfig: boolean
         readonly canCreate: boolean
+        readonly canDuplicate: (host: ProxyHostSummary) => boolean
         readonly canDelete: boolean
         readonly canDisable: boolean
         readonly canEnable: boolean
@@ -28,6 +29,7 @@ export interface ProxyHostManagementLogicResult {
         readonly runtimeStatusRetrying: boolean
         readonly selectedProxyHost: ProxyHostSummary | null
         readonly showCreate: boolean
+        readonly duplicateSource: ProxyHostSummary | null
         readonly configTarget: ProxyHostSummary | null
         readonly globalConfigOpen: boolean
         readonly certificateRequestTarget: ProxyHostSummary | null
@@ -40,6 +42,7 @@ export interface ProxyHostManagementLogicResult {
         readonly handleFormSuccess: () => void
         readonly handleCertificateRequestSuccess: () => void
         readonly openCreate: () => void
+        readonly openDuplicate: (host: ProxyHostSummary) => void
         readonly openConfigEditor: (value: ProxyHostSummary) => void
         readonly openCertificateRequest: (value: ProxyHostSummary) => void
         readonly setCertificateRequestOpen: (open: boolean) => void

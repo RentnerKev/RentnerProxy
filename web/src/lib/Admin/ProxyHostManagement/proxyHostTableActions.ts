@@ -16,11 +16,13 @@ export function getProxyHostTableActionItems(
         canRequestCertificate,
         canEnable,
         canUpdate,
+        canDuplicate,
         isPending,
         onConfig,
         onDelete,
         onDisable,
         onEdit,
+        onDuplicate,
         onEnable,
         onRequestCertificate,
         host,
@@ -29,6 +31,14 @@ export function getProxyHostTableActionItems(
 ): Array<ActionMenuItem> {
     const name = getProxyHostName(host)
     const items: Array<ActionMenuItem> = []
+
+    if (canDuplicate?.(host) && onDuplicate) {
+        items.push({
+            label: t('admin.proxyHosts.actions.duplicate'),
+            onSelect: () => onDuplicate(host),
+            disabled: isPending,
+        })
+    }
 
     if (canUpdate) {
         items.push({

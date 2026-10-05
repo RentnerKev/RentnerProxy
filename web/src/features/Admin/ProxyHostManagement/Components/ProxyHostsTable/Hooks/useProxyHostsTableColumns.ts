@@ -23,11 +23,13 @@ export default function useProxyHostsTableColumns({
     canRequestCertificate,
     canEnable,
     canUpdate,
+    canDuplicate,
     isPending,
     onConfig,
     onDelete,
     onDisable,
     onEdit,
+    onDuplicate,
     onEnable,
     onRequestCertificate,
 }: ProxyHostTableActionProps) {
@@ -85,6 +87,7 @@ export default function useProxyHostsTableColumns({
 
         if (
             canUpdate ||
+            (canDuplicate && onDuplicate) ||
             canDelete ||
             canEnable ||
             canDisable ||
@@ -103,6 +106,8 @@ export default function useProxyHostsTableColumns({
                         canDisable,
                         canEnable,
                         canUpdate,
+                        ...(canDuplicate ? { canDuplicate } : {}),
+                        ...(onDuplicate ? { onDuplicate } : {}),
                         host: row.original,
                         isPending,
                         ...(onConfig ? { onConfig } : {}),
@@ -122,11 +127,13 @@ export default function useProxyHostsTableColumns({
         canEnable,
         canRequestCertificate,
         canUpdate,
+        canDuplicate,
         isPending,
         onConfig,
         onDelete,
         onDisable,
         onEdit,
+        onDuplicate,
         onEnable,
         onRequestCertificate,
         t,

@@ -7,12 +7,14 @@ export interface ProxyHostsTableProps {
     readonly loading: boolean
     readonly action?: ReactNode
     readonly canUpdate: boolean
+    readonly canDuplicate?: (host: ProxyHostSummary) => boolean
     readonly canDelete: boolean
     readonly canEnable: boolean
     readonly canDisable: boolean
     readonly canRequestCertificate?: boolean
     readonly isPending: boolean
     readonly onEdit: (host: ProxyHostSummary) => void
+    readonly onDuplicate?: (host: ProxyHostSummary) => void
     readonly onConfig?: (host: ProxyHostSummary) => void
     readonly onDelete: (host: ProxyHostSummary) => void
     readonly onDisable: (host: ProxyHostSummary) => void
@@ -23,12 +25,14 @@ export interface ProxyHostsTableProps {
 export type ProxyHostTableActionProps = Pick<
     ProxyHostsTableProps,
     | 'canUpdate'
+    | 'canDuplicate'
     | 'canDelete'
     | 'canEnable'
     | 'canDisable'
     | 'canRequestCertificate'
     | 'isPending'
     | 'onEdit'
+    | 'onDuplicate'
     | 'onConfig'
     | 'onDelete'
     | 'onDisable'

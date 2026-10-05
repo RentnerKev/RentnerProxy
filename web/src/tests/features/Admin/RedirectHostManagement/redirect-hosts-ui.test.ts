@@ -41,3 +41,49 @@ describe('Redirect Host table actions', () => {
         expect(selected).toEqual(['edit', 'disable', 'delete'])
     })
 })
+
+describe('Redirect Host duplication action', () => {
+    const props = {
+        canUpdate: false,
+        canDelete: false,
+        canEnable: false,
+        canDisable: false,
+        isPending: false,
+        host,
+        onEdit: () => {},
+        onDelete: () => {},
+        onDisable: () => {},
+        onEnable: () => {},
+    }
+    test('requires both a host permission predicate and duplicate handler', () => {
+        expect(
+            getRedirectHostTableActionItems({ ...props, canDuplicate: () => true }, (key) => key),
+        ).toEqual([])
+        expect(
+            getRedirectHostTableActionItems({ ...props, onDuplicate: () => {} }, (key) => key),
+        ).toEqual([])
+        expect(
+            getRedirectHostTableActionItems(
+                { ...props, canDuplicate: () => false, onDuplicate: () => {} },
+                (key) => key,
+            ),
+        ).toEqual([])
+    })
+    test('passes the source to duplication and disables the action while pending', () => {
+        const selected: RedirectHostSummary[] = []
+        const items = getRedirectHostTableActionItems(
+            {
+                ...props,
+                isPending: true,
+                canDuplicate: (candidate) => candidate === host,
+                onDuplicate: (candidate) => selected.push(candidate),
+            },
+            (key) => key,
+        )
+        expect(items).toHaveLength(1)
+        expect(items[0]?.label).toBe('admin.redirectHosts.actions.duplicate')
+        expect(items[0]?.disabled).toBeTrue()
+        items[0]?.onSelect()
+        expect(selected).toEqual([host])
+    })
+})

@@ -18,6 +18,7 @@ import {
     updateRedirectHostHandler,
 } from '../../../middleware.ts'
 import type { RedirectHostEditorFormValues } from '../Types/redirect-host-form.types.ts'
+import { getRedirectHostFormDefaultValues } from '@/lib/Admin/RedirectHostManagement/redirectHostFormValues.ts'
 import { redirectHostFormSchema } from '../../../validation.ts'
 export default function useRedirectHostFormModalLogic({
     canEnable,
@@ -32,10 +33,11 @@ export default function useRedirectHostFormModalLogic({
 >) {
     const { t } = useTranslationStore()
     const formId = useId()
-    const isCreate = mode === 'create'
+    const isCreate = mode !== 'edit'
+    const defaultValues = getRedirectHostFormDefaultValues(mode, redirectHost)
     const queryClient = useQueryClient()
     const [domainKeys, setDomainKeys] = useState(() =>
-        (redirectHost?.domains ?? ['']).map(() => crypto.randomUUID()),
+        defaultValues.domains.map(() => crypto.randomUUID()),
     )
     const [pendingDisableValues, setPendingDisableValues] =
         useState<RedirectHostEditorFormValues | null>(null)
@@ -48,7 +50,7 @@ export default function useRedirectHostFormModalLogic({
     const mutation = useMutation({
         mutationFn: (values: RedirectHostEditorFormValues) => {
             const data = redirectHostFormSchema.parse(values)
-            return mode === 'create'
+            return isCreate
                 ? createRedirectHostHandler({ data })
                 : redirectHost
                   ? updateRedirectHostHandler({
@@ -86,14 +88,7 @@ export default function useRedirectHostFormModalLogic({
         void certificatesQuery.refetch()
     }, [certificatesQuery])
     const form = useForm({
-        defaultValues: {
-            domains: redirectHost ? [...redirectHost.domains] : [''],
-            destination: redirectHost?.destination ?? '',
-            statusCode: String(redirectHost?.statusCode ?? 302),
-            preserveRequestUri: redirectHost?.preserveRequestUri ?? true,
-            enabled: redirectHost?.enabled ?? true,
-            certificateId: redirectHost?.certificateId ?? null,
-        },
+        defaultValues,
         validators: { onSubmit: redirectHostFormSchema },
         onSubmit: async ({ value }) => {
             mutation.reset()
@@ -130,15 +125,23 @@ export default function useRedirectHostFormModalLogic({
         form,
         state: {
             formId,
-            description: t('admin.redirectHosts.form.description'),
+            description: t(
+                mode === 'duplicate'
+                    ? 'admin.redirectHosts.form.duplicateDescription'
+                    : 'admin.redirectHosts.form.description',
+            ),
             title: t(
-                isCreate ? 'admin.redirectHosts.actions.add' : 'admin.redirectHosts.form.editTitle',
+                mode === 'duplicate'
+                    ? 'admin.redirectHosts.actions.duplicate'
+                    : isCreate
+                      ? 'admin.redirectHosts.actions.add'
+                      : 'admin.redirectHosts.form.editTitle',
             ),
             pendingSubmitLabel: t(isCreate ? 'admin.redirectHosts.form.creating' : 'common.saving'),
             submitLabel: t(isCreate ? 'admin.redirectHosts.actions.create' : 'common.save'),
 
             canAssignCertificates,
-            canChangeEnabled: mode === 'create' || (redirectHost?.enabled ? canDisable : canEnable),
+            canChangeEnabled: isCreate || (redirectHost?.enabled ? canDisable : canEnable),
             assignableCertificates: certificatesQuery.data ?? [],
             assignableCertificatesLoadFailed: certificatesQuery.isError,
             assignableCertificatesLoading: certificatesQuery.isPending,

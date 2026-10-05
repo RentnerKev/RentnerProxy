@@ -89,7 +89,13 @@ export default function useRedirectHostsTableColumns(props: RedirectHostTableAct
                     createElement(RedirectHostCreatedAtCell, { value: getValue() }),
             },
         ]
-        if (props.canUpdate || props.canDelete || props.canEnable || props.canDisable)
+        if (
+            props.canUpdate ||
+            props.canDelete ||
+            props.canEnable ||
+            props.canDisable ||
+            (props.canDuplicate && props.onDuplicate)
+        )
             columns.push({
                 id: 'actions',
                 header: t('admin.redirectHosts.columns.actions'),

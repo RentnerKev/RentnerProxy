@@ -6,11 +6,13 @@ export interface ProxyHostTableActionInputs {
     readonly canRequestCertificate?: boolean
     readonly canEnable: boolean
     readonly canUpdate: boolean
+    readonly canDuplicate?: (host: ProxyHostSummary) => boolean
     readonly isPending: boolean
     readonly host: ProxyHostSummary
     readonly onDelete: (value: ProxyHostSummary) => void
     readonly onDisable: (value: ProxyHostSummary) => void
     readonly onEdit: (value: ProxyHostSummary) => void
+    readonly onDuplicate?: (value: ProxyHostSummary) => void
     readonly onEnable: (value: ProxyHostSummary) => void
     readonly onConfig?: (value: ProxyHostSummary) => void
     readonly onRequestCertificate?: (value: ProxyHostSummary) => void

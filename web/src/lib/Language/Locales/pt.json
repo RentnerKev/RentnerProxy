@@ -1138,6 +1138,7 @@
             },
             "actions": {
                 "add": "Adicionar host proxy",
+                "duplicate": "Duplicar host proxy",
                 "create": "Criar host proxy",
                 "edit": "Editar",
                 "enable": "Ativar",
@@ -1164,6 +1165,7 @@
             },
             "form": {
                 "description": "Guarde domínios e um destino de encaminhamento para a configuração do ambiente de execução do proxy.",
+                "duplicateDescription": "Introduza novos domínios e reveja os certificados e as políticas de acesso. As definições HTTP separadas do editor de configuração não são copiadas.",
                 "editTitle": "Editar host proxy",
                 "creating": "A criar…",
                 "domains": "Domínios",
@@ -1401,6 +1403,7 @@
             },
             "actions": {
                 "add": "Adicionar host de redirecionamento",
+                "duplicate": "Duplicar host de redirecionamento",
                 "create": "Criar host de redirecionamento",
                 "edit": "Editar",
                 "enable": "Ativar",
@@ -1426,6 +1429,7 @@
             },
             "form": {
                 "description": "Guarde domínios e um destino para a configuração do ambiente de execução do proxy.",
+                "duplicateDescription": "Introduza novos domínios e reveja o destino, o certificado e o estado antes de criar a cópia.",
                 "editTitle": "Editar host de redirecionamento",
                 "creating": "A criar…",
                 "domains": "Domínios",

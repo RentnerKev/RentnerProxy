@@ -3,6 +3,8 @@ import type { Translate } from '@/shared/Language/Types/language.types.ts'
 import type { RedirectHostTableActionsProps } from '@/features/Admin/RedirectHostManagement/Types/redirect-host-table.types.ts'
 export function getRedirectHostTableActionItems(
     {
+        canDuplicate,
+        onDuplicate,
         canDelete,
         canDisable,
         canEnable,
@@ -22,6 +24,12 @@ export function getRedirectHostTableActionItems(
         items.push({
             label: t('admin.redirectHosts.actions.edit'),
             onSelect: () => onEdit(host),
+            disabled: isPending,
+        })
+    if (canDuplicate?.(host) && onDuplicate)
+        items.push({
+            label: t('admin.redirectHosts.actions.duplicate'),
+            onSelect: () => onDuplicate(host),
             disabled: isPending,
         })
     if (host.enabled && canDisable)

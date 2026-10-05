@@ -57,6 +57,8 @@ export default function RedirectHostManagementPage(props: RedirectHostManagement
                     redirectHosts={state.redirectHosts}
                     loading={state.isLoading}
                     action={action}
+                    canDuplicate={state.canDuplicate}
+                    onDuplicate={handler.openDuplicate}
                     canUpdate={state.canUpdate}
                     canDelete={state.canDelete}
                     canEnable={state.canEnable}
@@ -76,6 +78,19 @@ export default function RedirectHostManagementPage(props: RedirectHostManagement
                     canDisable={state.canDisable}
                     canAssignCertificates={state.canAssignCertificates}
                     onOpenChange={handler.setCreateOpen}
+                    onSuccess={handler.handleFormSuccess}
+                />
+            ) : null}
+            {state.duplicateSource ? (
+                <RedirectHostFormModal
+                    key={'duplicate-' + state.duplicateSource.id}
+                    open
+                    mode="duplicate"
+                    redirectHost={state.duplicateSource}
+                    canEnable={state.canEnable}
+                    canDisable={state.canDisable}
+                    canAssignCertificates={state.canAssignCertificates}
+                    onOpenChange={handler.setDuplicateOpen}
                     onSuccess={handler.handleFormSuccess}
                 />
             ) : null}
