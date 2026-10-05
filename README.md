@@ -23,6 +23,7 @@
 
 - Proxy hosts and redirects with HTTP/2, HTTP/3, and WebSocket support.
 - Duplicate proxy and redirect hosts into a draft with new domains, using existing creation, certificate and access-policy validation. Proxy copies inherit global HTTP settings; separate per-host Config overrides are not copied.
+- Global quick search with Ctrl+K on Windows/Linux and Cmd+K on macOS, plus a mobile search control. Find authorized hosts, certificates, access policies and settings with bounded results and keyboard navigation.
 - Automatic TLS via ACME (HTTP-01 or Cloudflare DNS-01), wildcard and imported certificates.
 - Access policies with Basic Auth, Forward Auth, and IP allow/deny rules; verified HTTPS upstreams.
 - CrowdSec protection: managed or external Local API, optional community/Console connection, and a dedicated security dashboard in the development image.

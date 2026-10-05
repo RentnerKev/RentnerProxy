@@ -83,6 +83,31 @@
         "systemVersion": "Version du système {{version}}",
         "updateAvailable": "Mise à jour disponible vers la version {{version}}"
     },
+    "quickSearch": {
+        "title": "Recherche rapide",
+        "open": "Ouvrir la recherche",
+        "description": "Trouvez des hôtes, des certificats, des politiques d’accès ou des paramètres.",
+        "placeholder": "Rechercher par nom, domaine ou destination…",
+        "queryLabel": "Rechercher",
+        "minQuery": "Saisissez au moins deux caractères pour rechercher des entrées.",
+        "loading": "Recherche en cours…",
+        "noResults": "Aucun résultat trouvé.",
+        "unavailable": "Certains résultats sont indisponibles. Réessayez.",
+        "retry": "Relancer la recherche",
+        "targetUnavailable": "Cette entrée n’est plus disponible ou vos autorisations ont changé.",
+        "opening": "Ouverture…",
+        "resultsLabel": "Résultats de recherche",
+        "keyboardHint": "↑ ↓ Sélectionner · Entrée Ouvrir · Échap Fermer",
+        "limited": "Jusqu’à {{count}} résultats par catégorie. Affinez votre recherche.",
+        "categories": {
+            "navigation": "Pages",
+            "settings": "Paramètres",
+            "proxyHosts": "Hôtes proxy",
+            "redirectHosts": "Hôtes de redirection",
+            "certificates": "Certificats",
+            "accessPolicies": "Politiques d’accès"
+        }
+    },
     "language": {
         "title": "Langue",
         "description": "Choisissez la langue de votre compte.",

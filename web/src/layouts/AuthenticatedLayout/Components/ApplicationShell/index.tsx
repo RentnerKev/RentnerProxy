@@ -10,6 +10,7 @@ import ApplicationTopbar from './Components/ApplicationTopbar.tsx'
 import ApplicationUserPanel from './Components/ApplicationUserPanel.tsx'
 import ApplicationVersion from './Components/ApplicationVersion.tsx'
 import useApplicationShellLogic from './Hooks/useApplicationShellLogic.ts'
+import QuickSearch from '@/features/QuickSearch/index.tsx'
 import type { AuthenticatedShellProps } from './Types/application-shell.types.ts'
 
 export default function AuthenticatedShell({
@@ -103,6 +104,14 @@ export default function AuthenticatedShell({
                         onToggleMobileNavigation={handler.toggleMobileNavigation}
                         onToggleNavigation={handler.toggleNavigation}
                         themeControl={themeControl}
+                        searchControl={
+                            <QuickSearch
+                                key={user.id}
+                                userId={user.id}
+                                permissions={user.permissions}
+                                onNavigate={handler.closeMobileNavigation}
+                            />
+                        }
                     />
                     <div
                         id="application-mobile-navigation"

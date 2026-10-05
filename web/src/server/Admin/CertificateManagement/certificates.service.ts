@@ -4,8 +4,18 @@ import type {
     CertificateDeletionRuntime,
 } from './Types/certificates.types.ts'
 import '@tanstack/react-start/server-only'
+import { QUICK_SEARCH_LIMIT } from '@/config/quick-search.config.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
+import type {
+    QuickSearchEntity,
+    QuickSearchInput,
+} from '@/lib/QuickSearch/Types/quick-search.types.ts'
+import {
+    getQuickSearchPattern,
+    quickSearchInputSchema,
+} from '@/lib/QuickSearch/quickSearchValidation.ts'
 
-import { and, asc, count, eq, inArray, notInArray } from 'drizzle-orm'
+import { and, asc, count, eq, inArray, notInArray, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
@@ -871,4 +881,36 @@ export async function validateCertificateAssignmentInTransaction(
     if (!certificateCoversDomains(metadata.domains, domains))
         throw new CertificateDomainError('domain_mismatch')
     await persistControllerMetadata(transaction, metadata)
+}
+
+export async function searchCertificatesService(
+    actor: AuthenticatedUser,
+    input: QuickSearchInput,
+): Promise<Array<QuickSearchEntity>> {
+    if (!actor.permissions.includes(PERMISSIONS.CERTIFICATES_VIEW)) {
+        throw new AuthDomainError('permission_denied', 'Permission is required.')
+    }
+    const currentActor = await requirePermissionService(PERMISSIONS.CERTIFICATES_VIEW)
+    if (currentActor.id !== actor.id) {
+        throw new AuthDomainError('permission_denied', 'Permission is required.')
+    }
+    const parsed = quickSearchInputSchema.safeParse(input)
+    if (!parsed.success) {
+        throw new CertificateDomainError('invalid_input')
+    }
+    const pattern = getQuickSearchPattern(parsed.data.query)
+    return getAuthDatabase()
+        .select({
+            id: certificates.id,
+            label: certificates.name,
+            detail: sql<string>`coalesce((select ${certificateDomains.domain} from ${certificateDomains} where ${certificateDomains.certificateId} = ${certificates.id} order by ${certificateDomains.domain} limit 1), '')`,
+        })
+        .from(certificates)
+        .where(
+            parsed.data.id
+                ? eq(certificates.id, parsed.data.id)
+                : sql`exists (select 1 from ${certificateDomains} where ${certificateDomains.certificateId} = ${certificates.id} and ${certificateDomains.domain} ilike ${pattern} escape '\\') or ${certificates.name} ilike ${pattern} escape '\\'`,
+        )
+        .orderBy(asc(certificates.id))
+        .limit(parsed.data.id ? 1 : QUICK_SEARCH_LIMIT)
 }

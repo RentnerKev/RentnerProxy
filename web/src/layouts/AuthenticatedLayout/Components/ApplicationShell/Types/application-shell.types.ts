@@ -76,6 +76,7 @@ export interface ApplicationTopbarProps {
     readonly onToggleMobileNavigation: () => void
     readonly onToggleNavigation: () => void
     readonly themeControl: ReactNode
+    readonly searchControl?: ReactNode
 }
 
 export interface ApplicationShellViewModel {

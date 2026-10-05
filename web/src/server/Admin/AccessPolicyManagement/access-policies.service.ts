@@ -1,7 +1,18 @@
 import type { AccessPolicyMutationResult, AccessPolicyRow } from './Types/access-policies.types.ts'
 import '@tanstack/react-start/server-only'
+import { QUICK_SEARCH_LIMIT } from '@/config/quick-search.config.ts'
+import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
+import type {
+    QuickSearchEntity,
+    QuickSearchInput,
+} from '@/lib/QuickSearch/Types/quick-search.types.ts'
+import {
+    getQuickSearchPattern,
+    quickSearchInputSchema,
+} from '@/lib/QuickSearch/quickSearchValidation.ts'
+import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 
-import { asc, count, eq } from 'drizzle-orm'
+import { asc, count, eq, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 
 import {
@@ -397,4 +408,36 @@ export async function deleteAccessPolicyService(
         accessPolicyId: id,
         runtimeStatus: await reconcileProxyConfigurationWithAudit(actor.id),
     }
+}
+
+export async function searchAccessPoliciesService(
+    actor: AuthenticatedUser,
+    input: QuickSearchInput,
+): Promise<Array<QuickSearchEntity>> {
+    if (!actor.permissions.includes(PERMISSIONS.ACCESS_POLICIES_VIEW)) {
+        throw new AuthDomainError('permission_denied', 'Permission is required.')
+    }
+    const currentActor = await requirePermissionService(PERMISSIONS.ACCESS_POLICIES_VIEW)
+    if (currentActor.id !== actor.id) {
+        throw new AuthDomainError('permission_denied', 'Permission is required.')
+    }
+    const parsed = quickSearchInputSchema.safeParse(input)
+    if (!parsed.success) {
+        throw new AccessPolicyDomainError('invalid_input')
+    }
+    const pattern = getQuickSearchPattern(parsed.data.query)
+    return getAuthDatabase()
+        .select({
+            id: accessPolicies.id,
+            label: accessPolicies.name,
+            detail: sql<string>`left(${accessPolicies.description}, 256)`,
+        })
+        .from(accessPolicies)
+        .where(
+            parsed.data.id
+                ? eq(accessPolicies.id, parsed.data.id)
+                : sql`${accessPolicies.name} ilike ${pattern} escape '\\' or ${accessPolicies.description} ilike ${pattern} escape '\\'`,
+        )
+        .orderBy(asc(accessPolicies.id))
+        .limit(parsed.data.id ? 1 : QUICK_SEARCH_LIMIT)
 }

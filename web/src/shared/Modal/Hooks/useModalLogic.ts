@@ -6,6 +6,7 @@ import type { PreventableEvent } from '../Types/modal.types.ts'
 
 export default function useModalLogic({
     closeDisabled,
+    onOpenAutoFocus,
     onOpenChange,
 }: UseModalLogicParams): ModalLogicResult {
     const returnFocusRef = useRef<HTMLElement | null>(null)
@@ -28,10 +29,11 @@ export default function useModalLogic({
                     restoreFocus()
                 }
             },
-            handleOpenAutoFocus: () => {
+            handleOpenAutoFocus: (event: PreventableEvent) => {
                 const activeElement = document.activeElement
 
                 returnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null
+                onOpenAutoFocus?.(event)
             },
             handleOpenChange: (nextOpen: boolean) => {
                 if (!nextOpen && closeDisabled) {
@@ -39,10 +41,6 @@ export default function useModalLogic({
                 }
 
                 onOpenChange(nextOpen)
-
-                if (!nextOpen) {
-                    window.setTimeout(restoreFocus, 0)
-                }
             },
             preventClose: (event: PreventableEvent) => {
                 const target = event.target

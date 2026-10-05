@@ -64,6 +64,31 @@
         "systemVersion": "Systeemversie {{version}}",
         "updateAvailable": "Update naar versie {{version}} beschikbaar"
     },
+    "quickSearch": {
+        "title": "Snel zoeken",
+        "open": "Zoeken openen",
+        "description": "Zoek hosts, certificaten, toegangsbeleid of instellingen.",
+        "placeholder": "Zoeken op naam, domein of bestemming…",
+        "queryLabel": "Zoeken",
+        "minQuery": "Voer minimaal twee tekens in om items te zoeken.",
+        "loading": "Zoeken…",
+        "noResults": "Geen resultaten gevonden.",
+        "unavailable": "Sommige resultaten zijn niet beschikbaar. Probeer het opnieuw.",
+        "retry": "Zoeken opnieuw proberen",
+        "targetUnavailable": "Dit item is niet meer beschikbaar of je machtigingen zijn gewijzigd.",
+        "opening": "Openen…",
+        "resultsLabel": "Zoekresultaten",
+        "keyboardHint": "↑ ↓ Selecteren · Enter Openen · Esc Sluiten",
+        "limited": "Maximaal {{count}} resultaten per categorie. Verfijn je zoekopdracht.",
+        "categories": {
+            "navigation": "Pagina’s",
+            "settings": "Instellingen",
+            "proxyHosts": "Proxyhosts",
+            "redirectHosts": "Omleidingshosts",
+            "certificates": "Certificaten",
+            "accessPolicies": "Toegangsbeleid"
+        }
+    },
     "language": {
         "title": "Taal",
         "description": "Kies de taal voor je account.",

@@ -83,6 +83,31 @@
         "systemVersion": "System version {{version}}",
         "updateAvailable": "Update available to version {{version}}"
     },
+    "quickSearch": {
+        "title": "Quick search",
+        "open": "Search",
+        "description": "Find hosts, certificates, access policies or settings.",
+        "placeholder": "Search by name, domain or destination…",
+        "queryLabel": "Search",
+        "minQuery": "Enter at least two characters to search entries.",
+        "loading": "Searching…",
+        "noResults": "No results found.",
+        "unavailable": "Some results are unavailable. Try again.",
+        "retry": "Retry search",
+        "targetUnavailable": "This entry is no longer available or your permissions have changed.",
+        "opening": "Opening…",
+        "resultsLabel": "Search results",
+        "keyboardHint": "↑ ↓ Select · Enter Open · Esc Close",
+        "limited": "Up to {{count}} results per category. Refine your search.",
+        "categories": {
+            "navigation": "Pages",
+            "settings": "Settings",
+            "proxyHosts": "Proxy hosts",
+            "redirectHosts": "Redirect hosts",
+            "certificates": "Certificates",
+            "accessPolicies": "Access policies"
+        }
+    },
     "language": {
         "title": "Language",
         "description": "Choose the language for your account.",

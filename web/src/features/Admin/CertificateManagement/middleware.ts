@@ -1,3 +1,7 @@
+import { quickSearchInputSchema } from '@/lib/QuickSearch/quickSearchValidation.ts'
+import { searchCertificatesService } from '@/server/Admin/CertificateManagement/certificates.service.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader, setResponseStatus } from '@tanstack/react-start/server'
 import type { CertificateActionResult } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
@@ -124,5 +128,17 @@ export const deleteCertificateHandler = createServerFn({ method: 'POST' })
             }
         } catch (error) {
             return certificateActionFailure(error)
+        }
+    })
+
+export const searchCertificatesHandler = createServerFn({ method: 'GET' })
+    .validator(quickSearchInputSchema)
+    .handler(async ({ data }) => {
+        setResponseHeader('Cache-Control', 'private, no-store')
+        try {
+            const actor = await requirePermissionService(PERMISSIONS.CERTIFICATES_VIEW)
+            return await searchCertificatesService(actor, data)
+        } catch (error) {
+            throwLocalizedQueryError(error, 'admin.certificates.errors.loadFailed')
         }
     })
