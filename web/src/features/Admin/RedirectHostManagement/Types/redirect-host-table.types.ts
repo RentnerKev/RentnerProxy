@@ -4,6 +4,8 @@ export interface RedirectHostsTableProps {
     readonly redirectHosts: ReadonlyArray<RedirectHostSummary>
     readonly loading: boolean
     readonly action?: ReactNode
+    readonly canDuplicate?: (host: RedirectHostSummary) => boolean
+    readonly onDuplicate?: (host: RedirectHostSummary) => void
     readonly canUpdate: boolean
     readonly canDelete: boolean
     readonly canEnable: boolean
@@ -16,6 +18,8 @@ export interface RedirectHostsTableProps {
 }
 export type RedirectHostTableActionProps = Pick<
     RedirectHostsTableProps,
+    | 'canDuplicate'
+    | 'onDuplicate'
     | 'canUpdate'
     | 'canDelete'
     | 'canEnable'

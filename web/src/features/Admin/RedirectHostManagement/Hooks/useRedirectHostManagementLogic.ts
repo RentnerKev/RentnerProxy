@@ -24,6 +24,14 @@ export default function useRedirectHostManagementLogic({
     const { t } = useTranslationStore()
     const permissionSet = useMemo(() => new Set(permissions), [permissions])
     const canView = permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_VIEW)
+    const canCreate = permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_CREATE)
+    const canAssignCertificates = canCreate || permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_UPDATE)
+    const canDuplicate = useCallback(
+        (host: RedirectHostSummary) =>
+            canView && canCreate && (!host.certificateId || canAssignCertificates),
+        [canView, canCreate, canAssignCertificates],
+    )
+    const [duplicateSource, setDuplicateSource] = useState<RedirectHostSummary | null>(null)
     const queryClient = useQueryClient()
     const [showCreate, setShowCreate] = useState(false)
     const [selected, setSelected] = useState<RedirectHostSummary | null>(null)
@@ -128,13 +136,25 @@ export default function useRedirectHostManagementLogic({
     })
     const openCreate = useCallback(() => {
         setSelected(null)
+        setDuplicateSource(null)
         setShowCreate(true)
     }, [])
     const openEditor = useCallback((host: RedirectHostSummary) => {
         setShowCreate(false)
+        setDuplicateSource(null)
         setSelected(host)
     }, [])
+    const openDuplicate = useCallback(
+        (host: RedirectHostSummary) => {
+            if (!canDuplicate(host)) return
+            setShowCreate(false)
+            setSelected(null)
+            setDuplicateSource(host)
+        },
+        [canDuplicate],
+    )
     const handleFormSuccess = useCallback(() => {
+        setDuplicateSource(null)
         setShowCreate(false)
         setSelected(null)
     }, [])
@@ -161,14 +181,14 @@ export default function useRedirectHostManagementLogic({
     return {
         state: {
             canApply: permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_APPLY),
-            canCreate: permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_CREATE),
+            canCreate,
+            canDuplicate,
+            duplicateSource,
             canDelete: permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_DELETE),
             canDisable: permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_DISABLE),
             canEnable: permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_ENABLE),
             canUpdate: permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_UPDATE),
-            canAssignCertificates:
-                permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_CREATE) ||
-                permissionSet.has(PERMISSIONS.REDIRECT_HOSTS_UPDATE),
+            canAssignCertificates,
             deleteTarget,
             disableTarget,
             isDeleting: deleteMutation.isPending,
@@ -198,6 +218,10 @@ export default function useRedirectHostManagementLogic({
             enable: (host: RedirectHostSummary) => enableMutation.mutate(host),
             handleFormSuccess,
             openCreate,
+            openDuplicate,
+            setDuplicateOpen: (open: boolean) => {
+                if (!open) setDuplicateSource(null)
+            },
             openDelete,
             openDisable,
             openEditor,

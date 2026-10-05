@@ -1132,6 +1132,7 @@
             },
             "actions": {
                 "add": "Aggiungi host proxy",
+                "duplicate": "Duplica host proxy",
                 "create": "Crea host proxy",
                 "edit": "Modifica",
                 "enable": "Attiva",
@@ -1158,6 +1159,7 @@
             },
             "form": {
                 "description": "Salva i domini e una destinazione di inoltro per la configurazione runtime del proxy.",
+                "duplicateDescription": "Inserisci nuovi domini e verifica i certificati e le regole di accesso. Le impostazioni HTTP separate dell’editor di configurazione non vengono copiate.",
                 "editTitle": "Modifica host proxy",
                 "creating": "Creazione…",
                 "domains": "Domini",
@@ -1394,6 +1396,7 @@
             },
             "actions": {
                 "add": "Aggiungi host di reindirizzamento",
+                "duplicate": "Duplica host di reindirizzamento",
                 "create": "Crea host di reindirizzamento",
                 "edit": "Modifica",
                 "enable": "Attiva",
@@ -1419,6 +1422,7 @@
             },
             "form": {
                 "description": "Salva i domini e una destinazione per la configurazione runtime del proxy.",
+                "duplicateDescription": "Inserisci nuovi domini e verifica la destinazione, il certificato e lo stato prima di creare la copia.",
                 "editTitle": "Modifica host di reindirizzamento",
                 "creating": "Creazione…",
                 "domains": "Domini",

@@ -76,12 +76,14 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                     loading={state.isLoading}
                     action={headerAction}
                     canUpdate={state.canUpdate}
+                    canDuplicate={state.canDuplicate}
                     canDelete={state.canDelete}
                     canEnable={state.canEnable}
                     canDisable={state.canDisable}
                     canRequestCertificate={state.canRequestCertificate}
                     isPending={state.isMutating}
                     onEdit={handler.openEditor}
+                    onDuplicate={handler.openDuplicate}
                     onConfig={handler.openConfigEditor}
                     onDelete={handler.openDelete}
                     onDisable={handler.openDisable}
@@ -121,8 +123,10 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
             ) : null}
             {state.showCreate ? (
                 <ProxyHostFormModal
+                    key={state.duplicateSource?.id ?? 'create'}
                     open
-                    mode="create"
+                    mode={state.duplicateSource ? 'duplicate' : 'create'}
+                    proxyHost={state.duplicateSource ?? undefined}
                     canEnable={state.canEnable}
                     canDisable={state.canDisable}
                     canAssignCertificates={state.canAssignCertificates}

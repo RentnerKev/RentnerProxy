@@ -1126,6 +1126,7 @@
             },
             "actions": {
                 "add": "Proxy-Host hinzufügen",
+                "duplicate": "Proxy-Host duplizieren",
                 "create": "Proxy-Host erstellen",
                 "edit": "Bearbeiten",
                 "enable": "Aktivieren",
@@ -1152,6 +1153,7 @@
             },
             "form": {
                 "description": "Speichere Domains und ein Weiterleitungsziel für die Proxy-Runtime-Konfiguration.",
+                "duplicateDescription": "Neue Domains eingeben und Zertifikate sowie Zugriffsrichtlinien prüfen. Separate HTTP-Einstellungen aus dem Konfigurationseditor werden nicht kopiert.",
                 "editTitle": "Proxy-Host bearbeiten",
                 "creating": "Wird erstellt…",
                 "domains": "Domains",
@@ -1387,6 +1389,7 @@
             },
             "actions": {
                 "add": "Redirect-Host hinzufügen",
+                "duplicate": "Weiterleitungs-Host duplizieren",
                 "create": "Redirect-Host erstellen",
                 "edit": "Bearbeiten",
                 "enable": "Aktivieren",
@@ -1412,6 +1415,7 @@
             },
             "form": {
                 "description": "Speichern Sie Domains und ein Ziel für die Proxy-Runtime-Konfiguration.",
+                "duplicateDescription": "Neue Domains eingeben und Ziel, Zertifikat sowie Status vor dem Erstellen der Kopie prüfen.",
                 "editTitle": "Redirect-Host bearbeiten",
                 "creating": "Wird erstellt…",
                 "domains": "Domains",

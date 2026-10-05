@@ -1126,6 +1126,7 @@
             },
             "actions": {
                 "add": "Add proxy host",
+                "duplicate": "Duplicate proxy host",
                 "create": "Create proxy host",
                 "edit": "Edit",
                 "enable": "Enable",
@@ -1152,6 +1153,7 @@
             },
             "form": {
                 "description": "Save domains and a forwarding target for the proxy runtime configuration.",
+                "duplicateDescription": "Enter new domains and review certificates and access policies. Separate HTTP settings from the Config editor are not copied.",
                 "editTitle": "Edit proxy host",
                 "creating": "Creating…",
                 "domains": "Domains",
@@ -1387,6 +1389,7 @@
             },
             "actions": {
                 "add": "Add redirect host",
+                "duplicate": "Duplicate redirect host",
                 "create": "Create redirect host",
                 "edit": "Edit",
                 "enable": "Enable",
@@ -1412,6 +1415,7 @@
             },
             "form": {
                 "description": "Save domains and a destination for the proxy runtime configuration.",
+                "duplicateDescription": "Enter new domains and review the destination, certificate and status before creating the copy.",
                 "editTitle": "Edit redirect host",
                 "creating": "Creating…",
                 "domains": "Domains",

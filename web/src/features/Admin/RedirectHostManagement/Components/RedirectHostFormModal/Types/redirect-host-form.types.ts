@@ -11,7 +11,7 @@ export interface RedirectHostFormModalProps {
     readonly canEnable: boolean
     readonly canDisable: boolean
     readonly canAssignCertificates?: boolean
-    readonly mode: 'create' | 'edit'
+    readonly mode: 'create' | 'edit' | 'duplicate'
     readonly onOpenChange: (open: boolean) => void
     readonly onSuccess: () => void
     readonly open: boolean

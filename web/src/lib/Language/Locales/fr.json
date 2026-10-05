@@ -1126,6 +1126,7 @@
             },
             "actions": {
                 "add": "Ajouter un hôte proxy",
+                "duplicate": "Dupliquer un hôte proxy",
                 "create": "Créer un hôte proxy",
                 "edit": "Modifier",
                 "enable": "Activer",
@@ -1152,6 +1153,7 @@
             },
             "form": {
                 "description": "Enregistrez des domaines et une destination de transfert pour la configuration du moteur proxy.",
+                "duplicateDescription": "Saisissez de nouveaux domaines et vérifiez les certificats et les règles d’accès. Les paramètres HTTP distincts de l’éditeur de configuration ne sont pas copiés.",
                 "editTitle": "Modifier l’hôte proxy",
                 "creating": "Création…",
                 "domains": "Domaines",
@@ -1387,6 +1389,7 @@
             },
             "actions": {
                 "add": "Ajouter un hôte de redirection",
+                "duplicate": "Dupliquer un hôte de redirection",
                 "create": "Créer un hôte de redirection",
                 "edit": "Modifier",
                 "enable": "Activer",
@@ -1412,6 +1415,7 @@
             },
             "form": {
                 "description": "Enregistrez les domaines et une destination pour la configuration du moteur proxy.",
+                "duplicateDescription": "Saisissez de nouveaux domaines et vérifiez la destination, le certificat et l’état avant de créer la copie.",
                 "editTitle": "Modifier l’hôte de redirection",
                 "creating": "Création…",
                 "domains": "Domaines",

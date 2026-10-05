@@ -10,6 +10,7 @@ import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
+import type { AccessPolicySummary } from '@/lib/AccessPolicies/Types/access-policies.types.ts'
 import type {
     ProxyHostActionResult,
     ProxyRuntimeSyncStatus,
@@ -179,6 +180,10 @@ mock.module('@/features/Admin/ProxyHostManagement/middleware.ts', () => ({
 }))
 
 const getAssignableCertificatesHandlerMock = mock(async (): Promise<CertificateSummary[]> => [])
+const getAssignableAccessPoliciesHandlerMock = mock(async (): Promise<AccessPolicySummary[]> => [])
+mock.module('@/features/Admin/AccessPolicyManagement/middleware.ts', () => ({
+    getAssignableAccessPoliciesHandler: getAssignableAccessPoliciesHandlerMock,
+}))
 const requestCertificateHandlerMock = mock(async () => ({
     success: true,
     message: 'admin.certificates.messages.requested',
@@ -526,6 +531,7 @@ beforeEach(() => {
     enableProxyHostHandlerMock.mockReset()
     disableProxyHostHandlerMock.mockReset()
     getAssignableCertificatesHandlerMock.mockReset().mockResolvedValue([])
+    getAssignableAccessPoliciesHandlerMock.mockReset().mockResolvedValue([])
     getAssignableTrustedCasHandlerMock.mockReset().mockResolvedValue([assignableTrustedCa])
     requestCertificateHandlerMock
         .mockReset()
@@ -1166,6 +1172,7 @@ function FormHarness({
     canEnable = true,
     canAssignCertificates = false,
     canRequestCertificate = false,
+    canAssignPolicies = false,
     mode,
     proxyHost,
 }: {
@@ -1173,7 +1180,8 @@ function FormHarness({
     canEnable?: boolean
     canAssignCertificates?: boolean
     canRequestCertificate?: boolean
-    mode: 'create' | 'edit'
+    canAssignPolicies?: boolean
+    mode: 'create' | 'edit' | 'duplicate'
     proxyHost?: ProxyHostSummary
 }) {
     const [open, setOpen] = useState(true)
@@ -1186,6 +1194,7 @@ function FormHarness({
             canDisable={canDisable}
             canAssignCertificates={canAssignCertificates}
             canRequestCertificate={canRequestCertificate}
+            canAssignPolicies={canAssignPolicies}
             onOpenChange={setOpen}
             onSuccess={() => setOpen(false)}
         />
@@ -1193,6 +1202,189 @@ function FormHarness({
 }
 
 describe('ProxyHost form modal', () => {
+    test('duplicate opens a blank domain draft and cancel clears it before ordinary creation', async () => {
+        const original = structuredClone(enabledHost)
+        await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_CREATE])
+        await waitFor(() => getRows().length === 2)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Duplicate proxy host'))
+        await waitFor(() => document.querySelector('[role="dialog"]') !== null)
+        expect(document.querySelectorAll('input[name^="domains["]')).toHaveLength(1)
+        expect(document.querySelector<HTMLInputElement>('input[name="domains[0]"]')?.value).toBe('')
+        expect(document.querySelector<HTMLInputElement>('input[name="forwardHost"]')?.value).toBe(
+            enabledHost.forwardHost,
+        )
+        expect(document.querySelector<HTMLInputElement>('input[name="forwardPort"]')?.value).toBe(
+            String(enabledHost.forwardPort),
+        )
+        expect(document.body.textContent).toContain(
+            'Separate HTTP settings from the Config editor are not copied.',
+        )
+        await click(getButton('Cancel'))
+        await waitFor(() => document.querySelector('[role="dialog"]') === null)
+        expect(createProxyHostHandlerMock).not.toHaveBeenCalled()
+        expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+        expect(getProxyHostConfigEditorHandlerMock).not.toHaveBeenCalled()
+        expect(enabledHost).toEqual(original)
+        await click(getButton('Add proxy host'))
+        await waitFor(() => document.querySelector('[role="dialog"]') !== null)
+        expect(document.querySelector<HTMLInputElement>('input[name="forwardHost"]')?.value).toBe(
+            '',
+        )
+        expect(document.querySelector<HTMLInputElement>('input[name="forwardPort"]')?.value).toBe(
+            '80',
+        )
+    })
+
+    test('duplicate requires new domains, saves through create and retains pending feedback', async () => {
+        createProxyHostHandlerMock.mockResolvedValueOnce({
+            success: true,
+            runtimeStatus: 'pending',
+            message: 'admin.proxyHosts.messages.created',
+        })
+        await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_CREATE])
+        await waitFor(() => getRows().length === 2)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Duplicate proxy host'))
+        await click(getButton('Create proxy host'))
+        await waitFor(() => document.body.textContent?.includes('Enter a valid DNS name') ?? false)
+        expect(createProxyHostHandlerMock).not.toHaveBeenCalled()
+        const domain = document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!
+        await setControlValue(domain, 'Copy.Example.com')
+        await blurControl(domain)
+        await click(getButton('Create proxy host'))
+        await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
+        expect(createProxyHostHandlerMock).toHaveBeenCalledWith({
+            data: {
+                domains: ['copy.example.com'],
+                certificateId: null,
+                forceHttps: false,
+                verifyUpstreamTls: true,
+                upstreamTlsServerName: null,
+                trustedCaId: null,
+                enabled: true,
+                forwardHost: enabledHost.forwardHost,
+                forwardPort: enabledHost.forwardPort,
+                forwardScheme: 'http',
+            },
+        })
+        expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+        expect(createProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
+        expect(updateProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
+        await waitForToast('warning')
+        await waitFor(() => document.querySelector('[role="dialog"]') === null)
+        expect(enabledHost.domains).toEqual([
+            'app.example.com',
+            'www.example.com',
+            'api.example.com',
+        ])
+    })
+
+    test.each([
+        { accessPolicyId: '0198f2f0-0000-7000-8000-000000000041' },
+        { certificateId: assignableCertificate.id },
+    ])(
+        'cannot duplicate a protected source without its assignment permissions: %j',
+        async (protection) => {
+            getProxyHostsHandlerMock.mockResolvedValue([{ ...enabledHost, ...protection }])
+            await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_CREATE])
+            await waitFor(() => getRows().length === 1)
+            await openMenu(getButton('Open actions for app.example.com'))
+            expect(
+                [...document.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent),
+            ).not.toContain('Duplicate proxy host')
+            expect(createProxyHostHandlerMock).not.toHaveBeenCalled()
+        },
+    )
+
+    test('duplicate preserves an authorized policy and wildcard certificate without issuing a certificate', async () => {
+        const policy: AccessPolicySummary = {
+            id: '0198f2f0-0000-7000-8000-000000000041',
+            name: 'Protected',
+            description: '',
+            mode: 'authenticated',
+            combination: null,
+            ipRules: null,
+            forwardAuth: null,
+            assignedHostCount: 1,
+            basicAuthAccountCount: 1,
+            createdAt: enabledHost.createdAt,
+            updatedAt: enabledHost.updatedAt,
+        }
+        const source: ProxyHostSummary = {
+            ...enabledHost,
+            certificateId: assignableCertificate.id,
+            forceHttps: true,
+            accessPolicyId: policy.id,
+        }
+        getAssignableCertificatesHandlerMock.mockResolvedValue([
+            { ...assignableCertificate, domains: ['*.example.com'] },
+        ])
+        getAssignableAccessPoliciesHandlerMock.mockResolvedValue([policy])
+        getProxyHostsHandlerMock.mockResolvedValue([source])
+        await renderPage([
+            PERMISSIONS.PROXY_HOSTS_VIEW,
+            PERMISSIONS.PROXY_HOSTS_CREATE,
+            PERMISSIONS.CERTIFICATES_VIEW,
+            PERMISSIONS.ACCESS_POLICIES_ASSIGN,
+        ])
+        await waitFor(() => getRows().length === 1)
+        await openMenu(getButton('Open actions for app.example.com'))
+        await click(getMenuItem('Duplicate proxy host'))
+        const domain = document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!
+        await setControlValue(domain, 'secure-copy.example.com')
+        await blurControl(domain)
+        await waitFor(
+            () =>
+                document.querySelector<HTMLInputElement>('input[name="forceHttps"]')?.disabled ===
+                false,
+        )
+        await click(getButton('Create proxy host'))
+        await waitFor(() => createProxyHostHandlerMock.mock.calls.length === 1)
+        expect(createProxyHostHandlerMock).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                domains: ['secure-copy.example.com'],
+                certificateId: source.certificateId,
+                forceHttps: true,
+                accessPolicyId: policy.id,
+            }),
+        })
+        expect(createProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
+        expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+        expect(source.domains).toEqual(enabledHost.domains)
+    })
+
+    test.each([
+        'admin.proxyHosts.errors.domain_conflict',
+        'admin.certificates.errors.domain_mismatch',
+    ])(
+        'duplicate preserves its draft after a server-side validation failure: %s',
+        async (message) => {
+            createProxyHostHandlerMock.mockResolvedValueOnce({ success: false, message })
+            const source: ProxyHostSummary = {
+                ...enabledHost,
+                certificateId: assignableCertificate.id,
+                forceHttps: true,
+            }
+            getAssignableCertificatesHandlerMock.mockResolvedValue([assignableCertificate])
+            await render(
+                withQueryClient(
+                    <FormHarness mode="duplicate" proxyHost={source} canAssignCertificates />,
+                ),
+            )
+            const domain = document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!
+            await setControlValue(domain, 'uncovered.example.net')
+            await blurControl(domain)
+            await click(getButton('Create proxy host'))
+            await waitForToast('error')
+            expect(document.querySelector('[role="dialog"]')).not.toBeNull()
+            expect(domain.value).toBe('uncovered.example.net')
+            expect(updateProxyHostHandlerMock).not.toHaveBeenCalled()
+            expect(source.domains).toEqual(enabledHost.domains)
+            expect(source.certificateId).toBe(assignableCertificate.id)
+        },
+    )
+
     test('creates normalized multiple domains and invalidates the query with a localized toast', async () => {
         await render(withQueryClient(<FormHarness mode="create" />))
         await setControlValue(

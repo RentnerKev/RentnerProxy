@@ -5,6 +5,8 @@ export interface RedirectHostManagementLogicResult {
     readonly state: {
         readonly canApply: boolean
         readonly canCreate: boolean
+        readonly canDuplicate: (host: RedirectHostSummary) => boolean
+        readonly duplicateSource: RedirectHostSummary | null
         readonly canDelete: boolean
         readonly canDisable: boolean
         readonly canEnable: boolean
@@ -32,6 +34,8 @@ export interface RedirectHostManagementLogicResult {
         readonly enable: (value: RedirectHostSummary) => void
         readonly handleFormSuccess: () => void
         readonly openCreate: () => void
+        readonly openDuplicate: (host: RedirectHostSummary) => void
+        readonly setDuplicateOpen: (open: boolean) => void
         readonly openDelete: (value: RedirectHostSummary) => void
         readonly openDisable: (value: RedirectHostSummary) => void
         readonly openEditor: (value: RedirectHostSummary) => void
