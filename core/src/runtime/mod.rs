@@ -44,6 +44,7 @@ use trusted_cas::TrustedCaStore;
 
 const BASELINE_PROBE_REVISION: &str = "none";
 const ACTIVE_CONFIGURATION_FILE: &str = "active-proxy-snapshot.json";
+const ACTIVE_CONFIGURATION_AUTHORITY_FILE: &str = "active-proxy-snapshot-authority-v1";
 const ACTIVE_CONFIGURATION_FENCE: &str = "proxy-activation-pending";
 const ACTIVE_CROWDSEC_CONFIGURATION_FILE: &str = "active-crowdsec-configuration.json";
 const MAX_CANDIDATE_ACTIVATIONS_PER_TICK: usize = 4;
@@ -129,6 +130,8 @@ pub(crate) enum RecoveryWriteFault {
     BeforeFenceWrite,
     BeforeSnapshotWrite,
     AfterSnapshotWrite,
+    BeforeAuthorityWrite,
+    AfterAuthorityWrite,
     BeforeFenceRemoval,
     AfterFenceRemoval,
 }

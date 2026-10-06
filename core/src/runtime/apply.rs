@@ -115,15 +115,17 @@ impl ProxyRuntime {
             )
         };
         let unchanged = previous == json && previous_revision == configuration.revision;
-        let recovery_fenced = self.configuration_activation_is_fenced();
-        if staged.is_some() && recovery_fenced {
+        let recovery_authorized = self
+            .restore_active_configuration()
+            .is_some_and(|snapshot| snapshot.revision == configuration.revision);
+        if staged.is_some() && !recovery_authorized {
             warn!(
                 stage = "snapshot_prepare",
                 "Certificate activation awaits recovery configuration repair"
             );
             return Err(RuntimeError::ApplyFailed);
         }
-        let fenced = staged.is_none() && (!unchanged || recovery_fenced);
+        let fenced = staged.is_none() && (!unchanged || !recovery_authorized);
         let previous_configuration = self.active_configuration.lock().await.clone();
         // Persist desired policy before touching traffic, but fence startup until
         // Caddy confirms it. A crash in this interval starts the closed baseline.
