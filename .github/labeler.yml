@@ -120,5 +120,5 @@ documentation:
     - changed-files:
           - any-glob-to-any-file:
                 - 'README.md'
-                - 'CONTRIBUTING.md'
+                - '.github/CONTRIBUTING.md'
                 - 'SECURITY.md'
