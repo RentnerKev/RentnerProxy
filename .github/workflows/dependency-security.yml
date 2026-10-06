@@ -1,0 +1,175 @@
+name: Deployed Dependency Security
+
+on:
+    pull_request:
+        branches: [main]
+    push:
+        branches: [main]
+    schedule:
+        - cron: '17 4 * * *'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: dependency-security-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    rescan-scope:
+        name: Select deployed image assessment scope
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        outputs:
+            rescan: ${{ steps.scope.outputs.rescan }}
+        steps:
+            - name: Check out tested PR merge
+              if: github.event_name == 'pull_request'
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  fetch-depth: 2
+            - name: Select scanner integration changes
+              id: scope
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+              run: |
+                  rescan=false
+                  if [[ "$EVENT_NAME" == schedule || "$EVENT_NAME" == workflow_dispatch ]]; then
+                      rescan=true
+                  elif [[ "$EVENT_NAME" == pull_request ]]; then
+                      if ! git diff --quiet HEAD^1 HEAD -- .github/scripts/security .github/workflows/dependency-security.yml; then
+                          rescan=true
+                      fi
+                  fi
+                  printf 'rescan=%s\n' "$rescan" >> "$GITHUB_OUTPUT"
+
+    locked-source:
+        name: Locked Cargo advisory audit
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            - name: Check out source
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.2
+            - name: Audit complete locked Cargo graph
+              env:
+                  AUTOMATION_DIRECTORY: .
+                  SOURCE_DIRECTORY: .
+                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-source-report
+              run: REVISION="$(git rev-parse HEAD)" bash .github/scripts/security/audit-cargo.sh
+            - name: Store exact-source advisory evidence
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  if-no-files-found: error
+                  name: cargo-advisory-evidence
+                  path: ${{ runner.temp }}/dependency-source-report
+                  retention-days: 30
+
+    production-candidate:
+        name: Complete production image advisory assessment
+        if: github.event_name != 'schedule'
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+        steps:
+            - name: Check out source
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.2
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+            - name: Build isolated production OCI candidate
+              run: |
+                  docker buildx build --file docker/production/Dockerfile --platform linux/amd64 \
+                      --label "org.opencontainers.image.revision=$(git rev-parse HEAD)" \
+                      --provenance=mode=max --sbom=true \
+                      --output "type=oci,dest=$RUNNER_TEMP/candidate-image.tar" .
+            - name: Install pinned vulnerability tools
+              run: bash .github/scripts/security/install-dependency-tools.sh
+            - name: Assess candidate including copied Go binaries
+              env:
+                  AUTOMATION_DIRECTORY: .
+                  IMAGE_SOURCE: oci-archive:${{ runner.temp }}/candidate-image.tar
+                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-image-report
+              run: |
+                  result=0
+                  REVISION="$(git rev-parse HEAD)" bash .github/scripts/security/scan-image.sh || result=$?
+                  if (( result == 3 )); then
+                      jq --exit-status '.verdict == "blocked"' "$REPORT_DIRECTORY/blocked-assessment.json" > /dev/null
+                      echo '::warning::Assessment complete: dependency advisories block image publication.'
+                      printf '%s\n' 'Dependency assessment completed. **Image publication is blocked.** Review the exact-candidate advisory artifact; this check does not approve a release.' >> "$GITHUB_STEP_SUMMARY"
+                  elif (( result != 0 )); then
+                      exit "$result"
+                  else
+                      printf '%s\n' 'Dependency assessment completed. This exact candidate passed the advisory policy; publication still requires independent reassessment.' >> "$GITHUB_STEP_SUMMARY"
+                  fi
+            - name: Store exact-candidate assessment
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  if-no-files-found: error
+                  name: production-advisory-evidence
+                  path: ${{ runner.temp }}/dependency-image-report
+                  retention-days: 30
+
+    supported-images:
+        name: Rescan supported immutable deployed images
+        needs: rescan-scope
+        if: needs.rescan-scope.outputs.rescan == 'true'
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        steps:
+            - name: Check out trusted automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.2
+            - name: Install pinned vulnerability tools
+              run: bash .github/scripts/security/install-dependency-tools.sh
+            - name: Resolve supported release tags
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  gh api --paginate "repos/$GITHUB_REPOSITORY/releases" > "$RUNNER_TEMP/releases.json"
+                  jq --slurp --raw-output 'add | map(select(.draft == false)) |
+                      group_by(if (.tag_name | test("-alpha([.]|$)")) then "alpha"
+                          elif (.tag_name | test("-beta([.]|$)")) then "beta" else "stable" end) |
+                      .[] | max_by(.published_at) | .tag_name' "$RUNNER_TEMP/releases.json" > "$RUNNER_TEMP/supported-tags.txt"
+                  printf '%s\n' dev >> "$RUNNER_TEMP/supported-tags.txt"
+            - name: Resolve each tag once and scan its immutable digest
+              env:
+                  AUTOMATION_DIRECTORY: .
+                  SUPPORTED_TAGS_FILE: ${{ runner.temp }}/supported-tags.txt
+                  REPORT_DIRECTORY: ${{ runner.temp }}/supported-image-reports
+                  EVENT_NAME: ${{ github.event_name }}
+              run: |
+                  result=0
+                  bash .github/scripts/security/rescan-supported-images.sh || result=$?
+                  if [[ "$EVENT_NAME" == pull_request ]] && (( result == 3 )); then
+                      echo '::warning::Deployed image assessments completed with blocking advisories.'
+                      printf '%s\n' 'Deployed channel assessment coverage completed. **Image publication remains blocked** for adverse candidates; this integration check grants no publication approval.' >> "$GITHUB_STEP_SUMMARY"
+                  else
+                      exit "$result"
+                  fi
+            - name: Store supported-image assessment evidence
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  if-no-files-found: error
+                  name: supported-image-advisory-evidence
+                  path: ${{ runner.temp }}/supported-image-reports
+                  retention-days: 30

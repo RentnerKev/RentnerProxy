@@ -161,18 +161,63 @@ describe('trusted PR preview publisher workflow', () => {
 
     test('checks out only trusted workflow code and never executes the OCI image', async () => {
         const publisher = await workflow('pr-preview-publish.yml')
+        const commands = await readFile(
+            resolve(repositoryRoot, '.github/workflows/pr-preview-publish.yml'),
+            'utf8',
+        )
         const refs = [...publisher.matchAll(/^\s+ref:\s+(.+)$/gmu)].map((match) => match[1])
 
         expect(refs).toHaveLength(3)
         expect(refs.every((ref) => ref?.trim() === '${{ github.workflow_sha }}')).toBeTrue()
         expect(publisher).not.toContain('github.event.workflow_run.head_sha')
         expect(publisher).not.toContain('refs/pull/')
-        expect(publisher).not.toMatch(/\bdocker (?:run|load)\b/u)
+        expect(commands).not.toMatch(/\bdocker (?:run|load)\b/u)
         expect(publisher).not.toMatch(/\bbun run\b/u)
-        expect(publisher).not.toMatch(/\b(?:npm|cargo)\s/u)
+        expect(commands).not.toMatch(/\b(?:npm|cargo)\s/u)
         expect(publisher).toContain('skopeo copy --preserve-digests')
         expect(publisher).not.toContain('skopeo copy --all')
         expect(publisher).toContain('OCI index must contain exactly one linux/amd64 image')
+    })
+
+    test('strictly assesses the validated exact OCI before the approved-identity guard and registry login', async () => {
+        const raw = await readFile(
+            resolve(repositoryRoot, '.github/workflows/pr-preview-publish.yml'),
+            'utf8',
+        )
+        const script = await readFile(
+            resolve(repositoryRoot, '.github/scripts/deploy/publish-preview-image.sh'),
+            'utf8',
+        )
+        const validation = raw.indexOf(
+            'run: bash trusted/.github/scripts/deploy/validate-preview-image.sh',
+        )
+        const install = raw.indexOf(
+            'run: bash trusted/.github/scripts/security/install-dependency-tools.sh',
+        )
+        const assessment = raw.indexOf('run: bash trusted/.github/scripts/security/scan-image.sh')
+        const publish = raw.indexOf(
+            'run: bash trusted/.github/scripts/deploy/publish-preview-image.sh',
+        )
+        expect(validation).toBeGreaterThan(-1)
+        expect(install).toBeGreaterThan(validation)
+        expect(assessment).toBeGreaterThan(install)
+        expect(publish).toBeGreaterThan(assessment)
+        expect(raw).toContain('timeout-minutes: 45')
+        expect(raw).toContain('REVISION: ${{ needs.resolve.outputs.tested_sha }}')
+        expect(raw).toContain(
+            'IMAGE_SOURCE: oci-archive:${{ runner.temp }}/pr-preview-artifact/preview-image.tar',
+        )
+        expect(raw).toContain(
+            'ASSESSED_REPORT: ${{ runner.temp }}/dependency-preview-report/assessment.json',
+        )
+        expect(raw).not.toContain('continue-on-error:')
+        expect(raw).not.toContain('record-assessment-result')
+        expect(script.indexOf('approved "${ASSESSED_REPORT:?')).toBeGreaterThan(
+            script.indexOf('[[ "$actual_digest" == "$SOURCE_IMAGE_DIGEST" ]]'),
+        )
+        expect(script.indexOf('skopeo login')).toBeGreaterThan(
+            script.indexOf('approved "${ASSESSED_REPORT:?'),
+        )
     })
 
     test('limits write permissions to package publishing and the separate comment job', async () => {

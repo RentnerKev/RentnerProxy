@@ -5,8 +5,13 @@ interface DevImageWorkflow {
     readonly on: Record<string, unknown>
     readonly concurrency: { readonly group: string; readonly 'cancel-in-progress': boolean }
     readonly jobs: {
+        readonly 'publish-image': {
+            readonly uses: string
+            readonly permissions: Record<string, string>
+            readonly with: Record<string, string>
+        }
         readonly build: {
-            readonly permissions: { readonly contents: string; readonly packages: string }
+            readonly permissions: { readonly contents: string; readonly packages?: string }
             readonly steps: readonly {
                 readonly id?: string
                 readonly uses?: string
@@ -29,8 +34,9 @@ describe('dev image workflow', () => {
         expect(Object.keys(config.on)).toEqual(['workflow_dispatch'])
         expect(config.concurrency).toEqual({ group: 'dev-image', 'cancel-in-progress': false })
         expect(steps[0]?.run).toContain('if [[ "$GITHUB_REF" != \'refs/heads/main\' ]]')
-        expect(steps[1]?.with?.ref).toBe('refs/heads/main')
+        expect(steps[1]?.with?.ref).toBe('${{ github.workflow_sha }}')
         expect(steps[1]?.with?.['persist-credentials']).toBe(false)
+        expect(steps[2]?.with?.ref).toBe('refs/heads/main')
     })
 
     test('publishes only the moving dev tag from the production Dockerfile', async () => {
@@ -43,7 +49,9 @@ describe('dev image workflow', () => {
         expect(metadata?.with?.flavor).toBe('latest=false')
         expect(build?.with?.context).toBe('source')
         expect(build?.with?.file).toBe('source/docker/production/Dockerfile')
-        expect(build?.with?.push).toBe(true)
+        expect(build?.with?.push).toBe(false)
+        expect(build?.with?.outputs).toContain('type=oci,dest=')
+        expect(config.jobs['publish-image'].with.image_tags).toBe('dev')
         expect(build?.with?.['build-args']).toContain('RENTNERPROXY_BUILD_VERSION=')
         expect(source?.run).toContain("printf 'version=dev-%.12s\\n'")
         expect(config.jobs.build.steps.some((step) => step.run?.includes('release create'))).toBe(
@@ -55,12 +63,19 @@ describe('dev image workflow', () => {
         const config = await workflow()
         const steps = config.jobs.build.steps
 
-        expect(config.jobs.build.permissions).toEqual({ contents: 'read', packages: 'write' })
+        expect(config.jobs.build.permissions).toEqual({ contents: 'read' })
+        expect(config.jobs['publish-image'].permissions).toEqual({
+            contents: 'read',
+            packages: 'write',
+        })
         for (const step of steps) {
             if (step.uses) expect(step.uses).toMatch(/^[^@]+@[0-9a-f]{40}$/u)
         }
-        expect(steps.some((step) => step.run?.includes('imagetools inspect "$IMAGE:dev"'))).toBe(
-            true,
+        expect(
+            steps.some((step) => step.id === 'scan' && step.run?.includes('grype db update')),
+        ).toBe(true)
+        expect(config.jobs['publish-image'].uses).toBe(
+            './.github/workflows/publish-assessed-image.yml',
         )
     })
 })

@@ -135,6 +135,7 @@ describe('shared release pipeline', () => {
         )
         expect(references.length).toBeGreaterThan(0)
         for (const reference of references) {
+            if (reference === './.github/workflows/publish-assessed-image.yml') continue
             expect(reference).toMatch(/^[^@]+@[0-9a-f]{40}$/)
         }
     })
@@ -176,7 +177,7 @@ describe('shared release pipeline', () => {
 
     test('publishes assets and the authoritative body only after image verification', async () => {
         const pipeline = await workflow('release-pipeline.yml')
-        const verifyPosition = pipeline.indexOf('Verify published image tags')
+        const verifyPosition = pipeline.indexOf('Assess immutable candidate before publication')
         const publishJobPosition = pipeline.indexOf('name: Publish release notes')
         const uploadPosition = pipeline.indexOf('gh release upload')
         const editPosition = pipeline.indexOf('gh release edit')
@@ -185,6 +186,12 @@ describe('shared release pipeline', () => {
         expect(publishJobPosition).toBeGreaterThan(verifyPosition)
         expect(uploadPosition).toBeGreaterThan(publishJobPosition)
         expect(editPosition).toBeGreaterThan(uploadPosition)
+        expect(pipeline).toContain('            - publish-image')
+        const publisher = await workflow('publish-assessed-image.yml')
+        expect(publisher.indexOf('Independently reassess candidate')).toBeLessThan(
+            publisher.indexOf('Publish the exact assessed OCI index'),
+        )
+        expect(publisher).toContain('skopeo copy --all --preserve-digests')
         expect(pipeline).toContain(
             'bun automation/.github/scripts/release/generate-release-notes.ts',
         )
@@ -204,7 +211,7 @@ describe('shared release pipeline', () => {
         )
         expect(pipeline).toContain('overwrite: true')
         expect(pipeline).toContain('retention-days: 30')
-        expect(pipeline).not.toContain('github.run_attempt')
+        expect(pipeline).toContain('name: assessed-candidate-${{ github.run_id }}')
     })
 
     test('uses only the expected GitHub token permissions and no legacy registry settings', async () => {

@@ -22,10 +22,12 @@ export default async function readGitHubWorkflow(name: string): Promise<string> 
     for (const script of scripts) {
         source = source.replace(
             script.call,
-            `${script.indent}run: |\n${script.source
-                .split('\n')
-                .map((line) => `${script.indent}    ${line}`)
-                .join('\n')}`,
+            () =>
+                `${script.indent}run: |\n${script.source
+                    .replaceAll('\r\n', '\n')
+                    .split('\n')
+                    .map((line) => `${script.indent}    ${line}`)
+                    .join('\n')}`,
         )
     }
     return source

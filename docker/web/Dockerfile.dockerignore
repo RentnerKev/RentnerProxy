@@ -12,6 +12,8 @@
 !.github/scripts/
 !.github/scripts/Types/
 !.github/scripts/Types/**
+!.github/scripts/security/
+!.github/scripts/security/**
 !.github/scripts/appliance-startup-smoke.ts
 !.github/scripts/duplicate-triage.ts
 !.github/scripts/generate-release-notes.ts
