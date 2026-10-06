@@ -110,35 +110,28 @@ cache and migrations. Fresh installations and unsupported snapshot versions use 
 site until the application reconciles their configuration. Replacing a single appliance container
 still interrupts its connections and listeners; this startup order does not provide zero downtime.
 
-## Images and upgrades
+## Docker images
 
-- **Breaking deployment change:** Compose now requires `RENTNERPROXY_IMAGE`; the development web environment uses `VALKEY_URL` in place of `REDIS_URL`. Production runs Valkey inside the appliance on loopback and supplies its URL internally. The connection scheme remains `redis://` or `rediss://` for the Bun client.
-- Published Alpha images contain Redis. `v1.0.0-beta.1` has not been published. Select a Valkey-based build of the intended code; use its immutable released tag/digest when available. Its final release commit must pass the [full release compatibility matrix](https://github.com/RentnerKev/RentnerProxy/actions/workflows/release-compatibility.yml) before publication.
-- Existing Compose installations must replace the old literal `image: ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6` with the `RENTNERPROXY_IMAGE` expression above and set that variable in their deployment `.env`. Preserve the Compose project name, existing `rentnerproxy` volume, port mappings, public origin and SMTP settings. Local development must rename `REDIS_URL` to `VALKEY_URL` and start Valkey; the application does not fall back to the old variable.
-- Foundation health responses now expose the cache as `valkey` instead of `redis`. Update integrations or monitoring that read the old field.
-- The tested direct source contract for that target is:
+RentnerProxy images are published to `ghcr.io/rentnerkev/rentnerproxy`.
 
-| Published source image                           | Direct path to Beta 1 target             |
-| ------------------------------------------------ | ---------------------------------------- |
-| `ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.1` | Supported direct                         |
-| `ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.2` | Supported direct                         |
-| `ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.3` | Supported direct                         |
-| `ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.4` | Supported direct                         |
-| `ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.5` | Supported direct                         |
-| `ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6` | Supported direct; mandatory release gate |
+| Tag | Channel |
+| --- | --- |
+| `:latest` | Latest stable release |
+| `:beta` | Latest beta release |
+| `:alpha` | Latest alpha release |
+| `:dev` | Development build from `main` for testing new and potentially unstable changes |
 
-- No staged path is needed for these tested sources. Unlisted or moving images such as `:dev` are unsupported upgrade sources, as are downgrades. The [matrix](scripts/release-compatibility/published-alphas.ts) pins the published image digests.
-- Before changing the source deployment, create and retain a pre-upgrade backup outside the appliance volume with that release's tools, and record the exact source image tag/digest, Compose file and environment. Repository [backup](scripts/production-backup.ts) and [restore](scripts/production-restore.ts) tools require a checkout and Bun. Set `RENTNERPROXY_IMAGE` to the released target tag/digest, run `docker compose config`, then `docker compose pull` and `docker compose up -d`. For a local target build, build the selected image locally and run `docker compose up -d` after configuration validation.
-- Never start an older image with a database already migrated by a newer image. Rollback means stopping the target, restoring the **pre-upgrade** backup into a fresh volume, and starting the previous **exact** image. Use the tools from that source release for the rollback; current restore tools deliberately reject a newer database on an older target.
-- `:dev` is a moving **test image** built manually from `main` by the [Dev Image workflow](https://github.com/RentnerKev/RentnerProxy/actions/workflows/dev-image.yml); it is not a release.
-- CrowdSec, Forward Auth, the NPM importer, and Valkey are **not** in the published Alpha 6 image. A newly built local image contains the current implementation; a `:dev` image contains it only after its workflow builds the intended commit.
+Every release is also published with its exact version tag. Use an exact tag when you want to pin
+a specific release, for example:
 
-The Redis-to-Valkey switch resets transient rate-limit counters, in-progress authentication
-challenges and Pub/Sub delivery. Restart pending login/verification flows. Durable sessions,
-users, configuration and certificate state remain in PostgreSQL/controller storage. Valkey stays
-ephemeral, loopback-only and outside production backups. Rollback retains the previous Compose
-configuration and restores the source backup into a fresh volume with the recorded source image.
+```text
+ghcr.io/rentnerkev/rentnerproxy:v1.0.0
+ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1
+ghcr.io/rentnerkev/rentnerproxy:v1.0.0-alpha.6
+```
 
+Moving channel tags such as `:latest`, `:beta`, and `:alpha` always follow the newest release
+in that channel. `:dev` is not a release and may change at any time.
 ## CrowdSec (development image)
 
 - **Managed:** local detection and blocking work without a CrowdSec account; community intelligence and Console enrollment are separate opt-ins.
@@ -199,6 +192,18 @@ appliance backup/restore. The controller also persists the active snapshot for r
 Saving reports when runtime application is pending; the existing reconciliation worker retries
 automatically. Reload Operations after a configuration conflict before saving another edit.
 Portable host configuration exports do not include these global settings.
+
+## Screenshots
+
+<p align="center">
+  <img src="./screenshots/proxy-hosts.png" alt="Proxy Hosts" width="49%">
+  <img src="./screenshots/certificates.png" alt="Certificates" width="49%">
+</p>
+
+<p align="center">
+  <img src="./screenshots/login.png" alt="Login" width="49%">
+  <img src="./screenshots/account-security.png" alt="Account Security" width="49%">
+</p>
 
 ## More information
 
