@@ -1379,6 +1379,29 @@
                 "verificationDisabled": "Zertifikatsprüfung deaktiviert",
                 "caUnavailable": "Ausgewählte CA nicht verfügbar",
                 "caLoadFailed": "Vertrauenswürdige CAs konnten nicht geladen werden. Die aktuelle Auswahl bleibt erhalten."
+            },
+            "guide": {
+                "title": "Host-Einrichtung",
+                "open": "Einrichtungshilfe anzeigen",
+                "skip": "Hilfe überspringen",
+                "previous": "Vorheriger Schritt",
+                "next": "Nächster Schritt",
+                "domainsTitle": "Öffentliche Domains",
+                "domainsHelp": "Hostnamen ohne Protokoll oder Pfad eintragen. DNS-Einträge auf den Proxy richten; DNS und Router-Weiterleitungen außerhalb dieses Formulars konfigurieren.",
+                "emptyDomains": "Trage unten deine Domain ein.",
+                "wildcardHelp": "Wildcard-Zertifikate benötigen DNS-01. Ein Wildcard deckt die Stammdomain nicht ab; diese bei Bedarf separat hinzufügen.",
+                "upstreamTitle": "Zieldienst",
+                "upstreamHelp": "Adresse, Protokoll und Port des Dienstes verwenden, die vom Proxy erreichbar sind. Die HTTPS-Prüfung des Ziels ist vom öffentlichen TLS-Zertifikat unabhängig.",
+                "tlsTitle": "Öffentliches HTTPS",
+                "tlsHelp": "Ein gültiges vorhandenes oder importiertes Zertifikat für alle Domains wählen, ein neues anfordern oder mit HTTP starten. Öffentliches HTTPS benötigt eingehenden Port 443 zum Proxy.",
+                "requested": "Beim Speichern wird ein neues Zertifikat angefordert.",
+                "existing": "Gewähltes Zertifikat: {{name}}. Domain-Abdeckung und Gültigkeit prüfen.",
+                "noCertificate": "Kein öffentliches Zertifikat gewählt: Dieser Host verwendet HTTP.",
+                "httpHelp": "HTTP-01 benötigt öffentliches DNS zum Proxy und einen erreichbaren eingehenden Port 80. Wildcard-Zertifikate sind damit nicht möglich.",
+                "dnsHelp": "DNS-01 benötigt den unterstützten DNS-Anbieter, die richtige Zone und Zugangsdaten mit Berechtigung für TXT-Einträge. DNS-Verteilung kann dauern; eingehender Port 80 wird für diese Prüfung nicht benötigt.",
+                "resultHelp": "Speichern hinterlegt die Konfiguration. Ein eingereihtes oder gerade in Ausstellung befindliches Zertifikat ist noch nicht bereit. Auf die Anwendung warten und den Runtime-Status prüfen; angewendete Konfiguration beweist keine DNS- oder Dienst-Erreichbarkeit.",
+                "failureHelp": "Markierte Felder vor dem Speichern korrigieren. Bei fehlgeschlagenen Zertifikatsaufträgen Fehler prüfen, beheben und erneut versuchen. Ausstehende Konfiguration bei entsprechender Berechtigung anwenden; bei nicht verfügbarer Runtime diese wiederherstellen und erneut versuchen.",
+                "certificateUnavailable": "Details nicht verfügbar"
             }
         },
         "redirectHosts": {

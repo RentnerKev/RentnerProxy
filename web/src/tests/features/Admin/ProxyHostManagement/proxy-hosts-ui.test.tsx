@@ -1168,6 +1168,7 @@ describe('ProxyHost permissions and row actions', () => {
 })
 
 function FormHarness({
+    initialGuideOpen = false,
     canDisable = true,
     canEnable = true,
     canAssignCertificates = false,
@@ -1176,6 +1177,7 @@ function FormHarness({
     mode,
     proxyHost,
 }: {
+    initialGuideOpen?: boolean
     canDisable?: boolean
     canEnable?: boolean
     canAssignCertificates?: boolean
@@ -1188,6 +1190,7 @@ function FormHarness({
     return (
         <ProxyHostFormModal
             open={open}
+            initialGuideOpen={initialGuideOpen}
             mode={mode}
             {...(proxyHost ? { proxyHost } : {})}
             canEnable={canEnable}
@@ -2181,5 +2184,197 @@ describe('Caddy proxy host configuration editor', () => {
             },
         })
         await waitForToast('success')
+    })
+})
+
+describe('integrated proxy host setup guide', () => {
+    test('moves focus to the new step heading after navigation without resetting the draft', async () => {
+        await render(withQueryClient(<FormHarness mode="create" initialGuideOpen />))
+        const domain = document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!
+        await setControlValue(domain, 'keyboard.example.com')
+        await act(async () => getButton('Next step').focus())
+        await click(getButton('Next step'))
+        expect(document.activeElement?.tagName).toBe('H3')
+        expect(document.activeElement?.textContent).toContain('2/3 · Destination service')
+        await act(async () => getButton('Next step').focus())
+        await click(getButton('Next step'))
+        expect(getButton('Next step').disabled).toBe(true)
+        expect(document.activeElement?.textContent).toContain('3/3 · Public HTTPS')
+        await act(async () => getButton('Previous step').focus())
+        await click(getButton('Previous step'))
+        await act(async () => getButton('Previous step').focus())
+        await click(getButton('Previous step'))
+        expect(getButton('Previous step').disabled).toBe(true)
+        expect(document.activeElement?.textContent).toContain('1/3 · Public domains')
+        expect(document.querySelector('input[name="domains[0]"]')).toBe(domain)
+        expect(domain.value).toBe('keyboard.example.com')
+        expect(createProxyHostHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('reflects an imported certificate without triggering issuance', async () => {
+        getAssignableCertificatesHandlerMock.mockResolvedValue([
+            { ...assignableCertificate, source: 'manual' },
+        ])
+        await render(
+            withQueryClient(
+                <FormHarness
+                    mode="edit"
+                    proxyHost={{ ...enabledHost, certificateId: assignableCertificate.id }}
+                    canAssignCertificates
+                    initialGuideOpen
+                />,
+            ),
+        )
+        await click(getButton('Next step'))
+        await click(getButton('Next step'))
+        await waitFor(
+            () =>
+                document.body.textContent?.includes(
+                    'Selected certificate: ' + assignableCertificate.name,
+                ) ?? false,
+        )
+        expect(document.body.textContent).toContain('Source: Manual')
+        expect(document.body.textContent).not.toContain('No public certificate selected')
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+        expect(createProxyHostWithCertificateHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test.each(['applied', 'pending', 'failed'] as const)(
+        'guided save preserves authoritative %s feedback',
+        async (outcome) => {
+            createProxyHostHandlerMock.mockResolvedValueOnce(
+                outcome === 'failed'
+                    ? {
+                          success: false,
+                          message: 'admin.proxyHosts.errors.saveFailed',
+                      }
+                    : {
+                          success: true,
+                          message: 'admin.proxyHosts.messages.created',
+                          runtimeStatus: outcome,
+                      },
+            )
+            await render(withQueryClient(<FormHarness mode="create" initialGuideOpen />))
+            const domain = document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!
+            await setControlValue(domain, 'guided.example.com')
+            await blurControl(domain)
+            const upstream = document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!
+            await setControlValue(upstream, 'backend.internal')
+            await blurControl(upstream)
+            await click(getButton('Next step'))
+            await click(getButton('Next step'))
+            await click(getButton('Create proxy host'))
+            await waitForToast(
+                outcome === 'failed' ? 'error' : outcome === 'pending' ? 'warning' : 'success',
+            )
+            if (outcome === 'failed') {
+                expect(document.querySelector('[role="dialog"]')).not.toBeNull()
+                expect(domain.value).toBe('guided.example.com')
+                expect(document.body.textContent).toContain('Fix highlighted fields before saving')
+            } else {
+                await waitFor(() => document.querySelector('[role="dialog"]') === null)
+            }
+            if (outcome === 'pending') {
+                expect(document.body.textContent).toContain(
+                    'Saved changes are waiting to be applied.',
+                )
+                expect(document.querySelector('.rentnerproxy-toast-success')).toBeNull()
+            }
+        },
+    )
+
+    test('opens automatically for the first host and can be skipped and reopened', async () => {
+        getProxyHostsHandlerMock.mockResolvedValue([])
+        await renderPage([PERMISSIONS.PROXY_HOSTS_VIEW, PERMISSIONS.PROXY_HOSTS_CREATE])
+        await waitFor(() => !getButton('Add proxy host').disabled)
+        await click(getButton('Add proxy host'))
+        await waitFor(() => document.querySelector('[role="dialog"]') !== null)
+        expect(getButton('Skip guide').getAttribute('aria-expanded')).toBe('true')
+        await click(getButton('Skip guide'))
+        expect(document.body.textContent).not.toContain('Public domains')
+        await click(getButton('Show setup guide'))
+        expect(document.body.textContent).toContain('Public domains')
+        expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
+    })
+
+    test('preserves the same form draft through steps, skip and reopen', async () => {
+        await render(withQueryClient(<FormHarness mode="create" initialGuideOpen />))
+        const domain = document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!
+        const upstream = document.querySelector<HTMLInputElement>('input[name="forwardHost"]')!
+        await setControlValue(domain, '*.example.com')
+        await setControlValue(upstream, 'backend.internal')
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="forwardPort"]')!,
+            '8080',
+        )
+        expect(document.body.textContent).toContain('Wildcard certificate requests require DNS-01')
+        await click(getButton('Next step'))
+        expect(document.body.textContent).toContain('http://backend.internal:8080')
+        expect(document.querySelector('input[name="domains[0]"]')).toBe(domain)
+        await click(getButton('Next step'))
+        expect(document.body.textContent).toContain('No public certificate selected')
+        expect(document.body.textContent).toContain('A queued or issuing certificate is not ready')
+        await click(getButton('Skip guide'))
+        await click(getButton('Show setup guide'))
+        expect(document.body.textContent).toContain('Public HTTPS')
+        await click(getButton('Previous step'))
+        await click(getButton('Previous step'))
+        expect(domain.value).toBe('*.example.com')
+        expect(upstream.value).toBe('backend.internal')
+        expect(createProxyHostHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('reflects the requested challenge and keeps certificate drafts when guidance is hidden', async () => {
+        await render(
+            withQueryClient(
+                <FormHarness
+                    mode="create"
+                    canAssignCertificates
+                    canRequestCertificate
+                    initialGuideOpen
+                />,
+            ),
+        )
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!,
+            'app.example.com',
+        )
+        await chooseSelectOption('TLS certificate', 'Request with ACME')
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('#certificate-request-name')!,
+            'Draft TLS',
+        )
+        await click(getButton('Next step'))
+        await click(getButton('Next step'))
+        expect(document.body.textContent).toContain('HTTP-01 needs public DNS')
+        await chooseSelectOption('ACME challenge', 'DNS-01 (Cloudflare)')
+        expect(document.body.textContent).toContain('DNS-01 needs the supported DNS provider')
+        await click(getButton('Skip guide'))
+        await click(getButton('Show setup guide'))
+        expect(document.querySelector<HTMLInputElement>('#certificate-request-name')?.value).toBe(
+            'Draft TLS',
+        )
+        expect(document.body.textContent).not.toContain('HTTP-01 needs public DNS')
+        expect(requestCertificateHandlerMock).not.toHaveBeenCalled()
+    })
+
+    test('guidance navigation cannot bypass validation or submit a host', async () => {
+        await render(withQueryClient(<FormHarness mode="create" initialGuideOpen />))
+        await setControlValue(
+            document.querySelector<HTMLInputElement>('input[name="domains[0]"]')!,
+            'https://invalid.example',
+        )
+        await click(getButton('Next step'))
+        await click(getButton('Next step'))
+        await act(async () => {
+            document
+                .querySelector('form')!
+                .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+        })
+        expect(createProxyHostHandlerMock).not.toHaveBeenCalled()
+        expect(
+            document.querySelector('input[name="domains[0]"]')?.getAttribute('aria-invalid'),
+        ).toBe('true')
+        expect(document.body.textContent).toContain('Fix highlighted fields before saving')
     })
 })

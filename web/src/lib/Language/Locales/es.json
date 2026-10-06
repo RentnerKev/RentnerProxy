@@ -1379,6 +1379,29 @@
                 "verificationDisabled": "Verificación del certificado desactivada",
                 "caUnavailable": "CA seleccionada no disponible",
                 "caLoadFailed": "No se pudieron cargar las CA de confianza. Se conserva la selección actual."
+            },
+            "guide": {
+                "title": "Guía de configuración",
+                "open": "Mostrar guía",
+                "skip": "Omitir guía",
+                "previous": "Paso anterior",
+                "next": "Paso siguiente",
+                "domainsTitle": "Dominios públicos",
+                "domainsHelp": "Introduce nombres sin protocolo ni ruta. Apunta el DNS al proxy; configura DNS y reenvío del router fuera de este formulario.",
+                "emptyDomains": "Añade tu dominio abajo.",
+                "wildcardHelp": "Los certificados comodín requieren DNS-01 y no cubren el dominio raíz; añádelo por separado si hace falta.",
+                "upstreamTitle": "Servicio de destino",
+                "upstreamHelp": "Usa la dirección, protocolo y puerto accesibles desde el proxy. La verificación HTTPS del destino es independiente del certificado público.",
+                "tlsTitle": "HTTPS público",
+                "tlsHelp": "Elige un certificado existente o importado válido para todos los dominios, solicita uno nuevo o empieza con HTTP. El HTTPS público necesita acceso entrante al proxy por el puerto 443.",
+                "requested": "Al guardar se solicitará un certificado nuevo.",
+                "existing": "Certificado seleccionado: {{name}}. Comprueba cobertura y validez.",
+                "noCertificate": "Sin certificado público: el host usa HTTP.",
+                "httpHelp": "HTTP-01 necesita DNS público al proxy y acceso entrante por el puerto 80. No permite certificados comodín.",
+                "dnsHelp": "DNS-01 requiere el proveedor compatible, la zona correcta y credenciales para crear registros TXT. La propagación puede tardar; esta validación no necesita el puerto 80 entrante.",
+                "resultHelp": "Guardar almacena la configuración. Un certificado en cola o en emisión no está listo. Espera su aplicación y comprueba el estado del runtime; la configuración aplicada no prueba acceso por DNS ni al servicio.",
+                "failureHelp": "Corrige los campos indicados antes de guardar. Revisa los errores de certificados fallidos y reintenta tras corregirlos. Aplica cambios pendientes si tienes permiso; restaura el runtime no disponible y reintenta.",
+                "certificateUnavailable": "Detalles no disponibles"
             }
         },
         "redirectHosts": {

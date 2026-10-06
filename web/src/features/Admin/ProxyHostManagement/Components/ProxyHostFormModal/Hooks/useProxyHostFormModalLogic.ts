@@ -1,4 +1,7 @@
-import type { UseProxyHostFormLogicParams } from '../Types/proxy-host-form-modal-logic.types.ts'
+import type {
+    ProxyHostFormModalRefs,
+    UseProxyHostFormLogicParams,
+} from '../Types/proxy-host-form-modal-logic.types.ts'
 import { invalidateAccessPoliciesCache } from '@/lib/Admin/AccessPolicyManagement/accessPolicyManagementCache.ts'
 import type {
     ProxyHostFormModalHandler,
@@ -36,6 +39,7 @@ import { proxyHostFormSchema } from '../../../validation.ts'
 import { getProxyHostFormValues } from '@/lib/Admin/ProxyHostManagement/proxyHostFormValues.ts'
 
 export default function useProxyHostFormModalLogic({
+    initialGuideOpen = false,
     canEnable,
     canDisable,
     canAssignCertificates = false,
@@ -47,6 +51,22 @@ export default function useProxyHostFormModalLogic({
 }: UseProxyHostFormLogicParams) {
     const { t } = useTranslationStore()
     const formId = useId()
+    const [guideOpen, setGuideOpen] = useState(initialGuideOpen)
+    const [guideStep, setGuideStep] = useState(0)
+    const guideHeading = useRef<HTMLHeadingElement>(null)
+    const previousGuideStepRef = useRef(guideStep)
+    useEffect(() => {
+        if (previousGuideStepRef.current !== guideStep) {
+            previousGuideStepRef.current = guideStep
+            guideHeading.current?.focus()
+        }
+    }, [guideStep])
+    const handleToggleGuide = useCallback(() => setGuideOpen((open) => !open), [])
+    const handleNextGuideStep = useCallback(() => setGuideStep((step) => Math.min(2, step + 1)), [])
+    const handlePreviousGuideStep = useCallback(
+        () => setGuideStep((step) => Math.max(0, step - 1)),
+        [],
+    )
     const isCreate = mode !== 'edit'
     const defaultValues = getProxyHostFormValues(mode, proxyHost)
     const queryClient = useQueryClient()
@@ -189,6 +209,18 @@ export default function useProxyHostFormModalLogic({
             await mutation.mutateAsync(value).catch(() => undefined)
         },
     })
+    const guideValues = useStore(form.store, (state) => state.values)
+    const challengeType = useStore(
+        certificateRequest.form.store,
+        (state) => state.values.challengeType,
+    )
+    const guideUpstreamHost =
+        guideValues.forwardHost.includes(':') && !guideValues.forwardHost.startsWith('[')
+            ? '[' + guideValues.forwardHost + ']'
+            : guideValues.forwardHost
+    const selectedCertificate = certificatesQuery.data?.find(
+        (certificate) => certificate.id === guideValues.certificateId,
+    )
     const hostDomains = useStore(form.store, (state) => state.values.domains)
     useEffect(() => {
         certificateRequest.form.setFieldValue('domains', [...hostDomains])
@@ -229,9 +261,27 @@ export default function useProxyHostFormModalLogic({
     )
 
     return {
+        refs: { guideHeading } satisfies ProxyHostFormModalRefs,
         form,
         certificateRequestForm: certificateRequest.form,
         state: {
+            guide: {
+                open: guideOpen,
+                step: guideStep,
+                domains: guideValues.domains.filter((domain) => domain.trim()).join(', '),
+                upstream:
+                    guideValues.forwardScheme +
+                    '://' +
+                    guideUpstreamHost +
+                    ':' +
+                    guideValues.forwardPort,
+                wildcard: guideValues.domains.some((domain) => domain.trim().startsWith('*.')),
+                certificateSource: selectedCertificate?.source ?? null,
+                certificateSelected: Boolean(guideValues.certificateId),
+                certificateName: selectedCertificate?.name ?? null,
+                requestNewCertificate,
+                challengeType,
+            },
             formId,
             description: t(
                 mode === 'duplicate'
@@ -269,6 +319,9 @@ export default function useProxyHostFormModalLogic({
             isPending: mutation.isPending,
         } satisfies Omit<ProxyHostFormModalState, 'form' | 'certificateRequestForm'>,
         handler: {
+            handleToggleGuide,
+            handleNextGuideStep,
+            handlePreviousGuideStep,
             handleSubmit,
             addDomain,
             removeDomain,

@@ -3,11 +3,12 @@ import { Modal } from '@/shared/Modal/index.tsx'
 import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import useProxyHostFormModalLogic from './Hooks/useProxyHostFormModalLogic.ts'
 import type { ProxyHostFormModalProps } from './Types/proxy-host-form.types.ts'
+import ProxyHostSetupGuide from './Components/ProxyHostSetupGuide.tsx'
 import ProxyHostFormFields from './Components/ProxyHostFormFields.tsx'
 import ProxyHostFormModalFooter from './Components/ProxyHostFormModalFooter.tsx'
 
 export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
-    const { state, handler, form, certificateRequestForm } = useProxyHostFormModalLogic(props)
+    const { state, handler, refs, form, certificateRequestForm } = useProxyHostFormModalLogic(props)
     const { t } = useTranslationStore()
 
     return (
@@ -33,6 +34,14 @@ export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
                     noValidate
                     onSubmit={handler.handleSubmit}
                 >
+                    <ProxyHostSetupGuide
+                        guide={state.guide}
+                        guideHeading={refs.guideHeading}
+                        formId={state.formId}
+                        handleToggleGuide={handler.handleToggleGuide}
+                        handleNextGuideStep={handler.handleNextGuideStep}
+                        handlePreviousGuideStep={handler.handlePreviousGuideStep}
+                    />
                     <ProxyHostFormFields
                         certificateRequestForm={certificateRequestForm}
                         {...state}

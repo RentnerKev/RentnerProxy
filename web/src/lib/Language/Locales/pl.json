@@ -1393,6 +1393,29 @@
                 "verificationDisabled": "Weryfikacja certyfikatu wyłączona",
                 "caUnavailable": "Wybrany urząd CA jest niedostępny",
                 "caLoadFailed": "Nie udało się wczytać zaufanych urzędów certyfikacji. Bieżący wybór został zachowany."
+            },
+            "guide": {
+                "title": "Przewodnik konfiguracji",
+                "open": "Pokaż przewodnik",
+                "skip": "Pomiń przewodnik",
+                "previous": "Poprzedni krok",
+                "next": "Następny krok",
+                "domainsTitle": "Domeny publiczne",
+                "domainsHelp": "Wpisz nazwy bez protokołu i ścieżki. Skieruj DNS na proxy; DNS i przekierowania routera skonfiguruj poza formularzem.",
+                "emptyDomains": "Dodaj domenę poniżej.",
+                "wildcardHelp": "Certyfikaty wildcard wymagają DNS-01 i nie obejmują domeny głównej; dodaj ją osobno w razie potrzeby.",
+                "upstreamTitle": "Usługa docelowa",
+                "upstreamHelp": "Użyj adresu, protokołu i portu dostępnych z proxy. Weryfikacja HTTPS celu jest niezależna od publicznego certyfikatu.",
+                "tlsTitle": "Publiczne HTTPS",
+                "tlsHelp": "Wybierz ważny istniejący lub importowany certyfikat dla wszystkich domen, zamów nowy lub zacznij od HTTP. Publiczne HTTPS wymaga dostępu przychodzącego do proxy na porcie 443.",
+                "requested": "Przy zapisie zostanie zamówiony nowy certyfikat.",
+                "existing": "Wybrany certyfikat: {{name}}. Sprawdź domeny i ważność.",
+                "noCertificate": "Brak publicznego certyfikatu: host używa HTTP.",
+                "httpHelp": "HTTP-01 wymaga publicznego DNS do proxy i dostępu przychodzącego na port 80. Nie wystawia certyfikatów wildcard.",
+                "dnsHelp": "DNS-01 wymaga obsługiwanego dostawcy, poprawnej strefy i danych uprawnionych do tworzenia rekordów TXT. Propagacja może trwać; ta weryfikacja nie wymaga portu 80 przychodzącego.",
+                "resultHelp": "Zapis przechowuje konfigurację. Certyfikat w kolejce lub podczas wystawiania nie jest gotowy. Poczekaj na zastosowanie i sprawdź runtime; zastosowanie nie dowodzi dostępności DNS ani usługi.",
+                "failureHelp": "Popraw oznaczone pola przed zapisem. Sprawdź błędy certyfikatów i ponów po naprawie. Zastosuj oczekujące zmiany, jeśli masz uprawnienia; przywróć niedostępny runtime i ponów.",
+                "certificateUnavailable": "Szczegóły niedostępne"
             }
         },
         "redirectHosts": {

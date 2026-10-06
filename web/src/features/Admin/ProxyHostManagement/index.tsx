@@ -128,6 +128,9 @@ export default function ProxyHostManagementPage(props: ProxyHostManagementPagePr
                     key={state.duplicateSource?.id ?? 'create'}
                     open
                     mode={state.duplicateSource ? 'duplicate' : 'create'}
+                    initialGuideOpen={
+                        !state.duplicateSource && !state.isLoading && state.proxyHosts.length === 0
+                    }
                     proxyHost={state.duplicateSource ?? undefined}
                     canEnable={state.canEnable}
                     canDisable={state.canDisable}
