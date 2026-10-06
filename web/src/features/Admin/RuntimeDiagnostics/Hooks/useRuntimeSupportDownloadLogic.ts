@@ -18,7 +18,7 @@ export default function useRuntimeSupportDownloadLogic({
     const [isExporting, setIsExporting] = useState(false)
     const [feedback, setFeedback] = useState<RuntimeSupportDownloadLogic['state']['feedback']>(null)
 
-    async function download(): Promise<void> {
+    async function downloadReport(): Promise<void> {
         if (!canExport || exporting.current) return
         exporting.current = true
         setIsExporting(true)
@@ -55,8 +55,8 @@ export default function useRuntimeSupportDownloadLogic({
     return {
         state: { canExport, isExporting, feedback },
         handler: {
-            download: () => {
-                void download()
+            handleDownload: () => {
+                void downloadReport()
             },
         },
     }

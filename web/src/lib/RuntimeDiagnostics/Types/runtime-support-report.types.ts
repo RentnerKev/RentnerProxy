@@ -1,12 +1,10 @@
-export interface SupportReportSection<T> {
-    readonly state: 'available' | 'unavailable'
-    readonly data: T | null
-}
+export type SupportReportSection<T> =
+    | { readonly state: 'available'; readonly data: T }
+    | { readonly state: 'unavailable'; readonly data: null }
 
-export interface SupportVersion {
-    readonly state: 'available' | 'unavailable'
-    readonly value: string | null
-}
+export type SupportVersion =
+    | { readonly state: 'available'; readonly value: string }
+    | { readonly state: 'unavailable'; readonly value: null }
 
 export interface SupportHostCounts {
     readonly total: number
@@ -59,7 +57,6 @@ export interface RuntimeSupportReport {
     readonly unavailableSections: readonly string[]
 }
 
-// Inputs remain untrusted even when they originate from an existing status reader.
 export interface RuntimeSupportReportInput {
     readonly applicationVersion: unknown
     readonly controllerHealth: unknown

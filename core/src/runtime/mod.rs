@@ -151,7 +151,6 @@ impl ProxyRuntime {
         {
             return version.clone();
         }
-        // Admit one metadata process at a time; never queue requests behind it.
         let Ok(_permit) = self.binary_version_admission.try_acquire() else {
             return cached.and_then(|(_, version)| version);
         };

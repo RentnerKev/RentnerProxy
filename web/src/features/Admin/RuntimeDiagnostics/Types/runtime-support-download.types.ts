@@ -10,5 +10,5 @@ export interface RuntimeSupportDownloadLogic {
         readonly isExporting: boolean
         readonly feedback: 'complete' | 'partial' | 'failed' | null
     }
-    readonly handler: { readonly download: () => void }
+    readonly handler: { readonly handleDownload: () => void }
 }

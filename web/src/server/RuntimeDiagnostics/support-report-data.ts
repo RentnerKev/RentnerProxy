@@ -16,7 +16,6 @@ import {
 import { CERTIFICATE_JOB_STAGES } from '@/config/certificate-jobs.config.ts'
 import { SUPPORT_CERTIFICATE_JOB_ERROR_CODES } from '@/lib/RuntimeDiagnostics/runtimeSupportReport.ts'
 
-// Fixed columns and aggregate queries avoid loading names, domains, credentials or job payloads.
 function aggregateCounters(
     column: SQLWrapper,
     values: readonly string[],

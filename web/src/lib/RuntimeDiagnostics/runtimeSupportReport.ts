@@ -43,7 +43,6 @@ export function canExportRuntimeSupportReport(permissions: readonly PermissionKe
 }
 
 function version(value: unknown): SupportVersion {
-    // Arbitrary semver prerelease/build strings can contain private deployment names.
     const valid =
         typeof value === 'string' &&
         value.length <= 64 &&
@@ -136,14 +135,13 @@ function jobCounts(value: unknown): SupportJobCounts | null {
 }
 
 function section<T>(data: T | null): SupportReportSection<T> {
-    return { state: data === null ? 'unavailable' : 'available', data }
+    return data === null ? { state: 'unavailable', data: null } : { state: 'available', data }
 }
 
 function connected(value: unknown): 'connected' | 'unavailable' {
     return isRecord(value) && value.state === 'connected' ? 'connected' : 'unavailable'
 }
 
-/** Construct every field afresh. Never serialize, redact, or spread source payloads. */
 export function createRuntimeSupportReport(
     input: RuntimeSupportReportInput,
     capturedAt: Date,
@@ -205,7 +203,7 @@ export function createRuntimeSupportReport(
         versions: {
             application,
             controller,
-            caddy: { state: caddy.state, value: caddy.value, source: 'configured_binary' },
+            caddy: { ...caddy, source: 'configured_binary' },
         },
         components: {
             controller: controllerConnected ? 'connected' : 'unavailable',

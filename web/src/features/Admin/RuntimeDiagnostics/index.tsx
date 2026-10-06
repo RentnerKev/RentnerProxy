@@ -24,7 +24,7 @@ export default function RuntimeSupportDownload(props: RuntimeSupportDownloadProp
                     aria-describedby="runtime-support-privacy"
                     aria-busy={state.isExporting}
                     disabled={state.isExporting}
-                    onClick={handler.download}
+                    onClick={handler.handleDownload}
                 >
                     <Download aria-hidden="true" className="size-4" />
                     {t(

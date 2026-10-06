@@ -5,7 +5,6 @@ const MAX_OUTPUT_BYTES: usize = 1_024;
 const MAX_VERSION_BYTES: usize = 64;
 const VERSION_TIMEOUT: Duration = Duration::from_secs(1);
 
-// This is metadata from the configured binary, independent of the running child.
 pub(super) async fn read(binary: &Path) -> Option<String> {
     let mut command = Command::new(binary);
     command
@@ -52,7 +51,6 @@ fn parse(output: &[u8]) -> Option<String> {
     if version.is_empty() || version.len() > MAX_VERSION_BYTES {
         return None;
     }
-    // Discard valid SemVer build metadata as well as Caddy's trailing build info.
     let (version, build) = version
         .split_once('+')
         .map_or((version, None), |(v, b)| (v, Some(b)));
