@@ -202,10 +202,8 @@ Portable host configuration exports do not include these global settings.
 
 ## More information
 
-- [Architecture](ARCHITECTURE.md) · [Security policy](SECURITY.md) · [Assurance case](ASSURANCE_CASE.md)
-- [Runtime support report](RUNTIME_SUPPORT_REPORT.md)
-- [Release process](RELEASING.md) · [Contributing](CONTRIBUTING.md)
-- [Proxy host setup guide](PROXY_HOST_SETUP.md)
+- [Architecture](docs/architecture.md) · [Security policy](SECURITY.md) · [Assurance case](docs/security/assurance-case.md)
+- [Governance](docs/governance.md) · [Contributing](.github/CONTRIBUTING.md) · [Code of Conduct](.github/CODE_OF_CONDUCT.md)
 - [Screenshots](screenshots) · [Report a bug](https://github.com/RentnerKev/RentnerProxy/issues/new/choose)
 
 Licensed under [MIT](LICENSE).
@@ -299,8 +297,8 @@ reached. In-flight cycles finish their bounded commands, so observed duration ca
 cap. Retain at least eight quiescent samples for trend evidence; a shorter passing run cannot establish
 resource stability. These are fixture guards, not production performance benchmarks. The separate
 [Runtime Reliability workflow](.github/workflows/runtime-reliability.yml) runs short checks for relevant
-PR/main changes and long current/Alpha 6 checks weekly or manually. See [Architecture](ARCHITECTURE.md)
-for resource evidence limits and [Releasing](RELEASING.md) for the exact-ref release gate.
+PR/main changes and long current/Alpha 6 checks weekly or manually. See [Architecture](docs/architecture.md)
+for resource evidence limits and [release compatibility workflow](.github/workflows/release-compatibility.yml) for the exact-ref release gate.
 
 Override bounds with `--duration-seconds 30..7200`, `--iterations 1..1000` and `--concurrency 1..8`
 (using one integer, not a range). `--seed` accepts a uint32 (default 69) for repeatable fixture choices;
@@ -314,4 +312,4 @@ retry can leave the job failed while the controller completes issuance. The fixt
 `alpha6-binding-retry-needs-second-request` in `knownLimitations` only for the verified known state,
 then sends one bounded second retry for the same job. This represents an additional operator action;
 a passing baseline accounts for that limitation. Current builds must complete after one retry and
-report no known limitations. See [Releasing](RELEASING.md) for the required evidence.
+report no known limitations. See [release compatibility workflow](.github/workflows/release-compatibility.yml) for the required evidence.
