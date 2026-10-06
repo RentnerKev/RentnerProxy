@@ -1,5 +1,18 @@
 # Operations
 
+## Runtime dependency maintenance
+
+The web runtime stages remove build tools and their native platform packages after
+the frozen production install. Application runtime packages remain installed.
+Both custom Caddy builds use the pinned 2.11.7 builder and CrowdSec SDK v1.7.8,
+while retaining the verified HTTP-only community bouncer source revision.
+The source transform also adapts its live decision IP filter to the SDK's string
+field without changing exact-match filtering.
+The appliance updates its inherited PCRE2 package from the configured Debian
+repositories and rejects builds below `10.46-1~deb13u3`.
+These updates do not establish that an image passes the complete dependency
+assessment; unresolved findings continue to block publication.
+
 ## CrowdSec (development image)
 
 - **Managed:** local detection and blocking work without a CrowdSec account; community intelligence and Console enrollment are separate opt-ins.
