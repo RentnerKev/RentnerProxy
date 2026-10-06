@@ -126,10 +126,21 @@ Historical superseded tags are not covered. A missing monitored tag, download/sc
 malformed report or stale advisory database fails closed. Grype's maximum build
 age is 48 hours; Go's official advisory index may remain unchanged between
 advisories and has a seven-day maximum last-modified age. Both require successful
-fresh retrieval and valid database metadata. RustSec
-is cloned freshly for each locked-graph audit; the database revision and lock
-checksum are retained. New images embed the exact Cargo lock; older channel
-images fetch only that lock data from their exact source commit. No historical
+fresh retrieval and valid database metadata. RustSec is cloned freshly for each
+locked-graph audit; the database revision and lock checksum are retained.
+
+The audit keeps cargo-audit's database fetch and crates.io index refresh enabled,
+requires its reported advisory commit to match the Git checkout after auditing,
+and retains stderr diagnostics. Null database metadata, missing/index-refresh
+errors and advisory/yanked-package warnings fail closed, even when cargo-audit
+returns zero or its vulnerability count is zero. The advisory database is fetched
+within 48 hours and its last commit must be within seven days.
+In [cargo-audit 0.22.2](https://github.com/RustSec/rustsec/blob/cargo-audit/v0.22.2/cargo-audit/src/auditor.rs),
+`--no-fetch` also suppresses index refresh and opens advisory files without Git
+metadata; this gate deliberately retains the default fetch mode.
+
+New images embed the exact Cargo lock; older channel images fetch only that lock
+data from their exact source commit. No historical
 source scripts or appliance entrypoints are executed.
 
 Assessment artifacts retain source/image identity, scanner versions/database

@@ -98,13 +98,41 @@ export function evaluateGo(report: unknown, mode: 'binary' | 'query', now = Date
         throw new Error('Go advisory policy failed; inspect module and symbol traces in the report')
 }
 
-export function evaluateCargo(report: unknown): void {
+export function evaluateCargoDiagnostics(diagnostics: string): void {
+    if (/\b(?:warning|error)\b|couldn't/i.test(diagnostics))
+        throw new Error(
+            'Cargo audit emitted warnings or errors; advisory/index coverage is incomplete',
+        )
+}
+
+export function evaluateCargo(report: unknown, databaseEvidence: unknown, now = Date.now()): void {
     const parsed = object(report)
+    const database = object(parsed.database)
+    const evidence = object(databaseEvidence)
+    const revision = text(evidence.revision)
+    if (!/^[0-9a-f]{40}$/.test(revision) || database['last-commit'] !== revision)
+        throw new Error('Cargo advisory database metadata does not match the assessed Git revision')
+    fresh(evidence.fetchedAt, now, 172_800_000)
+    fresh(database['last-updated'], now, 604_800_000)
+    if (typeof database['advisory-count'] !== 'number' || database['advisory-count'] < 1)
+        throw new Error('Cargo advisory database is empty')
+    const dependencyCount = object(parsed.lockfile)['dependency-count']
+    if (typeof dependencyCount !== 'number' || dependencyCount < 1)
+        throw new Error('Cargo locked graph is empty')
+    const settings = object(parsed.settings)
+    if (
+        array(settings.ignore).length ||
+        array(settings.target_arch).length ||
+        array(settings.target_os).length ||
+        settings.severity !== null
+    )
+        throw new Error('Cargo advisory coverage is filtered')
+    if (Object.values(object(parsed.warnings)).some((warnings) => array(warnings).length))
+        throw new Error('Cargo advisory or yanked-package warnings')
     const vulnerabilities = object(parsed.vulnerabilities)
     const count = vulnerabilities.count
     if (typeof count !== 'number' || !Number.isInteger(count) || count < 0)
         throw new Error('Cargo advisory count missing')
-    text(object(parsed.database)['last-commit'])
     if (count || array(vulnerabilities.list).length)
         throw new Error('Locked Cargo graph contains a RustSec vulnerability')
 }
@@ -121,12 +149,17 @@ export function evaluateIdentity(report: unknown): { revision: string; digest: s
 if (import.meta.main) {
     const [mode, path, output] = process.argv.slice(2)
     if (!path) throw new Error('A structured scanner report is required')
+    if (mode === 'cargo-diagnostics') {
+        evaluateCargoDiagnostics(await readFile(path, 'utf8'))
+        process.exit(0)
+    }
     const report: unknown = JSON.parse(await readFile(path, 'utf8'))
     if (mode === 'database') evaluateDatabase(report)
     else if (mode === 'image') evaluateImage(report)
     else if (mode === 'inventory') evaluateInventory(report)
     else if (mode === 'binary' || mode === 'query') evaluateGo(report, mode)
-    else if (mode === 'cargo') evaluateCargo(report)
+    else if (mode === 'cargo' && output)
+        evaluateCargo(report, JSON.parse(await readFile(output, 'utf8')) as unknown)
     else if (mode === 'identity' && output) {
         const parsed = evaluateIdentity(report)
         await writeFile(

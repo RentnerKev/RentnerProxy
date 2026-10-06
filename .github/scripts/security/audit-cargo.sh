@@ -10,10 +10,21 @@ if [[ ! -x "$RUNNER_TEMP/cargo-audit/bin/cargo-audit" ]]; then
 fi
 database="$REPORT_DIRECTORY/rustsec-advisory-db"
 git clone --depth=1 https://github.com/RustSec/advisory-db.git "$database"
-git -C "$database" rev-parse HEAD > "$REPORT_DIRECTORY/rustsec-revision.txt"
 status=0
+# Fetch mode loads Git metadata AND refreshes the crates.io index. --no-fetch
+# instead opens plain advisory files and suppresses index refresh in 0.22.2.
 "$RUNNER_TEMP/cargo-audit/bin/cargo-audit" audit --file "$SOURCE_DIRECTORY/core/Cargo.lock" \
-    --db "$database" --no-fetch --json > "$REPORT_DIRECTORY/cargo.json" || status=$?
-if (( status > 1 )); then exit "$status"; fi
-bun --no-env-file "$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts" cargo "$REPORT_DIRECTORY/cargo.json"
+    --db "$database" --deny warnings --json > "$REPORT_DIRECTORY/cargo.json" \
+    2> "$REPORT_DIRECTORY/cargo-diagnostics.txt" || status=$?
+cat "$REPORT_DIRECTORY/cargo-diagnostics.txt" >&2
+git -C "$database" rev-parse HEAD > "$REPORT_DIRECTORY/rustsec-revision.txt"
+jq --null-input --arg revision "$(cat "$REPORT_DIRECTORY/rustsec-revision.txt")" \
+    --arg fetchedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    '{revision:$revision,fetchedAt:$fetchedAt}' > "$REPORT_DIRECTORY/rustsec-database.json"
+policy="$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts"
+# Index refresh/per-crate errors can be printed without a nonzero scanner exit.
+# Treat these diagnostics as an incomplete audit, never as a clean inventory.
+bun --no-env-file "$policy" cargo-diagnostics "$REPORT_DIRECTORY/cargo-diagnostics.txt"
+if (( status != 0 )); then exit "$status"; fi
+bun --no-env-file "$policy" cargo "$REPORT_DIRECTORY/cargo.json" "$REPORT_DIRECTORY/rustsec-database.json"
 rm -rf "$database"

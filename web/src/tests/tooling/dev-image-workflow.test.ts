@@ -11,7 +11,7 @@ interface DevImageWorkflow {
             readonly with: Record<string, string>
         }
         readonly build: {
-            readonly permissions: { readonly contents: string; readonly packages: string }
+            readonly permissions: { readonly contents: string; readonly packages?: string }
             readonly steps: readonly {
                 readonly id?: string
                 readonly uses?: string

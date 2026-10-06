@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import {
     evaluateCargo,
+    evaluateCargoDiagnostics,
     evaluateDatabase,
     evaluateGo,
     evaluateIdentity,
@@ -135,19 +136,97 @@ describe('deployed dependency policy', () => {
         expect(() => evaluateDatabase({ valid: true }, now)).toThrow()
     })
 
+    test('rejects the actual no-fetch CI response with null metadata and missing crate-index diagnostics', () => {
+        const actualCiResponse = {
+            database: { 'advisory-count': 1290, 'last-commit': null, 'last-updated': null },
+            lockfile: { 'dependency-count': 199 },
+            settings: {
+                target_arch: [],
+                target_os: [],
+                severity: null,
+                ignore: [],
+                informational_warnings: ['unmaintained', 'unsound', 'notice'],
+            },
+            vulnerabilities: { found: false, count: 0, list: [] },
+            warnings: {},
+        }
+        const evidence = {
+            revision: 'ef6173cbc5c50ec8166f9a5b28f07834144373ee',
+            fetchedAt: '2026-10-06T10:00:00Z',
+        }
+        expect(() => evaluateCargo(actualCiResponse, evidence, now)).toThrow('metadata')
+        expect(() =>
+            evaluateCargoDiagnostics(
+                "error: couldn't check if the package is yanked: No such crate index: asn1-rs",
+            ),
+        ).toThrow('incomplete')
+        expect(() =>
+            evaluateCargoDiagnostics(
+                "warning: couldn't update crates.io index: network unavailable",
+            ),
+        ).toThrow('incomplete')
+        expect(() =>
+            evaluateCargoDiagnostics(
+                'Fetching advisory database\nLoaded 1290 security advisories\nUpdating crates.io index',
+            ),
+        ).not.toThrow()
+        const fetched = {
+            ...actualCiResponse,
+            database: {
+                ...actualCiResponse.database,
+                'last-commit': evidence.revision,
+                'last-updated': '2026-10-06T09:00:00Z',
+            },
+        }
+        expect(() => evaluateCargo(fetched, evidence, now)).not.toThrow()
+        expect(() =>
+            evaluateCargo(fetched, { ...evidence, revision: 'b'.repeat(40) }, now),
+        ).toThrow('metadata')
+        expect(() =>
+            evaluateCargo({ ...fetched, warnings: { yanked: [{}] } }, evidence, now),
+        ).toThrow('yanked')
+        expect(() =>
+            evaluateCargo(
+                { ...fetched, settings: { ...fetched.settings, ignore: ['RUSTSEC-fixture'] } },
+                evidence,
+                now,
+            ),
+        ).toThrow('filtered')
+        expect(() =>
+            evaluateCargo(fetched, { ...evidence, fetchedAt: '2026-09-01T09:00:00Z' }, now),
+        ).toThrow('stale')
+    })
+
     test('checks the complete locked Cargo response and exact immutable identity', () => {
         const clean = {
-            database: { 'last-commit': 'a'.repeat(40) },
+            database: {
+                'last-commit': 'a'.repeat(40),
+                'last-updated': '2026-10-06T10:00:00Z',
+                'advisory-count': 1290,
+            },
+            lockfile: { 'dependency-count': 199 },
+            settings: { ignore: [], severity: null, target_arch: [], target_os: [] },
+            warnings: {},
             vulnerabilities: { count: 0, list: [] },
         }
-        expect(() => evaluateCargo(clean)).not.toThrow()
         expect(() =>
-            evaluateCargo({
-                ...clean,
-                vulnerabilities: { count: 1, list: [{ advisory: { id: 'RUSTSEC-fixture' } }] },
-            }),
+            evaluateCargo(
+                clean,
+                { revision: 'a'.repeat(40), fetchedAt: '2026-10-06T10:00:00Z' },
+                now,
+            ),
+        ).not.toThrow()
+        expect(() =>
+            evaluateCargo(
+                {
+                    ...clean,
+                    vulnerabilities: { count: 1, list: [{ advisory: { id: 'RUSTSEC-fixture' } }] },
+                },
+                { revision: 'a'.repeat(40), fetchedAt: '2026-10-06T10:00:00Z' },
+                now,
+            ),
         ).toThrow('RustSec')
-        expect(() => evaluateCargo({ vulnerabilities: { count: 0, list: [] } })).toThrow()
+        expect(() => evaluateCargo({ vulnerabilities: { count: 0, list: [] } }, {})).toThrow()
         expect(
             evaluateIdentity({ revision: 'a'.repeat(40), digest: `sha256:${'b'.repeat(64)}` })
                 .revision,
