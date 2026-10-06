@@ -14,7 +14,16 @@ while IFS= read -r tag; do
         continue
     fi
     digest="sha256:$(sha256sum "$root_reports/$tag/resolved-manifest.json" | cut -d ' ' -f1)"
-    revision="$(skopeo inspect --override-os linux --override-arch amd64 --config "docker://$image@$digest" | jq --raw-output '.config.Labels["org.opencontainers.image.revision"]')"
+    if ! revision="$(skopeo inspect --override-os linux --override-arch amd64 --config "docker://$image@$digest" | jq --raw-output '.config.Labels["org.opencontainers.image.revision"] // empty')"; then
+        echo "::error::Cannot read immutable image revision for $tag"
+        status=1
+        continue
+    fi
+    if [[ ! "$revision" =~ ^[0-9a-f]{40}$ ]]; then
+        echo "::error::Missing or invalid immutable image revision for $tag"
+        status=1
+        continue
+    fi
     result=0
     IMAGE_SOURCE="docker://$image@$digest" REVISION="$revision" REPORT_DIRECTORY="$root_reports/$tag" \
         bash "$AUTOMATION_DIRECTORY/.github/scripts/security/scan-image.sh" || result=$?
