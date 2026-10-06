@@ -183,7 +183,9 @@ function createLoginChallenge(): LoginMfaChallenge {
     return {
         attempts: 0,
         createdAt: new Date().toISOString(),
+        factorId: 'factor-1',
         kind: 'login-mfa',
+        passwordFingerprint: 'a'.repeat(64),
         userId: 'user-1',
     }
 }
@@ -285,5 +287,22 @@ describe('authentication challenge storage', () => {
         await expect(getAuthChallenge('login-mfa', issued.id, dependencies)).rejects.toMatchObject({
             name: 'AuthChallengeStateError',
         })
+    })
+
+    test('does not acquire legacy challenges without credential binding', async () => {
+        const issued = await createAuthChallenge(createLoginChallenge(), 300_000, dependencies)
+        fakeValkey.setRaw(
+            `rentnerproxy:auth-challenge:login-mfa:${issued.id}`,
+            JSON.stringify({
+                attempts: 0,
+                createdAt: new Date().toISOString(),
+                kind: 'login-mfa',
+                userId: 'user-1',
+            }),
+        )
+
+        expect(
+            await acquireCodeChallengeVerification('login-mfa', issued.id, dependencies),
+        ).toBeNull()
     })
 })

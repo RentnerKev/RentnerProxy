@@ -9,11 +9,15 @@ import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { isAuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { normalizeEmail } from '@/server/Auth/Core/identity.server.ts'
 import { hashPassword, isValidPassword } from '@/server/Auth/Core/password.server.ts'
-import { createSessionService } from '@/server/Auth/Access/sessions.service.ts'
+import {
+    createSessionInTransaction,
+    getPasswordAuthenticationFingerprint,
+    requirePasswordAuthenticationInTransaction,
+} from '@/server/Auth/Access/sessions.service.ts'
 import { resolveActiveUserAccessInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import {
     createLoginMfaChallengeService,
-    hasEnabledTotpFactorService,
+    getLoginMfaFactorInTransaction,
 } from '@/server/Auth/TwoFactor/two-factor.service.ts'
 import { createOpaqueToken } from '@/server/Auth/Core/tokens.server.ts'
 import { recordAuditEventBestEffortService } from '@/server/Audit/audit.service.ts'
@@ -64,44 +68,63 @@ export async function loginService(input: {
         return { success: false, code: 'invalid_credentials' }
     }
 
-    const access = await getAuthDatabase().transaction((transaction) =>
-        resolveActiveUserAccessInTransaction(transaction, user.id),
-    )
-
-    if (!access?.permissions.includes(PERMISSIONS.APP_ACCESS)) {
-        await recordAuditEventBestEffortService({
-            actorUserId: null,
-            actorKind: 'anonymous',
-            action: 'login',
-            resource: 'session',
-            targetId: null,
-            result: 'denied',
-            metadata: { authenticationMethod: 'password', reason: 'authentication_failed' },
-        })
-        return { success: false, code: 'invalid_credentials' }
-    }
-
-    if (await hasEnabledTotpFactorService(user.id)) {
-        const challenge = await createLoginMfaChallengeService(user.id)
-        return {
-            challenge: { id: challenge.id, expiresAt: challenge.expiresAt },
-            requiresTwoFactor: true,
-            success: true,
-        }
-    }
-
     try {
-        const session = await createSessionService(user.id)
-        return {
-            requiresTwoFactor: false,
-            success: true,
-            user: session.user,
-            session: {
-                id: session.id,
-                token: session.token,
-                expiresAt: session.expiresAt,
+        const passwordFingerprint = getPasswordAuthenticationFingerprint(user.passwordHash)
+        const result = await getAuthDatabase().transaction(
+            async (transaction): Promise<LoginResult> => {
+                await requirePasswordAuthenticationInTransaction(
+                    transaction,
+                    user.id,
+                    passwordFingerprint,
+                )
+                const access = await resolveActiveUserAccessInTransaction(transaction, user.id)
+
+                if (!access?.permissions.includes(PERMISSIONS.APP_ACCESS)) {
+                    return { success: false, code: 'invalid_credentials' }
+                }
+
+                const factor = await getLoginMfaFactorInTransaction(transaction, user.id)
+
+                if (factor) {
+                    const challenge = await createLoginMfaChallengeService({
+                        factorId: factor.id,
+                        passwordFingerprint,
+                        userId: user.id,
+                    })
+                    return {
+                        challenge: { id: challenge.id, expiresAt: challenge.expiresAt },
+                        requiresTwoFactor: true,
+                        success: true,
+                    }
+                }
+
+                const session = await createSessionInTransaction(transaction, user.id)
+                return {
+                    requiresTwoFactor: false,
+                    success: true,
+                    user: session.user,
+                    session: {
+                        id: session.id,
+                        token: session.token,
+                        expiresAt: session.expiresAt,
+                    },
+                }
             },
+        )
+
+        if (!result.success) {
+            await recordAuditEventBestEffortService({
+                actorUserId: null,
+                actorKind: 'anonymous',
+                action: 'login',
+                resource: 'session',
+                targetId: null,
+                result: 'denied',
+                metadata: { authenticationMethod: 'password', reason: 'authentication_failed' },
+            })
         }
+
+        return result
     } catch (error) {
         await recordAuditEventBestEffortService({
             actorUserId: null,

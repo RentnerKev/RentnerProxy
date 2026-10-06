@@ -141,6 +141,9 @@ function parseChallenge(value: unknown, expectedKind: AuthChallengeKind): AuthCh
         switch (challenge.kind) {
             case 'login-mfa':
                 return typeof challenge.userId === 'string' &&
+                    typeof challenge.factorId === 'string' &&
+                    typeof challenge.passwordFingerprint === 'string' &&
+                    /^[a-f0-9]{64}$/.test(challenge.passwordFingerprint) &&
                     typeof challenge.attempts === 'number'
                     ? (challenge as LoginMfaChallenge)
                     : null

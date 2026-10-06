@@ -157,7 +157,9 @@ describe('Valkey integration', () => {
         async () => {
             const issued = await createAuthChallenge(
                 {
+                    factorId: randomUUID(),
                     kind: 'login-mfa',
+                    passwordFingerprint: 'a'.repeat(64),
                     userId: randomUUID(),
                     attempts: 0,
                     createdAt: new Date().toISOString(),

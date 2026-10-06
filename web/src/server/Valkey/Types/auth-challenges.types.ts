@@ -14,7 +14,9 @@ interface BaseChallenge {
 
 export interface LoginMfaChallenge extends BaseChallenge {
     readonly attempts: number
+    readonly factorId: string
     readonly kind: 'login-mfa'
+    readonly passwordFingerprint: string
     readonly userId: string
 }
 

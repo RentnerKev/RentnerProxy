@@ -78,7 +78,6 @@ import {
     completeLoginMfaWithRecoveryCodeService,
     completeLoginMfaWithTotpService,
     confirmTotpSetupService,
-    createLoginMfaChallengeService,
     disableTotpService,
     getTwoFactorStatusService,
     regenerateRecoveryCodesService,
@@ -1828,7 +1827,17 @@ describe('account security with PostgreSQL and Valkey', () => {
                     requireFirstRow(consumedRecoveryRows, 'Recovery code was not found.').usedAt,
                 ).toBeInstanceOf(Date)
 
-                const usedCodeChallenge = await createLoginMfaChallengeService(user.id)
+                const createLoginChallenge = async () => {
+                    const result = await loginService({
+                        email: user.email,
+                        password: CURRENT_PASSWORD,
+                    })
+                    if (!result.success || !result.requiresTwoFactor) {
+                        throw new Error('Password login did not issue an MFA challenge.')
+                    }
+                    return result.challenge
+                }
+                const usedCodeChallenge = await createLoginChallenge()
                 expect(
                     await completeLoginMfaWithRecoveryCodeService({
                         challengeId: usedCodeChallenge.id,
@@ -1843,7 +1852,7 @@ describe('account security with PostgreSQL and Valkey', () => {
                     throw new Error('Recovery-code regeneration unexpectedly failed.')
                 }
                 expect(regenerated.recoveryCodes).toHaveLength(10)
-                const oldCodeChallenge = await createLoginMfaChallengeService(user.id)
+                const oldCodeChallenge = await createLoginChallenge()
                 expect(
                     await completeLoginMfaWithRecoveryCodeService({
                         challengeId: oldCodeChallenge.id,
@@ -1862,13 +1871,13 @@ describe('account security with PostgreSQL and Valkey', () => {
                 })
                 const futureTimestamp = Date.now() + TOTP_PERIOD_SECONDS * 1_000
                 const futureToken = loginTotp.generate({ timestamp: futureTimestamp })
-                const totpChallenge = await createLoginMfaChallengeService(user.id)
+                const totpChallenge = await createLoginChallenge()
                 const totpLogin = await completeLoginMfaWithTotpService({
                     challengeId: totpChallenge.id,
                     token: futureToken,
                 })
                 expect(totpLogin.success).toBeTrue()
-                const replayChallenge = await createLoginMfaChallengeService(user.id)
+                const replayChallenge = await createLoginChallenge()
                 expect(
                     await completeLoginMfaWithTotpService({
                         challengeId: replayChallenge.id,
@@ -1888,7 +1897,7 @@ describe('account security with PostgreSQL and Valkey', () => {
                 while (validTokens.has(wrongToken)) {
                     wrongToken = String(Number(wrongToken) + 1).padStart(6, '0')
                 }
-                const wrongChallenge = await createLoginMfaChallengeService(user.id)
+                const wrongChallenge = await createLoginChallenge()
                 expect(
                     await completeLoginMfaWithTotpService({
                         challengeId: wrongChallenge.id,
@@ -1896,7 +1905,7 @@ describe('account security with PostgreSQL and Valkey', () => {
                     }),
                 ).toEqual({ code: 'authentication_failed', success: false })
                 await consumeAuthChallenge('login-mfa', wrongChallenge.id)
-                const expiredChallenge = await createLoginMfaChallengeService(user.id)
+                const expiredChallenge = await createLoginChallenge()
                 await consumeAuthChallenge('login-mfa', expiredChallenge.id)
                 expect(
                     await completeLoginMfaWithTotpService({

@@ -1,5 +1,6 @@
 import '@tanstack/react-start/server-only'
 
+import { createHash } from 'node:crypto'
 import { and, eq, gt, lte, ne } from 'drizzle-orm'
 
 import { RECENT_AUTHENTICATION_DURATION_MS } from '@/config/auth-security.config.ts'
@@ -18,6 +19,46 @@ import {
     isValidOpaqueToken,
 } from '@/server/Auth/Core/tokens.server.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+
+export function getPasswordAuthenticationFingerprint(passwordHash: string): string {
+    // Challenge storage carries a fingerprint, never the password hash itself.
+    return createHash('sha256').update(passwordHash).digest('hex')
+}
+
+export async function lockActiveUserForAuthenticationInTransaction(
+    transaction: AuthTransaction,
+    userId: string,
+) {
+    // Password and factor changes use this same user lock before revoking sessions.
+    const rows = await transaction
+        .select({ passwordHash: users.passwordHash, status: users.status })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1)
+        .for('update')
+    const user = rows.at(0)
+
+    if (!user || user.status !== 'active') {
+        throw new AuthDomainError('user_not_active', 'User is not active.')
+    }
+
+    return user
+}
+
+export async function requirePasswordAuthenticationInTransaction(
+    transaction: AuthTransaction,
+    userId: string,
+    passwordFingerprint: string,
+): Promise<void> {
+    const user = await lockActiveUserForAuthenticationInTransaction(transaction, userId)
+
+    if (
+        !user.passwordHash ||
+        getPasswordAuthenticationFingerprint(user.passwordHash) !== passwordFingerprint
+    ) {
+        throw new AuthDomainError('user_not_active', 'Authentication state is no longer valid.')
+    }
+}
 
 export async function createSessionInTransaction(
     transaction: AuthTransaction,
