@@ -5,9 +5,9 @@ export default function ProxyHostSetupGuide({
     guide,
     guideHeading,
     formId,
-    toggleGuide,
-    nextGuideStep,
-    previousGuideStep,
+    handleToggleGuide,
+    handleNextGuideStep,
+    handlePreviousGuideStep,
 }: ProxyHostSetupGuideProps) {
     const { t } = useTranslationStore()
     return (
@@ -20,7 +20,7 @@ export default function ProxyHostSetupGuide({
                 className="flex min-h-11 items-center rounded-lg px-3 text-left text-sm font-bold text-accent-ring hover:bg-accent-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring"
                 aria-expanded={guide.open}
                 aria-controls={`${formId}-guide`}
-                onClick={toggleGuide}
+                onClick={handleToggleGuide}
             >
                 {t(guide.open ? 'admin.proxyHosts.guide.skip' : 'admin.proxyHosts.guide.open')}
             </button>
@@ -100,7 +100,7 @@ export default function ProxyHostSetupGuide({
                             type="button"
                             className="inline-flex min-h-11 items-center rounded-lg px-3 font-bold text-accent-ring hover:bg-accent-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring disabled:cursor-not-allowed disabled:opacity-50"
                             disabled={guide.step === 0}
-                            onClick={previousGuideStep}
+                            onClick={handlePreviousGuideStep}
                         >
                             {t('admin.proxyHosts.guide.previous')}
                         </button>
@@ -108,7 +108,7 @@ export default function ProxyHostSetupGuide({
                             type="button"
                             className="inline-flex min-h-11 items-center rounded-lg px-3 font-bold text-accent-ring hover:bg-accent-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring disabled:cursor-not-allowed disabled:opacity-50"
                             disabled={guide.step === 2}
-                            onClick={nextGuideStep}
+                            onClick={handleNextGuideStep}
                         >
                             {t('admin.proxyHosts.guide.next')}
                         </button>

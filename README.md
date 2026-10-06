@@ -204,6 +204,7 @@ Portable host configuration exports do not include these global settings.
 
 - [Architecture](ARCHITECTURE.md) · [Security policy](SECURITY.md) · [Assurance case](ASSURANCE_CASE.md)
 - [Release process](RELEASING.md) · [Contributing](CONTRIBUTING.md)
+- [Proxy host setup guide](PROXY_HOST_SETUP.md)
 - [Screenshots](screenshots) · [Report a bug](https://github.com/RentnerKev/RentnerProxy/issues/new/choose)
 
 Licensed under [MIT](LICENSE).

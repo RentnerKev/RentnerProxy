@@ -67,9 +67,9 @@ export interface ProxyHostFormModalState {
 }
 
 export interface ProxyHostFormModalHandler {
-    readonly toggleGuide: () => void
-    readonly nextGuideStep: () => void
-    readonly previousGuideStep: () => void
+    readonly handleToggleGuide: () => void
+    readonly handleNextGuideStep: () => void
+    readonly handlePreviousGuideStep: () => void
     readonly addDomain: () => void
     readonly removeDomain: (index: number) => void
     readonly retryAssignableCertificates: () => void
@@ -119,7 +119,7 @@ export type ProxyHostFormModalFooterProps = Pick<
 
 export type ProxyHostSetupGuideProps = Pick<
     ProxyHostFormModalHandler,
-    'toggleGuide' | 'nextGuideStep' | 'previousGuideStep'
+    'handleToggleGuide' | 'handleNextGuideStep' | 'handlePreviousGuideStep'
 > & {
     readonly guide: ProxyHostSetupGuideState
     readonly guideHeading: RefObject<HTMLHeadingElement | null>

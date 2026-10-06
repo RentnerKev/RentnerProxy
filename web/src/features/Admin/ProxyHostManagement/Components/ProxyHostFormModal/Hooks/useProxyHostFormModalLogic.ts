@@ -1,4 +1,7 @@
-import type { UseProxyHostFormLogicParams } from '../Types/proxy-host-form-modal-logic.types.ts'
+import type {
+    ProxyHostFormModalRefs,
+    UseProxyHostFormLogicParams,
+} from '../Types/proxy-host-form-modal-logic.types.ts'
 import { invalidateAccessPoliciesCache } from '@/lib/Admin/AccessPolicyManagement/accessPolicyManagementCache.ts'
 import type {
     ProxyHostFormModalHandler,
@@ -58,9 +61,12 @@ export default function useProxyHostFormModalLogic({
             guideHeading.current?.focus()
         }
     }, [guideStep])
-    const toggleGuide = useCallback(() => setGuideOpen((open) => !open), [])
-    const nextGuideStep = useCallback(() => setGuideStep((step) => Math.min(2, step + 1)), [])
-    const previousGuideStep = useCallback(() => setGuideStep((step) => Math.max(0, step - 1)), [])
+    const handleToggleGuide = useCallback(() => setGuideOpen((open) => !open), [])
+    const handleNextGuideStep = useCallback(() => setGuideStep((step) => Math.min(2, step + 1)), [])
+    const handlePreviousGuideStep = useCallback(
+        () => setGuideStep((step) => Math.max(0, step - 1)),
+        [],
+    )
     const isCreate = mode !== 'edit'
     const defaultValues = getProxyHostFormValues(mode, proxyHost)
     const queryClient = useQueryClient()
@@ -255,7 +261,7 @@ export default function useProxyHostFormModalLogic({
     )
 
     return {
-        refs: { guideHeading },
+        refs: { guideHeading } satisfies ProxyHostFormModalRefs,
         form,
         certificateRequestForm: certificateRequest.form,
         state: {
@@ -313,9 +319,9 @@ export default function useProxyHostFormModalLogic({
             isPending: mutation.isPending,
         } satisfies Omit<ProxyHostFormModalState, 'form' | 'certificateRequestForm'>,
         handler: {
-            toggleGuide,
-            nextGuideStep,
-            previousGuideStep,
+            handleToggleGuide,
+            handleNextGuideStep,
+            handlePreviousGuideStep,
             handleSubmit,
             addDomain,
             removeDomain,

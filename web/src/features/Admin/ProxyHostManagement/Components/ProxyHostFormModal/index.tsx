@@ -38,9 +38,9 @@ export default function ProxyHostFormModal(props: ProxyHostFormModalProps) {
                         guide={state.guide}
                         guideHeading={refs.guideHeading}
                         formId={state.formId}
-                        toggleGuide={handler.toggleGuide}
-                        nextGuideStep={handler.nextGuideStep}
-                        previousGuideStep={handler.previousGuideStep}
+                        handleToggleGuide={handler.handleToggleGuide}
+                        handleNextGuideStep={handler.handleNextGuideStep}
+                        handlePreviousGuideStep={handler.handlePreviousGuideStep}
                     />
                     <ProxyHostFormFields
                         certificateRequestForm={certificateRequestForm}
