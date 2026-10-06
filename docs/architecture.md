@@ -295,7 +295,7 @@ logs are excluded. The deployment environment, including the public origin,
 trusted proxy CIDRs, port mappings, SMTP settings, and Compose project/file, must
 be retained by the operator alongside the backup. Restore and rollback are separate
 operations in [`scripts/production-restore.ts`](../scripts/production-restore.ts);
-the documented upgrade and recovery constraints are in [`README.md`](../README.md).
+the documented recovery constraints are in [Operations](operations.md#backup-and-recovery).
 Current restore validates artifact checksums, archive paths/types, database integrity,
 the migration prefix against the target image and encrypted application/controller records
 before replacement. It operates from private verified artifact copies. Controller and CrowdSec
