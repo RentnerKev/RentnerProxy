@@ -100,6 +100,8 @@ JavaScript auditing and dependency review remain separate checks.
 Release and dev builds have read-only repository permission and no registry
 publishing token. They export an OCI archive including SBOM/provenance, assess
 it locally, and record its source commit, OCI index digest and archive checksum.
+Candidates have one unnamed OCI root; channel/version tags are assigned only by
+the publisher, avoiding ambiguous multi-name archive roots.
 A separate trusted publisher verifies the checksum, independently reassesses
 the exact archive, then copies it with `skopeo --all --preserve-digests`. Each
 published tag is checked against the assessed index digest. No candidate is

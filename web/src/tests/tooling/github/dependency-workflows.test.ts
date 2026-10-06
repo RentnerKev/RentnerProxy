@@ -25,6 +25,11 @@ test('assesses production OCI before registry credentials and keeps source execu
         expect(parsed.jobs.build?.steps?.find((step) => step.id === 'build')?.with?.push).toBe(
             false,
         )
+        // Multiple build tags create ambiguous OCI archive roots for Skopeo.
+        // Only the trusted publisher assigns the final channel/version tags.
+        expect(
+            parsed.jobs.build?.steps?.find((step) => step.id === 'build')?.with?.tags,
+        ).toBeUndefined()
         expect(source.indexOf('Assess immutable candidate')).toBeLessThan(
             source.indexOf('Store assessed OCI candidate'),
         )
