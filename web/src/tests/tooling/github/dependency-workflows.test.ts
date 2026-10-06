@@ -64,4 +64,21 @@ test('assesses production OCI before registry credentials and keeps source execu
     expect(recurring).toContain('Complete production image advisory assessment')
     expect(recurring).toContain('\'.verdict == "blocked"\'')
     expect(recurring).toContain('exit "$result"')
+    const workflow = Bun.YAML.parse(recurring) as {
+        jobs: Record<string, { needs?: string; if?: string; steps?: { run?: string }[] }>
+    }
+    expect(workflow.jobs['supported-images']?.needs).toBe('rescan-scope')
+    expect(workflow.jobs['supported-images']?.if).toBe(
+        "needs.rescan-scope.outputs.rescan == 'true'",
+    )
+    const integration = workflow.jobs['supported-images']?.steps?.find((step) =>
+        step.run?.includes('rescan-supported-images.sh'),
+    )?.run
+    expect(integration).toContain('[[ "$EVENT_NAME" == pull_request ]] && (( result == 3 ))')
+    expect(integration).toContain('exit "$result"')
+    expect(
+        workflow.jobs['rescan-scope']?.steps?.some((step) =>
+            step.run?.includes('git diff --quiet HEAD^1 HEAD -- .github/scripts/security'),
+        ),
+    ).toBe(true)
 })

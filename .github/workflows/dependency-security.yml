@@ -17,6 +17,34 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
+    rescan-scope:
+        name: Select deployed image assessment scope
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        outputs:
+            rescan: ${{ steps.scope.outputs.rescan }}
+        steps:
+            - name: Check out tested PR merge
+              if: github.event_name == 'pull_request'
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  fetch-depth: 2
+            - name: Select scanner integration changes
+              id: scope
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+              run: |
+                  rescan=false
+                  if [[ "$EVENT_NAME" == schedule || "$EVENT_NAME" == workflow_dispatch ]]; then
+                      rescan=true
+                  elif [[ "$EVENT_NAME" == pull_request ]]; then
+                      if ! git diff --quiet HEAD^1 HEAD -- .github/scripts/security .github/workflows/dependency-security.yml; then
+                          rescan=true
+                      fi
+                  fi
+                  printf 'rescan=%s\n' "$rescan" >> "$GITHUB_OUTPUT"
+
     locked-source:
         name: Locked Cargo advisory audit
         runs-on: ubuntu-latest
@@ -97,7 +125,8 @@ jobs:
 
     supported-images:
         name: Rescan supported immutable deployed images
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        needs: rescan-scope
+        if: needs.rescan-scope.outputs.rescan == 'true'
         runs-on: ubuntu-latest
         timeout-minutes: 45
         steps:
@@ -126,7 +155,16 @@ jobs:
                   AUTOMATION_DIRECTORY: .
                   SUPPORTED_TAGS_FILE: ${{ runner.temp }}/supported-tags.txt
                   REPORT_DIRECTORY: ${{ runner.temp }}/supported-image-reports
-              run: bash .github/scripts/security/rescan-supported-images.sh
+                  EVENT_NAME: ${{ github.event_name }}
+              run: |
+                  result=0
+                  bash .github/scripts/security/rescan-supported-images.sh || result=$?
+                  if [[ "$EVENT_NAME" == pull_request ]] && (( result == 3 )); then
+                      echo '::warning::Deployed image assessments completed with blocking advisories.'
+                      printf '%s\n' 'Deployed channel assessment coverage completed. **Image publication remains blocked** for adverse candidates; this integration check grants no publication approval.' >> "$GITHUB_STEP_SUMMARY"
+                  else
+                      exit "$result"
+                  fi
             - name: Store supported-image assessment evidence
               if: always()
               uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

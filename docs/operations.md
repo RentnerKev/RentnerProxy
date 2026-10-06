@@ -134,6 +134,18 @@ The daily rescan resolves `dev` and the newest non-draft release in each
 alpha/beta/stable channel to immutable digests once and assesses those digests.
 These channel images are monitored for dependency advisories; security-fix
 support remains limited to current `main` as described in `SECURITY.md`.
+The canonical published Alpha6 source commit and OCI index digest together
+select its historical Redis/Caddy-only inventory and `controller/Cargo.lock`
+data path. The selected identity and settings are retained in `profile.json`.
+Every other source/digest pair requires the current Valkey/CrowdSec runtime.
+This changes expected historical components only; the same full OS/npm,
+scanner/database, RustSec and Go advisory policy remains mandatory. Historical
+source is never executed; only lock data at the validated revision is fetched.
+PRs changing security scripts or the dependency workflow also rescan the
+deployed channels before merge. Only this PR coverage check may report a
+complete adverse assessment as successful coverage; scheduled and manually
+dispatched rescans still fail for blocking advisories. Invalid or incomplete
+assessments always fail, including an empty monitored-tag list.
 Historical superseded tags are not covered. A missing monitored tag, download/scanner error,
 malformed report or stale advisory database fails closed. Grype's maximum build
 age is 48 hours; Go's official advisory index may remain unchanged between

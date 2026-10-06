@@ -1,8 +1,29 @@
 import { readFile, writeFile } from 'node:fs/promises'
+import { PUBLISHED_ALPHAS } from '../../../scripts/release-compatibility/published-alphas.ts'
 
 const policy = 'moderate-and-above; all RustSec/Go findings'
 
 export class AdvisoryPolicyError extends Error {}
+
+const currentImageProfile = {
+    profile: 'current',
+    cachePackage: 'valkey',
+    goBinaries: [
+        { name: 'caddy', path: '/usr/bin/caddy' },
+        { name: 'crowdsec', path: '/usr/local/bin/crowdsec' },
+        { name: 'cscli', path: '/usr/local/bin/cscli' },
+    ],
+    communityModuleQuery: true,
+    cargoLockSourcePath: 'core/Cargo.lock',
+} as const
+
+const alpha6ImageProfile = {
+    profile: 'published-alpha.6',
+    cachePackage: 'redis',
+    goBinaries: [{ name: 'caddy', path: '/usr/bin/caddy' }],
+    communityModuleQuery: false,
+    cargoLockSourcePath: 'controller/Cargo.lock',
+} as const
 
 function object(value: unknown): Record<string, unknown> {
     if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -54,7 +75,19 @@ export function evaluateImage(report: unknown): void {
         )
 }
 
-export function evaluateInventory(report: unknown): void {
+export function getImageAssessmentProfile(identity: unknown) {
+    const parsed = evaluateIdentity(identity)
+    const alpha6 = PUBLISHED_ALPHAS['alpha.6']
+    const selected =
+        parsed.revision === alpha6.revision && parsed.digest === alpha6.digest
+            ? alpha6ImageProfile
+            : currentImageProfile
+    return { ...parsed, ...selected }
+}
+
+export function evaluateInventory(report: unknown, identity?: unknown): void {
+    const selected =
+        identity === undefined ? currentImageProfile : getImageAssessmentProfile(identity)
     const artifacts = array(object(report).artifacts).map(object)
     const names = new Set(
         artifacts.map((artifact) => {
@@ -64,10 +97,10 @@ export function evaluateInventory(report: unknown): void {
     )
     for (const name of [
         'bun',
-        'valkey',
+        selected.cachePackage,
         'postgresql-18',
         'github.com/caddyserver/caddy/v2',
-        'github.com/crowdsecurity/crowdsec',
+        ...(selected.communityModuleQuery ? ['github.com/crowdsecurity/crowdsec'] : []),
     ]) {
         if (!names.has(name)) throw new Error(`Incomplete runtime inventory: ${name}`)
     }
@@ -233,7 +266,13 @@ if (import.meta.main) {
         const report: unknown = JSON.parse(await readFile(path, 'utf8'))
         if (mode === 'database') evaluateDatabase(report)
         else if (mode === 'image') evaluateImage(report)
-        else if (mode === 'inventory') evaluateInventory(report)
+        else if (mode === 'profile' && output)
+            await writeFile(output, JSON.stringify(getImageAssessmentProfile(report), null, 2))
+        else if (mode === 'inventory')
+            evaluateInventory(
+                report,
+                output ? (JSON.parse(await readFile(output, 'utf8')) as unknown) : undefined,
+            )
         else if (mode === 'binary' || mode === 'query') evaluateGo(report, mode)
         else if (mode === 'cargo' && output)
             evaluateCargo(report, JSON.parse(await readFile(output, 'utf8')) as unknown)
