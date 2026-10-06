@@ -28,6 +28,8 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::{Mutex, Notify};
+#[path = "runtime/recovery.rs"]
+mod recovery;
 const HOST_ID: &str = "00000000-0000-0000-0000-000000000000";
 const CERT_ID: &str = "0198d98a-0000-7000-8000-000000000010";
 static NEXT: AtomicU64 = AtomicU64::new(0);
@@ -45,6 +47,7 @@ struct FakeCaddy {
     start_delay_ms: AtomicU64,
     load_started: Notify,
     block_certificate_index: Mutex<Option<std::path::PathBuf>>,
+    load_gate: Mutex<Option<Arc<Notify>>>,
 }
 impl FakeCaddy {
     fn new() -> Arc<Self> {
@@ -61,6 +64,7 @@ impl FakeCaddy {
             start_delay_ms: AtomicU64::new(0),
             load_started: Notify::new(),
             block_certificate_index: Mutex::new(None),
+            load_gate: Mutex::new(None),
         })
     }
     async fn next(queue: &Mutex<VecDeque<Result<(), EngineError>>>) -> Result<(), EngineError> {
@@ -84,7 +88,11 @@ impl ProxyEngine for FakeCaddy {
     fn load<'a>(&'a self, json: &'a str) -> EngineFuture<'a> {
         Box::pin(async move {
             self.load_count.fetch_add(1, Ordering::SeqCst);
+            let gate = self.load_gate.lock().await.take();
             self.load_started.notify_one();
+            if let Some(gate) = gate {
+                gate.notified().await;
+            }
             tokio::time::sleep(Duration::from_millis(self.delay_ms.load(Ordering::SeqCst))).await;
             let result = Self::next(&self.loads).await;
             if result.is_ok() || result == Err(EngineError::InvalidResponse) {
@@ -1401,7 +1409,10 @@ async fn planted_snapshot_symlink_never_reads_or_overwrites_external_file() {
         settings.state_dir.join("active-proxy-snapshot.json"),
     )
     .unwrap();
-    runtime.apply(configuration(4_000)).await.unwrap();
+    assert_eq!(
+        runtime.apply(configuration(4_000)).await,
+        Err(RuntimeError::ApplyFailed)
+    );
     assert_eq!(
         std::fs::read_to_string(external).unwrap(),
         "preserve outside"

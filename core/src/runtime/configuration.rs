@@ -1,12 +1,13 @@
 use super::{
-    ACTIVE_CONFIGURATION_FILE, ProxyRuntime, RenderPurpose, RuntimeError, StagedCertificate,
+    ACTIVE_CONFIGURATION_FENCE, ACTIVE_CONFIGURATION_FILE, ProxyRuntime, RenderPurpose,
+    RuntimeError, StagedCertificate,
     renderer::{
         MAX_RENDERED_PROXY_CONFIG_BYTES, MAX_RENDERED_PROXY_HOST_SOURCE_BYTES, RenderError,
         TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings,
         render_config_with_tls_and_crowdsec, render_host_config_for_runtime,
         render_host_sources_for_runtime,
     },
-    state::{atomic_write, open_absolute_regular_file, state_dir},
+    state::{FileRemovalError, atomic_write, open_absolute_regular_file, state_dir},
 };
 use crate::{
     models::{ProxyConfigRequest, ValidatedProxyConfig},
@@ -16,6 +17,11 @@ use std::{collections::BTreeMap, io::Read, path::Path};
 
 impl ProxyRuntime {
     pub(super) fn restore_active_configuration(&self) -> Option<ValidatedProxyConfig> {
+        // Only a missing fence authorizes recovery. Incomplete activation, invalid
+        // paths and storage errors all recover the baseline without public routes.
+        if self.configuration_activation_is_fenced() {
+            return None;
+        }
         let bytes = state_dir(&self.settings.state_dir)
             .ok()?
             .read_file(ACTIVE_CONFIGURATION_FILE, MAX_RENDERED_PROXY_CONFIG_BYTES)
@@ -24,10 +30,22 @@ impl ProxyRuntime {
         validate_proxy_config(request).ok()
     }
 
+    pub(super) fn configuration_activation_is_fenced(&self) -> bool {
+        let Ok(directory) = state_dir(&self.settings.state_dir) else {
+            return true;
+        };
+        let Ok(fence) = directory.child_path(ACTIVE_CONFIGURATION_FENCE) else {
+            return true;
+        };
+        !matches!(std::fs::symlink_metadata(fence), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
+    }
+
     pub(super) fn persist_active_configuration(
         &self,
         configuration: &ValidatedProxyConfig,
     ) -> Result<(), RuntimeError> {
+        #[cfg(test)]
+        self.recovery_write_fault(super::RecoveryWriteFault::BeforeSnapshotWrite)?;
         let request = ProxyConfigRequest {
             version: 7,
             revision: configuration.revision.clone(),
@@ -45,7 +63,89 @@ impl ProxyRuntime {
             &self.settings.state_dir.join(ACTIVE_CONFIGURATION_FILE),
             &bytes,
         )
+        .map_err(|_| RuntimeError::ApplyFailed)?;
+        #[cfg(test)]
+        self.recovery_write_fault(super::RecoveryWriteFault::AfterSnapshotWrite)?;
+        Ok(())
+    }
+
+    pub(super) fn fence_configuration_activation(&self) -> Result<(), RuntimeError> {
+        #[cfg(test)]
+        self.recovery_write_fault(super::RecoveryWriteFault::BeforeFenceWrite)?;
+        atomic_write(
+            &self.settings.state_dir.join(ACTIVE_CONFIGURATION_FENCE),
+            b"pending\n",
+        )
         .map_err(|_| RuntimeError::ApplyFailed)
+    }
+
+    pub(super) fn finish_configuration_activation(&self) -> Result<(), RuntimeError> {
+        #[cfg(test)]
+        self.recovery_write_fault(super::RecoveryWriteFault::BeforeFenceRemoval)?;
+        let removal = state_dir(&self.settings.state_dir)
+            .map_err(FileRemovalError::BeforeUnlink)
+            .and_then(|directory| directory.remove_file_with_outcome(ACTIVE_CONFIGURATION_FENCE));
+        #[cfg(test)]
+        let removal = removal.and_then(|()| {
+            self.recovery_write_fault(super::RecoveryWriteFault::AfterFenceRemoval)
+                .map_err(|_| {
+                    FileRemovalError::AfterUnlink(std::io::Error::other(
+                        "injected fence sync failure",
+                    ))
+                })
+        });
+        match removal {
+            Ok(()) => Ok(()),
+            Err(FileRemovalError::BeforeUnlink(_)) => Err(RuntimeError::ApplyFailed),
+            Err(FileRemovalError::AfterUnlink(error)) => {
+                // The snapshot is durable and verified before this commit point.
+                // Unsynced unlink can recover the candidate or a retained fence's
+                // closed baseline; rolling back traffic would split authority.
+                tracing::warn!(
+                    ?error,
+                    stage = "snapshot_commit",
+                    "Recovery fence removal was not synchronized; durable snapshot remains authoritative"
+                );
+                Ok(())
+            }
+        }
+    }
+
+    pub(super) fn restore_recovery_configuration(
+        &self,
+        configuration: Option<&ValidatedProxyConfig>,
+    ) {
+        // Rollback only runs before the fence unlink commit point. Preserve the
+        // existing fence if storage cannot prepare or complete durable rollback.
+        if self.fence_configuration_activation().is_err() {
+            tracing::warn!(
+                stage = "snapshot_rollback",
+                "Recovery snapshot rollback was not prepared"
+            );
+            return;
+        }
+        let restored = match configuration {
+            Some(configuration) => self.persist_active_configuration(configuration),
+            None => state_dir(&self.settings.state_dir)
+                .and_then(|directory| directory.remove_file(ACTIVE_CONFIGURATION_FILE))
+                .map_err(|_| RuntimeError::ApplyFailed),
+        };
+        if restored.is_err() || self.finish_configuration_activation().is_err() {
+            tracing::warn!(
+                stage = "snapshot_rollback",
+                "Recovery remains fenced after snapshot rollback"
+            );
+        }
+    }
+
+    #[cfg(test)]
+    fn recovery_write_fault(&self, fault: super::RecoveryWriteFault) -> Result<(), RuntimeError> {
+        let mut faults = self.recovery_write_faults.lock().unwrap();
+        if faults.front() == Some(&fault) {
+            faults.pop_front();
+            return Err(RuntimeError::ApplyFailed);
+        }
+        Ok(())
     }
 
     pub(crate) async fn preview_config(
