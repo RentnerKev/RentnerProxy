@@ -1,5 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises'
 
+const policy = 'moderate-and-above; all RustSec/Go findings'
+
+export class AdvisoryPolicyError extends Error {}
+
 function object(value: unknown): Record<string, unknown> {
     if (!value || typeof value !== 'object' || Array.isArray(value))
         throw new Error('Expected a structured report object')
@@ -45,7 +49,7 @@ export function evaluateImage(report: unknown): void {
             return !['negligible', 'low'].includes(text(vulnerability.severity).toLowerCase())
         })
     if (blocked.length)
-        throw new Error(
+        throw new AdvisoryPolicyError(
             `Image advisory policy failed: ${blocked.map((vulnerability) => text(vulnerability.id)).join(', ')}`,
         )
 }
@@ -94,8 +98,55 @@ export function evaluateGo(report: unknown, mode: 'binary' | 'query', now = Date
     }
     // Query OSVs apply to the queried version. Retain every binary module,
     // package and symbol trace, and conservatively block non-reachable findings.
-    if (messages.some((message) => (mode === 'query' ? message.osv : message.finding)))
-        throw new Error('Go advisory policy failed; inspect module and symbol traces in the report')
+    const findings = messages.filter((message) =>
+        mode === 'query' ? 'osv' in message : 'finding' in message,
+    )
+    for (const message of messages) {
+        if ('error' in message) throw new Error('Go advisory assessment returned an error')
+    }
+    for (const message of findings) {
+        if (mode === 'query') {
+            const advisory = object(message.osv)
+            text(advisory.id)
+            const affected = array(advisory.affected).map(object)
+            if (!affected.length) throw new Error('Go advisory affected inventory missing')
+            for (const entry of affected) {
+                const packageInfo = object(entry.package)
+                text(packageInfo.name)
+                if (packageInfo.ecosystem !== 'Go')
+                    throw new Error('Unexpected Go advisory ecosystem')
+                const ranges = array(entry.ranges).map(object)
+                if (!ranges.length) throw new Error('Go advisory version ranges missing')
+                for (const range of ranges) {
+                    if (range.type !== 'SEMVER')
+                        throw new Error('Unexpected Go advisory range type')
+                    const events = array(range.events).map(object)
+                    if (!events.length) throw new Error('Go advisory range events missing')
+                    for (const event of events) {
+                        const entries = Object.entries(event)
+                        if (
+                            entries.length !== 1 ||
+                            !['introduced', 'fixed', 'last_affected', 'limit'].includes(
+                                entries[0]![0],
+                            )
+                        )
+                            throw new Error('Invalid Go advisory range event')
+                        text(entries[0]![1])
+                    }
+                }
+            }
+        } else {
+            const finding = object(message.finding)
+            text(finding.osv)
+            const trace = array(finding.trace).map(object)
+            if (!trace.length) throw new Error('Go advisory trace missing')
+            for (const frame of trace) text(frame.module)
+        }
+    }
+    if (findings.length)
+        throw new AdvisoryPolicyError(
+            'Go advisory policy failed; inspect module and symbol traces in the report',
+        )
 }
 
 export function evaluateCargoDiagnostics(diagnostics: string): void {
@@ -133,8 +184,15 @@ export function evaluateCargo(report: unknown, databaseEvidence: unknown, now = 
     const count = vulnerabilities.count
     if (typeof count !== 'number' || !Number.isInteger(count) || count < 0)
         throw new Error('Cargo advisory count missing')
-    if (count || array(vulnerabilities.list).length)
-        throw new Error('Locked Cargo graph contains a RustSec vulnerability')
+    const findings = array(vulnerabilities.list).map(object)
+    if (
+        count !== findings.length ||
+        (vulnerabilities.found !== undefined && vulnerabilities.found !== count > 0)
+    )
+        throw new Error('Cargo advisory findings and count are inconsistent')
+    for (const finding of findings) text(object(finding.advisory).id)
+    if (findings.length)
+        throw new AdvisoryPolicyError('Locked Cargo graph contains a RustSec vulnerability')
 }
 
 export function evaluateIdentity(report: unknown): { revision: string; digest: string } {
@@ -146,33 +204,67 @@ export function evaluateIdentity(report: unknown): { revision: string; digest: s
     return { revision, digest }
 }
 
+export function evaluateApprovedAssessment(
+    report: unknown,
+    expected: unknown,
+    now = Date.now(),
+): void {
+    const parsed = object(report)
+    const actual = evaluateIdentity(parsed)
+    const identity = evaluateIdentity(expected)
+    if (
+        parsed.verdict !== 'approved' ||
+        parsed.policy !== policy ||
+        actual.revision !== identity.revision ||
+        actual.digest !== identity.digest
+    )
+        throw new Error('Publication requires an approved assessment for the exact candidate')
+    fresh(parsed.assessedAt, now, 3_600_000)
+}
+
 if (import.meta.main) {
-    const [mode, path, output] = process.argv.slice(2)
-    if (!path) throw new Error('A structured scanner report is required')
-    if (mode === 'cargo-diagnostics') {
-        evaluateCargoDiagnostics(await readFile(path, 'utf8'))
-        process.exit(0)
+    try {
+        const [mode, path, output] = process.argv.slice(2)
+        if (!path) throw new Error('A structured scanner report is required')
+        if (mode === 'cargo-diagnostics') {
+            evaluateCargoDiagnostics(await readFile(path, 'utf8'))
+            process.exit(0)
+        }
+        const report: unknown = JSON.parse(await readFile(path, 'utf8'))
+        if (mode === 'database') evaluateDatabase(report)
+        else if (mode === 'image') evaluateImage(report)
+        else if (mode === 'inventory') evaluateInventory(report)
+        else if (mode === 'binary' || mode === 'query') evaluateGo(report, mode)
+        else if (mode === 'cargo' && output)
+            evaluateCargo(report, JSON.parse(await readFile(output, 'utf8')) as unknown)
+        else if ((mode === 'identity' || mode === 'blocked') && output) {
+            const parsed = evaluateIdentity(report)
+            await writeFile(
+                output,
+                JSON.stringify(
+                    {
+                        ...parsed,
+                        policy,
+                        verdict: mode === 'identity' ? 'approved' : 'blocked',
+                        assessedAt: new Date().toISOString(),
+                    },
+                    null,
+                    2,
+                ),
+            )
+        } else if (mode === 'approved' && output)
+            evaluateApprovedAssessment(
+                report,
+                JSON.parse(await readFile(output, 'utf8')) as unknown,
+            )
+        else throw new Error('Unknown policy mode')
+    } catch (error) {
+        // A completed adverse assessment is distinct from unavailable or invalid
+        // evidence. Both remain nonzero for every publication caller.
+        if (error instanceof AdvisoryPolicyError) {
+            console.error(error.message)
+            process.exit(3)
+        }
+        throw error
     }
-    const report: unknown = JSON.parse(await readFile(path, 'utf8'))
-    if (mode === 'database') evaluateDatabase(report)
-    else if (mode === 'image') evaluateImage(report)
-    else if (mode === 'inventory') evaluateInventory(report)
-    else if (mode === 'binary' || mode === 'query') evaluateGo(report, mode)
-    else if (mode === 'cargo' && output)
-        evaluateCargo(report, JSON.parse(await readFile(output, 'utf8')) as unknown)
-    else if (mode === 'identity' && output) {
-        const parsed = evaluateIdentity(report)
-        await writeFile(
-            output,
-            JSON.stringify(
-                {
-                    ...parsed,
-                    policy: 'moderate-and-above; all RustSec/Go findings',
-                    assessedAt: new Date().toISOString(),
-                },
-                null,
-                2,
-            ),
-        )
-    } else throw new Error('Unknown policy mode')
 }

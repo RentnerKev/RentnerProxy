@@ -46,10 +46,22 @@ test('assesses production OCI before registry credentials and keeps source execu
     expect(copy).toContain('sha256sum --check --strict')
     expect(copy).toContain('skopeo copy --all --preserve-digests')
     expect(copy).toContain('[[ "$published_digest" == "$EXPECTED_DIGEST" ]]')
+    expect(copy.indexOf('approved "$ASSESSED_REPORT" "$IDENTITY_REPORT"')).toBeLessThan(
+        copy.indexOf('skopeo login'),
+    )
+    expect(publisher).toContain('dependency-publish-report/assessment.json')
+    // Reporting existing advisories on PRs never authorizes publication. Only
+    // complete blocked assessments are reported; all unavailable evidence fails.
+    expect(files[0]).not.toContain('result == 3')
+    expect(files[1]).not.toContain('result == 3')
+    expect(publisher).not.toContain('result == 3')
     const recurring = files[3]!
     expect(recurring).toContain("cron: '17 4 * * *'")
     expect(recurring).toContain('pull_request:')
     expect(recurring).not.toContain('pull_request_target:')
     expect(recurring).not.toContain('secrets.')
     expect(recurring).toContain('rescan-supported-images.sh')
+    expect(recurring).toContain('Complete production image advisory assessment')
+    expect(recurring).toContain('\'.verdict == "blocked"\'')
+    expect(recurring).toContain('exit "$result"')
 })

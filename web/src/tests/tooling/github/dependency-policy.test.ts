@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 
 import {
+    evaluateApprovedAssessment,
     evaluateCargo,
     evaluateCargoDiagnostics,
     evaluateDatabase,
@@ -27,6 +31,128 @@ const goConfig = {
 }
 
 describe('deployed dependency policy', () => {
+    test('publication rejects blocked, unbound, expired or malformed assessments', () => {
+        const identity = { revision: 'a'.repeat(40), digest: `sha256:${'b'.repeat(64)}` }
+        const approved = {
+            ...identity,
+            verdict: 'approved',
+            policy: 'moderate-and-above; all RustSec/Go findings',
+            assessedAt: '2026-10-06T11:30:00Z',
+        }
+        expect(() => evaluateApprovedAssessment(approved, identity, now)).not.toThrow()
+        for (const changed of [
+            { verdict: 'blocked' },
+            { verdict: undefined },
+            { policy: 'allow-unfixed' },
+            { revision: 'c'.repeat(40) },
+            { digest: `sha256:${'d'.repeat(64)}` },
+            { assessedAt: '2026-10-06T10:00:00Z' },
+            { assessedAt: 'invalid' },
+        ])
+            expect(() =>
+                evaluateApprovedAssessment({ ...approved, ...changed }, identity, now),
+            ).toThrow()
+        expect(() => evaluateApprovedAssessment({}, identity, now)).toThrow()
+    })
+
+    test('CLI distinguishes an adverse complete report from broken evidence without approving either', async () => {
+        const directory = await mkdtemp(join(tmpdir(), 'rentnerproxy-advisory-policy-'))
+        const script = resolve(
+            import.meta.dir,
+            '../../../../../.github/scripts/security/dependency-policy.ts',
+        )
+        try {
+            const go = [
+                { config: { ...goConfig, db_last_modified: new Date().toISOString() } },
+                { SBOM: { modules: [{ path: 'example.org/module', version: 'v1.0.0' }] } },
+            ]
+            const database = { revision: 'a'.repeat(40), fetchedAt: new Date().toISOString() }
+            const cargo = {
+                database: {
+                    'last-commit': database.revision,
+                    'last-updated': database.fetchedAt,
+                    'advisory-count': 1,
+                },
+                lockfile: { 'dependency-count': 1 },
+                settings: { ignore: [], severity: null, target_arch: [], target_os: [] },
+                warnings: {},
+            }
+            const databasePath = join(directory, 'database.json')
+            await writeFile(databasePath, JSON.stringify(database))
+            const reports = [
+                [image, 0, 'image'],
+                [
+                    {
+                        ...image,
+                        matches: [{ vulnerability: { id: 'CVE-fixture', severity: 'High' } }],
+                    },
+                    3,
+                    'image',
+                ],
+                [{ ...image, matches: [{ vulnerability: { id: 'CVE-fixture' } }] }, 1, 'image'],
+                [{ matches: [] }, 1, 'image'],
+                [
+                    [
+                        ...go,
+                        {
+                            finding: {
+                                osv: 'GO-fixture',
+                                trace: [{ module: 'example.org/module' }],
+                            },
+                        },
+                    ],
+                    3,
+                    'binary',
+                ],
+                [[...go, { finding: 'invalid' }], 1, 'binary'],
+                [[...go, { finding: {} }], 1, 'binary'],
+                [[...go, { finding: { osv: 'GO-fixture', trace: [] } }], 1, 'binary'],
+                [
+                    [
+                        {
+                            config: {
+                                ...goConfig,
+                                scan_mode: 'query',
+                                db_last_modified: new Date().toISOString(),
+                            },
+                        },
+                        { osv: 'invalid' },
+                    ],
+                    1,
+                    'query',
+                ],
+                [{ ...cargo, vulnerabilities: { count: 1, list: null } }, 1, 'cargo'],
+                [{ ...cargo, vulnerabilities: { count: 1, list: [] } }, 1, 'cargo'],
+                [{ ...cargo, vulnerabilities: { count: 1, list: [{}] } }, 1, 'cargo'],
+                [
+                    {
+                        ...cargo,
+                        vulnerabilities: {
+                            count: 1,
+                            list: [{ advisory: { id: 'RUSTSEC-fixture' } }],
+                        },
+                    },
+                    3,
+                    'cargo',
+                ],
+            ] as const
+            const results = await Promise.all(
+                reports.map(async ([report, expectedExit, mode], index) => {
+                    const path = join(directory, `image-${index}.json`)
+                    await writeFile(path, JSON.stringify(report))
+                    const child = Bun.spawn(
+                        [process.execPath, '--no-env-file', script, mode, path, databasePath],
+                        { cwd: directory, env: {}, stdout: 'ignore', stderr: 'ignore' },
+                    )
+                    return { expectedExit, actualExit: await child.exited }
+                }),
+            )
+            for (const result of results) expect(result.actualExit).toBe(result.expectedExit)
+        } finally {
+            await rm(directory, { recursive: true, force: true })
+        }
+    })
+
     test('accepts a clean complete scanner response and blocks moderate, high, critical and unknown advisories even without fixes', () => {
         expect(() => evaluateImage(image)).not.toThrow()
         for (const severity of ['Medium', 'Moderate', 'High', 'Critical', 'Unknown']) {
@@ -122,7 +248,24 @@ describe('deployed dependency policy', () => {
         const config = { ...goConfig, scan_mode: 'query' }
         expect(() => evaluateGo([{ config }], 'query', now)).not.toThrow()
         expect(() =>
-            evaluateGo([{ config }, { osv: { id: 'GO-community-fixture' } }], 'query', now),
+            evaluateGo(
+                [
+                    { config },
+                    {
+                        osv: {
+                            id: 'GO-community-fixture',
+                            affected: [
+                                {
+                                    package: { ecosystem: 'Go', name: 'example.org/community' },
+                                    ranges: [{ type: 'SEMVER', events: [{ introduced: '0' }] }],
+                                },
+                            ],
+                        },
+                    },
+                ],
+                'query',
+                now,
+            ),
         ).toThrow('policy failed')
     })
 

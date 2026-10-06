@@ -97,6 +97,14 @@ main pushes and daily at 04:17 UTC. PR/main candidates are built as isolated
 production OCI archives and assessed without starting the appliance. Existing
 JavaScript auditing and dependency review remain separate checks.
 
+The PR/main image check establishes complete assessment coverage. A completed
+assessment with blocking advisories reports **publication blocked** in the job
+summary and stores `blocked-assessment.json`; it does not approve a release.
+Missing inventories, malformed reports, stale databases and scanner failures
+fail the check. The release/dev build and trusted publisher enforce the full
+advisory policy with a nonzero exit, and only a fresh `approved` assessment
+bound to the independently checked source and digest can authorize publication.
+
 Release and dev builds have read-only repository permission and no registry
 publishing token. They export an OCI archive including SBOM/provenance, assess
 it locally, and record its source commit, OCI index digest and archive checksum.
@@ -117,8 +125,10 @@ from a stopped container and checked with govulncheck; module/package findings
 and symbol traces are retained, and every Go finding blocks publication. Caddy's
 HTTP-only local community-module replacement is additionally queried using its
 original version embedded in the binary, so local replacement paths cannot
-silently evade upstream advisory checks. Binary symbol presence is evidence
-of potential reachability, not proof that an exploit can occur in this appliance.
+silently evade upstream advisory checks. Binary reports can conservatively fall
+back to module-level advisory symbols when binaries are stripped; these do not
+prove actual symbol reachability. Such findings still block publication pending
+an exact-build reachability assessment or remediation.
 
 The daily rescan resolves `dev` and the newest non-draft release in each
 alpha/beta/stable channel to immutable digests once and assesses those digests.

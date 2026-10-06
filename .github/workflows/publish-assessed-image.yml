@@ -73,6 +73,9 @@ jobs:
 
             - name: Publish the exact assessed OCI index
               env:
+                  AUTOMATION_DIRECTORY: automation
+                  ASSESSED_REPORT: ${{ runner.temp }}/dependency-publish-report/assessment.json
+                  IDENTITY_REPORT: ${{ runner.temp }}/dependency-publish-report/identity.json
                   ARCHIVE: ${{ runner.temp }}/candidate/candidate-image.tar
                   EXPECTED_ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
                   EXPECTED_DIGEST: ${{ steps.scan.outputs.digest }}

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+# Only a validated policy result may use exit 3; external tools fail fatally.
+trap 'exit 1' ERR
 mkdir -p "$REPORT_DIRECTORY"
 [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || exit 1
 printf '%s\n' "$REVISION" > "$REPORT_DIRECTORY/source-revision.txt"
@@ -25,6 +27,9 @@ policy="$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts"
 # Index refresh/per-crate errors can be printed without a nonzero scanner exit.
 # Treat these diagnostics as an incomplete audit, never as a clean inventory.
 bun --no-env-file "$policy" cargo-diagnostics "$REPORT_DIRECTORY/cargo-diagnostics.txt"
-if (( status != 0 )); then exit "$status"; fi
-bun --no-env-file "$policy" cargo "$REPORT_DIRECTORY/cargo.json" "$REPORT_DIRECTORY/rustsec-database.json"
+if (( status != 0 && status != 1 )); then exit 1; fi
+policy_status=0
+bun --no-env-file "$policy" cargo "$REPORT_DIRECTORY/cargo.json" "$REPORT_DIRECTORY/rustsec-database.json" || policy_status=$?
 rm -rf "$database"
+if (( policy_status == 3 )); then exit 3; fi
+if (( policy_status != 0 || status != 0 )); then exit 1; fi

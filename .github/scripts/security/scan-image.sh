@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+# Foreign command failures cannot masquerade as a completed adverse assessment.
+trap 'exit 1' ERR
 : "${IMAGE_SOURCE:?}" "${REVISION:?}" "${REPORT_DIRECTORY:?}" "${AUTOMATION_DIRECTORY:?}"
 [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || exit 1
 mkdir -p "$REPORT_DIRECTORY"
+rm -f "$REPORT_DIRECTORY/assessment.json" "$REPORT_DIRECTORY/blocked-assessment.json"
 manifest="$REPORT_DIRECTORY/manifest.json"
 skopeo inspect --raw "$IMAGE_SOURCE" > "$manifest"
 digest="sha256:$(sha256sum "$manifest" | cut -d ' ' -f1)"
@@ -23,8 +26,15 @@ grype "$scan_source" --platform linux/amd64 --output json --file "$REPORT_DIRECT
 syft "$scan_source" --platform linux/amd64 --output "syft-json=$REPORT_DIRECTORY/inventory.json"
 policy="$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts"
 status=0
-bun --no-env-file "$policy" inventory "$REPORT_DIRECTORY/inventory.json" || status=1
-bun --no-env-file "$policy" image "$REPORT_DIRECTORY/image.json" || status=1
+assess() {
+    local result=0
+    "$@" || result=$?
+    if (( result != 0 && result != 3 )); then status=1
+    elif (( result == 3 && status == 0 )); then status=3
+    fi
+}
+assess bun --no-env-file "$policy" inventory "$REPORT_DIRECTORY/inventory.json"
+assess bun --no-env-file "$policy" image "$REPORT_DIRECTORY/image.json"
 # Convert as data; docker create is stopped and docker cp never starts services.
 skopeo copy --override-os linux --override-arch amd64 "$IMAGE_SOURCE" "docker-archive:$REPORT_DIRECTORY/runtime.tar:local/rentnerproxy-security:scan"
 docker load --input "$REPORT_DIRECTORY/runtime.tar"
@@ -41,7 +51,7 @@ fi
 locked_source_directory="$REPORT_DIRECTORY/locked-source"
 controller_report_directory="$REPORT_DIRECTORY/controller"
 SOURCE_DIRECTORY="$locked_source_directory" REPORT_DIRECTORY="$controller_report_directory" \
-    bash "$AUTOMATION_DIRECTORY/.github/scripts/security/audit-cargo.sh" || status=1
+    assess bash "$AUTOMATION_DIRECTORY/.github/scripts/security/audit-cargo.sh"
 docker cp "$container:/opt/rentnerproxy/web/bun.lock" "$REPORT_DIRECTORY/locked-source/web/bun.lock"
 docker cp "$container:/opt/rentnerproxy/web/package.json" "$REPORT_DIRECTORY/locked-source/web/package.json"
 (cd "$REPORT_DIRECTORY/locked-source/web" && bun --no-env-file audit --audit-level=moderate) > "$REPORT_DIRECTORY/bun-audit.txt" 2>&1 || status=1
@@ -51,16 +61,19 @@ for binary in caddy crowdsec cscli; do
     docker cp "$container:$binary_path" "$REPORT_DIRECTORY/$binary"
     go version -m -json "$REPORT_DIRECTORY/$binary" > "$REPORT_DIRECTORY/$binary-buildinfo.json"
     govulncheck -mode=binary -scan=symbol -json "$REPORT_DIRECTORY/$binary" | jq --slurp . > "$REPORT_DIRECTORY/$binary-govulncheck.json"
-    bun --no-env-file "$policy" binary "$REPORT_DIRECTORY/$binary-govulncheck.json" || status=1
+    assess bun --no-env-file "$policy" binary "$REPORT_DIRECTORY/$binary-govulncheck.json"
 done
 # The HTTP-only community module is a local replacement. govulncheck cannot
 # resolve its local path: explicitly query its original embedded locked version.
 community_version="$(jq --raw-output '.Deps[] | select(.Path == "github.com/hslatman/caddy-crowdsec-bouncer") | .Version' "$REPORT_DIRECTORY/caddy-buildinfo.json")"
 [[ "$community_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo '::error::Community module version is unassessable'; exit 1; }
 govulncheck -mode=query -json "github.com/hslatman/caddy-crowdsec-bouncer@$community_version" | jq --slurp . > "$REPORT_DIRECTORY/community-govulncheck.json"
-bun --no-env-file "$policy" query "$REPORT_DIRECTORY/community-govulncheck.json" || status=1
+assess bun --no-env-file "$policy" query "$REPORT_DIRECTORY/community-govulncheck.json"
 # Do not retain runnable binaries in advisory artifacts.
 rm -f "$REPORT_DIRECTORY/caddy" "$REPORT_DIRECTORY/crowdsec" "$REPORT_DIRECTORY/cscli"
+if (( status == 3 )); then
+    bun --no-env-file "$policy" blocked "$REPORT_DIRECTORY/identity.json" "$REPORT_DIRECTORY/blocked-assessment.json"
+fi
 if (( status != 0 )); then exit "$status"; fi
 bun --no-env-file "$policy" identity "$REPORT_DIRECTORY/identity.json" "$REPORT_DIRECTORY/assessment.json"
 printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
