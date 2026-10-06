@@ -14,11 +14,12 @@ snapshots are not supported.
 
 ## Security expectations
 
-The [security assurance case](ASSURANCE_CASE.md) describes intended protections, deployment
-assumptions, supporting code and tests, and residual risks. The [architecture](ARCHITECTURE.md)
-documents service and certificate ownership boundaries. These are evidence-based design
-arguments, not an independent security certification. The [release process](RELEASING.md)
-documents the current absence of release-signature verification and reproducibility guarantees.
+The [security assurance case](docs/security/assurance-case.md) describes intended protections,
+deployment assumptions, supporting code and tests, and residual risks. The
+[architecture](docs/architecture.md) documents service and certificate ownership boundaries.
+These are evidence-based design arguments, not an independent security certification. The current
+[release workflow](.github/workflows/release.yml) does not establish authenticated release signing
+or reproducible builds.
 
 ## Reporting a vulnerability
 
