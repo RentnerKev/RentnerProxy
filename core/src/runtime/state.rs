@@ -211,6 +211,21 @@ impl SafeDir {
         )
     }
 
+    pub(super) fn remove_file(&self, component: &str) -> std::io::Result<()> {
+        let path = self.child_path(component)?;
+        match fs::symlink_metadata(&path) {
+            Ok(metadata) => {
+                ensure_regular_file_metadata(&metadata)?;
+                fs::remove_file(path)?;
+            }
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
+        #[cfg(unix)]
+        self.sync()?;
+        Ok(())
+    }
+
     pub(super) fn remove_dir_tree(&self, component: &str) -> std::io::Result<()> {
         let directory = self.open_dir(component)?;
         remove_tree_without_links(&self.path, directory.path())?;

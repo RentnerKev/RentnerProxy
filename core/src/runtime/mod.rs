@@ -44,6 +44,7 @@ use trusted_cas::TrustedCaStore;
 
 const BASELINE_PROBE_REVISION: &str = "none";
 const ACTIVE_CONFIGURATION_FILE: &str = "active-proxy-snapshot.json";
+const ACTIVE_CONFIGURATION_FENCE: &str = "proxy-activation-pending";
 const ACTIVE_CROWDSEC_CONFIGURATION_FILE: &str = "active-crowdsec-configuration.json";
 const MAX_CANDIDATE_ACTIVATIONS_PER_TICK: usize = 4;
 
@@ -122,7 +123,19 @@ enum RenderPurpose {
     Recovery,
 }
 
+#[cfg(test)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RecoveryWriteFault {
+    BeforeSnapshotWrite,
+    AfterSnapshotWrite,
+    BeforeFenceRemoval,
+    AfterFenceRemoval,
+}
+
 pub(crate) struct ProxyRuntime {
+    #[cfg(test)]
+    pub(crate) recovery_write_faults:
+        std::sync::Mutex<std::collections::VecDeque<RecoveryWriteFault>>,
     settings: RuntimeSettings,
     engine: Option<Arc<dyn ProxyEngine>>,
     state: Mutex<RuntimeState>,
@@ -181,6 +194,8 @@ impl ProxyRuntime {
         let certificate_store = CertificateStore::new(settings.state_dir.clone());
         let trusted_ca_store = TrustedCaStore::new(settings.state_dir.clone());
         Arc::new(Self {
+            #[cfg(test)]
+            recovery_write_faults: std::sync::Mutex::new(std::collections::VecDeque::new()),
             settings,
             engine,
             certificate_store,
