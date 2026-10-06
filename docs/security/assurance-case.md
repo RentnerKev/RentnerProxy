@@ -197,7 +197,8 @@ appliance restart. It verifies active Caddy JSON and traffic alongside durable c
 Its [workflow](../../.github/workflows/runtime-scale.yml) retains allowlisted reports with exact
 commit/image identities. Resource ceilings and eight unchanged-configuration samples provide
 short regression evidence; they do not demonstrate universal capacity or long-term leak freedom.
-See [the workload contract](../../README.md#proxy-scale-and-concurrency-checks) and the separate [Runtime Reliability workflow](../../.github/workflows/runtime-reliability.yml).
+See [the workload contract](../../README.md#proxy-scale-and-concurrency-checks) and the separate
+[Runtime Reliability workflow](../../.github/workflows/runtime-reliability.yml).
 
 ### T8: CrowdSec is bypassed, leaks a credential, or causes a proxy outage
 
@@ -253,8 +254,8 @@ only as current as the last successful stream.
   [`README.md`](../../README.md), [`SECURITY.md`](../../SECURITY.md), and
   [`CONTRIBUTING.md`](../../.github/CONTRIBUTING.md).
 
-The current release workflow does not establish authenticated release signing or reproducible builds. Planned review
-work must not be treated as completed security validation.
+The current release workflow does not establish authenticated release signing or reproducible
+builds. Planned review work must not be treated as completed security validation.
 
 ## Review procedure
 
