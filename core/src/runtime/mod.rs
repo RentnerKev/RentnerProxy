@@ -126,6 +126,7 @@ enum RenderPurpose {
 #[cfg(test)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RecoveryWriteFault {
+    BeforeFenceWrite,
     BeforeSnapshotWrite,
     AfterSnapshotWrite,
     BeforeFenceRemoval,

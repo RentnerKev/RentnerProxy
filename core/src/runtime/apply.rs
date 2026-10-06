@@ -175,8 +175,8 @@ impl ProxyRuntime {
             return Err(RuntimeError::ApplyFailed);
         }
         if fenced && self.finish_configuration_activation().is_err() {
-            // Re-establish durable authority before awaiting engine rollback:
-            // the removal error may have occurred after the fence was unlinked.
+            // Only failures before unlink reach rollback. After unlink the
+            // durable, verified candidate remains the committed authority.
             self.restore_recovery_configuration(previous_configuration.as_ref());
             self.restore_verified_locked(&previous, &previous_revision, false)
                 .await;

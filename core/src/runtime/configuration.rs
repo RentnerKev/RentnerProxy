@@ -7,7 +7,7 @@ use super::{
         render_config_with_tls_and_crowdsec, render_host_config_for_runtime,
         render_host_sources_for_runtime,
     },
-    state::{atomic_write, open_absolute_regular_file, state_dir},
+    state::{FileRemovalError, atomic_write, open_absolute_regular_file, state_dir},
 };
 use crate::{
     models::{ProxyConfigRequest, ValidatedProxyConfig},
@@ -70,6 +70,8 @@ impl ProxyRuntime {
     }
 
     pub(super) fn fence_configuration_activation(&self) -> Result<(), RuntimeError> {
+        #[cfg(test)]
+        self.recovery_write_fault(super::RecoveryWriteFault::BeforeFenceWrite)?;
         atomic_write(
             &self.settings.state_dir.join(ACTIVE_CONFIGURATION_FENCE),
             b"pending\n",
@@ -80,20 +82,41 @@ impl ProxyRuntime {
     pub(super) fn finish_configuration_activation(&self) -> Result<(), RuntimeError> {
         #[cfg(test)]
         self.recovery_write_fault(super::RecoveryWriteFault::BeforeFenceRemoval)?;
-        state_dir(&self.settings.state_dir)
-            .and_then(|directory| directory.remove_file(ACTIVE_CONFIGURATION_FENCE))
-            .map_err(|_| RuntimeError::ApplyFailed)?;
+        let removal = state_dir(&self.settings.state_dir)
+            .map_err(FileRemovalError::BeforeUnlink)
+            .and_then(|directory| directory.remove_file_with_outcome(ACTIVE_CONFIGURATION_FENCE));
         #[cfg(test)]
-        self.recovery_write_fault(super::RecoveryWriteFault::AfterFenceRemoval)?;
-        Ok(())
+        let removal = removal.and_then(|()| {
+            self.recovery_write_fault(super::RecoveryWriteFault::AfterFenceRemoval)
+                .map_err(|_| {
+                    FileRemovalError::AfterUnlink(std::io::Error::other(
+                        "injected fence sync failure",
+                    ))
+                })
+        });
+        match removal {
+            Ok(()) => Ok(()),
+            Err(FileRemovalError::BeforeUnlink(_)) => Err(RuntimeError::ApplyFailed),
+            Err(FileRemovalError::AfterUnlink(error)) => {
+                // The snapshot is durable and verified before this commit point.
+                // Unsynced unlink can recover the candidate or a retained fence's
+                // closed baseline; rolling back traffic would split authority.
+                tracing::warn!(
+                    ?error,
+                    stage = "snapshot_commit",
+                    "Recovery fence removal was not synchronized; durable snapshot remains authoritative"
+                );
+                Ok(())
+            }
+        }
     }
 
     pub(super) fn restore_recovery_configuration(
         &self,
         configuration: Option<&ValidatedProxyConfig>,
     ) {
-        // Re-fence before rollback: fence removal may have failed after unlinking.
-        // If re-fencing fails, leave the durable candidate snapshot untouched.
+        // Rollback only runs before the fence unlink commit point. Preserve the
+        // existing fence if storage cannot prepare or complete durable rollback.
         if self.fence_configuration_activation().is_err() {
             tracing::warn!(
                 stage = "snapshot_rollback",

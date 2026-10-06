@@ -166,58 +166,117 @@ async fn restart_during_unconfirmed_activation_uses_baseline_then_committed_poli
 
 #[tokio::test]
 async fn fence_removal_failure_rolls_back_both_traffic_and_recovery_authority() {
-    for fault in [
-        RecoveryWriteFault::BeforeFenceRemoval,
-        RecoveryWriteFault::AfterFenceRemoval,
-    ] {
-        let engine = FakeCaddy::new();
-        let (runtime, settings) = runtime(Some(engine.clone()));
-        runtime.initialize().await;
-        runtime.apply(configuration(4_000)).await.unwrap();
-        let previous = runtime.active_config().await.unwrap();
-        runtime
-            .recovery_write_faults
-            .lock()
-            .unwrap()
-            .push_back(fault);
-        assert_eq!(
-            runtime.apply(restrictive_configuration()).await,
-            Err(RuntimeError::ApplyFailed)
-        );
-        assert_eq!(*engine.configuration.lock().await, previous.0);
-        assert_eq!(runtime.active_config().await.unwrap(), previous);
-        runtime.shutdown().await;
-        let (restarted, _) = restart(&settings).await;
-        assert_eq!(restarted.active_config().await.unwrap(), previous);
-        restarted.shutdown().await;
-        std::fs::remove_dir_all(&settings.state_dir).unwrap();
-    }
-}
-
-#[tokio::test]
-async fn post_unlink_failure_and_failed_rollback_leave_restart_fenced() {
     let engine = FakeCaddy::new();
     let (runtime, settings) = runtime(Some(engine.clone()));
     runtime.initialize().await;
     runtime.apply(configuration(4_000)).await.unwrap();
     let previous = runtime.active_config().await.unwrap();
-    runtime.recovery_write_faults.lock().unwrap().extend([
-        RecoveryWriteFault::AfterFenceRemoval,
-        RecoveryWriteFault::BeforeSnapshotWrite,
-    ]);
+    runtime
+        .recovery_write_faults
+        .lock()
+        .unwrap()
+        .push_back(RecoveryWriteFault::BeforeFenceRemoval);
     assert_eq!(
         runtime.apply(restrictive_configuration()).await,
         Err(RuntimeError::ApplyFailed)
     );
     assert_eq!(*engine.configuration.lock().await, previous.0);
     assert_eq!(runtime.active_config().await.unwrap(), previous);
-    assert!(settings.state_dir.join(FENCE).is_file());
     runtime.shutdown().await;
-    let (restarted, engine) = restart(&settings).await;
-    assert_eq!(restarted.status().await.active_revision, None);
-    assert!(!engine.configuration.lock().await.contains("demo.test"));
+    let (restarted, _) = restart(&settings).await;
+    assert_eq!(restarted.active_config().await.unwrap(), previous);
     restarted.shutdown().await;
     std::fs::remove_dir_all(&settings.state_dir).unwrap();
+}
+
+#[tokio::test]
+async fn post_unlink_sync_failure_commits_public_candidate_without_attempting_refence() {
+    for fence_reappears in [false, true] {
+        let engine = FakeCaddy::new();
+        let (runtime, settings) = runtime(Some(engine.clone()));
+        runtime.initialize().await;
+        runtime
+            .import_certificate(CERT_ID, certificate_import_request())
+            .await
+            .unwrap();
+        let candidate = tls_configuration();
+        let mut previous = candidate.clone();
+        previous.proxy_hosts[0].access_policy = Some(AccessPolicy {
+            id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
+            mode: AccessPolicyMode::IpRestricted,
+            combination: None,
+            basic_auth: None,
+            forward_auth: None,
+            ip_rules: Some(IpRules {
+                default_action: IpDefaultAction::Deny,
+                allow: vec!["192.0.2.0/24".to_owned()],
+                deny: Vec::new(),
+            }),
+        });
+        previous.revision =
+            revision_for_configuration(&previous.proxy_hosts, &previous.http_settings);
+        runtime.apply(previous).await.unwrap();
+        assert!(
+            runtime
+                .active_config()
+                .await
+                .unwrap()
+                .0
+                .contains("192.0.2.0/24")
+        );
+        runtime.recovery_write_faults.lock().unwrap().extend([
+            RecoveryWriteFault::AfterFenceRemoval,
+            RecoveryWriteFault::BeforeFenceWrite,
+        ]);
+        assert_eq!(
+            runtime.apply(candidate.clone()).await,
+            Ok(ApplyOutcome::Applied)
+        );
+        let active = runtime.active_config().await.unwrap();
+        assert_eq!(active.1, Some(candidate.revision.clone()));
+        assert!(!active.0.contains("192.0.2.0/24"));
+        assert_eq!(*engine.configuration.lock().await, active.0);
+        let snapshot = std::fs::read(settings.state_dir.join(SNAPSHOT)).unwrap();
+        let persisted = validate_proxy_config(serde_json::from_slice(&snapshot).unwrap()).unwrap();
+        assert_eq!(persisted.revision, candidate.revision);
+        assert!(persisted.proxy_hosts[0].access_policy.is_none());
+        assert!(!settings.state_dir.join(FENCE).exists());
+        // A failed re-fence must remain unused: post-unlink is already committed.
+        assert!(
+            runtime.recovery_write_faults.lock().unwrap().front()
+                == Some(&RecoveryWriteFault::BeforeFenceWrite)
+        );
+        runtime
+            .import_certificate(CERT_ID, certificate_import_request())
+            .await
+            .unwrap();
+        let active = runtime.active_config().await.unwrap();
+        assert_eq!(*engine.configuration.lock().await, active.0);
+        assert_eq!(active.1, Some(candidate.revision.clone()));
+        assert_eq!(
+            std::fs::read(settings.state_dir.join(SNAPSHOT)).unwrap(),
+            snapshot
+        );
+        assert!(
+            runtime.recovery_write_faults.lock().unwrap().front()
+                == Some(&RecoveryWriteFault::BeforeFenceWrite)
+        );
+        runtime.shutdown().await;
+        // A power interruption may restore an unsynced marker directory entry.
+        if fence_reappears {
+            std::fs::write(settings.state_dir.join(FENCE), "pending\n").unwrap();
+        }
+        let (restarted, engine) = restart(&settings).await;
+        if fence_reappears {
+            assert_eq!(restarted.status().await.active_revision, None);
+            assert!(!engine.configuration.lock().await.contains("demo.test"));
+        } else {
+            assert_eq!(restarted.active_config().await.unwrap(), active);
+            assert_eq!(*engine.configuration.lock().await, active.0);
+        }
+        restarted.shutdown().await;
+        std::fs::remove_dir_all(&settings.state_dir).unwrap();
+    }
 }
 
 #[tokio::test]

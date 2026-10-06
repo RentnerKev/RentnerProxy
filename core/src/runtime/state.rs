@@ -12,6 +12,11 @@ use std::{
 
 pub(super) const LAST_APPLY_FILE: &str = "last-apply-at";
 
+pub(super) enum FileRemovalError {
+    BeforeUnlink(std::io::Error),
+    AfterUnlink(std::io::Error),
+}
+
 #[derive(Clone, Debug)]
 pub(super) struct SafeDir {
     path: PathBuf,
@@ -212,18 +217,39 @@ impl SafeDir {
     }
 
     pub(super) fn remove_file(&self, component: &str) -> std::io::Result<()> {
-        let path = self.child_path(component)?;
-        match fs::symlink_metadata(&path) {
-            Ok(metadata) => {
-                ensure_regular_file_metadata(&metadata)?;
-                fs::remove_file(path)?;
+        self.remove_file_with_outcome(component)
+            .map_err(|error| match error {
+                FileRemovalError::BeforeUnlink(error) | FileRemovalError::AfterUnlink(error) => {
+                    error
+                }
+            })
+    }
+
+    pub(super) fn remove_file_with_outcome(&self, component: &str) -> Result<(), FileRemovalError> {
+        let unlink = || -> std::io::Result<()> {
+            let path = self.child_path(component)?;
+            match fs::symlink_metadata(&path) {
+                Ok(metadata) => {
+                    ensure_regular_file_metadata(&metadata)?;
+                    fs::remove_file(path)?;
+                }
+                Err(error) if error.kind() == ErrorKind::NotFound => {}
+                Err(error) => return Err(error),
             }
-            Err(error) if error.kind() == ErrorKind::NotFound => {}
-            Err(error) => return Err(error),
-        }
-        #[cfg(unix)]
-        self.sync()?;
-        Ok(())
+            Ok(())
+        };
+        unlink().map_err(FileRemovalError::BeforeUnlink)?;
+        let synchronized = {
+            #[cfg(unix)]
+            {
+                self.sync()
+            }
+            #[cfg(not(unix))]
+            {
+                Ok(())
+            }
+        };
+        synchronized.map_err(FileRemovalError::AfterUnlink)
     }
 
     pub(super) fn remove_dir_tree(&self, component: &str) -> std::io::Result<()> {
