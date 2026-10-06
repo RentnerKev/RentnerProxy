@@ -20,18 +20,10 @@ ENV NODE_ENV=production \
     PORT=3000
 
 COPY package.json bun.lock ./
+COPY docker/web/prune-build-tools.sh /tmp/prune-build-tools.sh
 RUN bun install --frozen-lockfile --production \
-    && rm -rf \
-        node_modules/@happy-dom \
-        node_modules/@tailwindcss \
-        node_modules/@types \
-        node_modules/@vitejs \
-        node_modules/drizzle-kit \
-        node_modules/fast-check \
-        node_modules/oxlint \
-        node_modules/tailwindcss \
-        node_modules/typescript \
-        node_modules/vite
+    && /bin/sh /tmp/prune-build-tools.sh \
+    && rm /tmp/prune-build-tools.sh
 COPY --from=build /app/web/dist ./web/dist
 COPY --from=build /build/migrations ./web/drizzle
 COPY --from=build /build/migrate.js ./migrate.js
