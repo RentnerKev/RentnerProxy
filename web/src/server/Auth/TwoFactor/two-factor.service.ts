@@ -33,6 +33,8 @@ import {
 } from '@/server/Auth/Access/authorization.service.ts'
 import {
     createSessionInTransaction,
+    lockActiveUserForAuthenticationInTransaction,
+    requirePasswordAuthenticationInTransaction,
     requireRecentSessionInTransaction,
     revokeOtherUserSessionsInTransaction,
 } from '@/server/Auth/Access/sessions.service.ts'
@@ -73,6 +75,17 @@ export async function hasEnabledTotpFactorService(userId: string): Promise<boole
         .limit(1)
 
     return rows.length === 1
+}
+
+export async function getLoginMfaFactorInTransaction(transaction: AuthTransaction, userId: string) {
+    // The caller holds the user lock, including when no factor row exists yet.
+    const rows = await transaction
+        .select({ id: userTotpFactors.id })
+        .from(userTotpFactors)
+        .where(eq(userTotpFactors.userId, userId))
+        .limit(1)
+
+    return rows.at(0) ?? null
 }
 
 export async function getTwoFactorStatusService(userId: string): Promise<TwoFactorStatus> {
@@ -213,6 +226,10 @@ export async function confirmTotpSetupService(input: {
 
             const recoveryCodes = await createRecoveryCodeBatch()
             const created = await getAuthDatabase().transaction(async (transaction) => {
+                await lockActiveUserForAuthenticationInTransaction(
+                    transaction,
+                    input.currentSession.user.id,
+                )
                 await requireRecentSessionInTransaction(transaction, input.currentSession)
                 await requirePermissionInTransaction(
                     transaction,
@@ -288,6 +305,10 @@ export async function regenerateRecoveryCodesService(
 
             const recoveryCodes = await createRecoveryCodeBatch()
             const regenerated = await getAuthDatabase().transaction(async (transaction) => {
+                await lockActiveUserForAuthenticationInTransaction(
+                    transaction,
+                    currentSession.user.id,
+                )
                 await requireRecentSessionInTransaction(transaction, currentSession)
                 await requirePermissionInTransaction(
                     transaction,
@@ -346,6 +367,10 @@ export async function disableTotpService(currentSession: CurrentSession): Promis
             await requireSessionPermission(currentSession, PERMISSIONS.ACCOUNT_UPDATE)
 
             return getAuthDatabase().transaction(async (transaction) => {
+                await lockActiveUserForAuthenticationInTransaction(
+                    transaction,
+                    currentSession.user.id,
+                )
                 await requireRecentSessionInTransaction(transaction, currentSession)
                 await requirePermissionInTransaction(
                     transaction,
@@ -383,13 +408,17 @@ export async function disableTotpService(currentSession: CurrentSession): Promis
     )
 }
 
-export async function createLoginMfaChallengeService(userId: string) {
+export async function createLoginMfaChallengeService(input: {
+    factorId: string
+    passwordFingerprint: string
+    userId: string
+}) {
     return createAuthChallenge(
         {
             attempts: 0,
             createdAt: new Date().toISOString(),
             kind: 'login-mfa',
-            userId,
+            ...input,
         },
         LOGIN_MFA_CHALLENGE_DURATION_MS,
     )
@@ -421,6 +450,7 @@ export async function completeLoginMfaWithTotpService(input: {
             const code = normalizeTotpCode(input.token)
             const factors = await getAuthDatabase()
                 .select({
+                    id: userTotpFactors.id,
                     lastUsedCounter: userTotpFactors.lastUsedCounter,
                     secretCiphertext: userTotpFactors.secretCiphertext,
                     secretIv: userTotpFactors.secretIv,
@@ -430,7 +460,7 @@ export async function completeLoginMfaWithTotpService(input: {
                 .limit(1)
             const factor = factors.at(0)
 
-            if (!code || !factor) {
+            if (!code || !factor || factor.id !== verification.challenge.factorId) {
                 const failure = await failCodeChallengeVerification({
                     ...verification,
                     kind: 'login-mfa',
@@ -477,12 +507,27 @@ export async function completeLoginMfaWithTotpService(input: {
 
             try {
                 return await getAuthDatabase().transaction(async (transaction) => {
+                    await requirePasswordAuthenticationInTransaction(
+                        transaction,
+                        consumed.userId,
+                        consumed.passwordFingerprint,
+                    )
+                    const currentFactor = await getLoginMfaFactorInTransaction(
+                        transaction,
+                        consumed.userId,
+                    )
+
+                    if (currentFactor?.id !== consumed.factorId) {
+                        return { code: 'authentication_failed' as const, success: false as const }
+                    }
+
                     const updated = await transaction
                         .update(userTotpFactors)
                         .set({ lastUsedCounter: matchedCounter, updatedAt: new Date() })
                         .where(
                             and(
                                 eq(userTotpFactors.userId, consumed.userId),
+                                eq(userTotpFactors.id, consumed.factorId),
                                 lt(userTotpFactors.lastUsedCounter, matchedCounter),
                             ),
                         )
@@ -578,6 +623,20 @@ export async function completeLoginMfaWithRecoveryCodeService(input: {
 
             try {
                 return await getAuthDatabase().transaction(async (transaction) => {
+                    await requirePasswordAuthenticationInTransaction(
+                        transaction,
+                        consumed.userId,
+                        consumed.passwordFingerprint,
+                    )
+                    const factor = await getLoginMfaFactorInTransaction(
+                        transaction,
+                        consumed.userId,
+                    )
+
+                    if (factor?.id !== consumed.factorId) {
+                        return { code: 'authentication_failed' as const, success: false as const }
+                    }
+
                     const used = await transaction
                         .update(userRecoveryCodes)
                         .set({ usedAt: new Date() })
