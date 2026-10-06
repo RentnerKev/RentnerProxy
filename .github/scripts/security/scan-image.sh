@@ -5,6 +5,12 @@ trap 'exit 1' ERR
 : "${IMAGE_SOURCE:?}" "${REVISION:?}" "${REPORT_DIRECTORY:?}" "${AUTOMATION_DIRECTORY:?}"
 [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || exit 1
 mkdir -p "$REPORT_DIRECTORY"
+container=''
+cleanup() {
+    if [[ -n "$container" ]]; then docker rm -f "$container" >/dev/null || true; fi
+    rm -f "$REPORT_DIRECTORY/runtime.tar" "$REPORT_DIRECTORY/caddy" "$REPORT_DIRECTORY/crowdsec" "$REPORT_DIRECTORY/cscli"
+}
+trap cleanup EXIT
 rm -f "$REPORT_DIRECTORY/assessment.json" "$REPORT_DIRECTORY/blocked-assessment.json"
 manifest="$REPORT_DIRECTORY/manifest.json"
 skopeo inspect --raw "$IMAGE_SOURCE" > "$manifest"
@@ -39,7 +45,6 @@ assess bun --no-env-file "$policy" image "$REPORT_DIRECTORY/image.json"
 skopeo copy --override-os linux --override-arch amd64 "$IMAGE_SOURCE" "docker-archive:$REPORT_DIRECTORY/runtime.tar:local/rentnerproxy-security:scan"
 docker load --input "$REPORT_DIRECTORY/runtime.tar"
 container="$(docker create --entrypoint /bin/false local/rentnerproxy-security:scan)"
-trap 'docker rm -f "$container" >/dev/null; rm -f "$REPORT_DIRECTORY/runtime.tar" "$REPORT_DIRECTORY/caddy" "$REPORT_DIRECTORY/crowdsec" "$REPORT_DIRECTORY/cscli"' EXIT
 mkdir -p "$REPORT_DIRECTORY/locked-source/core" "$REPORT_DIRECTORY/locked-source/web"
 if ! docker cp "$container:/usr/share/rentnerproxy/security/Cargo.lock" "$REPORT_DIRECTORY/locked-source/core/Cargo.lock"; then
     # Older supported releases predate the embedded lock. Fetch only lock data
