@@ -1,6 +1,6 @@
 use super::{
-    ACTIVE_CONFIGURATION_FENCE, ACTIVE_CONFIGURATION_FILE, ProxyRuntime, RenderPurpose,
-    RuntimeError, StagedCertificate,
+    ACTIVE_CONFIGURATION_AUTHORITY_FILE, ACTIVE_CONFIGURATION_FENCE, ACTIVE_CONFIGURATION_FILE,
+    ProxyRuntime, RenderPurpose, RuntimeError, StagedCertificate,
     renderer::{
         MAX_RENDERED_PROXY_CONFIG_BYTES, MAX_RENDERED_PROXY_HOST_SOURCE_BYTES, RenderError,
         TlsMaterial, TlsRenderSettings, UpstreamTlsRenderSettings,
@@ -17,17 +17,22 @@ use std::{collections::BTreeMap, io::Read, path::Path};
 
 impl ProxyRuntime {
     pub(super) fn restore_active_configuration(&self) -> Option<ValidatedProxyConfig> {
-        // Only a missing fence authorizes recovery. Incomplete activation, invalid
-        // paths and storage errors all recover the baseline without public routes.
+        // Recovery requires positive durable-writer authority, never inferred
+        // from a legacy snapshot. Pending activation and storage errors close it.
         if self.configuration_activation_is_fenced() {
             return None;
         }
-        let bytes = state_dir(&self.settings.state_dir)
-            .ok()?
+        let directory = state_dir(&self.settings.state_dir).ok()?;
+        let bytes = directory
             .read_file(ACTIVE_CONFIGURATION_FILE, MAX_RENDERED_PROXY_CONFIG_BYTES)
             .ok()?;
         let request = serde_json::from_slice::<ProxyConfigRequest>(&bytes).ok()?;
-        validate_proxy_config(request).ok()
+        let configuration = validate_proxy_config(request).ok()?;
+        let authority = directory
+            .read_file(ACTIVE_CONFIGURATION_AUTHORITY_FILE, 128)
+            .ok()?;
+        let expected = configuration_authority(&configuration);
+        (authority.as_slice() == expected.as_bytes()).then_some(configuration)
     }
 
     pub(super) fn configuration_activation_is_fenced(&self) -> bool {
@@ -66,6 +71,20 @@ impl ProxyRuntime {
         .map_err(|_| RuntimeError::ApplyFailed)?;
         #[cfg(test)]
         self.recovery_write_fault(super::RecoveryWriteFault::AfterSnapshotWrite)?;
+        #[cfg(test)]
+        self.recovery_write_fault(super::RecoveryWriteFault::BeforeAuthorityWrite)?;
+        // The pending fence remains durable until Caddy confirms activation, so
+        // this prepared authority cannot authorize an unconfirmed snapshot.
+        atomic_write(
+            &self
+                .settings
+                .state_dir
+                .join(ACTIVE_CONFIGURATION_AUTHORITY_FILE),
+            configuration_authority(configuration).as_bytes(),
+        )
+        .map_err(|_| RuntimeError::ApplyFailed)?;
+        #[cfg(test)]
+        self.recovery_write_fault(super::RecoveryWriteFault::AfterAuthorityWrite)?;
         Ok(())
     }
 
@@ -127,7 +146,10 @@ impl ProxyRuntime {
         let restored = match configuration {
             Some(configuration) => self.persist_active_configuration(configuration),
             None => state_dir(&self.settings.state_dir)
-                .and_then(|directory| directory.remove_file(ACTIVE_CONFIGURATION_FILE))
+                .and_then(|directory| {
+                    directory.remove_file(ACTIVE_CONFIGURATION_FILE)?;
+                    directory.remove_file(ACTIVE_CONFIGURATION_AUTHORITY_FILE)
+                })
                 .map_err(|_| RuntimeError::ApplyFailed),
         };
         if restored.is_err() || self.finish_configuration_activation().is_err() {
@@ -348,6 +370,10 @@ impl ProxyRuntime {
             trusted_ca_paths,
         })
     }
+}
+
+fn configuration_authority(configuration: &ValidatedProxyConfig) -> String {
+    format!("durable-apply-v1\n{}\n", configuration.revision)
 }
 
 fn is_readable_system_ca_bundle(path: &Path) -> bool {

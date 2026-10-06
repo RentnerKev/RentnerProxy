@@ -2,6 +2,7 @@ use super::*;
 use crate::runtime::RecoveryWriteFault;
 
 const SNAPSHOT: &str = "active-proxy-snapshot.json";
+const AUTHORITY: &str = "active-proxy-snapshot-authority-v1";
 const FENCE: &str = "proxy-activation-pending";
 
 fn restrictive_configuration() -> ValidatedProxyConfig {
@@ -24,6 +25,8 @@ async fn snapshot_write_failure_never_loads_or_acknowledges_new_policy() {
     for fault in [
         RecoveryWriteFault::BeforeSnapshotWrite,
         RecoveryWriteFault::AfterSnapshotWrite,
+        RecoveryWriteFault::BeforeAuthorityWrite,
+        RecoveryWriteFault::AfterAuthorityWrite,
     ] {
         let engine = FakeCaddy::new();
         let (runtime, settings) = runtime(Some(engine.clone()));
@@ -31,6 +34,7 @@ async fn snapshot_write_failure_never_loads_or_acknowledges_new_policy() {
         runtime.apply(configuration(4_000)).await.unwrap();
         let previous = runtime.active_config().await.unwrap();
         let snapshot = std::fs::read(settings.state_dir.join(SNAPSHOT)).unwrap();
+        let authority = std::fs::read(settings.state_dir.join(AUTHORITY)).unwrap();
         let loads = engine.load_count.load(Ordering::SeqCst);
         runtime
             .recovery_write_faults
@@ -49,6 +53,10 @@ async fn snapshot_write_failure_never_loads_or_acknowledges_new_policy() {
             std::fs::read(settings.state_dir.join(SNAPSHOT)).unwrap(),
             snapshot
         );
+        assert_eq!(
+            std::fs::read(settings.state_dir.join(AUTHORITY)).unwrap(),
+            authority
+        );
         runtime.shutdown().await;
 
         let (restarted, engine) = restart(&settings).await;
@@ -64,6 +72,8 @@ async fn failed_snapshot_rollback_keeps_restart_fenced_for_old_and_new_snapshots
     for fault in [
         RecoveryWriteFault::BeforeSnapshotWrite,
         RecoveryWriteFault::AfterSnapshotWrite,
+        RecoveryWriteFault::BeforeAuthorityWrite,
+        RecoveryWriteFault::AfterAuthorityWrite,
     ] {
         let engine = FakeCaddy::new();
         let (runtime, settings) = runtime(Some(engine.clone()));
@@ -294,6 +304,7 @@ async fn rejected_first_load_restores_absent_snapshot_and_baseline_after_restart
         Err(RuntimeError::ApplyFailed)
     );
     assert!(!settings.state_dir.join(SNAPSHOT).exists());
+    assert!(!settings.state_dir.join(AUTHORITY).exists());
     assert!(!settings.state_dir.join(FENCE).exists());
     runtime.shutdown().await;
     let (restarted, engine) = restart(&settings).await;
@@ -459,6 +470,8 @@ async fn rejected_load_and_probe_failure_restore_recovery_before_restart() {
         runtime.initialize().await;
         runtime.apply(restrictive_configuration()).await.unwrap();
         let previous = runtime.active_config().await.unwrap();
+        let snapshot = std::fs::read(settings.state_dir.join(SNAPSHOT)).unwrap();
+        let authority = std::fs::read(settings.state_dir.join(AUTHORITY)).unwrap();
         if rejection {
             engine
                 .loads
@@ -478,9 +491,222 @@ async fn rejected_load_and_probe_failure_restore_recovery_before_restart() {
         );
         assert_eq!(runtime.active_config().await.unwrap(), previous);
         assert_eq!(*engine.configuration.lock().await, previous.0);
+        assert_eq!(
+            std::fs::read(settings.state_dir.join(SNAPSHOT)).unwrap(),
+            snapshot
+        );
+        assert_eq!(
+            std::fs::read(settings.state_dir.join(AUTHORITY)).unwrap(),
+            authority
+        );
         runtime.shutdown().await;
         let (restarted, _) = restart(&settings).await;
         assert_eq!(restarted.active_config().await.unwrap(), previous);
+        restarted.shutdown().await;
+        std::fs::remove_dir_all(&settings.state_dir).unwrap();
+    }
+}
+
+#[tokio::test]
+async fn legacy_v7_snapshot_requires_explicit_desired_apply_before_offline_recovery() {
+    let (runtime, settings) = runtime(Some(FakeCaddy::new()));
+    runtime.initialize().await;
+    runtime.apply(configuration(4_000)).await.unwrap();
+    runtime.shutdown().await;
+    std::fs::remove_file(settings.state_dir.join(AUTHORITY)).unwrap();
+    let legacy = std::fs::read(settings.state_dir.join(SNAPSHOT)).unwrap();
+    assert!(validate_proxy_config(serde_json::from_slice(&legacy).unwrap()).is_ok());
+    let (upgraded, engine) = restart(&settings).await;
+    assert_eq!(upgraded.status().await.active_revision, None);
+    assert!(!engine.configuration.lock().await.contains("demo.test"));
+    assert!(!settings.state_dir.join(AUTHORITY).exists());
+    assert_eq!(
+        std::fs::read(settings.state_dir.join(SNAPSHOT)).unwrap(),
+        legacy
+    );
+    let desired = restrictive_configuration();
+    assert_eq!(
+        upgraded.apply(desired.clone()).await,
+        Ok(ApplyOutcome::Applied)
+    );
+    assert_eq!(
+        std::fs::read_to_string(settings.state_dir.join(AUTHORITY)).unwrap(),
+        format!("durable-apply-v1\n{}\n", desired.revision)
+    );
+    let active = upgraded.active_config().await.unwrap();
+    upgraded.shutdown().await;
+    let (offline, engine) = restart(&settings).await;
+    assert_eq!(offline.active_config().await.unwrap(), active);
+    assert_eq!(
+        offline.status().await.active_revision,
+        Some(desired.revision)
+    );
+    assert!(!engine.configuration.lock().await.contains("demo.test"));
+    offline.shutdown().await;
+    std::fs::remove_dir_all(&settings.state_dir).unwrap();
+}
+
+#[tokio::test]
+async fn malformed_mismatched_oversized_or_nonregular_authority_closes_recovery() {
+    for invalid in 0..4 {
+        let (runtime, settings) = runtime(Some(FakeCaddy::new()));
+        runtime.initialize().await;
+        runtime.apply(configuration(4_000)).await.unwrap();
+        runtime.shutdown().await;
+        let authority = settings.state_dir.join(AUTHORITY);
+        match invalid {
+            0 => std::fs::write(
+                &authority,
+                format!("durable-apply-v0\n{}\n", configuration(4_000).revision),
+            )
+            .unwrap(),
+            1 => std::fs::write(
+                &authority,
+                format!("durable-apply-v1\n{}\n", configuration(4_001).revision),
+            )
+            .unwrap(),
+            2 => std::fs::write(&authority, [b'a'; 129]).unwrap(),
+            _ => {
+                std::fs::remove_file(&authority).unwrap();
+                std::fs::create_dir(&authority).unwrap();
+            }
+        }
+        let (restarted, engine) = restart(&settings).await;
+        assert_eq!(restarted.status().await.active_revision, None);
+        assert!(!engine.configuration.lock().await.contains("demo.test"));
+        restarted.shutdown().await;
+        std::fs::remove_dir_all(&settings.state_dir).unwrap();
+    }
+}
+
+#[tokio::test]
+async fn matching_authority_label_does_not_authorize_modified_policy_contents() {
+    let (runtime, settings) = runtime(Some(FakeCaddy::new()));
+    runtime.initialize().await;
+    runtime.apply(restrictive_configuration()).await.unwrap();
+    runtime.shutdown().await;
+    let snapshot = settings.state_dir.join(SNAPSHOT);
+    let mut request: ProxyConfigRequest =
+        serde_json::from_slice(&std::fs::read(&snapshot).unwrap()).unwrap();
+    // Add public routes while retaining the revision label and its authority.
+    request.proxy_hosts = configuration(4_000).proxy_hosts;
+    std::fs::write(snapshot, serde_json::to_vec(&request).unwrap()).unwrap();
+    let (restarted, engine) = restart(&settings).await;
+    assert_eq!(restarted.status().await.active_revision, None);
+    assert!(!engine.configuration.lock().await.contains("demo.test"));
+    restarted.shutdown().await;
+    std::fs::remove_dir_all(&settings.state_dir).unwrap();
+}
+
+#[tokio::test]
+async fn unchanged_apply_repairs_missing_or_mismatched_authority_after_confirmation() {
+    for missing in [false, true] {
+        let engine = FakeCaddy::new();
+        let (runtime, settings) = runtime(Some(engine.clone()));
+        runtime.initialize().await;
+        let config = configuration(4_000);
+        runtime.apply(config.clone()).await.unwrap();
+        let previous = runtime.active_config().await.unwrap();
+        let authority = settings.state_dir.join(AUTHORITY);
+        if missing {
+            std::fs::remove_file(&authority).unwrap();
+        } else {
+            std::fs::write(&authority, "invalid authority").unwrap();
+        }
+        let loads = engine.load_count.load(Ordering::SeqCst);
+        let probes = engine.probe_count.load(Ordering::SeqCst);
+        assert_eq!(
+            runtime.apply(config.clone()).await,
+            Ok(ApplyOutcome::Unchanged)
+        );
+        assert_eq!(engine.load_count.load(Ordering::SeqCst), loads);
+        assert_eq!(engine.probe_count.load(Ordering::SeqCst), probes + 1);
+        assert!(!settings.state_dir.join(FENCE).exists());
+        assert_eq!(
+            std::fs::read_to_string(&authority).unwrap(),
+            format!("durable-apply-v1\n{}\n", config.revision)
+        );
+        runtime.shutdown().await;
+        let (restarted, _) = restart(&settings).await;
+        assert_eq!(restarted.active_config().await.unwrap(), previous);
+        restarted.shutdown().await;
+        std::fs::remove_dir_all(&settings.state_dir).unwrap();
+    }
+}
+
+#[tokio::test]
+async fn certificate_replacement_requires_authority_for_current_policy() {
+    let engine = FakeCaddy::new();
+    let (runtime, settings) = runtime(Some(engine.clone()));
+    runtime.initialize().await;
+    let first = runtime
+        .import_certificate(CERT_ID, certificate_import_request())
+        .await
+        .unwrap();
+    let config = tls_configuration();
+    runtime.apply(config.clone()).await.unwrap();
+    std::fs::write(
+        settings.state_dir.join(AUTHORITY),
+        format!("durable-apply-v1\n{}\n", configuration(4_001).revision),
+    )
+    .unwrap();
+    let loads = engine.load_count.load(Ordering::SeqCst);
+    assert_eq!(
+        runtime
+            .import_certificate(CERT_ID, certificate_import_request())
+            .await,
+        Err(CertificateError::RuntimeApplyFailed)
+    );
+    assert_eq!(engine.load_count.load(Ordering::SeqCst), loads);
+    assert_eq!(
+        runtime.certificate(CERT_ID).await.unwrap().fingerprint,
+        first.fingerprint
+    );
+    assert_eq!(
+        runtime.apply(config.clone()).await,
+        Ok(ApplyOutcome::Unchanged)
+    );
+    let authority = std::fs::read(settings.state_dir.join(AUTHORITY)).unwrap();
+    let snapshot = std::fs::read(settings.state_dir.join(SNAPSHOT)).unwrap();
+    runtime
+        .import_certificate(CERT_ID, certificate_import_request())
+        .await
+        .unwrap();
+    assert_eq!(
+        std::fs::read(settings.state_dir.join(AUTHORITY)).unwrap(),
+        authority
+    );
+    assert_eq!(
+        std::fs::read(settings.state_dir.join(SNAPSHOT)).unwrap(),
+        snapshot
+    );
+    let active = runtime.active_config().await.unwrap();
+    runtime.shutdown().await;
+    let (restarted, _) = restart(&settings).await;
+    assert_eq!(restarted.active_config().await.unwrap(), active);
+    restarted.shutdown().await;
+    std::fs::remove_dir_all(&settings.state_dir).unwrap();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn symlinked_authority_never_authorizes_snapshot_recovery() {
+    for dangling in [false, true] {
+        let (runtime, settings) = runtime(Some(FakeCaddy::new()));
+        runtime.initialize().await;
+        runtime.apply(configuration(4_000)).await.unwrap();
+        runtime.shutdown().await;
+        let authority = settings.state_dir.join(AUTHORITY);
+        let contents = std::fs::read(&authority).unwrap();
+        std::fs::remove_file(&authority).unwrap();
+        let target = settings.state_dir.join("authority-target");
+        if !dangling {
+            std::fs::write(&target, contents).unwrap();
+        }
+        std::os::unix::fs::symlink(&target, &authority).unwrap();
+        let (restarted, engine) = restart(&settings).await;
+        assert_eq!(restarted.status().await.active_revision, None);
+        assert!(!engine.configuration.lock().await.contains("demo.test"));
         restarted.shutdown().await;
         std::fs::remove_dir_all(&settings.state_dir).unwrap();
     }
