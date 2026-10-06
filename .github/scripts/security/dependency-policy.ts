@@ -189,6 +189,44 @@ export function evaluateCargoDiagnostics(diagnostics: string): void {
         )
 }
 
+export function evaluateBunAudit(
+    report: unknown,
+    scannerStatus: number,
+    diagnostics: string,
+): void {
+    if (scannerStatus !== 0 && scannerStatus !== 1)
+        throw new Error('Unexpected Bun audit exit status')
+    // Bun can retain JSON from one registry while warning that another was
+    // unaudited. Neither partial coverage nor transport errors are a verdict.
+    if (diagnostics.trim()) throw new Error('Bun audit coverage is incomplete')
+    let blocked = false
+    for (const [packageName, entries] of Object.entries(object(report))) {
+        text(packageName)
+        const advisories = array(entries).map(object)
+        if (!advisories.length) throw new Error('Empty Bun advisory package entry')
+        for (const advisory of advisories) {
+            const id = advisory.id
+            if (typeof id === 'number') {
+                if (!Number.isSafeInteger(id) || id < 1)
+                    throw new Error('Invalid Bun advisory identifier')
+            } else text(id)
+            text(advisory.title)
+            text(advisory.vulnerable_versions)
+            if (new URL(text(advisory.url)).protocol !== 'https:')
+                throw new Error('Invalid Bun advisory URL')
+            const severity = text(advisory.severity)
+            if (!['info', 'low', 'moderate', 'high', 'critical'].includes(severity))
+                throw new Error('Unknown Bun advisory severity')
+            if (['moderate', 'high', 'critical'].includes(severity)) blocked = true
+        }
+    }
+    // --json includes advisories below --audit-level. The raw exit must agree
+    // with the validated moderate-and-above findings before classification.
+    if (scannerStatus !== Number(blocked))
+        throw new Error('Bun audit report and exit status are inconsistent')
+    if (blocked) throw new AdvisoryPolicyError('Locked JavaScript graph contains an advisory')
+}
+
 export function evaluateCargo(report: unknown, databaseEvidence: unknown, now = Date.now()): void {
     const parsed = object(report)
     const database = object(parsed.database)
@@ -257,7 +295,7 @@ export function evaluateApprovedAssessment(
 
 if (import.meta.main) {
     try {
-        const [mode, path, output] = process.argv.slice(2)
+        const [mode, path, output, diagnosticsPath] = process.argv.slice(2)
         if (!path) throw new Error('A structured scanner report is required')
         if (mode === 'cargo-diagnostics') {
             evaluateCargoDiagnostics(await readFile(path, 'utf8'))
@@ -274,7 +312,10 @@ if (import.meta.main) {
                 output ? (JSON.parse(await readFile(output, 'utf8')) as unknown) : undefined,
             )
         else if (mode === 'binary' || mode === 'query') evaluateGo(report, mode)
-        else if (mode === 'cargo' && output)
+        else if (mode === 'bun-audit' && output !== undefined && diagnosticsPath) {
+            if (!/^[01]$/.test(output)) throw new Error('Unexpected Bun audit exit status')
+            evaluateBunAudit(report, Number(output), await readFile(diagnosticsPath, 'utf8'))
+        } else if (mode === 'cargo' && output)
             evaluateCargo(report, JSON.parse(await readFile(output, 'utf8')) as unknown)
         else if ((mode === 'identity' || mode === 'blocked') && output) {
             const parsed = evaluateIdentity(report)

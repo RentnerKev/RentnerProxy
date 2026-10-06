@@ -105,6 +105,11 @@ fail the check. The release/dev build and trusted publisher enforce the full
 advisory policy with a nonzero exit, and only a fresh `approved` assessment
 bound to the independently checked source and digest can authorize publication.
 
+Bun audits retain the unfiltered JSON report, raw exit status and separate
+diagnostics. Only valid, consistent evidence can establish clean or blocked
+coverage; transport errors, skipped registries and malformed entries fail the
+check. The moderate-and-above JavaScript severity threshold stays unchanged.
+
 Release and dev builds have read-only repository permission and no registry
 publishing token. They export an OCI archive including SBOM/provenance, assess
 it locally, and record its source commit, OCI index digest and archive checksum.

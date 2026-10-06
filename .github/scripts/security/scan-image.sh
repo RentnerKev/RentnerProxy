@@ -65,7 +65,9 @@ SOURCE_DIRECTORY="$locked_source_directory" REPORT_DIRECTORY="$controller_report
     assess bash "$AUTOMATION_DIRECTORY/.github/scripts/security/audit-cargo.sh"
 docker cp "$container:/opt/rentnerproxy/web/bun.lock" "$REPORT_DIRECTORY/locked-source/web/bun.lock"
 docker cp "$container:/opt/rentnerproxy/web/package.json" "$REPORT_DIRECTORY/locked-source/web/package.json"
-(cd "$REPORT_DIRECTORY/locked-source/web" && bun --no-env-file audit --audit-level=moderate) > "$REPORT_DIRECTORY/bun-audit.txt" 2>&1 || status=1
+bun_audit_status=0
+(cd "$REPORT_DIRECTORY/locked-source/web" && bun --no-env-file audit --json --audit-level=moderate) > "$REPORT_DIRECTORY/bun-audit.json" 2> "$REPORT_DIRECTORY/bun-audit-diagnostics.txt" || bun_audit_status=$?
+assess bun --no-env-file "$policy" bun-audit "$REPORT_DIRECTORY/bun-audit.json" "$bun_audit_status" "$REPORT_DIRECTORY/bun-audit-diagnostics.txt"
 while IFS=$'\t' read -r binary binary_path; do
     docker cp "$container:$binary_path" "$REPORT_DIRECTORY/$binary"
     go version -m -json "$REPORT_DIRECTORY/$binary" > "$REPORT_DIRECTORY/$binary-buildinfo.json"
