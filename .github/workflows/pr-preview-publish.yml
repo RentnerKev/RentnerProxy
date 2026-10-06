@@ -114,7 +114,7 @@ jobs:
         needs:
             - resolve
         runs-on: ubuntu-latest
-        timeout-minutes: 10
+        timeout-minutes: 45
         concurrency:
             group: pr-preview-publish-${{ needs.resolve.outputs.pr_number }}
             cancel-in-progress: false
@@ -174,10 +174,22 @@ jobs:
               shell: bash
               run: bash trusted/.github/scripts/deploy/validate-preview-image.sh
 
+            - name: Install trusted dependency scanners
+              run: bash trusted/.github/scripts/security/install-dependency-tools.sh
+
+            - name: Assess exact validated preview image before publication
+              env:
+                  AUTOMATION_DIRECTORY: ${{ github.workspace }}/trusted
+                  IMAGE_SOURCE: oci-archive:${{ runner.temp }}/pr-preview-artifact/preview-image.tar
+                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-preview-report
+                  REVISION: ${{ needs.resolve.outputs.tested_sha }}
+              run: bash trusted/.github/scripts/security/scan-image.sh
+
             - name: Publish immutable and moving preview tags
               id: publish
               env:
                   ARTIFACT_DIRECTORY: ${{ runner.temp }}/pr-preview-artifact
+                  ASSESSED_REPORT: ${{ runner.temp }}/dependency-preview-report/assessment.json
                   GHCR_TOKEN: ${{ github.token }}
                   GHCR_USERNAME: ${{ github.actor }}
                   GITHUB_TOKEN: ${{ github.token }}
@@ -196,6 +208,15 @@ jobs:
                   TESTED_SHA: ${{ needs.resolve.outputs.tested_sha }}
               shell: bash
               run: bash trusted/.github/scripts/deploy/publish-preview-image.sh
+
+            - name: Store exact-preview advisory evidence
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  if-no-files-found: warn
+                  name: dependency-preview-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: ${{ runner.temp }}/dependency-preview-report
+                  retention-days: 30
 
             - name: Remove registry credentials
               if: always()

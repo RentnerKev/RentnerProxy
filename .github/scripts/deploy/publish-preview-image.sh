@@ -4,9 +4,23 @@ auth_directory="$RUNNER_TEMP/pr-preview-auth"
 auth_file="$auth_directory/auth.json"
 inspect_error="$RUNNER_TEMP/pr-preview-inspect-error"
 oci_archive="$ARTIFACT_DIRECTORY/preview-image.tar"
-install -d -m 0700 "$auth_directory"
+
+# Re-derive the exact OCI identity after scanning, before any registry login.
+# The trusted policy rejects missing, stale, blocked or mismatched assessments.
+[[ "$SOURCE_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+actual_digest="sha256:$(skopeo inspect --raw "oci-archive:$oci_archive" | sha256sum | cut -d ' ' -f1)"
+[[ "$actual_digest" == "$SOURCE_IMAGE_DIGEST" ]] || {
+    echo '::error::Preview archive changed after validation.'
+    exit 1
+}
+identity_report="$RUNNER_TEMP/dependency-preview-publish-identity.json"
+jq --null-input --arg revision "$TESTED_SHA" --arg digest "$actual_digest" \
+    '{revision:$revision,digest:$digest}' > "$identity_report"
+bun --no-env-file trusted/.github/scripts/security/dependency-policy.ts \
+    approved "${ASSESSED_REPORT:?Approved preview assessment required}" "$identity_report"
 
 bun trusted/.github/scripts/deploy/pr-preview.ts revalidate
+install -d -m 0700 "$auth_directory"
 printf '%s' "$GHCR_TOKEN" | skopeo login \
     --authfile "$auth_file" \
     --password-stdin \
