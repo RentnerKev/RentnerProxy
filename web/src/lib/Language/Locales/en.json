@@ -2363,6 +2363,15 @@
                 "deleted": "Trusted CA deleted.",
                 "savedPending": "Trusted CA saved. The configuration is pending; the previous working configuration remains active."
             }
+        },
+        "runtimeDiagnostics": {
+            "title": "Runtime support report",
+            "privacy": "Includes only versions, status and counts, without domains or credentials. Downloaded locally; review before sharing.",
+            "download": "Download support report",
+            "downloading": "Preparing report…",
+            "downloadComplete": "Support report download started.",
+            "downloadPartial": "Partial report download started. Unavailable sections are marked in the file.",
+            "downloadFailed": "The report could not be downloaded. Check your permissions and try again."
         }
     },
     "permissions": {

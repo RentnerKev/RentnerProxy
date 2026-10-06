@@ -2389,6 +2389,15 @@
                 "deleted": "Zaufany urząd CA został usunięty.",
                 "savedPending": "Zaufany urząd CA został zapisany. Konfiguracja oczekuje na zastosowanie; poprzednia działająca konfiguracja pozostaje aktywna."
             }
+        },
+        "runtimeDiagnostics": {
+            "title": "Raport diagnostyczny",
+            "privacy": "Zawiera tylko wersje, stany i liczniki, bez domen i danych logowania. Jest pobierany lokalnie; sprawdź go przed udostępnieniem.",
+            "download": "Pobierz raport diagnostyczny",
+            "downloading": "Przygotowywanie raportu…",
+            "downloadComplete": "Rozpoczęto pobieranie raportu diagnostycznego.",
+            "downloadPartial": "Rozpoczęto pobieranie częściowego raportu. Niedostępne sekcje są oznaczone w pliku.",
+            "downloadFailed": "Nie udało się pobrać raportu. Sprawdź uprawnienia i spróbuj ponownie."
         }
     },
     "permissions": {

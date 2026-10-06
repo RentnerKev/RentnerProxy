@@ -2363,6 +2363,15 @@
                 "deleted": "CA de confianza eliminada.",
                 "savedPending": "CA guardada. La configuración está pendiente; la configuración anterior sigue activa."
             }
+        },
+        "runtimeDiagnostics": {
+            "title": "Informe de soporte del entorno",
+            "privacy": "Solo incluye versiones, estados y recuentos, sin dominios ni credenciales. Se descarga localmente; revísalo antes de compartirlo.",
+            "download": "Descargar informe de soporte",
+            "downloading": "Preparando informe…",
+            "downloadComplete": "Se ha iniciado la descarga del informe de soporte.",
+            "downloadPartial": "Se ha iniciado la descarga del informe parcial. Las secciones no disponibles están marcadas en el archivo.",
+            "downloadFailed": "No se pudo descargar el informe. Comprueba tus permisos e inténtalo de nuevo."
         }
     },
     "permissions": {

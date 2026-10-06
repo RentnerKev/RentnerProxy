@@ -2376,6 +2376,15 @@
                 "deleted": "CA attendibile eliminata.",
                 "savedPending": "CA attendibile salvata. La configurazione è in sospeso; resta attiva la configurazione precedente funzionante."
             }
+        },
+        "runtimeDiagnostics": {
+            "title": "Rapporto di diagnostica",
+            "privacy": "Include solo versioni, stati e conteggi, senza domini o credenziali. Viene scaricato localmente; controllalo prima di condividerlo.",
+            "download": "Scarica rapporto di supporto",
+            "downloading": "Preparazione del rapporto…",
+            "downloadComplete": "Il download del rapporto di supporto è iniziato.",
+            "downloadPartial": "Il download del rapporto parziale è iniziato. Le sezioni non disponibili sono indicate nel file.",
+            "downloadFailed": "Impossibile scaricare il rapporto. Controlla le autorizzazioni e riprova."
         }
     },
     "permissions": {

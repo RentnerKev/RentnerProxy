@@ -203,6 +203,7 @@ Portable host configuration exports do not include these global settings.
 ## More information
 
 - [Architecture](ARCHITECTURE.md) · [Security policy](SECURITY.md) · [Assurance case](ASSURANCE_CASE.md)
+- [Runtime support report](RUNTIME_SUPPORT_REPORT.md)
 - [Release process](RELEASING.md) · [Contributing](CONTRIBUTING.md)
 - [Screenshots](screenshots) · [Report a bug](https://github.com/RentnerKev/RentnerProxy/issues/new/choose)
 

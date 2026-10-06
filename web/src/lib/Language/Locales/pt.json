@@ -2389,6 +2389,15 @@
                 "deleted": "AC fidedigna eliminada.",
                 "savedPending": "AC fidedigna guardada. A configuração está pendente; a configuração funcional anterior permanece ativa."
             }
+        },
+        "runtimeDiagnostics": {
+            "title": "Relatório de diagnóstico",
+            "privacy": "Inclui apenas versões, estados e contagens, sem domínios nem credenciais. É descarregado localmente; verifique-o antes de partilhar.",
+            "download": "Descarregar relatório de suporte",
+            "downloading": "A preparar o relatório…",
+            "downloadComplete": "O descarregamento do relatório de suporte foi iniciado.",
+            "downloadPartial": "O descarregamento do relatório parcial foi iniciado. As secções indisponíveis estão assinaladas no ficheiro.",
+            "downloadFailed": "Não foi possível descarregar o relatório. Verifique as permissões e tente novamente."
         }
     },
     "permissions": {
