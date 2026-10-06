@@ -11,12 +11,16 @@ concurrency:
 
 jobs:
     build:
-        name: Build and publish :dev
+        name: Build and assess :dev
         runs-on: ubuntu-latest
         timeout-minutes: 45
         permissions:
             contents: read
-            packages: write
+        outputs:
+            revision: ${{ steps.source.outputs.revision }}
+            image: ${{ steps.source.outputs.image }}
+            digest: ${{ steps.scan.outputs.digest }}
+            archive_sha256: ${{ steps.archive.outputs.sha256 }}
         steps:
             - name: Require main
               shell: bash
@@ -25,6 +29,13 @@ jobs:
                       echo '::error::The dev image can only be built from main.'
                       exit 1
                   fi
+
+            - name: Check out trusted image automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: automation
+                  ref: ${{ github.workflow_sha }}
 
             - name: Check out current main
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,13 +51,6 @@ jobs:
 
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
-
-            - name: Log in to GitHub Container Registry
-              uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-              with:
-                  password: ${{ secrets.GITHUB_TOKEN }}
-                  registry: ghcr.io
-                  username: ${{ github.actor }}
 
             - name: Generate image metadata
               id: metadata
@@ -65,7 +69,7 @@ jobs:
                   tags: |
                       type=raw,value=dev
 
-            - name: Build and publish dev image
+            - name: Build dev image as isolated OCI data
               id: build
               uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
               with:
@@ -77,29 +81,74 @@ jobs:
                   labels: ${{ steps.metadata.outputs.labels }}
                   platforms: linux/amd64
                   provenance: mode=max
-                  push: true
+                  push: false
+                  outputs: type=oci,dest=${{ runner.temp }}/candidate-image.tar
                   sbom: true
                   tags: ${{ steps.metadata.outputs.tags }}
 
-            - name: Verify published dev tag
-              env:
-                  EXPECTED_DIGEST: ${{ steps.build.outputs.digest }}
-                  IMAGE: ${{ steps.source.outputs.image }}
-              shell: bash
-              run: bash source/.github/scripts/deploy/verify-dev-image.sh
+            - name: Set up Bun for advisory policy
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.2
 
-            - name: Summarize dev image
+            - name: Audit locked source graphs
               env:
-                  DIGEST: ${{ steps.build.outputs.digest }}
-                  IMAGE: ${{ steps.source.outputs.image }}
+                  AUTOMATION_DIRECTORY: automation
+                  SOURCE_DIRECTORY: source
+                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-source-report
                   REVISION: ${{ steps.source.outputs.revision }}
-              shell: bash
               run: |
-                  {
-                      echo '## Dev image'
-                      echo
-                      printf 'Image: %s:dev\n\n' "$IMAGE"
-                      printf 'Commit: %s\n\n' "$REVISION"
-                      printf 'Digest: %s\n\n' "$DIGEST"
-                      echo 'Test build from main. No release or release tags were created.'
-                  } >> "$GITHUB_STEP_SUMMARY"
+                  bash automation/.github/scripts/security/audit-cargo.sh
+                  cd source
+                  bun audit --audit-level=moderate
+
+            - name: Install pinned vulnerability tools
+              run: bash automation/.github/scripts/security/install-dependency-tools.sh
+
+            - name: Assess immutable candidate before publication
+              id: scan
+              env:
+                  AUTOMATION_DIRECTORY: automation
+                  IMAGE_SOURCE: oci-archive:${{ runner.temp }}/candidate-image.tar
+                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-image-report
+                  REVISION: ${{ steps.source.outputs.revision }}
+              run: bash automation/.github/scripts/security/scan-image.sh
+
+            - name: Bind archive checksum
+              id: archive
+              run: printf 'sha256=%s\n' "$(sha256sum "$RUNNER_TEMP/candidate-image.tar" | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
+
+            - name: Store assessed OCI candidate
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  compression-level: 0
+                  if-no-files-found: error
+                  overwrite: true
+                  name: assessed-candidate-${{ github.run_id }}
+                  path: ${{ runner.temp }}/candidate-image.tar
+                  retention-days: 2
+
+            - name: Store dependency evidence
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  if-no-files-found: error
+                  name: dependency-build-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: |
+                      ${{ runner.temp }}/dependency-source-report
+                      ${{ runner.temp }}/dependency-image-report
+                  retention-days: 30
+
+    publish-image:
+        needs:
+            - build
+        permissions:
+            contents: read
+            packages: write
+        uses: ./.github/workflows/publish-assessed-image.yml
+        with:
+            revision: ${{ needs.build.outputs.revision }}
+            image: ${{ needs.build.outputs.image }}
+            archive_sha256: ${{ needs.build.outputs.archive_sha256 }}
+            digest: ${{ needs.build.outputs.digest }}
+            image_tags: dev

@@ -1,0 +1,126 @@
+name: Deployed Dependency Security
+
+on:
+    pull_request:
+        branches: [main]
+    push:
+        branches: [main]
+    schedule:
+        - cron: '17 4 * * *'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: dependency-security-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    locked-source:
+        name: Locked Cargo advisory audit
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            - name: Check out source
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.2
+            - name: Audit complete locked Cargo graph
+              env:
+                  AUTOMATION_DIRECTORY: .
+                  SOURCE_DIRECTORY: .
+                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-source-report
+              run: REVISION="$(git rev-parse HEAD)" bash .github/scripts/security/audit-cargo.sh
+            - name: Store exact-source advisory evidence
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  if-no-files-found: error
+                  name: cargo-advisory-evidence
+                  path: ${{ runner.temp }}/dependency-source-report
+                  retention-days: 30
+
+    production-candidate:
+        name: Complete production image advisory gate
+        if: github.event_name != 'schedule'
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+        steps:
+            - name: Check out source
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.2
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+            - name: Build isolated production OCI candidate
+              run: |
+                  docker buildx build --file docker/production/Dockerfile --platform linux/amd64 \
+                      --label "org.opencontainers.image.revision=$(git rev-parse HEAD)" \
+                      --provenance=mode=max --sbom=true \
+                      --output "type=oci,dest=$RUNNER_TEMP/candidate-image.tar" .
+            - name: Install pinned vulnerability tools
+              run: bash .github/scripts/security/install-dependency-tools.sh
+            - name: Assess candidate including copied Go binaries
+              env:
+                  AUTOMATION_DIRECTORY: .
+                  IMAGE_SOURCE: oci-archive:${{ runner.temp }}/candidate-image.tar
+                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-image-report
+              run: REVISION="$(git rev-parse HEAD)" bash .github/scripts/security/scan-image.sh
+            - name: Store exact-candidate assessment
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  if-no-files-found: error
+                  name: production-advisory-evidence
+                  path: ${{ runner.temp }}/dependency-image-report
+                  retention-days: 30
+
+    supported-images:
+        name: Rescan supported immutable deployed images
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        steps:
+            - name: Check out trusted automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.2
+            - name: Install pinned vulnerability tools
+              run: bash .github/scripts/security/install-dependency-tools.sh
+            - name: Resolve supported release tags
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  gh api --paginate "repos/$GITHUB_REPOSITORY/releases" > "$RUNNER_TEMP/releases.json"
+                  jq --slurp --raw-output 'add | map(select(.draft == false)) |
+                      group_by(if (.tag_name | test("-alpha([.]|$)")) then "alpha"
+                          elif (.tag_name | test("-beta([.]|$)")) then "beta" else "stable" end) |
+                      .[] | max_by(.published_at) | .tag_name' "$RUNNER_TEMP/releases.json" > "$RUNNER_TEMP/supported-tags.txt"
+                  printf '%s\n' dev >> "$RUNNER_TEMP/supported-tags.txt"
+            - name: Resolve each tag once and scan its immutable digest
+              env:
+                  AUTOMATION_DIRECTORY: .
+                  SUPPORTED_TAGS_FILE: ${{ runner.temp }}/supported-tags.txt
+                  REPORT_DIRECTORY: ${{ runner.temp }}/supported-image-reports
+              run: bash .github/scripts/security/rescan-supported-images.sh
+            - name: Store supported-image assessment evidence
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  if-no-files-found: error
+                  name: supported-image-advisory-evidence
+                  path: ${{ runner.temp }}/supported-image-reports
+                  retention-days: 30

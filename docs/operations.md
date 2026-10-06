@@ -89,3 +89,58 @@ Keep the Compose file, image tag/digest, port mappings and deployment environmen
 Valkey challenge/rate-limit/realtime state, request logs, sockets, PID files, locks, temporary files and supervisor status/staging are excluded. Cache-backed flows restart after restore; durable users, sessions, roles, permissions, policies, Basic Auth, Forward Auth, importer history, hosts, redirects, CAs, certificate jobs/events/retries, candidates, ACME accounts and encrypted DNS credentials remain in PostgreSQL/controller state. Backup v4 retains its historical `redis: "excluded"` manifest field for compatibility; it describes the transient cache exclusion for both engines. CrowdSec's SQLite WAL is retained when present, while its shared-memory file is regenerated. Managed startup re-registers the bouncer with a private key and preserves detections and registrations; the LAPI remains bound to loopback.
 
 If restore is interrupted after replacement begins, the persistent journal prevents startup with partially restored state. Stop the appliance if it was manually started and rerun the same backup with `--resume --confirm-replace`. Resume validates that backup again and repeats all replacement steps. Another backup is rejected while the journal is pending. A failure before replacement leaves the running target intact; no automatic destructive retry is attempted. For rollback, use a fresh volume, the pre-upgrade source backup, that source release's restore tools and its exact image digest.
+
+## Dependency advisory gates
+
+`Deployed Dependency Security` audits the complete `core/Cargo.lock` on PRs,
+main pushes and daily at 04:17 UTC. PR/main candidates are built as isolated
+production OCI archives and assessed without starting the appliance. Existing
+JavaScript auditing and dependency review remain separate checks.
+
+Release and dev builds have read-only repository permission and no registry
+publishing token. They export an OCI archive including SBOM/provenance, assess
+it locally, and record its source commit, OCI index digest and archive checksum.
+A separate trusted publisher verifies the checksum, independently reassesses
+the exact archive, then copies it with `skopeo --all --preserve-digests`. Each
+published tag is checked against the assessed index digest. No candidate is
+uploaded to the public registry before this gate passes; failing assessment
+prevents both image publication and the subsequent release-note upload.
+
+The complete merged runtime is catalogued with Syft, including Debian packages,
+JavaScript packages, Bun, Valkey and copied Go binaries. Missing expected runtime
+inventory fails the check. Grype blocks medium/moderate, high, critical and
+unknown severity findings, including those without a fix. Cargo blocks every
+RustSec vulnerability. Actual Caddy, CrowdSec and cscli binaries are extracted
+from a stopped container and checked with govulncheck; module/package findings
+and symbol traces are retained, and every Go finding blocks publication. Caddy's
+HTTP-only local community-module replacement is additionally queried using its
+original version embedded in the binary, so local replacement paths cannot
+silently evade upstream advisory checks. Binary symbol presence is evidence
+of potential reachability, not proof that an exploit can occur in this appliance.
+
+The daily rescan resolves `dev` and the newest non-draft release in each
+alpha/beta/stable channel to immutable digests once and assesses those digests.
+These channel images are monitored for dependency advisories; security-fix
+support remains limited to current `main` as described in `SECURITY.md`.
+Historical superseded tags are not covered. A missing monitored tag, download/scanner error,
+malformed report or stale advisory database fails closed. Grype's maximum build
+age is 48 hours; Go's official advisory index may remain unchanged between
+advisories and has a seven-day maximum last-modified age. Both require successful
+fresh retrieval and valid database metadata. RustSec
+is cloned freshly for each locked-graph audit; the database revision and lock
+checksum are retained. New images embed the exact Cargo lock; older channel
+images fetch only that lock data from their exact source commit. No historical
+source scripts or appliance entrypoints are executed.
+
+Assessment artifacts retain source/image identity, scanner versions/database
+identity, full inventories, RustSec reports and Go findings for 30 days. No
+exceptions or ignored/unfixed filters are enabled. Any future exception requires
+a separately reviewed advisory-specific reason, responsible owner and expiry;
+it must not silently disable a scanner or lower the global severity policy.
+
+Tool pins verified against upstream on 2026-10-06: [Grype 0.120.0](https://github.com/anchore/grype/releases/tag/v0.120.0),
+[Syft 1.54.1](https://github.com/anchore/syft/releases/tag/v1.54.1),
+[Go 1.27.1](https://go.dev/dl/), [govulncheck 1.8.0](https://pkg.go.dev/golang.org/x/vuln@v1.8.0/cmd/govulncheck)
+and [cargo-audit 0.22.2](https://crates.io/crates/cargo-audit/0.22.2).
+Downloaded archives use pinned upstream SHA-256 checksums; Go modules and
+Cargo installation use their ecosystem checksum verification and locked versions.

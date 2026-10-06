@@ -132,6 +132,8 @@ RUN apt-get update \
 COPY --from=web-runtime /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=web-runtime /app /opt/rentnerproxy/web
 COPY --from=controller-build /build/target/release/rentnerproxy-controller /usr/local/bin/rentnerproxy-controller
+# Retain the exact locked controller graph for recurring RustSec assessments.
+COPY core/Cargo.lock /usr/share/rentnerproxy/security/Cargo.lock
 COPY --from=caddy-build /usr/bin/caddy /usr/bin/caddy
 COPY --from=crowdsec-assets /usr/local/bin/crowdsec /usr/local/bin/crowdsec
 COPY --from=crowdsec-assets /usr/local/bin/cscli /usr/local/bin/cscli
