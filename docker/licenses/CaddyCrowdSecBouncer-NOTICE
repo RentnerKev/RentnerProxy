@@ -10,4 +10,6 @@ at docker/crowdsec/tooling/caddy-http-only.sh so that only its HTTP enforcement 
 is linked; AppSec and Layer 4 are not included.
 
 The custom build replaces its CrowdSec SDK dependency with upstream v1.7.8.
+The source transform adapts the live decision IP filter to that SDK's string field;
+the exact-match filter behavior is retained.
 The bouncer source revision and archive checksum remain unchanged.
