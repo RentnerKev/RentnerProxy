@@ -116,6 +116,7 @@ export async function importControllerCertificate(
     return parseMetadata(
         await controllerRequest(`${certificatePath(certificateId)}/import`, {
             privileged: true,
+            confidential: true,
             timeoutMs: CONTROLLER_APPLY_TIMEOUT_MS,
             method: 'POST',
             body,
