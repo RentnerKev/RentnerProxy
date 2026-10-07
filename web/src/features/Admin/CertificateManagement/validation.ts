@@ -146,6 +146,7 @@ export function certificateRequestInputFromForm(
     const { dnsZoneId, dnsApiToken, ...requestValues } = value
     return {
         ...requestValues,
+        domains: value.domains.map((domain) => domain.trim()).filter(Boolean),
         ...(value.challengeType === 'dns-01'
             ? {
                   dnsProvider: {
