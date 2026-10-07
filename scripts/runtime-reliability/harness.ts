@@ -1,16 +1,18 @@
+import { runSmokeProcess } from '../smoke/process.ts'
+import { waitForSmoke } from '../smoke/wait.ts'
 import type { CommandOptions, FixtureResult, ReliabilityContext } from './Types/harness.types.ts'
 // oxlint-disable no-await-in-loop -- Fault injection, recovery probes and lifecycle changes depend on the preceding step.
 import assert from 'node:assert/strict'
-import { dockerBuildDiagnostic } from '../docker-build-diagnostics.ts'
+import { dockerBuildDiagnostic } from '../smoke/docker-build-diagnostics.ts'
 import { pebbleFailureCategories } from './diagnostics.ts'
 import { randomBytes } from 'node:crypto'
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
-import { startCertificateDnsFixture } from '../certificate-dns-fixture.ts'
-import { buildHttp3Client } from '../http3-client.ts'
-import { publishedAlpha } from '../release-compatibility/published-alphas.ts'
-import { smokeCompose, smokeDockerArguments, smokeRunScope } from '../smoke-resources.ts'
+import { startCertificateDnsFixture } from '../smoke/certificates/dns-fixture.ts'
+import { buildHttp3Client } from '../smoke/http3/client.ts'
+import { publishedRelease } from '../compatibility/published-releases.ts'
+import { smokeCompose, smokeDockerArguments, smokeRunScope } from '../smoke/resources.ts'
 import type { ReliabilityCheck, ReliabilityOptions, ResourceSample } from './Types/control.types.ts'
 import { fixtureTransport } from './fixture-transport.config.ts'
 import {
@@ -35,56 +37,45 @@ const healthcheck = '/opt/rentnerproxy/web/docker/web/healthcheck.mjs'
 const repositoryRoot = resolve(import.meta.dir, '../..')
 
 async function command(args: string[], options: CommandOptions = {}): Promise<string> {
-    const child = Bun.spawn(smokeDockerArguments(args), {
-        cwd: repositoryRoot,
-        env: { ...process.env, ...options.env },
-        stdin: options.stdin === undefined ? 'ignore' : new Response(options.stdin),
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    let timedOut = false
-    const timer = setTimeout(() => {
-        timedOut = true
-        child.kill()
-    }, options.timeoutMs ?? 45_000)
-    try {
-        const [code, stdout, stderr] = await Promise.all([
-            child.exited,
-            new Response(child.stdout).text(),
-            new Response(child.stderr).text(),
-        ])
-        if (options.diagnostic === 'pebble-problems')
-            console.error(
-                'Pebble failure categories: ' +
-                    JSON.stringify(pebbleFailureCategories(stdout + '\n' + stderr)),
-            )
-        if (timedOut) throw new ReliabilityError('timeout', 'bounded command timed out')
-        if (code !== 0 && !options.acceptableExitCodes?.includes(code)) {
-            if (args[0] === 'docker' && args[1] === 'build')
-                console.error(dockerBuildDiagnostic(stderr))
-            throw new ReliabilityError('command', 'command failed: ' + args.slice(0, 2).join(' '))
-        }
-        return (options.includeStderr ? stdout + '\n' + stderr : stdout).trim()
-    } finally {
-        clearTimeout(timer)
+    const { exitCode, stdout, stderr, timedOut } = await runSmokeProcess(
+        smokeDockerArguments(args),
+        {
+            cwd: repositoryRoot,
+            env: { ...process.env, ...options.env },
+            timeoutMs: options.timeoutMs ?? 45_000,
+            ...(options.stdin === undefined ? {} : { stdin: options.stdin }),
+        },
+    )
+    if (options.diagnostic === 'pebble-problems')
+        console.error(
+            'Pebble failure categories: ' +
+                JSON.stringify(pebbleFailureCategories(stdout + '\n' + stderr)),
+        )
+    if (timedOut) throw new ReliabilityError('timeout', 'bounded command timed out')
+    if (exitCode !== 0 && !options.acceptableExitCodes?.includes(exitCode)) {
+        if (args[0] === 'docker' && args[1] === 'build')
+            console.error(dockerBuildDiagnostic(stderr))
+        throw new ReliabilityError('command', 'command failed: ' + args.slice(0, 2).join(' '))
     }
+    return (options.includeStderr ? stdout + '\n' + stderr : stdout).trim()
 }
-async function waitFor(predicate: () => Promise<boolean>, label: string, timeoutMs = 60_000) {
-    const deadline = Date.now() + timeoutMs
-    do {
-        try {
-            if (await predicate()) return
-        } catch (error) {
-            if (
-                !(error instanceof ReliabilityError) ||
-                (error.category !== 'command' && error.category !== 'timeout')
-            )
-                throw error
-        }
-        await Bun.sleep(500)
-    } while (Date.now() < deadline)
-    throw new ReliabilityError('timeout', label)
+
+function waitFor(
+    predicate: () => Promise<boolean>,
+    label: string,
+    timeoutMs = 60_000,
+): Promise<void> {
+    return waitForSmoke(predicate, {
+        timeoutMs,
+        intervalMs: 500,
+        probeFirst: true,
+        retryOnError: (error) =>
+            error instanceof ReliabilityError &&
+            (error.category === 'command' || error.category === 'timeout'),
+        timeoutError: () => new ReliabilityError('timeout', label),
+    })
 }
+
 async function archive(revision: string, destination: string, paths: string[] = []) {
     await mkdir(destination, { recursive: true })
     const path = destination + '.tar'
@@ -696,7 +687,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             'HEAD',
         ])
         if (options.source === 'alpha.6') {
-            const release = publishedAlpha('alpha.6')
+            const release = publishedRelease('alpha.6')
             if (options.image && options.image !== release.image)
                 throw new ReliabilityError(
                     'assertion',
@@ -890,7 +881,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         const fixtureRoot = join(temp, 'fixture-source')
         const fixtureTsconfig = options.source === 'alpha.6' ? 'web/tsconfig.json' : 'tsconfig.json'
         await archive(
-            options.source === 'alpha.6' ? publishedAlpha('alpha.6').revision : targetSha,
+            options.source === 'alpha.6' ? publishedRelease('alpha.6').revision : targetSha,
             fixtureRoot,
             ['web/src', fixtureTsconfig, 'package.json', 'bun.lock'],
         )
@@ -1039,7 +1030,7 @@ console.log(JSON.stringify({memoryBytes:Math.max(0,memory-inactive),pids:Number(
             return targetSha
         },
         get runtimeRevision() {
-            return options.source === 'alpha.6' ? publishedAlpha('alpha.6').revision : targetSha
+            return options.source === 'alpha.6' ? publishedRelease('alpha.6').revision : targetSha
         },
         get started() {
             return started

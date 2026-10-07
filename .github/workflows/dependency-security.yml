@@ -39,7 +39,7 @@ jobs:
                   if [[ "$EVENT_NAME" == schedule || "$EVENT_NAME" == workflow_dispatch ]]; then
                       rescan=true
                   elif [[ "$EVENT_NAME" == pull_request ]]; then
-                      if ! git diff --quiet HEAD^1 HEAD -- .github/scripts/security .github/workflows/dependency-security.yml; then
+                      if ! git diff --quiet HEAD^1 HEAD -- .github/scripts/security scripts/compatibility .github/workflows/dependency-security.yml; then
                           rescan=true
                       fi
                   fi

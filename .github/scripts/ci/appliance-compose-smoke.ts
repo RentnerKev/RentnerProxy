@@ -1,9 +1,11 @@
+import { runSmokeProcess } from '../../../scripts/smoke/process.ts'
+import { waitForSmoke } from '../../../scripts/smoke/wait.ts'
 import type { CrowdSecMode, CrowdSecRuntimeStatus } from './Types/appliance-compose-smoke.types.ts'
 // oxlint-disable no-await-in-loop -- Readiness probes deliberately poll in a bounded sequence.
 
 import assert from 'node:assert/strict'
 import { verifyApplianceStartup } from './appliance-startup-smoke.ts'
-import { dockerBuildDiagnostic } from '../../../scripts/docker-build-diagnostics.ts'
+import { dockerBuildDiagnostic } from '../../../scripts/smoke/docker-build-diagnostics.ts'
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto'
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
@@ -16,23 +18,20 @@ import {
     restoreSmokeDiagnostic,
     smokeCompose,
     smokeDockerArguments,
-} from '../../../scripts/smoke-resources.ts'
+} from '../../../scripts/smoke/resources.ts'
 import {
     buildHttp3Client,
     requestHttp3Client,
     assertHttp3Response,
-} from '../../../scripts/http3-client.ts'
-import { verifyAlpha1Upgrade, verifyAlpha3Upgrade } from '../../../scripts/alpha1-upgrade-smoke.ts'
+} from '../../../scripts/smoke/http3/client.ts'
+import { verifyAlpha1Upgrade, verifyAlpha3Upgrade } from './upgrade/published-upgrade.ts'
+import { seedBackupState, assertBackupState } from './fixtures/backup-state.ts'
 import {
-    seedBetaBackupState,
-    assertBetaBackupState,
-} from '../../../scripts/beta-backup-state-smoke.ts'
-import {
-    seedAlpha4PersistenceFixture,
-    readAlpha4PersistenceSnapshot,
-    assertAlpha4PersistenceFixture,
-    assertAlpha4PersistenceRequestDecrypts,
-} from '../../../scripts/alpha4-persistence-fixture.ts'
+    seedPersistenceFixture,
+    readPersistenceSnapshot,
+    assertPersistenceFixture,
+    assertPersistenceRequestDecrypts,
+} from './fixtures/persistence/state.ts'
 
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const rootComposeFile = join(repositoryRoot, 'docker-compose.yml')
@@ -74,37 +73,18 @@ function passed(label: string): void {
 }
 
 async function command(argumentsList: string[], timeoutMs = 120_000): Promise<string> {
-    const child = Bun.spawn({
-        cmd: smokeDockerArguments(argumentsList),
-        cwd: repositoryRoot,
-        env: commandEnvironment,
-        stdin: 'ignore',
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const timer = setTimeout(() => child.kill(), timeoutMs)
-    const stdout =
-        child.stdout && typeof child.stdout !== 'number'
-            ? new Response(child.stdout).text()
-            : Promise.resolve('')
-    const stderr =
-        child.stderr && typeof child.stderr !== 'number'
-            ? new Response(child.stderr).text()
-            : Promise.resolve('')
-
-    try {
-        const [exitCode, output, errorOutput] = await Promise.all([child.exited, stdout, stderr])
-        if (exitCode !== 0) {
-            if (argumentsList[0] === 'docker' && argumentsList[1] === 'build')
-                console.error(dockerBuildDiagnostic(errorOutput))
-            const diagnostic = restoreSmokeDiagnostic(errorOutput)
-            if (diagnostic) console.error(diagnostic)
-            throw new Error('smoke command failed: ' + argumentsList.slice(0, 2).join(' '))
-        }
-        return (output || errorOutput).trim()
-    } finally {
-        clearTimeout(timer)
+    const { exitCode, stdout, stderr, timedOut } = await runSmokeProcess(
+        smokeDockerArguments(argumentsList),
+        { cwd: repositoryRoot, env: commandEnvironment, timeoutMs },
+    )
+    if (exitCode !== 0 || timedOut) {
+        if (argumentsList[0] === 'docker' && argumentsList[1] === 'build')
+            console.error(dockerBuildDiagnostic(stderr))
+        const diagnostic = restoreSmokeDiagnostic(stderr)
+        if (diagnostic) console.error(diagnostic)
+        throw new Error('smoke command failed: ' + argumentsList.slice(0, 2).join(' '))
     }
+    return (stdout || stderr).trim()
 }
 
 function http3Command(args: string[], options?: { readonly timeoutMs?: number }): Promise<string> {
@@ -129,37 +109,18 @@ async function commandWithEnvironment(
     environment: NodeJS.ProcessEnv,
     timeoutMs = 120_000,
 ): Promise<string> {
-    const child = Bun.spawn({
-        cmd: smokeDockerArguments(argumentsList),
-        cwd: repositoryRoot,
-        env: environment,
-        stdin: 'ignore',
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const timer = setTimeout(() => child.kill(), timeoutMs)
-    const stdout =
-        child.stdout && typeof child.stdout !== 'number'
-            ? new Response(child.stdout).text()
-            : Promise.resolve('')
-    const stderr =
-        child.stderr && typeof child.stderr !== 'number'
-            ? new Response(child.stderr).text()
-            : Promise.resolve('')
-
-    try {
-        const [exitCode, output, errorOutput] = await Promise.all([child.exited, stdout, stderr])
-        if (exitCode !== 0) {
-            const diagnostic = restoreSmokeDiagnostic(errorOutput)
-            if (diagnostic) console.error(diagnostic)
-            throw new Error(
-                diagnostic ?? 'smoke command failed: ' + argumentsList.slice(0, 2).join(' '),
-            )
-        }
-        return (output || errorOutput).trim()
-    } finally {
-        clearTimeout(timer)
+    const { exitCode, stdout, stderr, timedOut } = await runSmokeProcess(
+        smokeDockerArguments(argumentsList),
+        { cwd: repositoryRoot, env: environment, timeoutMs },
+    )
+    if (exitCode !== 0 || timedOut) {
+        const diagnostic = restoreSmokeDiagnostic(stderr)
+        if (diagnostic) console.error(diagnostic)
+        throw new Error(
+            diagnostic ?? 'smoke command failed: ' + argumentsList.slice(0, 2).join(' '),
+        )
     }
+    return (stdout || stderr).trim()
 }
 
 async function commandFails(argumentsList: string[], timeoutMs = 120_000): Promise<boolean> {
@@ -171,19 +132,12 @@ async function commandFails(argumentsList: string[], timeoutMs = 120_000): Promi
     }
 }
 
-async function waitFor(
-    check: () => Promise<boolean>,
-    label: string,
-    timeoutMs = 120_000,
-): Promise<void> {
-    const deadline = Date.now() + timeoutMs
-    while (Date.now() < deadline) {
-        try {
-            if (await check()) return
-        } catch {}
-        await Bun.sleep(500)
-    }
-    throw new Error('timed out waiting for ' + label)
+function waitFor(check: () => Promise<boolean>, label: string, timeoutMs = 120_000): Promise<void> {
+    return waitForSmoke(check, {
+        timeoutMs,
+        intervalMs: 500,
+        timeoutError: () => new Error('timed out waiting for ' + label),
+    })
 }
 
 async function availableLoopbackPort(): Promise<number> {
@@ -1784,17 +1738,17 @@ async function runSmoke(): Promise<void> {
             'sha256sum',
             proxyBackupMarker,
         ])
-        const persistenceFixture = await seedAlpha4PersistenceFixture({
+        const persistenceFixture = await seedPersistenceFixture({
             command,
             containerId: recreatedId,
             runId,
         })
-        const persistenceSnapshot = await readAlpha4PersistenceSnapshot({
+        const persistenceSnapshot = await readPersistenceSnapshot({
             command,
             containerId: recreatedId,
             fixture: persistenceFixture,
         })
-        await assertAlpha4PersistenceRequestDecrypts({
+        await assertPersistenceRequestDecrypts({
             command,
             containerId: recreatedId,
             fixture: persistenceFixture,
@@ -1858,12 +1812,12 @@ async function runSmoke(): Promise<void> {
             ),
             savedExternalApiKey,
         )
-        const betaBackupState = await seedBetaBackupState({
+        const betaBackupState = await seedBackupState({
             command,
             containerId: recreatedId,
             runId,
         })
-        await assertBetaBackupState({ command, containerId: recreatedId, fixture: betaBackupState })
+        await assertBackupState({ command, containerId: recreatedId, fixture: betaBackupState })
         const backupRoot = join(temporaryRoot, 'backups')
         await commandWithEnvironment(
             [
@@ -2085,7 +2039,7 @@ async function runSmoke(): Promise<void> {
         passed(
             'backup restores CrowdSec decisions, credentials and a ready authorized Caddy bouncer',
         )
-        await assertBetaBackupState({ command, containerId: restoredId, fixture: betaBackupState })
+        await assertBackupState({ command, containerId: restoredId, fixture: betaBackupState })
         passed('backup restores saved Forward Auth configuration and exact NPM importer history')
         const restoredEnvironment = JSON.parse(
             await inspect(restoredId, '{{json .Config.Env}}'),
@@ -2126,13 +2080,13 @@ async function runSmoke(): Promise<void> {
             ),
             savedExternalApiKey,
         )
-        await assertAlpha4PersistenceFixture({
+        await assertPersistenceFixture({
             command,
             containerId: restoredId,
             fixture: persistenceFixture,
             expected: persistenceSnapshot,
         })
-        await assertAlpha4PersistenceRequestDecrypts({
+        await assertPersistenceRequestDecrypts({
             command,
             containerId: restoredId,
             fixture: persistenceFixture,
@@ -2591,16 +2545,19 @@ try {
     const locations =
         error instanceof Error
             ? error.stack?.matchAll(
-                  /(appliance-compose-smoke|alpha1-upgrade-smoke|alpha1-upgrade-fixture|restore-rollback-smoke)\.ts:(\d+):(\d+)/gu,
+                  /(appliance-compose-smoke|published-upgrade|upgrade-state|restore-rollback)\.ts:(\d+):(\d+)/gu,
               )
             : undefined
     if (locations) {
+        const sourcePaths = {
+            'appliance-compose-smoke': '.github/scripts/ci/appliance-compose-smoke.ts',
+            'published-upgrade': '.github/scripts/ci/upgrade/published-upgrade.ts',
+            'upgrade-state': '.github/scripts/ci/fixtures/upgrade-state.ts',
+            'restore-rollback': '.github/scripts/ci/upgrade/restore-rollback.ts',
+        } as const
         for (const location of [...locations].slice(0, 6)) {
-            const locationRoot =
-                location[1] === 'appliance-compose-smoke' ? '.github/scripts/ci' : 'scripts'
-            console.error(
-                'at ' + locationRoot + '/' + location[1] + '.ts:' + location[2] + ':' + location[3],
-            )
+            const sourcePath = sourcePaths[location[1] as keyof typeof sourcePaths]
+            console.error('at ' + sourcePath + ':' + location[2] + ':' + location[3])
         }
     }
     process.exitCode = 1

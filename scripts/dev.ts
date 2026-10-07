@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url'
 
-import { logger as defaultLogger } from './logger.ts'
+import { logger as defaultLogger } from './lib/logger.ts'
 import type {
     DevelopmentDependencies,
     DevelopmentEvent,
@@ -9,7 +9,7 @@ import type {
     ServiceDefinition,
     ShutdownSignal,
     SpawnRequest,
-} from './Types/development.types.ts'
+} from './development/Types/development.types.ts'
 
 const SHUTDOWN_TIMEOUT_MS = 5_000
 

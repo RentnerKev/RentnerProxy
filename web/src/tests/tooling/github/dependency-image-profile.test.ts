@@ -7,9 +7,9 @@ import {
     evaluateInventory,
     getImageAssessmentProfile,
 } from '../../../../../.github/scripts/security/dependency-policy.ts'
-import { PUBLISHED_ALPHAS } from '../../../../../scripts/release-compatibility/published-alphas.ts'
+import { PUBLISHED_RELEASES } from '../../../../../scripts/compatibility/published-releases.ts'
 
-const alpha6 = PUBLISHED_ALPHAS['alpha.6']
+const alpha6 = PUBLISHED_RELEASES['alpha.6']
 const legacyIdentity = { revision: alpha6.revision, digest: alpha6.digest }
 const currentIdentity = {
     revision: 'bfd596b9784056c4fa076545b5362a3f22aba57a',
@@ -47,7 +47,7 @@ describe('immutable runtime assessment profiles', () => {
         const identities = [
             { ...legacyIdentity, revision: 'a'.repeat(40) },
             { ...legacyIdentity, digest: `sha256:${'b'.repeat(64)}` },
-            PUBLISHED_ALPHAS['alpha.5'],
+            PUBLISHED_RELEASES['alpha.5'],
             currentIdentity,
         ]
         for (const identity of identities) {

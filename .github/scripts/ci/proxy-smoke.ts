@@ -10,8 +10,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { SQL } from 'bun'
 import { Database } from 'bun:sqlite'
 
-import { startTestUpstream } from '../../../scripts/proxy-test-upstream.ts'
-import { smokeCompose, smokeDockerArguments } from '../../../scripts/smoke-resources.ts'
+import { startTestUpstream } from '../../../scripts/smoke/proxy/upstream.ts'
+import { smokeCompose, smokeDockerArguments } from '../../../scripts/smoke/resources.ts'
 
 function basicHeader(username: string, password: string): string {
     return 'Basic ' + Buffer.from(username + ':' + password).toString('base64')

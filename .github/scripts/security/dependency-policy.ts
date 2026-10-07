@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises'
-import { PUBLISHED_ALPHAS } from '../../../scripts/release-compatibility/published-alphas.ts'
+import { PUBLISHED_RELEASES } from '../../../scripts/compatibility/published-releases.ts'
 
 const policy = 'moderate-and-above; all RustSec/Go findings'
 
@@ -77,7 +77,7 @@ export function evaluateImage(report: unknown): void {
 
 export function getImageAssessmentProfile(identity: unknown) {
     const parsed = evaluateIdentity(identity)
-    const alpha6 = PUBLISHED_ALPHAS['alpha.6']
+    const alpha6 = PUBLISHED_RELEASES['alpha.6']
     const selected =
         parsed.revision === alpha6.revision && parsed.digest === alpha6.digest
             ? alpha6ImageProfile

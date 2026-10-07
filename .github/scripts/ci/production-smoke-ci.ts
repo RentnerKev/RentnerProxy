@@ -1,7 +1,7 @@
 import type { Suite, Result } from './Types/production-smoke-ci.types.ts'
 // oxlint-disable no-await-in-loop -- stream draining and ordered Docker cleanup are sequential.
 import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { isDockerBuildDiagnostic } from '../../../scripts/docker-build-diagnostics.ts'
+import { isDockerBuildDiagnostic } from '../../../scripts/smoke/docker-build-diagnostics.ts'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -10,7 +10,7 @@ import {
     isRestoreSmokeDiagnostic,
     SMOKE_RUN_LABEL,
     smokeRunScope,
-} from '../../../scripts/smoke-resources.ts'
+} from '../../../scripts/smoke/resources.ts'
 import { CERTIFICATE_ERROR_CODES } from '../../../web/src/config/certificates.config.ts'
 
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url))
@@ -18,25 +18,25 @@ export const smokeSuites = {
     proxy: {
         label: 'Proxy runtime',
         script: 'proxy:smoke',
-        source: 'proxy-smoke.ts',
+        source: '.github/scripts/ci/proxy-smoke.ts',
         completion: /^Real Caddy proxy integration: (\d+) checks passed\.$/u,
     },
     certificates: {
         label: 'Certificates / ACME',
         script: 'certificates:smoke',
-        source: 'certificate-smoke.ts',
+        source: 'scripts/smoke/certificates/run.ts',
         completion: /^Certificate HTTPS\/ACME integration: (\d+) checks passed\.$/u,
     },
     'upstream-tls': {
         label: 'Upstream TLS',
         script: 'upstream-tls:smoke',
-        source: 'upstream-tls-smoke.ts',
+        source: 'scripts/smoke/proxy/upstream-tls.ts',
         completion: /^Real HTTPS upstream TLS integration: (\d+) checks passed\.$/u,
     },
     production: {
         label: 'Production appliance',
         script: 'production:smoke',
-        source: 'appliance-compose-smoke.ts',
+        source: '.github/scripts/ci/appliance-compose-smoke.ts',
         completion: /^Appliance Compose smoke passed: (\d+) assertions$/u,
     },
 } as const
@@ -110,27 +110,27 @@ export function smokeProgress(suite: Suite) {
                 return diagnostic
             }
             const location = line.match(
-                /((?:\.github[/\\]scripts[/\\]ci|scripts)[/\\])([a-z0-9-]+\.ts):(\d+):(\d+)/u,
+                /((?:\.github[/\\]scripts[/\\]ci|scripts)[/\\](?:[a-z0-9-]+[/\\])*[a-z0-9-]+\.ts):(\d+):(\d+)/u,
             )
+            const sourcePath = location?.[1]?.replaceAll('\\', '/')
             if (
                 location &&
-                (location[2] === specification.source ||
+                (sourcePath === specification.source ||
                     (suite === 'production' &&
                         [
-                            'alpha1-upgrade-smoke.ts',
-                            'alpha1-upgrade-fixture.ts',
-                            'restore-rollback-smoke.ts',
-                        ].includes(location[2]!)))
+                            '.github/scripts/ci/upgrade/published-upgrade.ts',
+                            '.github/scripts/ci/fixtures/upgrade-state.ts',
+                            '.github/scripts/ci/upgrade/restore-rollback.ts',
+                        ].includes(sourcePath!)))
             ) {
                 diagnostic = (
                     diagnostic +
                     ' at ' +
-                    location[1] +
+                    sourcePath +
+                    ':' +
                     location[2] +
                     ':' +
-                    location[3] +
-                    ':' +
-                    location[4]
+                    location[3]
                 ).slice(0, 300)
             }
             return undefined

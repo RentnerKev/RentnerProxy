@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { chmod, mkdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import { assertHttp3Response, requestHttp3Client } from '../http3-client.ts'
+import { assertHttp3Response, requestHttp3Client } from '../smoke/http3/client.ts'
 import {
     exerciseCertificates,
     prepareCertificateFixture,

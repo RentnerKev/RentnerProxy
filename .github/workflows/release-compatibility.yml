@@ -27,9 +27,14 @@ on:
         branches:
             - main
         paths:
-            - 'scripts/production-backup*'
+            - 'scripts/production-backup.ts'
+            - 'scripts/backup/**'
             - 'scripts/production-restore.ts'
-            - 'scripts/release-compatibility/**'
+            - '.github/scripts/ci/release-compatibility/**'
+            - '.github/scripts/ci/upgrade/**'
+            - '.github/scripts/ci/fixtures/**'
+            - 'scripts/compatibility/**'
+            - 'scripts/smoke/**'
             - 'docker/web/bootstrap-secrets.mjs'
             - 'docker/web/validate-backup.mjs'
     schedule:
@@ -115,4 +120,4 @@ jobs:
             - name: Run published-image upgrade compatibility
               env:
                   SOURCE_ID: ${{ matrix.source }}
-              run: bun --no-orphans scripts/release-compatibility/run.ts "$SOURCE_ID"
+              run: bun --no-orphans .github/scripts/ci/release-compatibility/run.ts "$SOURCE_ID"

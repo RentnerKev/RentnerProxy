@@ -15,8 +15,11 @@ JavaScript tooling lives at the repository root: `package.json`, `bun.lock`,
 and `drizzle.config.ts`. Vite uses `web/` as its application root. Cargo manifests,
 the Rust lockfile, source, and tests belong to `core/`.
 Web unit and integration tests mirror their source owners under `web/src/tests/`.
-Docker production smoke entrypoints live in `.github/scripts/` alongside their CI runner;
-shared development, build, and smoke helpers remain under `scripts/`.
+Docker production smoke entrypoints, historical upgrade fixtures and the release
+compatibility runner live in `.github/scripts/ci/`. Shared smoke infrastructure
+lives in `scripts/smoke/`; development, asset and backup helpers have their own
+areas under `scripts/`. Immutable published release identities are shared through
+`scripts/compatibility/`. The [script guide](../scripts/README.md) lists the entrypoints.
 
 ```mermaid
 flowchart TD
@@ -289,7 +292,7 @@ for encrypted controller state; losing it makes encrypted records unrecoverable.
 [`scripts/production-backup.ts`](../scripts/production-backup.ts) quiesces the
 appliance and captures a PostgreSQL dump, the controller state archive, and the
 application encryption key, and a separate managed CrowdSec archive. Backup v4 records the source image identity and the public origin/trusted proxy CIDRs. The archive filters in
-[`scripts/controller-state-archive.ts`](../scripts/controller-state-archive.ts)
+[`scripts/backup/controller-state-archive.ts`](../scripts/backup/controller-state-archive.ts)
 remove sockets, transient runtime files, caches, and logs. Valkey and proxy request
 logs are excluded. The deployment environment, including the public origin,
 trusted proxy CIDRs, port mappings, SMTP settings, and Compose project/file, must

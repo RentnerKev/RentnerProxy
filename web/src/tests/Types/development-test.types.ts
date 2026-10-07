@@ -2,7 +2,7 @@ import type {
     DevelopmentDependencies,
     ShutdownSignal,
     SpawnRequest,
-} from '../../../../scripts/Types/development.types.ts'
+} from '../../../../scripts/development/Types/development.types.ts'
 
 export interface DevelopmentHarness {
     readonly dependencies: Partial<DevelopmentDependencies>
