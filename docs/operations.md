@@ -10,6 +10,11 @@ The source transform also adapts its live decision IP filter to the SDK's string
 field without changing exact-match filtering.
 The appliance updates its inherited PCRE2 package from the configured Debian
 repositories and rejects builds below `10.46-1~deb13u3`.
+CrowdSec and cscli are rebuilt from the pinned upstream 1.8.1 source archive
+using the full upstream static feature profile and RE2 2023-03-01. Reviewed,
+read-only module locks update gRPC to 1.83.2 and `golang.org/x/crypto` to 0.57.0;
+the build verifies both binaries' embedded dependency versions. The official
+image continues to supply configuration and the pinned Hub assets.
 These updates do not establish that an image passes the complete dependency
 assessment; unresolved findings continue to block publication.
 
@@ -134,6 +139,27 @@ silently evade upstream advisory checks. Binary reports can conservatively fall
 back to module-level advisory symbols when binaries are stripped; these do not
 prove actual symbol reachability. Such findings still block publication pending
 an exact-build reachability assessment or remediation.
+
+The manually dispatched **Dev Image** workflow additionally offers
+`accept_known_dev_advisories`, defaulting to **false**. This is an explicit
+risk acknowledgement for internal dev testing, including known critical and
+high findings; it does not fix those vulnerabilities or approve a release.
+Before enabling it, review the exact entries, source evidence and absolute
+expiry in `.github/scripts/security/dev-advisory-acceptance.json` and explicitly
+authorize publication despite those findings. The current list expires at
+2026-10-14 21:45 UTC and cannot be renewed by rerunning a scan.
+
+This option accepts only the previously reviewed advisory/package/version,
+namespace, PURL, severity, fix state and artifact locations, with bounded match
+counts. Go findings are additionally bound to each binary and affected module
+and package. Newly reported findings, available fixes, changed packages or
+locations, expired acceptance, incomplete scans and unavailable advisory
+databases still block publication. Cargo, Bun and the community-module query
+remain strict. Both jobs independently scan the exact OCI archive; the
+publisher allows this option only from the manually dispatched canonical main
+Dev Image workflow and only for its single `dev` tag. Releases, preview images
+and other callers cannot use it. Evidence records `dev-risk-accepted` separately
+from `approved`, and the run summary and logs disclose accepted findings.
 
 The daily rescan resolves `dev` and the newest non-draft release in each
 alpha/beta/stable channel to immutable digests once and assesses those digests.

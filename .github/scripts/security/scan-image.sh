@@ -19,6 +19,13 @@ skopeo inspect --override-os linux --override-arch amd64 --config "$IMAGE_SOURCE
 jq --exit-status --arg revision "$REVISION" '.os == "linux" and .architecture == "amd64" and .config.Labels["org.opencontainers.image.revision"] == $revision' "$REPORT_DIRECTORY/config.json" > /dev/null
 jq --null-input --arg revision "$REVISION" --arg digest "$digest" '{revision:$revision,digest:$digest}' > "$REPORT_DIRECTORY/identity.json"
 policy="$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts"
+dev_policy="$AUTOMATION_DIRECTORY/.github/scripts/security/dev-advisory-policy.ts"
+dev_accepted_findings=0
+case "${ACCEPT_KNOWN_DEV_ADVISORIES:-false}" in
+    false) ;;
+    true) bun --no-env-file "$dev_policy" context - ;;
+    *) echo '::error::Invalid dev advisory acknowledgement'; exit 1 ;;
+esac
 profile="$REPORT_DIRECTORY/profile.json"
 # Only the exact published source/index pair selects the historical runtime.
 bun --no-env-file "$policy" profile "$REPORT_DIRECTORY/identity.json" "$profile"
@@ -45,8 +52,24 @@ assess() {
     elif (( result == 3 && status == 0 )); then status=3
     fi
 }
+# The exception applies only to exact, previously reviewed image/Go findings.
+# Cargo, Bun, community queries and scanner/inventory validity stay strict.
+assess_dev() {
+    local accepted result=0
+    accepted="$(bun --no-env-file "$dev_policy" "$@")" || result=$?
+    if (( result != 0 && result != 3 )); then status=1
+    elif (( result == 3 && status == 0 )); then status=3
+    elif (( result == 0 )); then
+        [[ "$accepted" =~ ^[0-9]+$ ]] || { status=1; return; }
+        dev_accepted_findings=$((dev_accepted_findings + accepted))
+    fi
+}
 assess bun --no-env-file "$policy" inventory "$REPORT_DIRECTORY/inventory.json" "$REPORT_DIRECTORY/identity.json"
-assess bun --no-env-file "$policy" image "$REPORT_DIRECTORY/image.json"
+if [[ "${ACCEPT_KNOWN_DEV_ADVISORIES:-false}" == true ]]; then
+    assess_dev image "$REPORT_DIRECTORY/image.json"
+else
+    assess bun --no-env-file "$policy" image "$REPORT_DIRECTORY/image.json"
+fi
 # Convert as data; docker create is stopped and docker cp never starts services.
 skopeo copy --override-os linux --override-arch amd64 "$IMAGE_SOURCE" "docker-archive:$REPORT_DIRECTORY/runtime.tar:local/rentnerproxy-security:scan"
 docker load --input "$REPORT_DIRECTORY/runtime.tar"
@@ -72,7 +95,11 @@ while IFS=$'\t' read -r binary binary_path; do
     docker cp "$container:$binary_path" "$REPORT_DIRECTORY/$binary"
     go version -m -json "$REPORT_DIRECTORY/$binary" > "$REPORT_DIRECTORY/$binary-buildinfo.json"
     govulncheck -mode=binary -scan=symbol -json "$REPORT_DIRECTORY/$binary" | jq --slurp . > "$REPORT_DIRECTORY/$binary-govulncheck.json"
-    assess bun --no-env-file "$policy" binary "$REPORT_DIRECTORY/$binary-govulncheck.json"
+    if [[ "${ACCEPT_KNOWN_DEV_ADVISORIES:-false}" == true ]]; then
+        assess_dev binary "$REPORT_DIRECTORY/$binary-govulncheck.json" "$binary"
+    else
+        assess bun --no-env-file "$policy" binary "$REPORT_DIRECTORY/$binary-govulncheck.json"
+    fi
 done < "$REPORT_DIRECTORY/go-binaries.tsv"
 # The HTTP-only community module is a local replacement. govulncheck cannot
 # resolve its local path: explicitly query its original embedded locked version.
@@ -88,5 +115,12 @@ if (( status == 3 )); then
     bun --no-env-file "$policy" blocked "$REPORT_DIRECTORY/identity.json" "$REPORT_DIRECTORY/blocked-assessment.json"
 fi
 if (( status != 0 )); then exit "$status"; fi
-bun --no-env-file "$policy" identity "$REPORT_DIRECTORY/identity.json" "$REPORT_DIRECTORY/assessment.json"
+if (( dev_accepted_findings > 0 )); then
+    DEV_ACCEPTED_FINDINGS="$dev_accepted_findings" bun --no-env-file "$dev_policy" \
+        record "$REPORT_DIRECTORY/identity.json" "$REPORT_DIRECTORY/assessment.json"
+    printf '### Dev advisory risk acceptance\n\n%d known findings accepted for this dev test image. This is not a security approval. See assessment.json and the reviewed, expiring dev-advisory-acceptance.json.\n' \
+        "$dev_accepted_findings" >> "$GITHUB_STEP_SUMMARY"
+else
+    bun --no-env-file "$policy" identity "$REPORT_DIRECTORY/identity.json" "$REPORT_DIRECTORY/assessment.json"
+fi
 printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"

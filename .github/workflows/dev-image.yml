@@ -2,6 +2,12 @@ name: Dev Image
 
 on:
     workflow_dispatch:
+        inputs:
+            accept_known_dev_advisories:
+                description: 'DEV ONLY: accept the reviewed, expiring upstream advisories (including critical); no security approval'
+                type: boolean
+                required: false
+                default: false
 
 permissions: {}
 
@@ -111,6 +117,14 @@ jobs:
                   IMAGE_SOURCE: oci-archive:${{ runner.temp }}/candidate-image.tar
                   REPORT_DIRECTORY: ${{ runner.temp }}/dependency-image-report
                   REVISION: ${{ steps.source.outputs.revision }}
+                  ACCEPT_KNOWN_DEV_ADVISORIES: ${{ inputs.accept_known_dev_advisories }}
+                  DEV_ASSESSMENT_STAGE: build
+                  # actionlint 1.7.12 predates these documented GitHub.com job fields.
+                  # Decode dynamically; the policy still validates their exact values.
+                  DEV_JOB_WORKFLOW_REF: ${{ fromJSON(toJSON(job)).workflow_ref }}
+                  DEV_JOB_WORKFLOW_SHA: ${{ fromJSON(toJSON(job)).workflow_sha }}
+                  IMAGE: ${{ steps.source.outputs.image }}
+                  IMAGE_TAGS: dev
               run: bash automation/.github/scripts/security/scan-image.sh
 
             - name: Bind archive checksum
@@ -151,3 +165,4 @@ jobs:
             archive_sha256: ${{ needs.build.outputs.archive_sha256 }}
             digest: ${{ needs.build.outputs.digest }}
             image_tags: dev
+            accept_known_dev_advisories: ${{ inputs.accept_known_dev_advisories }}
