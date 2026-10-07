@@ -250,9 +250,11 @@ describe('authenticated language UI', () => {
         expect(
             container.querySelector('#native-error')?.getAttribute('aria-describedby'),
         ).toContain('native-error-error')
-        expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-            'Du hast keine Berechtigung für diese Änderung.',
-        )
+        expect(container.querySelector('#email-error')?.getAttribute('role')).toBe('alert')
+        expect(container.querySelector('#confirmation-error')?.getAttribute('role')).toBe('alert')
+        expect(
+            [...container.querySelectorAll('[role="alert"]')].map((alert) => alert.textContent),
+        ).toContain('Du hast keine Berechtigung für diese Änderung.')
         expect(container.textContent).not.toContain('This field is required.')
     })
 

@@ -47,6 +47,7 @@ export default function TwoFactorLoginForm({
                                         )
                                     }
                                     aria-describedby={`${field.name}-error`}
+                                    aria-invalid={field.state.meta.errors.length > 0}
                                 />
                                 <FieldError
                                     id={`${field.name}-error`}
