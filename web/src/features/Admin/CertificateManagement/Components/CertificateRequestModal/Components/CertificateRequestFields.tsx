@@ -57,12 +57,7 @@ export default function CertificateRequestFields({
                             maxLength={25_600}
                             onBlur={field.handleBlur}
                             onChange={(event) =>
-                                field.handleChange(
-                                    event.target.value
-                                        .split(/\r?\n/u)
-                                        .map((value) => value.trim())
-                                        .filter(Boolean),
-                                )
+                                field.handleChange(event.target.value.split(/\r?\n/u))
                             }
                             autoCapitalize="none"
                             autoComplete="off"

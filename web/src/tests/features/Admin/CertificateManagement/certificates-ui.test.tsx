@@ -892,10 +892,14 @@ describe('certificate management UI', () => {
             'Production issues a publicly trusted certificate for normal operation.',
         )
         await setValue(document.querySelector('#certificate-request-name')!, 'Production edge')
-        await setValue(
-            document.querySelector('#certificate-request-domains')!,
-            'edge.example.com\nwww.edge.example.com',
-        )
+        await setValue(document.querySelector('#certificate-request-domains')!, 'edge.example.com')
+        const domains = document.querySelector<HTMLTextAreaElement>('#certificate-request-domains')!
+        for (const character of '\nwww.edge.example.com\n') {
+            // oxlint-disable-next-line eslint/no-await-in-loop -- Each keystroke must observe the preceding controlled render.
+            await setValue(domains, domains.value + character)
+            expect(domains.value.endsWith(character)).toBeTrue()
+        }
+        expect(domains.value).toBe('edge.example.com\nwww.edge.example.com\n')
         await setValue(document.querySelector('#certificate-request-contact')!, 'ops@example.com')
         await click(document.querySelector('#certificate-request-terms')!)
         let finishRefresh: (() => void) | undefined
