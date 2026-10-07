@@ -28,7 +28,12 @@ export default function AuthenticatedShell({
     const {
         state,
         handler,
-        refs: { sidebar: sidebarRef, sidebarScroll: sidebarScrollRef, mobileNavigationToggle },
+        refs: {
+            sidebar: sidebarRef,
+            sidebarScroll: sidebarScrollRef,
+            mobileNavigationToggle,
+            desktopNavigationToggle,
+        },
     } = useApplicationShellLogic(user)
 
     return (
@@ -99,6 +104,7 @@ export default function AuthenticatedShell({
                 <div className="sticky top-0 z-40 shell:contents">
                     <ApplicationTopbar
                         mobileNavigationToggleRef={mobileNavigationToggle}
+                        desktopNavigationToggleRef={desktopNavigationToggle}
                         isMobileNavigationOpen={state.isMobileNavigationOpen}
                         isNavigationExpanded={state.isNavigationExpanded}
                         mobileNavigationToggleLabel={state.mobileNavigationToggleLabel}

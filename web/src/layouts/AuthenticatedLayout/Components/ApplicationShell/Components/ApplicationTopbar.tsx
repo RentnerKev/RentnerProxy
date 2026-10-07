@@ -6,6 +6,7 @@ import type { ApplicationTopbarProps } from '../Types/application-shell.types.ts
 
 export default function ApplicationTopbar({
     mobileNavigationToggleRef,
+    desktopNavigationToggleRef,
     isMobileNavigationOpen,
     isNavigationExpanded,
     mobileNavigationToggleLabel,
@@ -41,6 +42,7 @@ export default function ApplicationTopbar({
             </button>
             <CustomTooltip {...TOOLTIP_DEFAULT_PROPS} content={navigationToggleLabel} side="right">
                 <button
+                    ref={desktopNavigationToggleRef}
                     type="button"
                     className="group hidden size-12 cursor-pointer place-items-center rounded-xl border border-border-strong bg-surface-raised text-muted transition-[border-color,background-color,color] duration-180 hover:border-brand-500 hover:bg-surface-hover hover:text-brand-text focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-accent-ring shell:grid motion-reduce:transition-none"
                     aria-controls="application-navigation"

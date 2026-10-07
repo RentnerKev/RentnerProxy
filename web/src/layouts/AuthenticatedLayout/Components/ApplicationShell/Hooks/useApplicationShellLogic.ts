@@ -33,6 +33,7 @@ export default function useApplicationShellLogic(
             sidebar: sidebarRef,
             sidebarScroll: sidebarScrollRef,
             mobileNavigationToggle: navigation.refs.mobileNavigationToggle,
+            desktopNavigationToggle: navigation.refs.desktopNavigationToggle,
         },
     }
 }
