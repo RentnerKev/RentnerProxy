@@ -999,7 +999,9 @@ try {
     // Diagnostics are intentionally structural; raw command output can contain credentials.
     const location =
         error instanceof Error
-            ? (/(?:scripts|tests)\/[^\s()]+:\d+:\d+/u.exec(error.stack ?? '')?.[0] ?? 'unknown')
+            ? (/(?:\.github\/scripts|scripts|tests)\/[^\s()]+:\d+:\d+/u.exec(
+                  error.stack?.replaceAll('\\', '/') ?? '',
+              )?.[0] ?? 'unknown')
             : 'unknown'
     const category =
         error instanceof Error && /^command failed: (?:docker|git)|^timed out:/u.test(error.message)
