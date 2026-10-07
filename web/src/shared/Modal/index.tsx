@@ -60,6 +60,10 @@ export function Modal({
                             {children}
                         </div>
                     ) : null}
+                    <div
+                        data-modal-toast-host
+                        className="mx-5 mb-4 max-h-[min(14rem,30dvh)] shrink-0 overflow-x-hidden overflow-y-auto empty:hidden sm:mx-6 [&>[role=region]]:relative [&>[role=region]]:inset-auto [&>[role=region]]:z-auto [&>[role=region]]:w-full [&>[role=region]]:p-0"
+                    />
                     {footer ? (
                         <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 [&_button]:max-sm:flex-1 border-t border-border bg-surface-subtle px-5 py-4 sm:px-6">
                             {footer}
