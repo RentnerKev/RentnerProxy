@@ -70,7 +70,7 @@ export default function CrowdSecBansTable(props: CrowdSecBansTableProps) {
                                     aria-label={t('admin.crowdSec.dashboard.origin')}
                                     value={filters.origin}
                                     placeholder={t('admin.crowdSec.dashboard.allOrigins')}
-                                    options={state.scopeOptions}
+                                    options={state.originOptions}
                                     onValueChange={onOriginChange}
                                     searchable
                                 />
@@ -81,7 +81,7 @@ export default function CrowdSecBansTable(props: CrowdSecBansTableProps) {
                                     aria-label={t('admin.crowdSec.dashboard.scope')}
                                     value={filters.scope}
                                     placeholder={t('admin.crowdSec.dashboard.allScopes')}
-                                    options={state.originOptions}
+                                    options={state.scopeOptions}
                                     onValueChange={(value) =>
                                         onScopeChange(
                                             value === 'Ip' || value === 'Range' ? value : '',
