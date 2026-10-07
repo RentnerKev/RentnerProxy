@@ -26,7 +26,13 @@ export default function useApplicationShellLogic(
             toggleNavigation: navigation.handler.toggleNavigation,
             toggleMobileNavigation: navigation.handler.toggleMobileNavigation,
             closeMobileNavigation: navigation.handler.closeMobileNavigation,
+            handleMobileNavigationOpenChange: navigation.handler.handleMobileNavigationOpenChange,
+            restoreMobileNavigationFocus: navigation.handler.restoreMobileNavigationFocus,
         },
-        refs: { sidebar: sidebarRef, sidebarScroll: sidebarScrollRef },
+        refs: {
+            sidebar: sidebarRef,
+            sidebarScroll: sidebarScrollRef,
+            mobileNavigationToggle: navigation.refs.mobileNavigationToggle,
+        },
     }
 }

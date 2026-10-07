@@ -7,6 +7,7 @@ import ApplicationNavigation from './Components/ApplicationNavigation/index.tsx'
 import ApplicationSidebarScrollIndicator from './Components/ApplicationSidebarScrollIndicator/index.tsx'
 import ApplicationSidebarSurface from './Components/ApplicationSidebarSurface.tsx'
 import ApplicationTopbar from './Components/ApplicationTopbar.tsx'
+import ApplicationMobileNavigation from './Components/ApplicationMobileNavigation.tsx'
 import ApplicationUserPanel from './Components/ApplicationUserPanel.tsx'
 import ApplicationVersion from './Components/ApplicationVersion.tsx'
 import useApplicationShellLogic from './Hooks/useApplicationShellLogic.ts'
@@ -27,7 +28,7 @@ export default function AuthenticatedShell({
     const {
         state,
         handler,
-        refs: { sidebar: sidebarRef, sidebarScroll: sidebarScrollRef },
+        refs: { sidebar: sidebarRef, sidebarScroll: sidebarScrollRef, mobileNavigationToggle },
     } = useApplicationShellLogic(user)
 
     return (
@@ -97,6 +98,7 @@ export default function AuthenticatedShell({
             <div className="min-w-0 shell:col-start-2">
                 <div className="sticky top-0 z-40 shell:contents">
                     <ApplicationTopbar
+                        mobileNavigationToggleRef={mobileNavigationToggle}
                         isMobileNavigationOpen={state.isMobileNavigationOpen}
                         isNavigationExpanded={state.isNavigationExpanded}
                         mobileNavigationToggleLabel={state.mobileNavigationToggleLabel}
@@ -113,14 +115,10 @@ export default function AuthenticatedShell({
                             />
                         }
                     />
-                    <div
-                        id="application-mobile-navigation"
-                        className={
-                            state.isMobileNavigationOpen
-                                ? 'absolute inset-x-0 top-full z-50 flex h-[calc(100dvh-100%)] min-h-0 flex-col overflow-hidden border-b border-border-strong bg-navy-950 text-white shadow-2xl shell:hidden'
-                                : 'hidden'
-                        }
-                        inert={!state.isMobileNavigationOpen}
+                    <ApplicationMobileNavigation
+                        open={state.isMobileNavigationOpen}
+                        onOpenChange={handler.handleMobileNavigationOpenChange}
+                        onCloseAutoFocus={handler.restoreMobileNavigationFocus}
                     >
                         {state.isMobileNavigationOpen ? (
                             <>
@@ -144,7 +142,7 @@ export default function AuthenticatedShell({
                                 </div>
                             </>
                         ) : null}
-                    </div>
+                    </ApplicationMobileNavigation>
                 </div>
                 <main className="mx-auto box-border w-full max-w-360 px-[clamp(1.25rem,4vw,3.5rem)] py-[clamp(1.25rem,4vw,3.5rem)]">
                     {children}

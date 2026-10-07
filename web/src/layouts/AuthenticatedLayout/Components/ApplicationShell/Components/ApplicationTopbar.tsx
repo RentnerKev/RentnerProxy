@@ -5,6 +5,7 @@ import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import type { ApplicationTopbarProps } from '../Types/application-shell.types.ts'
 
 export default function ApplicationTopbar({
+    mobileNavigationToggleRef,
     isMobileNavigationOpen,
     isNavigationExpanded,
     mobileNavigationToggleLabel,
@@ -23,9 +24,11 @@ export default function ApplicationTopbar({
             }`}
         >
             <button
+                ref={mobileNavigationToggleRef}
                 type="button"
                 className="grid size-11 cursor-pointer place-items-center rounded-full border border-brand-500/40 bg-brand-500/10 text-brand-text transition-[background-color,border-color] duration-180 hover:border-brand-500 hover:bg-brand-500/20 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-accent-ring shell:hidden motion-reduce:transition-none"
                 aria-controls="application-mobile-navigation"
+                aria-haspopup="dialog"
                 aria-expanded={isMobileNavigationOpen}
                 aria-label={mobileNavigationToggleLabel}
                 onClick={onToggleMobileNavigation}
