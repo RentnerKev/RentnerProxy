@@ -23,6 +23,7 @@ export default function AcceptInviteForm({ state, form, handler }: AcceptInviteF
                             onBlur={field.handleBlur}
                             onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
+                            aria-invalid={field.state.meta.errors.length > 0}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
@@ -47,6 +48,7 @@ export default function AcceptInviteForm({ state, form, handler }: AcceptInviteF
                             onBlur={field.handleBlur}
                             onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
+                            aria-invalid={field.state.meta.errors.length > 0}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>
@@ -73,6 +75,7 @@ export default function AcceptInviteForm({ state, form, handler }: AcceptInviteF
                             onBlur={field.handleBlur}
                             onValueChange={field.handleChange}
                             aria-describedby={`${field.name}-error`}
+                            aria-invalid={field.state.meta.errors.length > 0}
                         />
                         <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
                     </div>

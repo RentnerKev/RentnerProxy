@@ -123,6 +123,36 @@ afterEach(async () => {
 })
 
 describe('first-owner setup submission', () => {
+    test('marks invalid fields and connects announced errors, then clears invalid state after correction', async () => {
+        const state = await renderSetup()
+        const inputs = [...document.querySelectorAll<HTMLInputElement>('input[name]')]
+        expect(inputs).toHaveLength(4)
+        expect(inputs.every((input) => input.getAttribute('aria-invalid') !== 'true')).toBeTrue()
+        expect(document.querySelector('[role="alert"]')).toBeNull()
+
+        await act(async () => {
+            await state.form.handleSubmit()
+        })
+        expect(setupOwnerHandlerMock).not.toHaveBeenCalled()
+        for (const name of ['displayName', 'email', 'password']) {
+            const input = document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!
+            expect(input.getAttribute('aria-invalid')).toBe('true')
+            const error = document.getElementById(input.getAttribute('aria-describedby')!)!
+            expect(error.getAttribute('role')).toBe('alert')
+            expect(error.textContent?.trim().length).toBeGreaterThan(0)
+            expect(document.querySelector(`label[for="${input.id}"]`)).not.toBeNull()
+        }
+
+        await act(async () => {
+            await fillValidSetup(state)
+            await state.form.handleSubmit()
+            await new Promise((resolve) => setTimeout(resolve, 5))
+        })
+        expect(setupOwnerHandlerMock).toHaveBeenCalledTimes(1)
+        expect(inputs.every((input) => input.getAttribute('aria-invalid') !== 'true')).toBeTrue()
+        expect(document.querySelector('[role="alert"]')).toBeNull()
+    })
+
     test('shows a live strength indicator only for the new password', async () => {
         const state = await renderSetup()
         expect(document.body.textContent?.match(/Password strength/g)).toHaveLength(1)
