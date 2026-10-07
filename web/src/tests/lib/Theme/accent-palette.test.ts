@@ -7,22 +7,31 @@ import {
 } from '@/lib/Theme/accentPalette.ts'
 
 describe('system accent palette', () => {
-    test('keeps the existing green palette exactly when no color is configured', () => {
+    test('keeps the default accent and uses readable light-theme text when no color is configured', () => {
         expect(deriveAccentPalette('#30ee61')).toEqual({
             accent: '#30ee61',
             brand300: '#65f586',
             brand400: '#4ee99a',
             brand500: '#30ee61',
             brand600: '#0fb33a',
-            brand700: '#0d8a31',
+            brand700: '#0c7f2d',
             foreground: '#020a0b',
             hover: '#65f586',
             active: '#0fb33a',
-            textLight: '#0d8a31',
+            textLight: '#0c7f2d',
             textDark: '#65f586',
             rgb: '48 238 97',
         })
         expect(deriveAccentPalette('invalid')).toEqual(deriveAccentPalette('#30ee61'))
+    })
+
+    test('default light-theme text is readable on the canvas and every standard surface', () => {
+        const palette = deriveAccentPalette('#30ee61')
+        for (const background of ['#eef4f0', '#fbfdfc', '#ffffff', '#f4f8f5', '#f7fbf8']) {
+            expect(accentContrastRatio(palette.textLight, background)).toBeGreaterThanOrEqual(4.5)
+            expect(accentContrastRatio(palette.brand700, background)).toBeGreaterThanOrEqual(4.5)
+        }
+        expect(accentCssVariables('#30ee61')['--accent-text-light']).toBe(palette.textLight)
     })
 
     test('derives legible foreground and theme text for arbitrary colors', () => {
@@ -49,6 +58,7 @@ describe('system accent palette', () => {
                 4.5,
             )
             expect(accentContrastRatio(palette.textLight, '#fbfdfc')).toBeGreaterThanOrEqual(4.5)
+            expect(accentContrastRatio(palette.textLight, '#eef4f0')).toBeGreaterThanOrEqual(4.5)
             expect(accentContrastRatio(palette.textDark, '#0d0f12')).toBeGreaterThanOrEqual(4.5)
             expect(accentContrastRatio(palette.brand300, '#0d0f12')).toBeGreaterThanOrEqual(4.5)
             expect(accentContrastRatio(palette.brand400, '#0d0f12')).toBeGreaterThanOrEqual(4.5)

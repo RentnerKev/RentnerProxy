@@ -4,7 +4,7 @@ import { DEFAULT_ACCENT_COLOR } from '@/config/appearance.config.ts'
 const DARK_INK = '#020a0b'
 const WHITE = '#ffffff'
 const BLACK = '#000000'
-const LIGHT_SURFACE = '#fbfdfc'
+const LIGHT_CANVAS = '#eef4f0'
 const DARK_SURFACE = '#0d0f12'
 const MIN_TEXT_CONTRAST = 4.5
 
@@ -71,11 +71,11 @@ const DEFAULT_PALETTE: AccentPalette = {
     brand400: '#4ee99a',
     brand500: DEFAULT_ACCENT_COLOR,
     brand600: '#0fb33a',
-    brand700: '#0d8a31',
+    brand700: '#0c7f2d',
     foreground: DARK_INK,
     hover: '#65f586',
     active: '#0fb33a',
-    textLight: '#0d8a31',
+    textLight: '#0c7f2d',
     textDark: '#65f586',
     rgb: '48 238 97',
 }
@@ -90,7 +90,7 @@ export function deriveAccentPalette(value: string): AccentPalette {
         relativeLuminance(accent) > 0.85 ? BLACK : foreground === BLACK ? WHITE : BLACK
     const brand300 = ensureContrast(mix(accent, WHITE, 0.28), DARK_SURFACE)
     const brand400 = ensureContrast(mix(accent, WHITE, 0.16), DARK_SURFACE)
-    const brand700 = ensureContrast(mix(accent, BLACK, 0.25), LIGHT_SURFACE)
+    const brand700 = ensureContrast(mix(accent, BLACK, 0.25), LIGHT_CANVAS)
     const channels = parseHex(accent)
 
     return {
