@@ -4,7 +4,12 @@ import FieldError from '@/shared/Forms/FieldError.tsx'
 import type { LoginFormProps } from '../Types/login-component-props.types.ts'
 export default function LoginForm({ state, form, handler, onPasskeyLogin }: LoginFormProps) {
     return (
-        <form className="mt-7 grid gap-[1.1rem]" noValidate onSubmit={handler.handleSubmit}>
+        <form
+            method="post"
+            className="mt-7 grid gap-[1.1rem]"
+            noValidate
+            onSubmit={handler.handleSubmit}
+        >
             <form.Field name="email" validators={{ onBlur: handler.validateEmail }}>
                 {(field) => (
                     <div className="grid gap-[0.45rem]">

@@ -13,7 +13,12 @@ export default function TwoFactorLoginForm({
     normalizeCredential,
 }: TwoFactorLoginFormProps) {
     return (
-        <form className="mt-7 grid gap-[1.1rem]" noValidate onSubmit={handler.handleSubmit}>
+        <form
+            method="post"
+            className="mt-7 grid gap-[1.1rem]"
+            noValidate
+            onSubmit={handler.handleSubmit}
+        >
             <form.Subscribe selector={(formState) => formState.values.mode}>
                 {(mode) => (
                     <form.Field

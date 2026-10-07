@@ -4,7 +4,12 @@ import type { AcceptInviteFormProps } from '../Types/accept-invite-component-pro
 
 export default function AcceptInviteForm({ state, form, handler }: AcceptInviteFormProps) {
     return (
-        <form className="mt-7 grid gap-[1.1rem]" noValidate onSubmit={handler.handleSubmit}>
+        <form
+            method="post"
+            className="mt-7 grid gap-[1.1rem]"
+            noValidate
+            onSubmit={handler.handleSubmit}
+        >
             <form.Field name="displayName" validators={{ onBlur: handler.validateDisplayName }}>
                 {(field) => (
                     <div className="grid gap-[0.45rem]">
