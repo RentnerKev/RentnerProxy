@@ -543,7 +543,8 @@
                 "fingerprint_mismatch": "O ficheiro foi alterado desde a pré-visualização. Analise-o novamente.",
                 "preview_changed": "O RentnerProxy foi alterado desde a pré-visualização. Analise novamente.",
                 "import_failed": "A importação falhou; as alterações foram revertidas. Consulte o registo de auditoria.",
-                "export_failed": "A exportação falhou. Tente novamente ou consulte o registo de auditoria."
+                "export_failed": "A exportação falhou. Tente novamente ou consulte o registo de auditoria.",
+                "request_failed": "Não foi possível confirmar o pedido de importação. Verifique a ligação e consulte o histórico de importações antes de tentar novamente."
             }
         },
         "npmImport": {
@@ -638,7 +639,8 @@
                 "fingerprint_mismatch": "A origem foi alterada depois da pré-visualização. Analise-a novamente.",
                 "preview_changed": "O estado do RentnerProxy foi alterado depois da pré-visualização. Analise novamente antes de importar.",
                 "nothing_to_import": "Não há mais nada elegível para importar. Analise novamente o estado mais recente.",
-                "import_failed": "A importação falhou e a transação da base de dados foi revertida. Consulte o registo de auditoria."
+                "import_failed": "A importação falhou e a transação da base de dados foi revertida. Consulte o registo de auditoria.",
+                "request_failed": "Não foi possível confirmar o pedido de importação. Verifique a ligação e consulte o histórico de importações antes de tentar novamente."
             }
         },
         "users": {

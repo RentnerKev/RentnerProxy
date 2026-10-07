@@ -524,7 +524,8 @@
                 "fingerprint_mismatch": "Het bestand is gewijzigd sinds de preview. Analyseer het opnieuw.",
                 "preview_changed": "RentnerProxy is gewijzigd sinds de preview. Analyseer het opnieuw.",
                 "import_failed": "Importeren is mislukt; de wijzigingen zijn teruggedraaid. Controleer het auditlogboek.",
-                "export_failed": "Exporteren is mislukt. Probeer het opnieuw of controleer het auditlogboek."
+                "export_failed": "Exporteren is mislukt. Probeer het opnieuw of controleer het auditlogboek.",
+                "request_failed": "Het importverzoek kon niet worden bevestigd. Controleer je verbinding en bekijk de importgeschiedenis voordat je het opnieuw probeert."
             }
         },
         "npmImport": {
@@ -619,7 +620,8 @@
                 "fingerprint_mismatch": "De bron is gewijzigd na de preview. Analyseer deze opnieuw.",
                 "preview_changed": "De RentnerProxy-status is gewijzigd na de preview. Analyseer opnieuw voordat je importeert.",
                 "nothing_to_import": "Er is niets meer dat kan worden geïmporteerd. Analyseer de nieuwste status opnieuw.",
-                "import_failed": "Importeren is mislukt en de databasetransactie is teruggedraaid. Controleer het auditlogboek."
+                "import_failed": "Importeren is mislukt en de databasetransactie is teruggedraaid. Controleer het auditlogboek.",
+                "request_failed": "Het importverzoek kon niet worden bevestigd. Controleer je verbinding en bekijk de importgeschiedenis voordat je het opnieuw probeert."
             }
         },
         "users": {

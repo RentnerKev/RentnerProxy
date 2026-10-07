@@ -543,7 +543,8 @@
                 "fingerprint_mismatch": "Le fichier a changé depuis l'aperçu. Analysez-le à nouveau.",
                 "preview_changed": "RentnerProxy a changé depuis l'aperçu. Analysez à nouveau.",
                 "import_failed": "L'import a échoué ; les modifications ont été annulées. Consultez l'audit.",
-                "export_failed": "L'export a échoué. Réessayez ou consultez l'audit."
+                "export_failed": "L'export a échoué. Réessayez ou consultez l'audit.",
+                "request_failed": "Impossible de confirmer la demande d’importation. Vérifiez votre connexion et consultez l’historique des imports avant de réessayer."
             }
         },
         "npmImport": {
@@ -638,7 +639,8 @@
                 "fingerprint_mismatch": "La source a changé depuis l’aperçu. Analysez-la de nouveau.",
                 "preview_changed": "L’état de RentnerProxy a changé depuis l’aperçu. Analysez de nouveau.",
                 "nothing_to_import": "Aucun objet admissible ne reste à importer. Analysez de nouveau.",
-                "import_failed": "Import échoué ; la transaction a été annulée. Consultez le journal d’audit."
+                "import_failed": "Import échoué ; la transaction a été annulée. Consultez le journal d’audit.",
+                "request_failed": "Impossible de confirmer la demande d’importation. Vérifiez votre connexion et consultez l’historique des imports avant de réessayer."
             }
         },
         "users": {

@@ -543,7 +543,8 @@
                 "fingerprint_mismatch": "The file changed since preview. Analyze it again.",
                 "preview_changed": "RentnerProxy changed since preview. Analyze it again.",
                 "import_failed": "Import failed; changes were rolled back. Check the audit log.",
-                "export_failed": "Export failed. Try again or check the audit log."
+                "export_failed": "Export failed. Try again or check the audit log.",
+                "request_failed": "Could not confirm the import request. Check your connection and review import history before trying again."
             }
         },
         "npmImport": {
@@ -638,7 +639,8 @@
                 "fingerprint_mismatch": "The source changed after preview. Analyze it again.",
                 "preview_changed": "RentnerProxy state changed after preview. Analyze again before importing.",
                 "nothing_to_import": "Nothing remains eligible to import. Analyze the latest state again.",
-                "import_failed": "Import failed and its database transaction was rolled back. Check the audit log."
+                "import_failed": "Import failed and its database transaction was rolled back. Check the audit log.",
+                "request_failed": "Could not confirm the import request. Check your connection and review import history before trying again."
             }
         },
         "users": {

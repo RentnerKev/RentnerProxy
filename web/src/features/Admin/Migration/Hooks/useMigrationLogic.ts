@@ -3,6 +3,10 @@ import { useEffect, useState } from 'react'
 import { toast } from '@rentnerkev/toasts/toast'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import {
+    ImportResponseError,
+    getImportRequestErrorCode,
+} from '@/lib/Admin/Migration/importRequestErrors.ts'
 import type {
     NpmImportPreview,
     NpmImportResult,
@@ -36,11 +40,7 @@ async function upload(
     })
     const data: unknown = await response.json()
     if (!response.ok) {
-        const code =
-            data && typeof data === 'object' && 'error' in data
-                ? String(data.error)
-                : 'import_failed'
-        throw new Error(code)
+        throw new ImportResponseError(data, 'migration')
     }
     return data
 }
@@ -137,7 +137,7 @@ export function useMigrationLogic(): MigrationLogicResult {
                 }
             }
         } catch (caught) {
-            const code = caught instanceof Error ? caught.message : 'import_failed'
+            const code = getImportRequestErrorCode(caught)
             setError(code)
             toast.error(t(`admin.migration.errors.${code}`), {
                 title: t('toast.titles.error'),

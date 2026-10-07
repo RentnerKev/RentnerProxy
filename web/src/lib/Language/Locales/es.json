@@ -543,7 +543,8 @@
                 "fingerprint_mismatch": "El archivo cambió desde la vista previa. Analízalo otra vez.",
                 "preview_changed": "RentnerProxy cambió desde la vista previa. Analízalo otra vez.",
                 "import_failed": "La importación falló; se revirtieron los cambios. Revisa la auditoría.",
-                "export_failed": "La exportación falló. Inténtalo otra vez o revisa la auditoría."
+                "export_failed": "La exportación falló. Inténtalo otra vez o revisa la auditoría.",
+                "request_failed": "No se pudo confirmar la solicitud de importación. Comprueba tu conexión y revisa el historial de importaciones antes de volver a intentarlo."
             }
         },
         "npmImport": {
@@ -638,7 +639,8 @@
                 "fingerprint_mismatch": "La fuente cambió desde la vista previa. Analízala de nuevo.",
                 "preview_changed": "El estado de RentnerProxy cambió desde la vista previa. Analiza de nuevo.",
                 "nothing_to_import": "No quedan objetos aptos para importar. Analiza de nuevo.",
-                "import_failed": "La importación falló y la transacción se revirtió. Consulta el registro de auditoría."
+                "import_failed": "La importación falló y la transacción se revirtió. Consulta el registro de auditoría.",
+                "request_failed": "No se pudo confirmar la solicitud de importación. Comprueba tu conexión y revisa el historial de importaciones antes de volver a intentarlo."
             }
         },
         "users": {
