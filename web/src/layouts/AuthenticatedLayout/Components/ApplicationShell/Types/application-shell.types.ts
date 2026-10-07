@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, RefObject } from 'react'
 
 import type { UserThemeMode } from '@/config/Types/theme-config.types.ts'
 import type {
@@ -69,6 +69,7 @@ export interface ApplicationUserPanelProps {
 }
 
 export interface ApplicationTopbarProps {
+    readonly mobileNavigationToggleRef?: RefObject<HTMLButtonElement | null>
     readonly isMobileNavigationOpen: boolean
     readonly isNavigationExpanded: boolean
     readonly mobileNavigationToggleLabel: string
@@ -77,6 +78,13 @@ export interface ApplicationTopbarProps {
     readonly onToggleNavigation: () => void
     readonly themeControl: ReactNode
     readonly searchControl?: ReactNode
+}
+
+export interface ApplicationMobileNavigationProps {
+    readonly open: boolean
+    readonly onOpenChange: (open: boolean) => void
+    readonly onCloseAutoFocus: (event: Event) => void
+    readonly children: ReactNode
 }
 
 export interface ApplicationShellViewModel {

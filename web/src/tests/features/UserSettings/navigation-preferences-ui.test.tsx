@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, spyOn, test } from 'bun:test'
+import { afterAll, afterEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { StrictMode, type ReactElement } from 'react'
 import type { Root } from 'react-dom/client'
@@ -16,6 +16,28 @@ import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+
+mock.module('@/features/UserSettings/middleware.ts', () => ({
+    updateCurrentUserNavigationGroupHandler: async ({
+        data,
+    }: {
+        data: {
+            expectedUserId: string
+            groupId: NavigationGroupId
+            expanded: boolean
+        }
+    }): Promise<NavigationGroupUpdateResult> => ({
+        success: true,
+        groupId: data.groupId,
+        expanded: data.expanded,
+    }),
+}))
+mock.module('@/features/QuickSearch/index.tsx', () => ({
+    default: () => <button type="button">Search</button>,
+}))
+mock.module('@/features/ApplicationVersion/middleware.ts', () => ({
+    getApplicationUpdateHandler: async () => ({ latestVersion: null }),
+}))
 
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
@@ -150,9 +172,9 @@ async function mount(
     await render(user, options)
 }
 
-function groupButtons(groupId: NavigationGroupId) {
+function groupButtons(groupId: NavigationGroupId, scope: ParentNode = container) {
     return [
-        ...container.querySelectorAll<HTMLButtonElement>(
+        ...scope.querySelectorAll<HTMLButtonElement>(
             `nav section > button[aria-controls$="-${groupId}"]`,
         ),
     ]
@@ -370,22 +392,32 @@ describe('persisted navigation groups', () => {
             'button[aria-controls="application-mobile-navigation"]',
         )!
         await click(menuToggle)
-        expect(groupButtons('security')).toHaveLength(2)
+        const desktopNavigation = container.querySelector('#application-navigation')!
+        const mobileNavigation = document.querySelector('#application-mobile-navigation')!
+        expect(container.contains(mobileNavigation)).toBeFalse()
+        expect(groupButtons('security', desktopNavigation)).toHaveLength(1)
+        expect(groupButtons('security', mobileNavigation)).toHaveLength(1)
+        const desktopAndMobileButtons = () => [
+            ...groupButtons('security', desktopNavigation),
+            ...groupButtons('security', document.querySelector('#application-mobile-navigation')!),
+        ]
         expect(
-            groupButtons('security').map((button) => button.getAttribute('aria-expanded')),
+            desktopAndMobileButtons().map((button) => button.getAttribute('aria-expanded')),
         ).toEqual(['true', 'true'])
-        const controls = groupButtons('security').map((button) =>
+        const controls = desktopAndMobileButtons().map((button) =>
             button.getAttribute('aria-controls'),
         )
         expect(new Set(controls).size).toBe(2)
-        await click(groupButtons('security')[1]!)
+        await click(groupButtons('security', mobileNavigation)[0]!)
         expect(
-            groupButtons('security').map((button) => button.getAttribute('aria-expanded')),
+            desktopAndMobileButtons().map((button) => button.getAttribute('aria-expanded')),
         ).toEqual(['false', 'false'])
-        await click(menuToggle)
+        await click(mobileNavigation.querySelector('button[aria-label="Collapse navigation"]')!)
+        expect(document.querySelector('#application-mobile-navigation')).toBeNull()
+        expect(menuToggle.getAttribute('aria-expanded')).toBe('false')
         await click(menuToggle)
         expect(
-            groupButtons('security').map((button) => button.getAttribute('aria-expanded')),
+            desktopAndMobileButtons().map((button) => button.getAttribute('aria-expanded')),
         ).toEqual(['false', 'false'])
         await settle()
         expect(persisted.get(userId)).toEqual({ security: false })

@@ -14,9 +14,12 @@ export interface ApplicationShellLogicResult {
         readonly toggleNavigation: () => void
         readonly toggleMobileNavigation: () => void
         readonly closeMobileNavigation: () => void
+        readonly handleMobileNavigationOpenChange: (open: boolean) => void
+        readonly restoreMobileNavigationFocus: (event: Event) => void
     }
     readonly refs: {
         readonly sidebar: RefObject<HTMLElement | null>
         readonly sidebarScroll: RefObject<HTMLDivElement | null>
+        readonly mobileNavigationToggle: RefObject<HTMLButtonElement | null>
     }
 }
