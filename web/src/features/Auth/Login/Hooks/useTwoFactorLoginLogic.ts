@@ -72,9 +72,10 @@ export default function useTwoFactorLoginLogic() {
     return {
         form,
         state: {
-            isLoading: status.isPending,
+            isLoading: status.isPending || status.isFetching,
+            isStatusError: status.isError,
             isPending: mutation.isPending,
-            isValid: status.data?.valid ?? false,
+            isValid: status.isSuccess && (status.data?.valid ?? false),
             methods,
         },
         handler: {
@@ -87,6 +88,9 @@ export default function useTwoFactorLoginLogic() {
                 getTwoFactorCredentialError(form.getFieldValue('mode'), value),
             normalizeCredential: normalizeTwoFactorCredential,
             toggleMode,
+            handleRetryStatus: () => {
+                void status.refetch()
+            },
         },
     } satisfies TwoFactorLoginLogicResult<typeof form>
 }

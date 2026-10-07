@@ -5,6 +5,7 @@ export interface TwoFactorLoginLogicResult<TForm> {
     form: TForm
     state: {
         isLoading: boolean
+        isStatusError: boolean
         isPending: boolean
         isValid: boolean
         methods: ReadonlyArray<TwoFactorLoginMode>
@@ -14,5 +15,6 @@ export interface TwoFactorLoginLogicResult<TForm> {
         validateCredential: (context: { value: string }) => string | undefined
         normalizeCredential: typeof normalizeTwoFactorCredential
         toggleMode: () => void
+        handleRetryStatus: () => void
     }
 }
