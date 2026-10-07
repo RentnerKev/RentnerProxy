@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 
-import { createCrowdSecDemoDashboard } from '../../../../../../scripts/seed-crowdsec-dashboard-demo.ts'
+import { createCrowdSecDemoDashboard } from '../../../../../../scripts/development/seed-crowdsec-dashboard-demo.ts'
 import countryCodeFromGeoRecord from '@/lib/Admin/CrowdSec/countryCodeFromGeoRecord.ts'
 import {
     filterCrowdSecDemoDashboard,

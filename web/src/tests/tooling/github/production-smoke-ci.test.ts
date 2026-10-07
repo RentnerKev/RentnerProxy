@@ -7,7 +7,7 @@ import {
     smokeCompose,
     smokeDockerArguments,
     smokeRunScope,
-} from '../../../../../scripts/smoke-resources.ts'
+} from '../../../../../scripts/smoke/resources.ts'
 
 describe('production smoke CI output boundary', () => {
     test('keeps only fixed startup scenarios through subsequent failure output', () => {
@@ -66,12 +66,24 @@ describe('production smoke CI output boundary', () => {
         ).toBeUndefined()
         const progress = smokeProgress('production')
         progress.consume(diagnostic!)
-        progress.consume('at scripts/alpha1-upgrade-smoke.ts:264:20')
+        progress.consume('at .github/scripts/ci/upgrade/published-upgrade.ts:264:20')
         progress.consume('Restore failed: private-value')
         progress.consume('at scripts/private-value.ts:1:1')
         expect(progress.result(1).diagnostic).toBe(
-            'Restore failed: restore PostgreSQL at scripts/alpha1-upgrade-smoke.ts:264:20',
+            'Restore failed: restore PostgreSQL at .github/scripts/ci/upgrade/published-upgrade.ts:264:20',
         )
+    })
+
+    test('recognizes nested Windows source paths and rejects unlisted diagnostic sources', () => {
+        const progress = smokeProgress('certificates')
+        progress.consume('AssertionError: private-value')
+        progress.consume('at C:\\workspace\\scripts\\smoke\\certificates\\run.ts:40:9')
+        progress.consume('at scripts/smoke/certificates/private-value.ts:1:1')
+        progress.consume('at scripts/smoke/proxy/upstream-tls.ts:1:1')
+        expect(progress.result(1).diagnostic).toBe(
+            'Smoke assertion failed at scripts/smoke/certificates/run.ts:40:9',
+        )
+        expect(progress.result(1).diagnostic).not.toContain('private-value')
     })
 
     test('requires a successful process and matching observed completion counts', () => {
@@ -120,10 +132,10 @@ describe('production smoke CI output boundary', () => {
     test('retains useful failure categories and only the selected source location', () => {
         const progress = smokeProgress('upstream-tls')
         progress.consume('error: Smoke command failed: docker exec private-value')
-        progress.consume('    at runSmoke (/workspace/scripts/upstream-tls-smoke.ts:372:15)')
+        progress.consume('    at runSmoke (/workspace/scripts/smoke/proxy/upstream-tls.ts:372:15)')
         progress.consume('    at other (/private/scripts/another-file.ts:10:12)')
         expect(progress.result(1).diagnostic).toBe(
-            'Docker exec failed at scripts/upstream-tls-smoke.ts:372:15',
+            'Docker exec failed at scripts/smoke/proxy/upstream-tls.ts:372:15',
         )
         progress.consume('error: Timed out waiting for private-value')
         expect(progress.result(1).diagnostic).toBe('Readiness polling timed out')

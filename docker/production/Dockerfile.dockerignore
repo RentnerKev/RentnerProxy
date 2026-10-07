@@ -10,16 +10,16 @@
 # Imported by the TypeScript contract tests checked during the build.
 !.github/
 !.github/scripts/
-!.github/scripts/Types/
-!.github/scripts/Types/**
+!.github/scripts/ci/
+!.github/scripts/ci/**
+!.github/scripts/deploy/
+!.github/scripts/deploy/**
+!.github/scripts/release/
+!.github/scripts/release/**
+!.github/scripts/lib/
+!.github/scripts/lib/**
 !.github/scripts/security/
 !.github/scripts/security/**
-!.github/scripts/appliance-startup-smoke.ts
-!.github/scripts/duplicate-triage.ts
-!.github/scripts/generate-release-notes.ts
-!.github/scripts/pr-preview.ts
-!.github/scripts/production-smoke-ci.ts
-!.github/scripts/release-notes.ts
 
 !core/
 !core/Cargo.toml

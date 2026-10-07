@@ -119,13 +119,13 @@ describe('production smokes workflow execution contract', () => {
         const packageManifest = await repositoryFile('package.json')
 
         expect(runner).toContain("script: 'proxy:smoke'")
-        expect(runner).toContain("source: 'proxy-smoke.ts'")
+        expect(runner).toContain("source: '.github/scripts/ci/proxy-smoke.ts'")
         expect(runner).toContain("script: 'certificates:smoke'")
-        expect(runner).toContain("source: 'certificate-smoke.ts'")
+        expect(runner).toContain("source: 'scripts/smoke/certificates/run.ts'")
         expect(runner).toContain("script: 'upstream-tls:smoke'")
-        expect(runner).toContain("source: 'upstream-tls-smoke.ts'")
+        expect(runner).toContain("source: 'scripts/smoke/proxy/upstream-tls.ts'")
         expect(runner).toContain("script: 'production:smoke'")
-        expect(runner).toContain("source: 'appliance-compose-smoke.ts'")
+        expect(runner).toContain("source: '.github/scripts/ci/appliance-compose-smoke.ts'")
         expect(packageManifest).toContain('.github/scripts/ci/appliance-compose-smoke.ts')
         expect(packageManifest).toContain('.github/scripts/ci/proxy-smoke.ts')
         expect(runner).toContain('cwd: repositoryRoot')
@@ -148,11 +148,11 @@ describe('production smokes workflow execution contract', () => {
 describe('production smokes resource safety', () => {
     test('uses a dedicated temporary root and an exact run-scope label for cleanup', async () => {
         const runner = await repositoryFile('.github/scripts/ci/production-smoke-ci.ts')
-        const resources = await repositoryFile('scripts/smoke-resources.ts')
+        const resources = await repositoryFile('scripts/smoke/resources.ts')
 
         expect(runner).toContain('tmpdir()')
         expect(runner).toContain('rentnerproxy-smokes-')
-        expect(runner).toContain("from '../../../scripts/smoke-resources.ts'")
+        expect(runner).toContain("from '../../../scripts/smoke/resources.ts'")
         expect(runner).toContain('SMOKE_RUN_LABEL')
         expect(runner).toContain('--filter')
         expect(runner).toContain("'label=' + SMOKE_RUN_LABEL + '=' + scope")

@@ -5,7 +5,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { smokeDockerArguments } from '../../../scripts/smoke-resources.ts'
+import { smokeDockerArguments } from '../../../scripts/smoke/resources.ts'
 import { controllerCall, seedDrainFixture } from './appliance-drain-fixture.ts'
 import { drainRequest } from './appliance-drain-request.ts'
 import type {

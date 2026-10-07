@@ -5,8 +5,8 @@ import type {
     ManagedProcess,
     ShutdownSignal,
     SpawnRequest,
-} from '../../../../../scripts/Types/development.types.ts'
-import { createLogger } from '../../../../../scripts/logger.ts'
+} from '../../../../../scripts/development/Types/development.types.ts'
+import { createLogger } from '../../../../../scripts/lib/logger.ts'
 import type { DevelopmentHarness } from '@/tests/Types/development-test.types.ts'
 
 class FakeProcess implements ManagedProcess {
