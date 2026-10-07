@@ -1,5 +1,9 @@
 import type { NpmImportLogicResult } from '../Types/npm-import-logic.types.ts'
 import { useEffect, useState } from 'react'
+import {
+    ImportResponseError,
+    getImportRequestErrorCode,
+} from '@/lib/Admin/Migration/importRequestErrors.ts'
 
 import type { NpmImportPreview, NpmImportResult } from '../Types/npm-import.types.ts'
 
@@ -27,11 +31,7 @@ async function upload(
     })
     const data: unknown = await response.json()
     if (!response.ok) {
-        const code =
-            data && typeof data === 'object' && 'error' in data
-                ? String(data.error)
-                : 'import_failed'
-        throw new Error(code)
+        throw new ImportResponseError(data, 'npmImport')
     }
     return data
 }
@@ -77,7 +77,7 @@ export function useNpmImportLogic(): NpmImportLogicResult {
                 setHistory((current) => [next, ...current].slice(0, 20))
             }
         } catch (caught) {
-            setError(caught instanceof Error ? caught.message : 'import_failed')
+            setError(getImportRequestErrorCode(caught))
             if (mode === 'apply') {
                 setPreview(null)
                 void loadHistory()

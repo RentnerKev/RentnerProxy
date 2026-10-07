@@ -547,7 +547,8 @@
                 "fingerprint_mismatch": "Die Datei hat sich seit der Vorschau geändert. Erneut analysieren.",
                 "preview_changed": "Der RentnerProxy-Stand hat sich seit der Vorschau geändert. Erneut analysieren.",
                 "import_failed": "Import fehlgeschlagen; Änderungen wurden zurückgerollt. Audit-Log prüfen.",
-                "export_failed": "Export fehlgeschlagen. Erneut versuchen oder Audit-Log prüfen."
+                "export_failed": "Export fehlgeschlagen. Erneut versuchen oder Audit-Log prüfen.",
+                "request_failed": "Die Importanfrage konnte nicht bestätigt werden. Prüfe deine Verbindung und sieh im Importverlauf nach, bevor du es erneut versuchst."
             }
         },
         "npmImport": {
@@ -642,7 +643,8 @@
                 "fingerprint_mismatch": "Die Quelle hat sich seit der Vorschau geändert. Erneut analysieren.",
                 "preview_changed": "Der RentnerProxy-Stand hat sich seit der Vorschau geändert. Vor dem Import erneut analysieren.",
                 "nothing_to_import": "Keine geeigneten Objekte mehr vorhanden. Den aktuellen Stand erneut analysieren.",
-                "import_failed": "Import fehlgeschlagen; die Datenbanktransaktion wurde zurückgerollt. Audit-Log prüfen."
+                "import_failed": "Import fehlgeschlagen; die Datenbanktransaktion wurde zurückgerollt. Audit-Log prüfen.",
+                "request_failed": "Die Importanfrage konnte nicht bestätigt werden. Prüfe deine Verbindung und sieh im Importverlauf nach, bevor du es erneut versuchst."
             }
         },
         "users": {

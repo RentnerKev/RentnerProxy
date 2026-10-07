@@ -547,7 +547,8 @@
                 "fingerprint_mismatch": "Plik uległ zmianie od czasu podglądu. Przeanalizuj go ponownie.",
                 "preview_changed": "Stan RentnerProxy uległ zmianie od czasu podglądu. Przeanalizuj go ponownie.",
                 "import_failed": "Import nie powiódł się; zmiany zostały wycofane. Sprawdź dziennik audytu.",
-                "export_failed": "Eksport nie powiódł się. Spróbuj ponownie lub sprawdź dziennik audytu."
+                "export_failed": "Eksport nie powiódł się. Spróbuj ponownie lub sprawdź dziennik audytu.",
+                "request_failed": "Nie udało się potwierdzić żądania importu. Sprawdź połączenie i przejrzyj historię importów przed ponowną próbą."
             }
         },
         "npmImport": {
@@ -642,7 +643,8 @@
                 "fingerprint_mismatch": "Źródło uległo zmianie po wyświetleniu podglądu. Przeanalizuj je ponownie.",
                 "preview_changed": "Stan RentnerProxy uległ zmianie po wyświetleniu podglądu. Przeanalizuj go ponownie przed importem.",
                 "nothing_to_import": "Nie ma już niczego, co można zaimportować. Ponownie przeanalizuj bieżący stan.",
-                "import_failed": "Import nie powiódł się, a transakcja bazy danych została wycofana. Sprawdź dziennik audytu."
+                "import_failed": "Import nie powiódł się, a transakcja bazy danych została wycofana. Sprawdź dziennik audytu.",
+                "request_failed": "Nie udało się potwierdzić żądania importu. Sprawdź połączenie i przejrzyj historię importów przed ponowną próbą."
             }
         },
         "users": {
