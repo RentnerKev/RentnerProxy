@@ -1,12 +1,10 @@
-import { ToastProvider } from '@rentnerkev/toasts'
 import { InputProvider } from '@rentnerkev/inputs'
 import { SelectProvider } from '@rentnerkev/select'
 import { Outlet } from '@tanstack/react-router'
-import { createPortal } from 'react-dom'
 
 import AuthenticatedShell from './Components/ApplicationShell/index.tsx'
 import ThemeModeSwitch from '@/shared/Theme/index.tsx'
-import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
+import ToastPortal from '@/shared/Notifications/ToastPortal.tsx'
 import CertificateJobProgressObserver from '@/features/Admin/ProxyHostManagement/CertificateJobs/CertificateJobProgressObserver.tsx'
 import type { AuthenticatedRouteLayoutProps } from './Types/authenticated-route-layout.types.ts'
 
@@ -45,18 +43,10 @@ export default function AuthenticatedLayout({ user }: AuthenticatedRouteLayoutPr
                     </AuthenticatedShell>
                 </SelectProvider>
             </InputProvider>
-            {typeof document === 'undefined'
-                ? null
-                : createPortal(
-                      <ToastProvider
-                          {...TOAST_PROVIDER_PROPS}
-                          locale={state.language === 'de' ? 'de' : 'en'}
-                          messages={state.toastMessages}
-                      >
-                          {null}
-                      </ToastProvider>,
-                      document.body,
-                  )}
+            <ToastPortal
+                locale={state.language === 'de' ? 'de' : 'en'}
+                messages={state.toastMessages}
+            />
         </>
     )
 }
