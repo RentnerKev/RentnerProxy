@@ -70,6 +70,7 @@ export interface ApplicationUserPanelProps {
 
 export interface ApplicationTopbarProps {
     readonly mobileNavigationToggleRef?: RefObject<HTMLButtonElement | null>
+    readonly desktopNavigationToggleRef?: RefObject<HTMLButtonElement | null>
     readonly isMobileNavigationOpen: boolean
     readonly isNavigationExpanded: boolean
     readonly mobileNavigationToggleLabel: string

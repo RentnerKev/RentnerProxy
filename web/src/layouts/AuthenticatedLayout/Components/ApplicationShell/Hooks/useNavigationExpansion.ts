@@ -7,6 +7,7 @@ export default function useNavigationExpansion() {
     const [isNavigationExpanded, setIsNavigationExpanded] = useState(true)
     const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false)
     const mobileNavigationToggle = useRef<HTMLButtonElement>(null)
+    const desktopNavigationToggle = useRef<HTMLButtonElement>(null)
 
     return {
         state: {
@@ -25,10 +26,16 @@ export default function useNavigationExpansion() {
             closeMobileNavigation: () => setIsMobileNavigationOpen(false),
             handleMobileNavigationOpenChange: (open: boolean) => setIsMobileNavigationOpen(open),
             restoreMobileNavigationFocus: (event: Event) => {
-                event.preventDefault()
-                mobileNavigationToggle.current?.focus()
+                const opener = [
+                    mobileNavigationToggle.current,
+                    desktopNavigationToggle.current,
+                ].find((toggle) => toggle?.isConnected && toggle.getClientRects().length > 0)
+                if (opener) {
+                    event.preventDefault()
+                    opener.focus()
+                }
             },
         },
-        refs: { mobileNavigationToggle },
+        refs: { mobileNavigationToggle, desktopNavigationToggle },
     }
 }

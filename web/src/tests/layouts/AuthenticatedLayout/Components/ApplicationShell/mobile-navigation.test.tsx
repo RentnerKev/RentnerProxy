@@ -34,7 +34,13 @@ async function flush() {
     })
 }
 
-async function mount() {
+function setRendered(toggle: HTMLButtonElement, visible: boolean) {
+    // Happy DOM does not lay out CSS; model the browser's rendered boxes at each breakpoint.
+    toggle.getClientRects = () =>
+        (visible ? [new DOMRect(0, 0, 44, 44)] : []) as unknown as DOMRectList
+}
+
+async function mount(desktopExpanded = true) {
     const container = document.createElement('div')
     document.body.append(container)
     root = withLanguageRoot(createRoot(container))
@@ -80,13 +86,20 @@ async function mount() {
     const toggle = container.querySelector<HTMLButtonElement>(
         'button[aria-controls="application-mobile-navigation"]',
     )!
+    const desktopToggle = container.querySelector<HTMLButtonElement>(
+        'button[aria-controls="application-navigation"]',
+    )!
+    setRendered(toggle, true)
+    setRendered(desktopToggle, false)
     await act(async () => {
+        if (!desktopExpanded) desktopToggle.click()
         toggle.focus()
         toggle.click()
     })
     await flush()
     return {
         toggle,
+        desktopToggle,
         container,
         router,
         dialog: document.querySelector<HTMLElement>('#application-mobile-navigation')!,
@@ -101,6 +114,46 @@ afterEach(async () => {
     document.body.replaceChildren()
     logout.mockClear()
 })
+
+for (const desktopExpanded of [true, false]) {
+    for (const closeMethod of ['Escape', 'Close'] as const) {
+        test(`${closeMethod} restores the visible desktop toggle after resizing with navigation ${desktopExpanded ? 'expanded' : 'collapsed'}`, async () => {
+            const { toggle, desktopToggle, dialog } = await mount(desktopExpanded)
+            expect(dialog.contains(document.activeElement)).toBeTrue()
+            await act(async () => {
+                setRendered(toggle, false)
+                setRendered(desktopToggle, true)
+                window.dispatchEvent(new Event('resize'))
+                if (closeMethod === 'Escape') {
+                    document.activeElement?.dispatchEvent(
+                        new KeyboardEvent('keydown', {
+                            key: 'Escape',
+                            bubbles: true,
+                            cancelable: true,
+                        }),
+                    )
+                } else {
+                    dialog
+                        .querySelector<HTMLButtonElement>(
+                            'button[aria-label="Collapse navigation"]',
+                        )!
+                        .click()
+                }
+            })
+            await flush()
+            expect(document.querySelector('#application-mobile-navigation')).toBeNull()
+            expect(toggle.getClientRects()).toHaveLength(0)
+            expect(desktopToggle.getClientRects()).toHaveLength(1)
+            expect(document.activeElement).toBe(desktopToggle)
+            expect(toggle.getAttribute('aria-expanded')).toBe('false')
+            expect(desktopToggle.getAttribute('aria-expanded')).toBe(String(desktopExpanded))
+            expect(
+                document.getElementById('background-action')?.closest('[aria-hidden="true"]'),
+            ).toBeNull()
+            expect(logout).not.toHaveBeenCalled()
+        })
+    }
+}
 
 test('mobile navigation is a named modal, hides the background and restores toggle focus on Escape', async () => {
     const { toggle, dialog } = await mount()

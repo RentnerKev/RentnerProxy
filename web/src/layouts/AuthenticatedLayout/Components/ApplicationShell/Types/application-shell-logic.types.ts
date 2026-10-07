@@ -21,5 +21,6 @@ export interface ApplicationShellLogicResult {
         readonly sidebar: RefObject<HTMLElement | null>
         readonly sidebarScroll: RefObject<HTMLDivElement | null>
         readonly mobileNavigationToggle: RefObject<HTMLButtonElement | null>
+        readonly desktopNavigationToggle: RefObject<HTMLButtonElement | null>
     }
 }
