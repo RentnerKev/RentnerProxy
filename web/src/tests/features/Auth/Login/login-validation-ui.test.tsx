@@ -43,7 +43,7 @@ function LoginHarness() {
             state={logic.state}
             handler={logic.handler}
             form={logic.form}
-            onPasskeyLogin={logic.handler.handlePasskeyLogin}
+            onPasskeyLogin={() => void logic.handler.handlePasskeyLogin()}
         />
     )
 }
