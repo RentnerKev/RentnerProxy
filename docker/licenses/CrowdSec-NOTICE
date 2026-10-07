@@ -3,6 +3,12 @@ Version: v1.8.1 (commit 909b5157986a2b2c2163300fdaef5ed01289f7d2)
 Source: https://github.com/crowdsecurity/crowdsec
 License: MIT (see LICENSE)
 
+RentnerProxy rebuilds the full upstream CrowdSec and cscli feature profile with
+the reviewed module locks in docker/crowdsec/tooling/engine-build/. gRPC is updated to v1.83.2
+and golang.org/x/crypto to v0.57.0. RE2 retains the upstream 2023-03-01 static
+build. Configuration and Hub assets still originate from the pinned official
+CrowdSec image and Hub snapshot below.
+
 CrowdSec Hub content
 Snapshot: 435f7d81caf247241bd6068f0a778bafa8dfe975
 Source: https://github.com/crowdsecurity/hub

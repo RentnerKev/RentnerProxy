@@ -70,6 +70,15 @@ FROM oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1
 COPY scripts/assets/download-geoip.ts /tmp/download-geoip.ts
 RUN bun --no-env-file /tmp/download-geoip.ts
 
+# Retain upstream CrowdSec 1.8.1 and its full static build profile, while fixing
+# the gRPC/SSH dependencies that are still embedded in its official image.
+FROM golang:1.27.1-trixie@sha256:8f58fd67ea075142d947a60e0caa4317746a55118d312f027793d382c7741734 AS crowdsec-build
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential pkg-config ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY docker/crowdsec/tooling/engine-build/ /opt/crowdsec-build/
+RUN /bin/sh /opt/crowdsec-build/build.sh /out
+
 FROM ghcr.io/crowdsecurity/crowdsec:v1.8.1-debian@sha256:ab1bdb61a072154d478ad6c625b8e62c7f79a727b2740209d2128dd51d69d58d AS crowdsec-assets
 
 COPY docker/crowdsec/hub/data.sha256 /tmp/rentnerproxy-crowdsec-hub-data.sha256
@@ -135,8 +144,8 @@ COPY --from=controller-build /build/target/release/rentnerproxy-controller /usr/
 # Retain the exact locked controller graph for recurring RustSec assessments.
 COPY core/Cargo.lock /usr/share/rentnerproxy/security/Cargo.lock
 COPY --from=caddy-build /usr/bin/caddy /usr/bin/caddy
-COPY --from=crowdsec-assets /usr/local/bin/crowdsec /usr/local/bin/crowdsec
-COPY --from=crowdsec-assets /usr/local/bin/cscli /usr/local/bin/cscli
+COPY --from=crowdsec-build /out/bin/crowdsec /usr/local/bin/crowdsec
+COPY --from=crowdsec-build /out/bin/cscli /usr/local/bin/cscli
 COPY --from=crowdsec-assets /opt/rentnerproxy/crowdsec-config /usr/share/rentnerproxy/crowdsec/config
 COPY --from=crowdsec-assets /var/lib/crowdsec/data /usr/share/rentnerproxy/crowdsec/data
 COPY --from=geoip-assets /tmp/user-country.mmdb /usr/share/rentnerproxy/geoip/user-country.mmdb
@@ -175,7 +184,7 @@ RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
     && /usr/bin/caddy list-modules | grep -Fx crowdsec \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec \
     && ! /usr/bin/caddy list-modules | grep -Eq '(^|\.)layer4($|\.)|^http\.handlers\.appsec$' \
-    && /usr/local/bin/crowdsec -version | grep -F 'version: v1.8.1-909b5157' \
+    && /usr/local/bin/crowdsec -version | grep -F 'version: v1.8.1-909b5157986a2b2c2163300fdaef5ed01289f7d2' \
     && setcap -r /usr/bin/caddy \
     && apt-get purge -y --auto-remove libcap2-bin \
     && rm -rf /var/lib/apt/lists/*
