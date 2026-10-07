@@ -89,7 +89,7 @@ export default function CrowdSecManagedOnline({
                 ) : null}
                 {state.canEnroll ? (
                     <div className="mt-4 flex flex-wrap items-end gap-3">
-                        <div className="grid gap-[0.45rem] min-w-56 flex-1">
+                        <div className="grid gap-[0.45rem] min-w-0 basis-56 flex-1">
                             <label
                                 className="text-[0.82rem] font-[750] text-ink-soft"
                                 htmlFor="crowdsec-enrollment-key"
