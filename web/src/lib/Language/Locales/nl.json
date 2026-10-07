@@ -152,6 +152,10 @@
         "service_unavailable": "De dienst is tijdelijk niet beschikbaar. Probeer het opnieuw.",
         "user_not_active": "Dit account is niet actief."
     },
+    "auth": {
+        "logoutFailed": "Afmelden is mislukt. Controleer je verbinding en probeer het opnieuw.",
+        "logoutRevocationFailed": "Je bent afgemeld in deze browser, maar de serversessie kon niet worden ingetrokken."
+    },
     "system": {
         "response": "Systeemantwoord",
         "recovery": "Veilig herstel van de route",

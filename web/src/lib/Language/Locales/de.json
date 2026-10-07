@@ -171,6 +171,10 @@
         "service_unavailable": "Der Dienst ist vorübergehend nicht verfügbar. Versuche es erneut.",
         "user_not_active": "Dieses Konto ist nicht aktiv."
     },
+    "auth": {
+        "logoutFailed": "Abmelden fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.",
+        "logoutRevocationFailed": "Du bist in diesem Browser abgemeldet, aber die Sitzung auf dem Server konnte nicht widerrufen werden."
+    },
     "system": {
         "response": "Systemmeldung",
         "recovery": "Sicher zurück zur Anwendung",

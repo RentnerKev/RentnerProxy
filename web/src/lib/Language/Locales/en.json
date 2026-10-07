@@ -171,6 +171,10 @@
         "service_unavailable": "The service is temporarily unavailable. Try again.",
         "user_not_active": "This account is not active."
     },
+    "auth": {
+        "logoutFailed": "Could not sign out. Check your connection and try again.",
+        "logoutRevocationFailed": "Signed out in this browser, but the server session could not be revoked."
+    },
     "system": {
         "response": "System response",
         "recovery": "Safe route recovery",
