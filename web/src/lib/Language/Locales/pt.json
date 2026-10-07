@@ -171,6 +171,10 @@
         "service_unavailable": "O serviço está temporariamente indisponível. Tente novamente.",
         "user_not_active": "Esta conta não está ativa."
     },
+    "auth": {
+        "logoutFailed": "Não foi possível terminar sessão. Verifique a ligação e tente novamente.",
+        "logoutRevocationFailed": "Terminou sessão neste navegador, mas não foi possível revogar a sessão no servidor."
+    },
     "system": {
         "response": "Resposta do sistema",
         "recovery": "Recuperação segura da rota",

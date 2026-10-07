@@ -171,6 +171,10 @@
         "service_unavailable": "Il servizio non è temporaneamente disponibile. Riprova.",
         "user_not_active": "Questo account non è attivo."
     },
+    "auth": {
+        "logoutFailed": "Impossibile disconnettersi. Controlla la connessione e riprova.",
+        "logoutRevocationFailed": "Hai effettuato la disconnessione in questo browser, ma non è stato possibile revocare la sessione sul server."
+    },
     "system": {
         "response": "Risposta del sistema",
         "recovery": "Ripristino del percorso sicuro",

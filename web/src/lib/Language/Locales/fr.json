@@ -171,6 +171,10 @@
         "service_unavailable": "Le service est temporairement indisponible. Réessayez.",
         "user_not_active": "Ce compte n’est pas actif."
     },
+    "auth": {
+        "logoutFailed": "Impossible de vous déconnecter. Vérifiez votre connexion et réessayez.",
+        "logoutRevocationFailed": "Vous êtes déconnecté dans ce navigateur, mais la session sur le serveur n’a pas pu être révoquée."
+    },
     "system": {
         "response": "Réponse du système",
         "recovery": "Retour sécurisé à l’application",

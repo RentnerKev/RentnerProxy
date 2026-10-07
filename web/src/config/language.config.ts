@@ -56,6 +56,9 @@ export const PUBLIC_ENGLISH: Record<string, string> = {
     'common.retry': 'Try again',
     'common.backHome': 'Back to home',
     'shell.home': 'RentnerProxy home',
+    'auth.logoutFailed': 'Could not sign out. Check your connection and try again.',
+    'auth.logoutRevocationFailed':
+        'Signed out in this browser, but the server session could not be revoked.',
     'system.response': 'System response',
     'system.recovery': 'Safe route recovery',
     'system.error.eyebrow': 'Unexpected interruption',

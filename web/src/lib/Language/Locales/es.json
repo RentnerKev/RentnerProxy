@@ -171,6 +171,10 @@
         "service_unavailable": "El servicio no está disponible temporalmente. Vuelve a intentarlo.",
         "user_not_active": "Esta cuenta no está activa."
     },
+    "auth": {
+        "logoutFailed": "No se pudo cerrar sesión. Comprueba tu conexión e inténtalo de nuevo.",
+        "logoutRevocationFailed": "Has cerrado sesión en este navegador, pero no se pudo revocar la sesión del servidor."
+    },
     "system": {
         "response": "Respuesta del sistema",
         "recovery": "Regreso seguro a la aplicación",

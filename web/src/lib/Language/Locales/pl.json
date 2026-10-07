@@ -171,6 +171,10 @@
         "service_unavailable": "Usługa jest tymczasowo niedostępna. Spróbuj ponownie.",
         "user_not_active": "To konto nie jest aktywne."
     },
+    "auth": {
+        "logoutFailed": "Nie udało się wylogować. Sprawdź połączenie i spróbuj ponownie.",
+        "logoutRevocationFailed": "Wylogowano w tej przeglądarce, ale nie udało się unieważnić sesji na serwerze."
+    },
     "system": {
         "response": "Odpowiedź systemu",
         "recovery": "Bezpieczne odzyskiwanie trasy",
