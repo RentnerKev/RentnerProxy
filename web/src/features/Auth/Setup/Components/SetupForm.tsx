@@ -4,7 +4,12 @@ import type { SetupFormProps } from '../Types/setup-component-props.types.ts'
 
 export default function SetupForm({ state, form, handler }: SetupFormProps) {
     return (
-        <form className="mt-7 grid gap-[1.1rem]" noValidate onSubmit={handler.handleSubmit}>
+        <form
+            method="post"
+            className="mt-7 grid gap-[1.1rem]"
+            noValidate
+            onSubmit={handler.handleSubmit}
+        >
             <form.Field name="displayName" validators={{ onBlur: handler.validateDisplayName }}>
                 {(field) => (
                     <div className="grid gap-[0.45rem]">

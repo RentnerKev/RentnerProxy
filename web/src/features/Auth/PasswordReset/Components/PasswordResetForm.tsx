@@ -4,7 +4,12 @@ import type { PasswordResetFormProps } from '../Types/password-reset-component-p
 
 export default function PasswordResetForm({ state, form, handler }: PasswordResetFormProps) {
     return (
-        <form className="mt-7 grid gap-[1.1rem]" noValidate onSubmit={handler.handleSubmit}>
+        <form
+            method="post"
+            className="mt-7 grid gap-[1.1rem]"
+            noValidate
+            onSubmit={handler.handleSubmit}
+        >
             <form.Field name="password" validators={{ onBlur: handler.validatePassword }}>
                 {(field) => (
                     <div className="grid gap-[0.45rem]">
