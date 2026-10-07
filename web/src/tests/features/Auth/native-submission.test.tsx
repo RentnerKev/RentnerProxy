@@ -66,7 +66,7 @@ function Login() {
             logic.form.setFieldValue('password', 'test password')
         }
     }, [logic.form])
-    return <LoginForm {...logic} onPasskeyLogin={logic.handler.handlePasskeyLogin} />
+    return <LoginForm {...logic} onPasskeyLogin={() => void logic.handler.handlePasskeyLogin()} />
 }
 function Setup() {
     return <SetupForm {...useSetupLogic()} />
