@@ -32,7 +32,7 @@ COPY --from=web-build /app/docker/web/static-assets.ts ./docker/web/static-asset
 COPY --from=web-build /app/docker/web/serve.mjs ./docker/web/serve.mjs
 COPY --from=web-build /app/docker/web/healthcheck.mjs ./docker/web/healthcheck.mjs
 
-FROM rust:1.99.0-bookworm@sha256:59037199c44290f2befcdd58dcc540164763fc296950255aaefeef096a1866b0 AS controller-build
+FROM rust:1.99.0-bookworm@sha256:114c7a4425406451c2866b6aafe69fe29b1b298832db1277d411ac73c82d04d6 AS controller-build
 
 WORKDIR /build
 COPY core/Cargo.toml core/Cargo.lock ./
