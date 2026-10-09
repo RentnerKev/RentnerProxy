@@ -31,7 +31,7 @@ not the time of the local rebuild.
 Run inside the pinned Linux builder:
 
 ```dockerfile
-FROM golang:1.27.2-trixie@sha256:e58d6f83b3416618d8bcac2b3dde1b7f7e3c4a77d25e88637f8bbae81536c48d AS crowdsec-build
+FROM mirror.gcr.io/library/golang:1.27.2-trixie@sha256:e58d6f83b3416618d8bcac2b3dde1b7f7e3c4a77d25e88637f8bbae81536c48d AS crowdsec-build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential pkg-config ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*

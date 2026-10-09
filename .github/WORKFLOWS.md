@@ -101,5 +101,10 @@ gepinnt. Die CodeQL-Action verwendet ihre eigene SemVer-Release; ein neueres
 `codeql-bundle-*`-Tag ist keine Action-Version. Dependabot übernimmt laufende
 Updates gemäß [dependabot.yml](dependabot.yml).
 
+Docker-Hub-Images werden über Googles Cache `mirror.gcr.io` geladen, damit die
+gemeinsamen Download-Limits der CI-Runner den Build nicht abbrechen. Die
+gepinnten Digests wurden gegen die ursprünglichen Images geprüft; der Mirror
+ändert deren Inhalt nicht. Das gilt auch für das Dockerfile-Frontend.
+
 Für Skriptzuständigkeiten und vertrauenswürdige Checkouts siehe
 [AUTOMATION.md](AUTOMATION.md).

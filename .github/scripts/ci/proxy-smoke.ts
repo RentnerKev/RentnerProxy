@@ -18,7 +18,7 @@ function basicHeader(username: string, password: string): string {
 }
 
 const POSTGRES_IMAGE =
-    'postgres:18.6@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280'
+    'mirror.gcr.io/library/postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336'
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
 const project = 'rentnerproxy-smoke-' + runId
@@ -413,7 +413,7 @@ async function runSmoke(): Promise<void> {
             'utf8',
         )
         const caddyVersion =
-            /^FROM caddy:(\d+\.\d+\.\d+)-builder@sha256:[a-f0-9]{64} AS caddy-build\r?$/mu.exec(
+            /^FROM mirror\.gcr\.io\/library\/caddy:(\d+\.\d+\.\d+)-builder@sha256:[a-f0-9]{64} AS caddy-build\r?$/mu.exec(
                 caddyBuilder,
             )
         assert.ok(caddyVersion, 'The Caddy builder uses an exact version and digest')
