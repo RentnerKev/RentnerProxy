@@ -241,7 +241,9 @@ describe('pinned full-feature CrowdSec source rebuild', () => {
     })
 
     test('bounds the module scanner exception to the guarded unused OpenPGP advisory', async () => {
-        const config = Bun.TOML.parse(await readFile(join(buildRoot, 'osv-scanner.toml'), 'utf8'))
+        const config = Bun.TOML.parse(
+            await readFile(join(buildRoot, 'osv-scanner.toml'), 'utf8'),
+        ) as Record<string, unknown>
         expect(Object.keys(config)).toEqual(['IgnoredVulns'])
         const exceptions = config.IgnoredVulns as {
             id: string
