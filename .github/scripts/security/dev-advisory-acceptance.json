@@ -1,11 +1,11 @@
 {
     "schemaVersion": 1,
     "repository": "RentnerKev/RentnerProxy",
-    "issuedAt": "2026-10-07T21:45:00Z",
+    "issuedAt": "2026-10-09T20:06:42.307Z",
     "expiresAt": "2026-10-14T21:45:00Z",
-    "evidenceRun": "37687435032",
-    "evidenceSha256": "669dfe1eda728ad07ee384e7c2d14c8e00c177134cef31dde79a70a24773c1d6",
-    "reason": "Temporary risk acceptance for internal development testing because upstream fixes are unavailable. The listed vulnerabilities remain present in the cited evidence; this acceptance does not claim the images are unaffected.",
+    "evidenceRun": "37983406210",
+    "evidenceSha256": "31ab5b8147c698663f5bc107db8c582fc1b5ff8f5e8db2b740f5c2cba31284d3",
+    "reason": "Temporary user-authorized acceptance of the exact listed third-party runtime advisories for internal dev image validation. The reported vulnerabilities remain present; this acceptance does not claim the image is unaffected or security approved. All source audits, scanner-declared available fixes and unlisted findings remain blocking.",
     "imageRules": [
         {
             "id": "CVE-2025-10911",
@@ -362,6 +362,38 @@
             "paths": [
                 "/usr/share/doc/libcurl4t64/copyright",
                 "/var/lib/dpkg/info/libcurl4t64:amd64.md5sums",
+                "/var/lib/dpkg/status"
+            ],
+            "maxMatches": 1
+        },
+        {
+            "id": "CVE-2026-107161",
+            "namespace": "debian:distro:debian:13",
+            "severity": "High",
+            "fixState": "not-fixed",
+            "name": "libsasl2-2",
+            "version": "2.1.28+dfsg1-9",
+            "type": "deb",
+            "purl": "pkg:deb/debian/libsasl2-2@2.1.28%2Bdfsg1-9?arch=amd64&distro=debian-13.7&upstream=cyrus-sasl2",
+            "paths": [
+                "/usr/share/doc/libsasl2-2/copyright",
+                "/var/lib/dpkg/info/libsasl2-2:amd64.md5sums",
+                "/var/lib/dpkg/status"
+            ],
+            "maxMatches": 1
+        },
+        {
+            "id": "CVE-2026-107161",
+            "namespace": "debian:distro:debian:13",
+            "severity": "High",
+            "fixState": "not-fixed",
+            "name": "libsasl2-modules-db",
+            "version": "2.1.28+dfsg1-9",
+            "type": "deb",
+            "purl": "pkg:deb/debian/libsasl2-modules-db@2.1.28%2Bdfsg1-9?arch=amd64&distro=debian-13.7&upstream=cyrus-sasl2",
+            "paths": [
+                "/usr/share/doc/libsasl2-modules-db/copyright",
+                "/var/lib/dpkg/info/libsasl2-modules-db:amd64.md5sums",
                 "/var/lib/dpkg/status"
             ],
             "maxMatches": 1
@@ -3484,7 +3516,7 @@
             "id": "CVE-2026-95619",
             "namespace": "debian:distro:debian:13",
             "severity": "High",
-            "fixState": "not-fixed",
+            "fixState": "wont-fix",
             "name": "gcc-14-base",
             "version": "14.2.0-19",
             "type": "deb",
@@ -3500,7 +3532,7 @@
             "id": "CVE-2026-95619",
             "namespace": "debian:distro:debian:13",
             "severity": "High",
-            "fixState": "not-fixed",
+            "fixState": "wont-fix",
             "name": "libgcc-s1",
             "version": "14.2.0-19",
             "type": "deb",
@@ -3516,7 +3548,7 @@
             "id": "CVE-2026-95619",
             "namespace": "debian:distro:debian:13",
             "severity": "High",
-            "fixState": "not-fixed",
+            "fixState": "wont-fix",
             "name": "libstdc++6",
             "version": "14.2.0-19",
             "type": "deb",
@@ -3526,30 +3558,6 @@
                 "/var/lib/dpkg/info/libstdc++6:amd64.md5sums",
                 "/var/lib/dpkg/status"
             ],
-            "maxMatches": 1
-        },
-        {
-            "id": "GHSA-jqcq-xjh3-6g23",
-            "namespace": "github:language:go",
-            "severity": "High",
-            "fixState": "not-fixed",
-            "name": "github.com/jackc/pgproto3/v2",
-            "version": "v2.3.3",
-            "type": "go-module",
-            "purl": "pkg:golang/github.com/jackc/pgproto3/v2@v2.3.3",
-            "paths": ["/usr/local/bin/crowdsec"],
-            "maxMatches": 1
-        },
-        {
-            "id": "GHSA-jqcq-xjh3-6g23",
-            "namespace": "github:language:go",
-            "severity": "High",
-            "fixState": "not-fixed",
-            "name": "github.com/jackc/pgproto3/v2",
-            "version": "v2.3.3",
-            "type": "go-module",
-            "purl": "pkg:golang/github.com/jackc/pgproto3/v2@v2.3.3",
-            "paths": ["/usr/local/bin/cscli"],
             "maxMatches": 1
         }
     ],
@@ -3577,38 +3585,6 @@
             "version": "v0.57.0",
             "packagePrefix": "golang.org/x/crypto/openpgp",
             "maxFindings": 15
-        },
-        {
-            "binary": "crowdsec",
-            "id": "GO-2026-4518",
-            "module": "github.com/jackc/pgproto3/v2",
-            "version": "v2.3.3",
-            "packagePrefix": "github.com/jackc/pgproto3/v2",
-            "maxFindings": 4
-        },
-        {
-            "binary": "crowdsec",
-            "id": "GO-2026-5004",
-            "module": "github.com/jackc/pgx/v4",
-            "version": "v4.18.3",
-            "packagePrefix": "github.com/jackc/pgx/v4",
-            "maxFindings": 4
-        },
-        {
-            "binary": "cscli",
-            "id": "GO-2026-4518",
-            "module": "github.com/jackc/pgproto3/v2",
-            "version": "v2.3.3",
-            "packagePrefix": "github.com/jackc/pgproto3/v2",
-            "maxFindings": 4
-        },
-        {
-            "binary": "cscli",
-            "id": "GO-2026-5004",
-            "module": "github.com/jackc/pgx/v4",
-            "version": "v4.18.3",
-            "packagePrefix": "github.com/jackc/pgx/v4",
-            "maxFindings": 4
         }
     ]
 }
