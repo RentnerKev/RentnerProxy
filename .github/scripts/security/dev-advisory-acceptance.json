@@ -1,10 +1,10 @@
 {
     "schemaVersion": 1,
     "repository": "RentnerKev/RentnerProxy",
-    "issuedAt": "2026-10-09T20:06:42.307Z",
+    "issuedAt": "2026-10-09T20:52:56.697Z",
     "expiresAt": "2026-10-14T21:45:00Z",
-    "evidenceRun": "37983406210",
-    "evidenceSha256": "31ab5b8147c698663f5bc107db8c582fc1b5ff8f5e8db2b740f5c2cba31284d3",
+    "evidenceRun": "37988423572",
+    "evidenceSha256": "47c44bef43f663213dbb520d08b3e7d75812f6905d8b7a92bb3f7fdc5e703e1c",
     "reason": "Temporary user-authorized acceptance of the exact listed third-party runtime advisories for internal dev image validation. The reported vulnerabilities remain present; this acceptance does not claim the image is unaffected or security approved. All source audits, scanner-declared available fixes and unlisted findings remain blocking.",
     "imageRules": [
         {
@@ -3566,7 +3566,7 @@
             "binary": "caddy",
             "id": "GO-2026-5932",
             "module": "golang.org/x/crypto",
-            "version": "v0.57.0",
+            "version": "v0.58.0",
             "packagePrefix": "golang.org/x/crypto/openpgp",
             "maxFindings": 15
         },
@@ -3574,7 +3574,7 @@
             "binary": "crowdsec",
             "id": "GO-2026-5932",
             "module": "golang.org/x/crypto",
-            "version": "v0.57.0",
+            "version": "v0.58.0",
             "packagePrefix": "golang.org/x/crypto/openpgp",
             "maxFindings": 15
         },
@@ -3582,7 +3582,7 @@
             "binary": "cscli",
             "id": "GO-2026-5932",
             "module": "golang.org/x/crypto",
-            "version": "v0.57.0",
+            "version": "v0.58.0",
             "packagePrefix": "golang.org/x/crypto/openpgp",
             "maxFindings": 15
         }
