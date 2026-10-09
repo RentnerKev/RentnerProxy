@@ -1,3 +1,11 @@
 [install]
 exact = true
 minimumReleaseAge = 86400
+minimumReleaseAgeExcludes = [
+    "@rentnerkev/calendar",
+    "@rentnerkev/inputs",
+    "@rentnerkev/picker",
+    "@rentnerkev/select",
+    "@rentnerkev/tooltips",
+    "@rentnerkev/toasts",
+]
