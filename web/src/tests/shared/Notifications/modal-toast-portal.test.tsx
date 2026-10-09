@@ -79,9 +79,7 @@ async function click(element: HTMLElement) {
 }
 
 function region(): HTMLElement {
-    const regions = document.querySelectorAll<HTMLElement>(
-        '[role="region"][aria-label="Notifications"]',
-    )
+    const regions = document.querySelectorAll<HTMLElement>('section[aria-label="Notifications"]')
     expect(regions).toHaveLength(1)
     return regions[0]!
 }
@@ -122,7 +120,7 @@ test('persistent errors move into the active dialog, stay focusable and dismiss 
     await click(dismiss)
     expect(store.getToastSnapshot()).toHaveLength(0)
     expect(document.querySelector('[role="dialog"]')).not.toBeNull()
-    expect(document.querySelector('[role="region"][aria-label="Notifications"]')).toBeNull()
+    expect(document.querySelector('section[aria-label="Notifications"]')).toBeNull()
 })
 
 test('nested dialogs receive one stack and closing them returns retained errors to parent then body', async () => {

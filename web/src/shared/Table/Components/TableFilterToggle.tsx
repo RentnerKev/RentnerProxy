@@ -2,7 +2,6 @@ import type { TableFilterToggleProps } from '../Types/table-filter-toggle.types.
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { ListFilter } from 'lucide-react'
 
-import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
 export default function TableFilterToggle({
@@ -13,7 +12,7 @@ export default function TableFilterToggle({
 }: TableFilterToggleProps) {
     const { t } = useTranslationStore()
     return (
-        <CustomTooltip {...TOOLTIP_DEFAULT_PROPS} content={t('table.filters')}>
+        <CustomTooltip collisionPadding={10} content={t('table.filters')}>
             <button
                 type="button"
                 aria-label={t('table.filters')}

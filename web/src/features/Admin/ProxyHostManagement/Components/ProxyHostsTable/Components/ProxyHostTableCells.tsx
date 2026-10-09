@@ -1,6 +1,5 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 
-import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import ManagedDomainLink from '@/shared/Domain/ManagedDomainLink.tsx'
 import ManagedDomainOverflow from '@/shared/Domain/ManagedDomainOverflow.tsx'
 import { useDateFormatter } from '@/shared/Language/Hooks/useTranslationStore.ts'
@@ -27,7 +26,7 @@ function DomainChip({ domain }: { readonly domain: string }) {
     const chip = <ManagedDomainLink className={chipClassName} domain={domain} />
 
     return isLong ? (
-        <CustomTooltip {...TOOLTIP_DEFAULT_PROPS} content={domain}>
+        <CustomTooltip collisionPadding={10} content={domain}>
             {chip}
         </CustomTooltip>
     ) : (

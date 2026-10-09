@@ -1,8 +1,4 @@
-import type {
-    TooltipCustomDesign,
-    TooltipProps,
-    TooltipProviderProps,
-} from '@rentnerkev/tooltips/types'
+import type { TooltipCustomDesign, TooltipProviderProps } from '@rentnerkev/tooltips/types'
 
 const TOOLTIP_CUSTOM_DESIGN = {
     baseClasses:
@@ -16,9 +12,5 @@ const TOOLTIP_CUSTOM_DESIGN = {
 export const TOOLTIP_PROVIDER_PROPS = {
     delayDuration: 80,
     skipDelayDuration: 50,
-} satisfies Pick<TooltipProviderProps, 'delayDuration' | 'skipDelayDuration'>
-
-export const TOOLTIP_DEFAULT_PROPS = {
-    collisionPadding: 10,
     customDesign: TOOLTIP_CUSTOM_DESIGN,
-} satisfies Pick<TooltipProps, 'collisionPadding' | 'customDesign'>
+} satisfies Pick<TooltipProviderProps, 'delayDuration' | 'skipDelayDuration' | 'customDesign'>

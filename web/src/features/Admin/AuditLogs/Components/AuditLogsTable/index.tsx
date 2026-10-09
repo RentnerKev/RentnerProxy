@@ -4,7 +4,6 @@ import { CustomSelect } from '@rentnerkev/select/select'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Fragment } from 'react'
 
-import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import TableBodyState from '@/shared/Table/Components/TableBodyState.tsx'
 import TableFilters from '@/shared/Table/Components/TableFilters.tsx'
@@ -323,7 +322,7 @@ export default function AuditLogsTable(props: AuditLogsTableProps) {
                                                 </span>
                                                 {event.actorUserId && event.actorDisplayName ? (
                                                     <CustomTooltip
-                                                        {...TOOLTIP_DEFAULT_PROPS}
+                                                        collisionPadding={10}
                                                         content={event.actorUserId}
                                                     >
                                                         <span

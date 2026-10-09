@@ -5,7 +5,6 @@ import { CustomSelect } from '@rentnerkev/select/select'
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { Info, Search } from 'lucide-react'
 
-import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import CountryFlag from '@/shared/Geography/CountryFlag.tsx'
 import TableBodyState from '@/shared/Table/Components/TableBodyState.tsx'
@@ -180,9 +179,14 @@ export default function CrowdSecBansTable(props: CrowdSecBansTableProps) {
                                         )}
                                     </td>
                                     <td className="px-4 py-[0.85rem] align-middle text-[0.78rem] text-muted">
-                                        <span className="inline-flex items-center gap-2">
+                                        {/* oxlint-disable jsx-a11y/prefer-tag-over-role -- This inline group names scenario text and its help button without form or disclosure semantics. */}
+                                        <span
+                                            role="group"
+                                            aria-label={decision.scenario}
+                                            className="inline-flex items-center gap-2"
+                                        >
                                             <CustomTooltip
-                                                {...TOOLTIP_DEFAULT_PROPS}
+                                                collisionPadding={10}
                                                 content={decision.scenario}
                                             >
                                                 <span
@@ -193,7 +197,7 @@ export default function CrowdSecBansTable(props: CrowdSecBansTableProps) {
                                                 </span>
                                             </CustomTooltip>
                                             <CustomTooltip
-                                                {...TOOLTIP_DEFAULT_PROPS}
+                                                collisionPadding={10}
                                                 content={t(
                                                     `admin.crowdSec.dashboard.scenarioDescriptions.${scenarioDescriptionKey(decision.scenario)}`,
                                                 )}
@@ -210,6 +214,7 @@ export default function CrowdSecBansTable(props: CrowdSecBansTableProps) {
                                                 </button>
                                             </CustomTooltip>
                                         </span>
+                                        {/* oxlint-enable jsx-a11y/prefer-tag-over-role */}
                                     </td>
                                 </tr>
                             ))}

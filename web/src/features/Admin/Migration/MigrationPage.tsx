@@ -4,7 +4,6 @@ import { FileInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select/select'
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 
-import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
 import { useMigrationLogic } from './Hooks/useMigrationLogic.ts'
@@ -29,10 +28,7 @@ export default function MigrationPage() {
                 </h2>
                 <p className="mt-2 text-sm text-ink-soft">{t('admin.migration.exportHelp')}</p>
                 <div className="mt-5">
-                    <CustomTooltip
-                        {...TOOLTIP_DEFAULT_PROPS}
-                        content={t('admin.migration.exportHelp')}
-                    >
+                    <CustomTooltip collisionPadding={10} content={t('admin.migration.exportHelp')}>
                         <button
                             type="button"
                             className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"

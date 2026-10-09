@@ -35,14 +35,6 @@ const { createRoot } = await import('react-dom/client')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 const { ToastProvider } = await import('@rentnerkev/toasts')
 const { toast } = await import('@rentnerkev/toasts/toast')
-const { default: ProxyHostManagementPage } =
-    await import('@/features/Admin/ProxyHostManagement/index.tsx')
-const { default: ProxyHostFormModal } =
-    await import('@/features/Admin/ProxyHostManagement/Components/ProxyHostFormModal/index.tsx')
-const { default: ProxyHostTableActions } =
-    await import('@/features/Admin/ProxyHostManagement/Components/ProxyHostsTable/Components/ProxyHostTableActions.tsx')
-const { default: ProxyRuntimeStatusPanel } =
-    await import('@/features/Admin/ProxyHostManagement/Components/ProxyRuntimeStatusPanel.tsx')
 
 const getProxyHostsHandlerMock = mock(async (): Promise<ProxyHostSummary[]> => [])
 const getProxyRuntimeStatusHandlerMock = mock(async (): Promise<ProxyRuntimeSyncStatus> => ({
@@ -223,9 +215,6 @@ mock.module('@/features/Admin/ProxyHostManagement/CertificateJobs/middleware.ts'
     getCertificateJobProgressHandler: getCertificateJobProgressHandlerMock,
 }))
 
-const { default: CertificateJobProgressObserver } =
-    await import('@/features/Admin/ProxyHostManagement/CertificateJobs/CertificateJobProgressObserver.tsx')
-
 mock.module('@/features/Admin/CertificateManagement/middleware.ts', () => ({
     getAssignableCertificatesHandler: getAssignableCertificatesHandlerMock,
     requestCertificateHandler: requestCertificateHandlerMock,
@@ -247,6 +236,23 @@ const getAssignableTrustedCasHandlerMock = mock(async () => [assignableTrustedCa
 mock.module('@/features/Admin/TrustedCaManagement/middleware.ts', () => ({
     getAssignableTrustedCasHandler: getAssignableTrustedCasHandlerMock,
 }))
+
+mock.module('@/features/Admin/RuntimeDiagnostics/middleware.ts', () => ({
+    exportRuntimeSupportReportHandler: mock(() => {
+        throw new Error('Unexpected support report download in proxy-host tests.')
+    }),
+}))
+
+const { default: ProxyHostManagementPage } =
+    await import('@/features/Admin/ProxyHostManagement/index.tsx')
+const { default: ProxyHostFormModal } =
+    await import('@/features/Admin/ProxyHostManagement/Components/ProxyHostFormModal/index.tsx')
+const { default: ProxyHostTableActions } =
+    await import('@/features/Admin/ProxyHostManagement/Components/ProxyHostsTable/Components/ProxyHostTableActions.tsx')
+const { default: ProxyRuntimeStatusPanel } =
+    await import('@/features/Admin/ProxyHostManagement/Components/ProxyRuntimeStatusPanel.tsx')
+const { default: CertificateJobProgressObserver } =
+    await import('@/features/Admin/ProxyHostManagement/CertificateJobs/CertificateJobProgressObserver.tsx')
 
 let activeRoot: Root | null = null
 let activeQueryClient: QueryClientInstance | null = null

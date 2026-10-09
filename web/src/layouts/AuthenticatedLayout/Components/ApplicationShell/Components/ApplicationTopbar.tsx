@@ -1,7 +1,6 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { EllipsisVertical, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
 
-import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import type { ApplicationTopbarProps } from '../Types/application-shell.types.ts'
 
 export default function ApplicationTopbar({
@@ -40,7 +39,7 @@ export default function ApplicationTopbar({
                     <EllipsisVertical aria-hidden="true" className="size-5" strokeWidth={2} />
                 )}
             </button>
-            <CustomTooltip {...TOOLTIP_DEFAULT_PROPS} content={navigationToggleLabel} side="right">
+            <CustomTooltip collisionPadding={10} content={navigationToggleLabel} side="right">
                 <button
                     ref={desktopNavigationToggleRef}
                     type="button"

@@ -4,7 +4,6 @@ import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { CustomSelect } from '@rentnerkev/select/select'
 import { Fragment } from 'react'
 
-import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import TableBodyState from '@/shared/Table/Components/TableBodyState.tsx'
 import TableFilters from '@/shared/Table/Components/TableFilters.tsx'
@@ -323,7 +322,7 @@ export default function ProxyAccessLogsTable(props: ProxyAccessLogsTableProps) {
                                             </td>
                                             <td className="max-w-80 break-all px-4 py-[0.85rem] align-middle font-mono text-xs text-muted">
                                                 <CustomTooltip
-                                                    {...TOOLTIP_DEFAULT_PROPS}
+                                                    collisionPadding={10}
                                                     content={withoutQueryString(entry.path)}
                                                 >
                                                     <span

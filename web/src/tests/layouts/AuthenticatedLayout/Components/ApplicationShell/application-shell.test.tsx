@@ -124,11 +124,11 @@ describe('application topbar', () => {
 
         const tooltip = document.querySelector('[role="tooltip"]')
         expect(tooltip?.textContent).toContain('Collapse navigation')
-        expect(tooltip?.classList.contains('rentnerproxy-tooltip')).toBe(true)
-        expect(tooltip?.classList.contains('border-border')).toBe(true)
-        expect(tooltip?.classList.contains('bg-surface-raised')).toBe(true)
-        expect(tooltip?.classList.contains('text-ink')).toBe(true)
-        expect(TOOLTIP_PROVIDER_PROPS).toEqual({ delayDuration: 80, skipDelayDuration: 50 })
+        const tooltipSurface = document.querySelector('.rentnerproxy-tooltip')
+        expect(tooltipSurface?.classList.contains('border-border')).toBe(true)
+        expect(tooltipSurface?.classList.contains('bg-surface-raised')).toBe(true)
+        expect(tooltipSurface?.classList.contains('text-ink')).toBe(true)
+        expect(TOOLTIP_PROVIDER_PROPS).toMatchObject({ delayDuration: 80, skipDelayDuration: 50 })
 
         await click(collapseButton!)
 

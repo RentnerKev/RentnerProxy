@@ -93,7 +93,10 @@ async function waitForPanel(container: HTMLElement) {
         const mode = container.querySelector<HTMLInputElement>('input[name="mode"]')?.value
         if (
             (form && (mode !== 'custom-html' || container.querySelector('#default-site-html'))) ||
-            (!form && container.querySelector('section [role="alert"]'))
+            (!form &&
+                container.querySelector(
+                    'section[aria-labelledby="default-site-heading"] [role="alert"]',
+                ))
         )
             return
         if (Date.now() >= deadline)
@@ -323,9 +326,11 @@ describe('default-site settings panel', () => {
         expect(getEditor(container).state.doc.toString()).toBe('<p>draft</p>')
         await chooseMode(container, 'Close connection')
         await submit(container)
-        expect(container.querySelector('section [role="alert"]')?.textContent).toContain(
-            'Settings changed elsewhere',
-        )
+        expect(
+            container.querySelector(
+                'section[aria-labelledby="default-site-heading"] [role="alert"]',
+            )?.textContent,
+        ).toContain('Settings changed elsewhere')
         saved = {
             baseRevision: 'revision-3',
             settings: { mode: 'redirect', url: 'https://example.test/' },
@@ -338,7 +343,11 @@ describe('default-site settings panel', () => {
         expect(container.querySelector<HTMLInputElement>('input[name="url"]')?.value).toBe(
             'https://example.test/',
         )
-        expect(container.querySelector('section [role="alert"]')).toBeNull()
+        expect(
+            container.querySelector(
+                'section[aria-labelledby="default-site-heading"] [role="alert"]',
+            ),
+        ).toBeNull()
     })
 
     test('clears a normalized equivalent redirect draft when refetch retains the same revision', async () => {
@@ -418,9 +427,11 @@ describe('default-site settings panel', () => {
                 },
             })
             expect(readDraft()).toBe(draft)
-            expect(container.querySelector('section [role="alert"]')?.textContent).toContain(
-                'Settings changed elsewhere',
-            )
+            expect(
+                container.querySelector(
+                    'section[aria-labelledby="default-site-heading"] [role="alert"]',
+                )?.textContent,
+            ).toContain('Settings changed elsewhere')
         },
     )
 
@@ -529,15 +540,21 @@ describe('default-site settings panel', () => {
     test('shows failed loading and allows retry', async () => {
         getSettings.mockRejectedValueOnce(new Error('offline'))
         const container = await renderPanel()
-        expect(container.querySelector('section [role="alert"]')?.textContent).toContain(
-            'Could not load',
-        )
+        expect(
+            container.querySelector(
+                'section[aria-labelledby="default-site-heading"] [role="alert"]',
+            )?.textContent,
+        ).toContain('Could not load')
         await click(
             [...container.querySelectorAll('button')].find((button) =>
                 button.textContent?.includes('Reload saved'),
             )!,
         )
-        expect(container.querySelector('section [role="alert"]')).toBeNull()
+        expect(
+            container.querySelector(
+                'section[aria-labelledby="default-site-heading"] [role="alert"]',
+            ),
+        ).toBeNull()
         expect(container.textContent).toContain('Saved mode: 404 Not found')
     })
 })

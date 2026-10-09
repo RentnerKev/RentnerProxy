@@ -1,7 +1,6 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { ArrowUp } from 'lucide-react'
 
-import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import { APP_VERSION } from '@/lib/ApplicationVersion/version.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useApplicationVersionLogic from '@/features/ApplicationVersion/Hooks/useApplicationVersionLogic.ts'
@@ -26,7 +25,7 @@ export default function ApplicationVersion() {
                 {displayVersion}
             </span>
             {state.data?.latestVersion ? (
-                <CustomTooltip {...TOOLTIP_DEFAULT_PROPS} content={updateLabel}>
+                <CustomTooltip collisionPadding={10} content={updateLabel}>
                     <a
                         href="https://github.com/RentnerKev/RentnerProxy/releases"
                         target="_blank"

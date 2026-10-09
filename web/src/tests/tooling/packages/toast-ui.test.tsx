@@ -285,7 +285,7 @@ describe('RentnerToasts integration', () => {
             )
             await click(container.querySelector('[data-testid="error-four"]')!)
 
-            expect(container.querySelector('[role="region"]')?.getAttribute('aria-label')).toBe(
+            expect(container.querySelector('section[aria-label]')?.getAttribute('aria-label')).toBe(
                 'Notification',
             )
             const errorToast = container.querySelector<HTMLElement>(

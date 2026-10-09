@@ -1,6 +1,5 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 
-import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import DataTable from '@/shared/Table/index.tsx'
 import useUsersTableLogic from './Hooks/useUsersTableLogic.ts'
@@ -23,7 +22,7 @@ export default function UsersTable(props: UsersTableProps) {
     const createAction = canCreate ? (
         createDisabled ? (
             <CustomTooltip
-                {...TOOLTIP_DEFAULT_PROPS}
+                collisionPadding={10}
                 content={t('admin.users.messages.rolesNotReady')}
                 disabledTrigger
             >

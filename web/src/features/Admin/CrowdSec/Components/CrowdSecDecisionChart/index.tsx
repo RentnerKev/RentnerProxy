@@ -1,7 +1,6 @@
 import { Chart } from '@tanstack/charts/react'
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 
-import { TOOLTIP_DEFAULT_PROPS } from '@/config/tooltip.config.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { CrowdSecOriginCount } from '@/lib/Admin/CrowdSec/Types/crowdsec.types.ts'
 import useCrowdSecDecisionChart, { decisionPalette } from './Hooks/useCrowdSecDecisionChart.ts'
@@ -56,7 +55,7 @@ export default function CrowdSecDecisionChart({
                             />
                             <span className="truncate">{row.origin}</span>
                         </span>
-                        <CustomTooltip {...TOOLTIP_DEFAULT_PROPS} content={exact.format(row.count)}>
+                        <CustomTooltip collisionPadding={10} content={exact.format(row.count)}>
                             <span
                                 className="shrink-0 font-bold text-ink-soft tabular-nums"
                                 aria-label={exact.format(row.count)}
