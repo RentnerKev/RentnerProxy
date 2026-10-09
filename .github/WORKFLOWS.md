@@ -9,6 +9,8 @@ gebaute Produktionsimage. Ein Push auf `main` veröffentlicht kein Dev-Image;
 Die Dateien bleiben getrennt, weil sie unterschiedliche Auslöser, Rechte oder
 Artefaktübergaben haben. Es gibt 21 Workflow-Dateien, davon zwei wiederverwendbare
 Bausteine, die ausschließlich von anderen Workflows aufgerufen werden.
+Zusätzlich erstellt GitHub automatisch den Lauf **Dependency Graph** zur Pflege
+des Abhängigkeitsgraphen. Er stammt aus GitHubs integrierter Dependabot-Automation.
 
 | Workflow                                                           | Startet bei                                                        | Aufgabe                                                                                                                                                                            |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
