@@ -100,7 +100,7 @@ RUN set -eux; \
 
 FROM valkey/valkey:9.1.2-trixie@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd AS valkey-runtime
 
-FROM postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722 AS runtime
+FROM postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/RentnerKev/RentnerProxy" \
     org.opencontainers.image.description="Modern self-hosted reverse proxy manager powered by Caddy."
