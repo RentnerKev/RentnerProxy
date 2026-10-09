@@ -13,8 +13,8 @@ curl --fail --location --proto '=https' --tlsv1.2 \
 printf '%s  %s\n' c069905b391cc4c20a5ba65ad5c10be2a7ba074f8ea6ad203e24d14e303dad47 "$directory/syft.tar.gz" | sha256sum --check --strict
 tar -xzf "$directory/syft.tar.gz" -C "$directory" syft
 curl --fail --location --proto '=https' --tlsv1.2 \
-    https://go.dev/dl/go1.27.1.linux-amd64.tar.gz --output "$directory/go.tar.gz"
-printf '%s  %s\n' 63d339f0da5ab53635a56f2490a7984dfe12dfcff22ad749f63edaf590168445 "$directory/go.tar.gz" | sha256sum --check --strict
+    https://go.dev/dl/go1.27.2.linux-amd64.tar.gz --output "$directory/go.tar.gz"
+printf '%s  %s\n' ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5 "$directory/go.tar.gz" | sha256sum --check --strict
 tar -xzf "$directory/go.tar.gz" -C "$directory"
 export PATH="$directory/go/bin:$PATH"
 # Go's public checksum database authenticates the pinned module and dependencies.

@@ -1,0 +1,4 @@
+[[IgnoredVulns]]
+id = "GO-2026-5932"
+ignoreUntil = 2026-11-09T00:00:00Z
+reason = "False positive: the pinned CrowdSec build excludes golang.org/x/crypto/openpgp and every subpackage. verify-packages.sh rejects their introduction into either command or any notification plugin. Native binary and image advisory scans remain mandatory and unchanged."
