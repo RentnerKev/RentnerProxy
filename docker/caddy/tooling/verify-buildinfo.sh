@@ -20,6 +20,6 @@ awk '
     $1 == "build" && $2 == "CGO_ENABLED=0" { static_build++ }
     END {
         exit !(compiler && net_count == 1 && net_replacements <= 1 &&
-            net_version == "v0.60.0" && invalid == 0 && static_build == 1)
+            net_version == "v0.61.0" && invalid == 0 && static_build == 1)
     }
 ' "$buildinfo"

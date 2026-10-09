@@ -4,7 +4,7 @@
 
 The web runtime stages remove build tools and their native platform packages after
 the frozen production install. Application runtime packages remain installed.
-Both custom Caddy builds use the pinned 2.11.7 builder and CrowdSec SDK v1.7.8,
+Both custom Caddy builds use the pinned 2.11.7 builder, Go 1.27.2 and CrowdSec SDK v1.8.1,
 while retaining the verified HTTP-only community bouncer source revision.
 The source transform also adapts its live decision IP filter to the SDK's string
 field without changing exact-match filtering.
@@ -12,9 +12,13 @@ The appliance updates its inherited PCRE2 package from the configured Debian
 repositories and rejects builds below `10.46-1~deb13u3`.
 CrowdSec and cscli are rebuilt from the pinned upstream 1.8.1 source archive
 using the full upstream static feature profile and RE2 2023-03-01. Reviewed,
-read-only module locks update gRPC to 1.83.2 and `golang.org/x/crypto` to 0.57.0;
+read-only module locks update gRPC to 1.84.0 and `golang.org/x/crypto` to 0.58.0;
 the build verifies both binaries' embedded dependency versions. The official
 image continues to supply configuration and the pinned Hub assets.
+The [engine build notes](../docker/crowdsec/tooling/engine-build/README.md)
+explain the remaining RE2 and Kubernetes compatibility pins. Axum 0.8.9 also
+requires its exact matchit 0.8.4 dependency; the current stable dependency
+refresh retains these upstream constraints.
 These updates do not establish that an image passes the complete dependency
 assessment; unresolved findings continue to block publication.
 
@@ -200,13 +204,15 @@ source scripts or appliance entrypoints are executed.
 
 Assessment artifacts retain source/image identity, scanner versions/database
 identity, full inventories, RustSec reports and Go findings for 30 days. No
-exceptions or ignored/unfixed filters are enabled. Any future exception requires
-a separately reviewed advisory-specific reason, responsible owner and expiry;
-it must not silently disable a scanner or lower the global severity policy.
+global ignored/unfixed filters are enabled. The exact, expiring Dev acceptance
+described above requires an explicit manual acknowledgement and cannot approve
+release or preview images. Any other exception requires a separately reviewed
+advisory-specific reason, responsible owner and expiry; it must not silently
+disable a scanner or lower the global severity policy.
 
-Tool pins verified against upstream on 2026-10-06: [Grype 0.120.0](https://github.com/anchore/grype/releases/tag/v0.120.0),
+Tool pins verified against upstream on 2026-10-09: [Grype 0.120.1](https://github.com/anchore/grype/releases/tag/v0.120.1),
 [Syft 1.54.1](https://github.com/anchore/syft/releases/tag/v1.54.1),
-[Go 1.27.1](https://go.dev/dl/), [govulncheck 1.8.0](https://pkg.go.dev/golang.org/x/vuln@v1.8.0/cmd/govulncheck)
+[Go 1.27.2](https://go.dev/dl/), [govulncheck 1.8.0](https://pkg.go.dev/golang.org/x/vuln@v1.8.0/cmd/govulncheck)
 and [cargo-audit 0.22.2](https://crates.io/crates/cargo-audit/0.22.2).
 Downloaded archives use pinned upstream SHA-256 checksums; Go modules and
 Cargo installation use their ecosystem checksum verification and locked versions.

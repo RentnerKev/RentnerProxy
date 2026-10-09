@@ -4,7 +4,7 @@ set -eu
 
 source_root=$1
 
-# SDK v1.7.8 uses a string for the live decision IP filter. Keep the same
+# SDK v1.8.1 uses a string for the live decision IP filter. Keep the same
 # exact-match filter while adapting the verified v0.14.1 bouncer source.
 grep -Eq '^[[:space:]]*IPEquals: &value,$' "$source_root/internal/bouncer/live.go"
 sed -i 's/IPEquals: \&value,/IPEquals: value,/' "$source_root/internal/bouncer/live.go"

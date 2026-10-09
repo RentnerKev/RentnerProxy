@@ -6,6 +6,9 @@
 !core/src/**
 
 !docker/
+!docker/caddy/
+!docker/caddy/tooling/
+!docker/caddy/tooling/verify-buildinfo.sh
 !docker/crowdsec/
 !docker/crowdsec/tooling/
 !docker/crowdsec/tooling/caddy-http-only.sh

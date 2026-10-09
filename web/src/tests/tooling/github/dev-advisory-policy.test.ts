@@ -81,7 +81,7 @@ const match = {
     },
 }
 const image = {
-    descriptor: { name: 'grype', version: '0.120.0' },
+    descriptor: { name: 'grype', version: '0.120.1' },
     distro: { name: 'debian' },
     ignoredMatches: [],
     matches: [match],

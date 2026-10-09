@@ -57,7 +57,7 @@ export function evaluateDatabase(report: unknown, now = Date.now()): void {
 export function evaluateImage(report: unknown): void {
     const parsed = object(report)
     const descriptor = object(parsed.descriptor)
-    if (descriptor.name !== 'grype' || descriptor.version !== '0.120.0')
+    if (descriptor.name !== 'grype' || descriptor.version !== '0.120.1')
         throw new Error('Unexpected image scanner identity')
     if (object(parsed.distro).name !== 'debian')
         throw new Error('OS inventory missing or unexpected')

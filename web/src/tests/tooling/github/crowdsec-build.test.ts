@@ -12,14 +12,14 @@ const shell =
         : null)
 const validBuildinfo = `crowdsec: go1.27.2
 \tpath\tgithub.com/crowdsecurity/crowdsec/cmd/crowdsec
-\tdep\tgoogle.golang.org/grpc\tv1.83.2\th1:grpc
-\tdep\tgolang.org/x/crypto\tv0.57.0\th1:crypto
-\tdep\tgolang.org/x/net\tv0.60.0\th1:net
-\tdep\tgithub.com/jackc/pgx/v5\tv5.9.2\th1:pgx
-\tdep\tgolang.org/x/time\tv0.15.0
+\tdep\tgoogle.golang.org/grpc\tv1.84.0\th1:grpc
+\tdep\tgolang.org/x/crypto\tv0.58.0\th1:crypto
+\tdep\tgolang.org/x/net\tv0.61.0\th1:net
+\tdep\tgithub.com/jackc/pgx/v5\tv5.11.0\th1:pgx
+\tdep\tgolang.org/x/time\tv0.16.0
 \t=>\tgithub.com/crowdsecurity/time\tv0.13.0-crowdsec.20250912\th1:time
-\tdep\tgithub.com/corazawaf/coraza/v3\tv3.7.0
-\t=>\tgithub.com/crowdsecurity/coraza/v3\tv3.7.0-crowdsec.20260730\th1:coraza
+\tdep\tgithub.com/corazawaf/coraza/v3\tv3.8.1
+\t=>\tgithub.com/crowdsecurity/coraza/v3\tv3.8.0-crowdsec.20261002\th1:coraza
 \tbuild\t-tags=netgo,osusergo,expr_debug,nomsgpack,sqlite_omit_load_extension,re2_cgo
 \tbuild\tCGO_ENABLED=1
 `
@@ -90,10 +90,10 @@ describe('pinned full-feature CrowdSec source rebuild', () => {
         const mod = await readFile(join(buildRoot, 'go.mod'), 'utf8')
         const sums = await readFile(join(buildRoot, 'go.sum'), 'utf8')
         for (const [module, version] of [
-            ['google.golang.org/grpc', 'v1.83.2'],
-            ['golang.org/x/crypto', 'v0.57.0'],
-            ['golang.org/x/net', 'v0.60.0'],
-            ['github.com/jackc/pgx/v5', 'v5.9.2'],
+            ['google.golang.org/grpc', 'v1.84.0'],
+            ['golang.org/x/crypto', 'v0.58.0'],
+            ['golang.org/x/net', 'v0.61.0'],
+            ['github.com/jackc/pgx/v5', 'v5.11.0'],
         ]) {
             expect(mod).toContain(`${module} ${version}`)
             for (const suffix of ['', '/go.mod'])
@@ -106,7 +106,7 @@ describe('pinned full-feature CrowdSec source rebuild', () => {
         expect(mod).toContain('github.com/mattn/go-sqlite3')
         expect(mod.match(/^replace .+$/gm)).toEqual([
             'replace golang.org/x/time => github.com/crowdsecurity/time v0.13.0-crowdsec.20250912',
-            'replace github.com/corazawaf/coraza/v3 => github.com/crowdsecurity/coraza/v3 v3.7.0-crowdsec.20260730',
+            'replace github.com/corazawaf/coraza/v3 => github.com/crowdsecurity/coraza/v3 v3.8.0-crowdsec.20261002',
         ])
     })
 
@@ -116,10 +116,14 @@ describe('pinned full-feature CrowdSec source rebuild', () => {
             const variants = [
                 [validBuildinfo, true],
                 [validBuildinfo.replace('go1.27.2', 'go1.27.1'), false],
-                [validBuildinfo.replace('v1.83.2', 'v1.83.0'), false],
-                [validBuildinfo.replace('v0.57.0', 'v0.55.0'), false],
-                [validBuildinfo.replace('v0.60.0', 'v0.58.0'), false],
-                [validBuildinfo.replace('v5.9.2', 'v5.9.1'), false],
+                [validBuildinfo.replace('v1.84.0', 'v1.83.0'), false],
+                [validBuildinfo.replace('v0.58.0', 'v0.55.0'), false],
+                [validBuildinfo.replace('v0.61.0', 'v0.58.0'), false],
+                [validBuildinfo.replace('v5.11.0', 'v5.9.1'), false],
+                [
+                    validBuildinfo.replace('v3.8.0-crowdsec.20261002', 'v3.7.0-crowdsec.20260730'),
+                    false,
+                ],
                 [validBuildinfo + '\tdep\tgithub.com/jackc/pgx/v4\tv4.18.3\th1:old\n', false],
                 [validBuildinfo + '\tdep\tgithub.com/jackc/pgproto3/v2\tv2.3.3\th1:old\n', false],
                 [validBuildinfo.replace('CGO_ENABLED=1', 'CGO_ENABLED=0'), false],

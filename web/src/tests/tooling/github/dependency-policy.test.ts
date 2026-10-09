@@ -16,7 +16,7 @@ import {
 
 const now = Date.parse('2026-10-06T12:00:00Z')
 const image = {
-    descriptor: { name: 'grype', version: '0.120.0' },
+    descriptor: { name: 'grype', version: '0.120.1' },
     distro: { name: 'debian' },
     matches: [],
 }

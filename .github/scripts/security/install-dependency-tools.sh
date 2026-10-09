@@ -3,9 +3,9 @@ set -Eeuo pipefail
 directory="$RUNNER_TEMP/dependency-tools"
 mkdir -p "$directory"
 curl --fail --location --proto '=https' --tlsv1.2 \
-    https://github.com/anchore/grype/releases/download/v0.120.0/grype_0.120.0_linux_amd64.tar.gz \
+    https://github.com/anchore/grype/releases/download/v0.120.1/grype_0.120.1_linux_amd64.tar.gz \
     --output "$directory/grype.tar.gz"
-printf '%s  %s\n' a5a1218dce63acdac152a6b3b5bb366e7267e36f4069848cf455543b3fa5700e "$directory/grype.tar.gz" | sha256sum --check --strict
+printf '%s  %s\n' 0a9ee97ef5ae2ee953b0a80098105052e846cdbe319a57d808b519c33cd1343d "$directory/grype.tar.gz" | sha256sum --check --strict
 tar -xzf "$directory/grype.tar.gz" -C "$directory" grype
 curl --fail --location --proto '=https' --tlsv1.2 \
     https://github.com/anchore/syft/releases/download/v1.54.1/syft_1.54.1_linux_amd64.tar.gz \

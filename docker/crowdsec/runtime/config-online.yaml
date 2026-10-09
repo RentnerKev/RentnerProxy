@@ -20,7 +20,8 @@ crowdsec_service:
 cscli:
     output: json
     color: 'no'
-    hub_branch: 435f7d81caf247241bd6068f0a778bafa8dfe975
+    hub_branch: b967aecfbcb89bdd1e6a2832ad43f97f22a39728
+    __hub_url_template__: https://raw.githubusercontent.com/crowdsecurity/hub/%s/%s
 db_config:
     log_level: info
     type: sqlite

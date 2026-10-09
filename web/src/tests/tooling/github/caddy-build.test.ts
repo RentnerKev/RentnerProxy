@@ -13,9 +13,9 @@ const shell =
 const validBuildinfo = `/usr/bin/caddy: go1.27.2
 \tpath\tgithub.com/caddyserver/caddy/v2/cmd/caddy
 \tdep\tgolang.org/x/net\tv0.59.0
-\t=>\tgolang.org/x/net\tv0.60.0\th1:net
+\t=>\tgolang.org/x/net\tv0.61.0\th1:net
 \tdep\tgithub.com/crowdsecurity/crowdsec\tv1.7.0
-\t=>\tgithub.com/crowdsecurity/crowdsec\tv1.7.8\th1:crowdsec
+\t=>\tgithub.com/crowdsecurity/crowdsec\tv1.8.1\th1:crowdsec
 \tbuild\tCGO_ENABLED=0
 `
 
@@ -28,27 +28,27 @@ describe('patched Caddy binary security metadata', () => {
                 [validBuildinfo, true],
                 [
                     validBuildinfo.replace(
-                        '\tdep\tgolang.org/x/net\tv0.59.0\n\t=>\tgolang.org/x/net\tv0.60.0',
-                        '\tdep\tgolang.org/x/net\tv0.60.0',
+                        '\tdep\tgolang.org/x/net\tv0.59.0\n\t=>\tgolang.org/x/net\tv0.61.0',
+                        '\tdep\tgolang.org/x/net\tv0.61.0',
                     ),
                     true,
                 ],
                 [validBuildinfo.replace('go1.27.2', 'go1.27.1'), false],
-                [validBuildinfo.replace('v0.60.0', 'v0.59.0'), false],
+                [validBuildinfo.replace('v0.61.0', 'v0.59.0'), false],
                 [
                     validBuildinfo
-                        .replace('dep\tgolang.org/x/net\tv0.59.0', 'dep\tgolang.org/x/net\tv0.60.0')
-                        .replace('=>\tgolang.org/x/net\tv0.60.0', '=>\tgolang.org/x/net\tv0.59.0'),
+                        .replace('dep\tgolang.org/x/net\tv0.59.0', 'dep\tgolang.org/x/net\tv0.61.0')
+                        .replace('=>\tgolang.org/x/net\tv0.61.0', '=>\tgolang.org/x/net\tv0.59.0'),
                     false,
                 ],
-                [validBuildinfo.replace('\t=>\tgolang.org/x/net\tv0.60.0\th1:net\n', ''), false],
+                [validBuildinfo.replace('\t=>\tgolang.org/x/net\tv0.61.0\th1:net\n', ''), false],
                 [validBuildinfo.replace('=>\tgolang.org/x/net', '=>\tlocal/fork'), false],
                 [validBuildinfo.replace('CGO_ENABLED=0', 'CGO_ENABLED=1'), false],
-                [validBuildinfo + '\tdep\tgolang.org/x/net\tv0.60.0\th1:duplicate\n', false],
+                [validBuildinfo + '\tdep\tgolang.org/x/net\tv0.61.0\th1:duplicate\n', false],
                 [
                     validBuildinfo.replace(
                         '\tdep\tgithub.com/crowdsecurity/crowdsec',
-                        '\t=>\tgolang.org/x/net\tv0.60.0\n\tdep\tgithub.com/crowdsecurity/crowdsec',
+                        '\t=>\tgolang.org/x/net\tv0.61.0\n\tdep\tgithub.com/crowdsecurity/crowdsec',
                     ),
                     false,
                 ],

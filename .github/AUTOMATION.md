@@ -4,6 +4,9 @@ Workflows under `workflows/` own triggers, permissions, job dependencies, truste
 checkouts and artifacts. Short process commands stay in YAML; validation and
 publication logic live in the corresponding scripts.
 
+See [the workflow overview](WORKFLOWS.md) for each workflow's purpose, triggers,
+required checks and the distinction between an advisory report and image publication.
+
 The script areas are:
 
 - `scripts/ci/`: PR metadata, bounded runtime selection and isolated smoke fixtures.

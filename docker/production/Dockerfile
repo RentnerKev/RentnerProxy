@@ -32,7 +32,7 @@ COPY --from=web-build /app/docker/web/static-assets.ts ./docker/web/static-asset
 COPY --from=web-build /app/docker/web/serve.mjs ./docker/web/serve.mjs
 COPY --from=web-build /app/docker/web/healthcheck.mjs ./docker/web/healthcheck.mjs
 
-FROM rust:1.99.0-bookworm@sha256:114c7a4425406451c2866b6aafe69fe29b1b298832db1277d411ac73c82d04d6 AS controller-build
+FROM rust:1.99.0-trixie@sha256:6ff07edce8775d0f64be7aba9197229407301bddf2054d62c27b541a6238a181 AS controller-build
 
 WORKDIR /build
 COPY core/Cargo.toml core/Cargo.lock ./
@@ -45,7 +45,7 @@ FROM golang:1.27.2-alpine@sha256:85dc1069ac644ea3c527b177303a406eb3358192816cd7f
 # The module revision is the signed v0.14.1 release.
 # Upstream's HTTP package imports AppSec and a shared Layer 4 helper. Remove those
 # registrations so the appliance exposes only the required HTTP bouncer.
-FROM caddy:2.11.7-builder@sha256:1ab914bd604996ab195f6326665cd2ae5d3df62feba973e776c4c8d5967d57a5 AS caddy-build
+FROM caddy:2.11.7-builder@sha256:b25f47453fa02f7e66c0828b4b1343658808b9000950b6825c4a1cb0c988f5f8 AS caddy-build
 
 RUN rm -rf /usr/local/go
 COPY --from=caddy-go-toolchain /usr/local/go/ /usr/local/go/
@@ -64,11 +64,15 @@ RUN test "$(go env GOVERSION)" = go1.27.2 \
     && xcaddy build "${CADDY_VERSION:?Caddy builder must specify CADDY_VERSION}" --output /usr/bin/caddy \
         --with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_COMMIT} \
         --replace github.com/hslatman/caddy-crowdsec-bouncer=/tmp/caddy-crowdsec-bouncer \
-        --replace github.com/crowdsecurity/crowdsec=github.com/crowdsecurity/crowdsec@v1.7.8 \
-        --replace golang.org/x/net=golang.org/x/net@v0.60.0 \
+        --replace github.com/crowdsecurity/crowdsec=github.com/crowdsecurity/crowdsec@v1.8.1 \
+        --replace golang.org/x/net=golang.org/x/net@v0.61.0 \
+        --replace golang.org/x/crypto=golang.org/x/crypto@v0.58.0 \
+        --replace golang.org/x/sys=golang.org/x/sys@v0.49.0 \
+        --replace golang.org/x/term=golang.org/x/term@v0.47.0 \
+        --replace golang.org/x/text=golang.org/x/text@v0.43.0 \
     && go version -m /usr/bin/caddy > /tmp/caddy-buildinfo.txt \
     && /bin/sh /tmp/verify-caddy-buildinfo.sh /tmp/caddy-buildinfo.txt \
-    && go version -m /usr/bin/caddy | grep -Eq '=>[[:space:]]+github\.com/crowdsecurity/crowdsec[[:space:]]+v1\.7\.8[[:space:]]' \
+    && go version -m /usr/bin/caddy | grep -Eq '=>[[:space:]]+github\.com/crowdsecurity/crowdsec[[:space:]]+v1\.8\.1[[:space:]]' \
     && caddy_version="$(/usr/bin/caddy version)" \
     && printf '%s\n' "$caddy_version" \
     && test "${caddy_version%% *}" = "$CADDY_VERSION" \
@@ -100,12 +104,14 @@ RUN set -eux; \
     mkdir -p /etc/crowdsec /var/lib/crowdsec /opt/rentnerproxy/crowdsec-config; \
     cp -a /staging/etc/crowdsec/. /etc/crowdsec/; \
     cp -a /staging/var/lib/crowdsec/. /var/lib/crowdsec/; \
-    sed -i '/^cscli:/a\  hub_branch: 435f7d81caf247241bd6068f0a778bafa8dfe975' /etc/crowdsec/config.yaml; \
+    sed -i '/^cscli:/a\  hub_branch: b967aecfbcb89bdd1e6a2832ad43f97f22a39728' /etc/crowdsec/config.yaml; \
+    sed -i '/^cscli:/a\  __hub_url_template__: https://raw.githubusercontent.com/crowdsecurity/hub/%s/%s' /etc/crowdsec/config.yaml; \
+    cscli -c /etc/crowdsec/config.yaml hub update --error; \
     cscli -c /etc/crowdsec/config.yaml collections remove crowdsecurity/linux --force >/dev/null; \
     rm -rf /var/lib/crowdsec/data/*; \
     cscli -c /etc/crowdsec/config.yaml parsers install \
-        crowdsecurity/syslog-logs crowdsecurity/whitelists --error >/dev/null; \
-    cscli -c /etc/crowdsec/config.yaml collections install crowdsecurity/caddy --error >/dev/null; \
+        crowdsecurity/syslog-logs crowdsecurity/whitelists --force --error >/dev/null; \
+    cscli -c /etc/crowdsec/config.yaml collections install crowdsecurity/caddy --force --error >/dev/null; \
     cd /var/lib/crowdsec/data; \
     sha256sum --check /tmp/rentnerproxy-crowdsec-hub-data.sha256; \
     rm -f /etc/crowdsec/local_api_credentials.yaml \

@@ -55,21 +55,21 @@
         "@rentnerkev/tooltips": "2.1.0",
         "@simplewebauthn/browser": "14.0.0",
         "@simplewebauthn/server": "14.0.3",
-        "@tanstack/charts": "1.0.0",
+        "@tanstack/charts": "1.1.0",
         "@tanstack/react-form": "1.33.5",
         "@tanstack/react-hotkeys": "0.13.0",
         "@tanstack/react-query": "5.104.1",
         "@tanstack/react-router": "1.170.41",
         "@tanstack/react-start": "1.168.60",
-        "@tanstack/react-table": "9.2.6",
+        "@tanstack/react-table": "9.2.8",
         "codemirror": "6.0.2",
         "country-flag-icons": "1.6.20",
         "drizzle-orm": "0.45.4",
         "i18next": "26.4.2",
         "i18next-resources-to-backend": "1.2.3",
-        "lucide-react": "1.53.0",
+        "lucide-react": "1.54.0",
         "maxmind": "5.0.7",
-        "motion": "14.0.0",
+        "motion": "14.1.0",
         "nodemailer": "10.0.16",
         "otpauth": "9.5.2",
         "oxfmt": "0.72.0",
@@ -81,7 +81,7 @@
         "zod": "4.6.5"
     },
     "devDependencies": {
-        "@happy-dom/global-registrator": "20.14.5",
+        "@happy-dom/global-registrator": "20.14.6",
         "@tailwindcss/vite": "4.3.3",
         "@types/bun": "1.4.2",
         "@types/react": "19.3.0",
@@ -90,7 +90,7 @@
         "@vitejs/plugin-react": "6.1.2",
         "drizzle-kit": "0.31.11",
         "fast-check": "4.10.2",
-        "happy-dom": "20.14.5",
+        "happy-dom": "20.14.6",
         "oxlint": "1.87.0",
         "oxlint-tsgolint": "7.0.2003",
         "tailwindcss": "4.3.3",
@@ -99,7 +99,7 @@
     },
     "overrides": {
         "@esbuild-kit/core-utils": {
-            "esbuild": "0.25.12"
+            "esbuild": "0.28.2"
         }
     },
     "packageManager": "bun@1.4.2"
