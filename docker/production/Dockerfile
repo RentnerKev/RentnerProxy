@@ -39,17 +39,24 @@ COPY core/Cargo.toml core/Cargo.lock ./
 COPY core/src ./src
 RUN cargo build --locked --release
 
+FROM golang:1.27.2-alpine@sha256:85dc1069ac644ea3c527b177303a406eb3358192816cd7f9e5848eb658851673 AS caddy-go-toolchain
+
 # The builder supplies CADDY_VERSION so image updates also update the compiled binary.
 # The module revision is the signed v0.14.1 release.
 # Upstream's HTTP package imports AppSec and a shared Layer 4 helper. Remove those
 # registrations so the appliance exposes only the required HTTP bouncer.
 FROM caddy:2.11.7-builder@sha256:1ab914bd604996ab195f6326665cd2ae5d3df62feba973e776c4c8d5967d57a5 AS caddy-build
 
+RUN rm -rf /usr/local/go
+COPY --from=caddy-go-toolchain /usr/local/go/ /usr/local/go/
+ENV GOTOOLCHAIN=local CGO_ENABLED=0
 ARG CADDY_CROWDSEC_BOUNCER_COMMIT=6b35f6be25e457aa0b94e32c6ae519123e50e7b7
 ARG CADDY_CROWDSEC_BOUNCER_SOURCE_SHA256=5ff0fd225d1d14cb29633516f0dfe084835dc99dc065ae11db852c661e9ced0d
 COPY docker/crowdsec/tooling/caddy-http-only.sh /tmp/caddy-crowdsec-http-only.sh
+COPY docker/caddy/tooling/verify-buildinfo.sh /tmp/verify-caddy-buildinfo.sh
 WORKDIR /tmp/caddy-crowdsec-bouncer
-RUN wget -qO /tmp/caddy-crowdsec-bouncer.tar.gz \
+RUN test "$(go env GOVERSION)" = go1.27.2 \
+    && wget -qO /tmp/caddy-crowdsec-bouncer.tar.gz \
         "https://codeload.github.com/hslatman/caddy-crowdsec-bouncer/tar.gz/${CADDY_CROWDSEC_BOUNCER_COMMIT}" \
     && echo "${CADDY_CROWDSEC_BOUNCER_SOURCE_SHA256}  /tmp/caddy-crowdsec-bouncer.tar.gz" | sha256sum -c - \
     && tar -xzf /tmp/caddy-crowdsec-bouncer.tar.gz --strip-components=1 \
@@ -58,6 +65,9 @@ RUN wget -qO /tmp/caddy-crowdsec-bouncer.tar.gz \
         --with github.com/hslatman/caddy-crowdsec-bouncer/http@${CADDY_CROWDSEC_BOUNCER_COMMIT} \
         --replace github.com/hslatman/caddy-crowdsec-bouncer=/tmp/caddy-crowdsec-bouncer \
         --replace github.com/crowdsecurity/crowdsec=github.com/crowdsecurity/crowdsec@v1.7.8 \
+        --replace golang.org/x/net=golang.org/x/net@v0.60.0 \
+    && go version -m /usr/bin/caddy > /tmp/caddy-buildinfo.txt \
+    && /bin/sh /tmp/verify-caddy-buildinfo.sh /tmp/caddy-buildinfo.txt \
     && go version -m /usr/bin/caddy | grep -Eq '=>[[:space:]]+github\.com/crowdsecurity/crowdsec[[:space:]]+v1\.7\.8[[:space:]]' \
     && caddy_version="$(/usr/bin/caddy version)" \
     && printf '%s\n' "$caddy_version" \
@@ -78,6 +88,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY docker/crowdsec/tooling/engine-build/ /opt/crowdsec-build/
 RUN /bin/sh /opt/crowdsec-build/build.sh /out
+
+FROM golang:1.27.2-trixie@sha256:e58d6f83b3416618d8bcac2b3dde1b7f7e3c4a77d25e88637f8bbae81536c48d AS gosu-build
+COPY docker/gosu/tooling/ /opt/gosu-build/
+RUN /bin/sh /opt/gosu-build/build.sh /out
 
 FROM ghcr.io/crowdsecurity/crowdsec:v1.8.1-debian@sha256:ab1bdb61a072154d478ad6c625b8e62c7f79a727b2740209d2128dd51d69d58d AS crowdsec-assets
 
@@ -146,6 +160,8 @@ COPY core/Cargo.lock /usr/share/rentnerproxy/security/Cargo.lock
 COPY --from=caddy-build /usr/bin/caddy /usr/bin/caddy
 COPY --from=crowdsec-build /out/bin/crowdsec /usr/local/bin/crowdsec
 COPY --from=crowdsec-build /out/bin/cscli /usr/local/bin/cscli
+COPY --from=gosu-build /out/gosu /usr/local/bin/gosu
+COPY --from=gosu-build /out/LICENSE /usr/share/licenses/gosu/LICENSE
 COPY --from=crowdsec-assets /opt/rentnerproxy/crowdsec-config /usr/share/rentnerproxy/crowdsec/config
 COPY --from=crowdsec-assets /var/lib/crowdsec/data /usr/share/rentnerproxy/crowdsec/data
 COPY --from=geoip-assets /tmp/user-country.mmdb /usr/share/rentnerproxy/geoip/user-country.mmdb
