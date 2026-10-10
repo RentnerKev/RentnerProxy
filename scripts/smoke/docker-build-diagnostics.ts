@@ -9,7 +9,7 @@ const buildFailureCategories = [
     ['base-image', /failed to resolve source metadata|failed to fetch (?:anonymous|oauth) token/iu],
     [
         'dependency-download',
-        /failed to (?:fetch|download)|connection timed out|temporary failure resolving|unable to fetch|GeoIP (?:asset|metadata) download failed/iu,
+        /failed to (?:fetch|download)|connection timed out|temporary failure resolving|unable to fetch|GeoIP (?:asset|checksum|metadata) download failed/iu,
     ],
 ] as const
 
