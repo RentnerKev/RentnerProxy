@@ -71,9 +71,11 @@ describe('dev image workflow', () => {
         for (const step of steps) {
             if (step.uses) expect(step.uses).toMatch(/^[^@]+@[0-9a-f]{40}$/u)
         }
-        expect(
-            steps.some((step) => step.id === 'scan' && step.run?.includes('grype db update')),
-        ).toBe(true)
+        const scan = steps.find((step) => step.id === 'scan')?.run
+        expect(scan).toContain('audit-cargo.sh')
+        expect(scan).toContain('audit-bun.sh')
+        expect(scan).toContain('scan-upstream.sh')
+        expect(config.jobs['publish-image'].with.accept_known_dev_advisories).toBeUndefined()
         expect(config.jobs['publish-image'].uses).toBe(
             './.github/workflows/publish-assessed-image.yml',
         )
