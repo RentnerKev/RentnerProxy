@@ -12,6 +12,8 @@ printf '%s\n' '## Deployed dependency assessment' '' \
     'The dev Cargo/Bun gate is mandatory. Historical release findings and upstream runtime diagnostics are informational. Incomplete own-dependency assessments remain failures. This report does not authorize image publication.' '' \
     '| Channel | Assessment | Source revision | Image digest |' \
     '| --- | --- | --- | --- |' > "$summary"
+# Invoked by the EXIT trap, including early scanner/evidence failures.
+# shellcheck disable=SC2317,SC2329
 finish_summary() {
     local result=$?
     if (( result == 0 )); then
@@ -25,7 +27,8 @@ finish_summary() {
 }
 trap 'finish_summary' EXIT
 record_result() {
-    # shellcheck disable=SC2016 -- Backticks are literal Markdown delimiters.
+    # Backticks are literal Markdown delimiters.
+    # shellcheck disable=SC2016
     printf '| `%s` | %s | `%s` | `%s` |\n' "$1" "$2" "$3" "$4" >> "$summary"
 }
 while IFS= read -r tag; do

@@ -7,6 +7,8 @@ trap 'exit 1' ERR
 : "${CONTAINER:?}" "${REPORT_DIRECTORY:?}" "${PROFILE_PATH:?}" "${IDENTITY_PATH:?}"
 [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || exit 1
 mkdir -p "$REPORT_DIRECTORY"
+# Invoked by the EXIT trap so incomplete diagnostics still get a summary.
+# shellcheck disable=SC2317,SC2329
 finish() {
     local result=$? verdict
     rm -f "$REPORT_DIRECTORY/caddy" "$REPORT_DIRECTORY/crowdsec" "$REPORT_DIRECTORY/cscli"
