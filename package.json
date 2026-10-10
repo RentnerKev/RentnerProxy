@@ -98,10 +98,5 @@
         "tailwindcss": "4.3.3",
         "vite": "8.3.4"
     },
-    "overrides": {
-        "@esbuild-kit/core-utils": {
-            "esbuild": "0.28.2"
-        }
-    },
     "packageManager": "bun@1.4.3"
 }
