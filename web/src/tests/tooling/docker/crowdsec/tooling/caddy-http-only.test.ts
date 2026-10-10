@@ -36,14 +36,17 @@ async function transformedFixture(filter: string) {
                 bash,
                 '--noprofile',
                 '--norc',
-                join(repositoryRoot, 'docker/crowdsec/tooling/caddy-http-only.sh'),
-                '.',
+                '-c',
+                'export PATH="$PWD/bin:/usr/bin:/bin"; chmod +x "$PWD/bin"/*; exec bash "$FIXTURE_SCRIPT" .',
             ],
             {
                 cwd: directory,
                 env: {
                     ...process.env,
-                    PATH: bin + (process.platform === 'win32' ? ';' : ':') + process.env.PATH,
+                    FIXTURE_SCRIPT: join(
+                        repositoryRoot,
+                        'docker/crowdsec/tooling/caddy-http-only.sh',
+                    ).replaceAll('\\', '/'),
                 },
                 stdin: 'ignore',
                 stdout: 'ignore',

@@ -1,9 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 
-import { buildSteps } from '../../../../../../scripts/build.ts'
 import { runSteps } from '../../../../../../scripts/lib/command-runner.ts'
 import type { CommandStep } from '../../../../../../scripts/lib/Types/command-runner.types.ts'
-import { checkSteps } from '../../../../../../scripts/check.ts'
+import { runCheck } from '../../../../../../scripts/check.ts'
 import { createLogger } from '../../../../../../scripts/lib/logger.ts'
 
 const sequence = {
@@ -71,12 +70,64 @@ describe('runSteps', () => {
     })
 })
 
-describe('script step definitions', () => {
-    test('keeps build steps granular and appends them to checks without recursion', () => {
-        expect(buildSteps.map((step) => step.script)).toEqual(['build:web', 'build:core'])
-        expect(checkSteps.slice(-buildSteps.length)).toEqual(buildSteps.slice())
+describe('check modes', () => {
+    test('ordinary checks finish without database setup, builds or duplicate Rust checks', async () => {
+        const executed: string[] = []
+        const output: string[] = []
         expect(
-            checkSteps.some((step) => step.script === 'build' || step.script === 'check'),
+            await runCheck([], {
+                logger: createOutputLogger(output),
+                runStep: async (step) => {
+                    executed.push(step.script)
+                    return 0
+                },
+            }),
+        ).toBe(0)
+        expect(executed).toContain('typecheck')
+        expect(executed).toContain('test:ts')
+        expect(
+            executed.some((script) => /^(db:|build|rust:check|test:fuzz)/.test(script)),
         ).toBeFalse()
+        expect(output.at(-1)).toBe(' DONE  All checks passed\n')
+    })
+
+    test('full checks build once and stop when fuzz fails before production builds', async () => {
+        await Promise.all(
+            [0, 7].map(async (fuzzExit) => {
+                const executed: string[] = []
+                const exitCode = await runCheck(['--full'], {
+                    logger: createOutputLogger([]),
+                    runStep: async (step) => {
+                        executed.push(step.script)
+                        return step.script === 'test:fuzz' ? fuzzExit : 0
+                    },
+                })
+                expect(exitCode).toBe(fuzzExit)
+                expect(executed).toContain('typecheck:scripts')
+                expect(executed).not.toContain('typecheck')
+                expect(executed.some((script) => script.startsWith('db:'))).toBeFalse()
+                expect(executed.filter((script) => script === 'build:web')).toHaveLength(
+                    fuzzExit ? 0 : 1,
+                )
+                expect(executed.filter((script) => script === 'build:core')).toHaveLength(
+                    fuzzExit ? 0 : 1,
+                )
+            }),
+        )
+    })
+
+    test('rejects unknown or repeated mode arguments before starting a command', () => {
+        let started = false
+        for (const args of [['--invalid'], ['--full', '--full']]) {
+            expect(() =>
+                runCheck(args, {
+                    runStep: async () => {
+                        started = true
+                        return 0
+                    },
+                }),
+            ).toThrow('Expected check or check --full')
+        }
+        expect(started).toBeFalse()
     })
 })

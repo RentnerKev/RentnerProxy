@@ -19,7 +19,7 @@ jq --null-input --arg revision "$TESTED_SHA" --arg digest "$actual_digest" \
 bun --no-env-file trusted/.github/scripts/security/dependency-policy.ts \
     approved "${ASSESSED_REPORT:?Approved preview assessment required}" "$identity_report"
 
-bun trusted/.github/scripts/deploy/pr-preview.ts revalidate
+bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts revalidate
 install -d -m 0700 "$auth_directory"
 printf '%s' "$GHCR_TOKEN" | skopeo login \
     --authfile "$auth_file" \
@@ -64,7 +64,7 @@ elif grep --extended-regexp --ignore-case --quiet \
     'manifest unknown|name unknown|not found' "$inspect_error"; then
     # Recheck immediately before the first registry write. The PR can close
     # while the immutable tag inspection is in progress.
-    bun trusted/.github/scripts/deploy/pr-preview.ts revalidate
+    bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts revalidate
     skopeo copy --preserve-digests \
         --authfile "$auth_file" \
         "oci-archive:$oci_archive" \
@@ -84,9 +84,9 @@ fi
     exit 1
 }
 IMMUTABLE_IMAGE_DIGEST="$immutable_digest" \
-    bun trusted/.github/scripts/deploy/pr-preview.ts validate-digests
+    bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts validate-digests
 
-bun trusted/.github/scripts/deploy/pr-preview.ts revalidate
+bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts revalidate
 skopeo copy --preserve-digests \
     --authfile "$auth_file" \
     "docker://$IMAGE@$immutable_digest" \
@@ -101,6 +101,6 @@ moving_digest="$(
 )"
 IMMUTABLE_IMAGE_DIGEST="$final_immutable_digest" \
     MOVING_IMAGE_DIGEST="$moving_digest" \
-    bun trusted/.github/scripts/deploy/pr-preview.ts validate-digests
-bun trusted/.github/scripts/deploy/pr-preview.ts revalidate
+    bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts validate-digests
+bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts revalidate
 printf 'digest=%s\n' "$final_immutable_digest" >> "$GITHUB_OUTPUT"

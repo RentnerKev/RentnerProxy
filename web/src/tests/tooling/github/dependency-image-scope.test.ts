@@ -28,46 +28,32 @@ function shellPath(path: string): string {
         : normalized
 }
 
-describe('own image dependency gate and informational upstream diagnostics', () => {
+describe('own image dependency gate', () => {
     for (const scenario of [
-        { name: 'clean own dependencies with upstream findings', upstream: 3, expected: 0 },
+        { name: 'clean own dependencies', expected: 0 },
+        { name: 'missing embedded Cargo lock', cargoCopy: 1, expected: 1 },
+        { name: 'own Cargo advisory', cargo: 3, expected: 3 },
         {
-            name: 'clean own dependencies with unavailable upstream tools',
-            upstream: 1,
-            expected: 0,
-        },
-        {
-            name: 'clean own dependencies with an unexpected upstream exit',
-            upstream: 17,
-            expected: 0,
-        },
-        { name: 'all assessments clean', upstream: 0, expected: 0 },
-        { name: 'own Cargo advisory with clean upstream', cargo: 3, upstream: 0, expected: 3 },
-        {
-            name: 'incomplete own Cargo audit with upstream findings',
+            name: 'incomplete own Cargo audit',
             cargo: 1,
-            upstream: 3,
             expected: 1,
         },
         {
-            name: 'own Bun advisory with upstream findings',
+            name: 'own Bun advisory',
             bun: 1,
             report: advisory,
-            upstream: 3,
             expected: 3,
         },
-        { name: 'inconsistent own Bun evidence', report: advisory, upstream: 0, expected: 1 },
+        { name: 'inconsistent own Bun evidence', report: advisory, expected: 1 },
         {
             name: 'incomplete own Bun coverage',
             diagnostics: 'warning: skipped registry',
-            upstream: 3,
             expected: 1,
         },
         {
             name: 'unexpected own Bun scanner exit',
             bun: 3,
             report: advisory,
-            upstream: 0,
             expected: 1,
         },
     ]) {
@@ -110,6 +96,7 @@ case "$1" in
     load) exit 0 ;;
     create) printf fixture-container ;;
     cp)
+        if [[ "$2" == */security/Cargo.lock && "$CARGO_COPY_EXIT" != 0 ]]; then exit "$CARGO_COPY_EXIT"; fi
         printf fixture-lock-data > "$3"
         if [[ "$3" == */web/package.json ]]; then printf FIXTURE_SECRET=synthetic > "\${3%/*}/.env"; fi
         ;;
@@ -160,11 +147,6 @@ if (args.includes('--null-input')) {
                     await readFile(join(root, '.github/scripts/security/audit-bun.sh'), 'utf8'),
                     { mode: 0o755 },
                 ),
-                writeFile(
-                    join(automation, 'scan-upstream.sh'),
-                    '#!/bin/bash\nprintf upstream >> "$TOOL_LOG"\nexit "$UPSTREAM_EXIT"\n',
-                    { mode: 0o755 },
-                ),
             ])
             try {
                 const child = Bun.spawn(
@@ -190,10 +172,12 @@ if (args.includes('--null-input')) {
                             RUNNER_TEMP: '.',
                             CONFIG: config,
                             CARGO_EXIT: String('cargo' in scenario ? scenario.cargo : 0),
+                            CARGO_COPY_EXIT: String(
+                                'cargoCopy' in scenario ? scenario.cargoCopy : 0,
+                            ),
                             BUN_EXIT: String('bun' in scenario ? scenario.bun : 0),
                             BUN_REPORT: 'report' in scenario ? scenario.report : '{}',
                             BUN_DIAGNOSTICS: 'diagnostics' in scenario ? scenario.diagnostics : '',
-                            UPSTREAM_EXIT: String(scenario.upstream),
                             REAL_BUN: shellPath(process.execPath),
                             REAL_POLICY: shellPath(
                                 join(root, '.github/scripts/security/dependency-policy.ts'),
@@ -213,10 +197,7 @@ if (args.includes('--null-input')) {
                     child.exited,
                 ])
                 expect(result, `${stdout}\n${stderr}`).toBe(scenario.expected)
-                expect(await readFile(join(directory, 'calls'), 'utf8')).toBe('upstreamcleanup')
-                expect(await readFile(join(directory, 'reports/upstream-status.txt'), 'utf8')).toBe(
-                    `${scenario.upstream}\n`,
-                )
+                expect(await readFile(join(directory, 'calls'), 'utf8')).toBe('cleanup')
                 const approved = Bun.file(join(directory, 'reports/assessment.json'))
                 const blocked = Bun.file(join(directory, 'reports/blocked-assessment.json'))
                 expect(await approved.exists()).toBe(scenario.expected === 0)

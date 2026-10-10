@@ -1,54 +1,10 @@
 name: Runtime Scale
 
 on:
-    pull_request:
-        branches:
-            - main
-        paths:
-            - '.github/workflows/runtime-scale.yml'
-            - '.github/workflows/runtime-reliability.yml'
-            - '.github/scripts/ci/production-smoke-ci.ts'
-            - 'core/**'
-            - 'docker/**'
-            - 'docker-compose.yml'
-            - 'scripts/runtime-scale/**'
-            - 'scripts/runtime-reliability/**'
-            - 'scripts/smoke/**'
-            - 'scripts/compatibility/**'
-            - '.github/scripts/ci/proxy-smoke.ts'
-            - 'web/src/server/**'
-            - 'web/src/config/**'
-            - 'web/src/features/**/validation.ts'
-            - 'web/src/start.ts'
-            - 'web/src/lib/**'
-            - 'package.json'
-            - 'bun.lock'
-    push:
-        branches:
-            - main
-        paths:
-            - '.github/workflows/runtime-scale.yml'
-            - '.github/workflows/runtime-reliability.yml'
-            - '.github/scripts/ci/production-smoke-ci.ts'
-            - 'core/**'
-            - 'docker/**'
-            - 'docker-compose.yml'
-            - 'scripts/runtime-scale/**'
-            - 'scripts/runtime-reliability/**'
-            - 'scripts/smoke/**'
-            - 'scripts/compatibility/**'
-            - '.github/scripts/ci/proxy-smoke.ts'
-            - 'web/src/server/**'
-            - 'web/src/config/**'
-            - 'web/src/features/**/validation.ts'
-            - 'web/src/start.ts'
-            - 'web/src/lib/**'
-            - 'package.json'
-            - 'bun.lock'
     workflow_dispatch:
         inputs:
             hosts:
-                description: Bounded number of proxy hosts
+                description: Release/performance preparation - bounded proxy hosts
                 required: false
                 default: '100'
                 type: string

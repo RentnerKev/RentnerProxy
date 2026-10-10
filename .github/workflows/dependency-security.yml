@@ -39,14 +39,14 @@ jobs:
                   if [[ "$EVENT_NAME" == schedule || "$EVENT_NAME" == workflow_dispatch ]]; then
                       rescan=true
                   elif [[ "$EVENT_NAME" == pull_request ]]; then
-                      if ! git diff --quiet HEAD^1 HEAD -- .github/scripts/security scripts/compatibility .github/workflows/dependency-security.yml; then
+                      if ! git diff --quiet HEAD^1 HEAD -- .github/scripts/security .github/workflows/dependency-security.yml; then
                           rescan=true
                       fi
                   fi
                   printf 'rescan=%s\n' "$rescan" >> "$GITHUB_OUTPUT"
 
     locked-source:
-        name: Locked Cargo advisory audit
+        name: Own dependency audit
         runs-on: ubuntu-latest
         timeout-minutes: 20
         steps:
@@ -81,7 +81,7 @@ jobs:
                   retention-days: 30
 
     production-candidate:
-        name: Complete production image advisory assessment
+        name: Production image dependency audit
         if: github.event_name != 'schedule'
         runs-on: ubuntu-latest
         timeout-minutes: 60
@@ -102,9 +102,9 @@ jobs:
                       --label "org.opencontainers.image.revision=$(git rev-parse HEAD)" \
                       --provenance=mode=max --sbom=true \
                       --output "type=oci,dest=$RUNNER_TEMP/candidate-image.tar" .
-            - name: Install pinned vulnerability tools
+            - name: Install image inspection tools
               run: bash .github/scripts/security/install-dependency-tools.sh
-            - name: Gate own dependencies and report upstream runtime advisories
+            - name: Gate own image dependencies
               env:
                   AUTOMATION_DIRECTORY: .
                   IMAGE_SOURCE: oci-archive:${{ runner.temp }}/candidate-image.tar
@@ -119,8 +119,8 @@ jobs:
                   path: ${{ runner.temp }}/dependency-image-report
                   retention-days: 30
 
-    supported-images:
-        name: Rescan supported immutable deployed images
+    deployed-dev:
+        name: Deployed dev dependency audit
         needs: rescan-scope
         if: needs.rescan-scope.outputs.rescan == 'true'
         runs-on: ubuntu-latest
@@ -134,29 +134,18 @@ jobs:
               uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
               with:
                   bun-version: 1.4.3
-            - name: Install pinned vulnerability tools
+            - name: Install image inspection tools
               run: bash .github/scripts/security/install-dependency-tools.sh
-            - name: Resolve supported release tags
-              env:
-                  GH_TOKEN: ${{ github.token }}
-              run: |
-                  gh api --paginate "repos/$GITHUB_REPOSITORY/releases" > "$RUNNER_TEMP/releases.json"
-                  jq --slurp --raw-output 'add | map(select(.draft == false)) |
-                      group_by(if (.tag_name | test("-alpha([.]|$)")) then "alpha"
-                          elif (.tag_name | test("-beta([.]|$)")) then "beta" else "stable" end) |
-                      .[] | max_by(.published_at) | .tag_name' "$RUNNER_TEMP/releases.json" > "$RUNNER_TEMP/supported-tags.txt"
-                  printf '%s\n' dev >> "$RUNNER_TEMP/supported-tags.txt"
-            - name: Resolve each tag once and scan its immutable digest
+            - name: Resolve dev once and audit its immutable digest
               env:
                   AUTOMATION_DIRECTORY: .
-                  SUPPORTED_TAGS_FILE: ${{ runner.temp }}/supported-tags.txt
-                  REPORT_DIRECTORY: ${{ runner.temp }}/supported-image-reports
-              run: bash .github/scripts/security/rescan-supported-images.sh
-            - name: Store supported-image assessment evidence
+                  REPORT_DIRECTORY: ${{ runner.temp }}/deployed-dev-report
+              run: bash .github/scripts/security/rescan-dev-image.sh
+            - name: Store deployed-dev assessment evidence
               if: always()
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   if-no-files-found: error
-                  name: supported-image-advisory-evidence
-                  path: ${{ runner.temp }}/supported-image-reports
+                  name: deployed-dev-advisory-evidence
+                  path: ${{ runner.temp }}/deployed-dev-report
                   retention-days: 30

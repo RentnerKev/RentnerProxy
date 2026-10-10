@@ -3,7 +3,7 @@ name: PR Preview Build
 on:
     workflow_run:
         workflows:
-            - PR Title
+            - PR Preview Source
         types:
             - completed
 
@@ -57,7 +57,7 @@ jobs:
                   GITHUB_TOKEN: ${{ github.token }}
                   REPOSITORY: ${{ github.repository }}
                   SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-              run: bun trusted/.github/scripts/deploy/pr-preview.ts trigger-preflight
+              run: bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts trigger-preflight
 
             - name: Download exact tested merge SHA
               uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -75,7 +75,7 @@ jobs:
                   REPOSITORY: ${{ github.repository }}
                   SOURCE_PROOF_DIRECTORY: ${{ runner.temp }}/pr-preview-source
                   SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-              run: bun trusted/.github/scripts/deploy/pr-preview.ts gate
+              run: bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts gate
 
     build:
         name: PR Preview / Build image

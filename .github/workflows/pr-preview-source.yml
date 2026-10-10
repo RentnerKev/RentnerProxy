@@ -1,4 +1,4 @@
-name: PR Title
+name: PR Preview Source
 
 on:
     pull_request:
@@ -16,29 +16,21 @@ permissions:
     pull-requests: read
 
 concurrency:
-    group: pr-title-${{ github.event.pull_request.number || github.ref }}
+    group: pr-preview-source-${{ github.event.pull_request.number || github.ref }}
     cancel-in-progress: true
 
 jobs:
-    pr-title:
-        name: PR Title
+    pr-preview-source:
+        name: PR Preview Source
         runs-on: ubuntu-latest
         timeout-minutes: 5
         steps:
-            - name: Check out trusted title automation
+            - name: Check out trusted preview source automation
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
                   path: trusted
                   ref: ${{ github.event.pull_request.base.sha }}
-
-            - name: Validate Conventional Commit title
-              env:
-                  EVENT_PR_TITLE: ${{ github.event.pull_request.title }}
-                  GITHUB_TOKEN: ${{ github.token }}
-                  REPOSITORY: ${{ github.repository }}
-              shell: bash
-              run: bash trusted/.github/scripts/ci/validate-pr-title.sh
 
             - name: Capture exact pull request and tested merge SHA
               env:

@@ -64,28 +64,6 @@ afterEach(async () => {
     ownedDirectories.clear()
 })
 
-describe('trusted PR title policy', () => {
-    test.each([
-        ['feat: add global search', true],
-        ['fix(ui): Platzhalter lesbar machen', true],
-        ['chore(deps)!: update supported versions', true],
-        ['refactor(ci/github): organize automation', true],
-        ['perf: reduce allocations', true],
-        ['revert: restore the previous behavior', true],
-        ['feature: add search', false],
-        ['fix: ', false],
-        ['fix:  leading whitespace', false],
-        ['fix: title\nsecond line', false],
-        ['fix: title\rinjected=value', false],
-        ['fix: title\twith a tab', false],
-        ['fix: title\u001bwith an escape', false],
-        ['fix: title\u007fwith a control character', false],
-    ])('validates %j', async (title, accepted) => {
-        const result = await runScript('ci/validate-pr-title.sh', { EVENT_PR_TITLE: title })
-        expect(result.exitCode === 0).toBe(accepted)
-    })
-})
-
 describe('exact PR source proof', () => {
     test('writes only the validated PR number and tested SHA', async () => {
         const directory = await fixture()
@@ -127,7 +105,7 @@ describe('bounded reliability selection', () => {
     test.each([
         ['push', 'all', 'long', '["current"]', 'short', true],
         ['pull_request', 'all', 'long', '["current"]', 'short', true],
-        ['schedule', '', '', '["current","alpha.6"]', 'long', true],
+        ['schedule', '', '', '', '', false],
         ['workflow_dispatch', 'alpha.6', 'short', '["alpha.6"]', 'short', true],
         ['workflow_dispatch', 'all', 'long', '["current","alpha.6"]', 'long', true],
         ['workflow_dispatch', 'unknown', 'short', '', '', false],

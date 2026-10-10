@@ -6,8 +6,7 @@ import { basename, dirname, join, resolve } from 'node:path'
 
 const root = resolve(import.meta.dir, '../../../../..')
 const gitBash = 'C:/Program Files/Git/bin/bash.exe'
-const bash =
-    Bun.which('bash') ?? (process.platform === 'win32' && existsSync(gitBash) ? gitBash : null)
+const bash = process.platform === 'win32' && existsSync(gitBash) ? gitBash : Bun.which('bash')
 const revision = 'a'.repeat(40)
 const temporaryPrefix = 'rentnerproxy-cargo-exit-'
 

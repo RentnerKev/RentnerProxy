@@ -11,7 +11,7 @@ const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url))
 
 async function runPackageScript(step: CommandStep): Promise<number> {
     const subprocess = Bun.spawn({
-        cmd: [process.execPath, '--no-orphans', 'run', '--silent', step.script],
+        cmd: [process.execPath, '--no-env-file', '--no-orphans', 'run', '--silent', step.script],
         cwd: repositoryRoot,
         stdin: 'inherit',
         stdout: 'inherit',

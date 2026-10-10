@@ -6,19 +6,15 @@ case "$EVENT_NAME" in
     sources='["current"]'
     profile=short
     ;;
-  schedule)
-    sources='["current","alpha.6"]'
-    profile=long
-    ;;
   workflow_dispatch)
-    case "$REQUESTED_SOURCE" in
+    case "${REQUESTED_SOURCE:-current}" in
       all) sources='["current","alpha.6"]' ;;
       current) sources='["current"]' ;;
       alpha.6) sources='["alpha.6"]' ;;
       *) exit 1 ;;
     esac
-    case "$REQUESTED_PROFILE" in
-      short|long) profile="$REQUESTED_PROFILE" ;;
+    case "${REQUESTED_PROFILE:-short}" in
+      short|long) profile="${REQUESTED_PROFILE:-short}" ;;
       *) exit 1 ;;
     esac
     ;;

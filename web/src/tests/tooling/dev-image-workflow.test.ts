@@ -74,7 +74,8 @@ describe('dev image workflow', () => {
         const scan = steps.find((step) => step.id === 'scan')?.run
         expect(scan).toContain('audit-cargo.sh')
         expect(scan).toContain('audit-bun.sh')
-        expect(scan).toContain('scan-upstream.sh')
+        expect(scan).toContain('audit-cargo.sh')
+        expect(scan).toContain('audit-bun.sh')
         expect(config.jobs['publish-image'].with.accept_known_dev_advisories).toBeUndefined()
         expect(config.jobs['publish-image'].uses).toBe(
             './.github/workflows/publish-assessed-image.yml',

@@ -43,6 +43,19 @@ const child = Bun.spawn(
         '--isolate',
         ...tests.map((path) => `./${relative(repositoryRoot, path).replaceAll('\\', '/')}`),
     ],
-    { cwd: repositoryRoot, stdin: 'inherit', stdout: 'inherit', stderr: 'inherit' },
+    {
+        cwd: repositoryRoot,
+        env:
+            mode === '--unit' && !process.env.DATABASE_URL
+                ? {
+                      ...process.env,
+                      // Unit modules construct a lazy SQL client; their probes are injected.
+                      DATABASE_URL: 'postgresql://unit:unit@127.0.0.1:1/rentnerproxy_unit',
+                  }
+                : process.env,
+        stdin: 'inherit',
+        stdout: 'inherit',
+        stderr: 'inherit',
+    },
 )
 process.exitCode = await child.exited

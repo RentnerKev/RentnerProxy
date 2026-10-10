@@ -46,13 +46,17 @@ esac
                 bash,
                 '--noprofile',
                 '--norc',
-                join(root, '.github/scripts/security/publish-image.sh'),
+                '-c',
+                'export PATH="$PWD/bin:/usr/bin:/bin"; chmod +x "$PWD/bin"/*; exec bash "$FIXTURE_SCRIPT"',
             ],
             {
                 cwd: directory,
                 env: {
                     ...process.env,
-                    PATH: bin + (process.platform === 'win32' ? ';' : ':') + process.env.PATH,
+                    FIXTURE_SCRIPT: join(
+                        root,
+                        '.github/scripts/security/publish-image.sh',
+                    ).replaceAll('\\', '/'),
                     ARCHIVE: 'candidate.tar',
                     EXPECTED_ARCHIVE_SHA256: createHash('sha256')
                         .update('fixture-archive')

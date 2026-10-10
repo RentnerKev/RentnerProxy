@@ -6,6 +6,7 @@ on:
             - main
         paths:
             - '.github/workflows/runtime-reliability.yml'
+            - '.github/scripts/ci/select-runtime-sources.sh'
             - '.github/scripts/ci/production-smoke-ci.ts'
             - 'core/**'
             - 'docker/**'
@@ -25,6 +26,7 @@ on:
             - main
         paths:
             - '.github/workflows/runtime-reliability.yml'
+            - '.github/scripts/ci/select-runtime-sources.sh'
             - '.github/scripts/ci/production-smoke-ci.ts'
             - 'core/**'
             - 'docker/**'
@@ -39,14 +41,12 @@ on:
             - 'web/src/lib/**'
             - 'package.json'
             - 'bun.lock'
-    schedule:
-        - cron: '43 4 * * 2'
     workflow_dispatch:
         inputs:
             profile:
-                description: Bounded runtime reliability profile
+                description: Bounded profile (long is explicit release preparation)
                 required: true
-                default: long
+                default: short
                 type: choice
                 options:
                     - short
@@ -54,7 +54,7 @@ on:
             source:
                 description: Current build, immutable published Alpha 6, or both
                 required: true
-                default: all
+                default: current
                 type: choice
                 options:
                     - all

@@ -27,7 +27,7 @@ function runBlocks(source: string): readonly string[] {
 
 describe('trusted PR trigger proof', () => {
     test('captures the PR number and github.sha without executing pull request code', async () => {
-        const trigger = await workflow('pr-title.yml')
+        const trigger = await workflow('pr-preview-source.yml')
 
         expect(trigger).toContain('PR_NUMBER: ${{ github.event.pull_request.number }}')
         expect(trigger).toContain('TESTED_SHA: ${{ github.sha }}')
@@ -37,7 +37,7 @@ describe('trusted PR trigger proof', () => {
         expect(trigger).toContain('retention-days: 2')
         expect(trigger).toContain('pull-requests: read')
         expect(trigger).toContain('github.event.pull_request.number || github.ref')
-        expect(trigger).toContain('$GITHUB_API_URL/repos/$REPOSITORY/pulls/$pr_number')
+        expect(trigger).not.toContain('validate-pr-title')
         expect(trigger).toContain('ref: ${{ github.event.pull_request.base.sha }}')
         expect(trigger).toContain('persist-credentials: false')
         expect(trigger).toContain('contents: read')
@@ -51,12 +51,12 @@ describe('trusted PR trigger proof', () => {
 })
 
 describe('trusted-triggered, read-only PR preview build workflow', () => {
-    test('starts from the trusted PR Title workflow and exposes no writes or secrets', async () => {
+    test('starts from the trusted PR Preview Source workflow and exposes no writes or secrets', async () => {
         const build = await workflow('pr-preview-build.yml')
 
         expect(build).toContain('name: PR Preview Build')
         expect(build).toContain('workflow_run:')
-        expect(build).toContain('- PR Title')
+        expect(build).toContain('- PR Preview Source')
         expect(build).toContain('- completed')
         expect(build).toContain("github.event.workflow_run.conclusion == 'success'")
         expect(build).toContain("github.event.workflow_run.event == 'pull_request'")
@@ -72,9 +72,11 @@ describe('trusted-triggered, read-only PR preview build workflow', () => {
         expect(build).toContain('persist-credentials: false')
         expect(build).toContain('ref: ${{ github.workflow_sha }}')
         expect(build).toContain(
-            'bun trusted/.github/scripts/deploy/pr-preview.ts trigger-preflight',
+            'bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts trigger-preflight',
         )
-        expect(build).toContain('bun trusted/.github/scripts/deploy/pr-preview.ts gate')
+        expect(build).toContain(
+            'bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts gate',
+        )
         expect(build).toContain('lifecycle: ${{ steps.gate.outputs.lifecycle }}')
         expect(build).toContain('name: pr-preview-source')
         expect(build).toContain('group: pr-preview-build-${{ needs.verify.outputs.pr_number }}')
@@ -114,8 +116,10 @@ describe('trusted-triggered, read-only PR preview build workflow', () => {
     test('binds every successful gate to unchanged base workflows and strict checks', async () => {
         const helper = await previewHelper()
 
-        expect(helper).toContain("PREVIEW_TRIGGER_WORKFLOW_NAME = 'PR Title'")
-        expect(helper).toContain("PREVIEW_TRIGGER_WORKFLOW_PATH = '.github/workflows/pr-title.yml'")
+        expect(helper).toContain("PREVIEW_TRIGGER_WORKFLOW_NAME = 'PR Preview Source'")
+        expect(helper).toContain(
+            "PREVIEW_TRIGGER_WORKFLOW_PATH = '.github/workflows/pr-preview-source.yml'",
+        )
         expect(helper).toContain('strict_required_status_checks_policy !== true')
         expect(helper).toContain('verifyRequiredCheckProvenance')
         expect(helper).toContain('verifyWorkflowFileUnchanged')
@@ -237,24 +241,24 @@ describe('trusted PR preview publisher workflow', () => {
     test('downloads only the source run artifact and revalidates before moving the tag', async () => {
         const publisher = await workflow('pr-preview-publish.yml')
         const preflight = publisher.indexOf(
-            'bun trusted/.github/scripts/deploy/pr-preview.ts preflight',
+            'bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts preflight',
         )
         const download = publisher.indexOf('Download exact handoff artifact for resolution')
         const firstRevalidation = publisher.indexOf(
-            'bun trusted/.github/scripts/deploy/pr-preview.ts revalidate',
+            'bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts revalidate',
         )
         const sourceDigestDerivation = publisher.indexOf('source_digest="$(')
         const immutableCopy = publisher.indexOf('skopeo copy --preserve-digests')
         const movingCopy = publisher.indexOf('"docker://$MOVING_REFERENCE"')
         const finalImmutableInspection = publisher.indexOf('final_immutable_digest="$(', movingCopy)
         const finalDigestValidation = publisher.lastIndexOf(
-            'bun trusted/.github/scripts/deploy/pr-preview.ts validate-digests',
+            'bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts validate-digests',
         )
 
         expect(publisher).toContain('name: pr-preview-image')
         expect(publisher).toContain('name: pr-preview-source')
         expect(publisher).toContain(
-            'bun trusted/.github/scripts/deploy/pr-preview.ts artifact-identity',
+            'bun --no-env-file trusted/.github/scripts/deploy/pr-preview.ts artifact-identity',
         )
         expect(publisher).toContain('SOURCE_PROOF_DIRECTORY:')
         expect(preflight).toBeGreaterThan(-1)
@@ -264,11 +268,13 @@ describe('trusted PR preview publisher workflow', () => {
             'group: pr-preview-publish-${{ needs.resolve.outputs.pr_number }}',
         )
         expect(
-            publisher.match(/bun trusted\/\.github\/scripts\/deploy\/pr-preview\.ts revalidate/gmu),
+            publisher.match(
+                /bun --no-env-file trusted\/\.github\/scripts\/deploy\/pr-preview\.ts revalidate/gmu,
+            ),
         ).toHaveLength(4)
         expect(
             publisher.match(
-                /bun trusted\/\.github\/scripts\/deploy\/pr-preview\.ts validate-digests/gmu,
+                /bun --no-env-file trusted\/\.github\/scripts\/deploy\/pr-preview\.ts validate-digests/gmu,
             ),
         ).toHaveLength(2)
         expect(firstRevalidation).toBeGreaterThan(-1)

@@ -59,8 +59,8 @@ test('assesses production OCI before registry credentials and keeps source execu
     expect(recurring).toContain('pull_request:')
     expect(recurring).not.toContain('pull_request_target:')
     expect(recurring).not.toContain('secrets.')
-    expect(recurring).toContain('rescan-supported-images.sh')
-    expect(recurring).toContain('Complete production image advisory assessment')
+    expect(recurring).toContain('rescan-dev-image.sh')
+    expect(recurring).toContain('Production image dependency audit')
     expect(recurring).toContain('audit-bun.sh')
     expect(recurring).not.toContain('result == 3')
     expect(recurring).not.toContain('continue-on-error')
@@ -68,14 +68,12 @@ test('assesses production OCI before registry credentials and keeps source execu
     const workflow = Bun.YAML.parse(recurring) as {
         jobs: Record<string, { needs?: string; if?: string; steps?: { run?: string }[] }>
     }
-    expect(workflow.jobs['supported-images']?.needs).toBe('rescan-scope')
-    expect(workflow.jobs['supported-images']?.if).toBe(
-        "needs.rescan-scope.outputs.rescan == 'true'",
-    )
-    const integration = workflow.jobs['supported-images']?.steps?.find((step) =>
-        step.run?.includes('rescan-supported-images.sh'),
+    expect(workflow.jobs['deployed-dev']?.needs).toBe('rescan-scope')
+    expect(workflow.jobs['deployed-dev']?.if).toBe("needs.rescan-scope.outputs.rescan == 'true'")
+    const integration = workflow.jobs['deployed-dev']?.steps?.find((step) =>
+        step.run?.includes('rescan-dev-image.sh'),
     )?.run
-    expect(integration).toBe('bash .github/scripts/security/rescan-supported-images.sh')
+    expect(integration).toBe('bash .github/scripts/security/rescan-dev-image.sh')
     expect(
         workflow.jobs['rescan-scope']?.steps?.some((step) =>
             step.run?.includes('git diff --quiet HEAD^1 HEAD -- .github/scripts/security'),

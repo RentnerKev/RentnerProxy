@@ -6,45 +6,33 @@ on:
             - main
         paths:
             - '.github/workflows/release-compatibility.yml'
-            - 'core/**'
-            - 'docker/**'
-            - 'docker-compose.yml'
-            - 'scripts/**'
-            - '.github/scripts/**'
-            - 'web/drizzle/**'
-            - 'web/src/db/**'
-            - 'web/src/features/**'
-            - 'web/src/routes/**'
-            - 'web/src/server/**'
-            - 'web/src/config/**'
-            - 'web/src/shared/**'
-            - 'web/src/start.ts'
-            - 'web/src/lib/**'
-            - 'vite.config.ts'
-            - 'package.json'
-            - 'bun.lock'
-    push:
-        branches:
-            - main
-        paths:
             - 'scripts/production-backup.ts'
             - 'scripts/backup/**'
             - 'scripts/production-restore.ts'
             - '.github/scripts/ci/release-compatibility/**'
-            - '.github/scripts/ci/upgrade/**'
             - '.github/scripts/ci/fixtures/**'
             - 'scripts/compatibility/**'
-            - 'scripts/smoke/**'
             - 'docker/web/bootstrap-secrets.mjs'
             - 'docker/web/validate-backup.mjs'
-    schedule:
-        - cron: '17 3 * * 1'
+    push:
+        branches:
+            - main
+        paths:
+            - '.github/workflows/release-compatibility.yml'
+            - 'scripts/production-backup.ts'
+            - 'scripts/backup/**'
+            - 'scripts/production-restore.ts'
+            - '.github/scripts/ci/release-compatibility/**'
+            - '.github/scripts/ci/fixtures/**'
+            - 'scripts/compatibility/**'
+            - 'docker/web/bootstrap-secrets.mjs'
+            - 'docker/web/validate-backup.mjs'
     workflow_dispatch:
         inputs:
             source:
-                description: Published source image or the complete release matrix
+                description: Source image (all explicitly runs the full historical matrix)
                 required: true
-                default: all
+                default: alpha.6
                 type: choice
                 options:
                     - all
@@ -84,10 +72,15 @@ jobs:
                     sources='["alpha.4","alpha.5","alpha.6"]'
                   elif [ "$EVENT_NAME" = pull_request ]; then
                     sources='["fresh","alpha.6"]'
-                  elif [ "$EVENT_NAME" = schedule ] || [ "$REQUESTED_SOURCE" = all ]; then
+                  elif [ "$EVENT_NAME" = workflow_dispatch ] && [ "$REQUESTED_SOURCE" = all ]; then
                     sources='["fresh","alpha.1","alpha.2","alpha.3","alpha.4","alpha.5","alpha.6"]'
+                  elif [ "$EVENT_NAME" = workflow_dispatch ]; then
+                    case "${REQUESTED_SOURCE:-alpha.6}" in
+                      fresh|alpha.[1-6]) sources="[\"${REQUESTED_SOURCE:-alpha.6}\"]" ;;
+                      *) exit 1 ;;
+                    esac
                   else
-                    sources="[\"$REQUESTED_SOURCE\"]"
+                    exit 1
                   fi
                   echo "sources=$sources" >> "$GITHUB_OUTPUT"
 

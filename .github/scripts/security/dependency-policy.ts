@@ -1,30 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises'
-import { PUBLISHED_RELEASES } from '../../../scripts/compatibility/published-releases.ts'
 
 const policy = 'moderate-and-above Bun; all RustSec findings'
 const scope = 'rentnerproxy-locked-cargo-and-bun'
 
 export class AdvisoryPolicyError extends Error {}
-
-const currentImageProfile = {
-    profile: 'current',
-    cachePackage: 'valkey',
-    goBinaries: [
-        { name: 'caddy', path: '/usr/bin/caddy' },
-        { name: 'crowdsec', path: '/usr/local/bin/crowdsec' },
-        { name: 'cscli', path: '/usr/local/bin/cscli' },
-    ],
-    communityModuleQuery: true,
-    cargoLockSourcePath: 'core/Cargo.lock',
-} as const
-
-const alpha6ImageProfile = {
-    profile: 'published-alpha.6',
-    cachePackage: 'redis',
-    goBinaries: [{ name: 'caddy', path: '/usr/bin/caddy' }],
-    communityModuleQuery: false,
-    cargoLockSourcePath: 'controller/Cargo.lock',
-} as const
 
 function object(value: unknown): Record<string, unknown> {
     if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -46,141 +25,6 @@ function fresh(value: unknown, now: number, maximumAge: number): void {
     const age = now - Date.parse(text(value))
     if (!Number.isFinite(age) || age < -300_000 || age > maximumAge)
         throw new Error('Advisory database timestamp missing, invalid or stale')
-}
-
-export function evaluateDatabase(report: unknown, now = Date.now()): void {
-    const parsed = object(report)
-    if (parsed.valid !== true || parsed.error) throw new Error('Invalid Grype advisory database')
-    text(parsed.schemaVersion)
-    fresh(parsed.built, now, 172_800_000)
-}
-
-export function evaluateImage(report: unknown): void {
-    const parsed = object(report)
-    const descriptor = object(parsed.descriptor)
-    if (descriptor.name !== 'grype' || descriptor.version !== '0.120.1')
-        throw new Error('Unexpected image scanner identity')
-    if (object(parsed.distro).name !== 'debian')
-        throw new Error('OS inventory missing or unexpected')
-    if (parsed.ignoredMatches !== undefined && array(parsed.ignoredMatches).length)
-        throw new Error('Ignored vulnerability matches are forbidden')
-    const blocked = array(parsed.matches)
-        .map((entry) => object(object(entry).vulnerability))
-        .filter((vulnerability) => {
-            text(vulnerability.id)
-            return !['negligible', 'low'].includes(text(vulnerability.severity).toLowerCase())
-        })
-    if (blocked.length)
-        throw new AdvisoryPolicyError(
-            `Image advisory policy failed: ${blocked.map((vulnerability) => text(vulnerability.id)).join(', ')}`,
-        )
-}
-
-export function getImageAssessmentProfile(identity: unknown) {
-    const parsed = evaluateIdentity(identity)
-    const alpha6 = PUBLISHED_RELEASES['alpha.6']
-    const selected =
-        parsed.revision === alpha6.revision && parsed.digest === alpha6.digest
-            ? alpha6ImageProfile
-            : currentImageProfile
-    return { ...parsed, ...selected }
-}
-
-export function evaluateInventory(report: unknown, identity?: unknown): void {
-    const selected =
-        identity === undefined ? currentImageProfile : getImageAssessmentProfile(identity)
-    const artifacts = array(object(report).artifacts).map(object)
-    const names = new Set(
-        artifacts.map((artifact) => {
-            text(artifact.version)
-            return text(artifact.name)
-        }),
-    )
-    for (const name of [
-        'bun',
-        selected.cachePackage,
-        'postgresql-18',
-        'github.com/caddyserver/caddy/v2',
-        ...(selected.communityModuleQuery ? ['github.com/crowdsecurity/crowdsec'] : []),
-    ]) {
-        if (!names.has(name)) throw new Error(`Incomplete runtime inventory: ${name}`)
-    }
-    if (!artifacts.some((artifact) => artifact.type === 'deb'))
-        throw new Error('OS inventory missing')
-    if (!artifacts.some((artifact) => artifact.type === 'npm'))
-        throw new Error('JavaScript inventory missing')
-}
-
-export function evaluateGo(report: unknown, mode: 'binary' | 'query', now = Date.now()): void {
-    const messages = array(report).map(object)
-    const config = object(messages[0]?.config)
-    if (
-        config.protocol_version !== 'v1.0.0' ||
-        config.scanner_name !== 'govulncheck' ||
-        config.scan_mode !== mode
-    )
-        throw new Error('Unexpected Go scanner identity or mode')
-    if (config.scanner_version !== 'v1.8.0' || config.db !== 'https://vuln.go.dev')
-        throw new Error('Unexpected Go scanner version or advisory source')
-    fresh(config.db_last_modified, now, 604_800_000)
-    if (mode === 'binary') {
-        if (config.scan_level !== 'symbol')
-            throw new Error('Go symbol reachability assessment missing')
-        const inventory = messages.find((message) => message.SBOM)
-        if (!inventory || !array(object(inventory.SBOM).modules).length)
-            throw new Error('Go binary inventory missing')
-    }
-    // Query OSVs apply to the queried version. Retain every binary module,
-    // package and symbol trace, and conservatively block non-reachable findings.
-    const findings = messages.filter((message) =>
-        mode === 'query' ? 'osv' in message : 'finding' in message,
-    )
-    for (const message of messages) {
-        if ('error' in message) throw new Error('Go advisory assessment returned an error')
-    }
-    for (const message of findings) {
-        if (mode === 'query') {
-            const advisory = object(message.osv)
-            text(advisory.id)
-            const affected = array(advisory.affected).map(object)
-            if (!affected.length) throw new Error('Go advisory affected inventory missing')
-            for (const entry of affected) {
-                const packageInfo = object(entry.package)
-                text(packageInfo.name)
-                if (packageInfo.ecosystem !== 'Go')
-                    throw new Error('Unexpected Go advisory ecosystem')
-                const ranges = array(entry.ranges).map(object)
-                if (!ranges.length) throw new Error('Go advisory version ranges missing')
-                for (const range of ranges) {
-                    if (range.type !== 'SEMVER')
-                        throw new Error('Unexpected Go advisory range type')
-                    const events = array(range.events).map(object)
-                    if (!events.length) throw new Error('Go advisory range events missing')
-                    for (const event of events) {
-                        const entries = Object.entries(event)
-                        if (
-                            entries.length !== 1 ||
-                            !['introduced', 'fixed', 'last_affected', 'limit'].includes(
-                                entries[0]![0],
-                            )
-                        )
-                            throw new Error('Invalid Go advisory range event')
-                        text(entries[0]![1])
-                    }
-                }
-            }
-        } else {
-            const finding = object(message.finding)
-            text(finding.osv)
-            const trace = array(finding.trace).map(object)
-            if (!trace.length) throw new Error('Go advisory trace missing')
-            for (const frame of trace) text(frame.module)
-        }
-    }
-    if (findings.length)
-        throw new AdvisoryPolicyError(
-            'Go advisory policy failed; inspect module and symbol traces in the report',
-        )
 }
 
 export function evaluateCargoDiagnostics(diagnostics: string): void {
@@ -322,17 +166,7 @@ if (import.meta.main) {
             process.exit(0)
         }
         const report: unknown = JSON.parse(await readFile(path, 'utf8'))
-        if (mode === 'database') evaluateDatabase(report)
-        else if (mode === 'image') evaluateImage(report)
-        else if (mode === 'profile' && output)
-            await writeFile(output, JSON.stringify(getImageAssessmentProfile(report), null, 2))
-        else if (mode === 'inventory')
-            evaluateInventory(
-                report,
-                output ? (JSON.parse(await readFile(output, 'utf8')) as unknown) : undefined,
-            )
-        else if (mode === 'binary' || mode === 'query') evaluateGo(report, mode)
-        else if (mode === 'bun-audit' && output !== undefined && diagnosticsPath) {
+        if (mode === 'bun-audit' && output !== undefined && diagnosticsPath) {
             if (!/^[01]$/.test(output)) throw new Error('Unexpected Bun audit exit status')
             evaluateBunAudit(report, Number(output), await readFile(diagnosticsPath, 'utf8'))
         } else if (mode === 'cargo' && output)

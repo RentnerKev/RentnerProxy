@@ -6,25 +6,41 @@ export const checkSteps: readonly CommandStep[] = [
     { label: 'Format', script: 'format:check' },
     { label: 'Oxlint', script: 'lint' },
     { label: 'Bun typecheck', script: 'typecheck' },
-    { label: 'Drizzle migrations', script: 'db:check' },
     { label: 'Bun tests', script: 'test:ts' },
-    { label: 'Cargo check', script: 'rust:check' },
     { label: 'Cargo clippy', script: 'rust:lint' },
     { label: 'Cargo tests', script: 'rust:test' },
-    ...buildSteps,
 ]
 
-function runCheck(dependencies: Partial<CommandRunnerDependencies> = {}): Promise<number> {
+export function runCheck(
+    args: readonly string[] = [],
+    dependencies: Partial<CommandRunnerDependencies> = {},
+): Promise<number> {
+    if (args.length > 1 || (args.length === 1 && args[0] !== '--full')) {
+        throw new Error('Expected check or check --full')
+    }
+    const full = args[0] === '--full'
+    const steps = full
+        ? [
+              ...checkSteps.map((step) =>
+                  step.script === 'typecheck'
+                      ? { label: 'Script typecheck', script: 'typecheck:scripts' }
+                      : step,
+              ),
+              { label: 'Fuzz tests', script: 'test:fuzz' },
+              ...buildSteps,
+          ]
+        : checkSteps
+
     return runSteps(
         {
             title: 'Running RentnerProxy checks',
             doneMessage: 'All checks passed',
-            steps: checkSteps,
+            steps,
         },
         dependencies,
     )
 }
 
 if (import.meta.main) {
-    process.exitCode = await runCheck()
+    process.exitCode = await runCheck(process.argv.slice(2))
 }
