@@ -1,8 +1,14 @@
 import type { Http3Command, Http3Request } from './Types/client.types.ts'
+import { sharedSmokeImage, verifySharedSmokeImage } from '../images.ts'
 import assert from 'node:assert/strict'
 import { X509Certificate } from 'node:crypto'
 
 export async function buildHttp3Client(command: Http3Command, image: string): Promise<void> {
+    if (sharedSmokeImage('http3-client')) {
+        assert.equal(image, sharedSmokeImage('http3-client'))
+        await verifySharedSmokeImage(command, 'http3-client')
+        return
+    }
     await command(
         ['docker', 'build', '--file', 'scripts/smoke/http3/Dockerfile', '--tag', image, '.'],
         { timeoutMs: 300_000 },

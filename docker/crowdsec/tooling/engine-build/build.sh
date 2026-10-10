@@ -45,14 +45,14 @@ go mod verify
 # Reject missing sums or any implicit lockfile changes, including during build.
 sha256sum --check --strict "$work_root/locks.sha256"
 go list -deps -tags netgo,osusergo,expr_debug,nomsgpack,sqlite_omit_load_extension,re2_cgo \
-    ./cmd/crowdsec ./cmd/crowdsec-cli ./cmd/notification-* > "$work_root/packages.txt"
+    ./cmd/crowdsec ./cmd/crowdsec-cli > "$work_root/packages.txt"
 /bin/sh "$script_root/verify-packages.sh" "$work_root/packages.txt"
 make build BUILD_VERSION=v1.8.1 BUILD_TAG="$source_commit" \
     BUILD_TIMESTAMP=2026-09-03_09:08:00 DOCKER_BUILD=1 \
-    BUILD_PROFILE=default EXCLUDE= BUILD_SQLITE=mattn BUILD_RE2_WASM=0 BUILD_STATIC=1
+    BUILD_PROFILE=default EXCLUDE= PLUGINS= BUILD_SQLITE=mattn BUILD_RE2_WASM=0 BUILD_STATIC=1
 sha256sum --check --strict "$work_root/locks.sha256"
 
-mkdir -p "$output_root/bin" "$output_root/plugins" "$output_root/evidence"
+mkdir -p "$output_root/bin" "$output_root/evidence"
 for binary in crowdsec cscli; do
     case "$binary" in crowdsec) binary_path=cmd/crowdsec/crowdsec ;; cscli) binary_path=cmd/crowdsec-cli/cscli ;; esac
     go version -m "$binary_path" > "$output_root/evidence/$binary.buildinfo.txt"
@@ -65,11 +65,6 @@ for binary in crowdsec cscli; do
         *) echo "Expected a fully static $binary, got: $ldd_report" >&2; exit 1 ;;
     esac
     cp "$binary_path" "$output_root/bin/$binary"
-done
-# Preserve the complete upstream notification-plugin build, too.
-for plugin_dir in cmd/notification-*; do
-    plugin_name=${plugin_dir##*/}
-    cp "$plugin_dir/$plugin_name" "$output_root/plugins/$plugin_name"
 done
 cp go.mod go.sum "$output_root/evidence/"
 cp "$work_root/packages.txt" "$output_root/evidence/packages.txt"

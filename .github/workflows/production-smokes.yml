@@ -17,6 +17,7 @@ concurrency:
     cancel-in-progress: true
 
 env:
+    RENTNERPROXY_SMOKE_REUSE_IMAGES: '1'
     BUN_VERSION: 1.4.3
     RENTNERPROXY_SMOKE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
 
@@ -40,21 +41,24 @@ jobs:
             - name: Install dependencies
               run: bun install --frozen-lockfile
 
+            - name: Prepare images for this run
+              run: bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts prepare
+
             - name: Proxy runtime
-              run: bun --no-orphans .github/scripts/ci/production-smoke-ci.ts proxy
+              run: bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts proxy
 
             - name: Production appliance, backup and restore
-              run: bun --no-orphans .github/scripts/ci/production-smoke-ci.ts production
+              run: bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts production
 
             - name: Production appliance request draining
               run: bun --no-env-file --no-orphans .github/scripts/ci/appliance-drain-smoke.ts
 
             - name: Certificates and ACME
-              run: bun --no-orphans .github/scripts/ci/production-smoke-ci.ts certificates
+              run: bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts certificates
 
             - name: Upstream TLS
-              run: bun --no-orphans .github/scripts/ci/production-smoke-ci.ts upstream-tls
+              run: bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts upstream-tls
 
             - name: Clean up this run and summarize
               if: always() && steps.bun.outcome == 'success'
-              run: bun .github/scripts/ci/production-smoke-ci.ts cleanup
+              run: bun --no-env-file .github/scripts/ci/production-smoke-ci.ts cleanup

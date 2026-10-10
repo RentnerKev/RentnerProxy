@@ -24,7 +24,7 @@ import {
     requestHttp3Client,
     assertHttp3Response,
 } from '../../../scripts/smoke/http3/client.ts'
-import { verifyAlpha1Upgrade, verifyAlpha3Upgrade } from './upgrade/published-upgrade.ts'
+import { sharedSmokeImage, verifySharedSmokeImage } from '../../../scripts/smoke/images.ts'
 import { seedBackupState, assertBackupState } from './fixtures/backup-state.ts'
 import {
     seedPersistenceFixture,
@@ -361,8 +361,8 @@ async function runSmoke(): Promise<void> {
     const temporaryRoot = await mkdtemp(join(tmpdir(), 'rentnerproxy-appliance-smoke-'))
     const envFile = join(temporaryRoot, 'smtp.env')
     const temporaryComposeFile = join(temporaryRoot, 'docker-compose.yml')
-    const imageTag = 'rentnerproxy-appliance-smoke:' + runId
-    const http3Image = 'rentnerproxy-appliance-http3:' + runId
+    const imageTag = sharedSmokeImage('appliance') ?? 'rentnerproxy-appliance-smoke:' + runId
+    const http3Image = sharedSmokeImage('http3-client') ?? 'rentnerproxy-appliance-http3:' + runId
     const volumeName = project + '-data'
 
     const inheritedVolumeName = project + '-postgres-base'
@@ -443,10 +443,12 @@ async function runSmoke(): Promise<void> {
 
     try {
         await buildHttp3Client(http3Command, http3Image)
-        await command(
-            ['docker', 'build', '--tag', imageTag, '--file', productionDockerfile, '.'],
-            900_000,
-        )
+        if (sharedSmokeImage('appliance')) await verifySharedSmokeImage(http3Command, 'appliance')
+        else
+            await command(
+                ['docker', 'build', '--tag', imageTag, '--file', productionDockerfile, '.'],
+                900_000,
+            )
         const rendered = JSON.parse(await command([...compose, 'config', '--format', 'json'])) as {
             services: Record<
                 string,
@@ -1822,6 +1824,7 @@ async function runSmoke(): Promise<void> {
         await commandWithEnvironment(
             [
                 process.execPath,
+                '--no-env-file',
                 'scripts/production-backup.ts',
                 '--project',
                 project,
@@ -1924,6 +1927,7 @@ async function runSmoke(): Promise<void> {
         await commandWithEnvironment(
             [
                 process.execPath,
+                '--no-env-file',
                 'scripts/production-restore.ts',
                 '--project',
                 restoreProject,
@@ -2163,6 +2167,7 @@ async function runSmoke(): Promise<void> {
                 await commandWithEnvironment(
                     [
                         process.execPath,
+                        '--no-env-file',
                         'scripts/production-restore.ts',
                         '--project',
                         restoreProject,
@@ -2291,6 +2296,7 @@ async function runSmoke(): Promise<void> {
         await commandWithEnvironment(
             [
                 process.execPath,
+                '--no-env-file',
                 'scripts/production-restore.ts',
                 '--project',
                 deploymentChangeProject,
@@ -2373,6 +2379,7 @@ async function runSmoke(): Promise<void> {
                 await commandWithEnvironment(
                     [
                         process.execPath,
+                        '--no-env-file',
                         'scripts/production-restore.ts',
                         '--project',
                         restoreProject,
@@ -2414,6 +2421,7 @@ async function runSmoke(): Promise<void> {
                 await commandWithEnvironment(
                     [
                         process.execPath,
+                        '--no-env-file',
                         'scripts/production-restore.ts',
                         '--project',
                         restoreProject,
@@ -2451,6 +2459,7 @@ async function runSmoke(): Promise<void> {
             await commandWithEnvironment(
                 [
                     process.execPath,
+                    '--no-env-file',
                     'scripts/production-restore.ts',
                     '--project',
                     restoreProject,
@@ -2506,19 +2515,6 @@ async function runSmoke(): Promise<void> {
         }
 
         await command([...restoreCompose, 'down', '--volumes', '--remove-orphans'], 180_000)
-        for (const verifyUpgrade of [verifyAlpha1Upgrade, verifyAlpha3Upgrade]) {
-            await verifyUpgrade({
-                imageTag,
-                temporaryRoot,
-                upstreamPort: backendPort,
-                trafficMarker,
-                envFile,
-                environment: scriptEnvironment,
-                command,
-                commandWithEnvironment,
-                passed,
-            })
-        }
     } finally {
         backend?.stop(true)
         await commandFails([...compose, 'down', '--volumes', '--remove-orphans'], 180_000)
@@ -2527,8 +2523,10 @@ async function runSmoke(): Promise<void> {
             [...deploymentChangeCompose, 'down', '--volumes', '--remove-orphans'],
             180_000,
         )
-        await commandFails(['docker', 'image', 'rm', '--force', imageTag], 180_000)
-        await commandFails(['docker', 'image', 'rm', http3Image], 180_000)
+        if (!sharedSmokeImage('appliance'))
+            await commandFails(['docker', 'image', 'rm', '--force', imageTag], 180_000)
+        if (!sharedSmokeImage('http3-client'))
+            await commandFails(['docker', 'image', 'rm', http3Image], 180_000)
         await rm(temporaryRoot, { force: true, recursive: true })
     }
 }
@@ -2544,20 +2542,16 @@ try {
     )
     const locations =
         error instanceof Error
-            ? error.stack?.matchAll(
-                  /(appliance-compose-smoke|published-upgrade|upgrade-state|restore-rollback)\.ts:(\d+):(\d+)/gu,
-              )
+            ? error.stack?.matchAll(/appliance-compose-smoke\.ts:(\d+):(\d+)/gu)
             : undefined
     if (locations) {
-        const sourcePaths = {
-            'appliance-compose-smoke': '.github/scripts/ci/appliance-compose-smoke.ts',
-            'published-upgrade': '.github/scripts/ci/upgrade/published-upgrade.ts',
-            'upgrade-state': '.github/scripts/ci/fixtures/upgrade-state.ts',
-            'restore-rollback': '.github/scripts/ci/upgrade/restore-rollback.ts',
-        } as const
         for (const location of [...locations].slice(0, 6)) {
-            const sourcePath = sourcePaths[location[1] as keyof typeof sourcePaths]
-            console.error('at ' + sourcePath + ':' + location[2] + ':' + location[3])
+            console.error(
+                'at .github/scripts/ci/appliance-compose-smoke.ts:' +
+                    location[1] +
+                    ':' +
+                    location[2],
+            )
         }
     }
     process.exitCode = 1

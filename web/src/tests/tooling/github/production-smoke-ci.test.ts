@@ -46,7 +46,7 @@ describe('production smoke CI output boundary', () => {
         ).not.toContain('private-value')
     })
 
-    test('keeps restore phases and upgrade locations without forwarding raw errors', () => {
+    test('keeps restore phases and appliance smoke locations without forwarding raw errors', () => {
         const raw =
             'Production restore failed: production restore operation failed: restore PostgreSQL. No automatic destructive retry was attempted.\nprivate-value'
         const diagnostic = restoreSmokeDiagnostic(raw)
@@ -66,11 +66,11 @@ describe('production smoke CI output boundary', () => {
         ).toBeUndefined()
         const progress = smokeProgress('production')
         progress.consume(diagnostic!)
-        progress.consume('at .github/scripts/ci/upgrade/published-upgrade.ts:264:20')
+        progress.consume('at .github/scripts/ci/appliance-compose-smoke.ts:264:20')
         progress.consume('Restore failed: private-value')
         progress.consume('at scripts/private-value.ts:1:1')
         expect(progress.result(1).diagnostic).toBe(
-            'Restore failed: restore PostgreSQL at .github/scripts/ci/upgrade/published-upgrade.ts:264:20',
+            'Restore failed: restore PostgreSQL at .github/scripts/ci/appliance-compose-smoke.ts:264:20',
         )
     })
 

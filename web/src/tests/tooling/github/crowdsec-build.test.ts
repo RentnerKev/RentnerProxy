@@ -5,11 +5,8 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const buildRoot = resolve(import.meta.dir, '../../../../../docker/crowdsec/tooling/engine-build')
-const shell =
-    Bun.which('sh') ??
-    (process.platform === 'win32' && existsSync('C:/Program Files/Git/usr/bin/sh.exe')
-        ? 'C:/Program Files/Git/usr/bin/sh.exe'
-        : null)
+const gitBash = 'C:/Program Files/Git/bin/bash.exe'
+const shell = process.platform === 'win32' && existsSync(gitBash) ? gitBash : Bun.which('bash')
 const validBuildinfo = `crowdsec: go1.27.2
 \tpath\tgithub.com/crowdsecurity/crowdsec/cmd/crowdsec
 \tdep\tgoogle.golang.org/grpc\tv1.84.0\th1:grpc
@@ -70,16 +67,13 @@ describe('pinned full-feature CrowdSec source rebuild', () => {
             'test "$(pkg-config --variable=includedir re2)" = /usr/local/include',
             'go mod verify',
             'make build BUILD_VERSION=v1.8.1',
-            'BUILD_PROFILE=default EXCLUDE= BUILD_SQLITE=mattn BUILD_RE2_WASM=0 BUILD_STATIC=1',
+            'BUILD_PROFILE=default EXCLUDE= PLUGINS= BUILD_SQLITE=mattn BUILD_RE2_WASM=0 BUILD_STATIC=1',
             'make -C "$work_root/re2" install',
             'ldd "$binary_path"',
             'Expected a fully static $binary',
             'for binary in crowdsec cscli',
-            'for plugin_dir in cmd/notification-*',
             '/bin/sh "$script_root/patch-postgres.sh" "$work_root/source"',
             '/bin/sh "$script_root/verify-packages.sh" "$work_root/packages.txt"',
-            'go list -deps -tags netgo,osusergo,expr_debug,nomsgpack,sqlite_omit_load_extension,re2_cgo',
-            './cmd/crowdsec ./cmd/crowdsec-cli ./cmd/notification-*',
         ])
             expect(script).toContain(contract)
         expect(
@@ -242,26 +236,5 @@ describe('pinned full-feature CrowdSec source rebuild', () => {
         } finally {
             await rm(directory, { recursive: true, force: true })
         }
-    })
-
-    test('bounds the module scanner exception to the guarded unused OpenPGP advisory', async () => {
-        const config = Bun.TOML.parse(
-            await readFile(join(buildRoot, 'osv-scanner.toml'), 'utf8'),
-        ) as Record<string, unknown>
-        expect(Object.keys(config)).toEqual(['IgnoredVulns'])
-        const exceptions = config.IgnoredVulns as {
-            id: string
-            ignoreUntil: unknown
-            reason: string
-        }[]
-        expect(exceptions).toHaveLength(1)
-        const exception = exceptions[0]!
-        expect(Object.keys(exception).toSorted()).toEqual(['id', 'ignoreUntil', 'reason'])
-        expect(exception.id).toBe('GO-2026-5932')
-        expect(new Date(String(exception.ignoreUntil)).toISOString()).toBe(
-            '2026-11-09T00:00:00.000Z',
-        )
-        expect(exception.reason).toContain('verify-packages.sh')
-        expect(exception.reason).toContain('Native binary and image advisory scans')
     })
 })

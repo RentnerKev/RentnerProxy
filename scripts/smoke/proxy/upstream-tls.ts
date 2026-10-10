@@ -9,6 +9,7 @@ import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { createProxyRuntimeSnapshot } from '../../../web/src/server/ProxyRuntime/proxy-runtime-snapshot.ts'
+import { sharedSmokeImage, verifySharedSmokeImage } from '../images.ts'
 import { smokeDockerArguments } from '../resources.ts'
 
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url))
@@ -17,7 +18,7 @@ const network = 'rentnerproxy-upstream-tls-' + runId
 const runtimeContainer = network + '-runtime'
 const backendContainer = network + '-backend'
 const stateVolume = network + '-state'
-const runtimeImage = network + ':runtime'
+const runtimeImage = sharedSmokeImage('proxy-runtime') ?? network + ':runtime'
 const token = randomBytes(32).toString('hex')
 const caddyImage =
     'mirror.gcr.io/library/caddy:2.11.7@sha256:f2a1290d0463aad60660d4ec134943f183ee2a5f6c3eb7bf32dd984f2f020772'
@@ -363,18 +364,21 @@ async function runSmoke(): Promise<void> {
     let caTwoPath = ''
     try {
         await command(['docker', 'version', '--format', '{{.Server.Version}}'])
-        await command(
-            [
-                'docker',
-                'build',
-                '--file',
-                'docker/proxy-runtime/Dockerfile',
-                '--tag',
-                runtimeImage,
-                '.',
-            ],
-            { inherit: true, timeoutMs: 600_000 },
-        )
+        if (sharedSmokeImage('proxy-runtime'))
+            await verifySharedSmokeImage(command, 'proxy-runtime')
+        else
+            await command(
+                [
+                    'docker',
+                    'build',
+                    '--file',
+                    'docker/proxy-runtime/Dockerfile',
+                    '--tag',
+                    runtimeImage,
+                    '.',
+                ],
+                { inherit: true, timeoutMs: 600_000 },
+            )
         await command(['docker', 'network', 'create', network])
         await command(['docker', 'volume', 'create', stateVolume])
         caOnePath = await createCa('ca-one', 'RentnerProxy upstream smoke CA one')
@@ -694,7 +698,8 @@ async function runSmoke(): Promise<void> {
         )
         await command(['docker', 'volume', 'rm', stateVolume]).catch(() => undefined)
         await command(['docker', 'network', 'rm', network]).catch(() => undefined)
-        await command(['docker', 'image', 'rm', '--force', runtimeImage]).catch(() => undefined)
+        if (!sharedSmokeImage('proxy-runtime'))
+            await command(['docker', 'image', 'rm', '--force', runtimeImage]).catch(() => undefined)
         await rm(tempDirectory, { recursive: true, force: true }).catch(() => undefined)
     }
 }

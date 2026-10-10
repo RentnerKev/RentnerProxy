@@ -11,6 +11,7 @@ import { SQL } from 'bun'
 import { Database } from 'bun:sqlite'
 
 import { startTestUpstream } from '../../../scripts/smoke/proxy/upstream.ts'
+import { sharedSmokeImage, verifySharedSmokeImage } from '../../../scripts/smoke/images.ts'
 import { smokeCompose, smokeDockerArguments } from '../../../scripts/smoke/resources.ts'
 
 function basicHeader(username: string, password: string): string {
@@ -46,10 +47,14 @@ await writeFile(
             {
                 services: {
                     'proxy-runtime': {
-                        build: {
-                            context: repositoryRoot,
-                            dockerfile: 'docker/proxy-runtime/Dockerfile',
-                        },
+                        ...(sharedSmokeImage('proxy-runtime')
+                            ? { image: sharedSmokeImage('proxy-runtime') }
+                            : {
+                                  build: {
+                                      context: repositoryRoot,
+                                      dockerfile: 'docker/proxy-runtime/Dockerfile',
+                                  },
+                              }),
                         environment: {
                             RENTNERPROXY_CONTROLLER_TOKEN:
                                 '${RENTNERPROXY_CONTROLLER_TOKEN:?Set a random server-only controller token}',
@@ -331,11 +336,23 @@ async function runSmoke(): Promise<void> {
             await probeDatabase.close()
         }
 
-        await command([process.execPath, 'run', 'db:migrate'], { inherit: true })
-        await command([...compose, 'up', '--build', '--detach'], {
+        await command([process.execPath, '--no-env-file', 'web/src/db/migrate.ts'], {
             inherit: true,
-            timeoutMs: 600_000,
         })
+        if (sharedSmokeImage('proxy-runtime'))
+            await verifySharedSmokeImage(command, 'proxy-runtime')
+        await command(
+            [
+                ...compose,
+                'up',
+                ...(sharedSmokeImage('proxy-runtime') ? ['--no-build'] : ['--build']),
+                '--detach',
+            ],
+            {
+                inherit: true,
+                timeoutMs: 600_000,
+            },
+        )
         let proxyUrl = ''
         let controllerUrl = ''
         async function refreshRuntimeAddresses(): Promise<void> {
@@ -1674,7 +1691,7 @@ try {
 }
 `,
         )
-        await command([process.execPath, restartWorker], {
+        await command([process.execPath, '--no-env-file', restartWorker], {
             timeoutMs: 90_000,
             startupDiagnostic: true,
         })

@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { basename, dirname, resolve } from 'node:path'
 
+import { sharedSmokeImage, verifySharedSmokeImage } from '../images.ts'
 import { smokeDockerArguments } from '../resources.ts'
 import { startCertificateDnsFixture } from './dns-fixture.ts'
 import { verifyProxyAccessLogs } from '../proxy/access-logs.ts'
@@ -25,8 +26,8 @@ const network = project + '-network'
 const runtimeContainer = project + '-runtime'
 const trustedProxyContainer = project + '-trusted-proxy'
 const pebbleContainer = project + '-pebble'
-const runtimeImage = project + ':runtime'
-const http3Image = project + ':http3-client'
+const runtimeImage = sharedSmokeImage('proxy-runtime') ?? project + ':runtime'
+const http3Image = sharedSmokeImage('http3-client') ?? project + ':http3-client'
 const pebbleImage =
     'ghcr.io/letsencrypt/pebble:2.10.1@sha256:ddf230642b1a584f519f32e347de1b05a6e4c1f6c35c1863b33effeab5f78199'
 const token = randomBytes(32).toString('hex')
@@ -62,6 +63,10 @@ async function command(
 }
 
 async function buildRuntimeImage(): Promise<void> {
+    if (sharedSmokeImage('proxy-runtime')) {
+        await verifySharedSmokeImage(command, 'proxy-runtime')
+        return
+    }
     const args = [
         'docker',
         'build',
@@ -2717,8 +2722,10 @@ async function runSmoke(): Promise<void> {
             await command(['docker', 'rm', '--force', certSource]).catch(() => undefined)
         await command(['docker', 'volume', 'rm', stateVolume]).catch(() => undefined)
         await command(['docker', 'network', 'rm', network]).catch(() => undefined)
-        await command(['docker', 'image', 'rm', runtimeImage]).catch(() => undefined)
-        await command(['docker', 'image', 'rm', http3Image]).catch(() => undefined)
+        if (!sharedSmokeImage('proxy-runtime'))
+            await command(['docker', 'image', 'rm', runtimeImage]).catch(() => undefined)
+        if (!sharedSmokeImage('http3-client'))
+            await command(['docker', 'image', 'rm', http3Image]).catch(() => undefined)
         if (isOwnedTempDirectory(temp)) await rm(temp, { recursive: true, force: true })
     }
 }

@@ -5,6 +5,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { sharedSmokeImage, verifySharedSmokeImage } from '../../../scripts/smoke/images.ts'
 import { smokeDockerArguments } from '../../../scripts/smoke/resources.ts'
 import { controllerCall, seedDrainFixture } from './appliance-drain-fixture.ts'
 import { drainRequest } from './appliance-drain-request.ts'
@@ -26,7 +27,11 @@ const root = await mkdtemp(join(tmpdir(), prefix + '-'))
 const imageIndex = process.argv.indexOf('--image')
 const suppliedImage = imageIndex === -1 ? undefined : process.argv[imageIndex + 1]
 assert.ok(imageIndex === -1 || (suppliedImage && !suppliedImage.startsWith('-')))
-const image = suppliedImage ?? prefix + '-current'
+assert.ok(
+    !suppliedImage || !sharedSmokeImage('appliance'),
+    'Explicit images cannot override CI reuse mode',
+)
+const image = suppliedImage ?? sharedSmokeImage('appliance') ?? prefix + '-current'
 const owned: { kind: 'container' | 'volume' | 'network' | 'image'; name: string }[] = []
 const measurements: unknown[] = []
 let stage = 'build'
@@ -251,7 +256,25 @@ try {
         await readFile(join(repositoryRoot, 'docker-compose.yml'), 'utf8'),
     ) as { services: { rentnerproxy: { stop_grace_period?: string } } }
     assert.equal(composeSource.services.rentnerproxy.stop_grace_period, '30s')
-    if (!suppliedImage) {
+    if (sharedSmokeImage('appliance')) {
+        await verifySharedSmokeImage(async (args, options) => {
+            if (args[0] === 'git') {
+                const child = Bun.spawn(args, {
+                    cwd: repositoryRoot,
+                    stdout: 'pipe',
+                    stderr: 'pipe',
+                })
+                const [output, , exit] = await Promise.all([
+                    new Response(child.stdout).text(),
+                    new Response(child.stderr).text(),
+                    child.exited,
+                ])
+                assert.equal(exit, 0)
+                return output
+            }
+            return (await command(args.slice(1), options)).output
+        }, 'appliance')
+    } else if (!suppliedImage) {
         const git = Bun.spawn(
             [
                 'git',

@@ -2,6 +2,8 @@ import type { Suite, Result } from './Types/production-smoke-ci.types.ts'
 // oxlint-disable no-await-in-loop -- stream draining and ordered Docker cleanup are sequential.
 import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { isDockerBuildDiagnostic } from '../../../scripts/smoke/docker-build-diagnostics.ts'
+import { prepareSmokeImages } from '../../../scripts/smoke/images.ts'
+import { runSmokeProcess } from '../../../scripts/smoke/process.ts'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -113,16 +115,7 @@ export function smokeProgress(suite: Suite) {
                 /((?:\.github[/\\]scripts[/\\]ci|scripts)[/\\](?:[a-z0-9-]+[/\\])*[a-z0-9-]+\.ts):(\d+):(\d+)/u,
             )
             const sourcePath = location?.[1]?.replaceAll('\\', '/')
-            if (
-                location &&
-                (sourcePath === specification.source ||
-                    (suite === 'production' &&
-                        [
-                            '.github/scripts/ci/upgrade/published-upgrade.ts',
-                            '.github/scripts/ci/fixtures/upgrade-state.ts',
-                            '.github/scripts/ci/upgrade/restore-rollback.ts',
-                        ].includes(sourcePath!)))
-            ) {
+            if (location && sourcePath === specification.source) {
                 diagnostic = (
                     diagnostic +
                     ' at ' +
@@ -157,7 +150,7 @@ async function runSuite(suite: Suite, root: string): Promise<number> {
     const started = Date.now()
     console.log('Starting ' + smokeSuites[suite].label)
     const child = Bun.spawn({
-        cmd: [process.execPath, '--no-orphans', 'run', smokeSuites[suite].script],
+        cmd: [process.execPath, '--no-env-file', '--no-orphans', smokeSuites[suite].source],
         cwd: repositoryRoot,
         env: { ...process.env, TMPDIR: fixtures, TEMP: fixtures, TMP: fixtures, NO_COLOR: '1' },
         stdin: 'ignore',
@@ -313,7 +306,18 @@ if (import.meta.main) {
         if (!scope) throw new Error('RENTNERPROXY_SMOKE_RUN is required for CI smoke isolation')
         const suite = process.argv[2]
         const root = temporaryRoot(scope)
-        if (suite === 'cleanup') await cleanup(scope, root)
+        if (suite === 'prepare') {
+            await prepareSmokeImages(async (args, options) => {
+                const result = await runSmokeProcess(args, {
+                    cwd: repositoryRoot,
+                    timeoutMs: options?.timeoutMs ?? 60_000,
+                })
+                if (result.exitCode !== 0 || result.timedOut)
+                    throw new Error('Smoke image preparation failed')
+                return result.stdout.trim()
+            })
+            console.log('Prepared three scoped smoke images')
+        } else if (suite === 'cleanup') await cleanup(scope, root)
         else if (suite && Object.hasOwn(smokeSuites, suite)) {
             process.exitCode = await runSuite(suite as Suite, root)
         } else throw new Error('Unknown smoke suite')

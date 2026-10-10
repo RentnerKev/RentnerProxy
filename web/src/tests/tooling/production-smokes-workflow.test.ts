@@ -84,13 +84,34 @@ describe('production smokes workflow security and toolchain', () => {
 })
 
 describe('production smokes workflow execution contract', () => {
+    test('prepares scoped images before consumers and leaves final cleanup enabled', async () => {
+        const document = Bun.YAML.parse(await workflow()) as {
+            env: Record<string, string>
+            jobs: { 'production-smokes': { steps: { run?: string; if?: string }[] } }
+        }
+        expect(document.env.RENTNERPROXY_SMOKE_REUSE_IMAGES).toBe('1')
+        const steps = document.jobs['production-smokes'].steps
+        const commands = steps.flatMap((step) => (step.run ? [step.run] : []))
+        const prepare = commands.findIndex((command) =>
+            command.endsWith('production-smoke-ci.ts prepare'),
+        )
+        const proxy = commands.findIndex((command) =>
+            command.endsWith('production-smoke-ci.ts proxy'),
+        )
+        expect(prepare).toBeGreaterThan(-1)
+        expect(proxy).toBeGreaterThan(prepare)
+        expect(
+            commands.filter((command) => command.endsWith('production-smoke-ci.ts prepare')),
+        ).toHaveLength(1)
+        expect(steps.at(-1)?.if).toBe("always() && steps.bun.outcome == 'success'")
+    })
     test('runs the four existing smoke scripts as separate sequential steps', async () => {
         const source = await workflow()
         const commands = [
-            'bun --no-orphans .github/scripts/ci/production-smoke-ci.ts proxy',
-            'bun --no-orphans .github/scripts/ci/production-smoke-ci.ts production',
-            'bun --no-orphans .github/scripts/ci/production-smoke-ci.ts certificates',
-            'bun --no-orphans .github/scripts/ci/production-smoke-ci.ts upstream-tls',
+            'bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts proxy',
+            'bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts production',
+            'bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts certificates',
+            'bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts upstream-tls',
         ]
         let previous = -1
 
@@ -108,7 +129,9 @@ describe('production smokes workflow execution contract', () => {
         const source = await workflow()
 
         expect(source).toContain("if: always() && steps.bun.outcome == 'success'")
-        expect(source).toContain('bun .github/scripts/ci/production-smoke-ci.ts cleanup')
+        expect(source).toContain(
+            'bun --no-env-file .github/scripts/ci/production-smoke-ci.ts cleanup',
+        )
     })
 
     test('maps each CI phase to the existing smoke implementation and builds production from checkout', async () => {
