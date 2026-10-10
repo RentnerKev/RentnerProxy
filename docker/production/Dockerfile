@@ -209,7 +209,9 @@ RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
     && /usr/local/bin/crowdsec -version | grep -F 'version: v1.8.1-909b5157986a2b2c2163300fdaef5ed01289f7d2' \
     && setcap -r /usr/bin/caddy \
     && apt-get purge -y --auto-remove libcap2-bin \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && cd /opt/rentnerproxy/web \
+    && gosu rentnerproxy-web bun --no-env-file -e "import { format } from 'oxfmt'; const result = await format('default-site.html', '<style>h1{color:red}</style>', { tabWidth: 4, printWidth: 100, htmlWhitespaceSensitivity: 'strict' }); if (result.errors.length || !result.code.includes('color: red;')) throw new Error('Runtime HTML formatter failed')"
 
 EXPOSE 3000 8080 8443/tcp 8443/udp
 VOLUME ["/var/lib/rentnerproxy"]

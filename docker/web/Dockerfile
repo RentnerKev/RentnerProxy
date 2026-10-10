@@ -23,7 +23,8 @@ COPY package.json bun.lock ./
 COPY docker/web/prune-build-tools.sh /tmp/prune-build-tools.sh
 RUN bun install --frozen-lockfile --production \
     && /bin/sh /tmp/prune-build-tools.sh \
-    && rm /tmp/prune-build-tools.sh
+    && rm /tmp/prune-build-tools.sh \
+    && bun --no-env-file -e "import { format } from 'oxfmt'; const result = await format('default-site.html', '<style>h1{color:red}</style>', { tabWidth: 4, printWidth: 100, htmlWhitespaceSensitivity: 'strict' }); if (result.errors.length || !result.code.includes('color: red;')) throw new Error('Runtime HTML formatter failed')"
 COPY --from=build /app/web/dist ./web/dist
 COPY --from=build /build/migrations ./web/drizzle
 COPY --from=build /build/migrate.js ./migrate.js
