@@ -64,12 +64,19 @@ jobs:
                   SOURCE_DIRECTORY: .
                   REPORT_DIRECTORY: ${{ runner.temp }}/dependency-source-report
               run: REVISION="$(git rev-parse HEAD)" bash .github/scripts/security/audit-cargo.sh
+            - name: Audit complete locked Bun graph
+              if: ${{ !cancelled() }}
+              env:
+                  AUTOMATION_DIRECTORY: .
+                  SOURCE_DIRECTORY: .
+                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-source-report
+              run: bash .github/scripts/security/audit-bun.sh
             - name: Store exact-source advisory evidence
               if: always()
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   if-no-files-found: error
-                  name: cargo-advisory-evidence
+                  name: source-dependency-advisory-evidence
                   path: ${{ runner.temp }}/dependency-source-report
                   retention-days: 30
 
@@ -97,23 +104,12 @@ jobs:
                       --output "type=oci,dest=$RUNNER_TEMP/candidate-image.tar" .
             - name: Install pinned vulnerability tools
               run: bash .github/scripts/security/install-dependency-tools.sh
-            - name: Assess candidate including copied Go binaries
+            - name: Gate own dependencies and report upstream runtime advisories
               env:
                   AUTOMATION_DIRECTORY: .
                   IMAGE_SOURCE: oci-archive:${{ runner.temp }}/candidate-image.tar
                   REPORT_DIRECTORY: ${{ runner.temp }}/dependency-image-report
-              run: |
-                  result=0
-                  REVISION="$(git rev-parse HEAD)" bash .github/scripts/security/scan-image.sh || result=$?
-                  if (( result == 3 )); then
-                      jq --exit-status '.verdict == "blocked"' "$REPORT_DIRECTORY/blocked-assessment.json" > /dev/null
-                      echo '::warning::Assessment complete: dependency advisories block image publication.'
-                      printf '%s\n' 'Dependency assessment completed. **Image publication is blocked.** Review the exact-candidate advisory artifact; this check does not approve a release.' >> "$GITHUB_STEP_SUMMARY"
-                  elif (( result != 0 )); then
-                      exit "$result"
-                  else
-                      printf '%s\n' 'Dependency assessment completed. This exact candidate passed the advisory policy; publication still requires independent reassessment.' >> "$GITHUB_STEP_SUMMARY"
-                  fi
+              run: REVISION="$(git rev-parse HEAD)" bash .github/scripts/security/scan-image.sh
             - name: Store exact-candidate assessment
               if: always()
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -155,16 +151,7 @@ jobs:
                   AUTOMATION_DIRECTORY: .
                   SUPPORTED_TAGS_FILE: ${{ runner.temp }}/supported-tags.txt
                   REPORT_DIRECTORY: ${{ runner.temp }}/supported-image-reports
-                  EVENT_NAME: ${{ github.event_name }}
-              run: |
-                  result=0
-                  bash .github/scripts/security/rescan-supported-images.sh || result=$?
-                  if [[ "$EVENT_NAME" == pull_request ]] && (( result == 3 )); then
-                      echo '::warning::Deployed image assessments completed with blocking advisories.'
-                      printf '%s\n' 'Deployed channel assessment coverage completed. **Image publication remains blocked** for adverse candidates; this integration check grants no publication approval.' >> "$GITHUB_STEP_SUMMARY"
-                  else
-                      exit "$result"
-                  fi
+              run: bash .github/scripts/security/rescan-supported-images.sh
             - name: Store supported-image assessment evidence
               if: always()
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

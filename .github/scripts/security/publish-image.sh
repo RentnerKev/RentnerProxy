@@ -17,26 +17,10 @@ done <<< "$IMAGE_TAGS"
 printf '%s  %s\n' "$EXPECTED_ARCHIVE_SHA256" "$ARCHIVE" | sha256sum --check --strict
 actual_digest="sha256:$(skopeo inspect --raw "oci-archive:$ARCHIVE" | sha256sum | cut -d ' ' -f1)"
 [[ "$actual_digest" == "$EXPECTED_DIGEST" ]] || exit 1
-# Blocked/report-only records can never authorize registry access or copying.
-# A separately acknowledged dev risk record is never an approved assessment.
-case "${ACCEPT_KNOWN_DEV_ADVISORIES:-false}" in
-    false)
-        bun --no-env-file "$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts" \
-            approved "$ASSESSED_REPORT" "$IDENTITY_REPORT"
-        ;;
-    true)
-        (( ${#tags[@]} == 1 )) && [[ "${tags[0]}" == dev ]] || exit 1
-        dev_policy="$AUTOMATION_DIRECTORY/.github/scripts/security/dev-advisory-policy.ts"
-        bun --no-env-file "$dev_policy" context -
-        if [[ "$(jq --raw-output '.verdict' "$ASSESSED_REPORT")" == approved ]]; then
-            bun --no-env-file "$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts" \
-                approved "$ASSESSED_REPORT" "$IDENTITY_REPORT"
-        else
-            bun --no-env-file "$dev_policy" accepted "$ASSESSED_REPORT" "$IDENTITY_REPORT"
-        fi
-        ;;
-    *) exit 1 ;;
-esac
+# Publication requires fresh own-dependency evidence, never a legacy full-image
+# approval, blocked assessment or dev advisory waiver.
+bun --no-env-file "$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts" \
+    approved "$ASSESSED_REPORT" "$IDENTITY_REPORT"
 jq --exit-status --arg digest "$EXPECTED_DIGEST" '.digest == $digest' "$IDENTITY_REPORT" > /dev/null
 auth_file="$RUNNER_TEMP/dependency-publish-auth.json"
 trap 'rm -f "$auth_file"' EXIT

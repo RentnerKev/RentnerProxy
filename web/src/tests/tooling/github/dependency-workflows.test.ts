@@ -50,8 +50,7 @@ test('assesses production OCI before registry credentials and keeps source execu
         copy.indexOf('skopeo login'),
     )
     expect(publisher).toContain('dependency-publish-report/assessment.json')
-    // Reporting existing advisories on PRs never authorizes publication. Only
-    // complete blocked assessments are reported; all unavailable evidence fails.
+    // Own advisories cannot be converted into successful integration coverage.
     expect(files[0]).not.toContain('result == 3')
     expect(files[1]).not.toContain('result == 3')
     expect(publisher).not.toContain('result == 3')
@@ -62,8 +61,10 @@ test('assesses production OCI before registry credentials and keeps source execu
     expect(recurring).not.toContain('secrets.')
     expect(recurring).toContain('rescan-supported-images.sh')
     expect(recurring).toContain('Complete production image advisory assessment')
-    expect(recurring).toContain('\'.verdict == "blocked"\'')
-    expect(recurring).toContain('exit "$result"')
+    expect(recurring).toContain('audit-bun.sh')
+    expect(recurring).not.toContain('result == 3')
+    expect(recurring).not.toContain('continue-on-error')
+    for (const source of files) expect(source).not.toContain('accept_known_dev_advisories')
     const workflow = Bun.YAML.parse(recurring) as {
         jobs: Record<string, { needs?: string; if?: string; steps?: { run?: string }[] }>
     }
@@ -74,8 +75,7 @@ test('assesses production OCI before registry credentials and keeps source execu
     const integration = workflow.jobs['supported-images']?.steps?.find((step) =>
         step.run?.includes('rescan-supported-images.sh'),
     )?.run
-    expect(integration).toContain('[[ "$EVENT_NAME" == pull_request ]] && (( result == 3 ))')
-    expect(integration).toContain('exit "$result"')
+    expect(integration).toBe('bash .github/scripts/security/rescan-supported-images.sh')
     expect(
         workflow.jobs['rescan-scope']?.steps?.some((step) =>
             step.run?.includes('git diff --quiet HEAD^1 HEAD -- .github/scripts/security'),

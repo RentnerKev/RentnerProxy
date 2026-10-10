@@ -8,6 +8,13 @@ const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' 
 const revision = 'a'.repeat(40)
 const digest = 'sha256:' + createHash('sha256').update('fixture-manifest').digest('hex')
 
+function shellPath(path: string): string {
+    const normalized = path.replaceAll('\\', '/')
+    return process.platform === 'win32'
+        ? normalized.replace(/^([a-z]):\//iu, (_match, drive: string) => `/${drive.toLowerCase()}/`)
+        : normalized
+}
+
 describe('preview publication assessment guard', () => {
     test('rejects missing, blocked, stale and mismatched assessments before registry access', async () => {
         const parent = join(root, 'tmp')
@@ -27,7 +34,9 @@ describe('preview publication assessment guard', () => {
             revision,
             digest,
             policy,
-            verdict: 'approved',
+            verdict: 'own-dependencies-approved',
+            scope: 'rentnerproxy-locked-cargo-and-bun',
+            externalRuntimePolicy: 'informational',
             assessedAt: new Date().toISOString(),
         }
         await Promise.all([
@@ -56,21 +65,27 @@ describe('preview publication assessment guard', () => {
                     bash,
                     '--noprofile',
                     '--norc',
-                    join(root, '.github/scripts/deploy/publish-preview-image.sh'),
+                    '-c',
+                    'export PATH="$TOOL_DIRECTORY:/usr/bin:/bin"; chmod +x "$TOOL_DIRECTORY"/*; exec bash "$PUBLISH_SCRIPT"',
                 ],
                 {
                     cwd: directory,
                     env: {
-                        ...process.env,
-                        PATH: bin + (process.platform === 'win32' ? ';' : ':') + process.env.PATH,
+                        PATH: '/usr/bin:/bin',
+                        TOOL_DIRECTORY: shellPath(bin),
+                        PUBLISH_SCRIPT: shellPath(
+                            join(root, '.github/scripts/deploy/publish-preview-image.sh'),
+                        ),
                         RUNNER_TEMP: '.',
                         ARTIFACT_DIRECTORY: '.',
-                        ASSESSED_REPORT: report,
+                        ASSESSED_REPORT: shellPath(report),
                         SOURCE_IMAGE_DIGEST: sourceDigest,
                         TESTED_SHA: revision,
-                        REAL_BUN: process.execPath,
-                        REAL_POLICY: join(root, '.github/scripts/security/dependency-policy.ts'),
-                        MARKER: marker,
+                        REAL_BUN: shellPath(process.execPath),
+                        REAL_POLICY: shellPath(
+                            join(root, '.github/scripts/security/dependency-policy.ts'),
+                        ),
+                        MARKER: shellPath(marker),
                     },
                     stdin: 'ignore',
                     stdout: 'ignore',
@@ -85,6 +100,10 @@ describe('preview publication assessment guard', () => {
             for (const value of [
                 undefined,
                 { ...approved, verdict: 'blocked' },
+                { ...approved, verdict: 'approved' },
+                { ...approved, verdict: 'dev-risk-accepted' },
+                { ...approved, scope: undefined },
+                { ...approved, externalRuntimePolicy: undefined },
                 { ...approved, assessedAt: '2000-01-01T00:00:00Z' },
                 { ...approved, revision: 'b'.repeat(40) },
                 { ...approved, digest: 'sha256:' + 'b'.repeat(64) },

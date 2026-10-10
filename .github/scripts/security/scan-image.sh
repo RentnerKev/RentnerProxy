@@ -19,31 +19,10 @@ skopeo inspect --override-os linux --override-arch amd64 --config "$IMAGE_SOURCE
 jq --exit-status --arg revision "$REVISION" '.os == "linux" and .architecture == "amd64" and .config.Labels["org.opencontainers.image.revision"] == $revision' "$REPORT_DIRECTORY/config.json" > /dev/null
 jq --null-input --arg revision "$REVISION" --arg digest "$digest" '{revision:$revision,digest:$digest}' > "$REPORT_DIRECTORY/identity.json"
 policy="$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts"
-dev_policy="$AUTOMATION_DIRECTORY/.github/scripts/security/dev-advisory-policy.ts"
-dev_accepted_findings=0
-case "${ACCEPT_KNOWN_DEV_ADVISORIES:-false}" in
-    false) ;;
-    true) bun --no-env-file "$dev_policy" context - ;;
-    *) echo '::error::Invalid dev advisory acknowledgement'; exit 1 ;;
-esac
 profile="$REPORT_DIRECTORY/profile.json"
 # Only the exact published source/index pair selects the historical runtime.
 bun --no-env-file "$policy" profile "$REPORT_DIRECTORY/identity.json" "$profile"
 cargo_lock_source_path="$(jq --exit-status --raw-output '.cargoLockSourcePath' "$profile")"
-jq --exit-status --raw-output '.goBinaries[] | [.name, .path] | @tsv' "$profile" > "$REPORT_DIRECTORY/go-binaries.tsv"
-community_module_query="$(jq --exit-status --raw-output '.communityModuleQuery | tostring' "$profile")"
-export GRYPE_DB_CACHE_DIR="$RUNNER_TEMP/dependency-db"
-export GRYPE_DB_VALIDATE_AGE=true GRYPE_DB_MAX_ALLOWED_BUILT_AGE=48h
-export GRYPE_DB_REQUIRE_UPDATE_CHECK=true GRYPE_CHECK_FOR_APP_UPDATE=false
-grype db update
-grype db status --output json > "$REPORT_DIRECTORY/grype-db.json"
-bun --no-env-file "$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts" database "$REPORT_DIRECTORY/grype-db.json"
-# Grype's embedded Syft catalogs the full merged runtime (OS, npm and copied
-# Go/native binaries); no runtime entrypoint or image command is executed.
-scan_source="$IMAGE_SOURCE"
-if [[ "$IMAGE_SOURCE" == docker://* ]]; then scan_source="registry:${IMAGE_SOURCE#docker://}"; fi
-grype "$scan_source" --platform linux/amd64 --output json --file "$REPORT_DIRECTORY/image.json"
-syft "$scan_source" --platform linux/amd64 --output "syft-json=$REPORT_DIRECTORY/inventory.json"
 status=0
 assess() {
     local result=0
@@ -52,32 +31,17 @@ assess() {
     elif (( result == 3 && status == 0 )); then status=3
     fi
 }
-# The exception applies only to exact, previously reviewed image/Go findings.
-# Cargo, Bun, community queries and scanner/inventory validity stay strict.
-assess_dev() {
-    local accepted result=0
-    accepted="$(bun --no-env-file "$dev_policy" "$@")" || result=$?
-    if (( result != 0 && result != 3 )); then status=1
-    elif (( result == 3 && status == 0 )); then status=3
-    elif (( result == 0 )); then
-        [[ "$accepted" =~ ^[0-9]+$ ]] || { status=1; return; }
-        dev_accepted_findings=$((dev_accepted_findings + accepted))
-    fi
-}
-assess bun --no-env-file "$policy" inventory "$REPORT_DIRECTORY/inventory.json" "$REPORT_DIRECTORY/identity.json"
-if [[ "${ACCEPT_KNOWN_DEV_ADVISORIES:-false}" == true ]]; then
-    assess_dev image "$REPORT_DIRECTORY/image.json"
-else
-    assess bun --no-env-file "$policy" image "$REPORT_DIRECTORY/image.json"
-fi
 # Convert as data; docker create is stopped and docker cp never starts services.
 skopeo copy --override-os linux --override-arch amd64 "$IMAGE_SOURCE" "docker-archive:$REPORT_DIRECTORY/runtime.tar:local/rentnerproxy-security:scan"
 docker load --input "$REPORT_DIRECTORY/runtime.tar"
 container="$(docker create --entrypoint /bin/false local/rentnerproxy-security:scan)"
 mkdir -p "$REPORT_DIRECTORY/locked-source/core" "$REPORT_DIRECTORY/locked-source/web"
-if ! docker cp "$container:/usr/share/rentnerproxy/security/Cargo.lock" "$REPORT_DIRECTORY/locked-source/core/Cargo.lock"; then
+if ! docker cp "$container:/usr/share/rentnerproxy/security/Cargo.lock" "$REPORT_DIRECTORY/locked-source/core/Cargo.lock" \
+    2> "$REPORT_DIRECTORY/cargo-lock-copy-diagnostics.txt"; then
     # Older supported releases predate the embedded lock. Fetch only lock data
     # from their validated exact source revision; never execute historical source.
+    printf 'Embedded Cargo.lock unavailable; fetching lock data from exact source revision %s (%s). See cargo-lock-copy-diagnostics.txt.\n' \
+        "$REVISION" "$cargo_lock_source_path"
     curl --fail --location --proto '=https' --tlsv1.2 \
         "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$REVISION/$cargo_lock_source_path" \
         --output "$REPORT_DIRECTORY/locked-source/core/Cargo.lock"
@@ -88,39 +52,27 @@ SOURCE_DIRECTORY="$locked_source_directory" REPORT_DIRECTORY="$controller_report
     assess bash "$AUTOMATION_DIRECTORY/.github/scripts/security/audit-cargo.sh"
 docker cp "$container:/opt/rentnerproxy/web/bun.lock" "$REPORT_DIRECTORY/locked-source/web/bun.lock"
 docker cp "$container:/opt/rentnerproxy/web/package.json" "$REPORT_DIRECTORY/locked-source/web/package.json"
-bun_audit_status=0
-(cd "$REPORT_DIRECTORY/locked-source/web" && bun --no-env-file audit --json --audit-level=moderate) > "$REPORT_DIRECTORY/bun-audit.json" 2> "$REPORT_DIRECTORY/bun-audit-diagnostics.txt" || bun_audit_status=$?
-assess bun --no-env-file "$policy" bun-audit "$REPORT_DIRECTORY/bun-audit.json" "$bun_audit_status" "$REPORT_DIRECTORY/bun-audit-diagnostics.txt"
-while IFS=$'\t' read -r binary binary_path; do
-    docker cp "$container:$binary_path" "$REPORT_DIRECTORY/$binary"
-    go version -m -json "$REPORT_DIRECTORY/$binary" > "$REPORT_DIRECTORY/$binary-buildinfo.json"
-    govulncheck -mode=binary -scan=symbol -json "$REPORT_DIRECTORY/$binary" | jq --slurp . > "$REPORT_DIRECTORY/$binary-govulncheck.json"
-    if [[ "${ACCEPT_KNOWN_DEV_ADVISORIES:-false}" == true ]]; then
-        assess_dev binary "$REPORT_DIRECTORY/$binary-govulncheck.json" "$binary"
-    else
-        assess bun --no-env-file "$policy" binary "$REPORT_DIRECTORY/$binary-govulncheck.json"
-    fi
-done < "$REPORT_DIRECTORY/go-binaries.tsv"
-# The HTTP-only community module is a local replacement. govulncheck cannot
-# resolve its local path: explicitly query its original embedded locked version.
-if [[ "$community_module_query" == true ]]; then
-    community_version="$(jq --raw-output '.Deps[] | select(.Path == "github.com/hslatman/caddy-crowdsec-bouncer") | .Version' "$REPORT_DIRECTORY/caddy-buildinfo.json")"
-    [[ "$community_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo '::error::Community module version is unassessable'; exit 1; }
-    govulncheck -mode=query -json "github.com/hslatman/caddy-crowdsec-bouncer@$community_version" | jq --slurp . > "$REPORT_DIRECTORY/community-govulncheck.json"
-    assess bun --no-env-file "$policy" query "$REPORT_DIRECTORY/community-govulncheck.json"
+SOURCE_DIRECTORY="$locked_source_directory/web" \
+    assess bash "$AUTOMATION_DIRECTORY/.github/scripts/security/audit-bun.sh"
+upstream_status=0
+CONTAINER="$container" PROFILE_PATH="$profile" IDENTITY_PATH="$REPORT_DIRECTORY/identity.json" \
+    REPORT_DIRECTORY="$REPORT_DIRECTORY/upstream" \
+    bash "$AUTOMATION_DIRECTORY/.github/scripts/security/scan-upstream.sh" || upstream_status=$?
+printf '%s\n' "$upstream_status" > "$REPORT_DIRECTORY/upstream-status.txt"
+if (( upstream_status == 3 )); then
+    echo '::warning::Informational upstream assessment found third-party runtime advisories; the own-dependency gate is unchanged.'
+elif (( upstream_status != 0 )); then
+    echo '::warning::Informational upstream assessment is unavailable or incomplete; the own-dependency gate is unchanged.'
 fi
-# Do not retain runnable binaries in advisory artifacts.
-rm -f "$REPORT_DIRECTORY/caddy" "$REPORT_DIRECTORY/crowdsec" "$REPORT_DIRECTORY/cscli"
 if (( status == 3 )); then
     bun --no-env-file "$policy" blocked "$REPORT_DIRECTORY/identity.json" "$REPORT_DIRECTORY/blocked-assessment.json"
+    echo '::error::Own locked Cargo/Bun dependencies contain blocking advisories.'
+elif (( status != 0 )); then
+    echo '::error::Own locked Cargo/Bun assessment is incomplete or invalid.'
 fi
 if (( status != 0 )); then exit "$status"; fi
-if (( dev_accepted_findings > 0 )); then
-    DEV_ACCEPTED_FINDINGS="$dev_accepted_findings" bun --no-env-file "$dev_policy" \
-        record "$REPORT_DIRECTORY/identity.json" "$REPORT_DIRECTORY/assessment.json"
-    printf '### Dev advisory risk acceptance\n\n%d known findings accepted for this dev test image. This is not a security approval. See assessment.json and the reviewed, expiring dev-advisory-acceptance.json.\n' \
-        "$dev_accepted_findings" >> "$GITHUB_STEP_SUMMARY"
-else
-    bun --no-env-file "$policy" identity "$REPORT_DIRECTORY/identity.json" "$REPORT_DIRECTORY/assessment.json"
+bun --no-env-file "$policy" identity "$REPORT_DIRECTORY/identity.json" "$REPORT_DIRECTORY/assessment.json"
+if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+    printf '%s\n' 'Own locked Cargo/Bun dependencies passed. Debian, Caddy and CrowdSec are assessed informatively; this result is not a full-image security approval.' >> "$GITHUB_STEP_SUMMARY"
 fi
-printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"; fi

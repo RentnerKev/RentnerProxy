@@ -200,8 +200,7 @@ jobs:
                   REVISION: ${{ needs.prepare.outputs.revision }}
               run: |
                   bash automation/.github/scripts/security/audit-cargo.sh
-                  cd source
-                  bun audit --audit-level=moderate
+                  bash automation/.github/scripts/security/audit-bun.sh
 
             - name: Install pinned vulnerability tools
               run: bash automation/.github/scripts/security/install-dependency-tools.sh

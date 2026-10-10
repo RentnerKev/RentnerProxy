@@ -2,8 +2,9 @@
 
 Für normale Änderungen sind **CI**, **Workflow Lint**, **Gitleaks**, **CodeQL**,
 **Dependency Review** und **Production Smokes** die grundlegenden Prüfungen.
-Die Image-Sicherheitsprüfung ergänzt sie um Cargo-Advisories und das tatsächlich
-gebaute Produktionsimage. Ein Push auf `main` veröffentlicht kein Dev-Image;
+Die Image-Sicherheitsprüfung ergänzt sie um verbindliche Cargo-/Bun-Audits des
+Produktionsimages und informative Berichte zu dessen externen Laufzeitkomponenten.
+Ein Push auf `main` veröffentlicht kein Dev-Image;
 **Dev Image** wird ausdrücklich manuell gestartet.
 
 Die Dateien bleiben getrennt, weil sie unterschiedliche Auslöser, Rechte oder
@@ -40,25 +41,30 @@ PR und Push bedeuten in dieser Tabelle `main`, sofern die Zeile nichts anderes
 angibt. „Betroffen“ bezeichnet die jeweiligen `paths`-Filter. Zeitpläne laufen
 auf dem Standardbranch; die Cron-Zeiten in den YAML-Dateien sind UTC.
 
-## Grün bedeutet nicht automatisch „Image darf veröffentlicht werden“
+## Umfang der Dependency-Prüfung
 
-**Deployed Dependency Security** unterscheidet abgeschlossene Bewertung von
-Publikationsfreigabe. Die Cargo-Lockfile-Prüfung ist eine blockierende
-Advisory-Prüfung. Beim Produktionskandidaten darf eine vollständig durchgeführte
-Bewertung mit blockierenden Image-Advisories erfolgreich sein: Die Warnung und
-der Artefaktbericht sagen dann ausdrücklich, dass Veröffentlichung blockiert ist.
-Scannerfehler bleiben Fehler.
+**Deployed Dependency Security** prüft RentnerProxys vollständige Cargo- und
+Bun-Lockfiles verbindlich. Alle RustSec-Befunde sowie Bun-Befunde ab „moderate“
+und unvollständige eigene Audits lassen den Check fehlschlagen. Die bestehenden
+Check-Namen bleiben erhalten, weil GitHub-Regeln und Preview-Prüfungen sie nutzen.
+
+Debian, Caddy, CrowdSec und andere externe Laufzeitkomponenten werden informativ
+bewertet. Deren Befunde und Scannerfehler erscheinen im Bericht und blockieren
+den Check nicht. Grün bestätigt ausschließlich die eigenen Dependency-Gates;
+es ist keine Aussage, dass das gesamte Image frei von Schwachstellen ist.
 
 Veröffentlichte Images werden täglich und manuell erneut geprüft; bei PRs nur
-bei Änderungen an Scannerintegration oder Kompatibilitätsdefinitionen. Auf PRs
-kann auch diese vollständig durchgeführte Bewertung blockierende Advisories als
-Warnung melden. Bei Zeitplan/manueller Ausführung führt der blockierte Zustand
-zum fehlgeschlagenen Check. Der tägliche Lauf baut keinen neuen Kandidaten.
+bei Änderungen an Scannerintegration oder Kompatibilitätsdefinitionen. Eigene
+Befunde im Dev-Image blockieren bei jedem Auslöser. Historische Release-Befunde
+bleiben informativ, da Security-Fixes laut `SECURITY.md` den aktuellen `main`
+betreffen. Ungültige Identitäten und unvollständige eigene Audits bleiben Fehler.
+Der tägliche Lauf baut keinen neuen Kandidaten.
 
 **Dev**, **Release** und **Preview Publish** prüfen vor dem Veröffentlichen
-erneut das konkrete Image. Eine grüne Integrationsprüfung ersetzt diese
-Publikationsentscheidung nicht. Ein akzeptierter Dev-Advisory-Fall bleibt auf
-seine ausdrücklich erlaubte Version, Herkunft und Gültigkeit begrenzt.
+erneut die eigenen Abhängigkeiten des konkreten Images und dessen exakte
+Identität. Nur ein frischer `own-dependencies-approved`-Bericht für genau diesen
+Quellstand und Digest erlaubt die Veröffentlichung. Der frühere Dev-Schalter
+für temporäre Advisory-Ausnahmen wurde entfernt.
 
 ## Was tatsächlich erforderlich ist
 

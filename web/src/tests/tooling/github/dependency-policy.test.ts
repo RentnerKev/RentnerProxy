@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 
 import {
     evaluateApprovedAssessment,
+    evaluateBlockedAssessment,
     evaluateCargo,
     evaluateCargoDiagnostics,
     evaluateDatabase,
@@ -35,15 +36,23 @@ describe('deployed dependency policy', () => {
         const identity = { revision: 'a'.repeat(40), digest: `sha256:${'b'.repeat(64)}` }
         const approved = {
             ...identity,
-            verdict: 'approved',
-            policy: 'moderate-and-above; all RustSec/Go findings',
+            verdict: 'own-dependencies-approved',
+            policy: 'moderate-and-above Bun; all RustSec findings',
+            scope: 'rentnerproxy-locked-cargo-and-bun',
+            externalRuntimePolicy: 'informational',
             assessedAt: '2026-10-06T11:30:00Z',
         }
         expect(() => evaluateApprovedAssessment(approved, identity, now)).not.toThrow()
         for (const changed of [
             { verdict: 'blocked' },
+            { verdict: 'approved' },
+            { verdict: 'dev-risk-accepted' },
             { verdict: undefined },
             { policy: 'allow-unfixed' },
+            { scope: undefined },
+            { scope: 'full-image' },
+            { externalRuntimePolicy: undefined },
+            { externalRuntimePolicy: 'blocking' },
             { revision: 'c'.repeat(40) },
             { digest: `sha256:${'d'.repeat(64)}` },
             { assessedAt: '2026-10-06T10:00:00Z' },
@@ -53,6 +62,15 @@ describe('deployed dependency policy', () => {
                 evaluateApprovedAssessment({ ...approved, ...changed }, identity, now),
             ).toThrow()
         expect(() => evaluateApprovedAssessment({}, identity, now)).toThrow()
+        const blocked = { ...approved, verdict: 'blocked' }
+        expect(() => evaluateBlockedAssessment(blocked, identity, now)).not.toThrow()
+        expect(() => evaluateBlockedAssessment(approved, identity, now)).toThrow()
+        expect(() =>
+            evaluateBlockedAssessment({ ...blocked, scope: undefined }, identity, now),
+        ).toThrow()
+        expect(() =>
+            evaluateBlockedAssessment(blocked, { ...identity, revision: 'c'.repeat(40) }, now),
+        ).toThrow()
     })
 
     test('CLI distinguishes an adverse complete report from broken evidence without approving either', async () => {

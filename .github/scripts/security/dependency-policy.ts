@@ -1,7 +1,8 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { PUBLISHED_RELEASES } from '../../../scripts/compatibility/published-releases.ts'
 
-const policy = 'moderate-and-above; all RustSec/Go findings'
+const policy = 'moderate-and-above Bun; all RustSec findings'
+const scope = 'rentnerproxy-locked-cargo-and-bun'
 
 export class AdvisoryPolicyError extends Error {}
 
@@ -275,22 +276,41 @@ export function evaluateIdentity(report: unknown): { revision: string; digest: s
     return { revision, digest }
 }
 
-export function evaluateApprovedAssessment(
+function evaluateAssessment(
     report: unknown,
     expected: unknown,
-    now = Date.now(),
+    verdict: 'own-dependencies-approved' | 'blocked',
+    now: number,
 ): void {
     const parsed = object(report)
     const actual = evaluateIdentity(parsed)
     const identity = evaluateIdentity(expected)
     if (
-        parsed.verdict !== 'approved' ||
+        parsed.verdict !== verdict ||
         parsed.policy !== policy ||
+        parsed.scope !== scope ||
+        parsed.externalRuntimePolicy !== 'informational' ||
         actual.revision !== identity.revision ||
         actual.digest !== identity.digest
     )
-        throw new Error('Publication requires an approved assessment for the exact candidate')
+        throw new Error('An own-dependency assessment for the exact candidate is required')
     fresh(parsed.assessedAt, now, 3_600_000)
+}
+
+export function evaluateApprovedAssessment(
+    report: unknown,
+    expected: unknown,
+    now = Date.now(),
+): void {
+    evaluateAssessment(report, expected, 'own-dependencies-approved', now)
+}
+
+export function evaluateBlockedAssessment(
+    report: unknown,
+    expected: unknown,
+    now = Date.now(),
+): void {
+    evaluateAssessment(report, expected, 'blocked', now)
 }
 
 if (import.meta.main) {
@@ -325,7 +345,9 @@ if (import.meta.main) {
                     {
                         ...parsed,
                         policy,
-                        verdict: mode === 'identity' ? 'approved' : 'blocked',
+                        scope,
+                        externalRuntimePolicy: 'informational',
+                        verdict: mode === 'identity' ? 'own-dependencies-approved' : 'blocked',
                         assessedAt: new Date().toISOString(),
                     },
                     null,
@@ -337,6 +359,8 @@ if (import.meta.main) {
                 report,
                 JSON.parse(await readFile(output, 'utf8')) as unknown,
             )
+        else if (mode === 'blocked-assessment' && output)
+            evaluateBlockedAssessment(report, JSON.parse(await readFile(output, 'utf8')) as unknown)
         else throw new Error('Unknown policy mode')
     } catch (error) {
         // A completed adverse assessment is distinct from unavailable or invalid

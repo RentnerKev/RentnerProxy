@@ -18,10 +18,6 @@ on:
             digest:
                 required: true
                 type: string
-            accept_known_dev_advisories:
-                required: false
-                type: boolean
-                default: false
 permissions: {}
 
 jobs:
@@ -67,14 +63,6 @@ jobs:
                   IMAGE_SOURCE: oci-archive:${{ runner.temp }}/candidate/candidate-image.tar
                   REPORT_DIRECTORY: ${{ runner.temp }}/dependency-publish-report
                   REVISION: ${{ inputs.revision }}
-                  ACCEPT_KNOWN_DEV_ADVISORIES: ${{ inputs.accept_known_dev_advisories }}
-                  DEV_ASSESSMENT_STAGE: publish
-                  # actionlint 1.7.12 predates these documented GitHub.com job fields.
-                  # Decode dynamically; the policy still validates their exact values.
-                  DEV_JOB_WORKFLOW_REF: ${{ fromJSON(toJSON(job)).workflow_ref }}
-                  DEV_JOB_WORKFLOW_SHA: ${{ fromJSON(toJSON(job)).workflow_sha }}
-                  IMAGE: ${{ inputs.image }}
-                  IMAGE_TAGS: ${{ inputs.image_tags }}
               run: bash automation/.github/scripts/security/scan-image.sh
 
             - name: Verify assessed OCI identity
@@ -95,10 +83,6 @@ jobs:
                   GHCR_USERNAME: ${{ github.actor }}
                   IMAGE: ${{ inputs.image }}
                   IMAGE_TAGS: ${{ inputs.image_tags }}
-                  ACCEPT_KNOWN_DEV_ADVISORIES: ${{ inputs.accept_known_dev_advisories }}
-                  DEV_ASSESSMENT_STAGE: publish
-                  DEV_JOB_WORKFLOW_REF: ${{ fromJSON(toJSON(job)).workflow_ref }}
-                  DEV_JOB_WORKFLOW_SHA: ${{ fromJSON(toJSON(job)).workflow_sha }}
               run: bash automation/.github/scripts/security/publish-image.sh
 
             - name: Store publication assessment evidence
