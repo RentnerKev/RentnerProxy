@@ -39,7 +39,7 @@ COPY core/Cargo.toml core/Cargo.lock ./
 COPY core/src ./src
 RUN cargo build --locked --release
 
-FROM mirror.gcr.io/library/golang:1.27.2-alpine@sha256:85dc1069ac644ea3c527b177303a406eb3358192816cd7f9e5848eb658851673 AS caddy-go-toolchain
+FROM mirror.gcr.io/library/golang:1.27.2-alpine@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS caddy-go-toolchain
 
 # The builder supplies CADDY_VERSION so image updates also update the compiled binary.
 # The module revision is the signed v0.14.1 release.
