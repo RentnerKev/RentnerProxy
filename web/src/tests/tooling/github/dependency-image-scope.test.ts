@@ -109,7 +109,10 @@ fi
 case "$1" in
     load) exit 0 ;;
     create) printf fixture-container ;;
-    cp) printf fixture-lock-data > "$3" ;;
+    cp)
+        printf fixture-lock-data > "$3"
+        if [[ "$3" == */web/package.json ]]; then printf FIXTURE_SECRET=synthetic > "\${3%/*}/.env"; fi
+        ;;
     rm) printf cleanup >> "$TOOL_LOG" ;;
     *) exit 91 ;;
 esac
@@ -120,6 +123,7 @@ esac
                     join(tools, 'bun'),
                     `#!/bin/bash
 if [[ "$1" == --no-env-file && "$2" == audit ]]; then
+    if [[ -f .env ]]; then echo 'unexpected deployment configuration loaded' >&2; exit 1; fi
     printf '%s' "$BUN_REPORT"
     printf '%s' "$BUN_DIAGNOSTICS" >&2
     exit "$BUN_EXIT"

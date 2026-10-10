@@ -124,7 +124,9 @@ and appliance entrypoints are never executed. The log records this fallback and
 retains Docker diagnostics in `cargo-lock-copy-diagnostics.txt`.
 
 Bun audits retain unfiltered JSON, the raw scanner exit status, stderr diagnostics
-and lock/manifest checksums. Transport errors, skipped registries and invalid or
+and lock/manifest checksums. They run on copies of only the manifest and lockfile
+in an isolated temporary workspace, so package-manager dotenv loading cannot
+import deployment configuration. Transport errors, skipped registries and invalid or
 inconsistent entries fail the own-dependency gate. Cargo keeps database fetch
 and crates.io index refresh enabled, records the lock checksum and RustSec Git
 revision, and validates database metadata against that revision. Index errors,
