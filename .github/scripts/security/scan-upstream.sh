@@ -21,7 +21,7 @@ finish() {
         cat "$REPORT_DIRECTORY/upstream-summary.md" >> "$GITHUB_STEP_SUMMARY"
     fi
 }
-trap finish EXIT
+trap 'finish' EXIT
 policy="$AUTOMATION_DIRECTORY/.github/scripts/security/dependency-policy.ts"
 jq --exit-status --arg revision "$REVISION" \
     '.revision == $revision and (.digest | test("^sha256:[0-9a-f]{64}$"))' "$IDENTITY_PATH" > /dev/null

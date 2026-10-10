@@ -55,8 +55,10 @@ docker cp "$container:/opt/rentnerproxy/web/package.json" "$REPORT_DIRECTORY/loc
 SOURCE_DIRECTORY="$locked_source_directory/web" \
     assess bash "$AUTOMATION_DIRECTORY/.github/scripts/security/audit-bun.sh"
 upstream_status=0
-CONTAINER="$container" PROFILE_PATH="$profile" IDENTITY_PATH="$REPORT_DIRECTORY/identity.json" \
-    REPORT_DIRECTORY="$REPORT_DIRECTORY/upstream" \
+identity_report="$REPORT_DIRECTORY/identity.json"
+upstream_report_directory="$REPORT_DIRECTORY/upstream"
+CONTAINER="$container" PROFILE_PATH="$profile" IDENTITY_PATH="$identity_report" \
+    REPORT_DIRECTORY="$upstream_report_directory" \
     bash "$AUTOMATION_DIRECTORY/.github/scripts/security/scan-upstream.sh" || upstream_status=$?
 printf '%s\n' "$upstream_status" > "$REPORT_DIRECTORY/upstream-status.txt"
 if (( upstream_status == 3 )); then

@@ -23,8 +23,9 @@ finish_summary() {
     fi
     if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then cat "$summary" >> "$GITHUB_STEP_SUMMARY"; fi
 }
-trap finish_summary EXIT
+trap 'finish_summary' EXIT
 record_result() {
+    # shellcheck disable=SC2016 -- Backticks are literal Markdown delimiters.
     printf '| `%s` | %s | `%s` | `%s` |\n' "$1" "$2" "$3" "$4" >> "$summary"
 }
 while IFS= read -r tag; do
