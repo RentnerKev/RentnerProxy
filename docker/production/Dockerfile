@@ -1,6 +1,6 @@
 # syntax=mirror.gcr.io/docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 
-FROM mirror.gcr.io/oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS web-dependencies
+FROM mirror.gcr.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS web-dependencies
 
 WORKDIR /app
 COPY package.json bun.lock ./
@@ -14,7 +14,7 @@ RUN RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" bun run build:web \
     && bun build web/src/db/migrate.ts --target=bun --outfile=/build/migrate.js \
     && bun docker/web/package-migrations.ts ./web/drizzle /build/migrations
 
-FROM mirror.gcr.io/oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS web-runtime
+FROM mirror.gcr.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS web-runtime
 
 WORKDIR /app
 COPY package.json bun.lock ./
@@ -80,7 +80,7 @@ RUN test "$(go env GOVERSION)" = go1.27.2 \
     && /usr/bin/caddy list-modules | grep -Fx http.handlers.crowdsec \
     && ! /usr/bin/caddy list-modules | grep -Eq '(^|\.)layer4($|\.)|^http\.handlers\.appsec$'
 
-FROM mirror.gcr.io/oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS geoip-assets
+FROM mirror.gcr.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS geoip-assets
 COPY scripts/assets/download-geoip.ts /tmp/download-geoip.ts
 RUN bun --no-env-file /tmp/download-geoip.ts
 

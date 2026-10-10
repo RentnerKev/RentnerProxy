@@ -57,7 +57,7 @@ retain each CI run's own report for its exact revision and environment.
 
 ## Runtime reliability checks
 
-With Docker Engine (Linux containers), Docker Compose, Bun 1.4.2, Git history and the repository
+With Docker Engine (Linux containers), Docker Compose, Bun 1.4.3, Git history and the repository
 dependencies installed, run the isolated synthetic fixture:
 
 ```bash

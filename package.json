@@ -17,9 +17,9 @@
         "runtime:scale": "bun --no-env-file --no-orphans scripts/runtime-scale/run.ts",
         "production:smoke": "bun --no-orphans .github/scripts/ci/appliance-compose-smoke.ts",
         "build": "bun --no-orphans scripts/build.ts",
-        "build:web": "bun --bun vite build --configLoader native --config vite.config.ts && bun build web/src/server/WebSockets/realtimeWebSocket.ts --target=bun --outfile=web/dist/server/realtimeWebSocket.js && tsc --noEmit -p tsconfig.json",
+        "build:web": "bun --bun vite build --configLoader native --config vite.config.ts && bun build web/src/server/WebSockets/realtimeWebSocket.ts --target=bun --outfile=web/dist/server/realtimeWebSocket.js && bun --check --tsconfig-override tsconfig.json",
         "build:core": "cargo build --release --manifest-path core/Cargo.toml",
-        "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.scripts.json",
+        "typecheck": "bun --check --tsconfig-override tsconfig.json && bun --check --tsconfig-override tsconfig.scripts.json",
         "lint": "oxlint . && bun run lint:types",
         "lint:types": "oxlint --config .oxlintrc.type-aware.json .",
         "format": "oxfmt . && cargo fmt --manifest-path core/Cargo.toml",
@@ -94,7 +94,6 @@
         "oxlint": "1.87.0",
         "oxlint-tsgolint": "7.0.2003",
         "tailwindcss": "4.3.3",
-        "typescript": "7.0.2",
         "vite": "8.3.4"
     },
     "overrides": {
@@ -102,5 +101,5 @@
             "esbuild": "0.28.2"
         }
     },
-    "packageManager": "bun@1.4.2"
+    "packageManager": "bun@1.4.3"
 }

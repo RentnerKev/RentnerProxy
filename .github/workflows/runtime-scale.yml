@@ -76,7 +76,7 @@ concurrency:
     cancel-in-progress: true
 
 env:
-    BUN_VERSION: 1.4.2
+    BUN_VERSION: 1.4.3
     RENTNERPROXY_SMOKE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:

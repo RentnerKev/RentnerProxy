@@ -12,7 +12,6 @@ rm -rf \
     node_modules/@oxfmt \
     node_modules/@tailwindcss \
     node_modules/@types \
-    node_modules/@typescript \
     node_modules/@vitejs \
     node_modules/drizzle-kit \
     node_modules/esbuild \
@@ -21,5 +20,4 @@ rm -rf \
     node_modules/oxlint \
     node_modules/tailwindcss \
     node_modules/tsx \
-    node_modules/typescript \
     node_modules/vite

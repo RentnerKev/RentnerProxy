@@ -26,8 +26,6 @@ describe('web runtime dependency pruning', () => {
             '@esbuild-kit/core-utils/dist/index.js',
             'esbuild/lib/main.js',
             'tsx/node_modules/esbuild/bin/esbuild',
-            'typescript/lib/tsc.js',
-            '@typescript/typescript-linux-x64/lib/tsc',
             'oxfmt/bin/oxfmt',
             '@oxfmt/binding-linux-x64-gnu/oxfmt',
         ]

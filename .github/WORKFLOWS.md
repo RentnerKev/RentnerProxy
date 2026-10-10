@@ -94,9 +94,10 @@ Zehn-Minuten-Limit; sein Job-Timeout von 30 Minuten ist kein 30-Minuten-Profil.
 
 ## Versionspflege
 
-Am 9. Oktober 2026 gegen die offiziellen Upstream-Releases geprüft: Bun
-`1.4.2`, Rust `1.99.0`, actionlint `1.7.12` und die in YAML kommentierten
-Action-Versionen. Alle externen Actions bleiben auf vollständige Commit-SHAs
+Bun wurde am 10. Oktober 2026 auf `1.4.3` mit nativer Typprüfung aktualisiert.
+Am 9. Oktober 2026 gegen die offiziellen Upstream-Releases geprüft: Rust
+`1.99.0`, actionlint `1.7.12` und die in YAML kommentierten Action-Versionen.
+Alle externen Actions bleiben auf vollständige Commit-SHAs
 gepinnt. Die CodeQL-Action verwendet ihre eigene SemVer-Release; ein neueres
 `codeql-bundle-*`-Tag ist keine Action-Version. Dependabot übernimmt laufende
 Updates gemäß [dependabot.yml](dependabot.yml).

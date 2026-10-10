@@ -1,4 +1,4 @@
-FROM mirror.gcr.io/oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS dependencies
+FROM mirror.gcr.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS dependencies
 
 WORKDIR /app
 COPY package.json bun.lock ./
@@ -12,7 +12,7 @@ RUN RENTNERPROXY_BUILD_VERSION="$RENTNERPROXY_BUILD_VERSION" bun run build:web
 RUN bun build web/src/db/migrate.ts --target=bun --outfile=/build/migrate.js \
     && bun docker/web/package-migrations.ts ./web/drizzle /build/migrations
 
-FROM mirror.gcr.io/oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS runtime
+FROM mirror.gcr.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production \

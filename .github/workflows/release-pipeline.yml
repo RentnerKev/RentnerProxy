@@ -27,7 +27,7 @@ on:
 permissions: {}
 
 env:
-    BUN_VERSION: 1.4.2
+    BUN_VERSION: 1.4.3
 
 jobs:
     prepare:
@@ -190,7 +190,7 @@ jobs:
             - name: Set up Bun for advisory policy
               uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
               with:
-                  bun-version: 1.4.2
+                  bun-version: 1.4.3
 
             - name: Audit locked source graphs
               env:

@@ -5,7 +5,7 @@ import type { CommandRunnerDependencies, CommandStep } from './lib/Types/command
 export const checkSteps: readonly CommandStep[] = [
     { label: 'Format', script: 'format:check' },
     { label: 'Oxlint', script: 'lint' },
-    { label: 'TypeScript', script: 'typecheck' },
+    { label: 'Bun typecheck', script: 'typecheck' },
     { label: 'Drizzle migrations', script: 'db:check' },
     { label: 'Bun tests', script: 'test:ts' },
     { label: 'Cargo check', script: 'rust:check' },
