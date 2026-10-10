@@ -102,86 +102,53 @@ If restore is interrupted after replacement begins, the persistent journal preve
 ## Dependency advisory gates
 
 `Deployed Dependency Security` audits RentnerProxy's complete locked Cargo and
-Bun dependency graphs on PRs, main pushes and daily at 04:17 UTC. All RustSec
-vulnerabilities and Bun advisories at moderate severity or above remain blocking.
-Missing, malformed, inconsistent or incomplete own-dependency evidence also
-fails. These gates include the libraries used by RentnerProxy itself.
+Bun graphs on PRs and main pushes. All RustSec vulnerabilities and Bun advisories
+at moderate severity or above block the check. Missing, malformed, inconsistent
+or incomplete own-dependency evidence also fails.
 
-The Debian base, PostgreSQL, Valkey, Caddy, CrowdSec, cscli and their Go modules
-are upstream runtime components. Their Syft inventory, Grype assessment and
-govulncheck reports are **informational**. Findings, unavailable databases or
-tool/download failures are reported without failing the own-dependency gate.
-Upstream images and packages should still be updated when fixes are available.
-A green check means the locked RentnerProxy dependency gates passed; it does not
-claim that the complete appliance or its upstream components have no known
-vulnerabilities. Ordinary integration, runtime and security tests are unchanged.
+Debian, PostgreSQL, Valkey, Caddy, CrowdSec, cscli and their Go modules are outside
+this advisory assessment. Separate Syft, Grype, govulncheck and historical release
+scans are removed. Upstream images/packages remain managed dependencies; tests
+still cover RentnerProxy's configuration and integration with them. A green gate
+confirms only the own Cargo/Bun scope.
 
-Image assessment extracts lock data from a stopped container. It audits the
-embedded Cargo lock and the web package manifest/Bun lock without starting the
-appliance. New images embed the exact Cargo lock; older images fetch only lock
-data at their independently validated source commit. Historical source scripts
-and appliance entrypoints are never executed. The log records this fallback and
-retains Docker diagnostics in `cargo-lock-copy-diagnostics.txt`.
+Image assessment extracts embedded lock data from a stopped container without
+starting the appliance. The exact Cargo lock and web package manifest/Bun lock
+must be present; there is no historical source-lock fallback.
 
-Bun audits retain unfiltered JSON, the raw scanner exit status, stderr diagnostics
-and lock/manifest checksums. They run on copies of only the manifest and lockfile
-in an isolated temporary workspace, so package-manager dotenv loading cannot
-import deployment configuration. Transport errors, skipped registries and invalid or
-inconsistent entries fail the own-dependency gate. Cargo keeps database fetch
-and crates.io index refresh enabled, records the lock checksum and RustSec Git
-revision, and validates database metadata against that revision. Index errors,
-yanked/advisory warnings and null metadata fail even when the scanner exits zero.
-RustSec is fetched freshly within 48 hours and its last commit must be within
-seven days.
+Bun audits retain unfiltered JSON, raw exit status, stderr diagnostics and
+lock/manifest checksums. Only copied manifests and lockfiles run in an isolated
+temporary workspace, preventing package-manager dotenv loading from importing
+deployment configuration. Transport errors, skipped registries and invalid or
+inconsistent entries fail. Cargo keeps database fetching and crates.io index
+refresh enabled, records lock checksum/RustSec Git revision and validates
+database metadata against that revision. Index errors, yanked/advisory warnings
+and null metadata fail even when the scanner exits zero. RustSec must be fetched
+within 48 hours and its last commit within seven days.
 
-PR/main candidates are isolated production OCI archives. Dev and release builds
-have read-only repository permissions and no registry publishing token. They
-record the exact source commit, OCI index digest and archive checksum, retaining
-SBOM/provenance. A separate trusted publisher verifies the checksum and
-independently repeats the own-dependency assessment before registry login. Only
-a fresh `own-dependencies-approved` record with scope
-`rentnerproxy-locked-cargo-and-bun`, `externalRuntimePolicy: informational` and the
-exact source/digest permits publication. Legacy full-image approvals and old dev
-waivers are rejected. The former temporary dev advisory acceptance option has
-been removed; every channel uses the same explicit scope. The publisher copies
-with `skopeo --all --preserve-digests` and verifies every published tag's digest.
+PR/main candidates are isolated production OCI archives. Dev and release builders
+have read-only repository permissions and no publishing token. They record exact
+source commit, OCI index digest and archive checksum, retaining SBOM/provenance.
+A separate trusted publisher verifies the checksum and repeats the own-dependency
+assessment before registry login. Only a fresh `own-dependencies-approved` record
+with scope `rentnerproxy-locked-cargo-and-bun`,
+`externalRuntimePolicy: informational` and the exact source/digest permits
+publication. The policy marker describes components outside the gate; it does
+not imply upstream scanners run. Legacy full-image approvals and old Dev waivers
+are rejected. Every channel uses the same scope. The publisher copies with
+`skopeo --all --preserve-digests` and verifies each tag's digest.
 
-The daily rescan resolves `dev` and the newest non-draft alpha/beta/stable release
-once to immutable digests. Own Cargo/Bun findings in `dev` fail the check.
-Historical release findings are reported informatively because security fixes
-target current `main`, as stated in `SECURITY.md`; new release publication still
-requires a clean own-dependency assessment. Invalid identities, missing tags,
-incomplete own audits or invalid assessment records fail the rescan. The tag list
-must include `dev`. PRs changing scanner integration or compatibility definitions
-also rescan these channels; own dev findings remain blocking on every trigger.
-The daily run builds no new image.
+The daily 04:17 UTC rescan and manual runs resolve only `:dev` once to an immutable
+digest. Own Cargo/Bun findings block it. Invalid identities, missing embedded locks
+and incomplete audits fail. PRs changing scanner integration also run this Dev
+rescan. The daily run builds no image and scans no historical releases.
 
-`rescan-summary.md` identifies each channel, source revision, digest and own
-assessment result in both the artifact and job summary. Valid historical blocked
-records remain blocked evidence, never publication approvals. Upstream reports
-and their summary are kept in each image's `upstream/` directory, with the helper
-exit status in `upstream-status.txt`. A scan rerun does not patch an immutable
-image; an update requires publishing a newly assessed replacement.
-
-The exact published Alpha 6 source/digest pair selects its historical
-Redis/Caddy-only profile and `controller/Cargo.lock` data path. Every other pair
-uses the current Valkey/CrowdSec profile. `profile.json` records that selection.
-Only the informational upstream inventory expectations differ between profiles;
-the own Cargo/Bun thresholds remain identical.
-
-Upstream diagnostics retain all findings without ignored/unfixed filters.
-Grype validates a database build age of at most 48 hours; govulncheck checks the
-copied binaries and original community-module version using the official Go
-advisory source with a seven-day maximum index age. Module/package traces in
-stripped binaries can be conservative matches and do not prove actual vulnerable
-function reachability. Missing upstream evidence is explicitly reported as
-incomplete, rather than as a clean scan. Evidence artifacts are retained for
+`rescan-summary.md` records the Dev source revision, digest and result in the
+artifact and job summary. Blocked records remain evidence and cannot authorize
+publication. Rerunning a scan cannot patch an immutable image; an update requires
+publishing a newly assessed replacement. Evidence artifacts are retained for
 30 days.
 
-Tool pins verified against upstream on 2026-10-09: [Grype 0.120.1](https://github.com/anchore/grype/releases/tag/v0.120.1),
-[Syft 1.54.1](https://github.com/anchore/syft/releases/tag/v1.54.1),
-[Go 1.27.2](https://go.dev/dl/), [govulncheck 1.8.0](https://pkg.go.dev/golang.org/x/vuln@v1.8.0/cmd/govulncheck)
-and [cargo-audit 0.22.2](https://crates.io/crates/cargo-audit/0.22.2).
-Downloads use pinned upstream SHA-256 checksums; Go/Cargo installations use
-ecosystem checksum verification and locked versions. Failure to install optional
-upstream tools is a warning; failure to install required image/Cargo tools fails.
+Cargo uses locked `cargo-audit 0.22.2`; image helpers require `skopeo`.
+Required-tool installation failures fail the assessment. See
+[the workflow overview](../.github/WORKFLOWS.md) for ownership and required checks.

@@ -1,6 +1,6 @@
 # CrowdSec dependency rebuild
 
-Build the complete official v1.8.1 source at commit
+Build the CrowdSec engine and cscli from the official v1.8.1 source at commit
 `909b5157986a2b2c2163300fdaef5ed01289f7d2`, verified against the SHA256
 of its immutable codeload archive. `patch-postgres.sh` migrates both upstream
 PostgreSQL driver imports from pgx/v4 to the compatible pgx/v5 `database/sql`
@@ -42,8 +42,10 @@ RUN /bin/sh /opt/crowdsec-build/build.sh /out
 GNU make >= 4.1, tar, sha256sum, grep, awk and ldd must also be available. RE2
 is built and installed from the hash-verified official `2023-03-01` archive;
 no distribution libre2-dev package is required. The
-upstream default profile keeps every component and notification plugin. It
-uses CGO, native RE2 and mattn SQLite with `sqlite_omit_load_extension`; it
+upstream default engine profile retains its native features. Passing `PLUGINS=`
+skips notification plugin builds: the managed runtime keeps its plugin directory
+empty and does not install them. The engine uses CGO, native RE2 and mattn SQLite
+with `sqlite_omit_load_extension`; it
 does not select the system `libsqlite3` backend or the slower WASM RE2 backend.
 
 The native RE2 pin is a compatibility exception, not the latest upstream
@@ -58,12 +60,11 @@ Updating this pin requires a separately verified bridge and Abseil integration;
 the existing static native backend remains enabled. RE2's June 2023 release
 already requires Abseil, so March 2023 is the current standalone-build limit.
 
-Outputs are `/out/bin/crowdsec`, `/out/bin/cscli`, `/out/plugins/notification-*`
-and `/out/evidence/` containing module locks, source identity and actual binary
-buildinfo and the complete package inventory for both commands and every plugin.
-Copy binaries into the final runtime. Plugins remain as build evidence;
-the managed runtime currently intentionally keeps its plugin directory empty.
-No CrowdSec process is started by this script.
+Outputs are `/out/bin/crowdsec`, `/out/bin/cscli` and `/out/evidence/`, containing
+module locks, source identity, actual binary buildinfo and the complete package
+inventory for both commands. Copy these binaries into the final runtime. No
+notification plugins are built or copied. No CrowdSec process is started by this
+script.
 
 The build uses upstream `BUILD_STATIC=1`, retaining native RE2 without adding
 shared RE2/libstdc++/SQLite runtime dependencies. The script checks `ldd` on
@@ -77,19 +78,16 @@ official module replacements are allowed. PostgreSQL, MySQL and SQLite remain
 available. `verify-packages.sh` requires all three database adapters and rejects
 obsolete PostgreSQL packages and every `golang.org/x/crypto/openpgp` package.
 
-GO-2026-5932 affects only the unmaintained OpenPGP packages inside x/crypto.
-CrowdSec uses maintained bcrypt, HKDF and OCSP packages from that module; its
-build dependency graph does not contain OpenPGP. Scorecard scans Go module
-versions without package reachability, so it reports this unused package.
-The adjacent `osv-scanner.toml` records only that ID as a false positive until
-2026-11-09. The mandatory package guard prevents its introduction into binaries;
-all other OSV findings and the existing native binary/image scanner policy remain
-active. Review the exception against the saved package inventory and current
-advisory before its expiry.
+GO-2026-5932 affects the unmaintained OpenPGP packages inside x/crypto. CrowdSec
+uses maintained bcrypt, HKDF and OCSP packages; its built dependency graph does
+not contain OpenPGP. The mandatory package guard prevents these packages from
+entering the engine or cscli. The unused OSV exception file is removed along with
+the separate upstream advisory scans.
 
-After the real image build, run the existing strict scanners against the resulting
-binaries and image. Static contract tests cannot demonstrate native link compatibility
-or a clean security scan. This rebuild does not approve image publication.
+The production image build verifies native linking and actual binary buildinfo.
+Integration tests exercise RentnerProxy's CrowdSec configuration and behavior.
+This external rebuild does not grant an image-publication approval; publication
+separately requires the own Cargo/Bun assessment.
 
 Upstream references:
 

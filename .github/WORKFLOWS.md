@@ -1,117 +1,114 @@
 # Welche Workflows wofür zuständig sind
 
-Für normale Änderungen sind **CI**, **Workflow Lint**, **Gitleaks**, **CodeQL**,
-**Dependency Review** und **Production Smokes** die grundlegenden Prüfungen.
-Die Image-Sicherheitsprüfung ergänzt sie um verbindliche Cargo-/Bun-Audits des
-Produktionsimages und informative Berichte zu dessen externen Laufzeitkomponenten.
-Ein Push auf `main` veröffentlicht kein Dev-Image;
-**Dev Image** wird ausdrücklich manuell gestartet.
+Für normale Änderungen prüfen **CI**, **Workflow Lint**, **Gitleaks**, **CodeQL**,
+**Dependency Review**, **Deployed Dependency Security** und **Production Smokes**
+den eigenen Code, seine Abhängigkeiten und die Integration der Appliance.
+Jeder PR behält sein eigenes Docker-Preview-Image. Ein Push auf `main`
+veröffentlicht kein Dev-Image; **Dev Image** wird manuell gestartet.
 
-Die Dateien bleiben getrennt, weil sie unterschiedliche Auslöser, Rechte oder
-Artefaktübergaben haben. Es gibt 21 Workflow-Dateien, davon zwei wiederverwendbare
-Bausteine, die ausschließlich von anderen Workflows aufgerufen werden.
-Zusätzlich erstellt GitHub automatisch den Lauf **Dependency Graph** zur Pflege
-des Abhängigkeitsgraphen. Er stammt aus GitHubs integrierter Dependabot-Automation.
+Es gibt 17 Workflow-Dateien, darunter zwei wiederverwendbare Bausteine für
+Release und Veröffentlichung. GitHubs integrierte Dependabot-Automation erstellt
+zusätzlich den Lauf **Dependency Graph**.
 
-| Workflow                                                           | Startet bei                                                        | Aufgabe                                                                                                                                                                            |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [CI](workflows/ci.yml)                                             | PR zu `main`, Push auf `main`, manuell                             | Format, Lint, Typecheck, Web- und Fuzz-Tests, Rust, Produktionsbuild.                                                                                                              |
-| [Workflow Lint](workflows/workflow-lint.yml)                       | PR, Push, manuell                                                  | YAML/Actions mit actionlint und Automations-Shellskripte mit ShellCheck prüfen.                                                                                                    |
-| [Gitleaks](workflows/gitleaks.yml)                                 | PR, Push, manuell                                                  | Neue Commits auf Geheimnisse prüfen; manuell vollständige Historie.                                                                                                                |
-| [CodeQL](workflows/codeql.yml)                                     | PR, Push, wöchentlich, manuell                                     | JavaScript/TypeScript, Rust und GitHub Actions analysieren.                                                                                                                        |
-| [Dependency Review](workflows/dependency-review.yml)               | PR                                                                 | Neue Abhängigkeiten auf Advisories ab Schweregrad „moderate“ prüfen.                                                                                                               |
-| [Bun Audit](workflows/bun-audit.yml)                               | PR/Push bei Manifest- oder Lockfile-Änderung, wöchentlich, manuell | Bun-Abhängigkeiten ab Schweregrad „moderate“ prüfen.                                                                                                                               |
-| [Deployed Dependency Security](workflows/dependency-security.yml)  | PR, Push, täglich, manuell                                         | Cargo-Lockfile, Produktionskandidat und ausgewählte veröffentlichte Images bewerten; Details unten.                                                                                |
-| [OpenSSF Scorecard](workflows/scorecard.yml)                       | Push, wöchentlich                                                  | Repository-/Lieferkettenbewertung; SARIF als Artefakt und in Code Scanning.                                                                                                        |
-| [Production Smokes](workflows/production-smokes.yml)               | PR, Push, manuell                                                  | Isolierte Proxy-, Appliance-, Backup/Restore-, Drain-, ACME- und TLS-Prüfungen.                                                                                                    |
-| [Release Compatibility](workflows/release-compatibility.yml)       | Betroffene PRs/Pushes, wöchentlich, manuell                        | Historische Release-Images auf den aktuellen Stand aktualisieren und Zustand prüfen. PR: `fresh`/Alpha 6; Push: Alpha 4–6; Zeitplan/manuell: vollständige oder ausgewählte Matrix. |
-| [Runtime Reliability](workflows/runtime-reliability.yml)           | Betroffene PRs/Pushes, wöchentlich, manuell                        | PR/Push: kurzes Profil mit aktuellem Build. Zeitplan: langes Profil mit aktuellem Build und Alpha 6.                                                                               |
-| [Runtime Scale](workflows/runtime-scale.yml)                       | Betroffene PRs/Pushes, manuell                                     | Begrenzte Proxy-Last: standardmäßig 100 Hosts, vier Worker, drei Runden; Laufzeitlimit zehn Minuten.                                                                               |
-| [PR Title](workflows/pr-title.yml)                                 | PR, auch Titeländerung                                             | Conventional-Commit-Titel prüfen und Nachweis der getesteten Merge-SHA für Previews speichern.                                                                                     |
-| [PR Labeler](workflows/pr-labeler.yml)                             | PR-Metadaten                                                       | Labels aus Dateipfaden vergeben; benötigt Schreibrechte auf PR-Metadaten.                                                                                                          |
-| [Duplicate Triage](workflows/duplicate-triage.yml)                 | Issue-/PR-Metadaten                                                | Mögliche Duplikate anhand von Metadaten erkennen.                                                                                                                                  |
-| [PR Preview Build](workflows/pr-preview-build.yml)                 | Erfolgreicher PR-Title-Lauf                                        | Exakte getestete SHA und erforderliche Checks verifizieren, dann isoliertes OCI-Image bauen.                                                                                       |
-| [PR Preview Publish](workflows/pr-preview-publish.yml)             | Erfolgreicher Preview-Build                                        | Vertrauenswürdige Artefaktübergabe und Checks erneut prüfen, Image bewerten und Preview veröffentlichen.                                                                           |
-| [Dev Image](workflows/dev-image.yml)                               | Nur manuell                                                        | Aktuellen Dev-Kandidaten bauen, prüfen und über den Publisher als `:dev` veröffentlichen.                                                                                          |
-| [RentnerProxy Release](workflows/release.yml)                      | GitHub-Release wird veröffentlicht                                 | Alpha/Beta/Stable auswählen und Release-Pipeline aufrufen.                                                                                                                         |
-| [RentnerProxy Release Pipeline](workflows/release-pipeline.yml)    | Nur durch Release-Workflow                                         | Exakte Release-Identität prüfen, Image bauen/bewerten/veröffentlichen und Release Notes aktualisieren.                                                                             |
-| [Publish assessed OCI image](workflows/publish-assessed-image.yml) | Nur durch Dev-/Release-Pipeline                                    | Kandidat und Digest unabhängig erneut prüfen und erst danach Registry-Tags veröffentlichen.                                                                                        |
+| Workflow                                                           | Startet bei                        | Aufgabe                                                                                                                                            |
+| ------------------------------------------------------------------ | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [CI](workflows/ci.yml)                                             | PR, Push, manuell                  | Format, Lint, Skript-Typprüfung, Web-/Fuzz-Tests, Rust und Produktionsbuild. Der Web-Build prüft auch die Web-Typen.                               |
+| [Workflow Lint](workflows/workflow-lint.yml)                       | PR, Push, manuell                  | Actions/YAML mit actionlint und Automations-Shellskripte mit ShellCheck prüfen.                                                                    |
+| [Gitleaks](workflows/gitleaks.yml)                                 | PR, Push, manuell                  | Neue Commits auf Geheimnisse prüfen; manuell auch die vollständige Historie.                                                                       |
+| [CodeQL](workflows/codeql.yml)                                     | PR, Push, wöchentlich, manuell     | Eigenes JavaScript/TypeScript, Rust und GitHub Actions analysieren.                                                                                |
+| [Dependency Review](workflows/dependency-review.yml)               | PR                                 | Neu eingeführte Abhängigkeiten ab Schweregrad „moderate“ prüfen.                                                                                   |
+| [Deployed Dependency Security](workflows/dependency-security.yml)  | PR, Push, täglich, manuell         | Eigene vollständige Cargo-/Bun-Lockfiles, Produktionskandidat und aktuelles Dev-Image prüfen; Details unten.                                       |
+| [Production Smokes](workflows/production-smokes.yml)               | PR, Push, manuell                  | Proxy-, Appliance-, Backup/Restore-, Drain-, ACME- und TLS-Integration prüfen. Drei gemeinsame Images werden einmal pro Lauf gebaut.               |
+| [Release Compatibility](workflows/release-compatibility.yml)       | Betroffene PRs/Pushes, manuell     | Backup-, Restore- und Upgrade-Kompatibilität prüfen. PR: `fresh`/Alpha 6; Push: Alpha 4–6; manuell standardmäßig Alpha 6, auf Wunsch alle Quellen. |
+| [Runtime Reliability](workflows/runtime-reliability.yml)           | Betroffene PRs/Pushes, manuell     | Kurzes Profil mit aktuellem Build; lange Profile nur nach ausdrücklicher Auswahl.                                                                  |
+| [Runtime Scale](workflows/runtime-scale.yml)                       | Nur manuell                        | Begrenzte Proxy-Last: standardmäßig 100 Hosts, vier Worker, drei Runden; Laufzeitlimit zehn Minuten.                                               |
+| [PR Preview Source](workflows/pr-preview-source.yml)               | PR                                 | Exakte getestete Merge-SHA erfassen und den Herkunftsnachweis für das Preview speichern.                                                           |
+| [PR Preview Build](workflows/pr-preview-build.yml)                 | Erfolgreicher Preview-Source-Lauf  | Getestete SHA und Pflichtchecks verifizieren, dann das eigene PR-Image als OCI-Archiv bauen.                                                       |
+| [PR Preview Publish](workflows/pr-preview-publish.yml)             | Erfolgreicher Preview-Build        | Herkunft und Pflichtchecks erneut prüfen, eigene Image-Abhängigkeiten auditieren und das Preview veröffentlichen.                                  |
+| [Dev Image](workflows/dev-image.yml)                               | Nur manuell                        | Dev-Kandidaten bauen, prüfen und über den Publisher als `:dev` veröffentlichen.                                                                    |
+| [RentnerProxy Release](workflows/release.yml)                      | GitHub-Release wird veröffentlicht | Alpha/Beta/Stable auswählen und die Release-Pipeline aufrufen.                                                                                     |
+| [RentnerProxy Release Pipeline](workflows/release-pipeline.yml)    | Durch Release-Workflow             | Exakte Release-Identität prüfen, Image bauen/bewerten/veröffentlichen und Release Notes aktualisieren.                                             |
+| [Publish assessed OCI image](workflows/publish-assessed-image.yml) | Durch Dev-/Release-Pipeline        | Kandidat, Digest und eigene Abhängigkeiten unabhängig erneut prüfen, danach Registry-Tags veröffentlichen.                                         |
 
-PR und Push bedeuten in dieser Tabelle `main`, sofern die Zeile nichts anderes
-angibt. „Betroffen“ bezeichnet die jeweiligen `paths`-Filter. Zeitpläne laufen
-auf dem Standardbranch; die Cron-Zeiten in den YAML-Dateien sind UTC.
+PR und Push bedeuten `main`. „Betroffen“ bezeichnet die jeweiligen `paths`-Filter.
+Release Compatibility reagiert auf Backup/Restore, Kompatibilitätsfixtures und
+deren Automations-/Starthelfer. Workflow-Cron-Zeiten sind UTC.
 
 ## Umfang der Dependency-Prüfung
 
-**Deployed Dependency Security** prüft RentnerProxys vollständige Cargo- und
-Bun-Lockfiles verbindlich. Alle RustSec-Befunde sowie Bun-Befunde ab „moderate“
-und unvollständige eigene Audits lassen den Check fehlschlagen. Die bestehenden
-Check-Namen bleiben erhalten, weil GitHub-Regeln und Preview-Prüfungen sie nutzen.
+**Own dependency audit** prüft die vollständigen Cargo- und Bun-Lockfiles des
+Quellstands. Alle RustSec-Befunde, Bun-Befunde ab „moderate“ und unvollständige
+eigene Audits lassen den Check fehlschlagen. **Production image dependency audit**
+prüft zusätzlich die eingebetteten Locks des konkreten Produktionskandidaten.
 
-Debian, Caddy, CrowdSec und andere externe Laufzeitkomponenten werden informativ
-bewertet. Deren Befunde und Scannerfehler erscheinen im Bericht und blockieren
-den Check nicht. Grün bestätigt ausschließlich die eigenen Dependency-Gates;
-es ist keine Aussage, dass das gesamte Image frei von Schwachstellen ist.
+Debian, PostgreSQL, Valkey, Caddy, CrowdSec und deren Go-Module werden nicht mehr
+separat auf Upstream-Advisories gescannt. Eigene Konfigurationen und die Einbindung
+dieser Komponenten bleiben durch Code- und Integrationstests abgedeckt. Grün
+bestätigt die eigenen Cargo-/Bun-Gates, keine Bewertung der gesamten Appliance.
 
-Veröffentlichte Images werden täglich und manuell erneut geprüft; bei PRs nur
-bei Änderungen an Scannerintegration oder Kompatibilitätsdefinitionen. Eigene
-Befunde im Dev-Image blockieren bei jedem Auslöser. Historische Release-Befunde
-bleiben informativ, da Security-Fixes laut `SECURITY.md` den aktuellen `main`
-betreffen. Ungültige Identitäten und unvollständige eigene Audits bleiben Fehler.
-Der tägliche Lauf baut keinen neuen Kandidaten.
+Täglich und manuell wird nur das aktuelle Dev-Image erneut geprüft. PRs mit
+Änderungen an Scannerintegration lösen ebenfalls diesen Rescan aus. Eigene
+Dev-Befunde, ungültige Identitäten und fehlende eingebettete Locks bleiben Fehler.
+Der tägliche Lauf baut keinen Kandidaten und scannt keine historischen Releases.
 
-**Dev**, **Release** und **Preview Publish** prüfen vor dem Veröffentlichen
-erneut die eigenen Abhängigkeiten des konkreten Images und dessen exakte
-Identität. Nur ein frischer `own-dependencies-approved`-Bericht für genau diesen
-Quellstand und Digest erlaubt die Veröffentlichung. Der frühere Dev-Schalter
-für temporäre Advisory-Ausnahmen wurde entfernt.
+**Dev**, **Release** und **Preview Publish** auditieren vor Veröffentlichung die
+eigenen Abhängigkeiten des konkreten Images. Nur ein frischer
+`own-dependencies-approved`-Bericht für den exakten Quellstand und Digest erlaubt
+die Veröffentlichung. Es gibt keine Advisory-Ausnahme für Dev-Images.
 
-## Was tatsächlich erforderlich ist
+Der separate Bun-Audit-Workflow entfällt: Sein vollständiger Lockfile-Audit steckt
+im gemeinsamen Dependency-Check. Scorecard, automatische PR-Labels, Duplikat-Triage
+und die Conventional-Commit-Titelpflicht entfallen ebenfalls. Die Label-Zuordnung
+für Release Notes bleibt erhalten.
 
-Die effektiven GitHub-Regeln für `main` wurden am 9. Oktober 2026 geprüft. Sie
-fordern eine aktuelle PR-Basis und diese 16 Checks:
+## Erforderliche Checks
 
-- `Format`, `Lint`, `Typecheck`, `Web Tests`, `Rust`, `Build`
-- `Workflow Lint`, `PR Title`, `Dependency Review`, `Gitleaks`
+Die effektiven GitHub-Regeln für `main` wurden am 10. Oktober 2026 mit den
+Workflow-Namen abgeglichen. Sie fordern eine aktuelle PR-Basis und diese 16 Checks:
+
+- `Format`, `Lint`, `Script Typecheck`, `Web Tests`, `Rust`, `Build`
+- `Workflow Lint`, `PR Preview Source`, `Dependency Review`, `Gitleaks`
 - `CodeQL (JavaScript / TypeScript)`, `CodeQL (Rust)`, `CodeQL (GitHub Actions)`
-- `Production Smokes`, `Locked Cargo advisory audit`,
-  `Complete production image advisory assessment`
+- `Production Smokes`, `Own dependency audit`, `Production image dependency audit`
 
-Die Preview-Prüfung liest die effektiven Regeln aus GitHub und überprüft auch
-die Herkunft der Checks für die exakte getestete SHA. Diese Liste ist eine
-Momentaufnahme; die GitHub-Regeln bleiben maßgeblich. Die anderen Prüfungen
-liefern zusätzliche Abdeckung, sind derzeit aber keine erforderlichen Checks.
-Check- und Workflow-Namen sollten deshalb nur zusammen mit ihren Verbrauchern
-und Repository-Regeln geändert werden.
+Die Preview-Prüfung liest die effektiven Regeln aus GitHub und überprüft die
+Herkunft der Checks für die exakte getestete SHA. Diese Liste ist eine
+Momentaufnahme; die GitHub-Regeln bleiben maßgeblich. Check-/Workflow-Namen werden
+zusammen mit ihren Verbrauchern und Repository-Regeln geändert.
 
 ## Kurze und lange Laufzeittests
 
-Das Reliability-Profil `short` ist auf 120 Sekunden mit drei Iterationen
-ausgelegt; `long` auf 1.800 Sekunden mit 120 Iterationen. Build/Einrichtung kommen
-zur Laufzeit hinzu. Normale PRs und Pushes wählen automatisch `short`. Der
-bestehende Wochenplan und die manuelle Voreinstellung wählen `long`; für eine
-kurze manuelle Kontrolle ausdrücklich `short` auswählen.
+Reliability `short` dauert 120 Sekunden mit drei Iterationen; `long` 1.800 Sekunden
+mit 120 Iterationen. Build/Einrichtung kommen hinzu. Normale PRs und Pushes sowie
+die manuelle Voreinstellung wählen `short` mit aktuellem Build. Der automatische
+Wochenlauf entfällt.
 
-Bei normalen Änderungen werden keine zusätzlichen 30-Minuten-Läufe manuell
-gestartet oder abgewartet. Zusätzliche Langtests gehören zur
-Release-Vorbereitung oder zu einer ausdrücklichen Anforderung. Die bestehenden
-Zeitpläne bleiben davon unabhängig aktiv. Runtime Scale hat ein begrenztes
-Zehn-Minuten-Limit; sein Job-Timeout von 30 Minuten ist kein 30-Minuten-Profil.
+Lange Profile und historische Reliability-Quellen bleiben ausdrücklich manuell
+für Release-Vorbereitung oder eine konkrete Anforderung verfügbar. Runtime Scale
+läuft nur manuell mit Zehn-Minuten-Limit; sein Job-Timeout von 30 Minuten ist kein
+30-Minuten-Profil. Release Compatibility hat keinen Wochenplan; die vollständige
+historische Matrix bleibt manuell verfügbar.
+
+Production Smokes prüft die aktuelle Appliance. Historische Upgrade-Läufe liegen
+in Release Compatibility. Gemeinsame Images sind auf den validierten Lauf und
+Commit beschränkt; einzelne Smoke-Befehle bauen weiterhin selbst.
 
 ## Versionspflege
 
 Bun wurde am 10. Oktober 2026 auf `1.4.3` mit nativer Typprüfung aktualisiert.
-Am 9. Oktober 2026 gegen die offiziellen Upstream-Releases geprüft: Rust
-`1.99.0`, actionlint `1.7.12` und die in YAML kommentierten Action-Versionen.
-Alle externen Actions bleiben auf vollständige Commit-SHAs
-gepinnt. Die CodeQL-Action verwendet ihre eigene SemVer-Release; ein neueres
-`codeql-bundle-*`-Tag ist keine Action-Version. Dependabot übernimmt laufende
-Updates gemäß [dependabot.yml](dependabot.yml).
+Am 9. Oktober 2026 gegen offizielle Upstream-Releases geprüft: Rust `1.99.0`,
+actionlint `1.7.12` und die in YAML kommentierten Action-Versionen. Externe Actions
+bleiben auf vollständige Commit-SHAs gepinnt. Die CodeQL-Action verwendet ihre
+eigene SemVer-Release; ein neueres `codeql-bundle-*`-Tag ist keine Action-Version.
 
-Docker-Hub-Images werden über Googles Cache `mirror.gcr.io` geladen, damit die
-gemeinsamen Download-Limits der CI-Runner den Build nicht abbrechen. Die
-gepinnten Digests wurden gegen die ursprünglichen Images geprüft; der Mirror
-ändert deren Inhalt nicht. Das gilt auch für das Dockerfile-Frontend.
+Dependabot prüft routinemäßige Versionsupdates montags um 03:00 Uhr Europe/Berlin,
+gruppiert Minor-/Patch-Updates und lässt Security-Updates aktiv; siehe
+[dependabot.yml](dependabot.yml).
+
+Docker-Hub-Images werden über Googles Cache `mirror.gcr.io` geladen, damit
+gemeinsame Download-Limits der CI-Runner Builds nicht abbrechen. Die gepinnten
+Digests wurden gegen die ursprünglichen Images geprüft; das gilt auch für das
+Dockerfile-Frontend.
 
 Für Skriptzuständigkeiten und vertrauenswürdige Checkouts siehe
 [AUTOMATION.md](AUTOMATION.md).
