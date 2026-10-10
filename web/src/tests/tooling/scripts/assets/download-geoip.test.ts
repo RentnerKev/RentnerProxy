@@ -59,7 +59,7 @@ describe('GeoIP checksum download', () => {
         'a'.repeat(64) + ' user-country.mmdb\n',
         'A'.repeat(64) + '  user-country.mmdb\n',
         'a'.repeat(64) + '  evil-country.mmdb\n',
-        checksum().replace('\n', '\r\n'),
+        checksum().replaceAll('\n', '\r\n'),
         checksum().trimEnd(),
         checksum() + 'private extra line',
         'g'.repeat(64) + '  user-country.mmdb\n',
