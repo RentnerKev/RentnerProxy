@@ -12,8 +12,8 @@ const defaultComposeFile = join(repositoryRoot, 'docker-compose.yml')
 const applianceService = 'rentnerproxy'
 const databaseHost = '127.0.0.1'
 const stateArchiveName = 'controller-state.tar'
-const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.mjs'
-const healthcheckScript = '/opt/rentnerproxy/web/docker/web/healthcheck.mjs'
+const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.ts'
+const healthcheckScript = '/opt/rentnerproxy/web/docker/web/healthcheck.ts'
 import { stateArchiveExclusions } from './backup/controller-state-archive.ts'
 import {
     assertDeploymentCompatible,
@@ -234,7 +234,7 @@ function postgresCommand(validateOnly: boolean): string {
                   '--username=postgres --dbname=rentnerproxy',
                   '--username=rentnerproxy --dbname=rentnerproxy',
               ),
-        ...(validateOnly ? ['bun /opt/rentnerproxy/web/docker/web/validate-backup.mjs'] : []),
+        ...(validateOnly ? ['bun /opt/rentnerproxy/web/docker/web/validate-backup.ts'] : []),
     ].join('\n')
 }
 

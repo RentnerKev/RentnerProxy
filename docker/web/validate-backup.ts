@@ -4,8 +4,35 @@ import { Database } from 'bun:sqlite'
 import { createDecipheriv, createHash } from 'node:crypto'
 import { mkdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import type {
+    BackupCertificateJobRow,
+    BackupCrowdSecSettingRow,
+    BackupMigrationJournal,
+    BackupMigrationRow,
+    BackupTotpSecretRow,
+} from './Types/validate-backup.types.ts'
 
-function decryptBackupSecret(key, ciphertext, iv, context) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function isMigrationJournal(value: unknown): value is BackupMigrationJournal {
+    return (
+        isRecord(value) &&
+        Array.isArray(value.entries) &&
+        value.entries.every(
+            (entry: unknown) =>
+                isRecord(entry) && typeof entry.tag === 'string' && typeof entry.when === 'number',
+        )
+    )
+}
+
+export function decryptBackupSecret(
+    key: Buffer,
+    ciphertext: Buffer,
+    iv: Buffer,
+    context: string,
+): void {
     if (key.length !== 32 || iv.length !== 12 || ciphertext.length < 17) {
         throw new Error('invalid encrypted backup secret')
     }
@@ -20,7 +47,7 @@ function decryptBackupSecret(key, ciphertext, iv, context) {
     }
 }
 
-async function validateDatabase() {
+async function validateDatabase(): Promise<void> {
     const key = Buffer.from((await readFile('/backup/app-encryption-key', 'utf8')).trim(), 'base64')
     const sql = new SQL({
         hostname: '127.0.0.1',
@@ -34,16 +61,23 @@ async function validateDatabase() {
     })
     try {
         const migrationsPath = '/opt/rentnerproxy/web/web/drizzle'
-        const journal = JSON.parse(
+        const journal: unknown = JSON.parse(
             await readFile(join(migrationsPath, 'meta/_journal.json'), 'utf8'),
         )
-        const rows =
-            await sql`select hash, created_at from drizzle.__drizzle_migrations order by id`
+        if (!isMigrationJournal(journal)) {
+            throw new Error('backup migration history is incompatible with the target image')
+        }
+        const rows = await sql<
+            BackupMigrationRow[]
+        >`select hash, created_at from drizzle.__drizzle_migrations order by id`
         if (rows.length < 20 || rows.length > journal.entries.length) {
             throw new Error('unsupported backup database version')
         }
         for (const [index, row] of rows.entries()) {
             const migration = journal.entries[index]
+            if (!migration) {
+                throw new Error('backup migration history is incompatible with the target image')
+            }
             const expected = createHash('sha256')
                 .update(await readFile(join(migrationsPath, migration.tag + '.sql')))
                 .digest('hex')
@@ -51,15 +85,17 @@ async function validateDatabase() {
                 throw new Error('backup migration history is incompatible with the target image')
             }
         }
-        const metadata = JSON.parse(await readFile('/backup/metadata.json', 'utf8'))
+        const metadata: unknown = JSON.parse(await readFile('/backup/metadata.json', 'utf8'))
+        if (!isRecord(metadata)) throw new Error('unsupported backup database version')
         if (metadata.version === 3 && rows.length !== 20) {
             throw new Error('v3 restore supports published alpha.4, alpha.5 and alpha.6 only')
         }
         if (metadata.version === 4 && rows.length !== journal.entries.length) {
             throw new Error('v4 restore requires the current target database version')
         }
-        const factors =
-            await sql`select user_id, secret_ciphertext, secret_iv from rentnerproxy.user_totp_factors`
+        const factors = await sql<
+            BackupTotpSecretRow[]
+        >`select user_id, secret_ciphertext, secret_iv from rentnerproxy.user_totp_factors`
         for (const row of factors) {
             decryptBackupSecret(
                 key,
@@ -68,8 +104,9 @@ async function validateDatabase() {
                 'rentnerproxy:totp:' + row.user_id,
             )
         }
-        const jobs =
-            await sql`select id, request_ciphertext, request_iv from rentnerproxy.certificate_binding_jobs where request_ciphertext is not null`
+        const jobs = await sql<
+            BackupCertificateJobRow[]
+        >`select id, request_ciphertext, request_iv from rentnerproxy.certificate_binding_jobs where request_ciphertext is not null`
         for (const row of jobs) {
             decryptBackupSecret(
                 key,
@@ -80,16 +117,27 @@ async function validateDatabase() {
         }
         let requiresCrowdSecDatabase = false
         if (metadata.version === 4) {
-            const settings =
-                await sql`select value from rentnerproxy.system_settings where key = 'crowdsec_configuration_v1'`
+            const settings = await sql<
+                BackupCrowdSecSettingRow[]
+            >`select value from rentnerproxy.system_settings where key = 'crowdsec_configuration_v1'`
             for (const row of settings) {
-                const value = typeof row.value === 'string' ? JSON.parse(row.value) : row.value
+                const value: unknown =
+                    typeof row.value === 'string' ? JSON.parse(row.value) : row.value
+                if (!isRecord(value)) throw new Error('invalid encrypted backup secret')
                 requiresCrowdSecDatabase = value.mode === 'managed'
-                if (value.external?.apiKey) {
+                const apiKey = isRecord(value.external) ? value.external.apiKey : undefined
+                if (apiKey) {
+                    if (
+                        !isRecord(apiKey) ||
+                        typeof apiKey.ciphertext !== 'string' ||
+                        typeof apiKey.iv !== 'string'
+                    ) {
+                        throw new Error('invalid encrypted backup secret')
+                    }
                     decryptBackupSecret(
                         key,
-                        Buffer.from(value.external.apiKey.ciphertext, 'base64url'),
-                        Buffer.from(value.external.apiKey.iv, 'base64url'),
+                        Buffer.from(apiKey.ciphertext, 'base64url'),
+                        Buffer.from(apiKey.iv, 'base64url'),
                         'crowdsec_configuration_v1:external_api_key',
                     )
                 }
@@ -116,19 +164,23 @@ async function validateDatabase() {
             if (dbExists) {
                 const crowdSec = new Database(dbPath, { readonly: true })
                 try {
-                    const result = crowdSec.query('PRAGMA quick_check').all()
-                    if (result.length !== 1 || result[0].quick_check !== 'ok')
+                    const result = crowdSec
+                        .query<{ quick_check: unknown }, []>('PRAGMA quick_check')
+                        .all()
+                    if (result.length !== 1 || result[0]?.quick_check !== 'ok')
                         throw new Error('invalid CrowdSec database')
                 } finally {
                     crowdSec.close()
                 }
-                const credentials = Bun.YAML.parse(
+                const credentials: unknown = Bun.YAML.parse(
                     await readFile(
                         '/tmp/backup-crowdsec/credentials/local_api_credentials.yaml',
                         'utf8',
                     ),
                 )
                 if (
+                    !isRecord(credentials) ||
+                    typeof credentials.url !== 'string' ||
                     !['http://127.0.0.1:18080', 'http://127.0.0.1:18080/'].includes(
                         credentials.url,
                     ) ||
@@ -155,7 +207,7 @@ if (import.meta.main) {
     try {
         await validateDatabase()
     } catch (error) {
-        const failures = {
+        const failures: Readonly<Record<string, string>> = {
             'unsupported backup database version': 'database_version',
             'backup migration history is incompatible with the target image': 'migration_history',
             'v3 restore supports published alpha.4, alpha.5 and alpha.6 only': 'database_version',

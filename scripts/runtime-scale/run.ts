@@ -234,7 +234,7 @@ async function verifyPolicies(harness: Awaited<ReturnType<typeof createHarness>>
 async function webProcess(context: ReliabilityContext): Promise<number> {
     const script = `import {readdir,readFile} from 'node:fs/promises';const ids=[];
 for(const pid of await readdir('/proc')) {if(!/^\\d+$/.test(pid)||Number(pid)===process.pid)continue;try{
-if((await readFile('/proc/'+pid+'/comm','utf8')).trim()==='bun'&&(await readFile('/proc/'+pid+'/cmdline','utf8')).includes('/docker/web/serve.mjs'))ids.push(Number(pid));}catch{}}
+if((await readFile('/proc/'+pid+'/comm','utf8')).trim()==='bun'&&(await readFile('/proc/'+pid+'/cmdline','utf8')).includes('/docker/web/serve.ts'))ids.push(Number(pid));}catch{}}
 console.log(JSON.stringify(ids));`
     const ids: unknown = JSON.parse(
         await context.docker(['exec', context.container, 'bun', '--no-env-file', '-e', script]),

@@ -12,8 +12,8 @@ on:
             - '.github/scripts/ci/release-compatibility/**'
             - '.github/scripts/ci/fixtures/**'
             - 'scripts/compatibility/**'
-            - 'docker/web/bootstrap-secrets.mjs'
-            - 'docker/web/validate-backup.mjs'
+            - 'docker/web/bootstrap-secrets.ts'
+            - 'docker/web/validate-backup.ts'
     push:
         branches:
             - main
@@ -25,8 +25,8 @@ on:
             - '.github/scripts/ci/release-compatibility/**'
             - '.github/scripts/ci/fixtures/**'
             - 'scripts/compatibility/**'
-            - 'docker/web/bootstrap-secrets.mjs'
-            - 'docker/web/validate-backup.mjs'
+            - 'docker/web/bootstrap-secrets.ts'
+            - 'docker/web/validate-backup.ts'
     workflow_dispatch:
         inputs:
             source:

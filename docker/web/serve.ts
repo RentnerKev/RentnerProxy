@@ -34,13 +34,13 @@ const server = Bun.serve({
 
 let shuttingDown = false
 
-async function shutdown() {
+async function shutdown(): Promise<void> {
     if (shuttingDown) return
     shuttingDown = true
 
     const forceExit = setTimeout(() => process.exit(1), 18_000)
     try {
-        const pending = []
+        const pending: Array<Promise<void>> = []
         process.emit('rentnerproxy:shutdown', pending)
         pending.push(live.shutdown())
         await Promise.all([server.stop(false), ...pending])

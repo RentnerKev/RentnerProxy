@@ -25,12 +25,12 @@ RUN bun install --frozen-lockfile --production \
 COPY --from=web-build /app/web/dist ./web/dist
 COPY --from=web-build /build/migrations ./web/drizzle
 COPY --from=web-build /build/migrate.js ./migrate.js
-COPY --from=web-build /app/docker/web/bootstrap-secrets.mjs ./docker/web/bootstrap-secrets.mjs
-COPY --from=web-build /app/docker/web/validate-backup.mjs ./docker/web/validate-backup.mjs
+COPY --from=web-build /app/docker/web/bootstrap-secrets.ts ./docker/web/bootstrap-secrets.ts
+COPY --from=web-build /app/docker/web/validate-backup.ts ./docker/web/validate-backup.ts
 COPY --from=web-build /app/docker/web/request-context.ts ./docker/web/request-context.ts
 COPY --from=web-build /app/docker/web/static-assets.ts ./docker/web/static-assets.ts
-COPY --from=web-build /app/docker/web/serve.mjs ./docker/web/serve.mjs
-COPY --from=web-build /app/docker/web/healthcheck.mjs ./docker/web/healthcheck.mjs
+COPY --from=web-build /app/docker/web/serve.ts ./docker/web/serve.ts
+COPY --from=web-build /app/docker/web/healthcheck.ts ./docker/web/healthcheck.ts
 
 FROM mirror.gcr.io/library/rust:1.99.0-trixie@sha256:6ff07edce8775d0f64be7aba9197229407301bddf2054d62c27b541a6238a181 AS controller-build
 
@@ -216,5 +216,5 @@ RUN chmod 0555 /usr/local/bin/rentnerproxy-production \
 EXPOSE 3000 8080 8443/tcp 8443/udp
 VOLUME ["/var/lib/rentnerproxy"]
 STOPSIGNAL SIGTERM
-HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=12 CMD ["bun", "/opt/rentnerproxy/web/docker/web/healthcheck.mjs"]
+HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=12 CMD ["bun", "/opt/rentnerproxy/web/docker/web/healthcheck.ts"]
 ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/usr/local/bin/rentnerproxy-production"]

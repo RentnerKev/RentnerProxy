@@ -28,13 +28,13 @@ RUN bun install --frozen-lockfile --production \
 COPY --from=build /app/web/dist ./web/dist
 COPY --from=build /build/migrations ./web/drizzle
 COPY --from=build /build/migrate.js ./migrate.js
-COPY --from=build /app/docker/web/bootstrap-secrets.mjs ./docker/web/bootstrap-secrets.mjs
+COPY --from=build /app/docker/web/bootstrap-secrets.ts ./docker/web/bootstrap-secrets.ts
 COPY --from=build /app/docker/web/request-context.ts ./docker/web/request-context.ts
 COPY --from=build /app/docker/web/static-assets.ts ./docker/web/static-assets.ts
-COPY --from=build /app/docker/web/serve.mjs ./docker/web/serve.mjs
-COPY --from=build /app/docker/web/healthcheck.mjs ./docker/web/healthcheck.mjs
+COPY --from=build /app/docker/web/serve.ts ./docker/web/serve.ts
+COPY --from=build /app/docker/web/healthcheck.ts ./docker/web/healthcheck.ts
 
 USER bun
 EXPOSE 3000
 STOPSIGNAL SIGTERM
-ENTRYPOINT ["bun", "docker/web/serve.mjs"]
+ENTRYPOINT ["bun", "docker/web/serve.ts"]

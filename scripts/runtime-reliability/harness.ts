@@ -33,7 +33,7 @@ export class ReliabilityError extends Error {
 
 const pebbleImage =
     'ghcr.io/letsencrypt/pebble:2.10.1@sha256:ddf230642b1a584f519f32e347de1b05a6e4c1f6c35c1863b33effeab5f78199'
-const healthcheck = '/opt/rentnerproxy/web/docker/web/healthcheck.mjs'
+const healthcheck = '/opt/rentnerproxy/web/docker/web/healthcheck.ts'
 const repositoryRoot = resolve(import.meta.dir, '../..')
 
 async function command(args: string[], options: CommandOptions = {}): Promise<string> {
@@ -938,7 +938,7 @@ let webFds=0, controllerFds=0, caddyFds=0;
 for(const pid of await readdir('/proc')) { if(!/^\\d+$/.test(pid)||Number(pid)===process.pid) continue; try {
 const name=(await text('/proc/'+pid+'/comm')).trim();
 let kind=name==='caddy'?'caddy':name==='rentnerproxy-co'?'controller':undefined;
-if(name==='bun' && (await text('/proc/'+pid+'/cmdline')).includes('/docker/web/serve.mjs')) kind='web';
+if(name==='bun' && (await text('/proc/'+pid+'/cmdline')).includes('/docker/web/serve.ts')) kind='web';
 if(kind) { const count=(await readdir('/proc/'+pid+'/fd')).length; if(kind==='web')webFds+=count; if(kind==='controller')controllerFds+=count; if(kind==='caddy')caddyFds+=count; }
 } catch {} }
 const memory=Number(await text('/sys/fs/cgroup/memory.current'));

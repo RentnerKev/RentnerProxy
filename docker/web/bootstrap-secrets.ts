@@ -5,6 +5,13 @@ import { link, lstat, mkdir, open, readFile, readdir, rename, rm } from 'node:fs
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import type {
+    BootstrapSecretName,
+    BootstrapSecretState,
+    PendingAppKeyRestore,
+    ProductionRestoreJournal,
+} from './Types/bootstrap-secrets.types.ts'
+
 const maximumSecretBytes = 4_096
 const maximumLegacyEnvironmentBytes = 65_536
 const stateDirectory = '/var/lib/rentnerproxy/bootstrap'
@@ -17,14 +24,14 @@ const backupAppKeyPath = '/backup/app-encryption-key'
 const restoreAppKeyPath = '/restore-key/app-encryption-key'
 const legacyEnvironmentLoadedVariable = 'RENTNERPROXY_BOOTSTRAP_LEGACY_ENV_LOADED'
 const scriptPath = fileURLToPath(import.meta.url)
-const outputPaths = {
+const outputPaths: Record<BootstrapSecretName, string> = {
     appEncryptionKey: '/run/rentnerproxy/app-key/value',
     controllerToken: '/run/rentnerproxy/controller-token/value',
     databaseUrl: '/run/rentnerproxy/database-url/value',
     postgresPassword: '/run/rentnerproxy/postgres/value',
 }
 
-function configuredDatabaseHost() {
+function configuredDatabaseHost(): 'postgres' | '127.0.0.1' {
     const value = (process.env.RENTNERPROXY_DATABASE_HOST ?? 'postgres').trim()
     if (value !== 'postgres' && value !== '127.0.0.1') {
         throw new Error('Configured database host is invalid.')
@@ -32,7 +39,7 @@ function configuredDatabaseHost() {
     return value
 }
 
-function validateAppEncryptionKey(value) {
+function validateAppEncryptionKey(value: unknown): value is string {
     return (
         typeof value === 'string' &&
         /^[A-Za-z0-9+/]{43}=$/u.test(value) &&
@@ -41,7 +48,7 @@ function validateAppEncryptionKey(value) {
     )
 }
 
-function decodeUrlPassword(url) {
+function decodeUrlPassword(url: URL): string | null {
     try {
         return decodeURIComponent(url.password)
     } catch {
@@ -49,7 +56,7 @@ function decodeUrlPassword(url) {
     }
 }
 
-function validatePostgresPassword(value) {
+function validatePostgresPassword(value: unknown): value is string {
     return (
         typeof value === 'string' &&
         value.length > 0 &&
@@ -59,7 +66,7 @@ function validatePostgresPassword(value) {
     )
 }
 
-function validateDatabaseUrl(value, postgresPassword) {
+function validateDatabaseUrl(value: unknown, postgresPassword: string): value is string {
     if (
         typeof value !== 'string' ||
         Buffer.byteLength(value, 'utf8') > maximumSecretBytes ||
@@ -85,8 +92,12 @@ function validateDatabaseUrl(value, postgresPassword) {
     }
 }
 
-function validateState(value) {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function validateState(value: unknown): value is BootstrapSecretState {
+    if (!isRecord(value)) return false
     const keys = Object.keys(value).toSorted()
     if (
         keys.join(',') !== 'appEncryptionKey,controllerToken,databaseUrl,postgresPassword,version'
@@ -103,8 +114,8 @@ function validateState(value) {
     )
 }
 
-function validatePendingAppKeyRestore(value) {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+function validatePendingAppKeyRestore(value: unknown): value is PendingAppKeyRestore {
+    if (!isRecord(value)) return false
     const keys = Object.keys(value).toSorted()
     return (
         keys.join(',') === 'nextAppEncryptionKey,previousAppEncryptionKey,version' &&
@@ -114,7 +125,7 @@ function validatePendingAppKeyRestore(value) {
     )
 }
 
-async function readRegularFile(path, maximumBytes = maximumSecretBytes) {
+async function readRegularFile(path: string, maximumBytes = maximumSecretBytes): Promise<string> {
     const metadata = await lstat(path)
     if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > maximumBytes) {
         throw new Error('invalid persistent runtime secret file')
@@ -126,21 +137,24 @@ async function readRegularFile(path, maximumBytes = maximumSecretBytes) {
     return bytes.toString('utf8').trim()
 }
 
-async function readOptionalRegularFile(path, maximumBytes = maximumSecretBytes) {
+async function readOptionalRegularFile(
+    path: string,
+    maximumBytes = maximumSecretBytes,
+): Promise<string | null> {
     try {
         return await readRegularFile(path, maximumBytes)
     } catch (error) {
-        if (error && typeof error === 'object' && error.code === 'ENOENT') return null
+        if (isRecord(error) && error.code === 'ENOENT') return null
         throw error
     }
 }
 
-async function readState() {
+async function readState(): Promise<BootstrapSecretState | null> {
     const contents = await readOptionalRegularFile(statePath)
     if (contents === null) return null
 
     try {
-        const state = JSON.parse(contents)
+        const state: unknown = JSON.parse(contents)
         if (!validateState(state)) throw new Error('invalid state')
         return state
     } catch {
@@ -148,12 +162,12 @@ async function readState() {
     }
 }
 
-async function readPendingAppKeyRestore() {
+async function readPendingAppKeyRestore(): Promise<PendingAppKeyRestore | null> {
     const contents = await readOptionalRegularFile(pendingAppKeyRestorePath)
     if (contents === null) return null
 
     try {
-        const pendingRestore = JSON.parse(contents)
+        const pendingRestore: unknown = JSON.parse(contents)
         if (!validatePendingAppKeyRestore(pendingRestore))
             throw new Error('invalid pending restore')
         return pendingRestore
@@ -162,37 +176,40 @@ async function readPendingAppKeyRestore() {
     }
 }
 
-async function ensureNoPendingAppKeyRestore() {
+async function ensureNoPendingAppKeyRestore(): Promise<void> {
     if ((await readPendingAppKeyRestore()) !== null) {
         throw new Error('An application encryption key restore is pending.')
     }
 }
 
-async function readProductionRestore() {
+async function readProductionRestore(): Promise<ProductionRestoreJournal | null> {
     const contents = await readOptionalRegularFile(productionRestorePath)
     if (contents === null) return null
     try {
-        const value = JSON.parse(contents)
+        const value: unknown = JSON.parse(contents)
         if (
+            !isRecord(value) ||
             value.version !== 1 ||
             Object.keys(value).toSorted().join(',') !== 'backupId,version' ||
+            typeof value.backupId !== 'string' ||
             !/^[a-f0-9]{64}$/u.test(value.backupId)
         )
             throw new Error('invalid journal')
-        return value
+        return { backupId: value.backupId, version: 1 }
     } catch {
         throw new Error('Pending production restore journal is invalid.')
     }
 }
 
-async function ensureNoProductionRestore() {
+async function ensureNoProductionRestore(): Promise<void> {
     if (await readProductionRestore())
         throw new Error('An interrupted production restore requires --resume with the same backup.')
 }
 
-async function beginProductionRestore() {
+async function beginProductionRestore(): Promise<void> {
     const backupId = process.env.RENTNERPROXY_RESTORE_BACKUP_ID
-    if (!/^[a-f0-9]{64}$/u.test(backupId ?? '')) throw new Error('Invalid restore backup identity.')
+    if (typeof backupId !== 'string' || !/^[a-f0-9]{64}$/u.test(backupId))
+        throw new Error('Invalid restore backup identity.')
     const pending = await readProductionRestore()
     if (pending) {
         if (process.env.RENTNERPROXY_RESTORE_RESUME !== 'true' || pending.backupId !== backupId) {
@@ -202,16 +219,11 @@ async function beginProductionRestore() {
     }
     if (process.env.RENTNERPROXY_RESTORE_RESUME === 'true')
         throw new Error('No production restore is pending.')
-    await writeAtomic(
-        productionRestorePath,
-        JSON.stringify({ backupId, version: 1 }),
-        0o400,
-        false,
-        true,
-    )
+    const journal: ProductionRestoreJournal = { backupId, version: 1 }
+    await writeAtomic(productionRestorePath, JSON.stringify(journal), 0o400, false, true)
 }
 
-async function completeProductionRestore() {
+async function completeProductionRestore(): Promise<void> {
     const pending = await readProductionRestore()
     if (!pending || pending.backupId !== process.env.RENTNERPROXY_RESTORE_BACKUP_ID)
         throw new Error('Pending production restore identity mismatch.')
@@ -220,7 +232,7 @@ async function completeProductionRestore() {
     await syncDirectory(stateDirectory)
 }
 
-async function syncDirectory(directory) {
+async function syncDirectory(directory: string): Promise<void> {
     if (process.platform === 'win32') return
     const handle = await open(directory, 'r')
     try {
@@ -230,7 +242,13 @@ async function syncDirectory(directory) {
     }
 }
 
-async function writeAtomic(path, value, mode, replace, exclusive = false) {
+async function writeAtomic(
+    path: string,
+    value: string,
+    mode: number,
+    replace: boolean,
+    exclusive = false,
+): Promise<void> {
     const directory = dirname(path)
     await mkdir(directory, { recursive: true, mode: 0o700 })
     const temporaryPath = join(directory, `.bootstrap-${randomUUID()}`)
@@ -258,7 +276,9 @@ async function writeAtomic(path, value, mode, replace, exclusive = false) {
     }
 }
 
-async function persistNewState(generatedState) {
+async function persistNewState(
+    generatedState: BootstrapSecretState,
+): Promise<BootstrapSecretState> {
     try {
         await writeAtomic(statePath, JSON.stringify(generatedState), 0o400, false, true)
         return generatedState
@@ -269,21 +289,23 @@ async function persistNewState(generatedState) {
     }
 }
 
-async function hasEntries(path) {
+async function hasEntries(path: string): Promise<boolean> {
     try {
         return (await readdir(path)).length > 0
     } catch (error) {
-        if (error && typeof error === 'object' && error.code === 'ENOENT') return false
+        if (isRecord(error) && error.code === 'ENOENT') return false
         throw error
     }
 }
 
-async function hasMaterializedSecrets() {
-    const values = await Promise.all(Object.values(outputPaths).map(readOptionalRegularFile))
+export async function hasMaterializedSecrets(
+    paths: readonly string[] = Object.values(outputPaths),
+): Promise<boolean> {
+    const values = await Promise.all(paths.map((path) => readOptionalRegularFile(path)))
     return values.some((value) => value !== null)
 }
 
-async function hasLegacyEnvironmentFile() {
+async function hasLegacyEnvironmentFile(): Promise<boolean> {
     try {
         const metadata = await lstat(legacyEnvironmentPath)
         return (
@@ -293,12 +315,12 @@ async function hasLegacyEnvironmentFile() {
             metadata.size <= maximumLegacyEnvironmentBytes
         )
     } catch (error) {
-        if (error && typeof error === 'object' && error.code === 'ENOENT') return false
+        if (isRecord(error) && error.code === 'ENOENT') return false
         throw error
     }
 }
 
-async function reexecuteWithLegacyEnvironment() {
+async function reexecuteWithLegacyEnvironment(): Promise<boolean> {
     if (
         process.env[legacyEnvironmentLoadedVariable] === '1' ||
         !(await hasLegacyEnvironmentFile())
@@ -325,7 +347,7 @@ async function reexecuteWithLegacyEnvironment() {
     process.exit(await child.exited)
 }
 
-function generateState() {
+function generateState(): BootstrapSecretState {
     const postgresPassword = randomBytes(32).toString('hex')
     const databaseHost = configuredDatabaseHost()
     return {
@@ -337,9 +359,9 @@ function generateState() {
     }
 }
 
-function legacyStateFromEnvironment() {
+function legacyStateFromEnvironment(): BootstrapSecretState {
     const databaseUrl = process.env.DATABASE_URL?.trim() ?? ''
-    let url
+    let url: URL
     try {
         url = new URL(databaseUrl)
     } catch {
@@ -372,17 +394,22 @@ function legacyStateFromEnvironment() {
     return state
 }
 
-async function materializeSecrets(state) {
+async function materializeSecrets(state: BootstrapSecretState): Promise<void> {
     await Promise.all(
-        Object.entries(outputPaths).map(async ([name, path]) => {
-            const expected = state[name]
-            if ((await readOptionalRegularFile(path)) === expected) return
-            await writeAtomic(path, expected, 0o444, true)
-        }),
+        Object.keys(outputPaths)
+            .filter((name): name is BootstrapSecretName => name in outputPaths)
+            .map(async (name) => {
+                const path = outputPaths[name]
+                const expected = state[name]
+                if ((await readOptionalRegularFile(path)) === expected) return
+                await writeAtomic(path, expected, 0o444, true)
+            }),
     )
 }
 
-async function materializeCurrentState(initialState) {
+async function materializeCurrentState(
+    initialState: BootstrapSecretState,
+): Promise<BootstrapSecretState> {
     let desiredState = initialState
     for (let attempt = 0; attempt < 8; attempt += 1) {
         await materializeSecrets(desiredState)
@@ -394,7 +421,7 @@ async function materializeCurrentState(initialState) {
     throw new Error('Persistent runtime secret state changed too frequently.')
 }
 
-async function initializeSecrets() {
+async function initializeSecrets(): Promise<void> {
     await ensureNoProductionRestore()
     await ensureNoPendingAppKeyRestore()
     let state = await readState()
@@ -425,7 +452,7 @@ async function initializeSecrets() {
     await ensureNoPendingAppKeyRestore()
 }
 
-async function exportAppEncryptionKey() {
+async function exportAppEncryptionKey(): Promise<void> {
     await ensureNoProductionRestore()
     await ensureNoPendingAppKeyRestore()
     const state = await readState()
@@ -434,7 +461,7 @@ async function exportAppEncryptionKey() {
     console.log('Application encryption key was added to the backup.')
 }
 
-async function rollbackPendingAppKeyRestore(pendingRestore) {
+async function rollbackPendingAppKeyRestore(pendingRestore: PendingAppKeyRestore): Promise<void> {
     const state = await readState()
     if (!state) throw new Error('Persistent runtime secret state is missing.')
     const rolledBackState = {
@@ -447,7 +474,7 @@ async function rollbackPendingAppKeyRestore(pendingRestore) {
     await syncDirectory(stateDirectory)
 }
 
-async function beginAppEncryptionKeyRestore() {
+async function beginAppEncryptionKeyRestore(): Promise<void> {
     const nextAppEncryptionKey = await readRegularFile(restoreAppKeyPath)
     if (!validateAppEncryptionKey(nextAppEncryptionKey)) {
         throw new Error('Backup application encryption key is invalid.')
@@ -466,7 +493,7 @@ async function beginAppEncryptionKeyRestore() {
         await materializeCurrentState(resumedState)
         return
     }
-    const pendingRestore = {
+    const pendingRestore: PendingAppKeyRestore = {
         nextAppEncryptionKey,
         previousAppEncryptionKey: state.appEncryptionKey,
         version: 1,
@@ -488,7 +515,7 @@ async function beginAppEncryptionKeyRestore() {
     console.log('Application encryption key restore was staged.')
 }
 
-async function completeAppEncryptionKeyRestore() {
+async function completeAppEncryptionKeyRestore(): Promise<void> {
     const pendingRestore = await readPendingAppKeyRestore()
     if (!pendingRestore) throw new Error('No application encryption key restore is pending.')
     const state = await readState()
@@ -501,27 +528,29 @@ async function completeAppEncryptionKeyRestore() {
     console.log('Application encryption key restore was completed.')
 }
 
-async function rollbackAppEncryptionKeyRestore() {
+async function rollbackAppEncryptionKeyRestore(): Promise<void> {
     const pendingRestore = await readPendingAppKeyRestore()
     if (!pendingRestore) throw new Error('No application encryption key restore is pending.')
     await rollbackPendingAppKeyRestore(pendingRestore)
     console.log('Application encryption key restore was rolled back.')
 }
 
-try {
-    const operation = process.argv[2] ?? 'initialize'
-    if (operation === 'initialize') await initializeSecrets()
-    else if (operation === 'export-app-key') await exportAppEncryptionKey()
-    else if (operation === 'inspect-production-restore')
-        console.log((await readProductionRestore())?.backupId ?? '')
-    else if (operation === 'begin-production-restore') await beginProductionRestore()
-    else if (operation === 'complete-production-restore') await completeProductionRestore()
-    else if (operation === 'begin-app-key-restore') await beginAppEncryptionKeyRestore()
-    else if (operation === 'complete-app-key-restore') await completeAppEncryptionKeyRestore()
-    else if (operation === 'rollback-app-key-restore') await rollbackAppEncryptionKeyRestore()
-    else throw new Error('Unknown runtime secret bootstrap operation.')
-} catch (error) {
-    const message = error instanceof Error ? error.message : 'unknown bootstrap failure'
-    console.error(`Runtime secret bootstrap failed: ${message}`)
-    process.exitCode = 1
+if (import.meta.main) {
+    try {
+        const operation = process.argv[2] ?? 'initialize'
+        if (operation === 'initialize') await initializeSecrets()
+        else if (operation === 'export-app-key') await exportAppEncryptionKey()
+        else if (operation === 'inspect-production-restore')
+            console.log((await readProductionRestore())?.backupId ?? '')
+        else if (operation === 'begin-production-restore') await beginProductionRestore()
+        else if (operation === 'complete-production-restore') await completeProductionRestore()
+        else if (operation === 'begin-app-key-restore') await beginAppEncryptionKeyRestore()
+        else if (operation === 'complete-app-key-restore') await completeAppEncryptionKeyRestore()
+        else if (operation === 'rollback-app-key-restore') await rollbackAppEncryptionKeyRestore()
+        else throw new Error('Unknown runtime secret bootstrap operation.')
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'unknown bootstrap failure'
+        console.error(`Runtime secret bootstrap failed: ${message}`)
+        process.exitCode = 1
+    }
 }

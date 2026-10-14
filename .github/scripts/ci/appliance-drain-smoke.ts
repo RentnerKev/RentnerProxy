@@ -96,7 +96,7 @@ async function ready() {
         async () =>
             (
                 await command(
-                    ['exec', container, 'bun', '/opt/rentnerproxy/web/docker/web/healthcheck.mjs'],
+                    ['exec', container, 'bun', '/opt/rentnerproxy/web/docker/web/healthcheck.ts'],
                     { allowFailure: true, timeoutMs: 8_000 },
                 )
             ).code === 0,

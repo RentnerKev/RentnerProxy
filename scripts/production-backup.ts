@@ -30,7 +30,7 @@ const databaseHost = '127.0.0.1'
 const databaseUser = 'rentnerproxy'
 const statePath = '/var/lib/rentnerproxy/proxy'
 const stateArchiveName = 'controller-state.tar'
-const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.mjs'
+const bootstrapScript = '/opt/rentnerproxy/web/docker/web/bootstrap-secrets.ts'
 
 function optionValue(argumentsList: string[], name: string): string | undefined {
     const index = argumentsList.indexOf(name)

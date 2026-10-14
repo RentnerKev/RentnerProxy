@@ -28,7 +28,7 @@ async function processIds(
     const script = `import {readdir,readFile} from 'node:fs/promises';const kind=process.argv[1];const ids=[];
 for(const pid of await readdir('/proc')) {if(!/^\\d+$/.test(pid)||Number(pid)===process.pid)continue;try{
 const name=(await readFile('/proc/'+pid+'/comm','utf8')).trim();
-const matches=kind==='controller'?name==='rentnerproxy-co':kind==='web'?name==='bun'&&(await readFile('/proc/'+pid+'/cmdline','utf8')).includes('/docker/web/serve.mjs'):name===kind;
+const matches=kind==='controller'?name==='rentnerproxy-co':kind==='web'?name==='bun'&&(await readFile('/proc/'+pid+'/cmdline','utf8')).includes('/docker/web/serve.ts'):name===kind;
 if(matches)ids.push(Number(pid));}catch{}}console.log(JSON.stringify(ids));`
     const ids = JSON.parse(
         await context.docker([
@@ -92,7 +92,7 @@ async function preserveAcrossRestart(context: ReliabilityContext, component: 'we
                     'exec',
                     context.container,
                     'bun',
-                    '/opt/rentnerproxy/web/docker/web/healthcheck.mjs',
+                    '/opt/rentnerproxy/web/docker/web/healthcheck.ts',
                 ],
                 { timeoutMs: 8_000 },
             )

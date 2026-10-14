@@ -140,7 +140,7 @@ The Bun server exposes HTTP and one authenticated, origin-checked native WebSock
 endpoint per browser tab. WebSocket subscriptions sample the same server-side
 snapshots used by HTTP and enforce connection, payload, subscription, message-rate,
 and backpressure limits. The transport is assembled in
-[`docker/web/serve.mjs`](../docker/web/serve.mjs) and
+[`docker/web/serve.ts`](../docker/web/serve.ts) and
 [`web/src/server/WebSockets/realtimeWebSocket.ts`](../web/src/server/WebSockets/realtimeWebSocket.ts).
 
 ### Rust controller and Caddy
@@ -285,7 +285,7 @@ The Compose `rentnerproxy` volume is mounted at `/var/lib/rentnerproxy`. It hold
 the PostgreSQL cluster, controller/Caddy state, certificate material, managed CrowdSec
 state, access-log files, and bootstrap runtime secret state. The entrypoint creates private directory
 ownership and generates or restores validated runtime secrets in
-[`docker/web/bootstrap-secrets.mjs`](../docker/web/bootstrap-secrets.mjs). The
+[`docker/web/bootstrap-secrets.ts`](../docker/web/bootstrap-secrets.ts). The
 application encryption key is used by the web service and copied to the controller
 for encrypted controller state; losing it makes encrypted records unrecoverable.
 

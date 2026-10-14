@@ -139,7 +139,7 @@ initialize_layout() {
 }
 
 initialize_secrets() {
-    RENTNERPROXY_DATABASE_HOST=127.0.0.1 bun "$app_directory/docker/web/bootstrap-secrets.mjs"
+    RENTNERPROXY_DATABASE_HOST=127.0.0.1 bun "$app_directory/docker/web/bootstrap-secrets.ts"
 
     chmod 0711 /run/rentnerproxy
     chown rentnerproxy-web:rentnerproxy-web "$(dirname "$app_key_file")" \
@@ -293,7 +293,7 @@ start_web() {
         RENTNERPROXY_CONTROLLER_TOKEN_FILE="$controller_token_file" \
         RENTNERPROXY_CONTROLLER_URL=http://127.0.0.1:8081 \
         RENTNERPROXY_TRUST_PROXY_HEADERS="${RENTNERPROXY_TRUST_PROXY_HEADERS:-false}" \
-        gosu rentnerproxy-web bun "$app_directory/docker/web/serve.mjs"
+        gosu rentnerproxy-web bun "$app_directory/docker/web/serve.ts"
 }
 
 monitor_children() {
