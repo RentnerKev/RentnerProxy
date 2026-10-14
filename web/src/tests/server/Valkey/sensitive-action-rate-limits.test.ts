@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { fileURLToPath } from 'node:url'
-import { getResponseHeaders, getResponseStatus, requestHandler } from '@tanstack/react-start/server'
+import { getResponseHeaders, getResponseStatus } from '@tanstack/react-start/server'
+import { createServerEntry } from '@tanstack/react-start/server-entry'
 
 import { localizedActionFailure } from '@/server/Auth/transport.server.ts'
 import { RateLimitError, RateLimitUnavailableError } from '@/server/Valkey/rate-limiter.service.ts'
@@ -173,17 +174,19 @@ describe('sensitive action rate-limit responses', () => {
     ] as const)(
         'uses the existing localized HTTP response for %s',
         async (_name, error, status, message, retryAfter) => {
-            const handler = requestHandler(async () => {
-                const result = localizedActionFailure(error, 'admin.users.errors.inviteFailed')
-                const headers = new Headers()
-                for (const [key, value] of getResponseHeaders()) {
-                    headers.set(key, String(value))
-                }
-                return Response.json(result, {
-                    headers,
-                    status: getResponseStatus(),
-                })
-            })
+            const handler = createServerEntry({
+                fetch: async () => {
+                    const result = localizedActionFailure(error, 'admin.users.errors.inviteFailed')
+                    const headers = new Headers()
+                    for (const [key, value] of getResponseHeaders()) {
+                        headers.set(key, String(value))
+                    }
+                    return Response.json(result, {
+                        headers,
+                        status: getResponseStatus(),
+                    })
+                },
+            }).fetch
             const response = await handler(new Request('http://localhost/'), {})
 
             expect(response.status).toBe(status)

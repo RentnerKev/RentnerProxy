@@ -7,7 +7,7 @@ const integrationTest = integrationEnabled ? test : test.skip
 type DatabaseTestContext = Awaited<ReturnType<typeof loadDatabaseTestContext>>
 
 async function loadDatabaseTestContext() {
-    const { requestHandler } = await import('@tanstack/react-start/server')
+    const { createServerEntry } = await import('@tanstack/react-start/server-entry')
     const { SESSION_COOKIE_NAME } = await import('@/config/auth.config.ts')
     const { db } = await import('@/db/index.ts')
     const { auditEvents, roles, userRoles, users } = await import('@/db/schema.ts')
@@ -23,14 +23,16 @@ async function loadDatabaseTestContext() {
         const session = await createSessionService(userId)
         let result: T | undefined
         let failure: unknown
-        const handler = requestHandler(async () => {
-            try {
-                result = await operation()
-            } catch (error) {
-                failure = error
-            }
-            return new Response(null, { status: failure ? 500 : 204 })
-        })
+        const handler = createServerEntry({
+            fetch: async () => {
+                try {
+                    result = await operation()
+                } catch (error) {
+                    failure = error
+                }
+                return new Response(null, { status: failure ? 500 : 204 })
+            },
+        }).fetch
         const request = new Request('http://localhost/')
         request.headers.set('cookie', `${SESSION_COOKIE_NAME}=${session.token}`)
         await handler(request, {})

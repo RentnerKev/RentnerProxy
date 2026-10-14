@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
-import { requestHandler } from '@tanstack/react-start/server'
+import { createServerEntry } from '@tanstack/react-start/server-entry'
 import { eq } from 'drizzle-orm'
 import { SESSION_COOKIE_NAME } from '../../../web/src/config/auth.config.ts'
 import {
@@ -55,18 +55,20 @@ async function prepare(): Promise<void> {
     }
     let failure: unknown
     let jobId = ''
-    const handler = requestHandler(async () => {
-        try {
-            const first = await createProxyHostWithCertificateService(input)
-            const replay = await createProxyHostWithCertificateService(input)
-            assert.equal(first.id, replay.id)
-            assert.equal(first.certificateId, replay.certificateId)
-            jobId = first.id
-        } catch (error) {
-            failure = error
-        }
-        return new Response(null, { status: failure ? 500 : 204 })
-    })
+    const handler = createServerEntry({
+        fetch: async () => {
+            try {
+                const first = await createProxyHostWithCertificateService(input)
+                const replay = await createProxyHostWithCertificateService(input)
+                assert.equal(first.id, replay.id)
+                assert.equal(first.certificateId, replay.certificateId)
+                jobId = first.id
+            } catch (error) {
+                failure = error
+            }
+            return new Response(null, { status: failure ? 500 : 204 })
+        },
+    }).fetch
     await handler(
         new Request('http://localhost/', {
             headers: { cookie: `${SESSION_COOKIE_NAME}=${session.token}` },

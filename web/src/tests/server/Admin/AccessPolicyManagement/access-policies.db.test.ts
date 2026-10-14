@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
-import { requestHandler } from '@tanstack/react-start/server'
+import { createServerEntry } from '@tanstack/react-start/server-entry'
 import { inArray, like, eq, and } from 'drizzle-orm'
 
 import { SESSION_COOKIE_NAME } from '@/config/auth.config.ts'
@@ -142,14 +142,16 @@ async function createCustomRole(permissionKeys: ReadonlyArray<PermissionKey>) {
 async function runWithSessionToken<T>(token: string, operation: () => Promise<T>): Promise<T> {
     let failure: unknown
     let result: T | undefined
-    const handler = requestHandler(async () => {
-        try {
-            result = await operation()
-        } catch (error) {
-            failure = error
-        }
-        return new Response(null, { status: failure ? 500 : 204 })
-    })
+    const handler = createServerEntry({
+        fetch: async () => {
+            try {
+                result = await operation()
+            } catch (error) {
+                failure = error
+            }
+            return new Response(null, { status: failure ? 500 : 204 })
+        },
+    }).fetch
     const request = new Request('http://localhost/')
     request.headers.set('cookie', `${SESSION_COOKIE_NAME}=${token}`)
     await handler(request, {})

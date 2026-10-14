@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import { requestHandler } from '@tanstack/react-start/server'
+import { createServerEntry } from '@tanstack/react-start/server-entry'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { eq, inArray, like, or } from 'drizzle-orm'
 
@@ -152,14 +152,16 @@ async function asUser<T>(userId: string, operation: () => Promise<T>): Promise<T
     const session = await createSessionService(userId)
     let result: T | undefined
     let failure: unknown
-    const handler = requestHandler(async () => {
-        try {
-            result = await operation()
-        } catch (error) {
-            failure = error
-        }
-        return new Response(null, { status: failure ? 500 : 204 })
-    })
+    const handler = createServerEntry({
+        fetch: async () => {
+            try {
+                result = await operation()
+            } catch (error) {
+                failure = error
+            }
+            return new Response(null, { status: failure ? 500 : 204 })
+        },
+    }).fetch
     await handler(
         new Request('http://localhost/', {
             headers: { cookie: `${SESSION_COOKIE_NAME}=${session.token}` },

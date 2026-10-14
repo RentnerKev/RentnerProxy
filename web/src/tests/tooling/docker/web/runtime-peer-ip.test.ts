@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { getRequest, getRequestIP, requestHandler } from '@tanstack/react-start/server'
+import { getRequest, getRequestIP } from '@tanstack/react-start/server'
+import { createServerEntry } from '@tanstack/react-start/server-entry'
 
 import { createRuntimeFetch } from '../../../../../../docker/web/request-context.ts'
 import {
@@ -12,10 +13,12 @@ import type { ValkeyCommandClient } from '@/server/Valkey/Types/valkey.types.ts'
 describe('production request peer addresses', () => {
     test('makes the Bun connection address available inside the TanStack request context', async () => {
         const application = {
-            fetch: requestHandler(async () => {
-                await Promise.resolve()
-                return Response.json({ ip: getRequestIP() ?? null })
-            }),
+            fetch: createServerEntry({
+                fetch: async () => {
+                    await Promise.resolve()
+                    return Response.json({ ip: getRequestIP() ?? null })
+                },
+            }).fetch,
         }
         const server = Bun.serve({
             hostname: '127.0.0.1',
@@ -49,24 +52,29 @@ describe('production request peer addresses', () => {
                 return [count, 600_000]
             },
         }
-        const handler = requestHandler(async () => {
-            await Promise.resolve()
-            const request = getRequest()
-            try {
-                await enforceAuthRateLimit(
-                    {
-                        action: 'login',
-                        email: `${new URL(request.url).pathname}@example.com`,
-                        request,
-                    },
-                    { getClient: () => client, resolveClientIp: () => getRequestIP() ?? 'unknown' },
-                )
-                return new Response(null, { status: 204 })
-            } catch (error) {
-                if (error instanceof RateLimitError) return new Response(null, { status: 429 })
-                throw error
-            }
-        })
+        const handler = createServerEntry({
+            fetch: async () => {
+                await Promise.resolve()
+                const request = getRequest()
+                try {
+                    await enforceAuthRateLimit(
+                        {
+                            action: 'login',
+                            email: `${new URL(request.url).pathname}@example.com`,
+                            request,
+                        },
+                        {
+                            getClient: () => client,
+                            resolveClientIp: () => getRequestIP() ?? 'unknown',
+                        },
+                    )
+                    return new Response(null, { status: 204 })
+                } catch (error) {
+                    if (error instanceof RateLimitError) return new Response(null, { status: 429 })
+                    throw error
+                }
+            },
+        }).fetch
         const runtimeFetch = createRuntimeFetch({ fetch: (request) => handler(request, {}) })
         const responses = await Promise.all([
             ...Array.from({ length: 21 }, (_, index) =>
@@ -92,7 +100,9 @@ describe('production request peer addresses', () => {
     test.each([null, { address: 'invalid' }])(
         'keeps missing or invalid connection addresses unavailable despite forwarded headers: %j',
         async (peer) => {
-            const handler = requestHandler(() => Response.json({ ip: getRequestIP() ?? null }))
+            const handler = createServerEntry({
+                fetch: () => Response.json({ ip: getRequestIP() ?? null }),
+            }).fetch
             const runtimeFetch = createRuntimeFetch({ fetch: (request) => handler(request, {}) })
             const response = await runtimeFetch(
                 new Request('http://localhost/login', {

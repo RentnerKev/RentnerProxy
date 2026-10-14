@@ -370,7 +370,7 @@ async function runSmoke(): Promise<void> {
 
         const [
             { eq },
-            { requestHandler },
+            { createServerEntry },
             { SESSION_COOKIE_NAME },
             { SYSTEM_ROLES },
             { roles, userRoles, users },
@@ -389,7 +389,7 @@ async function runSmoke(): Promise<void> {
             authorizationRegistry,
         ] = await Promise.all([
             import('drizzle-orm'),
-            import('@tanstack/react-start/server'),
+            import('@tanstack/react-start/server-entry'),
             import('../../../web/src/config/auth.config.ts'),
             import('../../../web/src/config/permissions.config.ts'),
             import('../../../web/src/db/schema.ts'),
@@ -580,14 +580,16 @@ async function runSmoke(): Promise<void> {
             operation: () => Promise<T>,
         ): Promise<T> {
             let outcome: { value: T } | { error: unknown } | undefined
-            const handler = requestHandler(async () => {
-                try {
-                    outcome = { value: await operation() }
-                } catch (error) {
-                    outcome = { error }
-                }
-                return new Response(null, { status: 204 })
-            })
+            const handler = createServerEntry({
+                fetch: async () => {
+                    try {
+                        outcome = { value: await operation() }
+                    } catch (error) {
+                        outcome = { error }
+                    }
+                    return new Response(null, { status: 204 })
+                },
+            }).fetch
             await handler(
                 new Request('http://localhost/', {
                     headers: { cookie: SESSION_COOKIE_NAME + '=' + sessionToken },

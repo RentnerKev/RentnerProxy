@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeAll, describe, expect, test } from 'bun:test'
 import { Database } from 'bun:sqlite'
-import { requestHandler } from '@tanstack/react-start/server'
+import { createServerEntry } from '@tanstack/react-start/server-entry'
 import { eq, inArray, like } from 'drizzle-orm'
 
 import { SESSION_COOKIE_NAME } from '@/config/auth.config.ts'
@@ -158,14 +158,16 @@ async function runAsUser<T>(userId: string, operation: () => Promise<T>): Promis
     const session = await createSessionService(userId)
     let result: T | undefined
     let failure: unknown
-    const handler = requestHandler(async () => {
-        try {
-            result = await operation()
-        } catch (error) {
-            failure = error
-        }
-        return new Response(null, { status: failure ? 500 : 204 })
-    })
+    const handler = createServerEntry({
+        fetch: async () => {
+            try {
+                result = await operation()
+            } catch (error) {
+                failure = error
+            }
+            return new Response(null, { status: failure ? 500 : 204 })
+        },
+    }).fetch
     const request = new Request('http://localhost/')
     request.headers.set('cookie', `${SESSION_COOKIE_NAME}=${session.token}`)
     await handler(request, {})

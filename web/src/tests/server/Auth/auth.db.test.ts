@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
-import { requestHandler } from '@tanstack/react-start/server'
+import { createServerEntry } from '@tanstack/react-start/server-entry'
 import { and, eq, gte, inArray, like, notLike, sql } from 'drizzle-orm'
 import * as OTPAuth from 'otpauth'
 
@@ -290,15 +290,17 @@ async function runWithSessionToken<T>(token: string, operation: () => Promise<T>
     let failed = false
     let failure: unknown
     let result: T | undefined
-    const handler = requestHandler(async () => {
-        try {
-            result = await operation()
-        } catch (error) {
-            failed = true
-            failure = error
-        }
-        return new Response(null, { status: failed ? 500 : 204 })
-    })
+    const handler = createServerEntry({
+        fetch: async () => {
+            try {
+                result = await operation()
+            } catch (error) {
+                failed = true
+                failure = error
+            }
+            return new Response(null, { status: failed ? 500 : 204 })
+        },
+    }).fetch
 
     const request = new Request('http://localhost/')
 

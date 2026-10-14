@@ -1,10 +1,16 @@
 import { describe, expect, spyOn, test } from 'bun:test'
-import { getRequestIP, requestHandler } from '@tanstack/react-start/server'
+import {
+    createServerEntry,
+    getRequestIP,
+    setCookie,
+    setResponseHeader,
+    setResponseStatus,
+} from '@tanstack/react-start/server'
 
 import { createRuntimeFetch } from '../../../../docker/web/request-context.ts'
 import { withRequestAbortHandling } from '@/server/request-abort.server.ts'
 
-describe('application request abort handling with unpatched TanStack', () => {
+describe('application request abort handling with TanStack Start stable', () => {
     test('preserves POST data exposed through lazy adapter getters', async () => {
         const request = new Request('http://localhost/adapter')
         const body = new Response('{"timeout":120}').body
@@ -38,12 +44,12 @@ describe('application request abort handling with unpatched TanStack', () => {
         let rejectHandler: (() => void) | undefined
 
         const handler = withRequestAbortHandling(
-            requestHandler(
-                (request) =>
+            createServerEntry({
+                fetch: (request) =>
                     new Promise<never>((_resolve, reject) => {
                         rejectHandler = () => reject(request.signal.reason)
                     }),
-            ),
+            }).fetch,
         )
         const responsePromise = handler(
             new Request('http://localhost/disconnected', { signal: controller.signal }),
@@ -66,10 +72,12 @@ describe('application request abort handling with unpatched TanStack', () => {
 
     test('handles a signal that was already aborted before entering TanStack', async () => {
         const handler = withRequestAbortHandling(
-            requestHandler(async (request) => {
-                request.signal.throwIfAborted()
-                return new Response('unexpected')
-            }),
+            createServerEntry({
+                fetch: async (request) => {
+                    request.signal.throwIfAborted()
+                    return new Response('unexpected')
+                },
+            }).fetch,
         )
         const consoleError = spyOn(console, 'error').mockImplementation(() => {})
         try {
@@ -87,16 +95,17 @@ describe('application request abort handling with unpatched TanStack', () => {
 
     test('preserves request bodies, options and the server-owned peer address', async () => {
         const handler = withRequestAbortHandling(
-            requestHandler(async (request, options) =>
-                Response.json({
-                    ip: getRequestIP(),
-                    body: await request.text(),
-                    method: request.method,
-                    contentType: request.headers.get('content-type'),
-                    url: request.url,
-                    nonce: options?.context?.nonce,
-                }),
-            ),
+            createServerEntry({
+                fetch: async (request, options) =>
+                    Response.json({
+                        ip: getRequestIP(),
+                        body: await request.text(),
+                        method: request.method,
+                        contentType: request.headers.get('content-type'),
+                        url: request.url,
+                        nonce: options?.context?.nonce,
+                    }),
+            }).fetch,
         )
         const runtimeFetch = createRuntimeFetch({
             fetch: (request) => handler(request, { context: { nonce: 'test-nonce' } }),
@@ -122,8 +131,8 @@ describe('application request abort handling with unpatched TanStack', () => {
     test('propagates cancellation after response headers while a body is streaming', async () => {
         const controller = new AbortController()
         const handler = withRequestAbortHandling(
-            requestHandler(
-                (request) =>
+            createServerEntry({
+                fetch: (request) =>
                     new Response(
                         new ReadableStream({
                             start(stream) {
@@ -137,7 +146,7 @@ describe('application request abort handling with unpatched TanStack', () => {
                             },
                         }),
                     ),
-            ),
+            }).fetch,
         )
         const response = await handler(
             new Request('http://localhost/stream', {
@@ -157,9 +166,11 @@ describe('application request abort handling with unpatched TanStack', () => {
         const genuineError = new Error('database unavailable')
 
         const handler = withRequestAbortHandling(
-            requestHandler(async () => {
-                throw genuineError
-            }),
+            createServerEntry({
+                fetch: async () => {
+                    throw genuineError
+                },
+            }).fetch,
         )
 
         const consoleError = spyOn(console, 'error').mockImplementation(() => {})
@@ -181,9 +192,11 @@ describe('application request abort handling with unpatched TanStack', () => {
         const genuineError = new Error('database unavailable')
 
         const handler = withRequestAbortHandling(
-            requestHandler(async () => {
-                throw genuineError
-            }),
+            createServerEntry({
+                fetch: async () => {
+                    throw genuineError
+                },
+            }).fetch,
         )
 
         const consoleError = spyOn(console, 'error').mockImplementation(() => {})
@@ -197,6 +210,47 @@ describe('application request abort handling with unpatched TanStack', () => {
             expect(consoleError).toHaveBeenCalled()
         } finally {
             consoleError.mockRestore()
+        }
+    })
+
+    test('keeps error statuses, headers and cookies isolated across rewritten requests', async () => {
+        const sharedError = Object.assign(new Error('private failure details'), { status: 500 })
+        let releaseRequests: (() => void) | undefined
+        const requestsReady = new Promise<void>((resolve) => {
+            releaseRequests = resolve
+        })
+        let pendingRequests = 0
+        const handler = withRequestAbortHandling(
+            createServerEntry({
+                fetch: async (request) => {
+                    const name = new URL(request.url).pathname.slice(1)
+                    setResponseStatus(name === 'first' ? 401 : 403)
+                    setResponseHeader('x-request-fixture', name)
+                    setCookie('fixture-one', name, { httpOnly: true })
+                    setCookie('fixture-two', name, { httpOnly: true })
+                    pendingRequests += 1
+                    if (pendingRequests === 2) releaseRequests?.()
+                    await requestsReady
+                    throw sharedError
+                },
+            }).fetch,
+        )
+
+        const responses = await Promise.all(
+            ['first', 'second'].map((name) =>
+                handler(new Request(`https://localhost/${name}`), {}),
+            ),
+        )
+        const bodies = await Promise.all(responses.map((response) => response.text()))
+        for (const [index, response] of responses.entries()) {
+            const name = index === 0 ? 'first' : 'second'
+            expect(response.status).toBe(index === 0 ? 401 : 403)
+            expect(response.headers.get('x-request-fixture')).toBe(name)
+            const cookies = response.headers.getSetCookie()
+            expect(cookies).toHaveLength(2)
+            expect(cookies.some((cookie) => cookie.startsWith(`fixture-one=${name};`))).toBe(true)
+            expect(cookies.some((cookie) => cookie.startsWith(`fixture-two=${name};`))).toBe(true)
+            expect(bodies[index]).not.toContain('private failure details')
         }
     })
 })

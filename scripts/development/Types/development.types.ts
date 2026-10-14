@@ -6,7 +6,7 @@ export interface ManagedProcess {
     readonly pid: number
     readonly exited: Promise<number>
     readonly exitCode: number | null
-    readonly signalCode: NodeJS.Signals | null
+    readonly signalCode: NodeJS.Signals | number | null
     kill(signal?: number | NodeJS.Signals): void
 }
 

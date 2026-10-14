@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
-import { requestHandler } from '@tanstack/react-start/server'
+import { createServerEntry } from '@tanstack/react-start/server-entry'
 import { eq, inArray, like } from 'drizzle-orm'
 
 import { SESSION_COOKIE_NAME } from '@/config/auth.config.ts'
@@ -126,14 +126,16 @@ async function runWithSession<T>(userId: string, operation: () => Promise<T>): P
     const session = await createSessionService(userId)
     let result: T | undefined
     let failure: unknown
-    const handler = requestHandler(async () => {
-        try {
-            result = await operation()
-        } catch (error) {
-            failure = error
-        }
-        return new Response(null, { status: failure ? 500 : 204 })
-    })
+    const handler = createServerEntry({
+        fetch: async () => {
+            try {
+                result = await operation()
+            } catch (error) {
+                failure = error
+            }
+            return new Response(null, { status: failure ? 500 : 204 })
+        },
+    }).fetch
     const request = new Request('http://localhost/', {
         headers: { cookie: `${SESSION_COOKIE_NAME}=${session.token}` },
     })
