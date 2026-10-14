@@ -1,8 +1,58 @@
-import { describe, expect, spyOn, test } from 'bun:test'
+import { describe, expect, mock, spyOn, test } from 'bun:test'
 import { extendSmokeContext as extendApplianceContext } from '../../../../../../.github/scripts/ci/appliance/context.ts'
 import { extendSmokeContext as extendCertificateContext } from '../../../../../../scripts/smoke/certificates/context.ts'
+import { verifyApplianceProxyTraffic } from '../../../../../../.github/scripts/ci/appliance/proxy-traffic.ts'
+import { verifyCertificateSetup } from '../../../../../../scripts/smoke/certificates/setup.ts'
+import type { ApplianceProxyTrafficContext } from '../../../../../../.github/scripts/ci/appliance/Types/scenarios.types.ts'
+import type { CertificateSetupContext } from '../../../../../../scripts/smoke/certificates/Types/scenarios.types.ts'
 
 describe('smoke scenario context', () => {
+    test('creates the appliance backend before requiring its initialized state', async () => {
+        const stop = new Error('stop before Docker execution')
+        const command = mock(async () => {
+            throw stop
+        })
+        const context: Pick<
+            ApplianceProxyTrafficContext,
+            'runId' | 'availableLoopbackPort' | 'backend' | 'command'
+        > = {
+            runId: 'fixture-run',
+            availableLoopbackPort: async () => 0,
+            backend: undefined,
+            command,
+        }
+        try {
+            await expect(
+                verifyApplianceProxyTraffic(context as ApplianceProxyTrafficContext),
+            ).rejects.toBe(stop)
+            expect(command).toHaveBeenCalledTimes(1)
+            expect(context.backend).toBeDefined()
+            const response = await fetch('http://127.0.0.1:' + context.backend!.port)
+            expect(await response.text()).toBe('appliance-real-traffic-fixture-run')
+        } finally {
+            context.backend?.stop(true)
+        }
+    })
+
+    test('certificate setup accepts initially absent DNS and backend resources', async () => {
+        const stop = new Error('stop before Docker execution')
+        const command = mock(async () => {
+            throw stop
+        })
+        const context: Pick<CertificateSetupContext, 'dnsFixture' | 'backend' | 'command'> = {
+            dnsFixture: undefined,
+            backend: undefined,
+            command,
+        }
+        await expect(verifyCertificateSetup(context as CertificateSetupContext)).rejects.toBe(stop)
+        expect(command).toHaveBeenCalledWith([
+            'docker',
+            'version',
+            '--format',
+            '{{.Server.Version}}',
+        ])
+    })
+
     for (const extend of [extendApplianceContext, extendCertificateContext]) {
         test('keeps mutable resource ownership connected to captured helper state', () => {
             let container = 'initial'

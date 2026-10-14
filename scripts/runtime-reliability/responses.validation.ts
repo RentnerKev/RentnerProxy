@@ -49,7 +49,7 @@ export const controllerBodySchema = z.looseObject({
 })
 export const backendBodySchema = z.looseObject({
     backend: z.string().optional(),
-    user: z.string().optional(),
+    user: z.string().nullable().optional(),
 })
 export const certificateIndexSchema = z.looseObject({
     certificates: z.record(

@@ -6,8 +6,35 @@ import {
     certificateIndexSchema,
 } from '../../../../../../scripts/runtime-reliability/responses.validation.ts'
 import { certificateEventsSchema } from '../../../../../../scripts/smoke/certificates/responses.validation.ts'
+import { startFixtureServers } from '../../../../../../scripts/runtime-reliability/fixture-transport.ts'
 
 describe('smoke response validation', () => {
+    test('preserves anonymous and authenticated responses from the real backend fixture', async () => {
+        const servers = startFixtureServers({
+            primaryPort: 0,
+            secondaryPort: 0,
+            authPort: 0,
+            controlPort: 0,
+            tlsPort: 0,
+        })
+        try {
+            const url = 'http://127.0.0.1:' + servers.primary.port
+            const anonymous = backendBodySchema.parse(await (await fetch(url)).json())
+            expect(anonymous).toEqual({ backend: 'a', user: null, forwardedFor: null })
+            const authenticated = backendBodySchema.parse(
+                await (await fetch(url, { headers: { 'Remote-User': 'reliability-user' } })).json(),
+            )
+            expect(authenticated).toEqual({
+                backend: 'a',
+                user: 'reliability-user',
+                forwardedFor: null,
+            })
+            expect(backendBodySchema.safeParse({ backend: 'a', user: 123 }).success).toBe(false)
+        } finally {
+            servers.stop()
+        }
+    })
+
     test('retains extension responses without inventing phase-specific fields', () => {
         const input = {
             ok: true as const,

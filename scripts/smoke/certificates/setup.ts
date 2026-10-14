@@ -9,8 +9,6 @@ import { buildHttp3Client } from '../http3/client.ts'
 import type { CertificateSetupContext } from './Types/scenarios.types.ts'
 
 export async function verifyCertificateSetup(context: CertificateSetupContext) {
-    assert.ok(context.dnsFixture)
-    assert.ok(context.backend)
     await context.command(['docker', 'version', '--format', '{{.Server.Version}}'])
 
     const curlVersion = await context.command(['curl', '--version'])

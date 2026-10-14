@@ -4,7 +4,6 @@ import { requestHttp3Client, assertHttp3Response } from '../../../../scripts/smo
 import type { ApplianceProxyTrafficContext } from './Types/scenarios.types.ts'
 
 export async function verifyApplianceProxyTraffic(context: ApplianceProxyTrafficContext) {
-    assert.ok(context.backend)
     const backendPort = await context.availableLoopbackPort()
     const trafficMarker = 'appliance-real-traffic-' + context.runId
     context.backend = Bun.serve({
