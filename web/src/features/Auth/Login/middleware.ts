@@ -1,6 +1,5 @@
 import type { TwoFactorLoginActionResult } from './Types/middleware.types.ts'
 import type { AuthActionResult } from '@/server/Auth/Types/auth-transport.types.ts'
-import type { AuthenticationResponseJSON } from '@simplewebauthn/server'
 import { createServerFn } from '@tanstack/react-start'
 
 import {
@@ -159,7 +158,7 @@ export const finishPasskeyLoginHandler = createServerFn({ method: 'POST' })
             await enforceSensitiveLimit('login', data.response.id)
             const result = await finishDiscoverablePasskeyAuthenticationService({
                 flowId: data.challengeId,
-                response: data.response as unknown as AuthenticationResponseJSON,
+                response: data.response,
             })
             if (!result.success) return { success: false, message: 'Authentication failed.' }
             clearMfaChallengeCookie()

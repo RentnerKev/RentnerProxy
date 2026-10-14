@@ -12,8 +12,19 @@ on:
             - '.github/scripts/ci/release-compatibility/**'
             - '.github/scripts/ci/fixtures/**'
             - 'scripts/compatibility/**'
-            - 'docker/web/bootstrap-secrets.ts'
-            - 'docker/web/validate-backup.ts'
+            - 'scripts/smoke/**'
+            - 'docker/**'
+            - '.dockerignore'
+            - 'docker-compose.yml'
+            - 'package.json'
+            - 'bun.lock'
+            - 'bunfig.toml'
+            - 'core/Cargo.*'
+            - 'core/src/**'
+            - 'web/src/**'
+            - 'web/public/**'
+            - 'vite.config.ts'
+            - 'tsconfig*.json'
     push:
         branches:
             - main
@@ -25,8 +36,19 @@ on:
             - '.github/scripts/ci/release-compatibility/**'
             - '.github/scripts/ci/fixtures/**'
             - 'scripts/compatibility/**'
-            - 'docker/web/bootstrap-secrets.ts'
-            - 'docker/web/validate-backup.ts'
+            - 'scripts/smoke/**'
+            - 'docker/**'
+            - '.dockerignore'
+            - 'docker-compose.yml'
+            - 'package.json'
+            - 'bun.lock'
+            - 'bunfig.toml'
+            - 'core/Cargo.*'
+            - 'core/src/**'
+            - 'web/src/**'
+            - 'web/public/**'
+            - 'vite.config.ts'
+            - 'tsconfig*.json'
     workflow_dispatch:
         inputs:
             source:

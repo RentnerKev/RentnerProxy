@@ -139,6 +139,9 @@ describe('production smokes workflow execution contract', () => {
         const productionSmoke = await repositoryFile(
             '.github/scripts/ci/appliance-compose-smoke.ts',
         )
+        const productionContext = await repositoryFile('.github/scripts/ci/appliance/context.ts')
+        const productionStartup = await repositoryFile('.github/scripts/ci/appliance/startup.ts')
+        const startupCommand = productionStartup.replace(/\s+/gu, ' ')
         const packageManifest = await repositoryFile('package.json')
 
         expect(runner).toContain("script: 'proxy:smoke'")
@@ -152,19 +155,23 @@ describe('production smokes workflow execution contract', () => {
         expect(packageManifest).toContain('.github/scripts/ci/appliance-compose-smoke.ts')
         expect(packageManifest).toContain('.github/scripts/ci/proxy-smoke.ts')
         expect(runner).toContain('cwd: repositoryRoot')
-        expect(productionSmoke).toContain(
-            "const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url))",
+        expect(productionSmoke).toContain("from './appliance/context.ts'")
+        expect(productionSmoke).toContain("from './appliance/startup.ts'")
+        expect(productionSmoke).toContain('await createApplianceSmokeContext()')
+        expect(productionSmoke).toContain('await verifyApplianceStartup(context)')
+        expect(productionContext).toContain(
+            "const repositoryRoot = fileURLToPath(new URL('../../../..', import.meta.url))",
         )
-        expect(productionSmoke).toContain(
+        expect(productionContext).toContain(
             "const productionDockerfile = join(repositoryRoot, 'docker', 'production', 'Dockerfile')",
         )
-        expect(productionSmoke).toContain("['docker', 'build'")
-        expect(productionSmoke).toMatch(
-            /\['docker', 'build', '--tag', imageTag, '--file', productionDockerfile, '\.'\]/u,
+        expect(startupCommand).toContain("'docker', 'build'")
+        expect(startupCommand).toMatch(
+            /\[\s*'docker', 'build', '--tag', context\.imageTag, '--file', context\.productionDockerfile, '\.',?\s*\]/u,
         )
-        expect(productionSmoke).toContain("'--file', productionDockerfile")
-        expect(productionSmoke).toContain("'--tag', imageTag")
-        expect(productionSmoke).toContain('900_000')
+        expect(startupCommand).toContain("'--file', context.productionDockerfile")
+        expect(startupCommand).toContain("'--tag', context.imageTag")
+        expect(productionStartup).toContain('900_000')
     })
 })
 

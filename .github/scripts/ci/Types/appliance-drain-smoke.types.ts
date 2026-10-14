@@ -1,10 +1,10 @@
-export type DrainCommandOptions = {
+type DrainCommandOptions = {
     stdin?: string
     timeoutMs?: number
     allowFailure?: boolean
 }
 
-export type DrainCommandResult = { code: number; output: string }
+type DrainCommandResult = { code: number; output: string }
 
 export type DrainCommand = (
     args: string[],

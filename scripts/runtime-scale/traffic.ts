@@ -21,7 +21,8 @@ export async function verifyConcurrentTraffic(
             )
             if (response.status === 200)
                 assert.ok(
-                    ['a', 'b', 'tls'].includes(response.body.backend),
+                    typeof response.body.backend === 'string' &&
+                        ['a', 'b', 'tls'].includes(response.body.backend),
                     'Concurrent traffic reaches an owned upstream',
                 )
         } catch (error) {

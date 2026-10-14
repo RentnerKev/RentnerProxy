@@ -51,6 +51,36 @@ export function smokeProgress(suite: Suite) {
     let diagnostic = ''
     let startupDiagnostic = ''
     const specification = smokeSuites[suite]
+    const diagnosticSources = new Set<string>([
+        specification.source,
+        ...(suite === 'production'
+            ? [
+                  'context',
+                  'startup',
+                  'management-and-persistence',
+                  'proxy-traffic',
+                  'crowdsec',
+                  'backup',
+                  'restore',
+                  'restore-safety',
+              ].map((name) => '.github/scripts/ci/appliance/' + name + '.ts')
+            : []),
+        ...(suite === 'certificates'
+            ? [
+                  'context',
+                  'setup',
+                  'trusted-proxy',
+                  'tls-protocols',
+                  'manual-lifecycle',
+                  'http-acme',
+                  'activation-recovery',
+                  'dns-acme',
+                  'access-policies',
+                  'ip-policies',
+                  'logs-and-jobs',
+              ].map((name) => 'scripts/smoke/certificates/' + name + '.ts')
+            : []),
+    ])
     return {
         consume(line: string): string | undefined {
             if (isDockerBuildDiagnostic(line)) {
@@ -115,7 +145,7 @@ export function smokeProgress(suite: Suite) {
                 /((?:\.github[/\\]scripts[/\\]ci|scripts)[/\\](?:[a-z0-9-]+[/\\])*[a-z0-9-]+\.ts):(\d+):(\d+)/u,
             )
             const sourcePath = location?.[1]?.replaceAll('\\', '/')
-            if (location && sourcePath === specification.source) {
+            if (location && sourcePath !== undefined && diagnosticSources.has(sourcePath)) {
                 diagnostic = (
                     diagnostic +
                     ' at ' +

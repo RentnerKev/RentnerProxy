@@ -1,5 +1,5 @@
 use super::{
-    CrowdSecDashboardQuery, DashboardData, metric_sample, parse_decisions, parse_metrics,
+    CrowdSecDashboardQuery, DashboardData, metrics::metric_sample, parse_decisions, parse_metrics,
     snapshot_for,
 };
 

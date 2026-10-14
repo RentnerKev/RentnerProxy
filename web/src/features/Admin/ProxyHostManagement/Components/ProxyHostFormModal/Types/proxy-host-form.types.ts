@@ -25,7 +25,7 @@ export interface ProxyHostFormModalProps {
     readonly proxyHost?: ProxyHostSummary | undefined
 }
 
-export interface ProxyHostSetupGuideState {
+interface ProxyHostSetupGuideState {
     readonly open: boolean
     readonly step: number
     readonly domains: string

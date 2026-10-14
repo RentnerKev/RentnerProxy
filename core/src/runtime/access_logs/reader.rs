@@ -8,7 +8,7 @@ use std::{
     time::Instant,
 };
 
-use time::{Duration, OffsetDateTime, format_description::well_known::Rfc3339};
+use time::{Duration, OffsetDateTime};
 use tokio::sync::Semaphore;
 
 use super::super::state::state_dir;
@@ -194,16 +194,15 @@ fn read_snapshot_blocking(
             let Ok(value) = serde_json::from_slice::<serde_json::Value>(line) else {
                 continue;
             };
-            let Some(entry) = parse_entry(&value, cutoff) else {
+            let Some(parsed) = parse_entry(&value, cutoff) else {
                 continue;
             };
+            let entry = parsed.entry;
             available_hosts.insert(entry.host.clone());
             available_statuses.insert(entry.status);
             if matches_query(&entry, query) {
                 matches.push(IndexedEntry {
-                    timestamp_nanos: OffsetDateTime::parse(&entry.timestamp, &Rfc3339)
-                        .expect("validated access-log timestamp")
-                        .unix_timestamp_nanos(),
+                    timestamp_nanos: parsed.timestamp_nanos,
                     entry,
                     file_identity: name.clone(),
                     line_offset,

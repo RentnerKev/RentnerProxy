@@ -284,12 +284,17 @@ async function controllerRequest(path: string, init: RequestInit = {}): Promise<
     return fetch('http://127.0.0.1:' + controllerPort + path, { ...init, headers })
 }
 
+function jsonObject(value: unknown): JsonObject {
+    assert.ok(value !== null && typeof value === 'object' && !Array.isArray(value))
+    return value as JsonObject
+}
+
 async function controllerJson(path: string, init: RequestInit = {}): Promise<JsonObject> {
     const response = await controllerRequest(path, init)
     const body = await response.text()
     let parsed: JsonObject = {}
     try {
-        parsed = JSON.parse(body) as JsonObject
+        parsed = jsonObject(JSON.parse(body))
     } catch {}
     return { httpStatus: response.status, ...parsed }
 }
@@ -340,7 +345,7 @@ async function activeConfig(): Promise<JsonObject> {
     const result = await controllerJson('/internal/v1/proxy/config')
     assert.equal(result.httpStatus, 200)
     assert.equal(typeof result.config, 'string')
-    return JSON.parse(result.config as string) as JsonObject
+    return jsonObject(JSON.parse(result.config as string))
 }
 
 async function validateCa(pem: string): Promise<TrustedCa> {
@@ -351,6 +356,7 @@ async function validateCa(pem: string): Promise<TrustedCa> {
     })
     assert.equal(result.httpStatus, 200)
     assert.equal(typeof result.pem, 'string')
+    assert.ok(typeof result.fingerprintSha256 === 'string')
     assert.match(result.fingerprintSha256, /^sha256:[a-f0-9]{64}$/u)
     return {
         id: Bun.randomUUIDv7(),

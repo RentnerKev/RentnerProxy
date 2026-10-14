@@ -74,7 +74,7 @@ impl ProxyRuntime {
         api_url: &str,
         api_key: &SecretString,
     ) -> Result<(), CrowdSecError> {
-        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+        crate::runtime::tls::ensure_crypto_provider();
         let endpoint = Url::parse(api_url)
             .and_then(|url| url.join("v1/decisions?ip=192.0.2.1"))
             .map_err(|_| CrowdSecError::InvalidConfiguration)?;

@@ -1,5 +1,4 @@
 import type { AuthActionResult } from '@/server/Auth/Types/auth-transport.types.ts'
-import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server'
 import { createServerFn, createServerOnlyFn } from '@tanstack/react-start'
 import { setResponseHeader } from '@tanstack/react-start/server'
 
@@ -276,7 +275,7 @@ export const finishPasskeyRegistrationHandler = createServerFn({ method: 'POST' 
                 currentSession: session,
                 flowId: data.challengeId,
                 ...(data.name ? { name: data.name } : {}),
-                response: data.response as unknown as RegistrationResponseJSON,
+                response: data.response,
             })
             return {
                 success: result.success,
@@ -378,7 +377,7 @@ export const finishPasskeyReauthenticationHandler = createServerFn({ method: 'PO
             const result = await finishPasskeyReauthenticationService({
                 currentSession: session,
                 flowId: data.challengeId,
-                response: data.response as unknown as AuthenticationResponseJSON,
+                response: data.response,
             })
             return {
                 success: result.success,

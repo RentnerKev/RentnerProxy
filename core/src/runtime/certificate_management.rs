@@ -38,7 +38,10 @@ impl ProxyRuntime {
         let id = id.to_owned();
         tokio::spawn(async move { runtime.import_certificate_inner(&id, request).await })
             .await
-            .unwrap_or(Err(CertificateError::StoreUnavailable))
+            .unwrap_or_else(|error| {
+                super::task::report_join_failure("certificate_import", &error);
+                Err(CertificateError::StoreUnavailable)
+            })
     }
 
     async fn import_certificate_inner(

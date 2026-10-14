@@ -32,7 +32,10 @@ impl ProxyRuntime {
                 .await
         })
         .await
-        .unwrap_or(Err(RuntimeError::ApplyFailed))
+        .unwrap_or_else(|error| {
+            super::task::report_join_failure("configuration_apply", &error);
+            Err(RuntimeError::ApplyFailed)
+        })
     }
 
     pub(crate) async fn apply_staged_for_active(
@@ -77,7 +80,10 @@ impl ProxyRuntime {
             Ok(ApplyOutcome::Unchanged)
         })
         .await
-        .unwrap_or(Err(RuntimeError::ApplyFailed))
+        .unwrap_or_else(|error| {
+            super::task::report_join_failure("certificate_apply", &error);
+            Err(RuntimeError::ApplyFailed)
+        })
     }
 
     async fn apply_locked(

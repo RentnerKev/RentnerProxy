@@ -1,4 +1,4 @@
-export type JsonObject = Record<string, any>
+export type JsonObject = Record<string, unknown>
 
 type UpstreamTls = {
     readonly verify: boolean

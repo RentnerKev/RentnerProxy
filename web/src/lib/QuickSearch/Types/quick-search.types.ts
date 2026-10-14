@@ -1,7 +1,7 @@
 import type { ApplicationNavigationItem } from '@/layouts/AuthenticatedLayout/Components/ApplicationShell/Types/application-shell.types.ts'
 import type { USER_SETTINGS_SECTIONS } from '@/config/user-settings.config.ts'
 
-export type QuickSearchCategory = 'proxyHosts' | 'redirectHosts' | 'certificates' | 'accessPolicies'
+type QuickSearchCategory = 'proxyHosts' | 'redirectHosts' | 'certificates' | 'accessPolicies'
 
 export interface QuickSearchInput {
     readonly query: string

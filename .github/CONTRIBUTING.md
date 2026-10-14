@@ -65,14 +65,15 @@ migration SQL and run `bun run db:check` before opening the pull request.
 
 ## Dependency auditing
 
-Run `npx depcheck@1.4.7` from the repository root to check dependency declarations.
-The `.depcheckrc` exclusions cover CSS imports from `web/src/styles.css`, Oxlint's type-aware
-binary, and Bun runtime modules. Keep directly imported test packages in `devDependencies`,
-even when they are already installed transitively.
+Run `bun run dependencies:check` from the repository root to check dependency declarations
+with the locked Knip version. Run `bun run dependencies:inspect` for the additional unused-file
+and export report. `knip.json` declares the web, test, Docker, and script entrypoints and excludes
+migrations, private environment files, and build output. Keep directly imported test packages
+in `devDependencies`, even when they are already installed transitively.
 
 The custom server entry in `web/src/server.ts` handles request cancellation without patching
-TanStack. It forwards cancellation with an empty 499 `Response` as the signal reason so H3
-does not log it as a server error. Downstream code should use `signal.aborted` to detect
+TanStack. It forwards cancellation with an empty 499 `Response` as the signal reason before
+Start creates its error context. Downstream code should use `signal.aborted` to detect
 cancellation; unrelated errors still follow the normal error handler.
 
 ## Code organization

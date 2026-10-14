@@ -61,6 +61,7 @@ async function signal(context: ReliabilityContext, ids: number[], name: 'TERM' |
 async function verifyProxy(context: ReliabilityContext, result: FixtureResult) {
     await context.synced(result)
     const response = await context.http()
+    assert.ok(result.expected)
     if (!result.expected.enabled) assert.equal(response.status, 404)
     else {
         assert.equal(response.status, 200)
@@ -300,6 +301,7 @@ async function main() {
                 context.check('proxy', 'Forward Auth failure denies access and recovers')
                 const imported = await context.fixture('npm-import', { iteration })
                 assert.equal(imported.historyFound, true)
+                assert.ok(imported.identicalSourceRetry)
                 assert.equal(imported.identicalSourceRetry.historyFound, true)
                 assert.equal(imported.failed, 0)
                 assert.equal(imported.imported, iteration < 4 ? 2 : 0)
@@ -340,11 +342,12 @@ async function main() {
             const final = await context.fixture('durability-read')
             await context.synced(final)
             assert.equal(final.currentJob?.stage, 'applied')
+            assert.ok(final.persistedJobCounts)
             assert.equal(final.persistedJobCounts.nonApplied, 0)
             assert.equal(final.persistedJobCounts.total, Math.floor(iteration / 3) + 1)
             if (options.source === 'current') {
                 assert.ok(Array.isArray(final.importHistory) && final.importHistory.length === 2)
-                assert.ok(final.importHistory.every((run: FixtureResult) => run.found === true))
+                assert.ok(final.importHistory.every((run) => run.found === true))
             }
             context.check('revision', 'Final persisted desired revision matches the running proxy')
             // Capture after all recovery probes, with idle traffic and no outstanding fixture commands.

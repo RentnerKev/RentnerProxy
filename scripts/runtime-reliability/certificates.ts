@@ -106,6 +106,7 @@ async function readOperationEvents(context: ReliabilityContext, operationId: str
         }
         assert.equal(typeof response.body.nextCursor, 'string')
         assert.notEqual(response.body.nextCursor, after)
+        assert.ok(typeof response.body.nextCursor === 'string')
         after = response.body.nextCursor
     }
     throw new Error('Certificate event pagination exceeded its bound')

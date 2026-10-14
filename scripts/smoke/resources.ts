@@ -68,7 +68,7 @@ export function smokeRunScope(): string | undefined {
     return value
 }
 
-function labelsWithSmokeRun(value: unknown, scope: string): Record<string, string> {
+function labelsWithSmokeRun(value: unknown, scope: string): Record<string, unknown> {
     if (Array.isArray(value)) {
         const labels: Record<string, string> = {}
         for (const entry of value) {
@@ -80,13 +80,17 @@ function labelsWithSmokeRun(value: unknown, scope: string): Record<string, strin
         labels[SMOKE_RUN_LABEL] = scope
         return labels
     }
-    if (value && typeof value === 'object') {
-        return { ...(value as Record<string, string>), [SMOKE_RUN_LABEL]: scope }
+    if (isRecord(value)) {
+        return { ...value, [SMOKE_RUN_LABEL]: scope }
     }
     return { [SMOKE_RUN_LABEL]: scope }
 }
 
-function addLabels(target: Record<string, any>, scope: string): void {
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function addLabels(target: Record<string, unknown>, scope: string): void {
     target.labels = labelsWithSmokeRun(target.labels, scope)
 }
 
@@ -114,50 +118,43 @@ export function smokeCompose(source: string): string {
     const scope = smokeRunScope()
     if (!scope) return source
 
-    const document = Bun.YAML.parse(source) as Record<string, any>
+    const document: unknown = Bun.YAML.parse(source)
+    if (!isRecord(document)) throw new Error('Smoke Compose must be an object')
     const services = document.services
-    if (services && typeof services === 'object' && !Array.isArray(services)) {
+    if (isRecord(services)) {
         for (const service of Object.values(services)) {
             if (!service || typeof service !== 'object' || Array.isArray(service)) continue
-            const serviceRecord = service as Record<string, any>
+            const serviceRecord = service as Record<string, unknown>
             addLabels(serviceRecord, scope)
             if (
                 serviceRecord.build &&
                 typeof serviceRecord.build === 'object' &&
                 !Array.isArray(serviceRecord.build)
             ) {
-                addLabels(serviceRecord.build as Record<string, any>, scope)
+                addLabels(serviceRecord.build as Record<string, unknown>, scope)
             }
         }
     }
 
     const volumes = document.volumes
-    if (volumes && typeof volumes === 'object' && !Array.isArray(volumes)) {
+    if (isRecord(volumes)) {
         for (const [name, volume] of Object.entries(volumes)) {
             if (volume === null) {
                 volumes[name] = { labels: { [SMOKE_RUN_LABEL]: scope } }
                 continue
             }
             if (volume && typeof volume === 'object' && !Array.isArray(volume)) {
-                const volumeRecord = volume as Record<string, any>
+                const volumeRecord = volume as Record<string, unknown>
                 if (volumeRecord.external) continue
                 addLabels(volumeRecord, scope)
             }
         }
     }
 
-    const networks =
-        document.networks &&
-        typeof document.networks === 'object' &&
-        !Array.isArray(document.networks)
-            ? document.networks
-            : (document.networks = {})
-    const defaultNetwork =
-        networks.default && typeof networks.default === 'object' && !Array.isArray(networks.default)
-            ? networks.default
-            : (networks.default = {})
-    if (!(defaultNetwork as Record<string, any>).external) {
-        addLabels(defaultNetwork as Record<string, any>, scope)
+    const networks = isRecord(document.networks) ? document.networks : (document.networks = {})
+    const defaultNetwork = isRecord(networks.default) ? networks.default : (networks.default = {})
+    if (!(defaultNetwork as Record<string, unknown>).external) {
+        addLabels(defaultNetwork as Record<string, unknown>, scope)
     }
 
     return JSON.stringify(document, null, 2) + '\n'

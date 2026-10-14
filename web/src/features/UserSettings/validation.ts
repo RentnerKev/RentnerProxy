@@ -44,6 +44,7 @@ export const updateProfileImageInputSchema = z.object({
 })
 
 export const emptySecurityInputSchema = z.object({})
+/** @alias */
 export const beginPasskeyReauthenticationInputSchema = emptySecurityInputSchema
 export const reauthenticatePasswordInputSchema = z.object({
     credential: z.string().min(1).max(256),
@@ -54,6 +55,7 @@ export const confirmTotpSetupInputSchema = z.object({
     challengeId: opaqueAuthChallengeSchema,
     code: totpCodeSchema,
 })
+/** @alias */
 export const disableTotpInputSchema = emptySecurityInputSchema
 export const renamePasskeyInputSchema = z.object({
     passkeyId: z.string().uuid(),

@@ -67,7 +67,7 @@ async function insertRecoveryCodeBatch(
         .values(codes.map((code) => ({ codeHash: code.hash, userId })))
 }
 
-export async function hasEnabledTotpFactorService(userId: string): Promise<boolean> {
+async function hasEnabledTotpFactorService(userId: string): Promise<boolean> {
     const rows = await getAuthDatabase()
         .select({ id: userTotpFactors.id })
         .from(userTotpFactors)

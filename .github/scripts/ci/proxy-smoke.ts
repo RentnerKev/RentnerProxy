@@ -166,6 +166,11 @@ function publishedPort(output: string): number {
     return port
 }
 
+function configObject(value: unknown): Record<string, unknown> {
+    assert.ok(value !== null && typeof value === 'object' && !Array.isArray(value))
+    return value as Record<string, unknown>
+}
+
 async function runSmoke(): Promise<void> {
     console.log('Starting isolated PostgreSQL and the real Caddy runtime.')
     let closeDatabase: (() => Promise<void>) | undefined
@@ -1441,13 +1446,16 @@ async function runSmoke(): Promise<void> {
         assert.equal(typeof activeConfigPayload.config, 'string')
         assert.equal((activeConfigPayload.config as string).includes('$argon2'), false)
         assert.equal((activeConfigPayload.config as string).includes(rotatedPassword), false)
-        const adminConfig = JSON.parse(activeConfigPayload.config as string) as Record<string, any>
-        const httpServers = adminConfig.apps?.http?.servers
-        const httpServer = httpServers?.['rentnerproxy-http']
-        assert.ok(Array.isArray(httpServer?.routes))
-        assert.ok(httpServer.routes.length > 0)
-        assert.ok(Array.isArray(httpServer.routes[0].handle))
-        httpServer.routes[0].handle[0] = { handler: 'rentnerproxy_unknown_smoke_handler' }
+
+        const adminConfig = configObject(JSON.parse(activeConfigPayload.config as string))
+        const httpServers = configObject(configObject(configObject(adminConfig.apps).http).servers)
+        const httpServer = configObject(httpServers['rentnerproxy-http'])
+        const routes = httpServer.routes
+        assert.ok(Array.isArray(routes))
+        assert.ok(routes.length > 0)
+        const handles = configObject(routes[0]).handle
+        assert.ok(Array.isArray(handles))
+        handles[0] = { handler: 'rentnerproxy_unknown_smoke_handler' }
         const adminConfigBase64 = Buffer.from(JSON.stringify(adminConfig)).toString('base64')
         const adminLoadResult = await command([
             ...compose,

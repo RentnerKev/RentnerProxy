@@ -284,19 +284,39 @@ impl CaddyProcess {
         }
         .await;
         if result.is_err() {
-            self.terminate_child().await;
+            self.terminate_child().await?;
         }
         result
     }
 
-    async fn terminate_child(&self) {
-        self.terminate_child_bounded(SHUTDOWN_BUDGET.reap).await;
+    async fn terminate_child(&self) -> Result<(), EngineError> {
+        self.terminate_child_bounded(SHUTDOWN_BUDGET.reap).await
     }
 
-    async fn terminate_child_bounded(&self, reap_timeout: Duration) {
-        if let Some(mut child) = self.child.lock().await.take() {
-            let _ = child.start_kill();
-            let _ = timeout(reap_timeout, child.wait()).await;
+    async fn terminate_child_bounded(&self, reap_timeout: Duration) -> Result<(), EngineError> {
+        let Some(mut child) = self.child.lock().await.take() else {
+            return Ok(());
+        };
+        let kill_result = child.start_kill().map_err(|error| {
+            tracing::warn!(stage = "child_kill", error_kind = ?error.kind(), "Caddy child kill failed");
+            EngineError::CommandFailed
+        });
+        // Even when signalling fails, reaping remains bounded. On timeout the
+        // owned child is dropped with kill_on_drop as the final fallback.
+        match timeout(reap_timeout, child.wait()).await {
+            Ok(Ok(_)) => kill_result,
+            Ok(Err(error)) => {
+                tracing::warn!(stage = "child_reap", error_kind = ?error.kind(), "Caddy child reap failed");
+                Err(EngineError::CommandFailed)
+            }
+            Err(_) => {
+                tracing::warn!(
+                    stage = "child_reap",
+                    timeout_ms = reap_timeout.as_millis(),
+                    "Caddy child reap timed out"
+                );
+                Err(EngineError::TimedOut)
+            }
         }
     }
 
@@ -322,7 +342,7 @@ impl CaddyProcess {
         .await
         .unwrap_or(Err(EngineError::TimedOut));
         if !matches!(result, Ok(ControlResponse { status: 200, .. })) {
-            self.terminate_child_bounded(budget.reap).await;
+            self.terminate_child_bounded(budget.reap).await?;
             return Err(result.err().unwrap_or(EngineError::CommandFailed));
         }
         let mut slot = self.child.lock().await;
@@ -343,7 +363,7 @@ impl CaddyProcess {
             }
             result => {
                 drop(slot);
-                self.terminate_child_bounded(budget.reap).await;
+                self.terminate_child_bounded(budget.reap).await?;
                 Err(if result.is_err() {
                     EngineError::TimedOut
                 } else {

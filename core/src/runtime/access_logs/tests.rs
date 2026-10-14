@@ -237,7 +237,9 @@ fn fields_are_utf8_bounded_and_control_free() {
     assert_eq!(bounded("A\u{009f}B\n", 2), "AB");
     let long = "é".repeat(1500);
     let value = serde_json::json!({"ts": OffsetDateTime::now_utc().unix_timestamp() as f64, "request": {"host": format!("{long}.example"), "method": long, "uri": format!("/{long}?secret=x"), "proto": long, "remote_ip": long}, "status": 200, "duration": 0.1, "size": 1, "upstream": long});
-    let entry = parse_entry(&value, OffsetDateTime::now_utc() - Duration::days(7)).unwrap();
+    let entry = parse_entry(&value, OffsetDateTime::now_utc() - Duration::days(7))
+        .unwrap()
+        .entry;
     for (field, maximum) in [
         (&entry.host, 253),
         (&entry.method, 32),
@@ -480,4 +482,25 @@ fn access_log_query_keeps_default_limit_and_rejects_malformed_snapshot() {
         invalid.validate(),
         Err(AccessLogQueryError::MalformedSnapshot)
     );
+}
+
+#[test]
+fn subsecond_timestamps_sort_newest_before_field_tiebreakers() {
+    let state = TempState::new(true);
+    let second = OffsetDateTime::now_utc().unix_timestamp() as f64;
+    state.write(
+        "access.log",
+        &format!(
+            "{}\n{}\n",
+            line(second + 0.25, "a.example", "/alpha", 200, "older"),
+            line(second + 0.75, "a.example", "/zulu", 200, "newer"),
+        ),
+    );
+    let response = read_blocking(state.path(), &query(20, 0)).unwrap();
+    assert_eq!(response.entries[0].path, "/zulu");
+    assert_eq!(response.entries[1].path, "/alpha");
+    let newer = OffsetDateTime::parse(&response.entries[0].timestamp, &Rfc3339).unwrap();
+    let older = OffsetDateTime::parse(&response.entries[1].timestamp, &Rfc3339).unwrap();
+    assert!(newer > older);
+    assert_eq!(newer.unix_timestamp(), older.unix_timestamp());
 }

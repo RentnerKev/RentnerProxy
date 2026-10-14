@@ -1,11 +1,11 @@
 import type { ToastCustomDesign, ToastPosition, ToastProviderProps } from '@rentnerkev/toasts/types'
 
-export const TOAST_POSITION: ToastPosition = 'bottom-right'
+const TOAST_POSITION: ToastPosition = 'bottom-right'
 export const TOAST_ROOT_CLASS = 'rentnerproxy-toast'
 
-export const TOAST_CLASS_NAME = `${TOAST_ROOT_CLASS} w-[min(25rem,calc(100vw-2rem))] rounded-2xl border-border bg-surface-raised px-4 py-4 text-ink shadow-panel backdrop-blur-none`
+const TOAST_CLASS_NAME = `${TOAST_ROOT_CLASS} w-[min(25rem,calc(100vw-2rem))] rounded-2xl border-border bg-surface-raised px-4 py-4 text-ink shadow-panel backdrop-blur-none`
 
-export const TOAST_CUSTOM_DESIGN = {
+const TOAST_CUSTOM_DESIGN = {
     successWrapper:
         'rentnerproxy-toast-success border-border border-l-[3px] border-l-success-text bg-surface-raised text-ink',
     errorWrapper:

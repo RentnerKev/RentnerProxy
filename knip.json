@@ -1,0 +1,43 @@
+{
+    "$schema": "https://unpkg.com/knip@6.41.0/schema.json",
+    "entry": [
+        "scripts/{build,check,dev,test-web,production-backup,production-restore}.ts",
+        "scripts/assets/download-geoip.ts",
+        "scripts/development/seed-crowdsec-dashboard-demo.ts",
+        "scripts/smoke/proxy/{upstream,upstream-tls}.ts",
+        "scripts/runtime-{reliability,scale}/{run,fixture,fixture-beta,fixture-transport}.ts",
+        ".github/scripts/ci/{production-smoke-ci,appliance-compose-smoke,proxy-smoke}.ts",
+        ".github/scripts/ci/appliance-drain-upstream.ts",
+        "scripts/smoke/certificates/job-fixture.ts",
+        ".github/scripts/security/*.ts",
+        ".github/scripts/release/generate-release-notes.ts",
+        ".github/scripts/deploy/pr-preview.ts",
+        "docker/web/{bootstrap-secrets,healthcheck,package-migrations,request-context,serve,static-assets,validate-backup}.ts",
+        "web/src/server/WebSockets/realtimeWebSocket.ts",
+        "vite.config.ts",
+        "drizzle.config.ts"
+    ],
+    "project": [
+        "web/src/**/*.{ts,tsx,css}",
+        "scripts/**/*.ts",
+        ".github/scripts/**/*.ts",
+        "docker/web/**/*.ts",
+        "*.config.ts",
+        "!**/drizzle/**",
+        "!**/*.gen.ts",
+        "!**/*.d.ts",
+        "!**/.env*",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/build/**",
+        "!**/target/**",
+        "!tmp/**",
+        "!temp/**"
+    ],
+    "bun": { "entry": ["web/src/tests/**/*.test.{ts,tsx}"] },
+    "tanstack-router": {
+        "entry": ["web/src/{router,start,client,server}.{ts,tsx}", "web/src/routes/**/*.{ts,tsx}"]
+    },
+    "drizzle": false,
+    "vite": false
+}

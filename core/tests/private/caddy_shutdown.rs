@@ -177,3 +177,23 @@ async fn absent_control_socket_is_bounded_and_kills_the_owned_child() {
     );
     assert!(!fixture.engine.child_running().await);
 }
+
+#[tokio::test]
+async fn forced_termination_reaps_the_child_and_is_idempotent() {
+    let fixture = ShutdownFixture::new("exec sleep 60", Duration::ZERO, 200, false).await;
+    assert_eq!(
+        fixture
+            .engine
+            .terminate_child_bounded(Duration::from_secs(1))
+            .await,
+        Ok(())
+    );
+    assert!(fixture.engine.child.lock().await.is_none());
+    assert_eq!(
+        fixture
+            .engine
+            .terminate_child_bounded(Duration::from_secs(1))
+            .await,
+        Ok(())
+    );
+}

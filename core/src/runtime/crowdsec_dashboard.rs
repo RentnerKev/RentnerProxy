@@ -1,18 +1,17 @@
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    net::IpAddr,
-    str::FromStr,
-    time::Duration,
-};
+use std::{collections::BTreeSet, time::Duration};
 
-use ipnet::IpNet;
 use reqwest::{StatusCode, Url, redirect::Policy};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::models::SecretString;
 
 use super::{ProxyRuntime, crowdsec::ActiveProvider};
+
+mod decisions;
+mod metrics;
+
+use decisions::parse_decisions;
+use metrics::parse_metrics;
 
 const MAX_DECISIONS_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
 const MAX_PAGE_SIZE: usize = 100;
@@ -212,122 +211,12 @@ fn snapshot_for(data: &DashboardData, query: &CrowdSecDashboardQuery) -> CrowdSe
     }
 }
 
-fn parse_metrics(body: &[u8]) -> Option<DashboardMetrics> {
-    let text = std::str::from_utf8(body).ok()?;
-    let mut blocked_seen = false;
-    let mut decisions_seen = false;
-    let mut blocked = BTreeMap::new();
-    let mut decisions = BTreeMap::new();
-
-    for line in text.lines() {
-        if line.starts_with("# HELP crowdsec_requests_blocked ")
-            || line.starts_with("# TYPE crowdsec_requests_blocked ")
-        {
-            blocked_seen = true;
-            continue;
-        }
-        if line.starts_with("# HELP crowdsec_decisions_active ")
-            || line.starts_with("# TYPE crowdsec_decisions_active ")
-        {
-            decisions_seen = true;
-            continue;
-        }
-        let Some((name, labels, sample)) = metric_sample(line) else {
-            continue;
-        };
-        let target = match name {
-            "crowdsec_requests_blocked" | "crowdsec_requests_blocked_total" => {
-                blocked_seen = true;
-                &mut blocked
-            }
-            "crowdsec_decisions_active" => {
-                decisions_seen = true;
-                &mut decisions
-            }
-            _ => continue,
-        };
-        let count = sample.parse::<f64>().ok()?;
-        if !count.is_finite() || count < 0.0 || count > MAX_SAFE_INTEGER as f64 {
-            return None;
-        }
-        let origin = origin_label(labels);
-        let current = target.entry(origin).or_insert(0u64);
-        *current = current.checked_add(count as u64)?;
-        if *current > MAX_SAFE_INTEGER {
-            return None;
-        }
-    }
-
-    if !blocked_seen && !decisions_seen {
-        return None;
-    }
-    Some(DashboardMetrics {
-        // The bouncer's CounterVec has no exported series until its first blocked request.
-        // An active-decision gauge from the same registry confirms the collector is available.
-        blocked_requests: (blocked_seen || decisions_seen)
-            .then(|| total_count(&blocked))
-            .flatten(),
-        active_decisions: decisions_seen.then(|| total_count(&decisions)).flatten(),
-        blocked_by_origin: ranked_origins(blocked),
-        decisions_by_origin: ranked_origins(decisions),
-    })
-}
-
-fn total_count(values: &BTreeMap<String, u64>) -> Option<u64> {
-    values
-        .values()
-        .try_fold(0u64, |sum, value| sum.checked_add(*value))
-        .filter(|sum| *sum <= MAX_SAFE_INTEGER)
-}
-
-fn ranked_origins(values: BTreeMap<String, u64>) -> Vec<OriginCount> {
-    let mut ranked = values
-        .into_iter()
-        .map(|(origin, count)| OriginCount { origin, count })
-        .collect::<Vec<_>>();
-    ranked.sort_by(|left, right| {
-        right
-            .count
-            .cmp(&left.count)
-            .then(left.origin.cmp(&right.origin))
-    });
-    ranked.truncate(12);
-    ranked
-}
-
-fn metric_sample(line: &str) -> Option<(&str, &str, &str)> {
-    if line.starts_with('#') || line.is_empty() {
-        return None;
-    }
-    let end = line.find(char::is_whitespace)?;
-    let identifier = &line[..end];
-    let sample = line[end..].split_whitespace().next()?;
-    if let Some(start) = identifier.find('{') {
-        let labels = identifier.get(start + 1..identifier.len().checked_sub(1)?)?;
-        identifier
-            .ends_with('}')
-            .then_some((&identifier[..start], labels, sample))
-    } else {
-        Some((identifier, "", sample))
-    }
-}
-
-fn origin_label(labels: &str) -> String {
-    let value = labels
-        .split(',')
-        .find_map(|label| label.strip_prefix("origin=\"")?.strip_suffix('"'))
-        .unwrap_or("unknown");
-    safe_label(value, 80)
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| "unknown".to_owned())
-}
-
 fn safe_label(value: &str, max_len: usize) -> Option<String> {
     (value.len() <= max_len && !value.chars().any(char::is_control)).then(|| value.to_owned())
 }
 
 async fn fetch_decisions(api_url: &str, api_key: &SecretString) -> Option<Vec<DecisionEntry>> {
-    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    crate::runtime::tls::ensure_crypto_provider();
     let endpoint = Url::parse(api_url).ok()?.join("v1/decisions").ok()?;
     let client = reqwest::Client::builder()
         .redirect(Policy::none())
@@ -358,53 +247,6 @@ async fn fetch_decisions(api_url: &str, api_key: &SecretString) -> Option<Vec<De
         body.extend_from_slice(&chunk);
     }
     parse_decisions(&body)
-}
-
-fn parse_decisions(body: &[u8]) -> Option<Vec<DecisionEntry>> {
-    let rows = serde_json::from_slice::<Option<Vec<Value>>>(body)
-        .ok()?
-        .unwrap_or_default();
-    let mut entries = rows.iter().filter_map(parse_decision).collect::<Vec<_>>();
-    entries.sort_by_key(|entry| std::cmp::Reverse(entry.id));
-    Some(entries)
-}
-
-fn parse_decision(value: &Value) -> Option<DecisionEntry> {
-    if value.get("type")?.as_str()? != "ban" {
-        return None;
-    }
-    let source_scope = value.get("scope")?.as_str()?;
-    if !source_scope.eq_ignore_ascii_case("ip") && !source_scope.eq_ignore_ascii_case("range") {
-        return None;
-    }
-    let ip_value = value.get("value")?.as_str()?;
-    let scope = if IpAddr::from_str(ip_value).is_ok() {
-        "Ip"
-    } else if IpNet::from_str(ip_value).is_ok() {
-        "Range"
-    } else {
-        return None;
-    };
-    let id = value.get("id")?.as_u64()?;
-    if id > MAX_SAFE_INTEGER {
-        return None;
-    }
-    Some(DecisionEntry {
-        id,
-        scope,
-        value: ip_value.to_owned(),
-        origin: safe_label(value.get("origin")?.as_str()?, 80)?,
-        scenario: safe_label(value.get("scenario")?.as_str()?, 160)?,
-        duration: safe_label(value.get("duration")?.as_str()?, 80)?,
-        country_code: value
-            .get("country_code")
-            .or_else(|| value.get("country"))
-            .and_then(Value::as_str)
-            .and_then(|code| {
-                (code.len() == 2 && code.bytes().all(|byte| byte.is_ascii_alphabetic()))
-                    .then(|| code.to_ascii_uppercase())
-            }),
-    })
 }
 
 #[cfg(test)]

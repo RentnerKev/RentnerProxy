@@ -1,3 +1,9 @@
+import type { z } from 'zod'
+import type {
+    fixtureResultSchema,
+    controllerBodySchema,
+    backendBodySchema,
+} from '../responses.validation.ts'
 import type { ReliabilityOptions, ReliabilityCheck } from './control.types.ts'
 import type { TrafficDiagnostic } from './fixture-transport.types.ts'
 
@@ -10,7 +16,9 @@ export type CommandOptions = {
     includeStderr?: boolean
 }
 
-export type FixtureResult = Record<string, any>
+export type FixtureResult = z.output<typeof fixtureResultSchema>
+type ControllerBody = z.output<typeof controllerBodySchema>
+type BackendBody = z.output<typeof backendBodySchema>
 
 export type ReliabilityContext = {
     source: ReliabilityOptions['source']
@@ -18,10 +26,10 @@ export type ReliabilityContext = {
     command: (args: string[], options?: CommandOptions) => Promise<string>
     docker: (args: string[], options?: CommandOptions) => Promise<string>
     fixture: (phase: string, extra?: Record<string, unknown>) => Promise<FixtureResult>
-    controller: (path: string, body?: unknown) => Promise<{ status: number; body: FixtureResult }>
+    controller: (path: string, body?: unknown) => Promise<{ status: number; body: ControllerBody }>
     waitFor: (predicate: () => Promise<boolean>, label: string, timeoutMs?: number) => Promise<void>
     check: (name: ReliabilityCheck['name'], label: string) => void
-    synced: (result: FixtureResult) => Promise<void>
+    synced: (result: Pick<FixtureResult, 'desiredRevision'>) => Promise<void>
     restart: () => Promise<void>
     expireCertificateRetry: (id: string) => Promise<void>
     http: (
@@ -29,7 +37,7 @@ export type ReliabilityContext = {
         path?: string,
         headers?: Record<string, string>,
         route?: number,
-    ) => Promise<{ status: number; headers: Headers; body: FixtureResult }>
+    ) => Promise<{ status: number; headers: Headers; body: BackendBody }>
     captureTrafficDiagnostic: (stage: string, category: string) => Promise<TrafficDiagnostic>
     recordTrafficFailure: (route: number | null, status: number | null) => void
     startFixtureTls: () => Promise<number>

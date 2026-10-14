@@ -13,6 +13,8 @@ mod lifecycle;
 pub(crate) mod renderer;
 mod renewal;
 mod state;
+mod task;
+mod tls;
 mod trusted_cas;
 
 use crate::models::ValidatedProxyConfig;

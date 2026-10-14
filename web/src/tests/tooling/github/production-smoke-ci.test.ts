@@ -86,6 +86,30 @@ describe('production smoke CI output boundary', () => {
         expect(progress.result(1).diagnostic).not.toContain('private-value')
     })
 
+    test('accepts only exact scenario sources for the selected suite', () => {
+        for (const [suite, source] of [
+            ['production', '.github/scripts/ci/appliance/restore-safety.ts'],
+            ['certificates', 'scripts/smoke/certificates/activation-recovery.ts'],
+        ] as const) {
+            const progress = smokeProgress(suite)
+            progress.consume('AssertionError: private-value')
+            progress.consume('at C:\\workspace\\' + source.replaceAll('/', '\\') + ':40:9')
+            const expected = 'Smoke assertion failed at ' + source + ':40:9'
+            expect(progress.result(1).diagnostic).toBe(expected)
+            progress.consume('at scripts/smoke/certificates/private-value.ts:1:1')
+            progress.consume('at .github/scripts/ci/appliance/not-a-scenario.ts:1:1')
+            progress.consume('at .github/scripts/ci/appliance/restore-safety.ts/evil.ts:1:1')
+            progress.consume(
+                'at ' +
+                    (suite === 'production'
+                        ? 'scripts/smoke/certificates/activation-recovery.ts'
+                        : '.github/scripts/ci/appliance/restore-safety.ts') +
+                    ':1:1',
+            )
+            expect(progress.result(1).diagnostic).toBe(expected)
+        }
+    })
+
     test('requires a successful process and matching observed completion counts', () => {
         const progress = smokeProgress('proxy')
         expect(progress.consume('PASS forwarding headers')).toBe('Proxy runtime: check 1 passed')

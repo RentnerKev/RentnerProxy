@@ -80,3 +80,33 @@ async fn cancelled_control_request_closes_the_transport_task() {
         0
     );
 }
+
+#[cfg(windows)]
+#[tokio::test]
+async fn forced_termination_reaps_the_child_and_is_idempotent() {
+    let engine = super::CaddyProcess::new("unused-test-binary".into(), std::env::temp_dir());
+    let child = tokio::process::Command::new("powershell.exe")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "Start-Sleep -Seconds 60",
+        ])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .creation_flags(0x0800_0000)
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    *engine.child.lock().await = Some(child);
+    assert_eq!(
+        engine.terminate_child_bounded(Duration::from_secs(1)).await,
+        Ok(())
+    );
+    assert!(engine.child.lock().await.is_none());
+    assert_eq!(
+        engine.terminate_child_bounded(Duration::from_secs(1)).await,
+        Ok(())
+    );
+}

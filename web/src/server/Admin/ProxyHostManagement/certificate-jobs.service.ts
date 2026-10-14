@@ -269,6 +269,7 @@ export async function requestProxyHostCertificateService(
     return requestJobTransaction(actor.id, parsed)
 }
 
+/** @public Loaded through the runtime fixture's dynamically assembled jobs context. */
 export async function getCertificateJobService(jobId: string): Promise<CertificateJobSummary> {
     const id = parse(certificateJobIdInputSchema, { jobId }).jobId.toLowerCase()
     await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)

@@ -381,6 +381,7 @@ async function main() {
         await exerciseCrowdSec(context)
         await exerciseCertificates(context, 0)
         const jobs = await context.fixture('durability-read')
+        assert.ok(jobs.persistedJobCounts)
         assert.equal(jobs.currentJob?.stage, 'applied', 'At-scale binding job finishes')
         assert.equal(
             jobs.persistedJobCounts.nonApplied,

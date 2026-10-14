@@ -205,7 +205,12 @@ impl SnapshotQuery {
     }
 }
 
-fn parse_entry(value: &Value, cutoff: OffsetDateTime) -> Option<AccessLogEntry> {
+struct ParsedAccessLogEntry {
+    timestamp_nanos: i128,
+    entry: AccessLogEntry,
+}
+
+fn parse_entry(value: &Value, cutoff: OffsetDateTime) -> Option<ParsedAccessLogEntry> {
     let ts = value.get("ts")?.as_f64()?;
     if !ts.is_finite() || ts < 0.0 {
         return None;
@@ -262,17 +267,20 @@ fn parse_entry(value: &Value, cutoff: OffsetDateTime) -> Option<AccessLogEntry> 
             )
         })
         .filter(|value| !value.is_empty());
-    Some(AccessLogEntry {
-        timestamp: timestamp.format(&Rfc3339).ok()?,
-        host,
-        method,
-        path,
-        status,
-        duration_ms,
-        client_ip,
-        upstream,
-        bytes,
-        protocol,
+    Some(ParsedAccessLogEntry {
+        timestamp_nanos: timestamp.unix_timestamp_nanos(),
+        entry: AccessLogEntry {
+            timestamp: timestamp.format(&Rfc3339).ok()?,
+            host,
+            method,
+            path,
+            status,
+            duration_ms,
+            client_ip,
+            upstream,
+            bytes,
+            protocol,
+        },
     })
 }
 

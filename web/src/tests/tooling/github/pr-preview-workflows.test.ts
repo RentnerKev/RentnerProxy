@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 import { describe, expect, test } from 'bun:test'
@@ -10,7 +10,13 @@ async function workflow(name: string): Promise<string> {
 }
 
 async function previewHelper(): Promise<string> {
-    return readFile(resolve(repositoryRoot, '.github/scripts/deploy/pr-preview.ts'), 'utf8')
+    const directory = resolve(repositoryRoot, '.github/scripts/deploy/pr-preview')
+    const modules = (await readdir(directory)).filter((name) => name.endsWith('.ts')).toSorted()
+    const sources = await Promise.all([
+        readFile(resolve(repositoryRoot, '.github/scripts/deploy/pr-preview.ts'), 'utf8'),
+        ...modules.map((name) => readFile(resolve(directory, name), 'utf8')),
+    ])
+    return sources.join('\n')
 }
 
 function externalActionReferences(source: string): readonly string[] {

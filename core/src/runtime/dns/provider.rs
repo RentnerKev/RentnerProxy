@@ -65,7 +65,7 @@ impl DnsProvider {
     }
 
     fn new(config: DnsProviderConfig, base_url: Url) -> Result<Self, CertificateError> {
-        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+        crate::runtime::tls::ensure_crypto_provider();
         let client = Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .redirect(Policy::none())

@@ -12,8 +12,8 @@ import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 
-export const AUDIT_RETENTION_DAYS = 90
-export const AUDIT_MAX_ROWS = 100_000
+const AUDIT_RETENTION_DAYS = 90
+const AUDIT_MAX_ROWS = 100_000
 export const AUDIT_RETENTION_LOCK_ID = 7_421_908
 const AUDIT_METADATA_MAX_BYTES = 4_096
 

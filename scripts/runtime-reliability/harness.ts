@@ -1,3 +1,11 @@
+import {
+    fixtureResultSchema,
+    controllerBodySchema,
+    backendBodySchema,
+    certificateIndexSchema,
+    dockerEventSchema,
+    responseObjectSchema,
+} from './responses.validation.ts'
 import { runSmokeProcess } from '../smoke/process.ts'
 import { waitForSmoke } from '../smoke/wait.ts'
 import type { CommandOptions, FixtureResult, ReliabilityContext } from './Types/harness.types.ts'
@@ -183,12 +191,18 @@ const response = await fetch('http://127.0.0.1:8081' + input.path, {
 method: input.body === undefined ? 'GET' : 'POST', headers: { authorization: 'Bearer ' + token, 'content-type':'application/json' },
 body: input.body === undefined ? undefined : JSON.stringify(input.body), signal: AbortSignal.timeout(25000) });
 process.stdout.write(JSON.stringify({status:response.status, body:await response.json()}));`
-        return JSON.parse(
+        const response: unknown = JSON.parse(
             await docker(['exec', '-i', container, 'bun', '--no-env-file', '-e', script], {
                 stdin: JSON.stringify({ path, body }),
                 timeoutMs: 30_000,
             }),
-        ) as { status: number; body: FixtureResult }
+        )
+        const envelope = responseObjectSchema.parse(response)
+        assert.equal(typeof envelope.status, 'number')
+        return {
+            status: envelope.status as number,
+            body: controllerBodySchema.parse(envelope.body),
+        }
     }
     async function fixture(phase: string, extra: Record<string, unknown> = {}) {
         // Fixture mutations also run in recovery finally blocks (for example CrowdSec disable).
@@ -237,7 +251,9 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         )
         const line = output.split('\n').find((value) => value.startsWith('RELIABILITY_RESULT='))
         if (!line) throw new ReliabilityError('assertion', 'fixture returned no result')
-        const result = JSON.parse(line.slice('RELIABILITY_RESULT='.length)) as FixtureResult
+        const result = responseObjectSchema.parse(
+            JSON.parse(line.slice('RELIABILITY_RESULT='.length)),
+        )
         if (result.ok !== true)
             throw new ReliabilityError(
                 'assertion',
@@ -252,9 +268,9 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
                         ? ' [' + result.contextStage + '/' + result.diagnosticCode + ']'
                         : ''),
             )
-        return result
+        return fixtureResultSchema.parse(result)
     }
-    async function synced(result: FixtureResult) {
+    async function synced(result: Pick<FixtureResult, 'desiredRevision'>) {
         assert.match(result.desiredRevision as string, /^sha256:[a-f0-9]{64}$/u)
         await waitFor(async () => {
             const status = await controller('/internal/v1/proxy/status')
@@ -296,7 +312,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         const indexPath = '/var/lib/rentnerproxy/proxy/certificates/certificate-metadata.json'
         const fixturePath = join(temp, 'retry-index.json')
         await docker(['cp', container + ':' + indexPath, fixturePath])
-        const index = JSON.parse(await Bun.file(fixturePath).text()) as FixtureResult
+        const index = certificateIndexSchema.parse(JSON.parse(await Bun.file(fixturePath).text()))
         assert.ok(index.certificates[id])
         assert.equal(index.certificates[id].operation, 'idle')
         index.certificates[id].nextAttemptAt = '2000-01-01T00:00:00Z'
@@ -356,9 +372,9 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             })
             throw error
         }
-        let body: FixtureResult = {}
+        let body: ReturnType<typeof backendBodySchema.parse> = {}
         try {
-            body = JSON.parse(value) as FixtureResult
+            body = backendBodySchema.parse(JSON.parse(value))
         } catch {
             /* Error pages need only their status. */
         }
@@ -998,7 +1014,7 @@ console.log(JSON.stringify({memoryBytes:Math.max(0,memory-inactive),pids:Number(
             .split('\n')
             .filter(Boolean)
             .some((line) => {
-                const event = JSON.parse(line) as FixtureResult
+                const event = dockerEventSchema.parse(JSON.parse(line))
                 return event.Actor?.Attributes?.name === container
             })
         return {
