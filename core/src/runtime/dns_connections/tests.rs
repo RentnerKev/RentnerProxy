@@ -153,6 +153,52 @@ async fn references_block_delete_and_zone_removal_and_malformed_store_fails_clos
     task.abort();
 }
 #[tokio::test]
+async fn failed_registry_load_retries_after_repair_without_restart() {
+    let (store, task, _) = fixture().await;
+    store.save(ID.into(), request(0)).await.unwrap();
+    let dir = state_dir(&store.path).unwrap();
+    let original = dir.read_file(FILE, MAX_BYTES).unwrap();
+    let malformed = b"{invalid registry";
+    dir.atomic_write(FILE, malformed).unwrap();
+    let recovering = Store::new(store.path.clone());
+    for _ in 0..2 {
+        assert!(matches!(
+            recovering.list().await,
+            Err(Error::StoreUnavailable)
+        ));
+        assert!(matches!(
+            recovering.delete(ID, 1).await,
+            Err(Error::StoreUnavailable)
+        ));
+        assert_eq!(dir.read_file(FILE, MAX_BYTES).unwrap(), malformed);
+    }
+    dir.atomic_write(FILE, &original).unwrap();
+    let restored = recovering.list().await.unwrap();
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].id, ID);
+    assert_eq!(restored[0].revision, 1);
+    assert_eq!(restored[0].zones.len(), 2);
+    // Only a successfully loaded registry becomes the authoritative in-memory state.
+    dir.atomic_write(FILE, malformed).unwrap();
+    assert_eq!(recovering.list().await.unwrap()[0].id, ID);
+    task.abort();
+}
+
+#[tokio::test]
+async fn failed_registry_read_retries_after_filesystem_recovery() {
+    let path = directory();
+    let file = path.join(FILE);
+    std::fs::create_dir(&file).unwrap();
+    let store = Store::new(path.clone());
+    assert!(matches!(store.list().await, Err(Error::StoreUnavailable)));
+    std::fs::remove_dir(&file).unwrap();
+    state_dir(&path)
+        .unwrap()
+        .atomic_write(FILE, br#"{"version":1,"connections":[]}"#)
+        .unwrap();
+    assert!(store.list().await.unwrap().is_empty());
+}
+#[tokio::test]
 async fn concurrent_updates_have_one_winner_and_domain_separated_secrets() {
     let (store, task, _) = fixture().await;
     store.save(ID.into(), request(0)).await.unwrap();

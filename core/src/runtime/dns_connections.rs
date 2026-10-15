@@ -31,7 +31,7 @@ struct Registry {
 
 pub(crate) struct Store {
     path: PathBuf,
-    state: Mutex<Option<Result<Registry, Error>>>,
+    state: Mutex<Option<Registry>>,
     #[cfg(test)]
     key: Option<[u8; 32]>,
     #[cfg(test)]
@@ -62,24 +62,17 @@ impl Store {
         }
         "https://api.cloudflare.com/client/v4/"
     }
-    async fn lock(&self) -> Result<MutexGuard<'_, Option<Result<Registry, Error>>>, Error> {
+    async fn lock(&self) -> Result<MutexGuard<'_, Option<Registry>>, Error> {
         let mut state = self.state.lock().await;
         if state.is_none() {
-            *state = Some(self.load());
-        }
-        if let Some(Err(error)) = state.as_ref() {
-            return Err(*error);
+            *state = Some(self.load()?);
         }
         Ok(state)
     }
     fn registry<'a>(
-        state: &'a mut MutexGuard<'_, Option<Result<Registry, Error>>>,
+        state: &'a mut MutexGuard<'_, Option<Registry>>,
     ) -> Result<&'a mut Registry, Error> {
-        state
-            .as_mut()
-            .ok_or(Error::StoreUnavailable)?
-            .as_mut()
-            .map_err(|e| *e)
+        state.as_mut().ok_or(Error::StoreUnavailable)
     }
     fn load(&self) -> Result<Registry, Error> {
         let dir = state_dir(&self.path).map_err(|_| Error::StoreUnavailable)?;

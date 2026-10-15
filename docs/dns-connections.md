@@ -100,6 +100,8 @@ Tokens use the existing application encryption key, a fresh nonce and the associ
 context `dns-connection:<connectionId>:v1`; legacy certificate contexts are unchanged. Files
 use the existing private atomic state-file operations. Known malformed metadata or references
 fail connection operations closed without blocking unrelated proxy or certificate operation.
+Failed reads are retried on the next connection operation, so repairing an unreadable or
+malformed registry before its first successful load does not require a controller restart.
 
 Tokens, ciphertext and nonces are absent from ordinary reads, audit events, realtime events,
 support reports and browser error messages. Audits use the existing `security-settings`
