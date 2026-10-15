@@ -81,7 +81,8 @@
         "security": "Security dashboard",
         "auditLogs": "Audit log",
         "systemVersion": "System version {{version}}",
-        "updateAvailable": "Update available to version {{version}}"
+        "updateAvailable": "Update available to version {{version}}",
+        "dnsConnections": "DNS connections"
     },
     "quickSearch": {
         "title": "Quick search",
@@ -2401,6 +2402,74 @@
             "downloadComplete": "Support report download started.",
             "downloadPartial": "Partial report download started. Unavailable sections are marked in the file.",
             "downloadFailed": "The report could not be downloaded. Check your permissions and try again."
+        },
+        "dnsConnections": {
+            "page": {
+                "eyebrow": "Administration",
+                "title": "DNS connections",
+                "description": "Manage reusable, instance-owned Cloudflare credentials and permitted zones. Connections are shared with authorized administrators."
+            },
+            "provider": "Cloudflare · Instance connection",
+            "usage": "Consumer references: {{count}}",
+            "actions": {
+                "add": "Add DNS connection",
+                "edit": "Edit connection",
+                "delete": "Delete connection",
+                "test": "Test read access and load zones",
+                "reload": "Reload connections",
+                "refreshDraft": "Discard draft and reload current connections"
+            },
+            "form": {
+                "description": "Save a named connection with the Cloudflare zones it may use.",
+                "name": "Connection name",
+                "token": "Cloudflare API token",
+                "tokenHint": "The token is stored encrypted and is never displayed again.",
+                "replaceHint": "Leave blank to keep the saved token. Enter a new token to replace it.",
+                "readOnlyHint": "Testing only reads Cloudflare zones. Future DNS consumers require Zone / DNS / Edit permission, which this read-only test does not verify. Saving rechecks all selected zones.",
+                "zones": "Selected zones: {{count}} / {{max}}",
+                "zonesHint": "Select at least one zone. Previously selected zones remain visible after testing a replacement token; saving verifies their access again.",
+                "noZones": "Test the token to load accessible zones. If no zones are returned, check the token’s zone scope.",
+                "zoneInUse": "A consumer uses this zone. Remove its reference before deselecting it.",
+                "deleteInUse": "Remove all consumer references before deleting this connection."
+            },
+            "states": {
+                "loading": "Loading DNS connection metadata…",
+                "error": "DNS connections unavailable",
+                "empty": "No DNS connections yet",
+                "emptyDescription": "Create a Cloudflare connection and select the zones available to future DNS consumers."
+            },
+            "confirm": {
+                "title": "Delete DNS connection?",
+                "description": "Delete “{{name}}” and its stored token? This cannot be undone."
+            },
+            "validation": {
+                "zone": "Select a valid Cloudflare zone.",
+                "token": "Enter a valid Cloudflare API token.",
+                "name": "Enter a connection name of 1–100 characters without control characters.",
+                "zones": "Select between 1 and 50 distinct zones."
+            },
+            "messages": {
+                "saved": "DNS connection saved.",
+                "tested": "Zone read access checked. DNS write access has not been verified.",
+                "deleted": "DNS connection deleted."
+            },
+            "errors": {
+                "invalid_input": "Check the connection name, token and selected zones.",
+                "connection_not_found": "This connection no longer exists. Reload the list.",
+                "connection_conflict": "This connection changed since you opened it. Discard the draft, reload and reopen the connection before saving.",
+                "connection_in_use": "This connection or zone is in use. Remove its references first, then reload.",
+                "connection_limit": "The instance connection limit has been reached.",
+                "token_required": "Enter a Cloudflare API token.",
+                "zone_not_permitted": "At least one selected zone is not accessible with this token. Check the token scope or change the zone selection.",
+                "zone_limit": "Select no more than 50 zones and limit the token scope to at most 500 accessible zones.",
+                "provider_unauthorized": "Cloudflare rejected the token. Check its validity and zone read permissions.",
+                "provider_unavailable": "Cloudflare is temporarily unavailable. Try the read test again later.",
+                "provider_rate_limited": "Cloudflare or the connection test limit was reached. Wait briefly and retry.",
+                "store_unavailable": "Connection storage is unavailable. Try again later.",
+                "credentials_unavailable": "The stored token cannot be read. Replace the token or restore credential encryption.",
+                "controller_unavailable": "The controller is unavailable. Restore it and reload.",
+                "requestFailed": "The request failed. Retry, or reload the current connection before saving again."
+            }
         }
     },
     "permissions": {
@@ -2418,7 +2487,8 @@
             "crowdsec": "CrowdSec",
             "audit-logs": "Audit log",
             "system": "System",
-            "default_site": "Default site"
+            "default_site": "Default site",
+            "dns_connections": "DNS connections"
         },
         "app": {
             "access": "Application access"
@@ -2495,6 +2565,10 @@
         "default_site": {
             "view": "View default site settings",
             "update": "Update default site settings"
+        },
+        "dns_connections": {
+            "view": "View DNS connections",
+            "manage": "Manage DNS connections"
         }
     },
     "systemRoles": {

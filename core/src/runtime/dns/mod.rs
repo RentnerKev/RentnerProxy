@@ -1,6 +1,6 @@
-mod api;
+pub(super) mod api;
 mod config;
-mod encryption;
+pub(super) mod encryption;
 mod models;
 mod provider;
 mod validation;

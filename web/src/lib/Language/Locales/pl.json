@@ -81,7 +81,8 @@
         "security": "Panel bezpieczeństwa",
         "auditLogs": "Dziennik audytu",
         "systemVersion": "Wersja systemu {{version}}",
-        "updateAvailable": "Dostępna aktualizacja do wersji {{version}}"
+        "updateAvailable": "Dostępna aktualizacja do wersji {{version}}",
+        "dnsConnections": "Połączenia DNS"
     },
     "quickSearch": {
         "title": "Szybkie wyszukiwanie",
@@ -2427,6 +2428,74 @@
             "downloadComplete": "Rozpoczęto pobieranie raportu diagnostycznego.",
             "downloadPartial": "Rozpoczęto pobieranie częściowego raportu. Niedostępne sekcje są oznaczone w pliku.",
             "downloadFailed": "Nie udało się pobrać raportu. Sprawdź uprawnienia i spróbuj ponownie."
+        },
+        "dnsConnections": {
+            "page": {
+                "eyebrow": "Administracja",
+                "title": "Połączenia DNS",
+                "description": "Zarządzaj współdzielonymi danymi logowania Cloudflare i dozwolonymi strefami tej instancji. Uprawnieni administratorzy korzystają z tych połączeń wspólnie."
+            },
+            "provider": "Cloudflare · Połączenie instancji",
+            "usage": "Odwołania konsumentów: {{count}}",
+            "actions": {
+                "add": "Dodaj połączenie DNS",
+                "edit": "Edytuj połączenie",
+                "delete": "Usuń połączenie",
+                "test": "Sprawdź dostęp do odczytu i wczytaj strefy",
+                "reload": "Wczytaj ponownie połączenia",
+                "refreshDraft": "Odrzuć wersję roboczą i wczytaj bieżące połączenia"
+            },
+            "form": {
+                "description": "Zapisz nazwane połączenie i strefy Cloudflare, z których może korzystać.",
+                "name": "Nazwa połączenia",
+                "token": "Token API Cloudflare",
+                "tokenHint": "Token jest przechowywany w postaci zaszyfrowanej i nie będzie ponownie wyświetlany.",
+                "replaceHint": "Pozostaw puste, aby zachować zapisany token. Wpisz nowy, aby go zastąpić.",
+                "readOnlyHint": "Test odczytuje wyłącznie strefy Cloudflare. Przyszli odbiorcy DNS wymagają uprawnienia Zone / DNS / Edit, którego ten test tylko do odczytu nie sprawdza. Podczas zapisywania dostęp do wszystkich wybranych stref jest sprawdzany ponownie.",
+                "zones": "Wybrane strefy: {{count}} / {{max}}",
+                "zonesHint": "Wybierz co najmniej jedną strefę. Wcześniej wybrane strefy pozostają widoczne po przetestowaniu nowego tokenu; podczas zapisywania ich dostęp zostanie sprawdzony ponownie.",
+                "noZones": "Przetestuj token, aby wczytać dostępne strefy. Jeśli żadna strefa nie zostanie zwrócona, sprawdź zakres tokenu.",
+                "zoneInUse": "Odbiorca korzysta z tej strefy. Usuń jego odwołanie przed odznaczeniem strefy.",
+                "deleteInUse": "Przed usunięciem połączenia usuń wszystkie odwołania odbiorców."
+            },
+            "states": {
+                "loading": "Wczytywanie metadanych połączeń DNS…",
+                "error": "Połączenia DNS są niedostępne",
+                "empty": "Nie ma jeszcze połączeń DNS",
+                "emptyDescription": "Utwórz połączenie Cloudflare i wybierz strefy dostępne dla przyszłych odbiorców DNS."
+            },
+            "confirm": {
+                "title": "Usunąć połączenie DNS?",
+                "description": "Usunąć „{{name}}” i zapisany token? Tej operacji nie można cofnąć."
+            },
+            "validation": {
+                "zone": "Wybierz prawidłową strefę Cloudflare.",
+                "token": "Wpisz prawidłowy token API Cloudflare.",
+                "name": "Wpisz nazwę połączenia o długości 1–100 znaków, bez znaków sterujących.",
+                "zones": "Wybierz od 1 do 50 różnych stref."
+            },
+            "messages": {
+                "saved": "Zapisano połączenie DNS.",
+                "tested": "Sprawdzono dostęp do odczytu stref. Dostęp do zapisu DNS nie został sprawdzony.",
+                "deleted": "Usunięto połączenie DNS."
+            },
+            "errors": {
+                "invalid_input": "Sprawdź nazwę połączenia, token i wybrane strefy.",
+                "connection_not_found": "To połączenie już nie istnieje. Wczytaj listę ponownie.",
+                "connection_conflict": "To połączenie zmieniło się od chwili otwarcia. Odrzuć wersję roboczą, wczytaj listę ponownie i otwórz połączenie przed zapisaniem.",
+                "connection_in_use": "To połączenie lub strefa jest używana. Najpierw usuń odwołania, a potem wczytaj listę ponownie.",
+                "connection_limit": "Osiągnięto limit połączeń tej instancji.",
+                "token_required": "Wpisz token API Cloudflare.",
+                "zone_not_permitted": "Co najmniej jedna wybrana strefa jest niedostępna dla tego tokenu. Sprawdź jego zakres lub zmień wybór stref.",
+                "zone_limit": "Token może uzyskać dostęp do maksymalnie 500 stref; wybierz najwyżej 50.",
+                "provider_unauthorized": "Cloudflare odrzucił token. Sprawdź, czy jest prawidłowy i ma uprawnienie do odczytu stref.",
+                "provider_unavailable": "Cloudflare jest tymczasowo niedostępny. Spróbuj ponownie później.",
+                "provider_rate_limited": "Osiągnięto limit Cloudflare lub testów połączenia. Odczekaj chwilę i spróbuj ponownie.",
+                "store_unavailable": "Magazyn połączeń jest niedostępny. Spróbuj ponownie później.",
+                "credentials_unavailable": "Nie można odczytać zapisanego tokenu. Zastąp token lub przywróć szyfrowanie danych logowania.",
+                "controller_unavailable": "Kontroler jest niedostępny. Przywróć go i wczytaj listę ponownie.",
+                "requestFailed": "Żądanie nie powiodło się. Spróbuj ponownie lub wczytaj bieżące połączenie przed kolejnym zapisem."
+            }
         }
     },
     "permissions": {
@@ -2444,7 +2513,8 @@
             "crowdsec": "CrowdSec",
             "audit-logs": "Dziennik audytu",
             "system": "System",
-            "default_site": "Witryna domyślna"
+            "default_site": "Witryna domyślna",
+            "dns_connections": "Połączenia DNS"
         },
         "app": {
             "access": "Dostęp do aplikacji"
@@ -2521,6 +2591,10 @@
         "default_site": {
             "view": "Wyświetlanie ustawień witryny domyślnej",
             "update": "Aktualizowanie ustawień witryny domyślnej"
+        },
+        "dns_connections": {
+            "view": "Wyświetlanie połączeń DNS",
+            "manage": "Zarządzanie połączeniami DNS"
         }
     },
     "systemRoles": {

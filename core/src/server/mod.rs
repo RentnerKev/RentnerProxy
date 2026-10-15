@@ -116,6 +116,44 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             state.clone(),
             authorize_certificate_request,
         ));
+    let connections = Router::new()
+        .route(
+            "/internal/v1/dns/connections",
+            get({
+                let state = state.clone();
+                move || handlers::dns_connections::list(state.clone())
+            }),
+        )
+        .route(
+            "/internal/v1/dns/connections/test",
+            post({
+                let state = state.clone();
+                move |body| handlers::dns_connections::test(state.clone(), body)
+            }),
+        )
+        .route(
+            "/internal/v1/dns/connections/references/validate",
+            post({
+                let state = state.clone();
+                move |body| handlers::dns_connections::validate(state.clone(), body)
+            }),
+        )
+        .route(
+            "/internal/v1/dns/connections/{id}",
+            axum::routing::put({
+                let state = state.clone();
+                move |id, body| handlers::dns_connections::save(id, state.clone(), body)
+            })
+            .delete({
+                let state = state.clone();
+                move |id, body| handlers::dns_connections::delete(id, state.clone(), body)
+            }),
+        )
+        .layer(axum::extract::DefaultBodyLimit::max(32 * 1024))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            authorize_certificate_request,
+        ));
     let internal = Router::new()
         .route(
             "/internal/v1/proxy/version",
@@ -226,6 +264,7 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             }),
         )
         .merge(certificates)
+        .merge(connections)
         .merge(internal)
         .layer(axum::extract::DefaultBodyLimit::max(
             MAX_PROXY_CONFIG_BODY_BYTES,
