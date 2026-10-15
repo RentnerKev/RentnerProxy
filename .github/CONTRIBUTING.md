@@ -1,7 +1,10 @@
 # Contributing to RentnerProxy
 
-Thank you for contributing to RentnerProxy. The project is in public alpha, so focused changes
+Thank you for contributing to RentnerProxy. The project is in public beta, so focused changes
 and clear discussion are especially valuable.
+
+Beta 1 retains the known proxy connection-reset issue during concurrent Caddy configuration
+updates ([#171](https://github.com/RentnerKev/RentnerProxy/issues/171)), deferred to Beta 2.
 
 Project decisions follow [GOVERNANCE.md](../docs/governance.md), and participation follows the
 [Code of Conduct](CODE_OF_CONDUCT.md). Consult the
@@ -33,6 +36,10 @@ bun run dev
 
 The web app is available at `http://localhost:5173`. Keep `APP_ENCRYPTION_KEY` unchanged when
 restarting a development instance or restoring its data.
+
+Native Windows development supports the controller and UI with `RENTNERPROXY_CADDY_BIN` unset.
+Proxy operation requires Unix private Caddy admin sockets; use the Linux Docker development
+runtime on Windows.
 
 ## Development workflow
 

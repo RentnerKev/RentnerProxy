@@ -12,12 +12,14 @@
   <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml"><img src="https://github.com/RentnerKev/RentnerProxy/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL status"></a>
   <a href="https://www.bestpractices.dev/projects/14354"><img src="https://www.bestpractices.dev/projects/14354/badge" alt="OpenSSF Best Practices badge"></a>
-  <a href="https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-alpha.6"><img src="https://img.shields.io/github/v/release/RentnerKev/RentnerProxy?include_prereleases&amp;sort=semver" alt="Current GitHub release"></a>
+  <a href="https://github.com/RentnerKev/RentnerProxy/releases/tag/v1.0.0-beta.1"><img src="https://img.shields.io/github/v/release/RentnerKev/RentnerProxy?include_prereleases&amp;sort=semver" alt="Current GitHub release"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/RentnerKev/RentnerProxy" alt="MIT license"></a>
 </p>
 
 > [!IMPORTANT]
-> Public alpha: breaking changes are possible. Back up your data before upgrades.
+> Public beta: breaking changes are possible. Back up your data before upgrades.
+> Beta 1 has a known issue with proxy connection resets during concurrent Caddy configuration
+> updates ([#171](https://github.com/RentnerKev/RentnerProxy/issues/171)); the issue is tracked for Beta 2.
 
 ## Features
 
@@ -40,12 +42,8 @@ Requirements:
 - Free ports `80/tcp`, `443/tcp`, and `443/udp`.
 - HTTPS management origin and SMTP credentials.
 
-Select a Valkey-based RentnerProxy image with `RENTNERPROXY_IMAGE`. The example uses a local build
-from this checkout. Build it before starting the appliance:
-
-```bash
-docker build --file docker/production/Dockerfile --tag rentnerproxy:local .
-```
+The example pins the Beta 1 image with `RENTNERPROXY_IMAGE`:
+`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1`.
 
 Save this as `docker-compose.yml` (or use the [repository file](docker-compose.yml)):
 
@@ -79,7 +77,7 @@ volumes:
 Create `.env` beside it (see also [`.env.production.example`](.env.production.example)):
 
 ```dotenv
-RENTNERPROXY_IMAGE=rentnerproxy:local
+RENTNERPROXY_IMAGE=ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1
 RENTNERPROXY_PUBLIC_ORIGIN=https://management.example.com
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
@@ -90,6 +88,13 @@ SMTP_FROM=RentnerProxy <rentnerproxy@example.com>
 
 # Optional: only the direct IP/CIDR of a trusted proxy in front of RentnerProxy.
 # RENTNERPROXY_PROXY_TRUSTED_PROXY_CIDRS=192.0.2.10/32
+```
+
+To build from this checkout instead, run the following command and set
+`RENTNERPROXY_IMAGE=rentnerproxy:local` in your Compose `.env`:
+
+```bash
+docker build --file docker/production/Dockerfile --tag rentnerproxy:local .
 ```
 
 Start the appliance:
@@ -135,15 +140,46 @@ in that channel. `:dev` is not a release and may change at any time.
 
 ## Screenshots
 
-<p align="center">
-  <img src="./screenshots/proxy-hosts.png" alt="Proxy Hosts" width="49%">
-  <img src="./screenshots/certificates.png" alt="Certificates" width="49%">
-</p>
+Desktop UI with synthetic demo data; domains, accounts, and activity are illustrative.
+All screenshots are 1920 × 1080. Click a thumbnail to view the full-size image.
 
-<p align="center">
-  <img src="./screenshots/login.png" alt="Login" width="49%">
-  <img src="./screenshots/account-security.png" alt="Account Security" width="49%">
-</p>
+<details open>
+<summary><strong>Dark mode</strong></summary>
+
+<table>
+  <tr>
+    <td align="center"><a href="./screenshots/proxy-hosts-dark.png"><img src="./screenshots/proxy-hosts-dark.png" alt="Proxy hosts in dark mode" width="440"></a><br>Proxy hosts</td>
+    <td align="center"><a href="./screenshots/certificates-dark.png"><img src="./screenshots/certificates-dark.png" alt="Certificates in dark mode" width="440"></a><br>Certificates</td>
+  </tr>
+  <tr>
+    <td align="center"><a href="./screenshots/security-dashboard-dark.png"><img src="./screenshots/security-dashboard-dark.png" alt="Security dashboard in dark mode" width="440"></a><br>Security dashboard</td>
+    <td align="center"><a href="./screenshots/configuration-transfer-dark.png"><img src="./screenshots/configuration-transfer-dark.png" alt="Configuration transfer in dark mode" width="440"></a><br>Configuration transfer</td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><a href="./screenshots/account-profile-dark.png"><img src="./screenshots/account-profile-dark.png" alt="Account profile in dark mode" width="440"></a><br>Account profile</td>
+  </tr>
+</table>
+
+</details>
+
+<details>
+<summary><strong>Light mode</strong></summary>
+
+<table>
+  <tr>
+    <td align="center"><a href="./screenshots/proxy-hosts-light.png"><img src="./screenshots/proxy-hosts-light.png" alt="Proxy hosts in light mode" width="440"></a><br>Proxy hosts</td>
+    <td align="center"><a href="./screenshots/certificates-light.png"><img src="./screenshots/certificates-light.png" alt="Certificates in light mode" width="440"></a><br>Certificates</td>
+  </tr>
+  <tr>
+    <td align="center"><a href="./screenshots/security-dashboard-light.png"><img src="./screenshots/security-dashboard-light.png" alt="Security dashboard in light mode" width="440"></a><br>Security dashboard</td>
+    <td align="center"><a href="./screenshots/configuration-transfer-light.png"><img src="./screenshots/configuration-transfer-light.png" alt="Configuration transfer in light mode" width="440"></a><br>Configuration transfer</td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><a href="./screenshots/account-appearance-light.png"><img src="./screenshots/account-appearance-light.png" alt="Account appearance settings in light mode" width="440"></a><br>Account appearance</td>
+  </tr>
+</table>
+
+</details>
 
 ## More information
 
