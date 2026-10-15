@@ -196,12 +196,11 @@ pub(super) fn path_string(path: &Path, error: RenderError) -> Result<String, Ren
     Ok(value)
 }
 
-pub(super) fn admin_listen(path: Option<&Path>) -> Result<String, RenderError> {
+pub(super) fn admin_listen(path: Option<&Path>) -> Result<Option<String>, RenderError> {
     path.map(|path| {
         path_string(path, RenderError::InvalidProbeSocket).map(|value| format!("unix/{value}|0600"))
     })
-    .transpose()?
-    .map_or_else(|| Ok("127.0.0.1:2019".to_owned()), Ok)
+    .transpose()
 }
 
 pub(super) fn probe_listen(path: &Path) -> Result<String, RenderError> {

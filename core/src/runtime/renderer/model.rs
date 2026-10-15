@@ -13,7 +13,9 @@ pub(super) struct CaddyConfig {
 
 #[derive(Serialize)]
 pub(super) struct Admin {
-    pub(super) listen: String,
+    pub(super) disabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) listen: Option<String>,
     pub(super) config: AdminConfig,
 }
 

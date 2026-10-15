@@ -2,6 +2,8 @@
 
 set -Eeuo pipefail
 
+unset SMTP_USER SMTP_PASSWORD
+
 readonly config_file=/usr/share/rentnerproxy/crowdsec/config.yaml
 readonly online_config_file=/usr/share/rentnerproxy/crowdsec/config-online.yaml
 readonly control_directory=/run/rentnerproxy/crowdsec
@@ -92,15 +94,15 @@ write_enrollment_result() {
 ensure_online_credentials() {
     if [[ -e $capi_credentials_file || -L $capi_credentials_file ]]; then
         [[ -f $capi_credentials_file && ! -L $capi_credentials_file ]] || return 1
-        [[ $(stat -c '%U:%G' "$capi_credentials_file") == crowdsec:crowdsec ]] || return 1
-        chmod 0600 "$capi_credentials_file"
+        [[ $(stat -c '%u:%g:%h' -- "$capi_credentials_file") == 10003:10003:1 ]] || return 1
+        gosu crowdsec chmod 0600 -- "$capi_credentials_file" || return 1
         return 0
     fi
     timeout 25s gosu crowdsec cscli -c "$online_config_file" capi register \
         -f "$capi_credentials_file" >/dev/null 2>&1 || return 1
     [[ -f $capi_credentials_file && ! -L $capi_credentials_file ]] || return 1
-    [[ $(stat -c '%U:%G' "$capi_credentials_file") == crowdsec:crowdsec ]] || return 1
-    chmod 0600 "$capi_credentials_file"
+    [[ $(stat -c '%u:%g:%h' -- "$capi_credentials_file") == 10003:10003:1 ]] || return 1
+    gosu crowdsec chmod 0600 -- "$capi_credentials_file"
 }
 
 probe_online() {

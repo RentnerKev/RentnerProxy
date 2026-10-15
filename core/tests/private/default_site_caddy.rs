@@ -126,7 +126,7 @@ fn start_caddy(
     mode_index: usize,
     site: DefaultSite,
 ) -> (CaddyChild, SocketAddr, SocketAddr) {
-    let listeners: Vec<_> = (0..3)
+    let listeners: Vec<_> = (0..2)
         .map(|_| TcpListener::bind("127.0.0.1:0").unwrap())
         .collect();
     let addresses: Vec<_> = listeners
@@ -170,7 +170,6 @@ fn start_caddy(
         json!([addresses[0].to_string()]);
     json["apps"]["http"]["servers"]["rentnerproxy-probe"]["listen"] =
         json!([addresses[1].to_string()]);
-    json["admin"]["listen"] = json!(addresses[2].to_string());
     let config_path = state.join("caddy.json");
     std::fs::write(&config_path, serde_json::to_vec(&json).unwrap()).unwrap();
     let log_path = state.join("caddy-stderr.log");

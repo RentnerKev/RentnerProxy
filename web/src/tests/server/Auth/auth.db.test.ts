@@ -19,6 +19,7 @@ import {
 } from '@/config/auth-security.config.ts'
 
 import { PERMISSIONS, SYSTEM_ROLES } from '@/config/permissions.config.ts'
+import { updateUserInputSchema } from '@/features/Admin/UserManagement/validation.ts'
 import { SYSTEM_ROLE_REGISTRY } from '@/lib/Permissions/systemRoles.ts'
 import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
 import {
@@ -1042,6 +1043,368 @@ describe('admin identity conflict mapping with PostgreSQL', () => {
             .where(eq(users.id, target.id))
         expect(persistedTarget).toEqual([{ email: target.email }])
     })
+})
+
+async function loadRecoveryState(userId: string) {
+    const database = getAuthDatabase()
+    const [identity, roleRows, sessionRows, resetRows, inviteRows] = await Promise.all([
+        database
+            .select({
+                displayName: users.displayName,
+                email: users.email,
+                emailVerifiedAt: users.emailVerifiedAt,
+                passwordHash: users.passwordHash,
+                updatedAt: users.updatedAt,
+            })
+            .from(users)
+            .where(eq(users.id, userId)),
+        database
+            .select({ roleId: userRoles.roleId })
+            .from(userRoles)
+            .where(eq(userRoles.userId, userId)),
+        database.select({ id: sessions.id }).from(sessions).where(eq(sessions.userId, userId)),
+        database
+            .select({ id: passwordResetTokens.id })
+            .from(passwordResetTokens)
+            .where(eq(passwordResetTokens.userId, userId)),
+        database
+            .select({ id: userInvites.id })
+            .from(userInvites)
+            .where(eq(userInvites.userId, userId)),
+    ])
+
+    return { identity, roleRows, sessionRows, resetRows, inviteRows }
+}
+
+async function prepareRecoveryState(user: { id: string; email: string }) {
+    const session = await createSessionService(user.id)
+    expect(await issuePasswordResetService(user.email)).not.toBeNull()
+    await getAuthDatabase()
+        .insert(userInvites)
+        .values({
+            userId: user.id,
+            tokenHash: await hashOpaqueToken(createOpaqueToken()),
+            expiresAt: new Date(Date.now() + 60_000),
+        })
+
+    return session
+}
+
+describe('recovery identity administration with PostgreSQL', () => {
+    integrationTest(
+        'denies a stronger retained role before any identity or recovery state changes',
+        async () => {
+            const actorRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.USERS_VIEW,
+                PERMISSIONS.USERS_UPDATE,
+            ])
+            const targetRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.PROXY_HOSTS_UPDATE,
+            ])
+            const actor = await createTestUser({ roleKeys: [actorRole] })
+            const target = await createTestUser({ roleKeys: [targetRole] })
+            const targetSession = await prepareRecoveryState(target)
+            const before = await loadRecoveryState(target.id)
+            const replacementEmail = testEmail('denied-recovery')
+            const input = updateUserInputSchema.parse({
+                userId: target.id,
+                displayName: 'Unauthorized replacement',
+                email: replacementEmail,
+            })
+
+            await expect(runAsUser(actor.id, () => updateUserService(input))).rejects.toMatchObject(
+                { code: 'permission_denied' },
+            )
+
+            expect(await loadRecoveryState(target.id)).toEqual(before)
+            expect(await getSessionByTokenService(targetSession.token)).not.toBeNull()
+            expect(await issuePasswordResetService(replacementEmail)).toBeNull()
+            expect((await loadActiveAccess(actor.id)).permissions).not.toContain(
+                PERMISSIONS.PROXY_HOSTS_UPDATE,
+            )
+            expect((await loadActiveAccess(target.id)).permissions).toContain(
+                PERMISSIONS.PROXY_HOSTS_UPDATE,
+            )
+        },
+    )
+
+    integrationTest(
+        'preserves role-assignment and owner guards for explicit role replacements',
+        async () => {
+            const basicRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.USERS_UPDATE,
+            ])
+            const assigningRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.USERS_UPDATE,
+                PERMISSIONS.USERS_ASSIGN_ROLES,
+            ])
+            const strongerRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.PROXY_HOSTS_UPDATE,
+            ])
+            const basicActor = await createTestUser({ roleKeys: [basicRole] })
+            const assigningActor = await createTestUser({ roleKeys: [assigningRole] })
+            const target = await createTestUser({ roleKeys: [strongerRole] })
+            const owner = await createTestUser({ roleKeys: [SYSTEM_ROLES.OWNER] })
+            const before = await loadRecoveryState(target.id)
+
+            await Promise.all(
+                [basicActor, assigningActor].map(async (actor) => {
+                    await expect(
+                        runAsUser(actor.id, () =>
+                            updateUserService({
+                                userId: target.id,
+                                email: testEmail('denied-explicit-recovery'),
+                                roleKeys: [strongerRole],
+                            }),
+                        ),
+                    ).rejects.toMatchObject({ code: 'permission_denied' })
+                    expect(await loadRecoveryState(target.id)).toEqual(before)
+                }),
+            )
+
+            const beforeOwner = await loadRecoveryState(owner.id)
+            await expect(
+                runAsUser(assigningActor.id, () =>
+                    updateUserService({
+                        userId: owner.id,
+                        email: testEmail('denied-owner-recovery'),
+                        roleKeys: [basicRole],
+                    }),
+                ),
+            ).rejects.toMatchObject({ code: 'owner_required' })
+            expect(await loadRecoveryState(owner.id)).toEqual(beforeOwner)
+        },
+    )
+
+    integrationTest.each(['self', 'equal', 'lesser', 'owner-target', 'owner-self'] as const)(
+        'allows %s recovery changes and revokes old recovery state',
+        async (kind) => {
+            const actorRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.USERS_UPDATE,
+            ])
+            const lesserRole = await createCustomRole([PERMISSIONS.APP_ACCESS])
+            const strongerRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.PROXY_HOSTS_UPDATE,
+            ])
+            const administrator = await createTestUser({
+                roleKeys: [kind.startsWith('owner') ? SYSTEM_ROLES.OWNER : actorRole],
+            })
+            const target =
+                kind === 'self' || kind === 'owner-self'
+                    ? administrator
+                    : await createTestUser({
+                          roleKeys: [
+                              kind === 'lesser'
+                                  ? lesserRole
+                                  : kind === 'owner-target'
+                                    ? strongerRole
+                                    : actorRole,
+                          ],
+                      })
+            const targetSession = await prepareRecoveryState(target)
+            const before = await loadRecoveryState(target.id)
+            const email = testEmail('allowed-recovery')
+            const result = await runAsUser(administrator.id, () =>
+                updateUserService({ userId: target.id, email }),
+            )
+            const after = await loadRecoveryState(target.id)
+
+            expect(result.email).toBe(email)
+            expect(after.identity.at(0)).toMatchObject({ email, emailVerifiedAt: null })
+            expect(after.identity.at(0)?.passwordHash).toBe(before.identity.at(0)?.passwordHash)
+            expect(after.roleRows).toEqual(before.roleRows)
+            expect(after.sessionRows).toEqual([])
+            expect(after.resetRows).toEqual([])
+            expect(after.inviteRows).toEqual([])
+            expect(await getSessionByTokenService(targetSession.token)).toBeNull()
+        },
+    )
+
+    integrationTest(
+        'allows a stronger target profile edit when the normalized email is unchanged',
+        async () => {
+            const actorRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.USERS_UPDATE,
+            ])
+            const targetRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.PROXY_HOSTS_UPDATE,
+            ])
+            const actor = await createTestUser({ roleKeys: [actorRole] })
+            const target = await createTestUser({ roleKeys: [targetRole] })
+            const targetSession = await prepareRecoveryState(target)
+            const before = await loadRecoveryState(target.id)
+
+            await runAsUser(actor.id, () =>
+                updateUserService({
+                    userId: target.id,
+                    displayName: 'Profile correction',
+                    email: ` ${target.email.toUpperCase()} `,
+                }),
+            )
+            const after = await loadRecoveryState(target.id)
+
+            expect(after.identity.at(0)).toMatchObject({
+                displayName: 'Profile correction',
+                email: target.email,
+                emailVerifiedAt: before.identity.at(0)?.emailVerifiedAt,
+            })
+            expect(after.roleRows).toEqual(before.roleRows)
+            expect(after.sessionRows).toEqual(before.sessionRows)
+            expect(after.resetRows).toEqual(before.resetRows)
+            expect(after.inviteRows).toEqual(before.inviteRows)
+            expect(await getSessionByTokenService(targetSession.token)).not.toBeNull()
+        },
+    )
+
+    integrationTest(
+        'checks the resulting roles and permits an authorized downgrade with an email change',
+        async () => {
+            const actorRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.USERS_UPDATE,
+                PERMISSIONS.USERS_ASSIGN_ROLES,
+            ])
+            const strongerRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.PROXY_HOSTS_UPDATE,
+            ])
+            const retainedRole = await createCustomRole([PERMISSIONS.APP_ACCESS])
+            const actor = await createTestUser({ roleKeys: [actorRole] })
+            const target = await createTestUser({ roleKeys: [strongerRole] })
+            const targetSession = await prepareRecoveryState(target)
+            const email = testEmail('downgraded-recovery')
+
+            const result = await runAsUser(actor.id, () =>
+                updateUserService({ userId: target.id, email, roleKeys: [retainedRole] }),
+            )
+
+            expect(result).toMatchObject({ email, roleKeys: [retainedRole] })
+            expect((await loadActiveAccess(target.id)).permissions).toEqual([
+                PERMISSIONS.APP_ACCESS,
+            ])
+            expect(await getSessionByTokenService(targetSession.token)).toBeNull()
+            const after = await loadRecoveryState(target.id)
+            expect(after.resetRows).toEqual([])
+            expect(after.inviteRows).toEqual([])
+        },
+    )
+
+    integrationTest.each(['actor', 'target'] as const)(
+        'rechecks permissions after a concurrent %s role change commits',
+        async (changedPrincipal) => {
+            const database = getAuthDatabase()
+
+            const actorRole = await createCustomRole([
+                PERMISSIONS.APP_ACCESS,
+                PERMISSIONS.USERS_UPDATE,
+            ])
+            const targetRole = await createCustomRole([PERMISSIONS.APP_ACCESS])
+            const actor = await createTestUser({ roleKeys: [actorRole] })
+            const target = await createTestUser({ roleKeys: [targetRole] })
+            const actorSession = await createSessionService(actor.id)
+            const before = await loadRecoveryState(target.id)
+            const roleKey = changedPrincipal === 'actor' ? actorRole : targetRole
+            const permissionKey =
+                changedPrincipal === 'actor'
+                    ? PERMISSIONS.USERS_UPDATE
+                    : PERMISSIONS.PROXY_HOSTS_UPDATE
+            const permission = requireFirstRow(
+                await database
+                    .select({ id: permissions.id })
+                    .from(permissions)
+                    .where(eq(permissions.key, permissionKey)),
+                'Concurrent test permission was not found.',
+            )
+            let pendingUpdate: Promise<unknown> | undefined
+            let updateError: unknown
+            let completed = false
+
+            try {
+                await database.transaction(async (transaction) => {
+                    const role = requireFirstRow(
+                        await transaction
+                            .select({ id: roles.id })
+                            .from(roles)
+                            .where(eq(roles.key, roleKey))
+                            .for('update'),
+                        'Concurrent test role was not found.',
+                    )
+                    const connection = requireFirstRow(
+                        await transaction
+                            .select({ pid: sql<number>`pg_backend_pid()` })
+                            .from(roles)
+                            .where(eq(roles.id, role.id)),
+                        'Role-change connection was not found.',
+                    )
+                    pendingUpdate = captureError(
+                        runWithSessionToken(actorSession.token, () =>
+                            updateUserService({
+                                userId: target.id,
+                                email: testEmail('concurrent-recovery'),
+                            }),
+                        ),
+                    ).finally(() => {
+                        completed = true
+                    })
+
+                    let waiting = false
+                    const deadline = Date.now() + 2_000
+                    // Lock probes must run sequentially so the role change commits only after blocking is observed.
+                    /* eslint-disable no-await-in-loop */
+                    while (!waiting && Date.now() < deadline) {
+                        if (completed) break
+                        const probe = requireFirstRow(
+                            await database
+                                .select({
+                                    waiting: sql<boolean>`exists (
+                                    select 1 from pg_stat_activity as waiter
+                                    where ${connection.pid} = any(pg_blocking_pids(waiter.pid))
+                                )`,
+                                })
+                                .from(roles)
+                                .where(eq(roles.id, role.id)),
+                            'Role-lock wait probe was not returned.',
+                        )
+                        waiting = probe.waiting
+                        if (!waiting && !completed) await Bun.sleep(10)
+                    }
+                    /* eslint-enable no-await-in-loop */
+                    expect(waiting).toBeTrue()
+
+                    if (changedPrincipal === 'actor') {
+                        await transaction
+                            .delete(rolePermissions)
+                            .where(
+                                and(
+                                    eq(rolePermissions.roleId, role.id),
+                                    eq(rolePermissions.permissionId, permission.id),
+                                ),
+                            )
+                    } else {
+                        await transaction.insert(rolePermissions).values({
+                            roleId: role.id,
+                            permissionId: permission.id,
+                        })
+                    }
+                })
+            } finally {
+                if (pendingUpdate) updateError = await pendingUpdate
+            }
+
+            expect(updateError).toMatchObject({ code: 'permission_denied' })
+            expect(await loadRecoveryState(target.id)).toEqual(before)
+        },
+        15_000,
+    )
 })
 
 describe('user enablement with PostgreSQL', () => {

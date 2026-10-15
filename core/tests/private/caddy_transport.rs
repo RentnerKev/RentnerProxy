@@ -6,6 +6,24 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 #[path = "caddy_shutdown.rs"]
 mod shutdown;
 
+#[cfg(not(unix))]
+#[tokio::test]
+async fn unsupported_native_caddy_fails_before_spawn_or_tcp_control() {
+    let engine = super::CaddyProcess::new("must-not-execute".into(), std::env::temp_dir());
+    // Even malformed configuration is never handed to a native child.
+    assert_eq!(
+        engine.start_owned("not-caddy-json", "test").await,
+        Err(EngineError::Unavailable)
+    );
+    assert!(engine.child.lock().await.is_none());
+    assert!(matches!(
+        engine
+            .request(&engine.admin_socket, "POST", "/load", "{}")
+            .await,
+        Err(EngineError::Unavailable)
+    ));
+}
+
 async fn read_request(stream: &mut DuplexStream) -> String {
     let mut request = Vec::new();
     while !request.ends_with(b"\r\n\r\n") {

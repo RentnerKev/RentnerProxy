@@ -15,6 +15,7 @@ import { isUniqueConstraintViolation } from '@/server/Auth/Core/database-errors.
 import { normalizeDisplayName, normalizeEmail } from '@/server/Auth/Core/identity.server.ts'
 import { issueInviteService } from '@/server/Auth/Setup/invites.service.ts'
 import {
+    assertRecoveryEmailChangeAllowedInTransaction,
     assertRoleAssignmentAllowedInTransaction,
     countActiveOwnersInTransaction,
     getUserRoleKeysInTransaction,
@@ -167,7 +168,7 @@ export async function updateUserService(input: {
     try {
         return await db.transaction(async (transaction) => {
             await lockOwnerPolicy(transaction)
-            const transactionActor = await requirePermissionInTransaction(
+            let transactionActor = await requirePermissionInTransaction(
                 transaction,
                 actor.id,
                 PERMISSIONS.USERS_UPDATE,
@@ -179,6 +180,26 @@ export async function updateUserService(input: {
             }
 
             const currentRoleKeys = await getUserRoleKeysInTransaction(transaction, user.id)
+            const emailChanged = normalizedEmail !== undefined && normalizedEmail !== user.email
+            let recoveryRoles: Awaited<ReturnType<typeof loadRolesByKeysInTransaction>> | null =
+                null
+
+            if (emailChanged && user.id !== actor.id) {
+                // User-role changes share the owner-policy lock. Role-permission changes
+                // lock their role row FOR UPDATE, so hold all relevant roles in one order
+                // before resolving the actor again and checking retained permissions.
+                recoveryRoles = await loadRolesByKeysInTransaction(transaction, [
+                    ...transactionActor.roles,
+                    ...currentRoleKeys,
+                    ...(input.roleKeys ?? []),
+                ])
+                transactionActor = await requirePermissionInTransaction(
+                    transaction,
+                    actor.id,
+                    PERMISSIONS.USERS_UPDATE,
+                )
+            }
+
             let nextRoleKeys = currentRoleKeys
             let selectedRoles: Awaited<ReturnType<typeof loadRolesByKeysInTransaction>> | null =
                 null
@@ -199,6 +220,14 @@ export async function updateUserService(input: {
             }
 
             assertOwnerManagementAllowed(transactionActor.roles, currentRoleKeys, nextRoleKeys)
+            if (recoveryRoles) {
+                await assertRecoveryEmailChangeAllowedInTransaction(
+                    transaction,
+                    transactionActor,
+                    user.id,
+                    recoveryRoles.filter((role) => nextRoleKeys.includes(role.key)),
+                )
+            }
             await assertActiveOwnerRemains(transaction, {
                 currentRoleKeys,
                 currentStatus: user.status,
@@ -207,7 +236,6 @@ export async function updateUserService(input: {
             })
 
             const now = new Date()
-            const emailChanged = normalizedEmail !== undefined && normalizedEmail !== user.email
             const updatedRows = await transaction
                 .update(users)
                 .set({

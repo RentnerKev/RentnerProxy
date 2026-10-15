@@ -71,6 +71,31 @@ fn defaults_to_loopback_controller_port_and_temporary_development_state() {
 }
 
 #[test]
+fn configured_caddy_requires_a_unix_private_control_transport() {
+    // A controller bearer does not protect Caddy's independent admin API.
+    for token in [None, Some(valid_token())] {
+        let result = Config::from_values(
+            None,
+            token,
+            Some(PathBuf::from("caddy-fixture-must-not-execute")),
+            None,
+            None,
+            false,
+        );
+        if cfg!(unix) {
+            assert!(result.is_ok());
+        } else {
+            assert!(matches!(result, Err(ConfigError::UnsupportedCaddyPlatform)));
+            let message = result.err().unwrap().to_string();
+            assert!(message.contains("RENTNERPROXY_CADDY_BIN"));
+            assert!(message.contains("Unix"));
+            assert!(!message.contains(valid_token()));
+        }
+        assert!(Config::from_values(None, token, None, None, None, false).is_ok());
+    }
+}
+
+#[test]
 fn non_loopback_requires_a_safe_token() {
     let missing = Config::from_values(Some("0.0.0.0:8081"), None, None, None, None, false);
     assert!(matches!(

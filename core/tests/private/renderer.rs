@@ -41,6 +41,31 @@ fn config() -> ValidatedProxyConfig {
 }
 
 #[test]
+fn missing_private_admin_socket_disables_caddy_admin_instead_of_exposing_tcp() {
+    let mut settings = settings();
+    settings.admin_socket = None;
+    let rendered = render_config(None, &settings).unwrap();
+    let json: Value = serde_json::from_str(&rendered).unwrap();
+    assert_eq!(json["admin"]["disabled"], true);
+    assert!(json["admin"].get("listen").is_none());
+    assert_eq!(json["admin"]["config"]["persist"], false);
+    assert!(!rendered.contains("127.0.0.1:2019"));
+}
+
+#[cfg(unix)]
+#[test]
+fn private_admin_socket_retains_owner_only_permissions() {
+    let settings = settings();
+    let rendered = render_config(None, &settings).unwrap();
+    let json: Value = serde_json::from_str(&rendered).unwrap();
+    assert_eq!(json["admin"]["disabled"], false);
+    assert_eq!(
+        json["admin"]["listen"],
+        format!("unix/{}|0600", settings.admin_socket.unwrap().display())
+    );
+}
+
+#[test]
 fn renders_typed_caddy_servers_and_probe() {
     let configuration = config();
     let rendered = render_config(Some(&configuration), &settings()).unwrap();

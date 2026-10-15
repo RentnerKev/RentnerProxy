@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 
-import { and, count, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, count, eq, inArray, sql } from 'drizzle-orm'
 
 import { PERMISSION_REGISTRY, SYSTEM_ROLES } from '@/config/permissions.config.ts'
 import type { PermissionKey } from '@/config/Types/permissions-config.types.ts'
@@ -157,6 +157,7 @@ export async function loadRolesByKeysInTransaction(
         .select({ id: roles.id, key: roles.key, isSystem: roles.isSystem })
         .from(roles)
         .where(inArray(roles.key, roleKeys))
+        .orderBy(asc(roles.id))
         .for('share')
 
     if (selectedRoles.length !== roleKeys.length) {
@@ -225,6 +226,20 @@ export async function assertRoleAssignmentAllowedInTransaction(
             'Roles may only grant permissions held by the assigning user.',
         )
     }
+}
+
+export async function assertRecoveryEmailChangeAllowedInTransaction(
+    transaction: AuthTransaction,
+    actor: AuthenticatedUser,
+    targetUserId: string,
+    retainedRoles: ReadonlyArray<{ id: string; key: string }>,
+): Promise<void> {
+    if (actor.id === targetUserId) {
+        return
+    }
+
+    // Recovery identity delegates the permissions retained after this update.
+    await assertRoleAssignmentAllowedInTransaction(transaction, actor, retainedRoles)
 }
 
 export async function countActiveOwnersInTransaction(

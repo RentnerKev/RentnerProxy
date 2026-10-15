@@ -1,5 +1,9 @@
-use axum::{body::Bytes, http::Request};
+use axum::body::Bytes;
+#[cfg(any(unix, test))]
+use axum::http::Request;
+#[cfg(any(unix, test))]
 use http_body_util::{BodyExt, Full, Limited};
+#[cfg(any(unix, test))]
 use hyper_util::rt::TokioIo;
 use std::{
     future::Future,
@@ -9,11 +13,15 @@ use std::{
     time::Duration,
 };
 use tokio::{
-    io::{AsyncRead, AsyncWrite, AsyncWriteExt},
+    io::AsyncWriteExt,
     process::{Child, Command},
     sync::Mutex,
-    task::JoinHandle,
     time::{Instant, sleep, timeout, timeout_at},
+};
+#[cfg(any(unix, test))]
+use tokio::{
+    io::{AsyncRead, AsyncWrite},
+    task::JoinHandle,
 };
 
 mod version;
@@ -131,14 +139,12 @@ impl CaddyProcess {
     async fn request(
         &self,
         socket: &Path,
-        fallback_port: u16,
         method: &'static str,
         path: &'static str,
         body: &str,
     ) -> Result<ControlResponse, EngineError> {
         self.request_bounded(
             socket,
-            fallback_port,
             method,
             path,
             body,
@@ -153,7 +159,6 @@ impl CaddyProcess {
     async fn request_bounded(
         &self,
         socket: &Path,
-        fallback_port: u16,
         method: &'static str,
         path: &'static str,
         body: &str,
@@ -162,7 +167,6 @@ impl CaddyProcess {
         let operation = async {
             #[cfg(unix)]
             {
-                let _ = fallback_port;
                 let stream = tokio::net::UnixStream::connect(socket)
                     .await
                     .map_err(|_| EngineError::Unavailable)?;
@@ -178,20 +182,10 @@ impl CaddyProcess {
             }
             #[cfg(not(unix))]
             {
-                let _ = socket;
-                let stream =
-                    tokio::net::TcpStream::connect((std::net::Ipv4Addr::LOCALHOST, fallback_port))
-                        .await
-                        .map_err(|_| EngineError::Unavailable)?;
-                exchange_bounded(
-                    stream,
-                    &format!("127.0.0.1:{fallback_port}"),
-                    method,
-                    path,
-                    body,
-                    limits.response_bytes,
-                )
-                .await
+                // Loopback TCP does not separate local OS principals. There is
+                // no supported private control transport on these platforms.
+                let _ = (socket, method, path, body, limits.response_bytes);
+                Err(EngineError::Unavailable)
             }
         };
         timeout(limits.timeout, operation)
@@ -209,7 +203,6 @@ impl CaddyProcess {
                 if let Ok(response) = self
                     .request(
                         &self.probe_socket,
-                        2_020,
                         "GET",
                         "/__rentnerproxy_runtime_probe",
                         "",
@@ -229,6 +222,9 @@ impl CaddyProcess {
     }
 
     async fn start_owned(&self, configuration: &str, revision: &str) -> Result<(), EngineError> {
+        if !cfg!(unix) {
+            return Err(EngineError::Unavailable);
+        }
         if self.child_running().await {
             return self.verify_revision(revision).await;
         }
@@ -329,7 +325,6 @@ impl CaddyProcess {
             deadline,
             self.request_bounded(
                 &self.admin_socket,
-                2_019,
                 "POST",
                 "/stop",
                 "",
@@ -393,7 +388,7 @@ impl ProxyEngine for CaddyProcess {
                 return Err(EngineError::Unavailable);
             }
             let response = self
-                .request(&self.admin_socket, 2_019, "POST", "/load", configuration)
+                .request(&self.admin_socket, "POST", "/load", configuration)
                 .await?;
             match response.status {
                 200 if response.body.is_empty() => Ok(()),
@@ -421,7 +416,6 @@ impl ProxyEngine for CaddyProcess {
             let response = self
                 .request_bounded(
                     &self.admin_socket,
-                    2_019,
                     "GET",
                     "/metrics",
                     "",
@@ -448,7 +442,9 @@ struct ControlResponse {
 #[path = "../../tests/private/caddy_transport.rs"]
 mod tests;
 
+#[cfg(any(unix, test))]
 struct ConnectionTask(JoinHandle<()>);
+#[cfg(any(unix, test))]
 impl Drop for ConnectionTask {
     fn drop(&mut self) {
         self.0.abort();
@@ -469,6 +465,7 @@ where
     exchange_bounded(stream, host, method, path, body, MAX_CONTROL_RESPONSE_BYTES).await
 }
 
+#[cfg(any(unix, test))]
 async fn exchange_bounded<S>(
     stream: S,
     host: &str,

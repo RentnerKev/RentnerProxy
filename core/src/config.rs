@@ -48,6 +48,7 @@ pub(crate) struct Config {
 
 #[derive(Debug)]
 pub(crate) enum ConfigError {
+    UnsupportedCaddyPlatform,
     InvalidTrustedProxyCidrs,
     InvalidListenAddr {
         variable: &'static str,
@@ -87,6 +88,10 @@ pub(crate) enum ConfigError {
 impl std::fmt::Display for ConfigError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::UnsupportedCaddyPlatform => write!(
+                formatter,
+                "{CADDY_BIN_ENV} requires a Unix runtime with a private Caddy admin socket; leave it unset for native controller/UI development and use the Linux Docker runtime for proxy operation",
+            ),
             Self::InvalidTrustedProxyCidrs => write!(
                 formatter,
                 "invalid {PROXY_TRUSTED_PROXY_CIDRS_ENV}: expected at most 128 distinct canonical IPv4/IPv6 CIDRs, without all-address or IPv4-mapped ranges"
@@ -151,6 +156,7 @@ impl std::error::Error for ConfigError {
         match self {
             Self::InvalidListenAddr { source, .. } => Some(source),
             Self::InvalidListenAddrEncoding { .. }
+            | Self::UnsupportedCaddyPlatform
             | Self::InvalidTrustedProxyCidrs
             | Self::InvalidControllerToken { .. }
             | Self::ConflictingControllerTokenSources { .. }
@@ -217,6 +223,9 @@ impl Config {
         proxy_http_port: Option<&str>,
         require_state_dir: bool,
     ) -> Result<Self, ConfigError> {
+        if caddy_bin.is_some() && !cfg!(unix) {
+            return Err(ConfigError::UnsupportedCaddyPlatform);
+        }
         let raw_listen_addr = listen_addr.unwrap_or(DEFAULT_LISTEN_ADDR);
         let listen_addr: SocketAddr =
             raw_listen_addr

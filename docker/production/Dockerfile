@@ -149,7 +149,7 @@ RUN apt-get update \
     && install -d -m 0700 -o postgres -g postgres /var/lib/rentnerproxy/postgres-data \
     && install -d -m 0710 -o rentnerproxy -g crowdsec /var/lib/rentnerproxy/proxy \
     && install -d -m 2750 -o rentnerproxy -g crowdsec /var/lib/rentnerproxy/proxy/logs \
-    && install -d -m 0711 -o crowdsec -g crowdsec /var/lib/rentnerproxy/crowdsec \
+    && install -d -m 0711 -o root -g root /var/lib/rentnerproxy/crowdsec \
     && install -d -m 0700 -o crowdsec -g crowdsec /var/lib/rentnerproxy/crowdsec/credentials \
     && install -d -m 0700 -o crowdsec -g crowdsec /var/lib/rentnerproxy/crowdsec/data \
     && install -d -m 0710 -o root -g rentnerproxy /var/lib/rentnerproxy/crowdsec/bouncer \

@@ -206,6 +206,7 @@ pub(super) fn render_config_inner(
 
     let output = serde_json::to_string(&CaddyConfig {
         admin: Admin {
+            disabled: admin_listen.is_none(),
             listen: admin_listen,
             config: AdminConfig { persist: false },
         },

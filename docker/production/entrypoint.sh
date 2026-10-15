@@ -2,6 +2,9 @@
 
 set -Eeuo pipefail
 
+# Retain mail credentials in this shell, but export them only in the web child.
+export -n SMTP_USER SMTP_PASSWORD
+
 readonly app_directory=/opt/rentnerproxy/web
 readonly data_directory=/var/lib/rentnerproxy
 readonly postgres_directory="$data_directory/postgres-data"
@@ -100,6 +103,23 @@ wait_for_command() {
     fatal "timed out waiting for $label"
 }
 
+initialize_crowdsec_layout() {
+    local directory
+
+    [[ ! -L $crowdsec_directory ]] || fatal 'the CrowdSec state directory is a symbolic link'
+    # Freeze entries before inspecting or repairing service-owned children.
+    install -d -m 0711 -o root -g root "$crowdsec_directory"
+    for directory in credentials data bouncer; do
+        if [[ -e $crowdsec_directory/$directory || -L $crowdsec_directory/$directory ]]; then
+            [[ -d $crowdsec_directory/$directory && ! -L $crowdsec_directory/$directory ]] \
+                || fatal "the CrowdSec $directory directory is not a real directory"
+        fi
+    done
+    install -d -m 0700 -o crowdsec -g crowdsec "$crowdsec_directory/credentials"
+    install -d -m 0700 -o crowdsec -g crowdsec "$crowdsec_directory/data"
+    install -d -m 0710 -o root -g rentnerproxy "$crowdsec_directory/bouncer"
+}
+
 initialize_layout() {
     [[ $(id -u) == 0 ]] || fatal 'the production entrypoint must start as root'
 
@@ -118,10 +138,7 @@ initialize_layout() {
         chgrp crowdsec -- "$access_log_file"
         chmod 0640 -- "$access_log_file"
     fi
-    install -d -m 0711 -o crowdsec -g crowdsec "$crowdsec_directory"
-    install -d -m 0700 -o crowdsec -g crowdsec "$crowdsec_directory/credentials"
-    install -d -m 0700 -o crowdsec -g crowdsec "$crowdsec_directory/data"
-    install -d -m 0710 -o root -g rentnerproxy "$crowdsec_directory/bouncer"
+    initialize_crowdsec_layout
     install -d -m 0700 -o root -g root "$crowdsec_bouncer_staging_directory"
     rm -rf -- "$crowdsec_control_directory"
     install -d -m 0700 -o rentnerproxy -g rentnerproxy "$crowdsec_control_directory"
@@ -138,6 +155,21 @@ initialize_layout() {
     chmod 00700 /var/run/postgresql
 }
 
+initialize_controller_app_key() {
+    local directory
+    directory=$(dirname "$controller_app_key_file")
+    [[ ! -L $directory ]] || fatal 'the controller app-key directory is a symbolic link'
+    # The controller may read the key, but must never select root's destination.
+    install -d -m 0711 -o root -g root "$directory"
+    if [[ -e $controller_app_key_file || -L $controller_app_key_file ]]; then
+        [[ -f $controller_app_key_file && ! -L $controller_app_key_file ]] \
+            || fatal 'the existing controller app key is not a regular file'
+        [[ $(stat -c '%u:%h' -- "$controller_app_key_file") == 10001:1 ]] \
+            || fatal 'the existing controller app key has unsafe ownership or links'
+    fi
+    install -T -m 0400 -o rentnerproxy -g rentnerproxy "$app_key_file" "$controller_app_key_file"
+}
+
 initialize_secrets() {
     RENTNERPROXY_DATABASE_HOST=127.0.0.1 bun "$app_directory/docker/web/bootstrap-secrets.ts"
 
@@ -148,8 +180,7 @@ initialize_secrets() {
         "$(dirname "$database_url_file")"
     chown rentnerproxy-web:rentnerproxy-web "$app_key_file" "$database_url_file"
     chmod 0400 "$app_key_file" "$database_url_file"
-    install -d -m 0700 -o rentnerproxy -g rentnerproxy "$(dirname "$controller_app_key_file")"
-    install -m 0400 -o rentnerproxy -g rentnerproxy "$app_key_file" "$controller_app_key_file"
+    initialize_controller_app_key
     chown rentnerproxy:rentnerproxy-web "$(dirname "$controller_token_file")"
     chmod 0710 "$(dirname "$controller_token_file")"
     chown rentnerproxy:rentnerproxy-web "$controller_token_file"
@@ -282,8 +313,9 @@ run_migrations() {
     )
 }
 
-start_web() {
-    start_child web env \
+run_web() {
+    export SMTP_USER SMTP_PASSWORD
+    exec env \
         APP_ENCRYPTION_KEY_FILE="$app_key_file" \
         DATABASE_URL_FILE="$database_url_file" \
         HOST=0.0.0.0 \
@@ -294,6 +326,10 @@ start_web() {
         RENTNERPROXY_CONTROLLER_URL=http://127.0.0.1:8081 \
         RENTNERPROXY_TRUST_PROXY_HEADERS="${RENTNERPROXY_TRUST_PROXY_HEADERS:-false}" \
         gosu rentnerproxy-web bun "$app_directory/docker/web/serve.ts"
+}
+
+start_web() {
+    start_child web run_web
 }
 
 monitor_children() {
