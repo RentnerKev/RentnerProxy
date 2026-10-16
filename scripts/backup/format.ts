@@ -1,4 +1,5 @@
 import { metadataSchema } from './validation.ts'
+import { validateDnsConnectionsBackup } from './dns-connections.ts'
 import type { BackupMetadata } from './Types/format.types.ts'
 import type { DeploymentSettings, StateArchiveEntry } from './Types/format.types.ts'
 import { createHash } from 'node:crypto'
@@ -197,6 +198,11 @@ export function validateControllerEncryption(
         entries.filter((entry) => !entry.directory).map((entry) => [entry.name, entry.bytes]),
     )
     for (const entry of entries) {
+        if (entry.name === 'dns-connections.json') {
+            if (entry.directory) throw new Error('invalid DNS connection state metadata')
+            validateDnsConnectionsBackup(entry.bytes, decrypt)
+            continue
+        }
         if (
             entry.directory ||
             !/(?:^|\/)(?:certificate-metadata|candidate)\.json$/u.test(entry.name)
