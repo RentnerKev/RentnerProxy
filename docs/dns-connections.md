@@ -4,8 +4,10 @@ The DNS connections page manages named, instance-owned Cloudflare API tokens and
 permitted zones. This is Beta 2 step B2-01 ([#230](https://github.com/RentnerKev/RentnerProxy/issues/230)).
 It supplies the management and reference contract for later DNS consumers. Saving or testing
 a connection only reads Cloudflare zone metadata; it does not change DNS records, start DDNS,
-or convert existing certificates. DDNS record synchronization follows in B2-02
-([#231](https://github.com/RentnerKev/RentnerProxy/issues/231)).
+or convert existing certificates. The explicitly invoked DDNS record engine in B2-02
+([#231](https://github.com/RentnerKev/RentnerProxy/issues/231)) is documented in
+[DDNS record synchronization](ddns-record-sync.md); scheduling and the DDNS UI remain
+separate implementation steps.
 
 ## Access and ownership
 

@@ -116,6 +116,26 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             state.clone(),
             authorize_certificate_request,
         ));
+    let ddns = Router::new()
+        .route(
+            "/internal/v1/ddns/preview",
+            post({
+                let state = state.clone();
+                move |body| handlers::ddns::execute(state.clone(), body, true)
+            }),
+        )
+        .route(
+            "/internal/v1/ddns/sync",
+            post({
+                let state = state.clone();
+                move |body| handlers::ddns::execute(state.clone(), body, false)
+            }),
+        )
+        .layer(axum::extract::DefaultBodyLimit::max(128 * 1024))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            authorize_certificate_request,
+        ));
     let connections = Router::new()
         .route(
             "/internal/v1/dns/connections",
@@ -265,6 +285,7 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
         )
         .merge(certificates)
         .merge(connections)
+        .merge(ddns)
         .merge(internal)
         .layer(axum::extract::DefaultBodyLimit::max(
             MAX_PROXY_CONFIG_BODY_BYTES,

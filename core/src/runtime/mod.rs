@@ -7,6 +7,7 @@ pub(crate) mod clock;
 mod configuration;
 mod crowdsec;
 pub(crate) mod crowdsec_dashboard;
+pub(crate) mod ddns;
 mod dns;
 pub(crate) mod dns_connections;
 mod engine;
@@ -152,6 +153,7 @@ pub(crate) struct ProxyRuntime {
     active_configuration: Mutex<Option<ValidatedProxyConfig>>,
     certificate_store: CertificateStore,
     pub(crate) dns_connections: dns_connections::Store,
+    pub(crate) ddns: ddns::Engine,
     trusted_ca_store: TrustedCaStore,
     access_log_snapshots: access_logs::SnapshotCache,
     renewal_task: Mutex<Option<JoinHandle<()>>>,
@@ -209,6 +211,7 @@ impl ProxyRuntime {
             engine,
             certificate_store,
             dns_connections,
+            ddns: ddns::Engine::new(),
             trusted_ca_store,
             access_log_snapshots: access_logs::SnapshotCache::new(),
             state: Mutex::new(RuntimeState {
