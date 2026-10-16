@@ -91,6 +91,16 @@ fixture with real Caddy, not a full provider deployment. The administrator must 
 service, its configured network destination, and the selected identity headers. An optional
 public gateway path is intentionally outside the check and must be narrowly configured.
 
+Shared Cloudflare connections add an instance-owned credential boundary. The
+[web service](../../web/src/server/Admin/DnsConnections/dns-connections.service.ts) enforces
+separate read/manage permissions and bounded per-user provider checks. The
+[controller registry](../../core/src/runtime/dns_connections.rs) encrypts write-only tokens with
+connection-specific AES-GCM associated data, rechecks revisions and references before atomic
+persistence, and exposes metadata only. Read-only provider tests do not prove DNS-edit access.
+[Restore preflight](../../scripts/backup/dns-connections.ts) checks the additive registry without
+changing legacy certificate credential contexts. See the [operating contract](../dns-connections.md)
+for consumer scope, recovery assumptions and limits.
+
 ## Secure design principles and countermeasures
 
 | Principle                             | Applied design                                                                                                                                                                                 | Common weakness countered                                                                                            | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                           |
