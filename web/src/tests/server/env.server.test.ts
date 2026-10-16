@@ -7,6 +7,7 @@ import {
     getAppEncryptionKey,
     getControllerBaseUrl,
     getControllerToken,
+    isProxyRuntimeReconciliationEnabled,
     getDatabaseUrl,
     getPublicOrigin,
     getValkeyUrl,
@@ -46,6 +47,32 @@ const originalValues = new Map(
     ENVIRONMENT_VARIABLES.map((variable) => [variable, process.env[variable]] as const),
 )
 const temporaryDirectories: string[] = []
+
+describe('native controller development mode', () => {
+    const nativeDevelopment = {
+        NODE_ENV: 'development',
+        RENTNERPROXY_NATIVE_CONTROLLER_DEV: '1',
+    }
+
+    test('pauses reconciliation only for the managed native Windows controller', () => {
+        expect(isProxyRuntimeReconciliationEnabled(nativeDevelopment, 'win32')).toBe(false)
+        expect(isProxyRuntimeReconciliationEnabled({ NODE_ENV: 'development' }, 'win32')).toBe(true)
+        expect(isProxyRuntimeReconciliationEnabled({}, 'win32')).toBe(true)
+    })
+
+    test.each(['linux', 'darwin'] as const)('keeps reconciliation active on %s', (platform) => {
+        expect(isProxyRuntimeReconciliationEnabled(nativeDevelopment, platform)).toBe(true)
+    })
+
+    test('cannot pause a production runtime through the development marker', () => {
+        expect(
+            isProxyRuntimeReconciliationEnabled(
+                { ...nativeDevelopment, NODE_ENV: 'production' },
+                'win32',
+            ),
+        ).toBe(true)
+    })
+})
 
 afterEach(() => {
     for (const variable of ENVIRONMENT_VARIABLES) {

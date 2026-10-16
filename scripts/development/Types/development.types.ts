@@ -2,6 +2,12 @@ import type { Logger } from '../../lib/Types/logger.types.ts'
 
 export type ShutdownSignal = 'SIGINT' | 'SIGTERM'
 
+export interface DevelopmentPort {
+    readonly label: string
+    readonly hostname: string
+    readonly port: number
+}
+
 export interface ManagedProcess {
     readonly pid: number
     readonly exited: Promise<number>

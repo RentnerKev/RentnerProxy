@@ -8,6 +8,7 @@ import type {
 } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { isProxyRuntimeReconciliationEnabled } from '@/server/env.server.ts'
 import {
     applyProxyRuntimeConfiguration,
     getProxyRuntimeStatus,
@@ -26,6 +27,7 @@ export async function getProxyRuntimeSnapshotService(): Promise<ProxyRuntimeSnap
 }
 
 export const reconcileProxyConfigurationService = createProxyReconciler({
+    enabled: isProxyRuntimeReconciliationEnabled(),
     loadSnapshot: getProxyRuntimeSnapshotService,
     applySnapshot: applyProxyRuntimeConfiguration,
     checkDrift: async () => {

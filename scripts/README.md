@@ -20,6 +20,15 @@ Useful commands include `bun run dev`, `bun run build`, `bun run test:ts`,
 `bun run certificates:smoke` and `bun run upstream-tls:smoke`. See
 [Operations](../docs/operations.md#backup-and-recovery) for backup and restore.
 
+`bun run dev` checks the configured controller listen address and Vite's local
+port 5173 before starting either process. Stop an existing development session
+with Ctrl+C before starting another one. On native Windows, the managed controller
+runs without Caddy and the web process pauses proxy/CrowdSec reconciliation;
+pending proxy changes still require the Linux Docker runtime to be applied.
+The launcher sets the internal `RENTNERPROXY_NATIVE_CONTROLLER_DEV` marker for
+this session. Production and Unix runtimes keep reconciliation enabled.
+`bun run dev:web` starts the web process independently for an existing controller.
+
 `bun run check` runs format, lint, Web/script type checks, ordinary TypeScript
 tests, Clippy and Rust tests. `bun run check:full` adds fuzz tests and production
 builds; the Web build performs its type check after generated build types exist.

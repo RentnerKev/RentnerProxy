@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, spyOn, test } from 'bun:test'
+import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test'
 
 import {
     getProxyRuntimeStatus,
@@ -21,6 +21,29 @@ import type {
 type SnapshotInputHost = ProxyRuntimeHost & { readonly enabled: boolean }
 
 const BASE_ID = '018f2f52-7c1b-7cc0-9f3c-6a9952c54019'
+
+test('paused native development leaves proxy changes pending without background requests', async () => {
+    const loadSnapshot = mock(async () => snapshot())
+    const applySnapshot = mock(async () => null)
+    const checkDrift = mock(async () => true)
+    const reconciler = createProxyReconciler({
+        enabled: false,
+        loadSnapshot,
+        applySnapshot,
+        checkDrift,
+    })
+
+    try {
+        reconciler.start()
+        await reconciler.checkDrift()
+        expect(await reconciler()).toBe('pending')
+        expect(loadSnapshot).not.toHaveBeenCalled()
+        expect(applySnapshot).not.toHaveBeenCalled()
+        expect(checkDrift).not.toHaveBeenCalled()
+    } finally {
+        await reconciler.stop()
+    }
+})
 const originalEnvironment = new Map<string, string | undefined>()
 const CONTROLLER_ENVIRONMENT = ['RENTNERPROXY_CONTROLLER_URL', 'RENTNERPROXY_CONTROLLER_TOKEN']
 

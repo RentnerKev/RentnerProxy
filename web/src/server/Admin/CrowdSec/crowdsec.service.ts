@@ -23,6 +23,7 @@ import type { ProxyRuntimeMutationStatus } from '@/lib/ProxyRuntime/Types/proxy-
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { isProxyRuntimeReconciliationEnabled } from '@/server/env.server.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
 import {
     applyCrowdSecConfiguration,
@@ -88,6 +89,7 @@ function controllerResponseMatches(
 }
 
 export const reconcileCrowdSecConfiguration = createCrowdSecReconciler({
+    enabled: isProxyRuntimeReconciliationEnabled(),
     load: loadReconcileSnapshot,
     apply: async (snapshot) =>
         controllerResponseMatches(

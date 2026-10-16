@@ -123,7 +123,7 @@ export function createProxyReconciler(
     }
 
     function reconcile(): Promise<ProxyRuntimeMutationStatus> {
-        if (stopped) return Promise.resolve('pending')
+        if (stopped || dependencies.enabled === false) return Promise.resolve('pending')
         enqueue()
         if (publicFlight) return publicFlight
         const target = requested
@@ -145,7 +145,7 @@ export function createProxyReconciler(
     }
 
     function start(): void {
-        if (stopped) return
+        if (stopped || dependencies.enabled === false) return
         enqueue()
         if (driftTimer === null) {
             driftTimer = setInterval(() => void checkDrift(), DRIFT_CHECK_INTERVAL_MS)
@@ -154,7 +154,7 @@ export function createProxyReconciler(
     }
 
     async function checkDrift(): Promise<void> {
-        if (!dependencies.checkDrift || stopped) return
+        if (!dependencies.checkDrift || stopped || dependencies.enabled === false) return
         try {
             if ((await dependencies.checkDrift()) && !stopped) enqueue()
         } catch {

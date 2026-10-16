@@ -1,4 +1,4 @@
-import { describe, expect, spyOn, test } from 'bun:test'
+import { describe, expect, mock, spyOn, test } from 'bun:test'
 
 import { createCrowdSecReconciler } from '@/server/Admin/CrowdSec/crowdsec-reconcile.ts'
 
@@ -7,6 +7,24 @@ interface Snapshot {
 }
 
 describe('CrowdSec runtime reconciliation', () => {
+    test('paused native development leaves changes pending without background requests', async () => {
+        const load = mock(async () => ({ fingerprint: 'current' }))
+        const apply = mock(async () => true)
+        const hasDrift = mock(async () => true)
+        const reconciler = createCrowdSecReconciler({ enabled: false, load, apply, hasDrift })
+
+        try {
+            reconciler.start()
+            await reconciler.checkDrift()
+            expect(await reconciler()).toBe('pending')
+            expect(load).not.toHaveBeenCalled()
+            expect(apply).not.toHaveBeenCalled()
+            expect(hasDrift).not.toHaveBeenCalled()
+        } finally {
+            await reconciler.stop()
+        }
+    })
+
     test('coalesces concurrent requests and confirms the latest configuration', async () => {
         const first: Snapshot = { fingerprint: 'first' }
         const latest: Snapshot = { fingerprint: 'latest' }

@@ -120,6 +120,17 @@ export function isLoopbackControllerUrl(baseUrl: string): boolean {
     )
 }
 
+export function isProxyRuntimeReconciliationEnabled(
+    environment: NodeJS.ProcessEnv = process.env,
+    platform: NodeJS.Platform = process.platform,
+): boolean {
+    return !(
+        platform === 'win32' &&
+        environment.NODE_ENV === 'development' &&
+        environment.RENTNERPROXY_NATIVE_CONTROLLER_DEV === '1'
+    )
+}
+
 function normalizeDatabaseUrl(value: string): string | null {
     try {
         const url = new URL(value)

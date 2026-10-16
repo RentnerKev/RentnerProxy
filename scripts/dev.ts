@@ -1,6 +1,8 @@
 import { fileURLToPath } from 'node:url'
 
 import { logger as defaultLogger } from './lib/logger.ts'
+import { createDevelopmentEnvironment } from './development/environment.ts'
+import { assertDevelopmentPortsAvailable } from './development/ports.ts'
 import type {
     DevelopmentDependencies,
     DevelopmentEvent,
@@ -26,6 +28,7 @@ function spawnProcess(request: SpawnRequest): ManagedProcess {
         stdout: request.stdout,
         stderr: request.stderr,
         detached: request.detached,
+        env: createDevelopmentEnvironment(),
     })
 }
 
@@ -212,5 +215,16 @@ export async function runDevelopment(
 }
 
 if (import.meta.main) {
-    process.exitCode = await runDevelopment()
+    try {
+        await assertDevelopmentPortsAvailable()
+        if (process.platform === 'win32') {
+            defaultLogger.info(
+                'Native Windows development: proxy and CrowdSec reconciliation is paused; use the Linux Docker runtime for proxy operation.',
+            )
+        }
+        process.exitCode = await runDevelopment()
+    } catch (error) {
+        defaultLogger.fail(formatSpawnError(error))
+        process.exitCode = 1
+    }
 }

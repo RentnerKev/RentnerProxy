@@ -110,7 +110,7 @@ export function createCrowdSecReconciler<T extends CrowdSecReconcileSnapshot>(
     }
 
     function reconcile(): Promise<ProxyRuntimeMutationStatus> {
-        if (stopped) return Promise.resolve('pending')
+        if (stopped || dependencies.enabled === false) return Promise.resolve('pending')
         enqueue()
         if (publicFlight) return publicFlight
         const target = requested
@@ -133,7 +133,7 @@ export function createCrowdSecReconciler<T extends CrowdSecReconcileSnapshot>(
     }
 
     function start(): void {
-        if (stopped) return
+        if (stopped || dependencies.enabled === false) return
         enqueue()
         if (driftTimer === null) {
             driftTimer = setInterval(() => void checkDrift(), DRIFT_CHECK_INTERVAL_MS)
@@ -142,7 +142,7 @@ export function createCrowdSecReconciler<T extends CrowdSecReconcileSnapshot>(
     }
 
     async function checkDrift(): Promise<void> {
-        if (stopped) return
+        if (stopped || dependencies.enabled === false) return
         try {
             const snapshot = await dependencies.load()
             if (!stopped && (await dependencies.hasDrift(snapshot))) enqueue()

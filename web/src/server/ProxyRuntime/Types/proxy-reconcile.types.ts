@@ -3,6 +3,7 @@ import type { ProxyRuntimeSnapshot, ProxyRuntimeApplyResponse } from './proxy-ru
 import type { ProxyRuntimeMutationStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
 
 export interface ReconcileDependencies {
+    readonly enabled?: boolean
     readonly loadSnapshot: () => Promise<ProxyRuntimeSnapshot>
     readonly checkDrift?: () => Promise<boolean>
     readonly applySnapshot: (
