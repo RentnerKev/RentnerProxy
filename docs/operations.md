@@ -83,13 +83,6 @@ Saving reports when runtime application is pending; the existing reconciliation 
 automatically. Reload Operations after a configuration conflict before saving another edit.
 Portable host configuration exports do not include these global settings.
 
-## Shared Cloudflare connections (development image)
-
-The DNS connections page stores reusable encrypted Cloudflare tokens and an explicit multi-zone
-selection. Tests and saves read provider metadata without writing DNS records. Existing DNS-01
-credentials and renewals retain their previous behavior. See [shared Cloudflare connections](dns-connections.md)
-for permissions, narrow token scopes, rotation, reference guards and the backup/restore contract.
-
 ## Backup and recovery
 
 Run `bun run backup:production -- --project <project> --output <directory>` with the current checkout and the deployment's Compose environment. The appliance is stopped while PostgreSQL, controller/certificate state, the application encryption key and managed CrowdSec state are captured together, then restarted. Keep the completed backup directory outside the appliance volume. Its manifest records SHA-256 checksums, the source image identity, public origin and trusted proxy CIDRs; the directory is private (0700) and its files are 0600 on Linux. Checksums detect corruption, so retain backups in trusted storage.

@@ -10,35 +10,35 @@ pub(super) const MAX_REQUEST_BODY_BYTES: usize = 16 * 1024;
 pub(super) const RECORDS_PER_PAGE: u32 = 100;
 
 #[derive(Clone, Debug, Deserialize)]
-pub(in crate::runtime) struct CloudflareResponse<T> {
-    pub(in crate::runtime) success: bool,
+pub(super) struct CloudflareResponse<T> {
+    pub(super) success: bool,
     #[serde(default)]
-    pub(in crate::runtime) errors: Vec<CloudflareError>,
-    pub(in crate::runtime) result: Option<T>,
+    pub(super) errors: Vec<CloudflareError>,
+    pub(super) result: Option<T>,
     #[serde(default)]
-    pub(in crate::runtime) result_info: Option<CloudflareResultInfo>,
+    pub(super) result_info: Option<CloudflareResultInfo>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
-pub(in crate::runtime) struct CloudflareError {
+pub(super) struct CloudflareError {
     #[serde(default)]
     pub(super) code: Option<u64>,
 }
 
 impl CloudflareError {
-    pub(crate) fn is_unauthorized(self) -> bool {
+    fn is_unauthorized(self) -> bool {
         matches!(self.code, Some(10_000 | 9_109 | 9_106 | 9_107))
     }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
-pub(in crate::runtime) struct CloudflareResultInfo {
+pub(super) struct CloudflareResultInfo {
     #[serde(default)]
-    pub(in crate::runtime) page: Option<u32>,
+    pub(super) page: Option<u32>,
     #[serde(default)]
-    pub(in crate::runtime) total_pages: Option<u32>,
+    pub(super) total_pages: Option<u32>,
     #[serde(default)]
-    pub(in crate::runtime) per_page: Option<u32>,
+    pub(super) per_page: Option<u32>,
 }
 
 impl CloudflareResultInfo {
@@ -51,9 +51,9 @@ impl CloudflareResultInfo {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub(in crate::runtime) struct CloudflareZone {
-    pub(in crate::runtime) id: String,
-    pub(in crate::runtime) name: String,
+pub(super) struct CloudflareZone {
+    pub(super) id: String,
+    pub(super) name: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]

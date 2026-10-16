@@ -263,21 +263,6 @@ the web application. The controller-side parsing is in
 the web-side setting is in [`web/src/server/env.server.ts`](../web/src/server/env.server.ts).
 The settings are intentionally deployment configuration, not PostgreSQL state.
 
-## Shared DNS connections
-
-The Rust controller owns the separate version 1 `dns-connections.json` registry and its encrypted
-Cloudflare tokens in [`core/src/runtime/dns_connections.rs`](../core/src/runtime/dns_connections.rs).
-The web management service authorizes instance-level reads and management, rate-limits provider
-tests and records credential-free audit events. Controller endpoints require its bearer token
-even on loopback. Candidate token/zone validation happens outside the registry lock; revision,
-name and reference checks are repeated under the lock before atomic persistence. Ordinary
-responses contain metadata only.
-
-This foundational Beta 2 contract defines DNS-01/DDNS references without attaching consumers or
-changing the existing per-certificate DNS persistence and renewal path. Registry restore
-validation is additive to the existing backup format. See [shared Cloudflare connections](dns-connections.md)
-for scope, operational limits, adoption and compatibility.
-
 ## Events and live state
 
 Successful management mutations publish an application revision locally and to

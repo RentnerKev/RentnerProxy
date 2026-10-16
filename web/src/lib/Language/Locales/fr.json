@@ -81,8 +81,7 @@
         "security": "Tableau de bord de sécurité",
         "auditLogs": "Journal d’audit",
         "systemVersion": "Version du système {{version}}",
-        "updateAvailable": "Mise à jour disponible vers la version {{version}}",
-        "dnsConnections": "Connexions DNS"
+        "updateAvailable": "Mise à jour disponible vers la version {{version}}"
     },
     "quickSearch": {
         "title": "Recherche rapide",
@@ -2402,74 +2401,6 @@
             "downloadComplete": "Le téléchargement du rapport a démarré.",
             "downloadPartial": "Le téléchargement du rapport partiel a démarré. Les sections indisponibles sont indiquées dans le fichier.",
             "downloadFailed": "Le rapport n’a pas pu être téléchargé. Vérifiez vos permissions et réessayez."
-        },
-        "dnsConnections": {
-            "page": {
-                "eyebrow": "Administration",
-                "title": "Connexions DNS",
-                "description": "Gérez les identifiants Cloudflare réutilisables et les zones autorisées de cette instance. Les administrateurs autorisés partagent ces connexions."
-            },
-            "provider": "Cloudflare · Connexion d’instance",
-            "usage": "Références des consommateurs : {{count}}",
-            "actions": {
-                "add": "Ajouter une connexion DNS",
-                "edit": "Modifier la connexion",
-                "delete": "Supprimer la connexion",
-                "test": "Tester l’accès en lecture et charger les zones",
-                "reload": "Recharger les connexions",
-                "refreshDraft": "Abandonner le brouillon et recharger les connexions actuelles"
-            },
-            "form": {
-                "description": "Enregistrez une connexion nommée et les zones Cloudflare qu’elle peut utiliser.",
-                "name": "Nom de la connexion",
-                "token": "Jeton d’API Cloudflare",
-                "tokenHint": "Le jeton est enregistré sous forme chiffrée et ne sera plus affiché.",
-                "replaceHint": "Laissez ce champ vide pour conserver le jeton enregistré. Saisissez-en un nouveau pour le remplacer.",
-                "readOnlyHint": "Le test lit uniquement les zones Cloudflare. Les futurs consommateurs DNS nécessitent l’autorisation Zone / DNS / Edit, que ce test en lecture seule ne vérifie pas. L’enregistrement vérifie à nouveau toutes les zones sélectionnées.",
-                "zones": "Zones sélectionnées : {{count}} / {{max}}",
-                "zonesHint": "Sélectionnez au moins une zone. Les zones sélectionnées précédemment restent visibles après le test d’un nouveau jeton ; leur accès est vérifié à nouveau lors de l’enregistrement.",
-                "noZones": "Testez le jeton pour charger les zones accessibles. Si aucune zone n’apparaît, vérifiez la portée du jeton.",
-                "zoneInUse": "Un consommateur utilise cette zone. Supprimez sa référence avant de la désélectionner.",
-                "deleteInUse": "Supprimez toutes les références des consommateurs avant de supprimer cette connexion."
-            },
-            "states": {
-                "loading": "Chargement des métadonnées des connexions DNS…",
-                "error": "Connexions DNS indisponibles",
-                "empty": "Aucune connexion DNS pour le moment",
-                "emptyDescription": "Créez une connexion Cloudflare et sélectionnez les zones accessibles aux futurs consommateurs DNS."
-            },
-            "confirm": {
-                "title": "Supprimer la connexion DNS ?",
-                "description": "Supprimer « {{name}} » et son jeton enregistré ? Cette action est irréversible."
-            },
-            "validation": {
-                "zone": "Sélectionnez une zone Cloudflare valide.",
-                "token": "Saisissez un jeton d’API Cloudflare valide.",
-                "name": "Saisissez un nom de connexion de 1 à 100 caractères, sans caractère de contrôle.",
-                "zones": "Sélectionnez entre 1 et 50 zones distinctes."
-            },
-            "messages": {
-                "saved": "Connexion DNS enregistrée.",
-                "tested": "L’accès en lecture des zones a été vérifié. L’accès en écriture DNS n’a pas été vérifié.",
-                "deleted": "Connexion DNS supprimée."
-            },
-            "errors": {
-                "invalid_input": "Vérifiez le nom de la connexion, le jeton et les zones sélectionnées.",
-                "connection_not_found": "Cette connexion n’existe plus. Rechargez la liste.",
-                "connection_conflict": "Cette connexion a été modifiée depuis son ouverture. Abandonnez le brouillon, rechargez la liste et rouvrez la connexion avant de l’enregistrer.",
-                "connection_in_use": "Cette connexion ou cette zone est utilisée. Supprimez d’abord ses références, puis rechargez la liste.",
-                "connection_limit": "La limite de connexions de l’instance est atteinte.",
-                "token_required": "Saisissez un jeton d’API Cloudflare.",
-                "zone_not_permitted": "Au moins une zone sélectionnée n’est pas accessible avec ce jeton. Vérifiez sa portée ou modifiez la sélection.",
-                "zone_limit": "Le jeton peut accéder à 500 zones au maximum ; sélectionnez-en jusqu’à 50.",
-                "provider_unauthorized": "Cloudflare a refusé le jeton. Vérifiez sa validité et son autorisation de lecture des zones.",
-                "provider_unavailable": "Cloudflare est temporairement indisponible. Réessayez le test de lecture plus tard.",
-                "provider_rate_limited": "La limite de Cloudflare ou des tests de connexion a été atteinte. Patientez un instant, puis réessayez.",
-                "store_unavailable": "Le stockage des connexions est indisponible. Réessayez plus tard.",
-                "credentials_unavailable": "Le jeton enregistré est illisible. Remplacez-le ou restaurez le chiffrement des identifiants.",
-                "controller_unavailable": "Le contrôleur est indisponible. Rétablissez-le, puis rechargez la liste.",
-                "requestFailed": "La requête a échoué. Réessayez ou rechargez la connexion actuelle avant un nouvel enregistrement."
-            }
         }
     },
     "permissions": {
@@ -2487,8 +2418,7 @@
             "crowdsec": "CrowdSec",
             "audit-logs": "Journal d’audit",
             "system": "Système",
-            "default_site": "Site par défaut",
-            "dns_connections": "Connexions DNS"
+            "default_site": "Site par défaut"
         },
         "app": {
             "access": "Accès à l’application"
@@ -2565,10 +2495,6 @@
         "default_site": {
             "view": "Voir les paramètres du site par défaut",
             "update": "Modifier les paramètres du site par défaut"
-        },
-        "dns_connections": {
-            "view": "Voir les connexions DNS",
-            "manage": "Gérer les connexions DNS"
         }
     },
     "systemRoles": {

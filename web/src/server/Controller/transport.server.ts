@@ -59,9 +59,7 @@ export async function controllerRequest(
         | '/internal/v1/certificates'
         | `/internal/v1/certificates/${string}`
         | `/internal/v1/certificates/events${string}`
-        | '/internal/v1/trusted-cas/validate'
-        | '/internal/v1/dns/connections'
-        | `/internal/v1/dns/connections/${string}`,
+        | '/internal/v1/trusted-cas/validate',
     options: ControllerRequestOptions,
 ): Promise<unknown> {
     const baseUrl = getControllerBaseUrl()
@@ -77,16 +75,11 @@ export async function controllerRequest(
     const headers: Record<string, string> = { accept: 'application/json' }
     const isCertificateRequest =
         path === '/internal/v1/certificates' || path.startsWith('/internal/v1/certificates/')
-    const isDnsConnectionRequest =
-        path === '/internal/v1/dns/connections' || path.startsWith('/internal/v1/dns/connections/')
-    if (options.privileged || isCertificateRequest || isDnsConnectionRequest) {
+    if (options.privileged || isCertificateRequest) {
         const token = getControllerToken()
         if (
             token === null ||
-            (!token &&
-                (isCertificateRequest ||
-                    isDnsConnectionRequest ||
-                    !isLoopbackControllerUrl(baseUrl)))
+            (!token && (isCertificateRequest || !isLoopbackControllerUrl(baseUrl)))
         )
             return null
         if (token) headers.authorization = 'Bearer ' + token
@@ -122,10 +115,7 @@ export async function controllerRequest(
         if (response.ok) return payload
         if (options.acceptNonOkJson) return payload
 
-        const errorSchema = z.object({ error: z.string().max(64) })
-        const error = (isDnsConnectionRequest ? errorSchema.strict() : errorSchema).safeParse(
-            payload,
-        )
+        const error = z.object({ error: z.string().max(64) }).safeParse(payload)
         return error.success ? error.data : null
     } catch {
         console.warn('[controller] request unavailable', { path: safePath })

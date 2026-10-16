@@ -62,8 +62,7 @@
         "security": "Beveiligingsdashboard",
         "auditLogs": "Auditlogboek",
         "systemVersion": "Systeemversie {{version}}",
-        "updateAvailable": "Update naar versie {{version}} beschikbaar",
-        "dnsConnections": "DNS-verbindingen"
+        "updateAvailable": "Update naar versie {{version}} beschikbaar"
     },
     "quickSearch": {
         "title": "Snel zoeken",
@@ -2383,74 +2382,6 @@
             "downloadComplete": "Het downloaden van het ondersteuningsrapport is gestart.",
             "downloadPartial": "Het downloaden van het gedeeltelijke rapport is gestart. Niet-beschikbare onderdelen staan in het bestand aangegeven.",
             "downloadFailed": "Het rapport kon niet worden gedownload. Controleer je rechten en probeer het opnieuw."
-        },
-        "dnsConnections": {
-            "page": {
-                "eyebrow": "Beheer",
-                "title": "DNS-verbindingen",
-                "description": "Beheer herbruikbare Cloudflare-inloggegevens en toegestane zones van deze instantie. Bevoegde beheerders delen deze verbindingen."
-            },
-            "provider": "Cloudflare · Instantieverbinding",
-            "usage": "Verwijzingen van afnemers: {{count}}",
-            "actions": {
-                "add": "DNS-verbinding toevoegen",
-                "edit": "Verbinding bewerken",
-                "delete": "Verbinding verwijderen",
-                "test": "Leesrechten testen en zones laden",
-                "reload": "Verbindingen opnieuw laden",
-                "refreshDraft": "Concept weggooien en huidige verbindingen opnieuw laden"
-            },
-            "form": {
-                "description": "Sla een verbinding met naam en de toegestane Cloudflare-zones op.",
-                "name": "Naam van de verbinding",
-                "token": "Cloudflare API-token",
-                "tokenHint": "Het token wordt versleuteld opgeslagen en wordt nooit opnieuw getoond.",
-                "replaceHint": "Laat leeg om het opgeslagen token te behouden. Voer een nieuw token in om het te vervangen.",
-                "readOnlyHint": "De test leest alleen Cloudflare-zones. Toekomstige DNS-afnemers hebben Zone / DNS / Edit nodig; deze alleen-lezen test controleert die schrijfrechten niet. Bij het opslaan worden alle geselecteerde zones opnieuw gecontroleerd.",
-                "zones": "Geselecteerde zones: {{count}} / {{max}}",
-                "zonesHint": "Selecteer ten minste één zone. Eerder geselecteerde zones blijven zichtbaar na een test met een nieuw token; bij het opslaan wordt hun toegang opnieuw gecontroleerd.",
-                "noZones": "Test het token om toegankelijke zones te laden. Als er geen zones worden gevonden, controleer dan het zonebereik van het token.",
-                "zoneInUse": "Een afnemer gebruikt deze zone. Verwijder de verwijzing voordat je de zone deselecteert.",
-                "deleteInUse": "Verwijder alle verwijzingen van afnemers voordat je deze verbinding verwijdert."
-            },
-            "states": {
-                "loading": "Metadata van DNS-verbindingen laden…",
-                "error": "DNS-verbindingen niet beschikbaar",
-                "empty": "Nog geen DNS-verbindingen",
-                "emptyDescription": "Maak een Cloudflare-verbinding en selecteer de zones die toekomstige DNS-afnemers mogen gebruiken."
-            },
-            "confirm": {
-                "title": "DNS-verbinding verwijderen?",
-                "description": "“{{name}}” en het opgeslagen token verwijderen? Dit kan niet ongedaan worden gemaakt."
-            },
-            "validation": {
-                "zone": "Selecteer een geldige Cloudflare-zone.",
-                "token": "Voer een geldig Cloudflare API-token in.",
-                "name": "Voer een verbindingsnaam van 1–100 tekens zonder controletekens in.",
-                "zones": "Selecteer 1 tot en met 50 verschillende zones."
-            },
-            "messages": {
-                "saved": "DNS-verbinding opgeslagen.",
-                "tested": "Leesrechten voor zones gecontroleerd. DNS-schrijfrechten zijn niet gecontroleerd.",
-                "deleted": "DNS-verbinding verwijderd."
-            },
-            "errors": {
-                "invalid_input": "Controleer de verbindingsnaam, het token en de geselecteerde zones.",
-                "connection_not_found": "Deze verbinding bestaat niet meer. Laad de lijst opnieuw.",
-                "connection_conflict": "Deze verbinding is gewijzigd sinds je deze hebt geopend. Gooi het concept weg, laad de lijst opnieuw en open de verbinding opnieuw voordat je opslaat.",
-                "connection_in_use": "Deze verbinding of zone is in gebruik. Verwijder eerst de verwijzingen en laad daarna de lijst opnieuw.",
-                "connection_limit": "De verbindingslimiet van deze instantie is bereikt.",
-                "token_required": "Voer een Cloudflare API-token in.",
-                "zone_not_permitted": "Ten minste één geselecteerde zone is niet toegankelijk met dit token. Controleer het tokenbereik of wijzig de zoneselectie.",
-                "zone_limit": "Het token heeft toegang tot maximaal 500 zones; selecteer er maximaal 50.",
-                "provider_unauthorized": "Cloudflare heeft het token geweigerd. Controleer of het geldig is en leesrechten voor zones heeft.",
-                "provider_unavailable": "Cloudflare is tijdelijk niet beschikbaar. Probeer de leestoegang later opnieuw.",
-                "provider_rate_limited": "De limiet van Cloudflare of voor verbindingstests is bereikt. Wacht even en probeer het opnieuw.",
-                "store_unavailable": "De opslag voor verbindingen is niet beschikbaar. Probeer het later opnieuw.",
-                "credentials_unavailable": "Het opgeslagen token kan niet worden gelezen. Vervang het token of herstel de versleuteling van inloggegevens.",
-                "controller_unavailable": "De controller is niet beschikbaar. Herstel deze en laad de lijst opnieuw.",
-                "requestFailed": "Het verzoek is mislukt. Probeer het opnieuw of laad de huidige verbinding voordat je opnieuw opslaat."
-            }
         }
     },
     "permissions": {
@@ -2468,8 +2399,7 @@
             "crowdsec": "CrowdSec",
             "audit-logs": "Auditlogboek",
             "system": "Systeem",
-            "default_site": "Standaardsite",
-            "dns_connections": "DNS-verbindingen"
+            "default_site": "Standaardsite"
         },
         "app": {
             "access": "Toegang tot de applicatie"
@@ -2546,10 +2476,6 @@
         "default_site": {
             "view": "Instellingen van de standaardsite bekijken",
             "update": "Instellingen van de standaardsite bijwerken"
-        },
-        "dns_connections": {
-            "view": "DNS-verbindingen bekijken",
-            "manage": "DNS-verbindingen beheren"
         }
     },
     "systemRoles": {

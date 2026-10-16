@@ -98,5 +98,4 @@ export const AUDIT_CHANGED_FIELDS = [
     'trustedCa',
     'accessPolicy',
     'security',
-    'dnsConnections',
 ] as const

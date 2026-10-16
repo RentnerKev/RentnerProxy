@@ -9,7 +9,6 @@ mod access_logs;
 mod certificates;
 mod challenges;
 mod crowdsec;
-pub(super) mod dns_connections;
 mod health;
 mod proxy;
 

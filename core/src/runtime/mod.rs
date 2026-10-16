@@ -8,7 +8,6 @@ mod configuration;
 mod crowdsec;
 pub(crate) mod crowdsec_dashboard;
 mod dns;
-pub(crate) mod dns_connections;
 mod engine;
 mod lifecycle;
 pub(crate) mod renderer;
@@ -151,7 +150,6 @@ pub(crate) struct ProxyRuntime {
     stopping: AtomicBool,
     active_configuration: Mutex<Option<ValidatedProxyConfig>>,
     certificate_store: CertificateStore,
-    pub(crate) dns_connections: dns_connections::Store,
     trusted_ca_store: TrustedCaStore,
     access_log_snapshots: access_logs::SnapshotCache,
     renewal_task: Mutex<Option<JoinHandle<()>>>,
@@ -201,14 +199,12 @@ impl ProxyRuntime {
     ) -> Arc<Self> {
         let certificate_store = CertificateStore::new(settings.state_dir.clone());
         let trusted_ca_store = TrustedCaStore::new(settings.state_dir.clone());
-        let dns_connections = dns_connections::Store::new(settings.state_dir.clone());
         Arc::new(Self {
             #[cfg(test)]
             recovery_write_faults: std::sync::Mutex::new(std::collections::VecDeque::new()),
             settings,
             engine,
             certificate_store,
-            dns_connections,
             trusted_ca_store,
             access_log_snapshots: access_logs::SnapshotCache::new(),
             state: Mutex::new(RuntimeState {

@@ -81,8 +81,7 @@
         "security": "Painel de segurança",
         "auditLogs": "Registo de auditoria",
         "systemVersion": "Versão do sistema {{version}}",
-        "updateAvailable": "Atualização disponível para a versão {{version}}",
-        "dnsConnections": "Ligações DNS"
+        "updateAvailable": "Atualização disponível para a versão {{version}}"
     },
     "quickSearch": {
         "title": "Pesquisa rápida",
@@ -2428,74 +2427,6 @@
             "downloadComplete": "O descarregamento do relatório de suporte foi iniciado.",
             "downloadPartial": "O descarregamento do relatório parcial foi iniciado. As secções indisponíveis estão assinaladas no ficheiro.",
             "downloadFailed": "Não foi possível descarregar o relatório. Verifique as permissões e tente novamente."
-        },
-        "dnsConnections": {
-            "page": {
-                "eyebrow": "Administração",
-                "title": "Ligações DNS",
-                "description": "Gira credenciais Cloudflare reutilizáveis e as zonas permitidas desta instância. Os administradores autorizados partilham estas ligações."
-            },
-            "provider": "Cloudflare · Ligação da instância",
-            "usage": "Referências de consumidores: {{count}}",
-            "actions": {
-                "add": "Adicionar ligação DNS",
-                "edit": "Editar ligação",
-                "delete": "Eliminar ligação",
-                "test": "Testar o acesso de leitura e carregar zonas",
-                "reload": "Recarregar ligações",
-                "refreshDraft": "Descartar o rascunho e recarregar as ligações atuais"
-            },
-            "form": {
-                "description": "Guarde uma ligação com nome e as zonas Cloudflare que pode utilizar.",
-                "name": "Nome da ligação",
-                "token": "Token de API Cloudflare",
-                "tokenHint": "O token é guardado cifrado e não será apresentado novamente.",
-                "replaceHint": "Deixe em branco para manter o token guardado. Introduza um novo para o substituir.",
-                "readOnlyHint": "O teste apenas lê zonas Cloudflare. Os futuros serviços DNS necessitam da permissão Zone / DNS / Edit, que este teste só de leitura não verifica. Ao guardar, o acesso a todas as zonas selecionadas é novamente verificado.",
-                "zones": "Zonas selecionadas: {{count}} / {{max}}",
-                "zonesHint": "Selecione pelo menos uma zona. As zonas selecionadas anteriormente continuam visíveis depois de testar um novo token; ao guardar, o acesso volta a ser verificado.",
-                "noZones": "Teste o token para carregar as zonas acessíveis. Se não forem devolvidas zonas, verifique o âmbito de zonas do token.",
-                "zoneInUse": "Um serviço utiliza esta zona. Remova a respetiva referência antes de a desmarcar.",
-                "deleteInUse": "Remova todas as referências dos serviços antes de eliminar esta ligação."
-            },
-            "states": {
-                "loading": "A carregar metadados das ligações DNS…",
-                "error": "Ligações DNS indisponíveis",
-                "empty": "Ainda não existem ligações DNS",
-                "emptyDescription": "Crie uma ligação Cloudflare e selecione as zonas disponíveis para futuros serviços DNS."
-            },
-            "confirm": {
-                "title": "Eliminar ligação DNS?",
-                "description": "Eliminar “{{name}}” e o respetivo token guardado? Esta ação não pode ser anulada."
-            },
-            "validation": {
-                "zone": "Selecione uma zona Cloudflare válida.",
-                "token": "Introduza um token de API Cloudflare válido.",
-                "name": "Introduza um nome de ligação com 1–100 caracteres, sem caracteres de controlo.",
-                "zones": "Selecione entre 1 e 50 zonas distintas."
-            },
-            "messages": {
-                "saved": "Ligação DNS guardada.",
-                "tested": "O acesso de leitura às zonas foi verificado. O acesso de escrita DNS não foi verificado.",
-                "deleted": "Ligação DNS eliminada."
-            },
-            "errors": {
-                "invalid_input": "Verifique o nome da ligação, o token e as zonas selecionadas.",
-                "connection_not_found": "Esta ligação já não existe. Recarregue a lista.",
-                "connection_conflict": "A ligação foi alterada desde que a abriu. Descarte o rascunho, recarregue a lista e volte a abrir a ligação antes de guardar.",
-                "connection_in_use": "Esta ligação ou zona está a ser utilizada. Remova primeiro as referências e depois recarregue.",
-                "connection_limit": "Foi atingido o limite de ligações da instância.",
-                "token_required": "Introduza um token de API Cloudflare.",
-                "zone_not_permitted": "Pelo menos uma zona selecionada não está acessível com este token. Verifique o âmbito do token ou altere a seleção.",
-                "zone_limit": "O token pode aceder a um máximo de 500 zonas; selecione até 50.",
-                "provider_unauthorized": "A Cloudflare rejeitou o token. Verifique a validade e a permissão de leitura das zonas.",
-                "provider_unavailable": "A Cloudflare está temporariamente indisponível. Volte a testar a leitura mais tarde.",
-                "provider_rate_limited": "Foi atingido o limite da Cloudflare ou dos testes de ligação. Aguarde um pouco e tente novamente.",
-                "store_unavailable": "O armazenamento de ligações está indisponível. Tente novamente mais tarde.",
-                "credentials_unavailable": "Não é possível ler o token guardado. Substitua-o ou restaure a cifragem das credenciais.",
-                "controller_unavailable": "O controlador está indisponível. Restabeleça-o e recarregue a lista.",
-                "requestFailed": "O pedido falhou. Tente novamente ou recarregue a ligação atual antes de voltar a guardar."
-            }
         }
     },
     "permissions": {
@@ -2513,8 +2444,7 @@
             "crowdsec": "CrowdSec",
             "audit-logs": "Registo de auditoria",
             "system": "Sistema",
-            "default_site": "Site predefinido",
-            "dns_connections": "Ligações DNS"
+            "default_site": "Site predefinido"
         },
         "app": {
             "access": "Acesso à aplicação"
@@ -2591,10 +2521,6 @@
         "default_site": {
             "view": "Ver as definições do site predefinido",
             "update": "Atualizar as definições do site predefinido"
-        },
-        "dns_connections": {
-            "view": "Ver ligações DNS",
-            "manage": "Gerir ligações DNS"
         }
     },
     "systemRoles": {

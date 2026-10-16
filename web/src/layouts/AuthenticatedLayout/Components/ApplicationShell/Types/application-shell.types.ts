@@ -43,7 +43,6 @@ export interface ApplicationNavigationItem {
         | '/redirect-hosts'
         | '/certificates'
         | '/access-policies'
-        | '/dns-connections'
         | '/proxy-access-logs'
         | '/crowdsec'
         | '/security'
