@@ -1,7 +1,7 @@
 {
     "$schema": "https://unpkg.com/knip@6.41.0/schema.json",
     "entry": [
-        "scripts/{build,check,dev,test-web,production-backup,production-restore}.ts",
+        "scripts/{build,check,dev,dev-core,test-web,production-backup,production-restore}.ts",
         "scripts/assets/download-geoip.ts",
         "scripts/development/seed-crowdsec-dashboard-demo.ts",
         "scripts/smoke/proxy/{upstream,upstream-tls}.ts",

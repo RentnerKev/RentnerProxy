@@ -37,9 +37,11 @@ bun run dev
 The web app is available at `http://localhost:5173`. Keep `APP_ENCRYPTION_KEY` unchanged when
 restarting a development instance or restoring its data.
 
-Native Windows development supports the controller and UI with `RENTNERPROXY_CADDY_BIN` unset.
-Proxy operation requires Unix private Caddy admin sockets; use the Linux Docker development
-runtime on Windows.
+Native Windows development supports the controller and UI. `bun run dev` and `bun run dev:core`
+ignore `RENTNERPROXY_CADDY_BIN` on Windows and warn when it is configured, so an existing local
+environment does not prevent startup. Proxy operation requires Unix private Caddy admin sockets;
+use the Linux Docker development runtime on Windows. Unix development retains the configured
+Caddy runtime.
 
 ## Development workflow
 

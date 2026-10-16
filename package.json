@@ -6,7 +6,7 @@
     "scripts": {
         "dev": "bun --no-orphans scripts/dev.ts",
         "dev:web": "bun --bun vite --configLoader native --config vite.config.ts",
-        "dev:core": "cargo run --manifest-path core/Cargo.toml",
+        "dev:core": "bun --no-orphans scripts/dev-core.ts",
         "proxy:test-upstream": "bun scripts/smoke/proxy/upstream.ts",
         "proxy:smoke": "bun --no-orphans .github/scripts/ci/proxy-smoke.ts",
         "certificates:smoke": "bun --no-orphans scripts/smoke/certificates/run.ts",

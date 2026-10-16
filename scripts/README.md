@@ -3,18 +3,18 @@
 Run commands from the repository root. `package.json` is the public entrypoint;
 script directories group implementations by their owner.
 
-| Area                                                 | Purpose                                                                                |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Root `dev.ts`, `build.ts`, `check.ts`, `test-web.ts` | Development, build and verification orchestration                                      |
-| Root `production-backup.ts`, `production-restore.ts` | Documented backup and restore commands                                                 |
-| `backup/`                                            | Backup format validation and controller archive rules                                  |
-| `development/`                                       | Vite live transport and optional local CrowdSec demo seeder                            |
-| `assets/`                                            | GeoIP download and branded raster accent masks                                         |
-| `lib/`                                               | Logging and command orchestration                                                      |
-| `smoke/`                                             | Shared certificates, proxy, HTTP/3, process, polling, images and scoped Docker helpers |
-| `runtime-reliability/`, `runtime-scale/`             | Independently runnable, bounded runtime verification                                   |
-| `compatibility/`                                     | Immutable release identities for runtime and release compatibility checks              |
-| `../.github/scripts/ci/`                             | CI-only appliance runners, recovery fixtures and release compatibility matrix          |
+| Area                                                                | Purpose                                                                                |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Root `dev.ts`, `dev-core.ts`, `build.ts`, `check.ts`, `test-web.ts` | Development, build and verification orchestration                                      |
+| Root `production-backup.ts`, `production-restore.ts`                | Documented backup and restore commands                                                 |
+| `backup/`                                                           | Backup format validation and controller archive rules                                  |
+| `development/`                                                      | Vite live transport and optional local CrowdSec demo seeder                            |
+| `assets/`                                                           | GeoIP download and branded raster accent masks                                         |
+| `lib/`                                                              | Logging and command orchestration                                                      |
+| `smoke/`                                                            | Shared certificates, proxy, HTTP/3, process, polling, images and scoped Docker helpers |
+| `runtime-reliability/`, `runtime-scale/`                            | Independently runnable, bounded runtime verification                                   |
+| `compatibility/`                                                    | Immutable release identities for runtime and release compatibility checks              |
+| `../.github/scripts/ci/`                                            | CI-only appliance runners, recovery fixtures and release compatibility matrix          |
 
 Useful commands include `bun run dev`, `bun run build`, `bun run test:ts`,
 `bun run certificates:smoke` and `bun run upstream-tls:smoke`. See
