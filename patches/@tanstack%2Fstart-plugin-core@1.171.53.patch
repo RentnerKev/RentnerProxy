@@ -1,0 +1,28 @@
+diff --git a/dist/esm/vite/start-compiler-plugin/plugin.js b/dist/esm/vite/start-compiler-plugin/plugin.js
+index c745e692dfca27a5a207ab76caf5d87deef1112a..5ce3b79ece06a60c80dbd3eb1a38a6dde2c25afb 100644
+--- a/dist/esm/vite/start-compiler-plugin/plugin.js
++++ b/dist/esm/vite/start-compiler-plugin/plugin.js
+@@ -297,7 +297,7 @@ function startCompilerPlugin(opts) {
+ 							if (sourceFile) {
+ 								const absPath = resolve(root, sourceFile);
+ 								if (this.environment.mode !== "dev") this.error(`could not validate server function ID ${fnId}: unknown environment mode ${this.environment.mode}`);
+-								await this.environment.transformRequest(`${absPath}?${SERVER_FN_LOOKUP}`);
++								await this.environment.transformRequest(absPath);
+ 								if (serverFnsById[fnId]) return `export {}`;
+ 							}
+ 						}
+diff --git a/src/vite/start-compiler-plugin/plugin.ts b/src/vite/start-compiler-plugin/plugin.ts
+index 3a93e286d1156055ee5bd79866e1085ec30be92d..1667ef3c3ab9cc16f8f80c0fa2f7c40df06cb6d5 100644
+--- a/src/vite/start-compiler-plugin/plugin.ts
++++ b/src/vite/start-compiler-plugin/plugin.ts
+@@ -628,9 +628,7 @@ export function startCompilerPlugin(
+                     )
+                   }
+ 
+-                  await this.environment.transformRequest(
+-                    `${absPath}?${SERVER_FN_LOOKUP}`,
+-                  )
++                  await this.environment.transformRequest(absPath)
+ 
+                   // Re-check after lazy compilation
+                   if (serverFnsById[fnId]) {

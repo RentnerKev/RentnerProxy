@@ -2,6 +2,8 @@
 
 !package.json
 !bun.lock
+!patches/
+!patches/**
 !vite.config.ts
 !tsconfig.json
 !tsconfig.scripts.json

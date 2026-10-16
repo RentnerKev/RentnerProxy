@@ -65,6 +65,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "@tanstack/start-plugin-core@1.171.53": "patches/@tanstack%2Fstart-plugin-core@1.171.53.patch",
+  },
   "overrides": {
     "@esbuild-kit/core-utils": {
       "esbuild": "0.28.2",
