@@ -34,7 +34,7 @@ function DomainChip({ domain }: { readonly domain: string }) {
     )
 }
 
-export function ProxyHostDomainsCell({ domains }: ProxyHostDomainsCellProps) {
+export function ProxyHostDomainsCell({ domains, discovery }: ProxyHostDomainsCellProps) {
     const { t } = useTranslationStore()
     const visibleDomains = domains.slice(0, 2)
     const extraDomains = domains.slice(2)
@@ -44,15 +44,29 @@ export function ProxyHostDomainsCell({ domains }: ProxyHostDomainsCellProps) {
     }
 
     return (
-        <div className="flex flex-wrap gap-[0.45rem]">
-            {visibleDomains.map((domain) => (
-                <DomainChip domain={domain} key={domain} />
-            ))}
-            {extraDomains.length > 0 ? (
-                <ManagedDomainOverflow
-                    ariaLabel={t('common.moreDomains', { count: extraDomains.length })}
-                    domains={extraDomains}
-                />
+        <div className="grid gap-2">
+            <div className="flex flex-wrap gap-[0.45rem]">
+                {visibleDomains.map((domain) => (
+                    <DomainChip domain={domain} key={domain} />
+                ))}
+                {extraDomains.length > 0 ? (
+                    <ManagedDomainOverflow
+                        ariaLabel={t('common.moreDomains', { count: extraDomains.length })}
+                        domains={extraDomains}
+                    />
+                ) : null}
+            </div>
+            {discovery ? (
+                <span
+                    className="text-xs font-bold text-muted"
+                    title={t('admin.dockerDiscovery.details.managedHint')}
+                >
+                    {t(
+                        discovery.state === 'orphaned'
+                            ? 'admin.dockerDiscovery.host.orphaned'
+                            : 'admin.dockerDiscovery.host.managed',
+                    )}
+                </span>
             ) : null}
         </div>
     )

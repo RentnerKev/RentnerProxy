@@ -3,3 +3,4 @@ export type ProxyHostDomainErrorCode =
     | 'proxy_host_not_found'
     | 'invalid_status_transition'
     | 'invalid_input'
+    | 'discovery_managed'

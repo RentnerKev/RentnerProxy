@@ -82,7 +82,7 @@ describe('language boundaries', () => {
             await Bun.sleep(0)
             console.log(loads)
         `
-        const child = Bun.spawn([process.execPath, '-e', script], {
+        const child = Bun.spawn([process.execPath, '--no-env-file', '-e', script], {
             cwd: sourceRoot,
             stdout: 'pipe',
             stderr: 'pipe',

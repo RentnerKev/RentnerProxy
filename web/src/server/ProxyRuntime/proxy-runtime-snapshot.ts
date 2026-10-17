@@ -45,6 +45,12 @@ import { createTrustedCaInputSchema } from '@/features/Admin/TrustedCaManagement
 import { forwardAuthRuntimeSchema } from '@/lib/ForwardAuth/forwardAuth.ts'
 
 export const MAX_RUNTIME_PROXY_HOSTS = 1_000
+export class ProxyRuntimeSnapshotError extends Error {
+    constructor(message: string) {
+        super(message)
+        this.name = 'ProxyRuntimeSnapshotError'
+    }
+}
 const MAX_RUNTIME_DOMAINS = 50_000
 export const MAX_RUNTIME_PAYLOAD_BYTES = 16 * 1_024 * 1_024
 export const PROXY_RUNTIME_REVISION_PATTERN = /^sha256:[a-f0-9]{64}$/u
@@ -219,7 +225,7 @@ export function createProxyRuntimeSnapshot(
     const enabledRedirects = redirects.filter((host) => host.enabled)
 
     if (enabledHosts.length + enabledRedirects.length > MAX_RUNTIME_PROXY_HOSTS) {
-        throw new Error('Proxy runtime host limit exceeded.')
+        throw new ProxyRuntimeSnapshotError('Proxy runtime host limit exceeded.')
     }
 
     const ids = new Set<string>()
@@ -258,20 +264,24 @@ export function createProxyRuntimeSnapshot(
                 const configuration = JSON.stringify(normalizedAccessPolicy)
                 const existing = accessPolicies.get(normalizedAccessPolicy.id)
                 if (existing !== undefined && existing !== configuration) {
-                    throw new Error('Proxy runtime snapshot contains inconsistent access policies.')
+                    throw new ProxyRuntimeSnapshotError(
+                        'Proxy runtime snapshot contains inconsistent access policies.',
+                    )
                 }
                 accessPolicies.set(normalizedAccessPolicy.id, configuration)
             }
 
             if (ids.has(id) || host.domains.some((domain) => domains.has(domain))) {
-                throw new Error('Proxy runtime snapshot contains duplicate hosts or domains.')
+                throw new ProxyRuntimeSnapshotError(
+                    'Proxy runtime snapshot contains duplicate hosts or domains.',
+                )
             }
 
             ids.add(id)
             for (const domain of host.domains) domains.add(domain)
             totalDomains += host.domains.length
             if (totalDomains > MAX_RUNTIME_DOMAINS) {
-                throw new Error('Proxy runtime domain limit exceeded.')
+                throw new ProxyRuntimeSnapshotError('Proxy runtime domain limit exceeded.')
             }
 
             const hostSettings = normalizeProxyHttpSettings(host.httpSettings ?? {})
@@ -309,17 +319,21 @@ export function createProxyRuntimeSnapshot(
             )
 
             if (destination === null || destination !== host.destination) {
-                throw new Error('Proxy runtime snapshot contains an invalid redirect destination.')
+                throw new ProxyRuntimeSnapshotError(
+                    'Proxy runtime snapshot contains an invalid redirect destination.',
+                )
             }
             if (ids.has(id) || host.domains.some((domain) => domains.has(domain))) {
-                throw new Error('Proxy runtime snapshot contains duplicate hosts or domains.')
+                throw new ProxyRuntimeSnapshotError(
+                    'Proxy runtime snapshot contains duplicate hosts or domains.',
+                )
             }
 
             ids.add(id)
             for (const domain of host.domains) domains.add(domain)
             totalDomains += host.domains.length
             if (totalDomains > MAX_RUNTIME_DOMAINS) {
-                throw new Error('Proxy runtime domain limit exceeded.')
+                throw new ProxyRuntimeSnapshotError('Proxy runtime domain limit exceeded.')
             }
 
             return Object.assign(
@@ -343,12 +357,13 @@ export function createProxyRuntimeSnapshot(
     const availableCas = new Map<string, ProxyRuntimeTrustedCa>()
     for (const ca of trustedCas) {
         const id = z.uuidv7().parse(ca.id).toLowerCase()
-        if (availableCas.has(id)) throw new Error('Duplicate trusted CA identity.')
+        if (availableCas.has(id))
+            throw new ProxyRuntimeSnapshotError('Duplicate trusted CA identity.')
         availableCas.set(id, ca)
     }
     const referencedCas = [...referencedCaIds].toSorted(compareAscii).map((id) => {
         const ca = availableCas.get(id)
-        if (!ca) throw new Error('Referenced trusted CA is missing.')
+        if (!ca) throw new ProxyRuntimeSnapshotError('Referenced trusted CA is missing.')
         const parsed = runtimeTrustedCaSchema.parse(ca)
 
         return { id, pem: parsed.pem, fingerprintSha256: parsed.fingerprintSha256 }
@@ -367,7 +382,7 @@ export function createProxyRuntimeSnapshot(
     const canonical = JSON.stringify(snapshot)
 
     if (Buffer.byteLength(canonical) + 100 > MAX_RUNTIME_PAYLOAD_BYTES) {
-        throw new Error('Proxy runtime snapshot is too large.')
+        throw new ProxyRuntimeSnapshotError('Proxy runtime snapshot is too large.')
     }
 
     const revision = 'sha256:' + new Bun.CryptoHasher('sha256').update(canonical).digest('hex')

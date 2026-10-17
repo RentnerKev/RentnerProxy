@@ -85,7 +85,8 @@
         "systemVersion": "System version {{version}}",
         "updateAvailable": "Update available to version {{version}}",
         "dnsConnections": "DNS connections",
-        "ddns": "DDNS"
+        "ddns": "DDNS",
+        "dockerDiscovery": "Docker Discovery"
     },
     "quickSearch": {
         "title": "Quick search",
@@ -1263,7 +1264,8 @@
                 "domain_conflict": "This domain is already assigned to another proxy host.",
                 "proxy_host_not_found": "The proxy host no longer exists.",
                 "invalid_status_transition": "The proxy host is already in that state. Refresh the list and try again.",
-                "invalid_input": "Review the proxy host values and try again."
+                "invalid_input": "Review the proxy host values and try again.",
+                "discovery_managed": "This host is managed by Docker labels. Detach it from Docker Discovery before editing or deleting it."
             },
             "validation": {
                 "domain": "Enter a valid DNS name without a URL, IP address or wildcard.",
@@ -2406,6 +2408,173 @@
             "downloadPartial": "Partial report download started. Unavailable sections are marked in the file.",
             "downloadFailed": "The report could not be downloaded. Check your permissions and try again."
         },
+        "dockerDiscovery": {
+            "errors": {
+                "invalid_input": "Enter a valid Docker discovery configuration.",
+                "conflict": "The source changed. Review the current candidates and try again.",
+                "store_unavailable": "Docker discovery storage is unavailable.",
+                "endpoint_unavailable": "The Docker endpoint is unavailable. Check its address and read permissions.",
+                "invalid_response": "The Docker endpoint returned an invalid or oversized response.",
+                "inventory_too_large": "The Docker inventory exceeds the discovery limit.",
+                "stopping": "Docker discovery is shutting down.",
+                "controller_unavailable": "The discovery controller is unavailable.",
+                "requestFailed": "Docker discovery could not complete the request.",
+                "copyFailed": "Copy failed. Select and copy the example manually."
+            },
+            "page": {
+                "eyebrow": "Networking",
+                "description": "Discover labeled containers and keep their proxy hosts synchronized.",
+                "title": "Docker Discovery"
+            },
+            "actions": {
+                "guide": "Compose example",
+                "connection": "Connection",
+                "enable": "Enable synchronization",
+                "disable": "Pause synchronization",
+                "retry": "Retry synchronization",
+                "detach": "Detach from discovery",
+                "disconnect": "Disable connection",
+                "details": "Source details",
+                "copy": "Copy example"
+            },
+            "runtime": {
+                "title": "Docker connection",
+                "notConfigured": "No endpoint configured",
+                "preview": "Review the candidates below before enabling automatic host synchronization.",
+                "active": "Automatic synchronization is enabled. Valid Docker labels manage these hosts.",
+                "restorePaused": "Restored connection paused. Open Connection and explicitly acknowledge resuming discovery."
+            },
+            "connector": {
+                "disabled": "Disconnected",
+                "paused": "Restore paused",
+                "connecting": "Connecting",
+                "ready": "Connected",
+                "unavailable": "Unavailable"
+            },
+            "applied": {
+                "idle": "Waiting for eligible sources.",
+                "pending": "Proxy configuration saved; runtime application is pending.",
+                "applied": "The last saved proxy configuration is applied."
+            },
+            "connection": {
+                "title": "Configure Docker connection",
+                "description": "Test the read-only endpoint first. Saving pauses host synchronization so you can review its candidates.",
+                "endpoint": "Docker API endpoint",
+                "endpointHint": "HTTP(S) base address of a restricted socket proxy; no credentials or URL path.",
+                "test": "Test connection",
+                "save": "Save and review candidates",
+                "acknowledgeRestore": "Resume reading this restored connection",
+                "endpointPlaceholder": "http://docker-api:2375"
+            },
+            "messages": {
+                "connected": "Connection saved. Review the candidates before enabling synchronization.",
+                "enabled": "Automatic host synchronization enabled.",
+                "disabled": "Synchronization paused. Saved hosts are retained.",
+                "disconnected": "Connection disabled. Saved hosts are retained.",
+                "detached": "Host detached. It can now be managed manually.",
+                "retrying": "Rescan and synchronization requested.",
+                "changed": "The source changed. Review the current candidates and try again.",
+                "testRequired": "Test the current endpoint and acknowledge a restored connection before saving.",
+                "tested": "Connection verified; {{count}} labeled containers found.",
+                "copied": "Copied"
+            },
+            "confirm": {
+                "enableTitle": "Enable automatic synchronization?",
+                "enableDescription": "{{create}} hosts will be created and {{update}} updated. Future valid label changes synchronize automatically; existing manual hosts stay protected.",
+                "detachTitle": "Detach this host?",
+                "detachDescription": "{{name}} keeps its configuration and certificate. It becomes manually editable, and this source will not recreate or update it."
+            },
+            "table": {
+                "title": "{{count}} Docker sources",
+                "source": "Source",
+                "search": "Search Docker sources",
+                "searchPlaceholder": "Source, domain or destination…",
+                "emptyTitle": "No Docker sources yet",
+                "emptyDescription": "Connect a restricted Docker endpoint and opt in containers with rentnerproxy.enable=true.",
+                "filteredTitle": "No matching sources",
+                "filteredDescription": "Change the search or column filters.",
+                "itemLabel": "sources",
+                "savedTarget": "Saved host retained",
+                "moreIssues": "(+{{count}} more)",
+                "actionsFor": "Actions for {{name}}",
+                "eyebrow": "Networking",
+                "domains": "Domains",
+                "target": "Forward target",
+                "status": "Status",
+                "actions": "Actions"
+            },
+            "states": {
+                "create": "Will create host",
+                "update": "Will update host",
+                "current": "Synchronized",
+                "stopped": "Container stopped",
+                "orphaned": "Orphaned source",
+                "conflicted": "Needs attention",
+                "unavailable": "Source unavailable",
+                "detached": "Manually managed"
+            },
+            "details": {
+                "container": "Container ID",
+                "tlsName": "Upstream TLS identity",
+                "managedHint": "Docker labels own domains, targets, certificate/policy assignments and upstream TLS settings. Detach before editing these fields. You can still toggle the host or change its advanced HTTP settings.",
+                "certificate": "Certificates",
+                "accessPolicy": "Access policies"
+            },
+            "host": {
+                "managed": "Managed by Docker labels",
+                "orphaned": "Docker source orphaned"
+            },
+            "guide": {
+                "title": "Docker Discovery · quick start",
+                "description": "Choose an example. Save, start, connect.",
+                "appliance": "Docker appliance",
+                "native": "Local development",
+                "environment": "Environment",
+                "applianceHint": "Add to the existing stack; the Docker API stays private.",
+                "nativeHint": "Docker Desktop: Linux engine. Native Windows: UI/controller only; proxy traffic needs Linux Docker.",
+                "saveStep": "1. Save the example",
+                "fileHint": "In the project folder, beside docker-compose.yml.",
+                "startStep": "2. Start the containers",
+                "connectStep": "3. Connect in RentnerProxy",
+                "connectHint": "Connection → test → save → enable synchronization.",
+                "copyCommand": "Copy start command",
+                "copyEndpoint": "Copy endpoint",
+                "options": "Optional labels & behavior",
+                "references": "Use HTTPS labels for an HTTPS backend. Replace placeholders with existing certificate/policy IDs.",
+                "identity": "Keep rentnerproxy.id unique and stable across recreations.",
+                "lifecycle": "Stopped, removed or offline: hosts stay. Detach: manual control.",
+                "limits": "One Engine; standalone/Compose. No Swarm, Kubernetes or replica balancing.",
+                "copyFile": "Copy Compose file",
+                "composeFile": "Full Compose file"
+            },
+            "issues": {
+                "unsupported_label": "Remove unsupported rentnerproxy labels.",
+                "invalid_source": "Set a valid stable rentnerproxy.id.",
+                "source_conflict": "Several containers claim the same source. Use unique source IDs.",
+                "missing_port": "Set an explicit container TCP port.",
+                "ambiguous_network": "Select one attached network with rentnerproxy.network.",
+                "missing_address": "The selected network has no usable container address.",
+                "unsupported_network_mode": "Host and shared network namespaces are not supported.",
+                "reference_invalid": "Check the existing certificate and access-policy references.",
+                "invalid_upstream_tls_name": "HTTPS targets require a valid rentnerproxy.upstream-tls-server-name.",
+                "unsupported_orchestrator": "Swarm and Kubernetes sources are not supported.",
+                "host_missing": "The previously managed host no longer exists.",
+                "owner_limit": "The discovery ownership limit was reached.",
+                "authorization_required": "The activating user’s permissions changed. Review and enable again.",
+                "reconcile_failed": "Synchronization failed. Check the source and proxy runtime.",
+                "invalid_domains": "Enter a valid DNS name without a URL, IP address or wildcard.",
+                "invalid_input": "Enter a valid Docker discovery configuration.",
+                "ambiguous_port": "Set an explicit container TCP port.",
+                "invalid_port": "Enter a whole-number port from 1 to 65535.",
+                "invalid_protocol": "Set rentnerproxy.protocol to http or https.",
+                "missing_network": "Select one attached network with rentnerproxy.network.",
+                "invalid_network": "Select one attached network with rentnerproxy.network.",
+                "invalid_certificate_reference": "Check the existing certificate and access-policy references.",
+                "invalid_access_policy_reference": "Check the existing certificate and access-policy references.",
+                "container_not_running": "Container stopped",
+                "domain_conflict": "This domain is already assigned to another proxy host."
+            }
+        },
         "dnsConnections": {
             "page": {
                 "eyebrow": "Administration",
@@ -2732,7 +2901,8 @@
             "system": "System",
             "default_site": "Default site",
             "dns_connections": "DNS connections",
-            "ddns": "Dynamic DNS"
+            "ddns": "Dynamic DNS",
+            "docker_discovery": "Docker discovery"
         },
         "app": {
             "access": "Application access"
@@ -2813,6 +2983,10 @@
         "dns_connections": {
             "view": "View DNS connections",
             "manage": "Manage DNS connections"
+        },
+        "docker_discovery": {
+            "view": "View Docker discovery connection and candidates",
+            "manage": "Manage Docker discovery connection"
         },
         "ddns": {
             "view": "View DDNS status",

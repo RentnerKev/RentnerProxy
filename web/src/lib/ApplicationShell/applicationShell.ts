@@ -34,6 +34,10 @@ export default function getApplicationShellViewModel(
         ...(permissionSet.has(PERMISSIONS.DDNS_VIEW)
             ? ([{ to: '/ddns', label: t('shell.ddns') }] as const)
             : []),
+        ...(permissionSet.has(PERMISSIONS.DOCKER_DISCOVERY_VIEW) &&
+        permissionSet.has(PERMISSIONS.PROXY_HOSTS_VIEW)
+            ? ([{ to: '/docker-discovery', label: t('shell.dockerDiscovery') }] as const)
+            : []),
         ...(permissionSet.has(PERMISSIONS.CROWDSEC_VIEW)
             ? ([
                   { to: '/security', label: t('shell.security') },

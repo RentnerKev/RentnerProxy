@@ -13,6 +13,7 @@ export const LIVE_TOPICS = [
     'access-policies',
     'dns-connections',
     'ddns',
+    'docker-discovery',
 ] as const
 
 export const LIVE_INTERVALS: Readonly<Record<LiveTopic, number>> = {
@@ -26,6 +27,7 @@ export const LIVE_INTERVALS: Readonly<Record<LiveTopic, number>> = {
     'access-policies': 15_000,
     'dns-connections': 2_000,
     ddns: 2_000,
+    'docker-discovery': 2_000,
 }
 
 export const LIVE_MAX_CONNECTIONS = 100

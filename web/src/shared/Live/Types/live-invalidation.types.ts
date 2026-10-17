@@ -7,6 +7,7 @@ type LiveInvalidationTopic =
     | 'access-policies'
     | 'dns-connections'
     | 'ddns'
+    | 'docker-discovery'
 
 export interface LiveRevisionSnapshot {
     readonly revision: string

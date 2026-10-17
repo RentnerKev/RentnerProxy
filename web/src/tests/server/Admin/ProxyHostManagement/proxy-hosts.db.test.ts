@@ -66,6 +66,24 @@ import {
 } from '@/server/Admin/ProxyHostManagement/proxy-hosts.errors.ts'
 import { RedirectHostDomainError } from '@/server/Admin/RedirectHostManagement/redirect-hosts.errors.ts'
 import { getDatabaseUrl } from '@/server/env.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
+import {
+    discoveryCandidate,
+    discoveryRegistry,
+    discoverySnapshot,
+} from '@/tests/Helpers/discoveryFixture.ts'
+import { discoveryEndpointHash } from '@/server/Admin/DockerDiscovery/discovery-plan.ts'
+import { MAX_RUNTIME_PROXY_HOSTS } from '@/server/ProxyRuntime/proxy-runtime-snapshot.ts'
+import { reconcileDiscoveryInTransaction } from '@/server/Admin/DockerDiscovery/discovery-reconcile.server.ts'
+import {
+    assertDiscoveryHostEditable,
+    readDiscoveryRegistry,
+    writeDiscoveryRegistry,
+} from '@/server/Admin/DockerDiscovery/discovery-storage.server.ts'
+import {
+    createProxyHostInTransaction,
+    updateProxyHostInTransaction,
+} from '@/server/Admin/ProxyHostManagement/proxy-hosts.mutations.server.ts'
 import type { CreateProxyHostInput } from '@/features/Admin/ProxyHostManagement/Types/validation.types.ts'
 import type { CreateRedirectHostInput } from '@/features/Admin/RedirectHostManagement/Types/validation.types.ts'
 import type { ProxyHttpSettings } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
@@ -529,6 +547,248 @@ afterEach(async () => {
         if (originalValue === undefined) delete process.env[variable]
         else process.env[variable] = originalValue
     }
+})
+
+async function rollbackDiscoveryFixture(
+    operation: (transaction: AuthTransaction) => Promise<void>,
+): Promise<void> {
+    const rollback = new Error('isolated discovery fixture rollback')
+    try {
+        await getAuthDatabase().transaction(async (transaction) => {
+            await lockProxyRuntimeSettings(transaction)
+            await operation(transaction)
+            throw rollback
+        })
+    } catch (error) {
+        if (error !== rollback) throw error
+    }
+}
+
+describe('Docker discovery ownership with PostgreSQL', () => {
+    integrationTest(
+        'rejects a candidate that would exceed combined runtime capacity before saving its host',
+        async () => {
+            const actor = await createTestUser([SYSTEM_ROLES.OWNER])
+            await rollbackDiscoveryFixture(async (transaction) => {
+                const ids = Array.from({ length: MAX_RUNTIME_PROXY_HOSTS }, () =>
+                    Bun.randomUUIDv7(),
+                )
+                await transaction.insert(proxyHosts).values(
+                    ids.map((id) => ({
+                        id,
+                        enabled: true,
+                        forwardHost: 'capacity' + TEST_DOMAIN_SUFFIX,
+                        forwardScheme: 'http' as const,
+                        forwardPort: 8080,
+                    })),
+                )
+                await transaction.insert(hostDomains).values(
+                    ids.map((id, index) => ({
+                        proxyHostId: id,
+                        domain: `capacity-${index}${TEST_DOMAIN_SUFFIX}`,
+                    })),
+                )
+                const snapshot = discoverySnapshot([
+                    discoveryCandidate({ domains: [testDomain('over-capacity')] }),
+                ])
+                const registry = discoveryRegistry({
+                    enabled: true,
+                    actorUserId: actor.id,
+                    connectorRevision: 1,
+                    endpointHash: discoveryEndpointHash('http://docker-proxy:2375'),
+                })
+                await writeDiscoveryRegistry(transaction, registry)
+                expect(await reconcileDiscoveryInTransaction(transaction, registry, snapshot)).toBe(
+                    false,
+                )
+                expect(registry.owners).toHaveLength(0)
+                expect(registry.results[0]?.error).toBe('reconcile_failed')
+                expect(
+                    await transaction.select({ id: proxyHosts.id }).from(proxyHosts),
+                ).toHaveLength(MAX_RUNTIME_PROXY_HOSTS)
+            })
+        },
+    )
+    integrationTest(
+        'creates once, reconciles recreation, retains stopped/orphaned hosts and respects explicit detachment',
+        async () => {
+            const actor = await createTestUser([SYSTEM_ROLES.OWNER])
+            await rollbackDiscoveryFixture(async (transaction) => {
+                const candidate = discoveryCandidate({ domains: [testDomain('discovered')] })
+                const snapshot = discoverySnapshot([candidate])
+                const registry = discoveryRegistry({
+                    enabled: true,
+                    actorUserId: actor.id,
+                    connectorRevision: 1,
+                    endpointHash: discoveryEndpointHash('http://docker-proxy:2375'),
+                })
+                await writeDiscoveryRegistry(transaction, registry)
+                expect(await reconcileDiscoveryInTransaction(transaction, registry, snapshot)).toBe(
+                    true,
+                )
+                const owner = requireFirstRow(
+                    registry.owners,
+                    'Discovery owner is persisted with its host.',
+                )
+                const hostId = owner.hostId
+                expect((await readDiscoveryRegistry(transaction)).owners[0]?.hostId).toBe(hostId)
+                const revision = registry.revision
+                expect(await reconcileDiscoveryInTransaction(transaction, registry, snapshot)).toBe(
+                    false,
+                )
+                expect(registry.revision).toBe(revision)
+                candidate.containerId = 'b'.repeat(64)
+                candidate.target = {
+                    scheme: 'http',
+                    address: '172.22.0.9',
+                    port: 8080,
+                    network: 'proxy',
+                }
+                expect(await reconcileDiscoveryInTransaction(transaction, registry, snapshot)).toBe(
+                    true,
+                )
+                expect(registry.owners).toHaveLength(1)
+                expect(registry.owners[0]?.hostId).toBe(hostId)
+                const [recreated] = await transaction
+                    .select()
+                    .from(proxyHosts)
+                    .where(eq(proxyHosts.id, hostId))
+                expect(recreated?.forwardHost).toBe('172.22.0.9')
+                candidate.issues = ['container_not_running']
+                expect(await reconcileDiscoveryInTransaction(transaction, registry, snapshot)).toBe(
+                    false,
+                )
+                snapshot.stale = true
+                snapshot.status = 'unavailable'
+                snapshot.candidates = []
+                expect(await reconcileDiscoveryInTransaction(transaction, registry, snapshot)).toBe(
+                    false,
+                )
+                expect(owner.state).toBe('managed')
+                snapshot.stale = false
+                snapshot.status = 'ready'
+                expect(await reconcileDiscoveryInTransaction(transaction, registry, snapshot)).toBe(
+                    false,
+                )
+                expect(owner.state).toBe('orphaned')
+                const [orphan] = await transaction
+                    .select()
+                    .from(proxyHosts)
+                    .where(eq(proxyHosts.id, hostId))
+                expect(orphan?.enabled).toBe(true)
+                await expect(
+                    assertDiscoveryHostEditable(transaction, hostId),
+                ).rejects.toHaveProperty('code', 'discovery_managed')
+                owner.state = 'detached'
+                await writeDiscoveryRegistry(transaction, registry)
+                const manual = await updateProxyHostInTransaction(transaction, actor.id, {
+                    ...proxyHostInput('detached'),
+                    proxyHostId: hostId,
+                })
+                candidate.issues = []
+                snapshot.candidates = [candidate]
+                expect(await reconcileDiscoveryInTransaction(transaction, registry, snapshot)).toBe(
+                    false,
+                )
+                const [afterDetach] = await transaction
+                    .select()
+                    .from(proxyHosts)
+                    .where(eq(proxyHosts.id, hostId))
+                expect(afterDetach?.forwardHost).toBe(manual.forwardHost)
+            })
+        },
+    )
+    integrationTest(
+        'rejects manual conflicts, invalid references, endpoint replacements and revoked delegation without altering manual hosts',
+        async () => {
+            const actor = await createTestUser([SYSTEM_ROLES.OWNER])
+            const viewer = await createTestUser([SYSTEM_ROLES.VIEWER])
+            await rollbackDiscoveryFixture(async (transaction) => {
+                const manual = await createProxyHostInTransaction(
+                    transaction,
+                    actor.id,
+                    proxyHostInput('manual-discovery-conflict'),
+                )
+                const snapshot = discoverySnapshot([
+                    discoveryCandidate({ domains: manual.domains }),
+                    discoveryCandidate({
+                        containerId: 'b'.repeat(64),
+                        sourceId: 'name:invalid-ref',
+                        domains: [testDomain('invalid-ref')],
+                        certificateId: '0198d98a-0000-7000-8000-000000000099',
+                    }),
+                    discoveryCandidate({
+                        containerId: 'c'.repeat(64),
+                        sourceId: 'name:valid',
+                        domains: [testDomain('eligible')],
+                    }),
+                ])
+                const registry = discoveryRegistry({
+                    enabled: true,
+                    actorUserId: actor.id,
+                    connectorRevision: 1,
+                    endpointHash: discoveryEndpointHash('http://docker-proxy:2375'),
+                })
+                await writeDiscoveryRegistry(transaction, registry)
+                expect(await reconcileDiscoveryInTransaction(transaction, registry, snapshot)).toBe(
+                    true,
+                )
+                expect(registry.owners).toHaveLength(1)
+                expect(registry.owners[0]?.sourceId).toBe('name:valid')
+                const [retained] = await transaction
+                    .select()
+                    .from(proxyHosts)
+                    .where(eq(proxyHosts.id, manual.id))
+                expect(retained?.forwardHost).toBe(manual.forwardHost)
+                snapshot.configuration.revision = 2
+                snapshot.candidates = [
+                    discoveryCandidate({ domains: [testDomain('new-endpoint')] }),
+                ]
+                expect(await reconcileDiscoveryInTransaction(transaction, registry, snapshot)).toBe(
+                    false,
+                )
+                registry.connectorRevision = 2
+                registry.actorUserId = viewer.id
+                expect(await reconcileDiscoveryInTransaction(transaction, registry, snapshot)).toBe(
+                    false,
+                )
+                expect(registry.error).toBe('authorization_required')
+                expect(registry.owners).toHaveLength(1)
+            })
+        },
+    )
+    integrationTest(
+        'reference validation failures roll back only that candidate and leave other eligible hosts usable',
+        async () => {
+            const actor = await createTestUser([SYSTEM_ROLES.OWNER])
+            const domain = testDomain('discovery-cert')
+            const certificateId = await insertValidCertificate([domain])
+            await rollbackDiscoveryFixture(async (transaction) => {
+                const snapshot = discoverySnapshot([
+                    discoveryCandidate({ domains: [domain], certificateId }),
+                    discoveryCandidate({
+                        containerId: 'b'.repeat(64),
+                        sourceId: 'name:healthy',
+                        domains: [testDomain('discovery-healthy')],
+                    }),
+                ])
+                const registry = discoveryRegistry({
+                    enabled: true,
+                    actorUserId: actor.id,
+                    connectorRevision: 1,
+                    endpointHash: discoveryEndpointHash('http://docker-proxy:2375'),
+                })
+                await writeDiscoveryRegistry(transaction, registry)
+                // No controller is configured in this fixture: fresh certificate binding fails closed.
+                expect(await reconcileDiscoveryInTransaction(transaction, registry, snapshot)).toBe(
+                    true,
+                )
+                expect(registry.results).toHaveLength(1)
+                expect(registry.owners).toHaveLength(1)
+                expect(registry.owners[0]?.sourceId).toBe('name:healthy')
+            })
+        },
+    )
 })
 
 describe('ProxyHost management with PostgreSQL', () => {

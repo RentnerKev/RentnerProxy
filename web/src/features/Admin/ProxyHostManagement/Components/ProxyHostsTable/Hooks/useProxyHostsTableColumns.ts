@@ -45,7 +45,10 @@ export default function useProxyHostsTableColumns({
                 filterFn: (row, _columnId, value) => row.original.domains.includes(String(value)),
                 enableGlobalFilter: true,
                 cell: ({ row }) =>
-                    createElement(ProxyHostDomainsCell, { domains: row.original.domains }),
+                    createElement(ProxyHostDomainsCell, {
+                        domains: row.original.domains,
+                        discovery: row.original.discovery,
+                    }),
             },
             {
                 id: 'forward',

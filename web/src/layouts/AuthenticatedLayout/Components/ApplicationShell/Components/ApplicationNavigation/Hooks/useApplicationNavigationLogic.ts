@@ -22,6 +22,7 @@ const navigationGroups = [
             '/operations',
             '/dns-connections',
             '/ddns',
+            '/docker-discovery',
         ],
     },
     {

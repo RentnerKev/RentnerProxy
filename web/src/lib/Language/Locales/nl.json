@@ -66,7 +66,8 @@
         "systemVersion": "Systeemversie {{version}}",
         "updateAvailable": "Update naar versie {{version}} beschikbaar",
         "dnsConnections": "DNS-verbindingen",
-        "ddns": "DDNS"
+        "ddns": "DDNS",
+        "dockerDiscovery": "Docker Discovery"
     },
     "quickSearch": {
         "title": "Snel zoeken",
@@ -1244,7 +1245,8 @@
                 "domain_conflict": "Dit domein is al aan een andere proxyhost toegewezen.",
                 "proxy_host_not_found": "De proxyhost bestaat niet meer.",
                 "invalid_status_transition": "De proxyhost heeft die status al. Vernieuw de lijst en probeer het opnieuw.",
-                "invalid_input": "Controleer de proxyhostwaarden en probeer het opnieuw."
+                "invalid_input": "Controleer de proxyhostwaarden en probeer het opnieuw.",
+                "discovery_managed": "Deze host wordt beheerd via Docker-labels. Koppel hem los van Docker Discovery voordat je hem bewerkt of verwijdert."
             },
             "validation": {
                 "domain": "Voer een geldige DNS-naam in zonder URL, IP-adres of wildcard.",
@@ -2694,6 +2696,173 @@
                 "title": "Beheerd record verwijderen?",
                 "description": "{{name}} niet meer beheren? Het DNS-record bij Cloudflare blijft ongewijzigd."
             }
+        },
+        "dockerDiscovery": {
+            "errors": {
+                "invalid_input": "Voer een geldige configuratie voor Docker-detectie in.",
+                "conflict": "De bron is gewijzigd. Controleer de huidige kandidaten en probeer opnieuw.",
+                "store_unavailable": "De opslag voor Docker-detectie is niet beschikbaar.",
+                "endpoint_unavailable": "Het Docker-eindpunt is niet beschikbaar. Controleer het adres en de leesrechten.",
+                "invalid_response": "Het Docker-eindpunt gaf een ongeldig of te groot antwoord.",
+                "inventory_too_large": "De Docker-inventaris overschrijdt de detectielimiet.",
+                "stopping": "Docker-detectie wordt afgesloten.",
+                "controller_unavailable": "De detectiecontroller is niet beschikbaar.",
+                "requestFailed": "Docker Discovery kon het verzoek niet voltooien.",
+                "copyFailed": "Kopiëren mislukt. Selecteer en kopieer het voorbeeld handmatig."
+            },
+            "page": {
+                "eyebrow": "Netwerk",
+                "description": "Ontdek containers via labels en synchroniseer hun proxyhosts.",
+                "title": "Docker Discovery"
+            },
+            "actions": {
+                "guide": "Compose-voorbeeld",
+                "connection": "Verbinding",
+                "enable": "Synchronisatie inschakelen",
+                "disable": "Synchronisatie pauzeren",
+                "retry": "Synchronisatie opnieuw proberen",
+                "detach": "Loskoppelen van discovery",
+                "disconnect": "Verbinding uitschakelen",
+                "details": "Brongegevens",
+                "copy": "Voorbeeld kopiëren"
+            },
+            "runtime": {
+                "title": "Docker-verbinding",
+                "notConfigured": "Geen endpoint ingesteld",
+                "preview": "Controleer de kandidaten voordat je automatische hostsynchronisatie inschakelt.",
+                "active": "Automatische synchronisatie is ingeschakeld. Geldige Docker-labels beheren deze hosts.",
+                "restorePaused": "De herstelde verbinding is gepauzeerd. Open Verbinding en bevestig het hervatten."
+            },
+            "connector": {
+                "disabled": "Losgekoppeld",
+                "paused": "Herstel gepauzeerd",
+                "connecting": "Verbinden",
+                "ready": "Verbonden",
+                "unavailable": "Niet beschikbaar"
+            },
+            "applied": {
+                "idle": "Wachten op geschikte bronnen.",
+                "pending": "Proxyconfiguratie opgeslagen; toepassing door de runtime is nog in behandeling.",
+                "applied": "De laatst opgeslagen proxyconfiguratie is toegepast."
+            },
+            "connection": {
+                "title": "Docker-verbinding instellen",
+                "description": "Test eerst het alleen-lezen-endpoint. Opslaan pauzeert de synchronisatie zodat je de kandidaten kunt controleren.",
+                "endpoint": "Docker-API-endpoint",
+                "endpointHint": "HTTP(S)-basisadres van een beperkte socketproxy, zonder inloggegevens of URL-pad.",
+                "test": "Verbinding testen",
+                "save": "Opslaan en kandidaten controleren",
+                "acknowledgeRestore": "Het lezen van deze herstelde verbinding hervatten",
+                "endpointPlaceholder": "http://docker-api:2375"
+            },
+            "messages": {
+                "connected": "Verbinding opgeslagen. Controleer de kandidaten voor het inschakelen.",
+                "enabled": "Automatische hostsynchronisatie ingeschakeld.",
+                "disabled": "Synchronisatie gepauzeerd. Opgeslagen hosts blijven behouden.",
+                "disconnected": "Verbinding uitgeschakeld. Opgeslagen hosts blijven behouden.",
+                "detached": "Host losgekoppeld. Deze kan nu handmatig worden beheerd.",
+                "retrying": "Nieuwe scan en synchronisatie aangevraagd.",
+                "changed": "De bron is gewijzigd. Controleer de huidige kandidaten en probeer opnieuw.",
+                "testRequired": "Test het huidige endpoint en bevestig een herstelde verbinding voordat je opslaat.",
+                "tested": "Verbinding gecontroleerd; {{count}} gelabelde containers gevonden.",
+                "copied": "Gekopieerd"
+            },
+            "confirm": {
+                "enableTitle": "Automatische synchronisatie inschakelen?",
+                "enableDescription": "{{create}} hosts worden aangemaakt en {{update}} bijgewerkt. Latere geldige labelwijzigingen worden automatisch gesynchroniseerd; handmatige hosts blijven beschermd.",
+                "detachTitle": "Deze host loskoppelen?",
+                "detachDescription": "{{name}} behoudt de configuratie en het certificaat. Handmatig bewerken wordt mogelijk en deze bron maakt de host niet opnieuw aan en werkt hem niet bij."
+            },
+            "table": {
+                "title": "{{count}} Docker-bronnen",
+                "source": "Bron",
+                "search": "Docker-bronnen zoeken",
+                "searchPlaceholder": "Bron, domein of bestemming…",
+                "emptyTitle": "Nog geen Docker-bronnen",
+                "emptyDescription": "Verbind een beperkt Docker-endpoint en selecteer containers met rentnerproxy.enable=true.",
+                "filteredTitle": "Geen overeenkomende bronnen",
+                "filteredDescription": "Pas de zoekopdracht of kolomfilters aan.",
+                "itemLabel": "bronnen",
+                "savedTarget": "Opgeslagen host behouden",
+                "moreIssues": "(+{{count}} meer)",
+                "actionsFor": "Acties voor {{name}}",
+                "eyebrow": "Netwerk",
+                "domains": "Domeinen",
+                "target": "Doorstuurdoel",
+                "status": "Status",
+                "actions": "Acties"
+            },
+            "states": {
+                "create": "Host wordt aangemaakt",
+                "update": "Host wordt bijgewerkt",
+                "current": "Gesynchroniseerd",
+                "stopped": "Container gestopt",
+                "orphaned": "Verweesde bron",
+                "conflicted": "Aandacht nodig",
+                "unavailable": "Bron niet beschikbaar",
+                "detached": "Handmatig beheerd"
+            },
+            "details": {
+                "container": "Container-ID",
+                "tlsName": "TLS-identiteit van de bestemming",
+                "managedHint": "Docker-labels beheren domeinen, bestemmingen, certificaat- en beleidstoewijzingen en TLS-instellingen. Koppel de host los om deze velden te bewerken. Inschakelen, uitschakelen en geavanceerde HTTP-instellingen blijven beschikbaar.",
+                "certificate": "Certificaten",
+                "accessPolicy": "Toegangsbeleid"
+            },
+            "host": {
+                "managed": "Beheerd via Docker-labels",
+                "orphaned": "Docker-bron verweesd"
+            },
+            "guide": {
+                "title": "Docker Discovery · snel starten",
+                "description": "Kies een voorbeeld. Opslaan, starten, verbinden.",
+                "appliance": "Docker-appliance",
+                "native": "Lokale ontwikkeling",
+                "environment": "Omgeving",
+                "applianceHint": "Toevoegen aan de bestaande stack; de Docker-API blijft privé.",
+                "nativeHint": "Docker Desktop: Linux-engine. Native Windows: UI/controller; proxyverkeer via Linux Docker.",
+                "saveStep": "1. Voorbeeld opslaan",
+                "fileHint": "In de projectmap, naast docker-compose.yml.",
+                "startStep": "2. Containers starten",
+                "connectStep": "3. Verbinden in RentnerProxy",
+                "connectHint": "Verbinding → testen → opslaan → synchronisatie inschakelen.",
+                "copyCommand": "Startopdracht kopiëren",
+                "copyEndpoint": "Endpoint kopiëren",
+                "options": "Optionele labels en gedrag",
+                "references": "Gebruik HTTPS-labels voor een HTTPS-backend. Vervang placeholders door bestaande certificaat-/beleids-ID’s.",
+                "identity": "Houd rentnerproxy.id uniek en ongewijzigd bij het opnieuw aanmaken.",
+                "lifecycle": "Gestopt, verwijderd of offline: hosts blijven. Loskoppelen: handmatig beheren.",
+                "limits": "Eén engine; standalone/Compose. Geen Swarm, Kubernetes of replica-balancering.",
+                "copyFile": "Compose-bestand kopiëren",
+                "composeFile": "Volledig Compose-bestand"
+            },
+            "issues": {
+                "unsupported_label": "Verwijder niet-ondersteunde rentnerproxy-labels.",
+                "invalid_source": "Stel een geldige vaste rentnerproxy.id in.",
+                "source_conflict": "Meerdere containers claimen dezelfde bron. Gebruik unieke bron-ID’s.",
+                "missing_port": "Geef een expliciete TCP-poort van de container op.",
+                "ambiguous_network": "Selecteer een aangesloten netwerk met rentnerproxy.network.",
+                "missing_address": "Het geselecteerde netwerk heeft geen bruikbaar containeradres.",
+                "unsupported_network_mode": "Hostnetwerken en gedeelde netwerknaamruimten worden niet ondersteund.",
+                "reference_invalid": "Controleer de verwijzingen naar bestaande certificaten en toegangsregels.",
+                "invalid_upstream_tls_name": "HTTPS-doelen vereisen een geldige rentnerproxy.upstream-tls-server-name.",
+                "unsupported_orchestrator": "Swarm- en Kubernetes-bronnen worden niet ondersteund.",
+                "host_missing": "De eerder beheerde host bestaat niet meer.",
+                "owner_limit": "De limiet voor beheerde discovery-bronnen is bereikt.",
+                "authorization_required": "De rechten van de activerende gebruiker zijn gewijzigd. Controleer en schakel opnieuw in.",
+                "reconcile_failed": "Synchronisatie mislukt. Controleer de bron en de proxyruntime.",
+                "invalid_domains": "Voer een geldige DNS-naam in zonder URL, IP-adres of wildcard.",
+                "invalid_input": "Voer een geldige configuratie voor Docker-detectie in.",
+                "ambiguous_port": "Geef een expliciete TCP-poort van de container op.",
+                "invalid_port": "Voer een geheel poortnummer van 1 tot 65535 in.",
+                "invalid_protocol": "Stel rentnerproxy.protocol in op http of https.",
+                "missing_network": "Selecteer een aangesloten netwerk met rentnerproxy.network.",
+                "invalid_network": "Selecteer een aangesloten netwerk met rentnerproxy.network.",
+                "invalid_certificate_reference": "Controleer de verwijzingen naar bestaande certificaten en toegangsregels.",
+                "invalid_access_policy_reference": "Controleer de verwijzingen naar bestaande certificaten en toegangsregels.",
+                "container_not_running": "Container gestopt",
+                "domain_conflict": "Dit domein is al aan een andere proxyhost toegewezen."
+            }
         }
     },
     "permissions": {
@@ -2713,7 +2882,8 @@
             "system": "Systeem",
             "default_site": "Standaardsite",
             "dns_connections": "DNS-verbindingen",
-            "ddns": "Dynamische DNS"
+            "ddns": "Dynamische DNS",
+            "docker_discovery": "Docker-detectie"
         },
         "app": {
             "access": "Toegang tot de applicatie"
@@ -2798,6 +2968,10 @@
         "ddns": {
             "view": "DDNS-status bekijken",
             "manage": "DDNS-configuratie beheren"
+        },
+        "docker_discovery": {
+            "view": "Docker-verbinding en kandidaten bekijken",
+            "manage": "Verbinding voor Docker-detectie beheren"
         }
     },
     "systemRoles": {

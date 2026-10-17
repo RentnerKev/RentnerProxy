@@ -11,6 +11,7 @@ mod challenges;
 mod crowdsec;
 pub(super) mod ddns;
 pub(super) mod dns_connections;
+pub(super) mod docker_discovery;
 mod health;
 mod proxy;
 

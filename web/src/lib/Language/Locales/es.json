@@ -85,7 +85,8 @@
         "systemVersion": "Versión del sistema {{version}}",
         "updateAvailable": "Actualización disponible a la versión {{version}}",
         "dnsConnections": "Conexiones DNS",
-        "ddns": "DDNS"
+        "ddns": "DDNS",
+        "dockerDiscovery": "Docker Discovery"
     },
     "quickSearch": {
         "title": "Búsqueda rápida",
@@ -1263,7 +1264,8 @@
                 "domain_conflict": "Este dominio ya está asignado a otro host proxy.",
                 "proxy_host_not_found": "El host proxy ya no existe.",
                 "invalid_status_transition": "El host proxy ya está en ese estado. Actualiza la lista e inténtalo de nuevo.",
-                "invalid_input": "Revisa los valores del host proxy e inténtalo de nuevo."
+                "invalid_input": "Revisa los valores del host proxy e inténtalo de nuevo.",
+                "discovery_managed": "Este host se administra mediante etiquetas de Docker. Desvincúlalo de Docker Discovery antes de editarlo o eliminarlo."
             },
             "validation": {
                 "domain": "Introduce un nombre DNS válido sin URL, dirección IP ni comodín.",
@@ -2713,6 +2715,173 @@
                 "title": "¿Quitar registro gestionado?",
                 "description": "¿Dejar de gestionar {{name}}? El registro DNS en Cloudflare no se modifica."
             }
+        },
+        "dockerDiscovery": {
+            "errors": {
+                "invalid_input": "Introduce una configuración de detección de Docker válida.",
+                "conflict": "El origen ha cambiado. Revisa los candidatos actuales e inténtalo de nuevo.",
+                "store_unavailable": "El almacenamiento de detección de Docker no está disponible.",
+                "endpoint_unavailable": "El endpoint de Docker no está disponible. Comprueba su dirección y los permisos de lectura.",
+                "invalid_response": "El endpoint de Docker devolvió una respuesta no válida o demasiado grande.",
+                "inventory_too_large": "El inventario de Docker supera el límite de detección.",
+                "stopping": "La detección de Docker se está cerrando.",
+                "controller_unavailable": "El controlador de detección no está disponible.",
+                "requestFailed": "No se pudo completar la solicitud de descubrimiento.",
+                "copyFailed": "No se pudo copiar. Selecciona y copia el ejemplo manualmente."
+            },
+            "page": {
+                "eyebrow": "Red",
+                "description": "Descubre contenedores mediante etiquetas y sincroniza sus hosts proxy.",
+                "title": "Docker Discovery"
+            },
+            "actions": {
+                "guide": "Ejemplo de Compose",
+                "connection": "Conexión",
+                "enable": "Activar sincronización",
+                "disable": "Pausar sincronización",
+                "retry": "Reintentar sincronización",
+                "detach": "Desvincular del descubrimiento",
+                "disconnect": "Desactivar conexión",
+                "details": "Detalles del origen",
+                "copy": "Copiar ejemplo"
+            },
+            "runtime": {
+                "title": "Conexión con Docker",
+                "notConfigured": "No hay un endpoint configurado",
+                "preview": "Revisa los candidatos antes de activar la sincronización automática de hosts.",
+                "active": "La sincronización automática está activada. Las etiquetas válidas de Docker administran estos hosts.",
+                "restorePaused": "La conexión restaurada está pausada. Abre Conexión y confirma la reanudación."
+            },
+            "connector": {
+                "disabled": "Desconectado",
+                "paused": "Restauración pausada",
+                "connecting": "Conectando",
+                "ready": "Conectado",
+                "unavailable": "No disponible"
+            },
+            "applied": {
+                "idle": "Esperando orígenes válidos.",
+                "pending": "Configuración guardada; pendiente de aplicar en el proxy.",
+                "applied": "La última configuración guardada está aplicada."
+            },
+            "connection": {
+                "title": "Configurar conexión con Docker",
+                "description": "Prueba primero el endpoint de solo lectura. Guardar pausa la sincronización para revisar los candidatos.",
+                "endpoint": "Endpoint de la API de Docker",
+                "endpointHint": "Dirección base HTTP(S) de un proxy restringido, sin credenciales ni ruta.",
+                "test": "Probar conexión",
+                "save": "Guardar y revisar candidatos",
+                "acknowledgeRestore": "Reanudar la lectura de esta conexión restaurada",
+                "endpointPlaceholder": "http://docker-api:2375"
+            },
+            "messages": {
+                "connected": "Conexión guardada. Revisa los candidatos antes de activar.",
+                "enabled": "Sincronización automática de hosts activada.",
+                "disabled": "Sincronización pausada. Se conservan los hosts.",
+                "disconnected": "Conexión desactivada. Se conservan los hosts.",
+                "detached": "Host desvinculado. Ya puede administrarse manualmente.",
+                "retrying": "Nuevo análisis y sincronización solicitados.",
+                "changed": "El origen ha cambiado. Revisa los candidatos actuales e inténtalo de nuevo.",
+                "testRequired": "Prueba el endpoint actual y confirma la conexión restaurada antes de guardar.",
+                "tested": "Conexión verificada; {{count}} contenedores etiquetados encontrados.",
+                "copied": "Copiado"
+            },
+            "confirm": {
+                "enableTitle": "¿Activar sincronización automática?",
+                "enableDescription": "Se crearán {{create}} hosts y se actualizarán {{update}}. Los cambios válidos posteriores se sincronizan automáticamente; los hosts manuales siguen protegidos.",
+                "detachTitle": "¿Desvincular este host?",
+                "detachDescription": "{{name}} conserva su configuración y certificado. Se podrá editar manualmente y este origen no volverá a crearlo ni actualizarlo."
+            },
+            "table": {
+                "title": "{{count}} orígenes Docker",
+                "source": "Origen",
+                "search": "Buscar orígenes Docker",
+                "searchPlaceholder": "Origen, dominio o destino…",
+                "emptyTitle": "Todavía no hay orígenes Docker",
+                "emptyDescription": "Conecta un endpoint Docker restringido y selecciona contenedores con rentnerproxy.enable=true.",
+                "filteredTitle": "No hay orígenes coincidentes",
+                "filteredDescription": "Cambia la búsqueda o los filtros de columna.",
+                "itemLabel": "orígenes",
+                "savedTarget": "Se conserva el host guardado",
+                "moreIssues": "(+{{count}} más)",
+                "actionsFor": "Acciones para {{name}}",
+                "eyebrow": "Red",
+                "domains": "Dominios",
+                "target": "Destino de reenvío",
+                "status": "Estado",
+                "actions": "Acciones"
+            },
+            "states": {
+                "create": "Creará un host",
+                "update": "Actualizará el host",
+                "current": "Sincronizado",
+                "stopped": "Contenedor detenido",
+                "orphaned": "Origen huérfano",
+                "conflicted": "Requiere atención",
+                "unavailable": "Origen no disponible",
+                "detached": "Gestión manual"
+            },
+            "details": {
+                "container": "ID del contenedor",
+                "tlsName": "Identidad TLS del destino",
+                "managedHint": "Las etiquetas Docker administran dominios, destinos, asignaciones de certificados y políticas y TLS del destino. Desvincula el host para editar estos campos. Aún puedes activarlo, desactivarlo o cambiar sus ajustes HTTP avanzados.",
+                "certificate": "Certificados",
+                "accessPolicy": "Políticas de acceso"
+            },
+            "host": {
+                "managed": "Administrado por etiquetas Docker",
+                "orphaned": "Origen Docker huérfano"
+            },
+            "guide": {
+                "title": "Docker Discovery · inicio rápido",
+                "description": "Elige un ejemplo. Guarda, inicia y conecta.",
+                "appliance": "Appliance Docker",
+                "native": "Desarrollo local",
+                "environment": "Entorno",
+                "applianceHint": "Añádelo al stack existente; la API de Docker sigue siendo privada.",
+                "nativeHint": "Docker Desktop: motor Linux. Windows nativo: solo UI/controlador; el proxy requiere Docker Linux.",
+                "saveStep": "1. Guarda el ejemplo",
+                "fileHint": "En la carpeta del proyecto, junto a docker-compose.yml.",
+                "startStep": "2. Inicia los contenedores",
+                "connectStep": "3. Conecta en RentnerProxy",
+                "connectHint": "Conexión → probar → guardar → activar sincronización.",
+                "copyCommand": "Copiar comando de inicio",
+                "copyEndpoint": "Copiar endpoint",
+                "options": "Etiquetas opcionales y comportamiento",
+                "references": "Usa etiquetas HTTPS para un backend HTTPS. Sustituye los marcadores por IDs de certificados/políticas existentes.",
+                "identity": "Mantén rentnerproxy.id único y estable al recrear contenedores.",
+                "lifecycle": "Detenido, eliminado o sin conexión: el host permanece. Desvincular: control manual.",
+                "limits": "Un motor; standalone/Compose. Sin Swarm, Kubernetes ni balanceo de réplicas.",
+                "copyFile": "Copiar archivo Compose",
+                "composeFile": "Archivo Compose completo"
+            },
+            "issues": {
+                "unsupported_label": "Elimina etiquetas rentnerproxy no admitidas.",
+                "invalid_source": "Define una rentnerproxy.id estable y válida.",
+                "source_conflict": "Varios contenedores reclaman el mismo origen. Usa IDs únicos.",
+                "missing_port": "Indica un puerto TCP explícito del contenedor.",
+                "ambiguous_network": "Selecciona una red conectada con rentnerproxy.network.",
+                "missing_address": "La red seleccionada no tiene una dirección de contenedor válida.",
+                "unsupported_network_mode": "No se admiten redes host ni espacios de red compartidos.",
+                "reference_invalid": "Comprueba las referencias a certificados y políticas existentes.",
+                "invalid_upstream_tls_name": "Los destinos HTTPS requieren un rentnerproxy.upstream-tls-server-name válido.",
+                "unsupported_orchestrator": "No se admiten orígenes Swarm ni Kubernetes.",
+                "host_missing": "El host administrado anteriormente ya no existe.",
+                "owner_limit": "Se ha alcanzado el límite de orígenes administrados.",
+                "authorization_required": "Los permisos del usuario que activó cambiaron. Revisa y activa de nuevo.",
+                "reconcile_failed": "Falló la sincronización. Comprueba el origen y el proxy.",
+                "invalid_domains": "Introduce un nombre DNS válido sin URL, dirección IP ni comodín.",
+                "invalid_input": "Introduce una configuración de detección de Docker válida.",
+                "ambiguous_port": "Indica un puerto TCP explícito del contenedor.",
+                "invalid_port": "Introduce un número de puerto entero entre 1 y 65535.",
+                "invalid_protocol": "Establece rentnerproxy.protocol en http o https.",
+                "missing_network": "Selecciona una red conectada con rentnerproxy.network.",
+                "invalid_network": "Selecciona una red conectada con rentnerproxy.network.",
+                "invalid_certificate_reference": "Comprueba las referencias a certificados y políticas existentes.",
+                "invalid_access_policy_reference": "Comprueba las referencias a certificados y políticas existentes.",
+                "container_not_running": "Contenedor detenido",
+                "domain_conflict": "Este dominio ya está asignado a otro host proxy."
+            }
         }
     },
     "permissions": {
@@ -2732,7 +2901,8 @@
             "system": "Sistema",
             "default_site": "Sitio predeterminado",
             "dns_connections": "Conexiones DNS",
-            "ddns": "DNS dinámico"
+            "ddns": "DNS dinámico",
+            "docker_discovery": "Detección de Docker"
         },
         "app": {
             "access": "Acceso a la aplicación"
@@ -2817,6 +2987,10 @@
         "ddns": {
             "view": "Ver estado DDNS",
             "manage": "Gestionar configuración DDNS"
+        },
+        "docker_discovery": {
+            "view": "Ver la conexión y los candidatos de Docker",
+            "manage": "Gestionar la conexión de detección de Docker"
         }
     },
     "systemRoles": {

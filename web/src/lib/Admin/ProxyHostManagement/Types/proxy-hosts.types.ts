@@ -18,6 +18,7 @@ export interface ProxyHostAccessPolicy {
 }
 
 export interface ProxyHostSummary {
+    readonly discovery?: { readonly state: 'managed' | 'orphaned' } | null
     readonly certificateJob?: CertificateJobSummary | null
     readonly id: string
     readonly domains: Array<string>

@@ -116,6 +116,33 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
             state.clone(),
             authorize_certificate_request,
         ));
+    let discovery = Router::new()
+        .route(
+            "/internal/v1/discovery/docker/inspect",
+            post({
+                let state = state.clone();
+                move |body| handlers::docker_discovery::inspect(state.clone(), body)
+            }),
+        )
+        .route(
+            "/internal/v1/discovery/docker/status",
+            get({
+                let state = state.clone();
+                move || handlers::docker_discovery::status(state.clone())
+            }),
+        )
+        .route(
+            "/internal/v1/discovery/docker/config",
+            axum::routing::put({
+                let state = state.clone();
+                move |body| handlers::docker_discovery::save(state.clone(), body)
+            }),
+        )
+        .layer(axum::extract::DefaultBodyLimit::max(4_096))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            authorize_certificate_request,
+        ));
     let ddns = Router::new()
         .route(
             "/internal/v1/ddns/config",
@@ -325,6 +352,7 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
         .merge(certificates)
         .merge(connections)
         .merge(ddns)
+        .merge(discovery)
         .merge(internal)
         .layer(axum::extract::DefaultBodyLimit::max(
             MAX_PROXY_CONFIG_BODY_BYTES,

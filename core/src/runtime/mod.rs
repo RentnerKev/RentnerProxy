@@ -10,6 +10,7 @@ pub(crate) mod crowdsec_dashboard;
 pub(crate) mod ddns;
 mod dns;
 pub(crate) mod dns_connections;
+pub(crate) mod docker_discovery;
 mod engine;
 mod lifecycle;
 pub(crate) mod renderer;
@@ -155,6 +156,7 @@ pub(crate) struct ProxyRuntime {
     pub(crate) dns_connections: dns_connections::Store,
     pub(crate) ddns: ddns::Engine,
     pub(crate) ddns_automation: ddns::Automation,
+    pub(crate) docker_discovery: Arc<docker_discovery::Discovery>,
     trusted_ca_store: TrustedCaStore,
     access_log_snapshots: access_logs::SnapshotCache,
     renewal_task: Mutex<Option<JoinHandle<()>>>,
@@ -207,6 +209,7 @@ impl ProxyRuntime {
         let trusted_ca_store = TrustedCaStore::new(settings.state_dir.clone());
         let dns_connections = dns_connections::Store::new(settings.state_dir.clone());
         let ddns_automation = ddns::Automation::new(settings.state_dir.clone());
+        let docker_discovery = docker_discovery::Discovery::new(settings.state_dir.clone());
         Arc::new(Self {
             #[cfg(test)]
             recovery_write_faults: std::sync::Mutex::new(std::collections::VecDeque::new()),
@@ -216,6 +219,7 @@ impl ProxyRuntime {
             dns_connections,
             ddns: ddns::Engine::new(),
             ddns_automation,
+            docker_discovery,
             trusted_ca_store,
             access_log_snapshots: access_logs::SnapshotCache::new(),
             state: Mutex::new(RuntimeState {

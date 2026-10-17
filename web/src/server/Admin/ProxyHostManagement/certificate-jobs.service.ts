@@ -21,6 +21,7 @@ import { requirePermissionService } from '@/server/Auth/Access/authorization.ser
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import { assertDiscoveryHostEditable } from '@/server/Admin/DockerDiscovery/discovery-storage.server.ts'
 import {
     createProxyHostInTransaction,
     updateProxyHostInTransaction,
@@ -197,6 +198,7 @@ async function requestJobTransaction(
             PERMISSIONS.CERTIFICATES_ISSUE,
         ])
         const hostState = await readCertificateJobHost(transaction, proxyHostId)
+        await assertDiscoveryHostEditable(transaction, proxyHostId)
         const expectedUpdatedAt = Date.parse(input.expectedUpdatedAt)
         if (
             !Number.isFinite(expectedUpdatedAt) ||

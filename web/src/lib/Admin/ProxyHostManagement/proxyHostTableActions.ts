@@ -40,7 +40,7 @@ export function getProxyHostTableActionItems(
         })
     }
 
-    if (canUpdate) {
+    if (canUpdate && !host.discovery) {
         items.push({
             label: t('admin.proxyHosts.actions.edit'),
             onSelect: () => onEdit(host),
@@ -48,7 +48,7 @@ export function getProxyHostTableActionItems(
         })
     }
 
-    if (canRequestCertificate && canUpdate && onRequestCertificate) {
+    if (canRequestCertificate && canUpdate && onRequestCertificate && !host.discovery) {
         const job = host.certificateJob
         const retrying = Boolean(
             job &&
@@ -94,7 +94,7 @@ export function getProxyHostTableActionItems(
         })
     }
 
-    if (canDelete) {
+    if (canDelete && !host.discovery) {
         items.push({
             label: t('admin.proxyHosts.actions.delete'),
             onSelect: () => onDelete(host),

@@ -5,6 +5,7 @@ import {
     ChevronDown,
     ClipboardList,
     Cloud,
+    Boxes,
     RefreshCw,
     KeyRound,
     LayoutDashboard,
@@ -104,6 +105,12 @@ export default function ApplicationNavigation({
                                         />
                                     ) : item.to === '/ddns' ? (
                                         <RefreshCw
+                                            aria-hidden="true"
+                                            className="size-4 shrink-0"
+                                            strokeWidth={1.8}
+                                        />
+                                    ) : item.to === '/docker-discovery' ? (
+                                        <Boxes
                                             aria-hidden="true"
                                             className="size-4 shrink-0"
                                             strokeWidth={1.8}

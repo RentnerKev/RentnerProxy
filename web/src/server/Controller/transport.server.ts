@@ -61,6 +61,7 @@ export async function controllerRequest(
         | `/internal/v1/certificates/events${string}`
         | '/internal/v1/trusted-cas/validate'
         | '/internal/v1/dns/connections'
+        | `/internal/v1/discovery/docker/${'status' | 'config' | 'inspect'}`
         | `/internal/v1/dns/connections/${string}`
         | `/internal/v1/ddns/${'status' | 'config' | 'preview' | 'enable' | 'disable' | 'sync'}`,
     options: ControllerRequestOptions,
@@ -81,13 +82,21 @@ export async function controllerRequest(
     const isDnsConnectionRequest =
         path === '/internal/v1/dns/connections' || path.startsWith('/internal/v1/dns/connections/')
     const isDdnsRequest = path.startsWith('/internal/v1/ddns/')
-    if (options.privileged || isCertificateRequest || isDnsConnectionRequest || isDdnsRequest) {
+    const isDiscoveryRequest = path.startsWith('/internal/v1/discovery/docker/')
+    if (
+        options.privileged ||
+        isCertificateRequest ||
+        isDnsConnectionRequest ||
+        isDdnsRequest ||
+        isDiscoveryRequest
+    ) {
         const token = getControllerToken()
         if (
             token === null ||
             (!token &&
                 (isCertificateRequest ||
                     isDdnsRequest ||
+                    isDiscoveryRequest ||
                     isDnsConnectionRequest ||
                     !isLoopbackControllerUrl(baseUrl)))
         )
