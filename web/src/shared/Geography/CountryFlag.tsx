@@ -1,5 +1,6 @@
 import { CustomTooltip } from '@rentnerkev/tooltips/tooltip'
 import { hasFlag } from 'country-flag-icons'
+import { version } from 'country-flag-icons/package.json'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
@@ -10,9 +11,15 @@ export default function CountryFlag({ code }: { readonly code: string | null | u
     if (!country) return null
     return (
         <CustomTooltip collisionPadding={10} content={country}>
-            <span className={`flag:${code} shrink-0 rounded-[2px] [--CountryFlagIcon-height:1rem]`}>
-                <span className="sr-only">{country}</span>
-            </span>
+            <img
+                src={`/assets/country-flags/${version}/${code}.svg`}
+                alt={country}
+                width={24}
+                height={16}
+                loading="lazy"
+                decoding="async"
+                className="h-4 w-6 shrink-0 rounded-[2px]"
+            />
         </CustomTooltip>
     )
 }
