@@ -73,6 +73,7 @@ import {
     discoverySnapshot,
 } from '@/tests/Helpers/discoveryFixture.ts'
 import { discoveryEndpointHash } from '@/server/Admin/DockerDiscovery/discovery-plan.ts'
+import { MAX_RUNTIME_PROXY_HOSTS } from '@/server/ProxyRuntime/proxy-runtime-snapshot.ts'
 import { reconcileDiscoveryInTransaction } from '@/server/Admin/DockerDiscovery/discovery-reconcile.server.ts'
 import {
     assertDiscoveryHostEditable,
@@ -565,6 +566,50 @@ async function rollbackDiscoveryFixture(
 
 describe('Docker discovery ownership with PostgreSQL', () => {
     integrationTest(
+        'rejects a candidate that would exceed combined runtime capacity before saving its host',
+        async () => {
+            const actor = await createTestUser([SYSTEM_ROLES.OWNER])
+            await rollbackDiscoveryFixture(async (transaction) => {
+                const ids = Array.from({ length: MAX_RUNTIME_PROXY_HOSTS }, () =>
+                    Bun.randomUUIDv7(),
+                )
+                await transaction.insert(proxyHosts).values(
+                    ids.map((id) => ({
+                        id,
+                        enabled: true,
+                        forwardHost: 'capacity' + TEST_DOMAIN_SUFFIX,
+                        forwardScheme: 'http' as const,
+                        forwardPort: 8080,
+                    })),
+                )
+                await transaction.insert(hostDomains).values(
+                    ids.map((id, index) => ({
+                        proxyHostId: id,
+                        domain: `capacity-${index}${TEST_DOMAIN_SUFFIX}`,
+                    })),
+                )
+                const snapshot = discoverySnapshot([
+                    discoveryCandidate({ domains: [testDomain('over-capacity')] }),
+                ])
+                const registry = discoveryRegistry({
+                    enabled: true,
+                    actorUserId: actor.id,
+                    connectorRevision: 1,
+                    endpointHash: discoveryEndpointHash('http://docker-proxy:2375'),
+                })
+                await writeDiscoveryRegistry(transaction, registry)
+                expect(await reconcileDiscoveryInTransaction(transaction, registry, snapshot)).toBe(
+                    false,
+                )
+                expect(registry.owners).toHaveLength(0)
+                expect(registry.results[0]?.error).toBe('reconcile_failed')
+                expect(
+                    await transaction.select({ id: proxyHosts.id }).from(proxyHosts),
+                ).toHaveLength(MAX_RUNTIME_PROXY_HOSTS)
+            })
+        },
+    )
+    integrationTest(
         'creates once, reconciles recreation, retains stopped/orphaned hosts and respects explicit detachment',
         async () => {
             const actor = await createTestUser([SYSTEM_ROLES.OWNER])
@@ -716,10 +761,11 @@ describe('Docker discovery ownership with PostgreSQL', () => {
         'reference validation failures roll back only that candidate and leave other eligible hosts usable',
         async () => {
             const actor = await createTestUser([SYSTEM_ROLES.OWNER])
-            const certificateId = await insertValidCertificate([testDomain('discovery-cert')])
+            const domain = testDomain('discovery-cert')
+            const certificateId = await insertValidCertificate([domain])
             await rollbackDiscoveryFixture(async (transaction) => {
                 const snapshot = discoverySnapshot([
-                    discoveryCandidate({ domains: [testDomain('discovery-cert')], certificateId }),
+                    discoveryCandidate({ domains: [domain], certificateId }),
                     discoveryCandidate({
                         containerId: 'b'.repeat(64),
                         sourceId: 'name:healthy',

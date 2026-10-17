@@ -27,6 +27,7 @@ test('management protects activation previews, actors, revisions, detachment and
             try { return await operation({}) } catch (error) { registry = before; throw error }
         } }) }))
         mock.module('./server/ProxyRuntime/proxy-runtime-settings.ts', () => ({ lockProxyRuntimeSettings: async () => {} }))
+        mock.module('./server/ProxyRuntime/proxy-runtime-data.ts', () => ({ readProxyRuntimeSnapshot: async () => assert.fail('management must not apply runtime state') }))
         mock.module('./server/Valkey/rate-limiter.service.ts', () => ({ consumeRateLimit: async () => {} }))
         mock.module('./server/Audit/audit.service.ts', () => ({ appendAuditEventInTransactionService: async (_tx, value) => { audits.push(value) }, recordAuditEventBestEffortService: async value => { audits.push(value) } }))
         mock.module('./server/Admin/DockerDiscovery/discovery-worker.ts', () => ({ dockerDiscoveryWorker: { trigger: async () => {} } }))
@@ -59,6 +60,7 @@ test('management protects activation previews, actors, revisions, detachment and
         assert.equal(controllerReads, 0)
         grants.add(PERMISSIONS.DOCKER_DISCOVERY_VIEW)
         let overview = await service.getDiscoveryOverviewService()
+        assert.deepEqual(overview.changes, { create: 1, update: 0 })
         assert.equal(overview.management.actorUserId, undefined)
         assert.equal(overview.management.endpointHash, undefined)
         await assert.rejects(service.changeDiscoveryService({ expectedRevision: 0, action: 'enable', previewToken: 'a'.repeat(64) }), /conflict/)

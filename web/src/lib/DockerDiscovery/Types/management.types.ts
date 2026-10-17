@@ -33,6 +33,7 @@ export interface DiscoveryRow {
     readonly issues: readonly string[]
 }
 export interface DiscoveryOverview {
+    readonly changes: { readonly create: number; readonly update: number }
     readonly snapshot: DockerDiscoverySnapshot | null
     readonly management: Omit<
         DiscoveryRegistry,

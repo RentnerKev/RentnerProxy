@@ -1,5 +1,5 @@
-// oxlint-disable no-await-in-loop -- Candidate writes use isolated savepoints under one ownership lock.
 import '@tanstack/react-start/server-only'
+import { ZodError } from 'zod'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import type { DiscoveryRegistry } from '@/lib/DockerDiscovery/Types/management.types.ts'
@@ -12,10 +12,18 @@ import {
 } from '@/server/Admin/ProxyHostManagement/proxy-hosts.mutations.server.ts'
 import { ProxyHostDomainError } from '@/server/Admin/ProxyHostManagement/proxy-hosts.errors.ts'
 import { CertificateDomainError } from '@/server/Admin/CertificateManagement/certificates.errors.ts'
-import { createDiscoveryPlan, discoveryEndpointHash, discoveryHash } from './discovery-plan.ts'
+import {
+    createDiscoveryPlan,
+    discoveryEndpointHash,
+    discoveryHash,
+    discoverySourceKey,
+} from './discovery-plan.ts'
+import { runDiscoveryBatch } from './discovery-batch.ts'
 import { readDiscoveryInventory } from './discovery-inventory.server.ts'
 import { writeDiscoveryRegistry } from './discovery-storage.server.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
+import { readProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-data.ts'
+import { ProxyRuntimeSnapshotError } from '@/server/ProxyRuntime/proxy-runtime-snapshot.ts'
 
 export const discoveryReconcilePermissions = [
     PERMISSIONS.DOCKER_DISCOVERY_VIEW,
@@ -50,7 +58,7 @@ export async function reconcileDiscoveryInTransaction(
     transaction: AuthTransaction,
     registry: DiscoveryRegistry,
     snapshot: DockerDiscoverySnapshot | null,
-    offset = 0,
+    progress: { afterKey: string | null } = { afterKey: null },
 ) {
     if (
         !registry.enabled ||
@@ -79,63 +87,95 @@ export async function reconcileDiscoveryInTransaction(
     registry.error = null
     const inventory = await readDiscoveryInventory(transaction, snapshot)
     const plan = createDiscoveryPlan(snapshot, registry, inventory)
-    registry.results = []
-    let changedHosts = false
-    // Rotate bounded batches so a repeatedly failing source cannot starve later candidates.
-    const start = plan.changes.length ? offset % plan.changes.length : 0
-    const batch = [...plan.changes.slice(start), ...plan.changes.slice(0, start)].slice(0, 16)
-    const deadline = Date.now() + 10_000
-    for (const change of batch) {
-        if (Date.now() >= deadline) break
-        if (!change.candidate.sourceId) continue
-        if (!change.host && registry.owners.length >= 1024) {
-            registry.results.push({ key: change.key, error: 'owner_limit' })
-            continue
-        }
-        try {
-            const host = await transaction.transaction((savepoint) =>
-                change.host
-                    ? updateProxyHostInTransaction(
-                          savepoint,
-                          actorId,
-                          { ...change.input, proxyHostId: change.host.id },
-                          change.key,
-                      )
-                    : createProxyHostInTransaction(savepoint, actorId, change.input),
+    const endpoint = snapshot.configuration.settings.endpoint
+    const present = new Set(
+        snapshot.candidates.map((candidate) =>
+            discoverySourceKey(
+                endpoint,
+                candidate.sourceId ?? `container:${candidate.containerId}`,
+            ),
+        ),
+    )
+    const settled = new Set(plan.settled)
+    const previous = new Map(
+        registry.results
+            .filter((result) => present.has(result.key) && !settled.has(result.key))
+            .map((result) => [result.key, result]),
+    )
+    for (const candidate of snapshot.candidates) {
+        const rejection = inventory.rejections?.[candidate.containerId]
+        if (rejection) {
+            const key = discoverySourceKey(
+                endpoint,
+                candidate.sourceId ?? `container:${candidate.containerId}`,
             )
-            const owner = registry.owners.find((entry) => entry.key === change.key)
-            if (owner)
-                Object.assign(owner, {
-                    containerId: change.candidate.containerId,
-                    domains: [...host.domains],
-                    state: 'managed',
-                    error: null,
-                })
-            else
-                registry.owners.push({
-                    key: change.key,
-                    sourceId: change.candidate.sourceId,
-                    hostId: host.id,
-                    containerId: change.candidate.containerId,
-                    domains: [...host.domains],
-                    state: 'managed',
-                    error: null,
-                })
-            changedHosts = true
-        } catch (error) {
-            // Unexpected storage failures roll back the complete outer transaction.
-            const code =
-                error instanceof AuthDomainError
-                    ? 'authorization_required'
-                    : error instanceof CertificateDomainError
-                      ? 'reference_invalid'
-                      : error instanceof ProxyHostDomainError
-                        ? 'reconcile_failed'
-                        : null
-            if (!code) throw error
-            registry.results.push({ key: change.key, error: code })
+            previous.set(key, { key, error: rejection })
         }
     }
+    let changedHosts = false
+    const batch = await runDiscoveryBatch(
+        plan.changes,
+        [...previous.values()],
+        progress.afterKey,
+        async (change) => {
+            if (!change.candidate.sourceId) return 'reconcile_failed'
+            if (!change.host && registry.owners.length >= 1024) {
+                return 'owner_limit'
+            }
+            try {
+                const host = await transaction.transaction(async (savepoint) => {
+                    const saved = change.host
+                        ? await updateProxyHostInTransaction(
+                              savepoint,
+                              actorId,
+                              { ...change.input, proxyHostId: change.host.id },
+                              change.key,
+                          )
+                        : await createProxyHostInTransaction(savepoint, actorId, change.input)
+                    // Validate the combined typed Desired State before committing this candidate.
+                    // Capacity, policy and TLS errors cannot strand the whole saved configuration.
+                    await readProxyRuntimeSnapshot(savepoint)
+                    return saved
+                })
+                const owner = registry.owners.find((entry) => entry.key === change.key)
+                if (owner)
+                    Object.assign(owner, {
+                        containerId: change.candidate.containerId,
+                        domains: [...host.domains],
+                        state: 'managed',
+                        error: null,
+                    })
+                else
+                    registry.owners.push({
+                        key: change.key,
+                        sourceId: change.candidate.sourceId,
+                        hostId: host.id,
+                        containerId: change.candidate.containerId,
+                        domains: [...host.domains],
+                        state: 'managed',
+                        error: null,
+                    })
+                changedHosts = true
+                return null
+            } catch (error) {
+                // Unexpected storage failures roll back the complete outer transaction.
+                const code =
+                    error instanceof AuthDomainError
+                        ? 'authorization_required'
+                        : error instanceof CertificateDomainError
+                          ? 'reference_invalid'
+                          : error instanceof ProxyHostDomainError ||
+                              error instanceof ProxyRuntimeSnapshotError ||
+                              error instanceof ZodError
+                            ? 'reconcile_failed'
+                            : null
+                if (!code) throw error
+                return code
+            }
+        },
+    )
+    progress.afterKey = batch.afterKey
+    registry.results = batch.results
     for (const owner of registry.owners) {
         const row = plan.rows.find((entry) => entry.key === owner.key)
         if (owner.state === 'detached') continue

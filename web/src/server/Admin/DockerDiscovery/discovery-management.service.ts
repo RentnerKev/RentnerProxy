@@ -85,6 +85,10 @@ export async function getDiscoveryOverviewService(): Promise<DiscoveryOverview> 
                 management: overviewManagement(registry),
                 rows: plan.rows,
                 previewToken: plan.previewToken,
+                changes: {
+                    create: plan.changes.filter((change) => !change.host).length,
+                    update: plan.changes.filter((change) => change.host !== null).length,
+                },
             }
         },
         { isolationLevel: 'repeatable read', accessMode: 'read only' },

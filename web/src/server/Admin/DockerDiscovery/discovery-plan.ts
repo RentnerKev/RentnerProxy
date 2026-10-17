@@ -41,6 +41,7 @@ export function createDiscoveryPlan(
 ): DiscoveryPlan {
     const rows: DiscoveryRow[] = []
     const changes: DiscoveryPlan['changes'][number][] = []
+    const settled: string[] = []
     const observed = new Set<string>()
     const endpoint = snapshot?.configuration.settings.endpoint
     const complete = snapshot?.status === 'ready' && !snapshot.stale && Boolean(endpoint)
@@ -109,6 +110,7 @@ export function createDiscoveryPlan(
         }
         if (input.success && (state === 'create' || state === 'update'))
             changes.push({ key, candidate, host, input: input.data })
+        if (state === 'current') settled.push(key)
         // Errors from reference validation remain visible until a successful retry.
         const error = registry.results.find((entry) => entry.key === key)?.error ?? owner?.error
         if (error && !issues.includes(error)) issues.push(error)
@@ -150,6 +152,7 @@ export function createDiscoveryPlan(
     return {
         rows,
         changes,
+        settled,
         previewToken: discoveryHash({
             configuration: snapshot?.configuration,
             status: snapshot?.status,

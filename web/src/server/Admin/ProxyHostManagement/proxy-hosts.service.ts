@@ -187,7 +187,7 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
         result.push({
             ...toProxyHostSummary(summary, summary.domains),
             certificateJob: latestJobs.get(summary.id) ?? null,
-            discovery: owner && owner.state !== 'detached' ? { state: owner.state } : null,
+            ...(owner && owner.state !== 'detached' ? { discovery: { state: owner.state } } : {}),
         })
     }
 

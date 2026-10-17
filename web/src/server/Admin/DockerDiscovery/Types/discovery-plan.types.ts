@@ -1,10 +1,8 @@
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 import type {
-    DiscoveryRegistry,
     DiscoveryRow,
     DiscoveryCandidate,
 } from '@/lib/DockerDiscovery/Types/management.types.ts'
-import type { DockerDiscoverySnapshot } from '@/lib/DockerDiscovery/Types/docker-discovery.types.ts'
 import type { CreateProxyHostInput } from '@/features/Admin/ProxyHostManagement/Types/validation.types.ts'
 
 export interface DiscoveryInventory {
@@ -13,6 +11,7 @@ export interface DiscoveryInventory {
     readonly rejections?: Readonly<Record<string, 'reference_invalid' | 'authorization_required'>>
 }
 export interface DiscoveryPlan {
+    readonly settled: readonly string[]
     readonly rows: readonly DiscoveryRow[]
     readonly previewToken: string
     readonly changes: readonly {
@@ -21,12 +20,4 @@ export interface DiscoveryPlan {
         host: ProxyHostSummary | null
         input: CreateProxyHostInput
     }[]
-}
-export interface DiscoveryReconcileDependencies {
-    readonly load: () => Promise<{
-        snapshot: DockerDiscoverySnapshot | null
-        registry: DiscoveryRegistry
-        inventory: DiscoveryInventory
-    }>
-    readonly apply: (plan: DiscoveryPlan) => Promise<void>
 }

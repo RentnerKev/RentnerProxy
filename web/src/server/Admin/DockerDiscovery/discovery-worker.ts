@@ -51,7 +51,7 @@ export function createDiscoveryWorker(step: () => Promise<void>, intervalMs = 2_
         },
     }
 }
-let offset = 0
+let afterKey: string | null = null
 async function runDiscoveryCycle(): Promise<void> {
     // Disabled discovery makes no controller/Docker requests and never adopts existing hosts.
     const stored = await getAuthDatabase().transaction(readDiscoveryRegistry, {
@@ -64,19 +64,21 @@ async function runDiscoveryCycle(): Promise<void> {
         await transaction.execute(sql`set local statement_timeout = '20s'`)
         await lockProxyRuntimeSettings(transaction)
         const registry = await readDiscoveryRegistry(transaction)
+        const progress = { afterKey }
         const changed = await reconcileDiscoveryInTransaction(
             transaction,
             registry,
             snapshot,
-            offset,
+            progress,
         )
-        offset = (offset + 16) % 65_536
         return {
             revision: registry.revision,
             enabled: registry.enabled,
             pending: changed || registry.runtimeStatus === 'pending',
+            afterKey: progress.afterKey,
         }
     })
+    afterKey = result.afterKey
     if (!result.enabled || !result.pending) return
     const runtimeStatus = await reconcileProxyConfigurationService()
     if (runtimeStatus === 'applied') {
