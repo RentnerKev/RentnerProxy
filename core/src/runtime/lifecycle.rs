@@ -277,6 +277,7 @@ impl ProxyRuntime {
 
     pub(crate) async fn shutdown(&self) {
         self.stopping.store(true, Ordering::SeqCst);
+        self.stop_ddns_scheduler().await;
         for slot in [&self.renewal_task, &self.recovery_task] {
             if let Some(task) = slot.lock().await.take() {
                 task.abort();

@@ -29,7 +29,9 @@
         "backHome": "Volver al inicio",
         "openDomainInNewTab": "Abrir {{domain}} en una pestaña nueva",
         "moreDomains": "Mostrar {{count}} dominios más",
-        "clearSelection": "Borrar selección"
+        "clearSelection": "Borrar selección",
+        "edit": "Editar",
+        "delete": "Eliminar"
     },
     "inputs": {
         "invalidPhone": "Introduce un número de teléfono válido.",
@@ -81,7 +83,9 @@
         "security": "Panel de seguridad",
         "auditLogs": "Registro de auditoría",
         "systemVersion": "Versión del sistema {{version}}",
-        "updateAvailable": "Actualización disponible a la versión {{version}}"
+        "updateAvailable": "Actualización disponible a la versión {{version}}",
+        "dnsConnections": "Conexiones DNS",
+        "ddns": "DDNS"
     },
     "quickSearch": {
         "title": "Búsqueda rápida",
@@ -2401,6 +2405,314 @@
             "downloadComplete": "Se ha iniciado la descarga del informe de soporte.",
             "downloadPartial": "Se ha iniciado la descarga del informe parcial. Las secciones no disponibles están marcadas en el archivo.",
             "downloadFailed": "No se pudo descargar el informe. Comprueba tus permisos e inténtalo de nuevo."
+        },
+        "dnsConnections": {
+            "page": {
+                "eyebrow": "Administración",
+                "title": "Conexiones DNS",
+                "description": "Gestiona credenciales de Cloudflare reutilizables y las zonas permitidas de esta instancia. Los administradores autorizados comparten estas conexiones."
+            },
+            "provider": "Cloudflare · Conexión de instancia",
+            "usage": "Referencias de consumidores: {{count}}",
+            "actions": {
+                "add": "Añadir conexión DNS",
+                "edit": "Editar conexión",
+                "delete": "Eliminar conexión",
+                "test": "Comprobar el acceso de lectura y cargar zonas",
+                "reload": "Volver a cargar las conexiones",
+                "refreshDraft": "Descartar el borrador y volver a cargar las conexiones actuales"
+            },
+            "form": {
+                "description": "Guarda una conexión con nombre y las zonas de Cloudflare que puede usar.",
+                "name": "Nombre de la conexión",
+                "token": "Token de API de Cloudflare",
+                "tokenHint": "El token se guarda cifrado y no volverá a mostrarse.",
+                "replaceHint": "Déjalo en blanco para conservar el token guardado. Introduce uno nuevo para reemplazarlo.",
+                "readOnlyHint": "La prueba solo lee las zonas de Cloudflare. Los futuros servicios DNS necesitan el permiso Zone / DNS / Edit, que esta prueba de solo lectura no verifica. Al guardar se vuelven a comprobar todas las zonas seleccionadas.",
+                "zones": "Zonas seleccionadas: {{count}} / {{max}}",
+                "zonesHint": "Selecciona al menos una zona. Las zonas seleccionadas anteriormente siguen visibles al probar un token nuevo; al guardar se vuelve a comprobar su acceso.",
+                "noZones": "Prueba el token para cargar las zonas accesibles. Si no aparece ninguna, comprueba el alcance de zonas del token.",
+                "zoneInUse": "Un servicio usa esta zona. Elimina su referencia antes de deseleccionarla.",
+                "deleteInUse": "Elimina todas las referencias de servicios antes de borrar esta conexión."
+            },
+            "states": {
+                "loading": "Cargando los metadatos de las conexiones DNS…",
+                "error": "Conexiones DNS no disponibles",
+                "empty": "Aún no hay conexiones DNS",
+                "emptyDescription": "Crea una conexión de Cloudflare y selecciona las zonas disponibles para futuros servicios DNS.",
+                "waiting": "Esperando la conexión. La lista se actualiza automáticamente."
+            },
+            "confirm": {
+                "title": "¿Eliminar la conexión DNS?",
+                "description": "¿Eliminar «{{name}}» y su token guardado? Esta acción no se puede deshacer."
+            },
+            "validation": {
+                "zone": "Selecciona una zona válida de Cloudflare.",
+                "token": "Introduce un token de API de Cloudflare válido.",
+                "name": "Introduce un nombre de conexión de 1 a 100 caracteres, sin caracteres de control.",
+                "zones": "Selecciona entre 1 y 50 zonas distintas."
+            },
+            "messages": {
+                "saved": "Conexión DNS guardada.",
+                "tested": "Se ha comprobado el acceso de lectura a las zonas. No se ha verificado el acceso de escritura DNS.",
+                "deleted": "Conexión DNS eliminada.",
+                "changed": "La conexión cambió. Cierra y vuelve a abrir el editor para usar la versión actual."
+            },
+            "errors": {
+                "invalid_input": "Comprueba el nombre de la conexión, el token y las zonas seleccionadas.",
+                "connection_not_found": "Esta conexión ya no existe. Vuelve a cargar la lista.",
+                "connection_conflict": "La conexión ha cambiado desde que la abriste. Descarta el borrador, vuelve a cargar la lista y abre de nuevo la conexión antes de guardar.",
+                "connection_in_use": "Esta conexión o una de sus zonas está en uso. Elimina primero sus referencias y vuelve a cargar la lista.",
+                "connection_limit": "Se ha alcanzado el límite de conexiones de la instancia.",
+                "token_required": "Introduce un token de API de Cloudflare.",
+                "zone_not_permitted": "No se puede acceder a al menos una de las zonas seleccionadas con este token. Comprueba su alcance o cambia la selección.",
+                "zone_limit": "El token puede acceder a un máximo de 500 zonas; selecciona hasta 50.",
+                "provider_unauthorized": "Cloudflare ha rechazado el token. Comprueba que sea válido y tenga permiso de lectura de zonas.",
+                "provider_unavailable": "Cloudflare no está disponible temporalmente. Vuelve a probar la lectura más tarde.",
+                "provider_rate_limited": "Se ha alcanzado el límite de Cloudflare o de pruebas de conexión. Espera un momento y vuelve a intentarlo.",
+                "store_unavailable": "El almacenamiento de conexiones no está disponible. Vuelve a intentarlo más tarde.",
+                "credentials_unavailable": "No se puede leer el token guardado. Reemplázalo o restaura el cifrado de credenciales.",
+                "controller_unavailable": "El controlador no está disponible. Restáuralo y vuelve a cargar la lista.",
+                "requestFailed": "La solicitud ha fallado. Vuelve a intentarlo o carga la conexión actual antes de guardar de nuevo."
+            },
+            "card": {
+                "zoneCount": "Zonas: {{count}}",
+                "references": "En uso por {{count}} servicios",
+                "delete": "Eliminar conexión {{name}}"
+            }
+        },
+        "ddns": {
+            "page": {
+                "eyebrow": "Automatización DNS",
+                "title": "DNS dinámico",
+                "description": "Mantén los registros seleccionados en la IP pública del servidor.",
+                "networkHint": "DDNS solo cambia DNS. Configura puertos, cortafuegos, certificados y túneles por separado."
+            },
+            "actions": {
+                "refresh": "Actualizar estado",
+                "edit": "Editar configuración",
+                "configure": "Configurar DDNS",
+                "preview": "Previsualizar cambios",
+                "approve": "Aprobar registros revisados",
+                "save": "Guardar en pausa",
+                "enable": "Activar DDNS",
+                "disable": "Pausar DDNS",
+                "sync": "Actualizar ahora",
+                "settings": "Programación"
+            },
+            "form": {
+                "title": "Programación de DDNS",
+                "saveHint": "Guardar pausa DDNS. Revisa y activa después la configuración guardada.",
+                "interval": "Intervalo en segundos",
+                "intervalHint": "60–86400 segundos. 300 = cada 5 minutos.",
+                "families": "Familias de direcciones",
+                "ipv4": "IPv4 · registros A",
+                "ipv6": "IPv6 · registros AAAA",
+                "updateOnStart": "Comprobar al iniciar",
+                "familyHint": "Se añaden filas para las familias activas. Las desactivadas quedan pausadas. Para añadir AAAA después, activa IPv6, desmarca IPv4 temporalmente y añade los dominios.",
+                "connection": "Conexión Cloudflare",
+                "chooseConnection": "Elegir conexión",
+                "zone": "Zona para nuevos registros",
+                "autoZone": "Asignar zonas permitidas automáticamente",
+                "domains": "Dominios a gestionar",
+                "domainsHint": "Separa con comas o saltos de línea. Incluye dominio raíz, *.comodines y hosts explícitos. Solo se gestionan los A/AAAA listados.",
+                "addRecords": "Añadir a la lista",
+                "noConnections": "Crea primero una conexión con zonas permitidas.",
+                "connectionPermission": "Elegir conexiones requiere permiso de lectura DNS. Puedes gestionar los registros existentes.",
+                "domainsPlaceholder": "example.com, *.example.com, git.example.com"
+            },
+            "records": {
+                "title": "Registros gestionados",
+                "scope": "Esta lista define el alcance exacto. *.example.com es un solo registro comodín y no selecciona subdominios existentes. Omite test.example.com para conservarlo.",
+                "empty": "No hay registros. Añade solo los nombres que DDNS debe actualizar.",
+                "proxied": "Proxy Cloudflare",
+                "dnsOnly": "Solo DNS",
+                "proxyFor": "Proxy Cloudflare para {{name}} ({{type}})",
+                "removeFor": "Quitar {{name}} ({{type}}) de DDNS",
+                "inspect": "Revisar antes de adoptar o crear",
+                "create": "Creación aprobada si no existe",
+                "adopt": "Registro existente aprobado",
+                "savedConnection": "Conexión guardada"
+            },
+            "preview": {
+                "title": "2. Revisar · 3. Activar",
+                "hint": "La vista previa no cambia DNS. Aprueba los registros y guarda en pausa. Detén el actualizador anterior antes de activar.",
+                "record": "Vista previa del registro",
+                "current": "Actual",
+                "desired": "Deseado",
+                "absent": "No existe",
+                "ready": "Vista previa aprobada. Válida 3 minutos para esta configuración exacta.",
+                "approval": "Revisa los valores antes de aprobar adopción o creación.",
+                "blocked": "Resuelve los errores y repite la vista previa.",
+                "required": "Cada cambio requiere una nueva vista previa."
+            },
+            "status": {
+                "title": "Actualizaciones automáticas",
+                "ipv4": "Última IPv4 detectada",
+                "ipv6": "Última IPv6 detectada",
+                "lastRun": "Última ejecución (UTC)",
+                "lastAttempt": "Último intento (UTC)",
+                "lastSuccess": "Último éxito (UTC)",
+                "nextAttempt": "Próximo intento (UTC)",
+                "schedule": "Cada {{seconds}} segundos · Actualizar al inicio: {{startup}}",
+                "restoreHint": "La configuración restaurada queda pausada. Revisa y activa si esta instancia debe asumir el control.",
+                "cooldown": "Espera del proveedor hasta {{at}}. La actualización manual también la respeta.",
+                "details": "Detalles del estado"
+            },
+            "states": {
+                "loading": "Cargando configuración y estado…",
+                "empty": "Sin configurar",
+                "enabled": "Activo",
+                "disabled": "En pausa",
+                "restorePaused": "Pausado tras restaurar",
+                "running": "Actualizando registros…",
+                "forbidden": "Se requiere permiso de lectura DDNS",
+                "readOnly": "Solo lectura. Los cambios requieren gestión DDNS.",
+                "never": "Sin fecha / aún sin intento",
+                "waiting": "Esperando al controlador. El estado se actualiza al reconectar."
+            },
+            "results": {
+                "unchanged": "Ya actualizado",
+                "updated": "Actualizado correctamente",
+                "would_create": "Crearía el registro",
+                "would_update": "Cambiaría IP o proxy",
+                "adoption_required": "Registro existente · requiere aprobación",
+                "creation_required": "Registro ausente · requiere aprobación",
+                "skipped": "Omitido",
+                "failed": "Falló la actualización",
+                "notAttempted": "Aún sin intento",
+                "running": "Actualización en curso",
+                "attention": "Revisar configuración",
+                "familyPaused": "Familia en pausa",
+                "targetPaused": "Registro desactivado",
+                "disabled": "DDNS en pausa"
+            },
+            "messages": {
+                "saved": "Guardado en pausa. Revisa y activa DDNS.",
+                "enabled": "DDNS activado con el horario configurado.",
+                "disabled": "DDNS pausado. Un lote iniciado puede terminar; no habrá nuevos.",
+                "synced": "Actualización completada. Consulta cada registro.",
+                "unchanged": "Los registros comprobados ya estaban actualizados.",
+                "partial": "Actualización incompleta. Se conservan los últimos valores; revisa errores y próximos intentos.",
+                "changed": "La configuración cambió. Cierra y vuelve a abrir el editor.",
+                "recordSaved": "Registros guardados.",
+                "settingsSaved": "Ajustes DDNS guardados.",
+                "recordEnabled": "Registro activado.",
+                "recordDisabled": "Registro desactivado.",
+                "recordDeleted": "Registro eliminado de DDNS. Se conserva el registro DNS en Cloudflare.",
+                "actionChanged": "La configuración cambió durante esta acción. Ábrela de nuevo para usar la versión actual."
+            },
+            "validation": {
+                "domain": "Introduce un dominio o *.comodín sin URL ni puerto.",
+                "interval": "Elige 60–86400 segundos enteros.",
+                "targets": "Añade de 1 a 100 registros; máximo total 100.",
+                "families": "Activa IPv4 o IPv6 antes de añadir.",
+                "zone": "Un dominio no pertenece a las zonas permitidas. Elige otra conexión o zona.",
+                "duplicate": "El nombre y tipo ya existen. Quita duplicados."
+            },
+            "errors": {
+                "invalid_input": "Revisa dominios, familias e intervalo.",
+                "conflict": "La configuración cambió. Cierra y vuelve a abrir el editor.",
+                "busy": "Hay otra operación DDNS en curso. Espera la actualización del estado.",
+                "disabled": "DDNS está en pausa. Activa los registros guardados antes de actualizar.",
+                "restore_paused": "Restauración pausó DDNS. Revisa y activa esta instancia.",
+                "stopping": "El controlador se detiene. Actualiza tras reiniciar.",
+                "retry_deferred": "Aún hay espera. Consulta el proveedor y próximos intentos.",
+                "store_unavailable": "No se guardó el estado. Revisa almacenamiento y actualiza antes de reintentar.",
+                "connection_unavailable": "Conexiones DNS no disponibles. Comprueba el acceso; la lista se actualiza automáticamente.",
+                "controller_unavailable": "Controlador no disponible. Se conservan los últimos valores y el estado se actualiza al reconectar.",
+                "preview_required": "Vista previa caducada o cambiada. Repítela.",
+                "preview_failed": "Vista previa incompleta. Resuelve errores.",
+                "pause_confirmation_required": "Confirma que guardar pausa la configuración.",
+                "activation_confirmation_required": "Confirma la activación tras revisar.",
+                "requestFailed": "No se recibió la respuesta. Comprueba el estado en directo antes de repetir una operación."
+            },
+            "recordErrors": {
+                "invalid_input": "Configuración inválida. Edita nombre, zona o selección.",
+                "busy": "Otro lote en curso. Actualiza estado.",
+                "connection_unavailable": "Conexión ausente. Repárala o vuelve a añadir con otra.",
+                "zone_not_permitted": "Zona no permitida. Ajusta permisos o conexión.",
+                "name_outside_zone": "Host fuera de zona. Añádelo con la zona correcta.",
+                "ip_discovery_failed": "Falló la detección IP. Revisa conexión del controlador.",
+                "family_disabled": "Familia desactivada. Registros conservados sin cambios.",
+                "adoption_required": "Este registro necesita una inspección automática. Guárdalo o actívalo para comprobar su identidad.",
+                "creation_required": "No existe el registro. Guarda o activa el destino para comprobar y crear ese nombre y tipo.",
+                "record_conflict": "Registros múltiples o CNAME incompatible. Resuelve en Cloudflare; DDNS no borra.",
+                "record_changed": "El registro cambió. Quita, añade y revisa de nuevo.",
+                "provider_unauthorized": "Acceso denegado. Revisa Zone Read y DNS Edit del token.",
+                "provider_rate_limited": "Límite alcanzado. Espera al próximo intento; no se puede evitar manualmente.",
+                "provider_unavailable": "Cloudflare no disponible. Se reintentará conservando el último valor.",
+                "invalid_provider_response": "Respuesta inesperada. Revisa disponibilidad y repite la vista previa.",
+                "write_unconfirmed": "Cambio posiblemente aceptado sin confirmación. Revisa antes de repetir.",
+                "time_budget_exceeded": "Plazo del lote agotado. Los pendientes se reintentarán según horario.",
+                "run_interrupted": "Ejecución interrumpida. Comprueba DNS antes del reintento manual.",
+                "target_disabled": "Este registro está desactivado. Se conserva su valor DNS sin actualizarlo."
+            },
+            "confirm": {
+                "save": {
+                    "title": "¿Guardar y pausar la configuración?",
+                    "description": "DDNS quedará pausado. Se quitan {{removed}} destinos sin borrar sus registros. Revisa y activa la lista después.",
+                    "action": "Guardar en pausa"
+                },
+                "enable": {
+                    "title": "¿Activar DDNS para estos registros?",
+                    "description": "He revisado IP y proxy y detenido el actualizador anterior. El controlador puede actualizar automáticamente los A/AAAA aprobados.",
+                    "action": "Activar registros aprobados"
+                },
+                "disable": {
+                    "title": "¿Pausar actualizaciones DDNS?",
+                    "description": "Se detienen nuevos lotes. Uno iniciado puede terminar. Los registros y últimos valores se conservan.",
+                    "action": "Pausar actualizaciones"
+                },
+                "discard": {
+                    "title": "¿Descartar cambios sin guardar?",
+                    "description": "Se descartan borrador y vista previa. Sigue la configuración guardada.",
+                    "action": "Descartar cambios"
+                }
+            },
+            "settings": {
+                "description": "Se aplica a todos los registros habilitados. La versión IP, el proxy de Cloudflare y la activación se eligen por registro."
+            },
+            "editor": {
+                "addTitle": "Añadir registros",
+                "editTitle": "Editar registro",
+                "description": "Solo se gestionan los nombres indicados. Al guardar se comprueban automáticamente los registros.",
+                "domainLabel": "Dominio {{number}}",
+                "removeDomain": "Quitar dominio {{number}}",
+                "placeholder": "example.com",
+                "addDomain": "Añadir otro dominio",
+                "recordType": "Tipo de registro",
+                "both": "IPv4 + IPv6 · A y AAAA",
+                "enabled": "Actualizaciones automáticas"
+            },
+            "table": {
+                "eyebrow": "DNS gestionado",
+                "title": "Registros gestionados · {{count}}",
+                "name": "Registro",
+                "connection": "Conexión / zona",
+                "proxy": "Proxy",
+                "proxied": "Proxy Cloudflare",
+                "dnsOnly": "Solo DNS",
+                "status": "Estado / última IP",
+                "schedule": "Actualizaciones",
+                "last": "Última: {{at}}",
+                "next": "Próxima: {{at}}",
+                "actions": "Acciones",
+                "actionsFor": "Acciones para {{name}} ({{type}})",
+                "enable": "Activar",
+                "disable": "Desactivar",
+                "search": "Buscar registros",
+                "searchPlaceholder": "Dominio, conexión o IP…",
+                "emptyTitle": "No hay registros gestionados",
+                "emptyDescription": "Añade los dominios exactos que debe actualizar DDNS.",
+                "filteredTitle": "No hay coincidencias",
+                "filteredDescription": "Cambia la búsqueda o borra los filtros.",
+                "itemLabel": "registros"
+            },
+            "delete": {
+                "title": "¿Quitar registro gestionado?",
+                "description": "¿Dejar de gestionar {{name}}? El registro DNS en Cloudflare no se modifica."
+            }
         }
     },
     "permissions": {
@@ -2418,7 +2730,9 @@
             "crowdsec": "CrowdSec",
             "audit-logs": "Registro de auditoría",
             "system": "Sistema",
-            "default_site": "Sitio predeterminado"
+            "default_site": "Sitio predeterminado",
+            "dns_connections": "Conexiones DNS",
+            "ddns": "DNS dinámico"
         },
         "app": {
             "access": "Acceso a la aplicación"
@@ -2495,6 +2809,14 @@
         "default_site": {
             "view": "Ver los ajustes del sitio predeterminado",
             "update": "Actualizar los ajustes del sitio predeterminado"
+        },
+        "dns_connections": {
+            "view": "Ver conexiones DNS",
+            "manage": "Gestionar conexiones DNS"
+        },
+        "ddns": {
+            "view": "Ver estado DDNS",
+            "manage": "Gestionar configuración DDNS"
         }
     },
     "systemRoles": {

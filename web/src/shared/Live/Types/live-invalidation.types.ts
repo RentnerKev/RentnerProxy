@@ -1,6 +1,12 @@
 import type { QueryKey } from '@tanstack/react-query'
 
-type LiveInvalidationTopic = 'proxy-hosts' | 'certificates' | 'redirect-hosts' | 'access-policies'
+type LiveInvalidationTopic =
+    | 'proxy-hosts'
+    | 'certificates'
+    | 'redirect-hosts'
+    | 'access-policies'
+    | 'dns-connections'
+    | 'ddns'
 
 export interface LiveRevisionSnapshot {
     readonly revision: string

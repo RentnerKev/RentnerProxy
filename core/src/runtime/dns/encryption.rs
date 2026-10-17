@@ -39,7 +39,7 @@ pub(crate) fn decrypt(
     decrypt_with_key(encrypted, certificate_id, &key)
 }
 
-fn encryption_key_from_environment() -> Result<[u8; 32], CertificateError> {
+pub(crate) fn encryption_key_from_environment() -> Result<[u8; 32], CertificateError> {
     let direct = env::var_os(APP_ENCRYPTION_KEY_ENV);
     let file = env::var_os(APP_ENCRYPTION_KEY_FILE_ENV);
     if direct.is_some() && file.is_some() {
@@ -98,7 +98,15 @@ pub(super) fn encrypt_with_key(
     key_bytes: &[u8; 32],
 ) -> Result<EncryptedDnsConfig, CertificateError> {
     let plaintext = serde_json::to_vec(config).map_err(|_| CertificateError::DnsProviderInvalid)?;
-    let mut ciphertext = plaintext;
+    encrypt_bytes(&plaintext, certificate_id, key_bytes)
+}
+
+pub(crate) fn encrypt_bytes(
+    plaintext: &[u8],
+    aad: &str,
+    key_bytes: &[u8; 32],
+) -> Result<EncryptedDnsConfig, CertificateError> {
+    let mut ciphertext = plaintext.to_vec();
     let mut nonce_bytes = [0_u8; AES_GCM_NONCE_BYTES];
     SystemRandom::new()
         .fill(&mut nonce_bytes)
@@ -109,7 +117,7 @@ pub(super) fn encrypt_with_key(
     );
     key.seal_in_place_append_tag(
         aead::Nonce::assume_unique_for_key(nonce_bytes),
-        aead::Aad::from(certificate_id.as_bytes()),
+        aead::Aad::from(aad.as_bytes()),
         &mut ciphertext,
     )
     .map_err(|_| CertificateError::DnsCredentialsUnavailable)?;
@@ -128,6 +136,16 @@ pub(super) fn decrypt_with_key(
     certificate_id: &str,
     key_bytes: &[u8; 32],
 ) -> Result<DnsProviderConfig, CertificateError> {
+    let plaintext = decrypt_bytes(encrypted, certificate_id, key_bytes)?;
+    serde_json::from_slice(&plaintext).map_err(|_| CertificateError::DnsProviderInvalid)
+}
+
+pub(crate) fn decrypt_bytes(
+    encrypted: &EncryptedDnsConfig,
+    aad: &str,
+    key_bytes: &[u8; 32],
+) -> Result<Vec<u8>, CertificateError> {
+    validate_encrypted_config(encrypted)?;
     let key = aead::LessSafeKey::new(
         aead::UnboundKey::new(&aead::AES_256_GCM, key_bytes)
             .map_err(|_| CertificateError::DnsCredentialsUnavailable)?,
@@ -137,11 +155,11 @@ pub(super) fn decrypt_with_key(
         .open_in_place(
             aead::Nonce::try_assume_unique_for_key(&encrypted.nonce)
                 .map_err(|_| CertificateError::DnsProviderInvalid)?,
-            aead::Aad::from(certificate_id.as_bytes()),
+            aead::Aad::from(aad.as_bytes()),
             &mut ciphertext,
         )
         .map_err(|_| CertificateError::DnsCredentialsUnavailable)?;
-    serde_json::from_slice(plaintext).map_err(|_| CertificateError::DnsProviderInvalid)
+    Ok(plaintext.to_vec())
 }
 
 fn validate_aad(certificate_id: &str) -> Result<(), CertificateError> {

@@ -2,7 +2,7 @@ import type {
     LiveRevisionSnapshot,
     UseLiveInvalidationOptions,
 } from '../Types/live-invalidation.types.ts'
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 
 import useLiveQuery from './useLiveQuery.ts'
@@ -27,11 +27,20 @@ export default function useLiveInvalidation({
         },
         [queryClient, queryKeys],
     )
+    const onResume = useCallback(() => {
+        void Promise.all(queryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })))
+    }, [queryClient, queryKeys])
 
-    return useLiveQuery<LiveRevisionSnapshot>({
+    const status = useLiveQuery<LiveRevisionSnapshot>({
         topic,
         query,
         enabled,
         onData,
+        onResume,
     })
+    useEffect(() => {
+        // A reconnect must retry a failed HTTP read even when server state did not change.
+        if (status === 'disconnected' || status === 'inactive') revisionRef.current = undefined
+    }, [status])
+    return status
 }

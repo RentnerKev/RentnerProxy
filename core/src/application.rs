@@ -104,8 +104,13 @@ async fn serve() -> Result<(), Box<dyn Error + Send + Sync>> {
     runtime
         .start_renewal_scheduler(state.challenges.clone())
         .await;
+    runtime.start_ddns_scheduler().await;
+    let stopping_runtime = Arc::clone(&runtime);
     let result = axum::serve(listener, app_with_state(state))
-        .with_graceful_shutdown(wait_for_shutdown())
+        .with_graceful_shutdown(async move {
+            wait_for_shutdown().await;
+            stopping_runtime.ddns_automation.stop_accepting();
+        })
         .await;
     runtime.shutdown().await;
     result?;

@@ -59,7 +59,10 @@ export async function controllerRequest(
         | '/internal/v1/certificates'
         | `/internal/v1/certificates/${string}`
         | `/internal/v1/certificates/events${string}`
-        | '/internal/v1/trusted-cas/validate',
+        | '/internal/v1/trusted-cas/validate'
+        | '/internal/v1/dns/connections'
+        | `/internal/v1/dns/connections/${string}`
+        | `/internal/v1/ddns/${'status' | 'config' | 'preview' | 'enable' | 'disable' | 'sync'}`,
     options: ControllerRequestOptions,
 ): Promise<unknown> {
     const baseUrl = getControllerBaseUrl()
@@ -75,11 +78,18 @@ export async function controllerRequest(
     const headers: Record<string, string> = { accept: 'application/json' }
     const isCertificateRequest =
         path === '/internal/v1/certificates' || path.startsWith('/internal/v1/certificates/')
-    if (options.privileged || isCertificateRequest) {
+    const isDnsConnectionRequest =
+        path === '/internal/v1/dns/connections' || path.startsWith('/internal/v1/dns/connections/')
+    const isDdnsRequest = path.startsWith('/internal/v1/ddns/')
+    if (options.privileged || isCertificateRequest || isDnsConnectionRequest || isDdnsRequest) {
         const token = getControllerToken()
         if (
             token === null ||
-            (!token && (isCertificateRequest || !isLoopbackControllerUrl(baseUrl)))
+            (!token &&
+                (isCertificateRequest ||
+                    isDdnsRequest ||
+                    isDnsConnectionRequest ||
+                    !isLoopbackControllerUrl(baseUrl)))
         )
             return null
         if (token) headers.authorization = 'Bearer ' + token
@@ -115,7 +125,10 @@ export async function controllerRequest(
         if (response.ok) return payload
         if (options.acceptNonOkJson) return payload
 
-        const error = z.object({ error: z.string().max(64) }).safeParse(payload)
+        const errorSchema = z.object({ error: z.string().max(64) })
+        const error = (isDnsConnectionRequest ? errorSchema.strict() : errorSchema).safeParse(
+            payload,
+        )
         return error.success ? error.data : null
     } catch {
         console.warn('[controller] request unavailable', { path: safePath })

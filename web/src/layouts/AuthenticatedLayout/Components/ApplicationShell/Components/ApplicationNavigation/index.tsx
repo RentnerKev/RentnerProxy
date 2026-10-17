@@ -4,6 +4,8 @@ import {
     Award,
     ChevronDown,
     ClipboardList,
+    Cloud,
+    RefreshCw,
     KeyRound,
     LayoutDashboard,
     Settings2,
@@ -90,6 +92,18 @@ export default function ApplicationNavigation({
                                 >
                                     {item.to === '/' ? (
                                         <LayoutDashboard
+                                            aria-hidden="true"
+                                            className="size-4 shrink-0"
+                                            strokeWidth={1.8}
+                                        />
+                                    ) : item.to === '/dns-connections' ? (
+                                        <Cloud
+                                            aria-hidden="true"
+                                            className="size-4 shrink-0"
+                                            strokeWidth={1.8}
+                                        />
+                                    ) : item.to === '/ddns' ? (
+                                        <RefreshCw
                                             aria-hidden="true"
                                             className="size-4 shrink-0"
                                             strokeWidth={1.8}

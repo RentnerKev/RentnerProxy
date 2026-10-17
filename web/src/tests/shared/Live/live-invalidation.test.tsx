@@ -111,3 +111,26 @@ test('invalidates polled queries once for each new live revision', async () => {
     await flush()
     expect(fetches).toBe(3)
 })
+
+test('reconnect retries the current snapshot even when its server revision is unchanged', async () => {
+    await act(async () =>
+        root.render(
+            <QueryClientProvider client={queryClient}>
+                <Probe />
+            </QueryClientProvider>,
+        ),
+    )
+    await flush()
+    await act(async () => FakeSocket.instances[0]!.deliver({ revision: 'same-revision' }))
+    await flush()
+    expect(fetches).toBe(2)
+    await act(async () => FakeSocket.instances[0]!.close())
+    await flush()
+    await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 1100))
+    })
+    expect(FakeSocket.instances).toHaveLength(2)
+    await act(async () => FakeSocket.instances[1]!.deliver({ revision: 'same-revision' }))
+    await flush()
+    expect(fetches).toBe(3)
+})
