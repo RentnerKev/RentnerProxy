@@ -1,4 +1,6 @@
 import type { DdnsRecordError, DdnsTarget } from '@/lib/Ddns/Types/ddns.types.ts'
+import type { ClientTable } from '@/shared/Table/Types/client-table.types.ts'
+import type { TableColumnFilterConfigs } from '@/shared/Table/Types/table.types.ts'
 export interface DdnsRecordRow {
     readonly target: DdnsTarget
     readonly connectionLabel: string
@@ -24,4 +26,18 @@ export interface DdnsRecordsProps extends DdnsRecordActions {
     readonly rows: DdnsRecordRow[]
     readonly canAdd: boolean
     readonly onAdd: () => void
+}
+
+export interface DdnsRecordsLogicResult {
+    readonly table: ClientTable<DdnsRecordRow>
+    readonly state: {
+        readonly searchInput: string
+        readonly showColumnFilters: boolean
+        readonly columnFilterConfigs: TableColumnFilterConfigs
+    }
+    readonly handler: {
+        readonly handleSearchInputChange: (value: string) => void
+        readonly handleResetFilters: () => void
+        readonly toggleColumnFilters: () => void
+    }
 }

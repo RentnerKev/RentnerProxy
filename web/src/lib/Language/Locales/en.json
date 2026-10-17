@@ -2498,17 +2498,17 @@
                 "enable": "Enable DDNS",
                 "disable": "Pause DDNS",
                 "sync": "Update now",
-                "settings": "Settings"
+                "settings": "Schedule"
             },
             "form": {
-                "title": "DDNS settings",
+                "title": "DDNS schedule",
                 "saveHint": "Saving pauses DDNS. Review and enable the saved configuration separately.",
                 "interval": "Interval in seconds",
                 "intervalHint": "60–86400 seconds. 300 = every 5 minutes.",
                 "families": "Address families",
                 "ipv4": "IPv4 · A records",
                 "ipv6": "IPv6 · AAAA records",
-                "updateOnStart": "Update when controller starts",
+                "updateOnStart": "Check on startup",
                 "familyHint": "Adding domains creates rows for enabled families. Turning a family off keeps its rows paused. To add AAAA later, enable IPv6 and add the specific domain again without duplicating A rows.",
                 "connection": "Cloudflare connection",
                 "chooseConnection": "Choose a connection",
@@ -2547,7 +2547,7 @@
                 "required": "A fresh preview is required after every change."
             },
             "status": {
-                "title": "DDNS runtime",
+                "title": "Automatic updates",
                 "ipv4": "Last discovered IPv4",
                 "ipv6": "Last discovered IPv6",
                 "lastRun": "Last completed run (UTC)",
@@ -2556,7 +2556,8 @@
                 "nextAttempt": "Next attempt (UTC)",
                 "schedule": "Every {{seconds}} seconds · Update on start: {{startup}}",
                 "restoreHint": "Restored configurations stay paused. Review the records and explicitly enable DDNS when this instance should take over.",
-                "cooldown": "Provider cooldown until {{at}}. Update now also respects this limit."
+                "cooldown": "Provider cooldown until {{at}}. Update now also respects this limit.",
+                "details": "Status details"
             },
             "states": {
                 "loading": "Loading DDNS configuration and record status…",
@@ -2670,7 +2671,7 @@
                 }
             },
             "settings": {
-                "description": "Choose the update interval and enabled address families."
+                "description": "Applies to all enabled records. IP version, Cloudflare proxy and activation are chosen per record."
             },
             "editor": {
                 "addTitle": "Add records",
@@ -2682,7 +2683,7 @@
                 "addDomain": "Add another domain",
                 "recordType": "Record type",
                 "both": "IPv4 + IPv6 · A and AAAA",
-                "enabled": "Enable automatic updates for these records"
+                "enabled": "Automatic updates"
             },
             "table": {
                 "eyebrow": "Managed DNS",
@@ -2711,6 +2712,12 @@
             "delete": {
                 "title": "Remove managed record?",
                 "description": "Stop managing {{name}}? Its Cloudflare DNS record remains unchanged."
+            },
+            "demo": {
+                "show": "Show demo data",
+                "hide": "Show real data",
+                "reset": "Reset demo data",
+                "description": "Demo · Changes stay in this browser and never change real DNS records."
             }
         }
     },

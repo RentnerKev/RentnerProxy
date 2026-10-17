@@ -8,6 +8,7 @@ import {
 } from '@/config/ddns.config.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { activeDdnsTarget, ddnsDraft } from '@/lib/Ddns/targets.ts'
+import { editableDdnsRecordDraft, withDdnsRecordFamilies } from '@/lib/Ddns/recordFamilies.ts'
 import type { DdnsDraft, DdnsSnapshot, DdnsTarget } from '@/lib/Ddns/Types/ddns.types.ts'
 import useTranslationStore, {
     useDateTimeFormatter,
@@ -35,6 +36,7 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
     > | null>(null)
     const [deletion, setDeletion] = useState<DdnsDeletionContext | null>(null)
     const [isPending, setIsPending] = useState(false)
+    const [runtimeDetails, setRuntimeDetails] = useState(false)
     const pending = useRef(false)
     const statusQuery = useQuery({
         queryKey: DDNS_QUERY_KEYS.status,
@@ -65,7 +67,7 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
     const snapshot = statusQuery.data
     const settings = snapshot?.configuration?.settings
     const revision = snapshot?.configuration?.revision ?? 0
-    const draft = ddnsDraft(settings)
+    const draft = editableDdnsRecordDraft(ddnsDraft(settings))
     const available = !!snapshot && !statusQuery.isError
     const locked = isPending || !available || !!snapshot?.inFlight
     const editorRevision = recordEditor?.revision ?? settingsEditor?.revision
@@ -149,18 +151,19 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
         enabled = settings?.targets.length ? settings.enabled : !snapshot?.restorePaused,
     ) {
         if (locked) return
+        const prepared = withDdnsRecordFamilies(candidate)
         await run(async () =>
             accept(
                 unwrap(
                     await api.apply({
                         expectedRevision,
-                        draft: candidate,
+                        draft: prepared,
                         enabled:
                             enabled &&
-                            candidate.targets.length > 0 &&
+                            prepared.targets.length > 0 &&
                             (!!settings?.enabled ||
-                                candidate.targets.some((target) =>
-                                    activeDdnsTarget(candidate, target),
+                                prepared.targets.some((target) =>
+                                    activeDdnsTarget(prepared, target),
                                 )),
                     }),
                 ),
@@ -174,6 +177,7 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
             canManage,
             canChooseConnection,
             isPending,
+            runtimeDetails,
             locked,
             available,
             isLoading: statusQuery.isPending && canView,
@@ -199,6 +203,7 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
             lastRun: date(snapshot?.lastRun?.finishedAt),
         },
         handler: {
+            toggleRuntimeDetails: () => setRuntimeDetails((expanded) => !expanded),
             add: () => {
                 if (!locked && canChooseConnection)
                     setRecordEditor({ draft, revision, target: null })

@@ -8,6 +8,18 @@ container, database schema or migration is needed. The [DDNS web page and migrat
 workflow](ddns-migration.md) provide individual record inputs, a shared management
 table, automatic inspection on save and live status at `/ddns` (#233).
 
+The web page derives IPv4/IPv6 discovery from the enabled A/AAAA records. Its shared
+schedule controls only the interval and checks on controller startup; proxy and
+activation are per-record options. Legacy global family pauses appear as paused
+records and retain that behavior when another record is changed. Column filters
+support record names, connections, proxy mode and status.
+
+In `bun run dev`, **Show demo data** switches the DDNS page to twelve synthetic
+records in a separate in-memory API and Query cache. Demo edits, pauses, manual
+updates and removals never reach the controller, Cloudflare or persistent storage.
+**Show real data** returns to the live configuration; **Reset demo data** starts a
+fresh sample session. This entrypoint is removed from production builds.
+
 ## Activation and private API
 
 DDNS is disabled on a fresh installation. Saving a connection or selecting a zone

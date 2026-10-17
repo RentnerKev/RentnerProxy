@@ -25,11 +25,11 @@ export default function DdnsRecords(props: DdnsRecordsProps) {
             searchInput={state.searchInput}
             searchLabel={t('admin.ddns.table.search')}
             searchPlaceholder={t('admin.ddns.table.searchPlaceholder')}
-            enableColumnFilters={false}
-            showColumnFilters={false}
+            showColumnFilters={state.showColumnFilters}
             onSearchChange={handler.handleSearchInputChange}
-            onToggleColumnFilters={handler.noFilters}
+            onToggleColumnFilters={handler.toggleColumnFilters}
             onResetFilters={handler.handleResetFilters}
+            columnFilterConfigs={state.columnFilterConfigs}
             loadingLabel={t('common.loading')}
             emptyState={{
                 title: t('admin.ddns.table.emptyTitle'),

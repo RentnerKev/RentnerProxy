@@ -5,6 +5,7 @@ import type { Root } from 'react-dom/client'
 import { toast } from '@rentnerkev/toasts/toast'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { DDNS_QUERY_KEYS } from '@/config/ddns.config.ts'
+import { createDdnsDemoApi } from '@/features/Admin/Ddns/Development/ddns-demo.ts'
 import type { DdnsApi } from '@/features/Admin/Ddns/Types/ddns-ui.types.ts'
 import {
     DDNS_CONNECTION,
@@ -22,6 +23,7 @@ const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { default: DdnsPage } = await import('@/features/Admin/Ddns/index.tsx')
+const { default: DdnsDevelopment } = await import('@/features/Admin/Ddns/Development/index.tsx')
 let root: Root | undefined
 let client: InstanceType<typeof QueryClient>
 const feedback: { kind: string; message: unknown }[] = []
@@ -116,7 +118,7 @@ async function waitFor(condition: () => boolean): Promise<void> {
     }
     await poll()
 }
-async function render(api: DdnsApi, manage = true) {
+async function render(api: DdnsApi, manage = true, development = false) {
     client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const container = document.createElement('div')
     document.body.append(container)
@@ -125,16 +127,29 @@ async function render(api: DdnsApi, manage = true) {
         root!.render(
             withTestLanguage(
                 <QueryClientProvider client={client}>
-                    <DdnsPage
-                        api={api}
-                        liveEnabled={false}
-                        permissions={[
-                            PERMISSIONS.DDNS_VIEW,
-                            ...(manage
-                                ? [PERMISSIONS.DDNS_MANAGE, PERMISSIONS.DNS_CONNECTIONS_VIEW]
-                                : []),
-                        ]}
-                    />
+                    {development ? (
+                        <DdnsDevelopment
+                            api={api}
+                            liveEnabled={false}
+                            permissions={[
+                                PERMISSIONS.DDNS_VIEW,
+                                ...(manage
+                                    ? [PERMISSIONS.DDNS_MANAGE, PERMISSIONS.DNS_CONNECTIONS_VIEW]
+                                    : []),
+                            ]}
+                        />
+                    ) : (
+                        <DdnsPage
+                            api={api}
+                            liveEnabled={false}
+                            permissions={[
+                                PERMISSIONS.DDNS_VIEW,
+                                ...(manage
+                                    ? [PERMISSIONS.DDNS_MANAGE, PERMISSIONS.DNS_CONNECTIONS_VIEW]
+                                    : []),
+                            ]}
+                        />
+                    )}
                 </QueryClientProvider>,
             ),
         ),
@@ -201,6 +216,100 @@ async function action(label: string) {
     )
 }
 describe('DDNS administration UI', () => {
+    test('AAAA creation follows the record type without a second global address switch', async () => {
+        const { api } = fixture()
+        await render(api)
+        await click(button('Add records'))
+        await select(0, 'Fixture Cloudflare')
+        await select(2, 'IPv6 · AAAA records')
+        await fill('domain-0', 'v6.example.com')
+        await submit()
+        await waitFor(() => !!feedback.find((item) => item.kind === 'success'))
+        expect(api.apply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                draft: expect.objectContaining({
+                    ipv4: false,
+                    ipv6: true,
+                    targets: [
+                        expect.objectContaining({
+                            name: 'v6.example.com',
+                            recordType: 'AAAA',
+                            enabled: true,
+                        }),
+                    ],
+                }),
+            }),
+        )
+    })
+
+    test('schedule settings are compact and contain only global timing options', async () => {
+        await render(fixture(ddnsSnapshot(approved, true)).api)
+        expect(button('Status details').getAttribute('aria-expanded')).toBe('false')
+        await click(button('Status details'))
+        expect(button('Status details').getAttribute('aria-expanded')).toBe('true')
+        expect(document.querySelector('#ddns-runtime-details')).not.toBeNull()
+        await click(button('Schedule'))
+        expect(document.querySelector('input[name="intervalSeconds"]')).not.toBeNull()
+        expect(document.querySelector('input[name="updateOnStart"]')).not.toBeNull()
+        expect(document.querySelector('input[name="ipv4"]')).toBeNull()
+        expect(document.querySelector('input[name="ipv6"]')).toBeNull()
+        await fill('intervalSeconds', '600')
+        await submit()
+        await waitFor(() => !!feedback.find((item) => item.kind === 'success'))
+        expect(document.querySelector('[role="dialog"]')).toBeNull()
+    })
+
+    test('column filter row can filter by proxy and reset without losing records', async () => {
+        await render(createDdnsDemoApi())
+        const filter = document.querySelector('button[aria-label="Filters"]')!
+        expect(filter.getAttribute('aria-expanded')).toBe('false')
+        await click(filter)
+        expect(filter.getAttribute('aria-expanded')).toBe('true')
+        const selects = [...document.querySelectorAll('[role="combobox"]')]
+        await click(selects[1]!)
+        await waitFor(
+            () =>
+                !![...document.querySelectorAll('[role="option"]')].find((item) =>
+                    item.textContent?.includes('DNS only'),
+                ),
+        )
+        await click(
+            [...document.querySelectorAll('[role="option"]')].find((item) =>
+                item.textContent?.includes('DNS only'),
+            )!,
+        )
+        await waitFor(() => document.querySelectorAll('tbody tr').length === 4)
+        expect(document.querySelector('tbody')!.textContent).toContain('git.example.com')
+        expect(document.querySelector('tbody')!.textContent).not.toContain('cloud.example.com')
+        await click(button('Reset filters'))
+        await waitFor(() => document.querySelectorAll('tbody tr').length === 10)
+    })
+
+    test('development demo uses a separate cache and never sends a real mutation', async () => {
+        const { api } = fixture(ddnsSnapshot(approved, true))
+        await render(api, true, true)
+        await click(button('Show demo data'))
+        await waitFor(
+            () => !!document.querySelector('button[aria-label="Actions for git.example.com (A)"]'),
+        )
+        await action('Disable')
+        await waitFor(() => !!feedback.find((item) => item.message === 'Record disabled.'))
+        expect(api.apply).not.toHaveBeenCalled()
+        expect(client.getQueryData<typeof approved>(DDNS_QUERY_KEYS.status)).toMatchObject({
+            configuration: { revision: 1 },
+        })
+        await click(button('Reset demo data'))
+        await waitFor(
+            () => !!document.querySelector('button[aria-label="Actions for example.com (A)"]'),
+        )
+        await click(button('Show real data'))
+        await waitFor(() => !document.body.textContent?.includes('git.example.com'))
+        expect(client.getQueryData(DDNS_QUERY_KEYS.status)).toMatchObject({
+            configuration: { revision: 1 },
+        })
+        expect(api.disable).not.toHaveBeenCalled()
+        expect(api.sync).not.toHaveBeenCalled()
+    })
     test('a delayed mutation response cannot overwrite a newer committed configuration', async () => {
         const { api } = fixture(ddnsSnapshot(approved, true))
         const result = Promise.withResolvers<Awaited<ReturnType<DdnsApi['apply']>>>()

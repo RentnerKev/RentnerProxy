@@ -2498,17 +2498,17 @@
                 "enable": "Activar DDNS",
                 "disable": "Pausar DDNS",
                 "sync": "Actualizar ahora",
-                "settings": "Ajustes"
+                "settings": "Programación"
             },
             "form": {
-                "title": "Ajustes DDNS",
+                "title": "Programación de DDNS",
                 "saveHint": "Guardar pausa DDNS. Revisa y activa después la configuración guardada.",
                 "interval": "Intervalo en segundos",
                 "intervalHint": "60–86400 segundos. 300 = cada 5 minutos.",
                 "families": "Familias de direcciones",
                 "ipv4": "IPv4 · registros A",
                 "ipv6": "IPv6 · registros AAAA",
-                "updateOnStart": "Actualizar al iniciar el controlador",
+                "updateOnStart": "Comprobar al iniciar",
                 "familyHint": "Se añaden filas para las familias activas. Las desactivadas quedan pausadas. Para añadir AAAA después, activa IPv6, desmarca IPv4 temporalmente y añade los dominios.",
                 "connection": "Conexión Cloudflare",
                 "chooseConnection": "Elegir conexión",
@@ -2547,7 +2547,7 @@
                 "required": "Cada cambio requiere una nueva vista previa."
             },
             "status": {
-                "title": "Ejecución DDNS",
+                "title": "Actualizaciones automáticas",
                 "ipv4": "Última IPv4 detectada",
                 "ipv6": "Última IPv6 detectada",
                 "lastRun": "Última ejecución (UTC)",
@@ -2556,7 +2556,8 @@
                 "nextAttempt": "Próximo intento (UTC)",
                 "schedule": "Cada {{seconds}} segundos · Actualizar al inicio: {{startup}}",
                 "restoreHint": "La configuración restaurada queda pausada. Revisa y activa si esta instancia debe asumir el control.",
-                "cooldown": "Espera del proveedor hasta {{at}}. La actualización manual también la respeta."
+                "cooldown": "Espera del proveedor hasta {{at}}. La actualización manual también la respeta.",
+                "details": "Detalles del estado"
             },
             "states": {
                 "loading": "Cargando configuración y estado…",
@@ -2670,7 +2671,7 @@
                 }
             },
             "settings": {
-                "description": "Elige el intervalo de actualización y las familias de direcciones activas."
+                "description": "Se aplica a todos los registros habilitados. La versión IP, el proxy de Cloudflare y la activación se eligen por registro."
             },
             "editor": {
                 "addTitle": "Añadir registros",
@@ -2682,7 +2683,7 @@
                 "addDomain": "Añadir otro dominio",
                 "recordType": "Tipo de registro",
                 "both": "IPv4 + IPv6 · A y AAAA",
-                "enabled": "Activar actualizaciones automáticas para estos registros"
+                "enabled": "Actualizaciones automáticas"
             },
             "table": {
                 "eyebrow": "DNS gestionado",
@@ -2711,6 +2712,12 @@
             "delete": {
                 "title": "¿Quitar registro gestionado?",
                 "description": "¿Dejar de gestionar {{name}}? El registro DNS en Cloudflare no se modifica."
+            },
+            "demo": {
+                "show": "Mostrar datos de demostración",
+                "hide": "Mostrar datos reales",
+                "reset": "Restablecer demostración",
+                "description": "Demostración · Los cambios permanecen en este navegador y no modifican registros DNS reales."
             }
         }
     },

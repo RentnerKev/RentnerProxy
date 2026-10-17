@@ -2498,17 +2498,17 @@
                 "enable": "Activer DDNS",
                 "disable": "Mettre DDNS en pause",
                 "sync": "Mettre à jour maintenant",
-                "settings": "Réglages"
+                "settings": "Planification"
             },
             "form": {
-                "title": "Réglages DDNS",
+                "title": "Planification DDNS",
                 "saveHint": "L’enregistrement met DDNS en pause. Vérifiez puis activez la configuration séparément.",
                 "interval": "Intervalle en secondes",
                 "intervalHint": "60–86400 secondes. 300 = toutes les 5 minutes.",
                 "families": "Familles d’adresses",
                 "ipv4": "IPv4 · enregistrements A",
                 "ipv6": "IPv6 · enregistrements AAAA",
-                "updateOnStart": "Actualiser au démarrage du contrôleur",
+                "updateOnStart": "Vérifier au démarrage",
                 "familyHint": "Des lignes sont ajoutées pour les familles actives. Les autres restent en pause. Pour ajouter AAAA ensuite, activez IPv6, décochez IPv4 temporairement et ajoutez les domaines.",
                 "connection": "Connexion Cloudflare",
                 "chooseConnection": "Choisir une connexion",
@@ -2547,7 +2547,7 @@
                 "required": "Chaque modification exige un nouvel aperçu."
             },
             "status": {
-                "title": "Exécution DDNS",
+                "title": "Mises à jour automatiques",
                 "ipv4": "Dernière IPv4 détectée",
                 "ipv6": "Dernière IPv6 détectée",
                 "lastRun": "Dernière exécution (UTC)",
@@ -2556,7 +2556,8 @@
                 "nextAttempt": "Prochaine tentative (UTC)",
                 "schedule": "Toutes les {{seconds}} secondes · Au démarrage : {{startup}}",
                 "restoreHint": "Une restauration reste en pause. Vérifiez et activez si cette instance doit reprendre.",
-                "cooldown": "Attente du fournisseur jusqu’à {{at}}. La mise à jour manuelle la respecte aussi."
+                "cooldown": "Attente du fournisseur jusqu’à {{at}}. La mise à jour manuelle la respecte aussi.",
+                "details": "Détails du statut"
             },
             "states": {
                 "loading": "Chargement de la configuration et de l’état…",
@@ -2670,7 +2671,7 @@
                 }
             },
             "settings": {
-                "description": "Choisissez la fréquence et les familles d’adresses actives."
+                "description": "S’applique à tous les enregistrements activés. La version IP, le proxy Cloudflare et l’activation se choisissent par enregistrement."
             },
             "editor": {
                 "addTitle": "Ajouter des enregistrements",
@@ -2682,7 +2683,7 @@
                 "addDomain": "Ajouter un autre domaine",
                 "recordType": "Type d’enregistrement",
                 "both": "IPv4 + IPv6 · A et AAAA",
-                "enabled": "Activer les mises à jour automatiques pour ces enregistrements"
+                "enabled": "Mises à jour automatiques"
             },
             "table": {
                 "eyebrow": "DNS géré",
@@ -2711,6 +2712,12 @@
             "delete": {
                 "title": "Retirer l’enregistrement géré ?",
                 "description": "Ne plus gérer {{name}} ? Son DNS chez Cloudflare reste inchangé."
+            },
+            "demo": {
+                "show": "Afficher la démonstration",
+                "hide": "Afficher les données réelles",
+                "reset": "Réinitialiser la démonstration",
+                "description": "Démonstration · Les modifications restent dans ce navigateur et ne modifient aucun enregistrement DNS réel."
             }
         }
     },

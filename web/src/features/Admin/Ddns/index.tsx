@@ -1,4 +1,4 @@
-import { Settings2 } from 'lucide-react'
+import { ChevronDown, Settings2 } from 'lucide-react'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import ContentState from '@/shared/Management/ContentState.tsx'
 import PageHeader from '@/shared/Management/PageHeader.tsx'
@@ -33,7 +33,7 @@ export default function DdnsPage(props: DdnsPageProps) {
             ) : state.snapshot ? (
                 <div className="grid gap-5">
                     <section
-                        className="grid gap-5 rounded-2xl border border-border bg-surface-subtle p-5 sm:p-6"
+                        className="grid gap-3 rounded-2xl border border-border bg-surface-subtle p-4"
                         aria-label={t('admin.ddns.status.title')}
                     >
                         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -43,10 +43,10 @@ export default function DdnsPage(props: DdnsPageProps) {
                                     className={`h-2.5 w-2.5 rounded-full ${state.settings?.enabled ? 'bg-accent' : 'bg-muted'}`}
                                 />
                                 <div>
-                                    <p className="text-xs font-bold uppercase tracking-wider text-muted">
+                                    <p className="text-xs font-bold text-muted">
                                         {t('admin.ddns.status.title')}
                                     </p>
-                                    <h2 className="mt-1 text-xl font-extrabold text-ink-soft">
+                                    <h2 className="mt-0.5 text-sm font-extrabold text-ink-soft">
                                         {t(
                                             state.snapshot.inFlight
                                                 ? 'admin.ddns.states.running'
@@ -60,6 +60,19 @@ export default function DdnsPage(props: DdnsPageProps) {
                                         )}
                                     </h2>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={handler.toggleRuntimeDetails}
+                                    aria-expanded={state.runtimeDetails}
+                                    aria-controls="ddns-runtime-details"
+                                    className="inline-flex min-h-9 items-center gap-2 rounded-lg px-2 text-xs font-bold text-muted hover:bg-surface-hover hover:text-ink-soft"
+                                >
+                                    <ChevronDown
+                                        aria-hidden="true"
+                                        className={`size-3.5 transition-transform ${state.runtimeDetails ? 'rotate-180' : ''}`}
+                                    />
+                                    {t('admin.ddns.status.details')}
+                                </button>
                             </div>
                             {state.canManage ? (
                                 <div className="flex flex-wrap gap-2">
@@ -67,7 +80,7 @@ export default function DdnsPage(props: DdnsPageProps) {
                                         type="button"
                                         onClick={handler.editSettings}
                                         disabled={state.locked}
-                                        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border-strong bg-surface-raised px-4 text-sm font-extrabold text-ink-soft disabled:opacity-50"
+                                        className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-border-strong bg-surface-raised px-3 text-sm font-bold text-ink-soft disabled:opacity-50"
                                     >
                                         <Settings2 size={16} aria-hidden="true" />
                                         {t('admin.ddns.actions.settings')}
@@ -78,7 +91,7 @@ export default function DdnsPage(props: DdnsPageProps) {
                                                 type="button"
                                                 onClick={handler.sync}
                                                 disabled={state.locked || !state.hasActiveTargets}
-                                                className="min-h-11 rounded-xl border border-border-strong bg-surface-raised px-4 text-sm font-extrabold text-ink-soft disabled:opacity-50"
+                                                className="min-h-9 rounded-lg border border-border-strong bg-surface-raised px-3 text-sm font-bold text-ink-soft disabled:opacity-50"
                                             >
                                                 {t('admin.ddns.actions.sync')}
                                             </button>
@@ -86,7 +99,7 @@ export default function DdnsPage(props: DdnsPageProps) {
                                                 type="button"
                                                 onClick={handler.disable}
                                                 disabled={state.isPending || !state.available}
-                                                className="min-h-11 rounded-xl border border-danger-border bg-danger-bg px-4 text-sm font-extrabold text-danger-text disabled:opacity-50"
+                                                className="min-h-9 rounded-lg border border-danger-border bg-danger-bg px-3 text-sm font-bold text-danger-text disabled:opacity-50"
                                             >
                                                 {t('admin.ddns.actions.disable')}
                                             </button>
@@ -96,7 +109,7 @@ export default function DdnsPage(props: DdnsPageProps) {
                                             type="button"
                                             onClick={handler.enable}
                                             disabled={state.locked}
-                                            className="min-h-11 rounded-xl bg-accent px-4 text-sm font-extrabold text-accent-foreground disabled:opacity-50"
+                                            className="min-h-9 rounded-lg bg-accent px-3 text-sm font-bold text-accent-foreground disabled:opacity-50"
                                         >
                                             {t('admin.ddns.actions.enable')}
                                         </button>
@@ -104,31 +117,36 @@ export default function DdnsPage(props: DdnsPageProps) {
                                 </div>
                             ) : null}
                         </div>
-                        <dl className="grid gap-4 border-t border-border pt-5 text-sm sm:grid-cols-3">
-                            <div>
-                                <dt className="text-xs text-muted">
-                                    {t('admin.ddns.status.ipv4')}
-                                </dt>
-                                <dd className="mt-1 break-all font-mono text-ink-soft">
-                                    {state.discoveredIpv4 ?? '—'}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-muted">
-                                    {t('admin.ddns.status.ipv6')}
-                                </dt>
-                                <dd className="mt-1 break-all font-mono text-ink-soft">
-                                    {state.discoveredIpv6 ?? '—'}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-muted">
-                                    {t('admin.ddns.status.lastRun')}
-                                </dt>
-                                <dd className="mt-1 text-ink-soft">{state.lastRun}</dd>
-                            </div>
-                        </dl>
-                        {state.settings ? (
+                        {state.runtimeDetails ? (
+                            <dl
+                                id="ddns-runtime-details"
+                                className="grid gap-4 border-t border-border pt-3 text-sm sm:grid-cols-3"
+                            >
+                                <div>
+                                    <dt className="text-xs text-muted">
+                                        {t('admin.ddns.status.ipv4')}
+                                    </dt>
+                                    <dd className="mt-1 break-all font-mono text-ink-soft">
+                                        {state.discoveredIpv4 ?? '—'}
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt className="text-xs text-muted">
+                                        {t('admin.ddns.status.ipv6')}
+                                    </dt>
+                                    <dd className="mt-1 break-all font-mono text-ink-soft">
+                                        {state.discoveredIpv6 ?? '—'}
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt className="text-xs text-muted">
+                                        {t('admin.ddns.status.lastRun')}
+                                    </dt>
+                                    <dd className="mt-1 text-ink-soft">{state.lastRun}</dd>
+                                </div>
+                            </dl>
+                        ) : null}
+                        {state.settings && state.runtimeDetails ? (
                             <p className="text-xs text-muted">
                                 {t('admin.ddns.status.schedule', {
                                     seconds: state.settings.intervalSeconds,

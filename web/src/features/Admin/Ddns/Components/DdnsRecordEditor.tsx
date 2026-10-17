@@ -1,7 +1,8 @@
-import { CheckboxInput, TextInput } from '@rentnerkev/inputs'
+import { TextInput } from '@rentnerkev/inputs'
 import { CustomSelect } from '@rentnerkev/select'
 import { Plus, X } from 'lucide-react'
 import { Modal } from '@/shared/Modal/index.tsx'
+import OptionToggle from '@/shared/Forms/OptionToggle.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useDdnsRecordEditorLogic from '../Hooks/useDdnsRecordEditorLogic.ts'
 import type { DdnsRecordEditorProps } from '../Types/ddns-editor.types.ts'
@@ -130,31 +131,29 @@ export default function DdnsRecordEditor(props: DdnsRecordEditorProps) {
                         </button>
                     ) : null}
                 </fieldset>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex flex-wrap gap-2">
                     <form.Field name="proxied">
                         {(field) => (
-                            <label className="flex min-h-11 items-center gap-3 text-sm text-ink-soft">
-                                <CheckboxInput
-                                    name="proxied"
-                                    checked={field.state.value}
-                                    onChange={(event) => field.handleChange(event.target.checked)}
-                                    disabled={state.pending}
-                                />
-                                {t('admin.ddns.records.proxied')}
-                            </label>
+                            <OptionToggle
+                                label={t('admin.ddns.records.proxied')}
+                                name="proxied"
+                                checked={field.state.value}
+                                onChange={(event) => field.handleChange(event.target.checked)}
+                                disabled={state.pending}
+                                onBlur={field.handleBlur}
+                            />
                         )}
                     </form.Field>
                     <form.Field name="enabled">
                         {(field) => (
-                            <label className="flex min-h-11 items-center gap-3 text-sm text-ink-soft">
-                                <CheckboxInput
-                                    name="targetEnabled"
-                                    checked={field.state.value}
-                                    onChange={(event) => field.handleChange(event.target.checked)}
-                                    disabled={state.pending}
-                                />
-                                {t('admin.ddns.editor.enabled')}
-                            </label>
+                            <OptionToggle
+                                label={t('admin.ddns.editor.enabled')}
+                                name="targetEnabled"
+                                checked={field.state.value}
+                                onChange={(event) => field.handleChange(event.target.checked)}
+                                disabled={state.pending}
+                                onBlur={field.handleBlur}
+                            />
                         )}
                     </form.Field>
                 </div>

@@ -2498,17 +2498,17 @@
                 "enable": "DDNS aktivieren",
                 "disable": "DDNS pausieren",
                 "sync": "Jetzt aktualisieren",
-                "settings": "Einstellungen"
+                "settings": "Zeitplan"
             },
             "form": {
-                "title": "DDNS-Einstellungen",
+                "title": "DDNS-Zeitplan",
                 "saveHint": "Speichern pausiert DDNS. Die gespeicherte Konfiguration danach gesondert prüfen und aktivieren.",
                 "interval": "Intervall in Sekunden",
                 "intervalHint": "60–86400 Sekunden. 300 = alle 5 Minuten.",
                 "families": "Adressfamilien",
                 "ipv4": "IPv4 · A-Records",
                 "ipv6": "IPv6 · AAAA-Records",
-                "updateOnStart": "Beim Controller-Start aktualisieren",
+                "updateOnStart": "Beim Start prüfen",
                 "familyHint": "Beim Hinzufügen entstehen Zeilen für die aktiven Familien. Deaktivierte Familien bleiben pausiert erhalten. Für spätere AAAA-Records IPv6 aktivieren, IPv4 vorübergehend abwählen und die gewünschten Domains erneut hinzufügen.",
                 "connection": "Cloudflare-Verbindung",
                 "chooseConnection": "Verbindung wählen",
@@ -2547,7 +2547,7 @@
                 "required": "Nach jeder Änderung ist eine neue Vorschau erforderlich."
             },
             "status": {
-                "title": "DDNS-Betrieb",
+                "title": "Automatische Updates",
                 "ipv4": "Zuletzt erkannte IPv4",
                 "ipv6": "Zuletzt erkannte IPv6",
                 "lastRun": "Letzter abgeschlossener Lauf (UTC)",
@@ -2556,7 +2556,8 @@
                 "nextAttempt": "Nächster Versuch (UTC)",
                 "schedule": "Alle {{seconds}} Sekunden · Beim Start aktualisieren: {{startup}}",
                 "restoreHint": "Wiederhergestellte Konfigurationen bleiben pausiert. Records prüfen und DDNS bewusst aktivieren, wenn diese Instanz übernehmen soll.",
-                "cooldown": "Provider-Wartezeit bis {{at}}. Auch „Jetzt aktualisieren“ hält diese Grenze ein."
+                "cooldown": "Provider-Wartezeit bis {{at}}. Auch „Jetzt aktualisieren“ hält diese Grenze ein.",
+                "details": "Statusdetails"
             },
             "states": {
                 "loading": "DDNS-Konfiguration und Record-Status werden geladen…",
@@ -2670,7 +2671,7 @@
                 }
             },
             "settings": {
-                "description": "Lege das Aktualisierungsintervall und die aktiven IP-Versionen fest."
+                "description": "Gilt für alle aktivierten Records. IP-Version, Cloudflare-Proxy und Aktivierung werden pro Record festgelegt."
             },
             "editor": {
                 "addTitle": "Records hinzufügen",
@@ -2682,7 +2683,7 @@
                 "addDomain": "Weitere Domain hinzufügen",
                 "recordType": "Record-Typ",
                 "both": "IPv4 + IPv6 · A und AAAA",
-                "enabled": "Automatische Updates für diese Records aktivieren"
+                "enabled": "Automatische Updates"
             },
             "table": {
                 "eyebrow": "Verwaltete DNS-Einträge",
@@ -2711,6 +2712,12 @@
             "delete": {
                 "title": "Verwalteten Record entfernen?",
                 "description": "{{name}} nicht mehr verwalten? Der DNS-Record bei Cloudflare bleibt unverändert."
+            },
+            "demo": {
+                "show": "Demodaten anzeigen",
+                "hide": "Echte Daten anzeigen",
+                "reset": "Demodaten zurücksetzen",
+                "description": "Demo · Änderungen bleiben im Browser und ändern keine echten DNS-Einträge."
             }
         }
     },

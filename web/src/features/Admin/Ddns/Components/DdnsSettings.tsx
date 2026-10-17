@@ -1,6 +1,7 @@
-import { CheckboxInput, NumberInput } from '@rentnerkev/inputs'
+import { NumberInput } from '@rentnerkev/inputs'
 import { Modal } from '@/shared/Modal/index.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import OptionToggle from '@/shared/Forms/OptionToggle.tsx'
 import useDdnsSettingsLogic from '../Hooks/useDdnsSettingsLogic.ts'
 import type { DdnsSettingsProps } from '../Types/ddns-editor.types.ts'
 export default function DdnsSettings(props: DdnsSettingsProps) {
@@ -52,47 +53,18 @@ export default function DdnsSettings(props: DdnsSettingsProps) {
                         />
                     )}
                 </form.Field>
-                <fieldset disabled={state.pending} className="grid gap-3">
-                    <legend className="mb-3 text-sm font-bold text-ink-soft">
-                        {t('admin.ddns.form.families')}
-                    </legend>
-                    <form.Field name="ipv4">
-                        {(field) => (
-                            <label className="flex min-h-9 items-center gap-3 text-sm text-ink-soft">
-                                <CheckboxInput
-                                    name="ipv4"
-                                    checked={field.state.value}
-                                    onChange={(event) => field.handleChange(event.target.checked)}
-                                />
-                                {t('admin.ddns.form.ipv4')}
-                            </label>
-                        )}
-                    </form.Field>
-                    <form.Field name="ipv6">
-                        {(field) => (
-                            <label className="flex min-h-9 items-center gap-3 text-sm text-ink-soft">
-                                <CheckboxInput
-                                    name="ipv6"
-                                    checked={field.state.value}
-                                    onChange={(event) => field.handleChange(event.target.checked)}
-                                />
-                                {t('admin.ddns.form.ipv6')}
-                            </label>
-                        )}
-                    </form.Field>
-                    <form.Field name="updateOnStart">
-                        {(field) => (
-                            <label className="flex min-h-9 items-center gap-3 text-sm text-ink-soft">
-                                <CheckboxInput
-                                    name="updateOnStart"
-                                    checked={field.state.value}
-                                    onChange={(event) => field.handleChange(event.target.checked)}
-                                />
-                                {t('admin.ddns.form.updateOnStart')}
-                            </label>
-                        )}
-                    </form.Field>
-                </fieldset>
+                <form.Field name="updateOnStart">
+                    {(field) => (
+                        <OptionToggle
+                            label={t('admin.ddns.form.updateOnStart')}
+                            name="updateOnStart"
+                            checked={field.state.value}
+                            onChange={(event) => field.handleChange(event.target.checked)}
+                            onBlur={field.handleBlur}
+                            disabled={state.pending}
+                        />
+                    )}
+                </form.Field>
             </form>
         </Modal>
     )

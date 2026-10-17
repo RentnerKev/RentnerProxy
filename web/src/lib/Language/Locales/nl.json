@@ -2479,17 +2479,17 @@
                 "enable": "DDNS inschakelen",
                 "disable": "DDNS pauzeren",
                 "sync": "Nu bijwerken",
-                "settings": "Instellingen"
+                "settings": "Planning"
             },
             "form": {
-                "title": "DDNS-instellingen",
+                "title": "DDNS-planning",
                 "saveHint": "Opslaan pauzeert DDNS. Controleer en activeer daarna de opgeslagen configuratie.",
                 "interval": "Interval in seconden",
                 "intervalHint": "60–86400 seconden. 300 = elke 5 minuten.",
                 "families": "Adresfamilies",
                 "ipv4": "IPv4 · A-records",
                 "ipv6": "IPv6 · AAAA-records",
-                "updateOnStart": "Bijwerken bij start van controller",
+                "updateOnStart": "Controleren bij opstarten",
                 "familyHint": "Toevoegen maakt regels voor actieve families. Uitgeschakelde families blijven gepauzeerd. Voor AAAA later: zet IPv6 aan, IPv4 tijdelijk uit en voeg de domeinen toe.",
                 "connection": "Cloudflare-verbinding",
                 "chooseConnection": "Kies een verbinding",
@@ -2528,7 +2528,7 @@
                 "required": "Na elke wijziging is een nieuw voorbeeld nodig."
             },
             "status": {
-                "title": "DDNS-uitvoering",
+                "title": "Automatische updates",
                 "ipv4": "Laatst gevonden IPv4",
                 "ipv6": "Laatst gevonden IPv6",
                 "lastRun": "Laatste uitvoering (UTC)",
@@ -2537,7 +2537,8 @@
                 "nextAttempt": "Volgende poging (UTC)",
                 "schedule": "Elke {{seconds}} seconden · Bij start: {{startup}}",
                 "restoreHint": "Herstelde configuraties blijven gepauzeerd. Controleer en activeer als deze instantie moet overnemen.",
-                "cooldown": "Providerwachttijd tot {{at}}. Handmatig bijwerken respecteert dit ook."
+                "cooldown": "Providerwachttijd tot {{at}}. Handmatig bijwerken respecteert dit ook.",
+                "details": "Statusdetails"
             },
             "states": {
                 "loading": "Configuratie en status laden…",
@@ -2651,7 +2652,7 @@
                 }
             },
             "settings": {
-                "description": "Kies het update-interval en de actieve adresfamilies."
+                "description": "Geldt voor alle ingeschakelde records. IP-versie, Cloudflare-proxy en activering worden per record gekozen."
             },
             "editor": {
                 "addTitle": "Records toevoegen",
@@ -2663,7 +2664,7 @@
                 "addDomain": "Nog een domein toevoegen",
                 "recordType": "Recordtype",
                 "both": "IPv4 + IPv6 · A en AAAA",
-                "enabled": "Automatische updates voor deze records inschakelen"
+                "enabled": "Automatische updates"
             },
             "table": {
                 "eyebrow": "Beheerde DNS",
@@ -2692,6 +2693,12 @@
             "delete": {
                 "title": "Beheerd record verwijderen?",
                 "description": "{{name}} niet meer beheren? Het DNS-record bij Cloudflare blijft ongewijzigd."
+            },
+            "demo": {
+                "show": "Demogegevens tonen",
+                "hide": "Echte gegevens tonen",
+                "reset": "Demogegevens herstellen",
+                "description": "Demo · Wijzigingen blijven in deze browser en wijzigen geen echte DNS-records."
             }
         }
     },
