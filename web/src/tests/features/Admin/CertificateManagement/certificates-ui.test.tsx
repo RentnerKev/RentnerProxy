@@ -411,7 +411,10 @@ describe('certificate management UI', () => {
         await click(button('Reset filters'))
         await waitFor(() => rows().length === 3)
         const dateFilter = button('Filter by date range')
-        expect(dateFilter.querySelector('span')?.classList.contains('text-muted')).toBe(true)
+        const placeholder = [...dateFilter.querySelectorAll('span')].find(
+            (span) => span.textContent === dateFilter.textContent,
+        )
+        expect(placeholder?.classList.contains('text-muted')).toBe(true)
         await click(dateFilter)
         const getCalendarDay = () =>
             [...document.querySelectorAll<HTMLButtonElement>('[data-calendar-day]')].find((day) =>
