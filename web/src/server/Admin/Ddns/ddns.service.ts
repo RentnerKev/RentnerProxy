@@ -7,12 +7,14 @@ import {
     enableDdnsSchema,
     previewDdnsSchema,
     saveDdnsSchema,
+    applyDdnsSchema,
 } from '@/features/Admin/Ddns/validation.ts'
 import type {
     DdnsActionInput,
     EnableDdnsInput,
     PreviewDdnsInput,
     SaveDdnsInput,
+    ApplyDdnsInput,
 } from '@/features/Admin/Ddns/Types/validation.types.ts'
 import type { DdnsPreview } from '@/lib/Ddns/Types/ddns.types.ts'
 import type { AuditAction } from '@/lib/Admin/AuditLogs/Types/audit-events.types.ts'
@@ -21,6 +23,8 @@ import {
     ddnsDraft,
     ddnsFingerprint,
     readyDdnsPreview,
+    approveDdnsInspection,
+    sameDdnsIdentity,
 } from '@/lib/Ddns/targets.ts'
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { recordAuditEventBestEffortService } from '@/server/Audit/audit.service.ts'
@@ -69,6 +73,86 @@ export function createDdnsService(dependencies: DdnsDependencies) {
         }
     }
     return {
+        async applyDdnsService(input: ApplyDdnsInput) {
+            const actor = await dependencies.authorize(PERMISSIONS.DDNS_MANAGE)
+            const data = validate(applyDdnsSchema, input)
+            await dependencies.limit(actor.id, false)
+            return mutation(actor.id, 'update', async () => {
+                const snapshot = await current(data.expectedRevision)
+                const previous = snapshot.configuration?.settings
+                let draft = {
+                    ...data.draft,
+                    targets: data.draft.targets.map((target) => {
+                        const saved = previous?.targets.find((entry) => entry.id === target.id)
+                        if (saved && !sameDdnsIdentity(saved, target))
+                            throw new DdnsDomainError('invalid_input')
+                        // A browser cannot replace an approved provider ID. New identities are inspected by the server.
+                        return {
+                            ...target,
+                            selection: saved?.selection ?? { mode: 'inspect' as const },
+                        }
+                    }),
+                }
+                if (
+                    data.enabled &&
+                    !previous?.enabled &&
+                    !draft.targets.some((target) => activeDdnsTarget(draft, target))
+                )
+                    throw new DdnsDomainError('invalid_input')
+                const review =
+                    data.enabled &&
+                    draft.targets.some((target) => {
+                        if (!activeDdnsTarget(draft, target)) return false
+                        const saved = previous?.targets.find((entry) => entry.id === target.id)
+                        return (
+                            !previous?.enabled ||
+                            !saved ||
+                            !activeDdnsTarget(previous, saved) ||
+                            target.proxied !== saved.proxied ||
+                            target.selection.mode === 'inspect'
+                        )
+                    })
+                if (review) {
+                    await dependencies.limit(actor.id, true)
+                    const compare = () =>
+                        dependencies.controller.preview({
+                            actorUserId: actor.id,
+                            ipv4: draft.ipv4,
+                            ipv6: draft.ipv6,
+                            targets: draft.targets,
+                        })
+                    let batch = await compare()
+                    if (
+                        draft.targets.some(
+                            (target) =>
+                                activeDdnsTarget(draft, target) &&
+                                target.selection.mode === 'inspect',
+                        )
+                    ) {
+                        draft = approveDdnsInspection(draft, batch)
+                        batch = await compare()
+                    }
+                    if (!readyDdnsPreview(draft, batch)) {
+                        const failed = batch.targets.find((result) => {
+                            const target = draft.targets.find(
+                                (entry) => entry.id === result.targetId,
+                            )
+                            return target && activeDdnsTarget(draft, target) && result.error
+                        })
+                        throw new DdnsDomainError(
+                            'preview_failed',
+                            failed?.retryAfterSeconds ?? undefined,
+                            failed?.error ?? undefined,
+                        )
+                    }
+                }
+                return dependencies.controller.save({
+                    actorUserId: actor.id,
+                    expectedRevision: data.expectedRevision,
+                    configuration: { ...draft, enabled: data.enabled },
+                })
+            })
+        },
         async getDdnsStatusService() {
             await dependencies.authorize(PERMISSIONS.DDNS_VIEW)
             return dependencies.controller.status()
@@ -171,6 +255,7 @@ export function createDdnsService(dependencies: DdnsDependencies) {
     }
 }
 export const {
+    applyDdnsService,
     getDdnsStatusService,
     getDdnsConnectionsService,
     previewDdnsService,

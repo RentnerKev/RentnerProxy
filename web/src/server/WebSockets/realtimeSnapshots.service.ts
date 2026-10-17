@@ -15,6 +15,8 @@ import { getCertificatesService } from '@/server/Admin/CertificateManagement/cer
 import { getProxyRuntimeStatusService } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import { getRedirectHostsService } from '@/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'
 import { getAccessPoliciesService } from '@/server/Admin/AccessPolicyManagement/access-policies.service.ts'
+import { getDnsConnectionsService } from '@/server/Admin/DnsConnections/dns-connections.service.ts'
+import { getDdnsStatusService } from '@/server/Admin/Ddns/ddns.service.ts'
 
 function revisionOf(value: unknown): string {
     return new Bun.CryptoHasher('sha256').update(JSON.stringify(value)).digest('hex')
@@ -50,6 +52,12 @@ export async function getLiveSnapshotResponse(request: Request): Promise<Respons
                 break
             case 'certificates':
                 data = { revision: revisionOf(await getCertificatesService()) }
+                break
+            case 'dns-connections':
+                data = { revision: revisionOf(await getDnsConnectionsService()) }
+                break
+            case 'ddns':
+                data = { revision: revisionOf(await getDdnsStatusService()) }
                 break
             case 'redirect-hosts':
                 data = {

@@ -1,12 +1,17 @@
 import { useForm } from '@tanstack/react-form'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useRef, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, useEffect, type FormEvent } from 'react'
+import { toast } from '@rentnerkev/toasts/toast'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { MAX_DNS_CONNECTION_ZONES } from '@/config/dns-connections.config.ts'
+import { DNS_CONNECTION_LIVE_QUERY_KEYS } from '@/config/ddns.config.ts'
 import type {
     CloudflareZone,
     DnsConnection,
 } from '@/lib/DnsConnections/Types/dns-connections.types.ts'
+import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import useLiveInvalidation from '@/shared/Live/Hooks/useLiveInvalidation.ts'
+import useQueryErrorToast from '@/shared/Notifications/Hooks/useQueryErrorToast.ts'
 import {
     deleteDnsConnectionHandler,
     getDnsConnectionsHandler,
@@ -14,12 +19,13 @@ import {
     testDnsConnectionHandler,
 } from '../middleware.ts'
 import { saveDnsConnectionSchema, testDnsConnectionSchema } from '../validation.ts'
-import type {
-    DnsConnectionsLogicContract,
-    DnsConnectionsPageProps,
-} from '../Types/dns-connections-ui.types.ts'
+import type { DnsConnectionsPageProps } from '../Types/dns-connections-ui.types.ts'
 
-export default function useDnsConnectionsLogic({ permissions }: DnsConnectionsPageProps) {
+export default function useDnsConnectionsLogic({
+    permissions,
+    liveEnabled = true,
+}: DnsConnectionsPageProps) {
+    const { t } = useTranslationStore()
     const queryClient = useQueryClient()
     const formId = useId()
     const canView = permissions.includes(PERMISSIONS.DNS_CONNECTIONS_VIEW)
@@ -30,17 +36,43 @@ export default function useDnsConnectionsLogic({ permissions }: DnsConnectionsPa
     const [zones, setZones] = useState<readonly CloudflareZone[]>([])
     const [isPending, setIsPending] = useState(false)
     const pending = useRef(false)
-    const [error, setError] = useState<string | null>(null)
-    const [notice, setNotice] = useState<string | null>(null)
     const connectionsQuery = useQuery({
         queryKey: ['dns-connections'],
         queryFn: () => getDnsConnectionsHandler(),
         enabled: canView,
+        retry: false,
     })
-    const invalidate = () => queryClient.invalidateQueries({ queryKey: ['dns-connections'] })
+    useLiveInvalidation({
+        topic: 'dns-connections',
+        query: {},
+        enabled: canView && liveEnabled,
+        queryKeys: DNS_CONNECTION_LIVE_QUERY_KEYS,
+    })
+    useQueryErrorToast(
+        connectionsQuery.isError,
+        'admin.dnsConnections.errors.controller_unavailable',
+    )
+    const invalidate = () =>
+        Promise.all(
+            DNS_CONNECTION_LIVE_QUERY_KEYS.map((queryKey) =>
+                queryClient.invalidateQueries({ queryKey }),
+            ),
+        )
+    const isStale =
+        !!editing &&
+        !connectionsQuery.data?.some(
+            (connection) =>
+                connection.id === editing.id && connection.revision === editing.revision,
+        )
     const lockedZoneIds = new Set(editing?.references.map((reference) => reference.zoneId) ?? [])
-
-    // Secrets stay in this mounted form only. Query/mutation caches never receive tokens.
+    useEffect(() => {
+        if (editorOpen && isStale)
+            toast.info(t('admin.dnsConnections.messages.changed'), {
+                title: t('toast.titles.info'),
+            })
+    }, [editorOpen, isStale, t])
+    const fail = (key: string) => toast.error(t(key), { title: t('toast.titles.error') })
+    const success = (key: string) => toast.success(t(key), { title: t('toast.titles.success') })
     const form = useForm({
         defaultValues: {
             name: editing?.name ?? '',
@@ -49,7 +81,10 @@ export default function useDnsConnectionsLogic({ permissions }: DnsConnectionsPa
         },
         onSubmit: async ({ value }) => {
             if (!canManage || pending.current) return
-            setError(null)
+            if (isStale) {
+                fail('admin.dnsConnections.messages.changed')
+                return
+            }
             const parsed = saveDnsConnectionSchema.safeParse({
                 name: value.name,
                 apiToken: value.apiToken || undefined,
@@ -58,9 +93,7 @@ export default function useDnsConnectionsLogic({ permissions }: DnsConnectionsPa
                 expectedRevision: editing?.revision ?? 0,
             })
             if (!parsed.success) {
-                setError(
-                    parsed.error.issues[0]?.message ?? 'admin.dnsConnections.errors.invalid_input',
-                )
+                fail(parsed.error.issues[0]?.message ?? 'admin.dnsConnections.errors.invalid_input')
                 return
             }
             pending.current = true
@@ -68,45 +101,40 @@ export default function useDnsConnectionsLogic({ permissions }: DnsConnectionsPa
             try {
                 const result = await saveDnsConnectionHandler({ data: parsed.data })
                 if (!result.success) {
-                    setError(result.message)
+                    fail(result.message)
+                    await invalidate()
                     return
                 }
                 form.reset()
                 setEditorOpen(false)
                 setEditing(null)
                 setZones([])
-                setNotice(result.message)
+                success(result.message)
                 await invalidate()
             } catch {
-                setError('admin.dnsConnections.errors.requestFailed')
+                fail('admin.dnsConnections.errors.requestFailed')
             } finally {
                 pending.current = false
                 setIsPending(false)
             }
         },
     })
-
     function handleEditorOpenChange(open: boolean) {
         if (pending.current) return
         if (!open) {
             form.reset()
             setEditing(null)
             setZones([])
-            setError(null)
         }
         setEditorOpen(open)
     }
-
     function handleCreate() {
         if (!canManage || pending.current) return
-        form.reset()
         setEditing(null)
+        form.reset({ name: '', apiToken: '', zoneIds: [] })
         setZones([])
-        setError(null)
-        setNotice(null)
         setEditorOpen(true)
     }
-
     function handleEdit(connection: DnsConnection) {
         if (!canManage || pending.current) return
         setEditing(connection)
@@ -116,11 +144,8 @@ export default function useDnsConnectionsLogic({ permissions }: DnsConnectionsPa
             zoneIds: connection.zones.map((zone) => zone.id),
         })
         setZones(connection.zones)
-        setError(null)
-        setNotice(null)
         setEditorOpen(true)
     }
-
     async function handleTest() {
         if (!canManage || pending.current) return
         const parsed = testDnsConnectionSchema.safeParse({
@@ -129,97 +154,62 @@ export default function useDnsConnectionsLogic({ permissions }: DnsConnectionsPa
             zoneIds: [],
         })
         if (!parsed.success) {
-            setError(parsed.error.issues[0]?.message ?? 'admin.dnsConnections.validation.token')
+            fail(parsed.error.issues[0]?.message ?? 'admin.dnsConnections.validation.token')
             return
         }
         pending.current = true
         setIsPending(true)
-        setError(null)
-        setNotice(null)
         try {
-            const result = await testDnsConnectionHandler({
-                data: parsed.data,
-            })
+            const result = await testDnsConnectionHandler({ data: parsed.data })
             if (!result.success) {
-                setError(result.message)
+                fail(result.message)
                 return
             }
-            // Preserve previous selections even if a replacement token cannot see them.
-            // The save endpoint revalidates every selected zone against the current token.
-            const selectedZoneIds = new Set(form.getFieldValue('zoneIds'))
+            const selected = new Set(form.getFieldValue('zoneIds'))
             const merged = new Map(
-                zones.filter((zone) => selectedZoneIds.has(zone.id)).map((zone) => [zone.id, zone]),
+                zones.filter((zone) => selected.has(zone.id)).map((zone) => [zone.id, zone]),
             )
             for (const zone of result.result.zones) merged.set(zone.id, zone)
             setZones([...merged.values()])
-            setNotice(result.message)
+            success(result.message)
         } catch {
-            setError('admin.dnsConnections.errors.requestFailed')
+            fail('admin.dnsConnections.errors.requestFailed')
         } finally {
             pending.current = false
             setIsPending(false)
         }
     }
-
-    async function handleRefresh() {
-        if (pending.current) return
-        // Refresh explicitly discards the open draft, including any replacement token.
-        handleEditorOpenChange(false)
-        setDeleteTarget(null)
-        setError(null)
-        const result = await connectionsQuery.refetch()
-        if (result.isError) setError('admin.dnsConnections.errors.requestFailed')
-    }
-
-    function handleZoneChange(zoneId: string, selected: boolean) {
-        if (pending.current || lockedZoneIds.has(zoneId)) return
-        const selectedIds = form.getFieldValue('zoneIds')
-        if (selected && selectedIds.length >= MAX_DNS_CONNECTION_ZONES) {
-            setError('admin.dnsConnections.validation.zones')
+    function handleZoneChange(id: string, selected: boolean) {
+        if (pending.current || lockedZoneIds.has(id)) return
+        const ids = form.getFieldValue('zoneIds')
+        if (selected && ids.length >= MAX_DNS_CONNECTION_ZONES) {
+            fail('admin.dnsConnections.validation.zones')
             return
         }
         form.setFieldValue(
             'zoneIds',
-            selected
-                ? [...new Set([...selectedIds, zoneId])]
-                : selectedIds.filter((id) => id !== zoneId),
+            selected ? [...new Set([...ids, id])] : ids.filter((value) => value !== id),
         )
     }
-
-    function handleDelete(connection: DnsConnection) {
-        if (!canManage || pending.current || connection.references.length > 0) return
-        setError(null)
-        setNotice(null)
-        setDeleteTarget(connection)
-    }
-
     async function handleConfirmDelete() {
-        if (!canManage || !deleteTarget || pending.current || deleteTarget.references.length > 0)
-            return
+        if (!canManage || !deleteTarget || pending.current || deleteTarget.references.length) return
         pending.current = true
         setIsPending(true)
-        setError(null)
         try {
             const result = await deleteDnsConnectionHandler({
                 data: { connectionId: deleteTarget.id, expectedRevision: deleteTarget.revision },
             })
-            if (!result.success) {
-                setError(result.message)
-                setDeleteTarget(null)
-                return
-            }
+            if (!result.success) fail(result.message)
+            else success(result.message)
             setDeleteTarget(null)
-            setNotice(result.message)
             await invalidate()
         } catch {
-            setError('admin.dnsConnections.errors.requestFailed')
-            setDeleteTarget(null)
+            fail('admin.dnsConnections.errors.requestFailed')
         } finally {
             pending.current = false
             setIsPending(false)
         }
     }
-
     return {
         state: {
             canManage,
@@ -227,20 +217,22 @@ export default function useDnsConnectionsLogic({ permissions }: DnsConnectionsPa
             isLoading: canView && connectionsQuery.isPending,
             isError: connectionsQuery.isError,
             isPending,
+            isStale,
             editorOpen,
             editing,
             deleteTarget,
             zones,
             lockedZoneIds,
-            error,
-            notice,
             formId,
         },
         handler: {
             handleCreate,
             handleEdit,
             handleEditorOpenChange,
-            handleDelete,
+            handleDelete: (connection: DnsConnection) => {
+                if (canManage && !pending.current && !connection.references.length)
+                    setDeleteTarget(connection)
+            },
             handleDeleteOpenChange: (open: boolean) => {
                 if (!open && !pending.current) setDeleteTarget(null)
             },
@@ -253,11 +245,8 @@ export default function useDnsConnectionsLogic({ permissions }: DnsConnectionsPa
             handleTest: () => {
                 void handleTest()
             },
-            handleRefresh: () => {
-                void handleRefresh()
-            },
             handleZoneChange,
         },
         form,
-    } satisfies DnsConnectionsLogicContract & { form: typeof form }
+    }
 }

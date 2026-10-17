@@ -5,24 +5,28 @@ B2-03 (#232) adds controller-owned persistence, scheduling and recovery around t
 100 records across its shared Cloudflare connections, with a common interval and
 IPv4/IPv6 settings. It is independent of Caddy and Proxy Hosts. No separate cron,
 container, database schema or migration is needed. The [DDNS web page and migration
-workflow](ddns-migration.md) provide record selection, preview, explicit activation
-and per-target status at `/ddns` (#233).
+workflow](ddns-migration.md) provide individual record inputs, a shared management
+table, automatic inspection on save and live status at `/ddns` (#233).
 
 ## Activation and private API
 
 DDNS is disabled on a fresh installation. Saving a connection or selecting a zone
 does not activate it. Configuration also defaults to `enabled: false` when omitted.
-Only explicitly enabling a valid saved configuration permits DNS writes. Manual
-updates require an enabled configuration; previews remain read-only while disabled
-or paused after restore.
+Saving the first active record list or enabling a paused configuration permits DNS
+writes after automatic server-side inspection. Editing a paused list keeps it paused.
+Manual updates require an enabled configuration; previews remain read-only while
+disabled or paused after restore.
 
 All routes require the configured controller bearer, even on loopback, and return
 `Cache-Control: no-store`. They are server-to-server APIs. The web boundary derives
 the actor from its authenticated session and enforces `ddns.view`/`ddns.manage`,
 the shared same-origin/CSRF middleware and user rate limits before delegation. It
-also binds save/enable operations to a fresh encrypted preview approval and saves
-configuration paused. Never expose the controller
-token to a browser. There is no public DDNS update URL.
+automatically inspects newly managed/reactivated records and proxy changes, resolves
+creation/adoption on the server and verifies the candidate before an atomic save.
+The browser cannot substitute approved provider record IDs. Disabling/removing
+records or changing only the interval does not depend on provider availability.
+Legacy preview/save/enable handlers retain their encrypted approval contract.
+Never expose the controller token to a browser. There is no public DDNS update URL.
 
 | Method and path                                 | Purpose                                                   |
 | ----------------------------------------------- | --------------------------------------------------------- |
@@ -55,6 +59,7 @@ Example draft configuration with synthetic identifiers:
                 "name": "example.com",
                 "recordType": "A",
                 "proxied": true,
+                "enabled": true,
                 "selection": { "mode": "create" }
             }
         ]
@@ -63,8 +68,12 @@ Example draft configuration with synthetic identifiers:
 ```
 
 Intervals are integer seconds from 60 to 86,400; `300` selects five minutes. A saved
-draft may have no targets. Activation requires an enabled family with a selected
-target and explicit `create`/`adopt` ownership for every active target. Preview
+draft may have no targets. First web activation requires an enabled family with a selected
+target and `create`/`adopt` ownership for every active target. The global enabled
+setting may remain on while all individual targets are disabled. Each target's
+`enabled` defaults to true for older documents; no migration is needed. Disabled
+targets trigger neither discovery nor provider calls and keep their last-good state,
+references and transient retry floor across toggles and restarts. Preview
 candidate records first and adopt existing records by their exact IDs. Stable target
 IDs preserve ownership across retries and restarts. Unlisted records remain untouched;
 disabling IPv6 leaves AAAA records alone.

@@ -23,6 +23,14 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         mock.module('./server/Audit/audit-reader.service.ts', () => ({ listAuditEventsService: async () => { reads++; return { events: [] } } }))
         mock.module('./server/Admin/ProxyHostManagement/proxy-hosts.service.ts', () => ({ getProxyHostsService: async () => [] }))
         mock.module('./server/Admin/CertificateManagement/certificates.service.ts', () => ({ getCertificatesService: async () => [] }))
+        mock.module('./server/Admin/DnsConnections/dns-connections.service.ts', () => ({ getDnsConnectionsService: async () => {
+            const { requirePermissionService } = await import('./server/Auth/Access/authorization.service.ts')
+            await requirePermissionService('dns_connections.view'); reads++; return [{ name: 'synthetic connection', zones: ['example.com'] }]
+        } }))
+        mock.module('./server/Admin/Ddns/ddns.service.ts', () => ({ getDdnsStatusService: async () => {
+            const { requirePermissionService } = await import('./server/Auth/Access/authorization.service.ts')
+            await requirePermissionService('ddns.view'); reads++; return { internal: 'synthetic target state' }
+        } }))
         mock.module('./server/Admin/RedirectHostManagement/redirect-hosts.service.ts', () => ({ getRedirectHostsService: async () => [] }))
         mock.module('./server/Admin/AccessPolicyManagement/access-policies.service.ts', () => ({ getAccessPoliciesService: async () => [] }))
         mock.module('./server/ProxyRuntime/proxy-runtime.service.ts', () => ({ getProxyRuntimeStatusService: async () => ({ state: 'synced' }) }))
@@ -47,16 +55,22 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         const cacheControl = response.headers.get('cache-control')
         statuses.push(response.status)
         const application = await (await read('app-events')).json()
+        const dnsResponse = await read('dns-connections')
+        const ddnsResponse = await read('ddns')
+        const dns = await dnsResponse.json()
+        const ddns = await ddnsResponse.json()
         authorized = false
         statuses.push((await read('foundation')).status)
         statuses.push((await read('app-events')).status)
+        statuses.push((await read('dns-connections')).status)
+        statuses.push((await read('ddns')).status)
         for (const code of ['authentication_required', 'user_not_active', 'service_unavailable']) {
             authorizationError = new AuthDomainError(code, 'Denied')
             statuses.push((await read('foundation')).status)
         }
         authorizationError = new Error('internal failure')
         statuses.push((await read('foundation')).status)
-        console.log(JSON.stringify({ statuses, rejectedReads, reads, permissionChecks, cacheControl, application }))
+        console.log(JSON.stringify({ statuses, rejectedReads, reads, permissionChecks, cacheControl, application, dns, ddns, dnsCache: dnsResponse.headers.get('cache-control'), ddnsCache: ddnsResponse.headers.get('cache-control') }))
     `
     const child = Bun.spawn([process.execPath, '--no-env-file', '-e', script], {
         cwd: fileURLToPath(new URL('../../..', import.meta.url)),
@@ -71,14 +85,20 @@ test('live snapshots enforce canonical origin, query limits and current permissi
     expect(code, stderr).toBe(0)
     const result = JSON.parse(stdout)
     expect(result.statuses).toEqual([
-        403, 403, 400, 400, 400, 400, 400, 400, 200, 403, 403, 401, 403, 503, 503,
+        403, 403, 400, 400, 400, 400, 400, 400, 200, 403, 403, 403, 403, 401, 403, 503, 503,
     ])
     expect(result.rejectedReads).toBe(0)
-    expect(result.reads).toBe(1)
-    expect(result.permissionChecks).toBe(8)
+    expect(result.reads).toBe(3)
+    expect(result.permissionChecks).toBe(12)
     expect(result.cacheControl).toBe('private, no-store')
     expect(Object.keys(result.application).toSorted()).toEqual(['revision', 'userVersion'])
     expect(result.application.userVersion).toMatch(/^[a-f0-9]{64}$/)
+    for (const snapshot of [result.dns, result.ddns]) {
+        expect(Object.keys(snapshot)).toEqual(['revision'])
+        expect(snapshot.revision).toMatch(/^[a-f0-9]{64}$/)
+    }
+    expect(result.dnsCache).toBe('private, no-store')
+    expect(result.ddnsCache).toBe('private, no-store')
 })
 
 test('application events publish immediately, deduplicate Valkey echoes and clean up subscribers', async () => {

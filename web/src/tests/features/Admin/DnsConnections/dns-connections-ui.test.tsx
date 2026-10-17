@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
+import { toast } from '@rentnerkev/toasts/toast'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -76,6 +77,8 @@ const { createRoot } = await import('react-dom/client')
 const { default: DnsConnectionsPage } = await import('@/features/Admin/DnsConnections/index.tsx')
 let root: Root | null = null
 let queryClient: InstanceType<typeof QueryClient>
+const feedback: unknown[] = []
+let restoreToasts: (() => void)[] = []
 
 async function waitFor(condition: () => boolean) {
     const deadline = Date.now() + 1800
@@ -99,6 +102,7 @@ async function renderPage(manage = true) {
             withTestLanguage(
                 <QueryClientProvider client={queryClient}>
                     <DnsConnectionsPage
+                        liveEnabled={false}
                         permissions={[
                             PERMISSIONS.DNS_CONNECTIONS_VIEW,
                             ...(manage ? [PERMISSIONS.DNS_CONNECTIONS_MANAGE] : []),
@@ -146,6 +150,14 @@ async function submit() {
     })
 }
 beforeEach(() => {
+    feedback.length = 0
+    restoreToasts = (['error', 'success', 'info'] as const).map((kind) => {
+        const spy = spyOn(toast, kind).mockImplementation((message) => {
+            feedback.push(message)
+            return 'fixture-toast'
+        })
+        return () => spy.mockRestore()
+    })
     connections = []
     queryFails = false
     testFails = false
@@ -159,6 +171,7 @@ afterEach(async () => {
     root = null
     queryClient?.clear()
     document.body.innerHTML = ''
+    restoreToasts.forEach((restore) => restore())
 })
 
 describe('Cloudflare DNS connection management', () => {
@@ -205,7 +218,7 @@ describe('Cloudflare DNS connection management', () => {
     test('blank replacement token retains saved credentials and revision', async () => {
         connections = [connection]
         await renderPage()
-        await click(button('Edit connection'))
+        await click(button('Edit'))
         expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(
             true,
         )
@@ -224,7 +237,7 @@ describe('Cloudflare DNS connection management', () => {
         connections = [connection]
         availableZones = [secondZone]
         await renderPage()
-        await click(button('Edit connection'))
+        await click(button('Edit'))
         await input('apiToken', 'new-zone-only-token')
         await click(button('Test read access and load zones'))
         await waitFor(() => document.querySelectorAll('input[type="checkbox"]').length === 2)
@@ -256,17 +269,17 @@ describe('Cloudflare DNS connection management', () => {
         connections = [connection]
         testFails = true
         await renderPage()
-        await click(button('Edit connection'))
+        await click(button('Edit'))
         await input('apiToken', 'replacement-secret')
         await click(button('Test read access and load zones'))
-        await waitFor(
-            () => document.body.textContent?.includes('Cloudflare rejected the token') === true,
+        await waitFor(() =>
+            feedback.some((message) => String(message).includes('Cloudflare rejected the token')),
         )
         expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(
             true,
         )
         await click(button('Cancel'))
-        await click(button('Edit connection'))
+        await click(button('Edit'))
         expect(document.querySelector<HTMLInputElement>('input[name="apiToken"]')?.value).toBe('')
         expect(queryClient.getMutationCache().getAll()).toHaveLength(0)
     })
@@ -278,42 +291,59 @@ describe('Cloudflare DNS connection management', () => {
             },
         ]
         await renderPage()
-        expect(button('Delete connection').disabled).toBe(true)
-        expect(document.body.textContent).toContain('Remove all consumer references')
-        await click(button('Edit connection'))
+        const deleteButton = document.querySelector<HTMLButtonElement>(
+            'button[aria-label="Delete connection Office Cloudflare"]',
+        )!
+        expect(deleteButton.disabled).toBe(true)
+        expect(deleteButton.title).toContain('Remove all consumer references')
+        await click(button('Edit'))
         expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.disabled).toBe(
             true,
         )
         expect(document.body.textContent).toContain('A consumer uses this zone')
     })
-    test('conflicts offer explicit reload that discards the token and draft', async () => {
+    test('conflicts use toasts; live changes preserve secrets until the editor closes', async () => {
         connections = [connection]
         saveFails = true
         await renderPage()
-        await click(button('Edit connection'))
+        await click(button('Edit'))
         await input('apiToken', 'conflict-secret')
         await submit()
-        await waitFor(
-            () => document.body.textContent?.includes('changed since you opened it') === true,
+        await waitFor(() =>
+            feedback.some((message) => String(message).includes('changed since you opened it')),
         )
         connections = [{ ...connection, revision: 4, name: 'Updated elsewhere' }]
-        await click(button('Discard draft and reload current connections'))
+        await act(async () => {
+            await queryClient.invalidateQueries({ queryKey: ['dns-connections'] })
+        })
         await waitFor(() => document.body.textContent?.includes('Updated elsewhere') === true)
-        await click(button('Edit connection'))
+        expect(document.querySelector<HTMLInputElement>('input[name="apiToken"]')?.value).toBe(
+            'conflict-secret',
+        )
+        expect(button('Save changes').disabled).toBe(true)
+        await click(button('Cancel'))
+        await click(button('Edit'))
         expect(document.querySelector<HTMLInputElement>('input[name="apiToken"]')?.value).toBe('')
     })
-    test('query failures have a working retry', async () => {
+    test('query failures recover through live invalidation without reload buttons', async () => {
         queryFails = true
         await renderPage()
-        expect(document.body.textContent).toContain('DNS connections unavailable')
+        expect(
+            feedback.some((message) => String(message).includes('controller is unavailable')),
+        ).toBe(true)
         queryFails = false
-        await click(button('Try again'))
+        await act(async () => {
+            await queryClient.invalidateQueries({ queryKey: ['dns-connections'] })
+        })
         await waitFor(() => document.body.textContent?.includes('No DNS connections yet') === true)
+        expect(document.body.textContent).not.toContain('Reload connections')
     })
     test('deletion requires confirmation and invalidates safe metadata', async () => {
         connections = [connection]
         await renderPage()
-        await click(button('Delete connection'))
+        await click(
+            document.querySelector('button[aria-label="Delete connection Office Cloudflare"]')!,
+        )
         expect(deleteConnection.mock.calls).toHaveLength(0)
         const dialog = document.querySelector('[role="dialog"]')
         expect(dialog?.textContent).toContain('Office Cloudflare')

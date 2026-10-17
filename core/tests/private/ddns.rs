@@ -7,6 +7,32 @@ use super::{
 use serde_json::json;
 use std::{sync::atomic::Ordering, time::Duration};
 
+#[test]
+fn legacy_targets_default_to_enabled_without_a_migration() {
+    let mut json =
+        serde_json::to_value(target(10, "example.com", RecordType::A, Selection::Create)).unwrap();
+    json.as_object_mut().unwrap().remove("enabled");
+    let legacy: super::models::Target = serde_json::from_value(json).unwrap();
+    assert!(legacy.enabled);
+}
+
+#[tokio::test]
+async fn disabled_targets_do_not_discover_ips_read_provider_or_write_records() {
+    let fixture = Fixture::new(vec![]).await;
+    let mut disabled = target(10, "example.com", RecordType::A, Selection::Create);
+    disabled.enabled = false;
+    let result = fixture
+        .engine
+        .execute(&fixture.store, request(vec![disabled]), false)
+        .await
+        .unwrap();
+    assert_eq!(result.targets[0].status, Status::Skipped);
+    assert_eq!(result.targets[0].error, Some(Error::TargetDisabled));
+    assert_eq!(fixture.mock.ipv4_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(fixture.mock.reads.load(Ordering::SeqCst), 0);
+    assert_eq!(fixture.writes(), 0);
+}
+
 #[tokio::test]
 async fn multizone_apex_wildcard_and_proxy_exception_preserve_unselected_records_and_ipv6() {
     let initial = vec![

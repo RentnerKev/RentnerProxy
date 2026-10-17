@@ -44,7 +44,13 @@ pub(crate) struct Target {
     pub(crate) name: String,
     pub(crate) record_type: RecordType,
     pub(crate) proxied: bool,
+    #[serde(default = "target_enabled")]
+    pub(crate) enabled: bool,
     pub(crate) selection: Selection,
+}
+
+const fn target_enabled() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize)]
@@ -66,6 +72,7 @@ pub(crate) enum Error {
     NameOutsideZone,
     IpDiscoveryFailed,
     FamilyDisabled,
+    TargetDisabled,
     AdoptionRequired,
     CreationRequired,
     RecordConflict,

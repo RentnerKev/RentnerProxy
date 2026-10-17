@@ -6,11 +6,13 @@ import type {
     EnableDdnsInput,
     PreviewDdnsInput,
     SaveDdnsInput,
+    ApplyDdnsInput,
 } from './validation.types.ts'
 export type DdnsResponse<T> =
     | { readonly success: true; readonly value: T }
     | { readonly success: false; readonly message: string }
 export interface DdnsApi {
+    apply(input: ApplyDdnsInput): Promise<DdnsResponse<DdnsSnapshot>>
     status(): Promise<DdnsSnapshot>
     connections(): Promise<readonly DnsConnection[]>
     preview(input: PreviewDdnsInput): Promise<DdnsResponse<DdnsPreview>>
@@ -22,5 +24,5 @@ export interface DdnsApi {
 export interface DdnsPageProps {
     readonly permissions: readonly PermissionKey[]
     readonly api: DdnsApi
+    readonly liveEnabled?: boolean
 }
-export type DdnsConfirmation = 'enable' | 'save' | 'disable' | 'discard' | null

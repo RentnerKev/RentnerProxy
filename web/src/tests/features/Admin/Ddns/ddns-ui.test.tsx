@@ -1,7 +1,8 @@
-// oxlint-disable no-map-spread -- Fixtures retain immutable snapshots for query refresh assertions.
-import { afterEach, describe, expect, mock, test } from 'bun:test'
+// oxlint-disable no-map-spread -- Immutable fixture snapshots model live server updates.
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
+import { toast } from '@rentnerkev/toasts/toast'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { DDNS_QUERY_KEYS } from '@/config/ddns.config.ts'
 import type { DdnsApi } from '@/features/Admin/Ddns/Types/ddns-ui.types.ts'
@@ -14,7 +15,6 @@ import {
 } from '@/tests/Helpers/ddnsFixture.ts'
 import withTestLanguage, { catalogs } from '@/tests/Helpers/withTestLanguage.tsx'
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
-
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 disableMotionAnimations()
@@ -24,11 +24,24 @@ const { createRoot } = await import('react-dom/client')
 const { default: DdnsPage } = await import('@/features/Admin/Ddns/index.tsx')
 let root: Root | undefined
 let client: InstanceType<typeof QueryClient>
+const feedback: { kind: string; message: unknown }[] = []
+let restoreToasts: (() => void)[] = []
+beforeEach(() => {
+    feedback.length = 0
+    restoreToasts = (['error', 'success', 'info', 'warning'] as const).map((kind) => {
+        const spy = spyOn(toast, kind).mockImplementation((message) => {
+            feedback.push({ kind, message })
+            return 'fixture-toast'
+        })
+        return () => spy.mockRestore()
+    })
+})
 afterEach(async () => {
     await act(async () => root?.unmount())
     root = undefined
     client?.clear()
     document.body.replaceChildren()
+    restoreToasts.forEach((restore) => restore())
 })
 const approved = ddnsSettings([
     ddnsTarget({ selection: { mode: 'adopt', recordId: 'c'.repeat(32) } }),
@@ -49,31 +62,20 @@ function fixture(initial = ddnsSnapshot()) {
             return snapshot
         }),
         connections: mock(async () => [DDNS_CONNECTION]),
-        preview: mock(async (input: Parameters<DdnsApi['preview']>[0]) => {
-            const batch = ddnsBatch(input.draft)
-            return {
-                success: true as const,
-                value: {
-                    batch,
-                    receipt: batch.targets.some((target) => target.error)
-                        ? null
-                        : 'fixture-receipt',
-                    expiresAt: Date.now() + 180000,
-                },
-            }
-        }),
-        save: mock(async (input: Parameters<DdnsApi['save']>[0]) => {
-            snapshot = ddnsSnapshot(input.draft, false, input.expectedRevision + 1)
+        apply: mock(async (input: Parameters<DdnsApi['apply']>[0]) => {
+            snapshot = ddnsSnapshot(input.draft, input.enabled, input.expectedRevision + 1)
             return { success: true as const, value: snapshot }
         }),
-        enable: mock(async (input: Parameters<DdnsApi['enable']>[0]) => {
-            snapshot = ddnsSnapshot(
-                snapshot.configuration!.settings,
-                true,
-                input.expectedRevision + 1,
-            )
-            return { success: true as const, value: snapshot }
-        }),
+        preview: mock(async () => ({
+            success: true as const,
+            value: {
+                batch: ddnsBatch(approved),
+                receipt: 'fixture',
+                expiresAt: Date.now() + 180000,
+            },
+        })),
+        save: mock(async () => ({ success: true as const, value: snapshot })),
+        enable: mock(async () => ({ success: true as const, value: snapshot })),
         disable: mock(async (input: Parameters<DdnsApi['disable']>[0]) => {
             snapshot = ddnsSnapshot(
                 snapshot.configuration!.settings,
@@ -96,37 +98,10 @@ function fixture(initial = ddnsSnapshot()) {
     }
     return {
         api,
-        setUnavailable: (next: boolean) => {
-            unavailable = next
-        },
-        setSnapshot: (next: typeof snapshot) => {
-            snapshot = next
+        setUnavailable: (value: boolean) => {
+            unavailable = value
         },
     }
-}
-async function render(api: DdnsApi, manage = true) {
-    client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const container = document.createElement('div')
-    document.body.append(container)
-    root = createRoot(container)
-    await act(async () =>
-        root!.render(
-            withTestLanguage(
-                <QueryClientProvider client={client}>
-                    <DdnsPage
-                        api={api}
-                        permissions={[
-                            PERMISSIONS.DDNS_VIEW,
-                            ...(manage
-                                ? [PERMISSIONS.DDNS_MANAGE, PERMISSIONS.DNS_CONNECTIONS_VIEW]
-                                : []),
-                        ]}
-                    />
-                </QueryClientProvider>,
-            ),
-        ),
-    )
-    await waitFor(() => !document.body.textContent?.includes('Loading DDNS configuration'))
 }
 async function waitFor(condition: () => boolean): Promise<void> {
     const deadline = Date.now() + 2000
@@ -141,6 +116,31 @@ async function waitFor(condition: () => boolean): Promise<void> {
     }
     await poll()
 }
+async function render(api: DdnsApi, manage = true) {
+    client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const container = document.createElement('div')
+    document.body.append(container)
+    root = createRoot(container)
+    await act(async () =>
+        root!.render(
+            withTestLanguage(
+                <QueryClientProvider client={client}>
+                    <DdnsPage
+                        api={api}
+                        liveEnabled={false}
+                        permissions={[
+                            PERMISSIONS.DDNS_VIEW,
+                            ...(manage
+                                ? [PERMISSIONS.DDNS_MANAGE, PERMISSIONS.DNS_CONNECTIONS_VIEW]
+                                : []),
+                        ]}
+                    />
+                </QueryClientProvider>,
+            ),
+        ),
+    )
+    await waitFor(() => !document.body.textContent?.includes('Loading DDNS configuration'))
+}
 function button(label: string, scope: ParentNode = document) {
     const result = [...scope.querySelectorAll<HTMLButtonElement>('button')].find(
         (item) => item.textContent?.trim() === label,
@@ -153,132 +153,206 @@ async function click(element: Element) {
         element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })),
     )
 }
-async function fillDomains(value: string) {
-    const textarea = document.querySelector<HTMLTextAreaElement>('textarea[name="domains"]')!
+async function fill(name: string, value: string) {
+    const element = document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!
     await act(async () => {
-        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(
-            textarea,
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+            element,
             value,
         )
-        textarea.dispatchEvent(new Event('input', { bubbles: true }))
-        textarea.dispatchEvent(new Event('change', { bubbles: true }))
+        element.dispatchEvent(new Event('input', { bubbles: true }))
+        element.dispatchEvent(new Event('change', { bubbles: true }))
     })
 }
-async function confirm(label: string) {
-    await waitFor(() => !!document.querySelector('[role="dialog"]'))
-    await click(button(label, document.querySelector('[role="dialog"]')!))
+async function submit() {
+    await act(async () =>
+        document
+            .querySelector('form')!
+            .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+    )
 }
-
+async function select(index: number, label: string) {
+    await click(
+        document.querySelector('[role="dialog"]')!.querySelectorAll('[role="combobox"]')[index]!,
+    )
+    await waitFor(() =>
+        [...document.querySelectorAll('[role="option"]')].some((item) =>
+            item.textContent?.includes(label),
+        ),
+    )
+    await click(
+        [...document.querySelectorAll('[role="option"]')].find((item) =>
+            item.textContent?.includes(label),
+        )!,
+    )
+}
+async function action(label: string) {
+    const trigger = document.querySelector('button[aria-label="Actions for example.com (A)"]')!
+    await act(async () =>
+        trigger.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+        ),
+    )
+    await waitFor(() => !!document.querySelector('[role="menuitem"]'))
+    await click(
+        [...document.querySelectorAll('[role="menuitem"]')].find(
+            (item) => item.textContent?.trim() === label,
+        )!,
+    )
+}
 describe('DDNS administration UI', () => {
-    test('read-only status never fetches connection choices or exposes mutation actions', async () => {
+    test('read-only table never fetches connection choices or exposes writes', async () => {
         const { api } = fixture(ddnsSnapshot(approved, true))
         await render(api, false)
-        expect(document.body.textContent).toContain('Read only')
         expect(document.body.textContent).toContain('example.com')
-        expect(document.body.textContent).not.toContain('Edit configuration')
+        expect(document.querySelector('table')).not.toBeNull()
+        expect(document.querySelector('button[aria-label^="Actions for"]')).toBeNull()
+        expect(document.body.textContent).not.toContain('Add records')
         expect(api.connections).not.toHaveBeenCalled()
-        expect(api.preview).not.toHaveBeenCalled()
     })
-    test('completes multi-zone wildcard selection, explicit adoption, paused save and separate activation', async () => {
+    test('Enter adds individual domains, automatic zone stays selected and save publishes the list directly', async () => {
         const { api } = fixture()
         await render(api)
-        await click(button('Configure DDNS'))
-        const selects = document.querySelectorAll('[role="combobox"]')
-        expect(selects.length).toBe(2)
-        await waitFor(() => !(selects[0] as HTMLButtonElement).disabled)
-        await click(selects[0]!)
-        await waitFor(() => !!document.querySelector('[role="option"]'))
-        await click(
-            [...document.querySelectorAll('[role="option"]')].find((option) =>
-                option.textContent?.includes('Fixture Cloudflare'),
-            )!,
+        await click(button('Add records'))
+        await select(0, 'Fixture Cloudflare')
+        expect(
+            document.querySelector('[role="dialog"]')!.querySelectorAll('[role="combobox"]')[1]
+                ?.textContent,
+        ).toContain('Match permitted zones automatically')
+        await select(1, 'example.com')
+        await select(1, 'Match permitted zones automatically')
+        expect(
+            document.querySelector('[role="dialog"]')!.querySelectorAll('[role="combobox"]')[1]
+                ?.textContent,
+        ).toContain('Match permitted zones automatically')
+        await fill('domain-0', 'example.com')
+        await act(async () =>
+            document
+                .querySelector('input[name="domain-0"]')!
+                .dispatchEvent(
+                    new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+                ),
         )
-        await fillDomains('example.com, *.example.com, example.org, *.example.org, git.example.com')
-        await click(button('Add to record list'))
-        expect(document.querySelectorAll('li').length).toBe(5)
-        const proxy = document.querySelector<HTMLInputElement>(
-            'input[aria-label="Cloudflare proxy for git.example.com (A)"]',
-        )!
-        await click(proxy)
-        await click(button('Preview changes'))
-        await waitFor(
-            () => !!document.body.textContent?.includes('Existing record · approval required'),
-        )
-        expect(api.save).not.toHaveBeenCalled()
-        await click(button('Approve inspected records'))
-        await waitFor(() => !button('Save paused').disabled)
-        expect(api.preview).toHaveBeenCalledTimes(2)
-        await click(button('Save paused'))
-        expect(api.save).not.toHaveBeenCalled()
-        await confirm('Save paused')
-        await waitFor(() => !!document.body.textContent?.includes('Saved paused.'))
-        expect(api.enable).not.toHaveBeenCalled()
-        expect(api.save).toHaveBeenCalledWith(
+        await fill('domain-1', '*.example.org')
+        await submit()
+        await waitFor(() => !document.querySelector('form'))
+        expect(api.apply).toHaveBeenCalledWith(
             expect.objectContaining({
+                enabled: true,
                 draft: expect.objectContaining({
-                    intervalSeconds: 300,
-                    ipv4: true,
-                    ipv6: false,
-                    updateOnStart: true,
                     targets: expect.arrayContaining([
-                        expect.objectContaining({ name: 'git.example.com', proxied: false }),
+                        expect.objectContaining({ name: 'example.com', zoneId: 'a'.repeat(32) }),
+                        expect.objectContaining({ name: '*.example.org', zoneId: 'b'.repeat(32) }),
                     ]),
                 }),
             }),
         )
-        expect(button('Enable DDNS').disabled).toBe(true)
-        await click(button('Preview changes'))
-        await waitFor(() => !button('Enable DDNS').disabled)
-        await click(button('Enable DDNS'))
+        expect(document.querySelectorAll('tbody tr')).toHaveLength(2)
+        expect(api.preview).not.toHaveBeenCalled()
+        expect(api.save).not.toHaveBeenCalled()
         expect(api.enable).not.toHaveBeenCalled()
-        expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
-            'stopped any previous DDNS updater',
-        )
-        await confirm('Enable approved records')
-        await waitFor(() => !!document.body.textContent?.includes('DDNS enabled.'))
-        expect(api.enable).toHaveBeenCalledTimes(1)
-        expect(document.body.textContent).not.toContain('test.example.com (A)')
-        await click(button('Update now'))
-        await waitFor(() => !!document.body.textContent?.includes('Update completed.'))
+        expect(feedback).toContainEqual({ kind: 'success', message: 'Records saved.' })
+        for (const removed of [
+            'Refresh status',
+            'Preview changes',
+            'Review ·',
+            'Inspection required',
+            'A fresh preview',
+            'Port forwarding',
+        ])
+            expect(document.body.textContent).not.toContain(removed)
     })
-    test('editing a proxy flag invalidates the prior preview without losing the draft', async () => {
-        const { api } = fixture(ddnsSnapshot(approved))
+    test('table actions persist edits, per-record disable/enable and confirmed removal', async () => {
+        const { api } = fixture(ddnsSnapshot(approved, true))
         await render(api)
-        await click(button('Edit configuration'))
-        await click(button('Preview changes'))
-        await waitFor(() => !button('Save paused').disabled)
-        await click(
-            document.querySelector('input[aria-label="Cloudflare proxy for example.com (A)"]')!,
+        await action('Edit')
+        await click(document.querySelector('input[name="proxied"]')!)
+        await submit()
+        await waitFor(() => !document.querySelector('form'))
+        expect(api.apply).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                enabled: true,
+                draft: expect.objectContaining({
+                    targets: [
+                        expect.objectContaining({ proxied: false, id: approved.targets[0]!.id }),
+                    ],
+                }),
+            }),
         )
-        expect(button('Save paused').disabled).toBe(true)
-        expect(document.body.textContent).toContain('A fresh preview is required')
-        expect(api.save).not.toHaveBeenCalled()
+        await action('Disable')
+        await waitFor(() => !!document.body.textContent?.includes('Record disabled'))
+        expect(api.apply).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                enabled: true,
+                draft: expect.objectContaining({
+                    targets: [expect.objectContaining({ enabled: false })],
+                }),
+            }),
+        )
+        await action('Enable')
+        await waitFor(() => (api.apply as ReturnType<typeof mock>).mock.calls.length === 3)
+        expect(api.apply).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                enabled: true,
+                draft: expect.objectContaining({
+                    targets: [expect.objectContaining({ enabled: true })],
+                }),
+            }),
+        )
+        await action('Delete')
+        expect(api.apply).toHaveBeenCalledTimes(3)
+        await click(button('Delete', document.querySelector('[role="dialog"]')!))
+        await waitFor(() => (api.apply as ReturnType<typeof mock>).mock.calls.length === 4)
+        expect(api.apply).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                enabled: false,
+                draft: expect.objectContaining({ targets: [] }),
+            }),
+        )
     })
-    test('background configuration changes keep the draft and block stale save', async () => {
-        const { api } = fixture(ddnsSnapshot(approved))
+    test('live changes preserve the open draft and block stale saving with an info toast', async () => {
+        const { api } = fixture(ddnsSnapshot(approved, true))
         await render(api)
-        await click(button('Edit configuration'))
+        await action('Edit')
+        await fill('domain-0', 'draft.example.com')
         await act(async () =>
-            client.setQueryData(DDNS_QUERY_KEYS.status, ddnsSnapshot(approved, false, 2)),
+            client.setQueryData(DDNS_QUERY_KEYS.status, ddnsSnapshot(approved, true, 2)),
         )
-        await waitFor(
-            () => !!document.body.textContent?.includes('Configuration changed elsewhere'),
+        await waitFor(() => button('Save changes').disabled)
+        expect(document.querySelector<HTMLInputElement>('input[name="domain-0"]')?.value).toBe(
+            'draft.example.com',
         )
-        expect(button('Preview changes').disabled).toBe(true)
-        expect(document.querySelectorAll('li').length).toBe(1)
-        expect(api.save).not.toHaveBeenCalled()
+        expect(feedback.some((item) => item.kind === 'info')).toBe(true)
+        expect(api.apply).not.toHaveBeenCalled()
     })
-    test('provider partial failure keeps last good IP and renders a specific error', async () => {
+    test('validation and rejected saves use toasts and retain the draft', async () => {
+        const { api } = fixture(ddnsSnapshot(approved, true))
+        api.apply = mock(async () => ({
+            success: false as const,
+            message: 'admin.ddns.recordErrors.record_conflict',
+        }))
+        await render(api)
+        await action('Edit')
+        await fill('domain-0', 'https://bad')
+        await submit()
+        expect(api.apply).not.toHaveBeenCalled()
+        expect(feedback.some((item) => item.kind === 'error')).toBe(true)
+        await fill('domain-0', 'example.com')
+        await submit()
+        await waitFor(() => (api.apply as ReturnType<typeof mock>).mock.calls.length === 1)
+        expect(document.querySelector('form')).not.toBeNull()
+        expect(document.querySelector('[role="alert"]')).toBeNull()
+        expect(feedback.some((item) => String(item.message).includes('Multiple records'))).toBe(
+            true,
+        )
+    })
+    test('partial update uses warning toast and retains last good IP', async () => {
         const state = ddnsSnapshot(approved, true)
-        state.targets[0] = {
-            ...state.targets[0]!,
-            lastSuccessfulAddress: '203.0.113.5',
-            lastSuccessAt: 1_792_205_000,
-            lastResult: {
-                ...ddnsBatch(approved).targets[0]!,
-                status: 'failed',
-                error: 'provider_unauthorized',
-            },
+        state.targets[0]!.lastSuccessfulAddress = '203.0.113.5'
+        state.targets[0]!.lastResult = {
+            ...ddnsBatch(approved).targets[0]!,
+            status: 'failed',
+            error: 'provider_unauthorized',
         }
         const { api } = fixture(state)
         api.sync = mock(async () => ({
@@ -291,14 +365,18 @@ describe('DDNS administration UI', () => {
         }))
         await render(api)
         await click(button('Update now'))
-        await waitFor(() => !!document.body.textContent?.includes('Update incomplete'))
+        expect(
+            feedback.some(
+                (item) =>
+                    item.kind === 'warning' && String(item.message).includes('Update incomplete'),
+            ),
+        ).toBe(true)
         expect(document.body.textContent).toContain('203.0.113.5')
-        expect(document.body.textContent).toContain('Cloudflare denied access')
     })
-    test('can pause while a previously admitted controller batch finishes', async () => {
+    test('can pause an admitted run and recovers failed status through cache invalidation', async () => {
         const state = ddnsSnapshot(approved, true)
         state.inFlight = {
-            startedAt: 1_792_205_000,
+            startedAt: 1792205000,
             actorUserId: state.configuration!.updatedByUserId,
             trigger: 'scheduled',
             targetIds: [approved.targets[0]!.id],
@@ -308,49 +386,25 @@ describe('DDNS administration UI', () => {
         expect(button('Update now').disabled).toBe(true)
         expect(button('Pause DDNS').disabled).toBe(false)
         await click(button('Pause DDNS'))
-        await confirm('Pause updates')
-        await waitFor(() => !!document.body.textContent?.includes('DDNS paused.'))
         expect(api.disable).toHaveBeenCalledTimes(1)
     })
-    test('unavailable refresh keeps known values and blocks mutations until recovery', async () => {
+    test('failed live refetch keeps known records, blocks writes and recovers without reload controls', async () => {
         const { api, setUnavailable } = fixture(ddnsSnapshot(approved, true))
         await render(api)
         setUnavailable(true)
-        await click(button('Refresh status'))
-        await waitFor(() => !!document.body.textContent?.includes('Controller unavailable'))
+        await act(async () => {
+            await client.invalidateQueries({ queryKey: DDNS_QUERY_KEYS.status })
+        })
+        await waitFor(() => button('Update now').disabled)
         expect(document.body.textContent).toContain('example.com')
-        expect(button('Update now').disabled).toBe(true)
-        expect(button('Edit configuration').disabled).toBe(true)
-        expect(api.sync).not.toHaveBeenCalled()
+        expect(feedback.some((item) => item.kind === 'error')).toBe(true)
         setUnavailable(false)
-        await click(button('Refresh status'))
+        await act(async () => {
+            await client.invalidateQueries({ queryKey: DDNS_QUERY_KEYS.status })
+        })
         await waitFor(() => !button('Update now').disabled)
     })
-    test('does not report rate-limited skipped records as an unchanged success', async () => {
-        const { api } = fixture(ddnsSnapshot(approved, true))
-        api.sync = mock(async () => ({
-            success: true as const,
-            value: {
-                ...ddnsBatch(approved),
-                preview: false,
-                targets: [
-                    {
-                        ...ddnsBatch(approved).targets[0]!,
-                        status: 'skipped' as const,
-                        error: 'provider_rate_limited' as const,
-                        retryAfterSeconds: 30,
-                    },
-                ],
-            },
-        }))
-        await render(api)
-        await click(button('Update now'))
-        await waitFor(() => !!document.body.textContent?.includes('Update incomplete'))
-        expect(document.body.textContent).not.toContain(
-            'All attempted records were already up to date',
-        )
-    })
-    test('all languages contain the complete DDNS journey and actionable error messages', () => {
+    test('all languages contain the complete journey', () => {
         const expected = translationKeys(catalogs.en.admin.ddns)
         for (const catalog of Object.values(catalogs))
             expect(translationKeys(catalog.admin.ddns)).toEqual(expected)

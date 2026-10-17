@@ -6,6 +6,14 @@ import type {
 
 export interface DnsConnectionsPageProps {
     readonly permissions: readonly string[]
+    readonly liveEnabled?: boolean
+}
+export interface DnsConnectionCardProps {
+    readonly connection: DnsConnection
+    readonly canManage: boolean
+    readonly isPending: boolean
+    readonly onEdit: (connection: DnsConnection) => void
+    readonly onDelete: (connection: DnsConnection) => void
 }
 
 export interface DnsConnectionsLogicContract {
@@ -20,8 +28,7 @@ export interface DnsConnectionsLogicContract {
         readonly deleteTarget: DnsConnection | null
         readonly zones: readonly CloudflareZone[]
         readonly lockedZoneIds: ReadonlySet<string>
-        readonly error: string | null
-        readonly notice: string | null
+        readonly isStale: boolean
         readonly formId: string
     }
     readonly handler: {
@@ -33,7 +40,6 @@ export interface DnsConnectionsLogicContract {
         readonly handleConfirmDelete: () => Promise<void>
         readonly handleSubmit: (event: FormEvent<HTMLFormElement>) => void
         readonly handleTest: () => void
-        readonly handleRefresh: () => void
         readonly handleZoneChange: (zoneId: string, selected: boolean) => void
     }
 }

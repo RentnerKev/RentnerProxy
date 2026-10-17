@@ -11,6 +11,8 @@ export const LIVE_TOPICS = [
     'certificates',
     'redirect-hosts',
     'access-policies',
+    'dns-connections',
+    'ddns',
 ] as const
 
 export const LIVE_INTERVALS: Readonly<Record<LiveTopic, number>> = {
@@ -22,6 +24,8 @@ export const LIVE_INTERVALS: Readonly<Record<LiveTopic, number>> = {
     certificates: 2_000,
     'redirect-hosts': 15_000,
     'access-policies': 15_000,
+    'dns-connections': 2_000,
+    ddns: 2_000,
 }
 
 export const LIVE_MAX_CONNECTIONS = 100

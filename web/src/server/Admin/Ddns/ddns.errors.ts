@@ -1,3 +1,4 @@
+import type { DdnsRecordError } from '@/lib/Ddns/Types/ddns.types.ts'
 export const DDNS_ACTION_ERRORS = [
     'invalid_input',
     'conflict',
@@ -18,6 +19,7 @@ export class DdnsDomainError extends Error {
     constructor(
         readonly code: (typeof DDNS_ACTION_ERRORS)[number],
         readonly retryAfterSeconds?: number,
+        readonly recordError?: DdnsRecordError,
     ) {
         super('DDNS operation unavailable')
         this.name = 'DdnsDomainError'

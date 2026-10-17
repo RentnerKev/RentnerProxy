@@ -29,7 +29,9 @@
         "backHome": "Back to home",
         "openDomainInNewTab": "Open {{domain}} in a new tab",
         "moreDomains": "Show {{count}} more domains",
-        "clearSelection": "Clear selection"
+        "clearSelection": "Clear selection",
+        "edit": "Edit",
+        "delete": "Delete"
     },
     "inputs": {
         "invalidPhone": "Enter a valid phone number.",
@@ -2437,7 +2439,8 @@
                 "loading": "Loading DNS connection metadata…",
                 "error": "DNS connections unavailable",
                 "empty": "No DNS connections yet",
-                "emptyDescription": "Create a Cloudflare connection and select the zones available to future DNS consumers."
+                "emptyDescription": "Create a Cloudflare connection and select the zones available to future DNS consumers.",
+                "waiting": "Waiting for the connection to recover. The list updates automatically."
             },
             "confirm": {
                 "title": "Delete DNS connection?",
@@ -2452,7 +2455,8 @@
             "messages": {
                 "saved": "DNS connection saved.",
                 "tested": "Zone read access checked. DNS write access has not been verified.",
-                "deleted": "DNS connection deleted."
+                "deleted": "DNS connection deleted.",
+                "changed": "This connection changed elsewhere. Close and reopen the editor to use its latest version."
             },
             "errors": {
                 "invalid_input": "Check the connection name, token and selected zones.",
@@ -2470,6 +2474,11 @@
                 "credentials_unavailable": "The stored token cannot be read. Replace the token or restore credential encryption.",
                 "controller_unavailable": "The controller is unavailable. Restore it and reload.",
                 "requestFailed": "The request failed. Retry, or reload the current connection before saving again."
+            },
+            "card": {
+                "zoneCount": "Zones: {{count}}",
+                "references": "Used by {{count}} consumers",
+                "delete": "Delete connection {{name}}"
             }
         },
         "ddns": {
@@ -2488,10 +2497,11 @@
                 "save": "Save paused",
                 "enable": "Enable DDNS",
                 "disable": "Pause DDNS",
-                "sync": "Update now"
+                "sync": "Update now",
+                "settings": "Settings"
             },
             "form": {
-                "title": "1. Choose records",
+                "title": "DDNS settings",
                 "saveHint": "Saving pauses DDNS. Review and enable the saved configuration separately.",
                 "interval": "Interval in seconds",
                 "intervalHint": "60–86400 seconds. 300 = every 5 minutes.",
@@ -2557,7 +2567,8 @@
                 "running": "Updating records…",
                 "forbidden": "DDNS view permission required",
                 "readOnly": "Read only. Changes require DDNS manage permission.",
-                "never": "No scheduled time / not yet attempted"
+                "never": "No scheduled time / not yet attempted",
+                "waiting": "Waiting for the controller. Status updates automatically after reconnecting."
             },
             "results": {
                 "unchanged": "Already up to date",
@@ -2571,7 +2582,9 @@
                 "notAttempted": "Not yet attempted",
                 "running": "Update in progress",
                 "attention": "Configuration needs attention",
-                "familyPaused": "Address family paused"
+                "familyPaused": "Address family paused",
+                "targetPaused": "Record disabled",
+                "disabled": "DDNS paused"
             },
             "messages": {
                 "saved": "Saved paused. Preview the saved records, then explicitly enable DDNS.",
@@ -2579,7 +2592,13 @@
                 "disabled": "DDNS paused. An already admitted batch may finish; future runs are stopped.",
                 "synced": "Update completed. See the confirmed results per record.",
                 "unchanged": "All attempted records were already up to date.",
-                "partial": "Update incomplete. Last successful values remain visible; check each record’s error and retry time."
+                "partial": "Update incomplete. Last successful values remain visible; check each record’s error and retry time.",
+                "changed": "Configuration changed elsewhere. Close and reopen the editor to use its latest version.",
+                "recordSaved": "Records saved.",
+                "settingsSaved": "DDNS settings saved.",
+                "recordEnabled": "Record enabled.",
+                "recordDisabled": "Record disabled.",
+                "recordDeleted": "Record removed from DDNS. Its Cloudflare DNS record is retained."
             },
             "validation": {
                 "domain": "Enter a valid domain or *.wildcard, without a URL or port.",
@@ -2591,20 +2610,20 @@
             },
             "errors": {
                 "invalid_input": "Review the domains, address families and interval.",
-                "conflict": "Configuration changed elsewhere. Cancel this draft, refresh and start again.",
-                "busy": "Another DDNS operation is running. Refresh status before trying again.",
-                "disabled": "DDNS is paused. Preview and enable it before updating.",
+                "conflict": "Configuration changed elsewhere. Close and reopen the editor to use its latest version.",
+                "busy": "Another DDNS operation is running. Wait for its status to update.",
+                "disabled": "DDNS is paused. Enable the saved records before updating.",
                 "restore_paused": "A restore paused DDNS. Review and explicitly enable this instance.",
                 "stopping": "The controller is stopping. Refresh after restart.",
                 "retry_deferred": "A retry is not due yet. Check the provider cooldown and the next attempt for each record.",
                 "store_unavailable": "DDNS state could not be persisted. Restore controller storage access and refresh status before retrying.",
-                "connection_unavailable": "DNS connections are unavailable. Check connection access and reload.",
-                "controller_unavailable": "Controller unavailable. Shown values may be stale. Refresh before making changes; do not blindly repeat an update.",
+                "connection_unavailable": "DNS connections are unavailable. Check connection access; the list updates automatically.",
+                "controller_unavailable": "Controller unavailable. Last known values remain visible; status updates after reconnecting.",
                 "preview_required": "Preview expired or changed. Run preview again before saving or enabling.",
                 "preview_failed": "Preview could not complete. Resolve the record errors before continuing.",
                 "pause_confirmation_required": "Confirm that saving will pause the active configuration.",
                 "activation_confirmation_required": "Confirm activation after reviewing the preview.",
-                "requestFailed": "The response was unavailable. Refresh status to see whether the operation completed before trying again."
+                "requestFailed": "The response was unavailable. Check the live status before repeating an operation."
             },
             "recordErrors": {
                 "invalid_input": "Invalid record configuration. Edit the name, zone or selection.",
@@ -2614,8 +2633,8 @@
                 "name_outside_zone": "The hostname is outside the selected zone. Remove it and add it with the correct zone.",
                 "ip_discovery_failed": "Public IP discovery failed. Check connectivity from the controller; the last good value is retained.",
                 "family_disabled": "This address family is disabled. Its records are kept without updates.",
-                "adoption_required": "This record already exists. Review its IP and proxy setting, then explicitly approve adoption.",
-                "creation_required": "No record exists. Explicitly approve creating this exact name and type.",
+                "adoption_required": "This existing record needs automatic inspection. Save or enable it to check its identity.",
+                "creation_required": "No record exists. Save or enable this target to check and create the exact name and type.",
                 "record_conflict": "Multiple records or a conflicting CNAME were found. Resolve the Cloudflare conflict first; DDNS will not delete anything.",
                 "record_changed": "The approved record changed or was replaced. Remove this target, add it again and inspect the new record before approving.",
                 "provider_unauthorized": "Cloudflare denied access. Check Zone Read and DNS Edit permissions for the selected zones and rotate the connection token if needed.",
@@ -2624,7 +2643,8 @@
                 "invalid_provider_response": "Cloudflare returned an unexpected response. Check service availability and preview again.",
                 "write_unconfirmed": "Cloudflare may have accepted the write but confirmation failed. Check the record and preview before retrying.",
                 "time_budget_exceeded": "The batch deadline was reached. Remaining records will retry according to their displayed schedule.",
-                "run_interrupted": "A previous controller run was interrupted. Check current DNS values before a manual retry."
+                "run_interrupted": "A previous controller run was interrupted. Check current DNS values before a manual retry.",
+                "target_disabled": "This record is disabled. Its DNS value is retained without updates."
             },
             "confirm": {
                 "save": {
@@ -2647,6 +2667,49 @@
                     "description": "The draft and its preview will be discarded. The saved configuration continues as before.",
                     "action": "Discard changes"
                 }
+            },
+            "settings": {
+                "description": "Choose the update interval and enabled address families."
+            },
+            "editor": {
+                "addTitle": "Add records",
+                "editTitle": "Edit record",
+                "description": "Only the listed hostnames are managed. Saving checks the selected records automatically.",
+                "domainLabel": "Domain {{number}}",
+                "removeDomain": "Remove domain {{number}}",
+                "placeholder": "example.com",
+                "addDomain": "Add another domain",
+                "recordType": "Record type",
+                "both": "IPv4 + IPv6 · A and AAAA",
+                "enabled": "Enable automatic updates for these records"
+            },
+            "table": {
+                "eyebrow": "Managed DNS",
+                "title": "Managed records · {{count}}",
+                "name": "Record",
+                "connection": "Connection / zone",
+                "proxy": "Proxy",
+                "proxied": "Cloudflare proxy",
+                "dnsOnly": "DNS only",
+                "status": "Status / last IP",
+                "schedule": "Updates",
+                "last": "Last: {{at}}",
+                "next": "Next: {{at}}",
+                "actions": "Actions",
+                "actionsFor": "Actions for {{name}} ({{type}})",
+                "enable": "Enable",
+                "disable": "Disable",
+                "search": "Search records",
+                "searchPlaceholder": "Domain, connection or IP…",
+                "emptyTitle": "No managed records",
+                "emptyDescription": "Add the exact domains DDNS should update.",
+                "filteredTitle": "No matching records",
+                "filteredDescription": "Try another search or clear the filters.",
+                "itemLabel": "records"
+            },
+            "delete": {
+                "title": "Remove managed record?",
+                "description": "Stop managing {{name}}? Its Cloudflare DNS record remains unchanged."
             }
         }
     },

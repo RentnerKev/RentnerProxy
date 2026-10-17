@@ -2,10 +2,11 @@ use super::models::*;
 use crate::runtime::ddns::models::{BatchResult, Error, RecordType, Status, Target, TargetResult};
 
 pub(super) fn active(config: &Configuration, target: &Target) -> bool {
-    match target.record_type {
-        RecordType::A => config.ipv4,
-        RecordType::Aaaa => config.ipv6,
-    }
+    target.enabled
+        && match target.record_type {
+            RecordType::A => config.ipv4,
+            RecordType::Aaaa => config.ipv6,
+        }
 }
 
 pub(super) fn event(

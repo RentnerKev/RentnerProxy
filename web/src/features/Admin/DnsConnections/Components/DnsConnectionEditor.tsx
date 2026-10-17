@@ -31,14 +31,14 @@ export default function DnsConnectionEditor({
                         type="button"
                         disabled={state.isPending}
                         onClick={() => handler.handleEditorOpenChange(false)}
-                        className="h-12 rounded-xl border border-border-strong bg-surface-raised px-4 text-sm font-extrabold text-ink-soft disabled:opacity-50"
+                        className="h-12 rounded-xl border border-danger-border bg-danger-bg px-4 text-sm font-extrabold text-danger-text disabled:opacity-50"
                     >
                         {t('common.cancel')}
                     </button>
                     <button
                         type="submit"
                         form={state.formId}
-                        disabled={state.isPending}
+                        disabled={state.isPending || state.isStale}
                         className="h-12 rounded-xl bg-accent px-4 text-sm font-extrabold text-accent-foreground enabled:hover:bg-accent-hover disabled:opacity-50"
                     >
                         {t(state.isPending ? 'common.working' : 'common.save')}
@@ -168,25 +168,6 @@ export default function DnsConnectionEditor({
                         </fieldset>
                     )}
                 </form.Field>
-                {state.error ? (
-                    <div
-                        role="alert"
-                        className="grid gap-2 rounded-xl bg-danger-bg p-3 text-sm text-danger-text"
-                    >
-                        <p>{t(state.error)}</p>
-                        <button
-                            type="button"
-                            onClick={handler.handleRefresh}
-                            disabled={state.isPending}
-                            className="justify-self-start underline"
-                        >
-                            {t('admin.dnsConnections.actions.refreshDraft')}
-                        </button>
-                    </div>
-                ) : null}
-                {state.notice ? (
-                    <output className="text-sm text-muted">{t(state.notice)}</output>
-                ) : null}
             </form>
         </Modal>
     )

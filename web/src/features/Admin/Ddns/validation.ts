@@ -18,3 +18,8 @@ export const enableDdnsSchema = z.strictObject({
     confirmed: z.literal(true),
 })
 export const ddnsActionSchema = z.strictObject({ expectedRevision: ddnsRevisionSchema.min(1) })
+export const applyDdnsSchema = z.strictObject({
+    expectedRevision: ddnsRevisionSchema,
+    draft: ddnsDraftSchema,
+    enabled: z.boolean(),
+})

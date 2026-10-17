@@ -18,10 +18,19 @@ export function ddnsDraft(settings?: DdnsDraft): DdnsDraft {
         : { intervalSeconds: 300, updateOnStart: true, ipv4: true, ipv6: false, targets: [] }
 }
 export function activeDdnsTarget(draft: DdnsDraft, target: DdnsTarget): boolean {
-    return target.recordType === 'A' ? draft.ipv4 : draft.ipv6
+    return target.enabled && (target.recordType === 'A' ? draft.ipv4 : draft.ipv6)
 }
 export function ddnsFingerprint(draft: DdnsDraft): string {
     return JSON.stringify(ddnsDraftSchema.parse(ddnsDraft(draft)))
+}
+export function sameDdnsIdentity(left: DdnsTarget, right: DdnsTarget): boolean {
+    return (
+        left.id === right.id &&
+        left.connectionId === right.connectionId &&
+        left.zoneId === right.zoneId &&
+        left.name === right.name &&
+        left.recordType === right.recordType
+    )
 }
 export function canonicalDdnsName(input: string): string {
     const raw = input.trim().replace(/\.$/u, '').toLowerCase()
@@ -86,6 +95,7 @@ export function addDdnsDomains(
                 name,
                 recordType,
                 proxied: true,
+                enabled: true,
                 selection: { mode: 'inspect' },
             })
     }

@@ -32,6 +32,7 @@ export const ddnsTargetSchema = z.strictObject({
     name: ddnsNameSchema,
     recordType: z.enum(['A', 'AAAA']),
     proxied: z.boolean(),
+    enabled: z.boolean().default(true),
     selection: ddnsSelectionSchema,
 })
 export const ddnsDraftSchema = z
@@ -70,6 +71,7 @@ export const ddnsRecordErrorSchema = z.enum([
     'name_outside_zone',
     'ip_discovery_failed',
     'family_disabled',
+    'target_disabled',
     'adoption_required',
     'creation_required',
     'record_conflict',

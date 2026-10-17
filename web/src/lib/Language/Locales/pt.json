@@ -29,7 +29,9 @@
         "backHome": "Voltar à página inicial",
         "openDomainInNewTab": "Abrir {{domain}} num novo separador",
         "moreDomains": "Mostrar mais {{count}} domínios",
-        "clearSelection": "Limpar seleção"
+        "clearSelection": "Limpar seleção",
+        "edit": "Editar",
+        "delete": "Eliminar"
     },
     "inputs": {
         "invalidPhone": "Introduza um número de telefone válido.",
@@ -2463,7 +2465,8 @@
                 "loading": "A carregar metadados das ligações DNS…",
                 "error": "Ligações DNS indisponíveis",
                 "empty": "Ainda não existem ligações DNS",
-                "emptyDescription": "Crie uma ligação Cloudflare e selecione as zonas disponíveis para futuros serviços DNS."
+                "emptyDescription": "Crie uma ligação Cloudflare e selecione as zonas disponíveis para futuros serviços DNS.",
+                "waiting": "A aguardar ligação. A lista atualiza-se automaticamente."
             },
             "confirm": {
                 "title": "Eliminar ligação DNS?",
@@ -2478,7 +2481,8 @@
             "messages": {
                 "saved": "Ligação DNS guardada.",
                 "tested": "O acesso de leitura às zonas foi verificado. O acesso de escrita DNS não foi verificado.",
-                "deleted": "Ligação DNS eliminada."
+                "deleted": "Ligação DNS eliminada.",
+                "changed": "A ligação mudou. Fecha e reabre o editor para usar a versão atual."
             },
             "errors": {
                 "invalid_input": "Verifique o nome da ligação, o token e as zonas selecionadas.",
@@ -2496,6 +2500,11 @@
                 "credentials_unavailable": "Não é possível ler o token guardado. Substitua-o ou restaure a cifragem das credenciais.",
                 "controller_unavailable": "O controlador está indisponível. Restabeleça-o e recarregue a lista.",
                 "requestFailed": "O pedido falhou. Tente novamente ou recarregue a ligação atual antes de voltar a guardar."
+            },
+            "card": {
+                "zoneCount": "Zonas: {{count}}",
+                "references": "Usada por {{count}} serviços",
+                "delete": "Eliminar ligação {{name}}"
             }
         },
         "ddns": {
@@ -2514,10 +2523,11 @@
                 "save": "Guardar em pausa",
                 "enable": "Ativar DDNS",
                 "disable": "Pausar DDNS",
-                "sync": "Atualizar agora"
+                "sync": "Atualizar agora",
+                "settings": "Definições"
             },
             "form": {
-                "title": "1. Escolher registos",
+                "title": "Definições DDNS",
                 "saveHint": "Guardar pausa DDNS. Reveja e ative depois a configuração guardada.",
                 "interval": "Intervalo em segundos",
                 "intervalHint": "60–86400 segundos. 300 = a cada 5 minutos.",
@@ -2583,7 +2593,8 @@
                 "running": "A atualizar registos…",
                 "forbidden": "É necessária leitura DDNS",
                 "readOnly": "Só leitura. Alterações exigem gestão DDNS.",
-                "never": "Sem data / ainda sem tentativa"
+                "never": "Sem data / ainda sem tentativa",
+                "waiting": "A aguardar o controlador. O estado atualiza-se após a ligação."
             },
             "results": {
                 "unchanged": "Já atualizado",
@@ -2597,7 +2608,9 @@
                 "notAttempted": "Ainda sem tentativa",
                 "running": "Atualização em curso",
                 "attention": "Rever configuração",
-                "familyPaused": "Família em pausa"
+                "familyPaused": "Família em pausa",
+                "targetPaused": "Registo desativado",
+                "disabled": "DDNS em pausa"
             },
             "messages": {
                 "saved": "Guardado em pausa. Reveja e ative DDNS.",
@@ -2605,7 +2618,13 @@
                 "disabled": "DDNS em pausa. Um lote iniciado pode terminar; os seguintes estão parados.",
                 "synced": "Atualização concluída. Veja os resultados por registo.",
                 "unchanged": "Os registos verificados já estavam atualizados.",
-                "partial": "Atualização incompleta. Mantêm-se os últimos valores; verifique erros e próximas tentativas."
+                "partial": "Atualização incompleta. Mantêm-se os últimos valores; verifique erros e próximas tentativas.",
+                "changed": "A configuração mudou. Fecha e reabre o editor.",
+                "recordSaved": "Registos guardados.",
+                "settingsSaved": "Definições DDNS guardadas.",
+                "recordEnabled": "Registo ativado.",
+                "recordDisabled": "Registo desativado.",
+                "recordDeleted": "Registo removido do DDNS. O DNS na Cloudflare é mantido."
             },
             "validation": {
                 "domain": "Introduza domínio ou *.wildcard sem URL nem porta.",
@@ -2617,20 +2636,20 @@
             },
             "errors": {
                 "invalid_input": "Reveja domínios, famílias e intervalo.",
-                "conflict": "Configuração alterada. Cancele o rascunho e atualize.",
-                "busy": "Outra operação em curso. Atualize o estado.",
-                "disabled": "DDNS em pausa. Reveja e ative.",
+                "conflict": "A configuração mudou. Fecha e reabre o editor.",
+                "busy": "Está em curso outra operação DDNS. Aguarda a atualização do estado.",
+                "disabled": "O DDNS está em pausa. Ativa os registos guardados antes de atualizar.",
                 "restore_paused": "Restauro pausou DDNS. Reveja e ative esta instância.",
                 "stopping": "O controlador está a parar. Atualize após reiniciar.",
                 "retry_deferred": "Nova tentativa adiada. Verifique espera do fornecedor e próximos horários.",
                 "store_unavailable": "Estado não guardado. Verifique armazenamento e atualize antes de repetir.",
-                "connection_unavailable": "Ligações DNS indisponíveis. Verifique acesso e recarregue.",
-                "controller_unavailable": "Controlador indisponível. Valores podem estar antigos. Atualize antes de alterar ou repetir.",
+                "connection_unavailable": "Ligações DNS indisponíveis. Verifica o acesso; a lista atualiza-se automaticamente.",
+                "controller_unavailable": "Controlador indisponível. Os últimos valores continuam visíveis; o estado atualiza-se ao ligar novamente.",
                 "preview_required": "Pré-visualização expirada ou alterada. Repita-a.",
                 "preview_failed": "Pré-visualização incompleta. Resolva erros.",
                 "pause_confirmation_required": "Confirme que guardar pausa a configuração.",
                 "activation_confirmation_required": "Confirme a ativação após rever.",
-                "requestFailed": "Resposta indisponível. Atualize e verifique o resultado antes de repetir."
+                "requestFailed": "Resposta indisponível. Verifica o estado em direto antes de repetir uma operação."
             },
             "recordErrors": {
                 "invalid_input": "Configuração inválida. Edite nome, zona ou seleção.",
@@ -2640,8 +2659,8 @@
                 "name_outside_zone": "Nome fora da zona. Adicione com a zona correta.",
                 "ip_discovery_failed": "Deteção IP falhou. Verifique ligação do controlador.",
                 "family_disabled": "Família desativada. Registos mantidos sem atualizar.",
-                "adoption_required": "Já existe. Reveja IP e proxy e aprove a adoção.",
-                "creation_required": "Ausente. Aprove a criação deste nome e tipo.",
+                "adoption_required": "Este registo precisa de verificação automática. Guarda-o ou ativa-o para verificar a identidade.",
+                "creation_required": "O registo não existe. Guarda ou ativa o destino para verificar e criar esse nome e tipo.",
                 "record_conflict": "Registos múltiplos ou CNAME incompatível. Resolva no Cloudflare; DDNS não elimina.",
                 "record_changed": "Registo alterado. Remova, adicione e reveja novamente.",
                 "provider_unauthorized": "Acesso negado. Verifique Zone Read e DNS Edit do token.",
@@ -2650,7 +2669,8 @@
                 "invalid_provider_response": "Resposta inesperada. Verifique disponibilidade e repita pré-visualização.",
                 "write_unconfirmed": "Alteração talvez aceite sem confirmação. Verifique antes de repetir.",
                 "time_budget_exceeded": "Tempo do lote esgotado. Os restantes repetem segundo o horário.",
-                "run_interrupted": "Execução interrompida. Verifique DNS antes de repetir manualmente."
+                "run_interrupted": "Execução interrompida. Verifique DNS antes de repetir manualmente.",
+                "target_disabled": "Este registo está desativado. O valor DNS é mantido sem atualizações."
             },
             "confirm": {
                 "save": {
@@ -2673,6 +2693,49 @@
                     "description": "Rascunho e pré-visualização serão descartados. A configuração guardada continua.",
                     "action": "Descartar alterações"
                 }
+            },
+            "settings": {
+                "description": "Escolhe o intervalo de atualização e as famílias de endereços ativas."
+            },
+            "editor": {
+                "addTitle": "Adicionar registos",
+                "editTitle": "Editar registo",
+                "description": "Apenas os nomes indicados são geridos. Os registos são verificados automaticamente ao guardar.",
+                "domainLabel": "Domínio {{number}}",
+                "removeDomain": "Remover domínio {{number}}",
+                "placeholder": "example.com",
+                "addDomain": "Adicionar outro domínio",
+                "recordType": "Tipo de registo",
+                "both": "IPv4 + IPv6 · A e AAAA",
+                "enabled": "Ativar atualizações automáticas destes registos"
+            },
+            "table": {
+                "eyebrow": "DNS gerido",
+                "title": "Registos geridos · {{count}}",
+                "name": "Registo",
+                "connection": "Ligação / zona",
+                "proxy": "Proxy",
+                "proxied": "Proxy Cloudflare",
+                "dnsOnly": "Apenas DNS",
+                "status": "Estado / último IP",
+                "schedule": "Atualizações",
+                "last": "Última: {{at}}",
+                "next": "Próxima: {{at}}",
+                "actions": "Ações",
+                "actionsFor": "Ações para {{name}} ({{type}})",
+                "enable": "Ativar",
+                "disable": "Desativar",
+                "search": "Procurar registos",
+                "searchPlaceholder": "Domínio, ligação ou IP…",
+                "emptyTitle": "Sem registos geridos",
+                "emptyDescription": "Adiciona os domínios exatos que o DDNS deve atualizar.",
+                "filteredTitle": "Sem correspondências",
+                "filteredDescription": "Altera a pesquisa ou limpa os filtros.",
+                "itemLabel": "registos"
+            },
+            "delete": {
+                "title": "Remover registo gerido?",
+                "description": "Deixar de gerir {{name}}? O registo DNS na Cloudflare fica inalterado."
             }
         }
     },

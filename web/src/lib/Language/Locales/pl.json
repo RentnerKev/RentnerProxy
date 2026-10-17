@@ -29,7 +29,9 @@
         "backHome": "Wróć do strony głównej",
         "openDomainInNewTab": "Otwórz {{domain}} w nowej karcie",
         "moreDomains": "Pokaż jeszcze {{count}} domen",
-        "clearSelection": "Wyczyść wybór"
+        "clearSelection": "Wyczyść wybór",
+        "edit": "Edytuj",
+        "delete": "Usuń"
     },
     "inputs": {
         "invalidPhone": "Wpisz prawidłowy numer telefonu.",
@@ -2463,7 +2465,8 @@
                 "loading": "Wczytywanie metadanych połączeń DNS…",
                 "error": "Połączenia DNS są niedostępne",
                 "empty": "Nie ma jeszcze połączeń DNS",
-                "emptyDescription": "Utwórz połączenie Cloudflare i wybierz strefy dostępne dla przyszłych odbiorców DNS."
+                "emptyDescription": "Utwórz połączenie Cloudflare i wybierz strefy dostępne dla przyszłych odbiorców DNS.",
+                "waiting": "Oczekiwanie na połączenie. Lista odświeża się automatycznie."
             },
             "confirm": {
                 "title": "Usunąć połączenie DNS?",
@@ -2478,7 +2481,8 @@
             "messages": {
                 "saved": "Zapisano połączenie DNS.",
                 "tested": "Sprawdzono dostęp do odczytu stref. Dostęp do zapisu DNS nie został sprawdzony.",
-                "deleted": "Usunięto połączenie DNS."
+                "deleted": "Usunięto połączenie DNS.",
+                "changed": "Połączenie zostało zmienione. Zamknij i otwórz edytor, aby użyć aktualnej wersji."
             },
             "errors": {
                 "invalid_input": "Sprawdź nazwę połączenia, token i wybrane strefy.",
@@ -2496,6 +2500,11 @@
                 "credentials_unavailable": "Nie można odczytać zapisanego tokenu. Zastąp token lub przywróć szyfrowanie danych logowania.",
                 "controller_unavailable": "Kontroler jest niedostępny. Przywróć go i wczytaj listę ponownie.",
                 "requestFailed": "Żądanie nie powiodło się. Spróbuj ponownie lub wczytaj bieżące połączenie przed kolejnym zapisem."
+            },
+            "card": {
+                "zoneCount": "Strefy: {{count}}",
+                "references": "Używane przez {{count}} usług",
+                "delete": "Usuń połączenie {{name}}"
             }
         },
         "ddns": {
@@ -2514,10 +2523,11 @@
                 "save": "Zapisz wstrzymane",
                 "enable": "Włącz DDNS",
                 "disable": "Wstrzymaj DDNS",
-                "sync": "Aktualizuj teraz"
+                "sync": "Aktualizuj teraz",
+                "settings": "Ustawienia"
             },
             "form": {
-                "title": "1. Wybierz rekordy",
+                "title": "Ustawienia DDNS",
                 "saveHint": "Zapis wstrzymuje DDNS. Sprawdź i włącz zapisaną konfigurację osobno.",
                 "interval": "Interwał w sekundach",
                 "intervalHint": "60–86400 sekund. 300 = co 5 minut.",
@@ -2583,7 +2593,8 @@
                 "running": "Aktualizowanie rekordów…",
                 "forbidden": "Wymagany odczyt DDNS",
                 "readOnly": "Tylko odczyt. Zmiany wymagają zarządzania DDNS.",
-                "never": "Brak terminu / jeszcze nie próbowano"
+                "never": "Brak terminu / jeszcze nie próbowano",
+                "waiting": "Oczekiwanie na kontroler. Stan odświeży się po ponownym połączeniu."
             },
             "results": {
                 "unchanged": "Już aktualne",
@@ -2597,7 +2608,9 @@
                 "notAttempted": "Jeszcze nie próbowano",
                 "running": "Aktualizacja trwa",
                 "attention": "Sprawdź konfigurację",
-                "familyPaused": "Rodzina adresów wstrzymana"
+                "familyPaused": "Rodzina adresów wstrzymana",
+                "targetPaused": "Rekord wyłączony",
+                "disabled": "DDNS wstrzymany"
             },
             "messages": {
                 "saved": "Zapisano wstrzymane. Sprawdź i włącz DDNS.",
@@ -2605,7 +2618,13 @@
                 "disabled": "DDNS wstrzymane. Rozpoczęta partia może się zakończyć; kolejne nie ruszą.",
                 "synced": "Aktualizacja zakończona. Sprawdź wyniki rekordów.",
                 "unchanged": "Sprawdzone rekordy były już aktualne.",
-                "partial": "Aktualizacja niepełna. Ostatnie dobre wartości są widoczne; sprawdź błędy i terminy."
+                "partial": "Aktualizacja niepełna. Ostatnie dobre wartości są widoczne; sprawdź błędy i terminy.",
+                "changed": "Konfiguracja została zmieniona. Zamknij i otwórz edytor.",
+                "recordSaved": "Rekordy zapisane.",
+                "settingsSaved": "Ustawienia DDNS zapisane.",
+                "recordEnabled": "Rekord włączony.",
+                "recordDisabled": "Rekord wyłączony.",
+                "recordDeleted": "Rekord usunięty z DDNS. Rekord DNS w Cloudflare pozostaje."
             },
             "validation": {
                 "domain": "Podaj domenę lub *.wieloznaczną bez URL i portu.",
@@ -2617,20 +2636,20 @@
             },
             "errors": {
                 "invalid_input": "Sprawdź domeny, rodziny i interwał.",
-                "conflict": "Konfiguracja zmieniona gdzie indziej. Anuluj szkic i odśwież.",
-                "busy": "Trwa inna operacja. Odśwież stan.",
-                "disabled": "DDNS wstrzymane. Sprawdź i włącz.",
+                "conflict": "Konfiguracja została zmieniona. Zamknij i otwórz edytor.",
+                "busy": "Trwa inna operacja DDNS. Poczekaj na aktualizację stanu.",
+                "disabled": "DDNS jest wstrzymany. Włącz zapisane rekordy przed aktualizacją.",
                 "restore_paused": "Przywrócenie wstrzymało DDNS. Sprawdź i włącz instancję.",
                 "stopping": "Kontroler się zatrzymuje. Odśwież po restarcie.",
                 "retry_deferred": "Ponowna próba odroczona. Sprawdź przerwę dostawcy i terminy.",
                 "store_unavailable": "Nie zapisano stanu. Sprawdź pamięć i odśwież przed ponowieniem.",
-                "connection_unavailable": "Połączenia DNS niedostępne. Sprawdź dostęp i odśwież.",
-                "controller_unavailable": "Kontroler niedostępny. Dane mogą być stare. Odśwież przed zmianą lub powtórzeniem.",
+                "connection_unavailable": "Połączenia DNS niedostępne. Sprawdź dostęp; lista odświeża się automatycznie.",
+                "controller_unavailable": "Kontroler niedostępny. Ostatnie wartości pozostają widoczne; stan odświeży się po połączeniu.",
                 "preview_required": "Podgląd wygasł lub zmieniono dane. Ponów go.",
                 "preview_failed": "Podgląd niepełny. Usuń błędy.",
                 "pause_confirmation_required": "Potwierdź, że zapis wstrzyma konfigurację.",
                 "activation_confirmation_required": "Potwierdź włączenie po sprawdzeniu.",
-                "requestFailed": "Brak odpowiedzi. Odśwież i sprawdź wynik przed powtórzeniem."
+                "requestFailed": "Odpowiedź niedostępna. Sprawdź bieżący stan przed ponowieniem operacji."
             },
             "recordErrors": {
                 "invalid_input": "Błędna konfiguracja. Zmień nazwę, strefę lub wybór.",
@@ -2640,8 +2659,8 @@
                 "name_outside_zone": "Nazwa poza strefą. Dodaj z właściwą strefą.",
                 "ip_discovery_failed": "Nie wykryto IP. Sprawdź połączenie kontrolera.",
                 "family_disabled": "Rodzina wyłączona. Rekordy zachowane bez zmian.",
-                "adoption_required": "Już istnieje. Sprawdź IP i proxy, zatwierdź przejęcie.",
-                "creation_required": "Brak. Zatwierdź utworzenie tej nazwy i typu.",
+                "adoption_required": "Istniejący rekord wymaga automatycznego sprawdzenia. Zapisz go lub włącz, aby sprawdzić tożsamość.",
+                "creation_required": "Rekord nie istnieje. Zapisz lub włącz cel, aby sprawdzić i utworzyć tę nazwę i typ.",
                 "record_conflict": "Wiele rekordów lub konflikt CNAME. Popraw w Cloudflare; DDNS nic nie usuwa.",
                 "record_changed": "Rekord zmieniony. Usuń, dodaj i sprawdź ponownie.",
                 "provider_unauthorized": "Odmowa dostępu. Sprawdź Zone Read i DNS Edit tokenu.",
@@ -2650,7 +2669,8 @@
                 "invalid_provider_response": "Nieoczekiwana odpowiedź. Sprawdź dostępność i ponów podgląd.",
                 "write_unconfirmed": "Zapis mógł się udać bez potwierdzenia. Sprawdź przed ponowieniem.",
                 "time_budget_exceeded": "Limit czasu partii. Pozostałe rekordy wrócą według harmonogramu.",
-                "run_interrupted": "Przerwane wykonanie. Sprawdź DNS przed ręcznym ponowieniem."
+                "run_interrupted": "Przerwane wykonanie. Sprawdź DNS przed ręcznym ponowieniem.",
+                "target_disabled": "Ten rekord jest wyłączony. Wartość DNS pozostaje bez aktualizacji."
             },
             "confirm": {
                 "save": {
@@ -2673,6 +2693,49 @@
                     "description": "Szkic i podgląd zostaną odrzucone. Zapisana konfiguracja działa dalej.",
                     "action": "Odrzuć zmiany"
                 }
+            },
+            "settings": {
+                "description": "Wybierz interwał aktualizacji i aktywne rodziny adresów."
+            },
+            "editor": {
+                "addTitle": "Dodaj rekordy",
+                "editTitle": "Edytuj rekord",
+                "description": "Zarządzane są tylko podane nazwy. Rekordy są automatycznie sprawdzane przy zapisie.",
+                "domainLabel": "Domena {{number}}",
+                "removeDomain": "Usuń domenę {{number}}",
+                "placeholder": "example.com",
+                "addDomain": "Dodaj kolejną domenę",
+                "recordType": "Typ rekordu",
+                "both": "IPv4 + IPv6 · A i AAAA",
+                "enabled": "Włącz automatyczne aktualizacje tych rekordów"
+            },
+            "table": {
+                "eyebrow": "Zarządzany DNS",
+                "title": "Zarządzane rekordy · {{count}}",
+                "name": "Rekord",
+                "connection": "Połączenie / strefa",
+                "proxy": "Proxy",
+                "proxied": "Proxy Cloudflare",
+                "dnsOnly": "Tylko DNS",
+                "status": "Stan / ostatni IP",
+                "schedule": "Aktualizacje",
+                "last": "Ostatnia: {{at}}",
+                "next": "Następna: {{at}}",
+                "actions": "Akcje",
+                "actionsFor": "Akcje dla {{name}} ({{type}})",
+                "enable": "Włącz",
+                "disable": "Wyłącz",
+                "search": "Szukaj rekordów",
+                "searchPlaceholder": "Domena, połączenie lub IP…",
+                "emptyTitle": "Brak zarządzanych rekordów",
+                "emptyDescription": "Dodaj dokładne domeny, które DDNS ma aktualizować.",
+                "filteredTitle": "Brak pasujących rekordów",
+                "filteredDescription": "Zmień wyszukiwanie lub wyczyść filtry.",
+                "itemLabel": "rekordów"
+            },
+            "delete": {
+                "title": "Usunąć zarządzany rekord?",
+                "description": "Przestać zarządzać {{name}}? Rekord DNS w Cloudflare pozostanie bez zmian."
             }
         }
     },

@@ -24,6 +24,7 @@ export function ddnsTarget(overrides: Partial<DdnsTarget> = {}): DdnsTarget {
         name: 'example.com',
         recordType: 'A',
         proxied: true,
+        enabled: true,
         selection: { mode: 'inspect' },
         ...overrides,
     }

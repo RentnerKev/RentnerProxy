@@ -7,7 +7,9 @@ a connection only reads Cloudflare zone metadata; it does not change DNS records
 or convert existing certificates. The explicitly invoked DDNS record engine in B2-02
 ([#231](https://github.com/RentnerKev/RentnerProxy/issues/231)) is documented in
 [DDNS record synchronization](ddns-record-sync.md). B2-03 adds
-[durable DDNS automation](ddns-automation.md); its web UI follows in B2-04 (#233).
+[durable DDNS automation](ddns-automation.md); its [web UI](ddns-migration.md) at
+`/ddns` manages exact records. Connection cards and DDNS status update through the
+authenticated WebSocket channel. Actions report feedback through shared toasts.
 
 ## Access and ownership
 

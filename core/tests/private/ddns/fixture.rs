@@ -38,6 +38,7 @@ pub(super) fn target(n: usize, name: &str, family: RecordType, selection: Select
         record_type: family,
         proxied: true,
         selection,
+        enabled: true,
     }
 }
 pub(super) fn request(targets: Vec<Target>) -> Request {

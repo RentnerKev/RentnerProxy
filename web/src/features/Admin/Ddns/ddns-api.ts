@@ -6,9 +6,11 @@ import {
     enableDdnsHandler,
     disableDdnsHandler,
     syncDdnsHandler,
+    applyDdnsHandler,
 } from './middleware.ts'
 import type { DdnsApi } from './Types/ddns-ui.types.ts'
 export const ddnsApi: DdnsApi = {
+    apply: (data) => applyDdnsHandler({ data }),
     status: () => getDdnsStatusHandler(),
     connections: () => getDdnsConnectionsHandler(),
     preview: (data) => previewDdnsHandler({ data }),

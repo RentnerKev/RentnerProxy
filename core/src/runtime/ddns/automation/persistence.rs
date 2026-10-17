@@ -17,11 +17,7 @@ pub(super) fn validate(configuration: &Configuration, actor: &str) -> Result<(),
     if !is_canonical_uuid_v7(actor)
         || !(60..=86_400).contains(&configuration.interval_seconds)
         || configuration.targets.len() > 100
-        || (configuration.enabled
-            && !configuration
-                .targets
-                .iter()
-                .any(|target| scheduling::active(configuration, target)))
+        || (configuration.enabled && configuration.targets.is_empty())
         || (configuration.enabled
             && configuration.targets.iter().any(|target| {
                 scheduling::active(configuration, target)

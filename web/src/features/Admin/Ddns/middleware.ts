@@ -9,6 +9,7 @@ import {
     enableDdnsService,
     disableDdnsService,
     syncDdnsService,
+    applyDdnsService,
 } from '@/server/Admin/Ddns/ddns.service.ts'
 import { DdnsDomainError } from '@/server/Admin/Ddns/ddns.errors.ts'
 import { localizedActionFailure, throwLocalizedQueryError } from '@/server/Auth/transport.server.ts'
@@ -17,6 +18,7 @@ import {
     enableDdnsSchema,
     previewDdnsSchema,
     saveDdnsSchema,
+    applyDdnsSchema,
 } from './validation.ts'
 
 export function validateDdnsInput<T>(schema: z.ZodType<T>, input: unknown): T {
@@ -40,7 +42,12 @@ function failure(error: unknown) {
                 : 422,
     )
     if (error.retryAfterSeconds) setResponseHeader('Retry-After', String(error.retryAfterSeconds))
-    return { success: false as const, message: `admin.ddns.errors.${error.code}` }
+    return {
+        success: false as const,
+        message: error.recordError
+            ? `admin.ddns.recordErrors.${error.recordError}`
+            : `admin.ddns.errors.${error.code}`,
+    }
 }
 export const getDdnsStatusHandler = createServerFn({ method: 'GET' }).handler(async () => {
     noStore()
@@ -50,6 +57,16 @@ export const getDdnsStatusHandler = createServerFn({ method: 'GET' }).handler(as
         throwLocalizedQueryError(error, 'admin.ddns.errors.controller_unavailable')
     }
 })
+export const applyDdnsHandler = createServerFn({ method: 'POST' })
+    .validator((input: unknown) => validateDdnsInput(applyDdnsSchema, input))
+    .handler(async ({ data }) => {
+        noStore()
+        try {
+            return { success: true as const, value: await applyDdnsService(data) }
+        } catch (error) {
+            return failure(error)
+        }
+    })
 export const getDdnsConnectionsHandler = createServerFn({ method: 'GET' }).handler(async () => {
     noStore()
     try {

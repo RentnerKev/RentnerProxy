@@ -15,6 +15,79 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 const NOW: i64 = 1_900_000_000;
+
+#[tokio::test]
+async fn target_pause_survives_restart_and_retains_last_good_values_and_connection_reference() {
+    let fixture = Fixture::new(vec![]).await;
+    let automation = Automation::new(fixture.path.clone());
+    configure(&automation, &fixture, settings(0, true, true)).await;
+    tick(&automation, &fixture, NOW).await.unwrap();
+    let mut pause = settings(1, true, true);
+    pause.configuration.targets[0].enabled = false;
+    let paused = automation
+        .save_at(&fixture.store, pause, NOW + 1, Outcome::Configured)
+        .await
+        .unwrap();
+    assert_eq!(paused.targets[0].last_success_at, Some(NOW));
+    assert!(paused.targets[0].last_successful_address.is_some());
+    assert_eq!(paused.targets[0].next_attempt_at, None);
+    assert_eq!(fixture.store.list().await.unwrap()[0].references.len(), 1);
+    let restarted = Automation::new(fixture.path.clone());
+    assert!(tick(&restarted, &fixture, NOW + 1000).await.is_none());
+    let state = restarted
+        .status_at(&fixture.store, NOW + 1000)
+        .await
+        .unwrap();
+    assert!(!state.configuration.unwrap().settings.targets[0].enabled);
+    assert_eq!(state.targets[0].last_success_at, Some(NOW));
+    restarted
+        .save_at(
+            &fixture.store,
+            settings(2, true, true),
+            NOW + 1001,
+            Outcome::Configured,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        tick(&restarted, &fixture, NOW + 1001)
+            .await
+            .unwrap()
+            .targets[0]
+            .status,
+        Status::Unchanged
+    );
+    assert_eq!(fixture.writes(), 1);
+}
+
+#[tokio::test]
+async fn per_target_toggles_and_proxy_edits_cannot_bypass_transient_retry_deadlines() {
+    let fixture = Fixture::new(vec![]).await;
+    fixture.mock.data.lock().unwrap().status = StatusCode::SERVICE_UNAVAILABLE;
+    let automation = Automation::new(fixture.path.clone());
+    configure(&automation, &fixture, settings(0, true, true)).await;
+    tick(&automation, &fixture, NOW).await.unwrap();
+    let due = automation
+        .status_at(&fixture.store, NOW)
+        .await
+        .unwrap()
+        .targets[0]
+        .retry_not_before
+        .unwrap();
+    let mut pause = settings(1, true, true);
+    pause.configuration.targets[0].enabled = false;
+    configure(&automation, &fixture, pause).await;
+    let mut resume = settings(2, true, true);
+    resume.configuration.targets[0].proxied = false;
+    automation
+        .save_at(&fixture.store, resume, NOW + 2, Outcome::Configured)
+        .await
+        .unwrap();
+    let state = automation.status_at(&fixture.store, NOW + 2).await.unwrap();
+    assert_eq!(state.targets[0].retry_not_before, Some(due));
+    assert!(tick(&automation, &fixture, NOW + 18).await.is_none());
+    assert_eq!(fixture.mock.reads.load(Ordering::SeqCst), 1);
+}
 fn settings(revision: u32, enabled: bool, on_start: bool) -> SaveConfiguration {
     serde_json::from_value(json!({
         "expectedRevision": revision, "actorUserId": ACTOR,

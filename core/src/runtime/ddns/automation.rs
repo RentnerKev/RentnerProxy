@@ -161,9 +161,16 @@ impl Automation {
         }
         let mut targets = Vec::with_capacity(request.configuration.targets.len());
         for target in &request.configuration.targets {
-            let unchanged = old
-                .as_ref()
-                .is_some_and(|config| config.settings.targets.contains(target));
+            let unchanged = old.as_ref().is_some_and(|config| {
+                config.settings.targets.iter().any(|previous| {
+                    previous.id == target.id
+                        && previous.connection_id == target.connection_id
+                        && previous.zone_id == target.zone_id
+                        && previous.name == target.name
+                        && previous.record_type == target.record_type
+                        && previous.selection == target.selection
+                })
+            });
             let mut status = if unchanged {
                 next.targets
                     .iter()

@@ -29,7 +29,9 @@
         "backHome": "Retour à l’accueil",
         "openDomainInNewTab": "Ouvrir {{domain}} dans un nouvel onglet",
         "moreDomains": "Afficher {{count}} domaines supplémentaires",
-        "clearSelection": "Effacer la sélection"
+        "clearSelection": "Effacer la sélection",
+        "edit": "Modifier",
+        "delete": "Supprimer"
     },
     "inputs": {
         "invalidPhone": "Saisissez un numéro de téléphone valide.",
@@ -2437,7 +2439,8 @@
                 "loading": "Chargement des métadonnées des connexions DNS…",
                 "error": "Connexions DNS indisponibles",
                 "empty": "Aucune connexion DNS pour le moment",
-                "emptyDescription": "Créez une connexion Cloudflare et sélectionnez les zones accessibles aux futurs consommateurs DNS."
+                "emptyDescription": "Créez une connexion Cloudflare et sélectionnez les zones accessibles aux futurs consommateurs DNS.",
+                "waiting": "En attente de la connexion. La liste se met à jour automatiquement."
             },
             "confirm": {
                 "title": "Supprimer la connexion DNS ?",
@@ -2452,7 +2455,8 @@
             "messages": {
                 "saved": "Connexion DNS enregistrée.",
                 "tested": "L’accès en lecture des zones a été vérifié. L’accès en écriture DNS n’a pas été vérifié.",
-                "deleted": "Connexion DNS supprimée."
+                "deleted": "Connexion DNS supprimée.",
+                "changed": "La connexion a changé. Fermez puis rouvrez l’éditeur pour utiliser la version actuelle."
             },
             "errors": {
                 "invalid_input": "Vérifiez le nom de la connexion, le jeton et les zones sélectionnées.",
@@ -2470,6 +2474,11 @@
                 "credentials_unavailable": "Le jeton enregistré est illisible. Remplacez-le ou restaurez le chiffrement des identifiants.",
                 "controller_unavailable": "Le contrôleur est indisponible. Rétablissez-le, puis rechargez la liste.",
                 "requestFailed": "La requête a échoué. Réessayez ou rechargez la connexion actuelle avant un nouvel enregistrement."
+            },
+            "card": {
+                "zoneCount": "Zones : {{count}}",
+                "references": "Utilisée par {{count}} services",
+                "delete": "Supprimer la connexion {{name}}"
             }
         },
         "ddns": {
@@ -2488,10 +2497,11 @@
                 "save": "Enregistrer en pause",
                 "enable": "Activer DDNS",
                 "disable": "Mettre DDNS en pause",
-                "sync": "Mettre à jour maintenant"
+                "sync": "Mettre à jour maintenant",
+                "settings": "Réglages"
             },
             "form": {
-                "title": "1. Choisir les enregistrements",
+                "title": "Réglages DDNS",
                 "saveHint": "L’enregistrement met DDNS en pause. Vérifiez puis activez la configuration séparément.",
                 "interval": "Intervalle en secondes",
                 "intervalHint": "60–86400 secondes. 300 = toutes les 5 minutes.",
@@ -2557,7 +2567,8 @@
                 "running": "Mise à jour des enregistrements…",
                 "forbidden": "Lecture DDNS requise",
                 "readOnly": "Lecture seule. Les modifications nécessitent la gestion DDNS.",
-                "never": "Sans date / pas encore tenté"
+                "never": "Sans date / pas encore tenté",
+                "waiting": "En attente du contrôleur. L’état se met à jour après reconnexion."
             },
             "results": {
                 "unchanged": "Déjà à jour",
@@ -2571,7 +2582,9 @@
                 "notAttempted": "Pas encore tenté",
                 "running": "Mise à jour en cours",
                 "attention": "Configuration à vérifier",
-                "familyPaused": "Famille en pause"
+                "familyPaused": "Famille en pause",
+                "targetPaused": "Enregistrement désactivé",
+                "disabled": "DDNS en pause"
             },
             "messages": {
                 "saved": "Enregistré en pause. Vérifiez puis activez DDNS.",
@@ -2579,7 +2592,13 @@
                 "disabled": "DDNS en pause. Un lot déjà lancé peut finir ; les suivants sont arrêtés.",
                 "synced": "Mise à jour terminée. Consultez chaque enregistrement.",
                 "unchanged": "Les enregistrements vérifiés étaient déjà à jour.",
-                "partial": "Mise à jour incomplète. Les dernières valeurs réussies restent visibles ; vérifiez erreurs et prochaines tentatives."
+                "partial": "Mise à jour incomplète. Les dernières valeurs réussies restent visibles ; vérifiez erreurs et prochaines tentatives.",
+                "changed": "La configuration a changé. Fermez puis rouvrez l’éditeur.",
+                "recordSaved": "Enregistrements sauvegardés.",
+                "settingsSaved": "Réglages DDNS sauvegardés.",
+                "recordEnabled": "Enregistrement activé.",
+                "recordDisabled": "Enregistrement désactivé.",
+                "recordDeleted": "Enregistrement retiré de DDNS. Le DNS chez Cloudflare est conservé."
             },
             "validation": {
                 "domain": "Indiquez un domaine ou *.joker sans URL ni port.",
@@ -2591,20 +2610,20 @@
             },
             "errors": {
                 "invalid_input": "Vérifiez domaines, familles et intervalle.",
-                "conflict": "Configuration modifiée ailleurs. Annulez le brouillon et actualisez.",
-                "busy": "Une opération est en cours. Actualisez l’état.",
-                "disabled": "DDNS en pause. Vérifiez et activez.",
+                "conflict": "La configuration a changé. Fermez puis rouvrez l’éditeur.",
+                "busy": "Une autre opération DDNS est en cours. Attendez la mise à jour de l’état.",
+                "disabled": "DDNS est en pause. Activez les enregistrements sauvegardés avant la mise à jour.",
                 "restore_paused": "Restauration : DDNS en pause. Vérifiez et activez cette instance.",
                 "stopping": "Le contrôleur s’arrête. Actualisez après redémarrage.",
                 "retry_deferred": "Réessai différé. Vérifiez l’attente du fournisseur et les prochaines tentatives.",
                 "store_unavailable": "État non enregistré. Vérifiez le stockage et actualisez avant réessai.",
-                "connection_unavailable": "Connexions DNS indisponibles. Vérifiez l’accès et rechargez.",
-                "controller_unavailable": "Contrôleur indisponible. Valeurs potentiellement anciennes. Actualisez avant modification ou répétition.",
+                "connection_unavailable": "Connexions DNS indisponibles. Vérifiez l’accès ; la liste se met à jour automatiquement.",
+                "controller_unavailable": "Contrôleur indisponible. Les dernières valeurs restent visibles ; l’état se met à jour après reconnexion.",
                 "preview_required": "Aperçu expiré ou modifié. Relancez-le.",
                 "preview_failed": "Aperçu incomplet. Corrigez les erreurs.",
                 "pause_confirmation_required": "Confirmez que l’enregistrement met en pause.",
                 "activation_confirmation_required": "Confirmez l’activation après vérification.",
-                "requestFailed": "Réponse indisponible. Actualisez pour vérifier le résultat avant de répéter."
+                "requestFailed": "Réponse indisponible. Vérifiez l’état en direct avant de répéter une opération."
             },
             "recordErrors": {
                 "invalid_input": "Configuration invalide. Modifiez nom, zone ou sélection.",
@@ -2614,8 +2633,8 @@
                 "name_outside_zone": "Nom hors zone. Ajoutez-le avec la bonne zone.",
                 "ip_discovery_failed": "Échec de détection IP. Vérifiez la connexion du contrôleur.",
                 "family_disabled": "Famille désactivée. Enregistrements conservés sans mise à jour.",
-                "adoption_required": "Existe déjà. Vérifiez IP et proxy puis approuvez l’adoption.",
-                "creation_required": "Absent. Approuvez la création de ce nom et type.",
+                "adoption_required": "Cet enregistrement doit être vérifié automatiquement. Sauvegardez-le ou activez-le pour vérifier son identité.",
+                "creation_required": "Aucun enregistrement n’existe. Sauvegardez ou activez la cible pour vérifier et créer ce nom et ce type.",
                 "record_conflict": "Doublons ou CNAME incompatible. Corrigez dans Cloudflare ; DDNS ne supprime rien.",
                 "record_changed": "Enregistrement remplacé. Retirez, ajoutez et vérifiez à nouveau.",
                 "provider_unauthorized": "Accès refusé. Vérifiez Zone Read et DNS Edit du jeton.",
@@ -2624,7 +2643,8 @@
                 "invalid_provider_response": "Réponse inattendue. Vérifiez la disponibilité et relancez l’aperçu.",
                 "write_unconfirmed": "Écriture peut-être acceptée sans confirmation. Vérifiez avant réessai.",
                 "time_budget_exceeded": "Délai du lot dépassé. Les éléments restants seront réessayés selon leur calendrier.",
-                "run_interrupted": "Exécution interrompue. Vérifiez le DNS avant réessai manuel."
+                "run_interrupted": "Exécution interrompue. Vérifiez le DNS avant réessai manuel.",
+                "target_disabled": "Cet enregistrement est désactivé. Sa valeur DNS est conservée sans mise à jour."
             },
             "confirm": {
                 "save": {
@@ -2647,6 +2667,49 @@
                     "description": "Brouillon et aperçu seront abandonnés. La configuration enregistrée continue.",
                     "action": "Abandonner les modifications"
                 }
+            },
+            "settings": {
+                "description": "Choisissez la fréquence et les familles d’adresses actives."
+            },
+            "editor": {
+                "addTitle": "Ajouter des enregistrements",
+                "editTitle": "Modifier l’enregistrement",
+                "description": "Seuls les noms indiqués sont gérés. Les enregistrements sont vérifiés automatiquement à la sauvegarde.",
+                "domainLabel": "Domaine {{number}}",
+                "removeDomain": "Retirer le domaine {{number}}",
+                "placeholder": "example.com",
+                "addDomain": "Ajouter un autre domaine",
+                "recordType": "Type d’enregistrement",
+                "both": "IPv4 + IPv6 · A et AAAA",
+                "enabled": "Activer les mises à jour automatiques pour ces enregistrements"
+            },
+            "table": {
+                "eyebrow": "DNS géré",
+                "title": "Enregistrements gérés · {{count}}",
+                "name": "Enregistrement",
+                "connection": "Connexion / zone",
+                "proxy": "Proxy",
+                "proxied": "Proxy Cloudflare",
+                "dnsOnly": "DNS uniquement",
+                "status": "État / dernière IP",
+                "schedule": "Mises à jour",
+                "last": "Dernière : {{at}}",
+                "next": "Prochaine : {{at}}",
+                "actions": "Actions",
+                "actionsFor": "Actions pour {{name}} ({{type}})",
+                "enable": "Activer",
+                "disable": "Désactiver",
+                "search": "Rechercher des enregistrements",
+                "searchPlaceholder": "Domaine, connexion ou IP…",
+                "emptyTitle": "Aucun enregistrement géré",
+                "emptyDescription": "Ajoutez les domaines exacts à mettre à jour par DDNS.",
+                "filteredTitle": "Aucun résultat",
+                "filteredDescription": "Modifiez la recherche ou effacez les filtres.",
+                "itemLabel": "enregistrements"
+            },
+            "delete": {
+                "title": "Retirer l’enregistrement géré ?",
+                "description": "Ne plus gérer {{name}} ? Son DNS chez Cloudflare reste inchangé."
             }
         }
     },

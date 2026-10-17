@@ -29,7 +29,9 @@
         "backHome": "Terug naar de startpagina",
         "openDomainInNewTab": "{{domain}} openen in een nieuw tabblad",
         "moreDomains": "Nog {{count}} domeinen tonen",
-        "clearSelection": "Selectie wissen"
+        "clearSelection": "Selectie wissen",
+        "edit": "Bewerken",
+        "delete": "Verwijderen"
     },
     "shell": {
         "home": "RentnerProxy-startpagina",
@@ -2418,7 +2420,8 @@
                 "loading": "Metadata van DNS-verbindingen laden…",
                 "error": "DNS-verbindingen niet beschikbaar",
                 "empty": "Nog geen DNS-verbindingen",
-                "emptyDescription": "Maak een Cloudflare-verbinding en selecteer de zones die toekomstige DNS-afnemers mogen gebruiken."
+                "emptyDescription": "Maak een Cloudflare-verbinding en selecteer de zones die toekomstige DNS-afnemers mogen gebruiken.",
+                "waiting": "Wachten op verbinding. De lijst wordt automatisch bijgewerkt."
             },
             "confirm": {
                 "title": "DNS-verbinding verwijderen?",
@@ -2433,7 +2436,8 @@
             "messages": {
                 "saved": "DNS-verbinding opgeslagen.",
                 "tested": "Leesrechten voor zones gecontroleerd. DNS-schrijfrechten zijn niet gecontroleerd.",
-                "deleted": "DNS-verbinding verwijderd."
+                "deleted": "DNS-verbinding verwijderd.",
+                "changed": "De verbinding is gewijzigd. Sluit en heropen de editor voor de nieuwste versie."
             },
             "errors": {
                 "invalid_input": "Controleer de verbindingsnaam, het token en de geselecteerde zones.",
@@ -2451,6 +2455,11 @@
                 "credentials_unavailable": "Het opgeslagen token kan niet worden gelezen. Vervang het token of herstel de versleuteling van inloggegevens.",
                 "controller_unavailable": "De controller is niet beschikbaar. Herstel deze en laad de lijst opnieuw.",
                 "requestFailed": "Het verzoek is mislukt. Probeer het opnieuw of laad de huidige verbinding voordat je opnieuw opslaat."
+            },
+            "card": {
+                "zoneCount": "Zones: {{count}}",
+                "references": "Gebruikt door {{count}} diensten",
+                "delete": "Verbinding {{name}} verwijderen"
             }
         },
         "ddns": {
@@ -2469,10 +2478,11 @@
                 "save": "Gepauzeerd opslaan",
                 "enable": "DDNS inschakelen",
                 "disable": "DDNS pauzeren",
-                "sync": "Nu bijwerken"
+                "sync": "Nu bijwerken",
+                "settings": "Instellingen"
             },
             "form": {
-                "title": "1. Records kiezen",
+                "title": "DDNS-instellingen",
                 "saveHint": "Opslaan pauzeert DDNS. Controleer en activeer daarna de opgeslagen configuratie.",
                 "interval": "Interval in seconden",
                 "intervalHint": "60–86400 seconden. 300 = elke 5 minuten.",
@@ -2538,7 +2548,8 @@
                 "running": "Records bijwerken…",
                 "forbidden": "DDNS-leesrecht vereist",
                 "readOnly": "Alleen lezen. Wijzigen vereist DDNS-beheerrechten.",
-                "never": "Geen tijd / nog niet geprobeerd"
+                "never": "Geen tijd / nog niet geprobeerd",
+                "waiting": "Wachten op de controller. De status wordt na herverbinden bijgewerkt."
             },
             "results": {
                 "unchanged": "Al bijgewerkt",
@@ -2552,7 +2563,9 @@
                 "notAttempted": "Nog niet geprobeerd",
                 "running": "Bezig met bijwerken",
                 "attention": "Configuratie controleren",
-                "familyPaused": "Adresfamilie gepauzeerd"
+                "familyPaused": "Adresfamilie gepauzeerd",
+                "targetPaused": "Record uitgeschakeld",
+                "disabled": "DDNS gepauzeerd"
             },
             "messages": {
                 "saved": "Gepauzeerd opgeslagen. Controleer en activeer DDNS.",
@@ -2560,7 +2573,13 @@
                 "disabled": "DDNS gepauzeerd. Een gestarte batch kan afronden; volgende runs zijn gestopt.",
                 "synced": "Bijwerken voltooid. Bekijk de resultaten per record.",
                 "unchanged": "Alle gecontroleerde records waren al bijgewerkt.",
-                "partial": "Bijwerken onvolledig. Laatste goede waarden blijven zichtbaar; controleer fouten en volgende pogingen."
+                "partial": "Bijwerken onvolledig. Laatste goede waarden blijven zichtbaar; controleer fouten en volgende pogingen.",
+                "changed": "De configuratie is gewijzigd. Sluit en heropen de editor.",
+                "recordSaved": "Records opgeslagen.",
+                "settingsSaved": "DDNS-instellingen opgeslagen.",
+                "recordEnabled": "Record ingeschakeld.",
+                "recordDisabled": "Record uitgeschakeld.",
+                "recordDeleted": "Record uit DDNS verwijderd. Het DNS-record bij Cloudflare blijft bestaan."
             },
             "validation": {
                 "domain": "Voer een domein of *.wildcard in zonder URL of poort.",
@@ -2572,20 +2591,20 @@
             },
             "errors": {
                 "invalid_input": "Controleer domeinen, families en interval.",
-                "conflict": "Configuratie elders gewijzigd. Annuleer concept en vernieuw.",
-                "busy": "Er loopt een bewerking. Vernieuw de status.",
-                "disabled": "DDNS gepauzeerd. Controleer en activeer.",
+                "conflict": "De configuratie is gewijzigd. Sluit en heropen de editor.",
+                "busy": "Er loopt een andere DDNS-actie. Wacht tot de status is bijgewerkt.",
+                "disabled": "DDNS is gepauzeerd. Schakel de opgeslagen records in om bij te werken.",
                 "restore_paused": "Herstel pauzeerde DDNS. Controleer en activeer deze instantie.",
                 "stopping": "Controller stopt. Vernieuw na herstart.",
                 "retry_deferred": "Nog wachttijd. Controleer provider en volgende pogingen.",
                 "store_unavailable": "Status niet opgeslagen. Controleer opslag en vernieuw vóór opnieuw proberen.",
-                "connection_unavailable": "DNS-verbindingen niet beschikbaar. Controleer toegang en vernieuw.",
-                "controller_unavailable": "Controller niet beschikbaar. Waarden kunnen oud zijn. Vernieuw vóór wijzigen of herhalen.",
+                "connection_unavailable": "DNS-verbindingen niet beschikbaar. Controleer de toegang; de lijst wordt automatisch bijgewerkt.",
+                "controller_unavailable": "Controller niet beschikbaar. Laatste waarden blijven zichtbaar; de status wordt na herverbinden bijgewerkt.",
                 "preview_required": "Voorbeeld verlopen of gewijzigd. Bekijk opnieuw.",
                 "preview_failed": "Voorbeeld onvolledig. Los fouten op.",
                 "pause_confirmation_required": "Bevestig dat opslaan de configuratie pauzeert.",
                 "activation_confirmation_required": "Bevestig activering na controle.",
-                "requestFailed": "Antwoord ontbreekt. Vernieuw en controleer resultaat vóór herhalen."
+                "requestFailed": "Antwoord niet beschikbaar. Controleer de actuele status voordat je een actie herhaalt."
             },
             "recordErrors": {
                 "invalid_input": "Ongeldige configuratie. Bewerk naam, zone of selectie.",
@@ -2595,8 +2614,8 @@
                 "name_outside_zone": "Naam buiten zone. Voeg toe met juiste zone.",
                 "ip_discovery_failed": "IP-detectie mislukt. Controleer controllerverbinding.",
                 "family_disabled": "Familie uitgeschakeld. Records blijven zonder updates.",
-                "adoption_required": "Bestaat al. Controleer IP en proxy en keur overname goed.",
-                "creation_required": "Ontbreekt. Keur aanmaak van deze naam en type goed.",
+                "adoption_required": "Dit bestaande record moet automatisch worden gecontroleerd. Sla het op of schakel het in.",
+                "creation_required": "Het record bestaat niet. Sla het doel op of schakel het in om deze naam en dit type te controleren en maken.",
                 "record_conflict": "Dubbele records of CNAME-conflict. Los op in Cloudflare; DDNS verwijdert niets.",
                 "record_changed": "Record vervangen. Verwijder, voeg toe en controleer opnieuw.",
                 "provider_unauthorized": "Toegang geweigerd. Controleer Zone Read en DNS Edit van token.",
@@ -2605,7 +2624,8 @@
                 "invalid_provider_response": "Onverwacht antwoord. Controleer beschikbaarheid en bekijk opnieuw.",
                 "write_unconfirmed": "Wijziging mogelijk geaccepteerd zonder bevestiging. Controleer vóór herhalen.",
                 "time_budget_exceeded": "Batchtijd verstreken. Resterende records volgen hun schema.",
-                "run_interrupted": "Uitvoering onderbroken. Controleer DNS vóór handmatig herhalen."
+                "run_interrupted": "Uitvoering onderbroken. Controleer DNS vóór handmatig herhalen.",
+                "target_disabled": "Dit record is uitgeschakeld. De DNS-waarde blijft behouden zonder updates."
             },
             "confirm": {
                 "save": {
@@ -2628,6 +2648,49 @@
                     "description": "Concept en voorbeeld vervallen. Opgeslagen configuratie blijft actief.",
                     "action": "Wijzigingen verwerpen"
                 }
+            },
+            "settings": {
+                "description": "Kies het update-interval en de actieve adresfamilies."
+            },
+            "editor": {
+                "addTitle": "Records toevoegen",
+                "editTitle": "Record bewerken",
+                "description": "Alleen de opgegeven hostnamen worden beheerd. Bij opslaan worden de records automatisch gecontroleerd.",
+                "domainLabel": "Domein {{number}}",
+                "removeDomain": "Domein {{number}} verwijderen",
+                "placeholder": "example.com",
+                "addDomain": "Nog een domein toevoegen",
+                "recordType": "Recordtype",
+                "both": "IPv4 + IPv6 · A en AAAA",
+                "enabled": "Automatische updates voor deze records inschakelen"
+            },
+            "table": {
+                "eyebrow": "Beheerde DNS",
+                "title": "Beheerde records · {{count}}",
+                "name": "Record",
+                "connection": "Verbinding / zone",
+                "proxy": "Proxy",
+                "proxied": "Cloudflare-proxy",
+                "dnsOnly": "Alleen DNS",
+                "status": "Status / laatste IP",
+                "schedule": "Updates",
+                "last": "Laatste: {{at}}",
+                "next": "Volgende: {{at}}",
+                "actions": "Acties",
+                "actionsFor": "Acties voor {{name}} ({{type}})",
+                "enable": "Inschakelen",
+                "disable": "Uitschakelen",
+                "search": "Records zoeken",
+                "searchPlaceholder": "Domein, verbinding of IP…",
+                "emptyTitle": "Geen beheerde records",
+                "emptyDescription": "Voeg de exacte domeinen toe die DDNS moet bijwerken.",
+                "filteredTitle": "Geen overeenkomsten",
+                "filteredDescription": "Wijzig de zoekopdracht of wis de filters.",
+                "itemLabel": "records"
+            },
+            "delete": {
+                "title": "Beheerd record verwijderen?",
+                "description": "{{name}} niet meer beheren? Het DNS-record bij Cloudflare blijft ongewijzigd."
             }
         }
     },

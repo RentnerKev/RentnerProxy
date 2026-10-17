@@ -98,7 +98,7 @@ impl Engine {
             if !enabled
                 || !requested_targets
                     .iter()
-                    .any(|target| target.record_type == family)
+                    .any(|target| target.enabled && target.record_type == family)
             {
                 return Err(Error::FamilyDisabled);
             }
@@ -114,6 +114,12 @@ impl Engine {
         let client = http::client()?;
         let mut targets = Vec::with_capacity(request.targets.len());
         for target in &request.targets {
+            if !target.enabled {
+                let mut result = TargetResult::new(target, Status::Skipped);
+                result.error = Some(Error::TargetDisabled);
+                targets.push(result);
+                continue;
+            }
             let address = match target.record_type {
                 RecordType::A => ipv4,
                 RecordType::Aaaa => ipv6,
