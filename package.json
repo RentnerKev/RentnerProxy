@@ -63,16 +63,16 @@
         "@tanstack/charts": "1.1.0",
         "@tanstack/react-form": "1.33.5",
         "@tanstack/react-hotkeys": "0.14.5",
-        "@tanstack/react-query": "5.104.3",
-        "@tanstack/react-router": "1.170.44",
-        "@tanstack/react-start": "1.169.2",
+        "@tanstack/react-query": "5.104.4",
+        "@tanstack/react-router": "1.170.45",
+        "@tanstack/react-start": "1.169.3",
         "@tanstack/react-table": "9.3.1",
         "codemirror": "6.0.2",
         "country-flag-icons": "1.6.20",
         "drizzle-orm": "0.45.4",
-        "i18next": "26.4.7",
+        "i18next": "26.5.2",
         "i18next-resources-to-backend": "1.2.3",
-        "lucide-react": "1.57.0",
+        "lucide-react": "1.59.0",
         "maxmind": "5.0.7",
         "motion": "14.3.0",
         "nodemailer": "10.1.2",
@@ -107,8 +107,5 @@
             "esbuild": "0.28.2"
         }
     },
-    "packageManager": "bun@1.4.3",
-    "patchedDependencies": {
-        "@tanstack/start-plugin-core@1.171.53": "patches/@tanstack%2Fstart-plugin-core@1.171.53.patch"
-    }
+    "packageManager": "bun@1.4.3"
 }

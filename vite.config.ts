@@ -9,6 +9,7 @@ import { defineConfig } from 'vite'
 
 import { createLiveVitePlugin } from './scripts/development/vite-live.ts'
 import { prepareCountryFlags } from './scripts/assets/prepare-country-flags.ts'
+import { createServerFunctionWarmupPlugin } from './scripts/development/vite-server-functions.ts'
 
 const webRoot = fileURLToPath(new URL('./web/', import.meta.url))
 const repositoryRoot = fileURLToPath(new URL('.', import.meta.url))
@@ -68,5 +69,6 @@ export default defineConfig({
         }),
         viteReact(),
         tailwindcss(),
+        createServerFunctionWarmupPlugin(),
     ],
 })

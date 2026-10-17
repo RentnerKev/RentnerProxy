@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import { createServer, isRunnableDevEnvironment } from 'vite'
+import { createServerFunctionWarmupPlugin } from '../../../../scripts/development/vite-server-functions.ts'
 
 import type { ServerFunctionResolver } from '@/tests/Types/server-functions-test.types.ts'
 
@@ -12,7 +13,19 @@ async function createFixtureServer(root: string) {
         configFile: false,
         root,
         logLevel: 'silent',
-        plugins: [tanstackStart()],
+        plugins: [
+            {
+                name: 'slow-server-function-compilation',
+                enforce: 'pre',
+                async transform(_code, id) {
+                    if (id.endsWith('/src/features/Auth/Login/middleware.ts')) {
+                        await new Promise((finishDelay) => setTimeout(finishDelay, 25))
+                    }
+                },
+            },
+            tanstackStart(),
+            createServerFunctionWarmupPlugin(),
+        ],
         server: { middlewareMode: true, hmr: false, watch: null },
         optimizeDeps: { noDiscovery: true },
     })
