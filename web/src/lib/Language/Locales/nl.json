@@ -2693,12 +2693,6 @@
             "delete": {
                 "title": "Beheerd record verwijderen?",
                 "description": "{{name}} niet meer beheren? Het DNS-record bij Cloudflare blijft ongewijzigd."
-            },
-            "demo": {
-                "show": "Demogegevens tonen",
-                "hide": "Echte gegevens tonen",
-                "reset": "Demogegevens herstellen",
-                "description": "Demo · Wijzigingen blijven in deze browser en wijzigen geen echte DNS-records."
             }
         }
     },

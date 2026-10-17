@@ -2738,12 +2738,6 @@
             "delete": {
                 "title": "Usunąć zarządzany rekord?",
                 "description": "Przestać zarządzać {{name}}? Rekord DNS w Cloudflare pozostanie bez zmian."
-            },
-            "demo": {
-                "show": "Pokaż dane demonstracyjne",
-                "hide": "Pokaż rzeczywiste dane",
-                "reset": "Zresetuj demonstrację",
-                "description": "Demo · Zmiany pozostają w tej przeglądarce i nie zmieniają prawdziwych rekordów DNS."
             }
         }
     },

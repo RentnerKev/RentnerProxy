@@ -2712,12 +2712,6 @@
             "delete": {
                 "title": "Retirer l’enregistrement géré ?",
                 "description": "Ne plus gérer {{name}} ? Son DNS chez Cloudflare reste inchangé."
-            },
-            "demo": {
-                "show": "Afficher la démonstration",
-                "hide": "Afficher les données réelles",
-                "reset": "Réinitialiser la démonstration",
-                "description": "Démonstration · Les modifications restent dans ce navigateur et ne modifient aucun enregistrement DNS réel."
             }
         }
     },

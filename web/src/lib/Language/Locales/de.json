@@ -2712,12 +2712,6 @@
             "delete": {
                 "title": "Verwalteten Record entfernen?",
                 "description": "{{name}} nicht mehr verwalten? Der DNS-Record bei Cloudflare bleibt unverändert."
-            },
-            "demo": {
-                "show": "Demodaten anzeigen",
-                "hide": "Echte Daten anzeigen",
-                "reset": "Demodaten zurücksetzen",
-                "description": "Demo · Änderungen bleiben im Browser und ändern keine echten DNS-Einträge."
             }
         }
     },

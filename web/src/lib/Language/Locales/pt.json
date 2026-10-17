@@ -2738,12 +2738,6 @@
             "delete": {
                 "title": "Remover registo gerido?",
                 "description": "Deixar de gerir {{name}}? O registo DNS na Cloudflare fica inalterado."
-            },
-            "demo": {
-                "show": "Mostrar dados de demonstração",
-                "hide": "Mostrar dados reais",
-                "reset": "Repor demonstração",
-                "description": "Demonstração · As alterações ficam neste navegador e não alteram registos DNS reais."
             }
         }
     },

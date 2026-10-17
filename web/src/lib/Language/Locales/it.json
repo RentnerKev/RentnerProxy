@@ -2725,12 +2725,6 @@
             "delete": {
                 "title": "Rimuovere il record gestito?",
                 "description": "Smettere di gestire {{name}}? Il DNS su Cloudflare rimane invariato."
-            },
-            "demo": {
-                "show": "Mostra dati dimostrativi",
-                "hide": "Mostra dati reali",
-                "reset": "Reimposta dimostrazione",
-                "description": "Dimostrazione · Le modifiche restano nel browser e non modificano record DNS reali."
             }
         }
     },

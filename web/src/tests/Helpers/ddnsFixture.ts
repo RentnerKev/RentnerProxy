@@ -32,6 +32,28 @@ export function ddnsTarget(overrides: Partial<DdnsTarget> = {}): DdnsTarget {
 export function ddnsSettings(targets = [ddnsTarget()]): DdnsDraft {
     return { intervalSeconds: 300, updateOnStart: true, ipv4: true, ipv6: false, targets }
 }
+export function ddnsTableSnapshot(): DdnsSnapshot {
+    const records = [
+        ['cloud.example.com', 'a'.repeat(32), true],
+        ['git.example.com', 'a'.repeat(32), false],
+        ['cloud.example.org', 'b'.repeat(32), true],
+        ['backup.example.org', 'b'.repeat(32), false],
+    ] as const
+    return ddnsSnapshot(
+        ddnsSettings(
+            records.map(([name, zoneId, proxied], index) =>
+                ddnsTarget({
+                    id: `0198d98a-0000-7000-8000-${String(index + 10).padStart(12, '0')}`,
+                    name,
+                    zoneId,
+                    proxied,
+                    selection: { mode: 'adopt', recordId: 'c'.repeat(32) },
+                }),
+            ),
+        ),
+        true,
+    )
+}
 export function ddnsSnapshot(draft?: DdnsDraft, enabled = false, revision = 1): DdnsSnapshot {
     return {
         version: 1,

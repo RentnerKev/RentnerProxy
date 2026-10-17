@@ -2712,12 +2712,6 @@
             "delete": {
                 "title": "¿Quitar registro gestionado?",
                 "description": "¿Dejar de gestionar {{name}}? El registro DNS en Cloudflare no se modifica."
-            },
-            "demo": {
-                "show": "Mostrar datos de demostración",
-                "hide": "Mostrar datos reales",
-                "reset": "Restablecer demostración",
-                "description": "Demostración · Los cambios permanecen en este navegador y no modifican registros DNS reales."
             }
         }
     },

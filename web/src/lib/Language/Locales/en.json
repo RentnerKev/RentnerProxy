@@ -2712,12 +2712,6 @@
             "delete": {
                 "title": "Remove managed record?",
                 "description": "Stop managing {{name}}? Its Cloudflare DNS record remains unchanged."
-            },
-            "demo": {
-                "show": "Show demo data",
-                "hide": "Show real data",
-                "reset": "Reset demo data",
-                "description": "Demo · Changes stay in this browser and never change real DNS records."
             }
         }
     },
