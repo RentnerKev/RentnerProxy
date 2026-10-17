@@ -216,6 +216,30 @@ async function action(label: string) {
     )
 }
 describe('DDNS administration UI', () => {
+    test('a status filter retains its label when live results no longer contain that status', async () => {
+        await render(createDdnsDemoApi())
+        await click(document.querySelector('button[aria-label="Filters"]')!)
+        const statusFilter = document.querySelector(
+            '[role="combobox"][aria-label="Filter Status / last IP…"]',
+        )!
+        await click(statusFilter)
+        const failedLabel = catalogs.en.admin.ddns.results.failed
+        await waitFor(
+            () =>
+                !![...document.querySelectorAll('[role="option"]')].find(
+                    (item) => item.textContent?.trim() === failedLabel,
+                ),
+        )
+        await click(
+            [...document.querySelectorAll('[role="option"]')].find(
+                (item) => item.textContent?.trim() === failedLabel,
+            )!,
+        )
+        await waitFor(() => document.querySelectorAll('tbody tr').length === 1)
+        await click(button('Update now'))
+        await waitFor(() => !!document.body.textContent?.includes('No matching records'))
+        expect(statusFilter.textContent).toContain(failedLabel)
+    })
     test('AAAA creation follows the record type without a second global address switch', async () => {
         const { api } = fixture()
         await render(api)
@@ -265,8 +289,7 @@ describe('DDNS administration UI', () => {
         expect(filter.getAttribute('aria-expanded')).toBe('false')
         await click(filter)
         expect(filter.getAttribute('aria-expanded')).toBe('true')
-        const selects = [...document.querySelectorAll('[role="combobox"]')]
-        await click(selects[1]!)
+        await click(document.querySelector('[role="combobox"][aria-label="Filter Proxy…"]')!)
         await waitFor(
             () =>
                 !![...document.querySelectorAll('[role="option"]')].find((item) =>
@@ -281,6 +304,21 @@ describe('DDNS administration UI', () => {
         await waitFor(() => document.querySelectorAll('tbody tr').length === 4)
         expect(document.querySelector('tbody')!.textContent).toContain('git.example.com')
         expect(document.querySelector('tbody')!.textContent).not.toContain('cloud.example.com')
+        await click(button('Reset filters'))
+        await waitFor(() => document.querySelectorAll('tbody tr').length === 10)
+        const connection = document.querySelector<HTMLInputElement>(
+            'input[placeholder="Filter Connection / zone…"]',
+        )!
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+                connection,
+                'example.org',
+            )
+            connection.dispatchEvent(new Event('input', { bubbles: true }))
+            connection.dispatchEvent(new Event('change', { bubbles: true }))
+        })
+        await waitFor(() => document.querySelectorAll('tbody tr').length === 5)
+        expect(document.querySelector('tbody')!.textContent).not.toContain('git.example.com')
         await click(button('Reset filters'))
         await waitFor(() => document.querySelectorAll('tbody tr').length === 10)
     })

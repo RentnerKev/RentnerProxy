@@ -19,6 +19,18 @@ import type {
 } from '../Types/ddns-table.types.ts'
 
 const getRowId = (row: DdnsRecordRow) => row.target.id
+const recordFilterStatuses = [
+    'notAttempted',
+    'running',
+    'updated',
+    'unchanged',
+    'failed',
+    'attention',
+    'targetPaused',
+    'familyPaused',
+    'disabled',
+    'skipped',
+] as const
 export default function useDdnsRecordsLogic({
     rows,
     canManage,
@@ -45,7 +57,7 @@ export default function useDdnsRecordsLogic({
                 accessorFn: (row) => `${row.connectionLabel} ${row.zone}`,
                 header: t('admin.ddns.table.connection'),
                 sortFn: 'text',
-                filterFn: (row, _id, value) => row.original.target.connectionId === value,
+                filterFn: 'includesString',
                 enableGlobalFilter: true,
                 cell: ({ row }) => createElement(DdnsConnectionCell, { row: row.original }),
             },
@@ -115,14 +127,10 @@ export default function useDdnsRecordsLogic({
                 }),
             },
             connection: {
-                type: 'searchableSelect',
+                type: 'text',
                 placeholder: t('table.filterColumnPlaceholder', {
                     column: t('admin.ddns.table.connection'),
                 }),
-                options: Array.from(
-                    new Map(rows.map((row) => [row.target.connectionId, row.connectionLabel])),
-                    ([value, label]) => ({ value, label }),
-                ),
             },
             proxy: {
                 type: 'select',
@@ -139,13 +147,13 @@ export default function useDdnsRecordsLogic({
                 placeholder: t('table.filterColumnPlaceholder', {
                     column: t('admin.ddns.table.status'),
                 }),
-                options: Array.from(new Set(rows.map((row) => row.statusKey)), (value) => ({
+                options: recordFilterStatuses.map((value) => ({
                     value,
                     label: t(`admin.ddns.results.${value}`),
                 })),
             },
         }),
-        [rows, t],
+        [t],
     )
     return {
         table,
