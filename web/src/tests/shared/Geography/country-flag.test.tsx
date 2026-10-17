@@ -27,6 +27,17 @@ describe('country flag delivery', () => {
         expect(markup).not.toContain('data:image')
     })
 
+    test('keeps a language-card flag decorative without an extra tooltip or accessible name', () => {
+        const markup = renderToStaticMarkup(
+            withTestLanguage(<CountryFlag code="GB" decorative className="h-6 w-9" />),
+        )
+        expect(markup).toContain('/GB.svg')
+        expect(markup).toContain('alt=""')
+        expect(markup).toContain('aria-hidden="true"')
+        expect(markup).toContain('class="h-6 w-9"')
+        expect(markup).not.toContain('data-state')
+    })
+
     test.each([null, undefined, '', 'de', 'ZZ', 'GB-ENG', '../DE', 'DE.svg', '<script>'])(
         'does not request a flag for an unsupported or invalid country code: %j',
         (code) => expect(renderFlag(code)).toBe(''),

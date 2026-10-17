@@ -164,7 +164,7 @@ describe('language settings panel', () => {
             const card = radio.closest('label')!
             expect(card.textContent).toContain(LANGUAGE_NATIVE_NAMES[language])
             expect(
-                card.querySelector(`[class*="flag:${LANGUAGE_COUNTRY_CODES[language]}"]`),
+                card.querySelector(`img[src$="/${LANGUAGE_COUNTRY_CODES[language]}.svg"]`),
             ).not.toBeNull()
 
             await chooseLanguage(container, radio.getAttribute('aria-label')!)
