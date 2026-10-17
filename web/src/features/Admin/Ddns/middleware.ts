@@ -21,7 +21,7 @@ import {
     applyDdnsSchema,
 } from './validation.ts'
 
-export function validateDdnsInput<T>(schema: z.ZodType<T>, input: unknown): T {
+function validateDdnsInput<T>(schema: z.ZodType<T>, input: unknown): T {
     const parsed = schema.safeParse(input)
     if (!parsed.success) throw new Error('admin.ddns.errors.invalid_input')
     return parsed.data

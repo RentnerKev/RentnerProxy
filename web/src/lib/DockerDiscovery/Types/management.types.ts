@@ -8,12 +8,11 @@ import type {
 import type { DockerDiscoverySnapshot } from './docker-discovery.types.ts'
 
 export type DiscoveryRegistry = z.infer<typeof discoveryRegistrySchema>
-export type DiscoveryOwner = DiscoveryRegistry['owners'][number]
 export type DiscoveryConnect = z.infer<typeof discoveryConnectSchema>
 export type DiscoveryAction = z.infer<typeof discoveryActionSchema>
 export type DiscoveryInspect = z.infer<typeof discoveryInspectSchema>
 export type DiscoveryCandidate = DockerDiscoverySnapshot['candidates'][number]
-export type DiscoveryRowState =
+type DiscoveryRowState =
     | 'create'
     | 'update'
     | 'current'

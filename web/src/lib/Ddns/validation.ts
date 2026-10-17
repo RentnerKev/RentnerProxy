@@ -3,8 +3,8 @@ import { MAX_DDNS_TARGETS } from '@/config/ddns.config.ts'
 
 export const ddnsIdSchema = z.uuidv7().regex(/^[a-f0-9-]+$/u)
 export const ddnsRevisionSchema = z.number().int().min(0).max(4_294_967_295)
-export const ddnsProviderIdSchema = z.string().regex(/^[a-f0-9]{32}$/u)
-export const ddnsSelectionSchema = z.discriminatedUnion('mode', [
+const ddnsProviderIdSchema = z.string().regex(/^[a-f0-9]{32}$/u)
+const ddnsSelectionSchema = z.discriminatedUnion('mode', [
     z.strictObject({ mode: z.literal('inspect') }),
     z.strictObject({ mode: z.literal('create') }),
     z.strictObject({ mode: z.literal('adopt'), recordId: ddnsProviderIdSchema }),
@@ -62,7 +62,7 @@ export const ddnsDraftSchema = z
             records.add(key)
         }
     })
-export const ddnsSettingsSchema = ddnsDraftSchema.safeExtend({ enabled: z.boolean() })
+const ddnsSettingsSchema = ddnsDraftSchema.safeExtend({ enabled: z.boolean() })
 export const ddnsRecordErrorSchema = z.enum([
     'invalid_input',
     'busy',
@@ -84,7 +84,7 @@ export const ddnsRecordErrorSchema = z.enum([
     'time_budget_exceeded',
     'run_interrupted',
 ])
-export const ddnsRecordStatusSchema = z.enum([
+const ddnsRecordStatusSchema = z.enum([
     'unchanged',
     'updated',
     'would_create',
@@ -95,7 +95,7 @@ export const ddnsRecordStatusSchema = z.enum([
     'failed',
 ])
 const address = z.union([z.ipv4(), z.ipv6()])
-export const ddnsTargetResultSchema = z.strictObject({
+const ddnsTargetResultSchema = z.strictObject({
     targetId: ddnsIdSchema,
     status: ddnsRecordStatusSchema,
     current: z.strictObject({ id: ddnsProviderIdSchema, address, proxied: z.boolean() }).nullable(),
