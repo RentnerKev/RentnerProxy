@@ -7,6 +7,7 @@ import { activeDdnsTarget, ddnsDraft } from '@/lib/Ddns/targets.ts'
 const id = (number: number) => `0199e800-0000-7000-8000-${String(number).padStart(12, '0')}`
 const actorId = id(1)
 const zoneId = 'a'.repeat(32)
+const otherZoneId = 'b'.repeat(32)
 const ipv4 = '203.0.113.42'
 const ipv6 = '2001:db8::42'
 
@@ -20,7 +21,7 @@ function connections(): DnsConnection[] {
         revision: 1,
         zones: [
             { id: zoneId, name: 'example.com' },
-            { id: 'b'.repeat(32), name: 'example.org' },
+            { id: otherZoneId, name: 'example.org' },
         ],
         references: [],
         createdAt: '2026-10-01T00:00:00Z',
@@ -70,24 +71,24 @@ function snapshot(
 }
 
 function initialSnapshot(): DdnsSnapshot {
-    const names = [
-        'example.com',
-        '*.example.com',
-        'git.example.com',
-        'cloud.example.com',
-        'vpn.example.com',
-        'test.example.com',
-        'status.example.com',
-        'example.org',
-        'media.example.org',
-        'backup.example.org',
-        'home.example.org',
-        'mail.example.org',
-    ]
-    const targets: DdnsTarget[] = names.map((name, index) => ({
+    const records = [
+        ['example.com', zoneId],
+        ['*.example.com', zoneId],
+        ['git.example.com', zoneId],
+        ['cloud.example.com', zoneId],
+        ['vpn.example.com', zoneId],
+        ['test.example.com', zoneId],
+        ['status.example.com', zoneId],
+        ['example.org', otherZoneId],
+        ['media.example.org', otherZoneId],
+        ['backup.example.org', otherZoneId],
+        ['home.example.org', otherZoneId],
+        ['mail.example.org', otherZoneId],
+    ] as const
+    const targets: DdnsTarget[] = records.map(([name, targetZoneId], index) => ({
         id: id(index + 10),
-        connectionId: id(index < 7 ? 2 : 3),
-        zoneId: name.endsWith('example.org') ? 'b'.repeat(32) : zoneId,
+        connectionId: id(targetZoneId === zoneId ? 2 : 3),
+        zoneId: targetZoneId,
         name,
         recordType: [3, 8, 10].includes(index) ? 'AAAA' : 'A',
         proxied: ![2, 4, 9, 11].includes(index),

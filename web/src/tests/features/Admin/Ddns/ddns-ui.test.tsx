@@ -341,7 +341,9 @@ describe('DDNS administration UI', () => {
             () => !!document.querySelector('button[aria-label="Actions for example.com (A)"]'),
         )
         await click(button('Show real data'))
-        await waitFor(() => !document.body.textContent?.includes('git.example.com'))
+        await waitFor(
+            () => !document.querySelector('button[aria-label="Actions for git.example.com (A)"]'),
+        )
         expect(client.getQueryData(DDNS_QUERY_KEYS.status)).toMatchObject({
             configuration: { revision: 1 },
         })

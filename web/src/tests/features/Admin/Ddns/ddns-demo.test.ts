@@ -72,18 +72,19 @@ describe('isolated development DDNS data', () => {
             success: false,
             message: 'admin.ddns.errors.conflict',
         })
-        expect(
-            (
-                await api.apply({
+        const rejected = await Promise.all(
+            ['outside.example.net', 'example.com.evil.test', 'notexample.com'].map(async (name) =>
+                api.apply({
                     expectedRevision: 1,
                     enabled: true,
                     draft: {
                         ...draft,
-                        targets: [{ ...draft.targets[0]!, name: 'outside.example.net' }],
+                        targets: [{ ...draft.targets[0]!, name }],
                     },
-                })
-            ).success,
-        ).toBe(false)
+                }),
+            ),
+        )
+        expect(rejected.map((result) => result.success)).toEqual([false, false, false])
         expect(await api.status()).toEqual(before)
     })
 })
