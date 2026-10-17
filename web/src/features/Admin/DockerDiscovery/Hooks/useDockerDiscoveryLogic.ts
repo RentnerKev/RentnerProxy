@@ -5,8 +5,7 @@ import {
     DOCKER_DISCOVERY_QUERY_KEY,
     DOCKER_DISCOVERY_LIVE_QUERY_KEYS,
     DOCKER_DISCOVERY_RECONCILE_PERMISSIONS,
-    DOCKER_DISCOVERY_COMPOSE_EXAMPLE,
-    DOCKER_DISCOVERY_NATIVE_EXAMPLE,
+    DOCKER_DISCOVERY_GUIDE_EXAMPLES,
 } from '@/config/docker-discovery.config.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import type {
@@ -24,6 +23,7 @@ import type {
     DiscoveryConnectionContext,
     DiscoveryConnectionProps,
     DockerDiscoveryLogicResult,
+    DiscoveryGuideMode,
 } from '../Types/discovery-ui.types.ts'
 
 export default function useDockerDiscoveryLogic({
@@ -45,6 +45,7 @@ export default function useDockerDiscoveryLogic({
     const [confirmation, setConfirmation] = useState<DiscoveryConfirmation | null>(null)
     const [selection, setSelection] = useState<DiscoveryRow | null>(null)
     const [guide, setGuide] = useState(false)
+    const [guideMode, setGuideMode] = useState<DiscoveryGuideMode>('native')
     const [busy, setBusy] = useState(false)
     const pending = useRef(false)
     const query = useQuery({
@@ -169,6 +170,7 @@ export default function useDockerDiscoveryLogic({
             connection,
             confirmation,
             guide,
+            guideMode,
             details,
             candidate:
                 snapshot?.candidates.find(
@@ -210,14 +212,11 @@ export default function useDockerDiscoveryLogic({
             },
             openGuide: () => setGuide(true),
             closeGuide: () => setGuide(false),
-            copyExample: (native: boolean) => {
+            setGuideMode,
+            copyExample: (mode, part) => {
                 void Promise.resolve()
                     .then(() =>
-                        navigator.clipboard.writeText(
-                            native
-                                ? DOCKER_DISCOVERY_NATIVE_EXAMPLE
-                                : DOCKER_DISCOVERY_COMPOSE_EXAMPLE,
-                        ),
+                        navigator.clipboard.writeText(DOCKER_DISCOVERY_GUIDE_EXAMPLES[mode][part]),
                     )
                     .then(() =>
                         toast.success(t('admin.dockerDiscovery.messages.copied'), {

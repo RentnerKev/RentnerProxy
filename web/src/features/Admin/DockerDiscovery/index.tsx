@@ -152,7 +152,12 @@ export default function DockerDiscoveryPage(props: DockerDiscoveryPageProps) {
                 />
             ) : null}
             {state.canView && state.guide ? (
-                <DiscoveryGuide onClose={handler.closeGuide} onCopy={handler.copyExample} />
+                <DiscoveryGuide
+                    mode={state.guideMode}
+                    onModeChange={handler.setGuideMode}
+                    onClose={handler.closeGuide}
+                    onCopy={handler.copyExample}
+                />
             ) : null}
             <ConfirmDialog
                 open={state.canManage && state.confirmation !== null}

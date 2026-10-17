@@ -82,3 +82,31 @@ networks:
     name: rentnerproxy-proxy
   discovery-control:
     internal: true`
+
+export const DOCKER_DISCOVERY_GUIDE_EXAMPLES = {
+    native: {
+        fileName: 'docker-discovery.dev.yml',
+        compose: DOCKER_DISCOVERY_NATIVE_EXAMPLE,
+        command: 'docker compose -f docker-discovery.dev.yml up -d',
+        endpoint: 'http://127.0.0.1:2375',
+    },
+    appliance: {
+        fileName: 'docker-discovery.override.yml',
+        compose: DOCKER_DISCOVERY_COMPOSE_EXAMPLE,
+        command: 'docker compose -f docker-compose.yml -f docker-discovery.override.yml up -d',
+        endpoint: 'http://docker-api:2375',
+    },
+} as const
+
+export const DOCKER_DISCOVERY_OPTIONAL_LABELS = `rentnerproxy.id: example-app
+rentnerproxy.protocol: https
+rentnerproxy.upstream-tls-server-name: backend.example.com
+rentnerproxy.certificate: <certificate-id>
+rentnerproxy.access-policy: <access-policy-id>`
+
+export const DOCKER_DISCOVERY_LABEL_EXAMPLE = `labels:
+  rentnerproxy.enable: "true"
+  rentnerproxy.id: example-app
+  rentnerproxy.domains: app.example.com
+  rentnerproxy.port: "8080"
+  rentnerproxy.network: rentnerproxy-proxy`

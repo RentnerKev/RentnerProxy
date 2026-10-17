@@ -560,27 +560,41 @@ describe('Docker discovery management UI', () => {
         expect(button('Enable synchronization').disabled).toBe(true)
         expect(f.api.change).toHaveBeenCalledWith({ expectedRevision: 0, action: 'disable' })
     })
-    test('provides complete Compose setup in the UI and reports clipboard rejection through a toast', async () => {
+    test('shows a compact quick start, switches environments and copies only the selected example values', async () => {
         await render(fixture().api)
-        const clipboard = spyOn(navigator.clipboard, 'writeText').mockRejectedValue(
-            new Error('Clipboard denied'),
-        )
+        const clipboard = spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined)
         try {
             await click(button('Compose example'))
             const dialog = document.querySelector('[role="dialog"]')!
+            expect(button('Local development', dialog).getAttribute('aria-pressed')).toBe('true')
             expect(dialog.textContent).toContain('127.0.0.1:2375:2375')
             expect(dialog.textContent).toContain('rentnerproxy.enable: "true"')
-            expect(dialog.textContent).toContain(
-                'Stopped, removed and unavailable sources retain their saved hosts',
+            expect(dialog.querySelectorAll('ol > li')).toHaveLength(3)
+            expect([...dialog.querySelectorAll('details')].every((details) => !details.open)).toBe(
+                true,
             )
-            await click(button('Copy example', dialog))
+            await click(button('Copy Compose file', dialog))
+            expect(clipboard.mock.calls[0]?.[0]).toContain('ports: ["127.0.0.1:2375:2375"]')
+            await click(dialog.querySelector('button[aria-label="Copy start command"]')!)
+            expect(clipboard.mock.calls[1]?.[0]).toBe(
+                'docker compose -f docker-discovery.dev.yml up -d',
+            )
+            await click(dialog.querySelector('button[aria-label="Copy endpoint"]')!)
+            expect(clipboard.mock.calls[2]?.[0]).toBe('http://127.0.0.1:2375')
+            await click(button('Docker appliance', dialog))
+            expect(button('Docker appliance', dialog).getAttribute('aria-pressed')).toBe('true')
+            expect(dialog.textContent).not.toContain('127.0.0.1:2375')
+            await click(dialog.querySelector('button[aria-label="Copy endpoint"]')!)
+            expect(clipboard.mock.calls[3]?.[0]).toBe('http://docker-api:2375')
+            clipboard.mockRejectedValue(new Error('Clipboard denied'))
+            await click(button('Copy Compose file', dialog))
             await waitFor(() =>
                 feedback.some(
                     (item) => item.kind === 'error' && String(item.message).includes('Copy failed'),
                 ),
             )
-            expect(clipboard).toHaveBeenCalledTimes(1)
-            expect(clipboard.mock.calls[0]?.[0]).toContain(
+            expect(clipboard).toHaveBeenCalledTimes(5)
+            expect(clipboard.mock.calls[4]?.[0]).toContain(
                 'networks: [default, proxy, discovery-control]',
             )
         } finally {

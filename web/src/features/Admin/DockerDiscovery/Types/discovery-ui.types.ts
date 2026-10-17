@@ -71,9 +71,13 @@ export interface DiscoveryDetailsProps {
     readonly candidate: DiscoveryCandidate | null
     readonly onClose: () => void
 }
+export type DiscoveryGuideMode = 'native' | 'appliance'
+export type DiscoveryGuideCopyTarget = 'compose' | 'command' | 'endpoint'
 export interface DiscoveryGuideProps {
+    readonly mode: DiscoveryGuideMode
+    readonly onModeChange: (mode: DiscoveryGuideMode) => void
     readonly onClose: () => void
-    readonly onCopy: (native: boolean) => void
+    readonly onCopy: (mode: DiscoveryGuideMode, part: DiscoveryGuideCopyTarget) => void
 }
 export interface DockerDiscoveryLogicResult {
     state: {
@@ -94,6 +98,7 @@ export interface DockerDiscoveryLogicResult {
         connection: DiscoveryConnectionContext | null
         confirmation: DiscoveryConfirmation | null
         guide: boolean
+        guideMode: DiscoveryGuideMode
         details: DiscoveryRow | null
         candidate: DiscoveryCandidate | null
     }
@@ -104,7 +109,8 @@ export interface DockerDiscoveryLogicResult {
         disconnect(): Promise<boolean>
         openGuide(): void
         closeGuide(): void
-        copyExample(native: boolean): void
+        setGuideMode(mode: DiscoveryGuideMode): void
+        copyExample: DiscoveryGuideProps['onCopy']
         showDetails(row: DiscoveryRow): void
         closeDetails(): void
         askEnable(): void
