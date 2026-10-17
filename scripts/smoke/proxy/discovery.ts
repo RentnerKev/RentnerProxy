@@ -139,6 +139,7 @@ export async function runDiscoverySmoke(deps: DiscoverySmokeDependencies): Promi
     }
     try {
         await mkdir(directory, { recursive: true })
+        await deps.command(['docker', 'pull', bun], { timeoutMs: 180_000 })
         const firstId = await exportFixture()
         await Bun.write(
             join(directory, 'engine.ts'),
