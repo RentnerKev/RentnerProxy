@@ -39,6 +39,8 @@ struct Fixture {
     requests: Mutex<Vec<(String, String)>>,
     streams: Mutex<Vec<mpsc::Sender<Bytes>>>,
     fail: AtomicBool,
+    missing_inspect: AtomicBool,
+    fail_inspect: AtomicBool,
     response_mode: AtomicU8,
 }
 async fn response(State(state): State<Arc<Fixture>>, request: Request) -> Response {
@@ -55,6 +57,14 @@ async fn response(State(state): State<Arc<Fixture>>, request: Request) -> Respon
         let (tx, rx) = mpsc::channel(8);
         state.streams.lock().await.push(tx);
         return Response::new(Body::new(EventBody(rx)));
+    }
+    if path.starts_with("/v1.47/containers/") && path != "/v1.47/containers/json" {
+        if state.fail_inspect.load(Ordering::SeqCst) {
+            return StatusCode::SERVICE_UNAVAILABLE.into_response();
+        }
+        if state.missing_inspect.load(Ordering::SeqCst) && path.contains(&"a".repeat(64)) {
+            return StatusCode::NOT_FOUND.into_response();
+        }
     }
     let containers = state.containers.lock().await;
     if path == "/v1.47/containers/json" {
@@ -187,6 +197,27 @@ async fn connector_does_not_follow_redirects_and_bounds_untrusted_response_bodie
 }
 
 #[tokio::test]
+async fn a_container_removed_after_listing_does_not_hide_remaining_candidates() {
+    let (endpoint, fixture, task) = fixture().await;
+    *fixture.containers.lock().await = vec![container('a'), container('b')];
+    fixture.missing_inspect.store(true, Ordering::SeqCst);
+    let docker = client::Docker::new(&endpoint).unwrap();
+    let result = docker.inventory().await.unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].container_id, "b".repeat(64));
+    assert!(
+        result[0].issues.is_empty(),
+        "removed candidates cannot cause stale conflicts"
+    );
+    fixture.fail_inspect.store(true, Ordering::SeqCst);
+    assert_eq!(
+        docker.inventory().await.unwrap_err(),
+        Error::EndpointUnavailable
+    );
+    task.abort();
+}
+
+#[tokio::test]
 async fn events_coalesce_reconnect_and_configuration_replacement_cancel_old_reads() {
     let path = directory();
     let discovery = Discovery::new(path.clone());
@@ -198,6 +229,39 @@ async fn events_coalesce_reconnect_and_configuration_replacement_cancel_old_read
         .await
         .unwrap();
     assert_eq!(ready(&discovery).await.candidates.len(), 1);
+    let event_request = fixture
+        .requests
+        .lock()
+        .await
+        .iter()
+        .find(|(_, path)| path.starts_with("/v1.47/events?"))
+        .unwrap()
+        .1
+        .clone();
+    let url = reqwest::Url::parse(&format!("{endpoint}{event_request}")).unwrap();
+    let filters: Value = serde_json::from_str(
+        &url.query_pairs()
+            .find(|(key, _)| key == "filters")
+            .unwrap()
+            .1,
+    )
+    .unwrap();
+    assert_eq!(
+        filters["event"],
+        json!([
+            "create",
+            "start",
+            "stop",
+            "die",
+            "destroy",
+            "rename",
+            "update",
+            "pause",
+            "unpause",
+            "connect",
+            "disconnect"
+        ])
+    );
     let before = fixture.requests.lock().await.len();
     fixture.containers.lock().await[0]["NetworkSettings"]["Networks"]["proxy"]["IPAddress"] =
         json!("172.22.0.9");
@@ -287,6 +351,47 @@ async fn events_coalesce_reconnect_and_configuration_replacement_cancel_old_read
         .map(|entry| entry.unwrap().file_name())
         .collect();
     assert_eq!(names, ["docker-discovery.json"]);
+    std::fs::remove_dir_all(path).unwrap();
+}
+
+#[tokio::test]
+async fn disabled_and_restored_connections_make_no_requests_until_explicit_activation() {
+    let path = directory();
+    let discovery = Discovery::new(path.clone());
+    let (endpoint, fixture, task) = fixture().await;
+    *fixture.containers.lock().await = vec![container('a')];
+    discovery
+        .save(save(Some(endpoint.clone()), false, 0))
+        .await
+        .unwrap();
+    discovery.start().await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(fixture.requests.lock().await.is_empty());
+    discovery.stop().await;
+    let restored = Discovery::new(path.clone());
+    restored
+        .save(save(Some(endpoint.clone()), true, 1))
+        .await
+        .unwrap();
+    std::fs::write(
+        path.join("docker-discovery-restore-paused"),
+        "explicit activation required",
+    )
+    .unwrap();
+    restored.start().await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_eq!(restored.status().await.unwrap().status, Status::Paused);
+    assert!(fixture.requests.lock().await.is_empty());
+    assert!(matches!(
+        restored.save(save(Some(endpoint.clone()), true, 2)).await,
+        Err(Error::Conflict)
+    ));
+    let mut request = save(Some(endpoint), true, 2);
+    request.acknowledge_restore = true;
+    restored.save(request).await.unwrap();
+    assert_eq!(ready(&restored).await.candidates.len(), 1);
+    restored.stop().await;
+    task.abort();
     std::fs::remove_dir_all(path).unwrap();
 }
 

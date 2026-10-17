@@ -42,7 +42,7 @@ describe('Docker discovery management boundary', () => {
         const manager = setup([PERMISSIONS.DOCKER_DISCOVERY_MANAGE])
         await expect(manager.service.getDockerDiscoveryService()).rejects.toThrow('denied')
         expect(manager.dependencies.controller.status).not.toHaveBeenCalled()
-        await manager.service.saveDockerDiscoveryService(input)
+        expect(await manager.service.saveDockerDiscoveryService(input)).toEqual({ revision: 1 })
         expect(manager.dependencies.controller.save).toHaveBeenCalledWith({
             ...input,
             actorUserId: actor,

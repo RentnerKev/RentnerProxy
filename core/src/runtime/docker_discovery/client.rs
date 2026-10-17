@@ -49,7 +49,7 @@ impl Docker {
     }
     // There is deliberately no generic method/body/path API. Only these three GET capabilities
     // exist; container IDs are validated before becoming URL path segments.
-    async fn get(&self, path: &str, query: &[(&str, String)]) -> Result<Response, Error> {
+    async fn get(&self, path: &str, query: &[(&str, String)]) -> Result<Option<Response>, Error> {
         let mut url = self.endpoint.clone();
         url.set_path(&format!("{API}{path}"));
         if !query.is_empty() {
@@ -66,10 +66,13 @@ impl Docker {
         .await
         .map_err(|_| Error::EndpointUnavailable)?
         .map_err(|_| Error::EndpointUnavailable)?;
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
         if !response.status().is_success() {
             return Err(Error::EndpointUnavailable);
         }
-        Ok(response)
+        Ok(Some(response))
     }
     pub(super) async fn inventory(&self) -> Result<Vec<Candidate>, Error> {
         tokio::time::timeout(Duration::from_secs(30), self.read_inventory())
@@ -82,7 +85,8 @@ impl Docker {
                 "/containers/json",
                 &[("all", "1".into()), ("filters", FILTER.into())],
             )
-            .await?,
+            .await?
+            .ok_or(Error::EndpointUnavailable)?,
         )
         .await?;
         if summaries.len() > MAX_CONTAINERS {
@@ -98,11 +102,15 @@ impl Docker {
             if summary.labels.get(labels::ENABLE).map(String::as_str) != Some("true") {
                 continue;
             }
-            let container: Container = json(
-                self.get(&format!("/containers/{}/json", summary.id), &[])
-                    .await?,
-            )
-            .await?;
+            let Some(response) = self
+                .get(&format!("/containers/{}/json", summary.id), &[])
+                .await?
+            else {
+                // A confirmed 404 during a Compose recreate removes only this candidate.
+                // Authorization, transport and other failures still invalidate the complete scan.
+                continue;
+            };
+            let container: Container = json(response).await?;
             if container.id != summary.id {
                 return Err(Error::InvalidResponse);
             }
@@ -131,10 +139,10 @@ impl Docker {
             "/events",
             &[
                 ("since", since),
-                ("filters", r#"{"type":["container","network"]}"#.into()),
+                ("filters", r#"{"type":["container","network"],"event":["create","start","stop","die","destroy","rename","update","pause","unpause","connect","disconnect"]}"#.into()),
             ],
         )
-        .await
+        .await?.ok_or(Error::EndpointUnavailable)
     }
 }
 async fn json<T: DeserializeOwned>(mut response: Response) -> Result<T, Error> {
@@ -169,17 +177,23 @@ pub(super) struct Events {
     bytes: usize,
     count: usize,
 }
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum EventUpdate {
+    Unchanged,
+    Changed,
+    Reconnect,
+}
 impl Events {
-    pub(super) fn push(&mut self, bytes: &[u8]) -> Result<bool, Error> {
+    pub(super) fn push(&mut self, bytes: &[u8]) -> Result<EventUpdate, Error> {
         self.bytes = self.bytes.saturating_add(bytes.len());
         if self.bytes > MAX_RESPONSE {
-            return Err(Error::InvalidResponse);
+            return Ok(EventUpdate::Reconnect);
         }
         let mut changed = false;
         for byte in bytes {
             if *byte != b'\n' {
                 if self.pending.len() >= 16_384 {
-                    return Err(Error::InvalidResponse);
+                    return Ok(EventUpdate::Reconnect);
                 }
                 self.pending.push(*byte);
                 continue;
@@ -193,10 +207,6 @@ impl Events {
                 kind: String,
                 #[serde(rename = "Action")]
                 action: String,
-                #[serde(rename = "Actor")]
-                actor: Actor,
-                #[serde(rename = "timeNano")]
-                time: u64,
             }
             #[derive(serde::Deserialize)]
             struct Actor {
@@ -205,14 +215,9 @@ impl Events {
             }
             let event: Event =
                 serde_json::from_slice(&self.pending).map_err(|_| Error::InvalidResponse)?;
-            self.pending.clear();
             self.count += 1;
-            if self.count > 4_096
-                || event.kind.len() > 32
-                || event.action.len() > 64
-                || !labels::container_id(&event.actor.id)
-            {
-                return Err(Error::InvalidResponse);
+            if self.count > 4_096 {
+                return Ok(EventUpdate::Reconnect);
             }
             let relevant = (event.kind == "container"
                 && matches!(
@@ -229,10 +234,26 @@ impl Events {
                 ))
                 || (event.kind == "network"
                     && matches!(event.action.as_str(), "connect" | "disconnect" | "destroy"));
-            if relevant
-                && self
-                    .seen
-                    .insert((event.kind, event.action, event.actor.id, event.time))
+            if !relevant {
+                self.pending.clear();
+                continue;
+            }
+            #[derive(serde::Deserialize)]
+            struct Identity {
+                #[serde(rename = "Actor")]
+                actor: Actor,
+                #[serde(rename = "timeNano")]
+                time: u64,
+            }
+            let identity: Identity =
+                serde_json::from_slice(&self.pending).map_err(|_| Error::InvalidResponse)?;
+            self.pending.clear();
+            if !labels::container_id(&identity.actor.id) {
+                return Err(Error::InvalidResponse);
+            }
+            if self
+                .seen
+                .insert((event.kind, event.action, identity.actor.id, identity.time))
             {
                 changed = true;
             }
@@ -240,6 +261,10 @@ impl Events {
                 self.seen.clear();
             }
         }
-        Ok(changed)
+        Ok(if changed {
+            EventUpdate::Changed
+        } else {
+            EventUpdate::Unchanged
+        })
     }
 }

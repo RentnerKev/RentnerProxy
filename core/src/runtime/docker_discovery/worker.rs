@@ -1,6 +1,6 @@
 use super::{
     Discovery,
-    client::{Docker, Events},
+    client::{Docker, EventUpdate, Events},
     models::*,
 };
 use std::{
@@ -97,9 +97,13 @@ impl Discovery {
                 },
                 chunk = stream.chunk() => {
                     let Some(chunk) = chunk.map_err(|_| Error::EndpointUnavailable)? else { return Err(Error::EndpointUnavailable); };
-                    if decoder.push(&chunk)? && !dirty {
-                        dirty = true;
-                        refresh = (Instant::now() + Duration::from_millis(500)).min(expires);
+                    match decoder.push(&chunk)? {
+                        EventUpdate::Reconnect => return Ok(()),
+                        EventUpdate::Changed if !dirty => {
+                            dirty = true;
+                            refresh = (Instant::now() + Duration::from_millis(500)).min(expires);
+                        },
+                        _ => {},
                     }
                 }
             }

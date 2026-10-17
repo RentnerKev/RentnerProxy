@@ -38,7 +38,7 @@ pub(super) async fn save(
     io: &Arc<Mutex<()>>,
     wake: &Arc<Notify>,
     request: Save,
-) -> Result<(), Error> {
+) -> Result<(Document, bool), Error> {
     if !is_canonical_uuid_v7(&request.actor_user_id) {
         return Err(Error::InvalidInput);
     }
@@ -63,6 +63,7 @@ pub(super) async fn save(
         };
         let dir = state_dir(&path).map_err(|_| Error::StoreUnavailable)?;
         let bytes = serde_json::to_vec(&next).map_err(|_| Error::StoreUnavailable)?;
+        let paused = restored && !(next.settings.enabled && request.acknowledge_restore);
         let result = dir
             .atomic_write(FILE, &bytes)
             .map_err(|_| Error::StoreUnavailable)
@@ -71,7 +72,7 @@ pub(super) async fn save(
                     dir.remove_file(PAUSE)
                         .map_err(|_| Error::StoreUnavailable)?;
                 }
-                Ok(())
+                Ok((next, paused))
             });
         // Even an uncertain write or a disconnected management caller requires a fresh read.
         wake.notify_one();

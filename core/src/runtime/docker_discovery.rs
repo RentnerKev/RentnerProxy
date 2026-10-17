@@ -51,8 +51,10 @@ impl Discovery {
         if self.stopping.load(Ordering::SeqCst) {
             return Err(Error::Stopping);
         }
-        persistence::save(&self.path, &self.io, &self.wake, request).await?;
-        self.status().await
+        let (document, restored) =
+            persistence::save(&self.path, &self.io, &self.wake, request).await?;
+        // A later management write cannot replace this operation's acknowledgment.
+        Ok(Snapshot::for_configuration(document, restored))
     }
 
     async fn publish(

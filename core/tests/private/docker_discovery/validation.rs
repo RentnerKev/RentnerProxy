@@ -211,26 +211,36 @@ fn endpoint_contract_rejects_credentials_paths_redirect_inputs_and_unsupported_t
 
 #[test]
 fn event_parser_bounds_partial_lines_deduplicates_and_ignores_unrelated_events() {
+    use client::EventUpdate::{Changed, Reconnect, Unchanged};
     let event = format!(
         "{}\n",
         json!({"Type":"container","Action":"start","Actor":{"ID":"a".repeat(64)},"timeNano":123})
     );
     let mut decoder = client::Events::default();
-    assert!(!decoder.push(&event.as_bytes()[..20]).unwrap());
-    assert!(decoder.push(&event.as_bytes()[20..]).unwrap());
-    assert!(!decoder.push(event.as_bytes()).unwrap());
-    assert_eq!(
-        decoder.push(&vec![b'x'; 16_385]),
-        Err(Error::InvalidResponse)
-    );
+    assert_eq!(decoder.push(&event.as_bytes()[..20]), Ok(Unchanged));
+    assert_eq!(decoder.push(&event.as_bytes()[20..]), Ok(Changed));
+    assert_eq!(decoder.push(event.as_bytes()), Ok(Unchanged));
+    assert_eq!(decoder.push(&vec![b'x'; 16_385]), Ok(Reconnect));
     let mut decoder = client::Events::default();
-    assert!(!decoder.push(format!("{}\n", json!({"Type":"container","Action":"exec_start","Actor":{"ID":"a".repeat(64)},"timeNano":124})).as_bytes()).unwrap());
+    assert_eq!(decoder.push(format!("{}\n", json!({"Type":"container","Action":"exec_start","Actor":{"ID":"a".repeat(64)},"timeNano":124})).as_bytes()), Ok(Unchanged));
     assert_eq!(decoder.push(b"garbage\n"), Err(Error::InvalidResponse));
+    let mut decoder = client::Events::default();
+    let healthcheck = format!(
+        "{}\n",
+        json!({"Type":"container","Action":format!("exec_create: {}", "long healthcheck command ".repeat(100)),"Actor":{"ID":"irrelevant identifier"}})
+    );
+    assert_eq!(decoder.push(healthcheck.as_bytes()), Ok(Unchanged));
+    let mut decoder = client::Events::default();
+    assert_eq!(decoder.push(event.repeat(4097).as_bytes()), Ok(Reconnect));
+    let mut decoder = client::Events::default();
+    assert_eq!(
+        decoder.push(&vec![b' '; 2 * 1024 * 1024 + 1]),
+        Ok(Reconnect)
+    );
 }
 
 #[tokio::test]
-async fn configuration_is_optional_revision_guarded_durable_and_restore_requires_explicit_activation()
- {
+async fn configuration_is_durable_revision_guarded_and_requires_restore_activation() {
     let path = directory();
     let discovery = Discovery::new(path.clone());
     assert!(matches!(
@@ -274,5 +284,27 @@ async fn configuration_is_optional_revision_guarded_durable_and_restore_requires
         restarted.save(save(None, false, 3)).await,
         Err(Error::Stopping)
     ));
+    std::fs::remove_dir_all(path).unwrap();
+}
+
+#[tokio::test]
+async fn concurrent_management_saves_have_exactly_one_revision_winner() {
+    let path = directory();
+    let discovery = Discovery::new(path.clone());
+    let (first, second) = tokio::join!(
+        discovery.save(save(Some("http://first-proxy:2375".into()), false, 0)),
+        discovery.save(save(Some("http://second-proxy:2375".into()), false, 0)),
+    );
+    assert_eq!(usize::from(first.is_ok()) + usize::from(second.is_ok()), 1);
+    assert!(matches!(first, Err(Error::Conflict)) || matches!(second, Err(Error::Conflict)));
+    assert_eq!(
+        Discovery::new(path.clone())
+            .status()
+            .await
+            .unwrap()
+            .configuration
+            .revision,
+        1
+    );
     std::fs::remove_dir_all(path).unwrap();
 }

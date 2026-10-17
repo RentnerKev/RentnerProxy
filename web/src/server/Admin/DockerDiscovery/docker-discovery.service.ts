@@ -52,7 +52,8 @@ export function createDockerDiscoveryService(deps: DockerDiscoveryDependencies) 
                     : new DockerDiscoveryError('controller_unavailable')
             }
             await audit(actor.id, 'success')
-            return value
+            // Manage permission does not grant read access to source or candidate metadata.
+            return { revision: value.configuration.revision }
         },
     }
 }
