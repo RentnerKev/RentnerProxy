@@ -22,6 +22,7 @@ fn directory() -> PathBuf {
 fn container(id: char) -> Value {
     json!({
         "Id": id.to_string().repeat(64),
+        "Name": format!("/app-{id}"),
         "Config": { "Labels": {"rentnerproxy.enable":"true", "rentnerproxy.domains":"app.example.com", "private.example/token":"SYNTHETIC_PRIVATE_LABEL"}, "ExposedPorts":{"8080/tcp":{}}, "Env":["SYNTHETIC_SECRET=not-for-output"] },
         "State":{"Running":true}, "HostConfig":{"NetworkMode":"proxy"},
         "NetworkSettings":{"Networks":{"proxy":{"IPAddress":"172.22.0.5", "GlobalIPv6Address":""}}}

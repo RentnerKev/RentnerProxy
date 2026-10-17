@@ -6,7 +6,7 @@ use std::{
 };
 
 pub(super) const ENABLE: &str = "rentnerproxy.enable";
-const LABELS: [&str; 7] = [
+const LABELS: [&str; 9] = [
     ENABLE,
     "rentnerproxy.domains",
     "rentnerproxy.port",
@@ -14,6 +14,8 @@ const LABELS: [&str; 7] = [
     "rentnerproxy.network",
     "rentnerproxy.certificate",
     "rentnerproxy.access-policy",
+    "rentnerproxy.id",
+    "rentnerproxy.upstream-tls-server-name",
 ];
 
 pub(super) fn container_id(value: &str) -> bool {
@@ -35,6 +37,10 @@ pub(super) fn candidate(container: Container) -> Option<Candidate> {
         return None;
     }
     let mut issues = Vec::new();
+    let source_id = source(&container);
+    if source_id.is_none() {
+        issues.push(Issue::InvalidSource);
+    }
     if labels.iter().any(|(key, value)| {
         key.starts_with("rentnerproxy.")
             && (!LABELS.contains(&key.as_str()) || value.len() > 25_400)
@@ -97,6 +103,17 @@ pub(super) fn candidate(container: Container) -> Option<Candidate> {
         Issue::InvalidAccessPolicyReference,
         &mut issues,
     );
+    // HTTPS targets use container IPs. Keep verification enabled and require a DNS identity.
+    let upstream_tls_server_name = labels
+        .get("rentnerproxy.upstream-tls-server-name")
+        .filter(|value| is_canonical_domain(value))
+        .cloned();
+    if (scheme == "https" && upstream_tls_server_name.is_none())
+        || (labels.contains_key("rentnerproxy.upstream-tls-server-name")
+            && (scheme != "https" || upstream_tls_server_name.is_none()))
+    {
+        issues.push(Issue::InvalidUpstreamTlsName);
+    }
     let target = port
         .zip(network)
         .filter(|_| matches!(scheme, "http" | "https"))
@@ -108,12 +125,34 @@ pub(super) fn candidate(container: Container) -> Option<Candidate> {
         });
     Some(Candidate {
         container_id: container.id,
+        source_id,
         domains: domains.into_iter().collect(),
         target,
         certificate_id,
         access_policy_id,
+        upstream_tls_server_name,
         issues,
     })
+}
+
+fn source(container: &Container) -> Option<String> {
+    let labels = &container.config.labels;
+    if let Some(id) = labels.get("rentnerproxy.id") {
+        return network_name(id).then(|| format!("label:{id}"));
+    }
+    match (
+        labels.get("com.docker.compose.project"),
+        labels.get("com.docker.compose.service"),
+    ) {
+        (Some(project), Some(service)) if network_name(project) && network_name(service) => {
+            Some(format!("compose:{project}/{service}"))
+        }
+        (None, None) => {
+            let name = container.name.strip_prefix('/').unwrap_or(&container.name);
+            network_name(name).then(|| format!("name:{name}"))
+        }
+        _ => None,
+    }
 }
 
 fn port(container: &Container, issues: &mut Vec<Issue>) -> Option<u16> {
@@ -205,12 +244,23 @@ fn network(container: &Container, issues: &mut Vec<Issue>) -> Option<(String, St
 
 pub(super) fn conflicts(candidates: &mut [Candidate]) {
     let mut owners = BTreeMap::<String, usize>::new();
+    let mut sources = BTreeMap::<String, usize>::new();
     for candidate in candidates.iter() {
+        if let Some(source) = &candidate.source_id {
+            *sources.entry(source.clone()).or_default() += 1;
+        }
         for domain in &candidate.domains {
             *owners.entry(domain.clone()).or_default() += 1;
         }
     }
     for candidate in candidates {
+        if candidate
+            .source_id
+            .as_ref()
+            .is_some_and(|source| sources[source] > 1)
+        {
+            candidate.issues.push(Issue::SourceConflict);
+        }
         if candidate.domains.iter().any(|domain| owners[domain] > 1) {
             candidate.issues.push(Issue::DomainConflict);
         }

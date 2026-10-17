@@ -19,6 +19,7 @@ import type {
 } from '@/features/Admin/ProxyHostManagement/Types/validation.types.ts'
 import { ProxyHostDomainError } from './proxy-hosts.errors.ts'
 import { normalizeUpstreamTlsSettings } from './upstream-tls.service.ts'
+import { assertDiscoveryHostEditable } from '@/server/Admin/DockerDiscovery/discovery-storage.server.ts'
 import { validateTrustedCaAssignmentInTransaction } from '@/server/Admin/TrustedCaManagement/trusted-cas.service.ts'
 import { validateCertificateAssignmentInTransaction } from '@/server/Admin/CertificateManagement/certificates.service.ts'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
@@ -225,11 +226,13 @@ export async function updateProxyHostInTransaction(
     transaction: AuthTransaction,
     actorId: string,
     input: UpdateProxyHostInput,
+    discoveryKey?: string,
 ): Promise<ProxyHostSummary> {
     const parsedInput = parseUpdateInput(input)
     const domains = parsedInput.domains.toSorted()
     await lockProxyRuntimeSettings(transaction)
     await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_UPDATE)
+    await assertDiscoveryHostEditable(transaction, parsedInput.proxyHostId, discoveryKey)
     const proxyHost = await loadProxyHostForUpdate(transaction, parsedInput.proxyHostId)
 
     if (!proxyHost) {

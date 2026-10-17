@@ -4,7 +4,7 @@ import type { createDockerDiscoveryController } from '@/server/Controller/docker
 
 export interface DockerDiscoveryDependencies {
     readonly authorize: (permission: PermissionKey) => Promise<{ readonly id: string }>
-    readonly controller: ReturnType<typeof createDockerDiscoveryController>
+    readonly controller: Pick<ReturnType<typeof createDockerDiscoveryController>, 'status' | 'save'>
     readonly audit: (event: AuditEventInput) => Promise<void>
     readonly limit: (actorId: string) => Promise<void>
 }

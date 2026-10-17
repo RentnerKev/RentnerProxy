@@ -1263,7 +1263,8 @@
                 "domain_conflict": "Diese Domain ist bereits einem anderen Proxy-Host zugeordnet.",
                 "proxy_host_not_found": "Der Proxy-Host existiert nicht mehr.",
                 "invalid_status_transition": "Der Proxy-Host befindet sich bereits in diesem Zustand. Lade die Liste neu und versuche es erneut.",
-                "invalid_input": "Prüfe die Angaben zum Proxy-Host und versuche es erneut."
+                "invalid_input": "Prüfe die Angaben zum Proxy-Host und versuche es erneut.",
+                "discovery_managed": "Dieser Host wird über Docker-Labels verwaltet. Trenne ihn vor dem Bearbeiten oder Löschen von Docker Discovery."
             },
             "validation": {
                 "domain": "Gib einen gültigen DNS-Namen ohne URL, IP-Adresse oder Wildcard ein.",

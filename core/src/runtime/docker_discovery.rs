@@ -20,6 +20,7 @@ use tokio::{
 pub(crate) struct Discovery {
     path: PathBuf,
     io: Arc<Mutex<()>>,
+    inspection: Mutex<()>,
     snapshot: Mutex<Snapshot>,
     wake: Arc<Notify>,
     stopping: AtomicBool,
@@ -27,10 +28,27 @@ pub(crate) struct Discovery {
 }
 
 impl Discovery {
+    pub(crate) async fn inspect(
+        &self,
+        request: models::Inspect,
+    ) -> Result<Vec<models::Candidate>, Error> {
+        let _guard = self
+            .inspection
+            .try_lock()
+            .map_err(|_| Error::EndpointUnavailable)?;
+        if !crate::proxy::is_canonical_uuid_v7(&request.actor_user_id) {
+            return Err(Error::InvalidInput);
+        }
+        if self.stopping.load(Ordering::SeqCst) {
+            return Err(Error::Stopping);
+        }
+        client::Docker::new(&request.endpoint)?.inventory().await
+    }
     pub(crate) fn new(path: PathBuf) -> Arc<Self> {
         Arc::new(Self {
             path,
             io: Arc::new(Mutex::new(())),
+            inspection: Mutex::new(()),
             snapshot: Mutex::new(Snapshot::default()),
             wake: Arc::new(Notify::new()),
             stopping: AtomicBool::new(false),

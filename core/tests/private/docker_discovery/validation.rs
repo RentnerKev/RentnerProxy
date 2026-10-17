@@ -2,6 +2,58 @@ use super::*;
 use models::{Error, Issue, Status};
 
 #[test]
+fn source_identity_survives_recreation_and_rejects_ambiguous_replicas() {
+    let mut first = container('a');
+    first["Config"]["Labels"]["com.docker.compose.project"] = json!("example");
+    first["Config"]["Labels"]["com.docker.compose.service"] = json!("app");
+    let mut recreated = first.clone();
+    recreated["Id"] = json!("b".repeat(64));
+    recreated["Name"] = json!("/different-generated-name");
+    let a = candidate(first);
+    let b = candidate(recreated);
+    assert_eq!(a.source_id.as_deref(), Some("compose:example/app"));
+    assert_eq!(a.source_id, b.source_id);
+    let mut duplicates = [a, b];
+    labels::conflicts(&mut duplicates);
+    assert!(
+        duplicates
+            .iter()
+            .all(|candidate| candidate.issues.contains(&Issue::SourceConflict))
+    );
+    let mut standalone = container('a');
+    standalone["Config"]["Labels"]["rentnerproxy.id"] = json!("my-stable-app");
+    assert_eq!(
+        candidate(standalone).source_id.as_deref(),
+        Some("label:my-stable-app")
+    );
+    for id in ["", "private/untrusted", "line\nbreak"] {
+        let mut data = container('a');
+        data["Config"]["Labels"]["rentnerproxy.id"] = json!(id);
+        let value = candidate(data);
+        assert!(value.source_id.is_none());
+        assert!(value.issues.contains(&Issue::InvalidSource));
+    }
+}
+
+#[test]
+fn https_candidates_require_an_explicit_valid_upstream_dns_identity() {
+    let mut data = container('a');
+    data["Config"]["Labels"]["rentnerproxy.protocol"] = json!("https");
+    assert!(
+        candidate(data.clone())
+            .issues
+            .contains(&Issue::InvalidUpstreamTlsName)
+    );
+    data["Config"]["Labels"]["rentnerproxy.upstream-tls-server-name"] =
+        json!("backend.example.com");
+    assert!(candidate(data.clone()).issues.is_empty());
+    data["Config"]["Labels"]["rentnerproxy.upstream-tls-server-name"] = json!("not a DNS identity");
+    let value = candidate(data);
+    assert!(value.upstream_tls_server_name.is_none());
+    assert!(value.issues.contains(&Issue::InvalidUpstreamTlsName));
+}
+
+#[test]
 fn opt_in_is_exact_and_private_metadata_never_reaches_candidates() {
     for enable in [None, Some("false"), Some("TRUE"), Some("1")] {
         let mut value = container('a');

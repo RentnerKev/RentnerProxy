@@ -41,6 +41,20 @@ const startProxyRuntimeLifecycle = createServerOnlyFn(async () => {
 
 if (typeof window === 'undefined') void startProxyRuntimeLifecycle()
 
+const startDockerDiscoveryLifecycle = createServerOnlyFn(async () => {
+    const initializing = import('@/server/Admin/DockerDiscovery/discovery-worker.ts').then(
+        ({ dockerDiscoveryWorker }) => {
+            dockerDiscoveryWorker.start()
+            return dockerDiscoveryWorker
+        },
+    )
+    process.once('rentnerproxy:shutdown', (pending: Array<Promise<void>>) => {
+        pending.push(initializing.then((worker) => worker.stop()))
+    })
+    await initializing
+})
+if (typeof window === 'undefined') void startDockerDiscoveryLifecycle()
+
 const startCrowdSecRuntimeLifecycle = createServerOnlyFn(async () => {
     let stop: (() => Promise<void>) | null = null
     const initializing = import('@/server/Admin/CrowdSec/crowdsec.service.ts').then(

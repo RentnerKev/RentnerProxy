@@ -35,6 +35,13 @@ pub(crate) struct Save {
     pub(crate) acknowledge_restore: bool,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct Inspect {
+    pub(crate) actor_user_id: String,
+    pub(crate) endpoint: String,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum Error {
@@ -90,10 +97,12 @@ impl Snapshot {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Candidate {
     pub(crate) container_id: String,
+    pub(crate) source_id: Option<String>,
     pub(crate) domains: Vec<String>,
     pub(crate) target: Option<Target>,
     pub(crate) certificate_id: Option<String>,
     pub(crate) access_policy_id: Option<String>,
+    pub(crate) upstream_tls_server_name: Option<String>,
     pub(crate) issues: Vec<Issue>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -123,6 +132,9 @@ pub(crate) enum Issue {
     ContainerNotRunning,
     DomainConflict,
     UnsupportedOrchestrator,
+    InvalidSource,
+    SourceConflict,
+    InvalidUpstreamTlsName,
 }
 
 // Docker uses an open schema. Deserialize only required fields: Env, mounts, images and other labels
@@ -138,6 +150,8 @@ pub(super) struct Summary {
 #[serde(rename_all = "PascalCase")]
 pub(super) struct Container {
     pub(super) id: String,
+    #[serde(default)]
+    pub(super) name: String,
     pub(super) config: ContainerConfig,
     pub(super) state: ContainerState,
     pub(super) host_config: HostConfig,

@@ -123,6 +123,40 @@ async fn ready(discovery: &Discovery) -> models::Snapshot {
 }
 
 #[tokio::test]
+async fn endpoint_inspection_is_read_only_bounded_and_does_not_enable_discovery() {
+    let path = directory();
+    let discovery = Discovery::new(path.clone());
+    let (endpoint, fixture, task) = fixture().await;
+    *fixture.containers.lock().await = vec![container('a')];
+    let inspect = || models::Inspect {
+        actor_user_id: ACTOR.into(),
+        endpoint: endpoint.clone(),
+    };
+    assert_eq!(discovery.inspect(inspect()).await.unwrap().len(), 1);
+    assert_eq!(discovery.status().await.unwrap().status, Status::Disabled);
+    assert!(fixture.streams.lock().await.is_empty());
+    let mut invalid = inspect();
+    invalid.actor_user_id = "forged".into();
+    assert_eq!(
+        discovery.inspect(invalid).await.unwrap_err(),
+        Error::InvalidInput
+    );
+    let guard = discovery.inspection.lock().await;
+    assert_eq!(
+        discovery.inspect(inspect()).await.unwrap_err(),
+        Error::EndpointUnavailable
+    );
+    drop(guard);
+    assert_eq!(
+        fixture.requests.lock().await.len(),
+        2,
+        "rejected inspections perform no network IO"
+    );
+    task.abort();
+    std::fs::remove_dir_all(path).unwrap();
+}
+
+#[tokio::test]
 async fn connector_uses_only_filtered_get_reads_and_sorts_complete_inventory() {
     let (endpoint, fixture, task) = fixture().await;
     let mut opted_out = container('c');

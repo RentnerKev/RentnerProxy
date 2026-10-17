@@ -28,6 +28,9 @@ export const dockerDiscoveryIssues = [
     'container_not_running',
     'domain_conflict',
     'unsupported_orchestrator',
+    'invalid_source',
+    'source_conflict',
+    'invalid_upstream_tls_name',
 ] as const
 export const dockerEndpointSchema = z
     .string()
@@ -76,6 +79,7 @@ export const dockerDiscoverySnapshotSchema = z.strictObject({
         .array(
             z.strictObject({
                 containerId: z.string().regex(/^[a-f0-9]{64}$/u),
+                sourceId: z.string().min(1).max(265).nullable(),
                 domains: z
                     .array(
                         z
@@ -95,6 +99,7 @@ export const dockerDiscoverySnapshotSchema = z.strictObject({
                     .nullable(),
                 certificateId: z.uuidv7().nullable(),
                 accessPolicyId: z.uuidv7().nullable(),
+                upstreamTlsServerName: z.string().max(253).nullable(),
                 issues: z.array(z.enum(dockerDiscoveryIssues)).max(20),
             }),
         )

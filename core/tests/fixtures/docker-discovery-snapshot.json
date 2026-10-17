@@ -10,6 +10,7 @@
     "candidates": [
         {
             "containerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sourceId": "name:app-a",
             "domains": ["app.example.com"],
             "target": {
                 "scheme": "http",
@@ -19,6 +20,7 @@
             },
             "certificateId": null,
             "accessPolicyId": null,
+            "upstreamTlsServerName": null,
             "issues": []
         }
     ]

@@ -31,7 +31,7 @@ test('live snapshots enforce canonical origin, query limits and current permissi
             const { requirePermissionService } = await import('./server/Auth/Access/authorization.service.ts')
             await requirePermissionService('ddns.view'); reads++; return { internal: 'synthetic target state' }
         } }))
-        mock.module('./server/Admin/DockerDiscovery/docker-discovery.service.ts', () => ({ getDockerDiscoveryService: async () => {
+        mock.module('./server/Admin/DockerDiscovery/discovery-management.service.ts', () => ({ getDiscoveryOverviewService: async () => {
             const { requirePermissionService } = await import('./server/Auth/Access/authorization.service.ts')
             await requirePermissionService('docker_discovery.view'); reads++; return { endpoint: 'http://restricted-docker:2375', candidates: [] }
         } }))

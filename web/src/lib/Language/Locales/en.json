@@ -1263,7 +1263,8 @@
                 "domain_conflict": "This domain is already assigned to another proxy host.",
                 "proxy_host_not_found": "The proxy host no longer exists.",
                 "invalid_status_transition": "The proxy host is already in that state. Refresh the list and try again.",
-                "invalid_input": "Review the proxy host values and try again."
+                "invalid_input": "Review the proxy host values and try again.",
+                "discovery_managed": "This host is managed by Docker labels. Detach it from Docker Discovery before editing or deleting it."
             },
             "validation": {
                 "domain": "Enter a valid DNS name without a URL, IP address or wildcard.",

@@ -1263,7 +1263,8 @@
                 "domain_conflict": "Ce domaine est déjà attribué à un autre hôte proxy.",
                 "proxy_host_not_found": "L’hôte proxy n’existe plus.",
                 "invalid_status_transition": "L’hôte proxy est déjà dans cet état. Actualisez la liste et réessayez.",
-                "invalid_input": "Vérifiez les valeurs de l’hôte proxy et réessayez."
+                "invalid_input": "Vérifiez les valeurs de l’hôte proxy et réessayez.",
+                "discovery_managed": "Cet hôte est géré par les labels Docker. Détachez-le de Docker Discovery avant de le modifier ou de le supprimer."
             },
             "validation": {
                 "domain": "Saisissez un nom DNS valide sans URL, adresse IP ni joker.",

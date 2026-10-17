@@ -1,6 +1,6 @@
 use super::{no_store_json, no_store_status_json};
 use crate::{
-    runtime::docker_discovery::models::{Error, Save},
+    runtime::docker_discovery::models::{Error, Inspect, Save},
     server::AppState,
 };
 use axum::{body::Bytes, extract::rejection::BytesRejection, http::StatusCode, response::Response};
@@ -16,6 +16,21 @@ fn error(error: Error) -> Response {
 pub(in crate::server) async fn status(state: AppState) -> Response {
     match state.runtime.docker_discovery.status().await {
         Ok(value) => no_store_json(value),
+        Err(e) => error(e),
+    }
+}
+pub(in crate::server) async fn inspect(
+    state: AppState,
+    body: Result<Bytes, BytesRejection>,
+) -> Response {
+    let Some(request) = body
+        .ok()
+        .and_then(|body| serde_json::from_slice::<Inspect>(&body).ok())
+    else {
+        return error(Error::InvalidInput);
+    };
+    match state.runtime.docker_discovery.inspect(request).await {
+        Ok(candidates) => no_store_json(serde_json::json!({"candidates": candidates})),
         Err(e) => error(e),
     }
 }

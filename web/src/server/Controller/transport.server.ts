@@ -61,7 +61,7 @@ export async function controllerRequest(
         | `/internal/v1/certificates/events${string}`
         | '/internal/v1/trusted-cas/validate'
         | '/internal/v1/dns/connections'
-        | `/internal/v1/discovery/docker/${'status' | 'config'}`
+        | `/internal/v1/discovery/docker/${'status' | 'config' | 'inspect'}`
         | `/internal/v1/dns/connections/${string}`
         | `/internal/v1/ddns/${'status' | 'config' | 'preview' | 'enable' | 'disable' | 'sync'}`,
     options: ControllerRequestOptions,

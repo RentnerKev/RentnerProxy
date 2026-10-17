@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { createProxyRuntimeSnapshot } from '../../../web/src/server/ProxyRuntime/proxy-runtime-snapshot.ts'
 import { sharedSmokeImage, verifySharedSmokeImage } from '../images.ts'
 import { smokeDockerArguments } from '../resources.ts'
+import { runDiscoverySmoke } from './discovery.ts'
 
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
@@ -299,7 +300,9 @@ async function controllerJson(path: string, init: RequestInit = {}): Promise<Jso
     return { httpStatus: response.status, ...parsed }
 }
 
-async function apply(snapshot: Snapshot): Promise<JsonObject> {
+async function apply(
+    snapshot: Snapshot | ReturnType<typeof createProxyRuntimeSnapshot>,
+): Promise<JsonObject> {
     return controllerJson('/internal/v1/proxy/config', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
@@ -695,6 +698,18 @@ async function runSmoke(): Promise<void> {
             corruptTrustedCaPath,
         ])
         passed('corrupt trust material rolls back while the previous HTTPS route stays live')
+
+        await runDiscoverySmoke({
+            directory: tempDirectory,
+            network,
+            backend: backendContainer,
+            command,
+            startBackend: () => startBackend(backendTwoConfig),
+            controller: controllerJson,
+            apply,
+            waitFor,
+            waitForBody: waitForProxyBody,
+        })
 
         console.log('Real HTTPS upstream TLS integration: ' + assertions + ' checks passed.')
     } finally {

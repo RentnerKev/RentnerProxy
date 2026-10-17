@@ -11,6 +11,7 @@ import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import { readProxyHostHttpSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
+import { assertDiscoveryHostEditable } from '@/server/Admin/DockerDiscovery/discovery-storage.server.ts'
 
 export class CertificateJobDomainError extends Error {
     readonly code: CertificateJobErrorCode
@@ -85,6 +86,7 @@ export async function validateCertificateJobContext(
     job: CertificateJobRow,
 ) {
     if (!job.proxyHostId) throw new CertificateJobDomainError('host_deleted')
+    await assertDiscoveryHostEditable(transaction, job.proxyHostId)
     if (!job.certificateId) throw new CertificateJobDomainError('certificate_deleted')
     if (!job.actorUserId || !job.requiredPermissions.length)
         throw new CertificateJobDomainError('permission_revoked')

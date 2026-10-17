@@ -1244,7 +1244,8 @@
                 "domain_conflict": "Dit domein is al aan een andere proxyhost toegewezen.",
                 "proxy_host_not_found": "De proxyhost bestaat niet meer.",
                 "invalid_status_transition": "De proxyhost heeft die status al. Vernieuw de lijst en probeer het opnieuw.",
-                "invalid_input": "Controleer de proxyhostwaarden en probeer het opnieuw."
+                "invalid_input": "Controleer de proxyhostwaarden en probeer het opnieuw.",
+                "discovery_managed": "Deze host wordt beheerd via Docker-labels. Koppel hem los van Docker Discovery voordat je hem bewerkt of verwijdert."
             },
             "validation": {
                 "domain": "Voer een geldige DNS-naam in zonder URL, IP-adres of wildcard.",

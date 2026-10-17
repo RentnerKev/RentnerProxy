@@ -10,6 +10,34 @@ const snapshot: DockerDiscoverySnapshot = {
     candidates: [],
 }
 
+test('endpoint inspection is a bounded confidential POST with strictly redacted candidates', async () => {
+    const controller = createDockerDiscoveryController(async (path, options) => {
+        expect(path).toBe('/internal/v1/discovery/docker/inspect')
+        expect(options).toMatchObject({
+            privileged: true,
+            confidential: true,
+            method: 'POST',
+            timeoutMs: 35000,
+            responseLimit: 1048576,
+        })
+        expect(JSON.parse(options.body ?? '{}')).toEqual({
+            endpoint: 'http://docker-proxy:2375',
+            actorUserId: 'actor',
+        })
+        return { candidates: [] }
+    })
+    expect(
+        await controller.inspect({ endpoint: 'http://docker-proxy:2375', actorUserId: 'actor' }),
+    ).toEqual({ candidates: [] })
+    const raw = createDockerDiscoveryController(async () => ({
+        candidates: [],
+        private: 'SYNTHETIC_SECRET',
+    }))
+    await expect(
+        raw.inspect({ endpoint: 'http://docker-proxy:2375', actorUserId: 'actor' }),
+    ).rejects.toThrow('controller_unavailable')
+})
+
 test('Docker discovery uses confidential bearer-authenticated bounded paths and validates save acknowledgments', async () => {
     const controller = createDockerDiscoveryController(async (path, options) => {
         expect(options).toMatchObject({

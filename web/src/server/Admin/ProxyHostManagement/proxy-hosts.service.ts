@@ -43,6 +43,10 @@ import { appendAuditEventInTransactionService } from '@/server/Audit/audit.servi
 import { recordMutationFailureBestEffort } from '@/server/ProxyRuntime/audit-mutation.ts'
 import { certificateJobSummary } from './certificate-jobs.storage.server.ts'
 import {
+    assertDiscoveryHostEditable,
+    readDiscoveryRegistry,
+} from '@/server/Admin/DockerDiscovery/discovery-storage.server.ts'
+import {
     createProxyHostInTransaction,
     loadProxyHostForUpdate,
     toProxyHostSummary,
@@ -173,10 +177,17 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
         }
     }
 
+    const registry = await getAuthDatabase().transaction(readDiscoveryRegistry, {
+        accessMode: 'read only',
+    })
     for (const summary of summaries.values()) {
+        const owner = registry.owners.find(
+            (entry) => entry.hostId === summary.id && entry.state !== 'detached',
+        )
         result.push({
             ...toProxyHostSummary(summary, summary.domains),
             certificateJob: latestJobs.get(summary.id) ?? null,
+            discovery: owner && owner.state !== 'detached' ? { state: owner.state } : null,
         })
     }
 
@@ -264,6 +275,7 @@ export async function deleteProxyHostService(
             }
 
             await writeProxyHostHttpSettings(transaction, proxyHost.id, {})
+            await assertDiscoveryHostEditable(transaction, proxyHost.id)
             await transaction.delete(proxyHosts).where(eq(proxyHosts.id, proxyHost.id))
             await appendAuditEventInTransactionService(transaction, {
                 actorUserId: actor.id,

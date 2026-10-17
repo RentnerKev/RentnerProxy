@@ -29,6 +29,21 @@ export function createDockerDiscoveryController(
         acceptNonOkJson: true,
     } as const
     return {
+        async inspect(input: { endpoint: string; actorUserId: string }) {
+            const value = await request('/internal/v1/discovery/docker/inspect', {
+                ...options,
+                method: 'POST',
+                timeoutMs: 35_000,
+                body: JSON.stringify(input),
+            })
+            const error = z.strictObject({ error: z.enum(dockerDiscoveryErrors) }).safeParse(value)
+            if (error.success) throw new DockerDiscoveryError(error.data.error)
+            const parsed = z
+                .strictObject({ candidates: dockerDiscoverySnapshotSchema.shape.candidates })
+                .safeParse(value)
+            if (!parsed.success) throw new DockerDiscoveryError('controller_unavailable')
+            return parsed.data
+        },
         async status() {
             return decode(await request('/internal/v1/discovery/docker/status', options))
         },

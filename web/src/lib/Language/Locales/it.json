@@ -1270,7 +1270,8 @@
                 "domain_conflict": "Questo dominio è già assegnato a un altro host proxy.",
                 "proxy_host_not_found": "L’host proxy non esiste più.",
                 "invalid_status_transition": "L’host proxy è già in questo stato. Aggiorna l’elenco e riprova.",
-                "invalid_input": "Controlla i valori dell’host proxy e riprova."
+                "invalid_input": "Controlla i valori dell’host proxy e riprova.",
+                "discovery_managed": "Questo host è gestito dalle etichette Docker. Scollegalo da Docker Discovery prima di modificarlo o eliminarlo."
             },
             "validation": {
                 "domain": "Inserisci un nome DNS valido, senza URL, indirizzi IP o wildcard.",
