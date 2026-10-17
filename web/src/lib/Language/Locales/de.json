@@ -85,7 +85,8 @@
         "systemVersion": "Systemversion {{version}}",
         "updateAvailable": "Update verfügbar auf Version {{version}}",
         "dnsConnections": "DNS-Verbindungen",
-        "ddns": "DDNS"
+        "ddns": "DDNS",
+        "dockerDiscovery": "Docker Discovery"
     },
     "quickSearch": {
         "title": "Schnell suchen",
@@ -2410,13 +2411,156 @@
         "dockerDiscovery": {
             "errors": {
                 "invalid_input": "Gib eine gültige Docker-Discovery-Konfiguration ein.",
-                "conflict": "Die Konfiguration wurde geändert oder muss nach dem Restore aktiviert werden. Lade den aktuellen Stand.",
+                "conflict": "Die Quelle wurde geändert. Prüfe die aktuellen Kandidaten und versuche es erneut.",
                 "store_unavailable": "Der Speicher für Docker Discovery ist nicht verfügbar.",
                 "endpoint_unavailable": "Der Docker-Endpunkt ist nicht erreichbar. Prüfe Adresse und Leserechte.",
                 "invalid_response": "Der Docker-Endpunkt hat eine ungültige oder zu große Antwort geliefert.",
                 "inventory_too_large": "Die Docker-Inventarliste überschreitet das Discovery-Limit.",
                 "stopping": "Docker Discovery wird beendet.",
-                "controller_unavailable": "Der Discovery-Controller ist nicht erreichbar."
+                "controller_unavailable": "Der Discovery-Controller ist nicht erreichbar.",
+                "requestFailed": "Docker Discovery konnte die Anfrage nicht abschließen.",
+                "copyFailed": "Kopieren fehlgeschlagen. Markiere und kopiere das Beispiel manuell."
+            },
+            "page": {
+                "eyebrow": "Netzwerk",
+                "description": "Erkenne Container über Labels und halte ihre Proxy Hosts synchron.",
+                "title": "Docker Discovery"
+            },
+            "actions": {
+                "guide": "Compose-Beispiel",
+                "connection": "Verbindung",
+                "enable": "Synchronisierung aktivieren",
+                "disable": "Synchronisierung pausieren",
+                "retry": "Synchronisierung erneut versuchen",
+                "detach": "Von Discovery trennen",
+                "disconnect": "Verbindung deaktivieren",
+                "details": "Quelldetails",
+                "copy": "Beispiel kopieren"
+            },
+            "runtime": {
+                "title": "Docker-Verbindung",
+                "notConfigured": "Kein Endpunkt eingerichtet",
+                "preview": "Prüfe die Kandidaten unten, bevor du die automatische Host-Synchronisierung aktivierst.",
+                "active": "Die automatische Synchronisierung ist aktiv. Gültige Docker-Labels verwalten diese Hosts.",
+                "restorePaused": "Wiederhergestellte Verbindung pausiert. Öffne Verbindung und bestätige das Fortsetzen von Discovery."
+            },
+            "connector": {
+                "disabled": "Getrennt",
+                "paused": "Nach Wiederherstellung pausiert",
+                "connecting": "Verbindung wird aufgebaut",
+                "ready": "Verbunden",
+                "unavailable": "Nicht erreichbar"
+            },
+            "applied": {
+                "idle": "Warte auf geeignete Quellen.",
+                "pending": "Proxy-Konfiguration gespeichert; die Anwendung durch die Laufzeit steht noch aus.",
+                "applied": "Die zuletzt gespeicherte Proxy-Konfiguration ist angewendet."
+            },
+            "connection": {
+                "title": "Docker-Verbindung einrichten",
+                "description": "Teste zuerst den Endpunkt für Lesezugriffe. Speichern pausiert die Host-Synchronisierung, damit du die Kandidaten prüfen kannst.",
+                "endpoint": "Docker-API-Endpunkt",
+                "endpointHint": "HTTP(S)-Basisadresse eines eingeschränkten Socket-Proxys, ohne Zugangsdaten oder URL-Pfad.",
+                "test": "Verbindung testen",
+                "save": "Speichern und Kandidaten prüfen",
+                "acknowledgeRestore": "Lesen dieser wiederhergestellten Verbindung fortsetzen"
+            },
+            "messages": {
+                "connected": "Verbindung gespeichert. Prüfe die Kandidaten vor dem Aktivieren.",
+                "enabled": "Automatische Host-Synchronisierung aktiviert.",
+                "disabled": "Synchronisierung pausiert. Gespeicherte Hosts bleiben erhalten.",
+                "disconnected": "Verbindung deaktiviert. Gespeicherte Hosts bleiben erhalten.",
+                "detached": "Host getrennt. Er kann jetzt manuell verwaltet werden.",
+                "retrying": "Erneute Erkennung und Synchronisierung angefordert.",
+                "changed": "Die Quelle wurde geändert. Prüfe die aktuellen Kandidaten und versuche es erneut.",
+                "testRequired": "Teste den aktuellen Endpunkt und bestätige gegebenenfalls die wiederhergestellte Verbindung vor dem Speichern.",
+                "tested": "Verbindung geprüft; {{count}} Container mit passenden Labels gefunden.",
+                "copied": "Kopiert"
+            },
+            "confirm": {
+                "enableTitle": "Automatische Synchronisierung aktivieren?",
+                "enableDescription": "{{create}} Hosts werden angelegt und {{update}} aktualisiert. Weitere gültige Label-Änderungen werden automatisch synchronisiert; manuelle Hosts bleiben geschützt.",
+                "detachTitle": "Diesen Host trennen?",
+                "detachDescription": "{{name}} behält seine Konfiguration und sein Zertifikat. Er wird manuell bearbeitbar; diese Quelle legt ihn nicht erneut an und aktualisiert ihn nicht mehr."
+            },
+            "table": {
+                "title": "{{count}} Docker-Quellen",
+                "source": "Quelle",
+                "search": "Docker-Quellen suchen",
+                "searchPlaceholder": "Quelle, Domain oder Ziel…",
+                "emptyTitle": "Noch keine Docker-Quellen",
+                "emptyDescription": "Verbinde einen eingeschränkten Docker-Endpunkt und wähle Container mit rentnerproxy.enable=true aus.",
+                "filteredTitle": "Keine passenden Quellen",
+                "filteredDescription": "Passe die Suche oder die Spaltenfilter an.",
+                "itemLabel": "Quellen",
+                "savedTarget": "Gespeicherter Host bleibt erhalten",
+                "moreIssues": "(+{{count}} weitere)",
+                "actionsFor": "Aktionen für {{name}}",
+                "eyebrow": "Netzwerk",
+                "domains": "Domains",
+                "target": "Weiterleitungsziel",
+                "status": "Status",
+                "actions": "Aktionen"
+            },
+            "states": {
+                "create": "Host wird angelegt",
+                "update": "Host wird aktualisiert",
+                "current": "Synchron",
+                "stopped": "Container gestoppt",
+                "orphaned": "Verwaiste Quelle",
+                "conflicted": "Prüfung erforderlich",
+                "unavailable": "Quelle nicht erreichbar",
+                "detached": "Manuell verwaltet"
+            },
+            "details": {
+                "container": "Container-ID",
+                "tlsName": "TLS-Identität des Ziels",
+                "managedHint": "Docker-Labels verwalten Domains, Ziele, Zertifikats- und Regelzuordnungen sowie TLS-Einstellungen des Ziels. Trenne den Host vor dem Bearbeiten dieser Felder. Aktivieren, Deaktivieren und erweiterte HTTP-Einstellungen bleiben verfügbar.",
+                "certificate": "Zertifikate",
+                "accessPolicy": "Zugriffsrichtlinien"
+            },
+            "host": {
+                "managed": "Über Docker-Labels verwaltet",
+                "orphaned": "Docker-Quelle verwaist"
+            },
+            "guide": {
+                "title": "Docker Discovery einrichten",
+                "description": "Verwende einen eingeschränkten Socket-Proxy. Nur dieser Dienst erhält Zugriff auf den Docker-Socket.",
+                "appliance": "Docker-Appliance",
+                "native": "Native Entwicklung mit Docker Desktop",
+                "applianceHint": "Speichere dies im Projektverzeichnis als docker-discovery.override.yml und ergänze den bestehenden Stack mit docker compose -f docker-compose.yml -f docker-discovery.override.yml up -d. Verwende http://docker-api:2375 als Endpunkt. Die API bleibt in einem eigenen internen Netzwerk; example-app teilt nur das Proxy-Netzwerk.",
+                "nativeHint": "Starte die Linux-Engine von Docker Desktop. Speichere dies neben docker-compose.yml als docker-discovery.dev.yml und starte docker compose -f docker-discovery.dev.yml up -d. Natives bun run dev verwendet http://127.0.0.1:2375. Die API ist nur an Loopback gebunden. Natives Windows unterstützt UI und Controller; Proxy-Verkehr benötigt die Linux-Docker-Laufzeit.",
+                "references": "Ergänze für HTTPS-Ziele rentnerproxy.protocol=https und rentnerproxy.upstream-tls-server-name mit dem DNS-Namen des Backend-Zertifikats. Die Prüfung bleibt aktiv. Optionale Werte für rentnerproxy.certificate und rentnerproxy.access-policy sind vorhandene IDs aus Zertifikate und Zugriffsregeln, keine Namen oder Geheimnisse.",
+                "identity": "Eine feste rentnerproxy.id erhält die Zuordnung beim Neuerstellen des Containers. Sonst verwendet Discovery Compose-Projekt und Dienst oder den Namen eines einzelnen Containers. Jede Quelle muss eindeutig sein. Es werden nur ausdrücklich angegebene Domains verwaltet.",
+                "lifecycle": "Gestoppte, entfernte und nicht erreichbare Quellen behalten ihre Hosts, Aktivierungszustände, Zertifikate und letzten Ziele. Deaktiviere eine erhaltene Route bei Bedarf unter Proxy Hosts. Pausieren stoppt Host-Updates; Verbindung deaktivieren stoppt zusätzlich Docker-Lesezugriffe. Trennen erlaubt manuelles Bearbeiten und schließt diese Quelle dauerhaft von einer automatischen Neuanlage aus.",
+                "limits": "Diese Version unterstützt eine Engine sowie einzelne Container und Compose. Swarm, Kubernetes und automatischer Lastenausgleich zwischen Replikaten werden nicht unterstützt. Verwende die mitgelieferte docker/discovery/haproxy.cfg; der Socket-Proxy erlaubt nur die benötigten Lesezugriffe."
+            },
+            "issues": {
+                "unsupported_label": "Entferne nicht unterstützte rentnerproxy-Labels.",
+                "invalid_source": "Setze eine gültige, feste rentnerproxy.id.",
+                "source_conflict": "Mehrere Container beanspruchen dieselbe Quelle. Verwende eindeutige Quell-IDs.",
+                "missing_port": "Gib einen ausdrücklichen TCP-Port des Containers an.",
+                "ambiguous_network": "Wähle mit rentnerproxy.network ein angebundenes Netzwerk aus.",
+                "missing_address": "Das gewählte Netzwerk hat keine nutzbare Container-Adresse.",
+                "unsupported_network_mode": "Host- und gemeinsam genutzte Netzwerk-Namensräume werden nicht unterstützt.",
+                "reference_invalid": "Prüfe die Verweise auf vorhandene Zertifikate und Zugriffsregeln.",
+                "invalid_upstream_tls_name": "HTTPS-Ziele benötigen einen gültigen DNS-Namen in rentnerproxy.upstream-tls-server-name.",
+                "unsupported_orchestrator": "Swarm- und Kubernetes-Quellen werden nicht unterstützt.",
+                "host_missing": "Der zuvor verwaltete Host existiert nicht mehr.",
+                "owner_limit": "Das Limit verwalteter Discovery-Quellen wurde erreicht.",
+                "authorization_required": "Die Rechte des aktivierenden Benutzers wurden geändert. Prüfe die Quellen und aktiviere erneut.",
+                "reconcile_failed": "Synchronisierung fehlgeschlagen. Prüfe Quelle und Proxy-Laufzeit.",
+                "invalid_domains": "Gib einen gültigen DNS-Namen ohne URL, IP-Adresse oder Wildcard ein.",
+                "invalid_input": "Gib eine gültige Docker-Discovery-Konfiguration ein.",
+                "ambiguous_port": "Gib einen ausdrücklichen TCP-Port des Containers an.",
+                "invalid_port": "Gib eine ganze Portnummer von 1 bis 65535 ein.",
+                "invalid_protocol": "Setze rentnerproxy.protocol auf http oder https.",
+                "missing_network": "Wähle mit rentnerproxy.network ein angebundenes Netzwerk aus.",
+                "invalid_network": "Wähle mit rentnerproxy.network ein angebundenes Netzwerk aus.",
+                "invalid_certificate_reference": "Prüfe die Verweise auf vorhandene Zertifikate und Zugriffsregeln.",
+                "invalid_access_policy_reference": "Prüfe die Verweise auf vorhandene Zertifikate und Zugriffsregeln.",
+                "container_not_running": "Container gestoppt",
+                "domain_conflict": "Diese Domain ist bereits einem anderen Proxy-Host zugeordnet."
             }
         },
         "dnsConnections": {

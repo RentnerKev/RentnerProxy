@@ -19,6 +19,7 @@ import { Route as AuthenticatedCertificatesRouteImport } from './routes/_authent
 import { Route as AuthenticatedCrowdsecRouteImport } from './routes/_authenticated/crowdsec'
 import { Route as AuthenticatedDdnsRouteImport } from './routes/_authenticated/ddns'
 import { Route as AuthenticatedDnsConnectionsRouteImport } from './routes/_authenticated/dns-connections'
+import { Route as AuthenticatedDockerDiscoveryRouteImport } from './routes/_authenticated/docker-discovery'
 import { Route as AuthenticatedMigrationRouteImport } from './routes/_authenticated/migration'
 import { Route as AuthenticatedNpmImportRouteImport } from './routes/_authenticated/npm-import'
 import { Route as AuthenticatedOperationsRouteImport } from './routes/_authenticated/operations'
@@ -92,6 +93,12 @@ const AuthenticatedDnsConnectionsRoute =
   AuthenticatedDnsConnectionsRouteImport.update({
     id: '/dns-connections',
     path: '/dns-connections',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedDockerDiscoveryRoute =
+  AuthenticatedDockerDiscoveryRouteImport.update({
+    id: '/docker-discovery',
+    path: '/docker-discovery',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedMigrationRoute = AuthenticatedMigrationRouteImport.update({
@@ -221,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/crowdsec': typeof AuthenticatedCrowdsecRoute
   '/ddns': typeof AuthenticatedDdnsRoute
   '/dns-connections': typeof AuthenticatedDnsConnectionsRoute
+  '/docker-discovery': typeof AuthenticatedDockerDiscoveryRoute
   '/migration': typeof AuthenticatedMigrationRoute
   '/npm-import': typeof AuthenticatedNpmImportRoute
   '/operations': typeof AuthenticatedOperationsRoute
@@ -254,6 +262,7 @@ export interface FileRoutesByTo {
   '/crowdsec': typeof AuthenticatedCrowdsecRoute
   '/ddns': typeof AuthenticatedDdnsRoute
   '/dns-connections': typeof AuthenticatedDnsConnectionsRoute
+  '/docker-discovery': typeof AuthenticatedDockerDiscoveryRoute
   '/migration': typeof AuthenticatedMigrationRoute
   '/npm-import': typeof AuthenticatedNpmImportRoute
   '/operations': typeof AuthenticatedOperationsRoute
@@ -288,6 +297,7 @@ export interface FileRoutesById {
   '/_authenticated/crowdsec': typeof AuthenticatedCrowdsecRoute
   '/_authenticated/ddns': typeof AuthenticatedDdnsRoute
   '/_authenticated/dns-connections': typeof AuthenticatedDnsConnectionsRoute
+  '/_authenticated/docker-discovery': typeof AuthenticatedDockerDiscoveryRoute
   '/_authenticated/migration': typeof AuthenticatedMigrationRoute
   '/_authenticated/npm-import': typeof AuthenticatedNpmImportRoute
   '/_authenticated/operations': typeof AuthenticatedOperationsRoute
@@ -324,6 +334,7 @@ export interface FileRouteTypes {
     | '/crowdsec'
     | '/ddns'
     | '/dns-connections'
+    | '/docker-discovery'
     | '/migration'
     | '/npm-import'
     | '/operations'
@@ -357,6 +368,7 @@ export interface FileRouteTypes {
     | '/crowdsec'
     | '/ddns'
     | '/dns-connections'
+    | '/docker-discovery'
     | '/migration'
     | '/npm-import'
     | '/operations'
@@ -390,6 +402,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crowdsec'
     | '/_authenticated/ddns'
     | '/_authenticated/dns-connections'
+    | '/_authenticated/docker-discovery'
     | '/_authenticated/migration'
     | '/_authenticated/npm-import'
     | '/_authenticated/operations'
@@ -497,6 +510,13 @@ declare module '@tanstack/react-router' {
       path: '/dns-connections'
       fullPath: '/dns-connections'
       preLoaderRoute: typeof AuthenticatedDnsConnectionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/docker-discovery': {
+      id: '/_authenticated/docker-discovery'
+      path: '/docker-discovery'
+      fullPath: '/docker-discovery'
+      preLoaderRoute: typeof AuthenticatedDockerDiscoveryRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/migration': {
@@ -671,6 +691,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCrowdsecRoute: typeof AuthenticatedCrowdsecRoute
   AuthenticatedDdnsRoute: typeof AuthenticatedDdnsRoute
   AuthenticatedDnsConnectionsRoute: typeof AuthenticatedDnsConnectionsRoute
+  AuthenticatedDockerDiscoveryRoute: typeof AuthenticatedDockerDiscoveryRoute
   AuthenticatedMigrationRoute: typeof AuthenticatedMigrationRoute
   AuthenticatedNpmImportRoute: typeof AuthenticatedNpmImportRoute
   AuthenticatedOperationsRoute: typeof AuthenticatedOperationsRoute
@@ -691,6 +712,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCrowdsecRoute: AuthenticatedCrowdsecRoute,
   AuthenticatedDdnsRoute: AuthenticatedDdnsRoute,
   AuthenticatedDnsConnectionsRoute: AuthenticatedDnsConnectionsRoute,
+  AuthenticatedDockerDiscoveryRoute: AuthenticatedDockerDiscoveryRoute,
   AuthenticatedMigrationRoute: AuthenticatedMigrationRoute,
   AuthenticatedNpmImportRoute: AuthenticatedNpmImportRoute,
   AuthenticatedOperationsRoute: AuthenticatedOperationsRoute,

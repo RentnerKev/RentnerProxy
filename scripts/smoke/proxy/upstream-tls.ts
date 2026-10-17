@@ -710,6 +710,7 @@ async function runSmoke(): Promise<void> {
             waitFor,
             waitForBody: waitForProxyBody,
         })
+        passed('discovery recreates one typed host and retains routing during removal/outage')
 
         console.log('Real HTTPS upstream TLS integration: ' + assertions + ' checks passed.')
     } finally {

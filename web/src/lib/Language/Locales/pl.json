@@ -85,7 +85,8 @@
         "systemVersion": "Wersja systemu {{version}}",
         "updateAvailable": "Dostępna aktualizacja do wersji {{version}}",
         "dnsConnections": "Połączenia DNS",
-        "ddns": "DDNS"
+        "ddns": "DDNS",
+        "dockerDiscovery": "Docker Discovery"
     },
     "quickSearch": {
         "title": "Szybkie wyszukiwanie",
@@ -2744,13 +2745,156 @@
         "dockerDiscovery": {
             "errors": {
                 "invalid_input": "Wprowadź prawidłową konfigurację wykrywania Dockera.",
-                "conflict": "Konfiguracja uległa zmianie lub wymaga aktywacji po przywróceniu. Wczytaj aktualny stan.",
+                "conflict": "Źródło uległo zmianie. Sprawdź aktualnych kandydatów i spróbuj ponownie.",
                 "store_unavailable": "Magazyn wykrywania Dockera jest niedostępny.",
                 "endpoint_unavailable": "Punkt końcowy Dockera jest niedostępny. Sprawdź adres i uprawnienia odczytu.",
                 "invalid_response": "Punkt końcowy Dockera zwrócił nieprawidłową lub zbyt dużą odpowiedź.",
                 "inventory_too_large": "Inwentarz Dockera przekracza limit wykrywania.",
                 "stopping": "Wykrywanie Dockera jest zatrzymywane.",
-                "controller_unavailable": "Kontroler wykrywania jest niedostępny."
+                "controller_unavailable": "Kontroler wykrywania jest niedostępny.",
+                "requestFailed": "Nie udało się wykonać żądania wykrywania.",
+                "copyFailed": "Kopiowanie nie powiodło się. Zaznacz i skopiuj przykład ręcznie."
+            },
+            "page": {
+                "eyebrow": "Sieć",
+                "description": "Wykrywaj kontenery na podstawie etykiet i synchronizuj ich hosty proxy.",
+                "title": "Docker Discovery"
+            },
+            "actions": {
+                "guide": "Przykład Compose",
+                "connection": "Połączenie",
+                "enable": "Włącz synchronizację",
+                "disable": "Wstrzymaj synchronizację",
+                "retry": "Ponów synchronizację",
+                "detach": "Odłącz od wykrywania",
+                "disconnect": "Wyłącz połączenie",
+                "details": "Szczegóły źródła",
+                "copy": "Kopiuj przykład"
+            },
+            "runtime": {
+                "title": "Połączenie Docker",
+                "notConfigured": "Nie skonfigurowano punktu końcowego",
+                "preview": "Sprawdź kandydatów przed włączeniem automatycznej synchronizacji hostów.",
+                "active": "Automatyczna synchronizacja jest włączona. Prawidłowe etykiety Docker zarządzają tymi hostami.",
+                "restorePaused": "Przywrócone połączenie jest wstrzymane. Otwórz Połączenie i potwierdź wznowienie."
+            },
+            "connector": {
+                "disabled": "Rozłączono",
+                "paused": "Przywrócenie wstrzymane",
+                "connecting": "Łączenie",
+                "ready": "Połączono",
+                "unavailable": "Niedostępne"
+            },
+            "applied": {
+                "idle": "Oczekiwanie na kwalifikujące się źródła.",
+                "pending": "Konfiguracja proxy zapisana; oczekuje na zastosowanie.",
+                "applied": "Ostatnia zapisana konfiguracja proxy została zastosowana."
+            },
+            "connection": {
+                "title": "Skonfiguruj połączenie Docker",
+                "description": "Najpierw przetestuj punkt końcowy tylko do odczytu. Zapis wstrzyma synchronizację, aby umożliwić sprawdzenie kandydatów.",
+                "endpoint": "Punkt końcowy API Docker",
+                "endpointHint": "Bazowy adres HTTP(S) ograniczonego proxy, bez danych logowania i ścieżki.",
+                "test": "Testuj połączenie",
+                "save": "Zapisz i sprawdź kandydatów",
+                "acknowledgeRestore": "Wznów odczyt przywróconego połączenia"
+            },
+            "messages": {
+                "connected": "Połączenie zapisane. Sprawdź kandydatów przed włączeniem.",
+                "enabled": "Automatyczna synchronizacja hostów włączona.",
+                "disabled": "Synchronizacja wstrzymana. Zapisane hosty zostają zachowane.",
+                "disconnected": "Połączenie wyłączone. Zapisane hosty zostają zachowane.",
+                "detached": "Host odłączony. Można nim teraz zarządzać ręcznie.",
+                "retrying": "Zlecono ponowne skanowanie i synchronizację.",
+                "changed": "Źródło uległo zmianie. Sprawdź aktualnych kandydatów i spróbuj ponownie.",
+                "testRequired": "Przetestuj aktualny punkt końcowy i potwierdź przywrócone połączenie przed zapisem.",
+                "tested": "Połączenie sprawdzone; znaleziono {{count}} kontenerów z etykietami.",
+                "copied": "Skopiowano"
+            },
+            "confirm": {
+                "enableTitle": "Włączyć automatyczną synchronizację?",
+                "enableDescription": "Zostanie utworzonych {{create}} hostów i zaktualizowanych {{update}}. Przyszłe prawidłowe zmiany etykiet będą synchronizowane automatycznie; ręczne hosty pozostają chronione.",
+                "detachTitle": "Odłączyć tego hosta?",
+                "detachDescription": "{{name}} zachowa konfigurację i certyfikat. Będzie można edytować go ręcznie, a to źródło nie utworzy go ponownie ani nie zaktualizuje."
+            },
+            "table": {
+                "title": "{{count}} źródeł Docker",
+                "source": "Źródło",
+                "search": "Szukaj źródeł Docker",
+                "searchPlaceholder": "Źródło, domena lub cel…",
+                "emptyTitle": "Brak źródeł Docker",
+                "emptyDescription": "Połącz ograniczony punkt końcowy Docker i wybierz kontenery etykietą rentnerproxy.enable=true.",
+                "filteredTitle": "Brak pasujących źródeł",
+                "filteredDescription": "Zmień wyszukiwanie lub filtry kolumn.",
+                "itemLabel": "źródła",
+                "savedTarget": "Zapisany host zachowany",
+                "moreIssues": "(+{{count}} więcej)",
+                "actionsFor": "Akcje dla {{name}}",
+                "eyebrow": "Sieć",
+                "domains": "Domeny",
+                "target": "Cel przekierowania",
+                "status": "Stan",
+                "actions": "Działania"
+            },
+            "states": {
+                "create": "Utworzy hosta",
+                "update": "Zaktualizuje hosta",
+                "current": "Zsynchronizowano",
+                "stopped": "Kontener zatrzymany",
+                "orphaned": "Osierocone źródło",
+                "conflicted": "Wymaga uwagi",
+                "unavailable": "Źródło niedostępne",
+                "detached": "Zarządzany ręcznie"
+            },
+            "details": {
+                "container": "ID kontenera",
+                "tlsName": "Tożsamość TLS serwera docelowego",
+                "managedHint": "Etykiety Docker zarządzają domenami, celami, certyfikatami, zasadami i ustawieniami TLS celu. Odłącz hosta przed edycją tych pól. Nadal można go włączyć, wyłączyć i zmieniać zaawansowane ustawienia HTTP.",
+                "certificate": "Certyfikaty",
+                "accessPolicy": "Zasady dostępu"
+            },
+            "host": {
+                "managed": "Zarządzany przez etykiety Docker",
+                "orphaned": "Osierocone źródło Docker"
+            },
+            "guide": {
+                "title": "Skonfiguruj Docker Discovery",
+                "description": "Użyj ograniczonego proxy. Tylko ta usługa otrzymuje gniazdo Docker.",
+                "appliance": "Urządzenie Docker",
+                "native": "Rozwój natywny z Docker Desktop",
+                "applianceHint": "Zapisz to w katalogu repozytorium jako docker-discovery.override.yml i dodaj do stosu poleceniem docker compose -f docker-compose.yml -f docker-discovery.override.yml up -d. Użyj http://docker-api:2375. API pozostaje w osobnej sieci wewnętrznej; example-app współdzieli tylko sieć proxy.",
+                "nativeHint": "Uruchom silnik Linux w Docker Desktop, zapisz to obok docker-compose.yml jako docker-discovery.dev.yml i wykonaj docker compose -f docker-discovery.dev.yml up -d. Natywne bun run dev używa http://127.0.0.1:2375. API nasłuchuje tylko na pętli zwrotnej. Natywny Windows obsługuje interfejs i kontroler; ruch proxy wymaga Docker Linux.",
+                "references": "Dla celów HTTPS dodaj rentnerproxy.protocol=https oraz rentnerproxy.upstream-tls-server-name z nazwą DNS certyfikatu serwera docelowego. Weryfikacja pozostaje włączona. Opcjonalne rentnerproxy.certificate i rentnerproxy.access-policy to istniejące identyfikatory z Certyfikatów i Zasad dostępu, a nie nazwy ani sekrety.",
+                "identity": "Stałe rentnerproxy.id zachowuje przypisanie po odtworzeniu kontenera. W przeciwnym razie używany jest projekt/usługa Compose lub nazwa samodzielnego kontenera. Każde źródło musi być unikalne. Zarządzane są tylko jawnie podane domeny.",
+                "lifecycle": "Zatrzymane, usunięte i niedostępne źródła zachowują hosty, stany włączenia, certyfikaty i ostatnie cele. W razie potrzeby wyłącz zachowaną trasę w Hostach proxy. Wstrzymanie zatrzymuje aktualizacje; Wyłącz połączenie zatrzymuje też odczyty Docker. Odłączenie umożliwia ręczną edycję i trwale wyklucza źródło z automatycznego odtwarzania.",
+                "limits": "Ta wersja obsługuje jeden silnik oraz kontenery samodzielne/Compose. Swarm, Kubernetes i automatyczne równoważenie replik nie są obsługiwane. Użyj docker/discovery/haproxy.cfg; proxy zezwala tylko na wymagane odczyty."
+            },
+            "issues": {
+                "unsupported_label": "Usuń nieobsługiwane etykiety rentnerproxy.",
+                "invalid_source": "Ustaw prawidłowe i stałe rentnerproxy.id.",
+                "source_conflict": "Kilka kontenerów deklaruje to samo źródło. Użyj unikalnych identyfikatorów.",
+                "missing_port": "Podaj jawny port TCP kontenera.",
+                "ambiguous_network": "Wybierz podłączoną sieć przez rentnerproxy.network.",
+                "missing_address": "Wybrana sieć nie ma użytecznego adresu kontenera.",
+                "unsupported_network_mode": "Sieci hosta i współdzielone przestrzenie sieciowe nie są obsługiwane.",
+                "reference_invalid": "Sprawdź odwołania do istniejących certyfikatów i zasad dostępu.",
+                "invalid_upstream_tls_name": "Cele HTTPS wymagają prawidłowego rentnerproxy.upstream-tls-server-name.",
+                "unsupported_orchestrator": "Źródła Swarm i Kubernetes nie są obsługiwane.",
+                "host_missing": "Wcześniej zarządzany host już nie istnieje.",
+                "owner_limit": "Osiągnięto limit zarządzanych źródeł.",
+                "authorization_required": "Uprawnienia użytkownika włączającego funkcję uległy zmianie. Sprawdź i włącz ponownie.",
+                "reconcile_failed": "Synchronizacja nie powiodła się. Sprawdź źródło i środowisko proxy.",
+                "invalid_domains": "Wpisz prawidłową nazwę DNS bez adresu URL, adresu IP i nazwy wieloznacznej.",
+                "invalid_input": "Wprowadź prawidłową konfigurację wykrywania Dockera.",
+                "ambiguous_port": "Podaj jawny port TCP kontenera.",
+                "invalid_port": "Wpisz liczbę całkowitą z zakresu od 1 do 65535.",
+                "invalid_protocol": "Ustaw rentnerproxy.protocol na http lub https.",
+                "missing_network": "Wybierz podłączoną sieć przez rentnerproxy.network.",
+                "invalid_network": "Wybierz podłączoną sieć przez rentnerproxy.network.",
+                "invalid_certificate_reference": "Sprawdź odwołania do istniejących certyfikatów i zasad dostępu.",
+                "invalid_access_policy_reference": "Sprawdź odwołania do istniejących certyfikatów i zasad dostępu.",
+                "container_not_running": "Kontener zatrzymany",
+                "domain_conflict": "Ta domena jest już przypisana do innego hosta proxy."
             }
         }
     },

@@ -245,9 +245,6 @@ export async function runDiscoverySmoke(deps: DiscoverySmokeDependencies): Promi
             /backend-http-ok/u,
             'retained host during Docker outage',
         )
-        console.log(
-            'PASS discovery creates/recreates one typed host, avoids duplicate reloads and retains routing during removal/outage',
-        )
     } finally {
         await deps.command(['docker', 'rm', '--force', engine, oldBackend]).catch(() => undefined)
     }

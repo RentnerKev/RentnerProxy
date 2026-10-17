@@ -82,6 +82,12 @@ test('management protects activation previews, actors, revisions, detachment and
         await service.changeDiscoveryService({ expectedRevision: 2, action: 'disable' })
         assert.equal(registry.enabled, false)
         assert.equal(registry.owners.length, 1)
+        await service.changeDiscoveryService({ expectedRevision: 3, action: 'disconnect' })
+        assert.equal(snapshot.configuration.settings.enabled, false)
+        assert.equal(registry.enabled, false)
+        assert.equal(registry.actorUserId, null)
+        assert.equal(registry.owners[0].hostId, DISCOVERY_HOST)
+        assert.equal(registry.owners[0].state, 'detached')
         const forged = { endpoint: 'http://docker-proxy:2375', actorUserId: 'forged' }
         await assert.rejects(service.inspectDiscoveryService(forged), /invalid_input/)
         await service.inspectDiscoveryService({ endpoint: 'http://docker-proxy:2375' })
@@ -112,6 +118,6 @@ test('management protects activation previews, actors, revisions, detachment and
     expect(JSON.parse(result.stdout.toString())).toEqual({
         protected: true,
         uncertainWriteBlocked: true,
-        writes: 1,
+        writes: 2,
     })
 })

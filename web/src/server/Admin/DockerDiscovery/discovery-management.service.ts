@@ -190,6 +190,20 @@ export async function changeDiscoveryService(input: DiscoveryAction) {
                     registry.enabled = false
                     registry.error = null
                     break
+                case 'disconnect': {
+                    const snapshot = await dockerDiscoveryController.status()
+                    const saved = await dockerDiscoveryController.save({
+                        expectedRevision: snapshot.configuration.revision,
+                        actorUserId: actor.id,
+                        configuration: { ...snapshot.configuration.settings, enabled: false },
+                        acknowledgeRestore: false,
+                    })
+                    registry.enabled = false
+                    registry.actorUserId = null
+                    registry.connectorRevision = saved.configuration.revision
+                    registry.error = null
+                    break
+                }
                 case 'detach': {
                     await requirePermissionInTransaction(
                         transaction,

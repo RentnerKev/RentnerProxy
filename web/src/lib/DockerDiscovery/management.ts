@@ -57,7 +57,7 @@ export const discoveryInspectSchema = z.strictObject({ endpoint: dockerEndpointS
 export const discoveryActionSchema = z
     .strictObject({
         expectedRevision: z.number().int().nonnegative(),
-        action: z.enum(['enable', 'disable', 'retry', 'detach']),
+        action: z.enum(['enable', 'disable', 'retry', 'detach', 'disconnect']),
         previewToken: z
             .string()
             .regex(/^[a-f0-9]{64}$/u)

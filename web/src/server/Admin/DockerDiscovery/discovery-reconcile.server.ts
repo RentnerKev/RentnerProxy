@@ -1,6 +1,7 @@
 import '@tanstack/react-start/server-only'
 import { ZodError } from 'zod'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { DOCKER_DISCOVERY_RECONCILE_PERMISSIONS } from '@/config/docker-discovery.config.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import type { DiscoveryRegistry } from '@/lib/DockerDiscovery/Types/management.types.ts'
 import type { DockerDiscoverySnapshot } from '@/lib/DockerDiscovery/Types/docker-discovery.types.ts'
@@ -25,15 +26,6 @@ import { appendAuditEventInTransactionService } from '@/server/Audit/audit.servi
 import { readProxyRuntimeSnapshot } from '@/server/ProxyRuntime/proxy-runtime-data.ts'
 import { ProxyRuntimeSnapshotError } from '@/server/ProxyRuntime/proxy-runtime-snapshot.ts'
 
-export const discoveryReconcilePermissions = [
-    PERMISSIONS.DOCKER_DISCOVERY_VIEW,
-    PERMISSIONS.DOCKER_DISCOVERY_MANAGE,
-    PERMISSIONS.PROXY_HOSTS_VIEW,
-    PERMISSIONS.PROXY_HOSTS_CREATE,
-    PERMISSIONS.PROXY_HOSTS_UPDATE,
-    PERMISSIONS.PROXY_HOSTS_APPLY,
-] as const
-
 /** Revalidates the delegated actor's complete host-management grant in the write transaction. */
 export async function requireDiscoveryReconcilePermissions(
     transaction: AuthTransaction,
@@ -45,7 +37,9 @@ export async function requireDiscoveryReconcilePermissions(
         PERMISSIONS.DOCKER_DISCOVERY_MANAGE,
     )
     if (
-        !discoveryReconcilePermissions.every((permission) => actor.permissions.includes(permission))
+        !DOCKER_DISCOVERY_RECONCILE_PERMISSIONS.every((permission) =>
+            actor.permissions.includes(permission),
+        )
     )
         throw new AuthDomainError(
             'permission_denied',

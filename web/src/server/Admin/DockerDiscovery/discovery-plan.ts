@@ -122,7 +122,7 @@ export function createDiscoveryPlan(
             domains: candidate.domains,
             target: candidate.target,
             state: error && ['current', 'create', 'update'].includes(state) ? 'conflicted' : state,
-            issues,
+            issues: [...new Set(issues)],
         })
     }
     for (const owner of registry.owners) {

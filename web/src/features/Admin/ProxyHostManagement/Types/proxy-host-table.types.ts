@@ -46,6 +46,7 @@ export interface ProxyHostTableActionsProps extends ProxyHostTableActionProps {
 
 export interface ProxyHostDomainsCellProps {
     readonly domains: ReadonlyArray<string>
+    readonly discovery?: ProxyHostSummary['discovery']
 }
 
 export interface ProxyHostForwardCellProps {

@@ -45,6 +45,7 @@ export interface ApplicationNavigationItem {
         | '/access-policies'
         | '/dns-connections'
         | '/ddns'
+        | '/docker-discovery'
         | '/proxy-access-logs'
         | '/crowdsec'
         | '/security'

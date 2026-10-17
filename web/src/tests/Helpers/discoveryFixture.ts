@@ -2,6 +2,7 @@ import type { DockerDiscoverySnapshot } from '@/lib/DockerDiscovery/Types/docker
 import type {
     DiscoveryCandidate,
     DiscoveryRegistry,
+    DiscoveryOverview,
 } from '@/lib/DockerDiscovery/Types/management.types.ts'
 import type { ProxyHostSummary } from '@/lib/Admin/ProxyHostManagement/Types/proxy-hosts.types.ts'
 export const DISCOVERY_ACTOR = '0198d98a-0000-7000-8000-000000000001'
@@ -50,6 +51,35 @@ export function discoverySnapshot(
         stale: false,
         error: null,
         candidates,
+        ...overrides,
+    }
+}
+export function discoveryOverview(
+    candidates = [discoveryCandidate()],
+    overrides: Partial<DiscoveryOverview> = {},
+): DiscoveryOverview {
+    return {
+        changes: { create: candidates.length, update: 0 },
+        snapshot: discoverySnapshot(candidates),
+        management: {
+            version: 1,
+            revision: 0,
+            enabled: false,
+            connectorRevision: 1,
+            runtimeStatus: 'idle',
+            error: null,
+        },
+        rows: candidates.map((candidate, index) => ({
+            key: index.toString(16).padStart(64, '0'),
+            sourceId: candidate.sourceId ?? `invalid:${candidate.containerId}`,
+            containerId: candidate.containerId,
+            hostId: null,
+            domains: candidate.domains,
+            target: candidate.target,
+            state: 'create',
+            issues: candidate.issues,
+        })),
+        previewToken: 'c'.repeat(64),
         ...overrides,
     }
 }

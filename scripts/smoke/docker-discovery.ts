@@ -5,6 +5,10 @@ import { fileURLToPath } from 'node:url'
 import { resolve, relative, isAbsolute } from 'node:path'
 import { runSmokeProcess } from './process.ts'
 import { smokeDockerArguments } from './resources.ts'
+import {
+    DOCKER_DISCOVERY_COMPOSE_EXAMPLE,
+    DOCKER_DISCOVERY_NATIVE_EXAMPLE,
+} from '../../web/src/config/docker-discovery.config.ts'
 
 // Optional socket-proxy ACL smoke. No real engine socket or production volume is mounted.
 const root = fileURLToPath(new URL('../../', import.meta.url))
@@ -31,6 +35,61 @@ async function command(args: string[], timeoutMs = 30_000) {
 
 try {
     await mkdir(directory, { recursive: true })
+    const emptyEnvironment = resolve(directory, 'empty.env')
+    const baseCompose = resolve(directory, 'base.yml')
+    await Bun.write(emptyEnvironment, '')
+    await Bun.write(baseCompose, `services:\n  rentnerproxy:\n    image: ${bun}\n`)
+    for (const [mode, content] of [
+        ['appliance', DOCKER_DISCOVERY_COMPOSE_EXAMPLE],
+        ['native', DOCKER_DISCOVERY_NATIVE_EXAMPLE],
+    ] as const) {
+        const path = resolve(directory, mode + '.yml')
+        await Bun.write(path, content)
+        const configured = JSON.parse(
+            await command([
+                'compose',
+                '--project-directory',
+                directory,
+                '--env-file',
+                emptyEnvironment,
+                ...(mode === 'appliance' ? ['-f', baseCompose] : []),
+                '-f',
+                path,
+                'config',
+                '--format',
+                'json',
+            ]),
+        )
+        const api = configured.services['docker-api']
+        const app = configured.services['example-app']
+        assert.deepEqual(Object.keys(api.networks), ['discovery-control'])
+        assert.deepEqual(Object.keys(app.networks), ['proxy'])
+        assert.equal(configured.networks['discovery-control'].internal, true)
+        assert.equal(app.labels['rentnerproxy.network'], configured.networks.proxy.name)
+        assert.equal(api.read_only, true)
+        assert.deepEqual(api.cap_drop, ['ALL'])
+        assert.equal(
+            api.volumes.find((mount: { target: string }) => mount.target === '/var/run/docker.sock')
+                ?.read_only,
+            true,
+        )
+        assert.equal(app.volumes, undefined)
+        if (mode === 'appliance') {
+            assert.equal(api.ports, undefined)
+            assert.deepEqual(Object.keys(configured.services.rentnerproxy.networks).toSorted(), [
+                'default',
+                'discovery-control',
+                'proxy',
+            ])
+        } else {
+            assert.equal(api.ports.length, 1)
+            assert.equal(api.ports[0].host_ip, '127.0.0.1')
+            assert.equal(api.ports[0].published, '2375')
+        }
+    }
+    console.log(
+        'Docker discovery UI Compose examples: isolated rendering, restricted API and separate application networks passed',
+    )
     await Bun.write(
         resolve(directory, 'engine.ts'),
         `
