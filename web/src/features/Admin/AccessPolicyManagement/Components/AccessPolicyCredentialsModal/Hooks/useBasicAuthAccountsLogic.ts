@@ -2,7 +2,7 @@ import type { BasicAuthAccountsLogicResult } from '../Types/logic.types.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { accessPolicyManagementQueryKeys } from '@/lib/Admin/AccessPolicyManagement/accessPolicyManagementCache.ts'
 import { MAX_BASIC_AUTH_ACCOUNTS_PER_POLICY } from '@/config/access-policies.config.ts'

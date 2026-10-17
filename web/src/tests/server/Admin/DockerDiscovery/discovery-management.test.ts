@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test'
 import { fileURLToPath } from 'node:url'
+import { DISCOVERY_ACTOR, DISCOVERY_HOST } from '@/tests/Helpers/discoveryFixture.ts'
 
 test('management protects activation previews, actors, revisions, detachment and uncertain cross-component writes', async () => {
     const script = `
@@ -7,13 +8,16 @@ test('management protects activation previews, actors, revisions, detachment and
         import { mock } from 'bun:test'
         import { PERMISSIONS } from './config/permissions.config.ts'
         import { AuthDomainError } from './server/Auth/Core/errors.server.ts'
-        import { discoveryRegistry, discoverySnapshot, DISCOVERY_ACTOR, DISCOVERY_HOST } from './tests/Helpers/discoveryFixture.ts'
+        import { discoveryRegistry, discoverySnapshot } from './tests/Helpers/discoveryFixture.ts'
+        const DISCOVERY_ACTOR = ${JSON.stringify(DISCOVERY_ACTOR)}
+        const DISCOVERY_HOST = ${JSON.stringify(DISCOVERY_HOST)}
         let grants = new Set(Object.values(PERMISSIONS))
         let registry = discoveryRegistry()
         let snapshot = discoverySnapshot()
         let controllerReads = 0
         let writeFails = false
         let transactionDenied = false
+        let rateLimited = false
         const audits = []
         const writes = []
         async function permission(key, transactional = false) {
@@ -28,7 +32,9 @@ test('management protects activation previews, actors, revisions, detachment and
         } }) }))
         mock.module('./server/ProxyRuntime/proxy-runtime-settings.ts', () => ({ lockProxyRuntimeSettings: async () => {} }))
         mock.module('./server/ProxyRuntime/proxy-runtime-data.ts', () => ({ readProxyRuntimeSnapshot: async () => assert.fail('management must not apply runtime state') }))
-        mock.module('./server/Valkey/rate-limiter.service.ts', () => ({ consumeRateLimit: async () => {} }))
+        mock.module('./server/Valkey/rate-limiter.service.ts', () => ({ consumeRateLimit: async () => {
+            if (rateLimited) throw new Error('rate limited')
+        } }))
         mock.module('./server/Audit/audit.service.ts', () => ({ appendAuditEventInTransactionService: async (_tx, value) => { audits.push(value) }, recordAuditEventBestEffortService: async value => { audits.push(value) } }))
         mock.module('./server/Admin/DockerDiscovery/discovery-worker.ts', () => ({ dockerDiscoveryWorker: { trigger: async () => {} } }))
         mock.module('./server/Admin/ProxyHostManagement/proxy-hosts.mutations.server.ts', () => ({
@@ -59,6 +65,15 @@ test('management protects activation previews, actors, revisions, detachment and
         await assert.rejects(service.getDiscoveryOverviewService(), /Denied/)
         assert.equal(controllerReads, 0)
         grants.add(PERMISSIONS.DOCKER_DISCOVERY_VIEW)
+        const connection = { expectedRevision: 0, connectorRevision: snapshot.configuration.revision, endpoint: 'http://docker-proxy:2375', acknowledgeRestore: false }
+        grants.delete(PERMISSIONS.DOCKER_DISCOVERY_MANAGE)
+        await assert.rejects(service.connectDiscoveryService(connection), /Denied/)
+        assert.equal(writes.length, 0)
+        grants.add(PERMISSIONS.DOCKER_DISCOVERY_MANAGE)
+        rateLimited = true
+        await assert.rejects(service.connectDiscoveryService(connection), /rate limited/)
+        assert.equal(writes.length, 0)
+        rateLimited = false
         let overview = await service.getDiscoveryOverviewService()
         assert.deepEqual(overview.changes, { create: 1, update: 0 })
         assert.equal(overview.management.actorUserId, undefined)

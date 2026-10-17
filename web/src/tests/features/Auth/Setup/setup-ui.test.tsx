@@ -27,8 +27,10 @@ mock.module('@tanstack/react-router', () => ({
     useRouter: () => ({ invalidate: invalidateMock }),
     useRouterState: () => undefined,
 }))
-mock.module('@rentnerkev/toasts/toast', () => ({
-    toast: { error: toastErrorMock },
+const toastPackage = await import('@rentnerkev/toasts')
+mock.module('@rentnerkev/toasts', () => ({
+    ...toastPackage,
+    toast: { ...toastPackage.toast, error: toastErrorMock },
 }))
 
 const useSetupLogic = (await import('@/features/Auth/Setup/Hooks/useSetupLogic.ts')).default

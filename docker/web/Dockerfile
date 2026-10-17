@@ -2,7 +2,6 @@ FROM mirror.gcr.io/oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343a
 
 WORKDIR /app
 COPY package.json bun.lock ./
-COPY patches ./patches
 RUN bun install --frozen-lockfile
 
 FROM dependencies AS build
@@ -21,7 +20,6 @@ ENV NODE_ENV=production \
     PORT=3000
 
 COPY package.json bun.lock ./
-COPY patches ./patches
 COPY docker/web/prune-build-tools.sh /tmp/prune-build-tools.sh
 RUN bun install --frozen-lockfile --production \
     && /bin/sh /tmp/prune-build-tools.sh \

@@ -6,7 +6,7 @@ import { invalidateRoleManagementCache } from '@/lib/Admin/RoleManagement/roleMa
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { createRoleHandler, updateRoleHandler } from '../../../middleware.ts'
 

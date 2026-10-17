@@ -5,7 +5,7 @@ import { useRouter } from '@tanstack/react-router'
 import { useCallback, useMemo, useState } from 'react'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import type { RoleManagementSummary } from '@/lib/Auth/Types/auth.types.ts'
 import { roleManagementQueryKeys } from '@/lib/Admin/RoleManagement/roleManagementCache.ts'

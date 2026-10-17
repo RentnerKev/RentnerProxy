@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Area, Point } from 'react-easy-crop'
 
 import { updateProfileImageHandler } from '../../../middleware.ts'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import {
     createCroppedProfileImageDataUrl,
