@@ -134,6 +134,20 @@ impl TargetResult {
             ..Self::new(target, Status::Failed)
         }
     }
+    pub(super) fn provider_cooldown(&self) -> Option<(u32, Error)> {
+        match self.error? {
+            Error::ProviderRateLimited => Some((
+                self.retry_after_seconds.unwrap_or(1),
+                Error::ProviderRateLimited,
+            )),
+            // A write can be unconfirmed while the provider still requests a
+            // global pause. Preserve that target's uncertainty separately.
+            Error::ProviderUnavailable | Error::WriteUnconfirmed => self
+                .retry_after_seconds
+                .map(|seconds| (seconds, Error::ProviderUnavailable)),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]

@@ -442,16 +442,13 @@ describe('Cloudflare DNS connection management', () => {
         await click(button('Edit'))
         expect(document.querySelector<HTMLInputElement>('input[name="apiToken"]')?.value).toBe('')
     })
-    test('query failures recover through live invalidation without reload buttons', async () => {
+    test('query failures recover without another notification or reload button', async () => {
         queryFails = true
         await renderPage()
         expect(
             feedback.some((message) => String(message).includes('controller is unavailable')),
         ).toBe(true)
         queryFails = false
-        await act(async () => {
-            await queryClient.invalidateQueries({ queryKey: ['dns-connections'] })
-        })
         await waitFor(() => document.body.textContent?.includes('No DNS connections yet') === true)
         expect(document.body.textContent).not.toContain('Reload connections')
     })

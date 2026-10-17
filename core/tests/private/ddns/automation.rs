@@ -1,5 +1,7 @@
 #[path = "automation_http.rs"]
 mod http;
+#[path = "automation_recovery.rs"]
+mod recovery;
 use super::super::fixture::*;
 use super::*;
 use crate::runtime::{

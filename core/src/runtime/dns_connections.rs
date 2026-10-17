@@ -40,6 +40,8 @@ pub(crate) struct Store {
     key: Option<[u8; 32]>,
     #[cfg(test)]
     endpoint: Option<String>,
+    #[cfg(test)]
+    fail_after_persist: std::sync::atomic::AtomicBool,
 }
 impl Store {
     pub(crate) fn new(path: PathBuf) -> Self {
@@ -50,6 +52,8 @@ impl Store {
             key: None,
             #[cfg(test)]
             endpoint: None,
+            #[cfg(test)]
+            fail_after_persist: std::sync::atomic::AtomicBool::new(false),
         }
     }
     fn key(&self) -> Result<[u8; 32], Error> {
@@ -117,7 +121,27 @@ impl Store {
         }
         state_dir(&self.path)
             .and_then(|dir| dir.atomic_write(FILE, &bytes))
-            .map_err(|_| Error::StoreUnavailable)
+            .map_err(|_| Error::StoreUnavailable)?;
+        #[cfg(test)]
+        if self
+            .fail_after_persist
+            .swap(false, std::sync::atomic::Ordering::SeqCst)
+        {
+            return Err(Error::StoreUnavailable);
+        }
+        Ok(())
+    }
+    fn commit(
+        &self,
+        state: &mut MutexGuard<'_, Option<Registry>>,
+        registry: Registry,
+    ) -> Result<(), Error> {
+        // Replacement may succeed before a later directory sync fails. Only
+        // authoritative disk state can decide the next admitted operation.
+        **state = None;
+        self.persist(&registry)?;
+        **state = Some(registry);
+        Ok(())
     }
     fn decrypt(&self, entry: &Entry) -> Result<String, Error> {
         let aad = format!("dns-connection:{}:v1", entry.metadata.id);
@@ -281,8 +305,7 @@ impl Store {
             metadata: metadata.clone(),
             secret,
         });
-        self.persist(&next)?;
-        *registry = next;
+        self.commit(&mut state, next)?;
         Ok(metadata)
     }
     pub(crate) async fn delete(&self, id: &str, expected_revision: u32) -> Result<(), Error> {
@@ -303,8 +326,7 @@ impl Store {
         }
         let mut next = registry.clone();
         next.connections.retain(|e| e.metadata.id != id);
-        self.persist(&next)?;
-        *registry = next;
+        self.commit(&mut state, next)?;
         Ok(())
     }
     pub(crate) async fn validate_reference(

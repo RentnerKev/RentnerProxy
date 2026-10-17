@@ -246,13 +246,10 @@ pub(super) fn complete(
             failed += 1;
             state.consecutive_failures = state.consecutive_failures.saturating_add(1).min(32);
             state.permanent_failure = result.error.is_some_and(|error| !transient(error));
-            if result.error == Some(Error::ProviderRateLimited)
-                || (result.error == Some(Error::ProviderUnavailable)
-                    && result.retry_after_seconds.is_some())
-            {
-                let until = now + i64::from(result.retry_after_seconds.unwrap_or(1));
+            if let Some((seconds, reason)) = result.provider_cooldown() {
+                let until = now + i64::from(seconds);
                 if until >= value.provider_not_before.unwrap_or(0) {
-                    value.provider_pause_reason = result.error;
+                    value.provider_pause_reason = Some(reason);
                 }
                 value.provider_not_before = Some(value.provider_not_before.unwrap_or(0).max(until));
             }

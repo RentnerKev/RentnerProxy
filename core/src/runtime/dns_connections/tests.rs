@@ -49,6 +49,54 @@ fn request(revision: u32) -> SaveRequest {
     }
 }
 #[tokio::test]
+async fn uncertain_registry_writes_reload_rotations_references_and_deletions() {
+    let (store, task, _) = fixture().await;
+    store.save(ID.into(), request(0)).await.unwrap();
+    let mut rotation = request(1);
+    rotation.api_token = Some("replacement-token".into());
+    store.fail_after_persist.store(true, Ordering::SeqCst);
+    assert!(matches!(
+        store.save(ID.into(), rotation).await,
+        Err(Error::StoreUnavailable)
+    ));
+    assert_eq!(store.list().await.unwrap()[0].revision, 2);
+    assert_eq!(
+        store.record_access(ID, &zone_id('a')).await.unwrap().token,
+        "replacement-token"
+    );
+    assert!(matches!(
+        store.save(ID.into(), request(1)).await,
+        Err(Error::ConnectionConflict)
+    ));
+    let reference = Reference {
+        connection_id: ID.into(),
+        zone_id: zone_id('a'),
+        consumer: Consumer {
+            r#type: ConsumerType::Ddns,
+            id: USER.into(),
+        },
+    };
+    store.fail_after_persist.store(true, Ordering::SeqCst);
+    assert!(matches!(
+        store.ddns_references(&[reference], true, true).await,
+        Err(Error::StoreUnavailable)
+    ));
+    assert_eq!(store.list().await.unwrap()[0].references.len(), 1);
+    assert!(matches!(
+        store.delete(ID, 2).await,
+        Err(Error::ConnectionInUse)
+    ));
+    store.ddns_references(&[], false, false).await.unwrap();
+    store.fail_after_persist.store(true, Ordering::SeqCst);
+    assert!(matches!(
+        store.delete(ID, 2).await,
+        Err(Error::StoreUnavailable)
+    ));
+    assert!(store.list().await.unwrap().is_empty());
+    task.abort();
+}
+
+#[tokio::test]
 async fn multizone_encryption_rotation_restart_and_redaction() {
     let (store, task, status) = fixture().await;
     let first = store.save(ID.into(), request(0)).await.unwrap();
@@ -345,12 +393,13 @@ async fn failures_preserve_state_and_clock_rollback_keeps_timestamp_order() {
         store.save(ID.into(), request(1)).await,
         Err(Error::StoreUnavailable)
     ));
-    assert_eq!(store.list().await.unwrap()[0].revision, 1);
+    assert!(matches!(store.list().await, Err(Error::StoreUnavailable)));
     std::fs::remove_dir(&target).unwrap();
     state_dir(&store.path)
         .unwrap()
         .atomic_write(FILE, &bytes)
         .unwrap();
+    assert_eq!(store.list().await.unwrap()[0].revision, 1);
     {
         let mut state = store.lock().await.unwrap();
         let registry = Store::registry(&mut state).unwrap();

@@ -183,11 +183,12 @@ impl Automation {
             },
         };
         let mut state = self.state.lock().await;
-        let mut next = state
-            .as_ref()
-            .ok_or(AutomationError::StoreUnavailable)?
+        let finished_at = now + started.elapsed().as_secs() as i64;
+        let mut next = self
+            .loaded(&mut state, connections, finished_at)
+            .await?
             .clone();
-        scheduling::complete(&mut next, &result, now + started.elapsed().as_secs() as i64)?;
+        scheduling::complete(&mut next, &result, finished_at)?;
         self.commit(&mut state, next).await?;
         Ok(Some(result))
     }
@@ -229,26 +230,14 @@ impl Automation {
         if let Some((seconds, reason)) = result
             .targets
             .iter()
-            .filter(|target| {
-                target.status == Status::Failed
-                    && (target.error == Some(Error::ProviderRateLimited)
-                        || (target.error == Some(Error::ProviderUnavailable)
-                            && target.retry_after_seconds.is_some()))
-            })
-            .map(|target| {
-                (
-                    target.retry_after_seconds.unwrap_or(1),
-                    target.error.unwrap_or(Error::ProviderRateLimited),
-                )
-            })
+            .filter(|target| target.status == Status::Failed)
+            .filter_map(TargetResult::provider_cooldown)
             .max_by_key(|(seconds, _)| *seconds)
         {
             let mut state = self.state.lock().await;
-            let mut next = state
-                .as_ref()
-                .ok_or(AutomationError::StoreUnavailable)?
-                .clone();
-            let until = Self::now() + i64::from(seconds);
+            let now = Self::now();
+            let mut next = self.loaded(&mut state, connections, now).await?.clone();
+            let until = now + i64::from(seconds);
             if until >= next.provider_not_before.unwrap_or(0) {
                 next.provider_pause_reason = Some(reason);
             }

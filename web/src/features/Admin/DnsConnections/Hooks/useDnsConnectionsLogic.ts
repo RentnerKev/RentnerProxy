@@ -11,6 +11,7 @@ import type {
 } from '@/lib/DnsConnections/Types/dns-connections.types.ts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useLiveInvalidation from '@/shared/Live/Hooks/useLiveInvalidation.ts'
+import useQueryRecovery from '@/shared/Live/Hooks/useQueryRecovery.ts'
 import useQueryErrorToast from '@/shared/Notifications/Hooks/useQueryErrorToast.ts'
 import {
     deleteDnsConnectionHandler,
@@ -42,6 +43,7 @@ export default function useDnsConnectionsLogic({
         enabled: canView,
         retry: false,
     })
+    useQueryRecovery(connectionsQuery, canView)
     useLiveInvalidation({
         topic: 'dns-connections',
         query: {},

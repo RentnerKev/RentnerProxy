@@ -33,13 +33,12 @@ export default function useClientTable<TData extends RowData>({
 
     const setGlobalFilter = table.setGlobalFilter
     const firstPage = table.firstPage
-    const getPageCount = table.getPageCount
+    const pageCount = table.getPageCount()
     const setPageIndex = table.setPageIndex
     const columnFiltersAtom = table.atoms.columnFilters
     const globalFilterAtom = table.atoms.globalFilter
     const paginationAtom = table.atoms.pagination
     const sortingAtom = table.atoms.sorting
-    const dataLength = data.length
 
     useEffect(() => {
         const timeout = window.setTimeout(() => {
@@ -66,13 +65,13 @@ export default function useClientTable<TData extends RowData>({
     }, [columnFiltersAtom, firstPage, globalFilterAtom, sortingAtom])
 
     useEffect(() => {
-        const lastPageIndex = dataLength === 0 ? 0 : Math.max(getPageCount() - 1, 0)
+        const lastPageIndex = Math.max(pageCount - 1, 0)
         const pageIndex = paginationAtom.get().pageIndex
 
         if (pageIndex > lastPageIndex) {
             setPageIndex(lastPageIndex)
         }
-    }, [dataLength, getPageCount, paginationAtom, setPageIndex])
+    }, [pageCount, paginationAtom, setPageIndex])
 
     const handleResetFilters = useCallback(() => {
         setSearchInput('')

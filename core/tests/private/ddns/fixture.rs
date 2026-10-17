@@ -57,6 +57,7 @@ pub(super) struct Data {
     pub(super) v4: String,
     pub(super) v6: String,
     pub(super) status: StatusCode,
+    pub(super) write_status: StatusCode,
     pub(super) retry_after: String,
     pub(super) bad_ack: bool,
     pub(super) change_on_second_read: bool,
@@ -90,6 +91,7 @@ impl Fixture {
                 v4: "ip=8.8.4.4\n".into(),
                 v6: "ip=2001:4860:4860::8844\n".into(),
                 status: StatusCode::OK,
+                write_status: StatusCode::OK,
                 retry_after: "17".into(),
                 bad_ack: false,
                 change_on_second_read: false,
@@ -250,7 +252,7 @@ async fn create(
     Path(zone): Path<String>,
     headers: HeaderMap,
     Json(mut value): Json<Value>,
-) -> (StatusCode, Json<Value>) {
+) -> (StatusCode, HeaderMap, Json<Value>) {
     authenticated(&headers);
     let sequence = mock.writes.fetch_add(1, Ordering::SeqCst) + 1;
     assert!(matches!(value["type"].as_str(), Some("A" | "AAAA")));
@@ -261,11 +263,15 @@ async fn create(
             .starts_with("rentnerproxy-ddns:")
     );
     let mut data = mock.data.lock().unwrap();
+    if let Some(failure) = write_failure(&data) {
+        return failure;
+    }
     value["zone_id"] = json!(zone);
     value["id"] = json!(format!("f{sequence:031x}"));
     data.records.push(value.clone());
     (
         StatusCode::OK,
+        HeaderMap::new(),
         Json(
             json!({"success":true,"result":if data.bad_ack {json!({"private":SECRET})} else {value}}),
         ),
@@ -276,7 +282,7 @@ async fn update(
     Path((zone, id)): Path<(String, String)>,
     headers: HeaderMap,
     Json(body): Json<Value>,
-) -> (StatusCode, Json<Value>) {
+) -> (StatusCode, HeaderMap, Json<Value>) {
     authenticated(&headers);
     mock.writes.fetch_add(1, Ordering::SeqCst);
     let keys: std::collections::BTreeSet<_> = body
@@ -287,6 +293,9 @@ async fn update(
         .collect();
     assert_eq!(keys, ["content", "proxied"].into_iter().collect());
     let mut data = mock.data.lock().unwrap();
+    if let Some(failure) = write_failure(&data) {
+        return failure;
+    }
     let record = data
         .records
         .iter_mut()
@@ -297,8 +306,22 @@ async fn update(
     let value = record.clone();
     (
         StatusCode::OK,
+        HeaderMap::new(),
         Json(
             json!({"success":true,"result":if data.bad_ack {json!({"private":SECRET})} else {value}}),
         ),
     )
+}
+
+fn write_failure(data: &Data) -> Option<(StatusCode, HeaderMap, Json<Value>)> {
+    if data.write_status == StatusCode::OK {
+        return None;
+    }
+    let mut headers = HeaderMap::new();
+    headers.insert("retry-after", data.retry_after.parse().unwrap());
+    Some((
+        data.write_status,
+        headers,
+        Json(json!({"success":false,"errors":[{"message":SECRET}]})),
+    ))
 }

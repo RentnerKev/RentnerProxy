@@ -14,6 +14,7 @@ import useTranslationStore, {
     useDateTimeFormatter,
 } from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useLiveInvalidation from '@/shared/Live/Hooks/useLiveInvalidation.ts'
+import useQueryRecovery from '@/shared/Live/Hooks/useQueryRecovery.ts'
 import useQueryErrorToast from '@/shared/Notifications/Hooks/useQueryErrorToast.ts'
 import type { DdnsPageProps, DdnsResponse } from '../Types/ddns-ui.types.ts'
 import type { DdnsRecordEditorContext, DdnsDeletionContext } from '../Types/ddns-editor.types.ts'
@@ -50,6 +51,8 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
         enabled: canChooseConnection,
         retry: false,
     })
+    useQueryRecovery(statusQuery, canView)
+    useQueryRecovery(connectionsQuery, canChooseConnection)
     useLiveInvalidation({
         topic: 'ddns',
         query: {},
@@ -148,7 +151,7 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
         candidate: DdnsDraft,
         expectedRevision: number,
         message: string,
-        enabled = settings?.targets.length ? settings.enabled : !snapshot?.restorePaused,
+        enabled = settings ? settings.enabled : !snapshot?.restorePaused,
     ) {
         if (locked) return
         const prepared = withDdnsRecordFamilies(candidate)

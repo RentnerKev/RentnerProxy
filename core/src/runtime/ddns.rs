@@ -149,12 +149,9 @@ impl Engine {
                 }
             };
             if result.status == Status::Failed
-                && (result.error == Some(Error::ProviderRateLimited)
-                    || (result.error == Some(Error::ProviderUnavailable)
-                        && result.retry_after_seconds.is_some()))
+                && let Some((seconds, reason)) = result.provider_cooldown()
             {
-                let seconds = result.retry_after_seconds.unwrap_or(1);
-                cooldown_error = result.error.unwrap_or(Error::ProviderRateLimited);
+                cooldown_error = reason;
                 *run = Some(Cooldown {
                     until: Instant::now() + Duration::from_secs(u64::from(seconds)),
                     error: cooldown_error,

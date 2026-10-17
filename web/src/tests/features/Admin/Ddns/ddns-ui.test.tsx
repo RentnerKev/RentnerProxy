@@ -202,6 +202,52 @@ async function action(label: string) {
     )
 }
 describe('DDNS administration UI', () => {
+    test('live status changes clamp the actual filtered page when matching rows shrink', async () => {
+        const targets = Array.from({ length: 12 }, (_, index) =>
+            ddnsTarget({
+                id: `0198d98a-0000-7000-8000-${String(index + 100).padStart(12, '0')}`,
+                name: `node-${index}.example.com`,
+            }),
+        )
+        const draft = ddnsSettings(targets)
+        const initial = ddnsSnapshot(draft, true)
+        initial.targets.forEach((state, index) => {
+            state.lastResult = {
+                ...ddnsBatch(draft).targets[index]!,
+                status: 'failed',
+                error: 'provider_unavailable',
+            }
+        })
+        await render(fixture(initial).api)
+        await click(document.querySelector('button[aria-label="Filters"]')!)
+        await click(
+            document.querySelector('[role="combobox"][aria-label="Filter Status / last IP…"]')!,
+        )
+        const label = catalogs.en.admin.ddns.results.failed
+        await waitFor(() =>
+            [...document.querySelectorAll('[role="option"]')].some(
+                (item) => item.textContent?.trim() === label,
+            ),
+        )
+        await click(
+            [...document.querySelectorAll('[role="option"]')].find(
+                (item) => item.textContent?.trim() === label,
+            )!,
+        )
+        await click(document.querySelector('button[aria-label="Go to next page"]')!)
+        await waitFor(() => document.querySelectorAll('tbody tr').length === 2)
+        const updated = structuredClone(initial)
+        updated.targets.slice(1).forEach((state) => {
+            state.lastResult = null
+        })
+        await act(async () => client.setQueryData(DDNS_QUERY_KEYS.status, updated))
+        await waitFor(
+            () =>
+                !!document.querySelector('button[aria-label="Actions for node-0.example.com (A)"]'),
+        )
+        expect(document.querySelectorAll('tbody tr')).toHaveLength(1)
+        expect(document.querySelector('[aria-current="page"]')?.textContent).toBe('1')
+    })
     test('a status filter retains its label when live results no longer contain that status', async () => {
         const initial = ddnsSnapshot(approved, true)
         initial.targets[0]!.lastResult = {
@@ -358,6 +404,24 @@ describe('DDNS administration UI', () => {
         await submit()
         await waitFor(() => !document.querySelector('form'))
         expect(api.apply).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
+        expect(api.enable).not.toHaveBeenCalled()
+    })
+    test('emptying an explicitly paused configuration does not activate newly added records', async () => {
+        const { api } = fixture(ddnsSnapshot(approved, true))
+        await render(api)
+        await click(button('Pause DDNS'))
+        await waitFor(() => !button('Add records').disabled)
+        await action('Delete')
+        await click(button('Delete', document.querySelector('[role="dialog"]')!))
+        await waitFor(
+            () => !document.querySelector('button[aria-label="Actions for example.com (A)"]'),
+        )
+        await click(button('Add records'))
+        await select(0, 'Fixture Cloudflare')
+        await fill('domain-0', 'replacement.example.com')
+        await submit()
+        await waitFor(() => (api.apply as ReturnType<typeof mock>).mock.calls.length === 2)
+        expect(api.apply).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: false }))
         expect(api.enable).not.toHaveBeenCalled()
     })
     test('repeated form submissions admit only one pending configuration write', async () => {
@@ -618,7 +682,7 @@ describe('DDNS administration UI', () => {
         await click(button('Pause DDNS'))
         expect(api.disable).toHaveBeenCalledTimes(1)
     })
-    test('failed live refetch keeps known records, blocks writes and recovers without reload controls', async () => {
+    test('failed live refetch keeps records, blocks writes and recovers without another notification', async () => {
         const { api, setUnavailable } = fixture(ddnsSnapshot(approved, true))
         await render(api)
         setUnavailable(true)
@@ -629,9 +693,6 @@ describe('DDNS administration UI', () => {
         expect(document.body.textContent).toContain('example.com')
         expect(feedback.some((item) => item.kind === 'error')).toBe(true)
         setUnavailable(false)
-        await act(async () => {
-            await client.invalidateQueries({ queryKey: DDNS_QUERY_KEYS.status })
-        })
         await waitFor(() => !button('Update now').disabled)
     })
     test('all languages contain the complete journey', () => {

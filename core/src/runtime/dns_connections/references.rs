@@ -74,8 +74,7 @@ impl Store {
             for entry in &next.connections {
                 validation::metadata(&entry.metadata)?;
             }
-            self.persist(&next)?;
-            *registry = next;
+            self.commit(&mut state, next)?;
         }
         Ok(())
     }
