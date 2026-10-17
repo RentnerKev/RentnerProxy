@@ -26,12 +26,19 @@ const TOAST_CUSTOM_DESIGN = {
     contentText: 'text-muted',
     linkText:
         'pointer-events-auto inline-block cursor-pointer font-extrabold text-accent-ring underline decoration-2 underline-offset-2 transition-opacity hover:opacity-80 motion-reduce:transition-none',
-    closeButton: 'text-muted group-hover:text-ink',
-    copyButton: 'text-muted group-hover:text-ink',
 } satisfies ToastCustomDesign
 
 export const TOAST_PROVIDER_PROPS = {
     position: TOAST_POSITION,
     className: TOAST_CLASS_NAME,
     customDesign: TOAST_CUSTOM_DESIGN,
-} satisfies Pick<ToastProviderProps, 'position' | 'className' | 'customDesign'>
+    classNames: {
+        closeIcon: 'text-muted group-hover:text-ink',
+        copyIcon: 'text-muted group-hover:text-ink',
+    },
+    portalContainer: 'body',
+    pauseWhenQueued: false,
+} satisfies Pick<
+    ToastProviderProps,
+    'position' | 'className' | 'customDesign' | 'classNames' | 'portalContainer' | 'pauseWhenQueued'
+>

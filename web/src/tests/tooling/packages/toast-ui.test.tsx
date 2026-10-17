@@ -170,8 +170,8 @@ async function waitFor(condition: () => boolean, timeoutMs = 1_500): Promise<voi
     expect(condition()).toBe(true)
 }
 
-function getToastNodes(container: Element): Array<HTMLElement> {
-    return [...container.querySelectorAll<HTMLElement>('.rentnerproxy-toast')]
+function getToastNodes(): Array<HTMLElement> {
+    return [...document.querySelectorAll<HTMLElement>('.rentnerproxy-toast')]
 }
 
 afterEach(async () => {
@@ -208,9 +208,9 @@ describe('RentnerToasts integration', () => {
         await click(container.querySelector('[data-testid="limit-two"]')!)
         await click(container.querySelector('[data-testid="limit-three"]')!)
         await click(container.querySelector('[data-testid="limit-four"]')!)
-        await waitFor(() => getToastNodes(container).length === 3)
+        await waitFor(() => getToastNodes().length === 3)
 
-        const messages = getToastNodes(container).map((node) => node.textContent ?? '')
+        const messages = getToastNodes().map((node) => node.textContent ?? '')
         expect(messages.some((message) => message.includes('Password changed.'))).toBeFalse()
         expect(messages.some((message) => message.includes('Information'))).toBeTrue()
         expect(messages.some((message) => message.includes('Profile picture updated.'))).toBeTrue()
@@ -225,13 +225,15 @@ describe('RentnerToasts integration', () => {
         const container = await render(<LanguageToastHarness />)
 
         await click(container.querySelector('[data-testid="language-one"]')!)
-        expect(container.textContent).toContain('Success')
-        expect(container.textContent).toContain('Password changed. Other sessions were revoked.')
+        expect(document.body.textContent).toContain('Success')
+        expect(document.body.textContent).toContain(
+            'Password changed. Other sessions were revoked.',
+        )
 
         await click(container.querySelector('[data-testid="language-switch"]')!)
         await click(container.querySelector('[data-testid="language-one"]')!)
-        await waitFor(() => container.textContent?.includes('Erfolgreich') ?? false)
-        expect(container.textContent).toContain('Passwort geändert.')
+        await waitFor(() => document.body.textContent?.includes('Erfolgreich') ?? false)
+        expect(document.body.textContent).toContain('Passwort geändert.')
     })
 
     test('dismisses a toast and automatically removes short messages', async () => {
@@ -248,7 +250,7 @@ describe('RentnerToasts integration', () => {
         )
 
         await click(container.querySelector('[data-testid="dismiss-one"]')!)
-        const toastNode = getToastNodes(container)[0]
+        const toastNode = getToastNodes()[0]
         expect(toastNode?.textContent).toContain('Success')
         expect(toastNode?.textContent).toContain('Password changed.')
 
@@ -257,11 +259,11 @@ describe('RentnerToasts integration', () => {
         )
         expect(close).not.toBeNull()
         await click(close!)
-        await waitFor(() => getToastNodes(container).length === 0)
+        await waitFor(() => getToastNodes().length === 0)
 
         await click(container.querySelector('[data-testid="dismiss-short"]')!)
-        expect(getToastNodes(container)).toHaveLength(1)
-        await waitFor(() => getToastNodes(container).length === 0, 1_000)
+        expect(getToastNodes()).toHaveLength(1)
+        await waitFor(() => getToastNodes().length === 0, 1_000)
     })
 
     test('announces errors and copies their title together with the body', async () => {
@@ -285,10 +287,10 @@ describe('RentnerToasts integration', () => {
             )
             await click(container.querySelector('[data-testid="error-four"]')!)
 
-            expect(container.querySelector('section[aria-label]')?.getAttribute('aria-label')).toBe(
+            expect(document.querySelector('section[aria-label]')?.getAttribute('aria-label')).toBe(
                 'Notification',
             )
-            const errorToast = container.querySelector<HTMLElement>(
+            const errorToast = document.querySelector<HTMLElement>(
                 '.rentnerproxy-toast-error[role="alert"]',
             )
             expect(errorToast?.textContent).toContain('Action failed')

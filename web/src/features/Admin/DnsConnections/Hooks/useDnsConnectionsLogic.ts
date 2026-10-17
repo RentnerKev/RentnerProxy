@@ -12,7 +12,6 @@ import type {
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useLiveInvalidation from '@/shared/Live/Hooks/useLiveInvalidation.ts'
 import useQueryRecovery from '@/shared/Live/Hooks/useQueryRecovery.ts'
-import useQueryErrorToast from '@/shared/Notifications/Hooks/useQueryErrorToast.ts'
 import {
     deleteDnsConnectionHandler,
     getDnsConnectionsHandler,
@@ -50,10 +49,14 @@ export default function useDnsConnectionsLogic({
         enabled: canView && liveEnabled,
         queryKeys: DNS_CONNECTION_LIVE_QUERY_KEYS,
     })
-    useQueryErrorToast(
-        connectionsQuery.isError,
-        'admin.dnsConnections.errors.controller_unavailable',
-    )
+    useEffect(() => {
+        if (connectionsQuery.isError) {
+            toast.error(t('admin.dnsConnections.errors.controller_unavailable'), {
+                title: t('toast.titles.error'),
+                dedupeKey: 'dns-connections-read',
+            })
+        }
+    }, [connectionsQuery.isError, t])
     async function invalidate(saved?: DnsConnection, removedId?: string) {
         await Promise.all(
             DNS_CONNECTION_LIVE_QUERY_KEYS.map((queryKey) =>

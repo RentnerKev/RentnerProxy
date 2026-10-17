@@ -16,7 +16,6 @@ import { invalidateProxyHostManagementCache } from '@/lib/Admin/ProxyHostManagem
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useLiveInvalidation from '@/shared/Live/Hooks/useLiveInvalidation.ts'
 import useQueryRecovery from '@/shared/Live/Hooks/useQueryRecovery.ts'
-import useQueryErrorToast from '@/shared/Notifications/Hooks/useQueryErrorToast.ts'
 import type {
     DockerDiscoveryPageProps,
     DiscoveryConfirmation,
@@ -61,20 +60,35 @@ export default function useDockerDiscoveryLogic({
         enabled: canView && liveEnabled,
         queryKeys: DOCKER_DISCOVERY_LIVE_QUERY_KEYS,
     })
-    useQueryErrorToast(
-        canView && (query.isError || query.data?.snapshot === null),
-        'admin.dockerDiscovery.errors.controller_unavailable',
-    )
+    const controllerUnavailable = canView && (query.isError || query.data?.snapshot === null)
+    useEffect(() => {
+        if (controllerUnavailable) {
+            toast.error(t('admin.dockerDiscovery.errors.controller_unavailable'), {
+                title: t('toast.titles.error'),
+                dedupeKey: 'docker-discovery-controller',
+            })
+        }
+    }, [controllerUnavailable, t])
     const overview = canView ? query.data : undefined
     const snapshot = overview?.snapshot
-    useQueryErrorToast(
-        canView && snapshot?.status === 'unavailable',
-        'admin.dockerDiscovery.errors.endpoint_unavailable',
-    )
-    useQueryErrorToast(
-        canView && Boolean(overview?.management.error),
-        `admin.dockerDiscovery.issues.${overview?.management.error ?? 'reconcile_failed'}`,
-    )
+    const endpointUnavailable = canView && snapshot?.status === 'unavailable'
+    useEffect(() => {
+        if (endpointUnavailable) {
+            toast.error(t('admin.dockerDiscovery.errors.endpoint_unavailable'), {
+                title: t('toast.titles.error'),
+                dedupeKey: 'docker-discovery-endpoint',
+            })
+        }
+    }, [endpointUnavailable, t])
+    const managementError = canView ? overview?.management.error : undefined
+    useEffect(() => {
+        if (managementError) {
+            toast.error(t(`admin.dockerDiscovery.issues.${managementError}`), {
+                title: t('toast.titles.error'),
+                dedupeKey: `docker-discovery-issue-${managementError}`,
+            })
+        }
+    }, [managementError, t])
     const available = Boolean(snapshot && !query.isError)
     const needsActivation =
         !overview?.management.enabled ||

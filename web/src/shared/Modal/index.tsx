@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
+import { ToastFocusScopeBranch } from '@rentnerkev/toasts/radix'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 
@@ -37,6 +38,7 @@ export function Modal({
                     onInteractOutside={handler.preventClose}
                     className={`fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-panel outline-hidden sm:max-h-[min(44rem,calc(100dvh-3rem))] sm:w-[calc(100%-3rem)] ${contentSizeClassNames[size]} data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 motion-reduce:animate-none`}
                 >
+                    <ToastFocusScopeBranch />
                     <header className="flex shrink-0 items-center justify-between gap-5 border-b border-border px-5 py-4 sm:px-6">
                         <div className="min-w-0">
                             <Dialog.Title className="m-0 text-lg font-extrabold leading-tight text-ink-soft sm:text-xl">
@@ -60,10 +62,6 @@ export function Modal({
                             {children}
                         </div>
                     ) : null}
-                    <div
-                        data-modal-toast-host
-                        className="mx-5 mb-4 max-h-[min(14rem,30dvh)] shrink-0 overflow-x-hidden overflow-y-auto empty:hidden sm:mx-6 [&>section[aria-label]]:relative [&>section[aria-label]]:inset-auto [&>section[aria-label]]:z-auto [&>section[aria-label]]:w-full [&>section[aria-label]]:p-0"
-                    />
                     {footer ? (
                         <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 [&_button]:max-sm:flex-1 border-t border-border bg-surface-subtle px-5 py-4 sm:px-6">
                             {footer}

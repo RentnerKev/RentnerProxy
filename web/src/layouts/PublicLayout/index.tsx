@@ -1,15 +1,19 @@
 import { Outlet } from '@tanstack/react-router'
+import { ToastProvider } from '@rentnerkev/toasts'
+import { toast } from '@rentnerkev/toasts/toast'
+import { useEffect } from 'react'
 
-import ToastPortal from '@/shared/Notifications/ToastPortal.tsx'
-import useClearNotificationsOnLayoutExit from '@/layouts/RootLayout/Hooks/useClearNotificationsOnLayoutExit.ts'
+import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
 
 export default function PublicLayout() {
-    useClearNotificationsOnLayoutExit()
+    useEffect(() => () => toast.dismissAll(), [])
 
     return (
         <>
             <Outlet />
-            <ToastPortal locale="en" />
+            <ToastProvider {...TOAST_PROVIDER_PROPS} locale="en">
+                {null}
+            </ToastProvider>
         </>
     )
 }
