@@ -144,9 +144,8 @@ impl Automation {
         let _active = ActiveRun::new(&self.active);
         self.commit(&mut state, next).await?;
         drop(state);
-        // The persisted cooldown is authoritative after a restart. The same run
-        // admission gate also covers previews, so resetting the volatile timer
-        // here cannot race another provider request.
+        // Reconcile durable state while retaining provider feedback whose
+        // previous commit was cancelled or failed.
         engine
             .cooldown(None)
             .await
@@ -190,6 +189,7 @@ impl Automation {
             .clone();
         scheduling::complete(&mut next, &result, finished_at)?;
         self.commit(&mut state, next).await?;
+        engine.mark_cooldown_persisted();
         Ok(Some(result))
     }
     pub(crate) async fn preview(
@@ -230,7 +230,7 @@ impl Automation {
         if let Some((seconds, reason)) = result
             .targets
             .iter()
-            .filter(|target| target.status == Status::Failed)
+            .filter(|target| matches!(target.status, Status::Failed | Status::Skipped))
             .filter_map(TargetResult::provider_cooldown)
             .max_by_key(|(seconds, _)| *seconds)
         {
@@ -246,6 +246,7 @@ impl Automation {
                 target.next_attempt_at = target.next_attempt_at.map(|at| at.max(until));
             }
             self.commit(&mut state, next).await?;
+            engine.mark_cooldown_persisted();
         }
         Ok(result)
     }

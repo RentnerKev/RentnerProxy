@@ -1,6 +1,96 @@
 use super::*;
 
 #[tokio::test]
+async fn uncommitted_provider_cooldowns_survive_cancelled_and_failed_preview_persistence() {
+    for cancelled in [true, false] {
+        for next_batch in [false, true] {
+            let fixture = Fixture::new(vec![]).await;
+            let automation = Automation::new(fixture.path.clone());
+            configure(&automation, &fixture, settings(0, true, true)).await;
+            {
+                let mut data = fixture.mock.data.lock().unwrap();
+                data.status = StatusCode::TOO_MANY_REQUESTS;
+                data.retry_after = "120".into();
+            }
+            let request = || {
+                request(vec![target(
+                    10,
+                    "example.com",
+                    RecordType::A,
+                    Selection::Create,
+                )])
+            };
+            if cancelled {
+                fixture.mock.pause.store(true, Ordering::SeqCst);
+                let io;
+                {
+                    let preview = automation.preview(&fixture.store, &fixture.engine, request());
+                    tokio::pin!(preview);
+                    tokio::select! { _=fixture.mock.entered.notified()=>{}, _=&mut preview=>panic!("preview did not pause") }
+                    io = Arc::clone(&automation.io).lock_owned().await;
+                    fixture.mock.pause.store(false, Ordering::SeqCst);
+                    fixture.mock.release.notify_one();
+                    tokio::time::timeout(Duration::from_secs(3), async {
+                        loop {
+                            tokio::select! { biased; result=&mut preview=>panic!("preview should wait for I/O: {result:?}"), _=tokio::task::yield_now()=>{} }
+                            if let Ok(cooldown) = fixture.engine.run.try_lock()
+                                && cooldown.is_some()
+                            {
+                                break;
+                            }
+                        }
+                    }).await.unwrap();
+                }
+                drop(io);
+            } else {
+                let path = fixture.path.join(persistence::FILE);
+                let bytes = std::fs::read(&path).unwrap();
+                std::fs::remove_file(&path).unwrap();
+                std::fs::create_dir(&path).unwrap();
+                assert!(matches!(
+                    automation
+                        .preview(&fixture.store, &fixture.engine, request())
+                        .await,
+                    Err(AutomationError::StoreUnavailable)
+                ));
+                std::fs::remove_dir(&path).unwrap();
+                std::fs::write(&path, bytes).unwrap();
+            }
+            assert_eq!(fixture.mock.reads.load(Ordering::SeqCst), 1);
+            let result = if next_batch {
+                tick(&automation, &fixture, NOW).await.unwrap()
+            } else {
+                automation
+                    .preview(&fixture.store, &fixture.engine, request())
+                    .await
+                    .unwrap()
+            };
+            assert_eq!(result.targets[0].status, Status::Skipped);
+            assert_eq!(result.targets[0].error, Some(Error::ProviderRateLimited));
+            assert_eq!(fixture.mock.reads.load(Ordering::SeqCst), 1);
+            assert_eq!(fixture.writes(), 0);
+            let state = automation.status(&fixture.store).await.unwrap();
+            assert!(state.provider_not_before.is_some());
+            assert_eq!(
+                state.provider_pause_reason,
+                Some(Error::ProviderRateLimited)
+            );
+            let restarted = Automation::new(fixture.path.clone());
+            let fresh_engine = Engine {
+                discovery_urls: fixture.engine.discovery_urls.clone(),
+                ..Engine::new()
+            };
+            let result = restarted
+                .preview(&fixture.store, &fresh_engine, request())
+                .await
+                .unwrap();
+            assert_eq!(result.targets[0].status, Status::Skipped);
+            assert_eq!(fixture.mock.reads.load(Ordering::SeqCst), 1);
+        }
+    }
+}
+
+#[tokio::test]
 async fn write_retry_after_fences_other_targets_and_survives_restart() {
     for adopt in [false, true] {
         let fixture = Fixture::new(if adopt {

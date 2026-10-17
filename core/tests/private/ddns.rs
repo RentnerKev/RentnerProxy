@@ -495,6 +495,7 @@ async fn rate_limits_pause_remaining_targets_and_subsequent_manual_runs() {
     *fixture.engine.run.lock().await = Some(super::Cooldown {
         until: tokio::time::Instant::now() - Duration::from_secs(1),
         error: Error::ProviderRateLimited,
+        persisted: false,
     });
     fixture.mock.data.lock().unwrap().status = axum::http::StatusCode::OK;
     let recovered = fixture

@@ -30,6 +30,7 @@ use tokio::{
 struct Cooldown {
     until: Instant,
     error: Error,
+    persisted: bool,
 }
 pub(crate) struct Engine {
     run: Mutex<Option<Cooldown>>,
@@ -67,11 +68,29 @@ impl Engine {
     }
     async fn cooldown(&self, duration: Option<(Duration, Error)>) -> Result<(), Error> {
         let mut run = self.run.try_lock().map_err(|_| Error::Busy)?;
-        *run = duration.map(|(duration, error)| Cooldown {
-            until: Instant::now() + duration,
+        let now = Instant::now();
+        let pending = (*run).filter(|cooldown| !cooldown.persisted && cooldown.until > now);
+        let restored = duration.map(|(duration, error)| Cooldown {
+            until: now + duration,
             error,
+            persisted: true,
         });
+        // A missing durable deadline cannot erase provider feedback whose
+        // persistence was cancelled or failed.
+        *run = [pending, restored]
+            .into_iter()
+            .flatten()
+            .max_by_key(|cooldown| cooldown.until);
         Ok(())
+    }
+    fn mark_cooldown_persisted(&self) {
+        // Automation holds its admission gate until the document commits.
+        // Retaining a pending fence on contention is conservative.
+        if let Ok(mut run) = self.run.try_lock()
+            && let Some(cooldown) = run.as_mut()
+        {
+            cooldown.persisted = true;
+        }
     }
     pub(crate) async fn execute(
         &self,
@@ -155,6 +174,7 @@ impl Engine {
                 *run = Some(Cooldown {
                     until: Instant::now() + Duration::from_secs(u64::from(seconds)),
                     error: cooldown_error,
+                    persisted: false,
                 });
                 cooldown = Some(seconds);
             }
