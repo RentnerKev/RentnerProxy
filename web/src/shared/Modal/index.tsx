@@ -1,6 +1,6 @@
 import { X } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
-import { ToastFocusScopeBranch } from '@rentnerkev/toasts/radix'
+import { ToastFocusScopeBranch } from '@rentnerkev/toasts'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 

@@ -43,8 +43,7 @@ const { ConfirmDialog } = await import('@/shared/Modal/Components/ConfirmDialog.
 const { default: DataTable } = await import('@/shared/Table/index.tsx')
 const { default: useClientTable } = await import('@/shared/Table/Hooks/useClientTable.ts')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
-const { ToastProvider } = await import('@rentnerkev/toasts')
-const { toast } = await import('@rentnerkev/toasts/toast')
+const { ToastProvider, toast } = await import('@rentnerkev/toasts')
 
 const createUserHandlerMock = mock(async (_input: unknown) => ({
     success: true,

@@ -27,8 +27,10 @@ const errorToast = mock((_message: string, _options: { title: string }) => undef
 mock.module('@/features/UserSettings/middleware.ts', () => ({
     updateCurrentUserAccentColorHandler: updateAccent,
 }))
-mock.module('@rentnerkev/toasts/toast', () => ({
-    toast: { success: successToast, error: errorToast },
+const toastPackage = await import('@rentnerkev/toasts')
+mock.module('@rentnerkev/toasts', () => ({
+    ...toastPackage,
+    toast: { ...toastPackage.toast, success: successToast, error: errorToast },
 }))
 
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')

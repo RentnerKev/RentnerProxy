@@ -1,7 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState, useEffect, type FormEvent } from 'react'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { MAX_DNS_CONNECTION_ZONES } from '@/config/dns-connections.config.ts'
 import { DNS_CONNECTION_LIVE_QUERY_KEYS } from '@/config/ddns.config.ts'

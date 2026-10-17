@@ -2,7 +2,6 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
-import { toast } from '@rentnerkev/toasts/toast'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { DDNS_QUERY_KEYS } from '@/config/ddns.config.ts'
 import type { DdnsApi } from '@/features/Admin/Ddns/Types/ddns-ui.types.ts'
@@ -18,6 +17,7 @@ import withTestLanguage, { catalogs } from '@/tests/Helpers/withTestLanguage.tsx
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+const { toast } = await import('@rentnerkev/toasts')
 disableMotionAnimations()
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { act } = await import('react')

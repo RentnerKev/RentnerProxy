@@ -1,6 +1,6 @@
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
-import { toast } from '@rentnerkev/toasts/toast'
-import type { ToastId, ToastType } from '@rentnerkev/toasts/types'
+import { toast } from '@rentnerkev/toasts'
+import type { ToastId, ToastType } from '@rentnerkev/toasts'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef } from 'react'
 

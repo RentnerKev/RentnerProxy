@@ -16,8 +16,7 @@ if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 disableMotionAnimations()
 
-const { ToastProvider } = await import('@rentnerkev/toasts')
-const { toast } = await import('@rentnerkev/toasts/toast')
+const { ToastProvider, toast } = await import('@rentnerkev/toasts')
 const { act, useMemo, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
 

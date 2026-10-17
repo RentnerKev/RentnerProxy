@@ -1,4 +1,4 @@
-import type { ToastCustomDesign, ToastPosition, ToastProviderProps } from '@rentnerkev/toasts/types'
+import type { ToastCustomDesign, ToastPosition, ToastProviderProps } from '@rentnerkev/toasts'
 
 const TOAST_POSITION: ToastPosition = 'bottom-right'
 export const TOAST_ROOT_CLASS = 'rentnerproxy-toast'

@@ -79,17 +79,13 @@ afterEach(async () => {
 
 test('selects a package calendar day, edits UTC wall time and clears', async () => {
     await render()
-    expect(
-        document
-            .querySelector<HTMLButtonElement>('button[aria-label="From (UTC)"]')
-            ?.classList.contains('text-left'),
-    ).toBe(true)
-    expect(
-        document
-            .querySelector('button[aria-label="From (UTC)"] > span')
-            ?.classList.contains('text-ink'),
-    ).toBe(true)
-    await click(document.querySelector<HTMLButtonElement>('button[aria-label="From (UTC)"]')!)
+    const trigger = document.querySelector<HTMLButtonElement>('button[aria-label="From (UTC)"]')!
+    expect(trigger.classList.contains('text-left')).toBe(true)
+    const value = [...trigger.querySelectorAll('span')].find(
+        (span) => span.textContent === trigger.textContent,
+    )
+    expect(value?.classList.contains('text-ink')).toBe(true)
+    await click(trigger)
     await click(findCalendarDay('September 14, 2026'))
     expect(document.querySelector('output')?.textContent).toBe('2026-09-14T13:45')
 
@@ -108,7 +104,10 @@ test('left-aligns and mutes the empty calendar placeholder', async () => {
     const trigger = document.querySelector<HTMLButtonElement>('button[aria-label="From (UTC)"]')!
     expect(trigger.classList.contains('text-left')).toBe(true)
     expect(trigger.classList.contains('[&>span]:text-ink')).toBe(false)
-    expect(trigger.querySelector('span')?.classList.contains('text-muted')).toBe(true)
+    const placeholder = [...trigger.querySelectorAll('span')].find(
+        (span) => span.textContent === trigger.textContent,
+    )
+    expect(placeholder?.classList.contains('text-muted')).toBe(true)
 })
 
 test('supports package date keyboard navigation and Escape', async () => {

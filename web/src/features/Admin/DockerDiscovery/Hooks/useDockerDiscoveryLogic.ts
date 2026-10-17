@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import {
     DOCKER_DISCOVERY_QUERY_KEY,
     DOCKER_DISCOVERY_LIVE_QUERY_KEYS,

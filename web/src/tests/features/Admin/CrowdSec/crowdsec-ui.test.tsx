@@ -19,8 +19,7 @@ const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
-const { ToastProvider } = await import('@rentnerkev/toasts')
-const { toast } = await import('@rentnerkev/toasts/toast')
+const { ToastProvider, toast } = await import('@rentnerkev/toasts')
 
 function disabledConfiguration(): CrowdSecConfiguration {
     return {

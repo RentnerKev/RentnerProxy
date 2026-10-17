@@ -56,7 +56,7 @@
         "@rentnerkev/inputs": "2.8.0",
         "@rentnerkev/picker": "2.3.0",
         "@rentnerkev/select": "5.2.0",
-        "@rentnerkev/toasts": "3.6.0",
+        "@rentnerkev/toasts": "3.7.0",
         "@rentnerkev/tooltips": "2.2.0",
         "@simplewebauthn/browser": "14.0.0",
         "@simplewebauthn/server": "14.0.3",

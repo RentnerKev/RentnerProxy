@@ -15,8 +15,7 @@ const { act, useEffect, useState } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { default: withTestLanguage } = await import('@/tests/Helpers/withTestLanguage.tsx')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
-const { ToastProvider } = await import('@rentnerkev/toasts')
-const { toast } = await import('@rentnerkev/toasts/toast')
+const { ToastProvider, toast } = await import('@rentnerkev/toasts')
 
 const beginPasskeyMock = mock(async () => ({
     success: true,

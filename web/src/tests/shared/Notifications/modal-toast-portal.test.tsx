@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, expect, test } from 'bun:test'
+import { afterEach, beforeEach, expect, jest, test } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
-import type { ToastStore } from '@rentnerkev/toasts/types'
+import type { ToastStore } from '@rentnerkev/toasts'
 
 import disableMotionAnimations from '@/tests/Helpers/disableMotionAnimations.ts'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
@@ -178,39 +178,53 @@ test('nested dialogs keep one stable global stack and retain their own focus and
 })
 
 test('opening a modal does not restart timed messages or expire persistent failures', async () => {
-    await act(async () => {
-        store.toast.error('Persistent failure', { duration: 0 })
-        store.toast.success('Short success', { duration: 500 })
-    })
-    const success = store.getToastSnapshot().find((toast) => toast.type === 'success')!
-    await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 200))
-    })
-    await click(document.getElementById('open-parent')!)
-    const moved = store.getToastSnapshot().find((toast) => toast.id === success.id)!
-    expect(moved.createdAt).toBe(success.createdAt)
-    expect(moved.duration).toBe(success.duration)
-    await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 350))
-    })
-    expect(store.getToastSnapshot().map((toast) => toast.content)).toEqual(['Persistent failure'])
-    expect(region().textContent).toContain('Persistent failure')
+    jest.useFakeTimers()
+    try {
+        await act(async () => {
+            store.toast.error('Persistent failure', { duration: 0 })
+            store.toast.success('Short success', { duration: 500 })
+        })
+        const success = store.getToastSnapshot().find((toast) => toast.type === 'success')!
+        await act(async () => jest.advanceTimersByTime(200))
+        await act(async () => {
+            const trigger = document.getElementById('open-parent')!
+            trigger.focus()
+            trigger.click()
+        })
+        await act(async () => jest.advanceTimersByTime(25))
+        expect(document.querySelector('[role="dialog"]')).not.toBeNull()
+        const moved = store.getToastSnapshot().find((toast) => toast.id === success.id)!
+        expect(moved.createdAt).toBe(success.createdAt)
+        expect(moved.duration).toBe(success.duration)
+        await act(async () => jest.advanceTimersByTime(350))
+        expect(store.getToastSnapshot().map((toast) => toast.content)).toEqual([
+            'Persistent failure',
+        ])
+        expect(region().textContent).toContain('Persistent failure')
+    } finally {
+        jest.useRealTimers()
+    }
 })
 
 test('the direct provider expires hidden notifications while retaining persistent errors', async () => {
-    expect(store.getToastDefaults().pauseWhenQueued).toBe(false)
-    await act(async () => {
-        store.toast.info('Queued short notification', { duration: 200 })
-        for (let index = 1; index <= 3; index++) {
-            store.toast.error(`Persistent failure ${index}`, { duration: 0 })
-        }
-    })
-    expect(store.getToastSnapshot()).toHaveLength(4)
-    expect(region().textContent).not.toContain('Queued short notification')
-    await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 250))
-    })
-    expect(store.getToastSnapshot()).toHaveLength(3)
-    expect(store.getToastSnapshot().every((toast) => toast.duration === 0)).toBeTrue()
-    expect(region().querySelectorAll('[role="alert"]')).toHaveLength(3)
+    jest.useFakeTimers()
+    try {
+        expect(store.getToastDefaults().pauseWhenQueued).toBe(false)
+        await act(async () => {
+            store.toast.info('Queued short notification', { duration: 200 })
+            for (let index = 1; index <= 3; index++) {
+                store.toast.error(`Persistent failure ${index}`, { duration: 0 })
+            }
+        })
+        expect(store.getToastSnapshot()).toHaveLength(4)
+        expect(region().textContent).not.toContain('Queued short notification')
+        await act(async () => jest.advanceTimersByTime(199))
+        expect(store.getToastSnapshot()).toHaveLength(4)
+        await act(async () => jest.advanceTimersByTime(1))
+        expect(store.getToastSnapshot()).toHaveLength(3)
+        expect(store.getToastSnapshot().every((toast) => toast.duration === 0)).toBeTrue()
+        expect(region().querySelectorAll('[role="alert"]')).toHaveLength(3)
+    } finally {
+        jest.useRealTimers()
+    }
 })

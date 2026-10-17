@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
-import { toast } from '@rentnerkev/toasts/toast'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Root } from 'react-dom/client'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
@@ -16,6 +15,7 @@ import type {
 
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+const { toast } = await import('@rentnerkev/toasts')
 disableMotionAnimations()
 
 const firstZone = { id: 'a'.repeat(32), name: 'one.example' }

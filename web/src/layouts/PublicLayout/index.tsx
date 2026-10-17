@@ -1,6 +1,5 @@
 import { Outlet } from '@tanstack/react-router'
-import { ToastProvider } from '@rentnerkev/toasts'
-import { toast } from '@rentnerkev/toasts/toast'
+import { ToastProvider, toast } from '@rentnerkev/toasts'
 import { useEffect } from 'react'
 
 import { TOAST_PROVIDER_PROPS } from '@/config/toast.config.ts'
