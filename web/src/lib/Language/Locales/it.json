@@ -2726,6 +2726,18 @@
                 "title": "Rimuovere il record gestito?",
                 "description": "Smettere di gestire {{name}}? Il DNS su Cloudflare rimane invariato."
             }
+        },
+        "dockerDiscovery": {
+            "errors": {
+                "invalid_input": "Inserisci una configurazione valida per il rilevamento Docker.",
+                "conflict": "La configurazione è cambiata o richiede attivazione dopo il ripristino. Ricarica lo stato attuale.",
+                "store_unavailable": "L’archivio del rilevamento Docker non è disponibile.",
+                "endpoint_unavailable": "L’endpoint Docker non è disponibile. Controlla l’indirizzo e i permessi di lettura.",
+                "invalid_response": "L’endpoint Docker ha restituito una risposta non valida o troppo grande.",
+                "inventory_too_large": "L’inventario Docker supera il limite di rilevamento.",
+                "stopping": "Il rilevamento Docker si sta arrestando.",
+                "controller_unavailable": "Il controller di rilevamento non è disponibile."
+            }
         }
     },
     "permissions": {
@@ -2745,7 +2757,8 @@
             "system": "Sistema",
             "default_site": "Sito predefinito",
             "dns_connections": "Connessioni DNS",
-            "ddns": "DNS dinamico"
+            "ddns": "DNS dinamico",
+            "docker_discovery": "Rilevamento Docker"
         },
         "app": {
             "access": "Accesso all’applicazione"
@@ -2830,6 +2843,10 @@
         "ddns": {
             "view": "Visualizza stato DDNS",
             "manage": "Gestisci configurazione DDNS"
+        },
+        "docker_discovery": {
+            "view": "Visualizza la connessione e i candidati Docker",
+            "manage": "Gestisci la connessione di rilevamento Docker"
         }
     },
     "systemRoles": {

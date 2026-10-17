@@ -41,6 +41,9 @@ jobs:
             - name: Install dependencies
               run: bun install --frozen-lockfile
 
+            - name: Docker discovery socket proxy restrictions
+              run: bun --no-env-file --no-orphans scripts/smoke/docker-discovery.ts
+
             - name: Prepare images for this run
               run: bun --no-env-file --no-orphans .github/scripts/ci/production-smoke-ci.ts prepare
 

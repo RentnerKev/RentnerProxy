@@ -2406,6 +2406,18 @@
             "downloadPartial": "Partial report download started. Unavailable sections are marked in the file.",
             "downloadFailed": "The report could not be downloaded. Check your permissions and try again."
         },
+        "dockerDiscovery": {
+            "errors": {
+                "invalid_input": "Enter a valid Docker discovery configuration.",
+                "conflict": "The configuration changed or restore activation is required. Reload the current state.",
+                "store_unavailable": "Docker discovery storage is unavailable.",
+                "endpoint_unavailable": "The Docker endpoint is unavailable. Check its address and read permissions.",
+                "invalid_response": "The Docker endpoint returned an invalid or oversized response.",
+                "inventory_too_large": "The Docker inventory exceeds the discovery limit.",
+                "stopping": "Docker discovery is shutting down.",
+                "controller_unavailable": "The discovery controller is unavailable."
+            }
+        },
         "dnsConnections": {
             "page": {
                 "eyebrow": "Administration",
@@ -2732,7 +2744,8 @@
             "system": "System",
             "default_site": "Default site",
             "dns_connections": "DNS connections",
-            "ddns": "Dynamic DNS"
+            "ddns": "Dynamic DNS",
+            "docker_discovery": "Docker discovery"
         },
         "app": {
             "access": "Application access"
@@ -2813,6 +2826,10 @@
         "dns_connections": {
             "view": "View DNS connections",
             "manage": "Manage DNS connections"
+        },
+        "docker_discovery": {
+            "view": "View Docker discovery connection and candidates",
+            "manage": "Manage Docker discovery connection"
         },
         "ddns": {
             "view": "View DDNS status",

@@ -2713,6 +2713,18 @@
                 "title": "¿Quitar registro gestionado?",
                 "description": "¿Dejar de gestionar {{name}}? El registro DNS en Cloudflare no se modifica."
             }
+        },
+        "dockerDiscovery": {
+            "errors": {
+                "invalid_input": "Introduce una configuración de detección de Docker válida.",
+                "conflict": "La configuración cambió o requiere activación tras la restauración. Vuelve a cargar el estado actual.",
+                "store_unavailable": "El almacenamiento de detección de Docker no está disponible.",
+                "endpoint_unavailable": "El endpoint de Docker no está disponible. Comprueba su dirección y los permisos de lectura.",
+                "invalid_response": "El endpoint de Docker devolvió una respuesta no válida o demasiado grande.",
+                "inventory_too_large": "El inventario de Docker supera el límite de detección.",
+                "stopping": "La detección de Docker se está cerrando.",
+                "controller_unavailable": "El controlador de detección no está disponible."
+            }
         }
     },
     "permissions": {
@@ -2732,7 +2744,8 @@
             "system": "Sistema",
             "default_site": "Sitio predeterminado",
             "dns_connections": "Conexiones DNS",
-            "ddns": "DNS dinámico"
+            "ddns": "DNS dinámico",
+            "docker_discovery": "Detección de Docker"
         },
         "app": {
             "access": "Acceso a la aplicación"
@@ -2817,6 +2830,10 @@
         "ddns": {
             "view": "Ver estado DDNS",
             "manage": "Gestionar configuración DDNS"
+        },
+        "docker_discovery": {
+            "view": "Ver la conexión y los candidatos de Docker",
+            "manage": "Gestionar la conexión de detección de Docker"
         }
     },
     "systemRoles": {

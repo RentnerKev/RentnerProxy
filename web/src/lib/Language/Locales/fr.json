@@ -2713,6 +2713,18 @@
                 "title": "Retirer l’enregistrement géré ?",
                 "description": "Ne plus gérer {{name}} ? Son DNS chez Cloudflare reste inchangé."
             }
+        },
+        "dockerDiscovery": {
+            "errors": {
+                "invalid_input": "Saisissez une configuration de découverte Docker valide.",
+                "conflict": "La configuration a changé ou nécessite une activation après restauration. Rechargez l’état actuel.",
+                "store_unavailable": "Le stockage de découverte Docker est indisponible.",
+                "endpoint_unavailable": "Le point de terminaison Docker est indisponible. Vérifiez son adresse et les droits de lecture.",
+                "invalid_response": "Le point de terminaison Docker a renvoyé une réponse invalide ou trop volumineuse.",
+                "inventory_too_large": "L’inventaire Docker dépasse la limite de découverte.",
+                "stopping": "La découverte Docker est en cours d’arrêt.",
+                "controller_unavailable": "Le contrôleur de découverte est indisponible."
+            }
         }
     },
     "permissions": {
@@ -2732,7 +2744,8 @@
             "system": "Système",
             "default_site": "Site par défaut",
             "dns_connections": "Connexions DNS",
-            "ddns": "DNS dynamique"
+            "ddns": "DNS dynamique",
+            "docker_discovery": "Découverte Docker"
         },
         "app": {
             "access": "Accès à l’application"
@@ -2817,6 +2830,10 @@
         "ddns": {
             "view": "Voir l’état DDNS",
             "manage": "Gérer la configuration DDNS"
+        },
+        "docker_discovery": {
+            "view": "Afficher la connexion et les candidats Docker",
+            "manage": "Gérer la connexion de découverte Docker"
         }
     },
     "systemRoles": {

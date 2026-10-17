@@ -100,4 +100,5 @@ export const AUDIT_CHANGED_FIELDS = [
     'security',
     'dnsConnections',
     'ddns',
+    'dockerDiscovery',
 ] as const

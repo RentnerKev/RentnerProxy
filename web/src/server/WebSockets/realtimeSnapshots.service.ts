@@ -17,6 +17,7 @@ import { getRedirectHostsService } from '@/server/Admin/RedirectHostManagement/r
 import { getAccessPoliciesService } from '@/server/Admin/AccessPolicyManagement/access-policies.service.ts'
 import { getDnsConnectionsService } from '@/server/Admin/DnsConnections/dns-connections.service.ts'
 import { getDdnsStatusService } from '@/server/Admin/Ddns/ddns.service.ts'
+import { getDockerDiscoveryService } from '@/server/Admin/DockerDiscovery/docker-discovery.service.ts'
 
 function revisionOf(value: unknown): string {
     return new Bun.CryptoHasher('sha256').update(JSON.stringify(value)).digest('hex')
@@ -58,6 +59,9 @@ export async function getLiveSnapshotResponse(request: Request): Promise<Respons
                 break
             case 'ddns':
                 data = { revision: revisionOf(await getDdnsStatusService()) }
+                break
+            case 'docker-discovery':
+                data = { revision: revisionOf(await getDockerDiscoveryService()) }
                 break
             case 'redirect-hosts':
                 data = {

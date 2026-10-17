@@ -2694,6 +2694,18 @@
                 "title": "Beheerd record verwijderen?",
                 "description": "{{name}} niet meer beheren? Het DNS-record bij Cloudflare blijft ongewijzigd."
             }
+        },
+        "dockerDiscovery": {
+            "errors": {
+                "invalid_input": "Voer een geldige configuratie voor Docker-detectie in.",
+                "conflict": "De configuratie is gewijzigd of vereist activering na herstel. Laad de huidige status opnieuw.",
+                "store_unavailable": "De opslag voor Docker-detectie is niet beschikbaar.",
+                "endpoint_unavailable": "Het Docker-eindpunt is niet beschikbaar. Controleer het adres en de leesrechten.",
+                "invalid_response": "Het Docker-eindpunt gaf een ongeldig of te groot antwoord.",
+                "inventory_too_large": "De Docker-inventaris overschrijdt de detectielimiet.",
+                "stopping": "Docker-detectie wordt afgesloten.",
+                "controller_unavailable": "De detectiecontroller is niet beschikbaar."
+            }
         }
     },
     "permissions": {
@@ -2713,7 +2725,8 @@
             "system": "Systeem",
             "default_site": "Standaardsite",
             "dns_connections": "DNS-verbindingen",
-            "ddns": "Dynamische DNS"
+            "ddns": "Dynamische DNS",
+            "docker_discovery": "Docker-detectie"
         },
         "app": {
             "access": "Toegang tot de applicatie"
@@ -2798,6 +2811,10 @@
         "ddns": {
             "view": "DDNS-status bekijken",
             "manage": "DDNS-configuratie beheren"
+        },
+        "docker_discovery": {
+            "view": "Docker-verbinding en kandidaten bekijken",
+            "manage": "Verbinding voor Docker-detectie beheren"
         }
     },
     "systemRoles": {

@@ -2739,6 +2739,18 @@
                 "title": "Remover registo gerido?",
                 "description": "Deixar de gerir {{name}}? O registo DNS na Cloudflare fica inalterado."
             }
+        },
+        "dockerDiscovery": {
+            "errors": {
+                "invalid_input": "Introduz uma configuração válida para a descoberta do Docker.",
+                "conflict": "A configuração mudou ou requer ativação após o restauro. Recarrega o estado atual.",
+                "store_unavailable": "O armazenamento da descoberta do Docker está indisponível.",
+                "endpoint_unavailable": "O endpoint do Docker está indisponível. Verifica o endereço e as permissões de leitura.",
+                "invalid_response": "O endpoint do Docker devolveu uma resposta inválida ou demasiado grande.",
+                "inventory_too_large": "O inventário do Docker excede o limite de descoberta.",
+                "stopping": "A descoberta do Docker está a encerrar.",
+                "controller_unavailable": "O controlador de descoberta está indisponível."
+            }
         }
     },
     "permissions": {
@@ -2758,7 +2770,8 @@
             "system": "Sistema",
             "default_site": "Site predefinido",
             "dns_connections": "Ligações DNS",
-            "ddns": "DNS dinâmico"
+            "ddns": "DNS dinâmico",
+            "docker_discovery": "Descoberta do Docker"
         },
         "app": {
             "access": "Acesso à aplicação"
@@ -2843,6 +2856,10 @@
         "ddns": {
             "view": "Ver estado DDNS",
             "manage": "Gerir configuração DDNS"
+        },
+        "docker_discovery": {
+            "view": "Ver a ligação e os candidatos do Docker",
+            "manage": "Gerir a ligação de descoberta do Docker"
         }
     },
     "systemRoles": {

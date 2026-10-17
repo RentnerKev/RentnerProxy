@@ -2406,6 +2406,18 @@
             "downloadPartial": "Der Download des unvollständigen Berichts wurde gestartet. Nicht verfügbare Abschnitte sind in der Datei markiert.",
             "downloadFailed": "Der Bericht konnte nicht heruntergeladen werden. Prüfe deine Berechtigungen und versuche es erneut."
         },
+        "dockerDiscovery": {
+            "errors": {
+                "invalid_input": "Gib eine gültige Docker-Discovery-Konfiguration ein.",
+                "conflict": "Die Konfiguration wurde geändert oder muss nach dem Restore aktiviert werden. Lade den aktuellen Stand.",
+                "store_unavailable": "Der Speicher für Docker Discovery ist nicht verfügbar.",
+                "endpoint_unavailable": "Der Docker-Endpunkt ist nicht erreichbar. Prüfe Adresse und Leserechte.",
+                "invalid_response": "Der Docker-Endpunkt hat eine ungültige oder zu große Antwort geliefert.",
+                "inventory_too_large": "Die Docker-Inventarliste überschreitet das Discovery-Limit.",
+                "stopping": "Docker Discovery wird beendet.",
+                "controller_unavailable": "Der Discovery-Controller ist nicht erreichbar."
+            }
+        },
         "dnsConnections": {
             "page": {
                 "eyebrow": "Verwaltung",
@@ -2732,7 +2744,8 @@
             "system": "System",
             "default_site": "Standardseite",
             "dns_connections": "DNS-Verbindungen",
-            "ddns": "Dynamisches DNS"
+            "ddns": "Dynamisches DNS",
+            "docker_discovery": "Docker Discovery"
         },
         "app": {
             "access": "Anwendungszugriff"
@@ -2813,6 +2826,10 @@
         "dns_connections": {
             "view": "DNS-Verbindungen anzeigen",
             "manage": "DNS-Verbindungen verwalten"
+        },
+        "docker_discovery": {
+            "view": "Docker-Discovery-Verbindung und Kandidaten ansehen",
+            "manage": "Docker-Discovery-Verbindung verwalten"
         },
         "ddns": {
             "view": "DDNS-Status ansehen",

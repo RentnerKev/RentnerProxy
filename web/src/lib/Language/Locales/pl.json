@@ -2739,6 +2739,18 @@
                 "title": "Usunąć zarządzany rekord?",
                 "description": "Przestać zarządzać {{name}}? Rekord DNS w Cloudflare pozostanie bez zmian."
             }
+        },
+        "dockerDiscovery": {
+            "errors": {
+                "invalid_input": "Wprowadź prawidłową konfigurację wykrywania Dockera.",
+                "conflict": "Konfiguracja uległa zmianie lub wymaga aktywacji po przywróceniu. Wczytaj aktualny stan.",
+                "store_unavailable": "Magazyn wykrywania Dockera jest niedostępny.",
+                "endpoint_unavailable": "Punkt końcowy Dockera jest niedostępny. Sprawdź adres i uprawnienia odczytu.",
+                "invalid_response": "Punkt końcowy Dockera zwrócił nieprawidłową lub zbyt dużą odpowiedź.",
+                "inventory_too_large": "Inwentarz Dockera przekracza limit wykrywania.",
+                "stopping": "Wykrywanie Dockera jest zatrzymywane.",
+                "controller_unavailable": "Kontroler wykrywania jest niedostępny."
+            }
         }
     },
     "permissions": {
@@ -2758,7 +2770,8 @@
             "system": "System",
             "default_site": "Witryna domyślna",
             "dns_connections": "Połączenia DNS",
-            "ddns": "Dynamiczny DNS"
+            "ddns": "Dynamiczny DNS",
+            "docker_discovery": "Wykrywanie Dockera"
         },
         "app": {
             "access": "Dostęp do aplikacji"
@@ -2843,6 +2856,10 @@
         "ddns": {
             "view": "Wyświetl stan DDNS",
             "manage": "Zarządzaj konfiguracją DDNS"
+        },
+        "docker_discovery": {
+            "view": "Wyświetlanie połączenia i kandydatów Dockera",
+            "manage": "Zarządzanie połączeniem wykrywania Dockera"
         }
     },
     "systemRoles": {

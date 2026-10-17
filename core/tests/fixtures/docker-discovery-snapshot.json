@@ -1,0 +1,25 @@
+{
+    "configuration": {
+        "version": 1,
+        "revision": 1,
+        "settings": { "enabled": true, "endpoint": "http://docker-proxy:2375" }
+    },
+    "status": "ready",
+    "stale": false,
+    "error": null,
+    "candidates": [
+        {
+            "containerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "domains": ["app.example.com"],
+            "target": {
+                "scheme": "http",
+                "address": "172.22.0.5",
+                "port": 8080,
+                "network": "proxy"
+            },
+            "certificateId": null,
+            "accessPolicyId": null,
+            "issues": []
+        }
+    ]
+}
