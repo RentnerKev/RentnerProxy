@@ -44,6 +44,7 @@ export interface ApplicationNavigationItem {
         | '/certificates'
         | '/access-policies'
         | '/dns-connections'
+        | '/ddns'
         | '/proxy-access-logs'
         | '/crowdsec'
         | '/security'

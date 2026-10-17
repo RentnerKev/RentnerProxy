@@ -1,4 +1,4 @@
-use super::super::{
+use crate::runtime::ddns::{
     Engine,
     models::{RecordType, Request, Selection, Target},
 };
@@ -56,6 +56,7 @@ pub(super) struct Data {
     pub(super) v4: String,
     pub(super) v6: String,
     pub(super) status: StatusCode,
+    pub(super) retry_after: String,
     pub(super) bad_ack: bool,
     pub(super) change_on_second_read: bool,
     pub(super) malformed_page: bool,
@@ -88,6 +89,7 @@ impl Fixture {
                 v4: "ip=8.8.4.4\n".into(),
                 v6: "ip=2001:4860:4860::8844\n".into(),
                 status: StatusCode::OK,
+                retry_after: "17".into(),
                 bad_ack: false,
                 change_on_second_read: false,
                 malformed_page: false,
@@ -201,7 +203,7 @@ async fn list(
     let read = mock.reads.fetch_add(1, Ordering::SeqCst) + 1;
     let mut data = mock.data.lock().unwrap();
     let mut response_headers = HeaderMap::new();
-    response_headers.insert("retry-after", "17".parse().unwrap());
+    response_headers.insert("retry-after", data.retry_after.parse().unwrap());
     if data.redirect {
         response_headers.insert("location", "/leak".parse().unwrap());
         return (StatusCode::FOUND, response_headers, Json(json!({})));

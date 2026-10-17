@@ -99,4 +99,5 @@ export const AUDIT_CHANGED_FIELDS = [
     'accessPolicy',
     'security',
     'dnsConnections',
+    'ddns',
 ] as const

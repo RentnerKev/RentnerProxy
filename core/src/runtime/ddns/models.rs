@@ -22,7 +22,7 @@ impl RecordType {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(
     tag = "mode",
     rename_all = "snake_case",
@@ -35,7 +35,7 @@ pub(crate) enum Selection {
     Adopt { record_id: String },
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub(crate) struct Target {
     pub(crate) id: String,
@@ -56,7 +56,7 @@ pub(crate) struct Request {
     pub(crate) targets: Vec<Target>,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum Error {
     InvalidInput,
@@ -76,9 +76,10 @@ pub(crate) enum Error {
     InvalidProviderResponse,
     WriteUnconfirmed,
     TimeBudgetExceeded,
+    RunInterrupted,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum Status {
     Unchanged,
@@ -91,16 +92,16 @@ pub(crate) enum Status {
     Failed,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub(crate) struct CurrentRecord {
     pub(crate) id: String,
     pub(crate) address: IpAddr,
     pub(crate) proxied: bool,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub(crate) struct TargetResult {
     pub(crate) target_id: String,
     pub(crate) status: Status,

@@ -118,6 +118,45 @@ pub(crate) fn app_with_state(state: AppState) -> Router {
         ));
     let ddns = Router::new()
         .route(
+            "/internal/v1/ddns/config",
+            get({
+                let state = state.clone();
+                move || handlers::ddns::status(state.clone())
+            })
+            .put({
+                let state = state.clone();
+                move |body| handlers::ddns::save(state.clone(), body)
+            }),
+        )
+        .route(
+            "/internal/v1/ddns/status",
+            get({
+                let state = state.clone();
+                move || handlers::ddns::status(state.clone())
+            }),
+        )
+        .route(
+            "/internal/v1/ddns/events",
+            get({
+                let state = state.clone();
+                move |query| handlers::ddns::events(state.clone(), query)
+            }),
+        )
+        .route(
+            "/internal/v1/ddns/enable",
+            post({
+                let state = state.clone();
+                move |body| handlers::ddns::enabled(state.clone(), body, true)
+            }),
+        )
+        .route(
+            "/internal/v1/ddns/disable",
+            post({
+                let state = state.clone();
+                move |body| handlers::ddns::enabled(state.clone(), body, false)
+            }),
+        )
+        .route(
             "/internal/v1/ddns/preview",
             post({
                 let state = state.clone();

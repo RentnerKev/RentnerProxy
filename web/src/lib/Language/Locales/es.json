@@ -82,7 +82,8 @@
         "auditLogs": "Registro de auditoría",
         "systemVersion": "Versión del sistema {{version}}",
         "updateAvailable": "Actualización disponible a la versión {{version}}",
-        "dnsConnections": "Conexiones DNS"
+        "dnsConnections": "Conexiones DNS",
+        "ddns": "DDNS"
     },
     "quickSearch": {
         "title": "Búsqueda rápida",
@@ -2470,6 +2471,183 @@
                 "controller_unavailable": "El controlador no está disponible. Restáuralo y vuelve a cargar la lista.",
                 "requestFailed": "La solicitud ha fallado. Vuelve a intentarlo o carga la conexión actual antes de guardar de nuevo."
             }
+        },
+        "ddns": {
+            "page": {
+                "eyebrow": "Automatización DNS",
+                "title": "DNS dinámico",
+                "description": "Mantén los registros seleccionados en la IP pública del servidor.",
+                "networkHint": "DDNS solo cambia DNS. Configura puertos, cortafuegos, certificados y túneles por separado."
+            },
+            "actions": {
+                "refresh": "Actualizar estado",
+                "edit": "Editar configuración",
+                "configure": "Configurar DDNS",
+                "preview": "Previsualizar cambios",
+                "approve": "Aprobar registros revisados",
+                "save": "Guardar en pausa",
+                "enable": "Activar DDNS",
+                "disable": "Pausar DDNS",
+                "sync": "Actualizar ahora"
+            },
+            "form": {
+                "title": "1. Elegir registros",
+                "saveHint": "Guardar pausa DDNS. Revisa y activa después la configuración guardada.",
+                "interval": "Intervalo en segundos",
+                "intervalHint": "60–86400 segundos. 300 = cada 5 minutos.",
+                "families": "Familias de direcciones",
+                "ipv4": "IPv4 · registros A",
+                "ipv6": "IPv6 · registros AAAA",
+                "updateOnStart": "Actualizar al iniciar el controlador",
+                "familyHint": "Se añaden filas para las familias activas. Las desactivadas quedan pausadas. Para añadir AAAA después, activa IPv6, desmarca IPv4 temporalmente y añade los dominios.",
+                "connection": "Conexión Cloudflare",
+                "chooseConnection": "Elegir conexión",
+                "zone": "Zona para nuevos registros",
+                "autoZone": "Asignar zonas permitidas automáticamente",
+                "domains": "Dominios a gestionar",
+                "domainsHint": "Separa con comas o saltos de línea. Incluye dominio raíz, *.comodines y hosts explícitos. Solo se gestionan los A/AAAA listados.",
+                "addRecords": "Añadir a la lista",
+                "noConnections": "Crea primero una conexión con zonas permitidas.",
+                "connectionPermission": "Elegir conexiones requiere permiso de lectura DNS. Puedes gestionar los registros existentes.",
+                "domainsPlaceholder": "example.com, *.example.com, git.example.com"
+            },
+            "records": {
+                "title": "Registros gestionados",
+                "scope": "Esta lista define el alcance exacto. *.example.com es un solo registro comodín y no selecciona subdominios existentes. Omite test.example.com para conservarlo.",
+                "empty": "No hay registros. Añade solo los nombres que DDNS debe actualizar.",
+                "proxied": "Proxy Cloudflare",
+                "dnsOnly": "Solo DNS",
+                "proxyFor": "Proxy Cloudflare para {{name}} ({{type}})",
+                "removeFor": "Quitar {{name}} ({{type}}) de DDNS",
+                "inspect": "Revisar antes de adoptar o crear",
+                "create": "Creación aprobada si no existe",
+                "adopt": "Registro existente aprobado",
+                "savedConnection": "Conexión guardada"
+            },
+            "preview": {
+                "title": "2. Revisar · 3. Activar",
+                "hint": "La vista previa no cambia DNS. Aprueba los registros y guarda en pausa. Detén el actualizador anterior antes de activar.",
+                "record": "Vista previa del registro",
+                "current": "Actual",
+                "desired": "Deseado",
+                "absent": "No existe",
+                "ready": "Vista previa aprobada. Válida 3 minutos para esta configuración exacta.",
+                "approval": "Revisa los valores antes de aprobar adopción o creación.",
+                "blocked": "Resuelve los errores y repite la vista previa.",
+                "required": "Cada cambio requiere una nueva vista previa."
+            },
+            "status": {
+                "title": "Ejecución DDNS",
+                "ipv4": "Última IPv4 detectada",
+                "ipv6": "Última IPv6 detectada",
+                "lastRun": "Última ejecución (UTC)",
+                "lastAttempt": "Último intento (UTC)",
+                "lastSuccess": "Último éxito (UTC)",
+                "nextAttempt": "Próximo intento (UTC)",
+                "schedule": "Cada {{seconds}} segundos · Actualizar al inicio: {{startup}}",
+                "restoreHint": "La configuración restaurada queda pausada. Revisa y activa si esta instancia debe asumir el control.",
+                "cooldown": "Espera del proveedor hasta {{at}}. La actualización manual también la respeta."
+            },
+            "states": {
+                "loading": "Cargando configuración y estado…",
+                "empty": "Sin configurar",
+                "enabled": "Activo",
+                "disabled": "En pausa",
+                "restorePaused": "Pausado tras restaurar",
+                "running": "Actualizando registros…",
+                "forbidden": "Se requiere permiso de lectura DDNS",
+                "readOnly": "Solo lectura. Los cambios requieren gestión DDNS.",
+                "never": "Sin fecha / aún sin intento"
+            },
+            "results": {
+                "unchanged": "Ya actualizado",
+                "updated": "Actualizado correctamente",
+                "would_create": "Crearía el registro",
+                "would_update": "Cambiaría IP o proxy",
+                "adoption_required": "Registro existente · requiere aprobación",
+                "creation_required": "Registro ausente · requiere aprobación",
+                "skipped": "Omitido",
+                "failed": "Falló la actualización",
+                "notAttempted": "Aún sin intento",
+                "running": "Actualización en curso",
+                "attention": "Revisar configuración",
+                "familyPaused": "Familia en pausa"
+            },
+            "messages": {
+                "saved": "Guardado en pausa. Revisa y activa DDNS.",
+                "enabled": "DDNS activado con el horario configurado.",
+                "disabled": "DDNS pausado. Un lote iniciado puede terminar; no habrá nuevos.",
+                "synced": "Actualización completada. Consulta cada registro.",
+                "unchanged": "Los registros comprobados ya estaban actualizados.",
+                "partial": "Actualización incompleta. Se conservan los últimos valores; revisa errores y próximos intentos."
+            },
+            "validation": {
+                "domain": "Introduce un dominio o *.comodín sin URL ni puerto.",
+                "interval": "Elige 60–86400 segundos enteros.",
+                "targets": "Añade de 1 a 100 registros; máximo total 100.",
+                "families": "Activa IPv4 o IPv6 antes de añadir.",
+                "zone": "Un dominio no pertenece a las zonas permitidas. Elige otra conexión o zona.",
+                "duplicate": "El nombre y tipo ya existen. Quita duplicados."
+            },
+            "errors": {
+                "invalid_input": "Revisa dominios, familias e intervalo.",
+                "conflict": "Cambió la configuración. Cancela el borrador y actualiza.",
+                "busy": "Hay otra operación. Actualiza el estado.",
+                "disabled": "DDNS pausado. Revisa y activa.",
+                "restore_paused": "Restauración pausó DDNS. Revisa y activa esta instancia.",
+                "stopping": "El controlador se detiene. Actualiza tras reiniciar.",
+                "retry_deferred": "Aún hay espera. Consulta el proveedor y próximos intentos.",
+                "store_unavailable": "No se guardó el estado. Revisa almacenamiento y actualiza antes de reintentar.",
+                "connection_unavailable": "Conexiones DNS no disponibles. Revisa acceso y recarga.",
+                "controller_unavailable": "Controlador no disponible. Los valores pueden ser antiguos. Actualiza antes de cambiar o repetir.",
+                "preview_required": "Vista previa caducada o cambiada. Repítela.",
+                "preview_failed": "Vista previa incompleta. Resuelve errores.",
+                "pause_confirmation_required": "Confirma que guardar pausa la configuración.",
+                "activation_confirmation_required": "Confirma la activación tras revisar.",
+                "requestFailed": "Respuesta no disponible. Actualiza para comprobar si terminó antes de repetir."
+            },
+            "recordErrors": {
+                "invalid_input": "Configuración inválida. Edita nombre, zona o selección.",
+                "busy": "Otro lote en curso. Actualiza estado.",
+                "connection_unavailable": "Conexión ausente. Repárala o vuelve a añadir con otra.",
+                "zone_not_permitted": "Zona no permitida. Ajusta permisos o conexión.",
+                "name_outside_zone": "Host fuera de zona. Añádelo con la zona correcta.",
+                "ip_discovery_failed": "Falló la detección IP. Revisa conexión del controlador.",
+                "family_disabled": "Familia desactivada. Registros conservados sin cambios.",
+                "adoption_required": "Ya existe. Revisa IP y proxy y aprueba adopción.",
+                "creation_required": "No existe. Aprueba crear este nombre y tipo.",
+                "record_conflict": "Registros múltiples o CNAME incompatible. Resuelve en Cloudflare; DDNS no borra.",
+                "record_changed": "El registro cambió. Quita, añade y revisa de nuevo.",
+                "provider_unauthorized": "Acceso denegado. Revisa Zone Read y DNS Edit del token.",
+                "provider_rate_limited": "Límite alcanzado. Espera al próximo intento; no se puede evitar manualmente.",
+                "provider_unavailable": "Cloudflare no disponible. Se reintentará conservando el último valor.",
+                "invalid_provider_response": "Respuesta inesperada. Revisa disponibilidad y repite la vista previa.",
+                "write_unconfirmed": "Cambio posiblemente aceptado sin confirmación. Revisa antes de repetir.",
+                "time_budget_exceeded": "Plazo del lote agotado. Los pendientes se reintentarán según horario.",
+                "run_interrupted": "Ejecución interrumpida. Comprueba DNS antes del reintento manual."
+            },
+            "confirm": {
+                "save": {
+                    "title": "¿Guardar y pausar la configuración?",
+                    "description": "DDNS quedará pausado. Se quitan {{removed}} destinos sin borrar sus registros. Revisa y activa la lista después.",
+                    "action": "Guardar en pausa"
+                },
+                "enable": {
+                    "title": "¿Activar DDNS para estos registros?",
+                    "description": "He revisado IP y proxy y detenido el actualizador anterior. El controlador puede actualizar automáticamente los A/AAAA aprobados.",
+                    "action": "Activar registros aprobados"
+                },
+                "disable": {
+                    "title": "¿Pausar actualizaciones DDNS?",
+                    "description": "Se detienen nuevos lotes. Uno iniciado puede terminar. Los registros y últimos valores se conservan.",
+                    "action": "Pausar actualizaciones"
+                },
+                "discard": {
+                    "title": "¿Descartar cambios sin guardar?",
+                    "description": "Se descartan borrador y vista previa. Sigue la configuración guardada.",
+                    "action": "Descartar cambios"
+                }
+            }
         }
     },
     "permissions": {
@@ -2488,7 +2666,8 @@
             "audit-logs": "Registro de auditoría",
             "system": "Sistema",
             "default_site": "Sitio predeterminado",
-            "dns_connections": "Conexiones DNS"
+            "dns_connections": "Conexiones DNS",
+            "ddns": "DNS dinámico"
         },
         "app": {
             "access": "Acceso a la aplicación"
@@ -2569,6 +2748,10 @@
         "dns_connections": {
             "view": "Ver conexiones DNS",
             "manage": "Gestionar conexiones DNS"
+        },
+        "ddns": {
+            "view": "Ver estado DDNS",
+            "manage": "Gestionar configuración DDNS"
         }
     },
     "systemRoles": {

@@ -82,7 +82,8 @@
         "auditLogs": "Audit log",
         "systemVersion": "System version {{version}}",
         "updateAvailable": "Update available to version {{version}}",
-        "dnsConnections": "DNS connections"
+        "dnsConnections": "DNS connections",
+        "ddns": "DDNS"
     },
     "quickSearch": {
         "title": "Quick search",
@@ -2470,6 +2471,183 @@
                 "controller_unavailable": "The controller is unavailable. Restore it and reload.",
                 "requestFailed": "The request failed. Retry, or reload the current connection before saving again."
             }
+        },
+        "ddns": {
+            "page": {
+                "eyebrow": "DNS automation",
+                "title": "Dynamic DNS",
+                "description": "Keep selected Cloudflare records on this server’s public IP address.",
+                "networkHint": "DDNS changes DNS only. Port forwarding, firewall rules, certificates and tunnels are configured separately."
+            },
+            "actions": {
+                "refresh": "Refresh status",
+                "edit": "Edit configuration",
+                "configure": "Configure DDNS",
+                "preview": "Preview changes",
+                "approve": "Approve inspected records",
+                "save": "Save paused",
+                "enable": "Enable DDNS",
+                "disable": "Pause DDNS",
+                "sync": "Update now"
+            },
+            "form": {
+                "title": "1. Choose records",
+                "saveHint": "Saving pauses DDNS. Review and enable the saved configuration separately.",
+                "interval": "Interval in seconds",
+                "intervalHint": "60–86400 seconds. 300 = every 5 minutes.",
+                "families": "Address families",
+                "ipv4": "IPv4 · A records",
+                "ipv6": "IPv6 · AAAA records",
+                "updateOnStart": "Update when controller starts",
+                "familyHint": "Adding domains creates rows for enabled families. Turning a family off keeps its rows paused. To add AAAA later, enable IPv6 and add the specific domain again without duplicating A rows.",
+                "connection": "Cloudflare connection",
+                "chooseConnection": "Choose a connection",
+                "zone": "Zone for new records",
+                "autoZone": "Match permitted zones automatically",
+                "domains": "Domains to manage",
+                "domainsHint": "Separate with commas or new lines. Include apex, *.wildcards and individual hostnames explicitly. Only the listed A/AAAA records are managed.",
+                "addRecords": "Add to record list",
+                "noConnections": "Create a shared connection with permitted zones first.",
+                "connectionPermission": "Choosing new connections requires DNS connection view permission. Existing records can still be managed.",
+                "domainsPlaceholder": "example.com, *.example.com, git.example.com"
+            },
+            "records": {
+                "title": "Managed records",
+                "scope": "This list is the exact update scope. *.example.com is one wildcard record; it does not select existing subdomain records. Omit test.example.com to leave its record untouched.",
+                "empty": "No records selected. Add only the names DDNS should update.",
+                "proxied": "Cloudflare proxy",
+                "dnsOnly": "DNS only",
+                "proxyFor": "Cloudflare proxy for {{name}} ({{type}})",
+                "removeFor": "Remove {{name}} ({{type}}) from DDNS",
+                "inspect": "Inspection required before adoption or creation",
+                "create": "Approved for creation if absent",
+                "adopt": "Approved existing record",
+                "savedConnection": "Saved connection"
+            },
+            "preview": {
+                "title": "2. Review · 3. Activate",
+                "hint": "Preview reads Cloudflare without changing DNS. Explicitly approve inspected records, then save paused. Stop the previous updater before enabling DDNS.",
+                "record": "Record preview",
+                "current": "Current",
+                "desired": "Desired",
+                "absent": "Not present",
+                "ready": "Preview approved. Valid for 3 minutes and this exact configuration.",
+                "approval": "Review the current values above before approving adoption or creation.",
+                "blocked": "Resolve the record errors and run preview again.",
+                "required": "A fresh preview is required after every change."
+            },
+            "status": {
+                "title": "DDNS runtime",
+                "ipv4": "Last discovered IPv4",
+                "ipv6": "Last discovered IPv6",
+                "lastRun": "Last completed run (UTC)",
+                "lastAttempt": "Last attempt (UTC)",
+                "lastSuccess": "Last success (UTC)",
+                "nextAttempt": "Next attempt (UTC)",
+                "schedule": "Every {{seconds}} seconds · Update on start: {{startup}}",
+                "restoreHint": "Restored configurations stay paused. Review the records and explicitly enable DDNS when this instance should take over.",
+                "cooldown": "Provider cooldown until {{at}}. Update now also respects this limit."
+            },
+            "states": {
+                "loading": "Loading DDNS configuration and record status…",
+                "empty": "Not configured",
+                "enabled": "Enabled",
+                "disabled": "Paused",
+                "restorePaused": "Paused after restore",
+                "running": "Updating records…",
+                "forbidden": "DDNS view permission required",
+                "readOnly": "Read only. Changes require DDNS manage permission.",
+                "never": "No scheduled time / not yet attempted"
+            },
+            "results": {
+                "unchanged": "Already up to date",
+                "updated": "Updated successfully",
+                "would_create": "Would create record",
+                "would_update": "Would update IP or proxy setting",
+                "adoption_required": "Existing record · approval required",
+                "creation_required": "Missing record · approval required",
+                "skipped": "Skipped",
+                "failed": "Update failed",
+                "notAttempted": "Not yet attempted",
+                "running": "Update in progress",
+                "attention": "Configuration needs attention",
+                "familyPaused": "Address family paused"
+            },
+            "messages": {
+                "saved": "Saved paused. Preview the saved records, then explicitly enable DDNS.",
+                "enabled": "DDNS enabled. The controller will run the configured schedule.",
+                "disabled": "DDNS paused. An already admitted batch may finish; future runs are stopped.",
+                "synced": "Update completed. See the confirmed results per record.",
+                "unchanged": "All attempted records were already up to date.",
+                "partial": "Update incomplete. Last successful values remain visible; check each record’s error and retry time."
+            },
+            "validation": {
+                "domain": "Enter a valid domain or *.wildcard, without a URL or port.",
+                "interval": "Choose 60–86400 whole seconds.",
+                "targets": "Select between 1 and 100 records to add. The full list is limited to 100.",
+                "families": "Enable IPv4 or IPv6 before adding domains.",
+                "zone": "A domain is outside the permitted zones of this connection. Select the correct connection or zone.",
+                "duplicate": "This name and record type is already selected. Remove duplicates from the new list."
+            },
+            "errors": {
+                "invalid_input": "Review the domains, address families and interval.",
+                "conflict": "Configuration changed elsewhere. Cancel this draft, refresh and start again.",
+                "busy": "Another DDNS operation is running. Refresh status before trying again.",
+                "disabled": "DDNS is paused. Preview and enable it before updating.",
+                "restore_paused": "A restore paused DDNS. Review and explicitly enable this instance.",
+                "stopping": "The controller is stopping. Refresh after restart.",
+                "retry_deferred": "A retry is not due yet. Check the provider cooldown and the next attempt for each record.",
+                "store_unavailable": "DDNS state could not be persisted. Restore controller storage access and refresh status before retrying.",
+                "connection_unavailable": "DNS connections are unavailable. Check connection access and reload.",
+                "controller_unavailable": "Controller unavailable. Shown values may be stale. Refresh before making changes; do not blindly repeat an update.",
+                "preview_required": "Preview expired or changed. Run preview again before saving or enabling.",
+                "preview_failed": "Preview could not complete. Resolve the record errors before continuing.",
+                "pause_confirmation_required": "Confirm that saving will pause the active configuration.",
+                "activation_confirmation_required": "Confirm activation after reviewing the preview.",
+                "requestFailed": "The response was unavailable. Refresh status to see whether the operation completed before trying again."
+            },
+            "recordErrors": {
+                "invalid_input": "Invalid record configuration. Edit the name, zone or selection.",
+                "busy": "Another batch is running. Refresh status.",
+                "connection_unavailable": "The saved connection is missing or unavailable. Repair it or remove and add this target using another connection.",
+                "zone_not_permitted": "The connection does not permit this zone. Adjust its permitted zones or choose another connection.",
+                "name_outside_zone": "The hostname is outside the selected zone. Remove it and add it with the correct zone.",
+                "ip_discovery_failed": "Public IP discovery failed. Check connectivity from the controller; the last good value is retained.",
+                "family_disabled": "This address family is disabled. Its records are kept without updates.",
+                "adoption_required": "This record already exists. Review its IP and proxy setting, then explicitly approve adoption.",
+                "creation_required": "No record exists. Explicitly approve creating this exact name and type.",
+                "record_conflict": "Multiple records or a conflicting CNAME were found. Resolve the Cloudflare conflict first; DDNS will not delete anything.",
+                "record_changed": "The approved record changed or was replaced. Remove this target, add it again and inspect the new record before approving.",
+                "provider_unauthorized": "Cloudflare denied access. Check Zone Read and DNS Edit permissions for the selected zones and rotate the connection token if needed.",
+                "provider_rate_limited": "Cloudflare rate limit reached. Wait for the displayed retry time; manual updates do not bypass it.",
+                "provider_unavailable": "Cloudflare is temporarily unavailable. The controller retries with backoff and retains the last good value.",
+                "invalid_provider_response": "Cloudflare returned an unexpected response. Check service availability and preview again.",
+                "write_unconfirmed": "Cloudflare may have accepted the write but confirmation failed. Check the record and preview before retrying.",
+                "time_budget_exceeded": "The batch deadline was reached. Remaining records will retry according to their displayed schedule.",
+                "run_interrupted": "A previous controller run was interrupted. Check current DNS values before a manual retry."
+            },
+            "confirm": {
+                "save": {
+                    "title": "Save and pause this configuration?",
+                    "description": "DDNS will be paused, including an active configuration. {{removed}} existing targets leave DDNS; their Cloudflare records remain unchanged. Review and enable the saved list separately.",
+                    "action": "Save paused"
+                },
+                "enable": {
+                    "title": "Enable DDNS for these exact records?",
+                    "description": "I reviewed the IP and proxy changes and stopped any previous DDNS updater for these records. The controller may now write the approved A/AAAA records and run automatically.",
+                    "action": "Enable approved records"
+                },
+                "disable": {
+                    "title": "Pause automatic DDNS updates?",
+                    "description": "Future runs stop. A batch already admitted by the controller may finish. DNS records and the last successful values remain in place.",
+                    "action": "Pause updates"
+                },
+                "discard": {
+                    "title": "Discard unsaved DDNS changes?",
+                    "description": "The draft and its preview will be discarded. The saved configuration continues as before.",
+                    "action": "Discard changes"
+                }
+            }
         }
     },
     "permissions": {
@@ -2488,7 +2666,8 @@
             "audit-logs": "Audit log",
             "system": "System",
             "default_site": "Default site",
-            "dns_connections": "DNS connections"
+            "dns_connections": "DNS connections",
+            "ddns": "Dynamic DNS"
         },
         "app": {
             "access": "Application access"
@@ -2569,6 +2748,10 @@
         "dns_connections": {
             "view": "View DNS connections",
             "manage": "Manage DNS connections"
+        },
+        "ddns": {
+            "view": "View DDNS status",
+            "manage": "Manage DDNS configuration"
         }
     },
     "systemRoles": {

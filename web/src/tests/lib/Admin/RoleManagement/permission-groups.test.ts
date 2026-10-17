@@ -26,6 +26,7 @@ describe('role permission groups', () => {
             'redirect_hosts.',
             'certificates.',
             'dns_connections.',
+            'ddns.',
             'trusted_cas.',
             'users.',
             'roles.',

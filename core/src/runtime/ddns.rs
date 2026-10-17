@@ -1,4 +1,8 @@
+mod automation;
 mod discovery;
+#[cfg(test)]
+#[path = "../../tests/private/ddns/fixture.rs"]
+mod fixture;
 mod http;
 mod models;
 mod provider;
@@ -6,6 +10,9 @@ mod provider;
 #[path = "../../tests/private/ddns.rs"]
 mod tests;
 mod validation;
+mod worker;
+
+pub(crate) use automation::{Action, Automation, AutomationError, SaveConfiguration};
 
 use super::dns_connections::{self, Store};
 use models::{
@@ -19,8 +26,13 @@ use tokio::{
     time::{Instant, timeout_at},
 };
 
+#[derive(Clone, Copy)]
+struct Cooldown {
+    until: Instant,
+    error: Error,
+}
 pub(crate) struct Engine {
-    run: Mutex<Option<Instant>>,
+    run: Mutex<Option<Cooldown>>,
     #[cfg(test)]
     discovery_urls: Option<[String; 2]>,
     #[cfg(test)]
@@ -53,6 +65,14 @@ impl Engine {
         }
         Duration::from_secs(25)
     }
+    async fn cooldown(&self, duration: Option<(Duration, Error)>) -> Result<(), Error> {
+        let mut run = self.run.try_lock().map_err(|_| Error::Busy)?;
+        *run = duration.map(|(duration, error)| Cooldown {
+            until: Instant::now() + duration,
+            error,
+        });
+        Ok(())
+    }
     pub(crate) async fn execute(
         &self,
         store: &Store,
@@ -61,8 +81,12 @@ impl Engine {
     ) -> Result<BatchResult, Error> {
         validation::request(&request)?;
         let mut run = self.run.try_lock().map_err(|_| Error::Busy)?;
-        let mut cooldown = (*run).filter(|until| *until > Instant::now()).map(|until| {
-            until
+        let active_cooldown = (*run).filter(|cooldown| cooldown.until > Instant::now());
+        let mut cooldown_error =
+            active_cooldown.map_or(Error::ProviderRateLimited, |cooldown| cooldown.error);
+        let mut cooldown = active_cooldown.map(|cooldown| {
+            cooldown
+                .until
                 .saturating_duration_since(Instant::now())
                 .as_secs()
                 .saturating_add(1)
@@ -79,7 +103,7 @@ impl Engine {
                 return Err(Error::FamilyDisabled);
             }
             if cooldown.is_some() {
-                return Err(Error::ProviderRateLimited);
+                return Err(cooldown_error);
             }
             discovery::discover(self.discovery_url(family), family, deadline).await
         };
@@ -102,7 +126,7 @@ impl Engine {
                 }
                 _ if cooldown.is_some() => {
                     let mut result = TargetResult::new(target, Status::Skipped);
-                    result.error = Some(Error::ProviderRateLimited);
+                    result.error = Some(cooldown_error);
                     result.retry_after_seconds = cooldown;
                     result
                 }
@@ -118,9 +142,17 @@ impl Engine {
                     }
                 }
             };
-            if result.status == Status::Failed && result.error == Some(Error::ProviderRateLimited) {
+            if result.status == Status::Failed
+                && (result.error == Some(Error::ProviderRateLimited)
+                    || (result.error == Some(Error::ProviderUnavailable)
+                        && result.retry_after_seconds.is_some()))
+            {
                 let seconds = result.retry_after_seconds.unwrap_or(1);
-                *run = Some(Instant::now() + Duration::from_secs(u64::from(seconds)));
+                cooldown_error = result.error.unwrap_or(Error::ProviderRateLimited);
+                *run = Some(Cooldown {
+                    until: Instant::now() + Duration::from_secs(u64::from(seconds)),
+                    error: cooldown_error,
+                });
                 cooldown = Some(seconds);
             }
             result.desired_address = address.ok();

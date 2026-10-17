@@ -1,10 +1,10 @@
 # Cloudflare DDNS record synchronization
 
-B2-02 (#231) provides the controller-owned, explicitly invoked record synchronizer.
+B2-02 (#231) provides the controller-owned record synchronizer.
 It uses shared Cloudflare connections. Saving/testing a connection remains read-only.
-There is no periodic job, saved DDNS configuration or DDNS management page in this
-step; persistence/scheduling and the UI follow in #232 and #233. Starting the
-controller or restoring a connection backup starts no DNS automation.
+B2-03 (#232) adds [durable configuration, scheduling and recovery](ddns-automation.md).
+DDNS is disabled by default; connection management alone starts no automation.
+The DDNS management page follows in #233.
 
 ## Targets and explicit ownership
 
@@ -34,7 +34,9 @@ deletion, renaming, type conversion or TXT update is implemented.
 ## Private API
 
 `POST /internal/v1/ddns/preview` compares without DNS writes.
-`POST /internal/v1/ddns/sync` executes explicit selections. Both require the configured
+`POST /internal/v1/ddns/sync` executes eligible targets from an enabled saved configuration;
+its action body contains `actorUserId` and `expectedRevision`, as described in
+[DDNS automation](ddns-automation.md). Both require the configured
 controller bearer token, including on loopback. Responses use `Cache-Control: no-store`.
 Tokens stay inside the encrypted connection registry and are absent from bodies/results.
 
@@ -62,9 +64,8 @@ Example preview body with synthetic identifiers:
 An existing record appears as `current.id`, `current.address` and `current.proxied`.
 After explicit adoption use `"selection": { "mode": "adopt", "recordId": "<current.id>" }`;
 for a missing record use `"selection": { "mode": "create" }`. Preview those choices
-before sync. Keep target IDs stable between runs. The caller retains target/ownership
-choices in this step. Future durable consumers must register/release their connection
-references when saved targets or scheduled jobs are introduced.
+before activation. Keep target IDs stable between runs. Saved DDNS configuration now
+retains these choices and registers/releases durable connection references.
 
 These are server-to-server APIs: callers derive `actorUserId` from their authenticated
 user and enforce DDNS permissions/rate limits before delegation. An actor UUID alone
@@ -90,14 +91,15 @@ Batches have a shared 25-second budget and a 128 KiB request limit. Discovery re
 are bounded to 4 KiB/three seconds; provider responses to 128 KiB/five seconds. Exact-name
 record queries must be complete and unambiguous. Remaining targets are skipped when
 the budget expires. There are no automatic mutation retries. Provider rate limits
-pause the remaining batch and further manual runs for the bounded Retry-After duration
-(one second when absent). Durable retry/restart state belongs to #232.
+pause the remaining batch and further runs for the bounded Retry-After duration
+(one second when absent). Provider-unavailable responses carrying Retry-After also
+pause work. B2-03 persists cooldowns and adds bounded backoff for transient failures.
 
 Only one preview/sync runs at a time; overlap returns `409` / `busy`. The registry lock
 fences token rotation, zone removal and deletion during each record's complete
-read/modify/verify sequence. These temporary leases persist no consumer references
-or registry-format changes. Connections may change between manual runs; the next
-request reports the corresponding per-target failure.
+read/modify/verify sequence. These temporary engine leases complement the durable
+references owned by saved automation. Connections may rotate between runs; subsequent
+requests use the current credential and report safe per-target failures.
 
 The engine re-reads the exact owner immediately before writing and verifies the
 acknowledgement's ID, name, type, address and proxy flag. That check and the provider
@@ -109,8 +111,8 @@ reads current state instead of blindly retrying creation or adopting a replaceme
 Controlled local fixtures cover scope, untouched records, IPv4-only/dual-stack,
 conflicts, adoption, idempotency, rate limits, partial failures, ambiguous writes,
 deadlines, authorization and in-flight credential changes. Tests use no live tokens
-or domains. No database schema/migration is needed. Complete #232 and #233 before
-replacing a standalone DDNS container.
+or domains. No database schema/migration is needed. The scheduler is implemented in
+#232; the [DDNS web UI](ddns-migration.md) (#233) manages the saved configuration.
 
 Provider contracts: [list](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/list/),
 [edit](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/edit/),

@@ -61,7 +61,8 @@ export async function controllerRequest(
         | `/internal/v1/certificates/events${string}`
         | '/internal/v1/trusted-cas/validate'
         | '/internal/v1/dns/connections'
-        | `/internal/v1/dns/connections/${string}`,
+        | `/internal/v1/dns/connections/${string}`
+        | `/internal/v1/ddns/${'status' | 'config' | 'preview' | 'enable' | 'disable' | 'sync'}`,
     options: ControllerRequestOptions,
 ): Promise<unknown> {
     const baseUrl = getControllerBaseUrl()
@@ -79,12 +80,14 @@ export async function controllerRequest(
         path === '/internal/v1/certificates' || path.startsWith('/internal/v1/certificates/')
     const isDnsConnectionRequest =
         path === '/internal/v1/dns/connections' || path.startsWith('/internal/v1/dns/connections/')
-    if (options.privileged || isCertificateRequest || isDnsConnectionRequest) {
+    const isDdnsRequest = path.startsWith('/internal/v1/ddns/')
+    if (options.privileged || isCertificateRequest || isDnsConnectionRequest || isDdnsRequest) {
         const token = getControllerToken()
         if (
             token === null ||
             (!token &&
                 (isCertificateRequest ||
+                    isDdnsRequest ||
                     isDnsConnectionRequest ||
                     !isLoopbackControllerUrl(baseUrl)))
         )

@@ -1,11 +1,9 @@
+use super::fixture::*;
 use super::{
     discovery,
     models::{Error, RecordType, Selection, Status},
     validation,
 };
-#[path = "ddns/fixture.rs"]
-mod fixture;
-use fixture::*;
 use serde_json::json;
 use std::{sync::atomic::Ordering, time::Duration};
 
@@ -468,7 +466,10 @@ async fn rate_limits_pause_remaining_targets_and_subsequent_manual_runs() {
     );
     assert_eq!(fixture.mock.reads.load(Ordering::SeqCst), 1);
     assert_eq!(fixture.mock.ipv4_calls.load(Ordering::SeqCst), 1);
-    *fixture.engine.run.lock().await = Some(tokio::time::Instant::now() - Duration::from_secs(1));
+    *fixture.engine.run.lock().await = Some(super::Cooldown {
+        until: tokio::time::Instant::now() - Duration::from_secs(1),
+        error: Error::ProviderRateLimited,
+    });
     fixture.mock.data.lock().unwrap().status = axum::http::StatusCode::OK;
     let recovered = fixture
         .engine
@@ -704,6 +705,23 @@ async fn private_http_contract_requires_bearer_and_rejects_invalid_bodies_withou
                 .body(Body::from(body))
                 .unwrap()
         };
+        if path.ends_with("/sync") {
+            let response = authorized
+                .clone()
+                .oneshot(send(
+                    json!({"actorUserId":ACTOR,"expectedRevision":0}).to_string(),
+                ))
+                .await
+                .unwrap();
+            assert_eq!(response.status(), 409);
+            let response = authorized
+                .clone()
+                .oneshot(send(valid.to_string()))
+                .await
+                .unwrap();
+            assert_eq!(response.status(), 400);
+            continue;
+        }
         let response = authorized
             .clone()
             .oneshot(send(valid.to_string()))

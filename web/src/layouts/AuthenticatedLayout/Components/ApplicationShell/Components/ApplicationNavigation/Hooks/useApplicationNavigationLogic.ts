@@ -21,6 +21,7 @@ const navigationGroups = [
             '/certificates',
             '/operations',
             '/dns-connections',
+            '/ddns',
         ],
     },
     {

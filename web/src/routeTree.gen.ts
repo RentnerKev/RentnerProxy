@@ -17,6 +17,7 @@ import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAuditLogsRouteImport } from './routes/_authenticated/audit-logs'
 import { Route as AuthenticatedCertificatesRouteImport } from './routes/_authenticated/certificates'
 import { Route as AuthenticatedCrowdsecRouteImport } from './routes/_authenticated/crowdsec'
+import { Route as AuthenticatedDdnsRouteImport } from './routes/_authenticated/ddns'
 import { Route as AuthenticatedDnsConnectionsRouteImport } from './routes/_authenticated/dns-connections'
 import { Route as AuthenticatedMigrationRouteImport } from './routes/_authenticated/migration'
 import { Route as AuthenticatedNpmImportRouteImport } from './routes/_authenticated/npm-import'
@@ -80,6 +81,11 @@ const AuthenticatedCertificatesRoute =
 const AuthenticatedCrowdsecRoute = AuthenticatedCrowdsecRouteImport.update({
   id: '/crowdsec',
   path: '/crowdsec',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDdnsRoute = AuthenticatedDdnsRouteImport.update({
+  id: '/ddns',
+  path: '/ddns',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDnsConnectionsRoute =
@@ -213,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/audit-logs': typeof AuthenticatedAuditLogsRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/crowdsec': typeof AuthenticatedCrowdsecRoute
+  '/ddns': typeof AuthenticatedDdnsRoute
   '/dns-connections': typeof AuthenticatedDnsConnectionsRoute
   '/migration': typeof AuthenticatedMigrationRoute
   '/npm-import': typeof AuthenticatedNpmImportRoute
@@ -245,6 +252,7 @@ export interface FileRoutesByTo {
   '/audit-logs': typeof AuthenticatedAuditLogsRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/crowdsec': typeof AuthenticatedCrowdsecRoute
+  '/ddns': typeof AuthenticatedDdnsRoute
   '/dns-connections': typeof AuthenticatedDnsConnectionsRoute
   '/migration': typeof AuthenticatedMigrationRoute
   '/npm-import': typeof AuthenticatedNpmImportRoute
@@ -278,6 +286,7 @@ export interface FileRoutesById {
   '/_authenticated/audit-logs': typeof AuthenticatedAuditLogsRoute
   '/_authenticated/certificates': typeof AuthenticatedCertificatesRoute
   '/_authenticated/crowdsec': typeof AuthenticatedCrowdsecRoute
+  '/_authenticated/ddns': typeof AuthenticatedDdnsRoute
   '/_authenticated/dns-connections': typeof AuthenticatedDnsConnectionsRoute
   '/_authenticated/migration': typeof AuthenticatedMigrationRoute
   '/_authenticated/npm-import': typeof AuthenticatedNpmImportRoute
@@ -313,6 +322,7 @@ export interface FileRouteTypes {
     | '/audit-logs'
     | '/certificates'
     | '/crowdsec'
+    | '/ddns'
     | '/dns-connections'
     | '/migration'
     | '/npm-import'
@@ -345,6 +355,7 @@ export interface FileRouteTypes {
     | '/audit-logs'
     | '/certificates'
     | '/crowdsec'
+    | '/ddns'
     | '/dns-connections'
     | '/migration'
     | '/npm-import'
@@ -377,6 +388,7 @@ export interface FileRouteTypes {
     | '/_authenticated/audit-logs'
     | '/_authenticated/certificates'
     | '/_authenticated/crowdsec'
+    | '/_authenticated/ddns'
     | '/_authenticated/dns-connections'
     | '/_authenticated/migration'
     | '/_authenticated/npm-import'
@@ -471,6 +483,13 @@ declare module '@tanstack/react-router' {
       path: '/crowdsec'
       fullPath: '/crowdsec'
       preLoaderRoute: typeof AuthenticatedCrowdsecRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ddns': {
+      id: '/_authenticated/ddns'
+      path: '/ddns'
+      fullPath: '/ddns'
+      preLoaderRoute: typeof AuthenticatedDdnsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dns-connections': {
@@ -650,6 +669,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAuditLogsRoute: typeof AuthenticatedAuditLogsRoute
   AuthenticatedCertificatesRoute: typeof AuthenticatedCertificatesRoute
   AuthenticatedCrowdsecRoute: typeof AuthenticatedCrowdsecRoute
+  AuthenticatedDdnsRoute: typeof AuthenticatedDdnsRoute
   AuthenticatedDnsConnectionsRoute: typeof AuthenticatedDnsConnectionsRoute
   AuthenticatedMigrationRoute: typeof AuthenticatedMigrationRoute
   AuthenticatedNpmImportRoute: typeof AuthenticatedNpmImportRoute
@@ -669,6 +689,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAuditLogsRoute: AuthenticatedAuditLogsRoute,
   AuthenticatedCertificatesRoute: AuthenticatedCertificatesRoute,
   AuthenticatedCrowdsecRoute: AuthenticatedCrowdsecRoute,
+  AuthenticatedDdnsRoute: AuthenticatedDdnsRoute,
   AuthenticatedDnsConnectionsRoute: AuthenticatedDnsConnectionsRoute,
   AuthenticatedMigrationRoute: AuthenticatedMigrationRoute,
   AuthenticatedNpmImportRoute: AuthenticatedNpmImportRoute,

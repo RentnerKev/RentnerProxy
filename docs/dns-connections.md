@@ -6,8 +6,8 @@ It supplies the management and reference contract for later DNS consumers. Savin
 a connection only reads Cloudflare zone metadata; it does not change DNS records, start DDNS,
 or convert existing certificates. The explicitly invoked DDNS record engine in B2-02
 ([#231](https://github.com/RentnerKev/RentnerProxy/issues/231)) is documented in
-[DDNS record synchronization](ddns-record-sync.md); scheduling and the DDNS UI remain
-separate implementation steps.
+[DDNS record synchronization](ddns-record-sync.md). B2-03 adds
+[durable DDNS automation](ddns-automation.md); its web UI follows in B2-04 (#233).
 
 ## Access and ownership
 
@@ -118,8 +118,9 @@ before replacing target state. Backup format v4 is unchanged. Old supported back
 the file restore with an empty connection registry. Portable host configuration exports do
 not include shared credentials or their references.
 
-Restoring this passive registry starts no new external automation. Future DDNS/discovery/
-notification consumers must implement the milestone's explicit reactivation rule themselves.
+Restoring this passive registry starts no new external automation. DDNS restores stay
+paused until explicitly enabled through the [review workflow](ddns-migration.md).
+Future discovery/notification consumers must implement explicit reactivation too.
 Keep a pre-upgrade backup for rollback. Beta 1 has no shared-connection UI or consumer support;
 use the original Beta 1 backup, restore tooling and image for a rollback instead of expecting
 it to operate Beta 2 connections. See [backup and recovery](operations.md#backup-and-recovery).

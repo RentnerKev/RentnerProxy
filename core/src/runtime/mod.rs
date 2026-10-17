@@ -154,10 +154,12 @@ pub(crate) struct ProxyRuntime {
     certificate_store: CertificateStore,
     pub(crate) dns_connections: dns_connections::Store,
     pub(crate) ddns: ddns::Engine,
+    pub(crate) ddns_automation: ddns::Automation,
     trusted_ca_store: TrustedCaStore,
     access_log_snapshots: access_logs::SnapshotCache,
     renewal_task: Mutex<Option<JoinHandle<()>>>,
     recovery_task: Mutex<Option<JoinHandle<()>>>,
+    ddns_task: Mutex<Option<JoinHandle<()>>>,
     candidate_cursor: AtomicUsize,
     dns_cleanup_cursor: AtomicUsize,
     crowdsec: Mutex<crowdsec::CrowdSecState>,
@@ -204,6 +206,7 @@ impl ProxyRuntime {
         let certificate_store = CertificateStore::new(settings.state_dir.clone());
         let trusted_ca_store = TrustedCaStore::new(settings.state_dir.clone());
         let dns_connections = dns_connections::Store::new(settings.state_dir.clone());
+        let ddns_automation = ddns::Automation::new(settings.state_dir.clone());
         Arc::new(Self {
             #[cfg(test)]
             recovery_write_faults: std::sync::Mutex::new(std::collections::VecDeque::new()),
@@ -212,6 +215,7 @@ impl ProxyRuntime {
             certificate_store,
             dns_connections,
             ddns: ddns::Engine::new(),
+            ddns_automation,
             trusted_ca_store,
             access_log_snapshots: access_logs::SnapshotCache::new(),
             state: Mutex::new(RuntimeState {
@@ -228,6 +232,7 @@ impl ProxyRuntime {
             active_configuration: Mutex::new(None),
             renewal_task: Mutex::new(None),
             recovery_task: Mutex::new(None),
+            ddns_task: Mutex::new(None),
             candidate_cursor: AtomicUsize::new(0),
             dns_cleanup_cursor: AtomicUsize::new(0),
             crowdsec: Mutex::new(crowdsec::CrowdSecState::default()),

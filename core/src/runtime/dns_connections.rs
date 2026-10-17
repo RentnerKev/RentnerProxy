@@ -1,5 +1,6 @@
 mod access;
 mod models;
+mod references;
 #[cfg(test)]
 mod tests;
 mod validation;
@@ -9,7 +10,9 @@ use super::{
     dns::{EncryptedDnsConfig, encryption},
     state::state_dir,
 };
-pub(crate) use models::{DeleteRequest, Error, Reference, SaveRequest, TestRequest};
+pub(crate) use models::{
+    Consumer, ConsumerType, DeleteRequest, Error, Reference, SaveRequest, TestRequest,
+};
 use models::{Metadata, TestResult, ValidatedReference, Zone};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeSet, path::PathBuf};

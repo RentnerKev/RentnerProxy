@@ -419,6 +419,7 @@ async function restore(): Promise<void> {
                 'tar --extract --no-same-owner --no-same-permissions ' +
                     exclusions +
                     ' --file=/backup/controller-state.tar --directory="$root/.restore-proxy"',
+                'printf %s "Restore requires explicit DDNS activation" > "$root/.restore-proxy/ddns-restore-paused"',
                 'find "$root/.restore-proxy" -type d -exec chmod 0700 {} +',
                 'find "$root/.restore-proxy" -type f -exec chmod 0600 {} +',
                 'chown -R rentnerproxy:rentnerproxy "$root/.restore-proxy"',
