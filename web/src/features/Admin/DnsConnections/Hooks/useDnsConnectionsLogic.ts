@@ -55,14 +55,15 @@ export default function useDnsConnectionsLogic({
     async function invalidate(saved?: DnsConnection, removedId?: string) {
         await Promise.all(
             DNS_CONNECTION_LIVE_QUERY_KEYS.map((queryKey) =>
-                queryClient.cancelQueries({ queryKey }),
+                queryClient.cancelQueries({ queryKey }, { revert: false }),
             ),
         )
         if (saved)
-            queryClient.setQueryData<readonly DnsConnection[]>(['dns-connections'], (current) => [
-                ...(current ?? []).filter((item) => item.id !== saved.id),
-                saved,
-            ])
+            queryClient.setQueryData<readonly DnsConnection[]>(['dns-connections'], (current) => {
+                const latest = current?.find((item) => item.id === saved.id)
+                if (latest && latest.revision >= saved.revision) return current
+                return [...(current ?? []).filter((item) => item.id !== saved.id), saved]
+            })
         if (removedId)
             queryClient.setQueryData<readonly DnsConnection[]>(['dns-connections'], (current) =>
                 current?.filter((item) => item.id !== removedId),

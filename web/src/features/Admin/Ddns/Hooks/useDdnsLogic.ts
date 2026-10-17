@@ -128,8 +128,14 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
         }
     }
     async function accept(updated: DdnsSnapshot, message: string) {
-        await queryClient.cancelQueries({ queryKey: DDNS_QUERY_KEYS.status })
-        queryClient.setQueryData(DDNS_QUERY_KEYS.status, updated)
+        await queryClient.cancelQueries({ queryKey: DDNS_QUERY_KEYS.status }, { revert: false })
+        queryClient.setQueryData<DdnsSnapshot>(DDNS_QUERY_KEYS.status, (current) => {
+            // A live read may already include a later edit or worker result.
+            const responseRevision = updated.configuration?.revision ?? 0
+            return current && (current.configuration?.revision ?? 0) >= responseRevision
+                ? current
+                : updated
+        })
         setRecordEditor(null)
         setSettingsEditor(null)
         setDeletion(null)

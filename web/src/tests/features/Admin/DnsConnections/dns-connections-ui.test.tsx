@@ -175,6 +175,33 @@ afterEach(async () => {
 })
 
 describe('Cloudflare DNS connection management', () => {
+    test('a delayed save cannot replace newer metadata even when the follow-up list read fails', async () => {
+        connections = [connection]
+        const result = Promise.withResolvers<{
+            success: true
+            message: string
+            connection: DnsConnection
+        }>()
+        saveConnection.mockImplementationOnce(() => result.promise)
+        await renderPage()
+        await click(button('Edit'))
+        await submit()
+        const newer = { ...connection, revision: 5, name: 'Newer committed connection' }
+        await act(async () => queryClient.setQueryData(['dns-connections'], [newer]))
+        queryFails = true
+        await act(async () =>
+            result.resolve({
+                success: true,
+                message: 'admin.dnsConnections.messages.saved',
+                connection: { ...connection, revision: 4 },
+            }),
+        )
+        await waitFor(() => document.querySelector('form') === null)
+        expect(
+            queryClient.getQueryData<readonly DnsConnection[]>(['dns-connections'])?.[0]?.revision,
+        ).toBe(5)
+        expect(document.body.textContent).toContain(newer.name)
+    })
     test('new consumer references lock the existing draft without a metadata revision bump', async () => {
         connections = [connection]
         await renderPage()

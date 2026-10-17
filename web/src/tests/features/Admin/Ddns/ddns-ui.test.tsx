@@ -201,6 +201,29 @@ async function action(label: string) {
     )
 }
 describe('DDNS administration UI', () => {
+    test('a delayed mutation response cannot overwrite a newer committed configuration', async () => {
+        const { api } = fixture(ddnsSnapshot(approved, true))
+        const result = Promise.withResolvers<Awaited<ReturnType<DdnsApi['apply']>>>()
+        api.apply = mock(() => result.promise)
+        await render(api)
+        await action('Disable')
+        const newer = ddnsSnapshot(approved, true, 3)
+        await act(async () => client.setQueryData(DDNS_QUERY_KEYS.status, newer))
+        const own = ddnsSnapshot(
+            ddnsSettings([{ ...approved.targets[0]!, enabled: false }]),
+            true,
+            2,
+        )
+        await act(async () => result.resolve({ success: true, value: own }))
+        await waitFor(() => feedback.some((entry) => entry.kind === 'success'))
+        expect(
+            client.getQueryData<typeof newer>(DDNS_QUERY_KEYS.status)?.configuration?.revision,
+        ).toBe(3)
+        expect(
+            client.getQueryData<typeof newer>(DDNS_QUERY_KEYS.status)?.configuration?.settings
+                .targets[0]?.enabled,
+        ).toBe(true)
+    })
     test('manual update is unavailable when every saved record is disabled', async () => {
         const { api } = fixture(
             ddnsSnapshot(ddnsSettings([{ ...approved.targets[0]!, enabled: false }]), true),
