@@ -15,7 +15,7 @@ import useTranslationStore, {
 import useLiveInvalidation from '@/shared/Live/Hooks/useLiveInvalidation.ts'
 import useQueryErrorToast from '@/shared/Notifications/Hooks/useQueryErrorToast.ts'
 import type { DdnsPageProps, DdnsResponse } from '../Types/ddns-ui.types.ts'
-import type { DdnsRecordEditorContext } from '../Types/ddns-editor.types.ts'
+import type { DdnsRecordEditorContext, DdnsDeletionContext } from '../Types/ddns-editor.types.ts'
 
 function unwrap<T>(response: DdnsResponse<T>): T {
     if (!response.success) throw new Error(response.message)
@@ -33,7 +33,7 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
         DdnsRecordEditorContext,
         'target'
     > | null>(null)
-    const [deleteTarget, setDeleteTarget] = useState<DdnsTarget | null>(null)
+    const [deletion, setDeletion] = useState<DdnsDeletionContext | null>(null)
     const [isPending, setIsPending] = useState(false)
     const pending = useRef(false)
     const statusQuery = useQuery({
@@ -127,11 +127,12 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
             setIsPending(false)
         }
     }
-    function accept(updated: DdnsSnapshot, message: string) {
+    async function accept(updated: DdnsSnapshot, message: string) {
+        await queryClient.cancelQueries({ queryKey: DDNS_QUERY_KEYS.status })
         queryClient.setQueryData(DDNS_QUERY_KEYS.status, updated)
         setRecordEditor(null)
         setSettingsEditor(null)
-        setDeleteTarget(null)
+        setDeletion(null)
         toast.success(t(message), { title: t('toast.titles.success') })
         void queryClient.invalidateQueries({ queryKey: ['dns-connections'] })
     }
@@ -176,11 +177,12 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
             connections: connectionsQuery.data ?? [],
             recordEditor,
             settingsEditor,
-            deleteTarget,
+            deleteTarget: deletion?.target ?? null,
             stale,
             canEnable:
                 !settings?.enabled &&
                 draft.targets.some((target) => activeDdnsTarget(draft, target)),
+            hasActiveTargets: draft.targets.some((target) => activeDdnsTarget(draft, target)),
             discoveredIpv4: snapshot?.targets.find((target) =>
                 target.lastSuccessfulAddress?.includes('.'),
             )?.lastSuccessfulAddress,
@@ -227,21 +229,30 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
                     )
             },
             askDelete: (target: DdnsTarget) => {
-                if (!locked && canManage) setDeleteTarget(target)
+                if (!locked && canManage) setDeletion({ target, revision })
             },
             closeDelete: (open: boolean) => {
-                if (!open && !pending.current) setDeleteTarget(null)
+                if (!open && !pending.current) setDeletion(null)
             },
             confirmDelete: () => {
-                if (deleteTarget && !locked)
+                if (deletion && !locked) {
+                    const latest = queryClient.getQueryData<DdnsSnapshot>(DDNS_QUERY_KEYS.status)
+                    if (deletion.revision !== (latest?.configuration?.revision ?? revision)) {
+                        setDeletion(null)
+                        toast.info(t('admin.ddns.messages.actionChanged'), {
+                            title: t('toast.titles.info'),
+                        })
+                        return
+                    }
                     void apply(
                         {
                             ...draft,
-                            targets: draft.targets.filter((item) => item.id !== deleteTarget.id),
+                            targets: draft.targets.filter((item) => item.id !== deletion.target.id),
                         },
-                        revision,
+                        deletion.revision,
                         'admin.ddns.messages.recordDeleted',
                     )
+                }
             },
             enable: () => {
                 if (!locked) void apply(draft, revision, 'admin.ddns.messages.enabled', true)
@@ -256,7 +267,11 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
                     )
             },
             sync: () => {
-                if (!locked && settings?.enabled)
+                if (
+                    !locked &&
+                    settings?.enabled &&
+                    draft.targets.some((target) => activeDdnsTarget(draft, target))
+                )
                     void run(async () => {
                         const batch = unwrap(await api.sync({ expectedRevision: revision }))
                         const partial = batch.targets.some(

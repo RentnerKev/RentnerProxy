@@ -52,19 +52,42 @@ export default function useDnsConnectionsLogic({
         connectionsQuery.isError,
         'admin.dnsConnections.errors.controller_unavailable',
     )
-    const invalidate = () =>
-        Promise.all(
+    async function invalidate(saved?: DnsConnection, removedId?: string) {
+        await Promise.all(
+            DNS_CONNECTION_LIVE_QUERY_KEYS.map((queryKey) =>
+                queryClient.cancelQueries({ queryKey }),
+            ),
+        )
+        if (saved)
+            queryClient.setQueryData<readonly DnsConnection[]>(['dns-connections'], (current) => [
+                ...(current ?? []).filter((item) => item.id !== saved.id),
+                saved,
+            ])
+        if (removedId)
+            queryClient.setQueryData<readonly DnsConnection[]>(['dns-connections'], (current) =>
+                current?.filter((item) => item.id !== removedId),
+            )
+        await Promise.all(
             DNS_CONNECTION_LIVE_QUERY_KEYS.map((queryKey) =>
                 queryClient.invalidateQueries({ queryKey }),
             ),
         )
+    }
+    const currentEditing = connectionsQuery.data?.find(
+        (connection) => connection.id === editing?.id,
+    )
     const isStale =
         !!editing &&
-        !connectionsQuery.data?.some(
-            (connection) =>
-                connection.id === editing.id && connection.revision === editing.revision,
-        )
-    const lockedZoneIds = new Set(editing?.references.map((reference) => reference.zoneId) ?? [])
+        (!currentEditing ||
+            currentEditing.revision !== editing.revision ||
+            JSON.stringify(currentEditing.references) !== JSON.stringify(editing.references))
+    const lockedZoneIds = new Set(
+        [...(editing?.references ?? []), ...(currentEditing?.references ?? [])].map(
+            (reference) => reference.zoneId,
+        ),
+    )
+    const unavailable = connectionsQuery.isError || (canView && connectionsQuery.isPending)
+    const locked = isPending || unavailable
     useEffect(() => {
         if (editorOpen && isStale)
             toast.info(t('admin.dnsConnections.messages.changed'), {
@@ -80,7 +103,7 @@ export default function useDnsConnectionsLogic({
             zoneIds: editing?.zones.map((zone) => zone.id) ?? ([] as string[]),
         },
         onSubmit: async ({ value }) => {
-            if (!canManage || pending.current) return
+            if (!canManage || pending.current || unavailable) return
             if (isStale) {
                 fail('admin.dnsConnections.messages.changed')
                 return
@@ -110,7 +133,7 @@ export default function useDnsConnectionsLogic({
                 setEditing(null)
                 setZones([])
                 success(result.message)
-                await invalidate()
+                await invalidate(result.connection)
             } catch {
                 fail('admin.dnsConnections.errors.requestFailed')
             } finally {
@@ -129,14 +152,14 @@ export default function useDnsConnectionsLogic({
         setEditorOpen(open)
     }
     function handleCreate() {
-        if (!canManage || pending.current) return
+        if (!canManage || pending.current || unavailable) return
         setEditing(null)
         form.reset({ name: '', apiToken: '', zoneIds: [] })
         setZones([])
         setEditorOpen(true)
     }
     function handleEdit(connection: DnsConnection) {
-        if (!canManage || pending.current) return
+        if (!canManage || pending.current || unavailable) return
         setEditing(connection)
         form.reset({
             name: connection.name,
@@ -147,7 +170,7 @@ export default function useDnsConnectionsLogic({
         setEditorOpen(true)
     }
     async function handleTest() {
-        if (!canManage || pending.current) return
+        if (!canManage || pending.current || unavailable) return
         const parsed = testDnsConnectionSchema.safeParse({
             connectionId: editing?.id,
             apiToken: form.getFieldValue('apiToken') || undefined,
@@ -192,7 +215,26 @@ export default function useDnsConnectionsLogic({
         )
     }
     async function handleConfirmDelete() {
-        if (!canManage || !deleteTarget || pending.current || deleteTarget.references.length) return
+        if (
+            !canManage ||
+            !deleteTarget ||
+            pending.current ||
+            unavailable ||
+            deleteTarget.references.length
+        )
+            return
+        const current = connectionsQuery.data?.find(
+            (connection) => connection.id === deleteTarget.id,
+        )
+        if (!current || current.revision !== deleteTarget.revision || current.references.length) {
+            fail(
+                current?.references.length
+                    ? 'admin.dnsConnections.errors.connection_in_use'
+                    : 'admin.dnsConnections.errors.connection_conflict',
+            )
+            setDeleteTarget(null)
+            return
+        }
         pending.current = true
         setIsPending(true)
         try {
@@ -202,7 +244,7 @@ export default function useDnsConnectionsLogic({
             if (!result.success) fail(result.message)
             else success(result.message)
             setDeleteTarget(null)
-            await invalidate()
+            await invalidate(undefined, result.success ? deleteTarget.id : undefined)
         } catch {
             fail('admin.dnsConnections.errors.requestFailed')
         } finally {
@@ -217,6 +259,7 @@ export default function useDnsConnectionsLogic({
             isLoading: canView && connectionsQuery.isPending,
             isError: connectionsQuery.isError,
             isPending,
+            locked,
             isStale,
             editorOpen,
             editing,
@@ -230,7 +273,7 @@ export default function useDnsConnectionsLogic({
             handleEdit,
             handleEditorOpenChange,
             handleDelete: (connection: DnsConnection) => {
-                if (canManage && !pending.current && !connection.references.length)
+                if (canManage && !pending.current && !unavailable && !connection.references.length)
                     setDeleteTarget(connection)
             },
             handleDeleteOpenChange: (open: boolean) => {

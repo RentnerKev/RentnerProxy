@@ -68,7 +68,7 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
         const index = afterId ? rows.findIndex((row) => row.id === afterId) : rows.length - 1
         const next = rows[index + 1]
         if (next && !next.value.trim()) {
-            setFocusId(next.id)
+            inputs.current.get(next.id)?.focus()
             return
         }
         const added = { id: createDdnsTargetId(), value: '' }
@@ -132,7 +132,7 @@ export default function useDdnsRecordEditorLogic(props: DdnsRecordEditorProps) {
                 else inputs.current.delete(id)
             },
             domainKey: (event: KeyboardEvent<HTMLInputElement>, id: string) => {
-                if (event.key !== 'Enter') return
+                if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
                 event.preventDefault()
                 const current = form.getFieldValue('domains').find((row) => row.id === id)
                 if (!current?.value.trim() || props.editor.target) return

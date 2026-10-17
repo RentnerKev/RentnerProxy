@@ -77,7 +77,7 @@ export default function DdnsPage(props: DdnsPageProps) {
                                             <button
                                                 type="button"
                                                 onClick={handler.sync}
-                                                disabled={state.locked}
+                                                disabled={state.locked || !state.hasActiveTargets}
                                                 className="min-h-11 rounded-xl border border-border-strong bg-surface-raised px-4 text-sm font-extrabold text-ink-soft disabled:opacity-50"
                                             >
                                                 {t('admin.ddns.actions.sync')}

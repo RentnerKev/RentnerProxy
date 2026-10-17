@@ -5,6 +5,10 @@ export interface DdnsRecordEditorContext {
     readonly revision: number
     readonly target: DdnsTarget | null
 }
+export interface DdnsDeletionContext {
+    readonly target: DdnsTarget
+    readonly revision: number
+}
 export interface DdnsRecordEditorProps {
     readonly editor: DdnsRecordEditorContext
     readonly connections: readonly DnsConnection[]

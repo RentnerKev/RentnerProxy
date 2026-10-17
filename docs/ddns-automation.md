@@ -116,6 +116,11 @@ a provider-unavailable response carrying `Retry-After`, pauses remaining records
 further batches; its reason and deadline survive restarts. Other targets retain their
 individual successes and schedules.
 
+Editing or removing one target preserves unrelated targets' due times and permanent
+failure states. Only new/reactivated targets and changed proxy settings are inspected
+and re-armed. Interval changes reschedule healthy targets without delaying an existing
+transient retry. Enabling update-on-start still makes healthy targets due promptly.
+
 Permission errors, missing/replaced records, conflicts and invalid selections are
 permanent target failures: automatic retries stop for those targets. Their status
 includes the safe error code and `permanentFailure`. Saving corrected configuration

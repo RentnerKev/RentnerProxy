@@ -13,7 +13,7 @@ export default function DnsConnectionEditor({
     handler,
     form,
 }: ReturnType<typeof useDnsConnectionsLogic>) {
-    const { t } = useTranslationStore()
+    const { t, locale } = useTranslationStore()
     return (
         <Modal
             open
@@ -38,7 +38,7 @@ export default function DnsConnectionEditor({
                     <button
                         type="submit"
                         form={state.formId}
-                        disabled={state.isPending || state.isStale}
+                        disabled={state.locked || state.isStale}
                         className="h-12 rounded-xl bg-accent px-4 text-sm font-extrabold text-accent-foreground enabled:hover:bg-accent-hover disabled:opacity-50"
                     >
                         {t(state.isPending ? 'common.working' : 'common.save')}
@@ -59,6 +59,8 @@ export default function DnsConnectionEditor({
                             <TextInput
                                 id={`${state.formId}-name`}
                                 name="name"
+                                locale={locale}
+                                validationMode="external"
                                 value={field.state.value}
                                 onValueChange={field.handleChange}
                                 onBlur={field.handleBlur}
@@ -81,6 +83,8 @@ export default function DnsConnectionEditor({
                             <PasswordInput
                                 id={`${state.formId}-token`}
                                 name="apiToken"
+                                locale={locale}
+                                validationMode="external"
                                 type="password"
                                 value={field.state.value}
                                 onValueChange={field.handleChange}
@@ -107,7 +111,7 @@ export default function DnsConnectionEditor({
                 <button
                     type="button"
                     onClick={handler.handleTest}
-                    disabled={state.isPending}
+                    disabled={state.locked}
                     className="h-12 rounded-xl border border-border-strong bg-surface-raised px-4 text-sm font-extrabold text-ink-soft enabled:hover:border-accent-border disabled:opacity-50"
                 >
                     {t(state.isPending ? 'common.working' : 'admin.dnsConnections.actions.test')}

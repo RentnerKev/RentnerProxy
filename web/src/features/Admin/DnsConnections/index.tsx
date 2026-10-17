@@ -23,7 +23,7 @@ export default function DnsConnectionsPage(props: DnsConnectionsPageProps) {
                         <button
                             type="button"
                             onClick={handler.handleCreate}
-                            disabled={state.isPending}
+                            disabled={state.locked}
                             className="inline-flex h-12 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-extrabold text-accent-foreground enabled:hover:bg-accent-hover disabled:opacity-50"
                         >
                             <Plus aria-hidden="true" className="size-4" />
@@ -52,13 +52,13 @@ export default function DnsConnectionsPage(props: DnsConnectionsPageProps) {
                     )}
                 />
             ) : (
-                <div className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,24rem),1fr))] gap-5">
                     {state.connections.map((connection) => (
                         <DnsConnectionCard
                             key={connection.id}
                             connection={connection}
                             canManage={state.canManage}
-                            isPending={state.isPending}
+                            isPending={state.locked}
                             onEdit={handler.handleEdit}
                             onDelete={handler.handleDelete}
                         />

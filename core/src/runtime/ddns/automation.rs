@@ -159,49 +159,12 @@ impl Automation {
                 return Err(AutomationError::InvalidInput);
             }
         }
-        let mut targets = Vec::with_capacity(request.configuration.targets.len());
-        for target in &request.configuration.targets {
-            let unchanged = old.as_ref().is_some_and(|config| {
-                config.settings.targets.iter().any(|previous| {
-                    previous.id == target.id
-                        && previous.connection_id == target.connection_id
-                        && previous.zone_id == target.zone_id
-                        && previous.name == target.name
-                        && previous.record_type == target.record_type
-                        && previous.selection == target.selection
-                })
-            });
-            let mut status = if unchanged {
-                next.targets
-                    .iter()
-                    .find(|status| status.target_id == target.id)
-                    .cloned()
-                    .unwrap_or_else(|| TargetState::new(target))
-            } else {
-                TargetState::new(target)
-            };
-            let retry_after = (status.consecutive_failures > 0 && !status.permanent_failure)
-                .then_some(status.retry_not_before)
-                .flatten();
-            status.permanent_failure = false;
-            if retry_after.is_none() {
-                status.consecutive_failures = 0;
-                status.retry_not_before = None;
-            }
-            status.next_attempt_at = (request.configuration.enabled
-                && scheduling::active(&request.configuration, target))
-            .then(|| {
-                let planned = if request.configuration.update_on_start {
-                    now
-                } else {
-                    now + i64::from(request.configuration.interval_seconds)
-                };
-                planned
-                    .max(retry_after.unwrap_or(0))
-                    .max(next.provider_not_before.unwrap_or(0))
-            });
-            targets.push(status);
-        }
+        let targets = request
+            .configuration
+            .targets
+            .iter()
+            .map(|target| scheduling::configured_target(&next, &request.configuration, target, now))
+            .collect();
         let enabling = request.configuration.enabled;
         next.configuration = Some(SavedConfiguration {
             revision: request

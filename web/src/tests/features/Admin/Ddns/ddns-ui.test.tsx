@@ -201,6 +201,97 @@ async function action(label: string) {
     )
 }
 describe('DDNS administration UI', () => {
+    test('manual update is unavailable when every saved record is disabled', async () => {
+        const { api } = fixture(
+            ddnsSnapshot(ddnsSettings([{ ...approved.targets[0]!, enabled: false }]), true),
+        )
+        await render(api)
+        expect(button('Update now').disabled).toBe(true)
+        expect(api.sync).not.toHaveBeenCalled()
+    })
+    test('saving a record while a restored configuration is paused never implicitly resumes DNS writes', async () => {
+        const state = ddnsSnapshot(approved)
+        state.restorePaused = true
+        const { api } = fixture(state)
+        await render(api)
+        await action('Edit')
+        await click(document.querySelector('input[name="proxied"]')!)
+        await submit()
+        await waitFor(() => !document.querySelector('form'))
+        expect(api.apply).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
+        expect(api.enable).not.toHaveBeenCalled()
+    })
+    test('repeated form submissions admit only one pending configuration write', async () => {
+        const { api } = fixture(ddnsSnapshot(approved, true))
+        const result = Promise.withResolvers<Awaited<ReturnType<DdnsApi['apply']>>>()
+        api.apply = mock(() => result.promise)
+        await render(api)
+        await action('Edit')
+        await submit()
+        await submit()
+        expect(api.apply).toHaveBeenCalledTimes(1)
+        expect(button('Working…').disabled).toBe(true)
+        expect(button('Cancel').disabled).toBe(true)
+        await act(async () =>
+            result.resolve({ success: true, value: ddnsSnapshot(approved, true, 2) }),
+        )
+        await waitFor(() => !document.querySelector('form'))
+    })
+    test('an older in-flight status response cannot replace a successfully saved revision', async () => {
+        const initial = ddnsSnapshot(approved, true)
+        const { api } = fixture(initial)
+        const delayed = Promise.withResolvers<typeof initial>()
+        let reads = 0
+        api.status = mock(async () => (++reads === 1 ? initial : delayed.promise))
+        await render(api)
+        await act(async () => {
+            void client.invalidateQueries({ queryKey: DDNS_QUERY_KEYS.status })
+        })
+        await waitFor(() => reads === 2)
+        await action('Disable')
+        await waitFor(() => feedback.some((entry) => entry.kind === 'success'))
+        await act(async () => delayed.resolve(initial))
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 20))
+        })
+        expect(
+            client.getQueryData<typeof initial>(DDNS_QUERY_KEYS.status)?.configuration?.revision,
+        ).toBe(2)
+        expect(document.body.textContent).toContain('Record disabled')
+    })
+    test('delete confirmation cannot silently adopt a revision changed by another administrator', async () => {
+        const { api } = fixture(ddnsSnapshot(approved, true))
+        await render(api)
+        await action('Delete')
+        await act(async () =>
+            client.setQueryData(DDNS_QUERY_KEYS.status, ddnsSnapshot(approved, true, 2)),
+        )
+        await click(button('Delete', document.querySelector('[role="dialog"]')!))
+        expect(api.apply).not.toHaveBeenCalled()
+        expect(feedback.some((entry) => entry.kind === 'info')).toBe(true)
+    })
+    test('Enter can return to an existing empty domain input repeatedly', async () => {
+        const { api } = fixture()
+        await render(api)
+        await click(button('Add records'))
+        await fill('domain-0', 'home.example.com')
+        const first = document.querySelector<HTMLInputElement>('input[name="domain-0"]')!
+        await act(async () =>
+            first.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+            ),
+        )
+        const second = document.querySelector<HTMLInputElement>('input[name="domain-1"]')!
+        expect(document.activeElement?.getAttribute('name')).toBe(second.name)
+        await act(async () => {
+            first.focus()
+            first.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+            )
+        })
+        expect(document.activeElement?.getAttribute('name')).toBe(second.name)
+        expect(document.querySelectorAll('input[name^="domain-"]')).toHaveLength(2)
+    })
     test('read-only table never fetches connection choices or exposes writes', async () => {
         const { api } = fixture(ddnsSnapshot(approved, true))
         await render(api, false)

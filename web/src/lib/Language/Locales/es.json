@@ -2598,7 +2598,8 @@
                 "settingsSaved": "Ajustes DDNS guardados.",
                 "recordEnabled": "Registro activado.",
                 "recordDisabled": "Registro desactivado.",
-                "recordDeleted": "Registro eliminado de DDNS. Se conserva el registro DNS en Cloudflare."
+                "recordDeleted": "Registro eliminado de DDNS. Se conserva el registro DNS en Cloudflare.",
+                "actionChanged": "La configuración cambió durante esta acción. Ábrela de nuevo para usar la versión actual."
             },
             "validation": {
                 "domain": "Introduce un dominio o *.comodín sin URL ni puerto.",

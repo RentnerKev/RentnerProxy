@@ -2579,7 +2579,8 @@
                 "settingsSaved": "DDNS-instellingen opgeslagen.",
                 "recordEnabled": "Record ingeschakeld.",
                 "recordDisabled": "Record uitgeschakeld.",
-                "recordDeleted": "Record uit DDNS verwijderd. Het DNS-record bij Cloudflare blijft bestaan."
+                "recordDeleted": "Record uit DDNS verwijderd. Het DNS-record bij Cloudflare blijft bestaan.",
+                "actionChanged": "De configuratie is tijdens deze actie gewijzigd. Open de actie opnieuw voor de huidige versie."
             },
             "validation": {
                 "domain": "Voer een domein of *.wildcard in zonder URL of poort.",

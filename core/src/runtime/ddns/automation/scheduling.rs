@@ -9,6 +9,69 @@ pub(super) fn active(config: &Configuration, target: &Target) -> bool {
         }
 }
 
+pub(super) fn configured_target(
+    value: &Document,
+    config: &Configuration,
+    target: &Target,
+    now: i64,
+) -> TargetState {
+    let old = value.configuration.as_ref().map(|saved| &saved.settings);
+    let previous = old.and_then(|settings| {
+        settings.targets.iter().find(|previous| {
+            previous.id == target.id
+                && previous.connection_id == target.connection_id
+                && previous.zone_id == target.zone_id
+                && previous.name == target.name
+                && previous.record_type == target.record_type
+                && previous.selection == target.selection
+        })
+    });
+    let mut status = previous
+        .and_then(|_| {
+            value
+                .targets
+                .iter()
+                .find(|state| state.target_id == target.id)
+        })
+        .cloned()
+        .unwrap_or_else(|| TargetState::new(target));
+    let rearm = previous.is_none_or(|previous| {
+        config.enabled
+            && active(config, target)
+            && (previous.proxied != target.proxied
+                || old.is_none_or(|old| !old.enabled || !active(old, previous)))
+    });
+    let retry_after = (status.consecutive_failures > 0 && !status.permanent_failure)
+        .then_some(status.retry_not_before)
+        .flatten();
+    if rearm {
+        status.permanent_failure = false;
+        if retry_after.is_none() {
+            status.consecutive_failures = 0;
+            status.retry_not_before = None;
+        }
+    }
+    let interval_changed = old.is_some_and(|old| old.interval_seconds != config.interval_seconds);
+    let startup_enabled = old.is_some_and(|old| !old.update_on_start && config.update_on_start);
+    if !config.enabled || !active(config, target) {
+        status.next_attempt_at = None;
+    } else if rearm || (!status.permanent_failure && (interval_changed || startup_enabled)) {
+        let planned = if !rearm && status.consecutive_failures > 0 {
+            status.next_attempt_at.or(retry_after).unwrap_or(now)
+        } else if config.update_on_start && (rearm || startup_enabled) {
+            now
+        } else {
+            now + i64::from(config.interval_seconds)
+        };
+        status.next_attempt_at = Some(
+            planned
+                .max(retry_after.unwrap_or(0))
+                .max(value.provider_not_before.unwrap_or(0)),
+        );
+    }
+    status
+}
+
 pub(super) fn event(
     value: &mut Document,
     at: i64,

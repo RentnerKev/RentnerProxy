@@ -296,6 +296,60 @@ describe('DDNS web service', () => {
 })
 
 describe('automatic DDNS record changes', () => {
+    test('a new record is inspected independently of unchanged targets with provider errors', async () => {
+        const { service, dependencies, setState } = setup()
+        const existing = approved.targets[0]!
+        const added = ddnsTarget({
+            id: '0198d98a-0000-7000-8000-000000000004',
+            name: 'home.example.com',
+        })
+        const state = ddnsSnapshot(approved, true)
+        state.targets[0]!.permanentFailure = true
+        state.targets[0]!.lastResult = {
+            ...ddnsBatch(approved).targets[0]!,
+            status: 'failed',
+            error: 'record_conflict',
+        }
+        setState(state)
+        dependencies.controller.preview = mock(async (input) => {
+            const batch = ddnsBatch(ddnsSettings(input.targets))
+            return {
+                ...batch,
+                targets: batch.targets.map((result) =>
+                    result.targetId === existing.id
+                        ? {
+                              ...result,
+                              status: 'failed' as const,
+                              error: 'record_conflict' as const,
+                          }
+                        : result,
+                ),
+            }
+        })
+        await service.applyDdnsService({
+            expectedRevision: 1,
+            draft: ddnsSettings([existing, added]),
+            enabled: true,
+        })
+        expect(dependencies.controller.preview).toHaveBeenCalledTimes(2)
+        expect(dependencies.controller.preview).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({ targets: [added] }),
+        )
+        expect(dependencies.controller.save).toHaveBeenCalledWith(
+            expect.objectContaining({
+                configuration: expect.objectContaining({
+                    targets: [
+                        existing,
+                        expect.objectContaining({
+                            id: added.id,
+                            selection: { mode: 'adopt', recordId: 'c'.repeat(32) },
+                        }),
+                    ],
+                }),
+            }),
+        )
+    })
     test('inspects and binds existing provider IDs before atomically saving an active list', async () => {
         const { service, dependencies } = setup()
         await service.applyDdnsService({

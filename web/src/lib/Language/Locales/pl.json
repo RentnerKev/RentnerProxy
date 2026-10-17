@@ -2624,7 +2624,8 @@
                 "settingsSaved": "Ustawienia DDNS zapisane.",
                 "recordEnabled": "Rekord włączony.",
                 "recordDisabled": "Rekord wyłączony.",
-                "recordDeleted": "Rekord usunięty z DDNS. Rekord DNS w Cloudflare pozostaje."
+                "recordDeleted": "Rekord usunięty z DDNS. Rekord DNS w Cloudflare pozostaje.",
+                "actionChanged": "Konfiguracja zmieniła się podczas tej akcji. Otwórz ją ponownie, aby użyć aktualnej wersji."
             },
             "validation": {
                 "domain": "Podaj domenę lub *.wieloznaczną bez URL i portu.",

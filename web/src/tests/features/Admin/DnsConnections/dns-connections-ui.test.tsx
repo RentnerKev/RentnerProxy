@@ -175,6 +175,96 @@ afterEach(async () => {
 })
 
 describe('Cloudflare DNS connection management', () => {
+    test('new consumer references lock the existing draft without a metadata revision bump', async () => {
+        connections = [connection]
+        await renderPage()
+        await click(button('Edit'))
+        await input('apiToken', 'kept-in-open-editor')
+        connections = [
+            {
+                ...connection,
+                references: [
+                    { zoneId: firstZone.id, consumer: { type: 'ddns', id: 'new-consumer' } },
+                ],
+            },
+        ]
+        await act(async () => {
+            await queryClient.invalidateQueries({ queryKey: ['dns-connections'] })
+        })
+        await waitFor(() => button('Save changes').disabled)
+        expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.disabled).toBe(
+            true,
+        )
+        expect(document.querySelector<HTMLInputElement>('input[name="apiToken"]')?.value).toBe(
+            'kept-in-open-editor',
+        )
+        await submit()
+        expect(saveConnection).not.toHaveBeenCalled()
+    })
+    test('failed background metadata reads block writes but allow cancel and recover live', async () => {
+        connections = [connection]
+        await renderPage()
+        await click(button('Edit'))
+        queryFails = true
+        await act(async () => {
+            await queryClient.invalidateQueries({ queryKey: ['dns-connections'] })
+        })
+        await waitFor(() => button('Save changes').disabled)
+        expect(button('Test read access and load zones').disabled).toBe(true)
+        expect(button('Cancel').disabled).toBe(false)
+        await submit()
+        expect(saveConnection).not.toHaveBeenCalled()
+        queryFails = false
+        await act(async () => {
+            await queryClient.invalidateQueries({ queryKey: ['dns-connections'] })
+        })
+        await waitFor(() => !button('Save changes').disabled)
+    })
+    test('confirmed saved metadata remains visible when the following live read fails', async () => {
+        await renderPage()
+        await click(button('Add DNS connection'))
+        await input('name', connection.name)
+        await input('apiToken', 'write-only-test-token')
+        await click(button('Test read access and load zones'))
+        await waitFor(() => document.querySelectorAll('input[type="checkbox"]').length === 2)
+        await click(document.querySelector(`input[aria-label="${firstZone.name}"]`)!)
+        saveConnection.mockImplementationOnce(async () => {
+            queryFails = true
+            return {
+                success: true as const,
+                message: 'admin.dnsConnections.messages.saved',
+                connection,
+            }
+        })
+        await submit()
+        await waitFor(() => document.querySelector('form') === null)
+        expect(document.body.textContent).toContain(connection.name)
+        expect(feedback.some((message) => message === 'DNS connection saved.')).toBe(true)
+        expect(JSON.stringify(queryClient.getQueryData(['dns-connections']))).not.toContain(
+            'write-only-test-token',
+        )
+    })
+    test('a connection claimed by a consumer while deletion is open cannot be submitted', async () => {
+        connections = [connection]
+        await renderPage()
+        await click(
+            document.querySelector('button[aria-label="Delete connection Office Cloudflare"]')!,
+        )
+        connections = [
+            {
+                ...connection,
+                references: [
+                    { zoneId: firstZone.id, consumer: { type: 'ddns', id: 'new-consumer' } },
+                ],
+            },
+        ]
+        await act(async () => {
+            await queryClient.invalidateQueries({ queryKey: ['dns-connections'] })
+        })
+        await waitFor(() => document.body.textContent?.includes('Used by 1 consumers') === true)
+        await click(button('Delete connection'))
+        expect(deleteConnection).not.toHaveBeenCalled()
+    })
     test('view-only permission hides every write action', async () => {
         connections = [connection]
         await renderPage(false)

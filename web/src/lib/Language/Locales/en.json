@@ -2598,7 +2598,8 @@
                 "settingsSaved": "DDNS settings saved.",
                 "recordEnabled": "Record enabled.",
                 "recordDisabled": "Record disabled.",
-                "recordDeleted": "Record removed from DDNS. Its Cloudflare DNS record is retained."
+                "recordDeleted": "Record removed from DDNS. Its Cloudflare DNS record is retained.",
+                "actionChanged": "The configuration changed while this action was open. Open it again to use the current version."
             },
             "validation": {
                 "domain": "Enter a valid domain or *.wildcard, without a URL or port.",

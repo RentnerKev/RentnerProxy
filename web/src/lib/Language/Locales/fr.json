@@ -2598,7 +2598,8 @@
                 "settingsSaved": "Réglages DDNS sauvegardés.",
                 "recordEnabled": "Enregistrement activé.",
                 "recordDisabled": "Enregistrement désactivé.",
-                "recordDeleted": "Enregistrement retiré de DDNS. Le DNS chez Cloudflare est conservé."
+                "recordDeleted": "Enregistrement retiré de DDNS. Le DNS chez Cloudflare est conservé.",
+                "actionChanged": "La configuration a changé pendant cette action. Rouvrez-la pour utiliser la version actuelle."
             },
             "validation": {
                 "domain": "Indiquez un domaine ou *.joker sans URL ni port.",

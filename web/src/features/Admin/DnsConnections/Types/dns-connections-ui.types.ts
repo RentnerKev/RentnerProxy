@@ -23,6 +23,7 @@ export interface DnsConnectionsLogicContract {
         readonly isLoading: boolean
         readonly isError: boolean
         readonly isPending: boolean
+        readonly locked: boolean
         readonly editorOpen: boolean
         readonly editing: DnsConnection | null
         readonly deleteTarget: DnsConnection | null

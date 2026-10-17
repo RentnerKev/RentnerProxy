@@ -17,6 +17,65 @@ use std::time::Duration;
 const NOW: i64 = 1_900_000_000;
 
 #[tokio::test]
+async fn editing_one_target_preserves_other_targets_due_times() {
+    let fixture = Fixture::new(vec![]).await;
+    let automation = Automation::new(fixture.path.clone());
+    let config = |revision| {
+        let mut request = settings(revision, true, true);
+        request.configuration.targets.push(target(
+            11,
+            "other.example.com",
+            RecordType::A,
+            Selection::Create,
+        ));
+        request
+    };
+    configure(&automation, &fixture, config(0)).await;
+    tick(&automation, &fixture, NOW).await.unwrap();
+    let mut changed = config(1);
+    changed.configuration.targets[1].proxied = false;
+    let state = automation
+        .save_at(&fixture.store, changed, NOW + 10, Outcome::Configured)
+        .await
+        .unwrap();
+    assert_eq!(state.targets[0].next_attempt_at, Some(NOW + 300));
+    assert_eq!(state.targets[1].next_attempt_at, Some(NOW + 10));
+    let run = tick(&automation, &fixture, NOW + 10).await.unwrap();
+    assert_eq!(run.targets.len(), 1);
+    assert_eq!(run.targets[0].target_id, state.targets[1].target_id);
+}
+
+#[tokio::test]
+async fn unrelated_edits_do_not_rearm_permanent_failures_or_starve_a_running_schedule() {
+    let fixture = Fixture::new(vec![record(
+        '1',
+        'a',
+        "example.com",
+        "CNAME",
+        "elsewhere.example.org",
+    )])
+    .await;
+    let automation = Automation::new(fixture.path.clone());
+    configure(&automation, &fixture, settings(0, true, true)).await;
+    tick(&automation, &fixture, NOW).await.unwrap();
+    let mut request = settings(1, true, true);
+    request.configuration.targets.push(target(
+        11,
+        "other.example.com",
+        RecordType::A,
+        Selection::Create,
+    ));
+    let state = automation
+        .save_at(&fixture.store, request, NOW + 10, Outcome::Configured)
+        .await
+        .unwrap();
+    assert!(state.targets[0].permanent_failure);
+    assert_eq!(state.targets[0].next_attempt_at, None);
+    let run = tick(&automation, &fixture, NOW + 10).await.unwrap();
+    assert_eq!(run.targets.len(), 1);
+}
+
+#[tokio::test]
 async fn target_pause_survives_restart_and_retains_last_good_values_and_connection_reference() {
     let fixture = Fixture::new(vec![]).await;
     let automation = Automation::new(fixture.path.clone());

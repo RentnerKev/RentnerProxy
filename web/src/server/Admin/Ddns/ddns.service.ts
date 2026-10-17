@@ -99,51 +99,57 @@ export function createDdnsService(dependencies: DdnsDependencies) {
                     !draft.targets.some((target) => activeDdnsTarget(draft, target))
                 )
                     throw new DdnsDomainError('invalid_input')
-                const review =
-                    data.enabled &&
-                    draft.targets.some((target) => {
-                        if (!activeDdnsTarget(draft, target)) return false
-                        const saved = previous?.targets.find((entry) => entry.id === target.id)
-                        return (
-                            !previous?.enabled ||
-                            !saved ||
-                            !activeDdnsTarget(previous, saved) ||
-                            target.proxied !== saved.proxied ||
-                            target.selection.mode === 'inspect'
-                        )
-                    })
-                if (review) {
+                const reviewTargets = data.enabled
+                    ? draft.targets.filter((target) => {
+                          if (!activeDdnsTarget(draft, target)) return false
+                          const saved = previous?.targets.find((entry) => entry.id === target.id)
+                          return (
+                              !previous?.enabled ||
+                              !saved ||
+                              !activeDdnsTarget(previous, saved) ||
+                              target.proxied !== saved.proxied ||
+                              target.selection.mode === 'inspect'
+                          )
+                      })
+                    : []
+                if (reviewTargets.length) {
                     await dependencies.limit(actor.id, true)
+                    let inspected = { ...draft, targets: reviewTargets }
                     const compare = () =>
                         dependencies.controller.preview({
                             actorUserId: actor.id,
-                            ipv4: draft.ipv4,
-                            ipv6: draft.ipv6,
-                            targets: draft.targets,
+                            ipv4: inspected.ipv4,
+                            ipv6: inspected.ipv6,
+                            targets: inspected.targets,
                         })
                     let batch = await compare()
                     if (
-                        draft.targets.some(
+                        inspected.targets.some(
                             (target) =>
-                                activeDdnsTarget(draft, target) &&
+                                activeDdnsTarget(inspected, target) &&
                                 target.selection.mode === 'inspect',
                         )
                     ) {
-                        draft = approveDdnsInspection(draft, batch)
+                        inspected = approveDdnsInspection(inspected, batch)
                         batch = await compare()
                     }
-                    if (!readyDdnsPreview(draft, batch)) {
+                    if (!readyDdnsPreview(inspected, batch)) {
                         const failed = batch.targets.find((result) => {
-                            const target = draft.targets.find(
+                            const target = inspected.targets.find(
                                 (entry) => entry.id === result.targetId,
                             )
-                            return target && activeDdnsTarget(draft, target) && result.error
+                            return target && activeDdnsTarget(inspected, target) && result.error
                         })
                         throw new DdnsDomainError(
                             'preview_failed',
                             failed?.retryAfterSeconds ?? undefined,
                             failed?.error ?? undefined,
                         )
+                    }
+                    const approved = new Map(inspected.targets.map((target) => [target.id, target]))
+                    draft = {
+                        ...draft,
+                        targets: draft.targets.map((target) => approved.get(target.id) ?? target),
                     }
                 }
                 return dependencies.controller.save({

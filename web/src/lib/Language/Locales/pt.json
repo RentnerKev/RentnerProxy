@@ -2624,7 +2624,8 @@
                 "settingsSaved": "Definições DDNS guardadas.",
                 "recordEnabled": "Registo ativado.",
                 "recordDisabled": "Registo desativado.",
-                "recordDeleted": "Registo removido do DDNS. O DNS na Cloudflare é mantido."
+                "recordDeleted": "Registo removido do DDNS. O DNS na Cloudflare é mantido.",
+                "actionChanged": "A configuração mudou durante esta ação. Abre-a novamente para usar a versão atual."
             },
             "validation": {
                 "domain": "Introduza domínio ou *.wildcard sem URL nem porta.",
