@@ -303,6 +303,14 @@ async fn events_coalesce_reconnect_and_configuration_replacement_cancel_old_read
     fixture.streams.lock().await.clear();
     tokio::time::timeout(Duration::from_secs(8), async {
         loop {
+            let value = discovery.status().await.unwrap();
+            assert_eq!(
+                value.status,
+                Status::Ready,
+                "clean EOF is a reconnect, not an outage"
+            );
+            assert!(!value.stale);
+            assert_eq!(value.error, None);
             if !fixture.streams.lock().await.is_empty() {
                 break;
             }

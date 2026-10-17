@@ -44,6 +44,17 @@ try {
         `
         const base = 'http://${proxy}:2375'
         const id = 'a'.repeat(64)
+        let proxyReady = false
+        for (let attempt = 0; attempt < 20; attempt++) {
+            try {
+                const response = await fetch(base + '/v1.47/containers/json', { signal: AbortSignal.timeout(500), redirect: 'error' })
+                proxyReady = response.status === 200
+                await response.body?.cancel()
+                if (proxyReady) break
+            } catch { /* The detached proxy may still be starting. */ }
+            await Bun.sleep(100)
+        }
+        if (!proxyReady) throw new Error('Isolated socket proxy did not become ready within the bounded startup retries')
         const allowed = ['/v1.47/containers/json?all=1', '/v1.47/containers/' + id + '/json', '/v1.47/events']
         for (const path of allowed) {
             const response = await fetch(base + path, { signal: AbortSignal.timeout(3000), redirect: 'error' })

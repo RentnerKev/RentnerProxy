@@ -96,7 +96,9 @@ impl Discovery {
                     refresh = expires;
                 },
                 chunk = stream.chunk() => {
-                    let Some(chunk) = chunk.map_err(|_| Error::EndpointUnavailable)? else { return Err(Error::EndpointUnavailable); };
+                    // A clean EOF rotates the subscription without marking the inventory stale.
+                    // Transport errors still trigger the normal unavailable/backoff path.
+                    let Some(chunk) = chunk.map_err(|_| Error::EndpointUnavailable)? else { return Ok(()); };
                     match decoder.push(&chunk)? {
                         EventUpdate::Reconnect => return Ok(()),
                         EventUpdate::Changed if !dirty => {
