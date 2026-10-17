@@ -2463,7 +2463,8 @@
                 "endpointHint": "HTTP(S)-Basisadresse eines eingeschränkten Socket-Proxys, ohne Zugangsdaten oder URL-Pfad.",
                 "test": "Verbindung testen",
                 "save": "Speichern und Kandidaten prüfen",
-                "acknowledgeRestore": "Lesen dieser wiederhergestellten Verbindung fortsetzen"
+                "acknowledgeRestore": "Lesen dieser wiederhergestellten Verbindung fortsetzen",
+                "endpointPlaceholder": "http://docker-api:2375"
             },
             "messages": {
                 "connected": "Verbindung gespeichert. Prüfe die Kandidaten vor dem Aktivieren.",

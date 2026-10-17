@@ -2463,7 +2463,8 @@
                 "endpointHint": "HTTP(S) base address of a restricted socket proxy; no credentials or URL path.",
                 "test": "Test connection",
                 "save": "Save and review candidates",
-                "acknowledgeRestore": "Resume reading this restored connection"
+                "acknowledgeRestore": "Resume reading this restored connection",
+                "endpointPlaceholder": "http://docker-api:2375"
             },
             "messages": {
                 "connected": "Connection saved. Review the candidates before enabling synchronization.",

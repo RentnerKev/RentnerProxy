@@ -2771,7 +2771,8 @@
                 "endpointHint": "Adresse HTTP(S) de base d’un proxy restreint, sans identifiants ni chemin.",
                 "test": "Tester la connexion",
                 "save": "Enregistrer et vérifier les candidats",
-                "acknowledgeRestore": "Reprendre la lecture de cette connexion restaurée"
+                "acknowledgeRestore": "Reprendre la lecture de cette connexion restaurée",
+                "endpointPlaceholder": "http://docker-api:2375"
             },
             "messages": {
                 "connected": "Connexion enregistrée. Vérifiez les candidats avant l’activation.",

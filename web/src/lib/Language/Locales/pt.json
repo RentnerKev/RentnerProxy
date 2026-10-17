@@ -2797,7 +2797,8 @@
                 "endpointHint": "Endereço base HTTP(S) de um proxy restrito, sem credenciais nem caminho.",
                 "test": "Testar ligação",
                 "save": "Guardar e rever candidatos",
-                "acknowledgeRestore": "Retomar a leitura desta ligação restaurada"
+                "acknowledgeRestore": "Retomar a leitura desta ligação restaurada",
+                "endpointPlaceholder": "http://docker-api:2375"
             },
             "messages": {
                 "connected": "Ligação guardada. Reveja os candidatos antes de ativar.",

@@ -2752,7 +2752,8 @@
                 "endpointHint": "HTTP(S)-basisadres van een beperkte socketproxy, zonder inloggegevens of URL-pad.",
                 "test": "Verbinding testen",
                 "save": "Opslaan en kandidaten controleren",
-                "acknowledgeRestore": "Het lezen van deze herstelde verbinding hervatten"
+                "acknowledgeRestore": "Het lezen van deze herstelde verbinding hervatten",
+                "endpointPlaceholder": "http://docker-api:2375"
             },
             "messages": {
                 "connected": "Verbinding opgeslagen. Controleer de kandidaten voor het inschakelen.",

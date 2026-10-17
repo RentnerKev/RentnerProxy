@@ -2797,7 +2797,8 @@
                 "endpointHint": "Bazowy adres HTTP(S) ograniczonego proxy, bez danych logowania i ścieżki.",
                 "test": "Testuj połączenie",
                 "save": "Zapisz i sprawdź kandydatów",
-                "acknowledgeRestore": "Wznów odczyt przywróconego połączenia"
+                "acknowledgeRestore": "Wznów odczyt przywróconego połączenia",
+                "endpointPlaceholder": "http://docker-api:2375"
             },
             "messages": {
                 "connected": "Połączenie zapisane. Sprawdź kandydatów przed włączeniem.",

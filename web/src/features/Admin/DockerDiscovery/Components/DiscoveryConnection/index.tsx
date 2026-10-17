@@ -52,7 +52,7 @@ export default function DiscoveryConnection(props: DiscoveryConnectionProps) {
                             autoComplete="off"
                             required
                             maxLength={512}
-                            placeholder="http://docker-api:2375"
+                            placeholder={t('admin.dockerDiscovery.connection.endpointPlaceholder')}
                             value={field.state.value}
                             onValueChange={field.handleChange}
                             onBlur={field.handleBlur}
