@@ -43,6 +43,21 @@ const pebbleImage =
 const healthcheck = '/opt/rentnerproxy/web/docker/web/healthcheck.ts'
 const repositoryRoot = resolve(import.meta.dir, '../..')
 
+export async function stageReliabilityFixtureSources(fixtureRoot: string): Promise<void> {
+    for (const relativePath of [
+        'scripts/runtime-reliability/fixture.ts',
+        'scripts/runtime-reliability/fixture-core.ts',
+        'scripts/runtime-reliability/fixture-context.ts',
+        'scripts/runtime-reliability/fixture.validation.ts',
+        'scripts/lib/request-context.ts',
+    ]) {
+        const destination = join(fixtureRoot, relativePath)
+        const contents = await readFile(join(repositoryRoot, relativePath), 'utf8')
+        await mkdir(dirname(destination), { recursive: true })
+        await writeFile(destination, contents)
+    }
+}
+
 async function command(args: string[], options: CommandOptions = {}): Promise<string> {
     const { exitCode, stdout, stderr, timedOut } = await runSmokeProcess(
         smokeDockerArguments(args),
@@ -881,19 +896,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             'package.json',
             'bun.lock',
         ])
-        await mkdir(join(fixtureRoot, 'scripts/runtime-reliability'), { recursive: true })
-        for (const name of [
-            'fixture.ts',
-            'fixture-core.ts',
-            'fixture-context.ts',
-            'fixture.validation.ts',
-        ]) {
-            const fixtureContents = await readFile(
-                join(repositoryRoot, 'scripts/runtime-reliability', name),
-                'utf8',
-            )
-            await writeFile(join(fixtureRoot, 'scripts/runtime-reliability', name), fixtureContents)
-        }
+        await stageReliabilityFixtureSources(fixtureRoot)
         const fixtureSource = join(fixtureRoot, 'scripts/runtime-reliability', 'fixture.ts')
         const bundle = join(temp, 'reliability-fixture.js')
         await command([
