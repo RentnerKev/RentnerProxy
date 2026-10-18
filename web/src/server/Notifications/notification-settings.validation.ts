@@ -39,4 +39,9 @@ export const storedNotificationConfigurationSchema = z
             })
         if (new Set(value.channels.map((channel) => channel.id)).size !== value.channels.length)
             context.addIssue({ code: 'custom', message: 'Duplicate channel' })
+        if (value.channels.some((channel) => channel.revision > value.revision))
+            context.addIssue({
+                code: 'custom',
+                message: 'Channel revision exceeds configuration generation',
+            })
     })

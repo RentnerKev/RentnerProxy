@@ -87,7 +87,28 @@ describe('notification channel secrets and revisions', () => {
             enabled: true,
             channels: [{ ...policy, name: 'Renamed' }],
         })
-        expect(renamed.channels[0]?.revision).toBe(2)
+        expect(renamed.channels[0]?.revision).toBe(3)
+    })
+
+    test('does not reuse the generation of a removed channel when its ID is re-added', async () => {
+        const original = await buildNotificationConfiguration(
+            DEFAULT_NOTIFICATION_CONFIGURATION,
+            input(),
+        )
+        const removed = await buildNotificationConfiguration(original, {
+            expectedRevision: 1,
+            enabled: true,
+            channels: [],
+        })
+        const readded = await buildNotificationConfiguration(removed, {
+            ...input(),
+            expectedRevision: 2,
+        })
+        expect(readded.channels[0]?.id).toBe(original.channels[0]?.id)
+        expect(readded.channels[0]?.revision).toBeGreaterThan(original.channels[0]!.revision)
+        expect(
+            storedNotificationConfigurationSchema.safeParse({ ...readded, revision: 1 }).success,
+        ).toBeFalse()
     })
 
     test('requires an explicit complete replacement when changing a destination kind', async () => {

@@ -97,7 +97,9 @@ export async function buildNotificationConfiguration(
                         thresholdSeconds: existing.thresholdSeconds,
                         recovery: existing.recovery,
                     })
-            const revision = unchanged ? existing.revision : (existing?.revision ?? 0) + 1
+            // Use the monotonic configuration generation so deleting and re-adding a
+            // channel ID cannot alias a still-running delivery from its previous destination.
+            const revision = unchanged ? existing.revision : current.revision + 1
             if (revision > 4_294_967_295)
                 throw new NotificationDomainError('configuration_conflict')
             return {
