@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
-import { fileURLToPath } from 'node:url'
 
 import { PUBLIC_ENGLISH } from '@/config/language.config.ts'
 import { createPageError, getPageErrorDetails } from '@/lib/Errors/pageError.ts'
 import { catalogs } from '@/tests/Helpers/withTestLanguage.tsx'
+import { runBunScript } from '@/tests/Helpers/runBunScript.ts'
 
 const reference = '00000000-0000-4000-8000-000000000001'
 const sensitiveFixture = 'SELECT synthetic_secret FROM private_fixture WHERE token=fixture-token'
@@ -184,17 +184,7 @@ describe('safe page error diagnostics', () => {
             }
             console.log(JSON.stringify({ outputs, logs }))
         `
-        const child = Bun.spawn([process.execPath, '-e', script], {
-            cwd: fileURLToPath(new URL('../../..', import.meta.url)),
-            stdout: 'pipe',
-            stderr: 'pipe',
-        })
-        const [output, errors, code] = await Promise.all([
-            new Response(child.stdout).text(),
-            new Response(child.stderr).text(),
-            child.exited,
-        ])
-        expect(code, errors).toBe(0)
+        const output = await runBunScript(script, { cwd: new URL('../../..', import.meta.url) })
         const result = JSON.parse(output)
         expect(result.outputs[0]).toMatchObject({ status: 503, cause: null })
         expect(result.outputs[0].message).toMatch(/^RP_DATABASE_SCHEMA:[a-f0-9-]{36}$/u)

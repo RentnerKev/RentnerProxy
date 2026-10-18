@@ -2,6 +2,7 @@ import type { ProxyHostRow } from './Types/proxy-hosts-mutations.types.ts'
 import '@tanstack/react-start/server-only'
 
 import { and, eq, inArray, isNotNull, ne, or } from 'drizzle-orm'
+import { proxyHostSummaryColumns } from './proxy-hosts.storage.server.ts'
 
 import { PERMISSIONS } from '@/config/permissions.config.ts'
 import { accessPolicies, hostDomains, proxyHosts } from '@/db/schema.ts'
@@ -55,21 +56,7 @@ export async function loadProxyHostForUpdate(
     proxyHostId: string,
 ): Promise<ProxyHostRow | null> {
     const rows = await transaction
-        .select({
-            createdAt: proxyHosts.createdAt,
-            enabled: proxyHosts.enabled,
-            certificateId: proxyHosts.certificateId,
-            forceHttps: proxyHosts.forceHttps,
-            verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
-            upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
-            trustedCaId: proxyHosts.trustedCaId,
-            accessPolicyId: proxyHosts.accessPolicyId,
-            forwardHost: proxyHosts.forwardHost,
-            forwardPort: proxyHosts.forwardPort,
-            forwardScheme: proxyHosts.forwardScheme,
-            id: proxyHosts.id,
-            updatedAt: proxyHosts.updatedAt,
-        })
+        .select(proxyHostSummaryColumns)
         .from(proxyHosts)
         .where(eq(proxyHosts.id, proxyHostId))
         .limit(1)
@@ -117,7 +104,7 @@ async function replaceDomainsInTransaction(
         .values(domains.toSorted().map((domain) => ({ domain, proxyHostId })))
 }
 
-function parseCreateInput(input: CreateProxyHostInput) {
+export function parseCreateProxyHostInput(input: CreateProxyHostInput) {
     const parsed = createProxyHostInputSchema.safeParse(input)
 
     if (!parsed.success) {
@@ -127,7 +114,7 @@ function parseCreateInput(input: CreateProxyHostInput) {
     return parsed.data
 }
 
-function parseUpdateInput(input: UpdateProxyHostInput) {
+export function parseUpdateProxyHostInput(input: UpdateProxyHostInput) {
     const parsed = updateProxyHostInputSchema.safeParse(input)
 
     if (!parsed.success) {
@@ -142,7 +129,7 @@ export async function createProxyHostInTransaction(
     actorId: string,
     input: CreateProxyHostInput,
 ): Promise<ProxyHostSummary> {
-    const parsedInput = parseCreateInput(input)
+    const parsedInput = parseCreateProxyHostInput(input)
     const domains = parsedInput.domains.toSorted()
     await lockProxyRuntimeSettings(transaction)
     await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_CREATE)
@@ -185,21 +172,7 @@ export async function createProxyHostInTransaction(
             forwardPort: parsedInput.forwardPort,
             forwardScheme: parsedInput.forwardScheme,
         })
-        .returning({
-            createdAt: proxyHosts.createdAt,
-            enabled: proxyHosts.enabled,
-            certificateId: proxyHosts.certificateId,
-            forceHttps: proxyHosts.forceHttps,
-            verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
-            upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
-            trustedCaId: proxyHosts.trustedCaId,
-            accessPolicyId: proxyHosts.accessPolicyId,
-            forwardHost: proxyHosts.forwardHost,
-            forwardPort: proxyHosts.forwardPort,
-            forwardScheme: proxyHosts.forwardScheme,
-            id: proxyHosts.id,
-            updatedAt: proxyHosts.updatedAt,
-        })
+        .returning(proxyHostSummaryColumns)
     const proxyHost = rows.at(0)
 
     if (!proxyHost) {
@@ -228,7 +201,7 @@ export async function updateProxyHostInTransaction(
     input: UpdateProxyHostInput,
     discoveryKey?: string,
 ): Promise<ProxyHostSummary> {
-    const parsedInput = parseUpdateInput(input)
+    const parsedInput = parseUpdateProxyHostInput(input)
     const domains = parsedInput.domains.toSorted()
     await lockProxyRuntimeSettings(transaction)
     await requirePermissionInTransaction(transaction, actorId, PERMISSIONS.PROXY_HOSTS_UPDATE)
@@ -302,21 +275,7 @@ export async function updateProxyHostInTransaction(
             updatedAt: new Date(),
         })
         .where(eq(proxyHosts.id, proxyHost.id))
-        .returning({
-            createdAt: proxyHosts.createdAt,
-            enabled: proxyHosts.enabled,
-            certificateId: proxyHosts.certificateId,
-            forceHttps: proxyHosts.forceHttps,
-            verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
-            upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
-            trustedCaId: proxyHosts.trustedCaId,
-            accessPolicyId: proxyHosts.accessPolicyId,
-            forwardHost: proxyHosts.forwardHost,
-            forwardPort: proxyHosts.forwardPort,
-            forwardScheme: proxyHosts.forwardScheme,
-            id: proxyHosts.id,
-            updatedAt: proxyHosts.updatedAt,
-        })
+        .returning(proxyHostSummaryColumns)
     const updatedProxyHost = rows.at(0)
 
     if (!updatedProxyHost) {

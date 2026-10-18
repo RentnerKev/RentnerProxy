@@ -1,7 +1,7 @@
-import type { NpmImportResultItem, NpmPreviewItem } from '../../../Types/npm-import.types.ts'
+import type { ImportResultItem, ImportPreviewItem } from '@/lib/Imports/Types/import.types.ts'
 
 export interface ImportItemDetailsProps {
-    readonly item: NpmPreviewItem | NpmImportResultItem
+    readonly item: ImportPreviewItem | ImportResultItem
 }
 export interface ImportItemDetailsLogicResult {
     readonly state: {

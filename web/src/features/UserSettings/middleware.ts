@@ -34,8 +34,10 @@ import {
     getTwoFactorStatusService,
     regenerateRecoveryCodesService,
 } from '@/server/Auth/TwoFactor/two-factor.service.ts'
-import { updateCurrentUserLanguageService } from '@/server/UserSettings/language.service.ts'
-import { updateCurrentUserThemeModeService } from '@/server/UserSettings/theme.service.ts'
+import {
+    updateCurrentUserLanguageService,
+    updateCurrentUserThemeModeService,
+} from '@/server/UserSettings/preferences.service.ts'
 import { updateCurrentUserNavigationGroupService } from '@/server/UserSettings/navigation.service.ts'
 import { updateCurrentUserAccentColorService } from '@/server/UserSettings/appearance.service.ts'
 import { userAccentColorUpdateSchema } from '@/lib/UserSettings/appearance.ts'

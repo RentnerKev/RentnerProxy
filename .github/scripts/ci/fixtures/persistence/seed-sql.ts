@@ -66,9 +66,9 @@ export function buildSeedStatements(
         'insert into rentnerproxy.users (id, display_name, email, status, created_at, updated_at) values (' +
             sqlQuote(ids.ownerUserId) +
             ', ' +
-            sqlQuote(`Alpha 4 Fixture Owner ${input.runId}`) +
+            sqlQuote(`Persistence Fixture Owner ${input.runId}`) +
             ', ' +
-            sqlQuote(`alpha4-${values.identityDigest.slice(0, 24)}@fixture.invalid`) +
+            sqlQuote(`persistence-${values.identityDigest.slice(0, 24)}@fixture.invalid`) +
             ", 'active', " +
             sqlTimestamp(values.certificateCreatedAt) +
             ', ' +
@@ -80,7 +80,7 @@ export function buildSeedStatements(
         'insert into rentnerproxy.certificates (id, name, source, environment, status, operation, current_operation, challenge_type, issued_at, expires_at, issuer, fingerprint, candidate, dns_cleanup_pending, last_error_code, last_activated_at, last_error_at, next_attempt_at, attempt_count, last_attempt_at, last_success_at, next_renewal_at, controller_updated_at, created_at, updated_at) values (' +
             sqlQuote(ids.certificateId) +
             ', ' +
-            sqlQuote(`Alpha 4 persistence ${input.runId}`) +
+            sqlQuote(`Persistence ${input.runId}`) +
             ", 'acme', 'staging', 'valid', 'renewing', " +
             sqlJson(operation) +
             ', ' +
@@ -90,7 +90,7 @@ export function buildSeedStatements(
             ', ' +
             sqlTimestamp(values.expiresAt) +
             ', ' +
-            sqlQuote('Alpha 4 Fixture CA') +
+            sqlQuote('Persistence Fixture CA') +
             ', ' +
             sqlQuote(certificateFingerprint) +
             ', ' +

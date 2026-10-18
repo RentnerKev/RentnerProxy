@@ -1,4 +1,4 @@
-import type { ProxyRuntimeMutationStatus } from '@/lib/ProxyRuntime/Types/proxy-runtime.types.ts'
+import type { RuntimeReconciler } from '@/server/Foundation/Types/runtime-reconciler.types.ts'
 
 export interface CrowdSecReconcileSnapshot {
     readonly fingerprint: string
@@ -11,15 +11,4 @@ export interface CrowdSecReconcileDependencies<T extends CrowdSecReconcileSnapsh
     readonly hasDrift: (snapshot: T) => Promise<boolean>
 }
 
-export interface Waiter {
-    readonly target: number
-    readonly resolve: (status: ProxyRuntimeMutationStatus) => void
-    readonly timer: ReturnType<typeof setTimeout>
-}
-
-export interface CrowdSecReconciler {
-    (): Promise<ProxyRuntimeMutationStatus>
-    readonly start: () => void
-    readonly stop: () => Promise<void>
-    readonly checkDrift: () => Promise<void>
-}
+export type CrowdSecReconciler = RuntimeReconciler

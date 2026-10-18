@@ -1,6 +1,6 @@
-export type NpmImportStatus = 'ready' | 'partial' | 'manual' | 'conflict'
+export type ImportStatus = 'ready' | 'partial' | 'manual' | 'conflict'
 
-export type NpmImportKind =
+export type ImportKind =
     | 'proxy-host'
     | 'redirect-host'
     | 'access-policy'
@@ -8,34 +8,34 @@ export type NpmImportKind =
     | 'dead-host'
     | 'stream'
 
-export interface NpmPreviewItem {
-    readonly kind: NpmImportKind
+export interface ImportPreviewItem {
+    readonly kind: ImportKind
     readonly sourceId: number
     readonly label: string
     readonly domains: readonly string[]
-    readonly status: NpmImportStatus
+    readonly status: ImportStatus
     readonly reasons: readonly string[]
 }
 
-export interface NpmImportPreview {
+export interface ImportPreview {
     readonly fingerprint: string
     readonly planFingerprint: string
     readonly sourceSchema: string
-    readonly items: readonly NpmPreviewItem[]
-    readonly counts: Record<NpmImportStatus, number>
+    readonly items: readonly ImportPreviewItem[]
+    readonly counts: Record<ImportStatus, number>
 }
 
-export interface NpmImportResultItem extends NpmPreviewItem {
+export interface ImportResultItem extends ImportPreviewItem {
     readonly outcome: 'imported' | 'skipped' | 'failed'
     readonly targetId?: string
 }
 
-export interface NpmImportResult {
+export interface ImportResult {
     readonly runId: string
     readonly status: 'completed' | 'failed'
     readonly fingerprint: string
     readonly sourceSchema: string
-    readonly items: readonly NpmImportResultItem[]
+    readonly items: readonly ImportResultItem[]
     readonly imported: number
     readonly skipped: number
     readonly failed: number

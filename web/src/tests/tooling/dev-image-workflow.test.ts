@@ -11,6 +11,11 @@ interface DevImageWorkflow {
             readonly with: Record<string, string>
         }
         readonly build: {
+            readonly uses: string
+            readonly permissions: Record<string, string>
+            readonly with: Record<string, string>
+        }
+        readonly prepare: {
             readonly permissions: { readonly contents: string; readonly packages?: string }
             readonly steps: readonly {
                 readonly id?: string
@@ -29,7 +34,7 @@ async function workflow(): Promise<DevImageWorkflow> {
 describe('dev image workflow', () => {
     test('runs manually from main with serialized publishing', async () => {
         const config = await workflow()
-        const steps = config.jobs.build.steps
+        const steps = config.jobs.prepare.steps
 
         expect(Object.keys(config.on)).toEqual(['workflow_dispatch'])
         expect(config.concurrency).toEqual({ group: 'dev-image', 'cancel-in-progress': false })
@@ -41,11 +46,15 @@ describe('dev image workflow', () => {
 
     test('publishes only the moving dev tag from the production Dockerfile', async () => {
         const config = await workflow()
-        const metadata = config.jobs.build.steps.find((step) => step.id === 'metadata')
-        const build = config.jobs.build.steps.find((step) => step.id === 'build')
-        const source = config.jobs.build.steps.find((step) => step.id === 'source')
+        const assessed = Bun.YAML.parse(await readGitHubWorkflow('build-assessed-image.yml')) as {
+            jobs: { build: DevImageWorkflow['jobs']['prepare'] }
+        }
+        const steps = assessed.jobs.build.steps
+        const metadata = steps.find((step) => step.id === 'metadata')
+        const build = steps.find((step) => step.id === 'build')
+        const source = config.jobs.prepare.steps.find((step) => step.id === 'source')
 
-        expect(String(metadata?.with?.tags).trim()).toBe('type=raw,value=dev')
+        expect(metadata?.with?.tags).toBeUndefined()
         expect(metadata?.with?.flavor).toBe('latest=false')
         expect(build?.with?.context).toBe('source')
         expect(build?.with?.file).toBe('source/docker/production/Dockerfile')
@@ -54,16 +63,16 @@ describe('dev image workflow', () => {
         expect(config.jobs['publish-image'].with.image_tags).toBe('dev')
         expect(build?.with?.['build-args']).toContain('RENTNERPROXY_BUILD_VERSION=')
         expect(source?.run).toContain("printf 'version=dev-%.12s\\n'")
-        expect(config.jobs.build.steps.some((step) => step.run?.includes('release create'))).toBe(
+        expect(config.jobs.prepare.steps.some((step) => step.run?.includes('release create'))).toBe(
             false,
         )
     })
 
     test('uses pinned actions, narrow registry permission, and verifies the published digest', async () => {
         const config = await workflow()
-        const steps = config.jobs.build.steps
+        const steps = config.jobs.prepare.steps
 
-        expect(config.jobs.build.permissions).toEqual({ contents: 'read' })
+        expect(config.jobs.prepare.permissions).toEqual({ contents: 'read' })
         expect(config.jobs['publish-image'].permissions).toEqual({
             contents: 'read',
             packages: 'write',
@@ -71,11 +80,12 @@ describe('dev image workflow', () => {
         for (const step of steps) {
             if (step.uses) expect(step.uses).toMatch(/^[^@]+@[0-9a-f]{40}$/u)
         }
-        const scan = steps.find((step) => step.id === 'scan')?.run
-        expect(scan).toContain('audit-cargo.sh')
-        expect(scan).toContain('audit-bun.sh')
-        expect(scan).toContain('audit-cargo.sh')
-        expect(scan).toContain('audit-bun.sh')
+        const assessed = await readGitHubWorkflow('build-assessed-image.yml')
+        expect(assessed).toContain('audit-cargo.sh')
+        expect(assessed).toContain('audit-bun.sh')
+        expect(config.jobs.build.uses).toBe('./.github/workflows/build-assessed-image.yml')
+        expect(config.jobs.build.permissions).toEqual({ contents: 'read' })
+        expect(config.jobs.build.with.revision).toBe('${{ needs.prepare.outputs.revision }}')
         expect(config.jobs['publish-image'].with.accept_known_dev_advisories).toBeUndefined()
         expect(config.jobs['publish-image'].uses).toBe(
             './.github/workflows/publish-assessed-image.yml',

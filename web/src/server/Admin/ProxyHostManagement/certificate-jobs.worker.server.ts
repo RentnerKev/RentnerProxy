@@ -29,7 +29,7 @@ import {
 } from './certificate-jobs.storage.server.ts'
 import type { CertificateJobRow } from './Types/certificate-jobs-storage.types.ts'
 
-export const certificateJobController = {
+const certificateJobController = {
     get: getControllerCertificate,
     issue: issueControllerCertificate,
     renew: renewControllerCertificate,
@@ -117,7 +117,7 @@ async function loadOrIssueJobCertificate(
     return metadata
 }
 
-export async function processCertificateJob(
+async function processCertificateJob(
     job: CertificateJobRow,
     controller = certificateJobController,
     runtime = certificateJobRuntime,

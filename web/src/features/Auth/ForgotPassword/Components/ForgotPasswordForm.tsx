@@ -1,5 +1,5 @@
-import { EmailInput } from '@rentnerkev/inputs'
-import FieldError from '@/shared/Forms/FieldError.tsx'
+import StringFormField from '@/shared/Forms/StringFormField.tsx'
+import FormSubmitButton from '@/shared/Forms/FormSubmitButton.tsx'
 import type { ForgotPasswordFormProps } from '../Types/forgot-password-component-props.types.ts'
 
 export default function ForgotPasswordForm({ state, form, handler }: ForgotPasswordFormProps) {
@@ -12,41 +12,26 @@ export default function ForgotPasswordForm({ state, form, handler }: ForgotPassw
         >
             <form.Field name="email" validators={{ onBlur: handler.validateEmail }}>
                 {(field) => (
-                    <div className="grid gap-[0.45rem]">
-                        <label
-                            className="text-[0.82rem] font-[750] text-ink-soft"
-                            htmlFor={field.name}
-                        >
-                            Email address
-                        </label>
-                        <EmailInput
-                            id={field.name}
-                            name={field.name}
-                            type="email"
-                            inputMode="email"
-                            autoComplete="email"
-                            maxLength={254}
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onValueChange={field.handleChange}
-                            aria-describedby={`${field.name}-error`}
-                            aria-invalid={field.state.meta.errors.length > 0}
-                        />
-                        <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
-                    </div>
+                    <StringFormField
+                        field={field}
+                        label="Email address"
+                        kind="email"
+                        autoComplete="email"
+                        maxLength={254}
+                    />
                 )}
             </form.Field>
             <form.Subscribe
                 selector={(formState) => [formState.canSubmit, formState.isSubmitting] as const}
             >
                 {([canSubmit, isSubmitting]) => (
-                    <button
-                        type="submit"
-                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
-                        disabled={!canSubmit || isSubmitting || state.isPending}
-                    >
-                        {isSubmitting || state.isPending ? 'Requesting link…' : 'Send reset link'}
-                    </button>
+                    <FormSubmitButton
+                        canSubmit={canSubmit}
+                        isSubmitting={isSubmitting}
+                        isPending={state.isPending}
+                        submitLabel="Send reset link"
+                        pendingSubmitLabel="Requesting link…"
+                    />
                 )}
             </form.Subscribe>
         </form>

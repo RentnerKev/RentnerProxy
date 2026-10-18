@@ -6,8 +6,7 @@ import { createHash } from 'node:crypto'
 
 export function parseBackupMetadata(value: unknown): BackupMetadata {
     const result = metadataSchema.safeParse(value)
-    if (!result.success)
-        throw new Error('unsupported or invalid backup metadata (supported: v3, v4)')
+    if (!result.success) throw new Error('unsupported or invalid backup metadata (supported: v4)')
     return result.data
 }
 
@@ -39,8 +38,7 @@ export function assertDeploymentCompatible(
 ): void {
     if (
         !allowChange &&
-        (metadata.version === 3 ||
-            metadata.deployment.publicOrigin !== target.publicOrigin ||
+        (metadata.deployment.publicOrigin !== target.publicOrigin ||
             canonicalCidrs(metadata.deployment.trustedProxyCidrs) !==
                 canonicalCidrs(target.trustedProxyCidrs))
     ) {

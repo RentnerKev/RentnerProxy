@@ -36,7 +36,7 @@ export function DiscoveryStatusCell({ row }: DiscoveryCellProps) {
     const { t } = useTranslationStore()
     return (
         <div className="grid max-w-72 justify-items-start gap-2">
-            <span className="rounded-full border border-border bg-control px-2.5 py-1 text-xs font-bold text-ink-soft">
+            <span className="rounded-full border border-border bg-surface-raised px-2.5 py-1 text-xs font-bold text-ink-soft">
                 {t(`admin.dockerDiscovery.states.${row.state}`)}
             </span>
             {row.issues.length ? (

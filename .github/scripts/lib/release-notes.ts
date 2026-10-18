@@ -351,6 +351,26 @@ function formatReleaseDate(value: string): string {
     }).format(new Date(timestamp))
 }
 
+function renderUpgradeCompatibility(tagName: string, channel: ReleaseChannel): readonly string[] {
+    const version = RELEASE_TAG_REGEXP.exec(tagName)
+    if (!version || channel === 'alpha' || Number(version[1]) < 1) return []
+
+    const initialVersion = version[1] === '1' && version[2] === '0' && version[3] === '0'
+    const betaSequence = /^beta\.(\d+)(?:\.|$)/u.exec(version[4] ?? '')
+    if (initialVersion && channel === 'beta' && (!betaSequence || Number(betaSequence[1]) < 2)) {
+        return []
+    }
+
+    return [
+        '## Upgrade compatibility',
+        '',
+        'Beta 1 (`v1.0.0-beta.1`) is the minimum supported upgrade source. Alpha installations must first upgrade to that exact release, complete startup and configuration reconciliation, and create a new v4 backup before upgrading further. Use the pinned Beta 1 image for this intermediate step; the moving `:beta` tag skips it.',
+        '',
+        'Alpha v3 backups must first be restored with the Beta 1 release and its restore tools, then backed up again as v4. Direct Alpha upgrades and v3 restores into this release are unsupported. Rollback requires a pre-upgrade backup, a fresh volume, and the exact source release.',
+        '',
+    ]
+}
+
 export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedReleaseNotes {
     validateReleaseTag(input.tagName, input.channel !== 'stable')
     if (deriveReleaseChannel(input.tagName) !== input.channel) {
@@ -387,6 +407,7 @@ export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedRe
                   '> Back up your RentnerProxy state before upgrading or testing.',
               ]
     const issueChangelog = renderIssueChangelog(input)
+    const upgradeCompatibility = renderUpgradeCompatibility(input.tagName, input.channel)
     const bannerUrl = `${repositoryWebUrl(input.repository)}/releases/download/${encodeURIComponent(
         input.tagName,
     )}/${encodeURIComponent(input.bannerAssetName)}`
@@ -403,6 +424,7 @@ export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedRe
         '',
         '---',
         '',
+        ...upgradeCompatibility,
         '## 📦 Docker',
         '',
         '| Channel | Image |',
@@ -425,6 +447,7 @@ export function renderReleaseNotes(input: ReleaseNotesDocumentInput): RenderedRe
         '',
         `> **${releaseType}** · Published **${date}**`,
         '',
+        ...upgradeCompatibility,
         `[Upgrade and recovery instructions](${repositoryWebUrl(input.repository)}/blob/${encodeURIComponent(input.tagName)}/README.md#upgrade)`,
         '',
         issueChangelog.trimEnd(),

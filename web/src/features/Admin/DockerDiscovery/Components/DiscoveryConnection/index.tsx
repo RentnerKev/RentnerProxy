@@ -21,7 +21,7 @@ export default function DiscoveryConnection(props: DiscoveryConnectionProps) {
                         type="button"
                         onClick={handler.close}
                         disabled={state.pending}
-                        className="min-h-12 rounded-xl border border-danger-border bg-danger-bg px-4 py-3 text-sm font-extrabold text-danger-text disabled:opacity-50"
+                        className="min-h-12 rounded-xl border border-danger-text bg-danger-bg px-4 py-3 text-sm font-extrabold text-danger-text disabled:opacity-50"
                     >
                         {t('common.cancel')}
                     </button>
@@ -65,7 +65,7 @@ export default function DiscoveryConnection(props: DiscoveryConnectionProps) {
                     type="button"
                     onClick={() => void handler.test()}
                     disabled={state.pending}
-                    className="min-h-10 justify-self-start rounded-xl border border-border bg-control px-4 text-sm font-bold text-ink-soft hover:bg-control-hover disabled:opacity-50"
+                    className="min-h-10 justify-self-start rounded-xl border border-border bg-surface-raised px-4 text-sm font-bold text-ink-soft hover:bg-surface-hover disabled:opacity-50"
                 >
                     {t(state.testing ? 'common.working' : 'admin.dockerDiscovery.connection.test')}
                 </button>
@@ -74,7 +74,7 @@ export default function DiscoveryConnection(props: DiscoveryConnectionProps) {
                         type="button"
                         onClick={handler.disconnect}
                         disabled={state.pending}
-                        className="min-h-9 justify-self-start rounded-lg border border-danger-border bg-danger-bg px-3 text-xs font-bold text-danger-text disabled:opacity-50"
+                        className="min-h-9 justify-self-start rounded-lg border border-danger-text bg-danger-bg px-3 text-xs font-bold text-danger-text disabled:opacity-50"
                     >
                         {t('admin.dockerDiscovery.actions.disconnect')}
                     </button>

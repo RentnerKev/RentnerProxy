@@ -36,7 +36,6 @@ function sequence(seed: number): number[] {
 function reportInput(): ReliabilityReportInput {
     return {
         targetSha: 'a'.repeat(40),
-        runtimeRevision: 'c'.repeat(40),
         imageIdentity: `sha256:${'b'.repeat(64)}`,
         options: parseReliabilityOptions([]),
         completedIterations: 3,
@@ -64,13 +63,13 @@ describe('runtime reliability options', () => {
         expect(
             parseReliabilityOptions([
                 '--source',
-                'alpha.6',
+                'current',
                 '--seed',
                 '0',
                 '--capture-resources',
                 'false',
             ]),
-        ).toMatchObject({ source: 'alpha.6', seed: 0, captureResources: false })
+        ).toMatchObject({ source: 'current', seed: 0, captureResources: false })
     })
 
     test('rejects malformed, ambiguous and out-of-range options without reflecting input', () => {
@@ -108,10 +107,13 @@ describe('runtime reliability options', () => {
             expect(message.length).toBeGreaterThan(0)
             expect(message).not.toContain('private-secret')
         }
+        expect(() => parseReliabilityOptions(['--source', 'alpha.6'])).toThrow(
+            'Invalid reliability source',
+        )
         expect(
             parseReliabilityOptions([
                 '--image',
-                'ghcr.io/example/runtime:alpha.6',
+                'ghcr.io/example/runtime:fixture',
                 '--report',
                 'C:\\test folder\\report.json',
                 '--seed',
@@ -263,20 +265,7 @@ describe('quiescent resource evidence', () => {
 })
 
 describe('sanitized reliability reports', () => {
-    test('baseline limitations are explicit and cannot excuse a current-build regression', () => {
-        const input = reportInput()
-        input.options.source = 'alpha.6'
-        input.runtimeRevision = 'c8a07cc413c1d9632d279e6d45cdf4d46f4947b1'
-        input.knownLimitations = ['alpha6-binding-retry-needs-second-request']
-        expect(buildReliabilityReport(input).knownLimitations).toEqual(input.knownLimitations)
-        input.options.source = 'current'
-        expect(() => buildReliabilityReport(input)).toThrow('Invalid baseline limitation')
-        input.options.source = 'alpha.6'
-        input.runtimeRevision = 'a'.repeat(40)
-        expect(() => buildReliabilityReport(input)).toThrow('Invalid baseline limitation')
-        input.runtimeRevision = 'c8a07cc413c1d9632d279e6d45cdf4d46f4947b1'
-        input.knownLimitations = ['private-secret' as never]
-        expect(() => buildReliabilityReport(input)).toThrow('Invalid baseline limitation')
+    test('does not record historical baseline limitations', () => {
         expect(buildReliabilityReport(reportInput()).knownLimitations).toEqual([])
     })
 
@@ -294,7 +283,7 @@ describe('sanitized reliability reports', () => {
         })
         expect(report.observedDurationSeconds).toBe(25)
         expect(report.targetSha).toBe('a'.repeat(40))
-        expect(report.runtimeRevision).toBe('c'.repeat(40))
+        expect(report.runtimeRevision).toBe(report.targetSha)
     })
 
     test('failure exposes static categories and never exception details', () => {
@@ -310,7 +299,6 @@ describe('sanitized reliability reports', () => {
     test('rejects arbitrary identity, check, failure and progress payloads', () => {
         const invalidInputs = [
             { ...reportInput(), targetSha: 'private-secret' },
-            { ...reportInput(), runtimeRevision: 'private-secret' },
             { ...reportInput(), imageIdentity: 'registry/private-secret:latest' },
             { ...reportInput(), observedDurationSeconds: NaN },
             { ...reportInput(), completedIterations: 4 },

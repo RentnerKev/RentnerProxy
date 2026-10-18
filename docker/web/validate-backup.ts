@@ -27,6 +27,28 @@ export function isMigrationJournal(value: unknown): value is BackupMigrationJour
     )
 }
 
+export async function assertCompatibleBackupHistory(
+    rows: readonly BackupMigrationRow[],
+    journal: BackupMigrationJournal,
+    readMigration: (tag: string) => Promise<Uint8Array>,
+): Promise<void> {
+    if (rows.length === 0 || rows.length > journal.entries.length) {
+        throw new Error('unsupported backup database version')
+    }
+    for (const [index, row] of rows.entries()) {
+        const migration = journal.entries[index]
+        if (!migration) {
+            throw new Error('backup migration history is incompatible with the target image')
+        }
+        const expected = createHash('sha256')
+            .update(await readMigration(migration.tag))
+            .digest('hex')
+        if (row.hash !== expected || String(row.created_at) !== String(migration.when)) {
+            throw new Error('backup migration history is incompatible with the target image')
+        }
+    }
+}
+
 export function decryptBackupSecret(
     key: Buffer,
     ciphertext: Buffer,
@@ -47,7 +69,15 @@ export function decryptBackupSecret(
     }
 }
 
+export function assertSupportedBackupVersion(metadata: unknown): void {
+    if (!isRecord(metadata) || metadata.version !== 4) {
+        throw new Error('unsupported backup metadata version (supported: v4)')
+    }
+}
+
 async function validateDatabase(): Promise<void> {
+    const metadata: unknown = JSON.parse(await readFile('/backup/metadata.json', 'utf8'))
+    assertSupportedBackupVersion(metadata)
     const key = Buffer.from((await readFile('/backup/app-encryption-key', 'utf8')).trim(), 'base64')
     const sql = new SQL({
         hostname: '127.0.0.1',
@@ -70,29 +100,9 @@ async function validateDatabase(): Promise<void> {
         const rows = await sql<
             BackupMigrationRow[]
         >`select hash, created_at from drizzle.__drizzle_migrations order by id`
-        if (rows.length < 20 || rows.length > journal.entries.length) {
-            throw new Error('unsupported backup database version')
-        }
-        for (const [index, row] of rows.entries()) {
-            const migration = journal.entries[index]
-            if (!migration) {
-                throw new Error('backup migration history is incompatible with the target image')
-            }
-            const expected = createHash('sha256')
-                .update(await readFile(join(migrationsPath, migration.tag + '.sql')))
-                .digest('hex')
-            if (row.hash !== expected || String(row.created_at) !== String(migration.when)) {
-                throw new Error('backup migration history is incompatible with the target image')
-            }
-        }
-        const metadata: unknown = JSON.parse(await readFile('/backup/metadata.json', 'utf8'))
-        if (!isRecord(metadata)) throw new Error('unsupported backup database version')
-        if (metadata.version === 3 && rows.length !== 20) {
-            throw new Error('v3 restore supports published alpha.4, alpha.5 and alpha.6 only')
-        }
-        if (metadata.version === 4 && rows.length !== journal.entries.length) {
-            throw new Error('v4 restore requires the current target database version')
-        }
+        await assertCompatibleBackupHistory(rows, journal, (tag) =>
+            readFile(join(migrationsPath, tag + '.sql')),
+        )
         const factors = await sql<
             BackupTotpSecretRow[]
         >`select user_id, secret_ciphertext, secret_iv from rentnerproxy.user_totp_factors`
@@ -116,86 +126,78 @@ async function validateDatabase(): Promise<void> {
             )
         }
         let requiresCrowdSecDatabase = false
-        if (metadata.version === 4) {
-            const settings = await sql<
-                BackupCrowdSecSettingRow[]
-            >`select value from rentnerproxy.system_settings where key = 'crowdsec_configuration_v1'`
-            for (const row of settings) {
-                const value: unknown =
-                    typeof row.value === 'string' ? JSON.parse(row.value) : row.value
-                if (!isRecord(value)) throw new Error('invalid encrypted backup secret')
-                requiresCrowdSecDatabase = value.mode === 'managed'
-                const apiKey = isRecord(value.external) ? value.external.apiKey : undefined
-                if (apiKey) {
-                    if (
-                        !isRecord(apiKey) ||
-                        typeof apiKey.ciphertext !== 'string' ||
-                        typeof apiKey.iv !== 'string'
-                    ) {
-                        throw new Error('invalid encrypted backup secret')
-                    }
-                    decryptBackupSecret(
-                        key,
-                        Buffer.from(apiKey.ciphertext, 'base64url'),
-                        Buffer.from(apiKey.iv, 'base64url'),
-                        'crowdsec_configuration_v1:external_api_key',
-                    )
+        const settings = await sql<
+            BackupCrowdSecSettingRow[]
+        >`select value from rentnerproxy.system_settings where key = 'crowdsec_configuration_v1'`
+        for (const row of settings) {
+            const value: unknown = typeof row.value === 'string' ? JSON.parse(row.value) : row.value
+            if (!isRecord(value)) throw new Error('invalid encrypted backup secret')
+            requiresCrowdSecDatabase = value.mode === 'managed'
+            const apiKey = isRecord(value.external) ? value.external.apiKey : undefined
+            if (apiKey) {
+                if (
+                    !isRecord(apiKey) ||
+                    typeof apiKey.ciphertext !== 'string' ||
+                    typeof apiKey.iv !== 'string'
+                ) {
+                    throw new Error('invalid encrypted backup secret')
                 }
+                decryptBackupSecret(
+                    key,
+                    Buffer.from(apiKey.ciphertext, 'base64url'),
+                    Buffer.from(apiKey.iv, 'base64url'),
+                    'crowdsec_configuration_v1:external_api_key',
+                )
             }
         }
-        if (metadata.version === 4) {
-            await mkdir('/tmp/backup-crowdsec', { mode: 0o700 })
-            const child = Bun.spawn(
-                [
-                    'tar',
-                    '--extract',
-                    '--no-same-owner',
-                    '--no-same-permissions',
-                    '--file=/backup/crowdsec-state.tar',
-                    '--directory=/tmp/backup-crowdsec',
-                ],
-                { stdout: 'ignore', stderr: 'ignore' },
-            )
-            if ((await child.exited) !== 0) throw new Error('invalid CrowdSec archive')
-            const dbPath = '/tmp/backup-crowdsec/data/crowdsec.db'
-            const dbExists = await stat(dbPath).catch(() => null)
-            if (!dbExists && requiresCrowdSecDatabase)
-                throw new Error('managed CrowdSec database is missing')
-            if (dbExists) {
-                const crowdSec = new Database(dbPath, { readonly: true })
-                try {
-                    const result = crowdSec
-                        .query<{ quick_check: unknown }, []>('PRAGMA quick_check')
-                        .all()
-                    if (result.length !== 1 || result[0]?.quick_check !== 'ok')
-                        throw new Error('invalid CrowdSec database')
-                } finally {
-                    crowdSec.close()
-                }
-                const credentials: unknown = Bun.YAML.parse(
-                    await readFile(
-                        '/tmp/backup-crowdsec/credentials/local_api_credentials.yaml',
-                        'utf8',
-                    ),
-                )
-                if (
-                    !isRecord(credentials) ||
-                    typeof credentials.url !== 'string' ||
-                    !['http://127.0.0.1:18080', 'http://127.0.0.1:18080/'].includes(
-                        credentials.url,
-                    ) ||
-                    typeof credentials.login !== 'string' ||
-                    !credentials.login ||
-                    typeof credentials.password !== 'string' ||
-                    !credentials.password
-                )
-                    throw new Error('invalid CrowdSec local credentials')
-                const bouncerKey = (
-                    await readFile('/tmp/backup-crowdsec/bouncer/caddy-bouncer-key', 'utf8')
-                ).trim()
-                if (!/^[a-f0-9]{64}$/u.test(bouncerKey))
-                    throw new Error('invalid CrowdSec bouncer key')
+        await mkdir('/tmp/backup-crowdsec', { mode: 0o700 })
+        const child = Bun.spawn(
+            [
+                'tar',
+                '--extract',
+                '--no-same-owner',
+                '--no-same-permissions',
+                '--file=/backup/crowdsec-state.tar',
+                '--directory=/tmp/backup-crowdsec',
+            ],
+            { stdout: 'ignore', stderr: 'ignore' },
+        )
+        if ((await child.exited) !== 0) throw new Error('invalid CrowdSec archive')
+        const dbPath = '/tmp/backup-crowdsec/data/crowdsec.db'
+        const dbExists = await stat(dbPath).catch(() => null)
+        if (!dbExists && requiresCrowdSecDatabase)
+            throw new Error('managed CrowdSec database is missing')
+        if (dbExists) {
+            const crowdSec = new Database(dbPath, { readonly: true })
+            try {
+                const result = crowdSec
+                    .query<{ quick_check: unknown }, []>('PRAGMA quick_check')
+                    .all()
+                if (result.length !== 1 || result[0]?.quick_check !== 'ok')
+                    throw new Error('invalid CrowdSec database')
+            } finally {
+                crowdSec.close()
             }
+            const credentials: unknown = Bun.YAML.parse(
+                await readFile(
+                    '/tmp/backup-crowdsec/credentials/local_api_credentials.yaml',
+                    'utf8',
+                ),
+            )
+            if (
+                !isRecord(credentials) ||
+                typeof credentials.url !== 'string' ||
+                !['http://127.0.0.1:18080', 'http://127.0.0.1:18080/'].includes(credentials.url) ||
+                typeof credentials.login !== 'string' ||
+                !credentials.login ||
+                typeof credentials.password !== 'string' ||
+                !credentials.password
+            )
+                throw new Error('invalid CrowdSec local credentials')
+            const bouncerKey = (
+                await readFile('/tmp/backup-crowdsec/bouncer/caddy-bouncer-key', 'utf8')
+            ).trim()
+            if (!/^[a-f0-9]{64}$/u.test(bouncerKey)) throw new Error('invalid CrowdSec bouncer key')
         }
         console.log('Backup database version and encrypted secrets verified.')
     } finally {
@@ -210,8 +212,7 @@ if (import.meta.main) {
         const failures: Readonly<Record<string, string>> = {
             'unsupported backup database version': 'database_version',
             'backup migration history is incompatible with the target image': 'migration_history',
-            'v3 restore supports published alpha.4, alpha.5 and alpha.6 only': 'database_version',
-            'v4 restore requires the current target database version': 'database_version',
+            'unsupported backup metadata version (supported: v4)': 'database_version',
             'invalid encrypted backup secret': 'application_key',
             'backup application key cannot decrypt persisted secrets': 'application_key',
             'invalid CrowdSec archive': 'crowdsec_archive',

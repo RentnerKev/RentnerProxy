@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test'
-import { fileURLToPath } from 'node:url'
 
 import { DEFAULT_ACCENT_COLOR } from '@/config/appearance.config.ts'
 import { PERMISSIONS } from '@/config/permissions.config.ts'
+import { runBunScript } from '@/tests/Helpers/runBunScript.ts'
 
 test('personal accents remain independent and require the current account before writing', async () => {
     const script = `
@@ -53,17 +53,7 @@ test('personal accents remain independent and require the current account before
         const reset = await update({expectedUserId: firstId, accentColor: null})
         console.log(JSON.stringify({anonymous, denied, wrongAccount, deniedDatabaseCalls, first, second, reset, saved: [...saved], permissionChecks}))
     `
-    const child = Bun.spawn([process.execPath, '--no-env-file', '-e', script], {
-        cwd: fileURLToPath(new URL('../../..', import.meta.url)),
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const [stdout, stderr, exitCode] = await Promise.all([
-        new Response(child.stdout).text(),
-        new Response(child.stderr).text(),
-        child.exited,
-    ])
-    expect(exitCode, stderr).toBe(0)
+    const stdout = await runBunScript(script, { cwd: new URL('../../..', import.meta.url) })
     const firstId = '6f355778-511f-467b-ad8f-8c4a29b84510'
     const secondId = '66b1c097-ddd5-4e1a-bd04-d9007e4010b9'
     expect(JSON.parse(stdout)).toEqual({
@@ -113,17 +103,7 @@ test('the personal appearance API validates the account and color and returns un
         const result = await update({data: {expectedUserId, accentColor: '#Ab12Ef'}})
         console.log(JSON.stringify({invalidColor, invalidAccount, result, calls, headers}))
     `
-    const child = Bun.spawn([process.execPath, '--no-env-file', '-e', script], {
-        cwd: fileURLToPath(new URL('../../..', import.meta.url)),
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const [stdout, stderr, exitCode] = await Promise.all([
-        new Response(child.stdout).text(),
-        new Response(child.stderr).text(),
-        child.exited,
-    ])
-    expect(exitCode, stderr).toBe(0)
+    const stdout = await runBunScript(script, { cwd: new URL('../../..', import.meta.url) })
     const userId = '6f355778-511f-467b-ad8f-8c4a29b84510'
     expect(JSON.parse(stdout)).toEqual({
         invalidColor: { success: false, message: 'userAppearance.errors.invalidColor' },

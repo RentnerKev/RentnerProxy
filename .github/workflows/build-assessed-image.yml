@@ -1,0 +1,169 @@
+name: Build assessed image
+
+on:
+    workflow_call:
+        inputs:
+            revision:
+                required: true
+                type: string
+            image:
+                required: true
+                type: string
+            version:
+                required: true
+                type: string
+            title:
+                required: true
+                type: string
+            description:
+                required: true
+                type: string
+            cache_scope:
+                required: true
+                type: string
+            published_at:
+                required: false
+                type: string
+                default: ''
+            release_tag:
+                required: false
+                type: string
+                default: ''
+        outputs:
+            digest:
+                value: ${{ jobs.build.outputs.digest }}
+            archive_sha256:
+                value: ${{ jobs.build.outputs.archive_sha256 }}
+
+permissions: {}
+
+jobs:
+    build:
+        name: Build and assess image
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        permissions:
+            contents: read
+        outputs:
+            digest: ${{ steps.scan.outputs.digest }}
+            archive_sha256: ${{ steps.archive.outputs.sha256 }}
+        steps:
+            - name: Check out trusted image automation
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  path: automation
+                  ref: ${{ github.workflow_sha }}
+
+            - name: Check out exact assessed source
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  fetch-depth: 0
+                  fetch-tags: true
+                  persist-credentials: false
+                  path: source
+                  ref: ${{ inputs.revision }}
+
+            - name: Verify exact release commit
+              if: inputs.release_tag != ''
+              env:
+                  EXPECTED_REVISION: ${{ inputs.revision }}
+                  RELEASE_TAG: ${{ inputs.release_tag }}
+              shell: bash
+              run: bash automation/.github/scripts/release/verify-release-commit.sh
+
+            - name: Verify exact source revision
+              env:
+                  EXPECTED_REVISION: ${{ inputs.revision }}
+              shell: bash
+              run: |
+                  set -Eeuo pipefail
+                  [[ "$EXPECTED_REVISION" =~ ^[0-9a-f]{40}$ ]]
+                  [[ "$(git -C source rev-parse HEAD)" == "$EXPECTED_REVISION" ]]
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+            - name: Generate image metadata
+              id: metadata
+              uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+              with:
+                  flavor: latest=false
+                  images: ${{ inputs.image }}
+                  labels: |
+                      org.opencontainers.image.title=${{ inputs.title }}
+                      org.opencontainers.image.description=${{ inputs.description }}
+                      org.opencontainers.image.source=https://github.com/${{ github.repository }}
+                      org.opencontainers.image.url=https://github.com/${{ github.repository }}
+                      org.opencontainers.image.version=${{ inputs.version }}
+                      org.opencontainers.image.revision=${{ inputs.revision }}
+                      ${{ inputs.published_at != '' && format('org.opencontainers.image.created={0}', inputs.published_at) || '' }}
+                      org.opencontainers.image.licenses=MIT
+
+            - name: Build image as isolated OCI data
+              id: build
+              uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+              with:
+                  cache-from: type=gha,scope=${{ inputs.cache_scope }}
+                  cache-to: type=gha,mode=max,scope=${{ inputs.cache_scope }}
+                  build-args: RENTNERPROXY_BUILD_VERSION=${{ inputs.version }}
+                  context: source
+                  file: source/docker/production/Dockerfile
+                  labels: ${{ steps.metadata.outputs.labels }}
+                  platforms: linux/amd64
+                  provenance: mode=max
+                  push: false
+                  outputs: type=oci,dest=${{ runner.temp }}/candidate-image.tar
+                  sbom: true
+
+            - name: Set up Bun for advisory policy
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+              with:
+                  bun-version: 1.4.3
+
+            - name: Audit locked source graphs
+              env:
+                  AUTOMATION_DIRECTORY: automation
+                  SOURCE_DIRECTORY: source
+                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-source-report
+                  REVISION: ${{ inputs.revision }}
+              run: |
+                  bash automation/.github/scripts/security/audit-cargo.sh
+                  bash automation/.github/scripts/security/audit-bun.sh
+
+            - name: Install pinned vulnerability tools
+              run: bash automation/.github/scripts/security/install-dependency-tools.sh
+
+            - name: Assess immutable candidate before publication
+              id: scan
+              env:
+                  AUTOMATION_DIRECTORY: automation
+                  IMAGE_SOURCE: oci-archive:${{ runner.temp }}/candidate-image.tar
+                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-image-report
+                  REVISION: ${{ inputs.revision }}
+              run: bash automation/.github/scripts/security/scan-image.sh
+
+            - name: Bind archive checksum
+              id: archive
+              run: printf 'sha256=%s\n' "$(sha256sum "$RUNNER_TEMP/candidate-image.tar" | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
+
+            - name: Store assessed OCI candidate
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  compression-level: 0
+                  if-no-files-found: error
+                  overwrite: true
+                  name: assessed-candidate-${{ github.run_id }}
+                  path: ${{ runner.temp }}/candidate-image.tar
+                  retention-days: 2
+
+            - name: Store dependency evidence
+              if: always()
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  if-no-files-found: error
+                  name: dependency-build-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: |
+                      ${{ runner.temp }}/dependency-source-report
+                      ${{ runner.temp }}/dependency-image-report
+                  retention-days: 30

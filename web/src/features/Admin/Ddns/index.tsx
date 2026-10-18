@@ -99,7 +99,7 @@ export default function DdnsPage(props: DdnsPageProps) {
                                                 type="button"
                                                 onClick={handler.disable}
                                                 disabled={state.isPending || !state.available}
-                                                className="min-h-9 rounded-lg border border-danger-border bg-danger-bg px-3 text-sm font-bold text-danger-text disabled:opacity-50"
+                                                className="min-h-9 rounded-lg border border-danger-text bg-danger-bg px-3 text-sm font-bold text-danger-text disabled:opacity-50"
                                             >
                                                 {t('admin.ddns.actions.disable')}
                                             </button>

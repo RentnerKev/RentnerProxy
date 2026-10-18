@@ -19,7 +19,6 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { startCertificateDnsFixture } from '../smoke/certificates/dns-fixture.ts'
 import { buildHttp3Client } from '../smoke/http3/client.ts'
-import { publishedRelease } from '../compatibility/published-releases.ts'
 import { smokeCompose, smokeDockerArguments, smokeRunScope } from '../smoke/resources.ts'
 import type { ReliabilityCheck, ReliabilityOptions, ResourceSample } from './Types/control.types.ts'
 import { fixtureTransport } from './fixture-transport.config.ts'
@@ -43,6 +42,21 @@ const pebbleImage =
     'ghcr.io/letsencrypt/pebble:2.10.1@sha256:ddf230642b1a584f519f32e347de1b05a6e4c1f6c35c1863b33effeab5f78199'
 const healthcheck = '/opt/rentnerproxy/web/docker/web/healthcheck.ts'
 const repositoryRoot = resolve(import.meta.dir, '../..')
+
+export async function stageReliabilityFixtureSources(fixtureRoot: string): Promise<void> {
+    for (const relativePath of [
+        'scripts/runtime-reliability/fixture.ts',
+        'scripts/runtime-reliability/fixture-core.ts',
+        'scripts/runtime-reliability/fixture-context.ts',
+        'scripts/runtime-reliability/fixture.validation.ts',
+        'scripts/lib/request-context.ts',
+    ]) {
+        const destination = join(fixtureRoot, relativePath)
+        const contents = await readFile(join(repositoryRoot, relativePath), 'utf8')
+        await mkdir(dirname(destination), { recursive: true })
+        await writeFile(destination, contents)
+    }
+}
 
 async function command(args: string[], options: CommandOptions = {}): Promise<string> {
     const { exitCode, stdout, stderr, timedOut } = await runSmokeProcess(
@@ -220,8 +234,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
                 '--env',
                 'DATABASE_URL_FILE=/run/rentnerproxy/database-url/value',
                 '--env',
-                (options.source === 'alpha.6' ? 'REDIS_URL' : 'VALKEY_URL') +
-                    '=redis://127.0.0.1:6379',
+                'VALKEY_URL=redis://127.0.0.1:6379',
                 '--env',
                 'RENTNERPROXY_CONTROLLER_URL=http://127.0.0.1:8081',
                 '--env',
@@ -659,15 +672,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         await synced(after)
         check('rollback', 'Fresh-volume backup restore preserves durable domain state')
     }
-    const knownLimitations: 'alpha6-binding-retry-needs-second-request'[] = []
     const context: ReliabilityContext = {
-        source: options.source,
-        noteKnownLimitation(name) {
-            assert.equal(options.source, 'alpha.6')
-            assert.equal(name, 'alpha6-binding-retry-needs-second-request')
-            if (!knownLimitations.includes(name)) knownLimitations.push(name)
-            console.log('BASELINE LIMITATION ' + name)
-        },
         command,
         docker,
         fixture,
@@ -702,16 +707,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             'rev-parse',
             'HEAD',
         ])
-        if (options.source === 'alpha.6') {
-            const release = publishedRelease('alpha.6')
-            if (options.image && options.image !== release.image)
-                throw new ReliabilityError(
-                    'assertion',
-                    'Alpha 6 requires its published immutable image',
-                )
-            image = release.image
-            await docker(['pull', image], { timeoutMs: 300_000 })
-        } else if (!options.image) {
+        if (!options.image) {
             const source = join(temp, 'current-source')
             await archive(targetSha, source)
             ownedImages.push(builtImage)
@@ -730,7 +726,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             )
         }
         imageIdentity = await docker(['image', 'inspect', '--format', '{{.Id}}', image])
-        if (options.source === 'current' && options.image) {
+        if (options.image) {
             const imageRevision = await docker([
                 'image',
                 'inspect',
@@ -871,67 +867,37 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
                 )),
         )
         await ready()
-        if (options.source === 'current') {
-            assert.match(
-                await docker([
-                    'exec',
-                    container,
-                    '/opt/rentnerproxy/valkey/bin/valkey-server',
-                    '--version',
-                ]),
-                /Valkey server v=9\.1\.2/u,
-            )
-            assert.equal(
-                await docker([
-                    'exec',
-                    container,
-                    'gosu',
-                    'rentnerproxy',
-                    '/opt/rentnerproxy/valkey/bin/valkey-cli',
-                    'ping',
-                ]),
-                'PONG',
-            )
-            check('health', 'bundled Valkey is ready')
-        }
+        assert.match(
+            await docker([
+                'exec',
+                container,
+                '/opt/rentnerproxy/valkey/bin/valkey-server',
+                '--version',
+            ]),
+            /Valkey server v=9\.1\.2/u,
+        )
+        assert.equal(
+            await docker([
+                'exec',
+                container,
+                'gosu',
+                'rentnerproxy',
+                '/opt/rentnerproxy/valkey/bin/valkey-cli',
+                'ping',
+            ]),
+            'PONG',
+        )
+        check('health', 'bundled Valkey is ready')
         const fixtureRoot = join(temp, 'fixture-source')
-        const fixtureTsconfig = options.source === 'alpha.6' ? 'web/tsconfig.json' : 'tsconfig.json'
-        await archive(
-            options.source === 'alpha.6' ? publishedRelease('alpha.6').revision : targetSha,
-            fixtureRoot,
-            ['web/src', fixtureTsconfig, 'package.json', 'bun.lock'],
-        )
-        await mkdir(join(fixtureRoot, 'scripts/runtime-reliability'), { recursive: true })
-        for (const name of options.source === 'alpha.6'
-            ? ['fixture.ts', 'fixture-context.ts', 'fixture.validation.ts']
-            : ['fixture.ts', 'fixture-beta.ts', 'fixture-context.ts', 'fixture.validation.ts']) {
-            let fixtureContents = await readFile(
-                join(repositoryRoot, 'scripts/runtime-reliability', name),
-                'utf8',
-            )
-            if (options.source === 'alpha.6' && name === 'fixture-context.ts') {
-                assert.ok(fixtureContents.includes('../../web/src/server/Valkey/client.server.ts'))
-                assert.ok(fixtureContents.includes('valkey.closeValkeyClient()'))
-                fixtureContents = fixtureContents
-                    .replace(
-                        '../../web/src/server/Valkey/client.server.ts',
-                        '../../web/src/server/redis/client.server.ts',
-                    )
-                    .replaceAll('valkey.closeValkeyClient()', 'valkey.closeRedisClient()')
-            }
-            if (options.source === 'alpha.6') {
-                fixtureContents = fixtureContents.replaceAll(
-                    '../../web/src/server/Controller/proxy.server.ts',
-                    '../../web/src/server/Foundation/controller.server.ts',
-                )
-            }
-            await writeFile(join(fixtureRoot, 'scripts/runtime-reliability', name), fixtureContents)
-        }
-        const fixtureSource = join(
-            fixtureRoot,
-            'scripts/runtime-reliability',
-            options.source === 'alpha.6' ? 'fixture.ts' : 'fixture-beta.ts',
-        )
+        const fixtureTsconfig = 'tsconfig.json'
+        await archive(targetSha, fixtureRoot, [
+            'web/src',
+            fixtureTsconfig,
+            'package.json',
+            'bun.lock',
+        ])
+        await stageReliabilityFixtureSources(fixtureRoot)
+        const fixtureSource = join(fixtureRoot, 'scripts/runtime-reliability', 'fixture.ts')
         const bundle = join(temp, 'reliability-fixture.js')
         await command([
             process.execPath,
@@ -1033,7 +999,6 @@ console.log(JSON.stringify({memoryBytes:Math.max(0,memory-inactive),pids:Number(
     }
     return {
         context,
-        knownLimitations,
         setup,
         cleanup,
         resources,
@@ -1044,9 +1009,6 @@ console.log(JSON.stringify({memoryBytes:Math.max(0,memory-inactive),pids:Number(
         },
         get targetSha() {
             return targetSha
-        },
-        get runtimeRevision() {
-            return options.source === 'alpha.6' ? publishedRelease('alpha.6').revision : targetSha
         },
         get started() {
             return started

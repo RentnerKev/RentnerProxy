@@ -16,3 +16,7 @@ export type MfaLoginCompletionResult =
           }
           readonly success: true
       }
+
+export type LoginMfaProof =
+    | { readonly kind: 'totp'; readonly matchedCounter: number }
+    | { readonly kind: 'recovery-code'; readonly codeHash: string }

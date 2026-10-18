@@ -1,4 +1,5 @@
 import type { ProxyHostMutationSummary } from './Types/proxy-hosts.types.ts'
+import { proxyHostSummaryColumns } from './proxy-hosts.storage.server.ts'
 import '@tanstack/react-start/server-only'
 import { QUICK_SEARCH_LIMIT } from '@/config/quick-search.config.ts'
 import type { AuthenticatedUser } from '@/lib/Auth/Types/auth.types.ts'
@@ -28,11 +29,7 @@ import { validateCertificateAssignmentInTransaction } from '@/server/Admin/Certi
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
-import {
-    createProxyHostInputSchema,
-    proxyHostIdInputSchema,
-    updateProxyHostInputSchema,
-} from '@/features/Admin/ProxyHostManagement/validation.ts'
+import { proxyHostIdInputSchema } from '@/features/Admin/ProxyHostManagement/validation.ts'
 import type {
     CreateProxyHostInput,
     UpdateProxyHostInput,
@@ -48,6 +45,8 @@ import {
 } from '@/server/Admin/DockerDiscovery/discovery-storage.server.ts'
 import {
     createProxyHostInTransaction,
+    parseCreateProxyHostInput,
+    parseUpdateProxyHostInput,
     loadProxyHostForUpdate,
     toProxyHostSummary,
     updateProxyHostInTransaction,
@@ -69,26 +68,6 @@ async function loadProxyHostDomainsInTransaction(
     return rows.map((row) => row.domain)
 }
 
-function parseCreateInput(input: CreateProxyHostInput) {
-    const parsed = createProxyHostInputSchema.safeParse(input)
-
-    if (!parsed.success) {
-        throw invalidInput()
-    }
-
-    return parsed.data
-}
-
-function parseUpdateInput(input: UpdateProxyHostInput) {
-    const parsed = updateProxyHostInputSchema.safeParse(input)
-
-    if (!parsed.success) {
-        throw invalidInput()
-    }
-
-    return parsed.data
-}
-
 function parseProxyHostId(proxyHostId: string): string {
     const parsed = proxyHostIdInputSchema.safeParse({ proxyHostId })
 
@@ -102,22 +81,7 @@ function parseProxyHostId(proxyHostId: string): string {
 export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
     await requirePermissionService(PERMISSIONS.PROXY_HOSTS_VIEW)
     const rows = await getAuthDatabase()
-        .select({
-            createdAt: proxyHosts.createdAt,
-            domain: hostDomains.domain,
-            enabled: proxyHosts.enabled,
-            certificateId: proxyHosts.certificateId,
-            forceHttps: proxyHosts.forceHttps,
-            verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
-            upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
-            trustedCaId: proxyHosts.trustedCaId,
-            accessPolicyId: proxyHosts.accessPolicyId,
-            forwardHost: proxyHosts.forwardHost,
-            forwardPort: proxyHosts.forwardPort,
-            forwardScheme: proxyHosts.forwardScheme,
-            id: proxyHosts.id,
-            updatedAt: proxyHosts.updatedAt,
-        })
+        .select({ ...proxyHostSummaryColumns, domain: hostDomains.domain })
         .from(proxyHosts)
         .leftJoin(hostDomains, eq(hostDomains.proxyHostId, proxyHosts.id))
         .orderBy(asc(proxyHosts.id), asc(hostDomains.domain))
@@ -133,27 +97,7 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
             continue
         }
 
-        summaries.set(
-            row.id,
-            toProxyHostSummary(
-                {
-                    createdAt: row.createdAt,
-                    enabled: row.enabled,
-                    certificateId: row.certificateId,
-                    forceHttps: row.forceHttps,
-                    verifyUpstreamTls: row.verifyUpstreamTls,
-                    upstreamTlsServerName: row.upstreamTlsServerName,
-                    trustedCaId: row.trustedCaId,
-                    accessPolicyId: row.accessPolicyId,
-                    forwardHost: row.forwardHost,
-                    forwardPort: row.forwardPort,
-                    forwardScheme: row.forwardScheme,
-                    id: row.id,
-                    updatedAt: row.updatedAt,
-                },
-                row.domain ? [row.domain] : [],
-            ),
-        )
+        summaries.set(row.id, toProxyHostSummary(row, row.domain ? [row.domain] : []))
     }
 
     const result: Array<ProxyHostSummary> = []
@@ -197,7 +141,7 @@ export async function getProxyHostsService(): Promise<Array<ProxyHostSummary>> {
 export async function createProxyHostService(
     input: CreateProxyHostInput,
 ): Promise<ProxyHostMutationSummary> {
-    const parsedInput = parseCreateInput(input)
+    const parsedInput = parseCreateProxyHostInput(input)
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_CREATE)
 
     let saved: ProxyHostSummary
@@ -227,7 +171,7 @@ export async function createProxyHostService(
 export async function updateProxyHostService(
     input: UpdateProxyHostInput,
 ): Promise<ProxyHostMutationSummary> {
-    const parsedInput = parseUpdateInput(input)
+    const parsedInput = parseUpdateProxyHostInput(input)
     const actor = await requirePermissionService(PERMISSIONS.PROXY_HOSTS_UPDATE)
 
     let saved: ProxyHostSummary
@@ -340,21 +284,7 @@ async function setProxyHostEnabledService(
                 .update(proxyHosts)
                 .set({ enabled, updatedAt: new Date() })
                 .where(eq(proxyHosts.id, proxyHost.id))
-                .returning({
-                    createdAt: proxyHosts.createdAt,
-                    enabled: proxyHosts.enabled,
-                    certificateId: proxyHosts.certificateId,
-                    forceHttps: proxyHosts.forceHttps,
-                    verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
-                    upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
-                    trustedCaId: proxyHosts.trustedCaId,
-                    accessPolicyId: proxyHosts.accessPolicyId,
-                    forwardHost: proxyHosts.forwardHost,
-                    forwardPort: proxyHosts.forwardPort,
-                    forwardScheme: proxyHosts.forwardScheme,
-                    id: proxyHosts.id,
-                    updatedAt: proxyHosts.updatedAt,
-                })
+                .returning(proxyHostSummaryColumns)
             const updatedProxyHost = rows.at(0)
 
             if (!updatedProxyHost) {

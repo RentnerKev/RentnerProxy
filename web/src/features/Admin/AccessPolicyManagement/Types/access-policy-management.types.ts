@@ -6,4 +6,3 @@ export interface AccessPolicyManagementPageProps {
 }
 
 export type AccessPolicyRuntimeStatus = ProxyRuntimeSyncStatus
-export type AccessPolicyRuntimeState = AccessPolicyRuntimeStatus['state']

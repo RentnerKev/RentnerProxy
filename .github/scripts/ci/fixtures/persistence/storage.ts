@@ -81,12 +81,12 @@ function parseJsonRecord(value: string, label: string): PersistenceSnapshot {
     try {
         const parsed: unknown = JSON.parse(value)
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-            throw new Error(`Alpha 4 fixture returned invalid ${label}.`)
+            throw new Error(`Persistence fixture returned invalid ${label}.`)
         }
         return parsed as PersistenceSnapshot
     } catch (error) {
         if (error instanceof SyntaxError) {
-            throw new Error(`Alpha 4 fixture returned invalid ${label}.`, { cause: error })
+            throw new Error(`Persistence fixture returned invalid ${label}.`, { cause: error })
         }
         throw error
     }

@@ -62,12 +62,11 @@ dependencies installed, run the isolated synthetic fixture:
 
 ```bash
 bun run runtime:reliability -- --profile short --source current --report ./runtime-reliability.json
-bun run runtime:reliability -- --profile long --source alpha.6 --report ./runtime-reliability-alpha6.json
 ```
 
 `current` builds the committed `HEAD` snapshot; fixture services are bundled from the exact matching
 Git revision. A supplied `--image` for current is accepted only when its OCI revision matches `HEAD`.
-`alpha.6` uses the immutable published Alpha 6 image and its pinned historical source. The fixture creates its own private data and credentials. Never supply production
+Only the current build is accepted. The fixture creates its own private data and credentials. Never supply production
 secrets or private data. Cycle admission stops at the first duration or iteration bound: short defaults
 to 120 seconds/3 iterations, long to 1800 seconds/120 iterations, both with concurrency 2. The sanitized
 JSON records actual workload elapsed time, excluding cold setup, and whether the requested duration was
@@ -75,19 +74,18 @@ reached. In-flight cycles finish their bounded commands, so observed duration ca
 cap. Retain at least eight quiescent samples for trend evidence; a shorter passing run cannot establish
 resource stability. These are fixture guards, not production performance benchmarks. The separate
 [Runtime Reliability workflow](../.github/workflows/runtime-reliability.yml) runs short checks for relevant
-PR/main changes and long current/Alpha 6 checks weekly or manually. See [Architecture](architecture.md)
+PR/main changes. The long current-build profile is available only by explicit manual selection
+for release preparation or a specific request; there is no weekly long run. See [Architecture](architecture.md)
 for resource evidence limits.
 
 Override bounds with `--duration-seconds 30..7200`, `--iterations 1..1000` and `--concurrency 1..8`
 (using one integer, not a range). `--seed` accepts a uint32 (default 69) for repeatable fixture choices;
 `--capture-resources true|false` controls sampling (default true). CI manual inputs expose the same
-controls. A manual duration override receives a four-hour CI job budget per source, including cold
+controls. A manual duration override receives a four-hour CI job budget, including cold
 setup and completion of the last bounded cycle; the default workload durations stay the same.
 Disabling resource capture cannot establish resource stability.
 
-The published Alpha 6 baseline has a known certificate-binding retry defect: an accepted asynchronous
-retry can leave the job failed while the controller completes issuance. The fixture records
-`alpha6-binding-retry-needs-second-request` in `knownLimitations` only for the verified known state,
-then sends one bounded second retry for the same job. This represents an additional operator action;
-a passing baseline accounts for that limitation. Current builds must complete after one retry and
-report no known limitations.
+Certificate-binding recovery must complete after one accepted retry. The harness
+does not send a second retry to tolerate a historical Alpha defect. Published
+Beta-1-to-candidate upgrades and v4 backup/restore belong to the separate
+[Release Compatibility workflow](../.github/workflows/release-compatibility.yml).

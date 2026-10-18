@@ -19,15 +19,16 @@ function externalActionReferences(source: string): readonly string[] {
 }
 
 describe('production smokes workflow triggers and gate', () => {
-    test('runs only for main pull requests, main pushes, and manual dispatches', async () => {
+    test('runs for pull requests to any base, main pushes, and manual dispatches', async () => {
         const source = await workflow()
+        const document = Bun.YAML.parse(source) as { on: unknown }
 
         expect(source).toContain('name: Production Smokes')
-        expect(source).toContain('pull_request:')
-        expect(source).toContain('push:')
-        expect(source).toContain('workflow_dispatch:')
-        expect(source).toMatch(/pull_request:\r?\n\s+branches:\r?\n\s+- main/u)
-        expect(source).toMatch(/push:\r?\n\s+branches:\r?\n\s+- main/u)
+        expect(document.on).toEqual({
+            pull_request: null,
+            push: { branches: ['main'] },
+            workflow_dispatch: null,
+        })
         expect(source).not.toContain('pull_request_target:')
         expect(source).not.toContain('workflow_run:')
     })

@@ -6,6 +6,7 @@ import useBasicAuthAccountsLogic from './Hooks/useBasicAuthAccountsLogic.ts'
 import type { BasicAuthAccountsModalProps } from '../../Types/basic-auth.types.ts'
 import BasicAuthAccountFormModal from '../BasicAuthAccountFormModal/index.tsx'
 import BasicAuthAccountsTable from '../BasicAuthAccountsTable/index.tsx'
+import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function AccessPolicyCredentialsModal(props: BasicAuthAccountsModalProps) {
     const { state, handler } = useBasicAuthAccountsLogic(props)
@@ -23,7 +24,7 @@ export default function AccessPolicyCredentialsModal(props: BasicAuthAccountsMod
                 footer={
                     <button
                         type="button"
-                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"
+                        className={buttonClassName('secondary')}
                         disabled={state.isDeleting}
                         onClick={() => handler.handleOpenChange(false)}
                     >
@@ -53,7 +54,7 @@ export default function AccessPolicyCredentialsModal(props: BasicAuthAccountsMod
                             {props.canUpdate ? (
                                 <button
                                     type="button"
-                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
+                                    className={buttonClassName('primary')}
                                     disabled={state.isMutating || state.accountLimitReached}
                                     onClick={handler.openCreate}
                                 >
@@ -76,7 +77,7 @@ export default function AccessPolicyCredentialsModal(props: BasicAuthAccountsMod
                             action={
                                 <button
                                     type="button"
-                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"
+                                    className={buttonClassName('secondary')}
                                     onClick={handler.retry}
                                 >
                                     {t('common.retry')}

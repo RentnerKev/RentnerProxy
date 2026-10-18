@@ -4,7 +4,7 @@ import type {
     controllerBodySchema,
     backendBodySchema,
 } from '../responses.validation.ts'
-import type { ReliabilityOptions, ReliabilityCheck } from './control.types.ts'
+import type { ReliabilityCheck } from './control.types.ts'
 import type { TrafficDiagnostic } from './fixture-transport.types.ts'
 
 export type CommandOptions = {
@@ -21,8 +21,6 @@ type ControllerBody = z.output<typeof controllerBodySchema>
 type BackendBody = z.output<typeof backendBodySchema>
 
 export type ReliabilityContext = {
-    source: ReliabilityOptions['source']
-    noteKnownLimitation: (name: 'alpha6-binding-retry-needs-second-request') => void
     command: (args: string[], options?: CommandOptions) => Promise<string>
     docker: (args: string[], options?: CommandOptions) => Promise<string>
     fixture: (phase: string, extra?: Record<string, unknown>) => Promise<FixtureResult>

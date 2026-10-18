@@ -1,4 +1,8 @@
-import type { TwoFactorStatus, MfaLoginCompletionResult } from './Types/two-factor.types.ts'
+import type {
+    TwoFactorStatus,
+    MfaLoginCompletionResult,
+    LoginMfaProof,
+} from './Types/two-factor.types.ts'
 import { auditAuthOperation } from '@/server/Auth/Core/audit-auth.server.ts'
 import '@tanstack/react-start/server-only'
 import { appendAuditEventInTransactionService } from '@/server/Audit/audit.service.ts'
@@ -24,6 +28,7 @@ import {
     encryptSecret,
 } from '@/server/Auth/Core/encryption.server.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import type { LoginMfaChallenge } from '@/server/Valkey/Types/auth-challenges.types.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
 import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
@@ -424,6 +429,75 @@ export async function createLoginMfaChallengeService(input: {
     )
 }
 
+async function completeLoginMfaTransaction(
+    consumed: LoginMfaChallenge,
+    proof: LoginMfaProof,
+): Promise<MfaLoginCompletionResult> {
+    try {
+        return await getAuthDatabase().transaction(async (transaction) => {
+            await requirePasswordAuthenticationInTransaction(
+                transaction,
+                consumed.userId,
+                consumed.passwordFingerprint,
+            )
+            const factor = await getLoginMfaFactorInTransaction(transaction, consumed.userId)
+
+            if (factor?.id !== consumed.factorId) {
+                return { code: 'authentication_failed' as const, success: false as const }
+            }
+
+            const updated =
+                proof.kind === 'totp'
+                    ? await transaction
+                          .update(userTotpFactors)
+                          .set({ lastUsedCounter: proof.matchedCounter, updatedAt: new Date() })
+                          .where(
+                              and(
+                                  eq(userTotpFactors.userId, consumed.userId),
+                                  eq(userTotpFactors.id, consumed.factorId),
+                                  lt(userTotpFactors.lastUsedCounter, proof.matchedCounter),
+                              ),
+                          )
+                          .returning({ id: userTotpFactors.id })
+                    : await transaction
+                          .update(userRecoveryCodes)
+                          .set({ usedAt: new Date() })
+                          .where(
+                              and(
+                                  eq(userRecoveryCodes.userId, consumed.userId),
+                                  eq(userRecoveryCodes.codeHash, proof.codeHash),
+                                  isNull(userRecoveryCodes.usedAt),
+                              ),
+                          )
+                          .returning({ id: userRecoveryCodes.id })
+
+            if (updated.length !== 1) {
+                return { code: 'authentication_failed' as const, success: false as const }
+            }
+
+            const session = await createSessionInTransaction(
+                transaction,
+                consumed.userId,
+                proof.kind,
+            )
+            return {
+                session: {
+                    expiresAt: session.expiresAt,
+                    id: session.id,
+                    token: session.token,
+                },
+                success: true as const,
+            }
+        })
+    } catch (error) {
+        if (error instanceof AuthDomainError && error.code === 'user_not_active') {
+            return { code: 'authentication_failed', success: false }
+        }
+
+        throw error
+    }
+}
+
 export async function completeLoginMfaWithTotpService(input: {
     challengeId: string
     token: string
@@ -505,59 +579,7 @@ export async function completeLoginMfaWithTotpService(input: {
                 return { code: 'challenge_expired', success: false }
             }
 
-            try {
-                return await getAuthDatabase().transaction(async (transaction) => {
-                    await requirePasswordAuthenticationInTransaction(
-                        transaction,
-                        consumed.userId,
-                        consumed.passwordFingerprint,
-                    )
-                    const currentFactor = await getLoginMfaFactorInTransaction(
-                        transaction,
-                        consumed.userId,
-                    )
-
-                    if (currentFactor?.id !== consumed.factorId) {
-                        return { code: 'authentication_failed' as const, success: false as const }
-                    }
-
-                    const updated = await transaction
-                        .update(userTotpFactors)
-                        .set({ lastUsedCounter: matchedCounter, updatedAt: new Date() })
-                        .where(
-                            and(
-                                eq(userTotpFactors.userId, consumed.userId),
-                                eq(userTotpFactors.id, consumed.factorId),
-                                lt(userTotpFactors.lastUsedCounter, matchedCounter),
-                            ),
-                        )
-                        .returning({ id: userTotpFactors.id })
-
-                    if (updated.length !== 1) {
-                        return { code: 'authentication_failed' as const, success: false as const }
-                    }
-
-                    const session = await createSessionInTransaction(
-                        transaction,
-                        consumed.userId,
-                        'totp',
-                    )
-                    return {
-                        session: {
-                            expiresAt: session.expiresAt,
-                            id: session.id,
-                            token: session.token,
-                        },
-                        success: true as const,
-                    }
-                })
-            } catch (error) {
-                if (error instanceof AuthDomainError && error.code === 'user_not_active') {
-                    return { code: 'authentication_failed', success: false }
-                }
-
-                throw error
-            }
+            return completeLoginMfaTransaction(consumed, { kind: 'totp', matchedCounter })
         },
     )
 }
@@ -621,59 +643,7 @@ export async function completeLoginMfaWithRecoveryCodeService(input: {
                 return { code: 'challenge_expired', success: false }
             }
 
-            try {
-                return await getAuthDatabase().transaction(async (transaction) => {
-                    await requirePasswordAuthenticationInTransaction(
-                        transaction,
-                        consumed.userId,
-                        consumed.passwordFingerprint,
-                    )
-                    const factor = await getLoginMfaFactorInTransaction(
-                        transaction,
-                        consumed.userId,
-                    )
-
-                    if (factor?.id !== consumed.factorId) {
-                        return { code: 'authentication_failed' as const, success: false as const }
-                    }
-
-                    const used = await transaction
-                        .update(userRecoveryCodes)
-                        .set({ usedAt: new Date() })
-                        .where(
-                            and(
-                                eq(userRecoveryCodes.userId, consumed.userId),
-                                eq(userRecoveryCodes.codeHash, codeHash),
-                                isNull(userRecoveryCodes.usedAt),
-                            ),
-                        )
-                        .returning({ id: userRecoveryCodes.id })
-
-                    if (used.length !== 1) {
-                        return { code: 'authentication_failed' as const, success: false as const }
-                    }
-
-                    const session = await createSessionInTransaction(
-                        transaction,
-                        consumed.userId,
-                        'recovery-code',
-                    )
-                    return {
-                        session: {
-                            expiresAt: session.expiresAt,
-                            id: session.id,
-                            token: session.token,
-                        },
-                        success: true as const,
-                    }
-                })
-            } catch (error) {
-                if (error instanceof AuthDomainError && error.code === 'user_not_active') {
-                    return { code: 'authentication_failed', success: false }
-                }
-
-                throw error
-            }
+            return completeLoginMfaTransaction(consumed, { kind: 'recovery-code', codeHash })
         },
     )
 }

@@ -261,9 +261,7 @@ async function restore(): Promise<void> {
             { name: 'postgres.dump', metadata: metadata.postgres },
             { name: 'app-encryption-key', metadata: metadata.applicationEncryptionKey },
             { name: stateArchiveName, metadata: metadata.controllerState },
-            ...(metadata.version === 4
-                ? [{ name: 'crowdsec-state.tar', metadata: metadata.crowdSecState }]
-                : []),
+            { name: 'crowdsec-state.tar', metadata: metadata.crowdSecState },
         ]
         const bytes = new Map<string, Buffer>()
         for (const artifact of artifacts) {
@@ -290,8 +288,7 @@ async function restore(): Promise<void> {
                 throw new Error('backup application key cannot decrypt controller state')
             }
         })
-        if (metadata.version === 4)
-            validateStateArchive(bytes.get('crowdsec-state.tar')!, 'crowdsec')
+        validateStateArchive(bytes.get('crowdsec-state.tar')!, 'crowdsec')
 
         const project = composeProject(argumentsList)
         const composeFile = resolve(process.env.RENTNERPROXY_COMPOSE_FILE ?? defaultComposeFile)
@@ -444,43 +441,41 @@ async function restore(): Promise<void> {
                 'restore controller state',
                 180_000,
             )
-            if (metadata.version === 4) {
-                const crowdSecScript = [
-                    'set -Eeuo pipefail',
-                    'umask 077',
-                    'root=/var/lib/rentnerproxy',
-                    'test ! -L "$root/crowdsec"',
-                    'rm -rf -- "$root/.restore-crowdsec"',
-                    'mkdir -m 0700 "$root/.restore-crowdsec"',
-                    'tar --extract --no-same-owner --no-same-permissions --file=/backup/crowdsec-state.tar --directory="$root/.restore-crowdsec"',
-                    'find "$root/.restore-crowdsec" -type d -exec chmod 0700 {} +',
-                    'find "$root/.restore-crowdsec" -type f -exec chmod 0600 {} +',
-                    'chown -R crowdsec:crowdsec "$root/.restore-crowdsec"',
-                    'install -d -m 0700 -o crowdsec -g crowdsec "$root/.restore-crowdsec/data" "$root/.restore-crowdsec/credentials"',
-                    'install -d -m 0710 -o root -g rentnerproxy "$root/.restore-crowdsec/bouncer"',
-                    'if [ -f "$root/.restore-crowdsec/bouncer/caddy-bouncer-key" ]; then chown root:rentnerproxy "$root/.restore-crowdsec/bouncer/caddy-bouncer-key"; chmod 0440 "$root/.restore-crowdsec/bouncer/caddy-bouncer-key"; fi',
-                    'chmod 0711 "$root/.restore-crowdsec"',
-                    'rm -rf -- "$root/crowdsec"',
-                    'mv -T -- "$root/.restore-crowdsec" "$root/crowdsec"',
-                ].join('\n')
-                await runCommand(
-                    [
-                        ...compose,
-                        'run',
-                        '--no-TTY',
-                        '--rm',
-                        '--no-deps',
-                        '--entrypoint=bash',
-                        '--volume',
-                        archiveVolume,
-                        applianceService,
-                        '-c',
-                        crowdSecScript,
-                    ],
-                    'restore managed CrowdSec state',
-                    180_000,
-                )
-            }
+            const crowdSecScript = [
+                'set -Eeuo pipefail',
+                'umask 077',
+                'root=/var/lib/rentnerproxy',
+                'test ! -L "$root/crowdsec"',
+                'rm -rf -- "$root/.restore-crowdsec"',
+                'mkdir -m 0700 "$root/.restore-crowdsec"',
+                'tar --extract --no-same-owner --no-same-permissions --file=/backup/crowdsec-state.tar --directory="$root/.restore-crowdsec"',
+                'find "$root/.restore-crowdsec" -type d -exec chmod 0700 {} +',
+                'find "$root/.restore-crowdsec" -type f -exec chmod 0600 {} +',
+                'chown -R crowdsec:crowdsec "$root/.restore-crowdsec"',
+                'install -d -m 0700 -o crowdsec -g crowdsec "$root/.restore-crowdsec/data" "$root/.restore-crowdsec/credentials"',
+                'install -d -m 0710 -o root -g rentnerproxy "$root/.restore-crowdsec/bouncer"',
+                'if [ -f "$root/.restore-crowdsec/bouncer/caddy-bouncer-key" ]; then chown root:rentnerproxy "$root/.restore-crowdsec/bouncer/caddy-bouncer-key"; chmod 0440 "$root/.restore-crowdsec/bouncer/caddy-bouncer-key"; fi',
+                'chmod 0711 "$root/.restore-crowdsec"',
+                'rm -rf -- "$root/crowdsec"',
+                'mv -T -- "$root/.restore-crowdsec" "$root/crowdsec"',
+            ].join('\n')
+            await runCommand(
+                [
+                    ...compose,
+                    'run',
+                    '--no-TTY',
+                    '--rm',
+                    '--no-deps',
+                    '--entrypoint=bash',
+                    '--volume',
+                    archiveVolume,
+                    applianceService,
+                    '-c',
+                    crowdSecScript,
+                ],
+                'restore managed CrowdSec state',
+                180_000,
+            )
             await runCommand(
                 [
                     ...compose,

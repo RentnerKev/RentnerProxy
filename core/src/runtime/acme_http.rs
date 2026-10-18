@@ -198,19 +198,17 @@ pub(crate) fn parse_retry_after(
             .unwrap_or_else(|| OffsetDateTime::new_utc(Date::MAX, Time::MAX))
     } else {
         let date = parse_http_date(value).ok()?;
-        system_time_to_offset_datetime(date)?
+        system_time_to_offset_datetime(date)
     };
     Some(deadline)
 }
 
-fn system_time_to_offset_datetime(value: SystemTime) -> Option<OffsetDateTime> {
+fn system_time_to_offset_datetime(value: SystemTime) -> OffsetDateTime {
     match value.duration_since(UNIX_EPOCH) {
         Ok(elapsed) => {
             let seconds = i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX);
-            Some(
-                OffsetDateTime::from_unix_timestamp(seconds)
-                    .unwrap_or_else(|_| OffsetDateTime::new_utc(Date::MAX, Time::MAX)),
-            )
+            OffsetDateTime::from_unix_timestamp(seconds)
+                .unwrap_or_else(|_| OffsetDateTime::new_utc(Date::MAX, Time::MAX))
         }
         Err(error) => {
             let elapsed = error.duration();
@@ -219,10 +217,8 @@ fn system_time_to_offset_datetime(value: SystemTime) -> Option<OffsetDateTime> {
                 .checked_add(i64::from(u8::from(elapsed.subsec_nanos() != 0)))
                 .and_then(|seconds| seconds.checked_neg())
                 .unwrap_or(i64::MIN);
-            Some(
-                OffsetDateTime::from_unix_timestamp(seconds)
-                    .unwrap_or_else(|_| OffsetDateTime::new_utc(Date::MIN, Time::MIDNIGHT)),
-            )
+            OffsetDateTime::from_unix_timestamp(seconds)
+                .unwrap_or_else(|_| OffsetDateTime::new_utc(Date::MIN, Time::MIDNIGHT))
         }
     }
 }
@@ -231,6 +227,42 @@ fn system_time_to_offset_datetime(value: SystemTime) -> Option<OffsetDateTime> {
 mod tests {
     use super::*;
     use axum::http::{HeaderValue, StatusCode, Version, header::RETRY_AFTER};
+
+    #[test]
+    fn system_time_conversion_preserves_epoch_and_floors_subseconds() {
+        for (value, seconds) in [
+            (UNIX_EPOCH, 0),
+            (UNIX_EPOCH + Duration::from_millis(1_999), 1),
+            (UNIX_EPOCH - Duration::from_millis(1), -1),
+            (UNIX_EPOCH - Duration::from_secs(1), -1),
+            (UNIX_EPOCH - Duration::from_millis(1_001), -2),
+        ] {
+            assert_eq!(
+                system_time_to_offset_datetime(value).unix_timestamp(),
+                seconds
+            );
+        }
+    }
+
+    #[test]
+    fn system_time_conversion_saturates_outside_the_supported_calendar() {
+        let after_max = UNIX_EPOCH
+            .checked_add(Duration::from_secs(
+                OffsetDateTime::new_utc(Date::MAX, Time::MAX).unix_timestamp() as u64 + 1,
+            ))
+            .expect("the platform should represent the first second after year 9999");
+        assert_eq!(
+            system_time_to_offset_datetime(after_max),
+            OffsetDateTime::new_utc(Date::MAX, Time::MAX),
+        );
+        let minimum = OffsetDateTime::new_utc(Date::MIN, Time::MIDNIGHT);
+        // Windows cannot represent all pre-1601 instants; exercise this bound when supported.
+        if let Some(before_min) = UNIX_EPOCH.checked_sub(Duration::from_secs(
+            minimum.unix_timestamp().unsigned_abs() + 1,
+        )) {
+            assert_eq!(system_time_to_offset_datetime(before_min), minimum);
+        }
+    }
 
     fn headers(value: &str) -> HeaderMap {
         let mut headers = HeaderMap::new();

@@ -22,7 +22,7 @@ refresh retains these upstream constraints.
 These updates do not establish that an image passes the complete dependency
 assessment; unresolved findings continue to block publication.
 
-## CrowdSec (development image)
+## CrowdSec
 
 - **Managed:** local detection and blocking work without a CrowdSec account; community intelligence and Console enrollment are separate opt-ins.
 - **External:** connect an existing CrowdSec Local API with a bouncer key.
@@ -31,17 +31,17 @@ assessment; unresolved findings continue to block publication.
 - Enforcement is fail-open when the selected Local API is unavailable.
 - Repository backup v4 includes the managed CrowdSec SQLite database, decisions, local API registration, optional Central API/Console credentials and managed bouncer key. External CrowdSec configuration and its encrypted credential are in PostgreSQL; the external LAPI remains operator owned.
 
-## Basic Auth (development image)
+## Basic Auth
 
 Create an Access Policy, choose **Authenticated** and **Basic Auth**, enter a username and password, and save. The policy and its first account are saved together and applied automatically. Select the policy on the proxy host and save the host to require these credentials when visiting the site. If the controller is unavailable, the UI reports that applying the saved configuration is still pending. Use **Credentials** in the policy list to change credentials or add more accounts. Passwords are stored as Argon2id hashes and are never returned to the browser. Use HTTPS on protected hosts.
 
-## Forward Auth (development image)
+## Forward Auth
 
 Forward Auth is configured inside an existing Access Policy. Choose a provider preset, enter its full HTTP or HTTPS check endpoint, and select the request credentials and identity response headers needed by that provider. Basic Auth and Forward Auth are mutually exclusive in one policy. An IP rule can be combined with Forward Auth only when **all** checks must pass. The auth check is fail closed: a denied response or unreachable gateway never grants access to the protected upstream. HTTPS auth gateways use normal certificate verification; the endpoint cannot contain credentials or a query string.
 
 Provider reachability is not measured by the Security Dashboard; it reports configured policy counts and settings only.
 
-## Default Site (development image)
+## Default Site
 
 Open **Operations** in the main navigation to choose the Default Site response for the server's IP address or a hostname
 with no active Proxy Host or Redirect Host. Existing installations keep the empty HTTP 404 response
@@ -83,6 +83,36 @@ Saving reports when runtime application is pending; the existing reconciliation 
 automatically. Reload Operations after a configuration conflict before saving another edit.
 Portable host configuration exports do not include these global settings.
 
+## Upgrades
+
+Beta 2 and later supported betas require Beta 1 (`v1.0.0-beta.1`) or a newer
+supported beta as their upgrade source. The compatibility workflow tests a fresh
+installation and the immutable published Beta 1 image against the candidate.
+
+Before each upgrade, create a backup with the source release's own tools and keep
+its exact image reference, Compose configuration, deployment environment and
+encryption material. Change the image only after the backup completes. Preserve
+the existing volume and verify health, proxy traffic, certificates, permissions
+and configuration reconciliation after startup.
+
+For an Alpha installation, first select
+`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1`, complete its startup and
+reconciliation, verify the installation and create a new v4 backup. Then select
+the intended beta image. Do not use the moving `:beta` tag for the intermediate
+step. Alpha v3 backups must first be restored into Beta 1 with that pinned
+release's restore tools, then backed up again as v4 before proceeding.
+
+Direct Alpha upgrades, direct v3 restores and import of old environment-file
+secrets are unsupported from Beta 2 onward. Existing installations must retain
+their persistent `bootstrap/secrets-v1.json`; missing secret state stops startup
+instead of generating replacement keys. A Beta 1 start does not guarantee that
+every certificate state file has been rewritten, so the existing Beta 1
+certificate-reader compatibility remains available.
+
+For rollback, use the pre-upgrade backup, the exact source image and source
+release's restore tools on a fresh volume. Do not run an old image against the
+upgraded database.
+
 ## Backup and recovery
 
 Run `bun run backup:production -- --project <project> --output <directory>` with the current checkout and the deployment's Compose environment. The appliance is stopped while PostgreSQL, controller/certificate state, the application encryption key and managed CrowdSec state are captured together, then restarted. Keep the completed backup directory outside the appliance volume. Its manifest records SHA-256 checksums, the source image identity, public origin and trusted proxy CIDRs; the directory is private (0700) and its files are 0600 on Linux. Checksums detect corruption, so retain backups in trusted storage.
@@ -91,9 +121,9 @@ Restore with `bun run restore:production -- --project <project> --input <backup>
 
 Controller restart recovery requires the active policy snapshot and its matching `active-proxy-snapshot-authority-v1` file, with no pending activation marker. Confirmed configurations remain recoverable while the web service is offline. On the first startup after upgrading a build that predates this protocol, cached routes wait for the web service to reapply desired configuration. Complete controller backups retain the snapshot, authority file and pending marker together; do not restore or copy the snapshot alone.
 
-Supported restore sources are current v4 backups into the same current database version, and authentic v3 backups from the pinned published Alpha 4, Alpha 5 and Alpha 6 images into the current target. The [release compatibility matrix](../.github/scripts/ci/release-compatibility/run.ts) creates each source backup with that release's own tools, verifies fresh-volume restores and exact-source fresh-volume rollback. Format v1/v2, other releases and downgrades are unsupported; changing a manifest version does not make a backup compatible. Alpha v3 archives predate managed CrowdSec. They initialize CrowdSec on a fresh target and leave any existing CrowdSec directory in place; they cannot recover lost decisions.
+Supported restore sources are v4 backups with a nonempty database history that exactly matches a prefix of the target's migration history. Each recorded migration must have the same position, SHA-256 hash and timestamp; empty, newer or divergent histories are rejected before replacing target data. A supported Beta 1 backup can therefore restore into a later target whose history only appends migrations. The restored database is brought up to the target version by its existing startup process; this compatibility check does not run migrations. The [release compatibility matrix](../.github/scripts/ci/release-compatibility/run.ts) creates a backup with the pinned Beta 1 release's own tools, verifies a fresh-volume target restore and exact-source fresh-volume rollback. Formats v1/v2/v3, unlisted source releases and downgrades are unsupported; changing a manifest version does not make a backup compatible. Use the Beta 1 intermediate step above for Alpha v3 archives.
 
-Keep the Compose file, image tag/digest, port mappings and deployment environment alongside the backup, including SMTP credentials, canonical public origin and trusted proxy CIDRs. Environment secrets are deliberately absent from the manifest. A v4 restore checks the origin and CIDRs against the target; legacy v3 restores require explicit deployment review with `--allow-deployment-change`. Use that option for an intentional environment change only after reviewing authentication, forwarded-client trust and external integration reachability.
+Keep the Compose file, image tag/digest, port mappings and deployment environment alongside the backup, including SMTP credentials, canonical public origin and trusted proxy CIDRs. Environment secrets are deliberately absent from the manifest. A v4 restore checks the origin and CIDRs against the target. Use `--allow-deployment-change` for an intentional environment change only after reviewing authentication, forwarded-client trust and external integration reachability.
 
 Valkey challenge/rate-limit/realtime state, request logs, sockets, PID files, locks, temporary files and supervisor status/staging are excluded. Cache-backed flows restart after restore; durable users, sessions, roles, permissions, policies, Basic Auth, Forward Auth, importer history, hosts, redirects, CAs, certificate jobs/events/retries, candidates, ACME accounts and encrypted DNS credentials remain in PostgreSQL/controller state. Backup v4 retains its historical `redis: "excluded"` manifest field for compatibility; it describes the transient cache exclusion for both engines. CrowdSec's SQLite WAL is retained when present, while its shared-memory file is regenerated. Managed startup re-registers the bouncer with a private key and preserves detections and registrations; the LAPI remains bound to loopback.
 

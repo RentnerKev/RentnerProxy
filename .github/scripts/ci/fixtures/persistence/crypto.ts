@@ -30,7 +30,7 @@ export function decodeApplicationKey(encoded: string): {
 } {
     const bytes = Buffer.from(encoded, 'base64')
     if (bytes.byteLength !== APP_ENCRYPTION_KEY_BYTES || bytes.toString('base64') !== encoded) {
-        throw new Error('Alpha 4 fixture application encryption key is invalid.')
+        throw new Error('Persistence fixture application encryption key is invalid.')
     }
     return { bytes, digest: createHash('sha256').update(bytes).digest('hex') }
 }

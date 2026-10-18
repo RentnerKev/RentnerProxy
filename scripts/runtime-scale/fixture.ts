@@ -5,9 +5,9 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { chmod, readFile, rm, writeFile } from 'node:fs/promises'
 import { Database } from 'bun:sqlite'
-import { runFixture } from '../runtime-reliability/fixture.ts'
+import { runFixture } from '../runtime-reliability/fixture-core.ts'
 import type { FixtureContext } from '../runtime-reliability/Types/fixture.types.ts'
-import { executeBetaFixture } from '../runtime-reliability/fixture-beta.ts'
+import { executeFixture } from '../runtime-reliability/fixture.ts'
 import { drainConcurrent, runBoundedTasks } from './control.ts'
 import type { UpdateProxyHostInput } from '../../web/src/features/Admin/ProxyHostManagement/Types/validation.types.ts'
 import type { ProxyRuntimeSnapshot } from '../../web/src/server/ProxyRuntime/Types/proxy-runtime.types.ts'
@@ -676,7 +676,7 @@ async function npmImport(context: FixtureContext, inventory: Inventory) {
 
 async function executeScaleFixture(context: FixtureContext): Promise<Record<string, unknown>> {
     if (context.command.phase === 'scale-create') return create(context)
-    if (!context.command.phase.startsWith('scale-')) return executeBetaFixture(context)
+    if (!context.command.phase.startsWith('scale-')) return executeFixture(context)
     const inventory = await load(context)
     switch (context.command.phase) {
         case 'scale-update':

@@ -26,6 +26,7 @@ import {
 import { requirePermissionService } from '@/server/Auth/Access/authorization.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { isUniqueConstraintViolation } from '@/server/Auth/Core/database-errors.server.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
@@ -56,29 +57,12 @@ function toSummary(row: BasicAuthAccountRow): BasicAuthAccountSummary {
 }
 
 function mapDatabaseError(error: unknown): BasicAuthDomainError | null {
-    const seen = new Set<unknown>()
-    let current: unknown = error
-    while (current && typeof current === 'object' && !seen.has(current)) {
-        seen.add(current)
-        const databaseError = current as Record<string, unknown>
-        const uniqueViolation = [
-            databaseError.code,
-            databaseError.errno,
-            databaseError.sqlState,
-        ].includes('23505')
-        const constraint =
-            databaseError.constraint ??
-            databaseError.constraintName ??
-            databaseError.constraint_name
-        if (
-            uniqueViolation &&
-            constraint === 'access_policy_basic_auth_accounts_policy_username_unique'
-        ) {
-            return new BasicAuthDomainError('basic_auth_username_conflict')
-        }
-        current = databaseError.cause
-    }
-    return null
+    return isUniqueConstraintViolation(
+        error,
+        'access_policy_basic_auth_accounts_policy_username_unique',
+    )
+        ? new BasicAuthDomainError('basic_auth_username_conflict')
+        : null
 }
 
 async function requirePolicyExists(policyId: string): Promise<void> {

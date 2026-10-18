@@ -1,7 +1,7 @@
 # RentnerProxy assurance case
 
 This is a lightweight, repository-backed assurance argument for the current
-public-alpha implementation. It records intended security and reliability goals,
+public-beta implementation. It records intended security and reliability goals,
 the threats that shape them, and evidence a reviewer can inspect. It is not a
 certification, independent audit, coverage report, signed-build statement, or
 reproducible-build claim. The system and reporting process remain subject to
@@ -221,9 +221,9 @@ only as current as the last successful stream.
 - Proxy request logs and in-memory access-log pagination snapshots are bounded and
   excluded from production backups. They are operational telemetry, not an audit
   archive.
-- Managed CrowdSec state is stored in the appliance volume but is not included in the current
-  v3 repository backup archive. Volume-level preservation is required until issue #71 extends
-  backup/restore coverage.
+- Managed CrowdSec state is included in v4 backups. Alpha v3 archives are no longer
+  accepted directly; they require restoration with Beta 1 and a new v4 backup before
+  upgrading. Retain the source release and protected pre-upgrade backup for rollback.
 - CrowdSec's fail-open behavior favors proxy availability during Local API failures. New or
   refreshed decisions cannot be guaranteed while the selected API is unavailable.
 - The Caddy CrowdSec bouncer is a pinned community module rather than an official Caddy or
