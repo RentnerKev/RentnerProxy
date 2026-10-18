@@ -1,4 +1,4 @@
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import { useForm } from '@tanstack/react-form'
 import { useId, useState, type FormEvent } from 'react'
 import { ddnsDraftSchema } from '@/lib/Ddns/validation.ts'

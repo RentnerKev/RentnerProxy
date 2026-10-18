@@ -9,6 +9,7 @@ build/
 .output/
 .vite/
 .tanstack/
+web/public/assets/country-flags/
 coverage/
 *.tsbuildinfo
 

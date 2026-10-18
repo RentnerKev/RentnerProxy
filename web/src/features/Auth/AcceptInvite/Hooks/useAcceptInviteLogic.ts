@@ -9,7 +9,7 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useFragmentToken from '@/shared/Auth/Hooks/useFragmentToken.ts'
 import { acceptInviteHandler } from '../middleware.ts'

@@ -72,7 +72,7 @@ export interface DiscoveryDetailsProps {
     readonly onClose: () => void
 }
 export type DiscoveryGuideMode = 'native' | 'appliance'
-export type DiscoveryGuideCopyTarget = 'compose' | 'command' | 'endpoint'
+type DiscoveryGuideCopyTarget = 'compose' | 'command' | 'endpoint'
 export interface DiscoveryGuideProps {
     readonly mode: DiscoveryGuideMode
     readonly onModeChange: (mode: DiscoveryGuideMode) => void

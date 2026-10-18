@@ -1,4 +1,4 @@
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -15,7 +15,6 @@ import useTranslationStore, {
 } from '@/shared/Language/Hooks/useTranslationStore.ts'
 import useLiveInvalidation from '@/shared/Live/Hooks/useLiveInvalidation.ts'
 import useQueryRecovery from '@/shared/Live/Hooks/useQueryRecovery.ts'
-import useQueryErrorToast from '@/shared/Notifications/Hooks/useQueryErrorToast.ts'
 import type { DdnsPageProps, DdnsResponse } from '../Types/ddns-ui.types.ts'
 import type { DdnsRecordEditorContext, DdnsDeletionContext } from '../Types/ddns-editor.types.ts'
 
@@ -65,8 +64,22 @@ export default function useDdnsLogic({ permissions, api, liveEnabled = true }: D
         enabled: canChooseConnection && liveEnabled,
         queryKeys: DNS_CONNECTION_LIVE_QUERY_KEYS,
     })
-    useQueryErrorToast(statusQuery.isError, 'admin.ddns.errors.controller_unavailable')
-    useQueryErrorToast(connectionsQuery.isError, 'admin.ddns.errors.connection_unavailable')
+    useEffect(() => {
+        if (statusQuery.isError) {
+            toast.error(t('admin.ddns.errors.controller_unavailable'), {
+                title: t('toast.titles.error'),
+                dedupeKey: 'ddns-status-read',
+            })
+        }
+    }, [statusQuery.isError, t])
+    useEffect(() => {
+        if (connectionsQuery.isError) {
+            toast.error(t('admin.ddns.errors.connection_unavailable'), {
+                title: t('toast.titles.error'),
+                dedupeKey: 'ddns-connections-read',
+            })
+        }
+    }, [connectionsQuery.isError, t])
     const snapshot = statusQuery.data
     const settings = snapshot?.configuration?.settings
     const revision = snapshot?.configuration?.revision ?? 0

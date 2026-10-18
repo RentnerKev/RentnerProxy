@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { version } from 'country-flag-icons/package.json'
 import ClientIpCountry from '@/features/Admin/ProxyAccessLogs/Components/ProxyAccessLogsTable/Components/ClientIpCountry.tsx'
 import withTestLanguage from '@/tests/Helpers/withTestLanguage.tsx'
 import { TooltipProvider } from '@rentnerkev/tooltips/tooltip'
@@ -29,8 +30,8 @@ describe('client IP country display', () => {
         )
         expect(html).toContain('8.8.8.8')
         expect(html).toContain('whitespace-nowrap')
-        expect(html).toContain('flag:US')
-        expect(html).toContain('Vereinigte Staaten')
+        expect(html).toContain(`src="/assets/country-flags/${version}/US.svg"`)
+        expect(html).toContain('alt="Vereinigte Staaten"')
         expect(html).not.toContain('http')
     })
 
@@ -44,7 +45,7 @@ describe('client IP country display', () => {
                 ),
             )
             expect(html).toContain(entry.clientIp)
-            expect(html).not.toContain('flag:')
+            expect(html).not.toContain('<img')
         }
     })
 })

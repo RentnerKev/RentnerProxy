@@ -16,7 +16,7 @@ export function discoveryEndpointHash(endpoint: string): string {
 export function discoverySourceKey(endpoint: string, sourceId: string): string {
     return discoveryHash([discoveryEndpointHash(endpoint), sourceId])
 }
-export function candidateHostInput(
+function candidateHostInput(
     candidate: DiscoveryCandidate,
     host: DiscoveryInventory['hosts'][number] | null,
 ) {

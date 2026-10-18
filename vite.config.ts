@@ -8,6 +8,7 @@ import viteReact from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 import { createLiveVitePlugin } from './scripts/development/vite-live.ts'
+import { prepareCountryFlags } from './scripts/assets/prepare-country-flags.ts'
 
 const webRoot = fileURLToPath(new URL('./web/', import.meta.url))
 const repositoryRoot = fileURLToPath(new URL('.', import.meta.url))
@@ -18,6 +19,8 @@ const serverBuiltins = [
     /^bun:/,
     'bun',
 ]
+
+await prepareCountryFlags(fileURLToPath(new URL('./web/public/', import.meta.url)))
 
 export default defineConfig({
     define: {

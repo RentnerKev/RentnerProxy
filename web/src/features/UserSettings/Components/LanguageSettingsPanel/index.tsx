@@ -1,6 +1,7 @@
 import { Check, Languages } from 'lucide-react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
+import CountryFlag from '@/shared/Geography/CountryFlag.tsx'
 import { LANGUAGE_COUNTRY_CODES, LANGUAGE_NATIVE_NAMES } from '@/config/language.config.ts'
 import useLanguageSettingsLogic from './Hooks/useLanguageSettingsLogic.ts'
 
@@ -51,9 +52,10 @@ export default function LanguageSettingsPanel() {
                                     />
                                     <span className="flex h-full min-h-32 cursor-pointer flex-col rounded-xl border border-border-strong bg-surface-raised p-4 transition-colors hover:border-accent-border peer-checked:border-accent-ring peer-checked:bg-accent-muted peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-55 motion-reduce:transition-none">
                                         <span className="mb-4 flex items-center justify-between gap-2">
-                                            <span
-                                                aria-hidden="true"
-                                                className={`flag:${LANGUAGE_COUNTRY_CODES[option.value]} h-6 w-9 shrink-0 rounded-sm ring-1 ring-black/10 [--CountryFlagIcon-height:1.5rem]`}
+                                            <CountryFlag
+                                                code={LANGUAGE_COUNTRY_CODES[option.value]}
+                                                decorative
+                                                className="h-6 w-9 shrink-0 rounded-sm ring-1 ring-black/10"
                                             />
                                             <span
                                                 aria-hidden="true"

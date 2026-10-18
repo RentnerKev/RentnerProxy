@@ -54,7 +54,7 @@ export const dockerEndpointSchema = z
             return false
         }
     })
-export const dockerDiscoveryConfigurationSchema = z
+const dockerDiscoveryConfigurationSchema = z
     .strictObject({
         enabled: z.boolean(),
         endpoint: dockerEndpointSchema.nullable(),

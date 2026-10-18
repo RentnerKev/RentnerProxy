@@ -43,12 +43,6 @@ environment does not prevent startup. Proxy operation requires Unix private Cadd
 use the Linux Docker development runtime on Windows. Unix development retains the configured
 Caddy runtime.
 
-The pinned TanStack Start compiler has a Bun patch in `patches/` to resolve cached server-function
-IDs after a development-server restart. Its fallback must compile the source module; the
-lookup-only module bypasses compilation and leaves the function registry empty. Keep this patch
-until the upstream fallback compiles the source, and run the server-function restart regression
-test when updating TanStack. `bun install --frozen-lockfile` applies it automatically.
-
 ## Development workflow
 
 1. Search the existing issues. Open the appropriate issue form for a meaningful bug or feature

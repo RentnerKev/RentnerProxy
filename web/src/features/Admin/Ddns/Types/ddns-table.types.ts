@@ -11,7 +11,7 @@ export interface DdnsRecordRow {
     readonly error: DdnsRecordError | null
     readonly statusKey: string
 }
-export interface DdnsRecordActions {
+interface DdnsRecordActions {
     readonly canManage: boolean
     readonly locked: boolean
     readonly onEdit: (target: DdnsTarget) => void

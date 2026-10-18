@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useForm, useStore } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { toast } from '@rentnerkev/toasts/toast'
+import { toast } from '@rentnerkev/toasts'
 
 import { DEFAULT_SITE_MODES } from '@/config/default-site.config.ts'
 import { getDefaultSiteHandler, saveDefaultSiteHandler } from '@/features/DefaultSite/middleware.ts'

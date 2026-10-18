@@ -1,6 +1,6 @@
 import type { DdnsBatch, DdnsDraft, DdnsSnapshot } from '@/lib/Ddns/Types/ddns.types.ts'
 import type { ControllerRequestOptions } from './transport.types.ts'
-export interface DdnsControllerAction {
+interface DdnsControllerAction {
     readonly actorUserId: string
     readonly expectedRevision: number
 }

@@ -24,8 +24,7 @@ const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query
 const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
-const { ToastProvider } = await import('@rentnerkev/toasts')
-const { toast } = await import('@rentnerkev/toasts/toast')
+const { ToastProvider, toast } = await import('@rentnerkev/toasts')
 const certificate: CertificateSummary = {
     id: '018f2f52-7c1b-7cc0-9f3c-6a9952c54021',
     name: 'Public edge',
@@ -411,7 +410,10 @@ describe('certificate management UI', () => {
         await click(button('Reset filters'))
         await waitFor(() => rows().length === 3)
         const dateFilter = button('Filter by date range')
-        expect(dateFilter.querySelector('span')?.classList.contains('text-muted')).toBe(true)
+        const placeholder = [...dateFilter.querySelectorAll('span')].find(
+            (span) => span.textContent === dateFilter.textContent,
+        )
+        expect(placeholder?.classList.contains('text-muted')).toBe(true)
         await click(dateFilter)
         const getCalendarDay = () =>
             [...document.querySelectorAll<HTMLButtonElement>('[data-calendar-day]')].find((day) =>

@@ -116,7 +116,6 @@ export const {
     saveDnsConnectionService,
     testDnsConnectionService,
     deleteDnsConnectionService,
-    validateDnsConnectionReferenceService,
 } = createDnsConnectionsService({
     authorize: requirePermissionService,
     controller: dnsConnectionsController,
