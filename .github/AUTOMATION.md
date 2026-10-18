@@ -8,7 +8,7 @@ workflow purpose, triggers, required checks and dependency assessment scope.
 The script areas are:
 
 - `scripts/ci/`: preview source evidence, bounded runtime selection, isolated
-  smoke fixtures and the dedicated historical release compatibility matrix.
+  smoke fixtures and the dedicated Beta 1 release compatibility matrix.
 - `scripts/security/`: complete own Cargo/Bun audits, current Dev-image rescans,
   exact image approval and verified Gitleaks installation/redacted commit scans.
 - `scripts/release/`: release identity, preparation, image checks and notes publication.
@@ -32,7 +32,8 @@ external tools. Production Smokes prepares three images once, bound to the run
 and commit, then always cleans up that run's resources. Standalone commands
 retain independent builds.
 
-Normal reliability checks select the short profile. Long profiles, scale tests
-and the complete historical compatibility matrix require explicit manual
-selection. Optional metadata automation, Scorecard and separate upstream
+Normal reliability checks select the short profile against the current build.
+Long profiles and scale tests require explicit manual selection. Release
+Compatibility verifies fresh installation and the pinned Beta 1 baseline.
+Optional metadata automation, Scorecard and separate upstream
 advisory scanners are removed; own dependency and integration gates remain.

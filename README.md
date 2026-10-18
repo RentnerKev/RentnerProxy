@@ -115,6 +115,24 @@ cache and migrations. Fresh installations and unsupported snapshot versions use 
 site until the application reconciles their configuration. Replacing a single appliance container
 still interrupts its connections and listeners; this startup order does not provide zero downtime.
 
+## Upgrade
+
+From Beta 2 onward, `v1.0.0-beta.1` is the minimum supported upgrade source.
+Back up the installation with its current release's tools before changing the image.
+Keep the persistent volume, encryption material and deployment configuration.
+
+Alpha installations must first upgrade to the exact image
+`ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1`. Complete startup and configuration
+reconciliation, verify hosts and certificates, and create a new v4 backup before
+upgrading to Beta 2 or a later supported beta. Use the pinned Beta 1 tag for the
+intermediate step; `:beta` follows the newest beta and skips it.
+
+Alpha v3 backups must first be restored with Beta 1 and that release's restore
+tools, then backed up again as v4. Direct Alpha upgrades, direct v3 restores and
+the old environment-file secret import are no longer supported in Beta 2.
+
+See [upgrade, backup and rollback instructions](docs/operations.md#upgrades).
+
 ## Docker images
 
 RentnerProxy images are published to `ghcr.io/rentnerkev/rentnerproxy`.

@@ -1,11 +1,14 @@
 import { runSmokeProcess } from '../../../../scripts/smoke/process.ts'
 import { waitForSmoke } from '../../../../scripts/smoke/wait.ts'
 import { psql } from '../fixtures/appliance-storage.ts'
+import { assertBackupState, seedBackupState } from '../fixtures/backup-state.ts'
+import type { BackupStateFixture } from '../fixtures/Types/backup-state.types.ts'
+import { PINNED_BACKUP_TOOL_PATHS } from '../../../../scripts/compatibility/published-tools.ts'
 // oxlint-disable no-await-in-loop -- Appliance phases and bounded readiness probes run in order.
 import assert from 'node:assert/strict'
 import { dockerBuildDiagnostic } from '../../../../scripts/smoke/docker-build-diagnostics.ts'
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -52,8 +55,8 @@ import type { PolicyFixture } from './Types/state.types.ts'
 
 const root = fileURLToPath(new URL('../../../..', import.meta.url))
 const sourceKey = process.argv[2]
-if (!sourceKey || (sourceKey !== 'fresh' && !(sourceKey in PUBLISHED_RELEASES))) {
-    throw new Error('Choose fresh or alpha.1 through alpha.6.')
+if (!sourceKey || (sourceKey !== 'fresh' && !Object.hasOwn(PUBLISHED_RELEASES, sourceKey))) {
+    throw new Error('Choose fresh or beta.1.')
 }
 const source = sourceKey === 'fresh' ? null : publishedRelease(sourceKey as PublishedReleaseKey)
 const runId = randomUUID().replaceAll('-', '').slice(0, 12)
@@ -65,6 +68,7 @@ let stage = 'prepare'
 let container = ''
 let health = 'not-started'
 let migrationStatus = 'not-started'
+let sourceMigrationCount = 0
 let reconciliation = 'not-started'
 let trafficStatus = 'not-started'
 let temporaryRoot = ''
@@ -178,14 +182,30 @@ async function materializePinnedScript(
 async function createPinnedSourceBackup(backupRoot: string): Promise<string> {
     if (!source) throw new Error('source release missing')
     const release = source.version
+    for (const path of PINNED_BACKUP_TOOL_PATHS)
+        await materializePinnedScript(source.revision, release, path)
+    // Historical validation imports Zod; resolve installed dependencies without modifying source.
+    await symlink(
+        join(root, 'node_modules'),
+        join(temporaryRoot, 'historical-tools', release, 'node_modules'),
+        'dir',
+    )
     const backupScript = await materializePinnedScript(
         source.revision,
         release,
         'scripts/production-backup.ts',
     )
-    await materializePinnedScript(source.revision, release, 'scripts/controller-state-archive.ts')
+
     await command(
-        [process.execPath, backupScript.path, '--project', project, '--output', backupRoot],
+        [
+            process.execPath,
+            '--no-env-file',
+            backupScript.path,
+            '--project',
+            project,
+            '--output',
+            backupRoot,
+        ],
         900_000,
         { RENTNERPROXY_COMPOSE_FILE: join(temporaryRoot, 'source.compose.json') },
     )
@@ -195,9 +215,12 @@ async function createPinnedSourceBackup(backupRoot: string): Promise<string> {
     const metadata = JSON.parse(await readFile(join(backupPath, 'metadata.json'), 'utf8')) as {
         readonly format?: string
         readonly version?: number
+        readonly source?: { readonly version: string; readonly revision: string }
     }
     assert.equal(metadata.format, 'rentnerproxy-production-backup')
-    assert.equal(metadata.version, 3)
+    assert.equal(metadata.version, 4)
+    assert.equal(metadata.source?.version, source.version)
+    assert.equal(metadata.source?.revision, source.revision)
     console.log(
         `source_backup_version=${metadata.version} source_backup_script_sha256=${backupScript.sha256} source_revision=${source.revision}`,
     )
@@ -212,10 +235,11 @@ async function restorePinnedSourceBackup(inputPath: string, composePath: string)
         release,
         'scripts/production-restore.ts',
     )
-    await materializePinnedScript(source.revision, release, 'scripts/controller-state-archive.ts')
+
     await command(
         [
             process.execPath,
+            '--no-env-file',
             restoreScript.path,
             '--input',
             inputPath,
@@ -235,13 +259,13 @@ async function restoreCurrentTargetBackup(inputPath: string, composePath: string
     await command(
         [
             process.execPath,
+            '--no-env-file',
             'scripts/production-restore.ts',
             '--input',
             inputPath,
             '--project',
             project,
             '--confirm-replace',
-            '--allow-deployment-change',
         ],
         1_200_000,
         { RENTNERPROXY_COMPOSE_FILE: composePath },
@@ -272,40 +296,6 @@ async function migrationCount(): Promise<number> {
     )
     migrationStatus = count
     return Number(count)
-}
-
-async function assertSourceSchema(): Promise<void> {
-    if (!source) throw new Error('source image missing')
-    const output = await psql(
-        command,
-        container,
-        `select row_to_json(t) from (select
-        (select count(distinct table_name) from information_schema.columns where table_schema='rentnerproxy') as tables,
-        (select coalesce(json_agg(table_name || ':' || column_name || ':' || data_type order by table_name,column_name),'[]'::json) from information_schema.columns where table_schema='rentnerproxy') as columns,
-        (to_regclass('rentnerproxy.access_policies') is not null) as access_policies,
-        (to_regclass('rentnerproxy.access_policy_basic_auth_accounts') is not null) as basic_auth,
-        (exists(select 1 from information_schema.columns where table_schema='rentnerproxy' and table_name='access_policies' and column_name='ip_rules')) as ip_rules,
-        (exists(select 1 from information_schema.columns where table_schema='rentnerproxy' and table_name='certificates' and column_name='candidate')) as certificate_candidates,
-        (exists(select 1 from information_schema.columns where table_schema='rentnerproxy' and table_name='certificates' and column_name='current_operation')) as durable_certificate_operations,
-        (to_regclass('rentnerproxy.certificate_binding_jobs') is not null) as certificate_binding_jobs,
-        (to_regclass('rentnerproxy.audit_events') is not null) as audit_events
-    ) t`,
-    )
-    const schema = JSON.parse(output) as Record<string, unknown>
-    assert.equal(schema.access_policies, source.capabilities.accessPolicies)
-    assert.equal(schema.basic_auth, source.capabilities.basicAuth)
-    assert.equal(schema.ip_rules, source.capabilities.ipRules)
-    assert.equal(schema.certificate_candidates, source.capabilities.certificateCandidates)
-    assert.equal(
-        schema.durable_certificate_operations,
-        source.capabilities.durableCertificateOperations,
-    )
-    assert.equal(schema.certificate_binding_jobs, source.capabilities.certificateBindingJobs)
-    assert.equal(schema.audit_events, source.capabilities.auditEvents)
-    const hash = createHash('sha256').update(JSON.stringify(schema.columns)).digest('hex')
-    console.log(`source_schema_tables=${schema.tables} source_schema_sha256=${hash}`)
-    assert.equal(Number(schema.tables), source.schemaTables)
-    assert.equal(hash, source.schemaSha256)
 }
 
 async function activeRevision(): Promise<string> {
@@ -380,7 +370,7 @@ async function verifyLogin(base: UpgradeFixture, expectedSessions: number): Prom
         "const manifest=await Bun.file('/opt/rentnerproxy/web/web/dist/server/server.js').text();",
         'const id=/"([0-9a-f]{64})":\\s*\\{\\s*functionName: "loginHandler_createServerFn_handler"/.exec(manifest)?.[1];',
         "if(!id){diagnostic='manifest-id-missing'}else{",
-        `const body=JSON.stringify(await toJSONAsync({data:{email:${JSON.stringify(`owner-${base.runId}@alpha1.invalid`)},password:${JSON.stringify('alpha1-upgrade-fixture-password')}}}));`,
+        `const body=JSON.stringify(await toJSONAsync({data:{email:${JSON.stringify(`owner-${base.runId}@beta1.invalid`)},password:${JSON.stringify('beta1-upgrade-fixture-password')}}}));`,
         "const response=await fetch('http://127.0.0.1:3000/_serverFn/'+id,{method:'POST',headers:{origin:'http://127.0.0.1:3000','content-type':'application/json',accept:'application/json','x-tsr-serverFn':'true'},body});",
         'status=response.status;',
         "diagnostic=response.status===200?'login-http-ok':`http:${status}`;}",
@@ -438,7 +428,7 @@ async function assertCorruptJournalFailsClosed(
     }
     assert.ok(logs.includes('Migration failed during schema migration.'))
     assert.equal(logs.includes(fixture.passwordHash), false)
-    assert.equal(logs.includes('alpha1-upgrade-fixture-password'), false)
+    assert.equal(logs.includes('beta1-upgrade-fixture-password'), false)
     assert.equal(logs.includes(fixture.caPem), false)
     console.log(
         'PASS corrupted migration journal fails startup before web readiness without logging fixture secrets',
@@ -473,11 +463,7 @@ async function http(domain: string, credentials?: string): Promise<string> {
     return status
 }
 
-async function verifyTraffic(
-    base: UpgradeFixture,
-    policy: PolicyFixture | undefined,
-    websocket: boolean,
-): Promise<void> {
+async function verifyTraffic(base: UpgradeFixture, policy: PolicyFixture): Promise<void> {
     for (const domain of [base.hostDomain, base.aliasDomain]) {
         await waitFor(async () => (await http(domain)) === '200', `HTTP ${domain}`, 90_000)
         await command([
@@ -531,29 +517,25 @@ async function verifyTraffic(
         'http://127.0.0.1:8080/compat',
     ])
     assert.equal(redirect, `${base.redirectStatus}|${base.redirectDestination}/compat`)
-    if (policy) {
-        await waitFor(
-            async () => (await http(policy.basicDomain)) === '401',
-            'Basic Auth guard',
-            90_000,
-        )
-        assert.equal(await http(policy.basicDomain, `${policy.username}:wrong`), '401')
-        assert.equal(await http(policy.basicDomain, `${policy.username}:${policy.password}`), '200')
-        assert.equal(await http(policy.ipDomain), '200')
-    }
-    if (websocket) {
-        const script = [
-            `const socket=new WebSocket('ws://127.0.0.1:8080/compat',{headers:{Host:${JSON.stringify(base.hostDomain)}}});`,
-            'const timer=setTimeout(()=>process.exit(1),10000);',
-            `socket.onmessage=(event)=>{if(event.data!==${JSON.stringify(marker)})process.exit(1);socket.close();};`,
-            "socket.onclose=()=>{clearTimeout(timer);process.stdout.write('websocket-ok');};",
-            'socket.onerror=()=>process.exit(1);',
-        ].join('')
-        assert.equal(
-            await command(['docker', 'exec', container, 'bun', '-e', script], 20_000),
-            'websocket-ok',
-        )
-    }
+    await waitFor(
+        async () => (await http(policy.basicDomain)) === '401',
+        'Basic Auth guard',
+        90_000,
+    )
+    assert.equal(await http(policy.basicDomain, `${policy.username}:wrong`), '401')
+    assert.equal(await http(policy.basicDomain, `${policy.username}:${policy.password}`), '200')
+    assert.equal(await http(policy.ipDomain), '200')
+    const script = [
+        `const socket=new WebSocket('ws://127.0.0.1:8080/compat',{headers:{Host:${JSON.stringify(base.hostDomain)}}});`,
+        'const timer=setTimeout(()=>process.exit(1),10000);',
+        `socket.onmessage=(event)=>{if(event.data!==${JSON.stringify(marker)})process.exit(1);socket.close();};`,
+        "socket.onclose=()=>{clearTimeout(timer);process.stdout.write('websocket-ok');};",
+        'socket.onerror=()=>process.exit(1);',
+    ].join('')
+    assert.equal(
+        await command(['docker', 'exec', container, 'bun', '-e', script], 20_000),
+        'websocket-ok',
+    )
 }
 
 async function verifyHttp3(base: UpgradeFixture): Promise<void> {
@@ -608,11 +590,12 @@ function changedSnapshotPaths(
 async function verifyState(input: {
     readonly base: UpgradeFixture
     readonly auth: AuthFixture
-    readonly audit?: AuditFixture
-    readonly policy?: PolicyFixture
-    readonly durable?: PersistenceFixture
-    readonly durableSnapshot?: PersistenceSnapshot
-    readonly acmeAccount?: AcmeAccountFixture
+    readonly backupState: BackupStateFixture
+    readonly audit: AuditFixture
+    readonly policy: PolicyFixture
+    readonly durable: PersistenceFixture
+    readonly durableSnapshot: PersistenceSnapshot
+    readonly acmeAccount: AcmeAccountFixture
     readonly target: boolean
 }): Promise<string> {
     const phase = input.target ? 'target' : 'source'
@@ -621,8 +604,7 @@ async function verifyState(input: {
         containerId: container,
         command,
         fixture: input.base,
-        expectAlpha2: input.target,
-        expectedMigrationCount: input.target ? CURRENT_MIGRATION_COUNT : source!.migrationCount,
+        expectedMigrationCount: input.target ? CURRENT_MIGRATION_COUNT : sourceMigrationCount,
     })
     stage = `${phase}-auth-state`
     await assertAuthFixture({
@@ -632,55 +614,50 @@ async function verifyState(input: {
         fixture: input.auth,
     })
     stage = `${phase}-audit-state`
-    if (input.audit)
-        await assertAuditFixture({
-            command,
-            containerId: container,
-            base: input.base,
-            fixture: input.audit,
-        })
+    await assertAuditFixture({
+        command,
+        containerId: container,
+        base: input.base,
+        fixture: input.audit,
+    })
     stage = `${phase}-policy-state`
-    if (input.policy)
-        await assertPolicyFixture({
+    await assertPolicyFixture({
+        command,
+        containerId: container,
+        fixture: input.policy,
+    })
+    stage = `${phase}-durable-state`
+    try {
+        await assertPersistenceFixture({
             command,
             containerId: container,
-            fixture: input.policy,
-            target: input.target,
+            fixture: input.durable,
+            expected: input.durableSnapshot,
         })
-    stage = `${phase}-durable-state`
-    if (input.durable && input.durableSnapshot) {
-        try {
-            await assertPersistenceFixture({
-                command,
-                containerId: container,
-                fixture: input.durable,
-                expected: input.durableSnapshot,
-            })
-        } catch (error) {
-            const actual = await readPersistenceSnapshot({
-                command,
-                containerId: container,
-                fixture: input.durable,
-            })
-            const changed = changedSnapshotPaths(input.durableSnapshot, actual)
-            console.error(`durable_changed_fields=${changed.join(',') || 'unknown'}`)
-            throw error
-        }
-        await assertPersistenceRequestDecrypts({
+    } catch (error) {
+        const actual = await readPersistenceSnapshot({
             command,
             containerId: container,
             fixture: input.durable,
         })
+        const changed = changedSnapshotPaths(input.durableSnapshot, actual)
+        console.error(`durable_changed_fields=${changed.join(',') || 'unknown'}`)
+        throw error
     }
+    await assertPersistenceRequestDecrypts({
+        command,
+        containerId: container,
+        fixture: input.durable,
+    })
     stage = `${phase}-acme-account-state`
-    if (input.acmeAccount)
-        await assertAcmeAccountFixture({
-            command,
-            containerId: container,
-            fixture: input.acmeAccount,
-        })
-    stage = `${phase}-beta-defaults`
-    if (input.target) await assertBetaDefaults(command, container)
+    await assertAcmeAccountFixture({
+        command,
+        containerId: container,
+        fixture: input.acmeAccount,
+    })
+    stage = `${phase}-backup-state`
+    await assertBackupState({ command, containerId: container, fixture: input.backupState })
+    await assertBetaDefaults(command, container, true)
     stage = `${phase}-traffic`
     const backendStatus = await command(
         [
@@ -704,7 +681,7 @@ async function verifyState(input: {
     )
     trafficStatus = `direct-upstream:${backendStatus}`
     assert.equal(backendStatus, '200')
-    await verifyTraffic(input.base, input.policy, input.target)
+    await verifyTraffic(input.base, input.policy)
     stage = `${phase}-reconciliation`
     reconciliation = 'pending'
     let revision = ''
@@ -752,7 +729,7 @@ async function run(): Promise<void> {
         ['docker', 'build', '--file', 'docker/production/Dockerfile', '--tag', targetImage, '.'],
         1_800_000,
     )
-    if (source?.version === 'v1.0.0-alpha.6') {
+    if (source) {
         stage = 'http3-client-build'
         await buildHttp3Client((args, options) => command(args, options?.timeoutMs), http3Image)
     }
@@ -773,8 +750,10 @@ async function run(): Promise<void> {
         assert.equal(labels['org.opencontainers.image.revision'], source.revision)
         stage = 'source-startup'
         await start(sourceFile)
-        assert.equal(await migrationCount(), source.migrationCount)
-        await assertSourceSchema()
+        sourceMigrationCount = await migrationCount()
+        assert.ok(Number.isSafeInteger(sourceMigrationCount) && sourceMigrationCount > 0)
+        console.log(`source_migration_count=${sourceMigrationCount}`)
+        await assertBetaDefaults(command, container)
         stage = 'source-seed'
         const base = await seedUpgradeFixture({
             containerId: container,
@@ -784,123 +763,69 @@ async function run(): Promise<void> {
             managementOrigin: 'https://management.compat.invalid',
         })
         const auth = await seedAuthFixture({ containerId: container, command, base })
-        const policy = source.capabilities.accessPolicies
-            ? await seedPolicyFixture({ containerId: container, command, runId, upstreamPort })
-            : undefined
-        const audit = source.capabilities.auditEvents
-            ? await seedAuditFixture({ command, containerId: container, base, runId })
-            : undefined
-        if (source.capabilities.certificateBindingJobs) {
-            stage = 'source-certificate-cursor'
-            await waitForCertificateCursor()
-        }
-        const durable = source.capabilities.certificateBindingJobs
-            ? await seedPersistenceFixture({
-                  containerId: container,
-                  command,
-                  runId,
-                  withDnsCredential: true,
-                  withCandidate: true,
-              })
-            : undefined
-        const acmeAccount = source.capabilities.durableCertificateOperations
-            ? await seedAcmeAccountFixture({ command, containerId: container })
-            : undefined
-        const durableSnapshot = durable
-            ? await readPersistenceSnapshot({
-                  containerId: container,
-                  command,
-                  fixture: durable,
-              })
-            : undefined
-        stage = 'source-validation'
-        let sourceRevision = await verifyState({
-            base,
-            auth,
-            ...(audit ? { audit } : {}),
-            ...(policy ? { policy } : {}),
-            ...(durable && durableSnapshot ? { durable, durableSnapshot } : {}),
-            ...(acmeAccount ? { acmeAccount } : {}),
-            target: false,
+        const policy = await seedPolicyFixture({
+            containerId: container,
+            command,
+            runId,
+            upstreamPort,
         })
-        let preUpgradeDurableSnapshot = durableSnapshot
-        const backupEligible =
-            source.version === 'v1.0.0-alpha.4' ||
-            source.version === 'v1.0.0-alpha.5' ||
-            source.version === 'v1.0.0-alpha.6'
+        const audit = await seedAuditFixture({ command, containerId: container, base, runId })
+        const backupState = await seedBackupState({ command, containerId: container, runId })
+        stage = 'source-certificate-cursor'
+        await waitForCertificateCursor()
+        const durable = await seedPersistenceFixture({
+            containerId: container,
+            command,
+            runId,
+            withDnsCredential: true,
+            withCandidate: true,
+        })
+        const acmeAccount = await seedAcmeAccountFixture({ command, containerId: container })
+        const durableSnapshot = await readPersistenceSnapshot({
+            containerId: container,
+            command,
+            fixture: durable,
+        })
+        stage = 'source-validation'
+        const sourceFixture = { base, auth, policy, audit, backupState, durable, acmeAccount }
+        await verifyState({ ...sourceFixture, durableSnapshot, target: false })
         const backupRoot = join(temporaryRoot, 'release-backup')
-        let backupPath = ''
-        if (backupEligible) {
-            stage = 'pre-upgrade-backup'
-            backupPath = await createPinnedSourceBackup(backupRoot)
-            await start(sourceFile)
-            if (source.version === 'v1.0.0-alpha.6' && durable) {
-                preUpgradeDurableSnapshot = await readPersistenceSnapshot({
-                    containerId: container,
-                    command,
-                    fixture: durable,
-                })
-                assert.ok(preUpgradeDurableSnapshot.certificate)
-                assert.ok(preUpgradeDurableSnapshot.job)
-                assert.equal(
-                    Array.isArray(preUpgradeDurableSnapshot.eventReceipts)
-                        ? preUpgradeDurableSnapshot.eventReceipts.length
-                        : 0,
-                    2,
-                )
-            }
-            sourceRevision = await verifyState({
-                base,
-                auth,
-                ...(audit ? { audit } : {}),
-                ...(policy ? { policy } : {}),
-                ...(durable && preUpgradeDurableSnapshot
-                    ? { durable, durableSnapshot: preUpgradeDurableSnapshot }
-                    : {}),
-                ...(acmeAccount ? { acmeAccount } : {}),
-                target: false,
-            })
-        }
+        stage = 'pre-upgrade-backup'
+        const backupPath = await createPinnedSourceBackup(backupRoot)
+        await start(sourceFile)
+        const preUpgradeDurableSnapshot = await readPersistenceSnapshot({
+            containerId: container,
+            command,
+            fixture: durable,
+        })
+        assert.ok(preUpgradeDurableSnapshot.certificate)
+        assert.ok(preUpgradeDurableSnapshot.job)
+        assert.equal(
+            Array.isArray(preUpgradeDurableSnapshot.eventReceipts)
+                ? preUpgradeDurableSnapshot.eventReceipts.length
+                : 0,
+            2,
+        )
+        const fixture = { ...sourceFixture, durableSnapshot: preUpgradeDurableSnapshot }
+        const sourceRevision = await verifyState({ ...fixture, target: false })
         const originalAppKeyDigest = await appKeyDigest()
         await command([...compose(sourceFile), 'down', '--remove-orphans'], 180_000)
         stage = 'target-upgrade'
         await start(targetFile)
         assert.equal(await migrationCount(), CURRENT_MIGRATION_COUNT)
         stage = 'target-validation'
-        const targetRevision = await verifyState({
-            base,
-            auth,
-            ...(audit ? { audit } : {}),
-            ...(policy ? { policy } : {}),
-            ...(durable && preUpgradeDurableSnapshot
-                ? { durable, durableSnapshot: preUpgradeDurableSnapshot }
-                : {}),
-            ...(acmeAccount ? { acmeAccount } : {}),
-            target: true,
-        })
+        const targetRevision = await verifyState({ ...fixture, target: true })
         assert.equal(targetRevision, sourceRevision)
         assert.equal(await appKeyDigest(), originalAppKeyDigest)
         stage = 'target-login'
         await verifyLogin(base, 1)
-        if (source.version === 'v1.0.0-alpha.6') {
-            stage = 'target-http3'
-            await verifyHttp3(base)
-        }
+        stage = 'target-http3'
+        await verifyHttp3(base)
         console.log(`PASS ${source.version} direct upgrade preserves durable state and traffic`)
         stage = 'target-restart'
         await command([...compose(targetFile), 'restart', 'rentnerproxy'], 180_000)
         await start(targetFile)
-        const restartedRevision = await verifyState({
-            base,
-            auth,
-            ...(audit ? { audit } : {}),
-            ...(policy ? { policy } : {}),
-            ...(durable && preUpgradeDurableSnapshot
-                ? { durable, durableSnapshot: preUpgradeDurableSnapshot }
-                : {}),
-            ...(acmeAccount ? { acmeAccount } : {}),
-            target: true,
-        })
+        const restartedRevision = await verifyState({ ...fixture, target: true })
         assert.equal(await appKeyDigest(), originalAppKeyDigest)
         assert.equal(restartedRevision, targetRevision)
         const sessions = await psql(
@@ -909,66 +834,36 @@ async function run(): Promise<void> {
             `select count(*) from rentnerproxy.sessions where user_id='${base.ownerUserId}'`,
         )
         assert.equal(Number(sessions), 1)
-        if (source.version === 'v1.0.0-alpha.6') {
-            stage = 'target-restart-http3'
-            await verifyHttp3(base)
-            await assertCorruptJournalFailsClosed(targetFile, base)
-        }
+        stage = 'target-restart-http3'
+        await verifyHttp3(base)
+        await assertCorruptJournalFailsClosed(targetFile, base)
         console.log(`PASS ${source.version} restart remains idempotent`)
 
-        if (backupEligible) {
-            stage = 'target-fresh-volume-restore'
-            await command(
-                [...compose(targetFile), 'down', '--volumes', '--remove-orphans'],
-                180_000,
-            )
-            await restoreCurrentTargetBackup(backupPath, targetFile)
-            await start(targetFile)
-            assert.equal(await migrationCount(), CURRENT_MIGRATION_COUNT)
-            const restoredRevision = await verifyState({
-                base,
-                auth,
-                ...(audit ? { audit } : {}),
-                ...(policy ? { policy } : {}),
-                ...(durable && preUpgradeDurableSnapshot
-                    ? { durable, durableSnapshot: preUpgradeDurableSnapshot }
-                    : {}),
-                ...(acmeAccount ? { acmeAccount } : {}),
-                target: true,
-            })
-            assert.equal(restoredRevision, sourceRevision)
-            assert.equal(await appKeyDigest(), originalAppKeyDigest)
-            await verifyLogin(base, 1)
-            if (source.version === 'v1.0.0-alpha.6') await verifyHttp3(base)
-            console.log(`PASS ${source.version} release backup restores into fresh current volumes`)
+        stage = 'target-fresh-volume-restore'
+        await command([...compose(targetFile), 'down', '--volumes', '--remove-orphans'], 180_000)
+        await restoreCurrentTargetBackup(backupPath, targetFile)
+        await start(targetFile)
+        assert.equal(await migrationCount(), CURRENT_MIGRATION_COUNT)
+        const restoredRevision = await verifyState({ ...fixture, target: true })
+        assert.equal(restoredRevision, sourceRevision)
+        assert.equal(await appKeyDigest(), originalAppKeyDigest)
+        await verifyLogin(base, 1)
+        await verifyHttp3(base)
+        console.log(`PASS ${source.version} release backup restores into fresh current volumes`)
 
-            stage = 'source-fresh-volume-rollback'
-            await command(
-                [...compose(targetFile), 'down', '--volumes', '--remove-orphans'],
-                180_000,
-            )
-            await restorePinnedSourceBackup(backupPath, sourceFile)
-            await start(sourceFile)
-            assert.equal(await migrationCount(), source.migrationCount)
-            const rollbackRevision = await verifyState({
-                base,
-                auth,
-                ...(audit ? { audit } : {}),
-                ...(policy ? { policy } : {}),
-                ...(durable && preUpgradeDurableSnapshot
-                    ? { durable, durableSnapshot: preUpgradeDurableSnapshot }
-                    : {}),
-                ...(acmeAccount ? { acmeAccount } : {}),
-                target: false,
-            })
-            assert.equal(rollbackRevision, sourceRevision)
-            assert.equal(await appKeyDigest(), originalAppKeyDigest)
-            await verifyLogin(base, 1)
-            if (source.version === 'v1.0.0-alpha.6') await verifyHttp3(base)
-            console.log(
-                `PASS ${source.version} release backup restores into fresh exact-source volumes`,
-            )
-        }
+        stage = 'source-fresh-volume-rollback'
+        await command([...compose(targetFile), 'down', '--volumes', '--remove-orphans'], 180_000)
+        await restorePinnedSourceBackup(backupPath, sourceFile)
+        await start(sourceFile)
+        assert.equal(await migrationCount(), sourceMigrationCount)
+        const rollbackRevision = await verifyState({ ...fixture, target: false })
+        assert.equal(rollbackRevision, sourceRevision)
+        assert.equal(await appKeyDigest(), originalAppKeyDigest)
+        await verifyLogin(base, 1)
+        await verifyHttp3(base)
+        console.log(
+            `PASS ${source.version} release backup restores into fresh exact-source volumes`,
+        )
     } else {
         stage = 'fresh-startup'
         await start(targetFile)
@@ -1024,6 +919,5 @@ try {
     }
     backend?.stop(true)
     await command(['docker', 'image', 'rm', targetImage], 180_000).catch(() => undefined)
-    if (source?.version === 'v1.0.0-alpha.6')
-        await command(['docker', 'image', 'rm', http3Image], 180_000).catch(() => undefined)
+    if (source) await command(['docker', 'image', 'rm', http3Image], 180_000).catch(() => undefined)
 }

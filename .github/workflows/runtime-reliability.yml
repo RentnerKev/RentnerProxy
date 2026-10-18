@@ -52,14 +52,13 @@ on:
                     - short
                     - long
             source:
-                description: Current build, immutable published Alpha 6, or both
+                description: Current build
                 required: true
                 default: current
                 type: choice
                 options:
                     - all
                     - current
-                    - alpha.6
             duration-seconds:
                 description: Optional duration bound (30 to 7200 seconds)
                 type: string

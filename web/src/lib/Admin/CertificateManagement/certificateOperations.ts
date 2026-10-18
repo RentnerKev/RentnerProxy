@@ -1,7 +1,6 @@
 import type {
     CertificateSchedulingDates,
     CertificateOperationDisplay,
-    CertificateSummaryWithLegacyScheduling,
 } from './Types/certificate-operations.types.ts'
 import type { CertificateOperationStage } from '@/config/Types/certificates-config.types.ts'
 import type { CertificateSummary } from '@/lib/Admin/CertificateManagement/Types/certificates.types.ts'
@@ -19,15 +18,13 @@ function asDate(value: Date | string | null | undefined): Date | null {
 export function getCertificateSchedulingDates(
     certificate: CertificateSummary,
 ): CertificateSchedulingDates {
-    const value = certificate as CertificateSummaryWithLegacyScheduling
-    const nested = value.schedulingDates
     return {
-        nextRenewalAt: asDate(nested?.nextRenewalAt ?? certificate.nextRenewalAt),
-        nextAttemptAt: asDate(nested?.nextAttemptAt ?? certificate.nextAttemptAt),
-        lastAttemptAt: asDate(nested?.lastAttemptAt ?? certificate.lastAttemptAt),
-        lastSuccessAt: asDate(nested?.lastSuccessAt ?? certificate.lastSuccessAt),
-        lastActivatedAt: asDate(nested?.lastActivatedAt ?? certificate.lastActivatedAt),
-        lastErrorAt: asDate(nested?.lastErrorAt ?? certificate.lastErrorAt),
+        nextRenewalAt: asDate(certificate.nextRenewalAt),
+        nextAttemptAt: asDate(certificate.nextAttemptAt),
+        lastAttemptAt: asDate(certificate.lastAttemptAt),
+        lastSuccessAt: asDate(certificate.lastSuccessAt),
+        lastActivatedAt: asDate(certificate.lastActivatedAt),
+        lastErrorAt: asDate(certificate.lastErrorAt),
     }
 }
 

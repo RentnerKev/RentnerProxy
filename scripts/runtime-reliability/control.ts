@@ -45,7 +45,7 @@ export function parseReliabilityOptions(args: string[]): ReliabilityOptions {
     const profile = flags.get('--profile') ?? 'short'
     if (profile !== 'short' && profile !== 'long') throw new Error('Invalid reliability profile')
     const source = flags.get('--source') ?? 'current'
-    if (source !== 'current' && source !== 'alpha.6') throw new Error('Invalid reliability source')
+    if (source !== 'current') throw new Error('Invalid reliability source')
     const capture = flags.get('--capture-resources') ?? 'true'
     if (capture !== 'true' && capture !== 'false')
         throw new Error('Invalid resource capture option')
@@ -241,14 +241,6 @@ export function buildReliabilityReport(input: ReliabilityReportInput) {
             throw new Error('Invalid report failure')
         failure = { stage, category }
     }
-    const knownLimitations = [...new Set(input.knownLimitations ?? [])]
-    if (
-        knownLimitations.some((value) => value !== 'alpha6-binding-retry-needs-second-request') ||
-        (knownLimitations.length > 0 &&
-            (options.source !== 'alpha.6' ||
-                input.runtimeRevision !== 'c8a07cc413c1d9632d279e6d45cdf4d46f4947b1'))
-    )
-        throw new Error('Invalid baseline limitation')
     const resources = options.captureResources
         ? analyzeResources(input.samples, options.concurrency)
         : null
@@ -263,7 +255,7 @@ export function buildReliabilityReport(input: ReliabilityReportInput) {
         observedDurationSeconds: input.observedDurationSeconds,
         checks,
         resources,
-        knownLimitations,
+        knownLimitations: [],
         summary: {
             passed:
                 !failure &&

@@ -29,7 +29,5 @@ export interface UpgradeFixture {
     readonly upstreamPort: number
     readonly globalHttpSettings: Readonly<Record<string, number>>
     readonly hostHttpSettings: Readonly<Record<string, number>>
-    readonly unsupportedHostSettings: Readonly<Record<string, number>>
-    readonly advancedConfig: string
     readonly managementOrigin?: string
 }

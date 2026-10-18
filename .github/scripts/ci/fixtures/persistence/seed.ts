@@ -13,13 +13,13 @@ const appEncryptionKeyFile = '/run/rentnerproxy/app-key/value'
 
 function validateRunId(runId: string): void {
     if (!/^[a-z0-9][a-z0-9_-]{5,63}$/u.test(runId)) {
-        throw new Error('Alpha 4 fixture runId must be a bounded lowercase identifier.')
+        throw new Error('Persistence fixture runId must be a bounded lowercase identifier.')
     }
 }
 
 function validateCommandInput(containerId: string): void {
     if (!containerId.trim() || containerId.length > 256) {
-        throw new Error('Alpha 4 fixture container id is invalid.')
+        throw new Error('Persistence fixture container id is invalid.')
     }
 }
 
@@ -61,7 +61,7 @@ export async function seedPersistenceFixture(input: {
     const identityDigest = digest({ runId: input.runId, ownerUserId: ids.ownerUserId })
     const domain = `a4-${identityDigest.slice(0, 32)}.example.com`
     const request: PersistenceCertificateRequest = {
-        name: `Alpha 4 persistence ${input.runId}`,
+        name: `Persistence ${input.runId}`,
         domains: [domain],
         environment: 'staging',
         challengeType: input.withDnsCredential ? 'dns-01' : 'http-01',

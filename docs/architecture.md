@@ -1,6 +1,6 @@
 # RentnerProxy architecture
 
-RentnerProxy is a public-alpha self-hosted reverse-proxy manager. The production
+RentnerProxy is a public-beta self-hosted reverse-proxy manager. The production
 appliance is one Docker container with a Bun/TanStack management service, a Rust
 controller, Caddy, PostgreSQL, and Valkey. The deployment and support posture is
 described in [`README.md`](../README.md), [`SECURITY.md`](../SECURITY.md), and
@@ -311,11 +311,14 @@ The CrowdSec archive includes the SQLite database and WAL, local/online/Console 
 and managed bouncer key; SQLite shared memory and supervisor control/status/staging regenerate.
 Managed startup repairs bouncer registration with the private key while retaining detections.
 External credentials remain encrypted in PostgreSQL; external LAPI data is operator owned.
-Only current v4 and genuine published Alpha 4/5/6 v3 backups are supported. The pinned release
-matrix tests upgrade, fresh-volume restore and exact-source fresh-volume rollback using each
-release's historical backup tools. Legacy v3 has no CrowdSec archive or deployment metadata and
-requires explicit deployment review. Formats v1/v2 and incompatible migration histories fail
-before target replacement.
+Only v4 backups with the current target database history are supported. The pinned
+Beta 1 release matrix tests upgrade, fresh-volume restore and exact-source
+fresh-volume rollback using that release's backup tools and their pinned dependencies.
+Alpha installations and v3 backups first require the Beta 1 intermediate step
+described in [Operations](operations.md#upgrades). Formats v1/v2/v3 and incompatible
+migration histories fail before target replacement. Existing databases without
+persistent secret state fail startup instead of importing an old environment file
+or generating replacement keys.
 
 ## Change and verification boundaries
 
@@ -339,11 +342,11 @@ claims and limits supported by this evidence.
 ## Runtime reliability evidence
 
 The isolated runner in [`scripts/runtime-reliability/`](../scripts/runtime-reliability) exercises
-repeatable synthetic runtime work against the committed `HEAD` appliance snapshot or the
-digest-pinned published Alpha 6 appliance. Fixture services are bundled from the matching Git revision;
-a supplied current image must carry an OCI revision matching `HEAD`. Historical fixture tools are bundled against that release's pinned source rather
-than assuming today's database and service contracts. The workflow preserves the existing fast
-Production Smokes merge gate and adds a short PR/main check plus separate weekly/manual long runs.
+repeatable synthetic runtime work against the committed `HEAD` appliance snapshot.
+Fixture services are bundled from the matching Git revision; a supplied image must
+carry an OCI revision matching `HEAD`. The workflow preserves the existing fast
+Production Smokes merge gate and adds a short PR/main check. Long profiles require
+explicit manual selection for release preparation or a specific request.
 
 The fixture's resource guard is 1 GiB memory, 512 PIDs and 100 PostgreSQL connections. Quiescent
 file-descriptor, memory and database-connection deltas detect growth within this fixture envelope;
@@ -358,13 +361,9 @@ resources and private fixture files. CI retains only the sanitized JSON report, 
 Quiescent samples follow deliberate restarts and growing durable fixture history. They measure the
 bounded recovered footprint; they do not demonstrate continuous memory stability of the same process
 or exclude every possible leak. `targetSha` identifies the tested harness commit, while
-`runtimeRevision` identifies committed `HEAD` or the pinned historical Alpha 6 runtime source.
+`runtimeRevision` identifies the committed `HEAD` runtime source.
 
-The Alpha 6 baseline preserves the published runtime, including its certificate-binding retry defect.
-A retry accepted during asynchronous issuance can strand a failed job. Only when that job remains
-failed with `errorCode=null` and the controller has a valid, idle, applied certificate does the harness
-record `alpha6-binding-retry-needs-second-request` in `knownLimitations` and issue one bounded second
-manual retry for the same job. That request represents additional operator intervention, not automatic
-recovery by the published runtime. A passing baseline includes this disclosed known case; current
-builds must recover with one retry and an empty limitation list. This test-driven correction does not
-publish or modify a release.
+Certificate-binding recovery must complete after one accepted retry. No historical
+Alpha defect is tolerated by issuing another retry. The separate release matrix
+checks the immutable published Beta 1 source against the candidate; reliability
+resource evidence remains specific to the current build.

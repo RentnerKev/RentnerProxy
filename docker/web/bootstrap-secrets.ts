@@ -3,7 +3,6 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import { link, lstat, mkdir, open, readFile, readdir, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 import type {
     BootstrapSecretName,
@@ -13,17 +12,13 @@ import type {
 } from './Types/bootstrap-secrets.types.ts'
 
 const maximumSecretBytes = 4_096
-const maximumLegacyEnvironmentBytes = 65_536
 const stateDirectory = '/var/lib/rentnerproxy/bootstrap'
 const statePath = join(stateDirectory, 'secrets-v1.json')
 const pendingAppKeyRestorePath = join(stateDirectory, 'app-key-restore-v1.json')
 const productionRestorePath = join(stateDirectory, 'production-restore-v1.json')
 const postgresDataDirectory = '/var/lib/rentnerproxy/postgres-data'
-const legacyEnvironmentPath = '/var/lib/rentnerproxy/legacy-source/.env'
 const backupAppKeyPath = '/backup/app-encryption-key'
 const restoreAppKeyPath = '/restore-key/app-encryption-key'
-const legacyEnvironmentLoadedVariable = 'RENTNERPROXY_BOOTSTRAP_LEGACY_ENV_LOADED'
-const scriptPath = fileURLToPath(import.meta.url)
 const outputPaths: Record<BootstrapSecretName, string> = {
     appEncryptionKey: '/run/rentnerproxy/app-key/value',
     controllerToken: '/run/rentnerproxy/controller-token/value',
@@ -305,46 +300,15 @@ export async function hasMaterializedSecrets(
     return values.some((value) => value !== null)
 }
 
-async function hasLegacyEnvironmentFile(): Promise<boolean> {
-    try {
-        const metadata = await lstat(legacyEnvironmentPath)
-        return (
-            metadata.isFile() &&
-            !metadata.isSymbolicLink() &&
-            metadata.size > 0 &&
-            metadata.size <= maximumLegacyEnvironmentBytes
+export function assertInitialSecretGenerationAllowed(
+    existingDatabase: boolean,
+    materializedSecrets: boolean,
+): void {
+    if (existingDatabase || materializedSecrets) {
+        throw new Error(
+            'Persistent runtime secret state secrets-v1.json is missing for an existing installation. Start from a supported beta.1 installation with its persisted secret state, or restore a supported v4 backup; legacy environment secret import is no longer supported.',
         )
-    } catch (error) {
-        if (isRecord(error) && error.code === 'ENOENT') return false
-        throw error
     }
-}
-
-async function reexecuteWithLegacyEnvironment(): Promise<boolean> {
-    if (
-        process.env[legacyEnvironmentLoadedVariable] === '1' ||
-        !(await hasLegacyEnvironmentFile())
-    ) {
-        return false
-    }
-
-    const child = Bun.spawn({
-        cmd: [
-            process.execPath,
-            '--no-env-file',
-            `--env-file=${legacyEnvironmentPath}`,
-            scriptPath,
-            ...process.argv.slice(2),
-        ],
-        env: {
-            ...process.env,
-            [legacyEnvironmentLoadedVariable]: '1',
-        },
-        stdin: 'ignore',
-        stdout: 'inherit',
-        stderr: 'inherit',
-    })
-    process.exit(await child.exited)
 }
 
 function generateState(): BootstrapSecretState {
@@ -357,41 +321,6 @@ function generateState(): BootstrapSecretState {
         postgresPassword,
         version: 1,
     }
-}
-
-function legacyStateFromEnvironment(): BootstrapSecretState {
-    const databaseUrl = process.env.DATABASE_URL?.trim() ?? ''
-    let url: URL
-    try {
-        url = new URL(databaseUrl)
-    } catch {
-        throw new Error('Existing installation secrets in .env are invalid.')
-    }
-    const postgresPassword = decodeUrlPassword(url)
-    const explicitPostgresPassword = process.env.POSTGRES_PASSWORD
-    const appEncryptionKey = process.env.APP_ENCRYPTION_KEY?.trim() ?? ''
-    const configuredControllerToken = process.env.RENTNERPROXY_CONTROLLER_TOKEN?.trim() ?? ''
-    const controllerToken =
-        configuredControllerToken === ''
-            ? randomBytes(32).toString('hex')
-            : configuredControllerToken
-    const state = {
-        appEncryptionKey,
-        controllerToken,
-        databaseUrl,
-        postgresPassword,
-        version: 1,
-    }
-
-    if (
-        !validateState(state) ||
-        (explicitPostgresPassword !== undefined &&
-            explicitPostgresPassword !== '' &&
-            explicitPostgresPassword !== postgresPassword)
-    ) {
-        throw new Error('Existing installation secrets in .env are invalid.')
-    }
-    return state
 }
 
 async function materializeSecrets(state: BootstrapSecretState): Promise<void> {
@@ -427,24 +356,9 @@ async function initializeSecrets(): Promise<void> {
     let state = await readState()
     if (!state) {
         const existingDatabase = await hasEntries(postgresDataDirectory)
-        if (await hasMaterializedSecrets()) {
-            throw new Error(
-                'Persistent runtime secret state is missing for an existing installation.',
-            )
-        }
-        if (existingDatabase) {
-            if (process.env[legacyEnvironmentLoadedVariable] !== '1') {
-                if (await reexecuteWithLegacyEnvironment()) return
-                throw new Error(
-                    'Existing installation secrets could not be imported from the local .env file.',
-                )
-            }
-            state = await persistNewState(legacyStateFromEnvironment())
-            console.log('Persistent runtime secrets were imported from the existing installation.')
-        } else {
-            state = await persistNewState(generateState())
-            console.log('Persistent runtime secrets were generated.')
-        }
+        assertInitialSecretGenerationAllowed(existingDatabase, await hasMaterializedSecrets())
+        state = await persistNewState(generateState())
+        console.log('Persistent runtime secrets were generated.')
     } else {
         console.log('Persistent runtime secrets are ready.')
     }

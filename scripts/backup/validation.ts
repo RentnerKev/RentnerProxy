@@ -35,17 +35,14 @@ export const deploymentSchema = z.strictObject({
     trustedProxyCidrs: z.string().max(8192),
 })
 
-export const metadataSchema = z.discriminatedUnion('version', [
-    z.strictObject({ ...base, version: z.literal(3) }),
-    z.strictObject({
-        ...base,
-        version: z.literal(4),
-        crowdSecState: artifact.extend({ archive: z.literal('crowdsec-state.tar') }),
-        deployment: deploymentSchema,
-        source: z.strictObject({
-            imageId: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
-            revision: z.string().max(128).nullable(),
-            version: z.string().max(128).nullable(),
-        }),
+export const metadataSchema = z.strictObject({
+    ...base,
+    version: z.literal(4),
+    crowdSecState: artifact.extend({ archive: z.literal('crowdsec-state.tar') }),
+    deployment: deploymentSchema,
+    source: z.strictObject({
+        imageId: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
+        revision: z.string().max(128).nullable(),
+        version: z.string().max(128).nullable(),
     }),
-])
+})

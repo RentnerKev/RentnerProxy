@@ -394,8 +394,6 @@ export async function exerciseCertificates(
         const retry = await context.fixture('binding-retry')
         assert.equal(retry.currentJob?.id, jobId)
         let boundId = ''
-        let secondRequestMade = false
-        let historicalMismatch: { fingerprint: string; operationId: string } | undefined
         await context.waitFor(
             async () => {
                 const result = await context.fixture('jobs-read')
@@ -417,25 +415,10 @@ export async function exerciseCertificates(
                         current.lastErrorCode === null &&
                         current.fingerprint !== null
                     if (!completedIssuance) return false
-                    if (context.source !== 'alpha.6' || secondRequestMade) {
-                        throw new ReliabilityError(
-                            'assertion',
-                            'Completed certificate issuance left its binding job failed after a manual retry',
-                        )
-                    }
-                    historicalMismatch = {
-                        fingerprint: current.fingerprint!,
-                        operationId: current.currentOperation!.id,
-                    }
-                    secondRequestMade = true
-                    context.noteKnownLimitation('alpha6-binding-retry-needs-second-request')
-                    const secondRetry = await context.fixture('binding-retry')
-                    assert.equal(secondRetry.currentJob?.id, jobId)
-                    assert.equal(
-                        secondRetry.currentJob?.certificateId,
-                        result.currentJob.certificateId,
+                    throw new ReliabilityError(
+                        'assertion',
+                        'Completed certificate issuance left its binding job failed after a manual retry',
                     )
-                    return false
                 }
                 boundId = certificateId(result.currentJob.certificateId)
                 return true
@@ -446,10 +429,6 @@ export async function exerciseCertificates(
         await context.synced(await context.fixture('snapshot'))
         const bound = await metadata(context, boundId)
         assert.equal(bound.status, 'valid')
-        if (historicalMismatch) {
-            assert.equal(bound.fingerprint, historicalMismatch.fingerprint)
-            assert.equal(bound.currentOperation?.id, historicalMismatch.operationId)
-        }
         assert.ok(bound.fingerprint)
         await verifyCertificate(context, state.issuanceCaFile, bound.fingerprint)
         state.activeId = boundId

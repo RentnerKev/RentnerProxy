@@ -10,25 +10,25 @@ Es gibt 17 Workflow-Dateien, darunter zwei wiederverwendbare Bausteine für
 Release und Veröffentlichung. GitHubs integrierte Dependabot-Automation erstellt
 zusätzlich den Lauf **Dependency Graph**.
 
-| Workflow                                                           | Startet bei                        | Aufgabe                                                                                                                                            |
-| ------------------------------------------------------------------ | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [CI](workflows/ci.yml)                                             | PR, Push, manuell                  | Format, Lint, Skript-Typprüfung, Web-/Fuzz-Tests, Rust und Produktionsbuild. Der Web-Build prüft auch die Web-Typen.                               |
-| [Workflow Lint](workflows/workflow-lint.yml)                       | PR, Push, manuell                  | Actions/YAML mit actionlint und Automations-Shellskripte mit ShellCheck prüfen.                                                                    |
-| [Gitleaks](workflows/gitleaks.yml)                                 | PR, Push, manuell                  | Neue Commits auf Geheimnisse prüfen; manuell auch die vollständige Historie.                                                                       |
-| [CodeQL](workflows/codeql.yml)                                     | PR, Push, wöchentlich, manuell     | Eigenes JavaScript/TypeScript, Rust und GitHub Actions analysieren.                                                                                |
-| [Dependency Review](workflows/dependency-review.yml)               | PR                                 | Neu eingeführte Abhängigkeiten ab Schweregrad „moderate“ prüfen.                                                                                   |
-| [Deployed Dependency Security](workflows/dependency-security.yml)  | PR, Push, täglich, manuell         | Eigene vollständige Cargo-/Bun-Lockfiles, Produktionskandidat und aktuelles Dev-Image prüfen; Details unten.                                       |
-| [Production Smokes](workflows/production-smokes.yml)               | PR, Push, manuell                  | Proxy-, Appliance-, Backup/Restore-, Drain-, ACME- und TLS-Integration prüfen. Drei gemeinsame Images werden einmal pro Lauf gebaut.               |
-| [Release Compatibility](workflows/release-compatibility.yml)       | Betroffene PRs/Pushes, manuell     | Backup-, Restore- und Upgrade-Kompatibilität prüfen. PR: `fresh`/Alpha 6; Push: Alpha 4–6; manuell standardmäßig Alpha 6, auf Wunsch alle Quellen. |
-| [Runtime Reliability](workflows/runtime-reliability.yml)           | Betroffene PRs/Pushes, manuell     | Kurzes Profil mit aktuellem Build; lange Profile nur nach ausdrücklicher Auswahl.                                                                  |
-| [Runtime Scale](workflows/runtime-scale.yml)                       | Nur manuell                        | Begrenzte Proxy-Last: standardmäßig 100 Hosts, vier Worker, drei Runden; Laufzeitlimit zehn Minuten.                                               |
-| [PR Preview Source](workflows/pr-preview-source.yml)               | PR                                 | Exakte getestete Merge-SHA erfassen und den Herkunftsnachweis für das Preview speichern.                                                           |
-| [PR Preview Build](workflows/pr-preview-build.yml)                 | Erfolgreicher Preview-Source-Lauf  | Getestete SHA und Pflichtchecks verifizieren, dann das eigene PR-Image als OCI-Archiv bauen.                                                       |
-| [PR Preview Publish](workflows/pr-preview-publish.yml)             | Erfolgreicher Preview-Build        | Herkunft und Pflichtchecks erneut prüfen, eigene Image-Abhängigkeiten auditieren und das Preview veröffentlichen.                                  |
-| [Dev Image](workflows/dev-image.yml)                               | Nur manuell                        | Dev-Kandidaten bauen, prüfen und über den Publisher als `:dev` veröffentlichen.                                                                    |
-| [RentnerProxy Release](workflows/release.yml)                      | GitHub-Release wird veröffentlicht | Alpha/Beta/Stable auswählen und die Release-Pipeline aufrufen.                                                                                     |
-| [RentnerProxy Release Pipeline](workflows/release-pipeline.yml)    | Durch Release-Workflow             | Exakte Release-Identität prüfen, Image bauen/bewerten/veröffentlichen und Release Notes aktualisieren.                                             |
-| [Publish assessed OCI image](workflows/publish-assessed-image.yml) | Durch Dev-/Release-Pipeline        | Kandidat, Digest und eigene Abhängigkeiten unabhängig erneut prüfen, danach Registry-Tags veröffentlichen.                                         |
+| Workflow                                                           | Startet bei                        | Aufgabe                                                                                                                                                  |
+| ------------------------------------------------------------------ | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [CI](workflows/ci.yml)                                             | PR, Push, manuell                  | Format, Lint, Skript-Typprüfung, Web-/Fuzz-Tests, Rust und Produktionsbuild. Der Web-Build prüft auch die Web-Typen.                                     |
+| [Workflow Lint](workflows/workflow-lint.yml)                       | PR, Push, manuell                  | Actions/YAML mit actionlint und Automations-Shellskripte mit ShellCheck prüfen.                                                                          |
+| [Gitleaks](workflows/gitleaks.yml)                                 | PR, Push, manuell                  | Neue Commits auf Geheimnisse prüfen; manuell auch die vollständige Historie.                                                                             |
+| [CodeQL](workflows/codeql.yml)                                     | PR, Push, wöchentlich, manuell     | Eigenes JavaScript/TypeScript, Rust und GitHub Actions analysieren.                                                                                      |
+| [Dependency Review](workflows/dependency-review.yml)               | PR                                 | Neu eingeführte Abhängigkeiten ab Schweregrad „moderate“ prüfen.                                                                                         |
+| [Deployed Dependency Security](workflows/dependency-security.yml)  | PR, Push, täglich, manuell         | Eigene vollständige Cargo-/Bun-Lockfiles, Produktionskandidat und aktuelles Dev-Image prüfen; Details unten.                                             |
+| [Production Smokes](workflows/production-smokes.yml)               | PR, Push, manuell                  | Proxy-, Appliance-, Backup/Restore-, Drain-, ACME- und TLS-Integration prüfen. Drei gemeinsame Images werden einmal pro Lauf gebaut.                     |
+| [Release Compatibility](workflows/release-compatibility.yml)       | Betroffene PRs/Pushes, manuell     | Neuinstallation und Beta-1-Upgrade samt v4-Backup/Restore prüfen. PR/Push: `fresh` und `beta.1`; manuell standardmäßig Beta 1, auf Wunsch beide Quellen. |
+| [Runtime Reliability](workflows/runtime-reliability.yml)           | Betroffene PRs/Pushes, manuell     | Kurzes Profil mit aktuellem Build; lange Profile nur nach ausdrücklicher Auswahl.                                                                        |
+| [Runtime Scale](workflows/runtime-scale.yml)                       | Nur manuell                        | Begrenzte Proxy-Last: standardmäßig 100 Hosts, vier Worker, drei Runden; Laufzeitlimit zehn Minuten.                                                     |
+| [PR Preview Source](workflows/pr-preview-source.yml)               | PR                                 | Exakte getestete Merge-SHA erfassen und den Herkunftsnachweis für das Preview speichern.                                                                 |
+| [PR Preview Build](workflows/pr-preview-build.yml)                 | Erfolgreicher Preview-Source-Lauf  | Getestete SHA und Pflichtchecks verifizieren, dann das eigene PR-Image als OCI-Archiv bauen.                                                             |
+| [PR Preview Publish](workflows/pr-preview-publish.yml)             | Erfolgreicher Preview-Build        | Herkunft und Pflichtchecks erneut prüfen, eigene Image-Abhängigkeiten auditieren und das Preview veröffentlichen.                                        |
+| [Dev Image](workflows/dev-image.yml)                               | Nur manuell                        | Dev-Kandidaten bauen, prüfen und über den Publisher als `:dev` veröffentlichen.                                                                          |
+| [RentnerProxy Release](workflows/release.yml)                      | GitHub-Release wird veröffentlicht | Alpha/Beta/Stable auswählen und die Release-Pipeline aufrufen.                                                                                           |
+| [RentnerProxy Release Pipeline](workflows/release-pipeline.yml)    | Durch Release-Workflow             | Exakte Release-Identität prüfen, Image bauen/bewerten/veröffentlichen und Release Notes aktualisieren.                                                   |
+| [Publish assessed OCI image](workflows/publish-assessed-image.yml) | Durch Dev-/Release-Pipeline        | Kandidat, Digest und eigene Abhängigkeiten unabhängig erneut prüfen, danach Registry-Tags veröffentlichen.                                               |
 
 PR und Push bedeuten `main`. „Betroffen“ bezeichnet die jeweiligen `paths`-Filter.
 Release Compatibility reagiert auf Backup/Restore, Kompatibilitätsfixtures und
@@ -83,13 +83,13 @@ mit 120 Iterationen. Build/Einrichtung kommen hinzu. Normale PRs und Pushes sowi
 die manuelle Voreinstellung wählen `short` mit aktuellem Build. Der automatische
 Wochenlauf entfällt.
 
-Lange Profile und historische Reliability-Quellen bleiben ausdrücklich manuell
+Lange Profile des aktuellen Builds bleiben ausdrücklich manuell
 für Release-Vorbereitung oder eine konkrete Anforderung verfügbar. Runtime Scale
 läuft nur manuell mit Zehn-Minuten-Limit; sein Job-Timeout von 30 Minuten ist kein
-30-Minuten-Profil. Release Compatibility hat keinen Wochenplan; die vollständige
-historische Matrix bleibt manuell verfügbar.
+30-Minuten-Profil. Release Compatibility hat keinen Wochenplan; die Matrix
+umfasst Neuinstallation und das unveränderliche veröffentlichte Beta-1-Image.
 
-Production Smokes prüft die aktuelle Appliance. Historische Upgrade-Läufe liegen
+Production Smokes prüft die aktuelle Appliance. Beta-1-Upgrade-Läufe liegen
 in Release Compatibility. Gemeinsame Images sind auf den validierten Lauf und
 Commit beschränkt; einzelne Smoke-Befehle bauen weiterhin selbst.
 

@@ -52,19 +52,14 @@ on:
     workflow_dispatch:
         inputs:
             source:
-                description: Source image (all explicitly runs the full historical matrix)
+                description: Source image (all runs fresh and the beta baseline)
                 required: true
-                default: alpha.6
+                default: beta.1
                 type: choice
                 options:
                     - all
                     - fresh
-                    - alpha.1
-                    - alpha.2
-                    - alpha.3
-                    - alpha.4
-                    - alpha.5
-                    - alpha.6
+                    - beta.1
 
 permissions:
     contents: read
@@ -90,15 +85,13 @@ jobs:
                   EVENT_NAME: ${{ github.event_name }}
                   REQUESTED_SOURCE: ${{ inputs.source }}
               run: |
-                  if [ "$EVENT_NAME" = push ]; then
-                    sources='["alpha.4","alpha.5","alpha.6"]'
-                  elif [ "$EVENT_NAME" = pull_request ]; then
-                    sources='["fresh","alpha.6"]'
+                  if [ "$EVENT_NAME" = push ] || [ "$EVENT_NAME" = pull_request ]; then
+                    sources='["fresh","beta.1"]'
                   elif [ "$EVENT_NAME" = workflow_dispatch ] && [ "$REQUESTED_SOURCE" = all ]; then
-                    sources='["fresh","alpha.1","alpha.2","alpha.3","alpha.4","alpha.5","alpha.6"]'
+                    sources='["fresh","beta.1"]'
                   elif [ "$EVENT_NAME" = workflow_dispatch ]; then
-                    case "${REQUESTED_SOURCE:-alpha.6}" in
-                      fresh|alpha.[1-6]) sources="[\"${REQUESTED_SOURCE:-alpha.6}\"]" ;;
+                    case "${REQUESTED_SOURCE:-beta.1}" in
+                      fresh|beta.1) sources="[\"${REQUESTED_SOURCE:-beta.1}\"]" ;;
                       *) exit 1 ;;
                     esac
                   else
@@ -135,4 +128,4 @@ jobs:
             - name: Run published-image upgrade compatibility
               env:
                   SOURCE_ID: ${{ matrix.source }}
-              run: bun --no-orphans .github/scripts/ci/release-compatibility/run.ts "$SOURCE_ID"
+              run: bun --no-env-file --no-orphans .github/scripts/ci/release-compatibility/run.ts "$SOURCE_ID"

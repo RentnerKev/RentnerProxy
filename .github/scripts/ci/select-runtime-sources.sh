@@ -8,9 +8,8 @@ case "$EVENT_NAME" in
     ;;
   workflow_dispatch)
     case "${REQUESTED_SOURCE:-current}" in
-      all) sources='["current","alpha.6"]' ;;
+      all) sources='["current"]' ;;
       current) sources='["current"]' ;;
-      alpha.6) sources='["alpha.6"]' ;;
       *) exit 1 ;;
     esac
     case "${REQUESTED_PROFILE:-short}" in

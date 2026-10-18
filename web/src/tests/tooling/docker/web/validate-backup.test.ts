@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { createCipheriv } from 'node:crypto'
 
 import {
+    assertSupportedBackupVersion,
     decryptBackupSecret,
     isMigrationJournal,
 } from '../../../../../../docker/web/validate-backup.ts'
@@ -71,4 +72,19 @@ describe('typed backup journal validation', () => {
     ])('rejects malformed journal input %#', (input) => {
         expect(isMigrationJournal(input)).toBe(false)
     })
+})
+
+describe('backup format version boundary', () => {
+    test('accepts the published beta v4 format', () => {
+        expect(() => assertSupportedBackupVersion({ version: 4 })).not.toThrow()
+    })
+
+    test.each([[null], [[]], [{}], [{ version: 3 }], [{ version: 5 }], [{ version: '4' }]])(
+        'rejects unsupported metadata before database validation %#',
+        (metadata) => {
+            expect(() => assertSupportedBackupVersion(metadata)).toThrow(
+                'unsupported backup metadata version (supported: v4)',
+            )
+        },
+    )
 })

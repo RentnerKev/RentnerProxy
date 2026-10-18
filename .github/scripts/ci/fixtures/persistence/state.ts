@@ -20,7 +20,7 @@ const appEncryptionKeyFile = '/run/rentnerproxy/app-key/value'
 
 function validateCommandInput(input: PersistenceCommandInput): void {
     if (!input.containerId.trim() || input.containerId.length > 256) {
-        throw new Error('Alpha 4 fixture container id is invalid.')
+        throw new Error('Persistence fixture container id is invalid.')
     }
 }
 
@@ -39,7 +39,7 @@ export async function assertPersistenceFixture(
     try {
         deepStrictEqual(actual, input.expected)
     } catch {
-        throw new Error('Alpha 4 persistence fixture snapshot did not survive backup restore.')
+        throw new Error('Persistence fixture snapshot did not survive backup restore.')
     }
 }
 
@@ -70,7 +70,7 @@ export async function assertPersistenceRequestDecrypts(
         const request: unknown = JSON.parse(plaintext)
         deepStrictEqual(request, input.fixture.request)
     } catch {
-        throw new Error('Alpha 4 persistence fixture encrypted request could not be decrypted.')
+        throw new Error('Persistence fixture encrypted request could not be decrypted.')
     }
 }
 
