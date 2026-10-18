@@ -884,7 +884,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
         await mkdir(join(fixtureRoot, 'scripts/runtime-reliability'), { recursive: true })
         for (const name of [
             'fixture.ts',
-            'fixture-beta.ts',
+            'fixture-core.ts',
             'fixture-context.ts',
             'fixture.validation.ts',
         ]) {
@@ -894,7 +894,7 @@ process.stdout.write(JSON.stringify({status:response.status, body:await response
             )
             await writeFile(join(fixtureRoot, 'scripts/runtime-reliability', name), fixtureContents)
         }
-        const fixtureSource = join(fixtureRoot, 'scripts/runtime-reliability', 'fixture-beta.ts')
+        const fixtureSource = join(fixtureRoot, 'scripts/runtime-reliability', 'fixture.ts')
         const bundle = join(temp, 'reliability-fixture.js')
         await command([
             process.execPath,
@@ -996,7 +996,6 @@ console.log(JSON.stringify({memoryBytes:Math.max(0,memory-inactive),pids:Number(
     }
     return {
         context,
-        knownLimitations: [],
         setup,
         cleanup,
         resources,
@@ -1006,9 +1005,6 @@ console.log(JSON.stringify({memoryBytes:Math.max(0,memory-inactive),pids:Number(
             return imageIdentity
         },
         get targetSha() {
-            return targetSha
-        },
-        get runtimeRevision() {
             return targetSha
         },
         get started() {

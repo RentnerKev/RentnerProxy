@@ -6,7 +6,6 @@ on:
             - main
         paths:
             - '.github/workflows/runtime-reliability.yml'
-            - '.github/scripts/ci/select-runtime-sources.sh'
             - '.github/scripts/ci/production-smoke-ci.ts'
             - 'core/**'
             - 'docker/**'
@@ -26,7 +25,6 @@ on:
             - main
         paths:
             - '.github/workflows/runtime-reliability.yml'
-            - '.github/scripts/ci/select-runtime-sources.sh'
             - '.github/scripts/ci/production-smoke-ci.ts'
             - 'core/**'
             - 'docker/**'
@@ -51,14 +49,6 @@ on:
                 options:
                     - short
                     - long
-            source:
-                description: Current build
-                required: true
-                default: current
-                type: choice
-                options:
-                    - all
-                    - current
             duration-seconds:
                 description: Optional duration bound (30 to 7200 seconds)
                 type: string
@@ -88,36 +78,8 @@ env:
     RENTNERPROXY_SMOKE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:
-    select-sources:
-        runs-on: ubuntu-latest
-        timeout-minutes: 5
-        outputs:
-            sources: ${{ steps.select.outputs.sources }}
-            profile: ${{ steps.select.outputs.profile }}
-        steps:
-            - name: Check out trusted runtime selection
-              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-              with:
-                  persist-credentials: false
-                  path: trusted
-                  ref: ${{ github.event.pull_request.base.sha || github.sha }}
-
-            - id: select
-              name: Select bounded profile and sources
-              env:
-                  EVENT_NAME: ${{ github.event_name }}
-                  REQUESTED_SOURCE: ${{ inputs.source }}
-                  REQUESTED_PROFILE: ${{ inputs.profile }}
-              run: bash trusted/.github/scripts/ci/select-runtime-sources.sh
-
     runtime-reliability:
-        needs: select-sources
-        strategy:
-            fail-fast: false
-            max-parallel: 1
-            matrix:
-                source: ${{ fromJSON(needs.select-sources.outputs.sources) }}
-        name: ${{ needs.select-sources.outputs.profile }} / ${{ matrix.source }}
+        name: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'short' }} / current
         runs-on: ubuntu-latest
         timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs['duration-seconds'] != '' && 240 || 90 }}
         steps:
@@ -126,11 +88,10 @@ jobs:
                   mkdir -p "$RUNNER_TEMP/runtime-reliability-report"
                   printf '%s\n' '{"summary":{"passed":false,"requestedDurationReached":false},"failure":"runner-not-completed"}' > "$RUNNER_TEMP/runtime-reliability-report/report.json"
 
-            - name: Check out exact target commit and historical sources
+            - name: Check out exact target commit
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
-                  fetch-depth: 0
                   ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
             - name: Set up Bun
@@ -144,15 +105,14 @@ jobs:
 
             - name: Run isolated runtime reliability fixture
               env:
-                  PROFILE: ${{ needs.select-sources.outputs.profile }}
-                  SOURCE: ${{ matrix.source }}
+                  PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'short' }}
                   DURATION_SECONDS: ${{ inputs['duration-seconds'] }}
                   ITERATIONS: ${{ inputs.iterations }}
                   CONCURRENCY: ${{ inputs.concurrency }}
                   CAPTURE_RESOURCES: ${{ github.event_name != 'workflow_dispatch' || inputs['capture-resources'] }}
                   SEED: ${{ inputs.seed }}
               run: |
-                  args=(--profile "$PROFILE" --source "$SOURCE" --capture-resources "$CAPTURE_RESOURCES" --report "$RUNNER_TEMP/runtime-reliability-report/report.json")
+                  args=(--profile "$PROFILE" --capture-resources "$CAPTURE_RESOURCES" --report "$RUNNER_TEMP/runtime-reliability-report/report.json")
                   if [ -n "$DURATION_SECONDS" ]; then args+=(--duration-seconds "$DURATION_SECONDS"); fi
                   if [ -n "$ITERATIONS" ]; then args+=(--iterations "$ITERATIONS"); fi
                   if [ -n "$CONCURRENCY" ]; then args+=(--concurrency "$CONCURRENCY"); fi
@@ -167,7 +127,7 @@ jobs:
               if: always()
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
-                  name: runtime-reliability-${{ matrix.source }}-${{ github.run_attempt }}
+                  name: runtime-reliability-current-${{ github.run_attempt }}
                   path: ${{ runner.temp }}/runtime-reliability-report/report.json
                   if-no-files-found: error
                   retention-days: 30

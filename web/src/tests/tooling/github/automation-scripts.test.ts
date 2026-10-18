@@ -101,37 +101,6 @@ describe('exact PR source proof', () => {
     })
 })
 
-describe('bounded reliability selection', () => {
-    test.each([
-        ['push', 'all', 'long', '["current"]', 'short', true],
-        ['pull_request', 'all', 'long', '["current"]', 'short', true],
-        ['schedule', '', '', '', '', false],
-        ['workflow_dispatch', 'current', 'short', '["current"]', 'short', true],
-        ['workflow_dispatch', 'all', 'long', '["current"]', 'long', true],
-        ['workflow_dispatch', 'alpha.6', 'short', '', '', false],
-        ['workflow_dispatch', 'unknown', 'short', '', '', false],
-        ['workflow_dispatch', 'current', 'unknown', '', '', false],
-        ['unknown', 'current', 'short', '', '', false],
-    ])(
-        'selects fixtures for %s / %s / %s',
-        async (event, source, profile, sources, selectedProfile, accepted) => {
-            const directory = await fixture()
-            const output = join(directory, 'output.txt')
-            await writeFile(output, '')
-            const result = await runScript('ci/select-runtime-sources.sh', {
-                EVENT_NAME: event,
-                REQUESTED_SOURCE: source,
-                REQUESTED_PROFILE: profile,
-                GITHUB_OUTPUT: shellPath(output),
-            })
-            expect(result.exitCode === 0).toBe(accepted)
-            expect(await readFile(output, 'utf8')).toBe(
-                accepted ? `sources=${sources}\nprofile=${selectedProfile}\n` : '',
-            )
-        },
-    )
-})
-
 describe('redacted commit scans', () => {
     test.each([
         ['pull_request', '-m ' + 'a'.repeat(40) + '..' + 'b'.repeat(40)],

@@ -35,7 +35,6 @@ export type ReliabilityFailure = {
 
 export type ReliabilityReportInput = {
     targetSha: string
-    runtimeRevision: string
     imageIdentity: string
     options: ReliabilityOptions
     completedIterations: number
@@ -43,7 +42,6 @@ export type ReliabilityReportInput = {
     checks: ReliabilityCheck[]
     samples: ResourceSample[]
     failure?: ReliabilityFailure
-    knownLimitations?: never[]
 }
 
 import type { resourceLimits, metrics } from '../control.config.ts'

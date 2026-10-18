@@ -59,7 +59,7 @@ export async function seedPersistenceFixture(input: {
     const expiresAt = new Date(now.getTime() + 60 * 24 * 60 * 60_000)
     const nextRenewalAt = new Date(now.getTime() + 30 * 24 * 60 * 60_000)
     const identityDigest = digest({ runId: input.runId, ownerUserId: ids.ownerUserId })
-    const domain = `a4-${identityDigest.slice(0, 32)}.example.com`
+    const domain = `persistence-${identityDigest.slice(0, 32)}.example.com`
     const request: PersistenceCertificateRequest = {
         name: `Persistence ${input.runId}`,
         domains: [domain],

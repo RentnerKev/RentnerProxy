@@ -195,7 +195,6 @@ export function analyzeResources(samples: ResourceSample[], concurrency: number)
 export function buildReliabilityReport(input: ReliabilityReportInput) {
     if (
         !/^[a-f0-9]{40}$/.test(input.targetSha) ||
-        !/^[a-f0-9]{40}$/.test(input.runtimeRevision) ||
         !/^sha256:[a-f0-9]{64}$/.test(input.imageIdentity)
     )
         throw new Error('Invalid report identity')
@@ -247,7 +246,7 @@ export function buildReliabilityReport(input: ReliabilityReportInput) {
     return {
         schemaVersion: 1 as const,
         targetSha: input.targetSha,
-        runtimeRevision: input.runtimeRevision,
+        runtimeRevision: input.targetSha,
         source: options.source,
         imageIdentity: input.imageIdentity,
         options,

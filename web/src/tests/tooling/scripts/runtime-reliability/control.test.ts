@@ -36,7 +36,6 @@ function sequence(seed: number): number[] {
 function reportInput(): ReliabilityReportInput {
     return {
         targetSha: 'a'.repeat(40),
-        runtimeRevision: 'c'.repeat(40),
         imageIdentity: `sha256:${'b'.repeat(64)}`,
         options: parseReliabilityOptions([]),
         completedIterations: 3,
@@ -284,7 +283,7 @@ describe('sanitized reliability reports', () => {
         })
         expect(report.observedDurationSeconds).toBe(25)
         expect(report.targetSha).toBe('a'.repeat(40))
-        expect(report.runtimeRevision).toBe('c'.repeat(40))
+        expect(report.runtimeRevision).toBe(report.targetSha)
     })
 
     test('failure exposes static categories and never exception details', () => {
@@ -300,7 +299,6 @@ describe('sanitized reliability reports', () => {
     test('rejects arbitrary identity, check, failure and progress payloads', () => {
         const invalidInputs = [
             { ...reportInput(), targetSha: 'private-secret' },
-            { ...reportInput(), runtimeRevision: 'private-secret' },
             { ...reportInput(), imageIdentity: 'registry/private-secret:latest' },
             { ...reportInput(), observedDurationSeconds: NaN },
             { ...reportInput(), completedIterations: 4 },

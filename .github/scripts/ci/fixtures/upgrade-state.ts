@@ -157,7 +157,7 @@ export async function seedUpgradeFixture(input: {
     readonly command: ApplianceCommand
     readonly upstreamPort: number
     readonly runId: string
-    readonly managementOrigin?: string
+    readonly managementOrigin: string
 }): Promise<UpgradeFixture> {
     validateRunId(input.runId)
     if (
@@ -219,13 +219,9 @@ export async function seedUpgradeFixture(input: {
     const caNotBefore = requireString(metadata.caNotBefore, 'CA notBefore')
     const caNotAfter = requireString(metadata.caNotAfter, 'CA notAfter')
     const customPermissionKeys = ['proxy_hosts.view', 'redirect_hosts.view'] as const
-    if (input.managementOrigin !== undefined && input.managementOrigin.length > 2_048) {
+    if (input.managementOrigin.length > 2_048) {
         throw new Error('Management origin is too long.')
     }
-    const managementOriginSql =
-        input.managementOrigin === undefined
-            ? ''
-            : `,\n('management_origin_v1',${sqlQuote(JSON.stringify({ version: 1, origin: input.managementOrigin }))}::jsonb)`
     const sql = `
 begin;
 insert into rentnerproxy.roles (id,key,name,description,is_system)
@@ -272,7 +268,8 @@ values (${sqlQuote(redirectHostId)},${sqlQuote(redirectDomain)});
 insert into rentnerproxy.system_settings (key,value)
 values
 ('proxy_runtime_editor_v1',${sqlQuote(JSON.stringify({ version: 1, httpSettings: globalHttpSettings }))}::jsonb),
-(${sqlQuote('proxy_runtime_host_v1:' + disabledTlsProxyHostId)},${sqlQuote(JSON.stringify({ version: 1, httpSettings: hostHttpSettings }))}::jsonb)${managementOriginSql}
+(${sqlQuote('proxy_runtime_host_v1:' + disabledTlsProxyHostId)},${sqlQuote(JSON.stringify({ version: 1, httpSettings: hostHttpSettings }))}::jsonb),
+('management_origin_v1',${sqlQuote(JSON.stringify({ version: 1, origin: input.managementOrigin }))}::jsonb)
 on conflict (key) do update set value=excluded.value,updated_at=now();
 commit;
 `
@@ -309,9 +306,7 @@ commit;
         upstreamPort: input.upstreamPort,
         globalHttpSettings,
         hostHttpSettings,
-        ...(input.managementOrigin === undefined
-            ? {}
-            : { managementOrigin: input.managementOrigin }),
+        managementOrigin: input.managementOrigin,
     }
 }
 
@@ -327,13 +322,9 @@ export async function assertUpgradeFixture(input: {
     readonly containerId: string
     readonly command: ApplianceCommand
     readonly fixture: UpgradeFixture
-    readonly expectedMigrationCount?: number
+    readonly expectedMigrationCount: number
 }): Promise<void> {
     const f = input.fixture
-    const managementOrigin =
-        f.managementOrigin === undefined
-            ? '0'
-            : `(select count(*) from rentnerproxy.system_settings where key='management_origin_v1' and value=${sqlQuote(JSON.stringify({ version: 1, origin: f.managementOrigin }))}::jsonb)`
     const base = await queryJson(
         input.command,
         input.containerId,
@@ -369,14 +360,13 @@ export async function assertUpgradeFixture(input: {
             'redirectDomainRows', (select count(*) from rentnerproxy.host_domains where redirect_host_id=${sqlQuote(f.redirectHostId)}),
             'globalSettings', (select count(*) from rentnerproxy.system_settings where key='proxy_runtime_editor_v1' and value=${sqlQuote(JSON.stringify({ version: 1, httpSettings: f.globalHttpSettings }))}::jsonb),
             'hostSettings', (select count(*) from rentnerproxy.system_settings where key=${sqlQuote('proxy_runtime_host_v1:' + f.disabledTlsProxyHostId)} and value=${sqlQuote(JSON.stringify({ version: 1, httpSettings: f.hostHttpSettings }))}::jsonb),
-            'managementOrigin', ${managementOrigin},
+            'managementOrigin', (select count(*) from rentnerproxy.system_settings where key='management_origin_v1' and value=${sqlQuote(JSON.stringify({ version: 1, origin: f.managementOrigin }))}::jsonb),
             'migrations', (select count(*) from drizzle.__drizzle_migrations)
         ) as value`,
     )
     const number = (key: string) => Number(base[key] ?? 0)
 
-    const expectedMigrationCount = input.expectedMigrationCount ?? CURRENT_MIGRATION_COUNT
-    if (number('migrations') !== expectedMigrationCount) {
+    if (number('migrations') !== input.expectedMigrationCount) {
         throw new Error('Unexpected migration journal state for Beta 1 fixture.')
     }
     if (
@@ -414,7 +404,7 @@ export async function assertUpgradeFixture(input: {
     if (number('globalSettings') !== 1 || number('hostSettings') !== 1) {
         throw new Error('Beta 1 fixture HTTP settings were not preserved.')
     }
-    if (number('managementOrigin') !== (f.managementOrigin === undefined ? 0 : 1)) {
+    if (number('managementOrigin') !== 1) {
         throw new Error('The management origin was not preserved.')
     }
 }
