@@ -9,8 +9,11 @@ import {
     filterNotificationStateForChannels,
 } from '@/server/Notifications/notification-access.ts'
 import { createAuthorizedNotificationDelivery } from '@/server/Notifications/notification-delivery.server.ts'
+import { NotificationDomainError } from '@/server/Notifications/notification.errors.ts'
 import {
     createNotificationState,
+    claimNotificationDelivery,
+    finishNotificationDelivery,
     observeNotificationSignals,
 } from '@/server/Notifications/incident-engine.ts'
 import type {
@@ -177,5 +180,86 @@ describe('notification ownership and current access', () => {
             retryable: false,
         })
         expect(deliver).not.toHaveBeenCalled()
+    })
+
+    test('a transient authorization database failure preserves the queued incident for retry', async () => {
+        const own = { ...configuration, channels: [channel] }
+        const state = observeNotificationSignals(
+            createNotificationState(),
+            own,
+            [
+                {
+                    source: 'event',
+                    category: 'ddns',
+                    resourceId: 'record',
+                    health: 'failing',
+                    severity: 'error',
+                    occurredAt: new Date(1_000).toISOString(),
+                    evidence: 'outage',
+                    failures: 1,
+                },
+            ],
+            1_000,
+            () => crypto.randomUUID(),
+        )
+        const queued = claimNotificationDelivery(state, own, 1_000, () => crypto.randomUUID())
+        const open = mock(async () => ({
+            kind: 'email' as const,
+            recipients: ['test@example.test'],
+        }))
+        const deliver = mock(async () => ({ success: true as const }))
+        const send = createAuthorizedNotificationDelivery({
+            authorize: async () => {
+                throw new Error('private database connection details')
+            },
+            open,
+            deliver,
+        })
+        const result = await send({ ...queued.delivery!, channel })
+        expect(result).toEqual({ success: false, code: 'destination_unavailable', retryable: true })
+        expect(open).not.toHaveBeenCalled()
+        expect(deliver).not.toHaveBeenCalled()
+        const retained = finishNotificationDelivery(
+            queued.state,
+            own,
+            queued.delivery!.leaseToken,
+            result,
+            1_001,
+        )
+        expect(retained.deliveries[0]?.status).toBe('pending')
+        expect(
+            claimNotificationDelivery(retained, own, retained.deliveries[0]!.nextAttemptAt, () =>
+                crypto.randomUUID(),
+            ).delivery?.id,
+        ).toBe(queued.delivery!.id)
+    })
+
+    test('corrupt sealed destinations stay terminal while unexpected transport failures remain retryable', async () => {
+        const deliver = mock(async () => {
+            throw new Error('private receiver error')
+        })
+        const corrupt = createAuthorizedNotificationDelivery({
+            authorize: async () => ({ channel, allowPrivateDestinations: true }),
+            open: async () => {
+                throw new NotificationDomainError('configuration_unavailable')
+            },
+            deliver,
+        })
+        expect(await corrupt(claim)).toEqual({
+            success: false,
+            code: 'configuration_unavailable',
+            retryable: false,
+        })
+        expect(deliver).not.toHaveBeenCalled()
+        const transient = createAuthorizedNotificationDelivery({
+            authorize: async () => ({ channel, allowPrivateDestinations: true }),
+            open: async () => ({ kind: 'email', recipients: ['test@example.test'] }),
+            deliver,
+        })
+        expect(await transient(claim)).toEqual({
+            success: false,
+            code: 'destination_unavailable',
+            retryable: true,
+        })
     })
 })

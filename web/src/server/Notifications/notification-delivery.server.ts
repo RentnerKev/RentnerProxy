@@ -4,6 +4,7 @@ import type { NotificationDeliveryResult } from '@/lib/Notifications/Types/notif
 import { deliverNotification } from './delivery.service.ts'
 import { authorizeNotificationDelivery } from './notification-repository.ts'
 import { openNotificationDestination } from './notification-settings.ts'
+import { NotificationDomainError } from './notification.errors.ts'
 import type { NotificationDeliveryClaim } from './Types/notification-internal.types.ts'
 
 export function createAuthorizedNotificationDelivery(dependencies: {
@@ -27,8 +28,10 @@ export function createAuthorizedNotificationDelivery(dependencies: {
                 return { success: false, code: 'destination_blocked', retryable: false }
             if (signal?.aborted) return { success: false, code: 'cancelled', retryable: true }
             return await dependencies.deliver(destination, claim.payload, signal)
-        } catch {
-            return { success: false, code: 'configuration_unavailable', retryable: false }
+        } catch (error) {
+            return error instanceof NotificationDomainError
+                ? { success: false, code: 'configuration_unavailable', retryable: false }
+                : { success: false, code: 'destination_unavailable', retryable: true }
         }
     }
 }
