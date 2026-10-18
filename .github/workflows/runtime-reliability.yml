@@ -2,8 +2,6 @@ name: Runtime Reliability
 
 on:
     pull_request:
-        branches:
-            - main
         paths:
             - '.github/workflows/runtime-reliability.yml'
             - '.github/scripts/ci/production-smoke-ci.ts'
