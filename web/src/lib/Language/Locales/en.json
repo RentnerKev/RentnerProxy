@@ -1,4 +1,55 @@
 {
+    "updates": {
+        "checkFailedIndicator": "Update check failed — open details",
+        "platform": "Image platform",
+        "minimumVersion": "Minimum source version",
+        "intermediateVersion": "Required intermediate version",
+        "title": "Update RentnerProxy",
+        "description": "Review the release and plan a manual update. This dialog does not install anything or create a backup.",
+        "current": "Installed version",
+        "target": "Published target",
+        "channel": "Target channel",
+        "unknown": "Unavailable",
+        "channels": { "alpha": "Alpha", "beta": "Beta", "stable": "Stable" },
+        "availability": "Release and upgrade checks",
+        "published": "A newer release is published. Publication alone does not mean its image or upgrade path is ready.",
+        "checkFailed": "Update information is unavailable. Recheck before changing the image; previous verification is no longer shown.",
+        "images": {
+            "verified": "The immutable image digest and platform were verified against release metadata.",
+            "pending": "The release image is not yet verified. Wait for publication and verification before updating.",
+            "unavailable": "The image could not be verified. Do not select an unverified target.",
+            "unsupported-platform": "This image does not support the configured platform.",
+            "invalid": "Release image metadata is invalid. Do not use this target."
+        },
+        "compatibility": {
+            "supported": "The published compatibility policy supports this upgrade source. Complete the backup and preparation below before updating.",
+            "requires-beta1": "Direct upgrade is blocked: Alpha must pass through pinned v1.0.0-beta.1. Complete reconciliation, verify hosts and certificates, then create a new v4 backup before proceeding.",
+            "unsupported": "This upgrade source is not confirmed as supported. Do not upgrade directly; review the official release requirements first."
+        },
+        "imageReference": "Verified target image reference",
+        "copy": "Copy image reference",
+        "copyHint": "Copying does not authorize an unsupported upgrade or change your deployment.",
+        "copyStates": {
+            "copied": "Image reference copied.",
+            "failed": "Clipboard access failed. Select and copy the reference in the field above manually."
+        },
+        "notes": "Release notes",
+        "noNotes": "No release notes are available here. Read the official release page before proceeding.",
+        "releaseLink": "Read the official GitHub release ↗",
+        "guideTitle": "Manual update checklist",
+        "interruption": "Plan a maintenance window: backups and container replacement interrupt both proxy traffic and the web interface.",
+        "guide": {
+            "prepare": "Use a checkout of the currently installed source release with its Bun tooling and the deployment's actual Compose environment/project. Privately save the exact running source image digest, Compose configuration, ports, deployment environment and credentials/encryption material. The UI does not inspect or certify a host backup.",
+            "backup": "Before changing the image, complete a full production backup using that source release's tools. Replace the placeholders and store the completed backup outside the appliance volume in private, trusted storage. The backup tool checks that the Compose-selected image matches the actual container .Image; resolve any mismatch before continuing.",
+            "alpha": "For Alpha, first use ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1 (never the moving :beta tag). Complete startup and configuration reconciliation, verify hosts and certificates, then create a new v4 backup with Beta 1 tooling. Direct Alpha → Beta 2+, direct v3 restore and importing old environment-file secrets are unsupported. Restore an Alpha v3 archive only through pinned Beta 1 and its restore tools first.",
+            "image": "Proceed only when image verification and compatibility both permit the intended step. Update the existing authoritative RENTNERPROXY_IMAGE value, or select the image in your external deployment manager. Keep the Compose structure unchanged, recreate the appliance with your existing deployment workflow, and retain the existing persistent volume including bootstrap/secrets-v1.json. Never replace or regenerate that secret state.",
+            "verify": "After startup, verify readiness, the reported version, actual proxy traffic, hosts, certificates, permissions and complete configuration reconciliation. Accept the upgrade only after these checks succeed."
+        },
+        "recoveryTitle": "Recovery if the update fails",
+        "recovery": "Recover the pre-upgrade backup onto a fresh volume using the exact source image digest and that source release's restore tools. Never start an older image on a volume already migrated by a newer version. Restore replaces target data; select the project and backup deliberately.",
+        "restoreValidation": "Restore tools validate the backup and source identity. Supported v4 migration history must be a nonempty exact prefix of the target history, including positions, SHA-256 hashes and timestamps. Older formats, divergent histories and downgrades are rejected. Keep deployment secrets privately alongside the backup; they are absent from its manifest. Review origin and trusted-proxy CIDRs before any intentional deployment change.",
+        "resume": "If restore is interrupted after replacement begins, its persistent journal blocks startup. Stop any manually started appliance and rerun the same backup with --resume --confirm-replace. The same backup is validated again and replacement repeats; another backup is rejected while the journal is pending."
+    },
     "toast": {
         "notification": "Notification",
         "dismiss": "Dismiss notification",

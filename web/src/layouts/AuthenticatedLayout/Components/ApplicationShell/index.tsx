@@ -10,6 +10,7 @@ import ApplicationTopbar from './Components/ApplicationTopbar.tsx'
 import ApplicationMobileNavigation from './Components/ApplicationMobileNavigation.tsx'
 import ApplicationUserPanel from './Components/ApplicationUserPanel.tsx'
 import ApplicationVersion from './Components/ApplicationVersion.tsx'
+import ApplicationUpdateDialog from '@/features/ApplicationVersion/Components/ApplicationUpdateDialog.tsx'
 import useApplicationShellLogic from './Hooks/useApplicationShellLogic.ts'
 import QuickSearch from '@/features/QuickSearch/index.tsx'
 import type { AuthenticatedShellProps } from './Types/application-shell.types.ts'
@@ -92,7 +93,7 @@ export default function AuthenticatedShell({
                         onLogout={onLogout}
                         user={user}
                     />
-                    <ApplicationVersion />
+                    <ApplicationVersion data={state.update} onOpen={handler.openUpdate} />
                 </div>
                 <ApplicationSidebarScrollIndicator
                     scrollContainerRef={sidebarScrollRef}
@@ -144,7 +145,10 @@ export default function AuthenticatedShell({
                                     user={user}
                                 />
                                 <div className="shrink-0 bg-navy-950 px-7 pt-2 pb-3">
-                                    <ApplicationVersion />
+                                    <ApplicationVersion
+                                        data={state.update}
+                                        onOpen={handler.openUpdate}
+                                    />
                                 </div>
                             </>
                         ) : null}
@@ -154,6 +158,11 @@ export default function AuthenticatedShell({
                     {children}
                 </main>
             </div>
+            <ApplicationUpdateDialog
+                data={state.update}
+                open={state.isUpdateOpen}
+                onOpenChange={handler.handleUpdateOpenChange}
+            />
         </div>
     )
 }

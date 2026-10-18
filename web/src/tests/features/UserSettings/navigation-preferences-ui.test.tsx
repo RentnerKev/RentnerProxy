@@ -36,7 +36,12 @@ mock.module('@/features/QuickSearch/index.tsx', () => ({
     default: () => <button type="button">Search</button>,
 }))
 mock.module('@/features/ApplicationVersion/middleware.ts', () => ({
-    getApplicationUpdateHandler: async () => ({ latestVersion: null }),
+    getApplicationUpdateHandler: async () => ({
+        status: 'current',
+        checkedAt: null,
+        currentChannel: 'beta',
+        latest: null,
+    }),
 }))
 
 const { act } = await import('react')

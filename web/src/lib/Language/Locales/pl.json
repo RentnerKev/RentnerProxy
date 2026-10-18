@@ -1,4 +1,59 @@
 {
+    "updates": {
+        "checkFailedIndicator": "Nie udało się sprawdzić aktualizacji — otwórz szczegóły",
+        "platform": "Platforma obrazu",
+        "minimumVersion": "Minimalna wersja źródłowa",
+        "intermediateVersion": "Wymagana wersja pośrednia",
+        "title": "Zaktualizuj RentnerProxy",
+        "description": "Sprawdź wydanie i przygotuj ręczną aktualizację. To okno dialogowe niczego nie instaluje ani nie tworzy kopii zapasowej.",
+        "current": "Zainstalowana wersja",
+        "target": "Opublikowany cel",
+        "channel": "Kanał docelowy",
+        "unknown": "Niedostępne",
+        "channels": {
+            "alpha": "Alpha",
+            "beta": "Beta",
+            "stable": "Stabilne"
+        },
+        "availability": "Kontrole wydania i aktualizacji",
+        "published": "Opublikowano nowsze wydanie. Sama publikacja nie oznacza, że obraz lub ścieżka aktualizacji są gotowe.",
+        "checkFailed": "Informacje o aktualizacji są niedostępne. Sprawdź je ponownie przed zmianą obrazu; poprzednia weryfikacja nie jest już wyświetlana.",
+        "images": {
+            "verified": "Niezmienny digest obrazu i platformę zweryfikowano na podstawie metadanych wydania.",
+            "pending": "Obraz wydania nie został jeszcze zweryfikowany. Przed aktualizacją poczekaj na publikację i weryfikację.",
+            "unavailable": "Nie udało się zweryfikować obrazu. Nie wybieraj nieweryfikowanego celu.",
+            "unsupported-platform": "Ten obraz nie obsługuje skonfigurowanej platformy.",
+            "invalid": "Metadane obrazu wydania są nieprawidłowe. Nie używaj tego celu."
+        },
+        "compatibility": {
+            "supported": "Opublikowana polityka zgodności obsługuje tę wersję źródłową. Przed aktualizacją wykonaj kopię zapasową i przygotowania opisane poniżej.",
+            "requires-beta1": "Aktualizacja bezpośrednia jest zablokowana: Alpha musi przejść przez przypiętą wersję v1.0.0-beta.1. Dokończ uzgadnianie konfiguracji, sprawdź hosty i certyfikaty, a następnie utwórz nową kopię zapasową v4.",
+            "unsupported": "Nie potwierdzono obsługi tej wersji źródłowej. Nie aktualizuj bezpośrednio; najpierw sprawdź oficjalne wymagania wydania."
+        },
+        "imageReference": "Zweryfikowane odwołanie do obrazu docelowego",
+        "copy": "Kopiuj odwołanie do obrazu",
+        "copyHint": "Skopiowanie nie zezwala na nieobsługiwaną aktualizację ani nie zmienia wdrożenia.",
+        "copyStates": {
+            "copied": "Skopiowano odwołanie do obrazu.",
+            "failed": "Nie udało się uzyskać dostępu do schowka. Zaznacz i skopiuj ręcznie odwołanie z pola powyżej."
+        },
+        "notes": "Informacje o wydaniu",
+        "noNotes": "Nie ma tu informacji o wydaniu. Przed kontynuowaniem przeczytaj oficjalną stronę wydania.",
+        "releaseLink": "Przeczytaj oficjalne wydanie w GitHub ↗",
+        "guideTitle": "Lista kontrolna ręcznej aktualizacji",
+        "interruption": "Zaplanuj okno serwisowe: kopie zapasowe i wymiana kontenera przerywają ruch proxy oraz działanie interfejsu WWW.",
+        "guide": {
+            "prepare": "Użyj checkoutu aktualnie zainstalowanego wydania źródłowego wraz z jego narzędziami Bun oraz rzeczywistym środowiskiem i projektem Compose wdrożenia. Zachowaj prywatnie dokładny digest działającego obrazu źródłowego, konfigurację Compose, porty, środowisko wdrożenia oraz dane uwierzytelniające i materiał szyfrujący. Interfejs nie sprawdza ani nie poświadcza kopii zapasowej hosta.",
+            "backup": "Przed zmianą obrazu wykonaj pełną kopię zapasową produkcji narzędziami tego wydania źródłowego. Zastąp symbole zastępcze i przechowuj gotową kopię poza woluminem appliance, w prywatnym i zaufanym miejscu. Narzędzie sprawdza, czy obraz wybrany przez Compose odpowiada polu .Image rzeczywistego kontenera; przed kontynuowaniem usuń wszelkie rozbieżności.",
+            "alpha": "W przypadku Alpha najpierw użyj ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1 (nigdy ruchomego tagu :beta). Dokończ uruchamianie i uzgadnianie konfiguracji, sprawdź hosty i certyfikaty, a następnie utwórz nową kopię zapasową v4 narzędziami Beta 1. Bezpośrednie przejście z Alpha do Beta 2 lub nowszej, bezpośrednie odtworzenie v3 i import starszych sekretów z plików środowiskowych nie są obsługiwane. Archiwum Alpha v3 najpierw odtwórz wyłącznie za pomocą przypiętej Beta 1 i jej narzędzi odtwarzania.",
+            "image": "Kontynuuj tylko wtedy, gdy weryfikacja obrazu i zgodność pozwalają na planowany krok. Zmień istniejącą, nadrzędną wartość RENTNERPROXY_IMAGE albo wybierz obraz w zewnętrznym menedżerze wdrożenia. Zachowaj strukturę Compose, odtwórz appliance przy użyciu dotychczasowej procedury wdrożenia i zachowaj istniejący wolumin trwały, w tym bootstrap/secrets-v1.json. Nigdy nie zastępuj ani nie generuj ponownie tego stanu sekretów.",
+            "verify": "Po uruchomieniu sprawdź gotowość, zgłaszaną wersję, rzeczywisty ruch proxy, hosty, certyfikaty, uprawnienia i pełne uzgodnienie konfiguracji. Zaakceptuj aktualizację dopiero po pomyślnym przejściu tych kontroli."
+        },
+        "recoveryTitle": "Odzyskiwanie po nieudanej aktualizacji",
+        "recovery": "Odtwórz kopię sprzed aktualizacji na nowym woluminie, używając dokładnego digestu obrazu źródłowego i narzędzi odtwarzania tego wydania źródłowego. Nigdy nie uruchamiaj starszego obrazu na woluminie zmigrowanym już przez nowszą wersję. Odtwarzanie zastępuje dane docelowe; starannie wybierz projekt i kopię zapasową.",
+        "restoreValidation": "Narzędzia odtwarzania weryfikują kopię i tożsamość źródła. Obsługiwana historia migracji v4 musi być niepustym, dokładnym prefiksem historii docelowej, wraz z pozycjami, hashami SHA-256 i znacznikami czasu. Starsze formaty, rozbieżne historie i downgrade’y są odrzucane. Przechowuj sekrety wdrożenia prywatnie razem z kopią; nie ma ich w manifeście. Przed zamierzoną zmianą wdrożenia sprawdź sieci CIDR origin i zaufanych proxy.",
+        "resume": "Jeśli odtwarzanie zostanie przerwane po rozpoczęciu zastępowania, trwały dziennik blokuje uruchomienie. Zatrzymaj ręcznie uruchomioną appliance i ponownie wykonaj odtwarzanie tej samej kopii za pomocą --resume --confirm-replace. Ta sama kopia zostanie ponownie zweryfikowana i zastąpienie zostanie powtórzone; inna kopia zostanie odrzucona, gdy dziennik pozostaje oczekujący."
+    },
     "toast": {
         "notification": "Powiadomienie",
         "dismiss": "Zamknij powiadomienie",

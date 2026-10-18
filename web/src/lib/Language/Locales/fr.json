@@ -1,4 +1,59 @@
 {
+    "updates": {
+        "checkFailedIndicator": "Échec de la vérification des mises à jour — afficher les détails",
+        "platform": "Plateforme de l’image",
+        "minimumVersion": "Version source minimale",
+        "intermediateVersion": "Version intermédiaire requise",
+        "title": "Mettre à jour RentnerProxy",
+        "description": "Examinez la version et préparez une mise à jour manuelle. Cette boîte de dialogue n’installe rien et ne crée aucune sauvegarde.",
+        "current": "Version installée",
+        "target": "Cible publiée",
+        "channel": "Canal cible",
+        "unknown": "Indisponible",
+        "channels": {
+            "alpha": "Alpha",
+            "beta": "Beta",
+            "stable": "Stable"
+        },
+        "availability": "Vérifications de la version et de la mise à niveau",
+        "published": "Une version plus récente est publiée. Sa publication ne garantit pas à elle seule que l’image ou le parcours de mise à niveau est prêt.",
+        "checkFailed": "Les informations de mise à jour sont indisponibles. Vérifiez à nouveau avant de changer l’image ; la vérification précédente n’est plus affichée.",
+        "images": {
+            "verified": "Le digest immuable de l’image et la plateforme ont été vérifiés à partir des métadonnées de la version.",
+            "pending": "L’image de cette version n’est pas encore vérifiée. Attendez sa publication et sa vérification avant la mise à jour.",
+            "unavailable": "L’image n’a pas pu être vérifiée. Ne sélectionnez pas une cible non vérifiée.",
+            "unsupported-platform": "Cette image ne prend pas en charge la plateforme configurée.",
+            "invalid": "Les métadonnées de l’image de cette version sont invalides. N’utilisez pas cette cible."
+        },
+        "compatibility": {
+            "supported": "La politique de compatibilité publiée prend en charge cette version source. Effectuez la sauvegarde et les préparatifs ci-dessous avant la mise à jour.",
+            "requires-beta1": "Mise à niveau directe bloquée : Alpha doit passer par v1.0.0-beta.1, dont la version est fixée. Terminez la réconciliation, vérifiez les hôtes et les certificats, puis créez une nouvelle sauvegarde v4.",
+            "unsupported": "La prise en charge de cette version source n’est pas confirmée. Ne procédez pas à une mise à niveau directe ; consultez d’abord les exigences officielles de la version."
+        },
+        "imageReference": "Référence vérifiée de l’image cible",
+        "copy": "Copier la référence de l’image",
+        "copyHint": "La copie n’autorise pas une mise à niveau non prise en charge et ne modifie pas votre déploiement.",
+        "copyStates": {
+            "copied": "Référence de l’image copiée.",
+            "failed": "L’accès au presse-papiers a échoué. Sélectionnez et copiez manuellement la référence dans le champ ci-dessus."
+        },
+        "notes": "Notes de version",
+        "noNotes": "Aucune note de version n’est disponible ici. Consultez la page officielle avant de poursuivre.",
+        "releaseLink": "Lire la version officielle sur GitHub ↗",
+        "guideTitle": "Liste de contrôle pour la mise à jour manuelle",
+        "interruption": "Prévoyez une fenêtre de maintenance : les sauvegardes et le remplacement du conteneur interrompent le trafic du proxy et l’interface web.",
+        "guide": {
+            "prepare": "Utilisez un checkout de la version source actuellement installée, avec ses outils Bun et l’environnement/le projet Compose réellement utilisés par le déploiement. Conservez en privé le digest exact de l’image source en cours d’exécution, la configuration Compose, les ports, l’environnement de déploiement ainsi que les identifiants et le matériel de chiffrement. L’interface n’inspecte ni ne certifie les sauvegardes de l’hôte.",
+            "backup": "Avant de changer l’image, effectuez une sauvegarde complète de production avec les outils de cette version source. Remplacez les espaces réservés et stockez la sauvegarde terminée hors du volume de l’appliance, dans un emplacement privé et fiable. L’outil vérifie que l’image sélectionnée par Compose correspond au champ .Image du conteneur réel ; corrigez tout écart avant de poursuivre.",
+            "alpha": "Pour Alpha, utilisez d’abord ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1 (jamais le tag :beta mobile). Terminez le démarrage et la réconciliation de la configuration, vérifiez les hôtes et les certificats, puis créez une nouvelle sauvegarde v4 avec les outils de Beta 1. Le passage direct d’Alpha à Beta 2 ou ultérieure, la restauration directe de v3 et l’importation d’anciens secrets de fichiers d’environnement ne sont pas pris en charge. Restaurez une archive Alpha v3 d’abord, et uniquement avec Beta 1 épinglée et ses outils de restauration.",
+            "image": "Continuez uniquement si la vérification de l’image et la compatibilité autorisent l’étape prévue. Modifiez la valeur RENTNERPROXY_IMAGE faisant autorité dans la configuration existante, ou sélectionnez l’image dans votre gestionnaire de déploiement externe. Conservez la structure Compose, recréez l’appliance avec la procédure de déploiement existante et gardez le volume persistant actuel, y compris bootstrap/secrets-v1.json. Ne remplacez ni ne régénérez jamais cet état secret.",
+            "verify": "Après le démarrage, vérifiez la disponibilité, la version affichée, le trafic réel du proxy, les hôtes, les certificats, les autorisations et la réconciliation complète de la configuration. Ne validez la mise à niveau qu’après la réussite de ces contrôles."
+        },
+        "recoveryTitle": "Récupération en cas d’échec de la mise à jour",
+        "recovery": "Restaurez la sauvegarde précédant la mise à niveau sur un volume neuf, avec le digest exact de l’image source et les outils de restauration de cette version source. Ne démarrez jamais une image plus ancienne sur un volume déjà migré par une version plus récente. La restauration remplace les données cibles ; sélectionnez soigneusement le projet et la sauvegarde.",
+        "restoreValidation": "Les outils de restauration valident la sauvegarde et l’identité source. L’historique de migration v4 pris en charge doit être un préfixe exact non vide de l’historique cible, positions, empreintes SHA-256 et horodatages compris. Les anciens formats, les historiques divergents et les rétrogradations sont rejetés. Conservez en privé les secrets de déploiement avec la sauvegarde ; ils sont absents de son manifeste. Vérifiez les CIDR d’origine et des proxys de confiance avant tout changement volontaire du déploiement.",
+        "resume": "Si la restauration est interrompue après le début du remplacement, le journal persistant bloque le démarrage. Arrêtez toute appliance démarrée manuellement et relancez la même sauvegarde avec --resume --confirm-replace. La même sauvegarde est validée à nouveau et le remplacement recommence ; une autre sauvegarde est rejetée tant que le journal est en attente."
+    },
     "toast": {
         "notification": "Notification",
         "dismiss": "Fermer la notification",

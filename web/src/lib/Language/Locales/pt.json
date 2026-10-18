@@ -1,4 +1,59 @@
 {
+    "updates": {
+        "checkFailedIndicator": "Falha ao verificar atualizações — abrir detalhes",
+        "platform": "Plataforma da imagem",
+        "minimumVersion": "Versão de origem mínima",
+        "intermediateVersion": "Versão intermediária obrigatória",
+        "title": "Atualizar RentnerProxy",
+        "description": "Analise a versão e prepare uma atualização manual. Esta janela não instala nada nem cria um backup.",
+        "current": "Versão instalada",
+        "target": "Destino publicado",
+        "channel": "Canal de destino",
+        "unknown": "Indisponível",
+        "channels": {
+            "alpha": "Alpha",
+            "beta": "Beta",
+            "stable": "Estável"
+        },
+        "availability": "Verificações da versão e da atualização",
+        "published": "Uma versão mais recente foi publicada. A publicação, por si só, não confirma que a imagem ou o caminho de atualização estejam prontos.",
+        "checkFailed": "As informações de atualização estão indisponíveis. Verifique novamente antes de alterar a imagem; a verificação anterior não está mais sendo exibida.",
+        "images": {
+            "verified": "O digest imutável da imagem e a plataforma foram verificados com os metadados da versão.",
+            "pending": "A imagem da versão ainda não foi verificada. Aguarde a publicação e a verificação antes de atualizar.",
+            "unavailable": "Não foi possível verificar a imagem. Não selecione um destino não verificado.",
+            "unsupported-platform": "Esta imagem não oferece suporte à plataforma configurada.",
+            "invalid": "Os metadados da imagem da versão são inválidos. Não use este destino."
+        },
+        "compatibility": {
+            "supported": "A política de compatibilidade publicada dá suporte a esta versão de origem. Conclua o backup e a preparação abaixo antes de atualizar.",
+            "requires-beta1": "Atualização direta bloqueada: Alpha precisa passar pela versão fixada v1.0.0-beta.1. Conclua a reconciliação, verifique hosts e certificados e, depois, crie um novo backup v4.",
+            "unsupported": "O suporte a esta versão de origem não foi confirmado. Não faça a atualização diretamente; consulte primeiro os requisitos oficiais da versão."
+        },
+        "imageReference": "Referência verificada da imagem de destino",
+        "copy": "Copiar referência da imagem",
+        "copyHint": "Copiar não autoriza uma atualização sem suporte nem altera sua implantação.",
+        "copyStates": {
+            "copied": "Referência da imagem copiada.",
+            "failed": "Falha no acesso à área de transferência. Selecione e copie manualmente a referência no campo acima."
+        },
+        "notes": "Notas da versão",
+        "noNotes": "Não há notas da versão disponíveis aqui. Leia a página oficial antes de continuar.",
+        "releaseLink": "Ler a versão oficial no GitHub ↗",
+        "guideTitle": "Lista de verificação da atualização manual",
+        "interruption": "Planeje uma janela de manutenção: o backup e a substituição do contêiner interrompem o tráfego do proxy e a interface web.",
+        "guide": {
+            "prepare": "Use um checkout da versão de código-fonte atualmente instalada, com as ferramentas Bun dessa versão e o ambiente/projeto Compose real da implantação. Guarde em local privado o digest exato da imagem de origem em execução, a configuração do Compose, as portas, o ambiente de implantação e as credenciais ou o material de criptografia. A interface não inspeciona nem certifica backups do host.",
+            "backup": "Antes de alterar a imagem, conclua um backup de produção completo com as ferramentas dessa versão de origem. Substitua os marcadores e armazene o backup concluído fora do volume do appliance, em um local privado e confiável. A ferramenta verifica se a imagem selecionada pelo Compose corresponde ao campo .Image do contêiner real; resolva qualquer divergência antes de continuar.",
+            "alpha": "Para Alpha, use primeiro ghcr.io/rentnerkev/rentnerproxy:v1.0.0-beta.1 (nunca a tag móvel :beta). Conclua a inicialização e a reconciliação da configuração, verifique hosts e certificados e, depois, crie um novo backup v4 com as ferramentas do Beta 1. Não há suporte à passagem direta de Alpha para Beta 2 ou posterior, à restauração direta de v3 nem à importação de segredos de arquivos de ambiente antigos. Restaure um arquivo Alpha v3 primeiro e somente pela versão Beta 1 fixada e suas ferramentas de restauração.",
+            "image": "Prossiga somente quando a verificação da imagem e a compatibilidade permitirem a etapa pretendida. Atualize o valor RENTNERPROXY_IMAGE existente e autoritativo ou selecione a imagem no gerenciador externo de implantação. Mantenha a estrutura do Compose, recrie o appliance pelo fluxo de implantação existente e preserve o volume persistente atual, incluindo bootstrap/secrets-v1.json. Nunca substitua nem gere novamente esse estado secreto.",
+            "verify": "Após a inicialização, verifique a disponibilidade, a versão informada, o tráfego real do proxy, hosts, certificados, permissões e a reconciliação completa da configuração. Aceite a atualização somente após a aprovação destas verificações."
+        },
+        "recoveryTitle": "Recuperação se a atualização falhar",
+        "recovery": "Recupere o backup anterior à atualização em um volume novo, usando o digest exato da imagem de origem e as ferramentas de restauração dessa versão de origem. Nunca inicie uma imagem antiga em um volume já migrado por uma versão mais recente. A restauração substitui os dados de destino; selecione o projeto e o backup com cuidado.",
+        "restoreValidation": "As ferramentas de restauração validam o backup e a identidade da origem. O histórico de migração v4 compatível precisa ser um prefixo exato e não vazio do histórico de destino, incluindo posições, hashes SHA-256 e registros de data e hora. Formatos antigos, históricos divergentes e downgrades são rejeitados. Mantenha os segredos da implantação em local privado junto ao backup; eles não constam no manifesto. Confira as redes CIDR de origem e dos proxies confiáveis antes de qualquer alteração intencional na implantação.",
+        "resume": "Se a restauração for interrompida após o início da substituição, o journal persistente bloqueia a inicialização. Pare qualquer appliance iniciada manualmente e execute novamente o mesmo backup com --resume --confirm-replace. O mesmo backup será validado novamente e a substituição será repetida; outro backup será rejeitado enquanto o journal estiver pendente."
+    },
     "toast": {
         "notification": "Notificação",
         "dismiss": "Dispensar notificação",
