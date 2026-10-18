@@ -27,6 +27,28 @@ export function isMigrationJournal(value: unknown): value is BackupMigrationJour
     )
 }
 
+export async function assertCompatibleBackupHistory(
+    rows: readonly BackupMigrationRow[],
+    journal: BackupMigrationJournal,
+    readMigration: (tag: string) => Promise<Uint8Array>,
+): Promise<void> {
+    if (rows.length === 0 || rows.length > journal.entries.length) {
+        throw new Error('unsupported backup database version')
+    }
+    for (const [index, row] of rows.entries()) {
+        const migration = journal.entries[index]
+        if (!migration) {
+            throw new Error('backup migration history is incompatible with the target image')
+        }
+        const expected = createHash('sha256')
+            .update(await readMigration(migration.tag))
+            .digest('hex')
+        if (row.hash !== expected || String(row.created_at) !== String(migration.when)) {
+            throw new Error('backup migration history is incompatible with the target image')
+        }
+    }
+}
+
 export function decryptBackupSecret(
     key: Buffer,
     ciphertext: Buffer,
@@ -78,21 +100,9 @@ async function validateDatabase(): Promise<void> {
         const rows = await sql<
             BackupMigrationRow[]
         >`select hash, created_at from drizzle.__drizzle_migrations order by id`
-        if (rows.length !== journal.entries.length) {
-            throw new Error('unsupported backup database version')
-        }
-        for (const [index, row] of rows.entries()) {
-            const migration = journal.entries[index]
-            if (!migration) {
-                throw new Error('backup migration history is incompatible with the target image')
-            }
-            const expected = createHash('sha256')
-                .update(await readFile(join(migrationsPath, migration.tag + '.sql')))
-                .digest('hex')
-            if (row.hash !== expected || String(row.created_at) !== String(migration.when)) {
-                throw new Error('backup migration history is incompatible with the target image')
-            }
-        }
+        await assertCompatibleBackupHistory(rows, journal, (tag) =>
+            readFile(join(migrationsPath, tag + '.sql')),
+        )
         const factors = await sql<
             BackupTotpSecretRow[]
         >`select user_id, secret_ciphertext, secret_iv from rentnerproxy.user_totp_factors`
