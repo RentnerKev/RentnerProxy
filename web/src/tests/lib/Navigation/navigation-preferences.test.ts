@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { fileURLToPath } from 'node:url'
 
 import { NAVIGATION_GROUP_IDS } from '@/config/navigation.config.ts'
 import {
     navigationGroupPreferenceInputSchema,
     parseStoredNavigationGroupPreferences,
 } from '@/lib/Navigation/navigationPreferences.ts'
+import { runBunScript } from '@/tests/Helpers/runBunScript.ts'
 
 const expectedUserId = '11111111-1111-4111-8111-111111111111'
 
@@ -108,17 +108,7 @@ test('navigation persistence requires application access and the same signed-in 
         console.log(JSON.stringify({ noSession, denied, changedUser, invalid, blockedDatabaseCalls,
             databaseCalls, result, persistedUserId: persisted.userId }))
     `
-    const child = Bun.spawn([process.execPath, '-e', script], {
-        cwd: fileURLToPath(new URL('../../..', import.meta.url)),
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const [stdout, stderr, exitCode] = await Promise.all([
-        new Response(child.stdout).text(),
-        new Response(child.stderr).text(),
-        child.exited,
-    ])
-    expect(exitCode, stderr).toBe(0)
+    const stdout = await runBunScript(script, { cwd: new URL('../../..', import.meta.url) })
     expect(JSON.parse(stdout)).toEqual({
         noSession: 'authentication_required',
         denied: 'permission_denied',

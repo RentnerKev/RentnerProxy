@@ -1,4 +1,4 @@
-import type { NpmPreviewItem } from '@/features/Admin/NpmImport/Types/npm-import.types.ts'
+import type { ImportPreviewItem } from '@/lib/Imports/Types/import.types.ts'
 
 import type { CreateProxyHostInput } from '@/features/Admin/ProxyHostManagement/Types/validation.types.ts'
 
@@ -6,7 +6,7 @@ import type { CreateRedirectHostInput } from '@/features/Admin/RedirectHostManag
 
 import type { CreateAccessPolicyInput } from '@/features/Admin/AccessPolicyManagement/Types/validation.types.ts'
 
-export interface NpmImportPlanItem extends NpmPreviewItem {
+export interface NpmImportPlanItem extends ImportPreviewItem {
     readonly proxyInput?: CreateProxyHostInput
     readonly redirectInput?: CreateRedirectHostInput
     readonly policyInput?: CreateAccessPolicyInput

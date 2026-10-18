@@ -116,8 +116,18 @@ pub(super) fn render_config_inner(
         if crowdsec.is_some() {
             https_routes.push(crowdsec_route());
         }
-        for host in &config.proxy_hosts {
-            let Some(certificate_id) = host.certificate_id.as_ref() else {
+        let certificate_hosts = config
+            .proxy_hosts
+            .iter()
+            .map(|host| (&host.certificate_id, &host.domains))
+            .chain(
+                config
+                    .redirect_hosts
+                    .iter()
+                    .map(|host| (&host.certificate_id, &host.domains)),
+            );
+        for (certificate_id, domains) in certificate_hosts {
+            let Some(certificate_id) = certificate_id.as_ref() else {
                 continue;
             };
             let material = materials
@@ -132,7 +142,7 @@ pub(super) fn render_config_inner(
             }
             policies.push(TlsConnectionPolicy {
                 matcher: TlsMatcher {
-                    sni: host.domains.clone(),
+                    sni: domains.clone(),
                 },
                 certificate_selection: CertificateSelection {
                     any_tag: vec![certificate_id.clone()],
@@ -140,6 +150,12 @@ pub(super) fn render_config_inner(
                 protocol_min: "tls1.2".to_owned(),
                 alpn: vec!["h2".to_owned(), "http/1.1".to_owned()],
             });
+        }
+        for host in config
+            .proxy_hosts
+            .iter()
+            .filter(|host| host.certificate_id.is_some())
+        {
             https_routes.extend(host_routes(
                 host,
                 tls.public_https_port,
@@ -149,30 +165,11 @@ pub(super) fn render_config_inner(
                 &settings.trusted_proxy_cidrs,
             )?);
         }
-        for host in &config.redirect_hosts {
-            let Some(certificate_id) = host.certificate_id.as_ref() else {
-                continue;
-            };
-            let material = materials
-                .get(certificate_id)
-                .ok_or(RenderError::MissingCertificate)?;
-            if loaded_certificate_ids.insert(certificate_id.clone()) {
-                certs.push(CertificateFile {
-                    certificate: certificate_path(&material.fullchain_path)?,
-                    key: certificate_path(&material.private_key_path)?,
-                    tags: vec![certificate_id.clone()],
-                });
-            }
-            policies.push(TlsConnectionPolicy {
-                matcher: TlsMatcher {
-                    sni: host.domains.clone(),
-                },
-                certificate_selection: CertificateSelection {
-                    any_tag: vec![certificate_id.clone()],
-                },
-                protocol_min: "tls1.2".to_owned(),
-                alpn: vec!["h2".to_owned(), "http/1.1".to_owned()],
-            });
+        for host in config
+            .redirect_hosts
+            .iter()
+            .filter(|host| host.certificate_id.is_some())
+        {
             https_routes.push(redirect_route(host)?);
         }
         if !certs.is_empty() {

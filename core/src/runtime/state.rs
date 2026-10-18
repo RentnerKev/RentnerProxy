@@ -66,13 +66,7 @@ impl SafeDir {
     }
 
     pub(super) fn open_dir(&self, component: &str) -> std::io::Result<Self> {
-        let candidate = self.child_path(component)?;
-        let path = candidate.canonicalize()?;
-        ensure_direct_child(&self.path, &path)?;
-        #[cfg(unix)]
-        if path != candidate {
-            return Err(invalid_state_path());
-        }
+        let path = self.resolved_child_path(component)?;
         let metadata = fs::symlink_metadata(&path)?;
         if is_link(&metadata) || !metadata.file_type().is_dir() {
             return Err(invalid_state_path());
@@ -86,69 +80,18 @@ impl SafeDir {
     }
 
     pub(super) fn ensure_dir(&self, component: &str) -> std::io::Result<Self> {
-        let candidate = self.child_path(component)?;
-        match candidate.canonicalize() {
-            Ok(path) => {
-                ensure_direct_child(&self.path, &path)?;
-                #[cfg(unix)]
-                if path != candidate {
-                    return Err(invalid_state_path());
-                }
-                let metadata = fs::symlink_metadata(&path)?;
-                if is_link(&metadata) || !metadata.file_type().is_dir() {
-                    return Err(invalid_state_path());
-                }
-                self.secure_child_directory(&path, &metadata, component)?;
-                Ok(Self {
-                    path,
-                    #[cfg(unix)]
-                    shared_log_owner_group: None,
-                })
-            }
+        match self.open_dir(component) {
+            Ok(directory) => Ok(directory),
             Err(error) if error.kind() == ErrorKind::NotFound => {
-                create_private_directory(&candidate)?;
-                let path = candidate.canonicalize()?;
-                ensure_direct_child(&self.path, &path)?;
-                let metadata = fs::symlink_metadata(&path)?;
-                if is_link(&metadata) || !metadata.file_type().is_dir() {
-                    return Err(invalid_state_path());
-                }
-                self.secure_child_directory(&path, &metadata, component)?;
-                Ok(Self {
-                    path,
-                    #[cfg(unix)]
-                    shared_log_owner_group: None,
-                })
+                create_private_directory(&self.child_path(component)?)?;
+                self.open_dir(component)
             }
             Err(error) => Err(error),
         }
     }
 
     pub(super) fn open_file(&self, component: &str) -> std::io::Result<File> {
-        let candidate = self.child_path(component)?;
-        let path = candidate.canonicalize()?;
-        ensure_direct_child(&self.path, &path)?;
-        #[cfg(unix)]
-        if path != candidate {
-            return Err(invalid_state_path());
-        }
-        let metadata = fs::symlink_metadata(&path)?;
-        ensure_regular_file_metadata(&metadata)?;
-        let mut options = OpenOptions::new();
-        options.read(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
-        }
-        #[cfg(windows)]
-        {
-            use std::os::windows::fs::OpenOptionsExt;
-            options.custom_flags(0x0020_0000);
-        }
-        let file = options.open(&path)?;
-        ensure_regular_file_metadata(&file.metadata()?)?;
-        Ok(file)
+        open_regular_file(&self.resolved_child_path(component)?)
     }
 
     pub(super) fn read_file(&self, component: &str, maximum: usize) -> std::io::Result<Vec<u8>> {
@@ -266,6 +209,13 @@ impl SafeDir {
     }
 
     pub(super) fn file_path(&self, component: &str) -> std::io::Result<PathBuf> {
+        let path = self.resolved_child_path(component)?;
+        let metadata = fs::symlink_metadata(&path)?;
+        ensure_regular_file_metadata(&metadata)?;
+        Ok(path)
+    }
+
+    fn resolved_child_path(&self, component: &str) -> std::io::Result<PathBuf> {
         let candidate = self.child_path(component)?;
         let path = candidate.canonicalize()?;
         ensure_direct_child(&self.path, &path)?;
@@ -273,8 +223,6 @@ impl SafeDir {
         if path != candidate {
             return Err(invalid_state_path());
         }
-        let metadata = fs::symlink_metadata(&path)?;
-        ensure_regular_file_metadata(&metadata)?;
         Ok(path)
     }
 
@@ -343,7 +291,11 @@ fn verify_shared_directory(
 
 pub(super) fn open_absolute_regular_file(path: &Path) -> std::io::Result<File> {
     let path = canonical_absolute_entry(path)?;
-    let metadata = fs::symlink_metadata(&path)?;
+    open_regular_file(&path)
+}
+
+fn open_regular_file(path: &Path) -> std::io::Result<File> {
+    let metadata = fs::symlink_metadata(path)?;
     ensure_regular_file_metadata(&metadata)?;
     let mut options = OpenOptions::new();
     options.read(true);
@@ -357,7 +309,7 @@ pub(super) fn open_absolute_regular_file(path: &Path) -> std::io::Result<File> {
         use std::os::windows::fs::OpenOptionsExt;
         options.custom_flags(0x0020_0000);
     }
-    let file = options.open(&path)?;
+    let file = options.open(path)?;
     ensure_regular_file_metadata(&file.metadata()?)?;
     Ok(file)
 }

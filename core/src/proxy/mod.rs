@@ -43,6 +43,23 @@ pub(crate) enum ProxyValidationError {
     ValidationFailed,
 }
 
+fn validate_domains<'a>(
+    host_domains: &'a [String],
+    total_domains: &mut usize,
+    domains: &mut HashSet<&'a str>,
+) -> Result<(), ProxyValidationError> {
+    *total_domains = total_domains.saturating_add(host_domains.len());
+    if *total_domains > MAX_TOTAL_DOMAINS {
+        return Err(ProxyValidationError::ValidationFailed);
+    }
+    for domain in host_domains {
+        if !is_canonical_domain(domain) || !domains.insert(domain.as_str()) {
+            return Err(ProxyValidationError::ValidationFailed);
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_proxy_config(
     mut request: ProxyConfigRequest,
 ) -> Result<ValidatedProxyConfig, ProxyValidationError> {
@@ -103,16 +120,7 @@ pub(crate) fn validate_proxy_config(
             access_policies.insert(policy.id.as_str(), policy);
         }
 
-        total_domains = total_domains.saturating_add(host.domains.len());
-        if total_domains > MAX_TOTAL_DOMAINS {
-            return Err(ProxyValidationError::ValidationFailed);
-        }
-
-        for domain in &host.domains {
-            if !is_canonical_domain(domain) || !domains.insert(domain.as_str()) {
-                return Err(ProxyValidationError::ValidationFailed);
-            }
-        }
+        validate_domains(&host.domains, &mut total_domains, &mut domains)?;
     }
 
     for host in &request.redirect_hosts {
@@ -130,16 +138,7 @@ pub(crate) fn validate_proxy_config(
             return Err(ProxyValidationError::ValidationFailed);
         }
 
-        total_domains = total_domains.saturating_add(host.domains.len());
-        if total_domains > MAX_TOTAL_DOMAINS {
-            return Err(ProxyValidationError::ValidationFailed);
-        }
-
-        for domain in &host.domains {
-            if !is_canonical_domain(domain) || !domains.insert(domain.as_str()) {
-                return Err(ProxyValidationError::ValidationFailed);
-            }
-        }
+        validate_domains(&host.domains, &mut total_domains, &mut domains)?;
     }
 
     if request

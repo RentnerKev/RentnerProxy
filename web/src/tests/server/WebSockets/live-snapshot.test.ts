@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test'
-import { fileURLToPath } from 'node:url'
+
+import { runBunScript } from '@/tests/Helpers/runBunScript.ts'
 
 test('live snapshots enforce canonical origin, query limits and current permissions', async () => {
     const script = `
@@ -79,17 +80,7 @@ test('live snapshots enforce canonical origin, query limits and current permissi
         statuses.push((await read('foundation')).status)
         console.log(JSON.stringify({ statuses, rejectedReads, reads, permissionChecks, cacheControl, application, dns, ddns, discovery, dnsCache: dnsResponse.headers.get('cache-control'), ddnsCache: ddnsResponse.headers.get('cache-control'), discoveryCache: discoveryResponse.headers.get('cache-control') }))
     `
-    const child = Bun.spawn([process.execPath, '--no-env-file', '-e', script], {
-        cwd: fileURLToPath(new URL('../../..', import.meta.url)),
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const [stdout, stderr, code] = await Promise.all([
-        new Response(child.stdout).text(),
-        new Response(child.stderr).text(),
-        child.exited,
-    ])
-    expect(code, stderr).toBe(0)
+    const stdout = await runBunScript(script, { cwd: new URL('../../..', import.meta.url) })
     const result = JSON.parse(stdout)
     expect(result.statuses).toEqual([
         403, 403, 400, 400, 400, 400, 400, 400, 200, 403, 403, 403, 403, 403, 401, 403, 503, 503,
@@ -129,17 +120,7 @@ test('application events publish immediately, deduplicate Valkey echoes and clea
         await new Promise(resolve => setTimeout(resolve, 0))
         console.log(JSON.stringify({ initial, changed, afterEcho, deliveries, remote }))
     `
-    const child = Bun.spawn([process.execPath, '--no-env-file', '-e', script], {
-        cwd: fileURLToPath(new URL('../../..', import.meta.url)),
-        stdout: 'pipe',
-        stderr: 'pipe',
-    })
-    const [stdout, stderr, code] = await Promise.all([
-        new Response(child.stdout).text(),
-        new Response(child.stderr).text(),
-        child.exited,
-    ])
-    expect(code, stderr).toBe(0)
+    const stdout = await runBunScript(script, { cwd: new URL('../../..', import.meta.url) })
     const result = JSON.parse(stdout)
     expect(result.changed).not.toBe(result.initial)
     expect(result.afterEcho).toBe(1)

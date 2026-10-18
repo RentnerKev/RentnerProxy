@@ -10,11 +10,7 @@ import {
 import { normalizeForwardHost } from '@/lib/Admin/ProxyHostManagement/proxyHostValidation.ts'
 
 import { createRedirectHostInputSchema } from '@/features/Admin/RedirectHostManagement/validation.ts'
-import type {
-    NpmImportKind,
-    NpmImportPreview,
-    NpmImportStatus,
-} from '@/features/Admin/NpmImport/Types/npm-import.types.ts'
+import type { ImportKind, ImportPreview, ImportStatus } from '@/lib/Imports/Types/import.types.ts'
 import type { NpmRecord, NpmSource } from './Types/npm-source.types.ts'
 
 function integer(value: unknown): number | null {
@@ -43,7 +39,7 @@ function domains(value: unknown): string[] | null {
 }
 
 function base(
-    kind: NpmImportKind,
+    kind: ImportKind,
     row: NpmRecord,
     domainNames: readonly string[] | null,
 ): NpmImportPlanItem {
@@ -320,7 +316,7 @@ export function buildNpmImportPlan(
     }
 }
 
-export function publicNpmPreview(plan: NpmImportPlan): NpmImportPreview {
+export function publicNpmPreview(plan: NpmImportPlan): ImportPreview {
     const items = plan.items.map(
         ({ kind, sourceId, label, domains: domainNames, status, reasons }) => ({
             kind,
@@ -331,7 +327,7 @@ export function publicNpmPreview(plan: NpmImportPlan): NpmImportPreview {
             reasons,
         }),
     )
-    const counts: Record<NpmImportStatus, number> = { ready: 0, partial: 0, manual: 0, conflict: 0 }
+    const counts: Record<ImportStatus, number> = { ready: 0, partial: 0, manual: 0, conflict: 0 }
     for (const item of items) counts[item.status] += 1
     const planFingerprint = createHash('sha256').update(JSON.stringify(items)).digest('hex')
     return {

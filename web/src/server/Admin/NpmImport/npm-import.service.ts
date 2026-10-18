@@ -17,10 +17,10 @@ import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/prox
 import { lockProxyRuntimeSettings } from '@/server/ProxyRuntime/proxy-runtime-settings.ts'
 import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
 import type {
-    NpmImportPreview,
-    NpmImportResult,
-    NpmImportResultItem,
-} from '@/features/Admin/NpmImport/Types/npm-import.types.ts'
+    ImportPreview,
+    ImportResult,
+    ImportResultItem,
+} from '@/lib/Imports/Types/import.types.ts'
 import { createAccessPolicyInTransaction } from '@/server/Admin/AccessPolicyManagement/access-policies.service.ts'
 import { createProxyHostInTransaction } from '@/server/Admin/ProxyHostManagement/proxy-hosts.mutations.server.ts'
 import { createRedirectHostInTransaction } from '@/server/Admin/RedirectHostManagement/redirect-hosts.service.ts'
@@ -75,7 +75,7 @@ export async function previewImportService(
     fingerprint: string,
     source: ImportSource,
     permission: typeof PERMISSIONS.NPM_IMPORT | typeof PERMISSIONS.MIGRATION,
-): Promise<NpmImportPreview> {
+): Promise<ImportPreview> {
     await requirePermissionService(permission)
     const plan = await getAuthDatabase().transaction(
         (transaction) => planInTransaction(transaction, path, fingerprint, source),
@@ -91,7 +91,7 @@ export async function applyImportService(
     expectedPlanFingerprint: string,
     source: ImportSource,
     permission: typeof PERMISSIONS.NPM_IMPORT | typeof PERMISSIONS.MIGRATION,
-): Promise<NpmImportResult> {
+): Promise<ImportResult> {
     const actor = await requirePermissionService(permission)
     const auditResource =
         source === 'npm' && permission === PERMISSIONS.NPM_IMPORT ? 'npm-import' : 'config-import'
@@ -106,7 +106,7 @@ export async function applyImportService(
         targetId: null,
         result: 'success',
     })
-    let committed: Omit<NpmImportResult, 'runtimeStatus'>
+    let committed: Omit<ImportResult, 'runtimeStatus'>
     const attempt: { plan: NpmImportPlan | null; confirmed: boolean } = {
         plan: null,
         confirmed: false,
@@ -161,7 +161,7 @@ export async function applyImportService(
                     targets.set(`${item.kind}:${item.sourceId}`, created.id)
                 }
             }
-            const items: NpmImportResultItem[] = plan.items.map((item) => {
+            const items: ImportResultItem[] = plan.items.map((item) => {
                 const targetId = targets.get(`${item.kind}:${item.sourceId}`)
                 return {
                     kind: item.kind,
@@ -209,7 +209,7 @@ export async function applyImportService(
         })
     } catch (error) {
         const failureCode = error instanceof NpmImportError ? 'conflict' : 'service_unavailable'
-        const items: NpmImportResultItem[] = (attempt.plan?.items ?? []).map((item) => {
+        const items: ImportResultItem[] = (attempt.plan?.items ?? []).map((item) => {
             const importable = item.status === 'ready' || item.status === 'partial'
             const failed = attempt.confirmed && importable
             return {
@@ -286,7 +286,7 @@ export async function applyImportService(
 
 export async function getImportRunsService(
     permission: typeof PERMISSIONS.NPM_IMPORT | typeof PERMISSIONS.MIGRATION,
-): Promise<readonly NpmImportResult[]> {
+): Promise<readonly ImportResult[]> {
     await requirePermissionService(permission)
     const rows = await getAuthDatabase()
         .select()
@@ -301,7 +301,7 @@ export async function getImportRunsService(
     return rows.map((row) => {
         const result = row.result as {
             status?: 'completed' | 'failed'
-            items: NpmImportResultItem[]
+            items: ImportResultItem[]
             imported: number
             skipped: number
             failed?: number

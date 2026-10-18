@@ -136,6 +136,27 @@ pub(crate) fn event_kind_for_stage(
     }
 }
 
+pub(super) fn append_start_events(
+    index: &mut CertificateIndex,
+    operation_id: &str,
+    certificate_id: &str,
+) -> Result<(), CertificateError> {
+    for kind in [
+        CertificateEventKind::Accepted,
+        CertificateEventKind::Started,
+    ] {
+        append_event(
+            index,
+            operation_id,
+            certificate_id,
+            kind,
+            CertificateOperationStage::Queued,
+            None,
+        )?;
+    }
+    Ok(())
+}
+
 pub(crate) fn append_event(
     index: &mut CertificateIndex,
     operation_id: &str,

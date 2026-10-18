@@ -424,6 +424,45 @@ describe('password authentication state', () => {
         })
     }
 
+    for (const secondFactor of ['totp', 'recovery'] as const) {
+        test(`rejects ${secondFactor} completion after the user becomes inactive`, async () => {
+            factor = enabledFactor()
+            const challengeId = await issueChallenge()
+            user.status = 'disabled'
+            events.length = 0
+            const result =
+                secondFactor === 'totp'
+                    ? await completeLoginMfaWithTotpService({ challengeId, token: '123456' })
+                    : await completeLoginMfaWithRecoveryCodeService({
+                          challengeId,
+                          recoveryCode: 'valid-recovery',
+                      })
+            expect(result).toEqual({ success: false, code: 'authentication_failed' })
+            expect(events).not.toContain('session-created')
+            expect(events).not.toContain('totp-used')
+            expect(events).not.toContain('recovery-used')
+        })
+
+        test(`admits only one concurrent ${secondFactor} proof across distinct challenges`, async () => {
+            factor = enabledFactor()
+            const first = await issueChallenge()
+            const second = await issueChallenge()
+            const results = await Promise.all(
+                [first, second].map((challengeId) =>
+                    secondFactor === 'totp'
+                        ? completeLoginMfaWithTotpService({ challengeId, token: '123456' })
+                        : completeLoginMfaWithRecoveryCodeService({
+                              challengeId,
+                              recoveryCode: 'valid-recovery',
+                          }),
+                ),
+            )
+            expect(results.filter((result) => result.success)).toHaveLength(1)
+            expect(results.filter((result) => !result.success)).toHaveLength(1)
+            expect(events.filter((event) => event === 'session-created')).toHaveLength(1)
+        })
+    }
+
     test('rechecks the factor after TOTP verification has started', async () => {
         factor = enabledFactor()
         const challengeId = await issueChallenge()

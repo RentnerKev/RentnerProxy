@@ -1,7 +1,7 @@
+import ProxyConfigEditorActions from '../ProxyConfigEditorActions.tsx'
 import ProxyConfigEditorTabs from '../ProxyConfigEditorTabs.tsx'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { NumberInput } from '@rentnerkev/inputs'
-import { RotateCcw, Save } from 'lucide-react'
 
 import type { Translate } from '@/shared/Language/Types/language.types.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
@@ -12,7 +12,6 @@ import { formatProxyHostForward } from '@/lib/Admin/ProxyHostManagement/proxyHos
 import CaddyConfigCodeBlock from '../CaddyConfigCodeBlock/index.tsx'
 import useProxyConfigEditorLogic from './Hooks/useProxyConfigEditorLogic.ts'
 import type { ProxyConfigEditorModalProps } from '../../Types/proxy-config-editor.types.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 const FIELDS = [
     ['clientMaxBodySizeBytes', 'fieldClientMaxBodySizeBytes', 1024, 1073741824, 'bytes'],
@@ -247,38 +246,14 @@ export default function ProxyConfigEditorModal(props: ProxyConfigEditorModalProp
                 size="lg"
                 closeDisabled={busy || state.isResetConfirmationOpen}
                 footer={
-                    <>
-                        <button
-                            type="button"
-                            className={buttonClassName('secondary')}
-                            onClick={() => props.onOpenChange(false)}
-                            disabled={busy}
-                        >
-                            {t('common.cancel')}
-                        </button>
-                        {props.canEdit ? (
-                            <>
-                                <button
-                                    type="button"
-                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-red-700/25 bg-danger-bg text-danger-text enabled:hover:border-red-500/45 enabled:hover:bg-red-700/20"
-                                    onClick={handler.reset}
-                                    disabled={busy || !state.data}
-                                >
-                                    <RotateCcw className="size-4" />
-                                    {t('admin.proxyHosts.config.resetButton')}
-                                </button>
-                                <button
-                                    type="button"
-                                    className={buttonClassName('primary')}
-                                    onClick={handler.save}
-                                    disabled={busy || !state.data}
-                                >
-                                    <Save className="size-4" />
-                                    {t('admin.proxyHosts.config.save')}
-                                </button>
-                            </>
-                        ) : null}
-                    </>
+                    <ProxyConfigEditorActions
+                        canEdit={props.canEdit}
+                        isBusy={busy}
+                        hasData={Boolean(state.data)}
+                        onOpenChange={props.onOpenChange}
+                        onReset={handler.reset}
+                        onSave={handler.save}
+                    />
                 }
             >
                 {state.isLoading && !state.data ? (

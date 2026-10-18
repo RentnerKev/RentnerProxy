@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { fileURLToPath } from 'node:url'
+
+import { runBunScript } from '@/tests/Helpers/runBunScript.ts'
 
 const serviceScript = `
     import { strict as assert } from 'node:assert'
@@ -160,17 +161,9 @@ const serviceScript = `
 
 describe('default site service boundary', () => {
     test('authorizes, rejects stale or oversized candidates before writes and reports pending apply', async () => {
-        const child = Bun.spawn([process.execPath, '--no-env-file', '-e', serviceScript], {
-            cwd: fileURLToPath(new URL('../../..', import.meta.url)),
-            stdout: 'pipe',
-            stderr: 'pipe',
+        const stdout = await runBunScript(serviceScript, {
+            cwd: new URL('../../..', import.meta.url),
         })
-        const [stdout, stderr, exitCode] = await Promise.all([
-            new Response(child.stdout).text(),
-            new Response(child.stderr).text(),
-            child.exited,
-        ])
-        expect(exitCode, stderr).toBe(0)
         expect(stdout.trim()).toBe('default-site-service-ok')
     })
 })

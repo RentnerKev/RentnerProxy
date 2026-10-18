@@ -25,6 +25,16 @@ import {
     forwardAuthInputSchema,
     toForwardAuthRuntimeConfiguration,
 } from '@/lib/ForwardAuth/forwardAuth.ts'
+import { proxyHostRoutingColumns } from '@/server/Admin/ProxyHostManagement/proxy-hosts.storage.server.ts'
+
+const runtimeHostColumns = {
+    ...proxyHostRoutingColumns,
+    domain: hostDomains.domain,
+    accessPolicyMode: accessPolicies.mode,
+    accessPolicyCombination: accessPolicies.combination,
+    accessPolicyIpRules: accessPolicies.ipRules,
+    accessPolicyForwardAuth: accessPolicies.forwardAuth,
+}
 
 async function readBasicAuthAccounts(
     transaction: AuthTransaction,
@@ -85,23 +95,7 @@ export async function readProxyRuntimeSnapshot(
     transaction: AuthTransaction,
 ): Promise<ProxyRuntimeSnapshot> {
     const rows = await transaction
-        .select({
-            id: proxyHosts.id,
-            domain: hostDomains.domain,
-            forwardScheme: proxyHosts.forwardScheme,
-            forwardHost: proxyHosts.forwardHost,
-            forwardPort: proxyHosts.forwardPort,
-            certificateId: proxyHosts.certificateId,
-            forceHttps: proxyHosts.forceHttps,
-            verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
-            upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
-            trustedCaId: proxyHosts.trustedCaId,
-            accessPolicyId: proxyHosts.accessPolicyId,
-            accessPolicyMode: accessPolicies.mode,
-            accessPolicyCombination: accessPolicies.combination,
-            accessPolicyIpRules: accessPolicies.ipRules,
-            accessPolicyForwardAuth: accessPolicies.forwardAuth,
-        })
+        .select(runtimeHostColumns)
         .from(proxyHosts)
         .leftJoin(hostDomains, eq(hostDomains.proxyHostId, proxyHosts.id))
         .leftJoin(accessPolicies, eq(accessPolicies.id, proxyHosts.accessPolicyId))
@@ -237,24 +231,7 @@ export async function readProxyRuntimeHost(
     proxyHostId: string,
 ): Promise<(ProxyRuntimeHost & { readonly enabled: boolean }) | null> {
     const rows = await transaction
-        .select({
-            id: proxyHosts.id,
-            domain: hostDomains.domain,
-            forwardScheme: proxyHosts.forwardScheme,
-            forwardHost: proxyHosts.forwardHost,
-            forwardPort: proxyHosts.forwardPort,
-            certificateId: proxyHosts.certificateId,
-            forceHttps: proxyHosts.forceHttps,
-            verifyUpstreamTls: proxyHosts.verifyUpstreamTls,
-            upstreamTlsServerName: proxyHosts.upstreamTlsServerName,
-            trustedCaId: proxyHosts.trustedCaId,
-            accessPolicyId: proxyHosts.accessPolicyId,
-            accessPolicyMode: accessPolicies.mode,
-            accessPolicyCombination: accessPolicies.combination,
-            accessPolicyIpRules: accessPolicies.ipRules,
-            accessPolicyForwardAuth: accessPolicies.forwardAuth,
-            enabled: proxyHosts.enabled,
-        })
+        .select({ ...runtimeHostColumns, enabled: proxyHosts.enabled })
         .from(proxyHosts)
         .leftJoin(hostDomains, eq(hostDomains.proxyHostId, proxyHosts.id))
         .leftJoin(accessPolicies, eq(accessPolicies.id, proxyHosts.accessPolicyId))

@@ -1,7 +1,4 @@
-import type {
-    NpmImportPreview,
-    NpmImportResult,
-} from '@/features/Admin/NpmImport/Types/npm-import.types.ts'
+import type { ImportPreview, ImportResult } from '@/lib/Imports/Types/import.types.ts'
 
 export type MigrationSource = 'rentnerproxy' | 'npm' | 'zoraxy'
 
@@ -10,9 +7,9 @@ export interface MigrationLogicResult {
         readonly source: MigrationSource
         readonly exporting: boolean
         readonly file: File | null
-        readonly preview: NpmImportPreview | null
-        readonly result: NpmImportResult | null
-        readonly history: readonly NpmImportResult[]
+        readonly preview: ImportPreview | null
+        readonly result: ImportResult | null
+        readonly history: readonly ImportResult[]
         readonly busy: 'preview' | 'apply' | null
         readonly error: string | null
     }

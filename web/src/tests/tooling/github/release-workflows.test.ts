@@ -129,34 +129,44 @@ describe('shared release pipeline', () => {
     })
 
     test('pins every external action to a full commit SHA', async () => {
-        const pipeline = await workflow('release-pipeline.yml')
+        const pipeline =
+            (await workflow('release-pipeline.yml')) +
+            '\n' +
+            (await workflow('build-assessed-image.yml'))
         const references = [...pipeline.matchAll(/^\s*uses:\s+([^\s]+)(?:\s+#.*)?$/gm)].map(
             (match) => match[1],
         )
         expect(references.length).toBeGreaterThan(0)
         for (const reference of references) {
-            if (reference === './.github/workflows/publish-assessed-image.yml') continue
+            if (reference?.startsWith('./.github/workflows/')) continue
             expect(reference).toMatch(/^[^@]+@[0-9a-f]{40}$/)
         }
     })
 
     test('keeps the Docker channel contract explicit and non-overlapping', async () => {
-        const pipeline = await workflow('release-pipeline.yml')
+        const pipeline =
+            (await workflow('release-pipeline.yml')) +
+            '\n' +
+            (await workflow('build-assessed-image.yml'))
 
         expect(pipeline).toContain('channel_tag=alpha')
         expect(pipeline).toContain('channel_tag=beta')
         expect(pipeline).not.toContain('channel_tag=dev')
         expect(pipeline).toContain('channel_tag=latest')
-        expect(pipeline).toContain('type=raw,value=${{ needs.prepare.outputs.channel_tag }}')
-        expect(pipeline).toContain('type=raw,value=${{ inputs.release_tag }}')
-        expect(pipeline).toContain('flavor: latest=false')
+        expect(pipeline).toContain('${{ needs.prepare.outputs.channel_tag }}')
+        expect(pipeline).toContain('version: ${{ inputs.release_tag }}')
+        expect(await workflow('build-assessed-image.yml')).toContain('flavor: latest=false')
         expect(pipeline).not.toContain('type=semver')
     })
 
     test('builds the exact tagged production source with supply-chain metadata', async () => {
-        const pipeline = await workflow('release-pipeline.yml')
+        const pipeline =
+            (await workflow('release-pipeline.yml')) +
+            '\n' +
+            (await workflow('build-assessed-image.yml'))
 
         expect(pipeline).toContain('ref: refs/tags/${{ inputs.release_tag }}')
+        expect(pipeline).toContain('ref: ${{ inputs.revision }}')
         expect(pipeline).toContain('ref: ${{ github.workflow_sha }}')
         expect(pipeline).toContain('context: source')
         expect(pipeline).toContain('file: source/docker/production/Dockerfile')
@@ -167,7 +177,7 @@ describe('shared release pipeline', () => {
         expect(pipeline).toContain('platforms: linux/amd64')
         expect(pipeline).toContain('provenance: mode=max')
         expect(pipeline).toContain('sbom: true')
-        expect(pipeline).toContain('scope=release-${{ inputs.channel }}')
+        expect(pipeline).toContain('cache_scope: release-${{ inputs.channel }}')
         expect(pipeline).toContain('org.opencontainers.image.revision=')
         expect(pipeline).toContain('git -C source rev-list -n 1')
         expect(pipeline).toContain('"$actual_tag" != "$RELEASE_TAG"')
@@ -176,14 +186,22 @@ describe('shared release pipeline', () => {
     })
 
     test('publishes assets and the authoritative body only after image verification', async () => {
-        const pipeline = await workflow('release-pipeline.yml')
-        const verifyPosition = pipeline.indexOf('Assess immutable candidate before publication')
+        const pipeline =
+            (await workflow('release-pipeline.yml')) +
+            '\n' +
+            (await workflow('build-assessed-image.yml'))
+        const assessedBuild = await workflow('build-assessed-image.yml')
+        const verifyPosition = assessedBuild.indexOf(
+            'Assess immutable candidate before publication',
+        )
+        expect(verifyPosition).toBeLessThan(assessedBuild.indexOf('Store assessed OCI candidate'))
+        expect(pipeline).toContain('uses: ./.github/workflows/build-assessed-image.yml')
         const publishJobPosition = pipeline.indexOf('name: Publish release notes')
         const uploadPosition = pipeline.indexOf('gh release upload')
         const editPosition = pipeline.indexOf('gh release edit')
 
         expect(verifyPosition).toBeGreaterThan(-1)
-        expect(publishJobPosition).toBeGreaterThan(verifyPosition)
+        expect(publishJobPosition).toBeGreaterThan(-1)
         expect(uploadPosition).toBeGreaterThan(publishJobPosition)
         expect(editPosition).toBeGreaterThan(uploadPosition)
         expect(pipeline).toContain('            - publish-image')
@@ -204,7 +222,10 @@ describe('shared release pipeline', () => {
     })
 
     test('keeps prepared artifacts available across failed-job reruns', async () => {
-        const pipeline = await workflow('release-pipeline.yml')
+        const pipeline =
+            (await workflow('release-pipeline.yml')) +
+            '\n' +
+            (await workflow('build-assessed-image.yml'))
 
         expect(pipeline).toContain(
             'name: rentnerproxy-${{ inputs.channel }}-release-${{ github.run_id }}',
@@ -215,7 +236,10 @@ describe('shared release pipeline', () => {
     })
 
     test('uses only the expected GitHub token permissions and no legacy registry settings', async () => {
-        const pipeline = await workflow('release-pipeline.yml')
+        const pipeline =
+            (await workflow('release-pipeline.yml')) +
+            '\n' +
+            (await workflow('build-assessed-image.yml'))
 
         expect(pipeline).toContain('contents: write')
         expect(pipeline).toContain('issues: read')
@@ -228,7 +252,10 @@ describe('shared release pipeline', () => {
     })
 
     test('uses release-specific banners and all files have PNG signatures', async () => {
-        const pipeline = await workflow('release-pipeline.yml')
+        const pipeline =
+            (await workflow('release-pipeline.yml')) +
+            '\n' +
+            (await workflow('build-assessed-image.yml'))
         const [betaBanner, stableBanner, alphaBanner] = await Promise.all([
             readFile(
                 resolve(repositoryRoot, '.github/assets/release-banners/beta-release-banner.png'),

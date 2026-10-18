@@ -1,7 +1,6 @@
-import { EmailInput, PasswordInput, TextInput } from '@rentnerkev/inputs'
-import FieldError from '@/shared/Forms/FieldError.tsx'
+import StringFormField from '@/shared/Forms/StringFormField.tsx'
+import FormSubmitButton from '@/shared/Forms/FormSubmitButton.tsx'
 import type { SetupFormProps } from '../Types/setup-component-props.types.ts'
-import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function SetupForm({ state, form, handler }: SetupFormProps) {
     return (
@@ -13,77 +12,36 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
         >
             <form.Field name="displayName" validators={{ onBlur: handler.validateDisplayName }}>
                 {(field) => (
-                    <div className="grid gap-[0.45rem]">
-                        <label
-                            className="text-[0.82rem] font-[750] text-ink-soft"
-                            htmlFor={field.name}
-                        >
-                            Display name
-                        </label>
-                        <TextInput
-                            id={field.name}
-                            name={field.name}
-                            autoComplete="name"
-                            maxLength={100}
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onValueChange={field.handleChange}
-                            aria-describedby={`${field.name}-error`}
-                            aria-invalid={field.state.meta.errors.length > 0}
-                        />
-                        <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
-                    </div>
+                    <StringFormField
+                        field={field}
+                        label="Display name"
+                        kind="text"
+                        autoComplete="name"
+                        maxLength={100}
+                    />
                 )}
             </form.Field>
             <form.Field name="email" validators={{ onBlur: handler.validateEmail }}>
                 {(field) => (
-                    <div className="grid gap-[0.45rem]">
-                        <label
-                            className="text-[0.82rem] font-[750] text-ink-soft"
-                            htmlFor={field.name}
-                        >
-                            Email address
-                        </label>
-                        <EmailInput
-                            id={field.name}
-                            name={field.name}
-                            type="email"
-                            inputMode="email"
-                            autoComplete="email"
-                            maxLength={254}
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onValueChange={field.handleChange}
-                            aria-describedby={`${field.name}-error`}
-                            aria-invalid={field.state.meta.errors.length > 0}
-                        />
-                        <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
-                    </div>
+                    <StringFormField
+                        field={field}
+                        label="Email address"
+                        kind="email"
+                        autoComplete="email"
+                        maxLength={254}
+                    />
                 )}
             </form.Field>
             <form.Field name="password" validators={{ onBlur: handler.validatePassword }}>
                 {(field) => (
-                    <div className="grid gap-[0.45rem]">
-                        <label
-                            className="text-[0.82rem] font-[750] text-ink-soft"
-                            htmlFor={field.name}
-                        >
-                            Password
-                        </label>
-                        <PasswordInput
-                            id={field.name}
-                            name={field.name}
-                            autoComplete="new-password"
-                            showPasswordStrength
-                            maxLength={256}
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onValueChange={field.handleChange}
-                            aria-describedby={`${field.name}-error`}
-                            aria-invalid={field.state.meta.errors.length > 0}
-                        />
-                        <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
-                    </div>
+                    <StringFormField
+                        field={field}
+                        label="Password"
+                        kind="password"
+                        autoComplete="new-password"
+                        maxLength={256}
+                        showPasswordStrength
+                    />
                 )}
             </form.Field>
             <form.Field
@@ -91,39 +49,26 @@ export default function SetupForm({ state, form, handler }: SetupFormProps) {
                 validators={{ onBlur: handler.validateConfirmPassword }}
             >
                 {(field) => (
-                    <div className="grid gap-[0.45rem]">
-                        <label
-                            className="text-[0.82rem] font-[750] text-ink-soft"
-                            htmlFor={field.name}
-                        >
-                            Confirm password
-                        </label>
-                        <PasswordInput
-                            id={field.name}
-                            name={field.name}
-                            autoComplete="new-password"
-                            maxLength={256}
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onValueChange={field.handleChange}
-                            aria-describedby={`${field.name}-error`}
-                            aria-invalid={field.state.meta.errors.length > 0}
-                        />
-                        <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
-                    </div>
+                    <StringFormField
+                        field={field}
+                        label="Confirm password"
+                        kind="password"
+                        autoComplete="new-password"
+                        maxLength={256}
+                    />
                 )}
             </form.Field>
             <form.Subscribe
                 selector={(formState) => [formState.canSubmit, formState.isSubmitting] as const}
             >
                 {([canSubmit, isSubmitting]) => (
-                    <button
-                        type="submit"
-                        className={buttonClassName('primary')}
-                        disabled={!canSubmit || isSubmitting || state.isPending}
-                    >
-                        {isSubmitting || state.isPending ? 'Creating owner…' : 'Create owner'}
-                    </button>
+                    <FormSubmitButton
+                        canSubmit={canSubmit}
+                        isSubmitting={isSubmitting}
+                        isPending={state.isPending}
+                        submitLabel="Create owner"
+                        pendingSubmitLabel="Creating owner…"
+                    />
                 )}
             </form.Subscribe>
         </form>

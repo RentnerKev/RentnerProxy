@@ -51,27 +51,14 @@ pub(super) fn account_retry_is_blocking(
 }
 
 pub(super) fn next_retry_delay(id: &str, attempt_count: u32, previous: Option<u32>) -> u32 {
-    let exponent = attempt_count.saturating_sub(1).min(4);
-    let base = u64::from(MIN_ACME_RETRY_DELAY_SECONDS)
-        .saturating_mul(1_u64 << exponent)
-        .min(u64::from(MAX_ACME_RETRY_DELAY_SECONDS));
-    let previous = previous
-        .unwrap_or(base as u32)
-        .clamp(MIN_ACME_RETRY_DELAY_SECONDS, MAX_ACME_RETRY_DELAY_SECONDS);
-    let base = base.max(u64::from(previous));
-    let jitter_max = (base / 4).min(u64::from(MAX_ACME_RETRY_DELAY_SECONDS).saturating_sub(base));
-    let entropy = OffsetDateTime::now_utc()
-        .unix_timestamp_nanos()
-        .unsigned_abs() as u64
-        ^ id.bytes().fold(0_u64, |hash, byte| {
-            hash.wrapping_mul(16777619).wrapping_add(u64::from(byte))
-        });
-    base.saturating_add(if jitter_max == 0 {
-        0
-    } else {
-        entropy % (jitter_max + 1)
-    })
-    .min(u64::from(MAX_ACME_RETRY_DELAY_SECONDS)) as u32
+    retry_delay(
+        id,
+        attempt_count,
+        previous,
+        MIN_ACME_RETRY_DELAY_SECONDS,
+        MAX_ACME_RETRY_DELAY_SECONDS,
+        4,
+    )
 }
 
 pub(super) fn next_candidate_retry_delay(
@@ -79,17 +66,31 @@ pub(super) fn next_candidate_retry_delay(
     attempt_count: u32,
     previous: Option<u32>,
 ) -> u32 {
-    let exponent = attempt_count.saturating_sub(1).min(3);
-    let base = u64::from(MIN_CANDIDATE_RETRY_DELAY_SECONDS)
-        .saturating_mul(1_u64 << exponent)
-        .min(u64::from(MAX_CANDIDATE_RETRY_DELAY_SECONDS));
-    let previous = previous.unwrap_or(base as u32).clamp(
+    retry_delay(
+        id,
+        attempt_count,
+        previous,
         MIN_CANDIDATE_RETRY_DELAY_SECONDS,
         MAX_CANDIDATE_RETRY_DELAY_SECONDS,
-    );
+        3,
+    )
+}
+
+fn retry_delay(
+    id: &str,
+    attempt_count: u32,
+    previous: Option<u32>,
+    minimum: u32,
+    maximum: u32,
+    maximum_exponent: u32,
+) -> u32 {
+    let exponent = attempt_count.saturating_sub(1).min(maximum_exponent);
+    let base = u64::from(minimum)
+        .saturating_mul(1_u64 << exponent)
+        .min(u64::from(maximum));
+    let previous = previous.unwrap_or(base as u32).clamp(minimum, maximum);
     let base = base.max(u64::from(previous));
-    let jitter_max =
-        (base / 4).min(u64::from(MAX_CANDIDATE_RETRY_DELAY_SECONDS).saturating_sub(base));
+    let jitter_max = (base / 4).min(u64::from(maximum).saturating_sub(base));
     let entropy = OffsetDateTime::now_utc()
         .unix_timestamp_nanos()
         .unsigned_abs() as u64
@@ -101,7 +102,7 @@ pub(super) fn next_candidate_retry_delay(
     } else {
         entropy % (jitter_max + 1)
     })
-    .min(u64::from(MAX_CANDIDATE_RETRY_DELAY_SECONDS)) as u32
+    .min(u64::from(maximum)) as u32
 }
 
 pub(super) fn candidate_retry_deadline(delay_seconds: u32) -> Option<String> {

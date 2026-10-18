@@ -1,5 +1,7 @@
 import type {
     PasskeySummary,
+    StoredPasskeyCounter,
+    VerifiedPasskeyAuthenticationInfo,
     PasskeyAuthenticationResult,
     SerializableWebAuthnExtensions,
     SerializablePasskeyRegistrationOptions,
@@ -48,7 +50,26 @@ import {
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
 import { AuthDomainError } from '@/server/Auth/Core/errors.server.ts'
+import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import type { CurrentSession } from '@/server/Auth/Core/Types/auth-service.types.ts'
+
+async function updateVerifiedPasskeyInTransaction(
+    transaction: AuthTransaction,
+    passkey: StoredPasskeyCounter,
+    authenticationInfo: VerifiedPasskeyAuthenticationInfo,
+): Promise<boolean> {
+    const updated = await transaction
+        .update(passkeys)
+        .set({
+            backedUp: authenticationInfo.credentialBackedUp,
+            counter: authenticationInfo.newCounter,
+            deviceType: authenticationInfo.credentialDeviceType,
+            lastUsedAt: new Date(),
+        })
+        .where(and(eq(passkeys.id, passkey.id), eq(passkeys.counter, passkey.counter)))
+        .returning({ id: passkeys.id })
+    return updated.length === 1
+}
 
 function unavailable(): AuthDomainError {
     return new AuthDomainError('service_unavailable', 'Passkey authentication is unavailable.')
@@ -379,23 +400,13 @@ export async function finishDiscoverablePasskeyAuthenticationService(input: {
 
             try {
                 return await getAuthDatabase().transaction(async (transaction) => {
-                    const updated = await transaction
-                        .update(passkeys)
-                        .set({
-                            backedUp: verification.authenticationInfo.credentialBackedUp,
-                            counter: verification.authenticationInfo.newCounter,
-                            deviceType: verification.authenticationInfo.credentialDeviceType,
-                            lastUsedAt: new Date(),
-                        })
-                        .where(
-                            and(
-                                eq(passkeys.id, row.passkey.id),
-                                eq(passkeys.counter, row.passkey.counter),
-                            ),
-                        )
-                        .returning({ id: passkeys.id })
+                    const updated = await updateVerifiedPasskeyInTransaction(
+                        transaction,
+                        row.passkey,
+                        verification.authenticationInfo,
+                    )
 
-                    if (updated.length !== 1) {
+                    if (!updated) {
                         return { code: 'authentication_failed' as const, success: false as const }
                     }
 
@@ -526,18 +537,13 @@ export async function finishPasskeyReauthenticationService(input: {
             }
 
             const completed = await getAuthDatabase().transaction(async (transaction) => {
-                const updated = await transaction
-                    .update(passkeys)
-                    .set({
-                        backedUp: verification.authenticationInfo.credentialBackedUp,
-                        counter: verification.authenticationInfo.newCounter,
-                        deviceType: verification.authenticationInfo.credentialDeviceType,
-                        lastUsedAt: new Date(),
-                    })
-                    .where(and(eq(passkeys.id, passkey.id), eq(passkeys.counter, passkey.counter)))
-                    .returning({ id: passkeys.id })
+                const updated = await updateVerifiedPasskeyInTransaction(
+                    transaction,
+                    passkey,
+                    verification.authenticationInfo,
+                )
 
-                if (updated.length !== 1) {
+                if (!updated) {
                     return false
                 }
 

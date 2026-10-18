@@ -10,17 +10,16 @@ concurrency:
     cancel-in-progress: false
 
 jobs:
-    build:
-        name: Build and assess :dev
+    prepare:
+        name: Prepare dev identity
         runs-on: ubuntu-latest
-        timeout-minutes: 45
+        timeout-minutes: 10
         permissions:
             contents: read
         outputs:
             revision: ${{ steps.source.outputs.revision }}
             image: ${{ steps.source.outputs.image }}
-            digest: ${{ steps.scan.outputs.digest }}
-            archive_sha256: ${{ steps.archive.outputs.sha256 }}
+            version: ${{ steps.source.outputs.version }}
         steps:
             - name: Require main
               shell: bash
@@ -49,104 +48,30 @@ jobs:
               shell: bash
               run: bash source/.github/scripts/deploy/dev-image-source.sh
 
-            - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-            - name: Generate image metadata
-              id: metadata
-              uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-              with:
-                  flavor: latest=false
-                  images: ${{ steps.source.outputs.image }}
-                  labels: |
-                      org.opencontainers.image.title=RentnerProxy Dev
-                      org.opencontainers.image.description=Test image built from the current main branch; not a release.
-                      org.opencontainers.image.source=https://github.com/${{ github.repository }}
-                      org.opencontainers.image.url=https://github.com/${{ github.repository }}
-                      org.opencontainers.image.version=${{ steps.source.outputs.version }}
-                      org.opencontainers.image.revision=${{ steps.source.outputs.revision }}
-                      org.opencontainers.image.licenses=MIT
-                  tags: |
-                      type=raw,value=dev
-
-            - name: Build dev image as isolated OCI data
-              id: build
-              uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-              with:
-                  cache-from: type=gha,scope=dev
-                  cache-to: type=gha,mode=max,scope=dev
-                  build-args: RENTNERPROXY_BUILD_VERSION=${{ steps.source.outputs.version }}
-                  context: source
-                  file: source/docker/production/Dockerfile
-                  labels: ${{ steps.metadata.outputs.labels }}
-                  platforms: linux/amd64
-                  provenance: mode=max
-                  push: false
-                  outputs: type=oci,dest=${{ runner.temp }}/candidate-image.tar
-                  sbom: true
-
-            - name: Set up Bun for advisory policy
-              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-              with:
-                  bun-version: 1.4.3
-
-            - name: Audit locked source graphs
-              env:
-                  AUTOMATION_DIRECTORY: automation
-                  SOURCE_DIRECTORY: source
-                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-source-report
-                  REVISION: ${{ steps.source.outputs.revision }}
-              run: |
-                  bash automation/.github/scripts/security/audit-cargo.sh
-                  bash automation/.github/scripts/security/audit-bun.sh
-
-            - name: Install pinned vulnerability tools
-              run: bash automation/.github/scripts/security/install-dependency-tools.sh
-
-            - name: Assess immutable candidate before publication
-              id: scan
-              env:
-                  AUTOMATION_DIRECTORY: automation
-                  IMAGE_SOURCE: oci-archive:${{ runner.temp }}/candidate-image.tar
-                  REPORT_DIRECTORY: ${{ runner.temp }}/dependency-image-report
-                  REVISION: ${{ steps.source.outputs.revision }}
-              run: bash automation/.github/scripts/security/scan-image.sh
-
-            - name: Bind archive checksum
-              id: archive
-              run: printf 'sha256=%s\n' "$(sha256sum "$RUNNER_TEMP/candidate-image.tar" | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
-
-            - name: Store assessed OCI candidate
-              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-              with:
-                  compression-level: 0
-                  if-no-files-found: error
-                  overwrite: true
-                  name: assessed-candidate-${{ github.run_id }}
-                  path: ${{ runner.temp }}/candidate-image.tar
-                  retention-days: 2
-
-            - name: Store dependency evidence
-              if: always()
-              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-              with:
-                  if-no-files-found: error
-                  name: dependency-build-evidence-${{ github.run_id }}-${{ github.run_attempt }}
-                  path: |
-                      ${{ runner.temp }}/dependency-source-report
-                      ${{ runner.temp }}/dependency-image-report
-                  retention-days: 30
+    build:
+        needs: prepare
+        permissions:
+            contents: read
+        uses: ./.github/workflows/build-assessed-image.yml
+        with:
+            revision: ${{ needs.prepare.outputs.revision }}
+            image: ${{ needs.prepare.outputs.image }}
+            version: ${{ needs.prepare.outputs.version }}
+            title: RentnerProxy Dev
+            description: Test image built from the current main branch; not a release.
+            cache_scope: dev
 
     publish-image:
         needs:
+            - prepare
             - build
         permissions:
             contents: read
             packages: write
         uses: ./.github/workflows/publish-assessed-image.yml
         with:
-            revision: ${{ needs.build.outputs.revision }}
-            image: ${{ needs.build.outputs.image }}
+            revision: ${{ needs.prepare.outputs.revision }}
+            image: ${{ needs.prepare.outputs.image }}
             archive_sha256: ${{ needs.build.outputs.archive_sha256 }}
             digest: ${{ needs.build.outputs.digest }}
             image_tags: dev

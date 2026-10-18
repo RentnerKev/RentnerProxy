@@ -7,8 +7,8 @@ use super::validation::{
 };
 use super::{
     AcmeChallengeType, CertificateError, CertificateIssueRequest, CertificateMetadata,
-    CertificateOperation, CertificateOperationStage, CertificateSource, CertificateStatus,
-    CertificateStore, OffsetDateTime, OperationKind, StoredCertificate, StoredMetadata,
+    CertificateOperation, CertificateSource, CertificateStatus, CertificateStore, OffsetDateTime,
+    OperationKind, StoredCertificate, StoredMetadata,
 };
 use crate::proxy::is_canonical_uuid_v7;
 
@@ -160,24 +160,7 @@ impl CertificateStore {
         let previous_events = index.events.clone();
         let previous_event_sequence = index.event_sequence;
         let operation_id = operation.id.as_str();
-        if let Err(error) = operations::append_event(
-            &mut index,
-            operation_id,
-            id,
-            operations::CertificateEventKind::Accepted,
-            CertificateOperationStage::Queued,
-            None,
-        )
-        .and_then(|()| {
-            operations::append_event(
-                &mut index,
-                operation_id,
-                id,
-                operations::CertificateEventKind::Started,
-                CertificateOperationStage::Queued,
-                None,
-            )
-        }) {
+        if let Err(error) = operations::append_start_events(&mut index, operation_id, id) {
             index.events = previous_events.clone();
             index.event_sequence = previous_event_sequence;
             match previous {
@@ -289,24 +272,7 @@ impl CertificateStore {
         let previous_events = index.events.clone();
         let previous_event_sequence = index.event_sequence;
         let operation_id = operation.id.as_str();
-        if let Err(error) = operations::append_event(
-            &mut index,
-            operation_id,
-            id,
-            operations::CertificateEventKind::Accepted,
-            CertificateOperationStage::Queued,
-            None,
-        )
-        .and_then(|()| {
-            operations::append_event(
-                &mut index,
-                operation_id,
-                id,
-                operations::CertificateEventKind::Started,
-                CertificateOperationStage::Queued,
-                None,
-            )
-        }) {
+        if let Err(error) = operations::append_start_events(&mut index, operation_id, id) {
             index.certificates.insert(id.to_owned(), previous.clone());
             index.events = previous_events;
             index.event_sequence = previous_event_sequence;

@@ -1,3 +1,4 @@
+import { withFixtureRequest } from '../lib/request-context.ts'
 import { chmod, readFile, writeFile } from 'node:fs/promises'
 import { stateSchema } from './fixture.validation.ts'
 import type { ContextStage, FixtureCommand, FixtureState } from './Types/fixture.types.ts'
@@ -99,6 +100,7 @@ export async function createFixtureContext(command: FixtureCommand) {
             throw new Error('invalid_fixture_state', { cause: error })
         }
     }
+    let sessionToken: string
     let contextStage: ContextStage = 'registry'
     try {
         await database.transaction(registry.ensureAuthorizationRegistryInTransaction)
@@ -135,7 +137,8 @@ export async function createFixtureContext(command: FixtureCommand) {
         contextStage = 'session-delete'
         await database.delete(schema.sessions).where(eq(schema.sessions.userId, actor.id))
         contextStage = 'session-create'
-        state.session = (await createSessionService(actor.id)).token
+        sessionToken = (await createSessionService(actor.id)).token
+        state.session = sessionToken
         contextStage = 'state-write'
         await writeFile(statePath, JSON.stringify(state), { mode: 0o600 })
         contextStage = 'state-chmod'
@@ -146,26 +149,7 @@ export async function createFixtureContext(command: FixtureCommand) {
         throw new FixtureContextError(contextStage, contextDiagnostic(error))
     }
     async function authorized<T>(operation: () => Promise<T>): Promise<T> {
-        let outcome: { value: T } | { error: unknown } | undefined
-        const handler = createServerEntry({
-            fetch: async () => {
-                try {
-                    outcome = { value: await operation() }
-                } catch (error) {
-                    outcome = { error }
-                }
-                return new Response(null, { status: 204 })
-            },
-        }).fetch
-        await handler(
-            new Request('http://localhost/', {
-                headers: { cookie: SESSION_COOKIE_NAME + '=' + state.session },
-            }),
-            {},
-        )
-        if (!outcome) throw new Error('fixture_request_unavailable')
-        if ('error' in outcome) throw outcome.error
-        return outcome.value
+        return withFixtureRequest(createServerEntry, SESSION_COOKIE_NAME, sessionToken, operation)
     }
     const domain =
         command.certificateDomain ?? state.domain ?? 'reliability-' + command.runId + '.test'

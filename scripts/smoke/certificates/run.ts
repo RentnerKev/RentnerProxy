@@ -1,12 +1,8 @@
+import { extendSmokeContext } from '../context.ts'
 import { existsSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { sharedSmokeImage } from '../images.ts'
-import {
-    createCertificateSmokeContext,
-    extendSmokeContext,
-    repositoryRoot,
-    isOwnedTempDirectory,
-} from './context.ts'
+import { createCertificateSmokeContext, repositoryRoot, isOwnedTempDirectory } from './context.ts'
 import { verifyCertificateSetup } from './setup.ts'
 import { verifyCertificateTrustedProxy } from './trusted-proxy.ts'
 import { verifyCertificateTlsProtocols } from './tls-protocols.ts'

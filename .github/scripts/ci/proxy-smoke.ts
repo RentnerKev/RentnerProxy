@@ -1,3 +1,4 @@
+import { withFixtureRequest } from '../../../scripts/lib/request-context.ts'
 // oxlint-disable no-await-in-loop -- Readiness probes must wait for the previous attempt and bounded backoff.
 import assert from 'node:assert/strict'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
@@ -584,26 +585,12 @@ async function runSmoke(): Promise<void> {
             sessionToken: string,
             operation: () => Promise<T>,
         ): Promise<T> {
-            let outcome: { value: T } | { error: unknown } | undefined
-            const handler = createServerEntry({
-                fetch: async () => {
-                    try {
-                        outcome = { value: await operation() }
-                    } catch (error) {
-                        outcome = { error }
-                    }
-                    return new Response(null, { status: 204 })
-                },
-            }).fetch
-            await handler(
-                new Request('http://localhost/', {
-                    headers: { cookie: SESSION_COOKIE_NAME + '=' + sessionToken },
-                }),
-                {},
+            return withFixtureRequest(
+                createServerEntry,
+                SESSION_COOKIE_NAME,
+                sessionToken,
+                operation,
             )
-            assert.ok(outcome)
-            if ('error' in outcome) throw outcome.error
-            return outcome.value
         }
 
         async function authorized<T>(operation: () => Promise<T>): Promise<T> {

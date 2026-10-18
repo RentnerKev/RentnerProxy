@@ -1,6 +1,7 @@
+import { extendSmokeContext } from '../../../scripts/smoke/context.ts'
 import { rm } from 'node:fs/promises'
 import { sharedSmokeImage } from '../../../scripts/smoke/images.ts'
-import { createApplianceSmokeContext, extendSmokeContext, assertions } from './appliance/context.ts'
+import { createApplianceSmokeContext, assertions } from './appliance/context.ts'
 import { verifyApplianceStartup } from './appliance/startup.ts'
 import { verifyApplianceManagementAndPersistence } from './appliance/management-and-persistence.ts'
 import { verifyApplianceProxyTraffic } from './appliance/proxy-traffic.ts'
