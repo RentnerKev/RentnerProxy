@@ -2,7 +2,7 @@
 name = "rentnerproxy-controller"
 version = "0.0.0"
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.99.1"
 license = "MIT"
 
 [dependencies]
@@ -21,7 +21,6 @@ hyper-util = { version = "0.1.21", default-features = false, features = ["tokio"
 httpdate = "1.0.3"
 ipnet = "2.12.2"
 instant-acme = { version = "0.8.5", default-features = false, features = [
-    "hyper-rustls",
     "aws-lc-rs",
     "rcgen",
 ] }
