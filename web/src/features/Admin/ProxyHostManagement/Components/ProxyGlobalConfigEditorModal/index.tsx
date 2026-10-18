@@ -1,3 +1,4 @@
+import ProxyConfigEditorTabs from '../ProxyConfigEditorTabs.tsx'
 import { NumberInput } from '@rentnerkev/inputs'
 import { RotateCcw, Save } from 'lucide-react'
 
@@ -7,6 +8,7 @@ import { ConfirmDialog } from '@/shared/Modal/Components/ConfirmDialog.tsx'
 import CaddyConfigCodeBlock from '../CaddyConfigCodeBlock/index.tsx'
 import useProxyGlobalConfigEditorLogic from './Hooks/useProxyGlobalConfigEditorLogic.ts'
 import type { ProxyGlobalConfigEditorModalProps } from '../../Types/proxy-config-editor.types.ts'
+import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 const FIELDS = [
     ['clientMaxBodySizeBytes', 'fieldClientMaxBodySizeBytes', 1024, 1073741824, 'bytes'],
@@ -35,7 +37,7 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                     <>
                         <button
                             type="button"
-                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"
+                            className={buttonClassName('secondary')}
                             onClick={() => props.onOpenChange(false)}
                             disabled={busy}
                         >
@@ -54,7 +56,7 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                                 </button>
                                 <button
                                     type="button"
-                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
+                                    className={buttonClassName('primary')}
                                     onClick={handler.save}
                                     disabled={busy || !state.data}
                                 >
@@ -76,22 +78,11 @@ export default function ProxyGlobalConfigEditorModal(props: ProxyGlobalConfigEdi
                     </p>
                 ) : (
                     <div className="grid gap-4">
-                        <div className="flex flex-wrap gap-1">
-                            {(['edit', 'active'] as const).map((tab) => (
-                                <button
-                                    key={tab}
-                                    type="button"
-                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-transparent text-muted enabled:hover:border-accent-border enabled:hover:text-accent-ring"
-                                    onClick={() => handler.setActiveTab(tab)}
-                                    aria-pressed={state.activeTab === tab}
-                                    disabled={busy}
-                                >
-                                    {t(
-                                        `admin.proxyHosts.config.${tab === 'edit' ? 'settings' : tab}`,
-                                    )}
-                                </button>
-                            ))}
-                        </div>
+                        <ProxyConfigEditorTabs
+                            activeTab={state.activeTab}
+                            disabled={busy}
+                            onTabChange={handler.setActiveTab}
+                        />
                         {state.activeTab === 'edit' ? (
                             <fieldset className="grid gap-3">
                                 <legend className="text-base font-extrabold text-ink-soft">

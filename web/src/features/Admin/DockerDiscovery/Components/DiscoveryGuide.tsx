@@ -26,7 +26,7 @@ export default function DiscoveryGuide({
                 <button
                     type="button"
                     onClick={onClose}
-                    className="min-h-11 rounded-xl border border-border bg-control px-4 py-2 text-sm font-bold text-ink-soft"
+                    className="min-h-11 rounded-xl border border-border bg-surface-raised px-4 py-2 text-sm font-bold text-ink-soft"
                 >
                     {t('common.closeDialog')}
                 </button>
@@ -42,7 +42,7 @@ export default function DiscoveryGuide({
                             type="button"
                             aria-pressed={mode === 'native'}
                             onClick={() => onModeChange('native')}
-                            className={`min-h-10 rounded-xl border px-3 font-bold ${mode === 'native' ? 'border-accent-border bg-accent-soft text-accent-ring' : 'border-border bg-control text-ink-soft'}`}
+                            className={`min-h-10 rounded-xl border px-3 font-bold ${mode === 'native' ? 'border-accent-border bg-accent-muted text-accent-ring' : 'border-border bg-surface-raised text-ink-soft'}`}
                         >
                             {t('admin.dockerDiscovery.guide.native')}
                         </button>
@@ -50,7 +50,7 @@ export default function DiscoveryGuide({
                             type="button"
                             aria-pressed={mode === 'appliance'}
                             onClick={() => onModeChange('appliance')}
-                            className={`min-h-10 rounded-xl border px-3 font-bold ${mode === 'appliance' ? 'border-accent-border bg-accent-soft text-accent-ring' : 'border-border bg-control text-ink-soft'}`}
+                            className={`min-h-10 rounded-xl border px-3 font-bold ${mode === 'appliance' ? 'border-accent-border bg-accent-muted text-accent-ring' : 'border-border bg-surface-raised text-ink-soft'}`}
                         >
                             {t('admin.dockerDiscovery.guide.appliance')}
                         </button>
@@ -81,14 +81,14 @@ export default function DiscoveryGuide({
                             </code>
                             <p>{t('admin.dockerDiscovery.guide.fileHint')}</p>
                         </div>
-                        <pre className="overflow-auto rounded-xl border border-border bg-control p-3 font-mono text-xs text-ink-soft">
+                        <pre className="overflow-auto rounded-xl border border-border bg-surface-raised p-3 font-mono text-xs text-ink-soft">
                             <code>{DOCKER_DISCOVERY_LABEL_EXAMPLE}</code>
                         </pre>
                         <details className="min-w-0">
                             <summary className="cursor-pointer text-xs font-bold text-ink-soft">
                                 {t('admin.dockerDiscovery.guide.composeFile')}
                             </summary>
-                            <pre className="mt-3 max-h-64 overflow-auto rounded-xl border border-border bg-control p-3 font-mono text-xs text-ink-soft">
+                            <pre className="mt-3 max-h-64 overflow-auto rounded-xl border border-border bg-surface-raised p-3 font-mono text-xs text-ink-soft">
                                 <code>{DOCKER_DISCOVERY_GUIDE_EXAMPLES[mode].compose}</code>
                             </pre>
                         </details>
@@ -97,7 +97,7 @@ export default function DiscoveryGuide({
                         <h3 className="font-bold text-ink-soft">
                             {t('admin.dockerDiscovery.guide.startStep')}
                         </h3>
-                        <div className="flex min-w-0 items-start gap-2 rounded-xl border border-border bg-control p-3">
+                        <div className="flex min-w-0 items-start gap-2 rounded-xl border border-border bg-surface-raised p-3">
                             <code className="min-w-0 flex-1 font-mono text-xs wrap-anywhere text-ink-soft">
                                 {DOCKER_DISCOVERY_GUIDE_EXAMPLES[mode].command}
                             </code>
@@ -105,7 +105,7 @@ export default function DiscoveryGuide({
                                 type="button"
                                 aria-label={t('admin.dockerDiscovery.guide.copyCommand')}
                                 onClick={() => onCopy(mode, 'command')}
-                                className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border text-ink-soft hover:bg-control-hover"
+                                className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border text-ink-soft hover:bg-surface-hover"
                             >
                                 <Copy size={15} aria-hidden="true" />
                             </button>
@@ -115,7 +115,7 @@ export default function DiscoveryGuide({
                         <h3 className="font-bold text-ink-soft">
                             {t('admin.dockerDiscovery.guide.connectStep')}
                         </h3>
-                        <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-control p-3">
+                        <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-surface-raised p-3">
                             <code className="min-w-0 flex-1 font-mono text-xs wrap-anywhere text-ink-soft">
                                 {DOCKER_DISCOVERY_GUIDE_EXAMPLES[mode].endpoint}
                             </code>
@@ -123,7 +123,7 @@ export default function DiscoveryGuide({
                                 type="button"
                                 aria-label={t('admin.dockerDiscovery.guide.copyEndpoint')}
                                 onClick={() => onCopy(mode, 'endpoint')}
-                                className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border text-ink-soft hover:bg-control-hover"
+                                className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border text-ink-soft hover:bg-surface-hover"
                             >
                                 <Copy size={15} aria-hidden="true" />
                             </button>
@@ -131,7 +131,7 @@ export default function DiscoveryGuide({
                         <p className="text-xs">{t('admin.dockerDiscovery.guide.connectHint')}</p>
                     </li>
                 </ol>
-                <details className="min-w-0 rounded-xl border border-border bg-control p-4">
+                <details className="min-w-0 rounded-xl border border-border bg-surface-raised p-4">
                     <summary className="cursor-pointer font-bold text-ink-soft">
                         {t('admin.dockerDiscovery.guide.options')}
                     </summary>

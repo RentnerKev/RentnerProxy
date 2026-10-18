@@ -77,7 +77,7 @@ export default function QuickSearch(props: QuickSearchProps) {
                     ) : null}
                 </div>
                 {state.hasErrors ? (
-                    <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-warning-text/30 bg-warning-bg p-3 text-sm text-warning-text">
+                    <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-warning-text/30 bg-warning-text/10 p-3 text-sm text-warning-text">
                         <p role="status" className="m-0">
                             {t('quickSearch.unavailable')}
                         </p>

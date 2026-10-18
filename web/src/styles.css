@@ -30,7 +30,6 @@
     --color-navy-950: #020a0b;
     --color-mist-300: #c1d2c9;
     --color-mist-400: #91a99d;
-    --color-mist-500: #61756b;
 }
 
 @theme inline {
@@ -120,7 +119,6 @@
     --accent-muted: color-mix(in srgb, var(--accent) 12%, var(--theme-surface));
     --accent-border: color-mix(in srgb, var(--accent) 40%, var(--theme-border));
     --accent-ring: var(--accent-text-light);
-    --accent-glow: rgb(var(--accent-rgb) / 24%);
     --theme-success-bg: #effcf2;
     --theme-success-text: #086c27;
     --theme-danger-bg: #fff3f3;
@@ -153,7 +151,6 @@
     --accent-muted: color-mix(in srgb, var(--accent) 16%, var(--theme-surface));
     --accent-border: color-mix(in srgb, var(--accent) 45%, var(--theme-border));
     --accent-ring: var(--accent-text-dark);
-    --accent-glow: rgb(var(--accent-rgb) / 24%);
     --theme-success-bg: #102419;
     --theme-success-text: #76f895;
     --theme-danger-bg: #331719;

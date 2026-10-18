@@ -28,7 +28,7 @@ const { TOAST_PROVIDER_PROPS } = await import('@/config/toast.config.ts')
 const { createMemoryHistory, createRootRoute, createRouter, RouterProvider } =
     await import('@tanstack/react-router')
 const { renderToString } = await import('react-dom/server')
-const { EditorView } = await import('codemirror')
+const { EditorView } = await import('@codemirror/view')
 const { default: ApplicationNavigation } =
     await import('@/layouts/AuthenticatedLayout/Components/ApplicationShell/Components/ApplicationNavigation/index.tsx')
 
@@ -434,6 +434,48 @@ describe('default-site settings panel', () => {
             ).toContain('Settings changed elsewhere')
         },
     )
+
+    test('keeps HTML completion, folding, indentation, history and keyboard search available', async () => {
+        const html = '<section>\n<p>original</p>\n</section>'
+        saved = { baseRevision: 'revision-1', settings: { mode: 'custom-html', html } }
+        const container = await renderPanel()
+        const view = getEditor(container)
+        expect(container.querySelector('.cm-lineNumbers')).not.toBeNull()
+        expect(container.querySelector('.cm-foldGutter')).not.toBeNull()
+        expect(view.state.languageDataAt('autocomplete', 1).length).toBeGreaterThan(0)
+        const { foldCode, unfoldCode } = await import('@codemirror/language')
+        const { indentMore, undo, redo } = await import('@codemirror/commands')
+        await act(async () => {
+            expect(foldCode(view)).toBe(true)
+        })
+        expect(container.querySelector('.cm-foldPlaceholder')).not.toBeNull()
+        await act(async () => {
+            expect(unfoldCode(view)).toBe(true)
+            view.dispatch({ selection: { anchor: html.indexOf('<p>') } })
+            expect(indentMore(view)).toBe(true)
+        })
+        expect(view.state.doc.toString()).toContain('  <p>original</p>')
+        await act(async () => {
+            expect(undo(view)).toBe(true)
+        })
+        expect(view.state.doc.toString()).toBe(html)
+        await act(async () => {
+            expect(redo(view)).toBe(true)
+        })
+        expect(view.state.doc.toString()).toContain('  <p>original</p>')
+        await act(async () => {
+            view.contentDOM.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'f',
+                    code: 'KeyF',
+                    ctrlKey: true,
+                    bubbles: true,
+                    cancelable: true,
+                }),
+            )
+        })
+        expect(container.querySelector('.cm-search input[name="search"]')).not.toBeNull()
+    })
 
     test('changes only editor colors and keeps undo history through theme changes', async () => {
         const html = '<p>original</p>'

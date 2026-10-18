@@ -2,6 +2,7 @@ import { PasswordInput } from '@rentnerkev/inputs'
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import getFieldErrorMessage from '@/lib/Forms/fieldErrors.ts'
 import type { ChangePasswordFormProps } from '../Types/change-password-form-props.types.ts'
+import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function ChangePasswordForm({ state, form, handler }: ChangePasswordFormProps) {
     const { t } = useTranslationStore()
@@ -87,7 +88,7 @@ export default function ChangePasswordForm({ state, form, handler }: ChangePassw
                 {([canSubmit, isSubmitting]) => (
                     <button
                         type="submit"
-                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
+                        className={buttonClassName('primary')}
                         disabled={!canSubmit || isSubmitting || state.isPending}
                     >
                         {isSubmitting || state.isPending

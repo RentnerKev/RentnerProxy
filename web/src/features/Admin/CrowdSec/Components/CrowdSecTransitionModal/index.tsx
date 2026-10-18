@@ -4,6 +4,7 @@ import { Check, LoaderCircle } from 'lucide-react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import { Modal } from '@/shared/Modal/index.tsx'
+import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 export default function CrowdSecTransitionModal({
     transition,
@@ -22,11 +23,7 @@ export default function CrowdSecTransitionModal({
             closeDisabled={!state.closable}
             footer={
                 state.closable ? (
-                    <button
-                        type="button"
-                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
-                        onClick={onClose}
-                    >
+                    <button type="button" className={buttonClassName('primary')} onClick={onClose}>
                         {t(
                             transition.phase === 'delayed'
                                 ? 'admin.crowdSec.progress.continueInBackground'

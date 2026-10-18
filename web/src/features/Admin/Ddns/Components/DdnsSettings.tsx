@@ -20,7 +20,7 @@ export default function DdnsSettings(props: DdnsSettingsProps) {
                         type="button"
                         onClick={handler.close}
                         disabled={state.pending}
-                        className="h-12 rounded-xl border border-danger-border bg-danger-bg px-4 text-sm font-extrabold text-danger-text disabled:opacity-50"
+                        className="h-12 rounded-xl border border-danger-text bg-danger-bg px-4 text-sm font-extrabold text-danger-text disabled:opacity-50"
                     >
                         {t('common.cancel')}
                     </button>

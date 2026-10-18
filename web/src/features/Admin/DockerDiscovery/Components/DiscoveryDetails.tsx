@@ -15,7 +15,7 @@ export default function DiscoveryDetails({ row, candidate, onClose }: DiscoveryD
                 <button
                     type="button"
                     onClick={onClose}
-                    className="h-11 rounded-xl border border-border bg-control px-4 text-sm font-bold text-ink-soft"
+                    className="h-11 rounded-xl border border-border bg-surface-raised px-4 text-sm font-bold text-ink-soft"
                 >
                     {t('common.closeDialog')}
                 </button>
