@@ -18,6 +18,7 @@ import type { SmtpConfiguration } from './Types/smtp-options.types.ts'
 import { getPublicOrigin, getSmtpConfiguration } from '@/server/env.server.ts'
 import { createSmtpTransportOptions } from './smtp-options.ts'
 import { createPasswordResetEmailTemplate, createUserInviteEmailTemplate } from './templates.ts'
+import { createNotificationEmailTemplate } from './notification-template.ts'
 import type { MailTemplate } from './Types/templates.types.ts'
 
 let mailClient: MailClient | null = null
@@ -90,8 +91,8 @@ export async function sendNotificationEmailService(
     options: NotificationMailOptions = {},
 ): Promise<NotificationDeliveryResult> {
     if (signal?.aborted) return { success: false, code: 'cancelled', retryable: false }
-    const text = JSON.stringify(payload, null, 2)
-    if (Buffer.byteLength(text) > NOTIFICATION_LIMITS.payloadBytes)
+    const serializedPayload = JSON.stringify(payload, null, 2)
+    if (Buffer.byteLength(serializedPayload) > NOTIFICATION_LIMITS.payloadBytes)
         return { success: false, code: 'payload_limit', retryable: false }
     let client: NotificationMailClient | null
     try {
@@ -134,28 +135,18 @@ export async function sendNotificationEmailService(
             cancel()
             return
         }
-        const html = text.replace(
-            /[&<>"']/g,
-            (character) =>
-                ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[
-                    character
-                ]!,
-        )
         void Promise.resolve()
-            .then(() =>
-                finished
-                    ? Promise.reject(new Error('cancelled'))
-                    : activeClient.sendMail({
-                          from: activeClient.from,
-                          to: [...recipients],
-                          subject: `RentnerProxy: ${payload.type === 'recovery' ? 'recovery' : 'incident'}`,
-                          text,
-                          html: `<pre>${html}</pre>`,
-                          messageId: `<${createHash('sha256').update(payload.id).digest('hex')}@notifications.rentnerproxy>`,
-                          disableFileAccess: true,
-                          disableUrlAccess: true,
-                      }),
-            )
+            .then(() => {
+                if (finished) throw new Error('cancelled')
+                return activeClient.sendMail({
+                    ...createNotificationEmailTemplate(payload),
+                    from: activeClient.from,
+                    to: [...recipients],
+                    messageId: `<${createHash('sha256').update(payload.id).digest('hex')}@notifications.rentnerproxy>`,
+                    disableFileAccess: true,
+                    disableUrlAccess: true,
+                })
+            })
             .then(
                 (result) => {
                     const missing =
