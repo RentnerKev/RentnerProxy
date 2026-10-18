@@ -6,4 +6,3 @@ export interface ProxyHostManagementPageProps {
 }
 
 export type ProxyRuntimeStatus = ProxyRuntimeSyncStatus
-export type ProxyRuntimeState = ProxyRuntimeStatus['state']

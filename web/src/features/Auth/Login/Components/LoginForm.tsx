@@ -2,6 +2,7 @@ import { EmailInput, PasswordInput } from '@rentnerkev/inputs'
 import { Link } from '@tanstack/react-router'
 import FieldError from '@/shared/Forms/FieldError.tsx'
 import type { LoginFormProps } from '../Types/login-component-props.types.ts'
+import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 export default function LoginForm({ state, form, handler, onPasskeyLogin }: LoginFormProps) {
     return (
         <form
@@ -69,7 +70,7 @@ export default function LoginForm({ state, form, handler, onPasskeyLogin }: Logi
                 {([canSubmit, isSubmitting]) => (
                     <button
                         type="submit"
-                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
+                        className={buttonClassName('primary')}
                         disabled={
                             !canSubmit || isSubmitting || state.isPending || state.isPasskeyPending
                         }
@@ -80,7 +81,7 @@ export default function LoginForm({ state, form, handler, onPasskeyLogin }: Logi
             </form.Subscribe>
             <button
                 type="button"
-                className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"
+                className={buttonClassName('secondary')}
                 onClick={onPasskeyLogin}
                 disabled={state.isPending || state.isPasskeyPending}
             >

@@ -22,7 +22,7 @@ refresh retains these upstream constraints.
 These updates do not establish that an image passes the complete dependency
 assessment; unresolved findings continue to block publication.
 
-## CrowdSec (development image)
+## CrowdSec
 
 - **Managed:** local detection and blocking work without a CrowdSec account; community intelligence and Console enrollment are separate opt-ins.
 - **External:** connect an existing CrowdSec Local API with a bouncer key.
@@ -31,17 +31,17 @@ assessment; unresolved findings continue to block publication.
 - Enforcement is fail-open when the selected Local API is unavailable.
 - Repository backup v4 includes the managed CrowdSec SQLite database, decisions, local API registration, optional Central API/Console credentials and managed bouncer key. External CrowdSec configuration and its encrypted credential are in PostgreSQL; the external LAPI remains operator owned.
 
-## Basic Auth (development image)
+## Basic Auth
 
 Create an Access Policy, choose **Authenticated** and **Basic Auth**, enter a username and password, and save. The policy and its first account are saved together and applied automatically. Select the policy on the proxy host and save the host to require these credentials when visiting the site. If the controller is unavailable, the UI reports that applying the saved configuration is still pending. Use **Credentials** in the policy list to change credentials or add more accounts. Passwords are stored as Argon2id hashes and are never returned to the browser. Use HTTPS on protected hosts.
 
-## Forward Auth (development image)
+## Forward Auth
 
 Forward Auth is configured inside an existing Access Policy. Choose a provider preset, enter its full HTTP or HTTPS check endpoint, and select the request credentials and identity response headers needed by that provider. Basic Auth and Forward Auth are mutually exclusive in one policy. An IP rule can be combined with Forward Auth only when **all** checks must pass. The auth check is fail closed: a denied response or unreachable gateway never grants access to the protected upstream. HTTPS auth gateways use normal certificate verification; the endpoint cannot contain credentials or a query string.
 
 Provider reachability is not measured by the Security Dashboard; it reports configured policy counts and settings only.
 
-## Default Site (development image)
+## Default Site
 
 Open **Operations** in the main navigation to choose the Default Site response for the server's IP address or a hostname
 with no active Proxy Host or Redirect Host. Existing installations keep the empty HTTP 404 response

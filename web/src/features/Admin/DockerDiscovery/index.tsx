@@ -25,7 +25,7 @@ export default function DockerDiscoveryPage(props: DockerDiscoveryPageProps) {
                             <button
                                 type="button"
                                 onClick={handler.openGuide}
-                                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-control px-3 text-sm font-bold text-ink-soft hover:bg-control-hover"
+                                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface-raised px-3 text-sm font-bold text-ink-soft hover:bg-surface-hover"
                             >
                                 <Code2 size={16} aria-hidden="true" />
                                 {t('admin.dockerDiscovery.actions.guide')}
@@ -35,7 +35,7 @@ export default function DockerDiscoveryPage(props: DockerDiscoveryPageProps) {
                                     type="button"
                                     onClick={handler.openConnection}
                                     disabled={state.locked}
-                                    className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-control px-3 text-sm font-bold text-ink-soft hover:bg-control-hover disabled:opacity-50"
+                                    className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface-raised px-3 text-sm font-bold text-ink-soft hover:bg-surface-hover disabled:opacity-50"
                                 >
                                     <Settings2 size={16} aria-hidden="true" />
                                     {t('admin.dockerDiscovery.actions.connection')}
@@ -62,7 +62,7 @@ export default function DockerDiscoveryPage(props: DockerDiscoveryPageProps) {
                                 </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                                <output className="rounded-full border border-border bg-control px-3 py-1.5 text-xs font-bold text-ink-soft">
+                                <output className="rounded-full border border-border bg-surface-raised px-3 py-1.5 text-xs font-bold text-ink-soft">
                                     {t(`admin.dockerDiscovery.connector.${state.connectorStatus}`)}
                                 </output>
                                 {state.canManage && state.overview ? (
@@ -77,7 +77,7 @@ export default function DockerDiscoveryPage(props: DockerDiscoveryPageProps) {
                                                 ? handler.askEnable
                                                 : handler.disable
                                         }
-                                        className="min-h-9 rounded-lg border border-border bg-control px-3 text-xs font-bold text-ink-soft hover:bg-control-hover disabled:opacity-50"
+                                        className="min-h-9 rounded-lg border border-border bg-surface-raised px-3 text-xs font-bold text-ink-soft hover:bg-surface-hover disabled:opacity-50"
                                     >
                                         {t(
                                             state.needsActivation
@@ -91,7 +91,7 @@ export default function DockerDiscoveryPage(props: DockerDiscoveryPageProps) {
                                         type="button"
                                         onClick={handler.retry}
                                         disabled={state.locked}
-                                        className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-border bg-control px-3 text-xs font-bold text-ink-soft hover:bg-control-hover disabled:opacity-50"
+                                        className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-border bg-surface-raised px-3 text-xs font-bold text-ink-soft hover:bg-surface-hover disabled:opacity-50"
                                     >
                                         <RotateCw size={14} aria-hidden="true" />
                                         {t('admin.dockerDiscovery.actions.retry')}

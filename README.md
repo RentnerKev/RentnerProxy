@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./rentnerproxy-logo.png" alt="RentnerProxy project logo" width="300">
+  <img src="./web/public/rentnerproxy-logo.png" alt="RentnerProxy project logo" width="300">
 </p>
 
 <h1 align="center">RentnerProxy</h1>

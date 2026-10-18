@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Annotation, Compartment, EditorState } from '@codemirror/state'
-import { html } from '@codemirror/lang-html'
-import { basicSetup, EditorView } from 'codemirror'
+import { EditorView } from '@codemirror/view'
+import { createHtmlEditorExtensions } from '../editorExtensions.ts'
 
 import { HTML_EDITOR_COLOR_PRESETS } from '@/config/html-editor.config.ts'
 import type { HtmlEditorColorPreset } from '@/config/Types/html-editor-config.types.ts'
@@ -46,8 +46,7 @@ export function useHtmlSourceEditorLogic(
             state: EditorState.create({
                 doc: latest.current.value,
                 extensions: [
-                    basicSetup,
-                    html(),
+                    createHtmlEditorExtensions(),
                     EditorView.cspNonce.of(getClientCspNonce() ?? ''),
                     EditorView.lineWrapping,
                     configuration.theme.of(createHtmlEditorTheme('rentnerproxy')),
