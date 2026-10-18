@@ -9,6 +9,7 @@ import { getRequest, getRequestProtocol, setResponseHeaders } from '@tanstack/re
 import { getTrustProxyHeaders, validateProductionEnvironment } from '@/server/env.server.ts'
 import { publishApplicationChange } from '@/server/WebSockets/applicationChanges.ts'
 import { startRealtimeValkey } from '@/server/WebSockets/realtimeValkey.service.ts'
+import { startWorkerLifecycle } from '@/server/Foundation/worker-lifecycle.server.ts'
 import {
     applyAdminUiSecurityHeaders,
     createCspNonce,
@@ -24,86 +25,55 @@ if (typeof window === 'undefined') validateProductionEnvironmentAtStartup()
 const startRealtimeEvents = createServerOnlyFn(startRealtimeValkey)
 if (typeof window === 'undefined') startRealtimeEvents()
 
-const startProxyRuntimeLifecycle = createServerOnlyFn(async () => {
-    let stop: (() => Promise<void>) | null = null
-    const initializing = import('@/server/ProxyRuntime/proxy-runtime.service.ts').then(
-        ({ reconcileProxyConfigurationService }) => {
-            stop = reconcileProxyConfigurationService.stop
-            reconcileProxyConfigurationService.start()
-        },
-    )
-
-    process.once('rentnerproxy:shutdown', (pending: Array<Promise<void>>) => {
-        pending.push(initializing.then(() => stop?.()).then(() => undefined))
-    })
-    await initializing
-})
+const startProxyRuntimeLifecycle = createServerOnlyFn(() =>
+    startWorkerLifecycle(async () => {
+        const { reconcileProxyConfigurationService } =
+            await import('@/server/ProxyRuntime/proxy-runtime.service.ts')
+        return reconcileProxyConfigurationService
+    }),
+)
 
 if (typeof window === 'undefined') void startProxyRuntimeLifecycle()
 
-const startDockerDiscoveryLifecycle = createServerOnlyFn(async () => {
-    const initializing = import('@/server/Admin/DockerDiscovery/discovery-worker.ts').then(
-        ({ dockerDiscoveryWorker }) => {
-            dockerDiscoveryWorker.start()
-            return dockerDiscoveryWorker
-        },
-    )
-    process.once('rentnerproxy:shutdown', (pending: Array<Promise<void>>) => {
-        pending.push(initializing.then((worker) => worker.stop()))
-    })
-    await initializing
-})
+const startDockerDiscoveryLifecycle = createServerOnlyFn(() =>
+    startWorkerLifecycle(async () => {
+        const { dockerDiscoveryWorker } =
+            await import('@/server/Admin/DockerDiscovery/discovery-worker.ts')
+        return dockerDiscoveryWorker
+    }),
+)
 if (typeof window === 'undefined') void startDockerDiscoveryLifecycle()
 
-const startCrowdSecRuntimeLifecycle = createServerOnlyFn(async () => {
-    let stop: (() => Promise<void>) | null = null
-    const initializing = import('@/server/Admin/CrowdSec/crowdsec.service.ts').then(
-        ({ reconcileCrowdSecConfiguration }) => {
-            stop = reconcileCrowdSecConfiguration.stop
-            reconcileCrowdSecConfiguration.start()
-        },
-    )
-
-    process.once('rentnerproxy:shutdown', (pending: Array<Promise<void>>) => {
-        pending.push(initializing.then(() => stop?.()).then(() => undefined))
-    })
-    await initializing
-})
+const startCrowdSecRuntimeLifecycle = createServerOnlyFn(() =>
+    startWorkerLifecycle(async () => {
+        const { reconcileCrowdSecConfiguration } =
+            await import('@/server/Admin/CrowdSec/crowdsec.service.ts')
+        return reconcileCrowdSecConfiguration
+    }),
+)
 
 if (typeof window === 'undefined') void startCrowdSecRuntimeLifecycle()
 
-const startCertificateEventsLifecycle = createServerOnlyFn(async () => {
-    let stop: (() => Promise<void>) | null = null
-    const initializing =
-        import('@/server/Admin/CertificateManagement/certificate-events.worker.ts').then(
-            ({ startCertificateEventsSynchronization, stopCertificateEventsSynchronization }) => {
-                stop = stopCertificateEventsSynchronization
-                startCertificateEventsSynchronization()
-            },
-        )
-
-    process.once('rentnerproxy:shutdown', (pending: Array<Promise<void>>) => {
-        pending.push(initializing.then(() => stop?.()).then(() => undefined))
-    })
-    await initializing
-})
+const startCertificateEventsLifecycle = createServerOnlyFn(() =>
+    startWorkerLifecycle(async () => {
+        const { startCertificateEventsSynchronization, stopCertificateEventsSynchronization } =
+            await import('@/server/Admin/CertificateManagement/certificate-events.worker.ts')
+        return {
+            start: startCertificateEventsSynchronization,
+            stop: stopCertificateEventsSynchronization,
+        }
+    }),
+)
 
 if (typeof window === 'undefined') void startCertificateEventsLifecycle()
 
-const startCertificateJobsLifecycle = createServerOnlyFn(async () => {
-    let stop: (() => Promise<void>) | null = null
-    const initializing =
-        import('@/server/Admin/ProxyHostManagement/certificate-jobs.worker.server.ts').then(
-            ({ startCertificateJobWorker, stopCertificateJobWorker }) => {
-                stop = stopCertificateJobWorker
-                startCertificateJobWorker()
-            },
-        )
-    process.once('rentnerproxy:shutdown', (pending: Array<Promise<void>>) => {
-        pending.push(initializing.then(() => stop?.()).then(() => undefined))
-    })
-    await initializing
-})
+const startCertificateJobsLifecycle = createServerOnlyFn(() =>
+    startWorkerLifecycle(async () => {
+        const { startCertificateJobWorker, stopCertificateJobWorker } =
+            await import('@/server/Admin/ProxyHostManagement/certificate-jobs.worker.server.ts')
+        return { start: startCertificateJobWorker, stop: stopCertificateJobWorker }
+    }),
+)
 
 if (typeof window === 'undefined') void startCertificateJobsLifecycle()
 
