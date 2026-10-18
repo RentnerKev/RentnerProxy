@@ -15,6 +15,7 @@ import useCrowdSecLogic from './Hooks/useCrowdSecLogic.ts'
 import CrowdSecStatusPanel from './Components/CrowdSecStatusPanel.tsx'
 import CrowdSecManagedOnline from './Components/CrowdSecManagedOnline.tsx'
 import CrowdSecTransitionModal from './Components/CrowdSecTransitionModal/index.tsx'
+import { buttonClassName } from '@/shared/Buttons/buttonStyles.ts'
 
 function ModeOption({
     mode,
@@ -89,7 +90,7 @@ export default function CrowdSecPage(props: CrowdSecPageProps) {
                     action={
                         <button
                             type="button"
-                            className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"
+                            className={buttonClassName('secondary')}
                             onClick={handler.retry}
                         >
                             {t('common.retry')}
@@ -244,7 +245,7 @@ export default function CrowdSecPage(props: CrowdSecPageProps) {
                                 {state.mode === 'external' ? (
                                     <button
                                         type="button"
-                                        className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none border-border-strong bg-surface-raised text-ink-soft enabled:hover:border-accent-border enabled:hover:text-accent-ring"
+                                        className={buttonClassName('secondary')}
                                         disabled={
                                             !state.canUpdate || busy || state.apiUrl.length === 0
                                         }
@@ -260,7 +261,7 @@ export default function CrowdSecPage(props: CrowdSecPageProps) {
                                 ) : null}
                                 <button
                                     type="button"
-                                    className="box-border inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-0 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ring [&_svg]:shrink-0 transition-[background-color,color,border-color] duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:transform-none bg-accent text-accent-foreground enabled:hover:bg-accent-hover"
+                                    className={buttonClassName('primary')}
                                     disabled={!state.canUpdate || !state.isDirty || busy}
                                     onClick={handler.save}
                                 >

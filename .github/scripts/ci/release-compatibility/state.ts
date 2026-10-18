@@ -63,12 +63,8 @@ export async function assertPolicyFixture(input: {
     readonly command: ApplianceCommand
     readonly containerId: string
     readonly fixture: PolicyFixture
-    readonly target: boolean
 }): Promise<void> {
     const { fixture: f } = input
-    const forwardAuth = input.target
-        ? `,(select count(*) from rentnerproxy.access_policies where id in (${sqlQuote(f.basicPolicyId)},${sqlQuote(f.ipPolicyId)}) and forward_auth is null) as forward_auth_defaults`
-        : ''
     const output = await psql(
         input.command,
         input.containerId,
@@ -83,19 +79,20 @@ export async function assertPolicyFixture(input: {
             (select count(*) from rentnerproxy.host_domains where
                 (proxy_host_id=${sqlQuote(f.basicHostId)} and domain=${sqlQuote(f.basicDomain)}) or
                 (proxy_host_id=${sqlQuote(f.ipHostId)} and domain=${sqlQuote(f.ipDomain)})) as domains
-            ${forwardAuth}) t`,
+            ,(select count(*) from rentnerproxy.access_policies where id in (${sqlQuote(f.basicPolicyId)},${sqlQuote(f.ipPolicyId)}) and forward_auth is null) as forward_auth_defaults) t`,
     )
     const state = JSON.parse(output) as Record<string, number>
     assert.equal(Number(state.policies), 2)
     assert.equal(Number(state.account), 1)
     assert.equal(Number(state.hosts), 2)
     assert.equal(Number(state.domains), 2)
-    if (input.target) assert.equal(Number(state.forward_auth_defaults), 2)
+    assert.equal(Number(state.forward_auth_defaults), 2)
 }
 
 export async function assertBetaDefaults(
     command: ApplianceCommand,
     containerId: string,
+    withSavedState = false,
 ): Promise<void> {
     const output = await psql(
         command,
@@ -107,9 +104,9 @@ export async function assertBetaDefaults(
         ) t`,
     )
     const state = JSON.parse(output) as Record<string, number>
-    assert.equal(Number(state.importer_runs), 0)
+    assert.equal(Number(state.importer_runs), withSavedState ? 1 : 0)
     assert.equal(Number(state.active_crowdsec), 0)
-    assert.equal(Number(state.forward_auth_policies), 0)
+    assert.equal(Number(state.forward_auth_policies), withSavedState ? 1 : 0)
     const mode = await command([
         'docker',
         'exec',

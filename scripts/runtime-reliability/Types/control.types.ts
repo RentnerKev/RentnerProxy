@@ -1,5 +1,5 @@
 export type ReliabilityOptions = {
-    source: 'current' | 'alpha.6'
+    source: 'current'
     durationSeconds: number
     iterations: number
     concurrency: number
@@ -33,11 +33,8 @@ export type ReliabilityFailure = {
     category: 'assertion' | 'timeout' | 'command' | 'telemetry' | 'unexpected'
 }
 
-type KnownBaselineLimitation = 'alpha6-binding-retry-needs-second-request'
-
 export type ReliabilityReportInput = {
     targetSha: string
-    runtimeRevision: string
     imageIdentity: string
     options: ReliabilityOptions
     completedIterations: number
@@ -45,7 +42,6 @@ export type ReliabilityReportInput = {
     checks: ReliabilityCheck[]
     samples: ResourceSample[]
     failure?: ReliabilityFailure
-    knownLimitations?: KnownBaselineLimitation[]
 }
 
 import type { resourceLimits, metrics } from '../control.config.ts'

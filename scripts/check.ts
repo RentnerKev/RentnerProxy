@@ -2,7 +2,7 @@ import { buildSteps } from './build.ts'
 import { runSteps } from './lib/command-runner.ts'
 import type { CommandRunnerDependencies, CommandStep } from './lib/Types/command-runner.types.ts'
 
-export const checkSteps: readonly CommandStep[] = [
+const checkSteps: readonly CommandStep[] = [
     { label: 'Format', script: 'format:check' },
     { label: 'Oxlint', script: 'lint' },
     { label: 'Bun typecheck', script: 'typecheck' },

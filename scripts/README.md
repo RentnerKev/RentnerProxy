@@ -45,7 +45,8 @@ and HTTP/3 client once. Reuse requires a validated run scope and matching source
 revision/image labels. Consumers keep shared images until final scoped cleanup;
 standalone commands keep independent builds and cleanup.
 
-Historical Alpha checks run in the dedicated release compatibility workflow;
-its complete matrix remains manually selectable. Published identities remain
-pinned in `compatibility/published-releases.ts`. The runner fetches historical
-backup/restore helpers from their original paths at each pinned revision.
+Fresh-install and Beta-1-to-candidate checks run in the dedicated release
+compatibility workflow. The published Beta 1 identity remains pinned in
+`compatibility/published-releases.ts`; `compatibility/published-tools.ts` lists
+the source backup/restore dependencies fetched together from that revision.
+Alpha sources are no longer selected. See [the upgrade path](../docs/operations.md#upgrades).

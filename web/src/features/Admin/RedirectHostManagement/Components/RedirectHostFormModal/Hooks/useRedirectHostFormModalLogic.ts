@@ -1,3 +1,4 @@
+import useHostDomainList from '@/shared/HostDomains/Hooks/useHostDomainList.ts'
 import type {
     RedirectHostFormModalHandler,
     RedirectHostFormModalProps,
@@ -36,9 +37,6 @@ export default function useRedirectHostFormModalLogic({
     const isCreate = mode !== 'edit'
     const defaultValues = getRedirectHostFormDefaultValues(mode, redirectHost)
     const queryClient = useQueryClient()
-    const [domainKeys, setDomainKeys] = useState(() =>
-        defaultValues.domains.map(() => crypto.randomUUID()),
-    )
     const [pendingDisableValues, setPendingDisableValues] =
         useState<RedirectHostEditorFormValues | null>(null)
     const certificatesQuery = useQuery({
@@ -99,20 +97,12 @@ export default function useRedirectHostFormModalLogic({
             await mutation.mutateAsync(value).catch(() => undefined)
         },
     })
-    const addDomain = useCallback(() => {
-        if (form.state.values.domains.length >= MAX_REDIRECT_HOST_DOMAINS || mutation.isPending)
-            return
-        form.pushFieldValue('domains', '')
-        setDomainKeys((keys) => [...keys, crypto.randomUUID()])
-    }, [form, mutation.isPending])
-    const removeDomain = useCallback(
-        (index: number) => {
-            if (form.state.values.domains.length <= 1 || mutation.isPending) return
-            void form.removeFieldValue('domains', index)
-            setDomainKeys((keys) => keys.filter((_key, position) => position !== index))
-        },
-        [form, mutation.isPending],
-    )
+    const { state: domainState, handler: domainHandler } = useHostDomainList({
+        initialDomains: defaultValues.domains,
+        maxDomains: MAX_REDIRECT_HOST_DOMAINS,
+        isPending: mutation.isPending,
+        form,
+    })
     const handleSubmit = useCallback<RedirectHostFormModalHandler['handleSubmit']>(
         (event) => {
             event.preventDefault()
@@ -146,13 +136,13 @@ export default function useRedirectHostFormModalLogic({
             assignableCertificatesLoadFailed: certificatesQuery.isError,
             assignableCertificatesLoading: certificatesQuery.isPending,
             disableConfirmationOpen: pendingDisableValues !== null,
-            domainKeys,
+            domainKeys: domainState.domainKeys,
             isPending: mutation.isPending,
         } satisfies Omit<RedirectHostFormModalState, 'form'>,
         handler: {
             handleSubmit,
-            addDomain,
-            removeDomain,
+            addDomain: domainHandler.addDomain,
+            removeDomain: domainHandler.removeDomain,
             retryAssignableCertificates,
             confirmDisable: async () => {
                 if (pendingDisableValues)

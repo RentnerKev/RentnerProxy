@@ -23,6 +23,7 @@ import {
 } from '@/server/Auth/Access/authorization.service.ts'
 import { requirePermissionInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { isUniqueConstraintViolation } from '@/server/Auth/Core/database-errors.server.ts'
 import type { AuthTransaction } from '@/server/Auth/Core/Types/database.types.ts'
 import { validateControllerTrustedCa } from '@/server/Controller/trusted-cas.server.ts'
 import { reconcileProxyConfigurationWithAudit } from '@/server/ProxyRuntime/proxy-runtime.service.ts'
@@ -42,25 +43,9 @@ function parseId(trustedCaId: string): string {
 }
 
 function mapTrustedCaDatabaseError(error: unknown): TrustedCaDomainError | null {
-    const seen = new Set<unknown>()
-    let current: unknown = error
-    while (current && typeof current === 'object' && !seen.has(current)) {
-        seen.add(current)
-        const databaseError = current as Record<string, unknown>
-        const uniqueViolation = [
-            databaseError.code,
-            databaseError.errno,
-            databaseError.sqlState,
-        ].includes('23505')
-        const constraint =
-            databaseError.constraint ??
-            databaseError.constraintName ??
-            databaseError.constraint_name
-        if (uniqueViolation && constraint === 'trusted_cas_fingerprint_sha256_unique')
-            return new TrustedCaDomainError('trusted_ca_duplicate')
-        current = databaseError.cause
-    }
-    return null
+    return isUniqueConstraintViolation(error, 'trusted_cas_fingerprint_sha256_unique')
+        ? new TrustedCaDomainError('trusted_ca_duplicate')
+        : null
 }
 
 async function getTrustedCaForUpdate(

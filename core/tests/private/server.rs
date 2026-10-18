@@ -1,3 +1,4 @@
+use super::fixtures::trusted_ca_certificate;
 use std::{
     future::Future,
     pin::Pin,
@@ -1059,18 +1060,6 @@ async fn certificate_endpoints_reject_missing_or_wrong_tokens_and_accept_the_con
     assert_eq!(body, serde_json::json!({"certificates": []}));
 }
 
-fn trusted_ca_pem() -> String {
-    let mut parameters = rcgen::CertificateParams::new(vec!["test-ca.internal".to_owned()])
-        .expect("test CA names should be valid");
-    parameters.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
-    parameters.key_usages = vec![rcgen::KeyUsagePurpose::KeyCertSign];
-    let key_pair = rcgen::KeyPair::generate().expect("test CA key should generate");
-    parameters
-        .self_signed(&key_pair)
-        .expect("test CA certificate should generate")
-        .pem()
-}
-
 #[tokio::test]
 async fn trusted_ca_validation_endpoint_is_protected_and_returns_canonical_metadata() {
     let token = Config::from_values(
@@ -1085,7 +1074,7 @@ async fn trusted_ca_validation_endpoint_is_protected_and_returns_canonical_metad
     .controller_token
     .expect("test token should exist");
     let router = test_app(Some(token)).await;
-    let body = serde_json::json!({ "pem": trusted_ca_pem() }).to_string();
+    let body = serde_json::json!({ "pem": trusted_ca_certificate().pem() }).to_string();
 
     let unauthorized = router
         .clone()

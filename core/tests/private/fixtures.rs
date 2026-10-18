@@ -69,3 +69,14 @@ pub(crate) fn should_fail_private_key_write(path: &std::path::Path) -> bool {
     }
     matches
 }
+
+pub(super) fn trusted_ca_certificate() -> rcgen::Certificate {
+    let mut parameters = rcgen::CertificateParams::new(vec!["test-ca.internal".to_owned()])
+        .expect("test CA names should be valid");
+    parameters.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+    parameters.key_usages = vec![rcgen::KeyUsagePurpose::KeyCertSign];
+    let key_pair = rcgen::KeyPair::generate().expect("test CA key should generate");
+    parameters
+        .self_signed(&key_pair)
+        .expect("test CA certificate should generate")
+}

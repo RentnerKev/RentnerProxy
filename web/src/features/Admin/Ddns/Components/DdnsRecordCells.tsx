@@ -5,7 +5,7 @@ import type { DdnsRecordCellProps, DdnsActionCellProps } from '../Types/ddns-tab
 export function DdnsNameCell({ row }: DdnsRecordCellProps) {
     return (
         <div className="flex items-center gap-3">
-            <span className="rounded-md border border-accent-border bg-accent-soft px-2 py-1 font-mono text-xs font-bold text-accent-ring">
+            <span className="rounded-md border border-accent-border bg-accent-muted px-2 py-1 font-mono text-xs font-bold text-accent-ring">
                 {row.target.recordType}
             </span>
             <span className="font-mono text-sm font-semibold text-ink-soft">{row.target.name}</span>

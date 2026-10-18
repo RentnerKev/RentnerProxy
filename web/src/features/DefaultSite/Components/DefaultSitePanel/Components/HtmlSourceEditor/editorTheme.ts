@@ -1,5 +1,5 @@
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
-import { EditorView } from 'codemirror'
+import { EditorView } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import { HTML_EDITOR_COLORS } from '@/config/html-editor.config.ts'
 import type { HtmlEditorColorPreset } from '@/config/Types/html-editor-config.types.ts'

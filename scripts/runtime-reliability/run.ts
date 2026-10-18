@@ -283,57 +283,50 @@ async function main() {
             }
             assert.equal((await context.http()).status, 200)
             context.check('proxy', 'Host and redirect CRUD plus transient upstream recovery')
-            if (options.source === 'current') {
-                await context.synced(await context.fixture('forward-auth'))
-                assert.equal(
-                    (await context.http('policy-' + context.domain)).body.user,
-                    'reliability-user',
-                )
-                await harness.setAuthMode('deny')
-                assert.equal((await context.http('policy-' + context.domain)).status, 401)
-                await harness.setAuthMode('unavailable')
-                assert.notEqual((await context.http('policy-' + context.domain)).status, 200)
-                await harness.setAuthMode('allow')
-                assert.equal((await context.http('policy-' + context.domain)).status, 200)
-                await context.synced(
-                    await context.fixture('policy-update', { policyMode: 'public' }),
-                )
-                context.check('proxy', 'Forward Auth failure denies access and recovers')
-                const imported = await context.fixture('npm-import', { iteration })
-                assert.equal(imported.historyFound, true)
-                assert.ok(imported.identicalSourceRetry)
-                assert.equal(imported.identicalSourceRetry.historyFound, true)
-                assert.equal(imported.failed, 0)
-                assert.equal(imported.imported, iteration < 4 ? 2 : 0)
-                assert.equal(imported.skipped, iteration < 4 ? 0 : 2)
-                assert.equal(imported.identicalSourceRetry.imported, 0)
-                assert.equal(imported.identicalSourceRetry.failed, 0)
-                assert.equal(imported.identicalSourceRetry.skipped, 2)
-                await context.synced(imported)
-                const importedProxy = await context.http(
-                    'npm-' + (iteration % 4) + '-' + context.domain,
-                )
-                assert.equal(importedProxy.status, 200)
-                assert.equal(importedProxy.body.backend, 'a')
-                const importedRedirect = await context.http(
-                    'npm-redirect-' + (iteration % 4) + '-' + context.domain,
-                )
-                assert.equal(importedRedirect.status, 302)
-                assert.equal(
-                    importedRedirect.headers.get('location'),
-                    'http://' + context.domain + '/',
-                )
-                context.check(
-                    'revision',
-                    'NPM importer retry retains history without duplicate domains',
-                )
-                if (iteration % 3 === 0) await exerciseCrowdSec(context)
-            }
+            await context.synced(await context.fixture('forward-auth'))
+            assert.equal(
+                (await context.http('policy-' + context.domain)).body.user,
+                'reliability-user',
+            )
+            await harness.setAuthMode('deny')
+            assert.equal((await context.http('policy-' + context.domain)).status, 401)
+            await harness.setAuthMode('unavailable')
+            assert.notEqual((await context.http('policy-' + context.domain)).status, 200)
+            await harness.setAuthMode('allow')
+            assert.equal((await context.http('policy-' + context.domain)).status, 200)
+            await context.synced(await context.fixture('policy-update', { policyMode: 'public' }))
+            context.check('proxy', 'Forward Auth failure denies access and recovers')
+            const imported = await context.fixture('npm-import', { iteration })
+            assert.equal(imported.historyFound, true)
+            assert.ok(imported.identicalSourceRetry)
+            assert.equal(imported.identicalSourceRetry.historyFound, true)
+            assert.equal(imported.failed, 0)
+            assert.equal(imported.imported, iteration < 4 ? 2 : 0)
+            assert.equal(imported.skipped, iteration < 4 ? 0 : 2)
+            assert.equal(imported.identicalSourceRetry.imported, 0)
+            assert.equal(imported.identicalSourceRetry.failed, 0)
+            assert.equal(imported.identicalSourceRetry.skipped, 2)
+            await context.synced(imported)
+            const importedProxy = await context.http(
+                'npm-' + (iteration % 4) + '-' + context.domain,
+            )
+            assert.equal(importedProxy.status, 200)
+            assert.equal(importedProxy.body.backend, 'a')
+            const importedRedirect = await context.http(
+                'npm-redirect-' + (iteration % 4) + '-' + context.domain,
+            )
+            assert.equal(importedRedirect.status, 302)
+            assert.equal(importedRedirect.headers.get('location'), 'http://' + context.domain + '/')
+            context.check(
+                'revision',
+                'NPM importer retry retains history without duplicate domains',
+            )
+            if (iteration % 3 === 0) await exerciseCrowdSec(context)
             await exerciseFailures(context, iteration, harness.primaryPort, harness.secondaryPort)
             await exerciseCertificates(context, iteration)
             if (iteration % 3 === 0) {
                 await verifyActiveCertificate(context)
-                if (options.source === 'current' && iteration === 0) {
+                if (iteration === 0) {
                     await harness.backupRestore()
                     await verifyActiveCertificate(context)
                 }
@@ -345,10 +338,8 @@ async function main() {
             assert.ok(final.persistedJobCounts)
             assert.equal(final.persistedJobCounts.nonApplied, 0)
             assert.equal(final.persistedJobCounts.total, Math.floor(iteration / 3) + 1)
-            if (options.source === 'current') {
-                assert.ok(Array.isArray(final.importHistory) && final.importHistory.length === 2)
-                assert.ok(final.importHistory.every((run) => run.found === true))
-            }
+            assert.ok(Array.isArray(final.importHistory) && final.importHistory.length === 2)
+            assert.ok(final.importHistory.every((run) => run.found === true))
             context.check('revision', 'Final persisted desired revision matches the running proxy')
             // Capture after all recovery probes, with idle traffic and no outstanding fixture commands.
             await Bun.sleep(1000)
@@ -399,14 +390,12 @@ async function main() {
     }
     const report = buildReliabilityReport({
         targetSha: harness.targetSha,
-        runtimeRevision: harness.runtimeRevision,
         imageIdentity: harness.imageIdentity,
         options,
         completedIterations,
         observedDurationSeconds,
         checks,
         samples,
-        knownLimitations: harness.knownLimitations,
         ...(failure ? { failure } : {}),
     })
     const reportPath = resolve(

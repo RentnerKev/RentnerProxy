@@ -1,4 +1,4 @@
-use super::fixtures::{host, request};
+use super::fixtures::{host, request, trusted_ca_certificate};
 use crate::{
     models::{
         AccessPolicy, AccessPolicyMode, ApplyOutcome, BasicAuth, BasicAuthAccount,
@@ -13,8 +13,7 @@ use crate::{
     runtime::{
         CertificateEnvironment, CertificateError, CertificateImportRequest,
         CertificateIssueRequest, CertificateStore, CrowdSecError, EngineError, EngineFuture,
-        ProxyEngine, ProxyRuntime, RuntimeError, RuntimeSettings,
-        clock::{civil_from_days, utc_now},
+        ProxyEngine, ProxyRuntime, RuntimeError, RuntimeSettings, clock::utc_now,
     },
 };
 use std::{
@@ -390,18 +389,8 @@ fn tls_configuration() -> ValidatedProxyConfig {
     validate_proxy_config(request(vec![proxy])).unwrap()
 }
 fn trusted_ca() -> TrustedCa {
-    let mut parameters = rcgen::CertificateParams::new(vec!["test-ca.internal".to_owned()])
-        .expect("test CA names should be valid");
-    parameters.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
-    parameters.key_usages = vec![rcgen::KeyUsagePurpose::KeyCertSign];
-    let key_pair = rcgen::KeyPair::generate().expect("test CA key should generate");
-    let parsed = validate_trusted_ca_pem(
-        &parameters
-            .self_signed(&key_pair)
-            .expect("test CA certificate should generate")
-            .pem(),
-    )
-    .expect("test CA should validate");
+    let parsed =
+        validate_trusted_ca_pem(&trusted_ca_certificate().pem()).expect("test CA should validate");
     TrustedCa {
         id: "0198d98a-0000-7000-8000-000000000001".to_owned(),
         pem: parsed.pem,
@@ -1421,9 +1410,7 @@ async fn planted_snapshot_symlink_never_reads_or_overwrites_external_file() {
 }
 
 #[test]
-fn timestamps_are_utc_and_calendar_conversion_is_stable() {
-    assert_eq!(civil_from_days(0), (1970, 1, 1));
-    assert_eq!(civil_from_days(19_782), (2024, 2, 29));
+fn timestamps_are_utc() {
     assert!(utc_now().ends_with('Z'));
 }
 

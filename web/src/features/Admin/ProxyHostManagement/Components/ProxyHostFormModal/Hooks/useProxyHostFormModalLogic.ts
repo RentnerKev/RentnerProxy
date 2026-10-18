@@ -1,3 +1,4 @@
+import useHostDomainList from '@/shared/HostDomains/Hooks/useHostDomainList.ts'
 import type {
     ProxyHostFormModalRefs,
     UseProxyHostFormLogicParams,
@@ -70,9 +71,6 @@ export default function useProxyHostFormModalLogic({
     const isCreate = mode !== 'edit'
     const defaultValues = getProxyHostFormValues(mode, proxyHost)
     const queryClient = useQueryClient()
-    const [domainKeys, setDomainKeys] = useState(() =>
-        defaultValues.domains.map(() => crypto.randomUUID()),
-    )
     const [pendingDisableValues, setPendingDisableValues] =
         useState<ProxyHostEditorFormValues | null>(null)
     const [requestNewCertificate, setRequestNewCertificate] = useState(false)
@@ -231,19 +229,12 @@ export default function useProxyHostFormModalLogic({
             suggestedRequestName.current = nextName
         }
     }, [certificateRequest.form, hostDomains])
-    const addDomain = useCallback(() => {
-        if (form.state.values.domains.length >= MAX_PROXY_HOST_DOMAINS || mutation.isPending) return
-        form.pushFieldValue('domains', '')
-        setDomainKeys((keys) => [...keys, crypto.randomUUID()])
-    }, [form, mutation.isPending])
-    const removeDomain = useCallback(
-        (index: number) => {
-            if (form.state.values.domains.length <= 1 || mutation.isPending) return
-            void form.removeFieldValue('domains', index)
-            setDomainKeys((keys) => keys.filter((_key, position) => position !== index))
-        },
-        [form, mutation.isPending],
-    )
+    const { state: domainState, handler: domainHandler } = useHostDomainList({
+        initialDomains: defaultValues.domains,
+        maxDomains: MAX_PROXY_HOST_DOMAINS,
+        isPending: mutation.isPending,
+        form,
+    })
     const setDisableConfirmationOpen = useCallback((open: boolean) => {
         if (!open) setPendingDisableValues(null)
     }, [])
@@ -314,7 +305,7 @@ export default function useProxyHostFormModalLogic({
             trustedCasLoadFailed: trustedCasQuery.isError,
             trustedCasLoading: trustedCasQuery.isPending,
             disableConfirmationOpen: pendingDisableValues !== null,
-            domainKeys,
+            domainKeys: domainState.domainKeys,
             requestNewCertificate,
             isPending: mutation.isPending,
         } satisfies Omit<ProxyHostFormModalState, 'form' | 'certificateRequestForm'>,
@@ -323,8 +314,8 @@ export default function useProxyHostFormModalLogic({
             handleNextGuideStep,
             handlePreviousGuideStep,
             handleSubmit,
-            addDomain,
-            removeDomain,
+            addDomain: domainHandler.addDomain,
+            removeDomain: domainHandler.removeDomain,
             retryAssignableCertificates,
             retryAssignableAccessPolicies,
             confirmDisable,

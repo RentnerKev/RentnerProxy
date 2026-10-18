@@ -3,7 +3,10 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { hasMaterializedSecrets } from '../../../../../../docker/web/bootstrap-secrets.ts'
+import {
+    assertInitialSecretGenerationAllowed,
+    hasMaterializedSecrets,
+} from '../../../../../../docker/web/bootstrap-secrets.ts'
 
 const fixturePrefix = join(tmpdir(), 'rentnerproxy-bootstrap-typed-')
 const temporaryDirectories: string[] = []
@@ -57,4 +60,29 @@ describe('typed runtime secret file detection', () => {
             'invalid persistent runtime secret file',
         )
     })
+})
+
+describe('initial secret generation safety', () => {
+    test('permits fresh installation without a database or materialized secrets', () => {
+        expect(() => assertInitialSecretGenerationAllowed(false, false)).not.toThrow()
+    })
+
+    test.each([
+        [true, false],
+        [false, true],
+        [true, true],
+    ])(
+        'rejects existing installation state instead of replacing its keys %#',
+        (database, secrets) => {
+            expect(() => assertInitialSecretGenerationAllowed(database, secrets)).toThrow(
+                'secrets-v1.json is missing for an existing installation',
+            )
+            expect(() => assertInitialSecretGenerationAllowed(database, secrets)).toThrow(
+                'supported beta.1 installation',
+            )
+            expect(() => assertInitialSecretGenerationAllowed(database, secrets)).toThrow(
+                'legacy environment secret import is no longer supported',
+            )
+        },
+    )
 })

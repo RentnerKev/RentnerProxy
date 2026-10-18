@@ -141,13 +141,13 @@ const deployment: DeploymentSettings = {
 }
 
 describe('production backup metadata', () => {
-    it('accepts strict v3 and v4 metadata with valid artifact counts and digests', () => {
-        assert.equal(parseBackupMetadata(v3Metadata()).version, 3)
+    it('accepts strict v4 metadata including the published redis exclusion field', () => {
         assert.equal(parseBackupMetadata(v4Metadata()).version, 4)
+        assert.equal(parseBackupMetadata(v4Metadata()).redis, 'excluded')
     })
 
     it('rejects unsupported versions and malformed or unexpected metadata', () => {
-        for (const version of [1, 2, 5]) {
+        for (const version of [1, 2, 3, 5]) {
             assert.throws(
                 () => parseBackupMetadata({ ...v3Metadata(), version }),
                 /unsupported or invalid backup metadata/u,
@@ -184,6 +184,20 @@ describe('production backup metadata', () => {
         )
     })
 
+    it('rejects alpha v3 backups before deployment overrides can permit restoration', () => {
+        for (const allowChange of [false, true]) {
+            assert.throws(
+                () =>
+                    assertDeploymentCompatible(
+                        parseBackupMetadata(v3Metadata()),
+                        deployment,
+                        allowChange,
+                    ),
+                /unsupported or invalid backup metadata \(supported: v4\)/u,
+            )
+        }
+    })
+
     it('verifies artifact size and SHA-256 before accepting bytes', () => {
         const expected = { bytes: emptyBytes.byteLength, sha256: sha256(emptyBytes) }
         assert.doesNotThrow(() => verifyBackupArtifact(emptyBytes, expected, 'controller state'))
@@ -204,14 +218,7 @@ describe('production backup metadata', () => {
 })
 
 describe('deployment compatibility', () => {
-    it('requires review for legacy v3 and permits matching v4 deployment settings', () => {
-        assert.throws(
-            () => assertDeploymentCompatible(parseBackupMetadata(v3Metadata()), deployment, false),
-            /deployment settings need review/u,
-        )
-        assert.doesNotThrow(() =>
-            assertDeploymentCompatible(parseBackupMetadata(v3Metadata()), deployment, true),
-        )
+    it('permits matching v4 deployment settings', () => {
         assert.doesNotThrow(() =>
             assertDeploymentCompatible(parseBackupMetadata(v4Metadata()), deployment, false),
         )

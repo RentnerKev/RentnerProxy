@@ -328,6 +328,46 @@ describe('release note rendering', () => {
         }
     })
 
+    test('publishes the Beta 1 minimum upgrade source from Beta 2 onward', () => {
+        for (const [tagName, channel] of [
+            ['v1.0.0-beta.2', 'beta'],
+            ['v1.0.0-beta.10', 'beta'],
+            ['v1.0.0', 'stable'],
+            ['v1.1.0-beta.1', 'beta'],
+            ['v2.0.0', 'stable'],
+        ] as const) {
+            const rendered = renderReleaseNotes(documentInput({ tagName, channel }))
+            for (const output of [rendered.body, rendered.changelog]) {
+                expect(output).toContain(
+                    'Beta 1 (`v1.0.0-beta.1`) is the minimum supported upgrade source.',
+                )
+                expect(output).toContain(
+                    'Direct Alpha upgrades and v3 restores into this release are unsupported.',
+                )
+                expect(output).toContain('the moving `:beta` tag skips it')
+                expect(output).toContain(
+                    'Rollback requires a pre-upgrade backup, a fresh volume, and the exact source release.',
+                )
+                expect(output).toContain('/README.md#upgrade')
+            }
+        }
+    })
+
+    test('does not retroactively apply the Beta 2 policy to earlier releases', () => {
+        for (const [tagName, channel] of [
+            ['v0.9.0', 'stable'],
+            ['v1.0.0-beta', 'beta'],
+            ['v1.0.0-beta.1', 'beta'],
+            ['v1.0.0-beta.1.1', 'beta'],
+            ['v1.0.0-alpha.6', 'alpha'],
+            ['v2.0.0-alpha.1', 'alpha'],
+        ] as const) {
+            const rendered = renderReleaseNotes(documentInput({ tagName, channel }))
+            expect(rendered.body).not.toContain('## Upgrade compatibility')
+            expect(rendered.changelog).not.toContain('## Upgrade compatibility')
+        }
+    })
+
     test('rejects a channel that does not match the release tag', () => {
         expect(() =>
             renderReleaseNotes(documentInput({ tagName: 'v1.2.0-beta.1', channel: 'alpha' })),
