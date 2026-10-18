@@ -48,7 +48,9 @@ pub(crate) fn validate_trusted_ca(
 pub(crate) fn validate_trusted_ca_pem(
     pem: &str,
 ) -> Result<ValidatedTrustedCa, TrustedCaValidationError> {
-    if pem.len() > MAX_TRUSTED_CA_PEM_BYTES || !has_only_certificate_pem_blocks(pem) {
+    if pem.len() > MAX_TRUSTED_CA_PEM_BYTES
+        || !crate::pem::has_only_pem_blocks(pem, &["CERTIFICATE"], false)
+    {
         return Err(TrustedCaValidationError::InvalidTrustedCa);
     }
 
@@ -145,33 +147,6 @@ fn canonical_pem(certificates: &[CertificateDer<'_>]) -> String {
         pem.push_str("-----END CERTIFICATE-----\n");
     }
     pem
-}
-
-fn has_only_certificate_pem_blocks(value: &str) -> bool {
-    let mut remainder = value.trim();
-    let mut count = 0;
-    const BEGIN: &str = "-----BEGIN CERTIFICATE-----";
-    const END: &str = "-----END CERTIFICATE-----";
-    while !remainder.is_empty() {
-        let Some(after_begin) = remainder.strip_prefix(BEGIN) else {
-            return false;
-        };
-        let Some(end_index) = after_begin.find(END) else {
-            return false;
-        };
-        let body = &after_begin[..end_index];
-        if body.is_empty()
-            || !body.bytes().all(|byte| {
-                byte.is_ascii_alphanumeric()
-                    || matches!(byte, b'+' | b'/' | b'=' | b'\r' | b'\n' | b' ' | b'\t')
-            })
-        {
-            return false;
-        }
-        count += 1;
-        remainder = after_begin[end_index + END.len()..].trim();
-    }
-    count > 0
 }
 
 fn format_timestamp(timestamp: i64) -> Result<String, TrustedCaValidationError> {

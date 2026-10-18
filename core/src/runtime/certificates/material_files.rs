@@ -1,7 +1,7 @@
 use super::scheduling::next_renewal_at;
 use super::validation::{
-    format_timestamp, has_only_pem_blocks, is_certificate_domain, read_regular_private_file,
-    truncate, write_private_file,
+    format_timestamp, is_certificate_domain, read_regular_private_file, truncate,
+    write_private_file,
 };
 use super::{
     CertificateCandidate, CertificateDer, CertificateError, CertificateImportRequest,
@@ -9,6 +9,7 @@ use super::{
     MAX_PRIVATE_KEY_PEM_BYTES, OffsetDateTime, PathBuf, PrivateKeyDer, SafeDir, ServerConfig,
     StoredCertificate, StoredCertificateCandidate, is_canonical_uuid_v7, parse_x509_certificate,
 };
+use crate::pem::has_only_pem_blocks;
 
 use aws_lc_rs::digest::{Context, SHA256, digest};
 use rustls::pki_types::pem::PemObject;

@@ -176,15 +176,7 @@ impl CertificateStore {
         let certificate_entries = std::fs::read_dir(certificates_dir.path())
             .map_err(|_| CertificateError::StoreUnavailable)?;
         for certificate_entry in certificate_entries {
-            let certificate_entry =
-                certificate_entry.map_err(|_| CertificateError::StoreUnavailable)?;
-            let file_type = certificate_entry
-                .file_type()
-                .map_err(|_| CertificateError::StoreUnavailable)?;
-            if !file_type.is_dir() {
-                continue;
-            }
-            let Some(id) = certificate_entry.file_name().to_str().map(str::to_owned) else {
+            let Some(id) = child_directory_name(certificate_entry)? else {
                 continue;
             };
             if !is_canonical_uuid_v7(&id) || !index.certificates.contains_key(&id) {
@@ -204,14 +196,7 @@ impl CertificateStore {
             let versions = std::fs::read_dir(versions_dir.path())
                 .map_err(|_| CertificateError::StoreUnavailable)?;
             for version in versions {
-                let version = version.map_err(|_| CertificateError::StoreUnavailable)?;
-                let file_type = version
-                    .file_type()
-                    .map_err(|_| CertificateError::StoreUnavailable)?;
-                if !file_type.is_dir() {
-                    continue;
-                }
-                let Some(version_id) = version.file_name().to_str().map(str::to_owned) else {
+                let Some(version_id) = child_directory_name(version)? else {
                     continue;
                 };
 
@@ -236,4 +221,18 @@ impl CertificateStore {
         drop(leases);
         Ok(())
     }
+}
+
+fn child_directory_name(
+    entry: std::io::Result<std::fs::DirEntry>,
+) -> Result<Option<String>, CertificateError> {
+    let entry = entry.map_err(|_| CertificateError::StoreUnavailable)?;
+    let file_type = entry
+        .file_type()
+        .map_err(|_| CertificateError::StoreUnavailable)?;
+    Ok(if file_type.is_dir() {
+        entry.file_name().to_str().map(str::to_owned)
+    } else {
+        None
+    })
 }

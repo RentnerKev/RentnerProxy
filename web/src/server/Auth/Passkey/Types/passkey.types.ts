@@ -1,5 +1,6 @@
 import type {
     PublicKeyCredentialCreationOptionsJSON,
+    VerifiedAuthenticationResponse,
     PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/server'
 
@@ -44,3 +45,10 @@ export type SerializablePasskeyAuthenticationOptions = Omit<
 > & {
     readonly extensions?: SerializableWebAuthnExtensions
 }
+
+export interface StoredPasskeyCounter {
+    readonly id: string
+    readonly counter: number
+}
+
+export type VerifiedPasskeyAuthenticationInfo = VerifiedAuthenticationResponse['authenticationInfo']
