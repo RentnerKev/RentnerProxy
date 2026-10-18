@@ -73,7 +73,7 @@ describe('RentnerProxy mail templates', () => {
         expect(template.html).not.toContain('host-header')
     })
 
-    test('contains no trackers, scripts, or external assets', () => {
+    test('loads only the configured public logo without trackers or scripts', () => {
         const template = createUserInviteEmailTemplate({
             appUrl: APP_URL,
             displayName: 'Erika',
@@ -81,7 +81,8 @@ describe('RentnerProxy mail templates', () => {
         })
 
         expect(template.html.match(/<img\b/gi)).toHaveLength(1)
-        expect(template.html).toContain('src="cid:rentnerproxy-logo"')
+        expect(template.html).toContain(`src="${APP_URL}/media/mail-logo/30ee61?v=1"`)
+        expect(template.html).not.toContain('cid:')
         expect(template.html).not.toMatch(/<script\b/i)
         expect(template.html).not.toMatch(/<link\b/i)
         expect(template.html).not.toMatch(/@import|url\s*\(/i)

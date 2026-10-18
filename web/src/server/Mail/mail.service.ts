@@ -19,8 +19,6 @@ import { getPublicOrigin, getSmtpConfiguration } from '@/server/env.server.ts'
 import { createSmtpTransportOptions } from './smtp-options.ts'
 import { createPasswordResetEmailTemplate, createUserInviteEmailTemplate } from './templates.ts'
 import { createNotificationEmailTemplate } from './notification-template.ts'
-import { createMailMessage } from './mail-message.ts'
-import type { MailAppearance } from './Types/mail-theme.types.ts'
 import type { MailTemplate } from './Types/templates.types.ts'
 
 let mailClient: MailClient | null = null
@@ -96,6 +94,8 @@ export async function sendNotificationEmailService(
     const serializedPayload = JSON.stringify(payload, null, 2)
     if (Buffer.byteLength(serializedPayload) > NOTIFICATION_LIMITS.payloadBytes)
         return { success: false, code: 'payload_limit', retryable: false }
+    const appUrl = getPublicOrigin()
+    if (!appUrl) return { success: false, code: 'configuration_unavailable', retryable: false }
     let client: NotificationMailClient | null
     try {
         if (options.createClient) client = options.createClient()
@@ -115,10 +115,10 @@ export async function sendNotificationEmailService(
     if (!client) return { success: false, code: 'smtp_unavailable', retryable: false }
     const activeClient = client
     try {
-        const content = await createMailMessage(
-            createNotificationEmailTemplate(payload, options.appearance),
-            options.appearance,
-        )
+        const content = createNotificationEmailTemplate(payload, {
+            appUrl,
+            appearance: options.appearance,
+        })
         if (signal?.aborted) return { success: false, code: 'cancelled', retryable: false }
         return await new Promise<NotificationDeliveryResult>((resolve) => {
             let finished = false
@@ -147,6 +147,8 @@ export async function sendNotificationEmailService(
                     if (finished) throw new Error('cancelled')
                     return activeClient.sendMail({
                         ...content,
+                        disableFileAccess: true,
+                        disableUrlAccess: true,
                         from: activeClient.from,
                         to: [...recipients],
                         messageId: `<${createHash('sha256').update(payload.id).digest('hex')}@notifications.rentnerproxy>`,
@@ -223,15 +225,13 @@ async function getRequiredPublicOrigin(): Promise<string> {
     return publicOrigin
 }
 
-async function sendMail(
-    to: string,
-    template: MailTemplate,
-    appearance?: MailAppearance,
-): Promise<void> {
+async function sendMail(to: string, template: MailTemplate): Promise<void> {
     const client = getMailClient()
 
     await client.transport.sendMail({
-        ...(await createMailMessage(template, appearance)),
+        ...template,
+        disableFileAccess: true,
+        disableUrlAccess: true,
         from: client.from,
         to,
     })
@@ -250,7 +250,7 @@ export async function sendPasswordResetEmailService({
         appearance,
     })
 
-    await sendMail(to, template, appearance)
+    await sendMail(to, template)
 }
 
 export async function sendUserInviteEmailService({
@@ -266,5 +266,5 @@ export async function sendUserInviteEmailService({
         appearance,
     })
 
-    await sendMail(to, template, appearance)
+    await sendMail(to, template)
 }

@@ -1,9 +1,10 @@
-import { MAIL_LOGO_CID } from '@/config/mail.config.ts'
 import { createMailTheme } from './mail-theme.ts'
+import { createMailLogoUrl } from './mail-url.ts'
 import type { MailLayoutInput } from './Types/mail-theme.types.ts'
 
 export function createMailHtml(input: MailLayoutInput): string {
     const theme = createMailTheme(input.appearance)
+    const logoUrl = Bun.escapeHTML(createMailLogoUrl(input.appUrl, theme.accent))
     return `<!doctype html>
 <html lang="de">
 <head>
@@ -21,7 +22,7 @@ export function createMailHtml(input: MailLayoutInput): string {
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;">
                     <tr>
                         <td style="padding:0 0 20px;">
-                            <img src="cid:${MAIL_LOGO_CID}" alt="RentnerProxy" width="320" height="120" style="display:block;width:320px;max-width:100%;height:auto;border:0;">
+                            <img src="${logoUrl}" alt="RentnerProxy" width="320" height="120" style="display:block;width:320px;max-width:100%;height:auto;border:0;">
                         </td>
                     </tr>
                     <tr>

@@ -15,6 +15,7 @@ export type MailTheme = (typeof MAIL_BASE_THEMES)[UserThemeMode] &
     }>
 
 export type MailLayoutInput = Readonly<{
+    appUrl: string
     heading: string
     eyebrow: string
     preview: string

@@ -45,23 +45,16 @@ test('bundles mail branding into executable SSR without source asset paths', asy
         if (
             typeof bundled !== 'object' ||
             bundled === null ||
-            !('createMailLogoAttachment' in bundled) ||
-            typeof bundled.createMailLogoAttachment !== 'function'
+            !('getMailLogoPng' in bundled) ||
+            typeof bundled.getMailLogoPng !== 'function'
         ) {
             throw new Error('Missing executable mail logo export.')
         }
-        const attachment: unknown = await bundled.createMailLogoAttachment('#ee3030')
-        if (
-            typeof attachment !== 'object' ||
-            attachment === null ||
-            !('content' in attachment) ||
-            !Buffer.isBuffer(attachment.content)
-        ) {
-            throw new Error('The production logo must be an in-memory attachment.')
-        }
-        const image = decode(attachment.content)
+        const content: unknown = await bundled.getMailLogoPng('#ee3030')
+        if (!Buffer.isBuffer(content)) throw new Error('The production logo must be PNG bytes.')
+        const image = decode(content)
         expect([image.width, image.height, image.channels, image.depth]).toEqual([512, 192, 4, 8])
-        expect(attachment.content.length).toBeLessThan(400_000)
+        expect(content.length).toBeLessThan(400_000)
     } finally {
         // Remove only the verified, absolute mkdtemp directory owned by this test.
         await rm(root, { recursive: true, force: true })

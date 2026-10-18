@@ -1,4 +1,6 @@
-export const MAIL_LOGO_CID = 'rentnerproxy-logo'
+export const MAIL_LOGO_PATH = '/media/mail-logo/'
+// Change this version when the logo assets or rasterization change.
+export const MAIL_LOGO_VERSION = '1'
 export const MAIL_LOGO_WIDTH = 512
 export const MAIL_LOGO_HEIGHT = 192
 export const MAIL_LOGO_CACHE_SIZE = 32

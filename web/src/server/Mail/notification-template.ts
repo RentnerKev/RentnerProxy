@@ -2,8 +2,12 @@ import type {
     NotificationCategory,
     NotificationPayload,
 } from '@/lib/Notifications/Types/notifications.types.ts'
-import type { MailTemplate, NotificationMailCategoryDefinition } from './Types/templates.types.ts'
-import type { MailAppearance, MailTheme } from './Types/mail-theme.types.ts'
+import type {
+    MailTemplate,
+    NotificationMailCategoryDefinition,
+    NotificationMailTemplateOptions,
+} from './Types/templates.types.ts'
+import type { MailTheme } from './Types/mail-theme.types.ts'
 import { createMailTheme } from './mail-theme.ts'
 import { createMailHtml } from './layout.ts'
 
@@ -52,8 +56,9 @@ function createDetailRow(label: string, value: string, theme: MailTheme): string
 
 export function createNotificationEmailTemplate(
     payload: NotificationPayload,
-    appearance?: MailAppearance,
+    options: NotificationMailTemplateOptions,
 ): MailTemplate {
+    const { appUrl, appearance } = options
     const theme = createMailTheme(appearance)
     const severityStyle = {
         info: { label: 'Information', color: theme.muted, background: theme.neutral },
@@ -115,6 +120,7 @@ export function createNotificationEmailTemplate(
         `Nachrichten-ID: ${payload.id}`,
     ].join('\n')
     const html = createMailHtml({
+        appUrl,
         heading,
         eyebrow: isTest ? 'E-Mail-Test' : category.label,
         preview: summary,

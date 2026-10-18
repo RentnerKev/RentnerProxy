@@ -4,14 +4,8 @@ import type { DecodedPng } from 'fast-png'
 import logoAsset from '../../../public/rentnerproxy-logo-long.png?inline'
 import maskAsset from '../../../public/rentnerproxy-logo-long-accent-mask.png?inline'
 import { DEFAULT_ACCENT_COLOR } from '@/config/appearance.config.ts'
-import {
-    MAIL_LOGO_CACHE_SIZE,
-    MAIL_LOGO_CID,
-    MAIL_LOGO_HEIGHT,
-    MAIL_LOGO_WIDTH,
-} from '@/config/mail.config.ts'
+import { MAIL_LOGO_CACHE_SIZE, MAIL_LOGO_HEIGHT, MAIL_LOGO_WIDTH } from '@/config/mail.config.ts'
 import { deriveAccentPalette } from '@/lib/Theme/accentPalette.ts'
-import type { MailLogoAttachment } from './Types/mail-logo.types.ts'
 
 const logos = new Map<string, Promise<Buffer>>()
 let sources: Promise<readonly [DecodedPng, DecodedPng]> | undefined
@@ -124,7 +118,7 @@ async function renderLogo(accent: string): Promise<Buffer> {
     )
 }
 
-export async function createMailLogoAttachment(accentColor: string): Promise<MailLogoAttachment> {
+export async function getMailLogoPng(accentColor: string): Promise<Buffer> {
     const accent = deriveAccentPalette(accentColor).accent
     let content = logos.get(accent)
     if (content) {
@@ -142,11 +136,5 @@ export async function createMailLogoAttachment(accentColor: string): Promise<Mai
             if (oldest !== undefined) logos.delete(oldest)
         }
     }
-    return {
-        filename: 'rentnerproxy-logo.png',
-        cid: MAIL_LOGO_CID,
-        content: Buffer.from(await content),
-        contentType: 'image/png',
-        contentDisposition: 'inline',
-    }
+    return Buffer.from(await content)
 }

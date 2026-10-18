@@ -10,8 +10,30 @@ import {
 import { createServer } from 'node:net'
 import type { SendMailOptions } from 'nodemailer'
 import { PAYLOAD } from './Types/transport-test.types.ts'
+import { runBunScript } from '@/tests/Helpers/runBunScript.ts'
 
 describe('notification delivery', () => {
+    test('rejects unavailable public image origins before opening an SMTP transport', async () => {
+        const output = await runBunScript(
+            `
+            process.env.NODE_ENV = 'production'
+            process.env.RENTNERPROXY_PUBLIC_ORIGIN = ''
+            const { sendNotificationEmailService } = await import('./server/Mail/mail.service.ts')
+            const { PAYLOAD } = await import('./tests/server/Notifications/Types/transport-test.types.ts')
+            let created = 0
+            const result = await sendNotificationEmailService(['recipient@example.test'], PAYLOAD, undefined, {
+                createClient: () => { created += 1; throw new Error('No transport should be opened') },
+            })
+            console.log(JSON.stringify({ result, created }))
+        `,
+            { cwd: new URL('../../..', import.meta.url) },
+        )
+        expect(JSON.parse(output)).toEqual({
+            result: { success: false, code: 'configuration_unavailable', retryable: false },
+            created: 0,
+        })
+    })
+
     test('validates recipients and never exposes destination exceptions', async () => {
         await Promise.all(
             [[], ['A <a@example.com>'], ['a@example.com\r\nBcc:b@example.com']].map(
@@ -109,10 +131,9 @@ describe('notification delivery', () => {
         expect(closed).toBe(2)
         expect(sent[0]?.html).toContain('&lt;img')
         expect(sent[0]?.html).not.toContain('<img src="file:///private">')
-        expect(sent[0]?.html).toContain('src="cid:rentnerproxy-logo"')
-        expect(sent[0]?.attachments).toHaveLength(1)
-        expect(sent[0]?.attachments?.[0]?.cid).toBe('rentnerproxy-logo')
-        expect(Buffer.isBuffer(sent[0]?.attachments?.[0]?.content)).toBe(true)
+        expect(sent[0]?.html).toContain('/media/mail-logo/30ee61?v=1')
+        expect(sent[0]?.html).not.toContain('cid:')
+        expect(sent[0]?.attachments).toBeUndefined()
         expect(sent[0]?.subject).toBe('RentnerProxy: DDNS-Aktualisierung fehlgeschlagen')
         expect(sent[0]?.text).toContain('Ressourcen-ID: <img src="file:///private">')
         expect(sent[0]?.html).not.toContain('<pre>')

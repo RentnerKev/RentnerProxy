@@ -5,6 +5,7 @@ import type {
 } from './Types/templates.types.ts'
 import { createMailHtml } from './layout.ts'
 import { createMailTheme } from './mail-theme.ts'
+import { createMailUrl } from './mail-url.ts'
 
 const PASSWORD_RESET_DEFINITION: ActionMailDefinition = {
     path: '/reset-password',
@@ -31,25 +32,7 @@ function createActionUrl(appUrl: string, path: ActionMailDefinition['path'], tok
         throw new Error('A mail action token is required.')
     }
 
-    let configuredAppUrl: URL
-
-    try {
-        configuredAppUrl = new URL(appUrl)
-    } catch {
-        throw new Error('RENTNERPROXY_PUBLIC_ORIGIN is invalid.')
-    }
-
-    if (
-        (configuredAppUrl.protocol !== 'http:' && configuredAppUrl.protocol !== 'https:') ||
-        configuredAppUrl.username ||
-        configuredAppUrl.password ||
-        !configuredAppUrl.hostname
-    ) {
-        throw new Error('RENTNERPROXY_PUBLIC_ORIGIN is invalid.')
-    }
-
-    const actionUrl = new URL(path, configuredAppUrl)
-    actionUrl.search = ''
+    const actionUrl = createMailUrl(appUrl, path)
     actionUrl.hash = `token=${encodeURIComponent(token)}`
 
     return actionUrl.toString()
@@ -89,6 +72,7 @@ function createActionMailTemplate(
     ].join('\n')
 
     const html = createMailHtml({
+        appUrl: input.appUrl,
         heading: definition.heading,
         eyebrow: 'Dein Konto',
         preview: definition.introduction,

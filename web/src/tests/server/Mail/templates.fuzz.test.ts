@@ -81,7 +81,10 @@ describe('mail template property fuzzing', () => {
                     expect(tokenParameter).toBe(token)
                     expect(template.html).toContain(Bun.escapeHTML(greeting))
                     expect(template.html.match(/<img\b/gi)).toHaveLength(1)
-                    expect(template.html).toContain('src="cid:rentnerproxy-logo"')
+                    expect(template.html).toContain(
+                        `src="${MAIL_APP_ORIGIN}/media/mail-logo/30ee61?v=1"`,
+                    )
+                    expect(template.html).not.toContain('cid:')
                     expect(template.html).not.toMatch(/<(script|iframe|link)\b/i)
                     expect(unrecognizedAmpersands).not.toMatch(/[&<>"']/)
                 },

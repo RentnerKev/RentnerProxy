@@ -43,6 +43,7 @@ import { Route as PublicLoginIndexRouteImport } from './routes/_public/login.ind
 import { Route as PublicLoginTwoFactorRouteImport } from './routes/_public/login.two-factor'
 import { Route as ApiMigrationExportRouteImport } from './routes/api/migration/export'
 import { Route as MediaAvatarsUserIdRouteImport } from './routes/media/avatars/$userId'
+import { Route as MediaMailLogoAccentRouteImport } from './routes/media/mail-logo/$accent'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -218,6 +219,11 @@ const MediaAvatarsUserIdRoute = MediaAvatarsUserIdRouteImport.update({
   path: '/media/avatars/$userId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MediaMailLogoAccentRoute = MediaMailLogoAccentRouteImport.update({
+  id: '/media/mail-logo/$accent',
+  path: '/media/mail-logo/$accent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -251,6 +257,7 @@ export interface FileRoutesByFullPath {
   '/login/two-factor': typeof PublicLoginTwoFactorRoute
   '/api/migration/export': typeof ApiMigrationExportRoute
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
+  '/media/mail-logo/$accent': typeof MediaMailLogoAccentRoute
   '/login/': typeof PublicLoginIndexRoute
 }
 export interface FileRoutesByTo {
@@ -284,6 +291,7 @@ export interface FileRoutesByTo {
   '/login/two-factor': typeof PublicLoginTwoFactorRoute
   '/api/migration/export': typeof ApiMigrationExportRoute
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
+  '/media/mail-logo/$accent': typeof MediaMailLogoAccentRoute
   '/login': typeof PublicLoginIndexRoute
 }
 export interface FileRoutesById {
@@ -321,6 +329,7 @@ export interface FileRoutesById {
   '/_public/login/two-factor': typeof PublicLoginTwoFactorRoute
   '/api/migration/export': typeof ApiMigrationExportRoute
   '/media/avatars/$userId': typeof MediaAvatarsUserIdRoute
+  '/media/mail-logo/$accent': typeof MediaMailLogoAccentRoute
   '/_public/login/': typeof PublicLoginIndexRoute
 }
 export interface FileRouteTypes {
@@ -357,6 +366,7 @@ export interface FileRouteTypes {
     | '/login/two-factor'
     | '/api/migration/export'
     | '/media/avatars/$userId'
+    | '/media/mail-logo/$accent'
     | '/login/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -390,6 +400,7 @@ export interface FileRouteTypes {
     | '/login/two-factor'
     | '/api/migration/export'
     | '/media/avatars/$userId'
+    | '/media/mail-logo/$accent'
     | '/login'
   id:
     | '__root__'
@@ -426,6 +437,7 @@ export interface FileRouteTypes {
     | '/_public/login/two-factor'
     | '/api/migration/export'
     | '/media/avatars/$userId'
+    | '/media/mail-logo/$accent'
     | '/_public/login/'
   fileRoutesById: FileRoutesById
 }
@@ -438,6 +450,7 @@ export interface RootRouteChildren {
   HealthLiveRoute: typeof HealthLiveRoute
   HealthReadyRoute: typeof HealthReadyRoute
   MediaAvatarsUserIdRoute: typeof MediaAvatarsUserIdRoute
+  MediaMailLogoAccentRoute: typeof MediaMailLogoAccentRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -680,6 +693,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MediaAvatarsUserIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/media/mail-logo/$accent': {
+      id: '/media/mail-logo/$accent'
+      path: '/media/mail-logo/$accent'
+      fullPath: '/media/mail-logo/$accent'
+      preLoaderRoute: typeof MediaMailLogoAccentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -783,6 +803,7 @@ const rootRouteChildren: RootRouteChildren = {
   HealthLiveRoute: HealthLiveRoute,
   HealthReadyRoute: HealthReadyRoute,
   MediaAvatarsUserIdRoute: MediaAvatarsUserIdRoute,
+  MediaMailLogoAccentRoute: MediaMailLogoAccentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { createMailTheme } from '@/server/Mail/mail-theme.ts'
-import { createMailMessage } from '@/server/Mail/mail-message.ts'
+import { createTransport } from 'nodemailer'
 import { createNotificationEmailTemplate } from '@/server/Mail/notification-template.ts'
 import {
     createPasswordResetEmailTemplate,
@@ -21,10 +21,10 @@ describe('personalized common mail design', () => {
             const templates = [
                 createPasswordResetEmailTemplate({ ...action, appearance }),
                 createUserInviteEmailTemplate({ ...action, appearance }),
-                createNotificationEmailTemplate(PAYLOAD, appearance),
+                createNotificationEmailTemplate(PAYLOAD, { appUrl: action.appUrl, appearance }),
                 createNotificationEmailTemplate(
                     { ...PAYLOAD, type: 'recovery', code: 'operation_recovered' },
-                    appearance,
+                    { appUrl: action.appUrl, appearance },
                 ),
                 createNotificationEmailTemplate(
                     {
@@ -34,7 +34,7 @@ describe('personalized common mail design', () => {
                         severity: 'info',
                         failures: 0,
                     },
-                    appearance,
+                    { appUrl: action.appUrl, appearance },
                 ),
             ]
             for (const template of templates) {
@@ -43,7 +43,7 @@ describe('personalized common mail design', () => {
                 expect(template.html).toContain(`background:${theme.surface}`)
                 expect(template.html).toContain(`color:${theme.accentText}`)
                 expect(template.html.match(/<img\b/gi)).toHaveLength(1)
-                expect(template.html).toContain('src="cid:rentnerproxy-logo"')
+                expect(template.html).toContain(`src="${action.appUrl}/media/mail-logo/8844ee?v=1"`)
                 expect(template.html).not.toContain('#30ee61')
                 expect(template.text).not.toContain('cid:')
             }
@@ -79,32 +79,39 @@ describe('personalized common mail design', () => {
         expect(template.html).not.toMatch(/url\s*\(/i)
     })
 
-    test('embeds the chosen logo in every outgoing message without cross-user color reuse', async () => {
+    test('uses recipient-colored external logos and creates no image attachments in outgoing MIME', async () => {
         const green: MailAppearance = { themeMode: 'light', accentColor: '#30ee61' }
         const purple: MailAppearance = { themeMode: 'dark', accentColor: '#8844ee' }
-        const first = await createMailMessage(
-            createPasswordResetEmailTemplate({ ...action, appearance: green }),
-            green,
+        const first = createPasswordResetEmailTemplate({ ...action, appearance: green })
+        const second = createNotificationEmailTemplate(PAYLOAD, {
+            appUrl: action.appUrl,
+            appearance: purple,
+        })
+        const third = createUserInviteEmailTemplate({ ...action, appearance: purple })
+        const transport = createTransport({ streamTransport: true, buffer: true, newline: 'unix' })
+        await Promise.all(
+            [first, second, third].map(async (message) => {
+                expect(message.html).toContain(`${action.appUrl}/media/mail-logo/`)
+                expect(message.html).not.toContain('cid:')
+                const result = await transport.sendMail({
+                    ...message,
+                    from: 'sender@example.test',
+                    to: 'recipient@example.test',
+                    disableFileAccess: true,
+                    disableUrlAccess: true,
+                })
+                if (!Buffer.isBuffer(result.message))
+                    throw new Error('Expected a local buffered MIME message.')
+                const mime = result.message.toString('utf8')
+                expect(mime).toContain('Content-Type: multipart/alternative;')
+                expect(mime).not.toContain('Content-Type: multipart/related;')
+                expect(mime).not.toContain('Content-Type: image/')
+                expect(mime).not.toContain('Content-ID:')
+                expect(mime).not.toContain('Content-Disposition:')
+            }),
         )
-        const second = await createMailMessage(
-            createNotificationEmailTemplate(PAYLOAD, purple),
-            purple,
-        )
-        const third = await createMailMessage(
-            createUserInviteEmailTemplate({ ...action, appearance: purple }),
-            purple,
-        )
-        for (const message of [first, second, third]) {
-            expect(message.attachments).toHaveLength(1)
-            const logo = message.attachments[0]!
-            expect(message.html).toContain(`src="cid:${logo.cid}"`)
-            expect(logo.contentType).toBe('image/png')
-            expect(logo.contentDisposition).toBe('inline')
-            expect(Buffer.isBuffer(logo.content)).toBe(true)
-            expect(message.disableFileAccess).toBe(true)
-            expect(message.disableUrlAccess).toBe(true)
-        }
-        expect(second.attachments[0]?.content).toEqual(third.attachments[0]?.content)
-        expect(first.attachments[0]?.content).not.toEqual(second.attachments[0]?.content)
+        expect(first.html).toContain('/media/mail-logo/30ee61?v=1')
+        expect(second.html).toContain('/media/mail-logo/8844ee?v=1')
+        expect(third.html).toContain('/media/mail-logo/8844ee?v=1')
     })
 })
