@@ -1,11 +1,16 @@
 import { describe, expect, test } from 'bun:test'
-import { createCipheriv } from 'node:crypto'
+import { createCipheriv, createHash } from 'node:crypto'
 
 import {
+    assertCompatibleBackupHistory,
     assertSupportedBackupVersion,
     decryptBackupSecret,
     isMigrationJournal,
 } from '../../../../../../docker/web/validate-backup.ts'
+import type {
+    BackupMigrationJournal,
+    BackupMigrationRow,
+} from '../../../../../../docker/web/Types/validate-backup.types.ts'
 
 const fixtureKey = Buffer.alloc(32, 3)
 const fixtureIv = Buffer.alloc(12, 4)
@@ -71,6 +76,80 @@ describe('typed backup journal validation', () => {
         [{ entries: [{ tag: '0000_fixture', when: 'invalid-fixture' }] }],
     ])('rejects malformed journal input %#', (input) => {
         expect(isMigrationJournal(input)).toBe(false)
+    })
+})
+
+describe('compatible backup migration prefixes', () => {
+    const migrations = [
+        { tag: 'fixture_beta_base', when: 1_788_000_000_000, sql: 'select 1;\n' },
+        { tag: 'fixture_beta_saved_state', when: 1_788_000_001_000, sql: 'select 2;\n' },
+        { tag: 'fixture_later_target', when: 1_788_000_002_000, sql: 'select 3;\n' },
+    ] as const
+    const journal: BackupMigrationJournal = {
+        entries: migrations.map(({ tag, when }) => ({ tag, when })),
+    }
+    const rows: BackupMigrationRow[] = migrations.map(({ sql, when }) => ({
+        hash: createHash('sha256').update(sql).digest('hex'),
+        created_at: String(when),
+    }))
+    const readMigration = (tag: string): Promise<Uint8Array> => {
+        const migration = migrations.find((entry) => entry.tag === tag)
+        if (!migration) throw new Error('Unexpected synthetic migration')
+        return Promise.resolve(Buffer.from(migration.sql))
+    }
+
+    test('accepts a shorter v4 beta baseline without reading the later target suffix', async () => {
+        assertSupportedBackupVersion({ version: 4 })
+        const requested: string[] = []
+        await assertCompatibleBackupHistory(rows.slice(0, 2), journal, (tag) => {
+            requested.push(tag)
+            return readMigration(tag)
+        })
+        expect(requested).toEqual(['fixture_beta_base', 'fixture_beta_saved_state'])
+    })
+
+    test('continues to accept the complete target history and numeric timestamps', async () => {
+        await expect(
+            assertCompatibleBackupHistory(
+                rows.map((row) => ({ ...row, created_at: BigInt(row.created_at) })),
+                journal,
+                readMigration,
+            ),
+        ).resolves.toBeUndefined()
+    })
+
+    test.each([
+        ['empty', []],
+        ['longer than the target', [...rows, rows[0]!]],
+    ] as const)('rejects %s history before loading SQL', async (_label, input) => {
+        const requested: string[] = []
+        await expect(
+            assertCompatibleBackupHistory(input, journal, (tag) => {
+                requested.push(tag)
+                return readMigration(tag)
+            }),
+        ).rejects.toThrow('unsupported backup database version')
+        expect(requested).toEqual([])
+    })
+
+    test.each([
+        ['modified hash', [{ ...rows[0]!, hash: '0'.repeat(64) }]],
+        ['modified timestamp', [{ ...rows[0]!, created_at: migrations[0].when + 1 }]],
+        ['reordered entries', [rows[1]!, rows[0]!]],
+        ['missing middle entry', [rows[0]!, rows[2]!]],
+        ['duplicate entry', [rows[0]!, rows[0]!]],
+    ] as const)('rejects a %s', async (_label, input) => {
+        await expect(assertCompatibleBackupHistory(input, journal, readMigration)).rejects.toThrow(
+            'backup migration history is incompatible with the target image',
+        )
+    })
+
+    test('rejects SQL content that no longer matches the stored hash', async () => {
+        await expect(
+            assertCompatibleBackupHistory(rows.slice(0, 1), journal, () =>
+                Promise.resolve(Buffer.from('select 999;\n')),
+            ),
+        ).rejects.toThrow('backup migration history is incompatible with the target image')
     })
 })
 
