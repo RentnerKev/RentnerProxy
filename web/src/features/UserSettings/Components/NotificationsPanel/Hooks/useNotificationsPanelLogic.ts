@@ -49,7 +49,7 @@ export default function useNotificationsPanelLogic({ user, active }: Notificatio
     useEffect(() => {
         if (error && lastError.current !== error) {
             lastError.current = error
-            toast.error(t('account.notifications.loadFailed'))
+            toast.error(t('account.notifications.loadFailed'), { title: t('toast.titles.error') })
         }
     }, [error, t])
     const mutation = useMutation({
@@ -65,13 +65,21 @@ export default function useNotificationsPanelLogic({ user, active }: Notificatio
                 data: { channelId: channel.id, expectedRevision: channel.revision },
             }),
         onSuccess: async (result) => {
-            if (!result.success) toast.error(t(result.message))
+            if (!result.success) toast.error(t(result.message), { title: t('toast.titles.error') })
             else if (!result.value.success)
-                toast.error(t(`account.notifications.errors.${result.value.code}`))
-            else toast.success(t('account.notifications.testSent'))
+                toast.error(t(`account.notifications.errors.${result.value.code}`), {
+                    title: t('toast.titles.error'),
+                })
+            else
+                toast.success(t('account.notifications.testSent'), {
+                    title: t('toast.titles.success'),
+                })
             await client.invalidateQueries({ queryKey })
         },
-        onError: () => toast.error(t('account.notifications.actionFailed')),
+        onError: () =>
+            toast.error(t('account.notifications.actionFailed'), {
+                title: t('toast.titles.error'),
+            }),
     })
     async function update(
         channels: ChannelInput[],
@@ -92,16 +100,17 @@ export default function useNotificationsPanelLogic({ user, active }: Notificatio
                             ? 'account.notifications.conflict'
                             : result.message,
                     ),
+                    { title: t('toast.titles.error') },
                 )
                 await client.invalidateQueries({ queryKey })
                 return false
             }
             client.setQueryData([...queryKey, 'settings'], result.value)
-            toast.success(t('account.notifications.saved'))
+            toast.success(t('account.notifications.saved'), { title: t('toast.titles.success') })
             await client.invalidateQueries({ queryKey })
             return true
         } catch {
-            toast.error(t('account.notifications.actionFailed'))
+            toast.error(t('account.notifications.actionFailed'), { title: t('toast.titles.error') })
             return false
         }
     }

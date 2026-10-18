@@ -41,7 +41,9 @@ export default function useChannelEditorLogic(props: ChannelEditorProps) {
                     (category) => !props.settings.allowedCategories.includes(category),
                 )
             ) {
-                toast.error(t('account.notifications.invalidInput'))
+                toast.error(t('account.notifications.invalidInput'), {
+                    title: t('toast.titles.error'),
+                })
                 return
             }
             const channel: ChannelInput = {
@@ -64,7 +66,9 @@ export default function useChannelEditorLogic(props: ChannelEditorProps) {
                         !recipients.length ||
                         recipients.some((item) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(item))
                     ) {
-                        toast.error(t('account.notifications.invalidInput'))
+                        toast.error(t('account.notifications.invalidInput'), {
+                            title: t('toast.titles.error'),
+                        })
                         return
                     }
                     channel.destination = { kind: 'email', recipients }
@@ -73,7 +77,9 @@ export default function useChannelEditorLogic(props: ChannelEditorProps) {
                         const url = new URL(value.url)
                         if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error()
                     } catch {
-                        toast.error(t('account.notifications.invalidInput'))
+                        toast.error(t('account.notifications.invalidInput'), {
+                            title: t('toast.titles.error'),
+                        })
                         return
                     }
                     channel.destination = {
@@ -90,7 +96,9 @@ export default function useChannelEditorLogic(props: ChannelEditorProps) {
                 channel,
             ])
             if (!parsed.success) {
-                toast.error(t('account.notifications.invalidInput'))
+                toast.error(t('account.notifications.invalidInput'), {
+                    title: t('toast.titles.error'),
+                })
                 return
             }
             await props.onSave(parsed.data[0]!, props.editor)
