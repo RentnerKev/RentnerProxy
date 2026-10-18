@@ -26,7 +26,7 @@ const payload = z.strictObject({
     schemaVersion: z.literal(1),
     id: identifier,
     incidentId: identifier,
-    type: z.enum(['incident', 'recovery']),
+    type: z.enum(['incident', 'recovery', 'test']),
     category: z.enum(NOTIFICATION_CATEGORIES),
     severity: z.enum([...NOTIFICATION_SEVERITIES, 'info']),
     resourceId: z.string().min(1).max(512),
@@ -35,6 +35,7 @@ const payload = z.strictObject({
         'ddns_update_failed',
         'proxy_apply_failed',
         'operation_recovered',
+        'notification_test',
     ]),
     occurredAt: z.iso.datetime(),
     startedAt: z.iso.datetime(),
@@ -75,7 +76,7 @@ export const notificationStateSchema: z.ZodType<NotificationState> = z
                                 recovery: admission.nullable(),
                             }),
                         )
-                        .max(NOTIFICATION_LIMITS.channels),
+                        .max(NOTIFICATION_LIMITS.totalChannels),
                 }),
             )
             .max(NOTIFICATION_LIMITS.incidents),

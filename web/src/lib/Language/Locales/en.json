@@ -328,7 +328,8 @@
             "password": "Password",
             "twoFactor": "Two-factor",
             "passkeys": "Passkeys",
-            "appearance": "Appearance"
+            "appearance": "Appearance",
+            "notifications": "Notifications"
         },
         "page": {
             "eyebrow": "Your account",
@@ -517,6 +518,101 @@
         "validation": {
             "passwordsDoNotMatch": "Passwords do not match.",
             "authenticatorCode": "Enter the six-digit code from your authenticator app."
+        },
+        "notifications": {
+            "title": "Notifications",
+            "description": "Choose where your notifications are sent and which events matter to you.",
+            "create": "Add channel",
+            "edit": "Edit channel",
+            "delete": "Delete",
+            "deleteTitle": "Delete channel?",
+            "deleteDescription": "Delete “{{name}}” and cancel its pending deliveries?",
+            "editorDescription": "Set the destination and event policy for this channel.",
+            "name": "Channel name",
+            "kind": "Destination type",
+            "email": "Email",
+            "webhook": "Webhook",
+            "events": "Events",
+            "minimumSeverity": "Minimum severity",
+            "thresholdSeconds": "Minimum incident duration (seconds)",
+            "enabled": "Enabled",
+            "disabled": "Disabled",
+            "recovery": "Send recovery notifications",
+            "replaceDestination": "Replace destination",
+            "keepDestination": "The saved destination and bearer token stay unchanged unless you replace the destination. Saved secrets are never displayed.",
+            "recipients": "Recipients (comma separated)",
+            "url": "Webhook URL",
+            "token": "New bearer token (optional)",
+            "tokenHint": "When replacing the destination, an empty token removes the saved token.",
+            "cidrs": "Allowed private networks (CIDRs, comma separated)",
+            "paused": "Delivery is paused after a restore.",
+            "runtimeOff": "Notification delivery is disabled by the administrator.",
+            "contactAdmin": "Contact an administrator to enable delivery.",
+            "resume": "Resume delivery",
+            "smtpMissing": "Email delivery requires SMTP configuration by an administrator.",
+            "destinationSaved": "Destination saved securely.",
+            "destinationMissing": "No destination configured.",
+            "noCategories": "No event categories are available for your account.",
+            "test": "Send test",
+            "testSent": "Test notification sent.",
+            "saved": "Notification settings saved.",
+            "loadFailed": "Could not load notifications.",
+            "unavailable": "Notifications are currently unavailable.",
+            "actionFailed": "The notification action failed. Your draft remains open.",
+            "invalidInput": "Enter a name, at least one event, a valid duration and a complete destination.",
+            "deliveries": "Deliveries",
+            "deliveriesHint": "Delivery results and incident health are shown separately.",
+            "search": "Search deliveries",
+            "noDeliveries": "No deliveries yet",
+            "noMatches": "No matching deliveries",
+            "deletedChannel": "Deleted channel",
+            "resource": "Resource",
+            "deliveryType": "Type",
+            "incident": "Incident health",
+            "delivery": "Delivery status",
+            "attempts": "Attempts",
+            "updatedAt": "Last update",
+            "deliveryError": "Delivery error",
+            "categories": {
+                "certificate_renewal": "Certificate renewal",
+                "ddns": "Dynamic DNS",
+                "proxy_configuration": "Proxy configuration"
+            },
+            "severities": {
+                "warning": "Warning",
+                "error": "Error",
+                "critical": "Critical"
+            },
+            "types": {
+                "incident": "Incident",
+                "recovery": "Recovery",
+                "test": "Test"
+            },
+            "incidentStates": {
+                "active": "Active incident",
+                "recovered": "Recovered",
+                "test": "Test",
+                "unknown": "Unavailable"
+            },
+            "deliveryStates": {
+                "pending": "Pending",
+                "inflight": "Sending",
+                "succeeded": "Delivered",
+                "failed": "Delivery failed",
+                "cancelled": "Cancelled"
+            },
+            "errors": {
+                "destination_blocked": "Destination blocked",
+                "destination_unavailable": "Destination unavailable",
+                "redirect_denied": "Redirect refused",
+                "http_rejected": "Webhook rejected the request",
+                "smtp_unavailable": "SMTP unavailable",
+                "timeout": "Delivery timed out",
+                "cancelled": "Delivery cancelled",
+                "payload_limit": "Notification too large",
+                "configuration_unavailable": "Configuration unavailable"
+            },
+            "conflict": "Settings have changed. Your draft is preserved. Reopen the channel to reconcile the changes."
         }
     },
     "admin": {

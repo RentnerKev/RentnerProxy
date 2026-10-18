@@ -22,7 +22,8 @@ const {
     useRouterState,
 } = await import('@tanstack/react-router')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
-const { ToastProvider } = await import('@rentnerkev/toasts')
+const { ToastProvider, toast } = await import('@rentnerkev/toasts')
+const successToast = spyOn(toast, 'success').mockReturnValue('notification-ui-test')
 const { TooltipProvider } = await import('@rentnerkev/tooltips/tooltip')
 const { default: withTestLanguage } = await import('@/tests/Helpers/withTestLanguage.tsx')
 const { AccentContext } = await import('@/shared/Theme/accentContext.ts')
@@ -32,6 +33,56 @@ mock.module('@/server/Auth/Core/database.server.ts', () => ({
     },
 }))
 const settingsServer = await import('@/features/UserSettings/middleware.ts')
+const notificationServer = await import('@/features/UserSettings/Notifications/middleware.ts')
+const notificationSettings = spyOn(
+    notificationServer,
+    'getPersonalNotificationSettingsHandler',
+).mockResolvedValue({
+    configuration: {
+        version: 1,
+        revision: 0,
+        enabled: true,
+        pausedAfterRestore: false,
+        channels: [],
+    },
+    allowedCategories: ['ddns'],
+    canUsePrivateDestinations: false,
+    canResumeDelivery: false,
+    smtpConfigured: true,
+})
+const notificationStatus = spyOn(
+    notificationServer,
+    'getPersonalNotificationStatusHandler',
+).mockResolvedValue({
+    incidents: [],
+    deliveries: [],
+    pendingCount: 0,
+    deferredCount: 0,
+    saturationCount: 0,
+})
+const updateNotifications = spyOn(
+    notificationServer,
+    'updatePersonalNotificationConfigurationHandler',
+).mockResolvedValue({
+    success: true,
+    value: {
+        configuration: {
+            version: 1,
+            revision: 1,
+            enabled: true,
+            pausedAfterRestore: false,
+            channels: [],
+        },
+        allowedCategories: ['ddns'],
+        canResumeDelivery: false,
+        canUsePrivateDestinations: false,
+        smtpConfigured: true,
+    },
+})
+const testNotification = spyOn(
+    notificationServer,
+    'testPersonalNotificationChannelHandler',
+).mockResolvedValue({ success: true, value: { success: true } })
 const securityStatus = spyOn(settingsServer, 'getSecurityStatusHandler').mockResolvedValue({
     passkeys: [],
     recentlyAuthenticated: true,
@@ -166,15 +217,108 @@ afterEach(async () => {
     activeQueryClient = null
     securityStatus.mockClear()
     changePassword.mockClear()
+    notificationSettings.mockClear()
+    notificationStatus.mockClear()
+    updateNotifications.mockClear()
+    testNotification.mockClear()
+    successToast.mockClear()
     document.body.replaceChildren()
 })
 
 afterAll(() => {
     securityStatus.mockRestore()
     changePassword.mockRestore()
+    notificationSettings.mockRestore()
+    notificationStatus.mockRestore()
+    updateNotifications.mockRestore()
+    testNotification.mockRestore()
+    successToast.mockRestore()
 })
 
 describe('user settings navigation', () => {
+    test('lets an administrator resume globally disabled delivery as well as restore-paused delivery', async () => {
+        notificationSettings.mockResolvedValueOnce({
+            configuration: {
+                version: 1,
+                revision: 2,
+                enabled: false,
+                pausedAfterRestore: false,
+                channels: [],
+            },
+            allowedCategories: ['ddns'],
+            canResumeDelivery: true,
+            canUsePrivateDestinations: true,
+            smtpConfigured: true,
+        })
+        const { container } = await render('/account?section=notifications')
+        await waitFor(() => container.textContent!.includes('Resume delivery'))
+        expect(container.textContent).not.toContain('Contact an administrator')
+        await click(
+            [...container.querySelectorAll('button')].find(
+                (button) => button.textContent === 'Resume delivery',
+            )!,
+        )
+        expect(updateNotifications).toHaveBeenCalledWith({
+            data: { expectedRevision: 2, channels: [], resumeDelivery: true },
+        })
+        await waitFor(() => !container.textContent!.includes('Resume delivery'))
+    })
+    test('creates a personal email channel using the signed-in email without sending an automatic test', async () => {
+        const { container } = await render('/account?section=notifications')
+        await waitFor(() => container.textContent!.includes('Add channel'))
+        await click(
+            [...container.querySelectorAll('button')].find(
+                (button) => button.textContent === 'Add channel',
+            )!,
+        )
+        const nameLabel = [
+            ...document.querySelectorAll<HTMLLabelElement>('[role="dialog"] label'),
+        ].find((label) => label.textContent?.includes('Channel name'))!
+        const name = nameLabel.control as HTMLInputElement
+        await setInputValue(name, 'My alerts')
+        await act(async () => {
+            document
+                .querySelector('[role="dialog"] form')!
+                .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+            await Promise.resolve()
+        })
+        expect(updateNotifications).toHaveBeenCalledWith({
+            data: {
+                expectedRevision: 0,
+                channels: [
+                    {
+                        id: expect.any(String),
+                        name: 'My alerts',
+                        kind: 'email',
+                        enabled: true,
+                        events: ['ddns'],
+                        minimumSeverity: 'warning',
+                        thresholdSeconds: 0,
+                        recovery: true,
+                        destination: { kind: 'email', recipients: [testUser.email] },
+                    },
+                ],
+            },
+        })
+        expect(testNotification).not.toHaveBeenCalled()
+        await waitFor(() => !document.querySelector('[role="dialog"]'))
+    })
+    test('opens personal notifications by URL and only fetches when the section is active', async () => {
+        const { container, router } = await render('/account?section=profile')
+        expect(notificationSettings).not.toHaveBeenCalled()
+        expect(notificationStatus).not.toHaveBeenCalled()
+        await click(navigationLink(container, 'Notifications'))
+        await waitFor(() => router.state.location.search.section === 'notifications')
+        await waitFor(
+            () =>
+                !!container.querySelector('button') &&
+                container.textContent!.includes('Add channel'),
+        )
+        expect(activeNavigationLabel(container)).toBe('Notifications')
+        expect(notificationSettings).toHaveBeenCalledTimes(1)
+        expect(notificationStatus).toHaveBeenCalledTimes(1)
+        expect(container.textContent).toContain('No deliveries yet')
+    })
     test('validates the URL section and falls back to the profile section for invalid search', async () => {
         const { container, router } = await render('/account?section=unknown')
 

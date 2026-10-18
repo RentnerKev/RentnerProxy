@@ -96,7 +96,7 @@ describe('notification admin transport', () => {
         expect(await routes[2]!.handle({ data: {} })).toEqual({
             success: false,
             code: 'configuration_conflict',
-            message: 'common.requestFailed',
+            message: 'account.notifications.conflict',
         })
         expect(status).toBe(409)
         failure = new Error('https://private-target.test bearer-private-token')

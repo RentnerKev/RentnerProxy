@@ -10,7 +10,7 @@ export interface NotificationPayload {
     readonly schemaVersion: 1
     readonly id: string
     readonly incidentId: string
-    readonly type: 'incident' | 'recovery'
+    readonly type: 'incident' | 'recovery' | 'test'
     readonly category: NotificationCategory
     readonly severity: NotificationSeverity | 'info'
     readonly resourceId: string
@@ -19,6 +19,7 @@ export interface NotificationPayload {
         | 'ddns_update_failed'
         | 'proxy_apply_failed'
         | 'operation_recovered'
+        | 'notification_test'
     readonly occurredAt: string
     readonly startedAt: string
     readonly failures: number
@@ -56,6 +57,43 @@ export interface NotificationConfiguration {
     readonly enabled: boolean
     readonly pausedAfterRestore: boolean
     readonly channels: readonly NotificationChannelSummary[]
+}
+
+export interface PersonalNotificationSettings {
+    readonly configuration: NotificationConfiguration
+    readonly allowedCategories: readonly NotificationCategory[]
+    readonly canUsePrivateDestinations: boolean
+    readonly canResumeDelivery: boolean
+    readonly smtpConfigured: boolean
+}
+
+export interface NotificationStatus {
+    readonly incidents: readonly {
+        readonly id: string
+        readonly category: NotificationCategory
+        readonly resourceId: string
+        readonly severity: NotificationSeverity
+        readonly startedAt: number
+        readonly observedAt: number
+        readonly failures: number
+        readonly recoveredAt: number | null
+    }[]
+    readonly deliveries: readonly {
+        readonly id: string
+        readonly incidentId: string
+        readonly channelId: string
+        readonly channelRevision: number
+        readonly type: NotificationPayload['type']
+        readonly category: NotificationCategory
+        readonly resourceId: string
+        readonly status: 'pending' | 'inflight' | 'succeeded' | 'failed' | 'cancelled'
+        readonly attempts: number
+        readonly updatedAt: number
+        readonly error: NotificationDeliveryError | null
+    }[]
+    readonly pendingCount: number
+    readonly deferredCount: number
+    readonly saturationCount: number
 }
 
 export interface NotificationObservation {

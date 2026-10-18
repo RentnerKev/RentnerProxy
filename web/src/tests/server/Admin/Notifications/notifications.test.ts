@@ -110,6 +110,111 @@ function setup() {
 }
 
 describe('notification admin authorization and persistence', () => {
+    test.each(['delivery', 'marker'] as const)(
+        'rejects adoption of retired IDs retained by a %s',
+        async (retainedBy) => {
+            const fixture = setup()
+            const personal = {
+                ...initial.channels[0]!,
+                id: '00000000-0000-4000-8000-000000000003',
+                ownerUserId: actorId,
+            }
+            const engine = observeNotificationSignals(
+                createNotificationState(),
+                { ...initial, channels: [personal] },
+                [
+                    {
+                        source: 'snapshot',
+                        category: 'ddns',
+                        resourceId: 'private-resource',
+                        health: 'failing',
+                        severity: 'error',
+                        occurredAt: new Date(1_000).toISOString(),
+                        evidence: 'private',
+                        failures: 1,
+                    },
+                ],
+                1_000,
+                () => crypto.randomUUID(),
+            )
+            if (retainedBy === 'marker') engine.deliveries = []
+            else for (const incident of engine.incidents) incident.channels = []
+            fixture.setEngine(engine)
+            await expect(
+                fixture.service.updateNotificationConfigurationService({
+                    ...input,
+                    channels: [{ ...input.channels[0]!, id: personal.id }],
+                }),
+            ).rejects.toThrow('invalid_input')
+            expect(fixture.dependencies.writeConfiguration).not.toHaveBeenCalled()
+            expect(fixture.dependencies.writeRuntime).not.toHaveBeenCalled()
+        },
+    )
+
+    test('hides personal channels from administrators and preserves them on global edits', async () => {
+        const fixture = setup()
+        const personal = {
+            ...initial.channels[0]!,
+            id: '00000000-0000-4000-8000-000000000003',
+            ownerUserId: actorId,
+            name: 'Private destination',
+        }
+        fixture.setConfiguration({ ...initial, channels: [...initial.channels, personal] })
+        fixture.setEngine(
+            observeNotificationSignals(
+                createNotificationState(),
+                { ...initial, channels: [personal] },
+                [
+                    {
+                        source: 'snapshot',
+                        category: 'ddns',
+                        resourceId: 'private-resource',
+                        health: 'failing',
+                        severity: 'error',
+                        occurredAt: new Date(1_000).toISOString(),
+                        evidence: 'private',
+                        failures: 1,
+                    },
+                ],
+                1_000,
+                () => crypto.randomUUID(),
+            ),
+        )
+        const configuration = await fixture.service.getNotificationConfigurationService()
+        expect(configuration.channels.map((channel) => channel.id)).toEqual([channelId])
+        const status = await fixture.service.getNotificationStatusService()
+        expect(status.incidents).toEqual([])
+        expect(status.deliveries).toEqual([])
+        const updated = await fixture.service.updateNotificationConfigurationService(input)
+        expect(updated.channels.map((channel) => channel.id)).toEqual([channelId])
+        expect(
+            fixture.configuration().channels.find((channel) => channel.id === personal.id),
+        ).toEqual(personal)
+        expect(
+            fixture.dependencies.buildConfiguration.mock.calls[0]?.[0].channels.map(
+                (channel: StoredNotificationConfiguration['channels'][number]) => channel.id,
+            ),
+        ).toEqual([channelId])
+    })
+
+    test('rejects global attempts to reuse another owner’s channel ID', async () => {
+        const fixture = setup()
+        const personal = {
+            ...initial.channels[0]!,
+            id: '00000000-0000-4000-8000-000000000003',
+            ownerUserId: actorId,
+        }
+        fixture.setConfiguration({ ...initial, channels: [...initial.channels, personal] })
+        await expect(
+            fixture.service.updateNotificationConfigurationService({
+                ...input,
+                channels: [{ ...input.channels[0]!, id: personal.id }],
+            }),
+        ).rejects.toThrow('invalid_input')
+        expect(fixture.dependencies.buildConfiguration).not.toHaveBeenCalled()
+        expect(fixture.dependencies.writeConfiguration).not.toHaveBeenCalled()
+    })
+
     test('registers distinct view and manage permissions', () => {
         expect(
             PERMISSION_REGISTRY.some(

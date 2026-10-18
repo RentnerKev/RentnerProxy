@@ -54,6 +54,7 @@ export function getQuickSearchNavigation(
             profile: 'profile',
             language: 'language',
             appearance: 'appearance',
+            notifications: 'notifications',
             password: 'password',
             'two-factor': 'twoFactor',
             passkeys: 'passkeys',

@@ -90,7 +90,7 @@ export function validateNotificationBackupSecrets(key: Buffer, input: unknown): 
             typeof value.enabled !== 'boolean' ||
             typeof value.pausedAfterRestore !== 'boolean' ||
             !Array.isArray(value.channels) ||
-            value.channels.length > 16
+            value.channels.length > 256
         )
             throw new Error()
         const ids = new Set<string>()

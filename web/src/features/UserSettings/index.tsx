@@ -9,6 +9,7 @@ import ProfileImagePanel from './Components/ProfileImagePanel/index.tsx'
 import UserAppearancePanel from './Components/UserAppearancePanel/index.tsx'
 import SecuritySettingsPanel from './Components/SecuritySettingsPanel/index.tsx'
 import UserSettingsNavigation from './Components/UserSettingsNavigation.tsx'
+import NotificationsPanel from './Components/NotificationsPanel/index.tsx'
 import { getUserSettingsPageViewModel } from '@/lib/UserSettings/userSettingsPage.ts'
 import type { UserSettingsPageProps } from './Types/user-settings-component-props.types.ts'
 
@@ -54,6 +55,13 @@ export default function UserSettingsPage({ user, activeSection }: UserSettingsPa
                     </Activity>
                     <Activity mode={activeSection === 'appearance' ? 'visible' : 'hidden'}>
                         <UserAppearancePanel key={user.id} userId={user.id} />
+                    </Activity>
+                    <Activity mode={activeSection === 'notifications' ? 'visible' : 'hidden'}>
+                        <NotificationsPanel
+                            key={user.id}
+                            user={user}
+                            active={activeSection === 'notifications'}
+                        />
                     </Activity>
                 </div>
             </div>

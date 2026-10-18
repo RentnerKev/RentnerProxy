@@ -14,6 +14,7 @@ export const storedNotificationConfigurationSchema = z
         channels: z
             .array(
                 notificationPolicySchema.extend({
+                    ownerUserId: z.uuid().optional(),
                     revision: notificationRevisionSchema.refine((value) => value > 0),
                     destination: z.strictObject({
                         ciphertext: z
@@ -29,7 +30,7 @@ export const storedNotificationConfigurationSchema = z
                     hasAuthorization: z.boolean(),
                 }),
             )
-            .max(NOTIFICATION_LIMITS.channels),
+            .max(NOTIFICATION_LIMITS.totalChannels),
     })
     .superRefine((value, context) => {
         if (value.enabled && value.pausedAfterRestore)
@@ -44,4 +45,14 @@ export const storedNotificationConfigurationSchema = z
                 code: 'custom',
                 message: 'Channel revision exceeds configuration generation',
             })
+        const ownerCounts = new Map<string, number>()
+        for (const channel of value.channels) {
+            const owner = channel.ownerUserId ?? 'global'
+            const count = (ownerCounts.get(owner) ?? 0) + 1
+            ownerCounts.set(owner, count)
+            if (count > NOTIFICATION_LIMITS.channels) {
+                context.addIssue({ code: 'custom', message: 'Too many channels for owner' })
+                break
+            }
+        }
     })

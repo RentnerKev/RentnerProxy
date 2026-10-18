@@ -3,7 +3,14 @@ import '@tanstack/react-start/server-only'
 
 import { randomUUID } from 'node:crypto'
 import type { NotificationDeliveryResult } from '@/lib/Notifications/Types/notifications.types.ts'
+import { PERMISSIONS } from '@/config/permissions.config.ts'
+import {
+    canUsePrivateNotificationDestinations,
+    getAllowedNotificationCategories,
+} from '@/lib/Notifications/notification-access.ts'
+import { resolveActiveUserAccessInTransaction } from '@/server/Auth/Access/rbac.service.ts'
 import { getAuthDatabase } from '@/server/Auth/Core/database.server.ts'
+import { resolveEffectiveNotificationConfigurationInTransaction } from './notification-access.ts'
 import { claimNotificationDelivery, finishNotificationDelivery } from './incident-engine.ts'
 import {
     commitNotificationCollectedBatch,
@@ -34,7 +41,10 @@ export async function claimNotificationCollection(): Promise<NotificationCollect
         return null
     return getAuthDatabase().transaction(async (transaction) => {
         // Always lock configuration before runtime, matching administrative updates and delivery acknowledgements.
-        const configuration = await lockNotificationConfiguration(transaction)
+        const configuration = await resolveEffectiveNotificationConfigurationInTransaction(
+            transaction,
+            await lockNotificationConfiguration(transaction),
+        )
         if (!configuration.enabled || configuration.pausedAfterRestore) return null
         const runtime = await lockNotificationRuntime(transaction)
         const leased = leaseNotificationCollection(runtime, configuration, Date.now(), randomUUID())
@@ -49,7 +59,10 @@ export async function commitNotificationCollection(
     batch: NotificationCollectedBatch,
 ): Promise<boolean> {
     return getAuthDatabase().transaction(async (transaction) => {
-        const configuration = await lockNotificationConfiguration(transaction)
+        const configuration = await resolveEffectiveNotificationConfigurationInTransaction(
+            transaction,
+            await lockNotificationConfiguration(transaction),
+        )
         const runtime = await lockNotificationRuntime(transaction)
         const committed = commitNotificationCollectedBatch(
             runtime,
@@ -71,7 +84,10 @@ export async function claimNextNotificationDelivery(): Promise<NotificationDeliv
     })
     if (!snapshot.enabled || snapshot.pausedAfterRestore) return null
     return getAuthDatabase().transaction(async (transaction) => {
-        const configuration = await lockNotificationConfiguration(transaction)
+        const configuration = await resolveEffectiveNotificationConfigurationInTransaction(
+            transaction,
+            await lockNotificationConfiguration(transaction),
+        )
         const runtime = await lockNotificationRuntime(transaction)
         const result = claimNotificationDelivery(
             runtime.engine,
@@ -97,7 +113,10 @@ export async function acknowledgeNotificationDelivery(
     result: NotificationDeliveryResult,
 ): Promise<void> {
     await getAuthDatabase().transaction(async (transaction) => {
-        const configuration = await lockNotificationConfiguration(transaction)
+        const configuration = await resolveEffectiveNotificationConfigurationInTransaction(
+            transaction,
+            await lockNotificationConfiguration(transaction),
+        )
         const runtime = await lockNotificationRuntime(transaction)
         runtime.engine = finishNotificationDelivery(
             runtime.engine,
@@ -108,4 +127,39 @@ export async function acknowledgeNotificationDelivery(
         )
         await writeNotificationRuntime(transaction, runtime)
     })
+}
+
+export async function authorizeNotificationDelivery(claim: NotificationDeliveryClaim) {
+    return getAuthDatabase().transaction(
+        async (transaction) => {
+            const configuration = await readNotificationConfiguration(transaction)
+            if (!configuration.enabled || configuration.pausedAfterRestore) return null
+            const channel = configuration.channels.find(
+                (candidate) =>
+                    candidate.id === claim.channelId &&
+                    candidate.revision === claim.channelRevision &&
+                    candidate.ownerUserId === claim.channel.ownerUserId &&
+                    candidate.enabled &&
+                    candidate.events.includes(claim.payload.category),
+            )
+            if (!channel) return null
+            if (!channel.ownerUserId) return { channel, allowPrivateDestinations: true }
+            const owner = await resolveActiveUserAccessInTransaction(
+                transaction,
+                channel.ownerUserId,
+            )
+            if (
+                !owner?.permissions.includes(PERMISSIONS.APP_ACCESS) ||
+                !getAllowedNotificationCategories(owner.permissions).includes(
+                    claim.payload.category,
+                )
+            )
+                return null
+            return {
+                channel,
+                allowPrivateDestinations: canUsePrivateNotificationDestinations(owner.permissions),
+            }
+        },
+        { accessMode: 'read only' },
+    )
 }

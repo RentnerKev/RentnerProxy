@@ -104,6 +104,7 @@ export async function buildNotificationConfiguration(
                 throw new NotificationDomainError('configuration_conflict')
             return {
                 ...policy,
+                ...(existing?.ownerUserId ? { ownerUserId: existing.ownerUserId } : {}),
                 revision,
                 destination: destination
                     ? await sealDestination(channel.id, destination)

@@ -44,6 +44,37 @@ function input(): UpdateNotificationConfigurationInput {
 }
 
 describe('notification channel secrets and revisions', () => {
+    test('retains server ownership through edits and never exposes it in public summaries', async () => {
+        const original = await buildNotificationConfiguration(
+            DEFAULT_NOTIFICATION_CONFIGURATION,
+            input(),
+        )
+        const ownerUserId = '00000000-0000-4000-8000-000000000099'
+        const current = {
+            ...original,
+            channels: original.channels.map((channel) =>
+                Object.assign({}, channel, { ownerUserId }),
+            ),
+        }
+        const { destination: _destination, ...policy } = input().channels[0]!
+        const updated = await buildNotificationConfiguration(current, {
+            expectedRevision: current.revision,
+            enabled: true,
+            channels: [{ ...policy, name: 'Changed' }],
+        })
+        expect(storedNotificationConfigurationSchema.safeParse(updated).success).toBeTrue()
+        expect(updated.channels[0]?.ownerUserId).toBe(ownerUserId)
+        expect(JSON.stringify(summarizeNotificationConfiguration(updated))).not.toContain(
+            ownerUserId,
+        )
+        expect(
+            updateNotificationConfigurationSchema.safeParse({
+                ...input(),
+                channels: [{ ...input().channels[0], ownerUserId }],
+            }).success,
+        ).toBeFalse()
+    })
+
     test('encrypts the complete destination and returns a write-only public summary', async () => {
         const stored = await buildNotificationConfiguration(
             DEFAULT_NOTIFICATION_CONFIGURATION,

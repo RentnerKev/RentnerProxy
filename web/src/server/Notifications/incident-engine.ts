@@ -4,6 +4,7 @@ import type {
     NotificationDeliveryResult,
     NotificationObservation,
     NotificationPayload,
+    NotificationStatus,
 } from '@/lib/Notifications/Types/notifications.types.ts'
 import type {
     NotificationIncident,
@@ -28,6 +29,7 @@ function recoveryOwed(
                         channel.id === marker.channelId &&
                         channel.revision === marker.channelRevision &&
                         channel.enabled &&
+                        channel.events.includes(incident.category) &&
                         channel.recovery,
                 ),
         )
@@ -50,6 +52,7 @@ function isActive(delivery: NotificationQueuedDelivery) {
 }
 
 function markTerminal(state: NotificationState, delivery: NotificationQueuedDelivery) {
+    if (delivery.payload.type === 'test') return
     const incident = state.incidents.find((item) => item.id === delivery.payload.incidentId)
     const marker = incident?.channels.find(
         (item) =>
@@ -93,7 +96,8 @@ function reconcile(
                 (channel) =>
                     channel.enabled &&
                     channel.id === delivery.channelId &&
-                    channel.revision === delivery.channelRevision,
+                    channel.revision === delivery.channelRevision &&
+                    channel.events.includes(delivery.payload.category),
             )
         // An admitted network attempt may finish, but cannot be claimed again after policy revocation.
         if (
@@ -104,6 +108,9 @@ function reconcile(
             continue
         if (!allowed) {
             terminate(state, delivery, 'cancelled', nowMs)
+        } else if (delivery.payload.type === 'test') {
+            // A manual test is one attempt, never a delayed background send after a crash.
+            terminate(state, delivery, 'failed', nowMs)
         } else if (
             nowMs - delivery.createdAt >= NOTIFICATION_LIMITS.deliveryLifetimeMs ||
             delivery.attempts >= NOTIFICATION_LIMITS.attempts
@@ -147,7 +154,7 @@ function retryDelay(attempts: number) {
     )
 }
 
-function makeRoom(state: NotificationState) {
+export function reserveNotificationDeliverySlot(state: NotificationState) {
     if (state.deliveries.length < NOTIFICATION_LIMITS.deliveries) return true
     const oldestTerminal = state.deliveries.findIndex((delivery) => !isActive(delivery))
     if (oldestTerminal < 0) return false
@@ -177,7 +184,7 @@ function admit(
     if (!configuration.enabled || configuration.pausedAfterRestore) return
     for (const incident of state.incidents) {
         for (const channel of configuration.channels) {
-            if (!channel.enabled) continue
+            if (!channel.enabled || !channel.events.includes(incident.category)) continue
             let marker = incident.channels.find(
                 (item) =>
                     item.channelId === channel.id && item.channelRevision === channel.revision,
@@ -201,7 +208,7 @@ function admit(
                 )
                     continue
             }
-            if (!makeRoom(state)) {
+            if (!reserveNotificationDeliverySlot(state)) {
                 defer(state)
                 continue
             }
@@ -462,7 +469,8 @@ export function finishNotificationDelivery(
                     (channel) =>
                         channel.enabled &&
                         channel.id === delivery.channelId &&
-                        channel.revision === delivery.channelRevision,
+                        channel.revision === delivery.channelRevision &&
+                        channel.events.includes(delivery.payload.category),
                 )
             const terminalCode = [
                 'destination_blocked',
@@ -472,6 +480,7 @@ export function finishNotificationDelivery(
             ].includes(result.code)
             if (
                 result.retryable &&
+                delivery.payload.type !== 'test' &&
                 !terminalCode &&
                 channelAllowed &&
                 delivery.attempts < NOTIFICATION_LIMITS.attempts &&
@@ -498,7 +507,7 @@ export function finishNotificationDelivery(
     return next
 }
 
-export function summarizeNotificationState(state: NotificationState) {
+export function summarizeNotificationState(state: NotificationState): NotificationStatus {
     return {
         incidents: state.incidents.map(
             ({
@@ -514,6 +523,8 @@ export function summarizeNotificationState(state: NotificationState) {
             channelId: delivery.channelId,
             channelRevision: delivery.channelRevision,
             type: delivery.payload.type,
+            category: delivery.payload.category,
+            resourceId: delivery.payload.resourceId,
             status: delivery.status,
             attempts: delivery.attempts,
             updatedAt: delivery.updatedAt,

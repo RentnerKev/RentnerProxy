@@ -7,6 +7,7 @@ export interface EncryptedNotificationDestination {
 }
 
 export interface StoredNotificationChannel extends NotificationChannelPolicy {
+    readonly ownerUserId?: string | undefined
     readonly destination: EncryptedNotificationDestination
     readonly hasAuthorization: boolean
 }

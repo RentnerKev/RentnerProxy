@@ -78,3 +78,21 @@ export const updateNotificationConfigurationSchema = z
         )
             context.addIssue({ code: 'custom', message: 'Duplicate channel' })
     })
+
+export const updatePersonalNotificationConfigurationSchema = z
+    .strictObject({
+        expectedRevision: notificationRevisionSchema,
+        channels: updateNotificationConfigurationSchema.shape.channels,
+        resumeDelivery: z.boolean().optional(),
+    })
+    .refine(
+        (configuration) =>
+            new Set(configuration.channels.map((channel) => channel.id)).size ===
+            configuration.channels.length,
+        'Duplicate channel',
+    )
+
+export const testPersonalNotificationChannelSchema = z.strictObject({
+    expectedRevision: notificationRevisionSchema,
+    channelId: notificationIdSchema,
+})

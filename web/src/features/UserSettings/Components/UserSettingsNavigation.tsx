@@ -1,5 +1,13 @@
 import { Link } from '@tanstack/react-router'
-import { Fingerprint, Globe, LockKeyhole, Palette, ShieldCheck, UserRound } from 'lucide-react'
+import {
+    Bell,
+    Fingerprint,
+    Globe,
+    LockKeyhole,
+    Palette,
+    ShieldCheck,
+    UserRound,
+} from 'lucide-react'
 
 import useTranslationStore from '@/shared/Language/Hooks/useTranslationStore.ts'
 import UserAvatar from '@/shared/Avatar/Components/UserAvatar.tsx'
@@ -12,6 +20,7 @@ const groups = [
             { section: 'profile', label: 'account.navigation.profile', icon: UserRound },
             { section: 'language', label: 'account.navigation.language', icon: Globe },
             { section: 'appearance', label: 'account.navigation.appearance', icon: Palette },
+            { section: 'notifications', label: 'account.navigation.notifications', icon: Bell },
         ],
     },
     {

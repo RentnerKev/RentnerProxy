@@ -9,6 +9,7 @@ export const NOTIFICATION_STATE_KEY = 'notification_delivery_state_v1'
 export const NOTIFICATION_SECRET_CONTEXT = 'rentnerproxy:notifications:v1:'
 export const NOTIFICATION_LIMITS = {
     channels: 16,
+    totalChannels: 256,
     incidents: 1_024,
     deliveries: 256,
     payloadBytes: 16_384,
